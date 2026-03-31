@@ -2,11 +2,12 @@
 // Card showing days since last lesson for student grid view
 
 import SwiftUI
+import CoreData
 
-// MARK: - Last Lesson Student Card
+// MARK: - Last CDLesson CDStudent Card
 
 struct LastLessonStudentCard: View {
-    let student: Student
+    let student: CDStudent
     let days: Int
 
     @State private var bob = false

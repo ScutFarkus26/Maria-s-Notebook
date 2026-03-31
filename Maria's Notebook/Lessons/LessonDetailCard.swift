@@ -1,5 +1,4 @@
 import SwiftUI
-import SwiftData
 import CoreData
 import UniformTypeIdentifiers
 import OSLog
@@ -10,13 +9,13 @@ import AppKit
 struct LessonDetailCard: View {
     static let logger = Logger.lessons
 
-    var lesson: Lesson
-    var onSave: (Lesson) -> Void
+    var lesson: CDLesson
+    var onSave: (CDLesson) -> Void
     var onClose: () -> Void
-    var onGiveLesson: ((Lesson) -> Void)?
+    var onGiveLesson: ((CDLesson) -> Void)?
     var initialMode: LessonDetailInitialMode = .normal
 
-    @Environment(\.modelContext) var modelContext
+    @Environment(\.managedObjectContext) var viewContext
     @Environment(\.managedObjectContext) var managedObjectContext
     @Environment(SaveCoordinator.self) var saveCoordinator
 
@@ -100,10 +99,10 @@ struct LessonDetailCard: View {
             }
             migrateLegacyLinkedFileIfNeeded()
         }
-        .alert("Delete Lesson?", isPresented: $showDeleteAlert) {
+        .alert("Delete CDLesson?", isPresented: $showDeleteAlert) {
             Button("Delete", role: .destructive) {
-                modelContext.delete(lesson)
-                saveCoordinator.save(modelContext, reason: "Delete lesson")
+                viewContext.delete(lesson)
+                saveCoordinator.save(viewContext, reason: "Delete lesson")
                 onClose()
             }
             Button("Cancel", role: .cancel) {}
@@ -151,9 +150,10 @@ struct LessonDetailCard: View {
                 let needsAccess = pickedURL.startAccessingSecurityScopedResource()
                 defer { if needsAccess { pickedURL.stopAccessingSecurityScopedResource() } }
                 do {
+                    guard let lessonID = lesson.id else { return }
                     let destURL = try LessonFileStorage.importFile(
                         from: pickedURL,
-                        forLessonWithID: lesson.id,
+                        forLessonWithID: lessonID,
                         lessonName: lesson.name
                     )
                     let bookmark = try LessonFileStorage.makeBookmark(for: destURL)
@@ -170,7 +170,7 @@ struct LessonDetailCard: View {
                         lesson.pagesFileRelativePath = rel
                         resolvedPagesURL = destURL
                         previousManagedURL = destURL
-                        saveCoordinator.save(modelContext, reason: "Import lesson Pages file")
+                        saveCoordinator.save(viewContext, reason: "Import lesson Pages file")
                     }
                 } catch {
                     await MainActor.run { importError = error.localizedDescription }
@@ -185,13 +185,14 @@ struct LessonDetailCard: View {
 }
 
 #Preview {
-    let container = ModelContainer.preview
-    let ctx = container.mainContext
-    let lesson = Lesson(
-        name: "Decimal System", subject: "Math", group: "Number Work",
-        subheading: "Intro to base-10", writeUp: "A foundational presentation."
-    )
-    ctx.insert(lesson)
+    let ctx = CoreDataStack.preview.viewContext
+    let lesson = CDLesson(context: ctx)
+    lesson.name = "Decimal System"
+    lesson.subject = "Math"
+    lesson.group = "Number Work"
+    lesson.subheading = "Intro to base-10"
+    lesson.writeUp = "A foundational presentation."
+
     return LessonDetailCard(lesson: lesson, onSave: { _ in }, onClose: {})
-        .previewEnvironment(using: container)
+        .previewEnvironment()
 }

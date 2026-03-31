@@ -1,6 +1,6 @@
 // swiftlint:disable file_length
 import SwiftUI
-import SwiftData
+import CoreData
 
 // Unified sheet for recording a presentation with per-student notes, assignments, and group observations.
 // This sheet stays open until the user clicks Done AND the status is valid (Just Presented or Previously Presented).
@@ -51,7 +51,7 @@ struct UnifiedPostPresentationSheet: View {
 
     // MARK: - Input
 
-    let students: [Student]
+    let students: [CDStudent]
     let lessonName: String
     let lessonID: UUID?
     let initialStatus: PresentationStatus
@@ -66,10 +66,10 @@ struct UnifiedPostPresentationSheet: View {
     @State private var viewModel: PostPresentationFormViewModel
 
     @Environment(\.dismiss) private var dismiss
-    @Environment(\.modelContext) private var modelContext
+    @Environment(\.managedObjectContext) private var viewContext
 
-    @Query(sort: \Lesson.sortIndex) private var lessons: [Lesson]
-    @Query private var lessonAssignments: [LessonAssignment]
+    @FetchRequest(sortDescriptors: [NSSortDescriptor(keyPath: \CDLesson.sortIndex, ascending: true)]) private var lessons: FetchedResults<CDLesson>
+    @FetchRequest(sortDescriptors: []) private var lessonAssignments: FetchedResults<CDLessonAssignment>
 
     #if os(iOS)
     @Environment(\.horizontalSizeClass) private var horizontalSizeClass
@@ -78,7 +78,7 @@ struct UnifiedPostPresentationSheet: View {
     // MARK: - Init
 
     init(
-        students: [Student],
+        students: [CDStudent],
         lessonName: String,
         lessonID: UUID? = nil,
         initialStatus: PresentationStatus = .justPresented,
@@ -103,7 +103,7 @@ struct UnifiedPostPresentationSheet: View {
         viewModel.canDismiss
     }
 
-    private var sortedStudents: [Student] {
+    private var sortedStudents: [CDStudent] {
         students.sorted(by: StudentSortComparator.byFirstName)
     }
     
@@ -137,13 +137,13 @@ struct UnifiedPostPresentationSheet: View {
                     Divider()
                         .padding(.horizontal, AppTheme.Spacing.medium)
 
-                    // Student Entries Section
+                    // CDStudent Entries Section
                     studentEntriesSection
 
                     Divider()
                         .padding(.horizontal, AppTheme.Spacing.medium)
 
-                    // Next Lesson Section
+                    // Next CDLesson Section
                     if viewModel.nextLesson != nil {
                         NextLessonSection(viewModel: viewModel)
                             .padding(.horizontal, AppTheme.Spacing.medium)
@@ -166,12 +166,12 @@ struct UnifiedPostPresentationSheet: View {
         }
         .onAppear {
             if let lessonID {
-                let studentIDs = Set(students.map(\.id))
+                let studentIDs = Set(students.compactMap(\.id))
                 viewModel.resolveNextLesson(
                     lessonID: lessonID,
                     studentIDs: studentIDs,
-                    lessons: lessons,
-                    lessonAssignments: lessonAssignments
+                    lessons: Array(lessons),
+                    lessonAssignments: Array(lessonAssignments)
                 )
             }
         }
@@ -370,12 +370,12 @@ struct UnifiedPostPresentationSheet: View {
         }
     }
 
-    // MARK: - Student Entries Section
+    // MARK: - CDStudent Entries Section
 
     private var studentEntriesSection: some View {
         VStack(alignment: .leading, spacing: AppTheme.Spacing.compact) {
             HStack {
-                Label("Student Status & Notes", systemImage: "person.2.fill")
+                Label("CDStudent Status & Notes", systemImage: "person.2.fill")
                     .font(AppTheme.ScaledFont.calloutSemibold)
                     .foregroundStyle(.secondary)
 
@@ -397,35 +397,36 @@ struct UnifiedPostPresentationSheet: View {
         .padding(.horizontal, AppTheme.Spacing.medium)
     }
 
-    private func studentEntryRow(for student: Student) -> some View {
-        PresentationStudentRow(
+    private func studentEntryRow(for student: CDStudent) -> some View {
+        let studentID = student.id ?? UUID()
+        return PresentationStudentRow(
             student: student,
             entry: Binding(
                 get: {
-                    viewModel.entries[student.id]
-                        ?? StudentEntry(id: student.id, name: StudentFormatter.displayName(for: student))
+                    viewModel.entries[studentID]
+                        ?? StudentEntry(id: studentID, name: StudentFormatter.displayName(for: student))
                 },
-                set: { viewModel.entries[student.id] = $0 }
+                set: { viewModel.entries[studentID] = $0 }
             ),
             isExpanded: Binding(
-                get: { viewModel.expandedStudentIDs.contains(student.id) },
+                get: { viewModel.expandedStudentIDs.contains(studentID) },
                 set: {
                     if $0 {
-                        viewModel.expandedStudentIDs.insert(student.id)
+                        viewModel.expandedStudentIDs.insert(studentID)
                     } else {
-                        viewModel.expandedStudentIDs.remove(student.id)
+                        viewModel.expandedStudentIDs.remove(studentID)
                     }
                 }
             ),
             suggestedWorkItems: suggestedWorkItems,
-            nextLesson: findNextLesson(for: student.id),
+            nextLesson: findNextLesson(for: studentID),
             isUnlockSelected: Binding(
-                get: { viewModel.studentsToUnlock.contains(student.id) },
+                get: { viewModel.studentsToUnlock.contains(studentID) },
                 set: {
                     if $0 {
-                        viewModel.studentsToUnlock.insert(student.id)
+                        viewModel.studentsToUnlock.insert(studentID)
                     } else {
-                        viewModel.studentsToUnlock.remove(student.id)
+                        viewModel.studentsToUnlock.remove(studentID)
                     }
                 }
             ),
@@ -434,7 +435,7 @@ struct UnifiedPostPresentationSheet: View {
         )
     }
 
-    private func existingLessonAssignments(for studentID: UUID, nextLessonID: UUID) -> [LessonAssignment] {
+    private func existingLessonAssignments(for studentID: UUID, nextLessonID: UUID) -> [CDLessonAssignment] {
         lessonAssignments.filter { la in
             la.lessonIDUUID == nextLessonID &&
             la.studentUUIDs.contains(studentID)
@@ -454,17 +455,18 @@ struct UnifiedPostPresentationSheet: View {
         return (currentLessonID, viewModel.studentsToUnlock)
     }
 
-    private func findNextLesson(for studentID: UUID) -> Lesson? {
+    private func findNextLesson(for studentID: UUID) -> CDLesson? {
         guard let currentLessonID = lessonID else { return nil }
         guard let currentLesson = lessons.first(where: { $0.id == currentLessonID }) else { return nil }
 
         // Use PlanNextLessonService to find the next lesson
-        guard let nextLesson = PlanNextLessonService.findNextLesson(after: currentLesson, in: lessons) else {
+        guard let nextLesson = PlanNextLessonService.findNextLesson(after: currentLesson, in: Array(lessons)) else {
             return nil
         }
 
         // If already manually unlocked, don't show
-        if isNextLessonManuallyUnlocked(for: studentID, nextLessonID: nextLesson.id) {
+        guard let nextLessonID = nextLesson.id else { return nil }
+        if isNextLessonManuallyUnlocked(for: studentID, nextLessonID: nextLessonID) {
             return nil
         }
 
@@ -520,20 +522,20 @@ struct UnifiedPostPresentationSheet: View {
                     _ = UnlockNextLessonService.unlockNextLesson(
                         after: unlockInfo.currentLessonID,
                         for: unlockInfo.studentsToUnlock,
-                        modelContext: modelContext,
-                        lessons: lessons,
-                        lessonAssignments: lessonAssignments
+                        context: viewContext,
+                        lessons: Array(lessons),
+                        cdAssignments: Array(lessonAssignments)
                     )
                 }
 
                 // Execute next lesson action
                 if lessonID != nil {
                     viewModel.executeNextLessonAction(
-                        studentIDs: Set(students.map(\.id)),
+                        studentIDs: Set(students.compactMap(\.id)),
                         allStudents: students,
-                        allLessons: lessons,
-                        lessonAssignments: lessonAssignments,
-                        modelContext: modelContext
+                        allLessons: Array(lessons),
+                        lessonAssignments: Array(lessonAssignments),
+                        viewContext: viewContext
                     )
                 }
 

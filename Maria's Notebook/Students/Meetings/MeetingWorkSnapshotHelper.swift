@@ -8,9 +8,9 @@ enum MeetingWorkSnapshotHelper {
     // MARK: - Types
 
     struct WorkStats {
-        let open: [WorkModel]
-        let overdue: [WorkModel]
-        let recentCompleted: [WorkModel]
+        let open: [CDWorkModel]
+        let overdue: [CDWorkModel]
+        let recentCompleted: [CDWorkModel]
     }
 
     // MARK: - Work Statistics
@@ -18,7 +18,7 @@ enum MeetingWorkSnapshotHelper {
     /// Computes work statistics for a student.
     static func computeWorkStats(
         for studentID: UUID,
-        allWorkModels: [WorkModel],
+        allWorkModels: [CDWorkModel],
         workOverdueDays: Int
     ) -> WorkStats {
         let sid = studentID.uuidString
@@ -30,7 +30,7 @@ enum MeetingWorkSnapshotHelper {
             byAdding: .day, value: -workOverdueDays, to: Date()
         ) ?? Date.distantPast
         let overdueWork = workModelsForStudent.filter {
-            $0.status != .complete && $0.createdAt < overdueThreshold
+            $0.status != .complete && ($0.createdAt ?? Date()) < overdueThreshold
         }
 
         let recentThreshold = Calendar.current.date(byAdding: .day, value: -7, to: Date()) ?? Date.distantPast
@@ -46,15 +46,15 @@ enum MeetingWorkSnapshotHelper {
     /// Returns lessons given since the last meeting.
     ///
     /// - Parameters:
-    ///   - studentID: Student ID
+    ///   - studentID: CDStudent ID
     ///   - lastMeetingDate: Date of the last meeting (nil if no meetings)
     ///   - allLessonAssignments: All lesson assignments
-    /// - Returns: Array of LessonAssignment given since the last meeting
+    /// - Returns: Array of CDLessonAssignment given since the last meeting
     static func lessonsSinceLastMeeting(
         for studentID: UUID,
         lastMeetingDate: Date?,
-        allLessonAssignments: [LessonAssignment]
-    ) -> [LessonAssignment] {
+        allLessonAssignments: [CDLessonAssignment]
+    ) -> [CDLessonAssignment] {
         let studentIDString = studentID.uuidString
         let cutoffDate = lastMeetingDate ?? Date.distantPast
 
@@ -68,7 +68,7 @@ enum MeetingWorkSnapshotHelper {
             }
             // Also check if it was marked as presented after the last meeting
             if la.isPresented {
-                return la.createdAt > cutoffDate
+                return (la.createdAt ?? .distantPast) > cutoffDate
             }
 
             return false

@@ -3,7 +3,7 @@
 // Reusable components extracted from StudentProgressTab
 
 import SwiftUI
-import SwiftData
+import CoreData
 
 // MARK: - Progress Card Header
 
@@ -222,24 +222,24 @@ struct StepDotsVisualization: View {
 
 // MARK: - Step Protocol
 
-/// Protocol for unifying Lesson steps and WorkStep types
+/// Protocol for unifying CDLesson steps and CDWorkStep types
 protocol StepProtocol {
     var stepID: String { get }
 }
 
-// Extend Lesson to conform to StepProtocol
+// Extend CDLesson to conform to StepProtocol
 extension Lesson: StepProtocol {
-    var stepID: String { id.uuidString }
+    var stepID: String { id?.uuidString ?? "" }
 }
 
-// Extend WorkStep to conform to StepProtocol
+// Extend CDWorkStep to conform to StepProtocol
 extension WorkStep: StepProtocol {
-    var stepID: String { id.uuidString }
+    var stepID: String { id?.uuidString ?? "" }
 }
 
-// Extend TrackStep to conform to StepProtocol
+// Extend CDTrackStep to conform to StepProtocol
 extension TrackStep: StepProtocol {
-    var stepID: String { id.uuidString }
+    var stepID: String { id?.uuidString ?? "" }
 }
 
 // MARK: - Next Item Banner

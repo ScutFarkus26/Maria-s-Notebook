@@ -1,12 +1,12 @@
 import SwiftUI
-import SwiftData
+import CoreData
 
 // Detail view for viewing and editing a supply
 struct SupplyDetailView: View {
-    @Environment(\.modelContext) private var modelContext
+    @Environment(\.managedObjectContext) private var viewContext
     @Environment(\.dismiss) private var dismiss
 
-    @Bindable var supply: Supply
+    @ObservedObject var supply: CDSupply
 
     @State private var isEditing = false
     @State private var editName: String = ""
@@ -55,7 +55,7 @@ struct SupplyDetailView: View {
                 .padding(.horizontal, 24)
                 .padding(.vertical, 16)
             }
-            .navigationTitle(isEditing ? "Edit Supply" : supply.name)
+            .navigationTitle(isEditing ? "Edit CDSupply" : supply.name)
             .inlineNavigationTitle()
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {
@@ -114,12 +114,12 @@ struct SupplyDetailView: View {
                 }
             }
             .confirmationDialog(
-                "Delete Supply",
+                "Delete CDSupply",
                 isPresented: $showingDeleteConfirmation,
                 titleVisibility: .visible
             ) {
                 Button("Delete", role: .destructive) {
-                    SupplyService.deleteSupply(supply, in: modelContext)
+                    SupplyService.deleteSupply(supply, in: viewContext)
                     dismiss()
                 }
             } message: {
@@ -143,8 +143,8 @@ struct SupplyDetailView: View {
         editName = supply.name
         editCategory = supply.category
         editLocation = supply.location
-        editMinimumThreshold = supply.minimumThreshold
-        editReorderAmount = supply.reorderAmount
+        editMinimumThreshold = Int(supply.minimumThreshold)
+        editReorderAmount = Int(supply.reorderAmount)
         editUnit = supply.unit
         editNotes = supply.notes
         isEditing = true
@@ -154,12 +154,12 @@ struct SupplyDetailView: View {
         supply.name = editName
         supply.category = editCategory
         supply.location = editLocation
-        supply.minimumThreshold = editMinimumThreshold
-        supply.reorderAmount = editReorderAmount
+        supply.minimumThreshold = Int64(editMinimumThreshold)
+        supply.reorderAmount = Int64(editReorderAmount)
         supply.unit = editUnit
         supply.notes = editNotes
         supply.modifiedAt = Date()
-        modelContext.safeSave()
+        viewContext.safeSave()
     }
 
 }
@@ -330,17 +330,18 @@ private extension SupplyDetailView {
 }
 
 #Preview {
-    let supply = Supply(
-        name: "Crayons (24-pack)",
-        category: .art,
-        location: "Cabinet A",
-        currentQuantity: 12,
-        minimumThreshold: 5,
-        reorderAmount: 20,
-        unit: "boxes",
-        notes: "Preferred brand: Crayola. Order from Amazon."
-    )
+    let stack = CoreDataStack.preview
+    let ctx = stack.viewContext
+    let supply = CDSupply(context: ctx)
+    supply.name = "Crayons (24-pack)"
+    supply.category = .art
+    supply.location = "Cabinet A"
+    supply.currentQuantity = 12
+    supply.minimumThreshold = 5
+    supply.reorderAmount = 20
+    supply.unit = "boxes"
+    supply.notes = "Preferred brand: Crayola. Order from Amazon."
 
     return SupplyDetailView(supply: supply)
-        .previewEnvironment()
+        .previewEnvironment(using: stack)
 }

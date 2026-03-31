@@ -1,0 +1,72 @@
+{
+  "source": "/Users/dannydeberry/Documents/Projects/MariasNotebook-Rewrite/Maria's Notebook/Components/Todo/TodoWhenPopover.swift",
+  "tables": {
+    "Localizable": [
+      {
+        "comment": "",
+        "key": "When",
+        "location": {
+          "startingColumn": 18,
+          "startingLine": 20
+        }
+      },
+      {
+        "comment": "",
+        "key": "%lld",
+        "location": {
+          "startingColumn": 30,
+          "startingLine": 206
+        }
+      },
+      {
+        "comment": "",
+        "key": "Deadline",
+        "location": {
+          "startingColumn": 32,
+          "startingLine": 263
+        }
+      },
+      {
+        "comment": "",
+        "key": "Deadline",
+        "location": {
+          "startingColumn": 32,
+          "startingLine": 297
+        }
+      },
+      {
+        "comment": "",
+        "key": "Deadline: %@",
+        "location": {
+          "startingColumn": 26,
+          "startingLine": 245
+        }
+      },
+      {
+        "comment": "",
+        "key": "Done",
+        "location": {
+          "startingColumn": 47,
+          "startingLine": 276
+        }
+      },
+      {
+        "comment": "",
+        "key": "Change Deadline",
+        "location": {
+          "startingColumn": 56,
+          "startingLine": 276
+        }
+      },
+      {
+        "comment": "",
+        "key": "Add Deadline",
+        "location": {
+          "startingColumn": 30,
+          "startingLine": 289
+        }
+      }
+    ]
+  },
+  "version": 1
+}

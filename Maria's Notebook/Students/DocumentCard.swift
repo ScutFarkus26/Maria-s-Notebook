@@ -2,6 +2,7 @@
 // Standalone document card component extracted from StudentFilesTab
 
 import SwiftUI
+import CoreData
 
 struct DocumentCard: View {
     let document: Document

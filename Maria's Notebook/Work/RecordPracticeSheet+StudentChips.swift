@@ -3,7 +3,7 @@
 
 import OSLog
 import SwiftUI
-import SwiftData
+import CoreData
 
 // MARK: - Student Chips Section
 
@@ -54,8 +54,10 @@ extension RecordPracticeSheet {
                     VStack(spacing: 0) {
                         ForEach(searchResults) { student in
                             Button {
-                                manuallyAddedStudentIDs.insert(student.id)
-                                selectedStudentIDs.insert(student.id)
+                                if let sid = student.id {
+                                    manuallyAddedStudentIDs.insert(sid)
+                                    selectedStudentIDs.insert(sid)
+                                }
                                 studentSearchText = ""
                             } label: {
                                 HStack {
@@ -83,14 +85,15 @@ extension RecordPracticeSheet {
     }
 
     func studentChip(for student: Student) -> some View {
-        let isSelected = selectedStudentIDs.contains(student.id)
-        let hasOpenWork = practiceStudentIDs.contains(student.id)
+        let studentID = student.id ?? UUID()
+        let isSelected = selectedStudentIDs.contains(studentID)
+        let hasOpenWork = practiceStudentIDs.contains(studentID)
 
         return Button {
             if isSelected {
-                selectedStudentIDs.remove(student.id)
+                selectedStudentIDs.remove(studentID)
             } else {
-                selectedStudentIDs.insert(student.id)
+                selectedStudentIDs.insert(studentID)
             }
         } label: {
             HStack(spacing: 6) {
@@ -218,23 +221,21 @@ extension RecordPracticeSheet {
 
     @MainActor
     func saveSession() {
-        let workItemIDs: [UUID] = selectedStudentIDs.compactMap { studentID in
-            openPracticeWork.first { $0.studentID == studentID.uuidString }?.id
+        let workItemIDs: [String] = selectedStudentIDs.compactMap { studentID in
+            openPracticeWork.first { $0.studentID == studentID.uuidString }?.id?.uuidString
         }
 
-        // Create practice session (using SwiftData directly — views migrate to CD in Phase 4)
-        let session = PracticeSession(
-            date: sessionDate,
-            duration: hasDuration ? TimeInterval(durationMinutes * 60) : nil,
-            studentIDs: Array(selectedStudentIDs).map(\.uuidString),
-            workItemIDs: workItemIDs.map(\.uuidString),
-            sharedNotes: sessionNotes,
-            location: nil
-        )
-        modelContext.insert(session)
+        // Create practice session via Core Data
+        let session = CDPracticeSession(context: viewContext)
+        session.date = sessionDate
+        session.durationInterval = hasDuration ? TimeInterval(durationMinutes * 60) : nil
+        session.studentIDsArray = Array(selectedStudentIDs).map(\.uuidString)
+        session.workItemIDsArray = workItemIDs
+        session.sharedNotes = sessionNotes
+        session.location = nil
 
-        session.practiceQuality = practiceQuality
-        session.independenceLevel = independenceLevel
+        session.practiceQualityValue = practiceQuality
+        session.independenceLevelValue = independenceLevel
 
         session.askedForHelp = askedForHelp
         session.helpedPeer = helpedPeer
@@ -250,11 +251,7 @@ extension RecordPracticeSheet {
         session.followUpActions = followUpActions
         session.materialsUsed = materialsUsed
 
-        do {
-            try modelContext.save()
-        } catch {
-            Self.logger.warning("Failed to save practice session: \(error)")
-        }
+        viewContext.safeSave()
 
         dismiss()
     }

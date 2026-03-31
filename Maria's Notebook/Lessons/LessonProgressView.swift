@@ -1,18 +1,18 @@
 import SwiftUI
-import SwiftData
+import CoreData
 
 /// Unified view showing the complete journey and progress for a lesson
 struct LessonProgressView: View {
-    let lesson: Lesson
+    let lesson: CDLesson
     var onDone: (() -> Void)?
 
     @Environment(\.dismiss) private var dismiss
-    @Environment(\.modelContext) var modelContext
+    @Environment(\.managedObjectContext) var viewContext
 
     @State var stats: LessonStats?
     @State var presentations: [Presentation] = []
-    @State var allWork: [WorkModel] = []
-    @State var practiceSessions: [PracticeSession] = []
+    @State var allWork: [CDWorkModel] = []
+    @State var practiceSessions: [CDPracticeSession] = []
     @State var isLoading = true
     @State private var selectedTab: ProgressTab = .overview
 
@@ -140,10 +140,10 @@ struct LessonProgressView: View {
     // MARK: - Data Loading
 
     private func loadData() async {
-        stats = lesson.getLessonStats(from: modelContext)
-        presentations = lesson.fetchAllPresentations(from: modelContext)
-        allWork = lesson.fetchAllWork(from: modelContext)
-        practiceSessions = lesson.fetchAllPracticeSessions(from: modelContext)
+        stats = lesson.getLessonStats(from: viewContext)
+        presentations = lesson.fetchAllPresentations(from: viewContext)
+        allWork = lesson.fetchAllWork(from: viewContext)
+        practiceSessions = lesson.fetchAllPracticeSessions(from: viewContext)
 
         await MainActor.run {
             isLoading = false

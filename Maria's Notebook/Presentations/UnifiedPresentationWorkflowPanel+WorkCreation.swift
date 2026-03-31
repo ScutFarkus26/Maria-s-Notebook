@@ -1,5 +1,6 @@
 // swiftlint:disable file_length
 import SwiftUI
+import CoreData
 
 // MARK: - Work Creation Panel
 
@@ -21,7 +22,7 @@ extension UnifiedPresentationWorkflowPanel {
                         studentWorkSection(for: student)
                     }
 
-                    // Next Lesson Section
+                    // Next CDLesson Section
                     if presentationViewModel.nextLesson != nil {
                         Divider()
                         NextLessonSection(viewModel: presentationViewModel)
@@ -117,22 +118,23 @@ extension UnifiedPresentationWorkflowPanel {
         presentationViewModel.applyBulkAssignment()
 
         for student in students {
+            guard let studentID = student.id else { continue }
             // Check if this student already has work drafts
-            if workDrafts[student.id]?.isEmpty ?? true {
-                let draft = createWorkDraft(for: student.id, title: trimmed, kind: workKind, applyDefaultDates: true)
-                workDrafts[student.id, default: []].append(draft)
+            if workDrafts[studentID]?.isEmpty ?? true {
+                let draft = createWorkDraft(for: studentID, title: trimmed, kind: workKind, applyDefaultDates: true)
+                workDrafts[studentID, default: []].append(draft)
             } else {
                 // Update existing first draft
-                if let firstIndex = workDrafts[student.id]?.indices.first {
-                    workDrafts[student.id]?[firstIndex].title = trimmed
+                if let firstIndex = workDrafts[studentID]?.indices.first {
+                    workDrafts[studentID]?[firstIndex].title = trimmed
 
                     // Apply default dates if enabled and not already set
                     if presentationViewModel.defaultCheckInEnabled
-                        && workDrafts[student.id]?[firstIndex].checkInDate == nil {
-                        workDrafts[student.id]?[firstIndex].checkInDate = presentationViewModel.defaultCheckInDate
+                        && workDrafts[studentID]?[firstIndex].checkInDate == nil {
+                        workDrafts[studentID]?[firstIndex].checkInDate = presentationViewModel.defaultCheckInDate
                     }
-                    if presentationViewModel.defaultDueEnabled && workDrafts[student.id]?[firstIndex].dueDate == nil {
-                        workDrafts[student.id]?[firstIndex].dueDate = presentationViewModel.defaultDueDate
+                    if presentationViewModel.defaultDueEnabled && workDrafts[studentID]?[firstIndex].dueDate == nil {
+                        workDrafts[studentID]?[firstIndex].dueDate = presentationViewModel.defaultDueDate
                     }
                 }
             }
@@ -155,19 +157,20 @@ extension UnifiedPresentationWorkflowPanel {
         }
     }
 
-    // MARK: - Student Work Section
+    // MARK: - CDStudent Work Section
 
     @ViewBuilder
-    func studentWorkSection(for student: Student) -> some View {
-        VStack(alignment: .leading, spacing: 12) {
-            // Student header with context indicators
+    func studentWorkSection(for student: CDStudent) -> some View {
+        let studentID = student.id ?? UUID()
+        return VStack(alignment: .leading, spacing: 12) {
+            // CDStudent header with context indicators
             HStack {
                 VStack(alignment: .leading, spacing: 4) {
                     Text(StudentFormatter.displayName(for: student))
                         .font(AppTheme.ScaledFont.bodyBold)
 
                     // Quick context from presentation
-                    if let entry = presentationViewModel.entries[student.id] {
+                    if let entry = presentationViewModel.entries[studentID] {
                         HStack(spacing: 8) {
                             MiniUnderstandingIndicator(level: entry.understandingLevel)
 
@@ -183,7 +186,7 @@ extension UnifiedPresentationWorkflowPanel {
                 Spacer()
 
                 Button {
-                    addWorkDraft(for: student.id)
+                    addWorkDraft(for: studentID)
                 } label: {
                     Label("Add Work", systemImage: SFSymbol.Action.plusCircleFill)
                         .font(AppTheme.ScaledFont.captionSemibold)
@@ -192,13 +195,13 @@ extension UnifiedPresentationWorkflowPanel {
             }
 
             // Existing work items from database
-            let existingWork = existingWorkItems(for: student.id)
+            let existingWork = existingWorkItems(for: studentID)
             ForEach(existingWork) { work in
                 existingWorkCard(work: work)
             }
 
             // Work drafts (new items being created in this session)
-            let drafts = workDrafts[student.id] ?? []
+            let drafts = workDrafts[studentID] ?? []
             if drafts.isEmpty && existingWork.isEmpty {
                 Text("No work items yet - add one or use bulk assignment")
                     .font(AppTheme.ScaledFont.caption)
@@ -206,7 +209,7 @@ extension UnifiedPresentationWorkflowPanel {
                     .padding(.vertical, 8)
             } else {
                 ForEach(drafts) { draft in
-                    workDraftCard(draft: draft, studentID: student.id)
+                    workDraftCard(draft: draft, studentID: studentID)
                 }
             }
         }
@@ -389,7 +392,7 @@ extension UnifiedPresentationWorkflowPanel {
     // MARK: - Existing Work Card
 
     @ViewBuilder
-    func existingWorkCard(work: WorkModel) -> some View {
+    func existingWorkCard(work: CDWorkModel) -> some View {
         WorkflowCard(
             backgroundColor: Color.blue.opacity(UIConstants.OpacityConstants.veryFaint),
             borderColor: Color.blue.opacity(UIConstants.OpacityConstants.moderate)
@@ -401,7 +404,7 @@ extension UnifiedPresentationWorkflowPanel {
                         Text(work.title.isEmpty ? lessonName : work.title)
                             .font(AppTheme.ScaledFont.bodySemibold)
 
-                        Text("Created \(work.createdAt.formatted(date: .abbreviated, time: .shortened))")
+                        Text("Created \((work.createdAt ?? Date()).formatted(date: .abbreviated, time: .shortened))")
                             .font(AppTheme.ScaledFont.captionSmall)
                             .foregroundStyle(.tertiary)
                     }

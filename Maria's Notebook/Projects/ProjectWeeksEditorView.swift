@@ -1,17 +1,16 @@
 // swiftlint:disable file_length
 import SwiftUI
-import SwiftData
+import CoreData
 
 struct ProjectWeeksEditorView: View {
     let club: Project
     let showHeader: Bool
 
-    @Environment(\.modelContext) private var modelContext
+    @Environment(\.managedObjectContext) private var modelContext
     @Environment(SaveCoordinator.self) private var saveCoordinator
 
     // Performance: Use filtered query instead of loading all weeks
-    @Query(sort: [SortDescriptor<ProjectTemplateWeek>(\.weekIndex, order: .forward)])
-    private var weeks: [ProjectTemplateWeek]
+    @FetchRequest private var weeks: FetchedResults<CDProjectTemplateWeek>
 
     @State private var editingWeek: ProjectTemplateWeek?
 
@@ -19,10 +18,10 @@ struct ProjectWeeksEditorView: View {
         self.club = club
         self.showHeader = showHeader
         // Filter weeks by projectID at query level
-        let projectIDString = club.id.uuidString
-        _weeks = Query(
-            filter: #Predicate<ProjectTemplateWeek> { $0.projectID == projectIDString },
-            sort: [SortDescriptor(\.weekIndex, order: .forward)]
+        let projectIDString = (club.id ?? UUID()).uuidString
+        _weeks = FetchRequest(
+            sortDescriptors: [NSSortDescriptor(keyPath: \CDProjectTemplateWeek.weekIndex, ascending: true)],
+            predicate: NSPredicate(format: "projectID == %@", projectIDString)
         )
     }
 
@@ -49,7 +48,7 @@ struct ProjectWeeksEditorView: View {
                 )
             } else {
                 LazyVStack(alignment: .leading, spacing: 8) {
-                    ForEach(weeks, id: \.id) { week in
+                    ForEach(Array(weeks), id: \.objectID) { week in
                         Button { editingWeek = week } label: {
                             HStack(alignment: .firstTextBaseline, spacing: 8) {
                                 Text("Week \(week.weekIndex)")
@@ -78,16 +77,18 @@ struct ProjectWeeksEditorView: View {
 
     private func addWeek() {
         let nextIndex = (weeks.map(\.weekIndex).max() ?? 0) + 1
-        let w = ProjectTemplateWeek(projectID: club.id, weekIndex: nextIndex)
+        let w = CDProjectTemplateWeek(context: modelContext)
+        w.projectID = (club.id ?? UUID()).uuidString
+        w.weekIndex = nextIndex
         if w.agendaItems.isEmpty { w.agendaItems = ["Go over work from last week"] }
-        modelContext.insert(w)
         saveCoordinator.save(modelContext, reason: "Add project template week")
         editingWeek = w
     }
 
     private func delete(_ week: ProjectTemplateWeek) {
         // Use the week's relationship to get its role assignments
-        for a in week.roleAssignments ?? [] { modelContext.delete(a) }
+        let assignments = (week.roleAssignments?.allObjects as? [CDProjectWeekRoleAssignment]) ?? []
+        for a in assignments { modelContext.delete(a) }
         modelContext.delete(week)
         saveCoordinator.save(modelContext, reason: "Delete project template week")
     }
@@ -114,7 +115,7 @@ struct InlineLessonPickerSheet: View {
             TextField("Search…", text: $search)
                 .textFieldStyle(.roundedBorder)
             List {
-                ForEach(filteredLessons) { lesson in
+                ForEach(filteredLessons, id: \.objectID) { lesson in
                     Button {
                         onChosen(lesson.id)
                         dismiss()

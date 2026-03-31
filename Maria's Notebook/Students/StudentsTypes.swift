@@ -1,4 +1,5 @@
 import SwiftUI
+import CoreData
 
 // Shared sort options for the students list (used by StudentsView and StudentsViewModel)
 enum SortOrder: Hashable {

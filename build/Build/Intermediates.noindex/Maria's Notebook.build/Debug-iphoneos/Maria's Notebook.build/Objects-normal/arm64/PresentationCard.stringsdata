@@ -1,0 +1,16 @@
+{
+  "source": "/Users/dannydeberry/Documents/Projects/MariasNotebook-Rewrite/Maria's Notebook/Students/PresentationCard.swift",
+  "tables": {
+    "Localizable": [
+      {
+        "comment": "",
+        "key": "Subject: %@",
+        "location": {
+          "startingColumn": 29,
+          "startingLine": 35
+        }
+      }
+    ]
+  },
+  "version": 1
+}

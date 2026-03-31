@@ -1,10 +1,10 @@
 import SwiftUI
-import SwiftData
+import CoreData
 import OSLog
 
 struct CalendarMonthGridView: View {
     private static let logger = Logger.planning
-    @Environment(\.modelContext) private var modelContext
+    @Environment(\.managedObjectContext) private var viewContext
     var month: Date
     var calendar: Calendar = .current
     var onDateToggled: ((Date, Bool) -> Void)?
@@ -56,7 +56,7 @@ struct CalendarMonthGridView: View {
         guard nonSchoolDates == nil else { return }
         let start = startOfMonth
         let end = calendar.date(byAdding: .month, value: 1, to: start) ?? start
-        let set = await SchoolCalendar.nonSchoolDays(in: start..<end, using: modelContext)
+        let set = await SchoolCalendar.nonSchoolDays(in: start..<end, using: viewContext)
         await MainActor.run { computedNonSchoolDates = set }
     }
 
@@ -88,7 +88,7 @@ struct CalendarMonthGridView: View {
                                     do {
                                         toggleResult = try await SchoolCalendar.toggleNonSchoolDay(
                                             d,
-                                            using: modelContext
+                                            using: viewContext
                                         )
                                     } catch {
                                         Self.logger.warning("Failed to toggle non-school day: \(error)")
@@ -96,7 +96,7 @@ struct CalendarMonthGridView: View {
                                     }
                                     // Save changes after toggle
                                     do {
-                                        try modelContext.save()
+                                        try viewContext.save()
                                     } catch {
                                         Self.logger.warning("Failed to save after toggle: \(error)")
                                     }
@@ -104,7 +104,7 @@ struct CalendarMonthGridView: View {
                                     if let result = toggleResult {
                                         newState = result
                                     } else {
-                                        newState = await SchoolCalendar.isNonSchoolDay(d, using: modelContext)
+                                        newState = await SchoolCalendar.isNonSchoolDay(d, using: viewContext)
                                     }
                                     await MainActor.run {
                                         onDateToggled?(d, newState)
@@ -115,7 +115,7 @@ struct CalendarMonthGridView: View {
                                         let end = calendar.date(byAdding: .month, value: 1, to: start) ?? start
                                         let set = await SchoolCalendar.nonSchoolDays(
                                             in: start..<end,
-                                            using: modelContext
+                                            using: viewContext
                                         )
                                         await MainActor.run { computedNonSchoolDates = set }
                                     }
@@ -142,7 +142,7 @@ struct CalendarMonthGridView: View {
 }
 
 private struct DayCell: View {
-    @Environment(\.modelContext) private var modelContext
+    @Environment(\.managedObjectContext) private var viewContext
     let date: Date?
     let calendar: Calendar
     let nonSchoolDates: Set<Date>?

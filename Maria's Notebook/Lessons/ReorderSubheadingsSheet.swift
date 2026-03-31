@@ -2,13 +2,14 @@
 // NEW FILE — add this file to the Lessons folder.
 
 import SwiftUI
+import CoreData
 
 struct ReorderSubheadingsSheet: View {
     @Environment(\.dismiss) private var dismiss
 
     let subject: String
     let group: String
-    let lessons: [Lesson]
+    let lessons: [CDLesson]
 
     @State private var items: [String] = []
     @State private var isEditing: Bool = false

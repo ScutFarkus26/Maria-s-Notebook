@@ -2,7 +2,7 @@
 // Header and attendance strip components for TodayView - extracted for maintainability
 
 import SwiftUI
-import SwiftData
+import CoreData
 
 // MARK: - TodayView Header Extension
 

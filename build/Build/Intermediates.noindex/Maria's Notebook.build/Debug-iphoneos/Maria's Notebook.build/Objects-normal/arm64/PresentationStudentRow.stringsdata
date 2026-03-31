@@ -1,0 +1,112 @@
+{
+  "source": "/Users/dannydeberry/Documents/Projects/MariasNotebook-Rewrite/Maria's Notebook/Components/Shared/PresentationStudentRow.swift",
+  "tables": {
+    "Localizable": [
+      {
+        "comment": "",
+        "key": "Understanding",
+        "location": {
+          "startingColumn": 18,
+          "startingLine": 104
+        }
+      },
+      {
+        "comment": "",
+        "key": "Observation",
+        "location": {
+          "startingColumn": 18,
+          "startingLine": 133
+        }
+      },
+      {
+        "comment": "",
+        "key": "CDNote about this student...",
+        "location": {
+          "startingColumn": 23,
+          "startingLine": 137
+        }
+      },
+      {
+        "comment": "",
+        "key": "Follow-up Work",
+        "location": {
+          "startingColumn": 18,
+          "startingLine": 145
+        }
+      },
+      {
+        "comment": "",
+        "key": "Assignment for this student...",
+        "location": {
+          "startingColumn": 23,
+          "startingLine": 149
+        }
+      },
+      {
+        "comment": "",
+        "key": "Check-in",
+        "location": {
+          "startingColumn": 22,
+          "startingLine": 184
+        }
+      },
+      {
+        "comment": "",
+        "key": "",
+        "location": {
+          "startingColumn": 36,
+          "startingLine": 198
+        }
+      },
+      {
+        "comment": "",
+        "key": "Due Date",
+        "location": {
+          "startingColumn": 22,
+          "startingLine": 208
+        }
+      },
+      {
+        "comment": "",
+        "key": "",
+        "location": {
+          "startingColumn": 36,
+          "startingLine": 222
+        }
+      },
+      {
+        "comment": "",
+        "key": "Next CDLesson",
+        "location": {
+          "startingColumn": 26,
+          "startingLine": 240
+        }
+      },
+      {
+        "comment": "",
+        "key": "Unlock: %@",
+        "location": {
+          "startingColumn": 30,
+          "startingLine": 256
+        }
+      },
+      {
+        "comment": "",
+        "key": "Will be unlocked when you click Done",
+        "location": {
+          "startingColumn": 49,
+          "startingLine": 260
+        }
+      },
+      {
+        "comment": "",
+        "key": "CDLesson will remain blocked",
+        "location": {
+          "startingColumn": 90,
+          "startingLine": 260
+        }
+      }
+    ]
+  },
+  "version": 1
+}

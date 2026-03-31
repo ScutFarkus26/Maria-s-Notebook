@@ -2,11 +2,11 @@
 // Create/edit sheet for Going-Out records.
 
 import SwiftUI
-import SwiftData
+import CoreData
 
 struct GoingOutEditorSheet: View {
     @Environment(\.dismiss) private var dismiss
-    @Environment(\.modelContext) private var modelContext
+    @Environment(\.managedObjectContext) private var modelContext
 
     let existingGoingOut: GoingOut?
     let onSave: (GoingOut) -> Void
@@ -18,11 +18,11 @@ struct GoingOutEditorSheet: View {
     @State private var hasDate: Bool = false
     @State private var selectedStudentIDs: Set<UUID> = []
 
-    @Query(sort: Student.sortByName)
-    private var allStudents: [Student]
+    @FetchRequest(sortDescriptors: CDStudent.sortByName)
+    private var allStudents: FetchedResults<CDStudent>
 
-    private var visibleStudents: [Student] {
-        TestStudentsFilter.filterVisible(allStudents.filter(\.isEnrolled))
+    private var visibleStudents: [CDStudent] {
+        TestStudentsFilter.filterVisible(Array(allStudents).filter(\.isEnrolled))
     }
 
     init(existingGoingOut: GoingOut? = nil, onSave: @escaping (GoingOut) -> Void) {
@@ -51,12 +51,13 @@ struct GoingOutEditorSheet: View {
 
                 // Students
                 Section("Students") {
-                    ForEach(visibleStudents) { student in
+                    ForEach(visibleStudents, id: \.objectID) { student in
                         Button {
-                            if selectedStudentIDs.contains(student.id) {
-                                selectedStudentIDs.remove(student.id)
+                            guard let studentID = student.id else { return }
+                            if selectedStudentIDs.contains(studentID) {
+                                selectedStudentIDs.remove(studentID)
                             } else {
-                                selectedStudentIDs.insert(student.id)
+                                selectedStudentIDs.insert(studentID)
                             }
                         } label: {
                             HStack {
@@ -73,7 +74,7 @@ struct GoingOutEditorSheet: View {
 
                                 Spacer()
 
-                                if selectedStudentIDs.contains(student.id) {
+                                if let studentID = student.id, selectedStudentIDs.contains(studentID) {
                                     Image(systemName: SFSymbol.Action.checkmarkCircleFill)
                                         .foregroundStyle(Color.accentColor)
                                 }
@@ -121,14 +122,12 @@ struct GoingOutEditorSheet: View {
             goingOut.studentUUIDs = Array(selectedStudentIDs)
             goingOut.modifiedAt = Date()
         } else {
-            goingOut = GoingOut(
-                title: title,
-                purpose: purpose,
-                destination: destination,
-                proposedDate: hasDate ? proposedDate : nil,
-                studentIDs: selectedStudentIDs.map(\.uuidString)
-            )
-            modelContext.insert(goingOut)
+            goingOut = CDGoingOut(context: modelContext)
+            goingOut.title = title
+            goingOut.purpose = purpose
+            goingOut.destination = destination
+            goingOut.proposedDate = hasDate ? proposedDate : nil
+            goingOut.studentUUIDs = Array(selectedStudentIDs)
         }
         modelContext.safeSave()
         onSave(goingOut)

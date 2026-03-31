@@ -1,5 +1,5 @@
 import SwiftUI
-import SwiftData
+import CoreData
 import Foundation
 
 // MARK: - Calendar & Scheduling
@@ -14,7 +14,7 @@ extension WorkDetailView {
                 // Display existing check-ins
                 if !checkIns.isEmpty {
                     VStack(spacing: 10) {
-                        ForEach(checkIns.sorted { $0.date < $1.date }) { item in
+                        ForEach(checkIns.sorted { ($0.date ?? .distantPast) < ($1.date ?? .distantPast) }) { item in
                             checkInRow(item)
                         }
                     }
@@ -114,7 +114,7 @@ extension WorkDetailView {
             },
             onSetStatus: { id, status in
                 // Update the check-in status
-                if let checkIn = checkIns.first(where: { $0.id == id }) {
+                if let checkIn = checkIns.first(where: { $0.id != nil && $0.id == id }) {
                     checkIn.status = status
                     saveCoordinator.save(modelContext, reason: "Update check-in status")
                 }
@@ -128,13 +128,11 @@ extension WorkDetailView {
         let note = viewModel.newPlanNote.trimmed().isEmpty ? nil : viewModel.newPlanNote.trimmed()
 
         // PHASE 6: Create WorkCheckIn only (WorkPlanItem removed)
-        let checkIn = WorkCheckIn(
-            workID: work.id,
-            date: viewModel.newPlanDate,
-            status: .scheduled,
-            purpose: viewModel.newPlanPurpose
-        )
-        modelContext.insert(checkIn)
+        let checkIn = CDWorkCheckIn(context: modelContext)
+        checkIn.workID = work.id?.uuidString ?? ""
+        checkIn.date = viewModel.newPlanDate
+        checkIn.status = .scheduled
+        checkIn.purpose = viewModel.newPlanPurpose
         if let note {
             checkIn.setLegacyNoteText(note, in: modelContext)
         }

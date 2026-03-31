@@ -1,11 +1,11 @@
 import SwiftUI
-import SwiftData
+import CoreData
 
 /// Aggregate mastery dashboard showing student progress across a curriculum track.
 /// Displays a matrix of students × track steps with mastery state color indicators.
 struct MasteryDashboardView: View {
-    let track: Track
-    @Environment(\.modelContext) private var modelContext
+    let track: CDTrackEntity
+    @Environment(\.managedObjectContext) private var viewContext
     @State private var studentRows: [MasteryStudentRow] = []
     @State private var steps: [TrackStep] = []
     @State private var isLoading = true
@@ -28,7 +28,7 @@ struct MasteryDashboardView: View {
                 .padding()
             }
         }
-        .navigationTitle("Mastery: \(track.title.isEmpty ? "Track" : track.title)")
+        .navigationTitle("Mastery: \(track.title.isEmpty ? "CDTrackEntity" : track.title)")
         .inlineNavigationTitle()
         .onAppear { loadData() }
     }
@@ -72,7 +72,7 @@ struct MasteryDashboardView: View {
             VStack(alignment: .leading, spacing: 2) {
                 // Header row with step names
                 HStack(spacing: 2) {
-                    Text("Student")
+                    Text("CDStudent")
                         .font(.caption.bold())
                         .frame(width: nameColumnWidth, alignment: .leading)
                     ForEach(steps) { step in
@@ -87,7 +87,7 @@ struct MasteryDashboardView: View {
 
                 Divider()
 
-                // Student rows
+                // CDStudent rows
                 ForEach(studentRows) { row in
                     HStack(spacing: 2) {
                         Text(row.studentName)
@@ -111,26 +111,28 @@ struct MasteryDashboardView: View {
         guard let lessonID = step.lessonTemplateID else {
             return "Step \(step.orderIndex + 1)"
         }
-        let descriptor = FetchDescriptor<Lesson>(
-            predicate: #Predicate<Lesson> { $0.id == lessonID }
-        )
-        return modelContext.safeFetchFirst(descriptor)?.name ?? "Step \(step.orderIndex + 1)"
+        let descriptor = NSFetchRequest<CDLesson>(entityName: "Lesson")
+        descriptor.predicate = NSPredicate(format: "id == %@", lessonID as CVarArg)
+        return viewContext.safeFetchFirst(descriptor)?.name ?? "Step \(step.orderIndex + 1)"
     }
 
     // MARK: - Data Loading
 
     private func loadData() {
-        let sortedSteps = (track.steps ?? []).sorted(by: { $0.orderIndex < $1.orderIndex })
+        let sortedSteps = ((track.steps?.allObjects as? [CDTrackStepEntity]) ?? []).sorted(by: { $0.orderIndex < $1.orderIndex })
         self.steps = sortedSteps
 
-        let trackID = track.id.uuidString
-        let enrollments = modelContext.safeFetch(FetchDescriptor<StudentTrackEnrollment>())
+        let trackID = track.id?.uuidString ?? ""
+        let enrollments = viewContext.safeFetch(CDStudentTrackEnrollmentEntity.fetchRequest() as! NSFetchRequest<CDStudentTrackEnrollmentEntity>)
             .filter { $0.trackID == trackID }
 
-        let allStudents = modelContext.safeFetch(FetchDescriptor<Student>())
-        let studentsByID = Dictionary(uniqueKeysWithValues: allStudents.map { ($0.id.uuidString, $0) })
+        let allStudents = viewContext.safeFetch(CDStudent.fetchRequest() as! NSFetchRequest<CDStudent>)
+        let studentsByID = Dictionary(uniqueKeysWithValues: allStudents.compactMap { s -> (String, CDStudent)? in
+            guard let id = s.id else { return nil }
+            return (id.uuidString, s)
+        })
 
-        let allPresentations = modelContext.safeFetch(FetchDescriptor<LessonPresentation>())
+        let allPresentations = viewContext.safeFetch(CDLessonPresentation.fetchRequest() as! NSFetchRequest<CDLessonPresentation>)
         let presentationsByStudent = Dictionary(grouping: allPresentations) { $0.studentID }
 
         var rows: [MasteryStudentRow] = []
@@ -156,7 +158,7 @@ struct MasteryDashboardView: View {
             }
 
             rows.append(MasteryStudentRow(
-                id: enrollment.id,
+                id: enrollment.id ?? UUID(),
                 studentName: student.fullName,
                 stepStates: stepStates
             ))

@@ -3,7 +3,7 @@
 
 import OSLog
 import SwiftUI
-import SwiftData
+import CoreData
 #if os(macOS)
 import AppKit
 #else
@@ -16,93 +16,85 @@ final class StudentProgressTabViewModel {
     private static let logger = Logger.students
 
     // MARK: - Public State
-    private(set) var activeEnrollments: [StudentTrackEnrollment] = []
-    private(set) var activeProjects: [Project] = []
-    private(set) var activeReports: [WorkModel] = []
-    private(set) var tracksByID: [String: Track] = [:]
+    private(set) var activeEnrollments: [CDStudentTrackEnrollmentEntity] = []
+    private(set) var activeProjects: [CDProject] = []
+    private(set) var activeReports: [CDWorkModel] = []
+    private(set) var tracksByID: [String: CDTrackEntity] = [:]
 
     // MARK: - Private State
     private var studentID: UUID?
-    private var allLessons: [Lesson] = []
-    private var allTrackSteps: [TrackStep] = []
-    private var allLessonPresentations: [LessonPresentation] = []
-    private var allLessonAssignments: [LessonAssignment] = []
-    private var allWorkModels: [WorkModel] = []
-    private var allNotes: [Note] = []
+    private var allLessons: [CDLesson] = []
+    private var allTrackSteps: [CDTrackStep] = []
+    private var allLessonPresentations: [CDLessonPresentation] = []
+    private var allLessonAssignments: [CDLessonAssignment] = []
+    private var allWorkModels: [CDWorkModel] = []
+    private var allNotes: [CDNote] = []
 
     // MARK: - Initialization
 
-    func configure(for student: Student, context: ModelContext) {
+    func configure(for student: CDStudent, context: NSManagedObjectContext) {
         self.studentID = student.id
         loadData(for: student, context: context)
     }
 
     // MARK: - Data Loading
 
-    func loadData(for student: Student, context: ModelContext) {
-        let studentIDString = student.id.uuidString
+    func loadData(for student: CDStudent, context: NSManagedObjectContext) {
+        let studentIDString = student.id?.uuidString ?? ""
 
         // Fetch all needed data
-        let enrollmentDescriptor = FetchDescriptor<StudentTrackEnrollment>(
-            sortBy: [SortDescriptor(\.createdAt, order: .reverse)]
-        )
+        let enrollmentDescriptor: NSFetchRequest<CDStudentTrackEnrollmentEntity> = NSFetchRequest(entityName: "CDStudentTrackEnrollmentEntity")
+        enrollmentDescriptor.sortDescriptors = [NSSortDescriptor(key: "createdAt", ascending: false)]
         let allEnrollments = context.safeFetch(enrollmentDescriptor)
 
-        let trackDescriptor = FetchDescriptor<Track>(
-            sortBy: [SortDescriptor(\.title)]
-        )
+        let trackDescriptor: NSFetchRequest<CDTrackEntity> = NSFetchRequest(entityName: "CDTrackEntity")
+        trackDescriptor.sortDescriptors = [NSSortDescriptor(key: "title", ascending: true)]
         let allTracks = context.safeFetch(trackDescriptor)
 
-        let projectDescriptor = FetchDescriptor<Project>(
-            sortBy: [SortDescriptor(\.createdAt, order: .reverse)]
-        )
+        let projectDescriptor: NSFetchRequest<CDProject> = NSFetchRequest(entityName: "CDProject")
+        projectDescriptor.sortDescriptors = [NSSortDescriptor(key: "createdAt", ascending: false)]
         let allProjects = context.safeFetch(projectDescriptor)
 
         // Fetch LessonAssignments (unified model)
-        let assignmentDescriptor = FetchDescriptor<LessonAssignment>(
-            sortBy: [SortDescriptor(\.presentedAt, order: .reverse)]
-        )
+        let assignmentDescriptor: NSFetchRequest<CDLessonAssignment> = NSFetchRequest(entityName: "CDLessonAssignment")
+        assignmentDescriptor.sortDescriptors = [NSSortDescriptor(key: "presentedAt", ascending: false)]
         allLessonAssignments = context.safeFetch(assignmentDescriptor)
 
-        let workDescriptor = FetchDescriptor<WorkModel>(
-            sortBy: [SortDescriptor(\.createdAt, order: .reverse)]
-        )
+        let workDescriptor: NSFetchRequest<CDWorkModel> = NSFetchRequest(entityName: "CDWorkModel")
+        workDescriptor.sortDescriptors = [NSSortDescriptor(key: "createdAt", ascending: false)]
         allWorkModels = context.safeFetch(workDescriptor)
 
-        let noteDescriptor = FetchDescriptor<Note>(
-            sortBy: [SortDescriptor(\.updatedAt, order: .reverse)]
-        )
+        let noteDescriptor: NSFetchRequest<CDNote> = NSFetchRequest(entityName: "CDNote")
+        noteDescriptor.sortDescriptors = [NSSortDescriptor(key: "updatedAt", ascending: false)]
         allNotes = context.safeFetch(noteDescriptor)
 
-        let stepDescriptor = FetchDescriptor<TrackStep>(
-            sortBy: [SortDescriptor(\.orderIndex)]
-        )
+        let stepDescriptor: NSFetchRequest<CDTrackStep> = NSFetchRequest(entityName: "CDTrackStep")
+        stepDescriptor.sortDescriptors = [NSSortDescriptor(key: "orderIndex", ascending: true)]
         allTrackSteps = context.safeFetch(stepDescriptor)
 
-        let lessonDescriptor = FetchDescriptor<Lesson>(
-            sortBy: [SortDescriptor(\.name)]
-        )
+        let lessonDescriptor: NSFetchRequest<CDLesson> = NSFetchRequest(entityName: "CDLesson")
+        lessonDescriptor.sortDescriptors = [NSSortDescriptor(key: "name", ascending: true)]
         allLessons = context.safeFetch(lessonDescriptor)
 
-        let lpDescriptor = FetchDescriptor<LessonPresentation>()
+        let lpDescriptor = NSFetchRequest<CDLessonPresentation>(entityName: "CDLessonPresentation")
         allLessonPresentations = context.safeFetch(lpDescriptor)
 
         // Compute filtered results
         activeEnrollments = allEnrollments.filter { $0.studentID == studentIDString && $0.isActive }
-        activeProjects = allProjects.filter { $0.memberStudentIDs.contains(studentIDString) && $0.isActive }
+        activeProjects = allProjects.filter { $0.memberStudentIDsArray.contains(studentIDString) && $0.isActive }
         activeReports = allWorkModels.filter {
             $0.studentID == studentIDString && $0.kind == .report && $0.status != .complete
         }
         // Use uniquingKeysWith to handle CloudKit sync duplicates
-        tracksByID = Dictionary(allTracks.map { ($0.id.uuidString, $0) }, uniquingKeysWith: { first, _ in first })
+        tracksByID = Dictionary(allTracks.compactMap { t in t.id.map { ($0.uuidString, t) } }, uniquingKeysWith: { first, _ in first })
     }
 
-    // MARK: - Track Stats Computation
+    // MARK: - CDTrackEntity Stats Computation
 
     struct TrackStats {
-        let lessonAssignments: [LessonAssignment]
-        let workModels: [WorkModel]
-        let notes: [Note]
+        let lessonAssignments: [CDLessonAssignment]
+        let workModels: [CDWorkModel]
+        let notes: [CDNote]
         let presentationCount: Int
         let workCount: Int
         let noteCount: Int
@@ -110,7 +102,7 @@ final class StudentProgressTabViewModel {
         let lastActivityDate: Date?
     }
 
-    func trackStats(for enrollment: StudentTrackEnrollment, track: Track) -> TrackStats {
+    func trackStats(for enrollment: CDStudentTrackEnrollmentEntity, track: CDTrackEntity) -> TrackStats {
         guard let studentID else {
             return TrackStats(
                 lessonAssignments: [], workModels: [], notes: [],
@@ -120,7 +112,7 @@ final class StudentProgressTabViewModel {
         }
 
         let studentIDString = studentID.uuidString
-        let trackIDString = track.id.uuidString
+        let trackIDString = track.id?.uuidString ?? ""
 
         // Get LessonAssignments (unified model) for this track and student
         let lessonAssignments = allLessonAssignments.filter {
@@ -143,7 +135,7 @@ final class StudentProgressTabViewModel {
             var dates: [Date] = []
             dates.append(contentsOf: lessonAssignments.compactMap(\.presentedAt))
             dates.append(contentsOf: workModels.compactMap { $0.completedAt ?? $0.createdAt })
-            dates.append(contentsOf: notes.map(\.updatedAt))
+            dates.append(contentsOf: notes.compactMap(\.updatedAt))
             return dates.max()
         }()
 
@@ -162,17 +154,17 @@ final class StudentProgressTabViewModel {
     // MARK: - Progress Computation
 
     struct TrackProgress {
-        let trackSteps: [TrackStep]
+        let trackSteps: [CDTrackStep]
         let completedStepIDs: Set<String>
         let proficientCount: Int
         let totalSteps: Int
         let progressPercent: Double
         let isComplete: Bool
-        let currentStep: TrackStep?
-        let currentLesson: Lesson?
+        let currentStep: CDTrackStep?
+        let currentLesson: CDLesson?
     }
 
-    func trackProgress(for track: Track) -> TrackProgress {
+    func trackProgress(for track: CDTrackEntity) -> TrackProgress {
         guard let studentID else {
             return TrackProgress(
                 trackSteps: [], completedStepIDs: [],
@@ -184,19 +176,20 @@ final class StudentProgressTabViewModel {
         let studentIDString = studentID.uuidString
 
         // Get track steps
-        let trackSteps: [TrackStep] = {
-            if let steps = track.steps, !steps.isEmpty {
-                return steps.sorted { $0.orderIndex < $1.orderIndex }
+        let trackSteps: [CDTrackStep] = {
+            let stepsArray = (track.steps?.allObjects as? [CDTrackStep]) ?? []
+            if !stepsArray.isEmpty {
+                return stepsArray.sorted { $0.orderIndex < $1.orderIndex }
             }
             return allTrackSteps
-                .filter { $0.track?.id == track.id }
+                .filter { $0.track?.id != nil && $0.track?.id == track.id }
                 .sorted { $0.orderIndex < $1.orderIndex }
         }()
 
         // Get lesson IDs for this track's steps
         let trackLessonIDs = Set(trackSteps.compactMap { $0.lessonTemplateID?.uuidString })
 
-        // Get this student's LessonPresentation records for track lessons
+        // Get this student's CDLessonPresentation records for track lessons
         let filteredPresentations = allLessonPresentations.filter {
             $0.studentID == studentIDString && trackLessonIDs.contains($0.lessonID)
         }
@@ -212,7 +205,7 @@ final class StudentProgressTabViewModel {
                 guard let lessonID = step.lessonTemplateID?.uuidString else { return false }
                 return proficientLessonIDs.contains(lessonID)
             }
-            .map { $0.id.uuidString })
+            .compactMap { $0.id?.uuidString })
 
         let proficientCount = completedStepIDs.count
         let totalSteps = trackSteps.count
@@ -243,7 +236,7 @@ final class StudentProgressTabViewModel {
 
     // MARK: - Report Helpers
 
-    func reportTitle(for report: WorkModel) -> String {
+    func reportTitle(for report: CDWorkModel) -> String {
         let title = report.title.trimmed()
         if !title.isEmpty { return title }
         if let lessonID = UUID(uuidString: report.lessonID),
@@ -272,9 +265,9 @@ final class StudentProgressTabViewModel {
         #endif
     }
 
-    // MARK: - Auto-Complete Track
+    // MARK: - Auto-Complete CDTrackEntity
 
-    func autoCompleteTrackIfNeeded(enrollment: StudentTrackEnrollment, progress: TrackProgress, context: ModelContext) {
+    func autoCompleteTrackIfNeeded(enrollment: CDStudentTrackEnrollmentEntity, progress: TrackProgress, context: NSManagedObjectContext) {
         if progress.isComplete && enrollment.isActive {
             enrollment.isActive = false
             do {

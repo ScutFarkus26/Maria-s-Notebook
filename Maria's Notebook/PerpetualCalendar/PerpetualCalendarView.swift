@@ -1,16 +1,11 @@
 import SwiftUI
-import SwiftData
+import CoreData
 
 // MARK: - Perpetual Calendar View
 
 struct PerpetualCalendarView: View {
-    @Environment(\.modelContext) private var modelContext
-    @Query(sort: [
-        SortDescriptor(\CalendarNote.year),
-        SortDescriptor(\CalendarNote.month),
-        SortDescriptor(\CalendarNote.day)
-    ])
-    private var allNotes: [CalendarNote]
+    @Environment(\.managedObjectContext) private var viewContext
+    @FetchRequest(sortDescriptors: [NSSortDescriptor(keyPath: \CDCalendarNote.year, ascending: true), NSSortDescriptor(keyPath: \CDCalendarNote.month, ascending: true), NSSortDescriptor(keyPath: \CDCalendarNote.day, ascending: true)]) private var allNotes: FetchedResults<CDCalendarNote>
 
     @State private var displayYear: Int = Calendar.current.component(.year, from: Date())
     @State private var editingCell: CellID?
@@ -34,10 +29,10 @@ struct PerpetualCalendarView: View {
         }
     }
 
-    private var notesLookup: [CellID: CalendarNote] {
-        var lookup: [CellID: CalendarNote] = [:]
+    private var notesLookup: [CellID: CDCalendarNote] {
+        var lookup: [CellID: CDCalendarNote] = [:]
         for note in allNotes {
-            lookup[CellID(year: note.year, month: note.month, day: note.day)] = note
+            lookup[CellID(year: Int(note.year), month: Int(note.month), day: Int(note.day))] = note
         }
         return lookup
     }
@@ -179,7 +174,7 @@ private extension PerpetualCalendarView {
         guard let start = cal.date(from: startComps),
               let end = cal.date(byAdding: .year, value: years, to: start) else { return }
 
-        let dates = await SchoolCalendar.nonSchoolDays(in: start..<end, using: modelContext)
+        let dates = await SchoolCalendar.nonSchoolDays(in: start..<end, using: viewContext)
         var cells = Set<CellID>()
         for date in dates {
             cells.insert(CellID(
@@ -319,16 +314,20 @@ private extension PerpetualCalendarView {
 
         if let existing = notesLookup[cellID] {
             if trimmed.isEmpty || trimmed == holiday {
-                modelContext.delete(existing)
+                viewContext.delete(existing)
             } else {
                 existing.text = trimmed
                 existing.modifiedAt = Date()
             }
         } else if !trimmed.isEmpty && trimmed != holiday {
-            modelContext.insert(CalendarNote(year: cellID.year, month: cellID.month, day: cellID.day, text: trimmed))
+            let newNote = CDCalendarNote(context: viewContext)
+            newNote.year = Int64(cellID.year)
+            newNote.month = Int64(cellID.month)
+            newNote.day = Int64(cellID.day)
+            newNote.text = trimmed
         }
 
-        modelContext.safeSave()
+        viewContext.safeSave()
         editingCell = nil
         editText = ""
     }

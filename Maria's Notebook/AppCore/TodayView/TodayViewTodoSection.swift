@@ -2,7 +2,7 @@
 // Todo section for TodayView - extracted for maintainability
 
 import SwiftUI
-import SwiftData
+import CoreData
 
 // MARK: - TodayView Todo Section Extension
 
@@ -160,7 +160,7 @@ extension TodayView {
 
     /// Todos relevant to the selected day: scheduled for day, overdue deadline, due on date, or high priority.
     /// Someday todos are excluded.
-    var todayTodos: [TodoItem] {
+    var todayTodos: [CDTodoItem] {
         let selectedDay = AppCalendar.startOfDay(viewModel.date)
         let nextDay = Calendar.current.date(byAdding: .day, value: 1, to: selectedDay) ?? selectedDay
 

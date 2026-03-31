@@ -9,7 +9,6 @@
 
 import SwiftUI
 import CoreData
-import SwiftData
 import OSLog
 #if !os(macOS)
 import TipKit
@@ -28,8 +27,7 @@ struct RootView: View {
     // MARK: - Storage
     @SceneStorage("RootView.selectedNavItem") private var selectedNavItemRaw: String?
     @SceneStorage("RootView.selectedTab") private var selectedTabRaw: String?
-    @Environment(\.modelContext) private var modelContext
-    @Environment(\.managedObjectContext) private var managedObjectContext
+    @Environment(\.managedObjectContext) private var viewContext
     @Environment(\.appRouter) private var appRouter
     @Environment(\.dependencies) private var dependencies
     @Environment(\.calendar) private var calendar
@@ -131,9 +129,9 @@ struct RootView: View {
             QuickNoteGlassButton(
                 isShowingCommandBar: $isShowingCommandBar,
                 onNewPresentation: {
-                    let draft = PresentationFactory.makeDraft(lessonID: UUID(), studentIDs: [], context: managedObjectContext)
+                    let draft = PresentationFactory.makeDraft(lessonID: UUID(), studentIDs: [], context: viewContext)
                     do {
-                        try managedObjectContext.save()
+                        try viewContext.save()
                     } catch {
                         Self.logger.error("Failed to save new presentation draft: \(error)")
                     }

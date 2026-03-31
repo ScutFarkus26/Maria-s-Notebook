@@ -1,14 +1,14 @@
 import SwiftUI
-import SwiftData
+import CoreData
 
 struct UnplannedStudentsStrip: View {
     let date: Date
-    let unplanned: [Student]
-    let onSelect: (Student) -> Void
+    let unplanned: [CDStudent]
+    let onSelect: (CDStudent) -> Void
 
     @State private var expanded: Bool = false
 
-    init(date: Date, unplanned: [Student], onSelect: @escaping (Student) -> Void) {
+    init(date: Date, unplanned: [CDStudent], onSelect: @escaping (CDStudent) -> Void) {
         self.date = date
         self.unplanned = unplanned
         self.onSelect = onSelect
@@ -24,7 +24,7 @@ struct UnplannedStudentsStrip: View {
         return Set(counts.filter { $0.value > 1 }.map(\.key))
     }
 
-    private func chipLabel(for student: Student) -> String {
+    private func chipLabel(for student: CDStudent) -> String {
         let first = student.firstName.trimmed()
         let key = first.lowercased()
         if duplicateFirstNames.contains(key) {
@@ -102,15 +102,7 @@ struct UnplannedStudentsStrip: View {
 }
 
 #Preview {
-    let s1 = Student(firstName: "Ava", lastName: "Ng", birthday: Date(), level: .lower)
-    let s2 = Student(firstName: "Liam", lastName: "C.", birthday: Date(), level: .upper)
-    let s3 = Student(firstName: "Ava", lastName: "Smith", birthday: Date(), level: .upper)
-    let s4 = Student(firstName: "Noah", lastName: "Brown", birthday: Date(), level: .lower)
-
-    return VStack(alignment: .leading, spacing: 12) {
-        UnplannedStudentsStrip(date: Date(), unplanned: [s1, s2, s3, s4]) { _ in }
-            .padding()
-        UnplannedStudentsStrip(date: Date(), unplanned: []) { _ in }
-            .padding()
-    }
+    UnplannedStudentsStrip(date: Date(), unplanned: []) { _ in }
+        .padding()
+        .previewEnvironment()
 }

@@ -6,7 +6,7 @@ import UIKit
 
 struct MarkdownExporter {
     // swiftlint:disable:next cyclomatic_complexity function_body_length
-    static func markdown(for t: CommunityTopic) -> String {
+    static func markdown(for t: CDCommunityTopicEntity) -> String {
         var m = """
         # \(t.title)
         
@@ -20,9 +20,10 @@ struct MarkdownExporter {
             
             """
         }
-        if !(t.proposedSolutions ?? []).isEmpty {
+        let solutions = (t.proposedSolutions?.allObjects as? [CDProposedSolutionEntity]) ?? []
+        if !solutions.isEmpty {
             m += "## Proposed Solutions\n\n"
-            for s in t.proposedSolutions ?? [] {
+            for s in solutions {
                 let title = s.title.trimmed()
                 let details = s.details.trimmed()
                 if !title.isEmpty {
@@ -46,9 +47,10 @@ struct MarkdownExporter {
             
             """
         }
-        if !(t.unifiedNotes ?? []).isEmpty {
+        let meetingNotes = (t.unifiedNotes?.allObjects as? [CDNote]) ?? []
+        if !meetingNotes.isEmpty {
             m += "## Meeting Notes\n\n"
-            let notes = (t.unifiedNotes ?? []).sorted { $0.createdAt < $1.createdAt }
+            let notes = meetingNotes.sorted { ($0.createdAt ?? .distantPast) < ($1.createdAt ?? .distantPast) }
             for n in notes {
                 let speaker = (n.reporterName ?? "").trimmed()
                 let content = n.body.trimmed()

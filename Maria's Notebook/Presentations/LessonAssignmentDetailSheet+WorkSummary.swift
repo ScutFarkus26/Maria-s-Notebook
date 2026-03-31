@@ -1,5 +1,5 @@
 import SwiftUI
-import SwiftData
+import CoreData
 
 // MARK: - Work Summary Section
 
@@ -7,8 +7,8 @@ extension LessonAssignmentDetailSheet {
 
     @ViewBuilder
     // swiftlint:disable:next function_body_length
-    func workSummarySection(for presentation: LessonAssignment) -> some View {
-        let workItems = presentation.fetchRelatedWork(from: modelContext)
+    func workSummarySection(for presentation: CDLessonAssignment) -> some View {
+        let workItems = presentation.fetchRelatedWork(from: viewContext)
 
         if !workItems.isEmpty {
             VStack(alignment: .leading, spacing: 12) {
@@ -22,7 +22,7 @@ extension LessonAssignmentDetailSheet {
                     Spacer()
 
                     // Completion stats
-                    let stats = presentation.workCompletionStats(from: modelContext)
+                    let stats = presentation.workCompletionStats(from: viewContext)
                     if stats.total > 0 {
                         HStack(spacing: 4) {
                             Text("\(stats.completed)/\(stats.total)")
@@ -42,12 +42,12 @@ extension LessonAssignmentDetailSheet {
 
                 VStack(spacing: 8) {
                     ForEach(workItems) { work in
-                        WorkItemCompactRow(work: work, modelContext: modelContext)
+                        WorkItemCompactRow(work: work, viewContext: viewContext)
                     }
                 }
 
                 // Practice sessions for this presentation's work
-                let practiceSessions = presentation.fetchRelatedPracticeSessions(from: modelContext)
+                let practiceSessions = presentation.fetchRelatedPracticeSessions(from: viewContext)
                 if !practiceSessions.isEmpty {
                     VStack(alignment: .leading, spacing: 8) {
                         HStack(spacing: 6) {

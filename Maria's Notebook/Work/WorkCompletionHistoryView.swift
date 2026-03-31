@@ -1,6 +1,6 @@
 import OSLog
 import SwiftUI
-import SwiftData
+import CoreData
 
 /// A reusable list view that displays completion history for a given work.
 /// Optionally filter by a specific student.
@@ -10,7 +10,7 @@ struct WorkCompletionHistoryView: View {
     let workID: UUID
     var studentID: UUID?
 
-    @Environment(\.modelContext) private var modelContext
+    @Environment(\.managedObjectContext) private var modelContext
 
     @State private var records: [WorkCompletionRecord] = []
     @State private var isLoading: Bool = false
@@ -44,10 +44,11 @@ struct WorkCompletionHistoryView: View {
                             Image(systemName: "checkmark.circle.fill")
                                 .foregroundStyle(AppColors.success)
                             VStack(alignment: .leading, spacing: 4) {
-                                let dateStr = record.completedAt.formatted(
+                                let completedDate = record.completedAt ?? Date()
+                                let dateStr = completedDate.formatted(
                                     date: .abbreviated, time: .omitted
                                 )
-                                let timeStr = record.completedAt.formatted(
+                                let timeStr = completedDate.formatted(
                                     date: .omitted, time: .shortened
                                 )
                                 Text("\(dateStr) • \(timeStr)")
@@ -62,7 +63,7 @@ struct WorkCompletionHistoryView: View {
                         }
                         .accessibilityElement(children: .combine)
                         .accessibilityLabel(
-                            "Completed on \(record.completedAt.formatted(date: .numeric, time: .shortened))"
+                            "Completed on \((record.completedAt ?? Date()).formatted(date: .numeric, time: .shortened))"
                         )
                         .contextMenu {
                             Button(role: .destructive) {
@@ -92,26 +93,25 @@ struct WorkCompletionHistoryView: View {
         isLoading = true
         errorMessage = nil
         defer { isLoading = false }
+
+        let request = CDFetchRequest(CDWorkCompletionRecord.self)
+        let workIDString = workID.uuidString
+        if let studentID {
+            let studentIDString = studentID.uuidString
+            request.predicate = NSCompoundPredicate(andPredicateWithSubpredicates: [
+                NSPredicate(format: "workID == %@", workIDString),
+                NSPredicate(format: "studentID == %@", studentIDString)
+            ])
+        } else {
+            request.predicate = NSPredicate(format: "workID == %@", workIDString)
+        }
+        request.sortDescriptors = [NSSortDescriptor(key: "completedAt", ascending: false)]
+
         do {
-            // Fetch via SwiftData (service layer uses Core Data types now; views will migrate in Phase 4)
-            let workIDString = workID.uuidString
-            let predicate: Predicate<WorkCompletionRecord>
-            if let studentID {
-                let studentIDString = studentID.uuidString
-                predicate = #Predicate { $0.workID == workIDString && $0.studentID == studentIDString }
-            } else {
-                predicate = #Predicate { $0.workID == workIDString }
-            }
-            let descriptor = FetchDescriptor<WorkCompletionRecord>(
-                predicate: predicate,
-                sortBy: [SortDescriptor(\.completedAt, order: .reverse)]
-            )
-            do {
-                self.records = try modelContext.fetch(descriptor)
-            } catch {
-                Self.logger.warning("Failed to fetch WorkCompletionRecord: \(error)")
-                self.records = []
-            }
+            self.records = try modelContext.fetch(request)
+        } catch {
+            Self.logger.warning("Failed to fetch WorkCompletionRecord: \(error)")
+            self.records = []
         }
     }
 
@@ -130,8 +130,8 @@ struct WorkCompletionHistoryView: View {
         }
         do {
             try modelContext.save()
-            let idsToRemove = Set(recordsToDelete.map(\.id))
-            records.removeAll { idsToRemove.contains($0.id) }
+            let idsToRemove = Set(recordsToDelete.compactMap(\.id))
+            records.removeAll { guard let id = $0.id else { return false }; return idsToRemove.contains(id) }
         } catch {
             Task { await reload() }
         }
@@ -142,61 +142,5 @@ struct WorkCompletionHistoryView: View {
     NavigationStack {
         WorkCompletionHistoryView(workID: UUID())
     }
-}
-
-#Preview("With Sample Data") {
-    struct PreviewHost: View {
-        @Environment(\.modelContext) private var modelContext
-        @State private var workID = UUID()
-        @State private var studentA = UUID()
-        @State private var studentB = UUID()
-
-        var body: some View {
-            NavigationStack {
-                WorkCompletionHistoryView(workID: workID)
-                    .task {
-                        // Seed some sample records in memory
-                        let now = Date()
-                        let items: [WorkCompletionRecord] = [
-                            WorkCompletionRecord(
-                                workID: workID, studentID: studentA,
-                                completedAt: now.addingTimeInterval(-3600)
-                            ),
-                            WorkCompletionRecord(
-                                workID: workID, studentID: studentB,
-                                completedAt: now.addingTimeInterval(-1800)
-                            ),
-                            WorkCompletionRecord(
-                                workID: workID, studentID: studentA,
-                                completedAt: now.addingTimeInterval(-600)
-                            )
-                        ]
-                        let noteTexts = ["First try", "Assisted", "Independent"]
-                        for (record, text) in zip(items, noteTexts) {
-                            modelContext.insert(record)
-                            record.setLegacyNoteText(text, in: modelContext)
-                        }
-                        do {
-                            try modelContext.save()
-                        } catch {
-                            print("⚠️ [Preview] Failed to save preview data: \(error)")
-                        }
-                    }
-            }
-        }
-    }
-
-    return PreviewContainer(PreviewHost())
-}
-
-/// A lightweight in-memory container for previews.
-/// Note: This preview uses WorkCompletionRecord notes, so Note is included in the schema.
-private struct PreviewContainer<Content: View>: View {
-    private let content: Content
-    init(_ content: Content) { self.content = content }
-
-    var body: some View {
-        content
-            .modelContainer(ModelContainer.previewContainer(for: Schema([WorkCompletionRecord.self, Note.self])))
-    }
+    .previewEnvironment()
 }

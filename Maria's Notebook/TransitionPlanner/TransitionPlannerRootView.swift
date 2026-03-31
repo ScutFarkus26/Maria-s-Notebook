@@ -2,12 +2,12 @@
 // Main view for the Transition & Bridging Planner.
 
 import SwiftUI
-import SwiftData
+import CoreData
 
 struct TransitionPlannerRootView: View {
-    @Environment(\.modelContext) private var modelContext
+    @Environment(\.managedObjectContext) private var viewContext
     @State private var viewModel = TransitionPlannerViewModel()
-    @State private var selectedPlan: TransitionPlan?
+    @State private var selectedPlan: CDTransitionPlan?
 
     var body: some View {
         VStack(spacing: 0) {
@@ -80,7 +80,7 @@ struct TransitionPlannerRootView: View {
             .presentationDragIndicator(.visible)
             #endif
         }
-        .onAppear { viewModel.loadData(context: modelContext) }
+        .onAppear { viewModel.loadData(context: viewContext) }
     }
 
     private var studentPickerSheet: some View {
@@ -88,7 +88,7 @@ struct TransitionPlannerRootView: View {
             List {
                 ForEach(viewModel.availableStudents) { student in
                     Button {
-                        viewModel.createPlan(studentID: student.id, context: modelContext)
+                        viewModel.createPlan(studentID: student.id ?? UUID(), context: viewContext)
                         viewModel.showingNewPlanPicker = false
                     } label: {
                         HStack(spacing: 8) {

@@ -1,5 +1,5 @@
 import Foundation
-import SwiftData
+import CoreData
 import OSLog
 
 /// Utility to verify backup file integrity and provide status information

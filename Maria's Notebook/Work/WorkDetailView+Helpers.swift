@@ -1,5 +1,5 @@
 import SwiftUI
-import SwiftData
+import CoreData
 import Foundation
 
 // MARK: - Helper Methods & General Sections
@@ -207,8 +207,8 @@ extension WorkDetailView {
                     VStack(spacing: 10) {
                         ForEach(
                         viewModel.workModelNotes
-                            .sorted { $0.createdAt > $1.createdAt },
-                        id: \.id
+                            .sorted { ($0.createdAt ?? .distantPast) > ($1.createdAt ?? .distantPast) },
+                        id: \.objectID
                     ) { note in
                             noteRow(note)
                         }
@@ -267,9 +267,9 @@ extension WorkDetailView {
         _ = UnlockNextLessonService.unlockNextLesson(
             after: info.lessonID,
             for: info.studentID,
-            modelContext: modelContext,
+            context: modelContext,
             lessons: viewModel.relatedLessons,
-            lessonAssignments: viewModel.relatedLessonAssignments
+            cdAssignments: viewModel.relatedLessonAssignments
         )
 
         saveCoordinator.save(modelContext, reason: "Unlocking next lesson")

@@ -19,8 +19,8 @@ struct PracticeStatsCalculator {
         
         stats.totalSessions = sessions.count
         stats.totalDuration = formatDuration(from: sessions)
-        stats.avgQuality = calculateAverage(values: sessions.compactMap(\.practiceQuality))
-        stats.avgIndependence = calculateAverage(values: sessions.compactMap(\.independenceLevel))
+        stats.avgQuality = calculateAverage(values: sessions.compactMap(\.practiceQualityValue))
+        stats.avgIndependence = calculateAverage(values: sessions.compactMap(\.independenceLevelValue))
         stats.topBehaviors = extractTopBehaviors(from: sessions, limit: 3)
         stats.needsReteaching = sessions.filter(\.needsReteaching).count
         stats.upcomingCheckIns = sessions.filter { $0.checkInScheduledFor != nil }.count
@@ -29,7 +29,7 @@ struct PracticeStatsCalculator {
     }
     
     private static func formatDuration(from sessions: [PracticeSession]) -> String? {
-        let totalSeconds = sessions.compactMap(\.duration).reduce(0, +)
+        let totalSeconds = sessions.compactMap(\.durationInterval).reduce(0, +)
         guard totalSeconds > 0 else { return nil }
         
         let minutes = Int(totalSeconds / 60)
@@ -69,7 +69,7 @@ struct WorkPlanItemRow: View {
     
     var body: some View {
         HStack(spacing: 12) {
-            DateBadge(date: item.date)
+            DateBadge(date: item.date ?? Date())
             
             VStack(alignment: .leading, spacing: 4) {
                 PurposeLabel(purpose: item.purpose)
@@ -181,9 +181,9 @@ struct NoteRowView: View {
                 .fixedSize(horizontal: false, vertical: true)
 
             HStack(spacing: 8) {
-                NoteTagsRow(tags: note.tags)
-                
-                Text(note.createdAt, style: .date)
+                NoteTagsRow(tags: note.tagsArray)
+
+                Text(note.createdAt ?? Date(), style: .date)
                     .font(AppTheme.ScaledFont.captionSmall)
                     .foregroundStyle(.tertiary)
                 

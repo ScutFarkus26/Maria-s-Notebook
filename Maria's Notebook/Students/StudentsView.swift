@@ -1,7 +1,6 @@
 import CoreData
 import OSLog
 import SwiftUI
-import SwiftData
 import UniformTypeIdentifiers
 
 private let logger = Logger.students
@@ -11,7 +10,7 @@ private let logger = Logger.students
 struct StudentsView: View {
     @Binding var mode: StudentMode
 
-    @Environment(\.modelContext) var modelContext
+    @Environment(\.managedObjectContext) var viewContext
     @Environment(\.appRouter) private var appRouter
     @Environment(\.calendar) var calendar
     #if os(iOS)
@@ -19,12 +18,12 @@ struct StudentsView: View {
     #endif
 
     // OPTIMIZATION: Students always needed in roster mode, so keep @Query
-    @Query var students: [Student]
+    @FetchRequest(sortDescriptors: []) var students: FetchedResults<CDStudent>
 
     // DEDUPLICATION: CloudKit sync can create duplicate records with the same ID.
     // Use uniqueByID to prevent SwiftUI crash on "Duplicate values for key"
-    var uniqueStudents: [Student] { students.uniqueByID }
-    var uniqueStudentIDs: [UUID] { uniqueStudents.map(\.id) }
+    var uniqueStudents: [CDStudent] { Array(students).uniqueByID }
+    var uniqueStudentIDs: [UUID] { uniqueStudents.compactMap(\.id) }
 
     // PERF: Use lightweight count-based change detection instead of loading full tables.
     // SwiftData @Query always materializes full objects, so we use fetchCount() instead.
@@ -45,7 +44,7 @@ struct StudentsView: View {
     @State var searchText: String = ""
     @State var showingAddStudent = false
     @State var selectedStudentID: UUID?
-    @State var selectedStudentForSheet: Student?
+    @State var selectedStudentForSheet: CDStudent?
     @State private var isShowingSaveError: Bool = false
     @State private var saveErrorMessage: String = ""
 
@@ -246,7 +245,7 @@ struct StudentsView: View {
                 ensureInitialManualOrderIfNeeded()
                 if viewModel.repairManualOrderUniquenessIfNeeded(uniqueStudents) {
                     do {
-                        try modelContext.save()
+                        try viewContext.save()
                     } catch {
                         logger.warning("Failed to save after repairing manual order uniqueness: \(error)")
                     }
@@ -263,7 +262,7 @@ struct StudentsView: View {
     private func loadDataOnDemand() async {
         viewModel.loadDataOnDemand(
             mode: mode,
-            modelContext: modelContext,
+            viewContext: viewContext,
             calendar: calendar,
             students: uniqueStudents
         )
@@ -280,15 +279,15 @@ struct StudentsView: View {
     /// Called when SwiftData saves, so we detect inserts/deletes without materializing objects.
     private func refreshChangeTokens() {
         do {
-            let attendanceCount = try modelContext.fetchCount(FetchDescriptor<AttendanceRecord>())
+            let attendanceCount = try viewContext.count(for: NSFetchRequest<CDAttendanceRecord>(entityName: "CDAttendanceRecord"))
             if attendanceCount != attendanceChangeToken {
                 attendanceChangeToken = attendanceCount
             }
-            let presentationCount = try modelContext.fetchCount(FetchDescriptor<LessonAssignment>())
+            let presentationCount = try viewContext.count(for: NSFetchRequest<CDLessonAssignment>(entityName: "CDLessonAssignment"))
             if presentationCount != presentationChangeToken {
                 presentationChangeToken = presentationCount
             }
-            let lessonCount = try modelContext.fetchCount(FetchDescriptor<Lesson>())
+            let lessonCount = try viewContext.count(for: NSFetchRequest<CDLesson>(entityName: "CDLesson"))
             if lessonCount != lessonChangeToken {
                 lessonChangeToken = lessonCount
             }
@@ -300,7 +299,7 @@ struct StudentsView: View {
     private func ensureInitialManualOrderIfNeeded() {
         if viewModel.ensureInitialManualOrderIfNeeded(uniqueStudents) {
             do {
-                try modelContext.save()
+                try viewContext.save()
             } catch {
                 logger.warning("Failed to save initial manual order: \(error)")
             }
@@ -310,7 +309,7 @@ struct StudentsView: View {
     private func assignManualOrder(from orderedIDs: [UUID]) {
         for (idx, id) in orderedIDs.enumerated() {
             if let s = uniqueStudents.first(where: { $0.id == id }) {
-                s.manualOrder = idx
+                s.manualOrder = Int64(idx)
             }
         }
     }
@@ -319,7 +318,7 @@ struct StudentsView: View {
         guard effectiveSortOrder == .manual, let fromIndex = source.first else { return }
         let movingStudent = filteredStudents[fromIndex]
         let newAllIDs = viewModel.mergeReorderedSubsetIntoAll(
-            movingID: movingStudent.id,
+            movingID: movingStudent.id ?? UUID(),
             from: fromIndex,
             to: destination,
             current: filteredStudents,
@@ -327,7 +326,7 @@ struct StudentsView: View {
         )
         assignManualOrder(from: newAllIDs)
         do {
-            try modelContext.save()
+            try viewContext.save()
         } catch {
             logger.warning("Failed to save manual reorder: \(error)")
         }

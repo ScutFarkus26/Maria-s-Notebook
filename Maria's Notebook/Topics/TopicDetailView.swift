@@ -1,15 +1,15 @@
 import SwiftUI
-import SwiftData
+import CoreData
 
 struct TopicDetailView: View, Identifiable {
     let id = UUID()
 
     @Environment(\.dismiss) private var dismiss
-    @Environment(\.modelContext) private var modelContext
+    @Environment(\.managedObjectContext) private var viewContext
     @Environment(SaveCoordinator.self) private var saveCoordinator
 
     let topicID: UUID
-    var onSave: (CommunityTopic) -> Void
+    var onSave: (CDCommunityTopicEntity) -> Void
 
     @State private var vm = TopicDetailViewModel()
 
@@ -53,23 +53,23 @@ struct TopicDetailView: View, Identifiable {
                         newSolutionProposedBy: $newSolutionProposedBy,
                         onToggleAdopted: { s in
                             vm.toggleSolutionAdopted(s)
-                            saveCoordinator.save(modelContext, reason: "Toggle solution adopted")
+                            saveCoordinator.save(viewContext, reason: "Toggle solution adopted")
                         },
                         onDelete: { s in
-                            vm.deleteSolution(context: modelContext, s)
-                            saveCoordinator.save(modelContext, reason: "Delete solution")
+                            vm.deleteSolution(context: viewContext, s)
+                            saveCoordinator.save(viewContext, reason: "Delete solution")
                         },
                         onAdd: {
                             let title = newSolutionTitle.trimmed()
                             let details = newSolutionDetails.trimmed()
                             let proposedBy = newSolutionProposedBy.trimmed()
                             vm.addSolution(
-                                context: modelContext,
+                                context: viewContext,
                                 title: title,
                                 details: details,
                                 proposedBy: proposedBy
                             )
-                            saveCoordinator.save(modelContext, reason: "Add proposed solution")
+                            saveCoordinator.save(viewContext, reason: "Add proposed solution")
                             newSolutionTitle = ""; newSolutionDetails = ""; newSolutionProposedBy = ""
                         }
                     )
@@ -78,8 +78,8 @@ struct TopicDetailView: View, Identifiable {
                         attachments: vm.attachments,
                         showingImagePicker: $showingImagePicker,
                         onDelete: { a in
-                            vm.deleteAttachment(context: modelContext, a)
-                            saveCoordinator.save(modelContext, reason: "Delete attachment")
+                            vm.deleteAttachment(context: viewContext, a)
+                            saveCoordinator.save(viewContext, reason: "Delete attachment")
                         }
                     )
 
@@ -88,15 +88,15 @@ struct TopicDetailView: View, Identifiable {
                         newNoteSpeaker: $newNoteSpeaker,
                         newNoteContent: $newNoteContent,
                         onDelete: { n in
-                            vm.deleteNote(context: modelContext, n)
-                            saveCoordinator.save(modelContext, reason: "Delete note")
+                            vm.deleteNote(context: viewContext, n)
+                            saveCoordinator.save(viewContext, reason: "Delete note")
                         },
                         onAdd: {
                             let speaker = newNoteSpeaker.trimmed()
                             let content = newNoteContent.trimmed()
                             guard !content.isEmpty else { return }
-                            vm.addNote(context: modelContext, speaker: speaker, content: content)
-                            saveCoordinator.save(modelContext, reason: "Add note")
+                            vm.addNote(context: viewContext, speaker: speaker, content: content)
+                            saveCoordinator.save(viewContext, reason: "Add note")
                             newNoteSpeaker = ""; newNoteContent = ""
                         }
                     )
@@ -109,7 +109,7 @@ struct TopicDetailView: View, Identifiable {
             ToolbarItem(placement: .confirmationAction) {
                 Button("Save") {
                     guard let t = vm.topic else { return }
-                    vm.persistChanges(context: modelContext)
+                    vm.persistChanges(context: viewContext)
                     onSave(t)
                     dismiss()
                 }
@@ -130,7 +130,7 @@ struct TopicDetailView: View, Identifiable {
             }
         }
         .task(id: topicID) {
-            await vm.load(context: modelContext, topicID: topicID)
+            await vm.load(context: viewContext, topicID: topicID)
         }
     }
 }
@@ -329,11 +329,11 @@ private struct AttachmentsSection: View {
 }
 
 private struct MeetingNotesSection: View {
-    let notes: [Note]
+    let notes: [CDNote]
     @Binding var newNoteSpeaker: String
     @Binding var newNoteContent: String
 
-    var onDelete: (Note) -> Void
+    var onDelete: (CDNote) -> Void
     var onAdd: () -> Void
 
     var body: some View {
@@ -342,7 +342,7 @@ private struct MeetingNotesSection: View {
                 if notes.isEmpty {
                     Text("No notes yet.").foregroundStyle(.secondary)
                 } else {
-                    let sortedNotes: [Note] = notes.sorted { $0.createdAt < $1.createdAt }
+                    let sortedNotes: [CDNote] = notes.sorted { ($0.createdAt ?? .distantPast) < ($1.createdAt ?? .distantPast) }
                     ForEach(sortedNotes) { n in
                         HStack(alignment: .top, spacing: 8) {
                             if let reporterName = n.reporterName, !reporterName.trimmed().isEmpty {

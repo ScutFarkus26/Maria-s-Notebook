@@ -8,7 +8,6 @@
 
 import Foundation
 import CoreData
-import SwiftData
 
 enum PresentationFactory {
 
@@ -134,41 +133,64 @@ enum PresentationFactory {
         return la
     }
 
-    // MARK: - Legacy SwiftData overloads (transition period — remove when views migrate to Core Data)
+    // MARK: - Insert convenience methods (Core Data entities auto-insert on creation)
 
-    /// Legacy draft creation returning SwiftData LessonAssignment.
-    @available(*, deprecated, message: "Migrate caller to Core Data CDLessonAssignment")
+    /// Creates a draft CDLessonAssignment (entity is automatically inserted into the context).
+    @available(*, deprecated, message: "Use makeDraft(lessonID:studentIDs:context:) — Core Data auto-inserts")
+    @MainActor
+    @discardableResult
+    static func insertDraft(
+        lessonID: UUID,
+        studentIDs: [UUID],
+        context: NSManagedObjectContext
+    ) -> CDLessonAssignment {
+        makeDraft(lessonID: lessonID, studentIDs: studentIDs, context: context)
+    }
+
+    /// Creates a presented CDLessonAssignment (entity is automatically inserted into the context).
+    @available(*, deprecated, message: "Use makePresented(lessonID:studentIDs:context:) — Core Data auto-inserts")
+    @MainActor
+    @discardableResult
+    static func insertPresented(
+        lessonID: UUID,
+        studentIDs: [UUID],
+        presentedAt: Date = Date(),
+        context: NSManagedObjectContext
+    ) -> CDLessonAssignment {
+        makePresented(lessonID: lessonID, studentIDs: studentIDs, presentedAt: presentedAt, context: context)
+    }
+
+    /// Creates a previously-presented CDLessonAssignment (entity is automatically inserted into the context).
+    @available(*, deprecated, message: "Use makePreviouslyPresented(lessonID:studentIDs:context:) — Core Data auto-inserts")
+    @MainActor
+    @discardableResult
+    static func insertPreviouslyPresented(
+        lessonID: UUID,
+        studentIDs: [UUID],
+        context: NSManagedObjectContext
+    ) -> CDLessonAssignment {
+        makePreviouslyPresented(lessonID: lessonID, studentIDs: studentIDs, context: context)
+    }
+
+    // MARK: - Legacy overloads (transition period — callers that don't pass a context)
+
+    /// Legacy draft creation — uses the managed object context from the shared Core Data stack.
+    /// Callers should migrate to pass an explicit NSManagedObjectContext.
+    @available(*, deprecated, message: "Migrate caller to pass explicit NSManagedObjectContext")
     @MainActor
     static func makeDraft(
         lessonID: UUID,
         studentIDs: [UUID],
         id: UUID = UUID(),
         createdAt: Date = Date()
-    ) -> LessonAssignment {
-        LessonAssignment(
-            id: id,
-            createdAt: createdAt,
-            state: .draft,
-            lessonID: lessonID,
-            studentIDs: studentIDs
-        )
+    ) -> CDLessonAssignment {
+        let context = AppBootstrapping._sharedCoreDataStack!.viewContext
+        return makeDraft(lessonID: lessonID, studentIDs: studentIDs, id: id, createdAt: createdAt, context: context)
     }
 
-    /// Legacy insertDraft — creates and inserts into ModelContext.
-    @available(*, deprecated, message: "Migrate caller to Core Data CDLessonAssignment")
-    @MainActor
-    static func insertDraft(
-        lessonID: UUID,
-        studentIDs: [UUID],
-        context: ModelContext
-    ) -> LessonAssignment {
-        let la = makeDraft(lessonID: lessonID, studentIDs: studentIDs)
-        context.insert(la)
-        return la
-    }
-
-    /// Legacy presented creation returning SwiftData LessonAssignment.
-    @available(*, deprecated, message: "Migrate caller to Core Data CDLessonAssignment")
+    /// Legacy presented creation — uses the managed object context from the shared Core Data stack.
+    /// Callers should migrate to pass an explicit NSManagedObjectContext.
+    @available(*, deprecated, message: "Migrate caller to pass explicit NSManagedObjectContext")
     @MainActor
     static func makePresented(
         lessonID: UUID,
@@ -176,58 +198,31 @@ enum PresentationFactory {
         presentedAt: Date = Date(),
         id: UUID = UUID(),
         createdAt: Date = Date()
-    ) -> LessonAssignment {
-        let la = makeDraft(lessonID: lessonID, studentIDs: studentIDs, id: id, createdAt: createdAt)
-        la.stateRaw = LessonAssignmentState.presented.rawValue
-        la.presentedAt = presentedAt
-        return la
+    ) -> CDLessonAssignment {
+        let context = AppBootstrapping._sharedCoreDataStack!.viewContext
+        return makePresented(lessonID: lessonID, studentIDs: studentIDs, presentedAt: presentedAt, id: id, createdAt: createdAt, context: context)
     }
 
-    /// Legacy relationship attachment for SwiftData LessonAssignment.
-    @available(*, deprecated, message: "Migrate caller to Core Data CDLessonAssignment")
+    /// Legacy relationship attachment for CDLessonAssignment.
+    /// Callers should migrate to use the relationship-based makeDraft/makePresented overloads.
+    @available(*, deprecated, message: "Migrate caller to use relationship-based factory methods")
     @MainActor
     static func attachRelationships(
-        to la: LessonAssignment,
-        lesson: Lesson?,
-        students: [Student]
+        to la: CDLessonAssignment,
+        lesson: CDLesson?,
+        students: [CDStudent]
     ) {
         la.lesson = lesson
-        la.students = students
-        la.syncSnapshotsFromRelationships()
+        la.studentIDs = students.compactMap { $0.id?.uuidString }
+        if let lesson {
+            la.lessonTitleSnapshot = lesson.name
+            la.lessonSubheadingSnapshot = lesson.subheading
+        }
     }
 
-    /// Legacy insertPresented — creates, inserts, and marks as presented.
-    @available(*, deprecated, message: "Migrate caller to Core Data CDLessonAssignment")
-    @MainActor
-    static func insertPresented(
-        lessonID: UUID,
-        studentIDs: [UUID],
-        presentedAt: Date = Date(),
-        context: ModelContext
-    ) -> LessonAssignment {
-        let la = makePresented(lessonID: lessonID, studentIDs: studentIDs, presentedAt: presentedAt)
-        context.insert(la)
-        return la
-    }
-
-    /// Legacy insertPreviouslyPresented — creates, inserts, and marks as previously presented (undated).
-    @available(*, deprecated, message: "Migrate caller to Core Data CDLessonAssignment")
-    @MainActor
-    @discardableResult
-    static func insertPreviouslyPresented(
-        lessonID: UUID,
-        studentIDs: [UUID],
-        context: ModelContext
-    ) -> LessonAssignment {
-        let la = makeDraft(lessonID: lessonID, studentIDs: studentIDs)
-        la.stateRaw = LessonAssignmentState.presented.rawValue
-        // No presentedAt date — this is an undated historical record
-        context.insert(la)
-        return la
-    }
-
-    /// Legacy scheduled creation returning SwiftData LessonAssignment.
-    @available(*, deprecated, message: "Migrate caller to Core Data CDLessonAssignment")
+    /// Legacy scheduled creation — uses the managed object context from the shared Core Data stack.
+    /// Callers should migrate to pass an explicit NSManagedObjectContext.
+    @available(*, deprecated, message: "Migrate caller to pass explicit NSManagedObjectContext")
     @MainActor
     static func makeScheduled(
         lessonID: UUID,
@@ -235,10 +230,8 @@ enum PresentationFactory {
         scheduledFor: Date,
         id: UUID = UUID(),
         createdAt: Date = Date()
-    ) -> LessonAssignment {
-        let la = makeDraft(lessonID: lessonID, studentIDs: studentIDs, id: id, createdAt: createdAt)
-        la.scheduledFor = scheduledFor
-        la.stateRaw = LessonAssignmentState.scheduled.rawValue
-        return la
+    ) -> CDLessonAssignment {
+        let context = AppBootstrapping._sharedCoreDataStack!.viewContext
+        return makeScheduled(lessonID: lessonID, studentIDs: studentIDs, scheduledFor: scheduledFor, id: id, createdAt: createdAt, context: context)
     }
 }

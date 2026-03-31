@@ -2,26 +2,26 @@
 // Individual cell toggle/mark/clear operations for ClassSubjectChecklistViewModel.
 
 import Foundation
-import SwiftData
+import CoreData
 
 extension ClassSubjectChecklistViewModel {
 
     // MARK: - Individual Cell Actions
 
-    func toggleScheduled(student: Student, lesson: Lesson, context: ModelContext) {
+    func toggleScheduled(student: CDStudent, lesson: CDLesson, context: NSManagedObjectContext) {
         toggleScheduledNoRecompute(student: student, lesson: lesson, context: context)
         context.safeSave()
         recomputeMatrix(context: context)
     }
 
-    func toggleScheduledNoRecompute(student: Student, lesson: Lesson, context: ModelContext) {
-        let lessonIDString = lesson.id.uuidString
-        let studentIDString = student.id.uuidString
+    func toggleScheduledNoRecompute(student: CDStudent, lesson: CDLesson, context: NSManagedObjectContext) {
+        guard let lessonUUID = lesson.id, let studentUUID = student.id else { return }
+        let lessonIDString = lessonUUID.uuidString
+        let studentIDString = studentUUID.uuidString
 
-        let descriptor = FetchDescriptor<LessonAssignment>(
-            predicate: #Predicate { $0.lessonID == lessonIDString }
-        )
-        let allLAs = context.safeFetch(descriptor)
+        let request = CDFetchRequest(CDLessonAssignment.self)
+        request.predicate = NSPredicate(format: "lessonID == %@", lessonIDString)
+        let allLAs = context.safeFetch(request)
 
         if let existing = findUnscheduledLessonContaining(student: studentIDString, in: allLAs) {
             removeStudentFromLesson(student: studentIDString, lesson: existing, context: context)
@@ -33,11 +33,11 @@ extension ClassSubjectChecklistViewModel {
         }
     }
 
-    func findUnscheduledLessonContaining(student: String, in lessons: [LessonAssignment]) -> LessonAssignment? {
+    func findUnscheduledLessonContaining(student: String, in lessons: [CDLessonAssignment]) -> CDLessonAssignment? {
         lessons.first(where: { !$0.isPresented && $0.studentIDs.contains(student) })
     }
 
-    func removeStudentFromLesson(student: String, lesson: LessonAssignment, context: ModelContext) {
+    func removeStudentFromLesson(student: String, lesson: CDLessonAssignment, context: NSManagedObjectContext) {
         var ids = lesson.studentIDs
         ids.removeAll { $0 == student }
         if ids.isEmpty {
@@ -48,36 +48,37 @@ extension ClassSubjectChecklistViewModel {
     }
 
     func addStudentToUnscheduledLesson(
-        student: Student, studentIDString: String, lesson: Lesson,
-        in allLAs: [LessonAssignment], context: ModelContext
+        student: CDStudent, studentIDString: String, lesson: CDLesson,
+        in allLAs: [CDLessonAssignment], context: NSManagedObjectContext
     ) {
         if let group = allLAs.first(where: { !$0.isPresented && $0.scheduledFor == nil }) {
             if !group.studentIDs.contains(studentIDString) {
                 group.studentIDs.append(studentIDString)
             }
         } else {
-            PresentationFactory.insertDraft(
-                lessonID: lesson.id,
-                studentIDs: [student.id],
+            guard let lessonID = lesson.id, let studentID = student.id else { return }
+            PresentationFactory.makeDraft(
+                lessonID: lessonID,
+                studentIDs: [studentID],
                 context: context
             )
         }
     }
 
-    func markComplete(student: Student, lesson: Lesson, context: ModelContext) {
+    func markComplete(student: CDStudent, lesson: CDLesson, context: NSManagedObjectContext) {
         markCompleteNoRecompute(student: student, lesson: lesson, context: context)
         context.safeSave()
         recomputeMatrix(context: context)
     }
 
-    func markCompleteNoRecompute(student: Student, lesson: Lesson, context: ModelContext) {
-        let studentIDString = student.id.uuidString
-        let lessonIDString = lesson.id.uuidString
+    func markCompleteNoRecompute(student: CDStudent, lesson: CDLesson, context: NSManagedObjectContext) {
+        guard let studentUUID = student.id, let lessonUUID = lesson.id else { return }
+        let studentIDString = studentUUID.uuidString
+        let lessonIDString = lessonUUID.uuidString
 
-        let descriptor = FetchDescriptor<LessonAssignment>(
-            predicate: #Predicate { $0.lessonID == lessonIDString }
-        )
-        let allLAs = context.safeFetch(descriptor)
+        let request = CDFetchRequest(CDLessonAssignment.self)
+        request.predicate = NSPredicate(format: "lessonID == %@", lessonIDString)
+        let allLAs = context.safeFetch(request)
         if findGivenLessonContaining(student: studentIDString, in: allLAs) == nil {
             addStudentToGivenLesson(
                 student: student, studentIDString: studentIDString,
@@ -92,27 +93,27 @@ extension ClassSubjectChecklistViewModel {
             state: .proficient, context: context
         )
         GroupTrackService.autoEnrollInTrackIfNeeded(
-            lesson: lesson, studentIDs: [studentIDString], modelContext: context
+            lessonSubject: lesson.subject, lessonGroup: lesson.group, studentIDs: [studentIDString], context: context
         )
         GroupTrackService.checkAndCompleteTrackIfNeeded(
-            lesson: lesson, studentID: studentIDString, modelContext: context
+            lessonSubject: lesson.subject, lessonGroup: lesson.group, studentID: studentIDString, context: context
         )
     }
 
-    func togglePresented(student: Student, lesson: Lesson, context: ModelContext) {
+    func togglePresented(student: CDStudent, lesson: CDLesson, context: NSManagedObjectContext) {
         togglePresentedNoRecompute(student: student, lesson: lesson, context: context)
         context.safeSave()
         recomputeMatrix(context: context)
     }
 
-    func togglePresentedNoRecompute(student: Student, lesson: Lesson, context: ModelContext) {
-        let studentIDString = student.id.uuidString
-        let lessonIDString = lesson.id.uuidString
+    func togglePresentedNoRecompute(student: CDStudent, lesson: CDLesson, context: NSManagedObjectContext) {
+        guard let studentUUID = student.id, let lessonUUID = lesson.id else { return }
+        let studentIDString = studentUUID.uuidString
+        let lessonIDString = lessonUUID.uuidString
 
-        let descriptor = FetchDescriptor<LessonAssignment>(
-            predicate: #Predicate { $0.lessonID == lessonIDString }
-        )
-        let allLAs = context.safeFetch(descriptor)
+        let request = CDFetchRequest(CDLessonAssignment.self)
+        request.predicate = NSPredicate(format: "lessonID == %@", lessonIDString)
+        let allLAs = context.safeFetch(request)
 
         if let existing = findGivenLessonContaining(student: studentIDString, in: allLAs) {
             removeStudentFromLesson(student: studentIDString, lesson: existing, context: context)
@@ -131,53 +132,54 @@ extension ClassSubjectChecklistViewModel {
         }
     }
 
-    func findGivenLessonContaining(student: String, in lessons: [LessonAssignment]) -> LessonAssignment? {
+    func findGivenLessonContaining(student: String, in lessons: [CDLessonAssignment]) -> CDLessonAssignment? {
         lessons.first(where: { $0.isPresented && $0.studentIDs.contains(student) })
     }
 
     func addStudentToGivenLesson(
-        student: Student, studentIDString: String, lesson: Lesson,
-        in allLAs: [LessonAssignment], context: ModelContext
+        student: CDStudent, studentIDString: String, lesson: CDLesson,
+        in allLAs: [CDLessonAssignment], context: NSManagedObjectContext
     ) {
         let today = Date()
-        let isGivenToday = { (la: LessonAssignment) -> Bool in
+        let isGivenToday = { (la: CDLessonAssignment) -> Bool in
             la.isPresented && (la.presentedAt ?? Date.distantPast).isSameDay(as: today)
         }
         if let group = allLAs.first(where: isGivenToday) {
             if !group.studentIDs.contains(studentIDString) {
                 group.studentIDs.append(studentIDString)
                 GroupTrackService.autoEnrollInTrackIfNeeded(
-                    lesson: lesson, studentIDs: [studentIDString], modelContext: context
+                    lessonSubject: lesson.subject, lessonGroup: lesson.group, studentIDs: [studentIDString], context: context
                 )
             }
         } else {
-            PresentationFactory.insertPresented(
-                lessonID: lesson.id,
-                studentIDs: [student.id],
+            guard let lessonUUID = lesson.id, let studentUUID = student.id else { return }
+            PresentationFactory.makePresented(
+                lessonID: lessonUUID,
+                studentIDs: [studentUUID],
                 context: context
             )
             GroupTrackService.autoEnrollInTrackIfNeeded(
-                lesson: lesson, studentIDs: [studentIDString], modelContext: context
+                lessonSubject: lesson.subject, lessonGroup: lesson.group, studentIDs: [studentIDString], context: context
             )
         }
     }
 
     // MARK: - Previously Presented (Undated)
 
-    func togglePreviouslyPresented(student: Student, lesson: Lesson, context: ModelContext) {
+    func togglePreviouslyPresented(student: CDStudent, lesson: CDLesson, context: NSManagedObjectContext) {
         togglePreviouslyPresentedNoRecompute(student: student, lesson: lesson, context: context)
         context.safeSave()
         recomputeMatrix(context: context)
     }
 
-    func togglePreviouslyPresentedNoRecompute(student: Student, lesson: Lesson, context: ModelContext) {
-        let studentIDString = student.id.uuidString
-        let lessonIDString = lesson.id.uuidString
+    func togglePreviouslyPresentedNoRecompute(student: CDStudent, lesson: CDLesson, context: NSManagedObjectContext) {
+        guard let studentUUID = student.id, let lessonUUID = lesson.id else { return }
+        let studentIDString = studentUUID.uuidString
+        let lessonIDString = lessonUUID.uuidString
 
-        let descriptor = FetchDescriptor<LessonAssignment>(
-            predicate: #Predicate { $0.lessonID == lessonIDString }
-        )
-        let allLAs = context.safeFetch(descriptor)
+        let request = CDFetchRequest(CDLessonAssignment.self)
+        request.predicate = NSPredicate(format: "lessonID == %@", lessonIDString)
+        let allLAs = context.safeFetch(request)
 
         if let existing = findGivenLessonContaining(student: studentIDString, in: allLAs) {
             removeStudentFromLesson(student: studentIDString, lesson: existing, context: context)
@@ -197,46 +199,46 @@ extension ClassSubjectChecklistViewModel {
     }
 
     func addStudentToUndatedLesson(
-        student: Student, studentIDString: String, lesson: Lesson,
-        in allLAs: [LessonAssignment], context: ModelContext
+        student: CDStudent, studentIDString: String, lesson: CDLesson,
+        in allLAs: [CDLessonAssignment], context: NSManagedObjectContext
     ) {
-        let isUndatedPresented = { (la: LessonAssignment) -> Bool in
+        let isUndatedPresented = { (la: CDLessonAssignment) -> Bool in
             la.isPresented && la.presentedAt == nil
         }
         if let group = allLAs.first(where: isUndatedPresented) {
             if !group.studentIDs.contains(studentIDString) {
                 group.studentIDs.append(studentIDString)
                 GroupTrackService.autoEnrollInTrackIfNeeded(
-                    lesson: lesson, studentIDs: [studentIDString], modelContext: context
+                    lessonSubject: lesson.subject, lessonGroup: lesson.group, studentIDs: [studentIDString], context: context
                 )
             }
         } else {
-            PresentationFactory.insertPreviouslyPresented(
-                lessonID: lesson.id,
-                studentIDs: [student.id],
+            guard let lessonUUID = lesson.id, let studentUUID = student.id else { return }
+            PresentationFactory.makePreviouslyPresented(
+                lessonID: lessonUUID,
+                studentIDs: [studentUUID],
                 context: context
             )
             GroupTrackService.autoEnrollInTrackIfNeeded(
-                lesson: lesson, studentIDs: [studentIDString], modelContext: context
+                lessonSubject: lesson.subject, lessonGroup: lesson.group, studentIDs: [studentIDString], context: context
             )
         }
     }
 
-    func clearStatus(student: Student, lesson: Lesson, context: ModelContext) {
+    func clearStatus(student: CDStudent, lesson: CDLesson, context: NSManagedObjectContext) {
         clearStatusNoRecompute(student: student, lesson: lesson, context: context)
         context.safeSave()
         recomputeMatrix(context: context)
     }
 
-    func clearStatusNoRecompute(student: Student, lesson: Lesson, context: ModelContext) {
-        let lid = lesson.id
-        let sidString = student.id.uuidString
+    func clearStatusNoRecompute(student: CDStudent, lesson: CDLesson, context: NSManagedObjectContext) {
+        guard let lid = lesson.id, let sid = student.id else { return }
+        let sidString = sid.uuidString
         let lidString = lid.uuidString
 
-        let descriptor = FetchDescriptor<LessonAssignment>(
-            predicate: #Predicate { $0.lessonID == lidString }
-        )
-        let las = context.safeFetch(descriptor)
+        let request = CDFetchRequest(CDLessonAssignment.self)
+        request.predicate = NSPredicate(format: "lessonID == %@", lidString)
+        let las = context.safeFetch(request)
         for la in las where la.studentIDs.contains(sidString) {
             var newIDs = la.studentIDs
             newIDs.removeAll { $0 == sidString }
@@ -248,11 +250,10 @@ extension ClassSubjectChecklistViewModel {
         }
 
         // PERF: Filter by lessonID in predicate to avoid loading all non-complete work.
-        let workDescriptor = FetchDescriptor<WorkModel>(
-            predicate: #Predicate<WorkModel> { $0.statusRaw != "complete" && $0.lessonID == lidString }
-        )
-        let workModelsToDelete = context.safeFetch(workDescriptor).filter { work in
-            (work.participants ?? []).contains { $0.studentID == sidString }
+        let workRequest = CDFetchRequest(CDWorkModel.self)
+        workRequest.predicate = NSPredicate(format: "statusRaw != %@ AND lessonID == %@", "complete", lidString)
+        let workModelsToDelete = context.safeFetch(workRequest).filter { work in
+            ((work.participants?.allObjects as? [CDWorkParticipantEntity]) ?? []).contains { $0.studentID == sidString }
         }
         for work in workModelsToDelete {
             context.delete(work)

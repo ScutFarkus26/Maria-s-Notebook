@@ -1,7 +1,7 @@
 import Foundation
 import CoreData
 
-@objc(ScheduledMeeting)
+@objc(CDScheduledMeeting)
 public class CDScheduledMeeting: NSManagedObject {
     // MARK: - Core Data Properties
     @NSManaged public var id: UUID?

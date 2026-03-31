@@ -1,12 +1,13 @@
 import SwiftUI
-import SwiftData
+import CoreData
 import OSLog
 
 /// Main view for managing classroom procedures
 struct ProceduresListView: View {
     private static let logger = Logger.app_
-    @Environment(\.modelContext) private var modelContext
-    @Query(sort: \Procedure.title) private var procedures: [Procedure]
+    @Environment(\.managedObjectContext) private var viewContext
+    @FetchRequest(sortDescriptors: [NSSortDescriptor(keyPath: \CDProcedure.title, ascending: true)])
+    private var procedures: FetchedResults<CDProcedure>
 
     @State private var searchText = ""
     @State private var selectedCategory: ProcedureCategory?
@@ -16,7 +17,7 @@ struct ProceduresListView: View {
 
     private var filteredProcedures: [Procedure] {
         ProcedureService.fetchProcedures(
-            in: modelContext,
+            in: viewContext,
             category: selectedCategory,
             searchText: searchText
         )
@@ -24,7 +25,7 @@ struct ProceduresListView: View {
 
     private var groupedProcedures: [(category: ProcedureCategory, procedures: [Procedure])] {
         ProcedureService.fetchProceduresGroupedByCategory(
-            in: modelContext,
+            in: viewContext,
             searchText: searchText
         )
     }
@@ -202,7 +203,7 @@ struct ProceduresListView: View {
                         Divider()
 
                         Button(role: .destructive) {
-                            ProcedureService.deleteProcedure(procedure, in: modelContext)
+                            ProcedureService.deleteProcedure(procedure, in: viewContext)
                         } label: {
                             Label("Delete", systemImage: "trash")
                         }

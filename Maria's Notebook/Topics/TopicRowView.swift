@@ -1,11 +1,11 @@
 import SwiftUI
-import SwiftData
+import CoreData
 
 struct TopicRowView: View {
-    let topic: CommunityTopic
+    let topic: CDCommunityTopicEntity
     let onSelect: () -> Void
     
-    @Environment(\.modelContext) private var modelContext
+    @Environment(\.managedObjectContext) private var viewContext
     @State private var solutionCount: Int?
 
     var body: some View {
@@ -29,7 +29,7 @@ struct TopicRowView: View {
                             .font(.headline)
                             .foregroundStyle(.primary)
                         Spacer()
-                        Text((topic.addressedDate ?? topic.createdAt), style: .date)
+                        Text((topic.addressedDate ?? topic.createdAt ?? Date()), style: .date)
                             .font(.subheadline)
                             .foregroundStyle(.secondary)
                     }
@@ -79,13 +79,13 @@ struct TopicRowView: View {
         .task(id: topic.id) {
             if solutionCount == nil {
                 do {
-                    let tid = topic.id
-                    let descriptor = FetchDescriptor<ProposedSolution>(
-                        predicate: #Predicate { s in
-                            s.topic?.id == tid
-                        }
-                    )
-                    let items = try modelContext.fetch(descriptor)
+                    guard let tid = topic.id else {
+                        solutionCount = 0
+                        return
+                    }
+                    let descriptor = CDFetchRequest(CDProposedSolutionEntity.self)
+                    descriptor.predicate = NSPredicate(format: "topic.id == %@", tid as CVarArg)
+                    let items = try viewContext.fetch(descriptor)
                     solutionCount = items.count
                 } catch {
                     solutionCount = 0

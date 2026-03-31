@@ -1,5 +1,5 @@
 import SwiftUI
-import SwiftData
+import CoreData
 
 struct StudentImportPreviewView: View {
     let parsed: StudentCSVImporter.Parsed

@@ -2,7 +2,7 @@
 // Wrapper that loads queries for MeetingSessionView from a student UUID.
 
 import SwiftUI
-import SwiftData
+import CoreData
 
 /// Sheet presented when starting a scheduled meeting from TodayView.
 /// Fetches all required data via @Query and delegates to MeetingSessionView.
@@ -10,32 +10,32 @@ struct ScheduledMeetingSessionSheet: View {
     let studentID: UUID
     var onComplete: (() -> Void)?
 
-    @Environment(\.modelContext) private var modelContext
+    @Environment(\.managedObjectContext) private var viewContext
 
-    @Query(sort: Student.sortByName) private var allStudents: [Student]
+    @FetchRequest(sortDescriptors: [NSSortDescriptor(keyPath: \CDStudent.firstName, ascending: true), NSSortDescriptor(keyPath: \CDStudent.lastName, ascending: true)]) private var allStudents: FetchedResults<CDStudent>
 
-    @Query(sort: [SortDescriptor(\WorkModel.createdAt, order: .reverse)])
-    private var allWorkModels: [WorkModel]
+    @FetchRequest(sortDescriptors: [NSSortDescriptor(keyPath: \CDWorkModel.createdAt, ascending: false)])
+    private var allWorkModels: FetchedResults<CDWorkModel>
 
-    @Query(sort: [SortDescriptor(\LessonAssignment.presentedAt, order: .reverse)])
-    private var allLessonAssignments: [LessonAssignment]
+    @FetchRequest(sortDescriptors: [NSSortDescriptor(keyPath: \CDLessonAssignment.presentedAt, ascending: false)])
+    private var allLessonAssignments: FetchedResults<CDLessonAssignment>
 
-    @Query(sort: [SortDescriptor(\Lesson.name)])
-    private var lessons: [Lesson]
+    @FetchRequest(sortDescriptors: [NSSortDescriptor(keyPath: \CDLesson.name, ascending: true)])
+    private var lessons: FetchedResults<CDLesson>
 
-    @Query(sort: [SortDescriptor(\StudentMeeting.date, order: .reverse)])
-    private var allMeetings: [StudentMeeting]
+    @FetchRequest(sortDescriptors: [NSSortDescriptor(keyPath: \CDStudentMeeting.date, ascending: false)])
+    private var allMeetings: FetchedResults<CDStudentMeeting>
 
-    @Query(sort: [SortDescriptor(\MeetingTemplate.sortOrder)])
-    private var meetingTemplates: [MeetingTemplate]
+    @FetchRequest(sortDescriptors: [NSSortDescriptor(keyPath: \CDMeetingTemplate.sortOrder, ascending: true)])
+    private var meetingTemplates: FetchedResults<CDMeetingTemplate>
 
     @SyncedAppStorage("WorkAge.overdueDays") private var workOverdueDays: Int = WorkAgeDefaults.overdueDays
 
-    private var student: Student? {
+    private var student: CDStudent? {
         allStudents.first { $0.id == studentID }
     }
 
-    private var meetingsForStudent: [StudentMeeting] {
+    private var meetingsForStudent: [CDStudentMeeting] {
         allMeetings.filter { $0.studentIDUUID == studentID }
     }
 
@@ -44,11 +44,11 @@ struct ScheduledMeetingSessionSheet: View {
             if let student {
                 MeetingSessionView(
                     student: student,
-                    allWorkModels: allWorkModels,
-                    allLessonAssignments: allLessonAssignments,
-                    lessons: lessons,
+                    allWorkModels: Array(allWorkModels),
+                    allLessonAssignments: Array(allLessonAssignments),
+                    lessons: Array(lessons),
                     meetings: meetingsForStudent,
-                    meetingTemplates: meetingTemplates,
+                    meetingTemplates: Array(meetingTemplates),
                     workOverdueDays: workOverdueDays,
                     onComplete: onComplete
                 )

@@ -1,6 +1,5 @@
 import Foundation
 import CoreData
-import SwiftData
 import os
 
 // MARK: - Presentation Recording
@@ -158,39 +157,5 @@ extension LifecycleService {
         return (la, allForAssignment)
     }
 
-    // MARK: - Deprecated SwiftData Bridges
-
-    @available(*, deprecated, message: "Pass CDLessonAssignment and NSManagedObjectContext")
-    @discardableResult
-    static func recordPresentation(
-        from lessonAssignment: LessonAssignment,
-        presentedAt: Date,
-        modelContext: ModelContext
-    ) throws -> LessonAssignment {
-        let cdContext = AppBootstrapping.getSharedCoreDataStack().viewContext
-        let request = CDFetchRequest(CDLessonAssignment.self)
-        request.predicate = NSPredicate(format: "id == %@", lessonAssignment.id as CVarArg)
-        request.fetchLimit = 1
-        guard let cdLA = cdContext.safeFetch(request).first else { return lessonAssignment }
-        _ = try recordPresentation(from: cdLA, presentedAt: presentedAt, modelContext: cdContext)
-        cdContext.safeSave()
-        return lessonAssignment
-    }
-
-    @available(*, deprecated, message: "Pass CDLessonAssignment and NSManagedObjectContext")
-    static func recordPresentationAndExplodeWork(
-        from lessonAssignment: LessonAssignment,
-        presentedAt: Date,
-        modelContext: ModelContext
-    ) throws -> (lessonAssignment: LessonAssignment, work: [WorkModel]) {
-        let cdContext = AppBootstrapping.getSharedCoreDataStack().viewContext
-        let request = CDFetchRequest(CDLessonAssignment.self)
-        request.predicate = NSPredicate(format: "id == %@", lessonAssignment.id as CVarArg)
-        request.fetchLimit = 1
-        guard let cdLA = cdContext.safeFetch(request).first else { return (lessonAssignment, []) }
-        _ = try recordPresentationAndExplodeWork(from: cdLA, presentedAt: presentedAt, modelContext: cdContext)
-        cdContext.safeSave()
-        // Re-fetch SwiftData WorkModels
-        return (lessonAssignment, [])
-    }
+    // Deprecated SwiftData bridge methods removed - no longer needed with Core Data.
 }

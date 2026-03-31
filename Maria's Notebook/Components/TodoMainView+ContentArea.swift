@@ -2,7 +2,7 @@
 // Main content area for the todo list
 
 import SwiftUI
-import SwiftData
+import CoreData
 
 extension TodoMainView {
     // MARK: - Todo List Content
@@ -16,7 +16,7 @@ extension TodoMainView {
                         if selectedTodoIDs.count == filteredTodos.count {
                             selectedTodoIDs.removeAll()
                         } else {
-                            selectedTodoIDs = Set(filteredTodos.map(\.id))
+                            selectedTodoIDs = Set(filteredTodos.compactMap(\.id))
                         }
                     } label: {
                         Text(selectedTodoIDs.count == filteredTodos.count ? "Deselect All" : "Select All")
@@ -158,8 +158,8 @@ extension TodoMainView {
 
     // MARK: - Grouped Todos
 
-    var groupedTodos: [String: [TodoItem]] {
-        var groups: [String: [TodoItem]] = [:]
+    var groupedTodos: [String: [CDTodoItem]] {
+        var groups: [String: [CDTodoItem]] = [:]
         let cal = Calendar.current
         let today = AppCalendar.startOfDay(Date())
 
@@ -252,7 +252,7 @@ extension TodoMainView {
     }
 
     // swiftlint:disable:next function_body_length
-    func todoSection(title: String, todos: [TodoItem]) -> some View {
+    func todoSection(title: String, todos: [CDTodoItem]) -> some View {
         VStack(alignment: .leading, spacing: 0) {
             // Things-style section header
             HStack(spacing: 10) {
@@ -282,7 +282,7 @@ extension TodoMainView {
                                 Button {
                                     toggleSelection(todo)
                                 } label: {
-                                    let isSelected = selectedTodoIDs.contains(todo.id)
+                                    let isSelected = todo.id.map { selectedTodoIDs.contains($0) } ?? false
                                     Image(systemName: isSelected ? "checkmark.circle.fill" : "circle")
                                         .font(.system(size: 22))
                                         .foregroundStyle(isSelected ? Color.accentColor : .secondary)

@@ -1,6 +1,5 @@
 import Foundation
 import CoreData
-import SwiftData
 
 /// A cache for school day lookups that pre-fetches all NonSchoolDay and SchoolDayOverride
 /// records to enable O(1) lookups instead of repeated database queries.
@@ -35,17 +34,7 @@ final class SchoolDayLookupCache {
         schoolDayOverrides = Set(overrides.compactMap { $0.date.map { AppCalendar.startOfDay($0) } })
     }
 
-    // MARK: - Deprecated SwiftData Preload
-
-    /// Preload all school day data from the database (SwiftData).
-    @available(*, deprecated, message: "Use Core Data overload")
-    func preload(using context: ModelContext) {
-        let nonSchool = context.safeFetch(FetchDescriptor<NonSchoolDay>())
-        nonSchoolDays = Set(nonSchool.map { AppCalendar.startOfDay($0.date) })
-
-        let overrides = context.safeFetch(FetchDescriptor<SchoolDayOverride>())
-        schoolDayOverrides = Set(overrides.map { AppCalendar.startOfDay($0.date) })
-    }
+    // Deprecated SwiftData preload removed - no longer needed with Core Data.
 
     // MARK: - Lookups
 

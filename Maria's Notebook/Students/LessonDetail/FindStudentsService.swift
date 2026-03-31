@@ -1,5 +1,4 @@
 import Foundation
-import SwiftData
 
 // MARK: - Find Students Service
 
@@ -8,12 +7,12 @@ import SwiftData
 enum FindStudentsService {
 
     struct CandidateStudent: Identifiable {
-        let student: Student
+        let student: CDStudent
         /// Minimum absolute birthday difference (in seconds) to any existing student.
         let ageDifference: TimeInterval
         let ageString: String
 
-        var id: UUID { student.id }
+        var id: UUID { student.id ?? UUID() }
     }
 
     struct CandidateResult {
@@ -31,8 +30,8 @@ enum FindStudentsService {
     static func findCandidates(
         lessonID: UUID,
         existingStudentIDs: Set<UUID>,
-        allStudents: [Student],
-        allLessonAssignments: [LessonAssignment]
+        allStudents: [CDStudent],
+        allLessonAssignments: [CDLessonAssignment]
     ) -> CandidateResult {
         let lessonIDString = lessonID.uuidString
 
@@ -41,17 +40,18 @@ enum FindStudentsService {
 
         // Resolve existing student birthdays for age proximity
         let existingBirthdays = allStudents
-            .filter { existingStudentIDs.contains($0.id) }
-            .map(\.birthday)
+            .filter { guard let id = $0.id else { return false }; return existingStudentIDs.contains(id) }
+            .compactMap(\.birthday)
 
         // Candidates are students NOT already in the presentation
-        let candidates = allStudents.filter { !existingStudentIDs.contains($0.id) }
+        let candidates = allStudents.filter { guard let id = $0.id else { return true }; return !existingStudentIDs.contains(id) }
 
         var neverReceived: [CandidateStudent] = []
         var redundantlyScheduled: [CandidateStudent] = []
 
         for student in candidates {
-            let studentIDString = student.id.uuidString
+            guard let studentID = student.id else { continue }
+            let studentIDString = studentID.uuidString
 
             // Find all assignments for this lesson that include this student
             let studentAssignments = assignmentsForLesson.filter { la in
@@ -61,8 +61,9 @@ enum FindStudentsService {
             let hasPresented = studentAssignments.contains { $0.isPresented }
             let hasNonPresented = studentAssignments.contains { !$0.isPresented }
 
-            let ageDiff = minAgeDifference(birthday: student.birthday, existingBirthdays: existingBirthdays)
-            let ageStr = AgeUtils.conciseAgeString(for: student.birthday)
+            let birthday = student.birthday ?? Date()
+            let ageDiff = minAgeDifference(birthday: birthday, existingBirthdays: existingBirthdays)
+            let ageStr = AgeUtils.conciseAgeString(for: birthday)
             let candidate = CandidateStudent(student: student, ageDifference: ageDiff, ageString: ageStr)
 
             if !hasPresented {

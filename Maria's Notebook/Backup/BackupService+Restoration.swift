@@ -1,6 +1,6 @@
 // swiftlint:disable file_length
 import Foundation
-import SwiftData
+import CoreData
 import SwiftUI
 import OSLog
 
@@ -33,7 +33,7 @@ extension BackupService {
 
     // MARK: - Restore Preview
     public func previewImport(
-        modelContext: ModelContext,
+        viewContext: NSManagedObjectContext,
         from url: URL,
         mode: RestoreMode,
         password: String? = nil,
@@ -49,11 +49,11 @@ extension BackupService {
         // Use BackupPreviewAnalyzer to compute insert/skip/delete counts
         let analysis = BackupPreviewAnalyzer.analyze(
             payload: payload,
-            modelContext: modelContext,
+            viewContext: viewContext,
             mode: mode,
             entityExists: { [self] type, id in
                 do {
-                    return (try self.fetchOne(type, id: id, using: modelContext)) != nil
+                    return (try self.fetchOne(type, id: id, using: viewContext)) != nil
                 } catch {
                     let typeName = String(describing: type)
                     let desc = error.localizedDescription
@@ -79,14 +79,14 @@ extension BackupService {
 
     // MARK: - Import
     public func importBackup(
-        modelContext: ModelContext,
+        viewContext: NSManagedObjectContext,
         from url: URL,
         mode: RestoreMode,
         password: String? = nil,
         progress: @escaping ProgressCallback
     ) async throws -> BackupOperationSummary {
         try await importBackup(
-            modelContext: modelContext,
+            viewContext: viewContext,
             from: url,
             mode: mode,
             password: password,
@@ -97,7 +97,7 @@ extension BackupService {
 
     // Internal version that accepts AppRouter for dependency injection
     func importBackup(
-        modelContext: ModelContext,
+        viewContext: NSManagedObjectContext,
         from url: URL,
         mode: RestoreMode,
         password: String? = nil,
@@ -116,47 +116,47 @@ extension BackupService {
         if mode == .replace {
             progress(RestoreProgress.clearing, "Clearing existing data\u{2026}")
             appRouter.signalAppDataWillBeReplaced()
-            try deleteAll(modelContext: modelContext)
+            try deleteAll(viewContext: viewContext)
         }
 
         progress(RestoreProgress.coreEntities, "Importing records\u{2026}")
-        try importCoreEntities(from: payload, into: modelContext)
-        try importCalendarAndRecordEntities(from: payload, into: modelContext)
-        try importProjectEntities(from: payload, into: modelContext)
+        try importCoreEntities(from: payload, into: viewContext)
+        try importCalendarAndRecordEntities(from: payload, into: viewContext)
+        try importProjectEntities(from: payload, into: viewContext)
 
         progress(RestoreProgress.workTracking, "Importing work tracking\u{2026}")
-        try importWorkTrackingEntities(from: payload, into: modelContext)
+        try importWorkTrackingEntities(from: payload, into: viewContext)
 
         progress(RestoreProgress.lessonExtras, "Importing lesson extras\u{2026}")
-        try importLessonExtras(from: payload, into: modelContext)
+        try importLessonExtras(from: payload, into: viewContext)
 
         progress(RestoreProgress.templates, "Importing templates\u{2026}")
-        try importTemplateEntities(from: payload, into: modelContext)
+        try importTemplateEntities(from: payload, into: viewContext)
 
         progress(RestoreProgress.tracks, "Importing tracks\u{2026}")
-        try importTrackEntities(from: payload, into: modelContext)
+        try importTrackEntities(from: payload, into: viewContext)
 
         progress(RestoreProgress.documentsSupplies, "Importing documents & supplies\u{2026}")
-        try importDocumentEntities(from: payload, into: modelContext)
+        try importDocumentEntities(from: payload, into: viewContext)
 
         progress(RestoreProgress.schedules, "Importing schedules\u{2026}")
-        try importScheduleEntities(from: payload, into: modelContext)
+        try importScheduleEntities(from: payload, into: viewContext)
 
         progress(RestoreProgress.issues, "Importing issues\u{2026}")
-        try importIssueEntities(from: payload, into: modelContext)
+        try importIssueEntities(from: payload, into: viewContext)
 
         progress(RestoreProgress.snapshotsTodos, "Importing snapshots & todos\u{2026}")
-        try importSnapshotAndTodoEntities(from: payload, into: modelContext)
+        try importSnapshotAndTodoEntities(from: payload, into: viewContext)
 
         progress(RestoreProgress.additionalEntities, "Importing recommendations, resources & links\u{2026}")
-        try importAdditionalEntities(from: payload, into: modelContext)
-        try importV12Entities(from: payload, into: modelContext)
+        try importAdditionalEntities(from: payload, into: viewContext)
+        try importV12Entities(from: payload, into: viewContext)
 
         progress(RestoreProgress.saving, "Saving\u{2026}")
-        try modelContext.save()
+        try viewContext.save()
 
         progress(RestoreProgress.denormalizedRepair, "Repairing denormalized fields\u{2026}")
-        try repairDenormalizedFields(modelContext: modelContext)
+        try repairDenormalizedFields(viewContext: viewContext)
 
         applyPreferencesDTO(payload.preferences)
         appRouter.signalAppDataDidRestore()
@@ -178,545 +178,545 @@ extension BackupService {
 
     private func importCoreEntities(
         from payload: BackupPayload,
-        into modelContext: ModelContext
+        into viewContext: NSManagedObjectContext
     ) throws {
         _ = try BackupEntityImporter.importStudents(
             payload.students,
-            into: modelContext,
-            existingCheck: { try fetchOne(Student.self, id: $0, using: modelContext) }
+            into: viewContext,
+            existingCheck: { try fetchOne(CDStudent.self, id: $0, using: viewContext) }
         )
 
         try BackupEntityImporter.importLessons(
             payload.lessons,
-            into: modelContext,
-            existingCheck: { try fetchOne(Lesson.self, id: $0, using: modelContext) }
+            into: viewContext,
+            existingCheck: { try fetchOne(CDLesson.self, id: $0, using: viewContext) }
         )
 
         try BackupEntityImporter.importCommunityTopics(
             payload.communityTopics,
-            into: modelContext,
-            existingCheck: { try fetchOne(CommunityTopic.self, id: $0, using: modelContext) }
+            into: viewContext,
+            existingCheck: { try fetchOne(CDCommunityTopicEntity.self, id: $0, using: viewContext) }
         )
 
         try BackupEntityImporter.importLessonAssignments(
             payload.lessonAssignments,
-            into: modelContext,
-            existingCheck: { try fetchOne(LessonAssignment.self, id: $0, using: modelContext) },
-            lessonCheck: { try fetchOne(Lesson.self, id: $0, using: modelContext) }
+            into: viewContext,
+            existingCheck: { try fetchOne(CDLessonAssignment.self, id: $0, using: viewContext) },
+            lessonCheck: { try fetchOne(CDLesson.self, id: $0, using: viewContext) }
         )
 
         try BackupEntityImporter.importNotes(
             payload.notes,
-            into: modelContext,
-            existingCheck: { try fetchOne(Note.self, id: $0, using: modelContext) },
-            lessonCheck: { try fetchOne(Lesson.self, id: $0, using: modelContext) }
+            into: viewContext,
+            existingCheck: { try fetchOne(CDNote.self, id: $0, using: viewContext) },
+            lessonCheck: { try fetchOne(CDLesson.self, id: $0, using: viewContext) }
         )
     }
 
     private func importCalendarAndRecordEntities(
         from payload: BackupPayload,
-        into modelContext: ModelContext
+        into viewContext: NSManagedObjectContext
     ) throws {
         try BackupEntityImporter.importNonSchoolDays(
             payload.nonSchoolDays,
-            into: modelContext,
-            existingCheck: { try fetchOne(NonSchoolDay.self, id: $0, using: modelContext) }
+            into: viewContext,
+            existingCheck: { try fetchOne(CDNonSchoolDay.self, id: $0, using: viewContext) }
         )
 
         try BackupEntityImporter.importSchoolDayOverrides(
             payload.schoolDayOverrides,
-            into: modelContext,
-            existingCheck: { try fetchOne(SchoolDayOverride.self, id: $0, using: modelContext) }
+            into: viewContext,
+            existingCheck: { try fetchOne(CDSchoolDayOverride.self, id: $0, using: viewContext) }
         )
 
         try BackupEntityImporter.importStudentMeetings(
             payload.studentMeetings,
-            into: modelContext,
-            existingCheck: { try fetchOne(StudentMeeting.self, id: $0, using: modelContext) }
+            into: viewContext,
+            existingCheck: { try fetchOne(CDStudentMeeting.self, id: $0, using: viewContext) }
         )
 
         try BackupEntityImporter.importProposedSolutions(
             payload.proposedSolutions,
-            into: modelContext,
-            existingCheck: { try fetchOne(ProposedSolution.self, id: $0, using: modelContext) },
-            topicCheck: { try fetchOne(CommunityTopic.self, id: $0, using: modelContext) }
+            into: viewContext,
+            existingCheck: { try fetchOne(ProposedSolution.self, id: $0, using: viewContext) },
+            topicCheck: { try fetchOne(CDCommunityTopicEntity.self, id: $0, using: viewContext) }
         )
 
         try BackupEntityImporter.importCommunityAttachments(
             payload.communityAttachments,
-            into: modelContext,
-            existingCheck: { try fetchOne(CommunityAttachment.self, id: $0, using: modelContext) },
-            topicCheck: { try fetchOne(CommunityTopic.self, id: $0, using: modelContext) }
+            into: viewContext,
+            existingCheck: { try fetchOne(CommunityAttachment.self, id: $0, using: viewContext) },
+            topicCheck: { try fetchOne(CDCommunityTopicEntity.self, id: $0, using: viewContext) }
         )
 
         try BackupEntityImporter.importAttendanceRecords(
             payload.attendance,
-            into: modelContext,
-            existingCheck: { try fetchOne(AttendanceRecord.self, id: $0, using: modelContext) }
+            into: viewContext,
+            existingCheck: { try fetchOne(CDAttendanceRecord.self, id: $0, using: viewContext) }
         )
 
         try BackupEntityImporter.importWorkCompletionRecords(
             payload.workCompletions,
-            into: modelContext,
-            existingCheck: { try fetchOne(WorkCompletionRecord.self, id: $0, using: modelContext) }
+            into: viewContext,
+            existingCheck: { try fetchOne(CDWorkCompletionRecord.self, id: $0, using: viewContext) }
         )
     }
 
     private func importProjectEntities(
         from payload: BackupPayload,
-        into modelContext: ModelContext
+        into viewContext: NSManagedObjectContext
     ) throws {
         try BackupEntityImporter.importProjects(
             payload.projects,
-            into: modelContext,
-            existingCheck: { try fetchOne(Project.self, id: $0, using: modelContext) }
+            into: viewContext,
+            existingCheck: { try fetchOne(CDProject.self, id: $0, using: viewContext) }
         )
 
         try BackupEntityImporter.importProjectRoles(
             payload.projectRoles,
-            into: modelContext,
-            existingCheck: { try fetchOne(ProjectRole.self, id: $0, using: modelContext) }
+            into: viewContext,
+            existingCheck: { try fetchOne(ProjectRole.self, id: $0, using: viewContext) }
         )
 
         try BackupEntityImporter.importProjectTemplateWeeks(
             payload.projectTemplateWeeks,
-            into: modelContext,
-            existingCheck: { try fetchOne(ProjectTemplateWeek.self, id: $0, using: modelContext) }
+            into: viewContext,
+            existingCheck: { try fetchOne(ProjectTemplateWeek.self, id: $0, using: viewContext) }
         )
 
         try BackupEntityImporter.importProjectAssignmentTemplates(
             payload.projectAssignmentTemplates,
-            into: modelContext,
-            existingCheck: { try fetchOne(ProjectAssignmentTemplate.self, id: $0, using: modelContext) }
+            into: viewContext,
+            existingCheck: { try fetchOne(ProjectAssignmentTemplate.self, id: $0, using: viewContext) }
         )
 
         try BackupEntityImporter.importProjectWeekRoleAssignments(
             payload.projectWeekRoleAssignments,
-            into: modelContext,
-            existingCheck: { try fetchOne(ProjectWeekRoleAssignment.self, id: $0, using: modelContext) },
-            weekCheck: { try fetchOne(ProjectTemplateWeek.self, id: $0, using: modelContext) }
+            into: viewContext,
+            existingCheck: { try fetchOne(ProjectWeekRoleAssignment.self, id: $0, using: viewContext) },
+            weekCheck: { try fetchOne(ProjectTemplateWeek.self, id: $0, using: viewContext) }
         )
 
         try BackupEntityImporter.importProjectSessions(
             payload.projectSessions,
-            into: modelContext,
-            existingCheck: { try fetchOne(ProjectSession.self, id: $0, using: modelContext) }
+            into: viewContext,
+            existingCheck: { try fetchOne(CDProjectSession.self, id: $0, using: viewContext) }
         )
     }
 
     private func importWorkTrackingEntities(
         from payload: BackupPayload,
-        into modelContext: ModelContext
+        into viewContext: NSManagedObjectContext
     ) throws {
-        // WorkModel must be imported first — child entities reference it
+        // CDWorkModel must be imported first — child entities reference it
         if let workModels = payload.workModels {
             try BackupEntityImporter.importWorkModels(
                 workModels,
-                into: modelContext,
-                existingCheck: { try fetchOne(WorkModel.self, id: $0, using: modelContext) }
+                into: viewContext,
+                existingCheck: { try fetchOne(CDWorkModel.self, id: $0, using: viewContext) }
             )
         }
 
         if let workCheckIns = payload.workCheckIns {
             try BackupEntityImporter.importWorkCheckIns(
                 workCheckIns,
-                into: modelContext,
-                existingCheck: { try fetchOne(WorkCheckIn.self, id: $0, using: modelContext) },
-                workCheck: { try fetchOne(WorkModel.self, id: $0, using: modelContext) }
+                into: viewContext,
+                existingCheck: { try fetchOne(CDWorkCheckIn.self, id: $0, using: viewContext) },
+                workCheck: { try fetchOne(CDWorkModel.self, id: $0, using: viewContext) }
             )
         }
 
         if let workSteps = payload.workSteps {
             try BackupEntityImporter.importWorkSteps(
                 workSteps,
-                into: modelContext,
-                existingCheck: { try fetchOne(WorkStep.self, id: $0, using: modelContext) },
-                workCheck: { try fetchOne(WorkModel.self, id: $0, using: modelContext) }
+                into: viewContext,
+                existingCheck: { try fetchOne(CDWorkStep.self, id: $0, using: viewContext) },
+                workCheck: { try fetchOne(CDWorkModel.self, id: $0, using: viewContext) }
             )
         }
 
         if let workParticipants = payload.workParticipants {
             try BackupEntityImporter.importWorkParticipants(
                 workParticipants,
-                into: modelContext,
-                existingCheck: { try fetchOne(WorkParticipantEntity.self, id: $0, using: modelContext) },
-                workCheck: { try fetchOne(WorkModel.self, id: $0, using: modelContext) }
+                into: viewContext,
+                existingCheck: { try fetchOne(WorkParticipantEntity.self, id: $0, using: viewContext) },
+                workCheck: { try fetchOne(CDWorkModel.self, id: $0, using: viewContext) }
             )
         }
 
         if let practiceSessions = payload.practiceSessions {
             try BackupEntityImporter.importPracticeSessions(
                 practiceSessions,
-                into: modelContext,
-                existingCheck: { try fetchOne(PracticeSession.self, id: $0, using: modelContext) }
+                into: viewContext,
+                existingCheck: { try fetchOne(CDPracticeSession.self, id: $0, using: viewContext) }
             )
         }
     }
 
     private func importLessonExtras(
         from payload: BackupPayload,
-        into modelContext: ModelContext
+        into viewContext: NSManagedObjectContext
     ) throws {
         if let lessonAttachments = payload.lessonAttachments {
             try BackupEntityImporter.importLessonAttachments(
                 lessonAttachments,
-                into: modelContext,
-                existingCheck: { try fetchOne(LessonAttachment.self, id: $0, using: modelContext) },
-                lessonCheck: { try fetchOne(Lesson.self, id: $0, using: modelContext) }
+                into: viewContext,
+                existingCheck: { try fetchOne(LessonAttachment.self, id: $0, using: viewContext) },
+                lessonCheck: { try fetchOne(CDLesson.self, id: $0, using: viewContext) }
             )
         }
 
         if let lessonPresentations = payload.lessonPresentations {
             try BackupEntityImporter.importLessonPresentations(
                 lessonPresentations,
-                into: modelContext,
-                existingCheck: { try fetchOne(LessonPresentation.self, id: $0, using: modelContext) }
+                into: viewContext,
+                existingCheck: { try fetchOne(CDLessonPresentation.self, id: $0, using: viewContext) }
             )
         }
 
         if let sampleWorks = payload.sampleWorks {
             try BackupEntityImporter.importSampleWorks(
                 sampleWorks,
-                into: modelContext,
-                existingCheck: { try fetchOne(SampleWork.self, id: $0, using: modelContext) },
-                lessonCheck: { try fetchOne(Lesson.self, id: $0, using: modelContext) }
+                into: viewContext,
+                existingCheck: { try fetchOne(CDSampleWork.self, id: $0, using: viewContext) },
+                lessonCheck: { try fetchOne(CDLesson.self, id: $0, using: viewContext) }
             )
         }
 
         if let sampleWorkSteps = payload.sampleWorkSteps {
             try BackupEntityImporter.importSampleWorkSteps(
                 sampleWorkSteps,
-                into: modelContext,
-                existingCheck: { try fetchOne(SampleWorkStep.self, id: $0, using: modelContext) },
-                sampleWorkCheck: { try fetchOne(SampleWork.self, id: $0, using: modelContext) }
+                into: viewContext,
+                existingCheck: { try fetchOne(CDSampleWorkStep.self, id: $0, using: viewContext) },
+                sampleWorkCheck: { try fetchOne(CDSampleWork.self, id: $0, using: viewContext) }
             )
         }
     }
 
     private func importTemplateEntities(
         from payload: BackupPayload,
-        into modelContext: ModelContext
+        into viewContext: NSManagedObjectContext
     ) throws {
         if let noteTemplates = payload.noteTemplates {
             try BackupEntityImporter.importNoteTemplates(
                 noteTemplates,
-                into: modelContext,
-                existingCheck: { try fetchOne(NoteTemplate.self, id: $0, using: modelContext) }
+                into: viewContext,
+                existingCheck: { try fetchOne(CDNoteTemplate.self, id: $0, using: viewContext) }
             )
         }
 
         if let meetingTemplates = payload.meetingTemplates {
             try BackupEntityImporter.importMeetingTemplates(
                 meetingTemplates,
-                into: modelContext,
-                existingCheck: { try fetchOne(MeetingTemplate.self, id: $0, using: modelContext) }
+                into: viewContext,
+                existingCheck: { try fetchOne(CDMeetingTemplate.self, id: $0, using: viewContext) }
             )
         }
 
         if let reminders = payload.reminders {
             try BackupEntityImporter.importReminders(
                 reminders,
-                into: modelContext,
-                existingCheck: { try fetchOne(Reminder.self, id: $0, using: modelContext) }
+                into: viewContext,
+                existingCheck: { try fetchOne(CDReminder.self, id: $0, using: viewContext) }
             )
         }
 
         if let calendarEvents = payload.calendarEvents {
             try BackupEntityImporter.importCalendarEvents(
                 calendarEvents,
-                into: modelContext,
-                existingCheck: { try fetchOne(CalendarEvent.self, id: $0, using: modelContext) }
+                into: viewContext,
+                existingCheck: { try fetchOne(CDCalendarEvent.self, id: $0, using: viewContext) }
             )
         }
     }
 
     private func importTrackEntities(
         from payload: BackupPayload,
-        into modelContext: ModelContext
+        into viewContext: NSManagedObjectContext
     ) throws {
         if let tracks = payload.tracks {
             try BackupEntityImporter.importTracks(
                 tracks,
-                into: modelContext,
-                existingCheck: { try fetchOne(Track.self, id: $0, using: modelContext) }
+                into: viewContext,
+                existingCheck: { try fetchOne(CDTrackEntity.self, id: $0, using: viewContext) }
             )
         }
 
         if let trackSteps = payload.trackSteps {
             try BackupEntityImporter.importTrackSteps(
                 trackSteps,
-                into: modelContext,
-                existingCheck: { try fetchOne(TrackStep.self, id: $0, using: modelContext) },
-                trackCheck: { try fetchOne(Track.self, id: $0, using: modelContext) }
+                into: viewContext,
+                existingCheck: { try fetchOne(TrackStep.self, id: $0, using: viewContext) },
+                trackCheck: { try fetchOne(CDTrackEntity.self, id: $0, using: viewContext) }
             )
         }
 
         if let enrollments = payload.studentTrackEnrollments {
             try BackupEntityImporter.importStudentTrackEnrollments(
                 enrollments,
-                into: modelContext,
-                existingCheck: { try fetchOne(StudentTrackEnrollment.self, id: $0, using: modelContext) }
+                into: viewContext,
+                existingCheck: { try fetchOne(CDStudentTrackEnrollmentEntity.self, id: $0, using: viewContext) }
             )
         }
 
         if let groupTracks = payload.groupTracks {
             try BackupEntityImporter.importGroupTracks(
                 groupTracks,
-                into: modelContext,
-                existingCheck: { try fetchOne(GroupTrack.self, id: $0, using: modelContext) }
+                into: viewContext,
+                existingCheck: { try fetchOne(CDGroupTrack.self, id: $0, using: viewContext) }
             )
         }
     }
 
     private func importDocumentEntities(
         from payload: BackupPayload,
-        into modelContext: ModelContext
+        into viewContext: NSManagedObjectContext
     ) throws {
         if let documents = payload.documents {
             try BackupEntityImporter.importDocuments(
                 documents,
-                into: modelContext,
-                existingCheck: { try fetchOne(Document.self, id: $0, using: modelContext) },
-                studentCheck: { try fetchOne(Student.self, id: $0, using: modelContext) }
+                into: viewContext,
+                existingCheck: { try fetchOne(CDDocument.self, id: $0, using: viewContext) },
+                studentCheck: { try fetchOne(CDStudent.self, id: $0, using: viewContext) }
             )
         }
 
         if let supplies = payload.supplies {
             try BackupEntityImporter.importSupplies(
                 supplies,
-                into: modelContext,
-                existingCheck: { try fetchOne(Supply.self, id: $0, using: modelContext) }
+                into: viewContext,
+                existingCheck: { try fetchOne(CDSupply.self, id: $0, using: viewContext) }
             )
         }
 
         if let supplyTransactions = payload.supplyTransactions {
             try BackupEntityImporter.importSupplyTransactions(
                 supplyTransactions,
-                into: modelContext,
-                existingCheck: { try fetchOne(SupplyTransaction.self, id: $0, using: modelContext) },
-                supplyCheck: { try fetchOne(Supply.self, id: $0, using: modelContext) }
+                into: viewContext,
+                existingCheck: { try fetchOne(SupplyTransaction.self, id: $0, using: viewContext) },
+                supplyCheck: { try fetchOne(CDSupply.self, id: $0, using: viewContext) }
             )
         }
 
         if let procedures = payload.procedures {
             try BackupEntityImporter.importProcedures(
                 procedures,
-                into: modelContext,
-                existingCheck: { try fetchOne(Procedure.self, id: $0, using: modelContext) }
+                into: viewContext,
+                existingCheck: { try fetchOne(CDProcedure.self, id: $0, using: viewContext) }
             )
         }
     }
 
     private func importScheduleEntities(
         from payload: BackupPayload,
-        into modelContext: ModelContext
+        into viewContext: NSManagedObjectContext
     ) throws {
         if let schedules = payload.schedules {
             try BackupEntityImporter.importSchedules(
                 schedules,
-                into: modelContext,
-                existingCheck: { try fetchOne(Schedule.self, id: $0, using: modelContext) }
+                into: viewContext,
+                existingCheck: { try fetchOne(CDSchedule.self, id: $0, using: viewContext) }
             )
         }
 
         if let scheduleSlots = payload.scheduleSlots {
             try BackupEntityImporter.importScheduleSlots(
                 scheduleSlots,
-                into: modelContext,
-                existingCheck: { try fetchOne(ScheduleSlot.self, id: $0, using: modelContext) },
-                scheduleCheck: { try fetchOne(Schedule.self, id: $0, using: modelContext) }
+                into: viewContext,
+                existingCheck: { try fetchOne(CDScheduleSlot.self, id: $0, using: viewContext) },
+                scheduleCheck: { try fetchOne(CDSchedule.self, id: $0, using: viewContext) }
             )
         }
     }
 
     private func importIssueEntities(
         from payload: BackupPayload,
-        into modelContext: ModelContext
+        into viewContext: NSManagedObjectContext
     ) throws {
         if let issues = payload.issues {
             try BackupEntityImporter.importIssues(
                 issues,
-                into: modelContext,
-                existingCheck: { try fetchOne(Issue.self, id: $0, using: modelContext) }
+                into: viewContext,
+                existingCheck: { try fetchOne(CDIssue.self, id: $0, using: viewContext) }
             )
         }
 
         if let issueActions = payload.issueActions {
             try BackupEntityImporter.importIssueActions(
                 issueActions,
-                into: modelContext,
-                existingCheck: { try fetchOne(IssueAction.self, id: $0, using: modelContext) },
-                issueCheck: { try fetchOne(Issue.self, id: $0, using: modelContext) }
+                into: viewContext,
+                existingCheck: { try fetchOne(IssueAction.self, id: $0, using: viewContext) },
+                issueCheck: { try fetchOne(CDIssue.self, id: $0, using: viewContext) }
             )
         }
     }
 
     private func importSnapshotAndTodoEntities(
         from payload: BackupPayload,
-        into modelContext: ModelContext
+        into viewContext: NSManagedObjectContext
     ) throws {
         if let snapshots = payload.developmentSnapshots {
             try BackupEntityImporter.importDevelopmentSnapshots(
                 snapshots,
-                into: modelContext,
-                existingCheck: { try fetchOne(DevelopmentSnapshot.self, id: $0, using: modelContext) }
+                into: viewContext,
+                existingCheck: { try fetchOne(DevelopmentSnapshot.self, id: $0, using: viewContext) }
             )
         }
 
         if let todoItems = payload.todoItems {
             try BackupEntityImporter.importTodoItems(
                 todoItems,
-                into: modelContext,
-                existingCheck: { try fetchOne(TodoItem.self, id: $0, using: modelContext) }
+                into: viewContext,
+                existingCheck: { try fetchOne(CDTodoItem.self, id: $0, using: viewContext) }
             )
         }
 
         if let todoSubtasks = payload.todoSubtasks {
             try BackupEntityImporter.importTodoSubtasks(
                 todoSubtasks,
-                into: modelContext,
-                existingCheck: { try fetchOne(TodoSubtask.self, id: $0, using: modelContext) },
-                todoCheck: { try fetchOne(TodoItem.self, id: $0, using: modelContext) }
+                into: viewContext,
+                existingCheck: { try fetchOne(CDTodoSubtask.self, id: $0, using: viewContext) },
+                todoCheck: { try fetchOne(CDTodoItem.self, id: $0, using: viewContext) }
             )
         }
 
         if let todoTemplates = payload.todoTemplates {
             try BackupEntityImporter.importTodoTemplates(
                 todoTemplates,
-                into: modelContext,
-                existingCheck: { try fetchOne(TodoTemplate.self, id: $0, using: modelContext) }
+                into: viewContext,
+                existingCheck: { try fetchOne(CDTodoTemplate.self, id: $0, using: viewContext) }
             )
         }
 
         if let agendaOrders = payload.todayAgendaOrders {
             try BackupEntityImporter.importTodayAgendaOrders(
                 agendaOrders,
-                into: modelContext,
-                existingCheck: { try fetchOne(TodayAgendaOrder.self, id: $0, using: modelContext) }
+                into: viewContext,
+                existingCheck: { try fetchOne(CDTodayAgendaOrder.self, id: $0, using: viewContext) }
             )
         }
     }
 
     private func importAdditionalEntities(
         from payload: BackupPayload,
-        into modelContext: ModelContext
+        into viewContext: NSManagedObjectContext
     ) throws {
         if let recommendations = payload.planningRecommendations {
             try BackupEntityImporter.importPlanningRecommendations(
                 recommendations,
-                into: modelContext,
-                existingCheck: { try fetchOne(PlanningRecommendation.self, id: $0, using: modelContext) }
+                into: viewContext,
+                existingCheck: { try fetchOne(PlanningRecommendation.self, id: $0, using: viewContext) }
             )
         }
 
         if let resources = payload.resources {
             try BackupEntityImporter.importResources(
                 resources,
-                into: modelContext,
-                existingCheck: { try fetchOne(Resource.self, id: $0, using: modelContext) }
+                into: viewContext,
+                existingCheck: { try fetchOne(CDResource.self, id: $0, using: viewContext) }
             )
         }
 
         if let noteStudentLinks = payload.noteStudentLinks {
             try BackupEntityImporter.importNoteStudentLinks(
                 noteStudentLinks,
-                into: modelContext,
-                existingCheck: { try fetchOne(NoteStudentLink.self, id: $0, using: modelContext) },
-                noteCheck: { try fetchOne(Note.self, id: $0, using: modelContext) }
+                into: viewContext,
+                existingCheck: { try fetchOne(CDNoteStudentLink.self, id: $0, using: viewContext) },
+                noteCheck: { try fetchOne(CDNote.self, id: $0, using: viewContext) }
             )
         }
     }
 
     private func importV12Entities(
         from payload: BackupPayload,
-        into modelContext: ModelContext
+        into viewContext: NSManagedObjectContext
     ) throws {
         if let goingOuts = payload.goingOuts {
             try BackupEntityImporter.importGoingOuts(
                 goingOuts,
-                into: modelContext,
-                existingCheck: { try fetchOne(GoingOut.self, id: $0, using: modelContext) }
+                into: viewContext,
+                existingCheck: { try fetchOne(CDGoingOut.self, id: $0, using: viewContext) }
             )
         }
 
         if let goingOutItems = payload.goingOutChecklistItems {
             try BackupEntityImporter.importGoingOutChecklistItems(
                 goingOutItems,
-                into: modelContext,
-                existingCheck: { try fetchOne(GoingOutChecklistItem.self, id: $0, using: modelContext) },
-                goingOutCheck: { try fetchOne(GoingOut.self, id: $0, using: modelContext) }
+                into: viewContext,
+                existingCheck: { try fetchOne(GoingOutChecklistItem.self, id: $0, using: viewContext) },
+                goingOutCheck: { try fetchOne(CDGoingOut.self, id: $0, using: viewContext) }
             )
         }
 
         if let classroomJobs = payload.classroomJobs {
             try BackupEntityImporter.importClassroomJobs(
                 classroomJobs,
-                into: modelContext,
-                existingCheck: { try fetchOne(ClassroomJob.self, id: $0, using: modelContext) }
+                into: viewContext,
+                existingCheck: { try fetchOne(CDClassroomJob.self, id: $0, using: viewContext) }
             )
         }
 
         if let jobAssignments = payload.jobAssignments {
             try BackupEntityImporter.importJobAssignments(
                 jobAssignments,
-                into: modelContext,
-                existingCheck: { try fetchOne(JobAssignment.self, id: $0, using: modelContext) },
-                jobCheck: { try fetchOne(ClassroomJob.self, id: $0, using: modelContext) }
+                into: viewContext,
+                existingCheck: { try fetchOne(CDJobAssignment.self, id: $0, using: viewContext) },
+                jobCheck: { try fetchOne(CDClassroomJob.self, id: $0, using: viewContext) }
             )
         }
 
         if let transitionPlans = payload.transitionPlans {
             try BackupEntityImporter.importTransitionPlans(
                 transitionPlans,
-                into: modelContext,
-                existingCheck: { try fetchOne(TransitionPlan.self, id: $0, using: modelContext) }
+                into: viewContext,
+                existingCheck: { try fetchOne(CDTransitionPlan.self, id: $0, using: viewContext) }
             )
         }
 
         if let transitionItems = payload.transitionChecklistItems {
             try BackupEntityImporter.importTransitionChecklistItems(
                 transitionItems,
-                into: modelContext,
-                existingCheck: { try fetchOne(TransitionChecklistItem.self, id: $0, using: modelContext) },
-                planCheck: { try fetchOne(TransitionPlan.self, id: $0, using: modelContext) }
+                into: viewContext,
+                existingCheck: { try fetchOne(TransitionChecklistItem.self, id: $0, using: viewContext) },
+                planCheck: { try fetchOne(CDTransitionPlan.self, id: $0, using: viewContext) }
             )
         }
 
         if let calendarNotes = payload.calendarNotes {
             try BackupEntityImporter.importCalendarNotes(
                 calendarNotes,
-                into: modelContext,
-                existingCheck: { try fetchOne(CalendarNote.self, id: $0, using: modelContext) }
+                into: viewContext,
+                existingCheck: { try fetchOne(CDCalendarNote.self, id: $0, using: viewContext) }
             )
         }
 
         if let scheduledMeetings = payload.scheduledMeetings {
             try BackupEntityImporter.importScheduledMeetings(
                 scheduledMeetings,
-                into: modelContext,
-                existingCheck: { try fetchOne(ScheduledMeeting.self, id: $0, using: modelContext) }
+                into: viewContext,
+                existingCheck: { try fetchOne(CDScheduledMeeting.self, id: $0, using: viewContext) }
             )
         }
 
         if let albumOrders = payload.albumGroupOrders {
             try BackupEntityImporter.importAlbumGroupOrders(
                 albumOrders,
-                into: modelContext,
-                existingCheck: { try fetchOne(AlbumGroupOrder.self, id: $0, using: modelContext) }
+                into: viewContext,
+                existingCheck: { try fetchOne(AlbumGroupOrder.self, id: $0, using: viewContext) }
             )
         }
 
         if let albumStates = payload.albumGroupUIStates {
             try BackupEntityImporter.importAlbumGroupUIStates(
                 albumStates,
-                into: modelContext,
-                existingCheck: { try fetchOne(AlbumGroupUIState.self, id: $0, using: modelContext) }
+                into: viewContext,
+                existingCheck: { try fetchOne(AlbumGroupUIState.self, id: $0, using: viewContext) }
             )
         }
     }
 
-    private func repairDenormalizedFields(modelContext: ModelContext) throws {
-        let assignmentsForRepair = try modelContext.fetch(FetchDescriptor<LessonAssignment>())
+    private func repairDenormalizedFields(viewContext: NSManagedObjectContext) throws {
+        let assignmentsForRepair = try viewContext.fetch(CDLessonAssignment.fetchRequest() as! NSFetchRequest<CDLessonAssignment>)
         var repairedCount = 0
         for la in assignmentsForRepair {
             let correct = la.scheduledFor.map { AppCalendar.startOfDay($0) } ?? Date.distantPast
@@ -726,7 +726,7 @@ extension BackupService {
             }
         }
         if repairedCount > 0 {
-            try modelContext.save()
+            try viewContext.save()
         }
     }
 }

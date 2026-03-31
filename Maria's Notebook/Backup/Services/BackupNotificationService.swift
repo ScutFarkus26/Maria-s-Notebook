@@ -240,7 +240,7 @@ public final class BackupNotificationService {
 
         let notification = BackupNotification(
             type: .backupIntegrityIssue,
-            title: "Backup Integrity Issue",
+            title: "Backup Integrity CDIssue",
             message: "\(fileName): \(issue)"
         )
 

@@ -80,13 +80,13 @@ extension TodoEditSheet {
         }
     }
 
-    // MARK: - Location Reminder Section
+    // MARK: - Location CDReminder Section
 
     @ViewBuilder
     var locationReminderSection: some View {
         VStack(alignment: .leading, spacing: 12) {
             HStack {
-                Text("Location Reminder")
+                Text("Location CDReminder")
                     .font(AppTheme.ScaledFont.captionSemibold)
                     .foregroundStyle(.secondary)
                     .textCase(.uppercase)

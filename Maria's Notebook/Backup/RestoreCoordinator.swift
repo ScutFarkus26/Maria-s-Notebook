@@ -16,7 +16,7 @@ final class RestoreCoordinator {
     private func observeAppRouter() {
         Task { @MainActor in
             withObservationTracking {
-                // Track changes to appRouter properties
+                // CDTrackEntity changes to appRouter properties
                 _ = appRouter.appDataWillBeReplaced
                 _ = appRouter.appDataDidRestore
             } onChange: {

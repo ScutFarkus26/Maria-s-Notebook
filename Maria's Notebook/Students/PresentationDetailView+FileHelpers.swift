@@ -1,5 +1,6 @@
 import OSLog
 import SwiftUI
+import CoreData
 
 private let logger = Logger.students
 
@@ -8,14 +9,14 @@ private let logger = Logger.students
 #if os(macOS)
 struct IndependentWorkflowWindow: View {
     @Bindable var presentationViewModel: PostPresentationFormViewModel
-    let students: [Student]
+    let students: [CDStudent]
     let lessonName: String
     let lessonID: UUID
     let onComplete: () -> Void
     let onCancel: () -> Void
 
     @Environment(\.dismiss) private var dismiss
-    @Environment(\.modelContext) private var modelContext
+    @Environment(\.managedObjectContext) private var viewContext
     @State private var triggerCompletion: Bool = false
 
     var body: some View {

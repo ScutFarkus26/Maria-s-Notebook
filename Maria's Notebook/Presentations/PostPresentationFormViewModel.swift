@@ -1,6 +1,6 @@
 import Foundation
-import SwiftData
 import SwiftUI
+import CoreData
 
 /// ViewModel for managing post-presentation form state and logic.
 /// Works with UnifiedPostPresentationSheet's nested types for compatibility.
@@ -12,7 +12,7 @@ final class PostPresentationFormViewModel {
     typealias PresentationStatus = UnifiedPostPresentationSheet.PresentationStatus
     typealias StudentEntry = UnifiedPostPresentationSheet.StudentEntry
 
-    // MARK: - Next Lesson Action
+    // MARK: - Next CDLesson Action
 
     enum NextLessonAction: String, CaseIterable, Identifiable {
         case hold = "Hold"
@@ -46,8 +46,8 @@ final class PostPresentationFormViewModel {
     // Next lesson state
     var nextLessonAction: NextLessonAction = .inbox
     var nextLessonScheduleDate: Date = AppCalendar.startOfDay(Date().addingTimeInterval(24 * 60 * 60))
-    var nextLesson: Lesson?
-    var existingNextAssignment: LessonAssignment?
+    var nextLesson: CDLesson?
+    var existingNextAssignment: CDLessonAssignment?
     var isNextLessonSectionExpanded: Bool = false
 
     // MARK: - Computed Properties
@@ -58,7 +58,7 @@ final class PostPresentationFormViewModel {
 
     // MARK: - Initialization
     
-    init(students: [Student], initialStatus: PresentationStatus = .justPresented) {
+    init(students: [CDStudent], initialStatus: PresentationStatus = .justPresented) {
         // Initialize status
         self.status = initialStatus
         
@@ -68,13 +68,14 @@ final class PostPresentationFormViewModel {
 
         // Initialize entries
         self.entries = Dictionary(
-            uniqueKeysWithValues: students.map { student in
-                (student.id, StudentEntry(id: student.id, name: StudentFormatter.displayName(for: student)))
+            uniqueKeysWithValues: students.compactMap { student -> (UUID, StudentEntry)? in
+                guard let id = student.id else { return nil }
+                return (id, StudentEntry(id: id, name: StudentFormatter.displayName(for: student)))
             }
         )
-        
+
         // Auto-expand all students by default
-        self.expandedStudentIDs = Set(students.map(\.id))
+        self.expandedStudentIDs = Set(students.compactMap(\.id))
     }
 
     // MARK: - Actions
@@ -127,31 +128,31 @@ final class PostPresentationFormViewModel {
     /// Unlocks next lessons for selected students.
     func unlockNextLessonsIfNeeded(
         lessonID: UUID,
-        modelContext: ModelContext,
-        lessons: [Lesson],
-        lessonAssignments: [LessonAssignment]
+        viewContext: NSManagedObjectContext,
+        lessons: [CDLesson],
+        lessonAssignments: [CDLessonAssignment]
     ) {
         guard !studentsToUnlock.isEmpty else { return }
 
         _ = UnlockNextLessonService.unlockNextLesson(
             after: lessonID,
             for: studentsToUnlock,
-            modelContext: modelContext,
+            context: viewContext,
             lessons: lessons,
-            lessonAssignments: lessonAssignments
+            cdAssignments: lessonAssignments
         )
     }
 
-    // MARK: - Next Lesson
+    // MARK: - Next CDLesson
 
     /// Looks up the next lesson in the sequence and checks for existing assignments.
     func resolveNextLesson(
         lessonID: UUID,
         studentIDs: Set<UUID>,
-        lessons: [Lesson],
-        lessonAssignments: [LessonAssignment]
+        lessons: [CDLesson],
+        lessonAssignments: [CDLessonAssignment]
     ) {
-        guard let currentLesson = lessons.first(where: { $0.id == lessonID }) else {
+        guard let currentLesson = lessons.first(where: { $0.id != nil && $0.id == lessonID }) else {
             nextLesson = nil
             return
         }
@@ -162,7 +163,7 @@ final class PostPresentationFormViewModel {
 
         // Check for existing assignment (any state: inbox or scheduled)
         existingNextAssignment = lessonAssignments.first { la in
-            la.lessonIDUUID == nextLesson.id &&
+            nextLesson.id != nil && la.lessonIDUUID == nextLesson.id &&
             Set(la.studentUUIDs) == studentIDs &&
             la.presentedAt == nil
         }
@@ -192,10 +193,10 @@ final class PostPresentationFormViewModel {
     /// Executes the chosen next lesson action.
     func executeNextLessonAction(
         studentIDs: Set<UUID>,
-        allStudents: [Student],
-        allLessons: [Lesson],
-        lessonAssignments: [LessonAssignment],
-        modelContext: ModelContext
+        allStudents: [CDStudent],
+        allLessons: [CDLesson],
+        lessonAssignments: [CDLessonAssignment],
+        viewContext: NSManagedObjectContext
     ) {
         guard let nextLesson else { return }
 
@@ -209,7 +210,7 @@ final class PostPresentationFormViewModel {
                     allStudents: allStudents,
                     allLessons: allLessons,
                     existingLessonAssignments: lessonAssignments,
-                    context: modelContext
+                    context: viewContext
                 )
             }
 
@@ -226,7 +227,7 @@ final class PostPresentationFormViewModel {
                     allStudents: allStudents,
                     allLessons: allLessons,
                     existingLessonAssignments: lessonAssignments,
-                    context: modelContext
+                    context: viewContext
                 )
             }
 
@@ -236,19 +237,20 @@ final class PostPresentationFormViewModel {
                 existing.state = .scheduled
                 existing.scheduledFor = nextLessonScheduleDate
             } else {
+                guard let nextLessonID = nextLesson.id else { return }
                 // Create new scheduled assignment
                 let la = PresentationFactory.makeScheduled(
-                    lessonID: nextLesson.id,
+                    lessonID: nextLessonID,
                     studentIDs: Array(studentIDs),
                     scheduledFor: nextLessonScheduleDate
                 )
-                let relatedStudents = allStudents.filter { studentIDs.contains($0.id) }
+                let relatedStudents = allStudents.filter { guard let id = $0.id else { return false }; return studentIDs.contains(id) }
                 PresentationFactory.attachRelationships(
                     to: la,
-                    lesson: allLessons.first(where: { $0.id == nextLesson.id }),
+                    lesson: allLessons.first(where: { $0.id != nil && $0.id == nextLessonID }),
                     students: relatedStudents
                 )
-                modelContext.insert(la)
+                viewContext.insert(la)
             }
         }
     }

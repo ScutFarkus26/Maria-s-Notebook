@@ -1,10 +1,10 @@
 import SwiftUI
-import SwiftData
+import CoreData
 import EventKit
 
-/// Settings view for configuring Reminder sync with Apple's Reminders app.
+/// Settings view for configuring CDReminder sync with Apple's Reminders app.
 public struct ReminderSyncSettingsView: View {
-    @Environment(\.modelContext) private var modelContext
+    @Environment(\.managedObjectContext) private var viewContext
     @State private var syncService: ReminderSyncService
     @State private var selectedListIdentifier: String = ""
     @State private var availableLists: [ReminderSyncService.ReminderListInfo] = []
@@ -31,7 +31,7 @@ public struct ReminderSyncSettingsView: View {
             if needsAuthorization {
                 AuthorizationRequestSection(
                     serviceName: "Reminders",
-                    description: "Reminder access is required to sync reminders.",
+                    description: "CDReminder access is required to sync reminders.",
                     settingsPath: "Reminders",
                     isRefreshing: isRefreshing,
                     statusMessage: lastSyncStatus,
@@ -89,8 +89,8 @@ public struct ReminderSyncSettingsView: View {
             }
         }
         .task {
-            // Update shared syncService with real modelContext
-            syncService.modelContext = modelContext
+            // Update shared syncService with real viewContext
+            syncService.managedObjectContext = viewContext
             selectedListIdentifier = syncService.syncListIdentifier ?? ""
             await loadAvailableLists()
         }

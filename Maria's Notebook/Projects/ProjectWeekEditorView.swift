@@ -1,14 +1,14 @@
 import SwiftUI
-import SwiftData
+import CoreData
 
 // swiftlint:disable:next type_body_length
 struct ProjectWeekEditorView: View, Identifiable {
-    var id: UUID { week.id }
+    var id: UUID { week.id ?? UUID() }
     let club: Project
     let week: ProjectTemplateWeek
     var onDone: () -> Void
 
-    @Environment(\.modelContext) private var modelContext
+    @Environment(\.managedObjectContext) private var modelContext
     @Environment(\.dismiss) private var dismiss
     @Environment(SaveCoordinator.self) private var saveCoordinator
 
@@ -18,22 +18,22 @@ struct ProjectWeekEditorView: View, Identifiable {
     private var testStudentNamesRaw: String = "Danny De Berry,Lil Dan D"
 
     // Performance: Filter students to only club members at query level
-    @Query(sort: Student.sortByName) private var studentsRaw: [Student]
+    @FetchRequest(sortDescriptors: CDStudent.sortByName) private var studentsRaw: FetchedResults<CDStudent>
     // DEDUPLICATION: CloudKit sync can create duplicate records with the same ID.
     // Filter out test students when setting is disabled
     private var students: [Student] {
         TestStudentsFilter.filterVisible(
-            studentsRaw.uniqueByID.filter(\.isEnrolled),
+            Array(studentsRaw).uniqueByID.filter(\.isEnrolled),
             show: showTestStudents,
             namesRaw: testStudentNamesRaw
         )
     }
 
     // Performance: Filter roles by projectID at query level
-    @Query(sort: [SortDescriptor(\ProjectRole.createdAt, order: .forward)]) private var roles: [ProjectRole]
+    @FetchRequest private var roles: FetchedResults<CDProjectRole>
 
     // Performance: Keep lessons query for lesson picker (needed for full list)
-    @Query(sort: [SortDescriptor(\Lesson.name, order: .forward)]) private var allLessons: [Lesson]
+    @FetchRequest(sortDescriptors: [NSSortDescriptor(keyPath: \CDLesson.name, ascending: true)]) private var allLessons: FetchedResults<CDLesson>
 
     @State private var readingRange: String
     @State private var agenda: [String]
@@ -56,31 +56,32 @@ struct ProjectWeekEditorView: View, Identifiable {
         _agenda = State(initialValue: week.agendaItems)
         _linkedLessonIDs = State(initialValue: week.linkedLessonIDs)
         _assignmentMode = State(initialValue: week.assignmentMode)
-        _minSelections = State(initialValue: week.minSelections > 0 ? week.minSelections : 1)
-        _maxSelections = State(initialValue: week.maxSelections > 0 ? week.maxSelections : 2)
+        _minSelections = State(initialValue: week.minSelections > 0 ? Int(week.minSelections) : 1)
+        _maxSelections = State(initialValue: week.maxSelections > 0 ? Int(week.maxSelections) : 2)
         _offeredWorks = State(initialValue: week.offeredWorks)
 
         // Performance: Filter roles by projectID at query level
-        let projectIDString = club.id.uuidString
-        _roles = Query(
-            filter: #Predicate<ProjectRole> { $0.projectID == projectIDString },
-            sort: [SortDescriptor(\.createdAt, order: .forward)]
+        let projectIDString = (club.id ?? UUID()).uuidString
+        _roles = FetchRequest(
+            sortDescriptors: [NSSortDescriptor(keyPath: \CDProjectRole.createdAt, ascending: true)],
+            predicate: NSPredicate(format: "projectID == %@", projectIDString)
         )
     }
 
     private var clubMembers: [Student] {
-        let ids = Set(club.memberStudentIDs.compactMap(UUID.init))
+        let ids = Set(club.memberStudentIDsArray.compactMap(UUID.init))
         return students
-            .filter { ids.contains($0.id) }
+            .filter { guard let sid = $0.id else { return false }; return ids.contains(sid) }
             .sorted {
                 StudentFormatter.displayName(for: $0) < StudentFormatter.displayName(for: $1)
             }
     }
 
     // Performance: Pre-compute role assignment lookup dictionary to avoid N+1 searches
-    private var roleAssignmentsByStudentID: [String: ProjectWeekRoleAssignment] {
-        Dictionary(
-            (week.roleAssignments ?? []).map { ($0.studentID, $0) },
+    private var roleAssignmentsByStudentID: [String: CDProjectWeekRoleAssignment] {
+        let assignments = (week.roleAssignments?.allObjects as? [CDProjectWeekRoleAssignment]) ?? []
+        return Dictionary(
+            assignments.map { ($0.studentID, $0) },
             uniquingKeysWith: { first, _ in first }
         )
     }
@@ -88,7 +89,7 @@ struct ProjectWeekEditorView: View, Identifiable {
     // Use uniquingKeysWith to handle CloudKit sync duplicates
     private var lessonsByID: [UUID: Lesson] {
         Dictionary(
-            allLessons.map { ($0.id, $0) },
+            allLessons.compactMap { l -> (UUID, Lesson)? in guard let id = l.id else { return nil }; return (id, l) },
             uniquingKeysWith: { first, _ in first }
         )
     }
@@ -125,7 +126,7 @@ struct ProjectWeekEditorView: View, Identifiable {
                                 .foregroundStyle(.secondary)
                         } else {
                             VStack(alignment: .leading, spacing: 8) {
-                                ForEach(linkedLessons) { lesson in
+                                ForEach(linkedLessons, id: \.objectID) { lesson in
                                     HStack {
                                         Button {
                                             viewingLesson = lesson
@@ -141,7 +142,7 @@ struct ProjectWeekEditorView: View, Identifiable {
                                         Spacer()
 
                                         Button {
-                                            if let idx = linkedLessonIDs.firstIndex(of: lesson.id.uuidString) {
+                                            if let idx = linkedLessonIDs.firstIndex(of: (lesson.id ?? UUID()).uuidString) {
                                                 linkedLessonIDs.remove(at: idx)
                                             }
                                         } label: {
@@ -182,17 +183,17 @@ struct ProjectWeekEditorView: View, Identifiable {
                                 .foregroundStyle(.secondary)
                         } else {
                             VStack(alignment: .leading, spacing: 8) {
-                                ForEach(clubMembers, id: \.id) { student in
+                                ForEach(clubMembers, id: \.objectID) { student in
                                     HStack(alignment: .firstTextBaseline) {
                                         Text(StudentFormatter.displayName(for: student))
                                         Spacer(minLength: 12)
                                         Picker("Role", selection: Binding(
-                                            get: { currentRoleID(for: student.id) },
-                                            set: { setRoleID($0, for: student.id) }
+                                            get: { currentRoleID(for: student.id ?? UUID()) },
+                                            set: { setRoleID($0, for: student.id ?? UUID()) }
                                         )) {
                                             Text("—").tag(UUID?(nil))
-                                            ForEach(roles, id: \.id) { role in
-                                                Text(role.title).tag(Optional(role.id))
+                                            ForEach(Array(roles), id: \.objectID) { role in
+                                                Text(role.title).tag(role.id)
                                             }
                                         }
                                         .pickerStyle(.menu)
@@ -227,7 +228,7 @@ struct ProjectWeekEditorView: View, Identifiable {
         .presentationDragIndicator(.visible)
     #endif
         .sheet(isPresented: $pickingLessonForWeek) {
-            InlineLessonPickerSheet(lessons: allLessons) { chosenID in
+            InlineLessonPickerSheet(lessons: Array(allLessons)) { chosenID in
                 if let uuid = chosenID {
                     linkedLessonIDs.append(uuid.uuidString)
                 }
@@ -300,12 +301,16 @@ struct ProjectWeekEditorView: View, Identifiable {
     private func setRoleID(_ roleID: UUID?, for studentID: UUID) {
         let sid = studentID.uuidString
         // Use the week's relationship directly instead of querying all assignments
-        if let existing = (week.roleAssignments ?? []).first(where: { $0.studentID == sid }) {
+        let assignments = (week.roleAssignments?.allObjects as? [CDProjectWeekRoleAssignment]) ?? []
+        if let existing = assignments.first(where: { $0.studentID == sid }) {
             if let roleID { existing.roleID = roleID.uuidString } else { modelContext.delete(existing) }
         } else if let roleID {
-            let a = ProjectWeekRoleAssignment(weekID: week.id, studentID: sid, roleID: roleID, week: week)
-            modelContext.insert(a)
-            week.roleAssignments = (week.roleAssignments ?? []) + [a]
+            let a = CDProjectWeekRoleAssignment(context: modelContext)
+            a.weekID = (week.id ?? UUID()).uuidString
+            a.studentID = sid
+            a.roleID = roleID.uuidString
+            a.week = week
+            week.addToRoleAssignments(a)
         }
     }
 
@@ -314,8 +319,8 @@ struct ProjectWeekEditorView: View, Identifiable {
         week.agendaItems = agenda
         week.linkedLessonIDs = linkedLessonIDs
         week.assignmentMode = assignmentMode
-        week.minSelections = assignmentMode == .choice ? minSelections : 0
-        week.maxSelections = assignmentMode == .choice ? maxSelections : 0
+        week.minSelections = assignmentMode == .choice ? Int64(minSelections) : 0
+        week.maxSelections = assignmentMode == .choice ? Int64(maxSelections) : 0
         week.offeredWorks = assignmentMode == .choice ? offeredWorks : []
         saveCoordinator.save(modelContext, reason: "Save book club template week")
         onDone(); dismiss()

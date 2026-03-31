@@ -2,6 +2,7 @@
 // Sheet modifier helpers extracted from StudentDetailView
 
 import SwiftUI
+import CoreData
 
 extension View {
     /// Applies standard sheet sizing for student detail sheets

@@ -1,15 +1,16 @@
 import SwiftUI
+import CoreData
 
 /// Helper for rendering student content (list/grid) with consistent empty state handling
 @MainActor
 struct StudentsContentRenderer {
-    let students: [Student]
+    let students: [CDStudent]
     let effectiveSortOrder: SortOrder
     let daysSinceLastLesson: [UUID: Int]
     let isParsing: Binding<Bool>
     let parsingTask: Binding<Task<Void, Never>?>
     let onAddStudent: () -> Void
-    let onTapStudent: ((Student) -> Void)?
+    let onTapStudent: ((CDStudent) -> Void)?
     let selectedStudentID: Binding<UUID?>?
 
     #if os(iOS)
@@ -56,11 +57,11 @@ struct StudentsContentRenderer {
     func listView(onMove: @escaping (IndexSet, Int) -> Void) -> some View {
         content {
             List(selection: selectedStudentID) {
-                ForEach(students, id: \.id) { student in
+                ForEach(students, id: \.objectID) { student in
                     StudentListRow(
                         student: student,
                         sortOrder: effectiveSortOrder,
-                        daysSinceLastLesson: daysSinceLastLesson[student.id]
+                        daysSinceLastLesson: student.id.flatMap { daysSinceLastLesson[$0] }
                     )
                     .tag(student.id)
                     #if os(iOS)
@@ -75,7 +76,7 @@ struct StudentsContentRenderer {
     }
 
     #if os(iOS)
-    private func handleTap(_ student: Student) {
+    private func handleTap(_ student: CDStudent) {
         if horizontalSizeClass == .compact, let onTap = onTapStudent {
             onTap(student)
         } else if let binding = selectedStudentID {

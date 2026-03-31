@@ -1,6 +1,5 @@
 import Foundation
 import CoreData
-import SwiftData
 
 // MARK: - Attendance Lookup Helpers
 
@@ -41,20 +40,4 @@ extension NSManagedObjectContext {
     }
 }
 
-// MARK: - Deprecated SwiftData Bridge
-
-extension ModelContext {
-    @available(*, deprecated, message: "Use NSManagedObjectContext.attendanceStatus instead")
-    @MainActor
-    func attendanceStatus(for studentID: UUID, on date: Date) -> AttendanceStatus? {
-        let cdContext = AppBootstrapping.getSharedCoreDataStack().viewContext
-        return cdContext.attendanceStatus(for: studentID, on: date)
-    }
-
-    @available(*, deprecated, message: "Use NSManagedObjectContext.attendanceStatuses instead")
-    @MainActor
-    func attendanceStatuses(for studentIDs: [UUID], on date: Date) -> [UUID: AttendanceStatus] {
-        let cdContext = AppBootstrapping.getSharedCoreDataStack().viewContext
-        return cdContext.attendanceStatuses(for: studentIDs, on: date)
-    }
-}
+// Deprecated SwiftData ModelContext bridge methods removed.

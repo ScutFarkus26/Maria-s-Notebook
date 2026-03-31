@@ -1,0 +1,177 @@
+{
+  "/Users/dannydeberry/Documents/Projects/MariasNotebook-Rewrite/Maria's Notebook/Students/FindStudentsSheet.swift" : {
+    "const-values" : "/Users/dannydeberry/Documents/Projects/MariasNotebook-Rewrite/build/Build/Intermediates.noindex/Maria's Notebook.build/Debug-iphoneos/Maria's Notebook.build/Objects-normal/arm64/FindStudentsSheet.swiftconstvalues",
+    "dependencies" : "/Users/dannydeberry/Documents/Projects/MariasNotebook-Rewrite/build/Build/Intermediates.noindex/Maria's Notebook.build/Debug-iphoneos/Maria's Notebook.build/Objects-normal/arm64/FindStudentsSheet.d",
+    "diagnostics" : "/Users/dannydeberry/Documents/Projects/MariasNotebook-Rewrite/build/Build/Intermediates.noindex/Maria's Notebook.build/Debug-iphoneos/Maria's Notebook.build/Objects-normal/arm64/FindStudentsSheet.dia",
+    "object" : "/Users/dannydeberry/Documents/Projects/MariasNotebook-Rewrite/build/Build/Intermediates.noindex/Maria's Notebook.build/Debug-iphoneos/Maria's Notebook.build/Objects-normal/arm64/FindStudentsSheet.o",
+    "swift-dependencies" : "/Users/dannydeberry/Documents/Projects/MariasNotebook-Rewrite/build/Build/Intermediates.noindex/Maria's Notebook.build/Debug-iphoneos/Maria's Notebook.build/Objects-normal/arm64/FindStudentsSheet.swiftdeps"
+  },
+  "/Users/dannydeberry/Documents/Projects/MariasNotebook-Rewrite/Maria's Notebook/Students/GroupTrackDetailView.swift" : {
+    "const-values" : "/Users/dannydeberry/Documents/Projects/MariasNotebook-Rewrite/build/Build/Intermediates.noindex/Maria's Notebook.build/Debug-iphoneos/Maria's Notebook.build/Objects-normal/arm64/GroupTrackDetailView.swiftconstvalues",
+    "dependencies" : "/Users/dannydeberry/Documents/Projects/MariasNotebook-Rewrite/build/Build/Intermediates.noindex/Maria's Notebook.build/Debug-iphoneos/Maria's Notebook.build/Objects-normal/arm64/GroupTrackDetailView.d",
+    "diagnostics" : "/Users/dannydeberry/Documents/Projects/MariasNotebook-Rewrite/build/Build/Intermediates.noindex/Maria's Notebook.build/Debug-iphoneos/Maria's Notebook.build/Objects-normal/arm64/GroupTrackDetailView.dia",
+    "object" : "/Users/dannydeberry/Documents/Projects/MariasNotebook-Rewrite/build/Build/Intermediates.noindex/Maria's Notebook.build/Debug-iphoneos/Maria's Notebook.build/Objects-normal/arm64/GroupTrackDetailView.o",
+    "swift-dependencies" : "/Users/dannydeberry/Documents/Projects/MariasNotebook-Rewrite/build/Build/Intermediates.noindex/Maria's Notebook.build/Debug-iphoneos/Maria's Notebook.build/Objects-normal/arm64/GroupTrackDetailView.swiftdeps"
+  },
+  "/Users/dannydeberry/Documents/Projects/MariasNotebook-Rewrite/Maria's Notebook/Students/ImportTrackFromLessonsSheet.swift" : {
+    "const-values" : "/Users/dannydeberry/Documents/Projects/MariasNotebook-Rewrite/build/Build/Intermediates.noindex/Maria's Notebook.build/Debug-iphoneos/Maria's Notebook.build/Objects-normal/arm64/ImportTrackFromLessonsSheet.swiftconstvalues",
+    "dependencies" : "/Users/dannydeberry/Documents/Projects/MariasNotebook-Rewrite/build/Build/Intermediates.noindex/Maria's Notebook.build/Debug-iphoneos/Maria's Notebook.build/Objects-normal/arm64/ImportTrackFromLessonsSheet.d",
+    "diagnostics" : "/Users/dannydeberry/Documents/Projects/MariasNotebook-Rewrite/build/Build/Intermediates.noindex/Maria's Notebook.build/Debug-iphoneos/Maria's Notebook.build/Objects-normal/arm64/ImportTrackFromLessonsSheet.dia",
+    "object" : "/Users/dannydeberry/Documents/Projects/MariasNotebook-Rewrite/build/Build/Intermediates.noindex/Maria's Notebook.build/Debug-iphoneos/Maria's Notebook.build/Objects-normal/arm64/ImportTrackFromLessonsSheet.o",
+    "swift-dependencies" : "/Users/dannydeberry/Documents/Projects/MariasNotebook-Rewrite/build/Build/Intermediates.noindex/Maria's Notebook.build/Debug-iphoneos/Maria's Notebook.build/Objects-normal/arm64/ImportTrackFromLessonsSheet.swiftdeps"
+  },
+  "/Users/dannydeberry/Documents/Projects/MariasNotebook-Rewrite/Maria's Notebook/Students/LastLessonModePlaceholderView.swift" : {
+    "const-values" : "/Users/dannydeberry/Documents/Projects/MariasNotebook-Rewrite/build/Build/Intermediates.noindex/Maria's Notebook.build/Debug-iphoneos/Maria's Notebook.build/Objects-normal/arm64/LastLessonModePlaceholderView.swiftconstvalues",
+    "dependencies" : "/Users/dannydeberry/Documents/Projects/MariasNotebook-Rewrite/build/Build/Intermediates.noindex/Maria's Notebook.build/Debug-iphoneos/Maria's Notebook.build/Objects-normal/arm64/LastLessonModePlaceholderView.d",
+    "diagnostics" : "/Users/dannydeberry/Documents/Projects/MariasNotebook-Rewrite/build/Build/Intermediates.noindex/Maria's Notebook.build/Debug-iphoneos/Maria's Notebook.build/Objects-normal/arm64/LastLessonModePlaceholderView.dia",
+    "object" : "/Users/dannydeberry/Documents/Projects/MariasNotebook-Rewrite/build/Build/Intermediates.noindex/Maria's Notebook.build/Debug-iphoneos/Maria's Notebook.build/Objects-normal/arm64/LastLessonModePlaceholderView.o",
+    "swift-dependencies" : "/Users/dannydeberry/Documents/Projects/MariasNotebook-Rewrite/build/Build/Intermediates.noindex/Maria's Notebook.build/Debug-iphoneos/Maria's Notebook.build/Objects-normal/arm64/LastLessonModePlaceholderView.swiftdeps"
+  },
+  "/Users/dannydeberry/Documents/Projects/MariasNotebook-Rewrite/Maria's Notebook/Students/LastLessonStudentCard.swift" : {
+    "const-values" : "/Users/dannydeberry/Documents/Projects/MariasNotebook-Rewrite/build/Build/Intermediates.noindex/Maria's Notebook.build/Debug-iphoneos/Maria's Notebook.build/Objects-normal/arm64/LastLessonStudentCard.swiftconstvalues",
+    "dependencies" : "/Users/dannydeberry/Documents/Projects/MariasNotebook-Rewrite/build/Build/Intermediates.noindex/Maria's Notebook.build/Debug-iphoneos/Maria's Notebook.build/Objects-normal/arm64/LastLessonStudentCard.d",
+    "diagnostics" : "/Users/dannydeberry/Documents/Projects/MariasNotebook-Rewrite/build/Build/Intermediates.noindex/Maria's Notebook.build/Debug-iphoneos/Maria's Notebook.build/Objects-normal/arm64/LastLessonStudentCard.dia",
+    "object" : "/Users/dannydeberry/Documents/Projects/MariasNotebook-Rewrite/build/Build/Intermediates.noindex/Maria's Notebook.build/Debug-iphoneos/Maria's Notebook.build/Objects-normal/arm64/LastLessonStudentCard.o",
+    "swift-dependencies" : "/Users/dannydeberry/Documents/Projects/MariasNotebook-Rewrite/build/Build/Intermediates.noindex/Maria's Notebook.build/Debug-iphoneos/Maria's Notebook.build/Objects-normal/arm64/LastLessonStudentCard.swiftdeps"
+  },
+  "/Users/dannydeberry/Documents/Projects/MariasNotebook-Rewrite/Maria's Notebook/Students/MeetingSummary.swift" : {
+    "const-values" : "/Users/dannydeberry/Documents/Projects/MariasNotebook-Rewrite/build/Build/Intermediates.noindex/Maria's Notebook.build/Debug-iphoneos/Maria's Notebook.build/Objects-normal/arm64/MeetingSummary.swiftconstvalues",
+    "dependencies" : "/Users/dannydeberry/Documents/Projects/MariasNotebook-Rewrite/build/Build/Intermediates.noindex/Maria's Notebook.build/Debug-iphoneos/Maria's Notebook.build/Objects-normal/arm64/MeetingSummary.d",
+    "diagnostics" : "/Users/dannydeberry/Documents/Projects/MariasNotebook-Rewrite/build/Build/Intermediates.noindex/Maria's Notebook.build/Debug-iphoneos/Maria's Notebook.build/Objects-normal/arm64/MeetingSummary.dia",
+    "object" : "/Users/dannydeberry/Documents/Projects/MariasNotebook-Rewrite/build/Build/Intermediates.noindex/Maria's Notebook.build/Debug-iphoneos/Maria's Notebook.build/Objects-normal/arm64/MeetingSummary.o",
+    "swift-dependencies" : "/Users/dannydeberry/Documents/Projects/MariasNotebook-Rewrite/build/Build/Intermediates.noindex/Maria's Notebook.build/Debug-iphoneos/Maria's Notebook.build/Objects-normal/arm64/MeetingSummary.swiftdeps"
+  },
+  "/Users/dannydeberry/Documents/Projects/MariasNotebook-Rewrite/Maria's Notebook/Students/NeedsLessonView.swift" : {
+    "const-values" : "/Users/dannydeberry/Documents/Projects/MariasNotebook-Rewrite/build/Build/Intermediates.noindex/Maria's Notebook.build/Debug-iphoneos/Maria's Notebook.build/Objects-normal/arm64/NeedsLessonView.swiftconstvalues",
+    "dependencies" : "/Users/dannydeberry/Documents/Projects/MariasNotebook-Rewrite/build/Build/Intermediates.noindex/Maria's Notebook.build/Debug-iphoneos/Maria's Notebook.build/Objects-normal/arm64/NeedsLessonView.d",
+    "diagnostics" : "/Users/dannydeberry/Documents/Projects/MariasNotebook-Rewrite/build/Build/Intermediates.noindex/Maria's Notebook.build/Debug-iphoneos/Maria's Notebook.build/Objects-normal/arm64/NeedsLessonView.dia",
+    "object" : "/Users/dannydeberry/Documents/Projects/MariasNotebook-Rewrite/build/Build/Intermediates.noindex/Maria's Notebook.build/Debug-iphoneos/Maria's Notebook.build/Objects-normal/arm64/NeedsLessonView.o",
+    "swift-dependencies" : "/Users/dannydeberry/Documents/Projects/MariasNotebook-Rewrite/build/Build/Intermediates.noindex/Maria's Notebook.build/Debug-iphoneos/Maria's Notebook.build/Objects-normal/arm64/NeedsLessonView.swiftdeps"
+  },
+  "/Users/dannydeberry/Documents/Projects/MariasNotebook-Rewrite/Maria's Notebook/Students/ObservationHeatmapView.swift" : {
+    "const-values" : "/Users/dannydeberry/Documents/Projects/MariasNotebook-Rewrite/build/Build/Intermediates.noindex/Maria's Notebook.build/Debug-iphoneos/Maria's Notebook.build/Objects-normal/arm64/ObservationHeatmapView.swiftconstvalues",
+    "dependencies" : "/Users/dannydeberry/Documents/Projects/MariasNotebook-Rewrite/build/Build/Intermediates.noindex/Maria's Notebook.build/Debug-iphoneos/Maria's Notebook.build/Objects-normal/arm64/ObservationHeatmapView.d",
+    "diagnostics" : "/Users/dannydeberry/Documents/Projects/MariasNotebook-Rewrite/build/Build/Intermediates.noindex/Maria's Notebook.build/Debug-iphoneos/Maria's Notebook.build/Objects-normal/arm64/ObservationHeatmapView.dia",
+    "object" : "/Users/dannydeberry/Documents/Projects/MariasNotebook-Rewrite/build/Build/Intermediates.noindex/Maria's Notebook.build/Debug-iphoneos/Maria's Notebook.build/Objects-normal/arm64/ObservationHeatmapView.o",
+    "swift-dependencies" : "/Users/dannydeberry/Documents/Projects/MariasNotebook-Rewrite/build/Build/Intermediates.noindex/Maria's Notebook.build/Debug-iphoneos/Maria's Notebook.build/Objects-normal/arm64/ObservationHeatmapView.swiftdeps"
+  },
+  "/Users/dannydeberry/Documents/Projects/MariasNotebook-Rewrite/Maria's Notebook/Students/PDFThumbnailView.swift" : {
+    "const-values" : "/Users/dannydeberry/Documents/Projects/MariasNotebook-Rewrite/build/Build/Intermediates.noindex/Maria's Notebook.build/Debug-iphoneos/Maria's Notebook.build/Objects-normal/arm64/PDFThumbnailView.swiftconstvalues",
+    "dependencies" : "/Users/dannydeberry/Documents/Projects/MariasNotebook-Rewrite/build/Build/Intermediates.noindex/Maria's Notebook.build/Debug-iphoneos/Maria's Notebook.build/Objects-normal/arm64/PDFThumbnailView.d",
+    "diagnostics" : "/Users/dannydeberry/Documents/Projects/MariasNotebook-Rewrite/build/Build/Intermediates.noindex/Maria's Notebook.build/Debug-iphoneos/Maria's Notebook.build/Objects-normal/arm64/PDFThumbnailView.dia",
+    "object" : "/Users/dannydeberry/Documents/Projects/MariasNotebook-Rewrite/build/Build/Intermediates.noindex/Maria's Notebook.build/Debug-iphoneos/Maria's Notebook.build/Objects-normal/arm64/PDFThumbnailView.o",
+    "swift-dependencies" : "/Users/dannydeberry/Documents/Projects/MariasNotebook-Rewrite/build/Build/Intermediates.noindex/Maria's Notebook.build/Debug-iphoneos/Maria's Notebook.build/Objects-normal/arm64/PDFThumbnailView.swiftdeps"
+  },
+  "/Users/dannydeberry/Documents/Projects/MariasNotebook-Rewrite/Maria's Notebook/Students/ParentSummarySheet.swift" : {
+    "const-values" : "/Users/dannydeberry/Documents/Projects/MariasNotebook-Rewrite/build/Build/Intermediates.noindex/Maria's Notebook.build/Debug-iphoneos/Maria's Notebook.build/Objects-normal/arm64/ParentSummarySheet.swiftconstvalues",
+    "dependencies" : "/Users/dannydeberry/Documents/Projects/MariasNotebook-Rewrite/build/Build/Intermediates.noindex/Maria's Notebook.build/Debug-iphoneos/Maria's Notebook.build/Objects-normal/arm64/ParentSummarySheet.d",
+    "diagnostics" : "/Users/dannydeberry/Documents/Projects/MariasNotebook-Rewrite/build/Build/Intermediates.noindex/Maria's Notebook.build/Debug-iphoneos/Maria's Notebook.build/Objects-normal/arm64/ParentSummarySheet.dia",
+    "object" : "/Users/dannydeberry/Documents/Projects/MariasNotebook-Rewrite/build/Build/Intermediates.noindex/Maria's Notebook.build/Debug-iphoneos/Maria's Notebook.build/Objects-normal/arm64/ParentSummarySheet.o",
+    "swift-dependencies" : "/Users/dannydeberry/Documents/Projects/MariasNotebook-Rewrite/build/Build/Intermediates.noindex/Maria's Notebook.build/Debug-iphoneos/Maria's Notebook.build/Objects-normal/arm64/ParentSummarySheet.swiftdeps"
+  },
+  "/Users/dannydeberry/Documents/Projects/MariasNotebook-Rewrite/Maria's Notebook/Students/PillDropDelegate.swift" : {
+    "const-values" : "/Users/dannydeberry/Documents/Projects/MariasNotebook-Rewrite/build/Build/Intermediates.noindex/Maria's Notebook.build/Debug-iphoneos/Maria's Notebook.build/Objects-normal/arm64/PillDropDelegate.swiftconstvalues",
+    "dependencies" : "/Users/dannydeberry/Documents/Projects/MariasNotebook-Rewrite/build/Build/Intermediates.noindex/Maria's Notebook.build/Debug-iphoneos/Maria's Notebook.build/Objects-normal/arm64/PillDropDelegate.d",
+    "diagnostics" : "/Users/dannydeberry/Documents/Projects/MariasNotebook-Rewrite/build/Build/Intermediates.noindex/Maria's Notebook.build/Debug-iphoneos/Maria's Notebook.build/Objects-normal/arm64/PillDropDelegate.dia",
+    "object" : "/Users/dannydeberry/Documents/Projects/MariasNotebook-Rewrite/build/Build/Intermediates.noindex/Maria's Notebook.build/Debug-iphoneos/Maria's Notebook.build/Objects-normal/arm64/PillDropDelegate.o",
+    "swift-dependencies" : "/Users/dannydeberry/Documents/Projects/MariasNotebook-Rewrite/build/Build/Intermediates.noindex/Maria's Notebook.build/Debug-iphoneos/Maria's Notebook.build/Objects-normal/arm64/PillDropDelegate.swiftdeps"
+  },
+  "/Users/dannydeberry/Documents/Projects/MariasNotebook-Rewrite/Maria's Notebook/Students/PresentationCard.swift" : {
+    "const-values" : "/Users/dannydeberry/Documents/Projects/MariasNotebook-Rewrite/build/Build/Intermediates.noindex/Maria's Notebook.build/Debug-iphoneos/Maria's Notebook.build/Objects-normal/arm64/PresentationCard.swiftconstvalues",
+    "dependencies" : "/Users/dannydeberry/Documents/Projects/MariasNotebook-Rewrite/build/Build/Intermediates.noindex/Maria's Notebook.build/Debug-iphoneos/Maria's Notebook.build/Objects-normal/arm64/PresentationCard.d",
+    "diagnostics" : "/Users/dannydeberry/Documents/Projects/MariasNotebook-Rewrite/build/Build/Intermediates.noindex/Maria's Notebook.build/Debug-iphoneos/Maria's Notebook.build/Objects-normal/arm64/PresentationCard.dia",
+    "object" : "/Users/dannydeberry/Documents/Projects/MariasNotebook-Rewrite/build/Build/Intermediates.noindex/Maria's Notebook.build/Debug-iphoneos/Maria's Notebook.build/Objects-normal/arm64/PresentationCard.o",
+    "swift-dependencies" : "/Users/dannydeberry/Documents/Projects/MariasNotebook-Rewrite/build/Build/Intermediates.noindex/Maria's Notebook.build/Debug-iphoneos/Maria's Notebook.build/Objects-normal/arm64/PresentationCard.swiftdeps"
+  },
+  "/Users/dannydeberry/Documents/Projects/MariasNotebook-Rewrite/Maria's Notebook/Students/PresentationDetailActions.swift" : {
+    "const-values" : "/Users/dannydeberry/Documents/Projects/MariasNotebook-Rewrite/build/Build/Intermediates.noindex/Maria's Notebook.build/Debug-iphoneos/Maria's Notebook.build/Objects-normal/arm64/PresentationDetailActions.swiftconstvalues",
+    "dependencies" : "/Users/dannydeberry/Documents/Projects/MariasNotebook-Rewrite/build/Build/Intermediates.noindex/Maria's Notebook.build/Debug-iphoneos/Maria's Notebook.build/Objects-normal/arm64/PresentationDetailActions.d",
+    "diagnostics" : "/Users/dannydeberry/Documents/Projects/MariasNotebook-Rewrite/build/Build/Intermediates.noindex/Maria's Notebook.build/Debug-iphoneos/Maria's Notebook.build/Objects-normal/arm64/PresentationDetailActions.dia",
+    "object" : "/Users/dannydeberry/Documents/Projects/MariasNotebook-Rewrite/build/Build/Intermediates.noindex/Maria's Notebook.build/Debug-iphoneos/Maria's Notebook.build/Objects-normal/arm64/PresentationDetailActions.o",
+    "swift-dependencies" : "/Users/dannydeberry/Documents/Projects/MariasNotebook-Rewrite/build/Build/Intermediates.noindex/Maria's Notebook.build/Debug-iphoneos/Maria's Notebook.build/Objects-normal/arm64/PresentationDetailActions.swiftdeps"
+  },
+  "/Users/dannydeberry/Documents/Projects/MariasNotebook-Rewrite/Maria's Notebook/Students/PresentationDetailComponents.swift" : {
+    "const-values" : "/Users/dannydeberry/Documents/Projects/MariasNotebook-Rewrite/build/Build/Intermediates.noindex/Maria's Notebook.build/Debug-iphoneos/Maria's Notebook.build/Objects-normal/arm64/PresentationDetailComponents.swiftconstvalues",
+    "dependencies" : "/Users/dannydeberry/Documents/Projects/MariasNotebook-Rewrite/build/Build/Intermediates.noindex/Maria's Notebook.build/Debug-iphoneos/Maria's Notebook.build/Objects-normal/arm64/PresentationDetailComponents.d",
+    "diagnostics" : "/Users/dannydeberry/Documents/Projects/MariasNotebook-Rewrite/build/Build/Intermediates.noindex/Maria's Notebook.build/Debug-iphoneos/Maria's Notebook.build/Objects-normal/arm64/PresentationDetailComponents.dia",
+    "object" : "/Users/dannydeberry/Documents/Projects/MariasNotebook-Rewrite/build/Build/Intermediates.noindex/Maria's Notebook.build/Debug-iphoneos/Maria's Notebook.build/Objects-normal/arm64/PresentationDetailComponents.o",
+    "swift-dependencies" : "/Users/dannydeberry/Documents/Projects/MariasNotebook-Rewrite/build/Build/Intermediates.noindex/Maria's Notebook.build/Debug-iphoneos/Maria's Notebook.build/Objects-normal/arm64/PresentationDetailComponents.swiftdeps"
+  },
+  "/Users/dannydeberry/Documents/Projects/MariasNotebook-Rewrite/Maria's Notebook/Students/PresentationDetailSections.swift" : {
+    "const-values" : "/Users/dannydeberry/Documents/Projects/MariasNotebook-Rewrite/build/Build/Intermediates.noindex/Maria's Notebook.build/Debug-iphoneos/Maria's Notebook.build/Objects-normal/arm64/PresentationDetailSections.swiftconstvalues",
+    "dependencies" : "/Users/dannydeberry/Documents/Projects/MariasNotebook-Rewrite/build/Build/Intermediates.noindex/Maria's Notebook.build/Debug-iphoneos/Maria's Notebook.build/Objects-normal/arm64/PresentationDetailSections.d",
+    "diagnostics" : "/Users/dannydeberry/Documents/Projects/MariasNotebook-Rewrite/build/Build/Intermediates.noindex/Maria's Notebook.build/Debug-iphoneos/Maria's Notebook.build/Objects-normal/arm64/PresentationDetailSections.dia",
+    "object" : "/Users/dannydeberry/Documents/Projects/MariasNotebook-Rewrite/build/Build/Intermediates.noindex/Maria's Notebook.build/Debug-iphoneos/Maria's Notebook.build/Objects-normal/arm64/PresentationDetailSections.o",
+    "swift-dependencies" : "/Users/dannydeberry/Documents/Projects/MariasNotebook-Rewrite/build/Build/Intermediates.noindex/Maria's Notebook.build/Debug-iphoneos/Maria's Notebook.build/Objects-normal/arm64/PresentationDetailSections.swiftdeps"
+  },
+  "/Users/dannydeberry/Documents/Projects/MariasNotebook-Rewrite/Maria's Notebook/Students/PresentationDetailUtilities.swift" : {
+    "const-values" : "/Users/dannydeberry/Documents/Projects/MariasNotebook-Rewrite/build/Build/Intermediates.noindex/Maria's Notebook.build/Debug-iphoneos/Maria's Notebook.build/Objects-normal/arm64/PresentationDetailUtilities.swiftconstvalues",
+    "dependencies" : "/Users/dannydeberry/Documents/Projects/MariasNotebook-Rewrite/build/Build/Intermediates.noindex/Maria's Notebook.build/Debug-iphoneos/Maria's Notebook.build/Objects-normal/arm64/PresentationDetailUtilities.d",
+    "diagnostics" : "/Users/dannydeberry/Documents/Projects/MariasNotebook-Rewrite/build/Build/Intermediates.noindex/Maria's Notebook.build/Debug-iphoneos/Maria's Notebook.build/Objects-normal/arm64/PresentationDetailUtilities.dia",
+    "object" : "/Users/dannydeberry/Documents/Projects/MariasNotebook-Rewrite/build/Build/Intermediates.noindex/Maria's Notebook.build/Debug-iphoneos/Maria's Notebook.build/Objects-normal/arm64/PresentationDetailUtilities.o",
+    "swift-dependencies" : "/Users/dannydeberry/Documents/Projects/MariasNotebook-Rewrite/build/Build/Intermediates.noindex/Maria's Notebook.build/Debug-iphoneos/Maria's Notebook.build/Objects-normal/arm64/PresentationDetailUtilities.swiftdeps"
+  },
+  "/Users/dannydeberry/Documents/Projects/MariasNotebook-Rewrite/Maria's Notebook/Students/PresentationDetailView+FileHelpers.swift" : {
+    "const-values" : "/Users/dannydeberry/Documents/Projects/MariasNotebook-Rewrite/build/Build/Intermediates.noindex/Maria's Notebook.build/Debug-iphoneos/Maria's Notebook.build/Objects-normal/arm64/PresentationDetailView+FileHelpers.swiftconstvalues",
+    "dependencies" : "/Users/dannydeberry/Documents/Projects/MariasNotebook-Rewrite/build/Build/Intermediates.noindex/Maria's Notebook.build/Debug-iphoneos/Maria's Notebook.build/Objects-normal/arm64/PresentationDetailView+FileHelpers.d",
+    "diagnostics" : "/Users/dannydeberry/Documents/Projects/MariasNotebook-Rewrite/build/Build/Intermediates.noindex/Maria's Notebook.build/Debug-iphoneos/Maria's Notebook.build/Objects-normal/arm64/PresentationDetailView+FileHelpers.dia",
+    "object" : "/Users/dannydeberry/Documents/Projects/MariasNotebook-Rewrite/build/Build/Intermediates.noindex/Maria's Notebook.build/Debug-iphoneos/Maria's Notebook.build/Objects-normal/arm64/PresentationDetailView+FileHelpers.o",
+    "swift-dependencies" : "/Users/dannydeberry/Documents/Projects/MariasNotebook-Rewrite/build/Build/Intermediates.noindex/Maria's Notebook.build/Debug-iphoneos/Maria's Notebook.build/Objects-normal/arm64/PresentationDetailView+FileHelpers.swiftdeps"
+  },
+  "/Users/dannydeberry/Documents/Projects/MariasNotebook-Rewrite/Maria's Notebook/Students/PresentationDetailView+PlanningSections.swift" : {
+    "const-values" : "/Users/dannydeberry/Documents/Projects/MariasNotebook-Rewrite/build/Build/Intermediates.noindex/Maria's Notebook.build/Debug-iphoneos/Maria's Notebook.build/Objects-normal/arm64/PresentationDetailView+PlanningSections.swiftconstvalues",
+    "dependencies" : "/Users/dannydeberry/Documents/Projects/MariasNotebook-Rewrite/build/Build/Intermediates.noindex/Maria's Notebook.build/Debug-iphoneos/Maria's Notebook.build/Objects-normal/arm64/PresentationDetailView+PlanningSections.d",
+    "diagnostics" : "/Users/dannydeberry/Documents/Projects/MariasNotebook-Rewrite/build/Build/Intermediates.noindex/Maria's Notebook.build/Debug-iphoneos/Maria's Notebook.build/Objects-normal/arm64/PresentationDetailView+PlanningSections.dia",
+    "object" : "/Users/dannydeberry/Documents/Projects/MariasNotebook-Rewrite/build/Build/Intermediates.noindex/Maria's Notebook.build/Debug-iphoneos/Maria's Notebook.build/Objects-normal/arm64/PresentationDetailView+PlanningSections.o",
+    "swift-dependencies" : "/Users/dannydeberry/Documents/Projects/MariasNotebook-Rewrite/build/Build/Intermediates.noindex/Maria's Notebook.build/Debug-iphoneos/Maria's Notebook.build/Objects-normal/arm64/PresentationDetailView+PlanningSections.swiftdeps"
+  },
+  "/Users/dannydeberry/Documents/Projects/MariasNotebook-Rewrite/Maria's Notebook/Students/PresentationDetailView+Workflow.swift" : {
+    "const-values" : "/Users/dannydeberry/Documents/Projects/MariasNotebook-Rewrite/build/Build/Intermediates.noindex/Maria's Notebook.build/Debug-iphoneos/Maria's Notebook.build/Objects-normal/arm64/PresentationDetailView+Workflow.swiftconstvalues",
+    "dependencies" : "/Users/dannydeberry/Documents/Projects/MariasNotebook-Rewrite/build/Build/Intermediates.noindex/Maria's Notebook.build/Debug-iphoneos/Maria's Notebook.build/Objects-normal/arm64/PresentationDetailView+Workflow.d",
+    "diagnostics" : "/Users/dannydeberry/Documents/Projects/MariasNotebook-Rewrite/build/Build/Intermediates.noindex/Maria's Notebook.build/Debug-iphoneos/Maria's Notebook.build/Objects-normal/arm64/PresentationDetailView+Workflow.dia",
+    "object" : "/Users/dannydeberry/Documents/Projects/MariasNotebook-Rewrite/build/Build/Intermediates.noindex/Maria's Notebook.build/Debug-iphoneos/Maria's Notebook.build/Objects-normal/arm64/PresentationDetailView+Workflow.o",
+    "swift-dependencies" : "/Users/dannydeberry/Documents/Projects/MariasNotebook-Rewrite/build/Build/Intermediates.noindex/Maria's Notebook.build/Debug-iphoneos/Maria's Notebook.build/Objects-normal/arm64/PresentationDetailView+Workflow.swiftdeps"
+  },
+  "/Users/dannydeberry/Documents/Projects/MariasNotebook-Rewrite/Maria's Notebook/Students/PresentationDetailView.swift" : {
+    "const-values" : "/Users/dannydeberry/Documents/Projects/MariasNotebook-Rewrite/build/Build/Intermediates.noindex/Maria's Notebook.build/Debug-iphoneos/Maria's Notebook.build/Objects-normal/arm64/PresentationDetailView.swiftconstvalues",
+    "dependencies" : "/Users/dannydeberry/Documents/Projects/MariasNotebook-Rewrite/build/Build/Intermediates.noindex/Maria's Notebook.build/Debug-iphoneos/Maria's Notebook.build/Objects-normal/arm64/PresentationDetailView.d",
+    "diagnostics" : "/Users/dannydeberry/Documents/Projects/MariasNotebook-Rewrite/build/Build/Intermediates.noindex/Maria's Notebook.build/Debug-iphoneos/Maria's Notebook.build/Objects-normal/arm64/PresentationDetailView.dia",
+    "object" : "/Users/dannydeberry/Documents/Projects/MariasNotebook-Rewrite/build/Build/Intermediates.noindex/Maria's Notebook.build/Debug-iphoneos/Maria's Notebook.build/Objects-normal/arm64/PresentationDetailView.o",
+    "swift-dependencies" : "/Users/dannydeberry/Documents/Projects/MariasNotebook-Rewrite/build/Build/Intermediates.noindex/Maria's Notebook.build/Debug-iphoneos/Maria's Notebook.build/Objects-normal/arm64/PresentationDetailView.swiftdeps"
+  },
+  "/Users/dannydeberry/Documents/Projects/MariasNotebook-Rewrite/Maria's Notebook/Students/PresentationDetailViewComponents.swift" : {
+    "const-values" : "/Users/dannydeberry/Documents/Projects/MariasNotebook-Rewrite/build/Build/Intermediates.noindex/Maria's Notebook.build/Debug-iphoneos/Maria's Notebook.build/Objects-normal/arm64/PresentationDetailViewComponents.swiftconstvalues",
+    "dependencies" : "/Users/dannydeberry/Documents/Projects/MariasNotebook-Rewrite/build/Build/Intermediates.noindex/Maria's Notebook.build/Debug-iphoneos/Maria's Notebook.build/Objects-normal/arm64/PresentationDetailViewComponents.d",
+    "diagnostics" : "/Users/dannydeberry/Documents/Projects/MariasNotebook-Rewrite/build/Build/Intermediates.noindex/Maria's Notebook.build/Debug-iphoneos/Maria's Notebook.build/Objects-normal/arm64/PresentationDetailViewComponents.dia",
+    "object" : "/Users/dannydeberry/Documents/Projects/MariasNotebook-Rewrite/build/Build/Intermediates.noindex/Maria's Notebook.build/Debug-iphoneos/Maria's Notebook.build/Objects-normal/arm64/PresentationDetailViewComponents.o",
+    "swift-dependencies" : "/Users/dannydeberry/Documents/Projects/MariasNotebook-Rewrite/build/Build/Intermediates.noindex/Maria's Notebook.build/Debug-iphoneos/Maria's Notebook.build/Objects-normal/arm64/PresentationDetailViewComponents.swiftdeps"
+  },
+  "/Users/dannydeberry/Documents/Projects/MariasNotebook-Rewrite/Maria's Notebook/Students/PresentationDetailViewModel+MasteryTracking.swift" : {
+    "const-values" : "/Users/dannydeberry/Documents/Projects/MariasNotebook-Rewrite/build/Build/Intermediates.noindex/Maria's Notebook.build/Debug-iphoneos/Maria's Notebook.build/Objects-normal/arm64/PresentationDetailViewModel+MasteryTracking.swiftconstvalues",
+    "dependencies" : "/Users/dannydeberry/Documents/Projects/MariasNotebook-Rewrite/build/Build/Intermediates.noindex/Maria's Notebook.build/Debug-iphoneos/Maria's Notebook.build/Objects-normal/arm64/PresentationDetailViewModel+MasteryTracking.d",
+    "diagnostics" : "/Users/dannydeberry/Documents/Projects/MariasNotebook-Rewrite/build/Build/Intermediates.noindex/Maria's Notebook.build/Debug-iphoneos/Maria's Notebook.build/Objects-normal/arm64/PresentationDetailViewModel+MasteryTracking.dia",
+    "object" : "/Users/dannydeberry/Documents/Projects/MariasNotebook-Rewrite/build/Build/Intermediates.noindex/Maria's Notebook.build/Debug-iphoneos/Maria's Notebook.build/Objects-normal/arm64/PresentationDetailViewModel+MasteryTracking.o",
+    "swift-dependencies" : "/Users/dannydeberry/Documents/Projects/MariasNotebook-Rewrite/build/Build/Intermediates.noindex/Maria's Notebook.build/Debug-iphoneos/Maria's Notebook.build/Objects-normal/arm64/PresentationDetailViewModel+MasteryTracking.swiftdeps"
+  },
+  "/Users/dannydeberry/Documents/Projects/MariasNotebook-Rewrite/Maria's Notebook/Students/PresentationDetailViewModel+NotesAutosave.swift" : {
+    "const-values" : "/Users/dannydeberry/Documents/Projects/MariasNotebook-Rewrite/build/Build/Intermediates.noindex/Maria's Notebook.build/Debug-iphoneos/Maria's Notebook.build/Objects-normal/arm64/PresentationDetailViewModel+NotesAutosave.swiftconstvalues",
+    "dependencies" : "/Users/dannydeberry/Documents/Projects/MariasNotebook-Rewrite/build/Build/Intermediates.noindex/Maria's Notebook.build/Debug-iphoneos/Maria's Notebook.build/Objects-normal/arm64/PresentationDetailViewModel+NotesAutosave.d",
+    "diagnostics" : "/Users/dannydeberry/Documents/Projects/MariasNotebook-Rewrite/build/Build/Intermediates.noindex/Maria's Notebook.build/Debug-iphoneos/Maria's Notebook.build/Objects-normal/arm64/PresentationDetailViewModel+NotesAutosave.dia",
+    "object" : "/Users/dannydeberry/Documents/Projects/MariasNotebook-Rewrite/build/Build/Intermediates.noindex/Maria's Notebook.build/Debug-iphoneos/Maria's Notebook.build/Objects-normal/arm64/PresentationDetailViewModel+NotesAutosave.o",
+    "swift-dependencies" : "/Users/dannydeberry/Documents/Projects/MariasNotebook-Rewrite/build/Build/Intermediates.noindex/Maria's Notebook.build/Debug-iphoneos/Maria's Notebook.build/Objects-normal/arm64/PresentationDetailViewModel+NotesAutosave.swiftdeps"
+  },
+  "/Users/dannydeberry/Documents/Projects/MariasNotebook-Rewrite/Maria's Notebook/Students/PresentationDetailViewModel+StudentActions.swift" : {
+    "const-values" : "/Users/dannydeberry/Documents/Projects/MariasNotebook-Rewrite/build/Build/Intermediates.noindex/Maria's Notebook.build/Debug-iphoneos/Maria's Notebook.build/Objects-normal/arm64/PresentationDetailViewModel+StudentActions.swiftconstvalues",
+    "dependencies" : "/Users/dannydeberry/Documents/Projects/MariasNotebook-Rewrite/build/Build/Intermediates.noindex/Maria's Notebook.build/Debug-iphoneos/Maria's Notebook.build/Objects-normal/arm64/PresentationDetailViewModel+StudentActions.d",
+    "diagnostics" : "/Users/dannydeberry/Documents/Projects/MariasNotebook-Rewrite/build/Build/Intermediates.noindex/Maria's Notebook.build/Debug-iphoneos/Maria's Notebook.build/Objects-normal/arm64/PresentationDetailViewModel+StudentActions.dia",
+    "object" : "/Users/dannydeberry/Documents/Projects/MariasNotebook-Rewrite/build/Build/Intermediates.noindex/Maria's Notebook.build/Debug-iphoneos/Maria's Notebook.build/Objects-normal/arm64/PresentationDetailViewModel+StudentActions.o",
+    "swift-dependencies" : "/Users/dannydeberry/Documents/Projects/MariasNotebook-Rewrite/build/Build/Intermediates.noindex/Maria's Notebook.build/Debug-iphoneos/Maria's Notebook.build/Objects-normal/arm64/PresentationDetailViewModel+StudentActions.swiftdeps"
+  },
+  "/Users/dannydeberry/Documents/Projects/MariasNotebook-Rewrite/Maria's Notebook/Students/PresentationDetailViewModel.swift" : {
+    "const-values" : "/Users/dannydeberry/Documents/Projects/MariasNotebook-Rewrite/build/Build/Intermediates.noindex/Maria's Notebook.build/Debug-iphoneos/Maria's Notebook.build/Objects-normal/arm64/PresentationDetailViewModel.swiftconstvalues",
+    "dependencies" : "/Users/dannydeberry/Documents/Projects/MariasNotebook-Rewrite/build/Build/Intermediates.noindex/Maria's Notebook.build/Debug-iphoneos/Maria's Notebook.build/Objects-normal/arm64/PresentationDetailViewModel.d",
+    "diagnostics" : "/Users/dannydeberry/Documents/Projects/MariasNotebook-Rewrite/build/Build/Intermediates.noindex/Maria's Notebook.build/Debug-iphoneos/Maria's Notebook.build/Objects-normal/arm64/PresentationDetailViewModel.dia",
+    "object" : "/Users/dannydeberry/Documents/Projects/MariasNotebook-Rewrite/build/Build/Intermediates.noindex/Maria's Notebook.build/Debug-iphoneos/Maria's Notebook.build/Objects-normal/arm64/PresentationDetailViewModel.o",
+    "swift-dependencies" : "/Users/dannydeberry/Documents/Projects/MariasNotebook-Rewrite/build/Build/Intermediates.noindex/Maria's Notebook.build/Debug-iphoneos/Maria's Notebook.build/Objects-normal/arm64/PresentationDetailViewModel.swiftdeps"
+  }
+}

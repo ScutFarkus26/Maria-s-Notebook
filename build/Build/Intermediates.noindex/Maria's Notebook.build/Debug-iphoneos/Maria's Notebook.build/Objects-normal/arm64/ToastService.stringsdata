@@ -1,0 +1,16 @@
+{
+  "source": "/Users/dannydeberry/Documents/Projects/MariasNotebook-Rewrite/Maria's Notebook/Services/ToastService.swift",
+  "tables": {
+    "Localizable": [
+      {
+        "comment": "",
+        "key": "Undo",
+        "location": {
+          "startingColumn": 26,
+          "startingLine": 228
+        }
+      }
+    ]
+  },
+  "version": 1
+}

@@ -1,5 +1,5 @@
 import SwiftUI
-import SwiftData
+import CoreData
 import Foundation
 
 /// Unified detail view for viewing and editing work items
@@ -10,32 +10,32 @@ struct WorkDetailView: View {
     var showRepresentButton: Bool = false
 
     @Environment(\.dismiss) var dismiss
-    @Environment(\.modelContext) var modelContext
+    @Environment(\.managedObjectContext) var modelContext
     @Environment(SaveCoordinator.self) var saveCoordinator
 
     @State var viewModel: WorkDetailViewModel
     @State var showingRepresentSheet: Bool = false
     #if DEBUG
-    @Query var lessonAssignments: [LessonAssignment]
+    @FetchRequest(sortDescriptors: []) private var lessonAssignments: FetchedResults<CDLessonAssignment>
     #endif
-    @Query var checkIns: [WorkCheckIn]
-    @Query var allPracticeSessions: [PracticeSession]
+    @FetchRequest(sortDescriptors: [NSSortDescriptor(keyPath: \CDWorkCheckIn.date, ascending: false)]) var checkIns: FetchedResults<CDWorkCheckIn>
+    @FetchRequest(sortDescriptors: []) private var allPracticeSessions: FetchedResults<CDPracticeSession>
     // PERF: allLessons and allLessonAssignments moved into WorkDetailViewModel.loadWork()
     // to avoid loading entire tables via @Query. The ViewModel fetches only what's needed.
     #if DEBUG
-    @Query var peerWorks: [WorkModel]
+    @FetchRequest(sortDescriptors: []) private var peerWorks: FetchedResults<CDWorkModel>
     #endif
 
     var scheduleDates: WorkScheduleDates {
-        viewModel.scheduleDates(checkIns: checkIns)
+        viewModel.scheduleDates(checkIns: Array(checkIns))
     }
 
-    var likelyNextLesson: Lesson? {
+    var likelyNextLesson: CDLesson? {
         viewModel.likelyNextLesson()
     }
 
-    var practiceSessions: [PracticeSession] {
-        viewModel.practiceSessions(allSessions: allPracticeSessions)
+    var practiceSessions: [CDPracticeSession] {
+        viewModel.practiceSessions(allSessions: Array(allPracticeSessions))
     }
 
     // PERF: Uses ViewModel's cached resolvedLessonID/resolvedStudentID
@@ -51,7 +51,7 @@ struct WorkDetailView: View {
         return (lessonID, studentID)
     }
 
-    var representSheetInfo: (student: Student, lessonID: UUID)? {
+    var representSheetInfo: (student: CDStudent, lessonID: UUID)? {
         guard let student = viewModel.relatedStudent,
               let lessonID = viewModel.resolvedLessonID else {
             return nil
@@ -75,12 +75,13 @@ struct WorkDetailView: View {
 
         let workIDString = workID.uuidString
         let scheduledStatus = WorkCheckInStatus.scheduled.rawValue
-        _checkIns = Query(filter: #Predicate<WorkCheckIn> {
-            $0.workID == workIDString && $0.statusRaw == scheduledStatus
-        })
+        _checkIns = FetchRequest(
+            sortDescriptors: [NSSortDescriptor(keyPath: \CDWorkCheckIn.date, ascending: false)],
+            predicate: NSPredicate(format: "workID == %@ AND statusRaw == %@", workIDString, scheduledStatus)
+        )
         #if DEBUG
-        // Query for peer works - will filter by lessonID after work is loaded
-        _peerWorks = Query()
+        // FetchRequest for peer works - will filter by lessonID after work is loaded
+        _peerWorks = FetchRequest(sortDescriptors: [])
         #endif
     }
 
@@ -115,11 +116,11 @@ struct WorkDetailView: View {
         }
     }
 
-    @State var selectedPracticeSession: PracticeSession?
+    @State var selectedPracticeSession: CDPracticeSession?
 
     @ViewBuilder
     // swiftlint:disable:next function_body_length
-    private func mainContent(work: WorkModel) -> some View {
+    private func mainContent(work: CDWorkModel) -> some View {
         VStack(spacing: 0) {
             ScrollView {
                 VStack(alignment: .leading, spacing: 24) {
@@ -130,7 +131,7 @@ struct WorkDetailView: View {
                     nextPresentationStatusSection
 
                     if viewModel.status == .complete { completionSection() }
-                    if let work = viewModel.work, !(work.steps ?? []).isEmpty || viewModel.workKind == .report {
+                    if let work = viewModel.work, !((work.steps?.allObjects as? [CDWorkStep]) ?? []).isEmpty || viewModel.workKind == .report {
                         stepsSection()
                     }
                     if !practiceSessions.isEmpty { practiceOverviewSection() }
@@ -234,7 +235,7 @@ struct WorkDetailView: View {
                     if let nextLesson = viewModel.nextLessonToUnlock {
                         let studentName = viewModel.relatedStudent?.firstName
                             ?? "this student"
-                        Text("Ready to unlock \(nextLesson.name) for \(studentName)?")
+                        Text("Ready to unlock \(nextLesson.name ?? "Unknown") for \(studentName)?")
                     }
                 }
                 .sheet(isPresented: $viewModel.showAddStepSheet) {

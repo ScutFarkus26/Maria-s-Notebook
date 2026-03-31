@@ -3,7 +3,7 @@
 // This avoids repeated database fetches when iterating through dates
 
 import Foundation
-import SwiftData
+import CoreData
 
 /// Helper class to cache school day data for TodayView
 /// This avoids repeated database fetches when iterating through dates
@@ -12,7 +12,7 @@ class SchoolDayCache {
     var cachedSchoolDayOverrides: Set<Date> = []
     var cachedYearRange: ClosedRange<Int>?
 
-    func cacheSchoolDayData(for date: Date, modelContext: ModelContext) {
+    func cacheSchoolDayData(for date: Date, viewContext: NSManagedObjectContext) {
         let cal = AppCalendar.shared
         let year = cal.component(.year, from: date)
         let yearRange = (year - 1)...(year + 1)
@@ -34,26 +34,20 @@ class SchoolDayCache {
 
         // Fetch all NonSchoolDay records in the window
         do {
-            let nsDescriptor = FetchDescriptor<NonSchoolDay>(
-                predicate: #Predicate<NonSchoolDay> { nsd in
-                    nsd.date >= startOfWindow && nsd.date < endOfWindow
-                }
-            )
-            let nonSchoolDays = try modelContext.fetch(nsDescriptor)
-            cachedNonSchoolDays = Set(nonSchoolDays.map { AppCalendar.startOfDay($0.date) })
+            let fetchRequest: NSFetchRequest<CDNonSchoolDay> = CDFetchRequest(CDNonSchoolDay.self)
+            fetchRequest.predicate = NSPredicate(format: "date >= %@ AND date < %@", startOfWindow as NSDate, endOfWindow as NSDate)
+            let nonSchoolDays = try viewContext.fetch(fetchRequest)
+            cachedNonSchoolDays = Set(nonSchoolDays.compactMap { $0.date.map { AppCalendar.startOfDay($0) } })
         } catch {
             cachedNonSchoolDays = []
         }
 
         // Fetch all SchoolDayOverride records in the window
         do {
-            let ovDescriptor = FetchDescriptor<SchoolDayOverride>(
-                predicate: #Predicate<SchoolDayOverride> { sdo in
-                    sdo.date >= startOfWindow && sdo.date < endOfWindow
-                }
-            )
-            let overrides = try modelContext.fetch(ovDescriptor)
-            cachedSchoolDayOverrides = Set(overrides.map { AppCalendar.startOfDay($0.date) })
+            let fetchRequest: NSFetchRequest<CDSchoolDayOverride> = CDFetchRequest(CDSchoolDayOverride.self)
+            fetchRequest.predicate = NSPredicate(format: "date >= %@ AND date < %@", startOfWindow as NSDate, endOfWindow as NSDate)
+            let overrides = try viewContext.fetch(fetchRequest)
+            cachedSchoolDayOverrides = Set(overrides.compactMap { $0.date.map { AppCalendar.startOfDay($0) } })
         } catch {
             cachedSchoolDayOverrides = []
         }

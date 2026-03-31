@@ -1,5 +1,4 @@
 import SwiftUI
-import SwiftData
 import OSLog
 import CoreData
 
@@ -21,7 +20,7 @@ public struct BulkLessonsEntryView: View {
     var onDone: (() -> Void)?
 
     @Environment(\.dismiss) private var dismiss
-    @Environment(\.modelContext) private var modelContext
+    @Environment(\.managedObjectContext) private var viewContext
     @Environment(\.managedObjectContext) private var managedObjectContext
 
     private var repository: LessonRepository {
@@ -280,7 +279,7 @@ public struct BulkLessonsEntryView: View {
             .buttonStyle(.plain)
             .frame(width: selectionColumnWidth)
 
-            TextField("Lesson Name", text: row.name)
+            TextField("CDLesson Name", text: row.name)
                 .textFieldStyle(.roundedBorder)
                 .frame(width: widths[0], alignment: .leading)
             TextField("Subject", text: row.subject)
@@ -357,7 +356,7 @@ public struct BulkLessonsEntryView: View {
         do {
             try managedObjectContext.save()
 
-            // Automatically create/update Track objects for new subject/group combinations
+            // Automatically create/update CDTrackEntity objects for new subject/group combinations
             var processedGroups: Set<String> = []
             for lesson in insertedLessons {
                 let subject = lesson.subject.trimmed()
@@ -368,21 +367,21 @@ public struct BulkLessonsEntryView: View {
                 guard !processedGroups.contains(key) else { continue }
                 processedGroups.insert(key)
 
-                if GroupTrackService.isTrack(subject: subject, group: group, modelContext: modelContext) {
+                if GroupTrackService.isTrack(subject: subject, group: group, context: viewContext) {
                     do {
                         _ = try GroupTrackService.getOrCreateTrack(
                             subject: subject,
                             group: group,
-                            modelContext: modelContext
+                            context: viewContext
                         )
                     } catch {
-                        Self.logger.warning("Failed to create/update Track for \(subject)/\(group): \(error)")
+                        Self.logger.warning("Failed to create/update CDTrackEntity for \(subject)/\(group): \(error)")
                     }
                 }
             }
 
             // Save track updates
-            try modelContext.save()
+            try viewContext.save()
         } catch {
             // Swallow save error for now; could surface an alert if needed
         }

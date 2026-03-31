@@ -1,7 +1,7 @@
 import Foundation
-import SwiftData
+import CoreData
 
-// A CSV importer for Student records with parse-first, map-then-commit workflow.
+// A CSV importer for CDStudent records with parse-first, map-then-commit workflow.
 // swiftlint:disable:next type_body_length
 enum StudentCSVImporter {
     // MARK: - Row DTO
@@ -11,7 +11,7 @@ enum StudentCSVImporter {
         var lastName: String
         var birthday: Date?
         var dateStarted: Date?
-        var level: Student.Level?
+        var level: CDStudent.Level?
     }
 
     // MARK: - Parsed (dry run)
@@ -92,7 +92,7 @@ enum StudentCSVImporter {
     }
 
     // MARK: - Public API
-    static func parse(data: Data, mapping: Mapping?, existingStudents: [Student]) throws -> Parsed {
+    static func parse(data: Data, mapping: Mapping?, existingStudents: [CDStudent]) throws -> Parsed {
         // Existing keys for duplicate detection
         let existingKeys: Set<String> = Set(existingStudents.map { duplicateKey(for: $0) })
         let existingNameKeys: Set<String> = Set(existingStudents.map {
@@ -226,12 +226,12 @@ enum StudentCSVImporter {
     }
 
     // swiftlint:disable:next cyclomatic_complexity function_body_length
-    static func commit(parsed: Parsed, into context: ModelContext, existingStudents: [Student]) throws -> Summary {
+    static func commit(parsed: Parsed, into context: NSManagedObjectContext, existingStudents: [CDStudent]) throws -> Summary {
         var inserted = 0
         var updated = 0
         // Index existing by duplicate key and by name-only key
-        var byFullKey: [String: Student] = [:]
-        var byNameKey: [String: Student] = [:]
+        var byFullKey: [String: CDStudent] = [:]
+        var byNameKey: [String: CDStudent] = [:]
         for s in existingStudents {
             let full = duplicateKey(for: s)
             if byFullKey[full] == nil { byFullKey[full] = s }
@@ -277,14 +277,12 @@ enum StudentCSVImporter {
             }
 
             // No match found; insert new student
-            let student = Student(
-                firstName: r.firstName,
-                lastName: r.lastName,
-                birthday: r.birthday ?? Date(),
-                level: r.level ?? .lower,
-                dateStarted: r.dateStarted
-            )
-            context.insert(student)
+            let student = CDStudent(context: context)
+            student.firstName = r.firstName
+            student.lastName = r.lastName
+            student.birthday = r.birthday ?? Date()
+            student.level = r.level ?? .lower
+            student.dateStarted = r.dateStarted
             inserted += 1
 
             // Update indexes so subsequent rows can merge into this newly created student
@@ -308,7 +306,7 @@ enum StudentCSVImporter {
 
     // MARK: - Helpers
 
-    static func duplicateKey(for student: Student) -> String {
+    static func duplicateKey(for student: CDStudent) -> String {
         duplicateKey(first: student.firstName, last: student.lastName, birthday: student.birthday)
     }
 
@@ -321,7 +319,7 @@ enum StudentCSVImporter {
         return nameKey
     }
 
-    static func parseLevel(from string: String) -> Student.Level? {
+    static func parseLevel(from string: String) -> CDStudent.Level? {
         let s = string.normalizedForComparison()
         switch s {
         case "lower", "l", "lower elementary", "lower el", "lower elem":

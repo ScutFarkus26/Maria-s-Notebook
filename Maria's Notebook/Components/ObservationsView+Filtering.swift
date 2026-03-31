@@ -2,7 +2,7 @@
 // Filter bar UI for ObservationsView
 
 import SwiftUI
-import SwiftData
+import CoreData
 
 extension ObservationsView {
     // MARK: - Filters UI

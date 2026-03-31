@@ -3,7 +3,7 @@
 // Shared utilities for backup services
 
 import Foundation
-import SwiftData
+import CoreData
 import OSLog
 
 /// Shared helper utilities for backup operations
@@ -15,18 +15,19 @@ enum BackupServiceHelpers {
     // MARK: - DTO Conversion
 
     /// Converts an array of Students to StudentDTOs
-    static func toDTOs(_ students: [Student]) -> [StudentDTO] {
-        students.map { s in
+    static func toDTOs(_ students: [CDStudent]) -> [StudentDTO] {
+        students.compactMap { s in
+            guard let sID = s.id else { return nil }
             let level: StudentDTO.Level = (s.level == .upper) ? .upper : .lower
             return StudentDTO(
-                id: s.id,
+                id: sID,
                 firstName: s.firstName,
                 lastName: s.lastName,
-                birthday: s.birthday,
+                birthday: s.birthday ?? Date(),
                 dateStarted: s.dateStarted,
                 level: level,
                 nextLessons: s.nextLessonUUIDs,
-                manualOrder: s.manualOrder,
+                manualOrder: Int(s.manualOrder),
                 createdAt: nil,
                 updatedAt: nil
             )
@@ -34,14 +35,15 @@ enum BackupServiceHelpers {
     }
 
     /// Converts an array of Lessons to LessonDTOs
-    static func toDTOs(_ lessons: [Lesson]) -> [LessonDTO] {
-        lessons.map { l in
-            LessonDTO(
-                id: l.id,
+    static func toDTOs(_ lessons: [CDLesson]) -> [LessonDTO] {
+        lessons.compactMap { l in
+            guard let lID = l.id else { return nil }
+            return LessonDTO(
+                id: lID,
                 name: l.name,
                 subject: l.subject,
                 group: l.group,
-                orderInGroup: l.orderInGroup,
+                orderInGroup: Int(l.orderInGroup),
                 subheading: l.subheading,
                 writeUp: l.writeUp,
                 createdAt: nil,
@@ -52,8 +54,9 @@ enum BackupServiceHelpers {
     }
 
     /// Converts an array of Notes to NoteDTOs
-    static func toDTOs(_ notes: [Note]) -> [NoteDTO] {
-        notes.map { n in
+    static func toDTOs(_ notes: [CDNote]) -> [NoteDTO] {
+        notes.compactMap { n in
+            guard let nID = n.id else { return nil }
             let scopeString: String
             do {
                 let data = try JSONEncoder().encode(n.scope)
@@ -63,9 +66,9 @@ enum BackupServiceHelpers {
                 scopeString = "{}"
             }
             return NoteDTO(
-                id: n.id,
-                createdAt: n.createdAt,
-                updatedAt: n.updatedAt,
+                id: nID,
+                createdAt: n.createdAt ?? Date(),
+                updatedAt: n.updatedAt ?? Date(),
                 body: n.body,
                 isPinned: n.isPinned,
                 scope: scopeString,
@@ -79,13 +82,15 @@ enum BackupServiceHelpers {
     /// Old backups with WorkPlanItems are converted to WorkCheckIns on import
 
     /// Converts an array of AttendanceRecords to AttendanceRecordDTOs
-    static func toDTOs(_ attendance: [AttendanceRecord]) -> [AttendanceRecordDTO] {
+    static func toDTOs(_ attendance: [CDAttendanceRecord]) -> [AttendanceRecordDTO] {
         attendance.compactMap { a in
-            guard let studentIDUUID = UUID(uuidString: a.studentID) else { return nil }
+            guard let aID = a.id,
+                  let aDate = a.date,
+                  let studentIDUUID = UUID(uuidString: a.studentID) else { return nil }
             return AttendanceRecordDTO(
-                id: a.id,
+                id: aID,
                 studentID: studentIDUUID,
-                date: a.date,
+                date: aDate,
                 status: a.status.rawValue,
                 absenceReason: a.absenceReason.rawValue == "none" ? nil : a.absenceReason.rawValue
             )
@@ -93,39 +98,43 @@ enum BackupServiceHelpers {
     }
 
     /// Converts an array of WorkCompletionRecords to WorkCompletionRecordDTOs
-    static func toDTOs(_ workCompletions: [WorkCompletionRecord]) -> [WorkCompletionRecordDTO] {
+    static func toDTOs(_ workCompletions: [CDWorkCompletionRecord]) -> [WorkCompletionRecordDTO] {
         workCompletions.compactMap { r in
-            guard let workIDUUID = UUID(uuidString: r.workID),
+            guard let rID = r.id,
+                  let rCompletedAt = r.completedAt,
+                  let workIDUUID = UUID(uuidString: r.workID),
                   let studentIDUUID = UUID(uuidString: r.studentID) else { return nil }
             return WorkCompletionRecordDTO(
-                id: r.id,
+                id: rID,
                 workID: workIDUUID,
                 studentID: studentIDUUID,
-                completedAt: r.completedAt
+                completedAt: rCompletedAt
             )
         }
     }
 
     /// Converts an array of Projects to ProjectDTOs
-    static func toDTOs(_ projects: [Project]) -> [ProjectDTO] {
-        projects.map { c in
-            ProjectDTO(
-                id: c.id,
-                createdAt: c.createdAt,
+    static func toDTOs(_ projects: [CDProject]) -> [ProjectDTO] {
+        projects.compactMap { c in
+            guard let cID = c.id else { return nil }
+            return ProjectDTO(
+                id: cID,
+                createdAt: c.createdAt ?? Date(),
                 title: c.title,
                 bookTitle: c.bookTitle,
-                memberStudentIDs: c.memberStudentIDs
+                memberStudentIDs: c.memberStudentIDsArray
             )
         }
     }
 
     /// Converts an array of ProjectAssignmentTemplates to ProjectAssignmentTemplateDTOs
-    static func toDTOs(_ projectTemplates: [ProjectAssignmentTemplate]) -> [ProjectAssignmentTemplateDTO] {
+    static func toDTOs(_ projectTemplates: [CDProjectAssignmentTemplate]) -> [ProjectAssignmentTemplateDTO] {
         projectTemplates.compactMap { t in
-            guard let projectIDUUID = UUID(uuidString: t.projectID) else { return nil }
+            guard let tID = t.id,
+                  let projectIDUUID = UUID(uuidString: t.projectID) else { return nil }
             return ProjectAssignmentTemplateDTO(
-                id: t.id,
-                createdAt: t.createdAt,
+                id: tID,
+                createdAt: t.createdAt ?? Date(),
                 projectID: projectIDUUID,
                 title: t.title,
                 instructions: t.instructions,
@@ -136,15 +145,17 @@ enum BackupServiceHelpers {
     }
 
     /// Converts an array of ProjectSessions to ProjectSessionDTOs
-    static func toDTOs(_ projectSessions: [ProjectSession]) -> [ProjectSessionDTO] {
+    static func toDTOs(_ projectSessions: [CDProjectSession]) -> [ProjectSessionDTO] {
         projectSessions.compactMap { s in
-            guard let projectIDUUID = UUID(uuidString: s.projectID) else { return nil }
+            guard let sID = s.id,
+                  let sMeetingDate = s.meetingDate,
+                  let projectIDUUID = UUID(uuidString: s.projectID) else { return nil }
             let templateWeekIDUUID = s.templateWeekID.flatMap { UUID(uuidString: $0) }
             return ProjectSessionDTO(
-                id: s.id,
-                createdAt: s.createdAt,
+                id: sID,
+                createdAt: s.createdAt ?? Date(),
                 projectID: projectIDUUID,
-                meetingDate: s.meetingDate,
+                meetingDate: sMeetingDate,
                 chapterOrPages: s.chapterOrPages,
                 agendaItemsJSON: s.agendaItemsJSON,
                 templateWeekID: templateWeekIDUUID
@@ -153,12 +164,13 @@ enum BackupServiceHelpers {
     }
 
     /// Converts an array of ProjectRoles to ProjectRoleDTOs
-    static func toDTOs(_ projectRoles: [ProjectRole]) -> [ProjectRoleDTO] {
+    static func toDTOs(_ projectRoles: [CDProjectRole]) -> [ProjectRoleDTO] {
         projectRoles.compactMap { r in
-            guard let projectIDUUID = UUID(uuidString: r.projectID) else { return nil }
+            guard let rID = r.id,
+                  let projectIDUUID = UUID(uuidString: r.projectID) else { return nil }
             return ProjectRoleDTO(
-                id: r.id,
-                createdAt: r.createdAt,
+                id: rID,
+                createdAt: r.createdAt ?? Date(),
                 projectID: projectIDUUID,
                 title: r.title,
                 summary: r.summary,
@@ -168,14 +180,15 @@ enum BackupServiceHelpers {
     }
 
     /// Converts an array of ProjectTemplateWeeks to ProjectTemplateWeekDTOs
-    static func toDTOs(_ projectWeeks: [ProjectTemplateWeek]) -> [ProjectTemplateWeekDTO] {
+    static func toDTOs(_ projectWeeks: [CDProjectTemplateWeek]) -> [ProjectTemplateWeekDTO] {
         projectWeeks.compactMap { w in
-            guard let projectIDUUID = UUID(uuidString: w.projectID) else { return nil }
+            guard let wID = w.id,
+                  let projectIDUUID = UUID(uuidString: w.projectID) else { return nil }
             return ProjectTemplateWeekDTO(
-                id: w.id,
-                createdAt: w.createdAt,
+                id: wID,
+                createdAt: w.createdAt ?? Date(),
                 projectID: projectIDUUID,
-                weekIndex: w.weekIndex,
+                weekIndex: Int(w.weekIndex),
                 readingRange: w.readingRange,
                 agendaItemsJSON: w.agendaItemsJSON,
                 linkedLessonIDsJSON: w.linkedLessonIDsJSON,
@@ -185,13 +198,14 @@ enum BackupServiceHelpers {
     }
 
     /// Converts an array of ProjectWeekRoleAssignments to ProjectWeekRoleAssignmentDTOs
-    static func toDTOs(_ projectWeekAssignments: [ProjectWeekRoleAssignment]) -> [ProjectWeekRoleAssignmentDTO] {
+    static func toDTOs(_ projectWeekAssignments: [CDProjectWeekRoleAssignment]) -> [ProjectWeekRoleAssignmentDTO] {
         projectWeekAssignments.compactMap { a in
-            guard let weekIDUUID = UUID(uuidString: a.weekID),
+            guard let aID = a.id,
+                  let weekIDUUID = UUID(uuidString: a.weekID),
                   let roleIDUUID = UUID(uuidString: a.roleID) else { return nil }
             return ProjectWeekRoleAssignmentDTO(
-                id: a.id,
-                createdAt: a.createdAt,
+                id: aID,
+                createdAt: a.createdAt ?? Date(),
                 weekID: weekIDUUID,
                 studentID: a.studentID,
                 roleID: roleIDUUID
@@ -281,21 +295,29 @@ enum BackupServiceHelpers {
 
     // MARK: - Simple DTO Conversions
 
-    static func toDTOs(_ nonSchoolDays: [NonSchoolDay]) -> [NonSchoolDayDTO] {
-        nonSchoolDays.map { NonSchoolDayDTO(id: $0.id, date: $0.date, reason: $0.reason) }
+    static func toDTOs(_ nonSchoolDays: [CDNonSchoolDay]) -> [NonSchoolDayDTO] {
+        nonSchoolDays.compactMap { nsd in
+            guard let nsdID = nsd.id, let nsdDate = nsd.date else { return nil }
+            return NonSchoolDayDTO(id: nsdID, date: nsdDate, reason: nsd.reason)
+        }
     }
 
-    static func toDTOs(_ schoolDayOverrides: [SchoolDayOverride]) -> [SchoolDayOverrideDTO] {
-        schoolDayOverrides.map { SchoolDayOverrideDTO(id: $0.id, date: $0.date) }
+    static func toDTOs(_ schoolDayOverrides: [CDSchoolDayOverride]) -> [SchoolDayOverrideDTO] {
+        schoolDayOverrides.compactMap { ovr in
+            guard let ovrID = ovr.id, let ovrDate = ovr.date else { return nil }
+            return SchoolDayOverrideDTO(id: ovrID, date: ovrDate)
+        }
     }
 
-    static func toDTOs(_ studentMeetings: [StudentMeeting]) -> [StudentMeetingDTO] {
+    static func toDTOs(_ studentMeetings: [CDStudentMeeting]) -> [StudentMeetingDTO] {
         studentMeetings.compactMap { m in
-            guard let studentIDUUID = UUID(uuidString: m.studentID) else { return nil }
+            guard let mID = m.id,
+                  let mDate = m.date,
+                  let studentIDUUID = UUID(uuidString: m.studentID) else { return nil }
             return StudentMeetingDTO(
-                id: m.id,
+                id: mID,
                 studentID: studentIDUUID,
-                date: m.date,
+                date: mDate,
                 completed: m.completed,
                 reflection: m.reflection,
                 focus: m.focus,
@@ -305,13 +327,14 @@ enum BackupServiceHelpers {
         }
     }
 
-    static func toDTOs(_ communityTopics: [CommunityTopic]) -> [CommunityTopicDTO] {
-        communityTopics.map { t in
-            CommunityTopicDTO(
-                id: t.id,
+    static func toDTOs(_ communityTopics: [CDCommunityTopicEntity]) -> [CommunityTopicDTO] {
+        communityTopics.compactMap { t in
+            guard let tID = t.id else { return nil }
+            return CommunityTopicDTO(
+                id: tID,
                 title: t.title,
                 issueDescription: t.issueDescription,
-                createdAt: t.createdAt,
+                createdAt: t.createdAt ?? Date(),
                 addressedDate: t.addressedDate,
                 resolution: t.resolution,
                 raisedBy: t.raisedBy,
@@ -320,28 +343,30 @@ enum BackupServiceHelpers {
         }
     }
 
-    static func toDTOs(_ proposedSolutions: [ProposedSolution]) -> [ProposedSolutionDTO] {
-        proposedSolutions.map { s in
-            ProposedSolutionDTO(
-                id: s.id,
+    static func toDTOs(_ proposedSolutions: [CDProposedSolutionEntity]) -> [ProposedSolutionDTO] {
+        proposedSolutions.compactMap { s in
+            guard let sID = s.id else { return nil }
+            return ProposedSolutionDTO(
+                id: sID,
                 topicID: s.topic?.id,
                 title: s.title,
                 details: s.details,
                 proposedBy: s.proposedBy,
-                createdAt: s.createdAt,
+                createdAt: s.createdAt ?? Date(),
                 isAdopted: s.isAdopted
             )
         }
     }
 
-    static func toDTOs(_ communityAttachments: [CommunityAttachment]) -> [CommunityAttachmentDTO] {
-        communityAttachments.map { a in
-            CommunityAttachmentDTO(
-                id: a.id,
+    static func toDTOs(_ communityAttachments: [CDCommunityAttachmentEntity]) -> [CommunityAttachmentDTO] {
+        communityAttachments.compactMap { a in
+            guard let aID = a.id else { return nil }
+            return CommunityAttachmentDTO(
+                id: aID,
                 topicID: a.topic?.id,
                 filename: a.filename,
                 kind: a.kind.rawValue,
-                createdAt: a.createdAt
+                createdAt: a.createdAt ?? Date()
             )
         }
     }

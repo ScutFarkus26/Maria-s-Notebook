@@ -1,4 +1,5 @@
 import SwiftUI
+import CoreData
 
 // MARK: - Workflow Panel Components
 
@@ -129,8 +130,9 @@ extension PresentationDetailContentView {
     // MARK: - Keyboard Shortcut Helper
 
     func applyUnderstandingToAll(level: Int, presentationVM: PostPresentationFormViewModel) {
-        for student in selectedStudentsList where presentationVM.entries[student.id] != nil {
-            presentationVM.entries[student.id]?.understandingLevel = level
+        for student in selectedStudentsList {
+            guard let studentID = student.id, presentationVM.entries[studentID] != nil else { continue }
+            presentationVM.entries[studentID]?.understandingLevel = level
         }
     }
 
@@ -160,7 +162,7 @@ extension PresentationDetailContentView {
         presentationVM: PostPresentationFormViewModel,
         lessonTitle: String,
         lessonID: UUID,
-        selectedStudents: [Student]
+        selectedStudents: [CDStudent]
     ) {
         // Show the independent window
         showIndependentWorkflowWindow = true

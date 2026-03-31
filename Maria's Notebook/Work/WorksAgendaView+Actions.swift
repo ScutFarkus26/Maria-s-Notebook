@@ -2,7 +2,7 @@
 // Calendar navigation and work item action methods for WorksAgendaView.
 
 import SwiftUI
-import SwiftData
+import CoreData
 import OSLog
 #if os(macOS)
 import AppKit
@@ -21,7 +21,7 @@ extension WorksAgendaView {
         let step = delta > 0 ? 1 : -1
         while remaining > 0 {
             cursor = calendar.date(byAdding: .day, value: step, to: cursor) ?? cursor
-            if !SchoolDayChecker.isNonSchoolDay(cursor, using: modelContext) { remaining -= 1 }
+            if !SchoolDayChecker.isNonSchoolDay(cursor, using: viewContext) { remaining -= 1 }
         }
         calendarStartDate = cursor
     }
@@ -31,13 +31,13 @@ extension WorksAgendaView {
     func openDetail(_ w: WorkModel) {
         // Force save before opening
         do {
-            try modelContext.save()
+            try viewContext.save()
         } catch {
             Self.logger.warning("Failed to save context: \(error)")
         }
 
         selected = nil
-        let token = SelectionToken(id: UUID(), workID: w.id)
+        let token = SelectionToken(id: UUID(), workID: w.id ?? UUID())
         Task { @MainActor in
             selected = token
         }
@@ -45,43 +45,37 @@ extension WorksAgendaView {
 
     func markCompleted(_ w: WorkModel) {
         w.status = .complete
-        saveCoordinator.save(modelContext, reason: "Mark work completed")
+        saveCoordinator.save(viewContext, reason: "Mark work completed")
         HapticService.shared.notification(.success)
     }
 
     func scheduleToday(_ w: WorkModel) {
         let today = AppCalendar.startOfDay(Date())
-        // Phase 6: Update or create a WorkCheckIn for this work
-        let workID: UUID = w.id
-        let workIDString = workID.uuidString
-        var fetch = FetchDescriptor<WorkCheckIn>(
-            predicate: #Predicate<WorkCheckIn> { $0.workID == workIDString },
-            sortBy: [SortDescriptor(\.date, order: .forward)]
-        )
-        fetch.fetchLimit = 1
+        let workIDString = w.id?.uuidString ?? ""
+        let request: NSFetchRequest<CDWorkCheckIn> = NSFetchRequest(entityName: "WorkCheckIn")
+        request.predicate = NSPredicate(format: "workID == %@", workIDString)
+        request.sortDescriptors = [NSSortDescriptor(keyPath: \CDWorkCheckIn.date, ascending: true)]
+        request.fetchLimit = 1
         do {
-            if let first = try modelContext.fetch(fetch).first {
+            if let first = try viewContext.fetch(request).first {
                 first.date = today
             } else {
-                let item = WorkCheckIn(
-                    id: UUID(), workID: workID,
-                    date: today, status: .scheduled,
-                    purpose: "progressCheck"
-                )
-                modelContext.insert(item)
+                let item = CDWorkCheckIn(context: viewContext)
+                item.workID = workIDString
+                item.date = today
+                item.status = .scheduled
+                item.purpose = "progressCheck"
             }
         } catch {
             Self.logger.warning("Failed to fetch WorkCheckIn: \(error)")
-            // Create new check-in as fallback
-            let item = WorkCheckIn(
-                id: UUID(), workID: workID,
-                date: today, status: .scheduled,
-                purpose: "progressCheck"
-            )
-            modelContext.insert(item)
+            let item = CDWorkCheckIn(context: viewContext)
+            item.workID = workIDString
+            item.date = today
+            item.status = .scheduled
+            item.purpose = "progressCheck"
         }
         w.dueAt = today
-        saveCoordinator.save(modelContext, reason: "Quick schedule today")
+        saveCoordinator.save(viewContext, reason: "Quick schedule today")
     }
 
     #if os(macOS)

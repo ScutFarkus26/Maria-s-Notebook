@@ -1,5 +1,5 @@
 import SwiftUI
-import SwiftData
+import CoreData
 
 // MARK: - Student Category Types
 
@@ -30,12 +30,14 @@ enum StudentCategory: Int, Comparable {
     }
 }
 
-struct CategorizedStudent {
+struct CategorizedStudent: Identifiable {
     let student: Student
     let category: StudentCategory
     let work: WorkModel?
     let daysSinceCompletion: Int?
     let lastPracticeDate: Date?
+
+    var id: UUID { student.id ?? UUID() }
 }
 
 // MARK: - Student Categorization Helper
@@ -50,16 +52,17 @@ struct StudentCategorizer {
     // swiftlint:disable:next function_body_length
     func categorize(_ student: Student) -> CategorizedStudent {
         let lessonID = initialWorkItem.lessonID
+        let studentIDString = student.id?.uuidString ?? ""
 
         // Find work for this student and lesson
         let studentWork = allWork.filter {
-            $0.studentID == student.id.uuidString &&
+            $0.studentID == studentIDString &&
             $0.lessonID == lessonID &&
             $0.id != initialWorkItem.id
         }
 
         // Check if they're a co-learner
-        if coLearnerIDs.contains(student.id) {
+        if let studentID = student.id, coLearnerIDs.contains(studentID) {
             let activeWork = studentWork.first { $0.status != .complete }
             return CategorizedStudent(
                 student: student,
@@ -100,14 +103,14 @@ struct StudentCategorizer {
 
         // Check for past practice sessions
         let practiceSessions = allPracticeSessions.filter { session in
-            session.studentIDs.contains(student.id.uuidString) &&
-            session.workItemIDs.contains { workID in
-                if let work = allWork.first(where: { $0.id.uuidString == workID }) {
+            session.studentIDsArray.contains(studentIDString) &&
+            session.workItemIDsArray.contains { workID in
+                if let work = allWork.first(where: { $0.id?.uuidString == workID }) {
                     return work.lessonID == lessonID
                 }
                 return false
             }
-        }.sorted { $0.date > $1.date }
+        }.sorted { ($0.date ?? .distantPast) > ($1.date ?? .distantPast) }
 
         if let lastSession = practiceSessions.first {
             return CategorizedStudent(
@@ -115,15 +118,16 @@ struct StudentCategorizer {
                 category: .pastPractice,
                 work: nil,
                 daysSinceCompletion: nil,
-                lastPracticeDate: lastSession.date
+                lastPracticeDate: lastSession.date ?? .distantPast
             )
         }
 
         // Check if student has received the lesson at all
         let hasReceivedLesson = allLessonAssignments.contains { lessonAssignment in
-            guard let lessonUUID = UUID(uuidString: lessonID) else { return false }
+            guard let lessonUUID = UUID(uuidString: lessonID),
+                  let studentID = student.id else { return false }
             return lessonAssignment.lessonIDUUID == lessonUUID &&
-                   lessonAssignment.studentUUIDs.contains(student.id) &&
+                   lessonAssignment.studentUUIDs.contains(studentID) &&
                    lessonAssignment.isPresented
         }
 
@@ -148,10 +152,10 @@ struct StudentCategorizer {
     }
 
     /// Get co-learner IDs from the initial lesson assignment
-    static func getCoLearnerIDs(
+    static func getCoLearnerIDs<C: Collection>(
         for workItem: WorkModel,
-        allLessonAssignments: [LessonAssignment]
-    ) -> Set<UUID> {
+        allLessonAssignments: C
+    ) -> Set<UUID> where C.Element == LessonAssignment {
         guard let lessonUUID = UUID(uuidString: workItem.lessonID),
               let studentUUID = UUID(uuidString: workItem.studentID) else {
             return []
@@ -271,7 +275,7 @@ struct StudentCategorySection: View {
                     .padding(.top, category == .withInitialStudent ? 0 : 8)
 
                 // Students in this category
-                ForEach(students, id: \.student.id) { categorizedStudent in
+                ForEach(students, id: \.id) { categorizedStudent in
                     StudentCategoryRow(categorizedStudent: categorizedStudent) {
                         onStudentTap(categorizedStudent.student)
                     }

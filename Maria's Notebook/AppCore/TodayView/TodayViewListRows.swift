@@ -158,7 +158,7 @@ struct ScheduledWorkListRow: View {
     private var accessibilityLabelText: String {
         let reasonLabel = item.checkIn.purpose
         var label = "\(reasonLabel) for \(studentName), \(lessonName)"
-        label += ", scheduled for \(DateFormatters.mediumDate.string(from: item.checkIn.date))"
+        label += ", scheduled for \(DateFormatters.mediumDate.string(from: item.checkIn.date ?? Date()))"
         if !item.checkIn.latestUnifiedNoteText.isEmpty {
             label += ", note: \(item.checkIn.latestUnifiedNoteText)"
         }
@@ -184,7 +184,7 @@ struct ScheduledWorkListRow: View {
                     }
                 }
                 Spacer()
-                Text(item.checkIn.date, style: .date)
+                Text(item.checkIn.date ?? Date(), style: .date)
                     .font(AppTheme.ScaledFont.caption)
                     .foregroundStyle(.secondary)
             }

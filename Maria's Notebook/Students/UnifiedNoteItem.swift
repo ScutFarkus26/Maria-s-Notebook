@@ -1,5 +1,6 @@
 import Foundation
 import SwiftUI
+import CoreData
 
 public struct UnifiedNoteItem: Identifiable {
     public enum Source {

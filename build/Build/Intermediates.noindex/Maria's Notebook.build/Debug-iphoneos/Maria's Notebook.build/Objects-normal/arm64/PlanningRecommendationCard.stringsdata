@@ -1,0 +1,64 @@
+{
+  "source": "/Users/dannydeberry/Documents/Projects/MariasNotebook-Rewrite/Maria's Notebook/Planning/AIPlanning/PlanningRecommendationCard.swift",
+  "tables": {
+    "Localizable": [
+      {
+        "comment": "",
+        "key": "%lld%%",
+        "location": {
+          "startingColumn": 21,
+          "startingLine": 105
+        }
+      },
+      {
+        "comment": "",
+        "key": "Accept",
+        "location": {
+          "startingColumn": 27,
+          "startingLine": 136
+        }
+      },
+      {
+        "comment": "",
+        "key": "Skip",
+        "location": {
+          "startingColumn": 27,
+          "startingLine": 143
+        }
+      },
+      {
+        "comment": "",
+        "key": "Why?",
+        "location": {
+          "startingColumn": 31,
+          "startingLine": 151
+        }
+      },
+      {
+        "comment": "",
+        "key": "Accepted",
+        "location": {
+          "startingColumn": 39,
+          "startingLine": 161
+        }
+      },
+      {
+        "comment": "",
+        "key": "Skipped",
+        "location": {
+          "startingColumn": 52,
+          "startingLine": 161
+        }
+      },
+      {
+        "comment": "",
+        "key": "Change",
+        "location": {
+          "startingColumn": 26,
+          "startingLine": 172
+        }
+      }
+    ]
+  },
+  "version": 1
+}

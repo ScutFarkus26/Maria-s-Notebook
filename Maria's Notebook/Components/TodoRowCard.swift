@@ -3,14 +3,14 @@
 
 import OSLog
 import SwiftUI
-import SwiftData
+import CoreData
 
 // swiftlint:disable:next type_body_length
 struct TodoRowCard: View {
     private static let logger = Logger.todos
 
-    @Bindable var todo: TodoItem
-    @Environment(\.modelContext) private var modelContext
+    @ObservedObject var todo: CDTodoItem
+    @Environment(\.managedObjectContext) private var viewContext
     let onSelect: () -> Void
     let onEdit: () -> Void
     let onDelete: () -> Void
@@ -46,7 +46,7 @@ struct TodoRowCard: View {
                             todo.completedAt = todo.isCompleted ? Date() : nil
                             checkboxScale = 1.0
                             do {
-                                try modelContext.save()
+                                try viewContext.save()
                             } catch {
                                 let desc = error.localizedDescription
                                 Self.logger.error("Failed to save todo completion state: \(desc, privacy: .public)")
@@ -81,7 +81,7 @@ struct TodoRowCard: View {
                             .lineLimit(1)
                     }
 
-                    if todo.effectiveDate != nil || todo.isSomeday || !todo.tags.isEmpty || todo.recurrence != .none {
+                    if todo.effectiveDate != nil || todo.isSomeday || !todo.tagsArray.isEmpty || todo.recurrence != .none {
                         HStack(spacing: 6) {
                             if todo.effectiveDate != nil || todo.isSomeday {
                                 TodoDateChip(todo: todo)
@@ -97,8 +97,8 @@ struct TodoRowCard: View {
                                 .foregroundStyle(.purple.opacity(UIConstants.OpacityConstants.prominent))
                             }
 
-                            if !todo.tags.isEmpty {
-                                fittingTagBadges(todo.tags)
+                            if !todo.tagsArray.isEmpty {
+                                fittingTagBadges(todo.tagsArray)
                             }
                         }
                         .padding(.top, 2)
@@ -142,7 +142,7 @@ struct TodoRowCard: View {
             Button {
                 todo.scheduledDate = AppCalendar.startOfDay(Date())
                 todo.isSomeday = false
-                try? modelContext.save()
+                try? viewContext.save()
             } label: {
                 Label("Today", systemImage: "star.fill")
             }
@@ -151,7 +151,7 @@ struct TodoRowCard: View {
             Button {
                 todo.scheduledDate = AppCalendar.addingDays(1, to: AppCalendar.startOfDay(Date()))
                 todo.isSomeday = false
-                try? modelContext.save()
+                try? viewContext.save()
             } label: {
                 Label("Tomorrow", systemImage: "sunrise")
             }
@@ -160,7 +160,7 @@ struct TodoRowCard: View {
             Button {
                 todo.scheduledDate = nextMonday()
                 todo.isSomeday = false
-                try? modelContext.save()
+                try? viewContext.save()
             } label: {
                 Label("+1 Week", systemImage: "calendar.badge.plus")
             }
@@ -185,28 +185,28 @@ struct TodoRowCard: View {
                 Button {
                     todo.scheduledDate = AppCalendar.startOfDay(Date())
                     todo.isSomeday = false
-                    try? modelContext.save()
+                    try? viewContext.save()
                 } label: {
                     Label("Today", systemImage: "star.fill")
                 }
                 Button {
                     todo.scheduledDate = AppCalendar.addingDays(1, to: AppCalendar.startOfDay(Date()))
                     todo.isSomeday = false
-                    try? modelContext.save()
+                    try? viewContext.save()
                 } label: {
                     Label("Tomorrow", systemImage: "sunrise")
                 }
                 Button {
                     todo.scheduledDate = nextMonday()
                     todo.isSomeday = false
-                    try? modelContext.save()
+                    try? viewContext.save()
                 } label: {
                     Label("Next Week", systemImage: "calendar.badge.plus")
                 }
                 Button {
                     todo.scheduledDate = nil
                     todo.isSomeday = true
-                    try? modelContext.save()
+                    try? viewContext.save()
                 } label: {
                     Label("Someday", systemImage: "moon.zzz")
                 }
@@ -215,7 +215,7 @@ struct TodoRowCard: View {
                     todo.scheduledDate = nil
                     todo.dueDate = nil
                     todo.isSomeday = false
-                    try? modelContext.save()
+                    try? viewContext.save()
                 } label: {
                     Label("Remove Date", systemImage: "xmark.circle")
                 }
@@ -239,7 +239,7 @@ struct TodoRowCard: View {
         case .high: todo.priority = .none
         }
         do {
-            try modelContext.save()
+            try viewContext.save()
         } catch {
             Self.logger.error("Failed to save priority change: \(error.localizedDescription, privacy: .public)")
         }

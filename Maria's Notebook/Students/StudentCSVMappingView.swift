@@ -1,4 +1,5 @@
 import SwiftUI
+import CoreData
 
 struct StudentCSVMappingView: View {
     let headers: [String]

@@ -4,11 +4,11 @@
 //  Maria's Notebook
 //
 //  Detail view for a presented LessonAssignment.
-//  Phase 5 migration: This sheet reads from LessonAssignment instead of Presentation.
+//  Phase 5 migration: This sheet reads from CDLessonAssignment instead of Presentation.
 //
 
 import SwiftUI
-import SwiftData
+import CoreData
 import OSLog
 
 // swiftlint:disable:next type_body_length
@@ -20,30 +20,30 @@ struct LessonAssignmentDetailSheet: View, Identifiable {
     var id: UUID { assignmentID }
 
     @Environment(\.dismiss) private var dismiss
-    @Environment(\.modelContext) var modelContext
+    @Environment(\.managedObjectContext) var viewContext
 
     // Test student filtering
     @AppStorage(UserDefaultsKeys.generalShowTestStudents) private var showTestStudents: Bool = false
     @AppStorage(UserDefaultsKeys.generalTestStudentNames)
     private var testStudentNamesRaw: String = "Danny De Berry,Lil Dan D"
 
-    @Query private var lessons: [Lesson]
-    @Query private var studentsRaw: [Student]
+    @FetchRequest(sortDescriptors: []) private var lessons: FetchedResults<CDLesson>
+    @FetchRequest(sortDescriptors: []) private var studentsRaw: FetchedResults<CDStudent>
 
     // DEDUPLICATION: CloudKit sync can create duplicate records with the same ID.
     // Filter out test students when setting is disabled
-    private var students: [Student] {
+    private var students: [CDStudent] {
         TestStudentsFilter.filterVisible(
-            studentsRaw.uniqueByID.filter(\.isEnrolled), show: showTestStudents,
+            Array(studentsRaw).uniqueByID.filter(\.isEnrolled), show: showTestStudents,
             namesRaw: testStudentNamesRaw
         )
     }
 
-    @State var assignment: LessonAssignment?
-    @State var unifiedNotes: [Note] = []
+    @State var assignment: CDLessonAssignment?
+    @State var unifiedNotes: [CDNote] = []
     @State private var isLoading: Bool = true
     @State private var showAddNoteSheet: Bool = false
-    @State var noteBeingEdited: Note?
+    @State var noteBeingEdited: CDNote?
     @State private var showingEditSheet = false
 
     init(assignmentID: UUID, onDone: (() -> Void)? = nil) {
@@ -52,14 +52,14 @@ struct LessonAssignmentDetailSheet: View, Identifiable {
     }
 
     // Use uniquingKeysWith to handle CloudKit sync duplicates
-    private var lessonsByID: [UUID: Lesson] {
-        Dictionary(lessons.map { ($0.id, $0) }, uniquingKeysWith: { first, _ in first })
+    private var lessonsByID: [UUID: CDLesson] {
+        Dictionary(lessons.compactMap { guard let id = $0.id else { return nil }; return (id, $0) }, uniquingKeysWith: { first, _ in first })
     }
-    private var studentsByID: [UUID: Student] {
-        Dictionary(students.map { ($0.id, $0) }, uniquingKeysWith: { first, _ in first })
+    private var studentsByID: [UUID: CDStudent] {
+        Dictionary(students.compactMap { guard let id = $0.id else { return nil }; return (id, $0) }, uniquingKeysWith: { first, _ in first })
     }
 
-    private func title(for la: LessonAssignment) -> String {
+    private func title(for la: CDLessonAssignment) -> String {
         let snap = (la.lessonTitleSnapshot ?? "").trimmed()
         if !snap.isEmpty { return snap }
         if let lid = la.lessonIDUUID, let l = lessonsByID[lid] {
@@ -69,7 +69,7 @@ struct LessonAssignmentDetailSheet: View, Identifiable {
         return "Lesson"
     }
 
-    private func studentList(for la: LessonAssignment) -> [Student] {
+    private func studentList(for la: CDLessonAssignment) -> [CDStudent] {
         la.studentUUIDs.compactMap { studentsByID[$0] }
     }
 
@@ -219,8 +219,8 @@ struct LessonAssignmentDetailSheet: View, Identifiable {
                                 VStack(alignment: .leading, spacing: 8) {
                                     // Show unified notes
                                     ForEach(
-                                        unifiedNotes.sorted { $0.createdAt > $1.createdAt },
-                                        id: \.id
+                                        unifiedNotes.sorted { ($0.createdAt ?? .distantPast) > ($1.createdAt ?? .distantPast) },
+                                        id: \.objectID
                                     ) { note in
                                         unifiedNoteRow(note)
                                     }
@@ -321,8 +321,8 @@ struct LessonAssignmentDetailSheet: View, Identifiable {
         .task { @MainActor in
             isLoading = true
             let targetID = assignmentID
-            let descriptor = FetchDescriptor<LessonAssignment>(predicate: #Predicate { $0.id == targetID })
-            if let fetched = modelContext.safeFetchFirst(descriptor) {
+            let descriptor = { let r = NSFetchRequest<CDLessonAssignment>(entityName: "LessonAssignment"); r.predicate = NSPredicate(format: "id == %@", targetID as CVarArg); r.fetchLimit = 1; return r }()
+            if let fetched = viewContext.safeFetchFirst(descriptor) {
                 self.assignment = fetched
             } else {
                 self.assignment = nil
@@ -402,15 +402,15 @@ struct LessonAssignmentDetailSheet: View, Identifiable {
         
         // Save changes
         do {
-            try modelContext.save()
+            try viewContext.save()
         } catch {
             Self.logger.warning("Failed to save presentation updates: \(error)")
         }
         
         // Reload the assignment to reflect changes
         let targetID = assignmentID
-        let descriptor = FetchDescriptor<LessonAssignment>(predicate: #Predicate { $0.id == targetID })
-        if let refreshed = modelContext.safeFetchFirst(descriptor) {
+        let descriptor = { let r = NSFetchRequest<CDLessonAssignment>(entityName: "LessonAssignment"); r.predicate = NSPredicate(format: "id == %@", targetID as CVarArg); r.fetchLimit = 1; return r }()
+        if let refreshed = viewContext.safeFetchFirst(descriptor) {
             self.assignment = refreshed
         }
         reloadNotes()
@@ -422,25 +422,26 @@ struct LessonAssignmentDetailSheet: View, Identifiable {
 }
 
 #Preview {
-    let container = ModelContainer.preview
-    let ctx = container.mainContext
-    let lesson = Lesson(name: "Decimal System", subject: "Math", group: "Number Work", subheading: "", writeUp: "")
-    let student = Student(firstName: "Ada", lastName: "Lovelace", birthday: Date(), level: .upper)
-    ctx.insert(lesson); ctx.insert(student)
+    let ctx = CoreDataStack.preview.viewContext
 
-    let la = LessonAssignment(
-        lesson: lesson,
-        students: [student],
-        state: .presented,
-        scheduledFor: nil
-    )
+    let lesson = CDLesson(context: ctx)
+    lesson.name = "Decimal System"
+    lesson.subject = "Math"
+    lesson.group = "Number Work"
+
+    let student = CDStudent(context: ctx)
+    student.firstName = "Ada"
+    student.lastName = "Lovelace"
+    student.birthday = Date()
+    student.level = .upper
+
+    let la = CDLessonAssignment(context: ctx)
+    la.state = .presented
     la.presentedAt = Date()
     la.lessonTitleSnapshot = lesson.name
-    ctx.insert(la)
+    la.lessonIDUUID = lesson.id
+    la.studentIDs = [student.id?.uuidString ?? UUID().uuidString]
 
-    let note = Note(body: "Group was engaged.", scope: .all, lessonAssignment: la)
-    ctx.insert(note)
-
-    return LessonAssignmentDetailSheet(assignmentID: la.id)
-        .previewEnvironment(using: container)
+    return LessonAssignmentDetailSheet(assignmentID: la.id ?? UUID())
+        .previewEnvironment()
 }

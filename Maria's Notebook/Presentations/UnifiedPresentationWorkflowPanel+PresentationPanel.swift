@@ -1,4 +1,5 @@
 import SwiftUI
+import CoreData
 import os
 
 // MARK: - Presentation Panel
@@ -40,7 +41,7 @@ extension UnifiedPresentationWorkflowPanel {
                     Divider()
                         .padding(.horizontal, 16)
 
-                    // Student Entries Section
+                    // CDStudent Entries Section
                     studentEntriesSection
                 }
                 .padding(.vertical, 16)
@@ -53,18 +54,18 @@ extension UnifiedPresentationWorkflowPanel {
         }
     }
 
-    // MARK: - Student Navigator Button
+    // MARK: - CDStudent Navigator Button
 
     var studentNavigatorButton: some View {
         Menu {
             ForEach(sortedStudents) { student in
                 Button {
-                    scrollToStudent(student.id)
+                    if let id = student.id { scrollToStudent(id) }
                 } label: {
                     HStack {
                         Text(StudentFormatter.displayName(for: student))
                         Spacer()
-                        if let level = presentationViewModel.entries[student.id]?.understandingLevel {
+                        if let id = student.id, let level = presentationViewModel.entries[id]?.understandingLevel {
                             Text("\(level)")
                                 .foregroundStyle(UnderstandingLevel.color(for: level))
                         }
@@ -147,12 +148,12 @@ extension UnifiedPresentationWorkflowPanel {
         .padding(.horizontal, 16)
     }
 
-    // MARK: - Student Entries Section
+    // MARK: - CDStudent Entries Section
 
     var studentEntriesSection: some View {
         VStack(alignment: .leading, spacing: 12) {
             HStack {
-                WorkflowSectionHeader(title: "Student Status & Notes", icon: "person.2.fill")
+                WorkflowSectionHeader(title: "CDStudent Status & Notes", icon: "person.2.fill")
 
                 Spacer()
 
@@ -171,9 +172,10 @@ extension UnifiedPresentationWorkflowPanel {
         .padding(.horizontal, 16)
     }
 
-    func studentEntryRow(for student: Student) -> some View {
-        let isExpanded = presentationViewModel.expandedStudentIDs.contains(student.id)
-        let entry = presentationViewModel.entries[student.id]
+    func studentEntryRow(for student: CDStudent) -> some View {
+        let studentID = student.id ?? UUID()
+        let isExpanded = presentationViewModel.expandedStudentIDs.contains(studentID)
+        let entry = presentationViewModel.entries[studentID]
         let hasContent = !(entry?.observation.isEmpty ?? true) || !(entry?.assignment.isEmpty ?? true)
         let level = entry?.understandingLevel ?? 3
 
@@ -182,9 +184,9 @@ extension UnifiedPresentationWorkflowPanel {
             Button {
                 adaptiveWithAnimation(.easeInOut(duration: 0.15)) {
                     if isExpanded {
-                        presentationViewModel.expandedStudentIDs.remove(student.id)
+                        presentationViewModel.expandedStudentIDs.remove(studentID)
                     } else {
-                        presentationViewModel.expandedStudentIDs.insert(student.id)
+                        presentationViewModel.expandedStudentIDs.insert(studentID)
                     }
                 }
             } label: {
@@ -205,8 +207,9 @@ extension UnifiedPresentationWorkflowPanel {
     }
 
     @ViewBuilder
-    func studentExpandedContent(for student: Student) -> some View {
-        VStack(spacing: 12) {
+    func studentExpandedContent(for student: CDStudent) -> some View {
+        let studentID = student.id ?? UUID()
+        return VStack(spacing: 12) {
             // Understanding level picker
             VStack(alignment: .leading, spacing: 6) {
                 Text("Understanding")
@@ -214,8 +217,8 @@ extension UnifiedPresentationWorkflowPanel {
                     .foregroundStyle(.secondary)
 
                 UnderstandingLevelRow(selectedLevel: Binding(
-                    get: { presentationViewModel.entries[student.id]?.understandingLevel ?? 3 },
-                    set: { presentationViewModel.entries[student.id]?.understandingLevel = $0 }
+                    get: { presentationViewModel.entries[studentID]?.understandingLevel ?? 3 },
+                    set: { presentationViewModel.entries[studentID]?.understandingLevel = $0 }
                 ))
             }
 
@@ -225,9 +228,9 @@ extension UnifiedPresentationWorkflowPanel {
                     .font(AppTheme.ScaledFont.captionSemibold)
                     .foregroundStyle(.secondary)
 
-                TextField("Note about this student...", text: Binding(
-                    get: { presentationViewModel.entries[student.id]?.observation ?? "" },
-                    set: { presentationViewModel.entries[student.id]?.observation = $0 }
+                TextField("CDNote about this student...", text: Binding(
+                    get: { presentationViewModel.entries[studentID]?.observation ?? "" },
+                    set: { presentationViewModel.entries[studentID]?.observation = $0 }
                 ), axis: .vertical)
                 .textFieldStyle(.roundedBorder)
                 .lineLimit(2...4)
@@ -245,8 +248,9 @@ extension UnifiedPresentationWorkflowPanel {
 
     func applyUnderstandingToAll(level: Int) {
         var count = 0
-        for student in students where presentationViewModel.entries[student.id] != nil {
-            presentationViewModel.entries[student.id]?.understandingLevel = level
+        for student in students {
+            guard let id = student.id, presentationViewModel.entries[id] != nil else { continue }
+            presentationViewModel.entries[id]?.understandingLevel = level
             count += 1
         }
 

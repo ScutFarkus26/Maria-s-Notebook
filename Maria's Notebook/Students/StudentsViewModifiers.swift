@@ -1,4 +1,5 @@
 import SwiftUI
+import CoreData
 import UniformTypeIdentifiers
 
 /// View modifier for save error alert

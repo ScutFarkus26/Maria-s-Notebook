@@ -1,12 +1,12 @@
 import SwiftUI
-import SwiftData
+import CoreData
 
 /// Displays a list of prerequisite or related lessons by resolving their UUIDs to names.
 struct LessonRelationshipsSection: View {
     let title: String
     let icon: String
     let lessonIDs: [UUID]
-    let modelContext: ModelContext
+    let viewContext: NSManagedObjectContext
 
     var body: some View {
         VStack(alignment: .leading, spacing: AppTheme.Spacing.verySmall) {
@@ -39,11 +39,11 @@ struct LessonRelationshipsSection: View {
         .padding(.top, AppTheme.Spacing.verySmall)
     }
 
-    private var resolvedLessons: [Lesson] {
+    private var resolvedLessons: [CDLesson] {
         lessonIDs.compactMap { id in
-            var descriptor = FetchDescriptor<Lesson>(predicate: #Predicate { $0.id == id })
+            var descriptor = { let r = NSFetchRequest<CDLesson>(entityName: "CDLesson"); r.predicate = NSPredicate(format: "id == %@", id as CVarArg); r.fetchLimit = 0; return r }()
             descriptor.fetchLimit = 1
-            return modelContext.safeFetchFirst(descriptor)
+            return viewContext.safeFetchFirst(descriptor)
         }
     }
 }

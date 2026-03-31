@@ -3,12 +3,12 @@ import SwiftUI
 struct WeekGrid: View {
     @Environment(\.calendar) private var calendar
     let days: [Date]
-    let allLessonAssignments: [LessonAssignment]
+    let allLessonAssignments: [CDLessonAssignment]
     let availableWidth: CGFloat
     let availableHeight: CGFloat
-    let onSelectLesson: (LessonAssignment) -> Void
-    let onQuickActions: (LessonAssignment) -> Void
-    let onPlanNext: (LessonAssignment) -> Void
+    let onSelectLesson: (CDLessonAssignment) -> Void
+    let onQuickActions: (CDLessonAssignment) -> Void
+    let onPlanNext: (CDLessonAssignment) -> Void
 
     private var columns: [GridItem] {
         let minWidth: CGFloat = 240

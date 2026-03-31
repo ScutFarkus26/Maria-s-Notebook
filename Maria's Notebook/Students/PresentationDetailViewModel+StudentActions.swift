@@ -2,7 +2,6 @@
 // Move-students, needs-another-presentation, and schedule-next-lesson actions.
 
 import Foundation
-import SwiftData
 
 extension PresentationDetailViewModel {
 
@@ -10,9 +9,9 @@ extension PresentationDetailViewModel {
 
     /// Handles the "Move Students" action, creating a new lesson for them and removing them from this one
     func moveStudentsToInbox(
-        studentsAll: [Student],
-        lessonAssignmentsAll: [LessonAssignment],
-        lessons: [Lesson]
+        studentsAll: [CDStudent],
+        lessonAssignmentsAll: [CDLessonAssignment],
+        lessons: [CDLesson]
     ) {
         guard !studentsToMove.isEmpty, let currentLesson = lessonObject(from: lessons) else { return }
 
@@ -24,7 +23,7 @@ extension PresentationDetailViewModel {
             studentsToMove: studentsToMove,
             studentsAll: studentsAll,
             lessonAssignmentsAll: lessonAssignmentsAll,
-            context: modelContext
+            context: viewContext
         )
 
         // Remove students from current VM state
@@ -33,8 +32,7 @@ extension PresentationDetailViewModel {
         // Sync to model immediately so the view updates
         let remainingUUIDs = Set(lessonAssignment.resolvedStudentIDs).subtracting(studentsToMove)
         lessonAssignment.studentIDs = remainingUUIDs.map(\.uuidString)
-        lessonAssignment.students = studentsAll.filter { remainingUUIDs.contains($0.id) }
-        saveCoordinator.save(modelContext, reason: "Moving students to inbox")
+        saveCoordinator.save(viewContext, reason: "Moving students to inbox")
 
         PresentationDetailUtilities.notifyInboxRefresh()
 
@@ -55,9 +53,9 @@ extension PresentationDetailViewModel {
     /// Reacts to changes in "Needs Another Presentation" toggle
     func handleNeedsAnotherChange(
         newValue: Bool,
-        studentsAll: [Student],
-        lessonAssignmentsAll: [LessonAssignment],
-        lessons: [Lesson]
+        studentsAll: [CDStudent],
+        lessonAssignmentsAll: [CDLessonAssignment],
+        lessons: [CDLesson]
     ) {
         guard newValue else { return }
         guard !selectedStudentIDs.isEmpty else { return }
@@ -72,26 +70,21 @@ extension PresentationDetailViewModel {
         }
 
         if !exists {
-            let newLA = PresentationFactory.makeDraft(
+            _ = PresentationFactory.makeDraft(
                 lessonID: editingLessonID,
-                studentIDs: Array(sameStudents)
+                studentIDs: Array(sameStudents),
+                context: viewContext
             )
-            PresentationFactory.attachRelationships(
-                to: newLA,
-                lesson: nil,
-                students: studentsAll.filter { sameStudents.contains($0.id) }
-            )
-            modelContext.insert(newLA)
         }
     }
 
-    // MARK: - Schedule Next Lesson
+    // MARK: - Schedule Next CDLesson
 
     /// Schedules a new presentation for the next lesson in the group
     func scheduleNextLessonToInbox(
-        studentsAll: [Student],
-        lessonAssignmentsAll: [LessonAssignment],
-        lessons: [Lesson]
+        studentsAll: [CDStudent],
+        lessonAssignmentsAll: [CDLessonAssignment],
+        lessons: [CDLesson]
     ) {
         guard let next = nextLessonInGroup(from: lessons) else { return }
         guard !selectedStudentIDs.isEmpty else { return }
@@ -105,16 +98,14 @@ extension PresentationDetailViewModel {
         if exists { return }
 
         let newLA = PresentationFactory.makeDraft(
-            lessonID: next.id,
-            studentIDs: Array(sameStudents)
+            lessonID: next.id ?? UUID(),
+            studentIDs: Array(sameStudents),
+            context: viewContext
         )
-        PresentationFactory.attachRelationships(
-            to: newLA,
-            lesson: nil,
-            students: studentsAll.filter { sameStudents.contains($0.id) }
-        )
-        modelContext.insert(newLA)
-        saveCoordinator.save(modelContext, reason: "Scheduling next lesson")
+        newLA.lesson = next
+        newLA.lessonTitleSnapshot = next.name
+        newLA.lessonSubheadingSnapshot = next.subheading
+        saveCoordinator.save(viewContext, reason: "Scheduling next lesson")
         PresentationDetailUtilities.notifyInboxRefresh()
     }
 }

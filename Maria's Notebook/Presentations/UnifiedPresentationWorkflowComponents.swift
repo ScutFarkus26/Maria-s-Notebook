@@ -1,4 +1,5 @@
 import SwiftUI
+import CoreData
 
 // MARK: - Section Header
 
@@ -323,7 +324,7 @@ struct WorkflowPanelHeader: View {
     }
 }
 
-// MARK: - Student Entry Row Header
+// MARK: - CDStudent Entry Row Header
 
 struct StudentEntryRowHeader: View {
     let studentName: String

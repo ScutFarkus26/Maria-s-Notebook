@@ -1,5 +1,5 @@
 import SwiftUI
-import SwiftData
+import CoreData
 
 /// Sheet for recording a student's work selections in choice mode
 struct StudentSelectionSheet: View {
@@ -9,7 +9,7 @@ struct StudentSelectionSheet: View {
     let offeredWorks: [WorkModel]
 
     @Environment(\.dismiss) private var dismiss
-    @Environment(\.modelContext) private var modelContext
+    @Environment(\.managedObjectContext) private var modelContext
     @Environment(SaveCoordinator.self) private var saveCoordinator
 
     @State private var selectedWorkIDs: Set<UUID> = []
@@ -22,8 +22,8 @@ struct StudentSelectionSheet: View {
 
         // Initialize with current selections
         let currentSelections = offeredWorks.filter { work in
-            (work.participants ?? []).contains { $0.studentID == studentID }
-        }.map(\.id)
+            ((work.participants?.allObjects as? [CDWorkParticipantEntity]) ?? []).contains { $0.studentID == studentID }
+        }.compactMap(\.id)
         _selectedWorkIDs = State(initialValue: Set(currentSelections))
     }
 
@@ -42,7 +42,7 @@ struct StudentSelectionSheet: View {
             // Work selection list
             ScrollView {
                 VStack(spacing: 12) {
-                    ForEach(offeredWorks) { work in
+                    ForEach(offeredWorks, id: \.objectID) { work in
                         workSelectionRow(work)
                     }
                 }
@@ -74,8 +74,8 @@ struct StudentSelectionSheet: View {
     @ViewBuilder
     private var selectionProgressView: some View {
         let count = selectedWorkIDs.count
-        let min = session.minSelections
-        let max = session.maxSelections
+        let min = Int(session.minSelections)
+        let max = Int(session.maxSelections)
 
         HStack(spacing: 8) {
             if min > 0 && count < min {
@@ -99,7 +99,8 @@ struct StudentSelectionSheet: View {
 
     @ViewBuilder
     private func workSelectionRow(_ work: WorkModel) -> some View {
-        let isSelected = selectedWorkIDs.contains(work.id)
+        let workID = work.id ?? UUID()
+        let isSelected = selectedWorkIDs.contains(workID)
         let canToggle = isSelected || canSelectMore
 
         Button {
@@ -154,18 +155,19 @@ struct StudentSelectionSheet: View {
     // MARK: - Logic
 
     private var canSelectMore: Bool {
-        session.maxSelections == 0 || selectedWorkIDs.count < session.maxSelections
+        session.maxSelections == 0 || selectedWorkIDs.count < Int(session.maxSelections)
     }
 
     private var isValid: Bool {
-        selectedWorkIDs.count >= session.minSelections
+        selectedWorkIDs.count >= Int(session.minSelections)
     }
 
     private func toggleSelection(_ work: WorkModel) {
-        if selectedWorkIDs.contains(work.id) {
-            selectedWorkIDs.remove(work.id)
+        guard let workID = work.id else { return }
+        if selectedWorkIDs.contains(workID) {
+            selectedWorkIDs.remove(workID)
         } else if canSelectMore {
-            selectedWorkIDs.insert(work.id)
+            selectedWorkIDs.insert(workID)
         }
     }
 
@@ -175,8 +177,8 @@ struct StudentSelectionSheet: View {
 
         // Determine what changed
         let currentSelections = Set(offeredWorks.filter { work in
-            (work.participants ?? []).contains { $0.studentID == studentID }
-        }.map(\.id))
+            ((work.participants?.allObjects as? [CDWorkParticipantEntity]) ?? []).contains { $0.studentID == studentID }
+        }.compactMap(\.id))
 
         let toAdd = selectedWorkIDs.subtracting(currentSelections)
         let toRemove = currentSelections.subtracting(selectedWorkIDs)

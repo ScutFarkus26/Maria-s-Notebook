@@ -1,6 +1,6 @@
 import Foundation
 import OSLog
-import SwiftData
+import CoreData
 
 // MARK: - Meeting Persistence Service
 
@@ -69,12 +69,12 @@ enum MeetingPersistenceService {
     /// Saves current meeting data to SwiftData history.
     ///
     /// - Parameters:
-    ///   - studentID: Student ID
+    ///   - studentID: CDStudent ID
     ///   - data: Current meeting data
     ///   - context: Model context
     /// - Returns: true if saved successfully
     @discardableResult
-    static func saveToHistory(studentID: UUID, data: CurrentMeetingData, context: ModelContext) -> Bool {
+    static func saveToHistory(studentID: UUID, data: CurrentMeetingData, context: NSManagedObjectContext) -> Bool {
         let trimmedReflection = data.reflectionText.trimmed()
         let trimmedFocus = data.focusText.trimmed()
         let trimmedRequests = data.requestsText.trimmed()
@@ -85,16 +85,14 @@ enum MeetingPersistenceService {
             return false
         }
 
-        let entry = StudentMeeting(
-            studentID: studentID,
-            date: Date(),
-            completed: data.isCompleted,
-            reflection: trimmedReflection,
-            focus: trimmedFocus,
-            requests: trimmedRequests,
-            guideNotes: trimmedGuide
-        )
-        context.insert(entry)
+        let entry = CDStudentMeeting(context: context)
+        entry.studentIDUUID = studentID
+        entry.date = Date()
+        entry.completed = data.isCompleted
+        entry.reflection = trimmedReflection
+        entry.focus = trimmedFocus
+        entry.requests = trimmedRequests
+        entry.guideNotes = trimmedGuide
         do {
             try context.save()
         } catch {
@@ -108,10 +106,10 @@ enum MeetingPersistenceService {
     /// Migrates legacy history from UserDefaults to SwiftData.
     ///
     /// - Parameters:
-    ///   - studentID: Student ID
+    ///   - studentID: CDStudent ID
     ///   - existingMeetings: Existing SwiftData meetings (to check if migration needed)
     ///   - context: Model context
-    static func migrateHistoryIfNeeded(studentID: UUID, existingMeetings: [StudentMeeting], context: ModelContext) {
+    static func migrateHistoryIfNeeded(studentID: UUID, existingMeetings: [CDStudentMeeting], context: NSManagedObjectContext) {
         // If we already have SwiftData meetings for this student, skip migration
         if !existingMeetings.isEmpty { return }
 
@@ -123,16 +121,14 @@ enum MeetingPersistenceService {
             let decoded = try JSONDecoder().decode([LegacyMeetingEntry].self, from: data)
             var inserted = 0
             for entry in decoded {
-                let m = StudentMeeting(
-                    studentID: studentID,
-                    date: entry.date,
-                    completed: entry.completed,
-                    reflection: entry.reflection,
-                    focus: entry.focus,
-                    requests: entry.requests,
-                    guideNotes: entry.guideNotes
-                )
-                context.insert(m)
+                let m = CDStudentMeeting(context: context)
+                m.studentIDUUID = studentID
+                m.date = entry.date
+                m.completed = entry.completed
+                m.reflection = entry.reflection
+                m.focus = entry.focus
+                m.requests = entry.requests
+                m.guideNotes = entry.guideNotes
                 inserted += 1
             }
             if inserted > 0 {

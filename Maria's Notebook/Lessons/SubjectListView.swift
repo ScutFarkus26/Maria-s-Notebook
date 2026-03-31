@@ -1,8 +1,9 @@
 // SubjectListView.swift
 // Column 1 of the 3-column NavigationSplitView: Displays all subjects as a list.
-// Subjects are derived from existing Lesson data using LessonsViewModel.
+// Subjects are derived from existing CDLesson data using LessonsViewModel.
 
 import SwiftUI
+import CoreData
 #if os(macOS)
 import AppKit
 #else
@@ -144,7 +145,7 @@ struct SubjectListRow: View {
                     .font(AppTheme.ScaledFont.bodySemibold)
                     .foregroundStyle(.primary)
 
-                // Lesson count as secondary text
+                // CDLesson count as secondary text
                 HStack(spacing: 4) {
                     Circle().fill(subjectColor).frame(width: 6, height: 6)
                     Text("\(lessonCount) \(lessonCount == 1 ? "lesson" : "lessons")")

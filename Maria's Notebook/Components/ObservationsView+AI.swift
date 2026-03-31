@@ -3,7 +3,7 @@
 
 import OSLog
 import SwiftUI
-import SwiftData
+import CoreData
 
 #if ENABLE_FOUNDATION_MODELS && canImport(FoundationModels)
 import FoundationModels

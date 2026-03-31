@@ -1,6 +1,6 @@
 // swiftlint:disable file_length
 import SwiftUI
-import SwiftData
+import CoreData
 import UniformTypeIdentifiers
 import OSLog
 
@@ -13,7 +13,7 @@ import UIKit
 // swiftlint:disable:next type_body_length
 struct DataManagementGrid: View {
     private static let logger = Logger.settings
-    @Environment(\.modelContext) private var modelContext
+    @Environment(\.managedObjectContext) private var viewContext
     @Environment(\.dependencies) private var dependencies
     @State private var viewModel: SettingsViewModel
 
@@ -69,7 +69,7 @@ struct DataManagementGrid: View {
         ) { result in
             switch result {
             case .success(let url):
-                Task { await viewModel.previewImportedURL(modelContext: modelContext, url: url) }
+                Task { await viewModel.previewImportedURL(viewContext: viewContext, url: url) }
             case .failure(let error):
                 viewModel.importError = "Failed to select backup file: \(error.localizedDescription)"
             }
@@ -110,7 +110,7 @@ struct DataManagementGrid: View {
         }
         .sheet(item: $viewModel.restorePreviewData) { preview in
             RestorePreviewView(preview: preview, onCancel: { viewModel.restorePreviewData = nil }, onConfirm: {
-                Task { await viewModel.performImportConfirmed(modelContext: modelContext) }
+                Task { await viewModel.performImportConfirmed(viewContext: viewContext) }
             })
         }
         .alert("Error", isPresented: Binding(
@@ -125,7 +125,7 @@ struct DataManagementGrid: View {
         }
         .onAppear {
             viewModel.loadDefaultFolderName()
-            viewModel.calculateEstimatedBackupSize(modelContext: modelContext)
+            viewModel.calculateEstimatedBackupSize(viewContext: viewContext)
         }
     }
 
@@ -170,7 +170,7 @@ struct DataManagementGrid: View {
                 }
 
                 Button {
-                    Task { await viewModel.performExport(modelContext: modelContext, encryptBackups: encryptBackups) }
+                    Task { await viewModel.performExport(viewContext: viewContext, encryptBackups: encryptBackups) }
                 } label: {
                     Text("Create Backup")
                         .font(.subheadline.weight(.medium))
@@ -396,7 +396,7 @@ struct DataManagementGrid: View {
         panel.begin { response in
             if response == .OK, let url = panel.url {
                 Task { @MainActor in
-                    await viewModel.previewImportedURL(modelContext: modelContext, url: url)
+                    await viewModel.previewImportedURL(viewContext: viewContext, url: url)
                 }
             }
         }

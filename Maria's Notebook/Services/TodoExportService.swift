@@ -1,5 +1,5 @@
 import Foundation
-import SwiftData
+import CoreData
 import OSLog
 #if os(macOS)
 import AppKit
@@ -31,15 +31,15 @@ class TodoExportService {
         
         for (index, todo) in todos.enumerated() {
             output += "[\(index + 1)] \(todo.isCompleted ? "✓" : "○") \(todo.title)\n"
-            
+
             if !todo.notes.isEmpty {
                 output += "    Notes: \(todo.notes)\n"
             }
-            
+
             if todo.priority != .none {
                 output += "    Priority: \(todo.priority.rawValue)\n"
             }
-            
+
             if let scheduled = todo.scheduledDate {
                 output += "    Scheduled: \(DateFormatters.mediumDate.string(from: scheduled))\n"
             }
@@ -49,24 +49,25 @@ class TodoExportService {
             if todo.isSomeday {
                 output += "    Status: Someday\n"
             }
-            
+
             if let mood = todo.mood {
                 output += "    Mood: \(mood.emoji) \(mood.rawValue)\n"
             }
-            
+
             if !todo.reflectionNotes.isEmpty {
                 output += "    Reflection: \(todo.reflectionNotes)\n"
             }
-            
-            if !(todo.subtasks ?? []).isEmpty {
-                let completedCount = (todo.subtasks ?? []).filter(\.isCompleted).count
-                let totalCount = (todo.subtasks ?? []).count
+
+            let subtaskItems = (todo.subtasks as? Set<CDTodoSubtaskEntity>) ?? []
+            if !subtaskItems.isEmpty {
+                let completedCount = subtaskItems.filter(\.isCompleted).count
+                let totalCount = subtaskItems.count
                 output += "    Subtasks (\(completedCount)/\(totalCount)):\n"
-                for subtask in (todo.subtasks ?? []).sorted(by: { $0.orderIndex < $1.orderIndex }) {
+                for subtask in subtaskItems.sorted(by: { $0.orderIndex < $1.orderIndex }) {
                     output += "      \(subtask.isCompleted ? "✓" : "○") \(subtask.title)\n"
                 }
             }
-            
+
             output += "\n"
         }
         
@@ -88,15 +89,16 @@ class TodoExportService {
                 status = todo.isCompleted ? "Completed" : "Active"
             }
             let priority = todo.priority.rawValue
-            let tags = escapeCSV(todo.tags.map { TodoTagHelper.tagName($0) }.joined(separator: "; "))
+            let tags = escapeCSV(todo.tagsArray.map { TodoTagHelper.tagName($0) }.joined(separator: "; "))
             let scheduledDate = todo.scheduledDate.map { DateFormatters.shortDate.string(from: $0) } ?? ""
             let deadline = todo.dueDate.map { DateFormatters.shortDate.string(from: $0) } ?? ""
-            let created = DateFormatters.shortDate.string(from: todo.createdAt)
+            let created = todo.createdAt.map { DateFormatters.shortDate.string(from: $0) } ?? ""
             let notes = escapeCSV(todo.notes)
             let mood = todo.mood?.rawValue ?? ""
-            let subtasksCompleted = (todo.subtasks ?? []).filter(\.isCompleted).count
-            let subtasksTotal = (todo.subtasks ?? []).count
-            
+            let subtaskItems = (todo.subtasks as? Set<CDTodoSubtaskEntity>) ?? []
+            let subtasksCompleted = subtaskItems.filter(\.isCompleted).count
+            let subtasksTotal = subtaskItems.count
+
             output += "\(title),\(status),\(priority),\(tags)," +
                 "\(scheduledDate),\(deadline),\(created)," +
                 "\(notes),\(mood),\(subtasksCompleted)," +
@@ -141,8 +143,8 @@ class TodoExportService {
             if let mood = todo.mood {
                 metadata.append("**Mood:** \(mood.emoji) \(mood.rawValue)")
             }
-            if !todo.tags.isEmpty {
-                let tagNames = todo.tags.map { TodoTagHelper.tagName($0) }.joined(separator: ", ")
+            if !todo.tagsArray.isEmpty {
+                let tagNames = todo.tagsArray.map { TodoTagHelper.tagName($0) }.joined(separator: ", ")
                 metadata.append("**Tags:** \(tagNames)")
             }
             
@@ -154,9 +156,10 @@ class TodoExportService {
                 output += "> \(todo.notes)\n\n"
             }
             
-            if !(todo.subtasks ?? []).isEmpty {
+            let subtaskItems = (todo.subtasks as? Set<CDTodoSubtaskEntity>) ?? []
+            if !subtaskItems.isEmpty {
                 output += "**Subtasks:**\n\n"
-                for subtask in (todo.subtasks ?? []).sorted(by: { $0.orderIndex < $1.orderIndex }) {
+                for subtask in subtaskItems.sorted(by: { $0.orderIndex < $1.orderIndex }) {
                     output += "- [\(subtask.isCompleted ? "x" : " ")] \(subtask.title)\n"
                 }
                 output += "\n"
@@ -181,18 +184,18 @@ class TodoExportService {
         
         let exportData = todos.map { todo -> [String: Any] in
             var dict: [String: Any] = [
-                "id": todo.id.uuidString,
+                "id": todo.id?.uuidString ?? UUID().uuidString,
                 "title": todo.title,
                 "isCompleted": todo.isCompleted,
-                "createdAt": DateFormatters.iso8601DateTime.string(from: todo.createdAt),
+                "createdAt": todo.createdAt.map { DateFormatters.iso8601DateTime.string(from: $0) } ?? "",
                 "priority": todo.priority.rawValue,
-                "tags": todo.tags.map { TodoTagHelper.tagName($0) }
+                "tags": todo.tagsArray.map { TodoTagHelper.tagName($0) }
             ]
-            
+
             if !todo.notes.isEmpty {
                 dict["notes"] = todo.notes
             }
-            
+
             if let scheduled = todo.scheduledDate {
                 dict["scheduledDate"] = DateFormatters.iso8601DateTime.string(from: scheduled)
             }
@@ -202,25 +205,26 @@ class TodoExportService {
             if todo.isSomeday {
                 dict["isSomeday"] = true
             }
-            
+
             if let mood = todo.mood {
                 dict["mood"] = mood.rawValue
             }
-            
+
             if !todo.reflectionNotes.isEmpty {
                 dict["reflectionNotes"] = todo.reflectionNotes
             }
-            
-            if !(todo.subtasks ?? []).isEmpty {
-                dict["subtasks"] = (todo.subtasks ?? []).map { subtask in
+
+            let subtaskItems = (todo.subtasks as? Set<CDTodoSubtaskEntity>) ?? []
+            if !subtaskItems.isEmpty {
+                dict["subtasks"] = subtaskItems.sorted(by: { $0.orderIndex < $1.orderIndex }).map { subtask in
                     [
                         "title": subtask.title,
                         "isCompleted": subtask.isCompleted,
                         "orderIndex": subtask.orderIndex
-                    ]
+                    ] as [String: Any]
                 }
             }
-            
+
             return dict
         }
         

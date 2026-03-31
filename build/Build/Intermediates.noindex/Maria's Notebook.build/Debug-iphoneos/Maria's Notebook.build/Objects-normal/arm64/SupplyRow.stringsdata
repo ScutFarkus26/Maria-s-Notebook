@@ -1,0 +1,56 @@
+{
+  "source": "/Users/dannydeberry/Documents/Projects/MariasNotebook-Rewrite/Maria's Notebook/Supplies/SupplyRow.swift",
+  "tables": {
+    "Localizable": [
+      {
+        "comment": "",
+        "key": "Min: %lld",
+        "location": {
+          "startingColumn": 30,
+          "startingLine": 31
+        }
+      },
+      {
+        "comment": "",
+        "key": "Ordered",
+        "location": {
+          "startingColumn": 27,
+          "startingLine": 82
+        }
+      },
+      {
+        "comment": "",
+        "key": "%lld",
+        "location": {
+          "startingColumn": 26,
+          "startingLine": 57
+        }
+      },
+      {
+        "comment": "",
+        "key": "Low",
+        "location": {
+          "startingColumn": 19,
+          "startingLine": 110
+        }
+      },
+      {
+        "comment": "",
+        "key": "Critical",
+        "location": {
+          "startingColumn": 19,
+          "startingLine": 117
+        }
+      },
+      {
+        "comment": "",
+        "key": "Out",
+        "location": {
+          "startingColumn": 19,
+          "startingLine": 124
+        }
+      }
+    ]
+  },
+  "version": 1
+}

@@ -2,7 +2,7 @@
 // Sidebar navigation for the todo list
 
 import SwiftUI
-import SwiftData
+import CoreData
 
 extension TodoMainView {
     // MARK: - Tag Data
@@ -367,20 +367,22 @@ extension TodoMainView {
     // MARK: - Sidebar Helper Functions
 
     var hasUnusedTags: Bool {
-        let activeTags = Set(allTodos.filter { !$0.isCompleted }.flatMap { $0.tags })
-        let allTags = Set(allTodos.flatMap { $0.tags })
+        let activeTags = Set(allTodos.filter { !$0.isCompleted }.flatMap { $0.tagsArray })
+        let allTags = Set(allTodos.flatMap { $0.tagsArray })
         return !allTags.subtracting(activeTags).isEmpty
     }
 
     func removeUnusedTags() {
-        let activeTags = Set(allTodos.filter { !$0.isCompleted }.flatMap { $0.tags })
-        let allTags = Set(allTodos.flatMap { $0.tags })
+        let activeTags = Set(allTodos.filter { !$0.isCompleted }.flatMap { $0.tagsArray })
+        let allTags = Set(allTodos.flatMap { $0.tagsArray })
         let unusedTags = allTags.subtracting(activeTags)
 
         guard !unusedTags.isEmpty else { return }
 
         for todo in allTodos where todo.isCompleted {
-            todo.tags.removeAll { unusedTags.contains($0) }
+            var current = todo.tagsArray
+            current.removeAll { unusedTags.contains($0) }
+            todo.tagsArray = current
         }
 
         // Clear tag selection if the selected tag was removed

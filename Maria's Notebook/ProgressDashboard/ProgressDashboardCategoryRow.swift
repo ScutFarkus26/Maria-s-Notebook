@@ -52,7 +52,7 @@ struct ProgressDashboardCategoryRow: View {
         .font(.caption)
     }
 
-    // MARK: - Lesson Flow (prev → next)
+    // MARK: - CDLesson Flow (prev → next)
 
     private var lessonFlow: some View {
         HStack(alignment: .top, spacing: 0) {

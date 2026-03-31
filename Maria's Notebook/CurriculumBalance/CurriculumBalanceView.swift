@@ -4,15 +4,14 @@
 // Design follows ProgressDashboardView: filters, summary, cards/charts.
 
 import SwiftUI
-import SwiftData
+import CoreData
 
 struct CurriculumBalanceView: View {
-    @Environment(\.modelContext) private var modelContext
+    @Environment(\.managedObjectContext) private var viewContext
     @State private var viewModel = CurriculumBalanceViewModel()
 
     // Change detection to trigger reload when assignments change
-    @Query(sort: [SortDescriptor(\LessonAssignment.id)])
-    private var assignmentsForChange: [LessonAssignment]
+    @FetchRequest(sortDescriptors: [NSSortDescriptor(keyPath: \CDLessonAssignment.id, ascending: true)]) private var assignmentsForChange: FetchedResults<CDLessonAssignment>
 
     private var assignmentChangeToken: Int { assignmentsForChange.count }
 
@@ -23,12 +22,12 @@ struct CurriculumBalanceView: View {
                 text: $viewModel.searchText,
                 prompt: viewModel.scope == .perStudent ? "Search students" : "Search subjects"
             )
-            .onAppear { viewModel.loadData(context: modelContext) }
+            .onAppear { viewModel.loadData(context: viewContext) }
             .onChange(of: assignmentChangeToken) { _, _ in
-                viewModel.loadData(context: modelContext)
+                viewModel.loadData(context: viewContext)
             }
             .onChange(of: viewModel.timeRange) { _, _ in
-                viewModel.loadData(context: modelContext)
+                viewModel.loadData(context: viewContext)
             }
     }
 
@@ -157,7 +156,7 @@ struct CurriculumBalanceView: View {
         }
     }
 
-    // MARK: - Per-Student Content
+    // MARK: - Per-CDStudent Content
 
     private var perStudentContent: some View {
         VStack(spacing: 0) {
@@ -165,7 +164,7 @@ struct CurriculumBalanceView: View {
             levelFilterRow
                 .padding(.bottom, 12)
 
-            // Student count
+            // CDStudent count
             HStack(spacing: 0) {
                 Text("\(viewModel.filteredStudentCards.count)")
                     .fontWeight(.semibold)
@@ -177,7 +176,7 @@ struct CurriculumBalanceView: View {
             .font(.caption)
             .padding(.bottom, 12)
 
-            // Student cards
+            // CDStudent cards
             LazyVStack(spacing: 10) {
                 ForEach(viewModel.filteredStudentCards) { card in
                     CurriculumBalanceStudentCard(card: card)

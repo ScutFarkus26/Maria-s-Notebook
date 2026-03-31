@@ -1,6 +1,6 @@
 import Foundation
 import OSLog
-import SwiftData
+import CoreData
 
 /// Service for scheduling and clearing student meetings.
 enum MeetingScheduler {
@@ -9,7 +9,7 @@ enum MeetingScheduler {
     /// Schedules a meeting for a student on a given date.
     /// If the student already has a scheduled meeting on a different day, it is replaced.
     /// If the student already has one on the same day, this is a no-op.
-    static func scheduleMeeting(studentID: UUID, date: Date, context: ModelContext) {
+    static func scheduleMeeting(studentID: UUID, date: Date, context: NSManagedObjectContext) {
         let normalizedDate = AppCalendar.startOfDay(date)
         let studentIDString = studentID.uuidString
 
@@ -17,22 +17,23 @@ enum MeetingScheduler {
         let existing = fetchAll(studentID: studentIDString, context: context)
 
         if let first = existing.first {
-            if AppCalendar.isSameDay(first.date, normalizedDate) {
+            if AppCalendar.isSameDay(first.date ?? .distantPast, normalizedDate) {
                 return // Already scheduled for this day
             }
             // Update existing to the new date
             first.date = normalizedDate
         } else {
             // Create new
-            let meeting = ScheduledMeeting(studentID: studentID, date: normalizedDate)
-            context.insert(meeting)
+            let meeting = CDScheduledMeeting(context: context)
+            meeting.studentIDUUID = studentID
+            meeting.date = normalizedDate
         }
 
         context.safeSave()
     }
 
     /// Clears all scheduled meetings for a student.
-    static func clearMeetings(studentID: UUID, context: ModelContext) {
+    static func clearMeetings(studentID: UUID, context: NSManagedObjectContext) {
         let studentIDString = studentID.uuidString
         let existing = fetchAll(studentID: studentIDString, context: context)
         for meeting in existing {
@@ -44,11 +45,10 @@ enum MeetingScheduler {
     }
 
     /// Clears a specific scheduled meeting by ID.
-    static func clearMeeting(id: UUID, context: ModelContext) {
+    static func clearMeeting(id: UUID, context: NSManagedObjectContext) {
         let targetID = id
-        let descriptor = FetchDescriptor<ScheduledMeeting>(
-            predicate: #Predicate { $0.id == targetID }
-        )
+        let descriptor: NSFetchRequest<CDScheduledMeeting> = NSFetchRequest(entityName: "ScheduledMeeting")
+        descriptor.predicate = NSPredicate(format: "id == %@", targetID as CVarArg)
         if let meeting = context.safeFetch(descriptor).first {
             context.delete(meeting)
             context.safeSave()
@@ -56,18 +56,17 @@ enum MeetingScheduler {
     }
 
     /// Returns the next scheduled meeting date for a student, or nil.
-    static func scheduledDate(for studentID: UUID, context: ModelContext) -> Date? {
+    static func scheduledDate(for studentID: UUID, context: NSManagedObjectContext) -> Date? {
         let studentIDString = studentID.uuidString
         return fetchAll(studentID: studentIDString, context: context).first?.date
     }
 
     // MARK: - Private
 
-    private static func fetchAll(studentID: String, context: ModelContext) -> [ScheduledMeeting] {
-        let descriptor = FetchDescriptor<ScheduledMeeting>(
-            predicate: #Predicate { $0.studentID == studentID },
-            sortBy: [SortDescriptor(\ScheduledMeeting.date)]
-        )
+    private static func fetchAll(studentID: String, context: NSManagedObjectContext) -> [CDScheduledMeeting] {
+        let descriptor = NSFetchRequest<CDScheduledMeeting>(entityName: "ScheduledMeeting")
+        descriptor.predicate = NSPredicate(format: "studentID == %@", studentID)
+        descriptor.sortDescriptors = [NSSortDescriptor(keyPath: \CDScheduledMeeting.date, ascending: true)]
         return context.safeFetch(descriptor)
     }
 }

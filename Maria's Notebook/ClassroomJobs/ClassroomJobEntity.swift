@@ -1,7 +1,8 @@
 import Foundation
 import CoreData
+import SwiftUI
 
-@objc(ClassroomJob)
+@objc(CDClassroomJob)
 public class CDClassroomJob: NSManagedObject {
     // MARK: - Core Data Properties
     @NSManaged public var id: UUID?
@@ -18,10 +19,24 @@ public class CDClassroomJob: NSManagedObject {
     // MARK: - Relationships
     @NSManaged public var assignments: NSSet?
 
+    // MARK: - Computed Properties
+    var color: Color {
+        switch colorRaw {
+        case "red": return .red
+        case "orange": return .orange
+        case "yellow": return .yellow
+        case "green": return .green
+        case "blue": return .blue
+        case "purple": return .purple
+        case "pink": return .pink
+        default: return .gray
+        }
+    }
+
     // MARK: - Convenience Initializer
     @discardableResult
     convenience init(context: NSManagedObjectContext) {
-        let entity = NSEntityDescription.entity(forEntityName: "ClassroomJob", in: context)!
+        let entity = NSEntityDescription.entity(forEntityName: "CDClassroomJob", in: context)!
         self.init(entity: entity, insertInto: context)
         self.id = UUID()
         self.createdAt = Date()

@@ -1,0 +1,32 @@
+{
+  "source": "/Users/dannydeberry/Documents/Projects/MariasNotebook-Rewrite/Maria's Notebook/Settings/AIModelSettingsView.swift",
+  "tables": {
+    "Localizable": [
+      {
+        "comment": "",
+        "key": "Model",
+        "location": {
+          "startingColumn": 20,
+          "startingLine": 183
+        }
+      },
+      {
+        "comment": "",
+        "key": "Requires API key",
+        "location": {
+          "startingColumn": 30,
+          "startingLine": 201
+        }
+      },
+      {
+        "comment": "",
+        "key": "Claude models require an API key. Configure one below.",
+        "location": {
+          "startingColumn": 18,
+          "startingLine": 220
+        }
+      }
+    ]
+  },
+  "version": 1
+}

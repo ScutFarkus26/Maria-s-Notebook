@@ -1,5 +1,5 @@
 import SwiftUI
-import SwiftData
+import CoreData
 
 /// Pill mode content for WorkCard
 /// Displays: color bar, lesson title, student chips with absence indicators, check-in note
@@ -8,7 +8,7 @@ struct WorkCardPillContent: View {
     let config: WorkCard.PillModeConfig
 
     @Environment(\.calendar) private var calendar
-    @Environment(\.modelContext) private var modelContext
+    @Environment(\.managedObjectContext) private var modelContext
 
     private var workKind: WorkCardWorkKind {
         WorkCardWorkKind(from: config.item.work.kind)
@@ -16,8 +16,9 @@ struct WorkCardPillContent: View {
 
     private var lesson: Lesson? {
         guard let lid = UUID(uuidString: config.item.work.lessonID) else { return nil }
-        let fetch = FetchDescriptor<Lesson>(predicate: #Predicate { $0.id == lid })
-        return modelContext.safeFetchFirst(fetch)
+        let request = CDFetchRequest(CDLesson.self)
+        request.predicate = NSPredicate(format: "id == %@", lid as CVarArg)
+        return modelContext.safeFetchFirst(request)
     }
 
     private var lessonTitle: String {
@@ -36,7 +37,7 @@ struct WorkCardPillContent: View {
     }
 
     private var studentChips: [StudentChipData] {
-        let isToday = calendar.isDate(config.item.checkIn.date, inSameDayAs: Date())
+        let isToday = calendar.isDate(config.item.checkIn.date ?? Date(), inSameDayAs: Date())
         guard let sid = UUID(uuidString: config.item.work.studentID) else { return [] }
         let name = config.nameForStudentID(sid).trimmed()
         let absent = isToday && config.absentTodayIDs.contains(sid)

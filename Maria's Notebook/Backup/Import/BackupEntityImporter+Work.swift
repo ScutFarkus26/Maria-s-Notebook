@@ -1,48 +1,47 @@
 import Foundation
-import SwiftData
+import CoreData
 import OSLog
 
 // MARK: - Work
 
 extension BackupEntityImporter {
 
-    // MARK: - WorkModel
+    // MARK: - CDWorkModel
 
-    /// Imports WorkModel records from DTOs. Must run BEFORE child entities (check-ins, steps, participants).
+    /// Imports CDWorkModel records from DTOs. Must run BEFORE child entities (check-ins, steps, participants).
     static func importWorkModels(
         _ dtos: [WorkModelDTO],
-        into modelContext: ModelContext,
-        existingCheck: EntityExistsCheck<WorkModel>
+        into viewContext: NSManagedObjectContext,
+        existingCheck: EntityExistsCheck<CDWorkModel>
     ) rethrows {
         try importSimpleEntities(
-            dtos, into: modelContext,
+            dtos, into: viewContext,
             existingCheck: existingCheck,
             idExtractor: { $0.id },
             entityBuilder: { dto in
-                let work = WorkModel(
-                    id: dto.id,
-                    title: dto.title,
-                    kind: dto.kindRaw.flatMap { WorkKind(rawValue: $0) } ?? .research,
-                    studentLessonID: dto.studentLessonID,
-                    createdAt: dto.createdAt,
-                    completedAt: dto.completedAt,
-                    status: WorkStatus(rawValue: dto.statusRaw) ?? .active,
-                    assignedAt: dto.assignedAt,
-                    lastTouchedAt: dto.lastTouchedAt,
-                    dueAt: dto.dueAt,
-                    completionOutcome: dto.completionOutcomeRaw.flatMap { CompletionOutcome(rawValue: $0) },
-                    legacyContractID: dto.legacyContractID,
-                    studentID: dto.studentID,
-                    lessonID: dto.lessonID,
-                    presentationID: dto.presentationID,
-                    trackID: dto.trackID,
-                    trackStepID: dto.trackStepID,
-                    scheduledNote: dto.scheduledNote,
-                    scheduledReason: dto.scheduledReasonRaw.flatMap { ScheduledReason(rawValue: $0) },
-                    sourceContextType: dto.sourceContextTypeRaw.flatMap { WorkSourceContextType(rawValue: $0) },
-                    sourceContextID: dto.sourceContextID,
-                    legacyStudentLessonID: dto.legacyStudentLessonID
-                )
+                let work = CDWorkModel(context: viewContext)
+                work.id = dto.id
+                work.title = dto.title
+                work.kindRaw = dto.kindRaw
+                work.studentLessonID = dto.studentLessonID
+                work.createdAt = dto.createdAt
+                work.completedAt = dto.completedAt
+                work.statusRaw = (WorkStatus(rawValue: dto.statusRaw) ?? .active).rawValue
+                work.assignedAt = dto.assignedAt
+                work.lastTouchedAt = dto.lastTouchedAt
+                work.dueAt = dto.dueAt
+                work.completionOutcomeRaw = dto.completionOutcomeRaw
+                work.legacyContractID = dto.legacyContractID
+                work.studentID = dto.studentID
+                work.lessonID = dto.lessonID
+                work.presentationID = dto.presentationID
+                work.trackID = dto.trackID
+                work.trackStepID = dto.trackStepID
+                work.scheduledNote = dto.scheduledNote
+                work.scheduledReasonRaw = dto.scheduledReasonRaw
+                work.sourceContextTypeRaw = dto.sourceContextTypeRaw
+                work.sourceContextID = dto.sourceContextID
+                work.legacyStudentLessonID = dto.legacyStudentLessonID
                 work.sampleWorkID = dto.sampleWorkID
                 work.checkInStyleRaw = dto.checkInStyleRaw
                 return work
@@ -54,15 +53,20 @@ extension BackupEntityImporter {
     /// Imports work completion records from DTOs.
     static func importWorkCompletionRecords(
         _ dtos: [WorkCompletionRecordDTO],
-        into modelContext: ModelContext,
-        existingCheck: EntityExistsCheck<WorkCompletionRecord>
+        into viewContext: NSManagedObjectContext,
+        existingCheck: EntityExistsCheck<CDWorkCompletionRecord>
     ) rethrows {
         try importSimpleEntities(
-            dtos, into: modelContext,
+            dtos, into: viewContext,
             existingCheck: existingCheck,
             idExtractor: { $0.id },
             entityBuilder: { dto in
-            WorkCompletionRecord(id: dto.id, workID: dto.workID, studentID: dto.studentID, completedAt: dto.completedAt)
+            let r = CDWorkCompletionRecord(context: viewContext)
+            r.id = dto.id
+            r.workID = dto.workID.uuidString
+            r.studentID = dto.studentID.uuidString
+            r.completedAt = dto.completedAt
+            return r
         })
     }
 
@@ -70,20 +74,19 @@ extension BackupEntityImporter {
 
     static func importWorkCheckIns(
         _ dtos: [WorkCheckInDTO],
-        into modelContext: ModelContext,
-        existingCheck: EntityExistsCheck<WorkCheckIn>,
-        workCheck: EntityExistsCheck<WorkModel>
+        into viewContext: NSManagedObjectContext,
+        existingCheck: EntityExistsCheck<CDWorkCheckIn>,
+        workCheck: EntityExistsCheck<CDWorkModel>
     ) rethrows {
         for dto in dtos {
             if shouldSkipExisting(id: dto.id, existingCheck: existingCheck) { continue }
             guard let workUUID = UUID(uuidString: dto.workID) else { continue }
-            let checkIn = WorkCheckIn(
-                id: dto.id,
-                workID: workUUID,
-                date: dto.date,
-                status: WorkCheckInStatus(rawValue: dto.statusRaw) ?? .scheduled,
-                purpose: dto.purpose
-            )
+            let checkIn = CDWorkCheckIn(context: viewContext)
+            checkIn.id = dto.id
+            checkIn.workID = dto.workID
+            checkIn.date = dto.date
+            checkIn.statusRaw = (WorkCheckInStatus(rawValue: dto.statusRaw) ?? .scheduled).rawValue
+            checkIn.purpose = dto.purpose
             // Link to work if exists
             do {
                 if let work = try workCheck(workUUID) {
@@ -93,7 +96,7 @@ extension BackupEntityImporter {
                 let desc = error.localizedDescription
                 Logger.backup.warning("Failed to check work for check-in: \(desc, privacy: .public)")
             }
-            modelContext.insert(checkIn)
+            viewContext.insert(checkIn)
         }
     }
 
@@ -101,22 +104,21 @@ extension BackupEntityImporter {
 
     static func importWorkSteps(
         _ dtos: [WorkStepDTO],
-        into modelContext: ModelContext,
-        existingCheck: EntityExistsCheck<WorkStep>,
-        workCheck: EntityExistsCheck<WorkModel>
+        into viewContext: NSManagedObjectContext,
+        existingCheck: EntityExistsCheck<CDWorkStep>,
+        workCheck: EntityExistsCheck<CDWorkModel>
     ) rethrows {
         for dto in dtos {
             if shouldSkipExisting(id: dto.id, existingCheck: existingCheck) { continue }
-            let step = WorkStep(
-                id: dto.id,
-                orderIndex: dto.orderIndex,
-                title: dto.title,
-                instructions: dto.instructions,
-                completedAt: dto.completedAt,
-                notes: dto.notes,
-                completionOutcomeRaw: dto.completionOutcomeRaw,
-                createdAt: dto.createdAt
-            )
+            let step = CDWorkStep(context: viewContext)
+            step.id = dto.id
+            step.orderIndex = Int64(dto.orderIndex)
+            step.title = dto.title
+            step.instructions = dto.instructions
+            step.completedAt = dto.completedAt
+            step.notes = dto.notes
+            step.completionOutcomeRaw = dto.completionOutcomeRaw
+            step.createdAt = dto.createdAt
             if let workID = dto.workID {
                 do {
                     if let work = try workCheck(workID) {
@@ -127,7 +129,7 @@ extension BackupEntityImporter {
                     Logger.backup.warning("Failed to check work for step: \(desc, privacy: .public)")
                 }
             }
-            modelContext.insert(step)
+            viewContext.insert(step)
         }
     }
 
@@ -135,14 +137,17 @@ extension BackupEntityImporter {
 
     static func importWorkParticipants(
         _ dtos: [WorkParticipantEntityDTO],
-        into modelContext: ModelContext,
+        into viewContext: NSManagedObjectContext,
         existingCheck: EntityExistsCheck<WorkParticipantEntity>,
-        workCheck: EntityExistsCheck<WorkModel>
+        workCheck: EntityExistsCheck<CDWorkModel>
     ) rethrows {
         for dto in dtos {
             if shouldSkipExisting(id: dto.id, existingCheck: existingCheck) { continue }
-            guard let studentUUID = UUID(uuidString: dto.studentID) else { continue }
-            let participant = WorkParticipantEntity(id: dto.id, studentID: studentUUID, completedAt: dto.completedAt)
+            guard UUID(uuidString: dto.studentID) != nil else { continue }
+            let participant = WorkParticipantEntity(context: viewContext)
+            participant.id = dto.id
+            participant.studentID = dto.studentID
+            participant.completedAt = dto.completedAt
             if let workID = dto.workID {
                 do {
                     if let work = try workCheck(workID) {
@@ -153,7 +158,7 @@ extension BackupEntityImporter {
                     Logger.backup.warning("Failed to check work for participant: \(desc, privacy: .public)")
                 }
             }
-            modelContext.insert(participant)
+            viewContext.insert(participant)
         }
     }
 
@@ -161,25 +166,25 @@ extension BackupEntityImporter {
 
     static func importPracticeSessions(
         _ dtos: [PracticeSessionDTO],
-        into modelContext: ModelContext,
-        existingCheck: EntityExistsCheck<PracticeSession>
+        into viewContext: NSManagedObjectContext,
+        existingCheck: EntityExistsCheck<CDPracticeSession>
     ) rethrows {
         try importSimpleEntities(
-            dtos, into: modelContext,
+            dtos, into: viewContext,
             existingCheck: existingCheck,
             idExtractor: { $0.id },
             entityBuilder: { dto in
-            let session = PracticeSession()
+            let session = CDPracticeSession(context: viewContext)
             session.id = dto.id
             session.createdAt = dto.createdAt
             session.date = dto.date
-            session.duration = dto.duration
-            session.studentIDs = dto.studentIDs
-            session.workItemIDs = dto.workItemIDs
+            session.duration = dto.duration ?? 0
+            session.studentIDs = dto.studentIDs as NSObject
+            session.workItemIDs = dto.workItemIDs as NSObject
             session.sharedNotes = dto.sharedNotes
             session.location = dto.location
-            session.practiceQuality = dto.practiceQuality
-            session.independenceLevel = dto.independenceLevel
+            session.practiceQuality = Int64(dto.practiceQuality ?? 0)
+            session.independenceLevel = Int64(dto.independenceLevel ?? 0)
             session.askedForHelp = dto.askedForHelp
             session.helpedPeer = dto.helpedPeer
             session.struggledWithConcept = dto.struggledWithConcept

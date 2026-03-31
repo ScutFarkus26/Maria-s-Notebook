@@ -1,5 +1,5 @@
 import SwiftUI
-import SwiftData
+import CoreData
 
 // MARK: - Roster View UI (Three-Pane Layout, Grid, and List Content)
 
@@ -33,7 +33,7 @@ extension StudentsView {
                 Divider()
             }
 
-            // Student list
+            // CDStudent list
             NavigationStack {
                 rosterListContent
                     .navigationTitle("Students")

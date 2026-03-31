@@ -2,7 +2,7 @@
 // Helper methods and actions for TodayView - extracted for maintainability
 
 import SwiftUI
-import SwiftData
+import CoreData
 import OSLog
 
 private let logger = Logger.app_
@@ -15,14 +15,14 @@ extension TodayView {
 
     /// Synchronous helper that determines if a date is a non-school day using cached data.
     func isNonSchoolDaySync(_ date: Date) -> Bool {
-        schoolDayCache.cacheSchoolDayData(for: date, modelContext: modelContext)
+        schoolDayCache.cacheSchoolDayData(for: date, viewContext: viewContext)
         return schoolDayCache.isNonSchoolDay(date)
     }
 
     /// Synchronous helper that returns the next school day strictly after the given date.
     func nextSchoolDaySync(after date: Date) -> Date {
         // Cache school day data once at the start to avoid repeated database fetches
-        schoolDayCache.cacheSchoolDayData(for: date, modelContext: modelContext)
+        schoolDayCache.cacheSchoolDayData(for: date, viewContext: viewContext)
 
         let cal = AppCalendar.shared
         var d = cal.startOfDay(for: date)
@@ -39,7 +39,7 @@ extension TodayView {
     /// Synchronous helper that returns the previous school day strictly before the given date.
     func previousSchoolDaySync(before date: Date) -> Date {
         // Cache school day data once at the start to avoid repeated database fetches
-        schoolDayCache.cacheSchoolDayData(for: date, modelContext: modelContext)
+        schoolDayCache.cacheSchoolDayData(for: date, viewContext: viewContext)
 
         let cal = AppCalendar.shared
         var d = cal.startOfDay(for: date)
@@ -55,7 +55,7 @@ extension TodayView {
     /// Synchronous helper that coerces the provided date to the nearest school day.
     func nearestSchoolDaySync(to date: Date) -> Date {
         // Cache school day data once at the start to avoid repeated database fetches
-        schoolDayCache.cacheSchoolDayData(for: date, modelContext: modelContext)
+        schoolDayCache.cacheSchoolDayData(for: date, viewContext: viewContext)
 
         let day = AppCalendar.startOfDay(date)
         if !schoolDayCache.isNonSchoolDay(day) { return day }
@@ -87,7 +87,7 @@ extension TodayView {
     }
 
     /// Returns student names for a note based on its scope
-    func studentNames(for note: Note) -> String {
+    func studentNames(for note: CDNote) -> String {
         switch note.scope {
         case .all: return ""
         case .student(let id):
@@ -102,13 +102,13 @@ extension TodayView {
     }
 
     /// Resolves student name from a WorkModel
-    func resolveStudentName(for work: WorkModel) -> String {
+    func resolveStudentName(for work: CDWorkModel) -> String {
         guard let uuid = UUID(uuidString: work.studentID) else { return "Student" }
         return displayNameForID(uuid)
     }
 
     /// Resolves display name from a WorkModel — prefers the work's own title, falls back to lesson name
-    func resolveLessonName(for work: WorkModel) -> String {
+    func resolveLessonName(for work: CDWorkModel) -> String {
         let title = work.title.trimmed()
         if !title.isEmpty { return title }
         guard let uuid = UUID(uuidString: work.lessonID) else { return "Lesson" }
@@ -120,29 +120,28 @@ extension TodayView {
     /// Marks a student as tardy for the current date
     func markTardy(_ studentID: UUID) {
         let (day, _) = AppCalendar.dayRange(for: viewModel.date)
-        let store = AttendanceStore(context: modelContext, calendar: calendar)
+        let store = CDAttendanceStore(context: viewContext, calendar: calendar)
 
         do {
-            var descriptor = FetchDescriptor<AttendanceRecord>(
-                predicate: #Predicate { rec in
-                    rec.studentID == studentID.uuidString && rec.date == day
-                }
-            )
-            descriptor.fetchLimit = 1
+            let fetchRequest: NSFetchRequest<CDAttendanceRecord> = CDAttendanceRecord.fetchRequest() as! NSFetchRequest<CDAttendanceRecord>
+            fetchRequest.predicate = NSPredicate(format: "studentID == %@ AND date == %@", studentID.uuidString, day as NSDate)
+            fetchRequest.fetchLimit = 1
 
-            let records = try modelContext.fetch(descriptor)
+            let records = try viewContext.fetch(fetchRequest)
             if let record = records.first {
                 // Update existing record
                 store.updateStatus(record, to: .tardy)
             } else {
                 // Create new record if it doesn't exist
                 guard viewModel.studentsByID[studentID] != nil else { return }
-                let record = AttendanceRecord(studentID: studentID, date: day, status: .tardy)
-                modelContext.insert(record)
+                let record = CDAttendanceRecord(context: viewContext)
+                record.studentID = studentID.uuidString
+                record.date = day
+                record.status = .tardy
             }
 
             // Save changes
-            try modelContext.save()
+            try viewContext.save()
 
             // Reload the view model to reflect changes
             viewModel.reload()
@@ -153,19 +152,16 @@ extension TodayView {
 
     /// Updates attendance status for a student
     func updateAttendanceStatus(for studentID: UUID, to status: AttendanceStatus) {
-        let store = AttendanceStore(context: modelContext, calendar: calendar)
+        let store = CDAttendanceStore(context: viewContext, calendar: calendar)
         let day = AppCalendar.startOfDay(viewModel.date)
 
         // Fetch or create the attendance record
         do {
-            var descriptor = FetchDescriptor<AttendanceRecord>(
-                predicate: #Predicate { rec in
-                    rec.studentID == studentID.uuidString && rec.date == day
-                }
-            )
-            descriptor.fetchLimit = 1
+            let fetchRequest: NSFetchRequest<CDAttendanceRecord> = CDAttendanceRecord.fetchRequest() as! NSFetchRequest<CDAttendanceRecord>
+            fetchRequest.predicate = NSPredicate(format: "studentID == %@ AND date == %@", studentID.uuidString, day as NSDate)
+            fetchRequest.fetchLimit = 1
 
-            let records = try modelContext.fetch(descriptor)
+            let records = try viewContext.fetch(fetchRequest)
             if let record = records.first {
                 // Update existing record
                 store.updateStatus(record, to: status)
@@ -175,12 +171,14 @@ extension TodayView {
                 guard viewModel.studentsByID[studentID] != nil else {
                     return
                 }
-                let record = AttendanceRecord(studentID: studentID, date: day, status: status)
-                modelContext.insert(record)
+                let record = CDAttendanceRecord(context: viewContext)
+                record.studentID = studentID.uuidString
+                record.date = day
+                record.status = status
             }
 
             // Save changes
-            try modelContext.save()
+            try viewContext.save()
 
             // Reload the view model to reflect changes
             viewModel.reload()
@@ -192,18 +190,18 @@ extension TodayView {
     // MARK: - Reminder Actions
 
     /// Toggles the completion status of a reminder
-    func toggleReminder(_ reminder: Reminder) {
+    func toggleReminder(_ reminder: CDReminder) {
         if reminder.isCompleted {
             reminder.markIncomplete()
         } else {
             reminder.markCompleted()
         }
         do {
-            try modelContext.save()
+            try viewContext.save()
             viewModel.reload()
 
             // Two-way sync: Update EventKit with the completion change
-            Task {
+            Task<Void, Never> {
                 do {
                     try await ReminderSyncService.shared.updateReminderCompletionInEventKit(reminder)
                 } catch {
@@ -242,14 +240,11 @@ extension TodayView {
 
         // Fetch filtered LessonAssignment IDs
         do {
-            let lessonDescriptor = FetchDescriptor<LessonAssignment>(
-                predicate: #Predicate<LessonAssignment> { lesson in
-                    lesson.scheduledForDay >= dayStart && lesson.scheduledForDay < dayEnd
-                },
-                sortBy: [SortDescriptor(\LessonAssignment.id)]
-            )
-            let lessons = try modelContext.fetch(lessonDescriptor)
-            filteredPresentationIDs = lessons.map(\.id)
+            let fetchRequest: NSFetchRequest<CDLessonAssignment> = CDLessonAssignment.fetchRequest() as! NSFetchRequest<CDLessonAssignment>
+            fetchRequest.predicate = NSPredicate(format: "scheduledForDay >= %@ AND scheduledForDay < %@", dayStart as NSDate, dayEnd as NSDate)
+            fetchRequest.sortDescriptors = [NSSortDescriptor(keyPath: \CDLessonAssignment.id, ascending: true)]
+            let lessons = try viewContext.fetch(fetchRequest)
+            filteredPresentationIDs = lessons.compactMap(\.id)
         } catch {
             filteredPresentationIDs = []
         }
@@ -258,15 +253,11 @@ extension TodayView {
         // Uses WorkCheckIn for scheduled work check-ins
         do {
             let scheduledStatus = WorkCheckInStatus.scheduled.rawValue
-            let checkInDescriptor = FetchDescriptor<WorkCheckIn>(
-                predicate: #Predicate<WorkCheckIn> { checkIn in
-                    checkIn.statusRaw == scheduledStatus &&
-                    checkIn.date <= dayEnd
-                },
-                sortBy: [SortDescriptor(\WorkCheckIn.id)]
-            )
-            let checkIns = try modelContext.fetch(checkInDescriptor)
-            filteredPlanItemIDs = checkIns.map(\.id)
+            let fetchRequest: NSFetchRequest<CDWorkCheckIn> = CDWorkCheckIn.fetchRequest() as! NSFetchRequest<CDWorkCheckIn>
+            fetchRequest.predicate = NSPredicate(format: "statusRaw == %@ AND date <= %@", scheduledStatus, dayEnd as NSDate)
+            fetchRequest.sortDescriptors = [NSSortDescriptor(keyPath: \CDWorkCheckIn.id, ascending: true)]
+            let checkIns = try viewContext.fetch(fetchRequest)
+            filteredPlanItemIDs = checkIns.compactMap(\.id)
         } catch {
             filteredPlanItemIDs = []
         }
@@ -274,7 +265,7 @@ extension TodayView {
 
     // MARK: - Todo Actions
 
-    func toggleTodoItem(_ todo: TodoItem) {
+    func toggleTodoItem(_ todo: CDTodoItem) {
         adaptiveWithAnimation(.snappy(duration: 0.2)) {
             todo.isCompleted.toggle()
             if todo.isCompleted {
@@ -282,20 +273,20 @@ extension TodayView {
 
                 // Handle recurring todos — create the next occurrence
                 if todo.recurrence != .none, let newTodo = makeRecurringTodo(from: todo) {
-                    modelContext.insert(newTodo)
+                    viewContext.insert(newTodo)
                 }
             } else {
                 todo.completedAt = nil
             }
             do {
-                try modelContext.save()
+                try viewContext.save()
             } catch {
                 logger.warning("Failed to save todo: \(error)")
             }
         }
     }
 
-    private func makeRecurringTodo(from todo: TodoItem) -> TodoItem? {
+    private func makeRecurringTodo(from todo: CDTodoItem) -> CDTodoItem? {
         let baseDate: Date
         let today = AppCalendar.startOfDay(Date())
 
@@ -306,8 +297,8 @@ extension TodayView {
         }
 
         let nextDueDate: Date?
-        if todo.recurrence == .custom, let interval = todo.customIntervalDays {
-            nextDueDate = Calendar.current.date(byAdding: .day, value: interval, to: baseDate)
+        if todo.recurrence == .custom, todo.customIntervalDays > 0 {
+            nextDueDate = Calendar.current.date(byAdding: .day, value: Int(todo.customIntervalDays), to: baseDate)
         } else {
             nextDueDate = todo.recurrence.nextDate(after: baseDate)
         }
@@ -322,16 +313,16 @@ extension TodayView {
             nextScheduled = nextDueDate
         }
 
-        let newTodo = TodoItem(
-            title: todo.title,
-            notes: todo.notes,
-            orderIndex: 0,
-            studentIDs: todo.studentIDs,
-            dueDate: nextDueDate,
-            scheduledDate: nextScheduled,
-            priority: todo.priority,
-            recurrence: todo.recurrence
-        )
+        guard let context = todo.managedObjectContext else { return nil }
+        let newTodo = CDTodoItem(context: context)
+        newTodo.title = todo.title
+        newTodo.notes = todo.notes
+        newTodo.orderIndex = 0
+        newTodo.studentIDs = todo.studentIDs
+        newTodo.dueDate = nextDueDate
+        newTodo.scheduledDate = nextScheduled
+        newTodo.priority = todo.priority
+        newTodo.recurrence = todo.recurrence
         newTodo.repeatAfterCompletion = todo.repeatAfterCompletion
         newTodo.customIntervalDays = todo.customIntervalDays
         newTodo.tags = todo.tags

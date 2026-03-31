@@ -147,11 +147,11 @@ struct DetailLine: View {
 
 /// A reusable level badge component
 struct LevelBadge: View {
-    let level: Student.Level
+    let level: CDStudent.Level
     let backgroundColor: Color
     let useWhiteBackground: Bool
 
-    init(level: Student.Level, backgroundColor: Color? = nil, useWhiteBackground: Bool = false) {
+    init(level: CDStudent.Level, backgroundColor: Color? = nil, useWhiteBackground: Bool = false) {
         self.level = level
         self.backgroundColor = backgroundColor ?? AppColors.color(forLevel: level)
         self.useWhiteBackground = useWhiteBackground

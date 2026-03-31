@@ -1,0 +1,112 @@
+{
+  "source": "/Users/dannydeberry/Documents/Projects/MariasNotebook-Rewrite/Maria's Notebook/AppCore/TodayView/TodayViewListRows.swift",
+  "tables": {
+    "Localizable": [
+      {
+        "comment": "",
+        "key": "Double tap to mark as incomplete",
+        "location": {
+          "startingColumn": 51,
+          "startingLine": 89
+        }
+      },
+      {
+        "comment": "",
+        "key": "Double tap to mark as complete",
+        "location": {
+          "startingColumn": 88,
+          "startingLine": 89
+        }
+      },
+      {
+        "comment": "",
+        "key": "Double tap to view lesson details",
+        "location": {
+          "startingColumn": 28,
+          "startingLine": 148
+        }
+      },
+      {
+        "comment": "",
+        "key": "Done",
+        "location": {
+          "startingColumn": 22,
+          "startingLine": 140
+        }
+      },
+      {
+        "comment": "",
+        "key": "Double tap to view work details",
+        "location": {
+          "startingColumn": 28,
+          "startingLine": 194
+        }
+      },
+      {
+        "comment": "",
+        "key": "Double tap to view work details and add follow-up",
+        "location": {
+          "startingColumn": 28,
+          "startingLine": 227
+        }
+      },
+      {
+        "comment": "",
+        "key": "%lldd ago",
+        "location": {
+          "startingColumn": 22,
+          "startingLine": 220
+        }
+      },
+      {
+        "comment": "",
+        "key": "Double tap to view completion details",
+        "location": {
+          "startingColumn": 28,
+          "startingLine": 268
+        }
+      },
+      {
+        "comment": "",
+        "key": "Scheduled",
+        "location": {
+          "startingColumn": 18,
+          "startingLine": 293
+        }
+      },
+      {
+        "comment": "",
+        "key": "Meeting with %@",
+        "location": {
+          "startingColumn": 33,
+          "startingLine": 305
+        }
+      },
+      {
+        "comment": "",
+        "key": "Double tap to start meeting",
+        "location": {
+          "startingColumn": 32,
+          "startingLine": 306
+        }
+      },
+      {
+        "comment": "",
+        "key": "Meeting with %@",
+        "location": {
+          "startingColumn": 37,
+          "startingLine": 310
+        }
+      },
+      {
+        "comment": "",
+        "key": "Drag to reorder or double tap to start meeting",
+        "location": {
+          "startingColumn": 36,
+          "startingLine": 311
+        }
+      }
+    ]
+  },
+  "version": 1
+}

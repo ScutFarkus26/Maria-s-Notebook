@@ -8,7 +8,6 @@
 
 import Foundation
 import CoreData
-import SwiftData
 import OSLog
 
 /// Runs AI-powered analysis across the full classroom database.
@@ -25,10 +24,7 @@ final class DatabaseAnalysisService {
         self.mcpClient = mcpClient
     }
 
-    @available(*, deprecated, message: "Pass NSManagedObjectContext instead of ModelContext")
-    convenience init(modelContext: ModelContext, mcpClient: MCPClientProtocol) {
-        self.init(modelContext: AppBootstrapping.getSharedCoreDataStack().viewContext, mcpClient: mcpClient)
-    }
+    // Deprecated ModelContext convenience init removed - no longer needed with Core Data.
 
     // MARK: - Public API
 

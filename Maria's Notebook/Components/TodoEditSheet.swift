@@ -1,5 +1,5 @@
 import SwiftUI
-import SwiftData
+import CoreData
 import UniformTypeIdentifiers
 import QuickLook
 #if os(macOS)
@@ -8,19 +8,19 @@ import QuickLookUI
 
 struct TodoEditSheet: View {
     @Environment(\.dismiss) var dismiss
-    @Query(sort: \Student.firstName) var studentsRaw: [Student]
+    @FetchRequest(sortDescriptors: [NSSortDescriptor(keyPath: \CDStudent.firstName, ascending: true)]) var studentsRaw: FetchedResults<CDStudent>
     @AppStorage(UserDefaultsKeys.generalShowTestStudents) var showTestStudents: Bool = false
     @AppStorage(UserDefaultsKeys.generalTestStudentNames) var testStudentNamesRaw: String = "Danny De Berry,Lil Dan D"
 
-    var students: [Student] {
+    var students: [CDStudent] {
         TestStudentsFilter.filterVisible(
-            studentsRaw.uniqueByID.filter(\.isEnrolled),
+            Array(studentsRaw).uniqueByID.filter(\.isEnrolled),
             show: showTestStudents,
             namesRaw: testStudentNamesRaw
         )
     }
 
-    let todo: TodoItem
+    let todo: CDTodoItem
     let onDone: (() -> Void)?
 
     @State var title: String
@@ -58,28 +58,28 @@ struct TodoEditSheet: View {
     @State var isShowingMapPicker = false
     @FocusState var isTitleFocused: Bool
 
-    init(todo: TodoItem, onDone: (() -> Void)? = nil) {
+    init(todo: CDTodoItem, onDone: (() -> Void)? = nil) {
         self.todo = todo
         self.onDone = onDone
         _title = State(initialValue: todo.title)
         _notes = State(initialValue: todo.notes)
-        _selectedStudentIDs = State(initialValue: Set(todo.studentIDs))
+        _selectedStudentIDs = State(initialValue: Set(todo.studentIDsArray))
         _hasDueDate = State(initialValue: todo.dueDate != nil)
         _dueDate = State(initialValue: todo.dueDate ?? AppCalendar.startOfDay(Date()))
         _scheduledDate = State(initialValue: todo.scheduledDate)
         _deadlineDate = State(initialValue: todo.dueDate)
         _isSomeday = State(initialValue: todo.isSomeday)
         _repeatAfterCompletion = State(initialValue: todo.repeatAfterCompletion)
-        _customIntervalDays = State(initialValue: todo.customIntervalDays ?? 7)
+        _customIntervalDays = State(initialValue: todo.customIntervalDays > 0 ? Int(todo.customIntervalDays) : 7)
         _priority = State(initialValue: todo.priority)
         _recurrence = State(initialValue: todo.recurrence)
 
         // Parse time estimates
-        let estTotal = todo.estimatedMinutes ?? 0
+        let estTotal = Int(todo.estimatedMinutes)
         _estimatedHours = State(initialValue: estTotal / 60)
         _estimatedMinutes = State(initialValue: estTotal % 60)
 
-        let actTotal = todo.actualMinutes ?? 0
+        let actTotal = Int(todo.actualMinutes)
         _actualHours = State(initialValue: actTotal / 60)
         _actualMinutes = State(initialValue: actTotal % 60)
 
@@ -95,14 +95,17 @@ struct TodoEditSheet: View {
         // Parse location reminder
         _hasLocationReminder = State(initialValue: todo.hasLocationReminder)
         _locationName = State(initialValue: todo.locationName ?? "")
-        _locationLatitude = State(initialValue: todo.locationLatitude)
-        _locationLongitude = State(initialValue: todo.locationLongitude)
+        _locationLatitude = State(initialValue: todo.locationLatitude != 0 ? todo.locationLatitude : nil)
+        _locationLongitude = State(initialValue: todo.locationLongitude != 0 ? todo.locationLongitude : nil)
         _notifyOnEntry = State(initialValue: todo.notifyOnEntry)
         _notifyOnExit = State(initialValue: todo.notifyOnExit)
     }
 
-    var selectedStudents: [Student] {
-        students.filter { selectedStudentIDs.contains($0.id.uuidString) }
+    var selectedStudents: [CDStudent] {
+        students.filter { student in
+            guard let id = student.id else { return false }
+            return selectedStudentIDs.contains(id.uuidString)
+        }
     }
 
     var canSave: Bool {
@@ -132,7 +135,7 @@ struct TodoEditSheet: View {
 
 // MARK: - Subtask Row
 struct SubtaskRow: View {
-    let subtask: TodoSubtask
+    let subtask: CDTodoSubtask
     let onToggle: () -> Void
     let onDelete: () -> Void
     let onUpdate: (String) -> Void
@@ -141,7 +144,7 @@ struct SubtaskRow: View {
     @FocusState private var isFocused: Bool
 
     init(
-        subtask: TodoSubtask,
+        subtask: CDTodoSubtask,
         onToggle: @escaping () -> Void,
         onDelete: @escaping () -> Void,
         onUpdate: @escaping (String) -> Void
@@ -210,9 +213,9 @@ struct SubtaskRow: View {
     }
 }
 
-// MARK: - Todo Student Chip
+// MARK: - Todo CDStudent Chip
 struct TodoStudentChip: View {
-    let student: Student
+    let student: CDStudent
     let onRemove: () -> Void
 
     var body: some View {

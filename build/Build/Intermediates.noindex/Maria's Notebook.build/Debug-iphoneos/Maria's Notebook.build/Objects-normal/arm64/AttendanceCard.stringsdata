@@ -1,0 +1,96 @@
+{
+  "source": "/Users/dannydeberry/Documents/Projects/MariasNotebook-Rewrite/Maria's Notebook/Attendance/AttendanceCard.swift",
+  "tables": {
+    "Localizable": [
+      {
+        "comment": "",
+        "key": "Edit note",
+        "location": {
+          "startingColumn": 23,
+          "startingLine": 116
+        }
+      },
+      {
+        "comment": "",
+        "key": "Add Note",
+        "location": {
+          "startingColumn": 45,
+          "startingLine": 77
+        }
+      },
+      {
+        "comment": "",
+        "key": "%@, %@",
+        "location": {
+          "startingColumn": 29,
+          "startingLine": 327
+        }
+      },
+      {
+        "comment": "",
+        "key": "Has note",
+        "location": {
+          "startingColumn": 39,
+          "startingLine": 328
+        }
+      },
+      {
+        "comment": "",
+        "key": "No note",
+        "location": {
+          "startingColumn": 52,
+          "startingLine": 328
+        }
+      },
+      {
+        "comment": "",
+        "key": "Double tap to change attendance status",
+        "location": {
+          "startingColumn": 40,
+          "startingLine": 329
+        }
+      },
+      {
+        "comment": "",
+        "key": "",
+        "location": {
+          "startingColumn": 83,
+          "startingLine": 329
+        }
+      },
+      {
+        "comment": "",
+        "key": "Note…",
+        "location": {
+          "startingColumn": 27,
+          "startingLine": 297
+        }
+      },
+      {
+        "comment": "",
+        "key": "Mark as Sick",
+        "location": {
+          "startingColumn": 31,
+          "startingLine": 307
+        }
+      },
+      {
+        "comment": "",
+        "key": "Mark as Vacation",
+        "location": {
+          "startingColumn": 31,
+          "startingLine": 313
+        }
+      },
+      {
+        "comment": "",
+        "key": "Clear Reason",
+        "location": {
+          "startingColumn": 35,
+          "startingLine": 320
+        }
+      }
+    ]
+  },
+  "version": 1
+}

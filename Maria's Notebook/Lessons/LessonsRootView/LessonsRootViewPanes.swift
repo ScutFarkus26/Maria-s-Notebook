@@ -2,7 +2,7 @@
 // Column panes for LessonsRootView - extracted for maintainability
 
 import SwiftUI
-import SwiftData
+import CoreData
 import OSLog
 
 private let logger = Logger.lessons
@@ -131,7 +131,7 @@ extension LessonsRootView {
     }
 
     /// Lessons filtered by chip bar filters
-    private var filteredLessonsForDisplay: [Lesson] {
+    private var filteredLessonsForDisplay: [CDLesson] {
         var result = lessonsForSubject
 
         // Source filter
@@ -151,7 +151,7 @@ extension LessonsRootView {
 
         // Needs attention filter (status count > 0)
         if filterState.needsAttentionFilter, let counts = statusCounts {
-            result = result.filter { counts[$0.id, default: 0] > 0 }
+            result = result.filter { guard let id = $0.id else { return false }; return counts[id, default: 0] > 0 }
         }
 
         return result
@@ -187,7 +187,7 @@ extension LessonsRootView {
 
         let displayGroups: [String] = computeDisplayGroups(ungroupedLabel: ungroupedLabel)
 
-        var lessonsByGroup: [String: [Lesson]] = [:]
+        var lessonsByGroup: [String: [CDLesson]] = [:]
         for group in displayGroups {
             lessonsByGroup[group] = lessonsForGroup(group, ungroupedLabel: ungroupedLabel)
         }
@@ -266,7 +266,7 @@ extension LessonsRootView {
     }
 
     /// Returns sorted lessons for a specific group
-    func lessonsForGroup(_ group: String, ungroupedLabel: String) -> [Lesson] {
+    func lessonsForGroup(_ group: String, ungroupedLabel: String) -> [CDLesson] {
         lessonsForSubject.filter { lesson in
             let lessonGroupTrimmed = lesson.group.trimmed()
             if group == ungroupedLabel {
@@ -282,18 +282,18 @@ extension LessonsRootView {
             if nameCompare != .orderedSame {
                 return nameCompare == .orderedAscending
             }
-            return lhs.id.uuidString < rhs.id.uuidString
+            return (lhs.id?.uuidString ?? "") < (rhs.id?.uuidString ?? "")
         }
     }
 
-    // MARK: - Lesson Detail Pane (Right)
+    // MARK: - CDLesson Detail Pane (Right)
 
-    func lessonDetailPane(lesson: Lesson) -> some View {
+    func lessonDetailPane(lesson: CDLesson) -> some View {
         LessonDetailView(
             lesson: lesson,
-            allLessons: lessons,
+            allLessons: Array(lessons),
             onSave: { _ in
-                saveCoordinator.save(modelContext, reason: "Update lesson")
+                saveCoordinator.save(viewContext, reason: "Update lesson")
             },
             onDone: {
                 selectedLessonDetail = nil

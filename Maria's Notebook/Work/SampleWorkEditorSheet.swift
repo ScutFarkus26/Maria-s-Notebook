@@ -1,5 +1,5 @@
 import SwiftUI
-import SwiftData
+import CoreData
 import OSLog
 
 // Sheet for adding or editing a SampleWork and its template steps.
@@ -8,7 +8,7 @@ struct SampleWorkEditorSheet: View {
     private static let logger = Logger.lessons
 
     @Environment(\.dismiss) private var dismiss
-    @Environment(\.modelContext) private var modelContext
+    @Environment(\.managedObjectContext) private var modelContext
 
     let lesson: Lesson
     var existingSampleWork: SampleWork?
@@ -122,7 +122,7 @@ struct SampleWorkEditorSheet: View {
                 workKind = sw.workKind ?? .practiceLesson
                 notes = sw.notes
                 draftSteps = sw.orderedSteps.map { step in
-                    DraftStep(id: step.id, title: step.title, instructions: step.instructions)
+                    DraftStep(id: step.id ?? UUID(), title: step.title, instructions: step.instructions)
                 }
             }
         }
@@ -268,11 +268,11 @@ struct SampleWorkEditorSheet: View {
             service.update(existing, title: title.trimmed(), workKind: workKind, notes: notes)
 
             // Reconcile steps: delete removed, update existing, add new
-            let existingStepIDs = Set(existing.orderedSteps.map(\.id))
+            let existingStepIDs = Set(existing.orderedSteps.compactMap(\.id))
             let draftStepIDs = Set(draftSteps.map(\.id))
 
             // Delete steps that were removed
-            for step in existing.orderedSteps where !draftStepIDs.contains(step.id) {
+            for step in existing.orderedSteps where !draftStepIDs.contains(step.id ?? UUID()) {
                 service.deleteStep(step)
             }
 
@@ -281,7 +281,7 @@ struct SampleWorkEditorSheet: View {
                 if existingStepIDs.contains(draft.id),
                    let step = existing.orderedSteps.first(where: { $0.id == draft.id }) {
                     service.updateStep(step, title: draft.title.trimmed(), instructions: draft.instructions)
-                    step.orderIndex = index
+                    step.orderIndex = Int64(index)
                 } else {
                     let newStep = service.createStep(for: existing, title: draft.title.trimmed(),
                                                      instructions: draft.instructions)

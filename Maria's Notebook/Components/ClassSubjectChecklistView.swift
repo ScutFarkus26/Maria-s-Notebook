@@ -6,13 +6,13 @@
 //
 
 import SwiftUI
-import SwiftData
+import CoreData
 #if os(macOS)
 import AppKit
 #endif
 
 struct ClassSubjectChecklistView: View {
-    @Environment(\.modelContext) private var modelContext
+    @Environment(\.managedObjectContext) private var viewContext
     @State private var viewModel = ClassSubjectChecklistViewModel()
     @State private var didFinishInitialLoad = false
     @State private var isShowingAddWorkSheet = false
@@ -52,28 +52,28 @@ struct ClassSubjectChecklistView: View {
                     Spacer()
 
                     Button {
-                        viewModel.batchAddToInbox(context: modelContext)
+                        viewModel.batchAddToInbox(context: viewContext)
                     } label: {
                         Label("Add to Inbox", systemImage: "tray")
                     }
                     .buttonStyle(.bordered)
 
                     Button {
-                        viewModel.batchMarkPresented(context: modelContext)
+                        viewModel.batchMarkPresented(context: viewContext)
                     } label: {
                         Label("Presented", systemImage: "checkmark")
                     }
                     .buttonStyle(.bordered)
 
                     Button {
-                        viewModel.batchMarkPreviouslyPresented(context: modelContext)
+                        viewModel.batchMarkPreviouslyPresented(context: viewContext)
                     } label: {
                         Label("Prev. Presented", systemImage: "clock.badge.checkmark")
                     }
                     .buttonStyle(.bordered)
 
                     Button {
-                        viewModel.batchMarkProficient(context: modelContext)
+                        viewModel.batchMarkProficient(context: viewContext)
                     } label: {
                         Label("Mastered", systemImage: "checkmark.circle.fill")
                     }
@@ -91,7 +91,7 @@ struct ClassSubjectChecklistView: View {
                     }
 
                     Button {
-                        viewModel.batchClearStatus(context: modelContext)
+                        viewModel.batchClearStatus(context: viewContext)
                     } label: {
                         Label("Clear", systemImage: "xmark.circle")
                     }
@@ -158,7 +158,7 @@ struct ClassSubjectChecklistView: View {
                             let lessons = viewModel.lessonsIn(group: group)
                             ForEach(lessons) { lesson in
                                 HStack(spacing: 0) {
-                                    // Lesson Name (Sticky Left)
+                                    // CDLesson Name (Sticky Left)
                                     StickyLeftItem(width: lessonColumnWidth, height: rowHeight) {
                                         VStack(alignment: .leading) {
                                             Text(lesson.name)
@@ -183,7 +183,7 @@ struct ClassSubjectChecklistView: View {
                                             lessonName: lesson.name,
                                             onTap: {
                                                 viewModel.toggleScheduled(
-                                                    student: student, lesson: lesson, context: modelContext
+                                                    student: student, lesson: lesson, context: viewContext
                                                 )
                                             },
                                             onSelect: {
@@ -191,22 +191,22 @@ struct ClassSubjectChecklistView: View {
                                             },
                                             onMarkComplete: {
                                                 viewModel.markComplete(
-                                                    student: student, lesson: lesson, context: modelContext
+                                                    student: student, lesson: lesson, context: viewContext
                                                 )
                                             },
                                             onMarkPresented: {
                                                 viewModel.togglePresented(
-                                                    student: student, lesson: lesson, context: modelContext
+                                                    student: student, lesson: lesson, context: viewContext
                                                 )
                                             },
                                             onMarkPreviouslyPresented: {
                                                 viewModel.togglePreviouslyPresented(
-                                                    student: student, lesson: lesson, context: modelContext
+                                                    student: student, lesson: lesson, context: viewContext
                                                 )
                                             },
                                             onClear: {
                                                 viewModel.clearStatus(
-                                                    student: student, lesson: lesson, context: modelContext
+                                                    student: student, lesson: lesson, context: viewContext
                                                 )
                                             }
                                         )
@@ -230,14 +230,14 @@ struct ClassSubjectChecklistView: View {
                 viewModel.selectedSubject = persistedSubject
             }
             // Single load: fetches students, lessons, and builds matrix once
-            viewModel.loadData(context: modelContext)
+            viewModel.loadData(context: viewContext)
             viewModel.applyVisibilityFilter(
-                context: modelContext, show: showTestStudents, namesRaw: testStudentNamesRaw
+                context: viewContext, show: showTestStudents, namesRaw: testStudentNamesRaw
             )
             didFinishInitialLoad = true
         }
         .sheet(isPresented: $isShowingAddWorkSheet, onDismiss: {
-            viewModel.recomputeMatrix(context: modelContext)
+            viewModel.recomputeMatrix(context: viewContext)
             viewModel.clearSelection()
         }, content: {
             if let lessonID = viewModel.selectedCellsSameLessonID {
@@ -250,17 +250,17 @@ struct ClassSubjectChecklistView: View {
         .onChange(of: viewModel.selectedSubject) { _, newValue in
             // Skip during initial load — loadData already built the matrix
             guard didFinishInitialLoad else { return }
-            viewModel.refreshMatrix(context: modelContext)
+            viewModel.refreshMatrix(context: viewContext)
             persistedSubject = newValue
         }
         .onChange(of: showTestStudents) { _, _ in
             viewModel.applyVisibilityFilter(
-                context: modelContext, show: showTestStudents, namesRaw: testStudentNamesRaw
+                context: viewContext, show: showTestStudents, namesRaw: testStudentNamesRaw
             )
         }
         .onChange(of: testStudentNamesRaw) { _, _ in
             viewModel.applyVisibilityFilter(
-                context: modelContext, show: showTestStudents, namesRaw: testStudentNamesRaw
+                context: viewContext, show: showTestStudents, namesRaw: testStudentNamesRaw
             )
         }
     }
@@ -285,14 +285,14 @@ extension ClassSubjectChecklistView {
             }
             .zIndex(100) // Ensure corner stays above everything
 
-            // Student Names (Scrolls Horizontally with content, tappable)
+            // CDStudent Names (Scrolls Horizontally with content, tappable)
             ForEach(viewModel.students) { student in
                 Button {
-                    AppRouter.shared.requestOpenStudentDetail(student.id)
+                    if let studentID = student.id { AppRouter.shared.requestOpenStudentDetail(studentID) }
                 } label: {
                     VStack(spacing: 2) {
                         Text(viewModel.displayName(for: student))
-                        Text(AgeUtils.conciseAgeString(for: student.birthday))
+                        Text(AgeUtils.conciseAgeString(for: student.birthday ?? Date()))
                             .font(.caption2)
                             .foregroundStyle(.secondary)
                     }

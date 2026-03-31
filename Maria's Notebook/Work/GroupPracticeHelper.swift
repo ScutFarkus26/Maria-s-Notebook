@@ -1,5 +1,4 @@
 import SwiftUI
-import SwiftData
 import CoreData
 
 /// Helper to identify and facilitate group practice opportunities

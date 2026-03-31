@@ -2,11 +2,11 @@
 // Detail view for a single Going-Out showing all sections.
 
 import SwiftUI
-import SwiftData
+import CoreData
 
 struct GoingOutDetailView: View {
-    @Bindable var goingOut: GoingOut
-    @Environment(\.modelContext) private var modelContext
+    @ObservedObject var goingOut: GoingOut
+    @Environment(\.managedObjectContext) private var modelContext
     @State private var showingEditor = false
     @State private var showingNoteEditor = false
 
@@ -25,7 +25,7 @@ struct GoingOutDetailView: View {
                 }
 
                 // Students
-                if !goingOut.studentIDs.isEmpty {
+                if !goingOut.studentIDsArray.isEmpty {
                     studentsSection
                         .padding(.horizontal)
                 }
@@ -266,21 +266,21 @@ struct GoingOutDetailView: View {
                 .buttonStyle(.plain)
             }
 
-            let linkedNotes = goingOut.observationNotes ?? []
+            let linkedNotes = (goingOut.observationNotes?.allObjects as? [CDNote]) ?? []
             if linkedNotes.isEmpty {
                 Text("No observation notes yet")
                     .font(.caption)
                     .foregroundStyle(.tertiary)
                     .padding(.vertical, 4)
             } else {
-                ForEach(linkedNotes.sorted { $0.createdAt > $1.createdAt }) { note in
+                ForEach(linkedNotes.sorted { ($0.createdAt ?? .distantPast) > ($1.createdAt ?? .distantPast) }, id: \.objectID) { note in
                     VStack(alignment: .leading, spacing: 4) {
                         Text(note.body)
                             .font(.caption)
                             .foregroundStyle(.secondary)
                             .lineLimit(3)
 
-                        Text(note.createdAt.formatted(date: .abbreviated, time: .shortened))
+                        Text((note.createdAt ?? Date()).formatted(date: .abbreviated, time: .shortened))
                             .font(.caption2)
                             .foregroundStyle(.tertiary)
                     }
@@ -302,16 +302,20 @@ struct GoingOutDetailView: View {
 private struct StudentChipsView: View {
     let studentIDs: [UUID]
 
-    @Query(sort: Student.sortByName)
-    private var allStudents: [Student]
+    @FetchRequest(sortDescriptors: CDStudent.sortByName)
+    private var allStudents: FetchedResults<CDStudent>
 
-    private var matchedStudents: [Student] {
-        allStudents.filter { studentIDs.contains($0.id) }
+    private var matchedStudents: [CDStudent] {
+        let idSet = Set(studentIDs)
+        return Array(allStudents).filter { student in
+            guard let studentID = student.id else { return false }
+            return idSet.contains(studentID)
+        }
     }
 
     var body: some View {
         FlowLayout(spacing: 6) {
-            ForEach(matchedStudents) { student in
+            ForEach(matchedStudents, id: \.objectID) { student in
                 HStack(spacing: 4) {
                     Text("\(student.firstName.prefix(1))\(student.lastName.prefix(1))")
                         .font(.caption2)

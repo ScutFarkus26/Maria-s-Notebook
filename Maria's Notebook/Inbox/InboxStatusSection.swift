@@ -42,7 +42,7 @@ struct InboxStatusSection: View {
 
             OptionalDatePicker(
                 toggleLabel: "Change Date",
-                dateLabel: "Schedule For",
+                dateLabel: "CDSchedule For",
                 date: $scheduledFor,
                 displayedComponents: [.date, .hourAndMinute],
                 defaultHour: 9
@@ -51,7 +51,7 @@ struct InboxStatusSection: View {
             Button {
                 scheduledFor = nil
             } label: {
-                Label("Remove from Schedule", systemImage: "xmark.circle")
+                Label("Remove from CDSchedule", systemImage: "xmark.circle")
                     .font(AppTheme.ScaledFont.caption)
             }
             .buttonStyle(.plain)
@@ -77,8 +77,8 @@ struct InboxStatusSection: View {
             )
 
             OptionalDatePicker(
-                toggleLabel: "Schedule Lesson",
-                dateLabel: "Schedule For",
+                toggleLabel: "CDSchedule CDLesson",
+                dateLabel: "CDSchedule For",
                 date: $scheduledFor,
                 displayedComponents: [.date, .hourAndMinute],
                 defaultHour: 9

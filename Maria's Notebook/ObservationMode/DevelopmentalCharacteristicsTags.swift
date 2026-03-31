@@ -1,6 +1,6 @@
 // DevelopmentalCharacteristicsTags.swift
 // Second-plane developmental characteristics for elementary Montessori observation.
-// Tags use the existing TagHelper system for consistency with the Note tag infrastructure.
+// Tags use the existing TagHelper system for consistency with the CDNote tag infrastructure.
 
 import Foundation
 import SwiftUI
@@ -17,7 +17,7 @@ enum DevelopmentalCharacteristic: String, CaseIterable, Identifiable {
 
     var id: String { rawValue }
 
-    /// Tag string in "Name|Color" format for use with the Note tag system
+    /// Tag string in "Name|Color" format for use with the CDNote tag system
     var tag: String {
         switch self {
         case .reasoningMind:

@@ -3,7 +3,7 @@
 // weekly trends, gap analysis, and per-student breakdowns.
 
 import Foundation
-import SwiftData
+import CoreData
 import SwiftUI
 import OSLog
 
@@ -59,7 +59,7 @@ final class CurriculumBalanceViewModel {
     // MARK: - Data Loading
 
     // swiftlint:disable:next function_body_length
-    func loadData(context: ModelContext) {
+    func loadData(context: NSManagedObjectContext) {
         isLoading = true
         defer { isLoading = false }
 
@@ -101,14 +101,15 @@ final class CurriculumBalanceViewModel {
             .sorted { $0.deficit > $1.deficit }
 
         // --- Per-student cards ---
-        let allStudents = context.safeFetch(
-            FetchDescriptor<Student>(sortBy: Student.sortByName)
-        )
+        let studentRequest: NSFetchRequest<CDStudent> = CDFetchRequest(CDStudent.self)
+        studentRequest.sortDescriptors = CDStudent.sortByName
+        let allStudents = context.safeFetch(studentRequest)
         let visibleStudents = TestStudentsFilter.filterVisible(allStudents.filter(\.isEnrolled))
         let recordsByStudent = Dictionary(grouping: records) { $0.studentID }
 
         studentCards = visibleStudents.compactMap { student in
-            let recs = recordsByStudent[student.id.uuidString] ?? []
+            guard let studentID = student.id else { return nil }
+            let recs = recordsByStudent[studentID.uuidString] ?? []
             guard !recs.isEmpty else { return nil }
 
             let perSubject = Dictionary(grouping: recs) { $0.subject }
@@ -123,7 +124,7 @@ final class CurriculumBalanceViewModel {
                 )
             }.sorted { $0.count > $1.count }
 
-            // Student-level gaps
+            // CDStudent-level gaps
             let studentAvg = Double(studentTotal) / Double(max(perSubject.count, 1))
             let gaps = dists
                 .filter { Double($0.count) < studentAvg * 0.5 }
@@ -138,7 +139,7 @@ final class CurriculumBalanceViewModel {
                 }
 
             return StudentBalanceCard(
-                id: student.id,
+                id: studentID,
                 firstName: student.firstName,
                 lastName: student.lastName,
                 nickname: student.nickname,

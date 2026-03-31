@@ -1,14 +1,14 @@
 // GreatLessonTagEditor.swift
-// Sheet for tagging a lesson with its Great Lesson connection.
-// Simple picker with the 5 Great Lesson options + "None".
+// Sheet for tagging a lesson with its Great CDLesson connection.
+// Simple picker with the 5 Great CDLesson options + "None".
 
 import SwiftUI
-import SwiftData
+import CoreData
 
 struct GreatLessonTagEditor: View {
-    @Bindable var lesson: Lesson
+    @ObservedObject var lesson: CDLesson
     @Environment(\.dismiss) private var dismiss
-    @Environment(\.modelContext) private var modelContext
+    @Environment(\.managedObjectContext) private var viewContext
 
     var body: some View {
         NavigationStack {
@@ -16,7 +16,7 @@ struct GreatLessonTagEditor: View {
                 // None option
                 Button {
                     lesson.greatLessonRaw = nil
-                    modelContext.safeSave()
+                    viewContext.safeSave()
                     dismiss()
                 } label: {
                     HStack {
@@ -33,11 +33,11 @@ struct GreatLessonTagEditor: View {
                 }
                 .buttonStyle(.plain)
 
-                // Great Lesson options
+                // Great CDLesson options
                 ForEach(GreatLesson.allCases) { gl in
                     Button {
                         lesson.greatLessonRaw = gl.rawValue
-                        modelContext.safeSave()
+                        viewContext.safeSave()
                         dismiss()
                     } label: {
                         HStack(spacing: 12) {

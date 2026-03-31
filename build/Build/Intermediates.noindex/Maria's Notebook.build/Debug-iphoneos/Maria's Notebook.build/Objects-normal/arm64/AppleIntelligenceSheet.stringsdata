@@ -1,0 +1,80 @@
+{
+  "source": "/Users/dannydeberry/Documents/Projects/MariasNotebook-Rewrite/Maria's Notebook/Components/AppleIntelligenceSheet.swift",
+  "tables": {
+    "Localizable": [
+      {
+        "comment": "",
+        "key": "AI Assistant",
+        "location": {
+          "startingColumn": 30,
+          "startingLine": 94
+        }
+      },
+      {
+        "comment": "",
+        "key": "Processing Data...",
+        "location": {
+          "startingColumn": 48,
+          "startingLine": 60
+        }
+      },
+      {
+        "comment": "",
+        "key": "Drafting...",
+        "location": {
+          "startingColumn": 38,
+          "startingLine": 72
+        }
+      },
+      {
+        "comment": "",
+        "key": "Close",
+        "location": {
+          "startingColumn": 28,
+          "startingLine": 98
+        }
+      },
+      {
+        "comment": "",
+        "key": "Export",
+        "location": {
+          "startingColumn": 31,
+          "startingLine": 102
+        }
+      },
+      {
+        "comment": "",
+        "key": "Anonymize",
+        "location": {
+          "startingColumn": 23,
+          "startingLine": 125
+        }
+      },
+      {
+        "comment": "",
+        "key": "Context Generators",
+        "location": {
+          "startingColumn": 25,
+          "startingLine": 136
+        }
+      },
+      {
+        "comment": "",
+        "key": "AI Instructions",
+        "location": {
+          "startingColumn": 25,
+          "startingLine": 139
+        }
+      },
+      {
+        "comment": "",
+        "key": "Raw Data Context",
+        "location": {
+          "startingColumn": 67,
+          "startingLine": 137
+        }
+      }
+    ]
+  },
+  "version": 1
+}

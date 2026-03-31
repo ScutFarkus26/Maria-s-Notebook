@@ -2,6 +2,7 @@
 // Sheet wrapper for presenting the print interface
 
 import SwiftUI
+import CoreData
 
 #if os(macOS)
 import AppKit
@@ -10,9 +11,9 @@ import PDFKit
 
 /// Sheet wrapper for presenting the print interface
 struct WorkPrintSheet: View {
-    let workItems: [WorkModel]
-    let students: [Student]
-    let lessons: [Lesson]
+    let workItems: [CDWorkModel]
+    let students: [CDStudent]
+    let lessons: [CDLesson]
     let filterDescription: String
     let sortDescription: String
 

@@ -1,10 +1,10 @@
 import SwiftUI
-import SwiftData
+import CoreData
 
 struct ProjectDetailView: View {
     let club: Project
 
-    @Environment(\.modelContext) private var modelContext
+    @Environment(\.managedObjectContext) private var modelContext
     @Environment(SaveCoordinator.self) private var saveCoordinator
     @Environment(\.dismiss) private var dismiss
 
@@ -13,19 +13,19 @@ struct ProjectDetailView: View {
     @AppStorage(UserDefaultsKeys.generalTestStudentNames)
     private var testStudentNamesRaw: String = "Danny De Berry,Lil Dan D"
 
-    @Query(sort: Student.sortByName) private var studentsRaw: [Student]
+    @FetchRequest(sortDescriptors: CDStudent.sortByName) private var studentsRaw: FetchedResults<CDStudent>
     // DEDUPLICATION: CloudKit sync can create duplicate records with the same ID.
     // Filter out test students when setting is disabled
     private var students: [Student] {
         TestStudentsFilter.filterVisible(
-            studentsRaw.uniqueByID.filter(\.isEnrolled),
+            Array(studentsRaw).uniqueByID.filter(\.isEnrolled),
             show: showTestStudents,
             namesRaw: testStudentNamesRaw
         )
     }
 
     // Performance: Filter roles by projectID at query level
-    @Query(sort: [SortDescriptor(\ProjectRole.createdAt, order: .forward)]) private var roles: [ProjectRole]
+    @FetchRequest private var roles: FetchedResults<CDProjectRole>
 
     @State private var showNewSession: Bool = false
     @State private var showEditClub: Bool = false
@@ -34,17 +34,17 @@ struct ProjectDetailView: View {
     init(club: Project) {
         self.club = club
         // Performance: Filter roles by projectID at query level
-        let projectIDString = club.id.uuidString
-        _roles = Query(
-            filter: #Predicate<ProjectRole> { $0.projectID == projectIDString },
-            sort: [SortDescriptor(\.createdAt, order: .forward)]
+        let projectIDString = (club.id ?? UUID()).uuidString
+        _roles = FetchRequest(
+            sortDescriptors: [NSSortDescriptor(keyPath: \CDProjectRole.createdAt, ascending: true)],
+            predicate: NSPredicate(format: "projectID == %@", projectIDString)
         )
     }
 
     // Use uniquingKeysWith to handle CloudKit sync duplicates
     private var studentsByID: [UUID: Student] {
         Dictionary(
-            students.map { ($0.id, $0) },
+            students.compactMap { s -> (UUID, Student)? in guard let id = s.id else { return nil }; return (id, s) },
             uniquingKeysWith: { first, _ in first }
         )
     }
@@ -90,13 +90,13 @@ struct ProjectDetailView: View {
                         }
 
                         // Members as a single row (horizontal chips)
-                        if club.memberStudentIDs.isEmpty {
+                        if club.memberStudentIDsArray.isEmpty {
                             Text("No members selected")
                                 .foregroundStyle(.secondary)
                         } else {
                             ScrollView(.horizontal, showsIndicators: false) {
                                 HStack(spacing: AppTheme.Spacing.small) {
-                                    ForEach(club.memberStudentIDs, id: \.self) { sid in
+                                    ForEach(club.memberStudentIDsArray, id: \.self) { sid in
                                         if let s = studentsByID[uuidString: sid] {
                                             Chip(text: StudentFormatter.displayName(for: s))
                                         } else {
@@ -108,7 +108,7 @@ struct ProjectDetailView: View {
                         }
 
                         // Shared Assignments (only show if present)
-                        let shared = (club.sharedTemplates ?? []).filter(\.isShared)
+                        let shared = ((club.sharedTemplates?.allObjects as? [CDProjectAssignmentTemplate]) ?? []).filter(\.isShared)
                         if !shared.isEmpty {
                             Divider().opacity(UIConstants.OpacityConstants.faint + 0.12)
                             VStack(alignment: .leading, spacing: AppTheme.Spacing.small) {
@@ -116,7 +116,7 @@ struct ProjectDetailView: View {
                                     .font(.headline)
                                 ScrollView(.horizontal, showsIndicators: false) {
                                     HStack(spacing: AppTheme.Spacing.small) {
-                                        ForEach(shared) { tpl in
+                                        ForEach(shared, id: \.objectID) { tpl in
                                             Chip(text: tpl.title.isEmpty ? "Untitled" : tpl.title)
                                         }
                                     }
@@ -148,7 +148,7 @@ struct ProjectDetailView: View {
                             } else {
                                 ScrollView(.horizontal, showsIndicators: false) {
                                     HStack(spacing: AppTheme.Spacing.small) {
-                                        ForEach(roles, id: \.id) { role in
+                                        ForEach(Array(roles), id: \.objectID) { role in
                                             Chip(text: role.title.isEmpty ? "Role" : role.title)
                                         }
                                     }
@@ -182,15 +182,16 @@ struct ProjectDetailView: View {
                             .buttonStyle(.borderedProminent)
                         }
 
-                        if (club.sessions ?? []).isEmpty {
+                        let sessionsArray = (club.sessions?.allObjects as? [CDProjectSession]) ?? []
+                        if sessionsArray.isEmpty {
                             Text("No sessions yet")
                                 .foregroundStyle(.secondary)
                                 .padding(.top, AppTheme.Spacing.xsmall)
                         } else {
                             VStack(alignment: .leading, spacing: AppTheme.Spacing.small) {
-                                let sorted = (club.sessions ?? [])
-                                    .sorted { $0.meetingDate > $1.meetingDate }
-                                ForEach(sorted) { session in
+                                let sorted = sessionsArray
+                                    .sorted { ($0.meetingDate ?? .distantPast) > ($1.meetingDate ?? .distantPast) }
+                                ForEach(sorted, id: \.objectID) { session in
                                     NavigationLink(destination: ProjectSessionDetailView(session: session)) {
                                         // Use subview to correctly query work count
                                         SessionRow(session: session)
@@ -225,18 +226,21 @@ struct ProjectDetailView: View {
 // Helper view to show session details + work count
 private struct SessionRow: View {
     let session: ProjectSession
-    @Query private var workModels: [WorkModel]
-    
+    @FetchRequest private var workModels: FetchedResults<CDWorkModel>
+
     init(session: ProjectSession) {
         self.session = session
-        let sid = session.id.uuidString
-        _workModels = Query(filter: #Predicate<WorkModel> { $0.sourceContextID == sid })
+        let sid = session.id?.uuidString ?? ""
+        _workModels = FetchRequest(
+            sortDescriptors: [],
+            predicate: NSPredicate(format: "sourceContextID == %@", sid)
+        )
     }
     
     var body: some View {
         HStack {
             VStack(alignment: .leading, spacing: AppTheme.Spacing.xxsmall) {
-                Text(DateFormatters.mediumDate.string(from: session.meetingDate))
+                Text(DateFormatters.mediumDate.string(from: session.meetingDate ?? Date()))
                     .font(.headline)
                 if let ch = session.chapterOrPages, !ch.isEmpty {
                     Text(ch).font(.subheadline).foregroundStyle(.secondary)

@@ -2,7 +2,7 @@
 // Scheduled cloud backup methods
 
 import Foundation
-import SwiftData
+import CoreData
 import OSLog
 
 extension CloudBackupService {
@@ -11,9 +11,9 @@ extension CloudBackupService {
 
     /// Starts scheduled cloud backups.
     ///
-    /// - Parameter modelContext: The SwiftData model context to use for backups
-    public func startScheduledBackups(modelContext: ModelContext) {
-        self.scheduledModelContext = modelContext
+    /// - Parameter viewContext: The SwiftData model context to use for backups
+    public func startScheduledBackups(viewContext: NSManagedObjectContext) {
+        self.scheduledModelContext = viewContext
         stopScheduledBackups()
 
         guard scheduleConfiguration.enabled && scheduleConfiguration.intervalHours > 0 else {
@@ -72,7 +72,7 @@ extension CloudBackupService {
 
     /// Performs a scheduled cloud backup.
     func performScheduledCloudBackup() async {
-        guard let modelContext = scheduledModelContext else { return }
+        guard let viewContext = scheduledModelContext else { return }
         guard !isPerformingBackup else { return }
 
         isPerformingBackup = true
@@ -80,7 +80,7 @@ extension CloudBackupService {
 
         do {
             let backupURL = try await exportToCloudWithRetry(
-                modelContext: modelContext,
+                viewContext: viewContext,
                 password: nil,
                 progress: { _, _ in }
             )

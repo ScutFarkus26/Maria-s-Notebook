@@ -1,14 +1,16 @@
 // swiftlint:disable file_length
 import SwiftUI
-import SwiftData
+import CoreData
 
 /// View showing practice partnerships for a student
 struct PracticePartnershipsView: View {
     let studentID: UUID
-    
-    @Environment(\.modelContext) private var modelContext
-    @Query private var allSessions: [PracticeSession]
-    @Query private var allStudents: [Student]
+
+    @Environment(\.managedObjectContext) private var viewContext
+    @FetchRequest(sortDescriptors: [NSSortDescriptor(keyPath: \CDPracticeSession.date, ascending: false)])
+    private var allSessions: FetchedResults<CDPracticeSession>
+    @FetchRequest(sortDescriptors: [NSSortDescriptor(keyPath: \CDStudent.firstName, ascending: true)])
+    private var allStudents: FetchedResults<CDStudent>
     
     @State private var selectedFilter: FilterType = .all
     
@@ -19,7 +21,7 @@ struct PracticePartnershipsView: View {
     }
     
     private var repository: PracticeSessionRepository {
-        PracticeSessionRepository(modelContext: modelContext)
+        PracticeSessionRepository(context: viewContext)
     }
     
     private var studentSessions: [PracticeSession] {
@@ -27,11 +29,11 @@ struct PracticePartnershipsView: View {
         
         switch selectedFilter {
         case .all:
-            return sessions.sorted { $0.date > $1.date }
+            return sessions.sorted { ($0.date ?? .distantPast) > ($1.date ?? .distantPast) }
         case .group:
-            return sessions.filter(\.isGroupSession).sorted { $0.date > $1.date }
+            return sessions.filter(\.isGroupSession).sorted { ($0.date ?? .distantPast) > ($1.date ?? .distantPast) }
         case .solo:
-            return sessions.filter(\.isSoloSession).sorted { $0.date > $1.date }
+            return sessions.filter(\.isSoloSession).sorted { ($0.date ?? .distantPast) > ($1.date ?? .distantPast) }
         }
     }
     
@@ -270,19 +272,21 @@ struct PracticePartnershipsSheet: View {
 struct PracticePartnershipsSummaryCard: View {
     let studentID: UUID
     var onTapViewAll: (() -> Void)?
-    
-    @Environment(\.modelContext) private var modelContext
-    @Query private var allSessions: [PracticeSession]
-    @Query private var allStudents: [Student]
+
+    @Environment(\.managedObjectContext) private var viewContext
+    @FetchRequest(sortDescriptors: [NSSortDescriptor(keyPath: \CDPracticeSession.date, ascending: false)])
+    private var allSessions: FetchedResults<CDPracticeSession>
+    @FetchRequest(sortDescriptors: [NSSortDescriptor(keyPath: \CDStudent.firstName, ascending: true)])
+    private var allStudents: FetchedResults<CDStudent>
     
     private var repository: PracticeSessionRepository {
-        PracticeSessionRepository(modelContext: modelContext)
+        PracticeSessionRepository(context: viewContext)
     }
     
     private var recentSessions: [PracticeSession] {
         Array(allSessions
             .filter { $0.includes(studentID: studentID) }
-            .sorted { $0.date > $1.date }
+            .sorted { ($0.date ?? .distantPast) > ($1.date ?? .distantPast) }
             .prefix(3))
     }
     
@@ -415,45 +419,31 @@ struct PracticePartnershipsSummaryCard: View {
 
 // MARK: - Preview
 
-#Preview("Practice Partnerships View") {
-    let config = ModelConfiguration(isStoredInMemoryOnly: true)
-    let container: ModelContainer
-    do {
-        container = try ModelContainer(for: AppSchema.schema, configurations: config)
-    } catch {
-        fatalError("Preview ModelContainer failed: \(error)")
-    }
-    let context = container.mainContext
+#Preview {
+    let stack = CoreDataStack.preview
+    let ctx = stack.viewContext
 
     // Create sample students
-    let danny = Student(firstName: "Danny", lastName: "Jones", birthday: Date(), level: .lower)
-    let mary = Student(firstName: "Mary", lastName: "Smith", birthday: Date(), level: .lower)
-    let jane = Student(firstName: "Jane", lastName: "Doe", birthday: Date(), level: .lower)
-    
-    context.insert(danny)
-    context.insert(mary)
-    context.insert(jane)
-    
+    let danny = Student(context: ctx)
+    danny.firstName = "Danny"; danny.lastName = "Jones"; danny.birthday = Date(); danny.level = .lower
+    let mary = Student(context: ctx)
+    mary.firstName = "Mary"; mary.lastName = "Smith"; mary.birthday = Date(); mary.level = .lower
+
     // Create sample work
-    let work1 = WorkModel(title: "Long Division", studentID: danny.id.uuidString, lessonID: UUID().uuidString)
-    let work2 = WorkModel(title: "Long Division", studentID: mary.id.uuidString, lessonID: UUID().uuidString)
-    
-    context.insert(work1)
-    context.insert(work2)
-    
+    let work1 = WorkModel(context: ctx)
+    work1.title = "Long Division"; work1.studentID = danny.id?.uuidString ?? ""; work1.lessonID = UUID().uuidString
+
     // Create sample sessions
     for i in 0..<5 {
-        let session = PracticeSession(
-            date: Date().addingTimeInterval(Double(-i * 86400)),
-            duration: 1800,
-            studentIDs: i % 2 == 0 ? [danny.id.uuidString, mary.id.uuidString] : [danny.id.uuidString],
-            workItemIDs: [work1.id.uuidString],
-            sharedNotes: "Practice session \(i + 1)",
-            location: "Classroom"
-        )
-        context.insert(session)
+        let session = PracticeSession(context: ctx)
+        session.date = Date().addingTimeInterval(Double(-i * 86400))
+        session.duration = 1800
+        session.studentIDsArray = i % 2 == 0 ? [danny.id?.uuidString ?? "", mary.id?.uuidString ?? ""] : [danny.id?.uuidString ?? ""]
+        session.workItemIDsArray = [work1.id?.uuidString ?? ""]
+        session.sharedNotes = "Practice session \(i + 1)"
+        session.location = "Classroom"
     }
-    
-    return PracticePartnershipsView(studentID: danny.id)
-        .modelContainer(container)
+
+    return PracticePartnershipsView(studentID: danny.id ?? UUID())
+        .previewEnvironment(using: stack)
 }

@@ -1,6 +1,5 @@
 import Foundation
 import CoreData
-import SwiftData
 
 /// A small service layer that centralizes queries and mutations
 /// around `CDWorkCompletionRecord`.
@@ -80,48 +79,5 @@ enum WorkCompletionService {
         )
     }
 
-    // MARK: - Deprecated SwiftData Bridge
-
-    /// Deprecated overload for callers still passing ModelContext.
-    @available(*, deprecated, message: "Pass NSManagedObjectContext instead of ModelContext")
-    @MainActor
-    @discardableResult
-    static func markCompleted(
-        workID: UUID, studentID: UUID,
-        note: String = "", at date: Date = Date(),
-        in modelContext: ModelContext
-    ) throws -> CDWorkCompletionRecord {
-        let cdContext = AppBootstrapping.getSharedCoreDataStack().viewContext
-        return try markCompleted(workID: workID, studentID: studentID, note: note, at: date, in: cdContext)
-    }
-
-    @available(*, deprecated, message: "Pass NSManagedObjectContext instead of ModelContext")
-    @MainActor
-    static func records(
-        for workID: UUID, studentID: UUID? = nil,
-        in modelContext: ModelContext
-    ) throws -> [CDWorkCompletionRecord] {
-        let cdContext = AppBootstrapping.getSharedCoreDataStack().viewContext
-        return try records(for: workID, studentID: studentID, in: cdContext)
-    }
-
-    @available(*, deprecated, message: "Pass NSManagedObjectContext instead of ModelContext")
-    @MainActor
-    static func latest(
-        for workID: UUID, studentID: UUID,
-        in modelContext: ModelContext
-    ) throws -> CDWorkCompletionRecord? {
-        let cdContext = AppBootstrapping.getSharedCoreDataStack().viewContext
-        return try latest(for: workID, studentID: studentID, in: cdContext)
-    }
-
-    @available(*, deprecated, message: "Pass NSManagedObjectContext instead of ModelContext")
-    @MainActor
-    static func isCompleted(
-        workID: UUID, studentID: UUID,
-        in modelContext: ModelContext
-    ) throws -> Bool {
-        let cdContext = AppBootstrapping.getSharedCoreDataStack().viewContext
-        return try isCompleted(workID: workID, studentID: studentID, in: cdContext)
-    }
+    // Deprecated ModelContext overloads removed - no longer needed with Core Data.
 }

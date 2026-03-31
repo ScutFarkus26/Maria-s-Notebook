@@ -1,40 +1,40 @@
 // Maria's Notebook/Lessons/LessonsViewModel+Sorting.swift
 
 import Foundation
-import SwiftData
+import CoreData
 
 // MARK: - Sorting Pipelines
 
 extension LessonsViewModel {
 
     /// Canonical name-then-id tiebreaker used across all lesson sort paths.
-    static func lessonNameOrder(_ lhs: Lesson, _ rhs: Lesson) -> Bool {
+    static func lessonNameOrder(_ lhs: CDLesson, _ rhs: CDLesson) -> Bool {
         let cmp = lhs.name.localizedCaseInsensitiveCompare(rhs.name)
-        return cmp == .orderedSame ? lhs.id.uuidString < rhs.id.uuidString : cmp == .orderedAscending
+        return cmp == .orderedSame ? (lhs.id?.uuidString ?? "") < (rhs.id?.uuidString ?? "") : cmp == .orderedAscending
     }
 
     // swiftlint:disable:next function_parameter_count
     func filteredLessons(
-        modelContext: ModelContext,
+        viewContext: NSManagedObjectContext,
         sourceFilter: LessonSource?,
         personalKindFilter: PersonalLessonKind?,
         formatFilter: LessonFormat? = nil,
         searchText: String,
         selectedSubject: String?,
         selectedGroup: String?,
-        allLessons: [Lesson]? = nil
-    ) -> [Lesson] {
+        allLessons: [CDLesson]? = nil
+    ) -> [CDLesson] {
         let query = searchText.trimmed()
         let predicate = buildLessonPredicate(
             sourceFilter: sourceFilter, personalKindFilter: personalKindFilter,
             formatFilter: formatFilter,
             selectedSubject: selectedSubject, selectedGroup: selectedGroup, searchText: searchText
         )
-        var descriptor = FetchDescriptor<Lesson>()
+        var descriptor = NSFetchRequest<CDLesson>(entityName: "Lesson")
         if let predicate { descriptor.predicate = predicate }
-        descriptor.sortBy = lessonSortDescriptors(selectedGroup: selectedGroup, selectedSubject: selectedSubject)
+        descriptor.sortDescriptors = lessonSortDescriptors(selectedGroup: selectedGroup, selectedSubject: selectedSubject)
 
-        var fetched = modelContext.safeFetch(descriptor)
+        var fetched = viewContext.safeFetch(descriptor)
         if let subject = selectedSubject?.trimmed(), !subject.isEmpty, query.isEmpty {
             fetched = fetched.filter { $0.subject.trimmed().caseInsensitiveCompare(subject) == .orderedSame }
         }
@@ -56,7 +56,7 @@ extension LessonsViewModel {
 
         let scoped = scopedLessonsForOrdering(
             allLessons: allLessons, sourceFilter: sourceFilter,
-            personalKindFilter: personalKindFilter, modelContext: modelContext
+            personalKindFilter: personalKindFilter, viewContext: viewContext
         )
         let subjectIndex = subjectIndexMap(from: scoped)
         let groupIdxCache = buildGroupIndexCache(for: Set(fetched.map { norm($0.subject) }), from: scoped)
@@ -81,20 +81,20 @@ extension LessonsViewModel {
 
     // MARK: - Sort Descriptors
 
-    func lessonSortDescriptors(selectedGroup: String?, selectedSubject: String?) -> [SortDescriptor<Lesson>] {
-        if selectedGroup != nil { return [SortDescriptor(\.orderInGroup), SortDescriptor(\.name)] }
-        if selectedSubject != nil { return [SortDescriptor(\.sortIndex), SortDescriptor(\.name)] }
-        return [SortDescriptor(\.subject), SortDescriptor(\.sortIndex), SortDescriptor(\.name)]
+    func lessonSortDescriptors(selectedGroup: String?, selectedSubject: String?) -> [NSSortDescriptor] {
+        if selectedGroup != nil { return [NSSortDescriptor(key: "orderInGroup", ascending: true), NSSortDescriptor(key: "name", ascending: true)] }
+        if selectedSubject != nil { return [NSSortDescriptor(key: "sortIndex", ascending: true), NSSortDescriptor(key: "name", ascending: true)] }
+        return [NSSortDescriptor(key: "subject", ascending: true), NSSortDescriptor(key: "sortIndex", ascending: true), NSSortDescriptor(key: "name", ascending: true)]
     }
 
     // MARK: - Scoping & Caching
 
     func scopedLessonsForOrdering(
-        allLessons: [Lesson]?,
+        allLessons: [CDLesson]?,
         sourceFilter: LessonSource?,
         personalKindFilter: PersonalLessonKind?,
-        modelContext: ModelContext
-    ) -> [Lesson] {
+        viewContext: NSManagedObjectContext
+    ) -> [CDLesson] {
         if let allLessons {
             guard sourceFilter != nil || personalKindFilter != nil else { return allLessons }
             return allLessons.filter { lesson in
@@ -106,12 +106,12 @@ extension LessonsViewModel {
         let scopedPredicate = buildSourceAndKindPredicate(
             sourceFilter: sourceFilter, personalKindFilter: personalKindFilter
         )
-        var scopedDescriptor = FetchDescriptor<Lesson>()
+        var scopedDescriptor = NSFetchRequest<CDLesson>(entityName: "Lesson")
         if let scopedPredicate { scopedDescriptor.predicate = scopedPredicate }
-        return modelContext.safeFetch(scopedDescriptor)
+        return viewContext.safeFetch(scopedDescriptor)
     }
 
-    func buildGroupIndexCache(for subjects: Set<String>, from scoped: [Lesson]) -> [String: [String: Int]] {
+    func buildGroupIndexCache(for subjects: Set<String>, from scoped: [CDLesson]) -> [String: [String: Int]] {
         var cache: [String: [String: Int]] = [:]
         for subject in subjects where cache[subject] == nil {
             if let original = scoped.first(where: { norm($0.subject) == subject })?.subject {
@@ -122,16 +122,16 @@ extension LessonsViewModel {
     }
 
     func sortBySubjectGroupOrder(
-        _ lessons: [Lesson],
+        _ lessons: [CDLesson],
         subjectIndex: [String: Int],
         groupIndexCache: [String: [String: Int]]
-    ) -> [Lesson] {
-        let keyed = lessons.map { lesson -> (Lesson, LessonSortKey) in
+    ) -> [CDLesson] {
+        let keyed = lessons.map { lesson -> (CDLesson, LessonSortKey) in
             let si = subjectIndex[norm(lesson.subject)] ?? Int.max
             let gi = groupIndexCache[norm(lesson.subject)]?[norm(lesson.group)] ?? Int.max
             let key = LessonSortKey(
                 subjectIdx: si, groupIdx: gi, orderInGroup: lesson.orderInGroup,
-                name: lesson.name, id: lesson.id.uuidString
+                name: lesson.name, id: lesson.id?.uuidString ?? ""
             )
             return (lesson, key)
         }

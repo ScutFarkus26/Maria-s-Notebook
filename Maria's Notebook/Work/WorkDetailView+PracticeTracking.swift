@@ -1,5 +1,5 @@
 import SwiftUI
-import SwiftData
+import CoreData
 import Foundation
 
 // MARK: - Practice Tracking

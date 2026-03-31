@@ -7,7 +7,7 @@ struct ScheduleCheckInSection: View {
     
     var body: some View {
         VStack(alignment: .leading, spacing: 10) {
-            WorkSectionHeader(icon: "calendar.badge.clock", title: "Schedule Check-In")
+            WorkSectionHeader(icon: "calendar.badge.clock", title: "CDSchedule Check-In")
             
             VStack(alignment: .leading, spacing: 12) {
                 DatePicker("Date", selection: $checkInDate, displayedComponents: [.date])
@@ -19,7 +19,7 @@ struct ScheduleCheckInSection: View {
                 Button {
                     onSchedule()
                 } label: {
-                    Label("Schedule Check-In", systemImage: "plus.circle.fill")
+                    Label("CDSchedule Check-In", systemImage: "plus.circle.fill")
                         .frame(maxWidth: .infinity)
                 }
                 .buttonStyle(.borderedProminent)

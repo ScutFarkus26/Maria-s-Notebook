@@ -1,10 +1,9 @@
 import SwiftUI
-import SwiftData
 import CoreData
 
 struct AddStudentView: View {
     @Environment(\.dismiss) private var dismiss
-    @Environment(\.modelContext) private var modelContext
+    @Environment(\.managedObjectContext) private var viewContext
     @Environment(\.managedObjectContext) private var managedObjectContext
     @Environment(SaveCoordinator.self) private var saveCoordinator
 
@@ -13,7 +12,7 @@ struct AddStudentView: View {
     @State private var nickname = ""
     @State private var birthday = Date()
     @State private var startDate = Date()
-    @State private var level: Student.Level = .lower
+    @State private var level: CDStudent.Level = .lower
 
     private var repository: StudentRepository {
         StudentRepository(context: managedObjectContext, saveCoordinator: saveCoordinator)
@@ -42,8 +41,8 @@ struct AddStudentView: View {
 
                 Section {
                     Picker("Level", selection: $level) {
-                        Text("Lower").tag(Student.Level.lower)
-                        Text("Upper").tag(Student.Level.upper)
+                        Text("Lower").tag(CDStudent.Level.lower)
+                        Text("Upper").tag(CDStudent.Level.upper)
                     }
                 }
             }

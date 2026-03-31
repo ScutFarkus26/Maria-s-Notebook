@@ -1,19 +1,19 @@
 import OSLog
 import SwiftUI
-import SwiftData
+import CoreData
 
 // MARK: - Project Lesson Picker Sheet
 
 /// A minimal wrapper that reuses LessonPickerViewModel to choose a single lesson
 struct ProjectLessonPickerSheet: View {
     @Environment(\.dismiss) private var dismiss
-    @Environment(\.modelContext) private var modelContext
+    @Environment(\.managedObjectContext) private var modelContext
 
     let viewModel: LessonPickerViewModel
     var onChosen: (UUID?) -> Void
 
     @State private var search: String = ""
-    @Query(sort: [SortDescriptor(\Lesson.name)]) private var lessons: [Lesson]
+    @FetchRequest(sortDescriptors: [NSSortDescriptor(keyPath: \CDLesson.name, ascending: true)]) private var lessons: FetchedResults<CDLesson>
 
     init(viewModel: LessonPickerViewModel, onChosen: @escaping (UUID?) -> Void) {
         self.viewModel = viewModel
@@ -27,7 +27,7 @@ struct ProjectLessonPickerSheet: View {
             TextField("Search…", text: $search)
                 .textFieldStyle(.roundedBorder)
             List {
-                ForEach(filteredLessons) { l in
+                ForEach(filteredLessons, id: \.objectID) { l in
                     Button {
                         onChosen(l.id)
                         dismiss()
@@ -53,10 +53,11 @@ struct ProjectLessonPickerSheet: View {
     #endif
     }
 
-    private var filteredLessons: [Lesson] {
+    private var filteredLessons: [CDLesson] {
         let q = search.trimmed()
-        if q.isEmpty { return lessons }
-        return lessons.filter { l in
+        let all = Array(lessons)
+        if q.isEmpty { return all }
+        return all.filter { l in
             l.name.localizedCaseInsensitiveContains(q) ||
             l.subject.localizedCaseInsensitiveContains(q) ||
             l.group.localizedCaseInsensitiveContains(q)
@@ -72,7 +73,7 @@ struct AddWorkOfferSheet: View {
     private static let logger = Logger.projects
 
     @Environment(\.dismiss) private var dismiss
-    @Environment(\.modelContext) private var modelContext
+    @Environment(\.managedObjectContext) private var modelContext
     @Environment(SaveCoordinator.self) private var saveCoordinator
 
     @State private var title: String = ""
@@ -81,7 +82,7 @@ struct AddWorkOfferSheet: View {
 
     init(session: ProjectSession) {
         self.session = session
-        _dueDate = State(initialValue: session.meetingDate)
+        _dueDate = State(initialValue: session.meetingDate ?? Date())
     }
 
     var body: some View {

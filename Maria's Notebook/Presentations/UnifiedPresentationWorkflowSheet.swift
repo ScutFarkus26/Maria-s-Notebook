@@ -1,5 +1,5 @@
 import SwiftUI
-import SwiftData
+import CoreData
 import OSLog
 
 /// Unified split-panel sheet for completing presentations and creating work items in one view.
@@ -7,7 +7,7 @@ import OSLog
 struct UnifiedPresentationWorkflowSheet: View {
     // MARK: - Input
     
-    let students: [Student]
+    let students: [CDStudent]
     let lessonName: String
     let lessonID: UUID
     
@@ -28,7 +28,7 @@ struct UnifiedPresentationWorkflowSheet: View {
     // MARK: - Init
     
     init(
-        students: [Student],
+        students: [CDStudent],
         lessonName: String,
         lessonID: UUID,
         onComplete: @escaping () -> Void,

@@ -2,42 +2,42 @@
 // Overview tab content extracted from StudentDetailView
 
 import OSLog
-import SwiftData
 import SwiftUI
+import CoreData
 
 private let logger = Logger.students
 
 struct StudentOverviewTab: View {
-    let student: Student
+    let student: CDStudent
     let isEditing: Bool
     @Binding var draftFirstName: String
     @Binding var draftLastName: String
     @Binding var draftNickname: String
     @Binding var draftBirthday: Date
-    @Binding var draftLevel: Student.Level
+    @Binding var draftLevel: CDStudent.Level
     @Binding var draftStartDate: Date
-    @Binding var draftEnrollmentStatus: Student.EnrollmentStatus
+    @Binding var draftEnrollmentStatus: CDStudent.EnrollmentStatus
     @Binding var draftDateWithdrawn: Date?
-    @Binding var workCache: [WorkModel]
+    @Binding var workCache: [CDWorkModel]
     @Binding var selectedWorkID: UUID?
     
-    let lessonsByID: [UUID: Lesson]
+    let lessonsByID: [UUID: CDLesson]
     let nextLessonsForStudent: [LessonAssignmentSnapshot]
     
-    @Environment(\.modelContext) private var modelContext
+    @Environment(\.managedObjectContext) private var viewContext
     @Environment(\.calendar) private var calendar
     
     @State private var cachedAgeSchoolDays: [UUID: Int] = [:]
     
-    private func lessonName(for work: WorkModel) -> String {
+    private func lessonName(for work: CDWorkModel) -> String {
         lessonsByID[uuidString: work.lessonID]?.name ?? "Lesson"
     }
     
-    private func studentDisplay(for work: WorkModel) -> String {
+    private func studentDisplay(for work: CDWorkModel) -> String {
         return StudentFormatter.displayName(for: student)
     }
     
-    private func needsAttention(for work: WorkModel) -> Bool {
+    private func needsAttention(for work: CDWorkModel) -> Bool {
         // Needs attention if overdue by due date, or last note is 10+ days old.
         if let due = work.dueAt {
             let today = AppCalendar.startOfDay(Date())
@@ -47,13 +47,18 @@ struct StudentOverviewTab: View {
             return daysSince(lastNoteDate) >= 10
         }
         // Use cached value to avoid repeated database queries during rendering
-        let schoolDaysSinceCreated = cachedAgeSchoolDays[work.id] ?? 0
+        let workID = work.id ?? UUID()
+        let schoolDaysSinceCreated = cachedAgeSchoolDays[workID] ?? 0
         return schoolDaysSinceCreated >= 10
     }
 
-    private func latestNoteDate(for work: WorkModel) -> Date? {
-        let notes = work.unifiedNotes ?? []
-        return notes.map { max($0.updatedAt, $0.createdAt) }.max()
+    private func latestNoteDate(for work: CDWorkModel) -> Date? {
+        let notes = (work.unifiedNotes?.allObjects as? [CDNote]) ?? []
+        return notes.compactMap { note in
+            let updated = note.updatedAt ?? .distantPast
+            let created = note.createdAt ?? .distantPast
+            return max(updated, created)
+        }.max()
     }
 
     private func daysSince(_ date: Date) -> Int {
@@ -63,19 +68,19 @@ struct StudentOverviewTab: View {
         return comps.day ?? 0
     }
     
-    private func ageDays(for work: WorkModel) -> Int {
-        let start = AppCalendar.startOfDay(work.createdAt)
+    private func ageDays(for work: CDWorkModel) -> Int {
+        let start = AppCalendar.startOfDay(work.createdAt ?? Date())
         let now = AppCalendar.startOfDay(Date())
         let comps = AppCalendar.shared.dateComponents([.day], from: start, to: now)
         return comps.day ?? 0
     }
     
-    private func ageSchoolDays(for work: WorkModel) -> Int {
+    private func ageSchoolDays(for work: CDWorkModel) -> Int {
         // Use cached value to avoid repeated database queries during rendering
-        return cachedAgeSchoolDays[work.id] ?? 0
+        return cachedAgeSchoolDays[work.id ?? UUID()] ?? 0
     }
     
-    private func metadata(for work: WorkModel) -> String {
+    private func metadata(for work: CDWorkModel) -> String {
         var parts: [String] = []
         switch work.status {
         case .active: parts.append("Practice")
@@ -122,7 +127,7 @@ struct StudentOverviewTab: View {
                             .padding(.horizontal, AppTheme.Spacing.small)
                             .padding(.vertical, AppTheme.Spacing.compact)
                     } else {
-                        ForEach(workCache, id: \.id) { work in
+                        ForEach(workCache, id: \.objectID) { work in
                             WorkCard.grid(
                                 work: work,
                                 lessonTitle: lessonName(for: work),
@@ -130,14 +135,14 @@ struct StudentOverviewTab: View {
                                 needsAttention: needsAttention(for: work),
                                 ageSchoolDays: ageSchoolDays(for: work),
                                 onOpen: { w in
-                                    selectedWorkID = w.id
+                                    selectedWorkID = w.id ?? UUID()
                                 },
                                 onMarkCompleted: { w in
                                     // Mark as complete
                                     w.status = .complete
                                     w.completedAt = AppCalendar.startOfDay(Date())
                                     do {
-                                        try modelContext.save()
+                                        try viewContext.save()
                                     } catch {
                                         logger.warning("Failed to save after marking work completed: \(error)")
                                     }
@@ -147,7 +152,7 @@ struct StudentOverviewTab: View {
                                     let today = AppCalendar.startOfDay(Date())
                                     w.dueAt = today
                                     do {
-                                        try modelContext.save()
+                                        try viewContext.save()
                                     } catch {
                                         logger.warning("Failed to save after scheduling for today: \(error)")
                                     }
@@ -166,7 +171,7 @@ struct StudentOverviewTab: View {
                 NextLessonsSection(snapshots: nextLessonsForStudent, lessonsByID: lessonsByID)
             }
         }
-        .task(id: workCache.map(\.id)) {
+        .task(id: workCache.map(\.objectID)) {
             await precomputeAgeValues()
         }
     }
@@ -185,25 +190,31 @@ struct StudentOverviewTab: View {
         
         // Find date range for all work items
         let allDates = workCache.map { work in
-            WorkAgingPolicy.lastMeaningfulTouchDate(for: work, checkIns: work.checkIns, notes: work.unifiedNotes)
+            WorkAgingPolicy.lastMeaningfulTouchDate(
+                for: work,
+                checkIns: (work.checkIns?.allObjects as? [CDWorkCheckIn]),
+                notes: (work.unifiedNotes?.allObjects as? [CDNote])
+            )
         }
         
         guard let minDate = allDates.min(), allDates.max() != nil else { return }
         
         // Preload school days cache for entire range
-        cache.preloadNonSchoolDays(from: minDate, to: today, using: modelContext, calendar: calendar)
+        cache.preloadNonSchoolDays(from: minDate, to: today, using: viewContext, calendar: calendar)
         
         // Compute all age values using cached data
         var result: [UUID: Int] = [:]
         for work in workCache {
             let lastTouch = WorkAgingPolicy.lastMeaningfulTouchDate(
-                for: work, checkIns: work.checkIns, notes: work.unifiedNotes
+                for: work,
+                checkIns: (work.checkIns?.allObjects as? [CDWorkCheckIn]),
+                notes: (work.unifiedNotes?.allObjects as? [CDNote])
             )
             let age = cache.schoolDaysSinceCreation(
                 createdAt: lastTouch, asOf: today,
-                using: modelContext, calendar: calendar
+                using: viewContext, calendar: calendar
             )
-            result[work.id] = age
+            if let workID = work.id { result[workID] = age }
         }
         
         cachedAgeSchoolDays = result

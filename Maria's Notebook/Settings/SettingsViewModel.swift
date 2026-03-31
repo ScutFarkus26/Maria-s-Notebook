@@ -1,6 +1,6 @@
 import Foundation
 import SwiftUI
-import SwiftData
+import CoreData
 import UniformTypeIdentifiers
 import OSLog
 
@@ -59,9 +59,9 @@ final class SettingsViewModel {
     }
     
     /// Calculates estimated backup size asynchronously
-    func calculateEstimatedBackupSize(modelContext: ModelContext) {
+    func calculateEstimatedBackupSize(viewContext: NSManagedObjectContext) {
         Task { @MainActor in
-            estimatedBackupSize = backupService.estimateBackupSize(modelContext: modelContext)
+            estimatedBackupSize = backupService.estimateBackupSize(viewContext: viewContext)
         }
     }
 
@@ -77,7 +77,7 @@ final class SettingsViewModel {
 
     // MARK: - Export
     // swiftlint:disable:next function_body_length
-    func performExport(modelContext: ModelContext, encryptBackups: Bool) async {
+    func performExport(viewContext: NSManagedObjectContext, encryptBackups: Bool) async {
         do {
             backupProgress = 0; backupMessage = "Preparing…"; resultSummary = nil
             let tmpName = defaultBackupFilename()
@@ -87,7 +87,7 @@ final class SettingsViewModel {
             exportURL = tmp
             safeRemoveItem(at: tmp, context: "performExport-cleanup")
             _ = try await backupService.exportBackup(
-                modelContext: modelContext,
+                viewContext: viewContext,
                 to: tmp,
                 password: encryptBackups ? "defaultPassword" : nil
             ) { [weak self] progress, message in
@@ -156,7 +156,7 @@ final class SettingsViewModel {
     }
 
     // MARK: - Import / Preview
-    func previewImportedURL(modelContext: ModelContext, url: URL) async {
+    func previewImportedURL(viewContext: NSManagedObjectContext, url: URL) async {
         let needsAccess = url.startAccessingSecurityScopedResource()
         defer { if needsAccess { url.stopAccessingSecurityScopedResource() } }
         do {
@@ -164,7 +164,7 @@ final class SettingsViewModel {
             importMessage = "Reading file…"
             resultSummary = nil
             let preview = try await backupService.previewImport(
-                modelContext: modelContext,
+                viewContext: viewContext,
                 from: url,
                 mode: restoreMode
             ) { [weak self] p, m in
@@ -181,7 +181,7 @@ final class SettingsViewModel {
         }
     }
 
-    func performImportConfirmed(modelContext: ModelContext) async {
+    func performImportConfirmed(viewContext: NSManagedObjectContext) async {
         guard let url = pendingImportURL else { return }
         let needsAccess = url.startAccessingSecurityScopedResource()
         defer { if needsAccess { url.stopAccessingSecurityScopedResource() } }
@@ -190,7 +190,7 @@ final class SettingsViewModel {
             importMessage = "Starting…"
             resultSummary = nil
             let summary = try await backupService.importBackup(
-                modelContext: modelContext,
+                viewContext: viewContext,
                 from: url,
                 mode: restoreMode,
                 appRouter: dependencies.appRouter

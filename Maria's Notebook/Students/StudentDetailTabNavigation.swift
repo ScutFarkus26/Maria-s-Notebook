@@ -2,6 +2,7 @@
 // Tab navigation component extracted from StudentDetailView
 
 import SwiftUI
+import CoreData
 
 enum StudentDetailTab: String {
     case overview, meetings, notes, progress, developmentalTraits, history, files

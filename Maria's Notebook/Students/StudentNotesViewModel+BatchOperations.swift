@@ -1,18 +1,17 @@
 import Foundation
-import SwiftData
+import CoreData
 
 // MARK: - Batch Operations
 
 extension StudentNotesViewModel {
 
-    func fetchNote(id: UUID) -> Note? {
-        let d = FetchDescriptor<Note>(
-            predicate: #Predicate<Note> { $0.id == id }
-        )
-        return modelContext.safeFetchFirst(d)
+    func fetchNote(id: UUID) -> CDNote? {
+        let d: NSFetchRequest<CDNote> = NSFetchRequest(entityName: "CDNote")
+        d.predicate = NSPredicate(format: "id == %@", id as CVarArg)
+        return viewContext.safeFetchFirst(d)
     }
 
-    func note(by id: UUID) -> Note? {
+    func note(by id: UUID) -> CDNote? {
         fetchNote(id: id)
     }
 
@@ -20,10 +19,10 @@ extension StudentNotesViewModel {
         for id in ids {
             if let note = fetchNote(id: id) {
                 note.deleteAssociatedImage()
-                modelContext.delete(note)
+                viewContext.delete(note)
             }
         }
-        if saveCoordinator.save(modelContext, reason: "Batch deleting notes") {
+        if saveCoordinator.save(viewContext, reason: "Batch deleting notes") {
             items.removeAll { ids.contains($0.id) }
         }
     }
@@ -31,15 +30,15 @@ extension StudentNotesViewModel {
     func batchAddTags(_ tagsToAdd: [String], for ids: Set<UUID>) {
         for id in ids {
             if let note = fetchNote(id: id) {
-                var current = note.tags
+                var current = note.tagsArray
                 for tag in tagsToAdd where !current.contains(tag) {
                     current.append(tag)
                 }
-                note.tags = current
+                note.tagsArray = current
                 note.updatedAt = Date()
             }
         }
-        if saveCoordinator.save(modelContext, reason: "Adding tags to notes") {
+        if saveCoordinator.save(viewContext, reason: "Adding tags to notes") {
             fetchAllNotes()
         }
     }
@@ -48,11 +47,11 @@ extension StudentNotesViewModel {
         let removeSet = Set(tagsToRemove)
         for id in ids {
             if let note = fetchNote(id: id) {
-                note.tags = note.tags.filter { !removeSet.contains($0) }
+                note.tagsArray = note.tagsArray.filter { !removeSet.contains($0) }
                 note.updatedAt = Date()
             }
         }
-        if saveCoordinator.save(modelContext, reason: "Removing tags from notes") {
+        if saveCoordinator.save(viewContext, reason: "Removing tags from notes") {
             fetchAllNotes()
         }
     }
@@ -64,7 +63,7 @@ extension StudentNotesViewModel {
                 note.updatedAt = Date()
             }
         }
-        if saveCoordinator.save(modelContext, reason: "Toggling follow-up flags") {
+        if saveCoordinator.save(viewContext, reason: "Toggling follow-up flags") {
             fetchAllNotes()
         }
     }
@@ -76,7 +75,7 @@ extension StudentNotesViewModel {
                 note.updatedAt = Date()
             }
         }
-        if saveCoordinator.save(modelContext, reason: "Toggling report flags") {
+        if saveCoordinator.save(viewContext, reason: "Toggling report flags") {
             fetchAllNotes()
         }
     }
@@ -88,7 +87,7 @@ extension StudentNotesViewModel {
                 note.updatedAt = Date()
             }
         }
-        if saveCoordinator.save(modelContext, reason: "Toggling pin status") {
+        if saveCoordinator.save(viewContext, reason: "Toggling pin status") {
             fetchAllNotes()
         }
     }

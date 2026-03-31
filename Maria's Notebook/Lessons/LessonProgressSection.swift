@@ -5,7 +5,7 @@
 
 import OSLog
 import SwiftUI
-import SwiftData
+import CoreData
 
 // Presents lesson progress controls (presented state, needs another presentation, quick actions).
 // Safe refactor adds structure and docs only.
@@ -14,7 +14,7 @@ struct LessonProgressSection: View {
     private static let logger = Logger.lessons
     // MARK: - Environment
     @Environment(\.calendar) private var calendar
-    @Environment(\.modelContext) private var modelContext
+    @Environment(\.managedObjectContext) private var viewContext
 
     // MARK: - Local Types
     private enum PresentedMode { case none, just, previous }
@@ -28,13 +28,13 @@ struct LessonProgressSection: View {
 
     @Binding var selectedStudentIDs: Set<UUID>
 
-    let lesson: Lesson?
-    let nextLessonInGroup: Lesson?
+    let lesson: CDLesson?
+    let nextLessonInGroup: CDLesson?
     let presentationID: UUID
 
-    let studentsAll: [Student]
-    let lessonsAll: [Lesson]
-    let lessonAssignmentsAll: [LessonAssignment]
+    let studentsAll: [CDStudent]
+    let lessonsAll: [CDLesson]
+    let lessonAssignmentsAll: [CDLessonAssignment]
 
     // Banners
     @Binding var didPlanNext: Bool
@@ -72,7 +72,7 @@ struct LessonProgressSection: View {
             Image(systemName: "checkmark.seal")
                 .foregroundStyle(.secondary)
                 .font(.system(size: 16))
-            Text("Lesson Progress")
+            Text("CDLesson Progress")
                 .font(AppTheme.ScaledFont.calloutSemibold)
                 .foregroundStyle(.secondary)
         }
@@ -262,11 +262,14 @@ struct LessonProgressSection: View {
                                 .font(AppTheme.ScaledFont.callout)
                         }
                         .buttonStyle(.borderedProminent)
-                        .disabled(didPlanNext || lessonAssignmentsAll.contains { la in
-                            la.resolvedLessonID == next.id
-                                && Set(la.resolvedStudentIDs) == Set(selectedStudentIDs)
-                                && !la.isPresented
-                        })
+                        .disabled(didPlanNext || {
+                            guard let nextID = next.id else { return false }
+                            return lessonAssignmentsAll.contains { la in
+                                la.resolvedLessonID == nextID
+                                    && Set(la.resolvedStudentIDs) == Set(selectedStudentIDs)
+                                    && !la.isPresented
+                            }
+                        }())
                     }
                     .transition(.opacity)
                 }
@@ -294,10 +297,10 @@ struct LessonProgressSection: View {
     // swiftlint:disable:next function_body_length
     private func addPracticeIfNeeded() {
         let hasPracticeWork: Bool = {
-            let descriptor = FetchDescriptor<WorkModel>()
-            let works: [WorkModel]
+            let descriptor = NSFetchRequest<CDWorkModel>(entityName: "CDWorkModel")
+            let works: [CDWorkModel]
             do {
-                works = try modelContext.fetch(descriptor)
+                works = try viewContext.fetch(descriptor)
             } catch {
                 Self.logger.warning("Failed to fetch work: \(error)")
                 works = []
@@ -309,22 +312,19 @@ struct LessonProgressSection: View {
             }
         }()
         if !hasPracticeWork {
-            let practiceWork = WorkModel(
-                id: UUID(),
-                title: "Practice: \(lesson?.name ?? "Lesson")",
-                kind: .practiceLesson,
-                studentLessonID: presentationID,
-                createdAt: Date()
-            )
+            let practiceWork = CDWorkModel(context: viewContext)
+            practiceWork.title = "Practice: \(lesson?.name ?? "Lesson")"
+            practiceWork.kind = .practiceLesson
+            practiceWork.studentLessonID = presentationID
+            practiceWork.createdAt = Date()
             // Set identity fields
             if let lessonID = lesson?.id {
                 practiceWork.lessonID = lessonID.uuidString
             } else {
-                // Try to get lessonID from the LessonAssignment
-                var descriptor = FetchDescriptor<LessonAssignment>(predicate: #Predicate { $0.id == presentationID })
-                descriptor.fetchLimit = 1
+                // Try to get lessonID from the CDLessonAssignment
+                let descriptor: NSFetchRequest<CDLessonAssignment> = { let r = NSFetchRequest<CDLessonAssignment>(entityName: "LessonAssignment"); r.predicate = NSPredicate(format: "id == %@", presentationID as CVarArg); r.fetchLimit = 1; return r }()
                 do {
-                    if let la = try modelContext.fetch(descriptor).first {
+                    if let la = try viewContext.fetch(descriptor).first {
                         practiceWork.lessonID = la.lessonID
                     }
                 } catch {
@@ -334,11 +334,10 @@ struct LessonProgressSection: View {
             if let firstStudentID = selectedStudentIDs.first {
                 practiceWork.studentID = firstStudentID.uuidString
             } else {
-                // Try to get studentID from the LessonAssignment
-                var descriptor = FetchDescriptor<LessonAssignment>(predicate: #Predicate { $0.id == presentationID })
-                descriptor.fetchLimit = 1
+                // Try to get studentID from the CDLessonAssignment
+                let descriptor: NSFetchRequest<CDLessonAssignment> = { let r = NSFetchRequest<CDLessonAssignment>(entityName: "LessonAssignment"); r.predicate = NSPredicate(format: "id == %@", presentationID as CVarArg); r.fetchLimit = 1; return r }()
                 do {
-                    if let la = try modelContext.fetch(descriptor).first,
+                    if let la = try viewContext.fetch(descriptor).first,
                        let firstStudentID = la.resolvedStudentIDs.first {
                         practiceWork.studentID = firstStudentID.uuidString
                     }
@@ -347,12 +346,13 @@ struct LessonProgressSection: View {
                 }
             }
             practiceWork.legacyStudentLessonID = presentationID.uuidString
-            practiceWork.participants = Array(selectedStudentIDs).map { sid in
-                WorkParticipantEntity(studentID: sid, completedAt: nil, work: practiceWork)
+            for sid in selectedStudentIDs {
+                let participant = CDWorkParticipantEntity(context: viewContext)
+                participant.studentID = sid.uuidString
+                participant.work = practiceWork
             }
-            modelContext.insert(practiceWork)
             do {
-                try modelContext.save()
+                try viewContext.save()
             } catch {
                 Self.logger.warning("Failed to save context: \(error)")
             }
@@ -361,32 +361,33 @@ struct LessonProgressSection: View {
     }
 
     private func scheduleRePresent(on date: Date) {
-        guard let lesson else { return }
-        
+        guard let lesson, let lessonID = lesson.id else { return }
+
         let startOfDay = calendar.startOfDay(for: date)
         let scheduled = calendar.date(byAdding: .hour, value: 9, to: startOfDay) ?? startOfDay
 
         let newLA = PresentationFactory.makeScheduled(
-            lessonID: lesson.id,
+            lessonID: lessonID,
             studentIDs: Array(selectedStudentIDs),
-            scheduledFor: scheduled
+            scheduledFor: scheduled,
+            context: viewContext
         )
         newLA.lesson = lesson
-        newLA.students = studentsAll.filter { selectedStudentIDs.contains($0.id) }
+        newLA.studentIDs = studentsAll.compactMap { selectedStudentIDs.contains($0.id ?? UUID()) ? $0.id?.uuidString : nil }
         newLA.syncSnapshotsFromRelationships()
-        modelContext.insert(newLA)
 
         do {
-            try modelContext.save()
+            try viewContext.save()
         } catch {
             Self.logger.warning("Failed to save context after scheduling re-presentation: \(error)")
         }
 
         // Auto-enroll students in track if lesson belongs to a track
         GroupTrackService.autoEnrollInTrackIfNeeded(
-            lesson: lesson,
+            lessonSubject: lesson.subject,
+            lessonGroup: lesson.group,
             studentIDs: Array(selectedStudentIDs).map(\.uuidString),
-            modelContext: modelContext
+            context: viewContext
         )
 
         showBanner(text: "Re-present scheduled for \(DateFormatters.mediumDate.string(from: scheduled))", color: .blue)
@@ -398,22 +399,22 @@ struct LessonProgressSection: View {
     }
 
     private func planNextLessonInGroup() {
-        guard let next = nextLessonInGroup else { return }
+        guard let next = nextLessonInGroup, let nextID = next.id else { return }
         let sameStudents = Set(selectedStudentIDs)
         let exists = lessonAssignmentsAll.contains { la in
-            la.resolvedLessonID == next.id && Set(la.resolvedStudentIDs) == sameStudents && !la.isPresented
+            la.resolvedLessonID == nextID && Set(la.resolvedStudentIDs) == sameStudents && !la.isPresented
         }
         if !exists {
             let newLA = PresentationFactory.makeDraft(
-                lessonID: next.id,
-                studentIDs: Array(selectedStudentIDs)
+                lessonID: nextID,
+                studentIDs: Array(selectedStudentIDs),
+                context: viewContext
             )
-            newLA.lesson = lessonsAll.first(where: { $0.id == next.id })
-            newLA.students = studentsAll.filter { sameStudents.contains($0.id) }
+            newLA.lesson = lessonsAll.first(where: { $0.id == nextID })
+            newLA.studentIDs = studentsAll.compactMap { sameStudents.contains($0.id ?? UUID()) ? $0.id?.uuidString : nil }
             newLA.syncSnapshotsFromRelationships()
-            modelContext.insert(newLA)
             do {
-                try modelContext.save()
+                try viewContext.save()
             } catch {
                 Self.logger.warning("Failed to save context after planning next lesson: \(error)")
             }

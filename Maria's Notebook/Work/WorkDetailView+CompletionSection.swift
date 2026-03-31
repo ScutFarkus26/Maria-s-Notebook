@@ -1,5 +1,5 @@
 import SwiftUI
-import SwiftData
+import CoreData
 import Foundation
 
 // MARK: - Completion & Presentation Sections
@@ -107,7 +107,7 @@ extension WorkDetailView {
         guard let work = viewModel.work else { return nil }
         return WorkPresentationStatusService.findNextPresentationStatus(
             for: work,
-            modelContext: modelContext
+            context: modelContext
         )
     }
 
@@ -286,7 +286,7 @@ extension WorkDetailView {
                             }
                             .foregroundStyle(AppColors.success)
 
-                            ForEach(students.filter { $0.id.uuidString != viewModel.work?.studentID }) { student in
+                            ForEach(students.filter { $0.id?.uuidString != viewModel.work?.studentID }) { student in
                                 Text("\u{2022} \(StudentFormatter.displayName(for: student))")
                                     .font(AppTheme.ScaledFont.caption)
                                     .foregroundStyle(.secondary)

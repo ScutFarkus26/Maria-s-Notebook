@@ -1,18 +1,18 @@
 import SwiftUI
-import SwiftData
+import CoreData
 import OSLog
 
 /// Main view for managing recurring schedules
 struct SchedulesView: View {
     private static let logger = Logger.schedules
-    @Environment(\.modelContext) private var modelContext
-    @Query(sort: \Schedule.name) private var schedules: [Schedule]
-    @Query(sort: \Student.firstName) private var studentsRaw: [Student]
-    private var students: [Student] { studentsRaw.filter(\.isEnrolled) }
+    @Environment(\.managedObjectContext) private var viewContext
+    @FetchRequest(sortDescriptors: [NSSortDescriptor(keyPath: \CDSchedule.name, ascending: true)]) private var schedules: FetchedResults<CDSchedule>
+    @FetchRequest(sortDescriptors: [NSSortDescriptor(keyPath: \CDStudent.firstName, ascending: true)]) private var studentsRaw: FetchedResults<CDStudent>
+    private var students: [CDStudent] { studentsRaw.filter(\.isEnrolled) }
 
     @State private var showingAddSheet = false
-    @State private var selectedSchedule: Schedule?
-    @State private var scheduleToEdit: Schedule?
+    @State private var selectedSchedule: CDSchedule?
+    @State private var scheduleToEdit: CDSchedule?
 
     var body: some View {
         VStack(spacing: 0) {
@@ -20,7 +20,7 @@ struct SchedulesView: View {
                 Button {
                     showingAddSheet = true
                 } label: {
-                    Label("Add Schedule", systemImage: "plus")
+                    Label("Add CDSchedule", systemImage: "plus")
                 }
                 .buttonStyle(.borderedProminent)
                 .controlSize(.small)
@@ -114,7 +114,7 @@ struct SchedulesView: View {
             Button {
                 showingAddSheet = true
             } label: {
-                Label("Add First Schedule", systemImage: "plus")
+                Label("Add First CDSchedule", systemImage: "plus")
             }
             .buttonStyle(.borderedProminent)
         }
@@ -124,20 +124,23 @@ struct SchedulesView: View {
 
     // MARK: - Actions
 
-    private func deleteSchedule(_ schedule: Schedule) {
-        modelContext.delete(schedule)
-        modelContext.safeSave()
+    private func deleteSchedule(_ schedule: CDSchedule) {
+        viewContext.delete(schedule)
+        viewContext.safeSave()
     }
 }
 
-// MARK: - Schedule Card
+// MARK: - CDSchedule Card
 
 struct ScheduleCard: View {
-    let schedule: Schedule
-    let students: [Student]
+    let schedule: CDSchedule
+    let students: [CDStudent]
 
-    private var studentLookup: [String: Student] {
-        Dictionary(uniqueKeysWithValues: students.map { ($0.id.uuidString.lowercased(), $0) })
+    private var studentLookup: [String: CDStudent] {
+        Dictionary(uniqueKeysWithValues: students.compactMap { student in
+            guard let id = student.id else { return nil }
+            return (id.uuidString.lowercased(), student)
+        })
     }
 
     var body: some View {
@@ -207,7 +210,7 @@ struct ScheduleCard: View {
                             Text(student.fullName)
                                 .font(.subheadline)
                         } else {
-                            Text("Unknown Student")
+                            Text("Unknown CDStudent")
                                 .font(.subheadline)
                                 .foregroundStyle(.secondary)
                                 .italic()

@@ -2,7 +2,7 @@
 // ViewModel for Going-Out list and management.
 
 import Foundation
-import SwiftData
+import CoreData
 import SwiftUI
 
 @Observable
@@ -10,7 +10,7 @@ import SwiftUI
 final class GoingOutViewModel {
     // MARK: - Outputs
 
-    private(set) var goingOuts: [GoingOut] = []
+    private(set) var goingOuts: [CDGoingOut] = []
     private(set) var isLoading = false
 
     // MARK: - Inputs
@@ -20,7 +20,7 @@ final class GoingOutViewModel {
 
     // MARK: - Computed
 
-    var filteredGoingOuts: [GoingOut] {
+    var filteredGoingOuts: [CDGoingOut] {
         var result = goingOuts
 
         // Status filter
@@ -41,51 +41,50 @@ final class GoingOutViewModel {
         return result
     }
 
-    var activeGoingOuts: [GoingOut] {
+    var activeGoingOuts: [CDGoingOut] {
         filteredGoingOuts.filter { $0.status != .completed && $0.status != .cancelled }
     }
 
-    var completedGoingOuts: [GoingOut] {
+    var completedGoingOuts: [CDGoingOut] {
         filteredGoingOuts.filter { $0.status == .completed }
     }
 
     // MARK: - Load
 
-    func loadData(context: ModelContext) {
+    func loadData(context: NSManagedObjectContext) {
         isLoading = true
         defer { isLoading = false }
 
-        let descriptor = FetchDescriptor<GoingOut>(
-            sortBy: [SortDescriptor(\GoingOut.createdAt, order: .reverse)]
-        )
-        goingOuts = context.safeFetch(descriptor)
+        let request = CDFetchRequest(CDGoingOut.self)
+        request.sortDescriptors = [NSSortDescriptor(keyPath: \CDGoingOut.createdAt, ascending: false)]
+        goingOuts = context.safeFetch(request)
     }
 
     // MARK: - CRUD
 
     @discardableResult
     func createGoingOut(
-        context: ModelContext,
+        context: NSManagedObjectContext,
         title: String,
         purpose: String = "",
         destination: String = "",
         proposedDate: Date? = nil,
         studentIDs: [UUID] = []
-    ) -> GoingOut {
-        let goingOut = GoingOut(
-            title: title,
-            purpose: purpose,
-            destination: destination,
-            proposedDate: proposedDate,
-            studentIDs: studentIDs.map(\.uuidString)
-        )
-        context.insert(goingOut)
+    ) -> CDGoingOut {
+        let goingOut = CDGoingOut(context: context)
+        goingOut.id = UUID()
+        goingOut.title = title
+        goingOut.purpose = purpose
+        goingOut.destination = destination
+        goingOut.proposedDate = proposedDate
+        goingOut.studentIDsArray = studentIDs.map(\.uuidString)
+        goingOut.createdAt = Date()
         context.safeSave()
         loadData(context: context)
         return goingOut
     }
 
-    func updateStatus(_ goingOut: GoingOut, to newStatus: GoingOutStatus, context: ModelContext) {
+    func updateStatus(_ goingOut: CDGoingOut, to newStatus: GoingOutStatus, context: NSManagedObjectContext) {
         goingOut.status = newStatus
         if newStatus == .completed {
             goingOut.actualDate = Date()
@@ -93,7 +92,7 @@ final class GoingOutViewModel {
         context.safeSave()
     }
 
-    func delete(_ goingOut: GoingOut, context: ModelContext) {
+    func delete(_ goingOut: CDGoingOut, context: NSManagedObjectContext) {
         context.delete(goingOut)
         context.safeSave()
         loadData(context: context)

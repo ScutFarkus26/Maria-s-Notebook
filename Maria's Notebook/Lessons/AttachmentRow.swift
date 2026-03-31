@@ -1,11 +1,12 @@
 import SwiftUI
+import CoreData
 import OSLog
 
 /// Row view for displaying a single attachment
 struct AttachmentRow: View {
     private static let logger = Logger.lessons
 
-    let attachment: LessonAttachment
+    let attachment: CDLessonAttachment
     let isInherited: Bool
     let isPrimary: Bool
     let onTogglePrimary: () -> Void
@@ -58,7 +59,7 @@ struct AttachmentRow: View {
                             .font(.system(size: 12))
                     }
                     .buttonStyle(.borderless)
-                    .help(isPrimary ? "Clear Primary Lesson File" : "Set as Primary Lesson File")
+                    .help(isPrimary ? "Clear Primary CDLesson File" : "Set as Primary CDLesson File")
 
                     Button(action: { openAttachment() }, label: {
                         Image(systemName: "eye")

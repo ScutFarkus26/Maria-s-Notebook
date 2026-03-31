@@ -2,7 +2,6 @@
 import Foundation
 import CoreData
 import EventKit
-import SwiftData
 import OSLog
 
 /// Sendable DTO used to move reminder data from EventKit callbacks.
@@ -29,8 +28,7 @@ final class ReminderSyncService {
     let eventStore = EKEventStore()
     var managedObjectContext: NSManagedObjectContext?
 
-    @available(*, deprecated, message: "Use managedObjectContext instead")
-    var modelContext: ModelContext?
+    // Deprecated ModelContext property removed - no longer needed with Core Data.
 
     /// The identifier of the Reminders list to sync from (more robust than name)
     /// If nil, syncing is disabled
@@ -79,11 +77,7 @@ final class ReminderSyncService {
         }
     }
 
-    @available(*, deprecated, message: "Use init(context:) with NSManagedObjectContext")
-    convenience init(modelContext: ModelContext?) {
-        self.init(context: AppBootstrapping.getSharedCoreDataStack().viewContext)
-        self.modelContext = modelContext
-    }
+    // Deprecated ModelContext convenience init removed - no longer needed with Core Data.
 
     /// Migrate from legacy name-based storage to identifier-based storage
     private func migrateToIdentifierBasedStorage() {
@@ -318,26 +312,6 @@ final class ReminderSyncService {
         try eventStore.save(ekReminder, commit: true)
     }
 
-    // MARK: - Deprecated SwiftData Two-Way Sync
-
-    @available(*, deprecated, message: "Use Core Data overload with CDReminder")
-    func updateReminderCompletionInEventKit(_ reminder: Reminder) async throws {
-        guard hasFullAccess else {
-            throw ReminderSyncError.notAuthorized
-        }
-
-        guard let ekID = reminder.eventKitReminderID else {
-            return
-        }
-
-        guard let ekReminder = eventStore.calendarItem(withIdentifier: ekID) as? EKReminder else {
-            return
-        }
-
-        ekReminder.isCompleted = reminder.isCompleted
-        ekReminder.completionDate = reminder.completedAt
-        try eventStore.save(ekReminder, commit: true)
-    }
 }
 // swiftlint:enable type_body_length
 

@@ -1,6 +1,6 @@
 import Foundation
 import OSLog
-import SwiftData
+import CoreData
 
 // MARK: - Observations Data Loader
 
@@ -17,28 +17,27 @@ enum ObservationsDataLoader {
     ///   - contextTextProvider: Closure to generate context text for a note
     /// - Returns: Array of UnifiedObservationItem sorted by date (newest first)
     static func loadAllNotes(
-        context: ModelContext,
-        contextTextProvider: (Note) -> String?
+        context: NSManagedObjectContext,
+        contextTextProvider: (CDNote) -> String?
     ) -> [UnifiedObservationItem] {
         var allItems: [UnifiedObservationItem] = []
 
         do {
-            let noteFetch = FetchDescriptor<Note>(
-                sortBy: [SortDescriptor(\Note.createdAt, order: .reverse)]
-            )
-            let notes: [Note] = try context.fetch(noteFetch)
+            let noteFetch = { let r = CDNote.fetchRequest() as! NSFetchRequest<CDNote>; r.sortDescriptors = [NSSortDescriptor(keyPath: \CDNote.createdAt, ascending: false)]; return r }()
+            let notes: [CDNote] = try context.fetch(noteFetch)
             for note in notes {
                 // Skip notes with empty body and no image (e.g., leftover from check-in migrations)
                 if note.body.trimmed().isEmpty && (note.imagePath ?? "").isEmpty {
                     continue
                 }
+                guard let noteID = note.id else { continue }
                 let studentIDs = studentIDsFromScope(note.scope)
                 let contextText = contextTextProvider(note)
                 allItems.append(UnifiedObservationItem(
-                    id: note.id,
-                    date: note.createdAt,
+                    id: noteID,
+                    date: note.createdAt ?? Date(),
                     body: note.body,
-                    tags: note.tags,
+                    tags: (note.tags as? [String]) ?? [],
                     includeInReport: note.includeInReport,
                     imagePath: note.imagePath,
                     contextText: contextText,
@@ -47,7 +46,7 @@ enum ObservationsDataLoader {
                 ))
             }
         } catch {
-            logger.error("Error fetching Note objects: \(error)")
+            logger.error("Error fetching CDNote objects: \(error)")
         }
 
         // Sort by date (newest first)
@@ -67,9 +66,9 @@ enum ObservationsDataLoader {
     /// - Returns: Updated student cache
     static func loadStudents(
         for items: [UnifiedObservationItem],
-        existingCache: [UUID: Student],
-        context: ModelContext
-    ) -> [UUID: Student] {
+        existingCache: [UUID: CDStudent],
+        context: NSManagedObjectContext
+    ) -> [UUID: CDStudent] {
         let idsNeeded = Set(items.flatMap { $0.studentIDs })
         let missing = idsNeeded.filter { existingCache[$0] == nil }
         guard !missing.isEmpty else { return existingCache }
@@ -77,15 +76,15 @@ enum ObservationsDataLoader {
         var updatedCache = existingCache
         // NOTE: SwiftData #Predicate doesn't support capturing local Set variables,
         // so we fetch all and filter in memory
-        let allStudents: [Student]
+        let allStudents: [CDStudent]
         do {
-            allStudents = try context.fetch(FetchDescriptor<Student>()).filter(\.isEnrolled)
+            allStudents = try context.fetch(CDStudent.fetchRequest() as! NSFetchRequest<CDStudent>).filter(\.isEnrolled)
         } catch {
             logger.warning("Failed to fetch students: \(error)")
             allStudents = []
         }
-        let fetched = allStudents.filter { missing.contains($0.id) }
-        for s in fetched { updatedCache[s.id] = s }
+        let fetched = allStudents.filter { guard let id = $0.id else { return false }; return missing.contains(id) }
+        for s in fetched { guard let id = s.id else { continue }; updatedCache[id] = s }
 
         return updatedCache
     }

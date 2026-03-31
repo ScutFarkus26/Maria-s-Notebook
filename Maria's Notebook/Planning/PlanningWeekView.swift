@@ -1,9 +1,9 @@
 import SwiftUI
-import SwiftData
+import CoreData
 
 /// Traffic Director: Routes to platform-specific implementations.
 /// - macOS: Uses @Query for automatic, real-time updates (the "Magic")
-/// - iOS: Uses manual FetchDescriptor for battery optimization
+/// - iOS: Uses manual NSFetchRequest for battery optimization
 @MainActor
 struct PlanningWeekView: View {
     var body: some View {

@@ -3,11 +3,11 @@
 // Displays trait cards with counts and a chronological observation list.
 
 import SwiftUI
-import SwiftData
+import CoreData
 
 struct DevelopmentalTraitsView: View {
     let studentID: UUID
-    @Environment(\.modelContext) private var modelContext
+    @Environment(\.managedObjectContext) private var viewContext
     @State private var viewModel = DevelopmentalTraitsViewModel()
 
     var body: some View {
@@ -15,7 +15,7 @@ struct DevelopmentalTraitsView: View {
             .navigationTitle("Developmental Traits")
             .onAppear {
                 viewModel.studentID = studentID
-                viewModel.loadData(context: modelContext)
+                viewModel.loadData(context: viewContext)
             }
     }
 
@@ -73,7 +73,7 @@ struct DevelopmentalTraitsView: View {
         return Button {
             withAnimation(.snappy(duration: 0.2)) {
                 viewModel.timeRange = range
-                viewModel.loadData(context: modelContext)
+                viewModel.loadData(context: viewContext)
             }
         } label: {
             Text(range.rawValue)

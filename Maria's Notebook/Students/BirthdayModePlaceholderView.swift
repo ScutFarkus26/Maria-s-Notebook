@@ -1,4 +1,5 @@
 import SwiftUI
+import CoreData
 
 struct BirthdayModePlaceholderView: View {
     var body: some View {

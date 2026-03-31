@@ -2,7 +2,7 @@
 // Scheduled meetings section for TodayView
 
 import SwiftUI
-import SwiftData
+import CoreData
 import OSLog
 
 extension TodayView {
@@ -14,7 +14,7 @@ extension TodayView {
             if viewModel.scheduledMeetings.isEmpty {
                 emptyStateText("No meetings scheduled")
             } else {
-                ForEach(viewModel.scheduledMeetings) { meeting in
+                ForEach(viewModel.scheduledMeetings, id: \.objectID) { meeting in
                     let name = meetingStudentName(for: meeting)
                     ScheduledMeetingListRow(studentName: name) {
                         startMeeting(meeting)
@@ -68,27 +68,29 @@ extension TodayView {
 
     // MARK: - Helpers
 
-    func meetingStudentName(for meeting: ScheduledMeeting) -> String {
+    func meetingStudentName(for meeting: CDScheduledMeeting) -> String {
         guard let studentID = meeting.studentIDUUID else { return "Unknown" }
         return viewModel.displayName(for: studentID)
     }
 
-    func startMeeting(_ meeting: ScheduledMeeting) {
-        guard let studentID = meeting.studentIDUUID else { return }
+    func startMeeting(_ meeting: CDScheduledMeeting) {
+        guard let studentID = meeting.studentIDUUID,
+              let meetingID = meeting.id else { return }
         selectedMeetingStudentID = studentID
-        selectedMeetingID = meeting.id
+        selectedMeetingID = meetingID
     }
 
-    func clearScheduledMeeting(_ meeting: ScheduledMeeting) {
-        MeetingScheduler.clearMeeting(id: meeting.id, context: modelContext)
+    func clearScheduledMeeting(_ meeting: CDScheduledMeeting) {
+        guard let meetingID = meeting.id else { return }
+        MeetingScheduler.clearMeeting(id: meetingID, context: viewContext)
         viewModel.reload()
     }
 
-    func lessonForPresentation(_ presentation: LessonAssignment) -> Lesson? {
+    func lessonForPresentation(_ presentation: CDLessonAssignment) -> CDLesson? {
         viewModel.lessonsByID[presentation.resolvedLessonID]
     }
 
-    func lessonHasPlanDocument(_ lesson: Lesson?) -> Bool {
+    func lessonHasPlanDocument(_ lesson: CDLesson?) -> Bool {
         guard let lesson else { return false }
         if primaryLessonAttachment(for: lesson) != nil {
             return true
@@ -99,7 +101,7 @@ extension TodayView {
         return lesson.pagesFileBookmark != nil
     }
 
-    func openLessonPlan(for presentation: LessonAssignment) {
+    func openLessonPlan(for presentation: CDLessonAssignment) {
         guard let lesson = lessonForPresentation(presentation) else { return }
 
         if let attachment = primaryLessonAttachment(for: lesson) {
@@ -127,7 +129,7 @@ extension TodayView {
         openLessonPlan(at: url)
     }
 
-    private func primaryLessonAttachment(for lesson: Lesson) -> LessonAttachment? {
+    private func primaryLessonAttachment(for lesson: CDLesson) -> LessonAttachment? {
         guard let primaryID = lesson.primaryAttachmentIDUUID else { return nil }
         return LessonFileStorage.getAttachments(forLesson: lesson).first(where: { $0.id == primaryID })
     }

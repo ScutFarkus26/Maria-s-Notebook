@@ -2,7 +2,7 @@
 // Overview tab content extracted from LessonProgressView
 
 import SwiftUI
-import SwiftData
+import CoreData
 
 extension LessonProgressView {
     // MARK: - Overview Tab
@@ -16,10 +16,10 @@ extension LessonProgressView {
 
                 // Journey timeline
                 VStack(alignment: .leading, spacing: AppTheme.Spacing.compact) {
-                    Text("Lesson Journey")
+                    Text("CDLesson Journey")
                         .font(AppTheme.ScaledFont.titleSmall)
 
-                    LessonJourneyTimeline(lesson: lesson, modelContext: modelContext)
+                    LessonJourneyTimeline(lesson: lesson, viewContext: viewContext)
                         .frame(height: 350)
                 }
 

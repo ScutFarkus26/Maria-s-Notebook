@@ -1,0 +1,16 @@
+{
+  "source": "/Users/dannydeberry/Documents/Projects/MariasNotebook-Rewrite/Maria's Notebook/Agenda/CalendarMonthGridView.swift",
+  "tables": {
+    "Localizable": [
+      {
+        "comment": "",
+        "key": "%@, %@",
+        "location": {
+          "startingColumn": 42,
+          "startingLine": 186
+        }
+      }
+    ]
+  },
+  "version": 1
+}

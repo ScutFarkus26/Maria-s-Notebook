@@ -1,5 +1,5 @@
 import SwiftUI
-import SwiftData
+import CoreData
 import OSLog
 #if os(macOS)
 import AppKit
@@ -11,10 +11,10 @@ struct NoteEditSheet: View {
     private static let logger = Logger.notes
 
     @Environment(\.dismiss) private var dismiss
-    @Environment(\.modelContext) private var modelContext
+    @Environment(\.managedObjectContext) private var viewContext
     @FocusState var isTextEditorFocused: Bool
 
-    let note: Note
+    let note: CDNote
     var onSaved: (() -> Void)?
 
     @State var bodyText: String
@@ -24,11 +24,11 @@ struct NoteEditSheet: View {
     @State var needsFollowUp: Bool
     @State var showingTagPicker: Bool = false
 
-    init(note: Note, onSaved: (() -> Void)? = nil) {
+    init(note: CDNote, onSaved: (() -> Void)? = nil) {
         self.note = note
         self.onSaved = onSaved
         _bodyText = State(initialValue: note.body)
-        _tags = State(initialValue: note.tags)
+        _tags = State(initialValue: (note.tags as? [String]) ?? [])
         _includeInReport = State(initialValue: note.includeInReport)
         _isPinned = State(initialValue: note.isPinned)
         _needsFollowUp = State(initialValue: note.needsFollowUp)
@@ -113,13 +113,13 @@ struct NoteEditSheet: View {
         let trimmed = bodyText.trimmed()
         guard !trimmed.isEmpty else { return }
         note.body = trimmed
-        note.tags = tags
+        note.tags = tags as NSObject
         note.includeInReport = includeInReport
         note.isPinned = isPinned
         note.needsFollowUp = needsFollowUp
         note.updatedAt = Date()
         do {
-            try modelContext.save()
+            try viewContext.save()
         } catch {
             Self.logger.warning("Failed to save note: \(error)")
         }
@@ -129,16 +129,13 @@ struct NoteEditSheet: View {
 }
 
 #Preview {
-    struct Wrapper: View {
-        @Environment(\.modelContext) private var modelContext
-        @State private var note: Note
-        init() {
-            _note = State(initialValue: Note(body: "Sample note body", scope: .all, tags: [], includeInReport: false))
-        }
-        var body: some View {
-            NoteEditSheet(note: note)
-        }
-    }
-    return Wrapper()
-        .previewEnvironment()
+    let stack = CoreDataStack.preview
+    let ctx = stack.viewContext
+    let note = CDNote(context: ctx)
+    note.body = "Sample note body"
+    note.scope = .all
+    note.includeInReport = false
+
+    return NoteEditSheet(note: note)
+        .previewEnvironment(using: stack)
 }

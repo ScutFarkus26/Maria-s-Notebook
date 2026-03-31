@@ -1,17 +1,17 @@
 import SwiftUI
-import SwiftData
+import CoreData
 
 /// Quick sheet for adding a lesson to a student's inbox from the meetings view
 struct AddLessonToInboxSheet: View {
-    let student: Student
+    let student: CDStudent
     var preselectedLessonID: UUID?
     
     @Environment(\.dismiss) private var dismiss
-    @Environment(\.modelContext) private var modelContext
+    @Environment(\.managedObjectContext) private var viewContext
     @Environment(SaveCoordinator.self) private var saveCoordinator
     
-    @Query(sort: [SortDescriptor(\Lesson.subject), SortDescriptor(\Lesson.sortIndex)])
-    private var allLessons: [Lesson]
+    @FetchRequest(sortDescriptors: [NSSortDescriptor(keyPath: \CDLesson.subject, ascending: true), NSSortDescriptor(keyPath: \CDLesson.sortIndex, ascending: true)])
+    private var allLessons: FetchedResults<CDLesson>
     
     @State private var selectedLessonID: UUID?
     @State private var lessonSearchText: String = ""
@@ -21,9 +21,9 @@ struct AddLessonToInboxSheet: View {
     @State private var showingLessonPopover: Bool = false
     @FocusState private var lessonFieldFocused: Bool
     
-    private var filteredLessons: [Lesson] {
+    private var filteredLessons: [CDLesson] {
         let query = lessonSearchText.lowercased().trimmingCharacters(in: .whitespaces)
-        guard !query.isEmpty else { return allLessons }
+        guard !query.isEmpty else { return Array(allLessons) }
         return allLessons.filter {
             $0.name.lowercased().contains(query) ||
             $0.subject.lowercased().contains(query) ||
@@ -31,7 +31,7 @@ struct AddLessonToInboxSheet: View {
         }
     }
     
-    private var selectedLesson: Lesson? {
+    private var selectedLesson: CDLesson? {
         guard let id = selectedLessonID else { return nil }
         return allLessons.first { $0.id == id }
     }
@@ -46,7 +46,7 @@ struct AddLessonToInboxSheet: View {
                 VStack(alignment: .leading, spacing: 20) {
                     // Header
                     VStack(alignment: .leading, spacing: 8) {
-                        Text("Add Lesson to Inbox")
+                        Text("Add CDLesson to Inbox")
                             .font(AppTheme.ScaledFont.titleXLarge)
                         
                         HStack(spacing: 6) {
@@ -61,7 +61,7 @@ struct AddLessonToInboxSheet: View {
                     
                     Divider()
                     
-                    // Lesson Section
+                    // CDLesson Section
                     lessonSection()
                 }
                 .padding(24)
@@ -95,7 +95,7 @@ struct AddLessonToInboxSheet: View {
         }
     }
     
-    // MARK: - Lesson Section
+    // MARK: - CDLesson Section
     
     @ViewBuilder
     // swiftlint:disable:next function_body_length
@@ -210,7 +210,7 @@ struct AddLessonToInboxSheet: View {
         #endif
     }
     
-    private func selectLesson(_ lesson: Lesson) {
+    private func selectLesson(_ lesson: CDLesson) {
         selectedLessonID = lesson.id
         lessonSearchText = lesson.name
         showingLessonPopover = false
@@ -223,10 +223,11 @@ struct AddLessonToInboxSheet: View {
         guard let lessonID = selectedLessonID else { return }
         isSaving = true
         
-        // Create a draft LessonAssignment (inbox item)
-        let draft = PresentationFactory.makeDraft(lessonID: lessonID, studentIDs: [student.id])
-        modelContext.insert(draft)
-        saveCoordinator.save(modelContext, reason: "Add Lesson to Inbox from Meeting")
+        // Create a draft CDLessonAssignment (inbox item)
+        guard let studentID = student.id else { return }
+        let draft = PresentationFactory.makeDraft(lessonID: lessonID, studentIDs: [studentID])
+        viewContext.insert(draft)
+        saveCoordinator.save(viewContext, reason: "Add Lesson to Inbox from Meeting")
         dismiss()
     }
 }

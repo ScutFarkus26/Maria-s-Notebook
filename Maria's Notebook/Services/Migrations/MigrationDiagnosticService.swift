@@ -7,7 +7,6 @@
 
 import Foundation
 import CoreData
-import SwiftData
 import OSLog
 
 /// Diagnostic service for checking LessonAssignment data integrity
@@ -21,10 +20,7 @@ final class MigrationDiagnosticService {
         self.context = context
     }
 
-    @available(*, deprecated, message: "Pass NSManagedObjectContext instead of ModelContext")
-    convenience init(context: ModelContext) {
-        self.init(context: AppBootstrapping.getSharedCoreDataStack().viewContext)
-    }
+    // Deprecated ModelContext convenience init removed - no longer needed with Core Data.
 
     // MARK: - Public API
 

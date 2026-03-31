@@ -1,6 +1,5 @@
 import Foundation
 import CoreData
-import SwiftData
 import OSLog
 
 /// Orchestrates the AI lesson planning pipeline, composing data assembly,
@@ -28,15 +27,8 @@ final class LessonPlanningService {
     }
 
     @available(*, deprecated, message: "Use Core Data overload")
-    convenience init(modelContext: ModelContext, mcpClient: MCPClientProtocol) {
-        let coreDataContext = MainActor.assumeIsolated { AppBootstrapping.getSharedCoreDataStack().viewContext }
-        self.init(context: coreDataContext, mcpClient: mcpClient)
-    }
-
-    /// Bridging property for code still referencing modelContext.
-    @available(*, deprecated, message: "Use managedObjectContext")
-    var modelContext: ModelContext {
-        fatalError("modelContext is no longer available; use managedObjectContext instead")
+    convenience init(modelContext: NSManagedObjectContext, mcpClient: MCPClientProtocol) {
+        self.init(context: modelContext, mcpClient: mcpClient)
     }
 
     // MARK: - Public API
@@ -50,7 +42,10 @@ final class LessonPlanningService {
         preferences: String? = nil
     ) async throws -> (recommendations: [LessonRecommendation], session: PlanningSession) {
         mcpClient.configureForFeature(.lessonPlanning)
-        var session = PlanningSession(mode: .singleStudent(student.id), depth: depth)
+        guard let studentID = student.id else {
+            throw PlanningError.studentNotFound
+        }
+        var session = PlanningSession(mode: .singleStudent(studentID), depth: depth)
 
         // Step 1: Local readiness assessment
         let profile = StudentReadinessAssessor.assessReadiness(for: student, context: managedObjectContext)
@@ -279,14 +274,15 @@ final class LessonPlanningService {
         var created: [CDLessonAssignment] = []
 
         for rec in recommendations {
-            guard let lesson = allLessons.first(where: { $0.id == rec.lessonID }) else {
+            guard let lesson = allLessons.first(where: { $0.id == rec.lessonID }),
+                  let lessonID = lesson.id else {
                 Self.logger.warning("Lesson not found for recommendation: \(rec.lessonName)")
                 continue
             }
 
             // Use Core Data factory — auto-inserts into context
             let la = PresentationFactory.makeDraft(
-                lessonID: lesson.id,
+                lessonID: lessonID,
                 studentIDs: rec.studentIDs,
                 context: managedObjectContext
             )

@@ -1,6 +1,6 @@
 import Foundation
 import SwiftUI
-import SwiftData
+import CoreData
 
 #if os(macOS)
 import AppKit
@@ -83,18 +83,18 @@ struct ColorUtils {
 
 /// Helper to compute school-day age counts using the app's SchoolCalendar.
 struct LessonAgeHelper {
-    /// Synchronous helper that determines if a date is a non-school day using direct ModelContext fetches.
+    /// Synchronous helper that determines if a date is a non-school day using direct NSManagedObjectContext fetches.
     /// Rules:
-    /// - Explicit NonSchoolDay records mark weekdays as non-school
-    /// - Weekends are non-school by default unless a SchoolDayOverride exists for that date
-    private static func isNonSchoolDaySync(_ date: Date, using context: ModelContext, calendar: Calendar) -> Bool {
+    /// - Explicit CDNonSchoolDay records mark weekdays as non-school
+    /// - Weekends are non-school by default unless a CDSchoolDayOverride exists for that date
+    private static func isNonSchoolDaySync(_ date: Date, using context: NSManagedObjectContext, calendar: Calendar) -> Bool {
         let day = calendar.startOfDay(for: date)
 
         // 1) Explicit non-school day wins
         do {
-            var nsDescriptor = FetchDescriptor<NonSchoolDay>(predicate: #Predicate { $0.date == day })
+            var nsDescriptor = { let r = NSFetchRequest<CDNonSchoolDay>(entityName: "CDNonSchoolDay"); r.predicate = NSPredicate(format: "date == %@", day as CVarArg); r.fetchLimit = 0; return r }()
             nsDescriptor.fetchLimit = 1
-            let nonSchoolDays: [NonSchoolDay] = try context.fetch(nsDescriptor)
+            let nonSchoolDays: [CDNonSchoolDay] = try context.fetch(nsDescriptor)
             if !nonSchoolDays.isEmpty { return true }
         } catch {
             // On fetch error, fall back to weekend logic below
@@ -107,9 +107,9 @@ struct LessonAgeHelper {
 
         // 3) Weekend override makes it a school day
         do {
-            var ovDescriptor = FetchDescriptor<SchoolDayOverride>(predicate: #Predicate { $0.date == day })
+            var ovDescriptor = { let r = NSFetchRequest<CDSchoolDayOverride>(entityName: "CDSchoolDayOverride"); r.predicate = NSPredicate(format: "date == %@", day as CVarArg); r.fetchLimit = 0; return r }()
             ovDescriptor.fetchLimit = 1
-            let overrides: [SchoolDayOverride] = try context.fetch(ovDescriptor)
+            let overrides: [CDSchoolDayOverride] = try context.fetch(ovDescriptor)
             if !overrides.isEmpty { return false }
         } catch {
             // If override fetch fails, assume weekend remains non-school
@@ -122,7 +122,7 @@ struct LessonAgeHelper {
     /// Returns 0 when `today` is the same start-of-day as `createdAt` or earlier.
     static func schoolDaysSinceCreation(
         createdAt: Date, asOf today: Date = Date(),
-        using context: ModelContext, calendar: Calendar = .current
+        using context: NSManagedObjectContext, calendar: Calendar = .current
     ) -> Int {
         let start = calendar.startOfDay(for: createdAt)
         let end = calendar.startOfDay(for: today)
@@ -144,7 +144,7 @@ extension LessonAssignmentSnapshot {
     /// Convenience wrapper to compute school-day age directly from a snapshot.
     func schoolDaysSinceCreation(
         asOf today: Date = Date(),
-        using context: ModelContext,
+        using context: NSManagedObjectContext,
         calendar: Calendar = .current
     ) -> Int {
         return LessonAgeHelper.schoolDaysSinceCreation(

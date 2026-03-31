@@ -1,8 +1,8 @@
 // Maria's Notebook/Lessons/LessonOrderMigration.swift
 
 import Foundation
-import SwiftData
 import OSLog
+import CoreData
 
 /// Service for migrating and normalizing lesson ordering indices.
 /// Ensures existing lessons have sequential sortIndex values within their subject.
@@ -10,18 +10,18 @@ enum LessonOrderMigration {
     private static let logger = Logger.lessons
     /// Migrates lessons to have sequential sortIndex values within each subject.
     /// Should be called once on app launch or when first needed.
-    /// - Parameter context: ModelContext to migrate lessons
+    /// - Parameter context: NSManagedObjectContext to migrate lessons
     /// - Returns: Number of lessons that were updated
     @MainActor
-    static func migrateSortIndices(context: ModelContext) -> Int {
-        let descriptor = FetchDescriptor<Lesson>(sortBy: [
-            SortDescriptor(\Lesson.subject),
-            SortDescriptor(\Lesson.group),
-            SortDescriptor(\Lesson.orderInGroup),
-            SortDescriptor(\Lesson.name)
-        ])
+    static func migrateSortIndices(context: NSManagedObjectContext) -> Int {
+        let descriptor = { let r = NSFetchRequest<CDLesson>(entityName: "CDLesson"); r.sortDescriptors = [
+            NSSortDescriptor(keyPath: \CDLesson.subject, ascending: true),
+            NSSortDescriptor(keyPath: \CDLesson.group, ascending: true),
+            NSSortDescriptor(keyPath: \CDLesson.orderInGroup, ascending: true),
+            NSSortDescriptor(keyPath: \CDLesson.name, ascending: true)
+        ]; return r }()
         
-        let allLessons: [Lesson]
+        let allLessons: [CDLesson]
         do {
             allLessons = try context.fetch(descriptor)
         } catch {
@@ -30,7 +30,7 @@ enum LessonOrderMigration {
         }
         
         // Group by subject
-        var subjectGroups: [String: [Lesson]] = [:]
+        var subjectGroups: [String: [CDLesson]] = [:]
         for lesson in allLessons {
             let subject = lesson.subject.trimmed()
             if !subject.isEmpty {
@@ -51,8 +51,8 @@ enum LessonOrderMigration {
             }
             
             // Assign sequential indices starting from 0
-            for (index, lesson) in sorted.enumerated() where lesson.sortIndex != index {
-                lesson.sortIndex = index
+            for (index, lesson) in sorted.enumerated() where lesson.sortIndex != Int64(index) {
+                lesson.sortIndex = Int64(index)
                 updatedCount += 1
             }
         }
@@ -72,9 +72,9 @@ enum LessonOrderMigration {
     /// Call this after reordering to ensure indices are sequential.
     /// - Parameters:
     ///   - lessons: Lessons to normalize (should all be from the same subject)
-    ///   - context: ModelContext to save changes
+    ///   - context: NSManagedObjectContext to save changes
     @MainActor
-    static func normalizeSortIndices(for lessons: [Lesson], context: ModelContext) {
+    static func normalizeSortIndices(for lessons: [CDLesson], context: NSManagedObjectContext) {
         guard !lessons.isEmpty else { return }
         
         // Sort by current sortIndex, then name for stable ordering
@@ -86,8 +86,8 @@ enum LessonOrderMigration {
         }
         
         // Assign sequential indices
-        for (index, lesson) in sorted.enumerated() where lesson.sortIndex != index {
-            lesson.sortIndex = index
+        for (index, lesson) in sorted.enumerated() where lesson.sortIndex != Int64(index) {
+            lesson.sortIndex = Int64(index)
         }
         
         do {
@@ -101,9 +101,9 @@ enum LessonOrderMigration {
     /// Call this after reordering within a group.
     /// - Parameters:
     ///   - lessons: Lessons to normalize (should all be from the same group)
-    ///   - context: ModelContext to save changes
+    ///   - context: NSManagedObjectContext to save changes
     @MainActor
-    static func normalizeOrderInGroup(for lessons: [Lesson], context: ModelContext) {
+    static func normalizeOrderInGroup(for lessons: [CDLesson], context: NSManagedObjectContext) {
         guard !lessons.isEmpty else { return }
         
         // Sort by current orderInGroup, then name for stable ordering
@@ -115,8 +115,8 @@ enum LessonOrderMigration {
         }
         
         // Assign sequential indices
-        for (index, lesson) in sorted.enumerated() where lesson.orderInGroup != index {
-            lesson.orderInGroup = index
+        for (index, lesson) in sorted.enumerated() where lesson.orderInGroup != Int64(index) {
+            lesson.orderInGroup = Int64(index)
         }
         
         do {

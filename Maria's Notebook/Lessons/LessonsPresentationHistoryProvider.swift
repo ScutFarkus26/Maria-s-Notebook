@@ -5,7 +5,7 @@
 
 import Foundation
 import OSLog
-import SwiftData
+import CoreData
 
 @MainActor
 enum LessonsPresentationHistoryProvider {
@@ -15,7 +15,7 @@ enum LessonsPresentationHistoryProvider {
     /// Returns a dictionary mapping lesson UUIDs to their most recent presentation date.
     static func fetchLastPresentedDates(
         lessonIDs: [UUID],
-        context: ModelContext
+        context: NSManagedObjectContext
     ) -> [UUID: Date] {
         guard !lessonIDs.isEmpty else { return [:] }
 
@@ -24,14 +24,11 @@ enum LessonsPresentationHistoryProvider {
 
         // Query all presented LessonAssignments
         let presentedState = LessonAssignmentState.presented.rawValue
-        let descriptor = FetchDescriptor<LessonAssignment>(
-            predicate: #Predicate<LessonAssignment> { assignment in
-                assignment.stateRaw == presentedState
-            },
-            sortBy: [SortDescriptor(\.presentedAt, order: .reverse)]
-        )
+        let descriptor: NSFetchRequest<CDLessonAssignment> = NSFetchRequest(entityName: "CDLessonAssignment")
+        descriptor.predicate = NSPredicate(format: "stateRaw == %@", presentedState as CVarArg)
+        descriptor.sortDescriptors = [NSSortDescriptor(key: "presentedAt", ascending: false)]
 
-        let assignments: [LessonAssignment]
+        let assignments: [CDLessonAssignment]
         do {
             assignments = try context.fetch(descriptor)
         } catch {
@@ -58,7 +55,7 @@ enum LessonsPresentationHistoryProvider {
     /// Returns a dictionary mapping lesson UUIDs to their presentation count.
     static func fetchPresentationCounts(
         lessonIDs: [UUID],
-        context: ModelContext
+        context: NSManagedObjectContext
     ) -> [UUID: Int] {
         guard !lessonIDs.isEmpty else { return [:] }
 
@@ -67,13 +64,10 @@ enum LessonsPresentationHistoryProvider {
 
         // Query all presented LessonAssignments
         let presentedState = LessonAssignmentState.presented.rawValue
-        let descriptor = FetchDescriptor<LessonAssignment>(
-            predicate: #Predicate<LessonAssignment> { assignment in
-                assignment.stateRaw == presentedState
-            }
-        )
+        let descriptor: NSFetchRequest<CDLessonAssignment> = NSFetchRequest(entityName: "LessonAssignment")
+        descriptor.predicate = NSPredicate(format: "stateRaw == %@", presentedState)
 
-        let assignments: [LessonAssignment]
+        let assignments: [CDLessonAssignment]
         do {
             assignments = try context.fetch(descriptor)
         } catch {
@@ -96,7 +90,7 @@ enum LessonsPresentationHistoryProvider {
     /// More efficient than calling both methods separately.
     static func fetchPresentationHistory(
         lessonIDs: [UUID],
-        context: ModelContext
+        context: NSManagedObjectContext
     ) -> (lastPresented: [UUID: Date], counts: [UUID: Int]) {
         guard !lessonIDs.isEmpty else { return ([:], [:]) }
 
@@ -106,14 +100,11 @@ enum LessonsPresentationHistoryProvider {
 
         // Query all presented LessonAssignments, sorted by date desc
         let presentedState = LessonAssignmentState.presented.rawValue
-        let descriptor = FetchDescriptor<LessonAssignment>(
-            predicate: #Predicate<LessonAssignment> { assignment in
-                assignment.stateRaw == presentedState
-            },
-            sortBy: [SortDescriptor(\.presentedAt, order: .reverse)]
-        )
+        let descriptor = NSFetchRequest<CDLessonAssignment>(entityName: "LessonAssignment")
+        descriptor.predicate = NSPredicate(format: "stateRaw == %@", presentedState)
+        descriptor.sortDescriptors = [NSSortDescriptor(key: "presentedAt", ascending: false)]
 
-        let assignments: [LessonAssignment]
+        let assignments: [CDLessonAssignment]
         do {
             assignments = try context.fetch(descriptor)
         } catch {

@@ -20,7 +20,7 @@ struct EnsureResizableWindow: NSViewRepresentable {
         nsView.minSize = minSize
         nsView.maxSize = maxSize
         
-        // Schedule window updates to next run loop to avoid layout recursion
+        // CDSchedule window updates to next run loop to avoid layout recursion
         // Only apply if values actually changed (cached in ResizableFlagView)
         if nsView.window != nil {
             nsView.scheduleWindowUpdate()
@@ -37,7 +37,7 @@ final class ResizableFlagView: NSView {
     private var lastAppliedMaxSize: NSSize?
     private var hasScheduledUpdate = false
     
-    /// Schedule window property updates to the next run loop to prevent layout recursion
+    /// CDSchedule window property updates to the next run loop to prevent layout recursion
     func scheduleWindowUpdate() {
         // Prevent duplicate scheduling
         guard !hasScheduledUpdate else { return }

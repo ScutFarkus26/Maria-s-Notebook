@@ -1,5 +1,5 @@
 import Foundation
-import SwiftData
+import CoreData
 
 /// Handles CSV import operations for students, providing static methods
 /// to process file imports, mapping confirmations, and import commits.
@@ -78,7 +78,7 @@ enum StudentsCSVImportHandler {
     static func handleMappingConfirm(
         mapping: StudentCSVImporter.Mapping,
         fileURL: URL?,
-        students: [Student],
+        students: [CDStudent],
         cancellingTask existingTask: Task<Void, Never>?,
         onParsed: @MainActor @Sendable @escaping (StudentCSVImporter.Parsed) -> Void,
         onError: @MainActor @Sendable @escaping (ImportAlert) -> Void,
@@ -104,18 +104,18 @@ enum StudentsCSVImportHandler {
     ///
     /// - Parameters:
     ///   - parsed: The parsed import data to commit
-    ///   - modelContext: The model context for database operations
+    ///   - viewContext: The model context for database operations
     ///   - existingStudents: Existing students for duplicate detection
     /// - Returns: An ImportAlert with the result (success or failure)
     static func handleImportCommit(
         _ parsed: StudentCSVImporter.Parsed,
-        modelContext: ModelContext,
-        existingStudents: [Student]
+        viewContext: NSManagedObjectContext,
+        existingStudents: [CDStudent]
     ) -> ImportAlert {
         do {
             let result = try ImportCommitService.commitStudents(
                 parsed: parsed,
-                into: modelContext,
+                into: viewContext,
                 existingStudents: existingStudents
             )
             return ImportAlert(title: result.title, message: result.message)

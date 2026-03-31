@@ -2,7 +2,7 @@
 // Enables selective restoration of specific entity types from backups
 
 import Foundation
-import SwiftData
+import CoreData
 
 /// Service for selectively restoring specific entity types from a backup.
 /// Allows users to restore only Students, or only Lessons, etc.
@@ -18,10 +18,10 @@ public final class SelectiveRestoreService {
 
     /// Lookup dictionaries for entities that need to be linked during import.
     /// These provide O(1) access by ID instead of repeated database queries.
-    var studentsByID: [UUID: Student] = [:]
-    var lessonsByID: [UUID: Lesson] = [:]
-    var topicsByID: [UUID: CommunityTopic] = [:]
-    var templateWeeksByID: [UUID: ProjectTemplateWeek] = [:]
+    var studentsByID: [UUID: CDStudent] = [:]
+    var lessonsByID: [UUID: CDLesson] = [:]
+    var topicsByID: [UUID: CDCommunityTopicEntity] = [:]
+    var templateWeeksByID: [UUID: CDProjectTemplateWeek] = [:]
 
     /// ID sets for simple existence checks (no entity retrieval needed)
     var existingIDSets: [String: Set<UUID>] = [:]
@@ -78,7 +78,7 @@ public final class SelectiveRestoreService {
     // - Parameters:
     //   - url: The backup file URL
     //   - options: Selective restore options
-    //   - modelContext: The model context
+    //   - viewContext: The model context
     //   - password: Optional decryption password
     //   - progress: Progress callback
     // - Returns: Preview of what would be restored
@@ -86,7 +86,7 @@ public final class SelectiveRestoreService {
     public func previewSelectiveRestore(
         from url: URL,
         options: SelectiveRestoreOptions,
-        modelContext: ModelContext,
+        viewContext: NSManagedObjectContext,
         password: String? = nil,
         progress: @escaping BackupService.ProgressCallback
     ) async throws -> SelectiveRestorePreview {
@@ -159,14 +159,14 @@ public final class SelectiveRestoreService {
     /// - Parameters:
     ///   - url: The backup file URL
     ///   - options: Selective restore options
-    ///   - modelContext: The model context to import into
+    ///   - viewContext: The model context to import into
     ///   - password: Optional decryption password
     ///   - progress: Progress callback
     /// - Returns: Result of the selective restore
     public func performSelectiveRestore(
         from url: URL,
         options: SelectiveRestoreOptions,
-        modelContext: ModelContext,
+        viewContext: NSManagedObjectContext,
         password: String? = nil,
         progress: @escaping BackupService.ProgressCallback
     ) async throws -> SelectiveRestoreResult {
@@ -177,7 +177,7 @@ public final class SelectiveRestoreService {
         let payload = try await extractPayload(from: url, password: password)
 
         progress(0.08, "Building lookup caches…")
-        buildExistingIDCaches(in: modelContext)
+        buildExistingIDCaches(in: viewContext)
         defer { clearIDCaches() }
 
         let resolved = options.resolvedEntityTypes
@@ -208,7 +208,7 @@ public final class SelectiveRestoreService {
             let result = try await importEntityType(
                 type,
                 from: payload,
-                into: modelContext,
+                into: viewContext,
                 mode: options.mode
             )
 
@@ -221,7 +221,7 @@ public final class SelectiveRestoreService {
 
         // Save changes
         progress(0.95, "Saving changes…")
-        try modelContext.save()
+        try viewContext.save()
 
         progress(1.0, "Selective restore complete")
         return SelectiveRestoreResult(

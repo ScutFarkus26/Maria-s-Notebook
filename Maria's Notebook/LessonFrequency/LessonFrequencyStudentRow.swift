@@ -68,7 +68,7 @@ struct LessonFrequencyStudentRow: View {
 
             Spacer()
 
-            // Lesson count with status indicator
+            // CDLesson count with status indicator
             HStack(spacing: 6) {
                 Text("\(card.lessonCount)")
                     .font(AppTheme.ScaledFont.header)

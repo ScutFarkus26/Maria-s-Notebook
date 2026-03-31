@@ -1,5 +1,5 @@
 import SwiftUI
-import SwiftData
+import CoreData
 
 // MARK: - Form Sections
 
@@ -92,13 +92,14 @@ extension PracticeSessionSheet {
 
     @ViewBuilder
     func individualStudentCard(for student: Student) -> some View {
+        let studentID = student.id ?? UUID()
         VStack(alignment: .leading, spacing: 12) {
             Text(StudentFormatter.displayName(for: student))
                 .font(AppTheme.ScaledFont.bodySemibold)
 
             StudentUnderstandingSelector(level: Binding(
-                get: { individualUnderstandingLevels[student.id] ?? 3 },
-                set: { individualUnderstandingLevels[student.id] = $0 }
+                get: { individualUnderstandingLevels[studentID] ?? 3 },
+                set: { individualUnderstandingLevels[studentID] = $0 }
             ))
 
             VStack(alignment: .leading, spacing: 6) {
@@ -109,8 +110,8 @@ extension PracticeSessionSheet {
                 StyledNotesTextField(
                     placeholder: "Add notes for \(StudentFormatter.displayName(for: student))...",
                     text: Binding(
-                        get: { individualNotes[student.id] ?? "" },
-                        set: { individualNotes[student.id] = $0 }
+                        get: { individualNotes[studentID] ?? "" },
+                        set: { individualNotes[studentID] = $0 }
                     )
                 )
             }

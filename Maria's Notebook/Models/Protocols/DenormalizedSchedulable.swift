@@ -17,7 +17,7 @@ protocol DenormalizedSchedulable: AnyObject {
     // MARK: - Scheduling (stored properties)
 
     var scheduledFor: Date? { get set }
-    var scheduledForDay: Date { get set }
+    var scheduledForDay: Date? { get set }
 
     // MARK: - Student Grouping (stored properties)
 

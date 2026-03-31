@@ -1,5 +1,5 @@
 import SwiftUI
-import SwiftData
+import CoreData
 
 /// A row displaying a procedure item
 struct ProcedureRow: View {
@@ -31,7 +31,7 @@ struct ProcedureRow: View {
                         .lineLimit(2)
                 }
 
-                Text("Updated \(procedure.modifiedAt, style: .relative) ago")
+                Text("Updated \(procedure.modifiedAt ?? Date(), style: .relative) ago")
                     .font(.caption)
                     .foregroundStyle(.tertiary)
             }
@@ -88,34 +88,33 @@ struct ProcedureCompactRow: View {
 }
 
 #Preview {
-    VStack(spacing: 12) {
-        ProcedureRow(
-            procedure: Procedure(
-                title: "Morning Arrival",
-                summary: "Steps for welcoming students and starting the day",
-                content: "## Overview\nThis procedure outlines...",
-                category: .dailyRoutines,
-                icon: "sunrise"
-            )
-        )
+    let stack = CoreDataStack.preview
+    let ctx = stack.viewContext
 
-        ProcedureRow(
-            procedure: Procedure(
-                title: "Fire Drill",
-                summary: "Emergency evacuation procedure",
-                content: "## Steps\n1. Alert students...",
-                category: .safety
-            )
-        )
+    let p1 = Procedure(context: ctx)
+    p1.title = "Morning Arrival"
+    p1.summary = "Steps for welcoming students and starting the day"
+    p1.content = "## Overview\nThis procedure outlines..."
+    p1.category = .dailyRoutines
+    p1.icon = "sunrise"
 
-        ProcedureRow(
-            procedure: Procedure(
-                title: "Friday Schedule",
-                summary: "Modified schedule for end-of-week activities",
-                content: "## Friday Routine\n...",
-                category: .specialSchedules
-            )
-        )
+    let p2 = Procedure(context: ctx)
+    p2.title = "Fire Drill"
+    p2.summary = "Emergency evacuation procedure"
+    p2.content = "## Steps\n1. Alert students..."
+    p2.category = .safety
+
+    let p3 = Procedure(context: ctx)
+    p3.title = "Friday Schedule"
+    p3.summary = "Modified schedule for end-of-week activities"
+    p3.content = "## Friday Routine\n..."
+    p3.category = .specialSchedules
+
+    return VStack(spacing: 12) {
+        ProcedureRow(procedure: p1)
+        ProcedureRow(procedure: p2)
+        ProcedureRow(procedure: p3)
     }
     .padding()
+    .previewEnvironment(using: stack)
 }

@@ -1,0 +1,24 @@
+{
+  "source": "/Users/dannydeberry/Documents/Projects/MariasNotebook-Rewrite/Maria's Notebook/Supplies/SuppliesListView.swift",
+  "tables": {
+    "Localizable": [
+      {
+        "comment": "",
+        "key": "All Categories",
+        "location": {
+          "startingColumn": 32,
+          "startingLine": 65
+        }
+      },
+      {
+        "comment": "",
+        "key": "Add CDSupply",
+        "location": {
+          "startingColumn": 31,
+          "startingLine": 89
+        }
+      }
+    ]
+  },
+  "version": 1
+}

@@ -5,7 +5,7 @@ import Foundation
 
 /// Root error type for all backup-related operations
 /// Enables typed throws for compile-time exhaustiveness checking
-/// Note: Uses BackupOperationError as the single app-wide backup error root type.
+/// CDNote: Uses BackupOperationError as the single app-wide backup error root type.
 public enum BackupOperationError: Error, Sendable {
     // MARK: - Export Errors
     case exportFailed(ExportError)

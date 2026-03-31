@@ -2,10 +2,10 @@ import SwiftUI
 
 /// A reusable student avatar view with initials and color
 struct StudentAvatarView: View {
-    let student: Student
+    let student: CDStudent
     let size: CGFloat
     
-    init(student: Student, size: CGFloat = UIConstants.CardSize.studentAvatar) {
+    init(student: CDStudent, size: CGFloat = UIConstants.CardSize.studentAvatar) {
         self.student = student
         self.size = size
     }
@@ -28,6 +28,6 @@ struct StudentAvatarView: View {
 }
 
 #if DEBUG
-// Note: Preview requires a Student model instance
+// CDNote: Preview requires a CDStudent model instance
 // Use in views that already have access to students
 #endif

@@ -3,7 +3,7 @@
 
 import Foundation
 import OSLog
-import SwiftData
+import CoreData
 
 enum TodayAgendaBuilder {
 
@@ -21,7 +21,7 @@ enum TodayAgendaBuilder {
         todaysSchedule: [ScheduledWorkItem],
         staleFollowUps: [FollowUpWorkItem],
         day: Date,
-        context: ModelContext
+        context: NSManagedObjectContext
     ) -> [AgendaItem] {
         // 1. Group scheduled work by checkInStyle + lessonID
         let allScheduled = overdueSchedule + todaysSchedule
@@ -48,9 +48,10 @@ enum TodayAgendaBuilder {
         var usedIDs = Set<UUID>()
 
         for entry in savedOrder {
-            if let item = itemsByID[entry.itemID] {
+            guard let entryItemID = entry.itemID else { continue }
+            if let item = itemsByID[entryItemID] {
                 ordered.append(item)
-                usedIDs.insert(entry.itemID)
+                usedIDs.insert(entryItemID)
             }
         }
 
@@ -131,17 +132,16 @@ enum TodayAgendaBuilder {
     @MainActor static func saveOrder(
         items: [AgendaItem],
         day: Date,
-        context: ModelContext
+        context: NSManagedObjectContext
     ) {
         let dayStart = AppCalendar.startOfDay(day)
 
         // Delete existing entries for this day
         do {
-            var descriptor = FetchDescriptor<TodayAgendaOrder>(
-                predicate: #Predicate { $0.day == dayStart }
-            )
-            descriptor.fetchLimit = 200
-            let existing = try context.fetch(descriptor)
+            let request = CDFetchRequest(TodayAgendaOrder.self)
+            request.predicate = NSPredicate(format: "day == %@", dayStart as NSDate)
+            request.fetchLimit = 200
+            let existing = try context.fetch(request)
             for entry in existing {
                 context.delete(entry)
             }
@@ -151,13 +151,11 @@ enum TodayAgendaBuilder {
 
         // Write new entries
         for (index, item) in items.enumerated() {
-            let entry = TodayAgendaOrder(
-                day: dayStart,
-                itemType: item.itemType,
-                itemID: item.id,
-                position: index
-            )
-            context.insert(entry)
+            let entry = TodayAgendaOrder(context: context)
+            entry.day = dayStart
+            entry.itemType = item.itemType
+            entry.itemID = item.id
+            entry.position = Int64(index)
         }
 
         do {
@@ -168,16 +166,15 @@ enum TodayAgendaBuilder {
     }
 
     /// Deletes agenda order entries older than 30 days.
-    @MainActor static func cleanupOldOrders(context: ModelContext) {
+    @MainActor static func cleanupOldOrders(context: NSManagedObjectContext) {
         let cutoff = AppCalendar.startOfDay(
             Calendar.current.date(byAdding: .day, value: -30, to: Date()) ?? Date()
         )
         do {
-            var descriptor = FetchDescriptor<TodayAgendaOrder>(
-                predicate: #Predicate { $0.day < cutoff }
-            )
-            descriptor.fetchLimit = 1000
-            let old = try context.fetch(descriptor)
+            let request = CDFetchRequest(TodayAgendaOrder.self)
+            request.predicate = NSPredicate(format: "day < %@", cutoff as NSDate)
+            request.fetchLimit = 1000
+            let old = try context.fetch(request)
             guard !old.isEmpty else { return }
             for entry in old {
                 context.delete(entry)
@@ -190,15 +187,14 @@ enum TodayAgendaBuilder {
 
     // MARK: - Private
 
-    private static func fetchSavedOrder(for day: Date, context: ModelContext) -> [TodayAgendaOrder] {
+    private static func fetchSavedOrder(for day: Date, context: NSManagedObjectContext) -> [TodayAgendaOrder] {
         let dayStart = AppCalendar.startOfDay(day)
         do {
-            var descriptor = FetchDescriptor<TodayAgendaOrder>(
-                predicate: #Predicate { $0.day == dayStart },
-                sortBy: [SortDescriptor(\.position)]
-            )
-            descriptor.fetchLimit = 200
-            return try context.fetch(descriptor)
+            let request = CDFetchRequest(TodayAgendaOrder.self)
+            request.predicate = NSPredicate(format: "day == %@", dayStart as NSDate)
+            request.sortDescriptors = [NSSortDescriptor(keyPath: \TodayAgendaOrder.position, ascending: true)]
+            request.fetchLimit = 200
+            return try context.fetch(request)
         } catch {
             return []
         }

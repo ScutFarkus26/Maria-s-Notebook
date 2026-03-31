@@ -1,5 +1,5 @@
 import Foundation
-import SwiftData
+import CoreData
 import SwiftUI
 import OSLog
 
@@ -30,10 +30,7 @@ final class AppBootstrapper {
         guard state == .idle else { return }
         state = .migrating
 
-        // Legacy ModelContainer + context still used by services not yet converted to Core Data.
-        // Will be replaced with coreDataStack.viewContext in Phase 3.
-        let modelContainer = AppBootstrapping.getSharedModelContainer()
-        let context = modelContainer.mainContext
+        let context = coreDataStack.viewContext
         
         let startTime = Date()
         Self.logger.info("Bootstrap: Starting startup checks...")
@@ -68,7 +65,7 @@ final class AppBootstrapper {
         // 4. Initialize Reminder Sync Service (macOS only)
         #if os(macOS)
         let reminderStart = Date()
-        ReminderSyncService.shared.modelContext = context
+        ReminderSyncService.shared.managedObjectContext = context
         // Set default reminder list if none configured
         if ReminderSyncService.shared.syncListName == nil && ReminderSyncService.shared.syncListIdentifier == nil {
             ReminderSyncService.shared.syncListName = "girls class reminders"
@@ -103,61 +100,64 @@ final class AppBootstrapper {
 
         // 6. Run heavy migrations and dedup in the background to avoid UI stalls
         // IMPORTANT: Delay background migrations to let the initial SwiftUI render complete.
-        // Without this delay, background DB operations compete with @Query evaluations
+        // Without this delay, background DB operations compete with @FetchRequest evaluations
         // and TodayViewModel.reload() for the persistent store coordinator, causing the
         // main thread to block in AG::Subgraph::update() (spinning beach ball).
-        Task.detached(priority: .utility) { [modelContainer] in
+        Task.detached(priority: .utility) { [coreDataStack] in
             try? await Task.sleep(for: .seconds(3))
-            await AppBootstrapper.runPostLaunchMigrations(modelContainer: modelContainer)
+            await AppBootstrapper.runPostLaunchMigrations(coreDataStack: coreDataStack)
         }
     }
 
-    private static func runPostLaunchMigrations(modelContainer: ModelContainer) async {
-        let backgroundContext = ModelContext(modelContainer)
-        
-        // Disable autosave to prevent triggering CloudKit sync during heavy migrations
-        // This reduces store coordinator changes that can tear down the CloudKit delegate
-        backgroundContext.autosaveEnabled = false
+    private static func runPostLaunchMigrations(coreDataStack: CoreDataStack) async {
+        let backgroundContext = await coreDataStack.newBackgroundContext()
         
         let start = Date()
         logger.info("Post-launch migrations started")
 
-        // 3.7.5. Repair incorrectly scoped notes
-        let scopeRepairStart = Date()
-        await DataMigrations.repairScopeForContextualNotes(using: backgroundContext)
-        let scopeElapsed = formatSeconds(Date().timeIntervalSince(scopeRepairStart))
-        logger.info("Post-launch: note scope repair completed in \(scopeElapsed)")
+        await backgroundContext.perform {
+            // 3.7.5. Repair incorrectly scoped notes
+            let scopeRepairStart = Date()
+            // Note: repairScopeForContextualNotes is async+MainActor, call on main
+            logger.info("Post-launch: note scope repair starting")
+        }
 
-        // 3.8. Deduplication (CloudKit sync can create duplicates during merge conflicts)
+        await DataMigrations.repairScopeForContextualNotes(using: await coreDataStack.viewContext)
+
         let dedupStart = Date()
-        DataMigrations.deduplicateAllModels(using: backgroundContext)
-        let dedupElapsed = formatSeconds(Date().timeIntervalSince(dedupStart))
-        logger.info("Post-launch: deduplication completed in \(dedupElapsed)")
+        await MainActor.run {
+            // 3.8. Deduplication (CloudKit sync can create duplicates during merge conflicts)
+            DataMigrations.deduplicateAllModels(using: coreDataStack.viewContext)
+        }
+        logger.info("Post-launch: deduplication completed in \(formatSeconds(Date().timeIntervalSince(dedupStart)))")
 
         // 3.9. Data Integrity Repairs (Run on ~10% of launches to reduce startup impact)
         if Int.random(in: 1...10) == 1 {
             let integrityStart = Date()
-            await DataMigrations.repairDenormalizedScheduledForDay(using: backgroundContext)
-            await DataMigrations.cleanOrphanedStudentIDs(using: backgroundContext)
-            let intElapsed = formatSeconds(Date().timeIntervalSince(integrityStart))
-            logger.info("Post-launch: integrity repairs completed in \(intElapsed)")
+            await DataMigrations.repairDenormalizedScheduledForDay(using: await coreDataStack.viewContext)
+            await DataMigrations.cleanOrphanedStudentIDs(using: await coreDataStack.viewContext)
+            logger.info("Post-launch: integrity repairs completed in \(formatSeconds(Date().timeIntervalSince(integrityStart)))")
         }
 
-        await MigrationRunner.runIfNeeded(context: backgroundContext)
+        await MigrationRunner.runIfNeeded(context: await coreDataStack.viewContext)
 
         // Save all migration changes in one batch to minimize store coordinator changes
-        do {
-            try backgroundContext.save()
-            logger.info("Post-launch migrations: saved all changes successfully")
-        } catch {
-            logger.error("Post-launch migrations: failed to save changes - \(error.localizedDescription)")
+        await MainActor.run {
+            if coreDataStack.viewContext.hasChanges {
+                do {
+                    try coreDataStack.viewContext.save()
+                    logger.info("Post-launch migrations: saved all changes successfully")
+                } catch {
+                    logger.error("Post-launch migrations: failed to save changes - \(error.localizedDescription)")
+                }
+            }
         }
 
         logger.info("Post-launch migrations finished in \(formatSeconds(Date().timeIntervalSince(start)))")
 
         // 4. Build full-text search index after data is clean
         await MainActor.run {
-            SearchIndexService.shared.rebuildIndex(container: modelContainer)
+            SearchIndexService.shared.rebuildIndex(context: coreDataStack.viewContext)
         }
     }
 

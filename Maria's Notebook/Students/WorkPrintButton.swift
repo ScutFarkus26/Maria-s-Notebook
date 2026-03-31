@@ -1,12 +1,12 @@
 import SwiftUI
-import SwiftData
+import CoreData
 
 /// A toolbar button for printing open work items.
 /// Add this to your work list view's toolbar.
 struct WorkPrintButton: View {
-    let workItems: [WorkModel]
-    let students: [Student]
-    let lessons: [Lesson]
+    let workItems: [CDWorkModel]
+    let students: [CDStudent]
+    let lessons: [CDLesson]
     let filterDescription: String
     let sortDescription: String
     

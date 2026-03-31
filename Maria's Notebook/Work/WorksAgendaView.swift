@@ -8,7 +8,6 @@
 import CoreData
 import OSLog
 import SwiftUI
-import SwiftData
 #if os(macOS)
 import AppKit
 import UniformTypeIdentifiers
@@ -18,22 +17,22 @@ import PDFKit
 struct WorksAgendaView: View {
     static let logger = Logger.work
 
-    @Environment(\.modelContext) var modelContext
+    @Environment(\.managedObjectContext) var viewContext
     @Environment(\.calendar) var calendar
     @Environment(SaveCoordinator.self) var saveCoordinator
     @Environment(RestoreCoordinator.self) private var restoreCoordinator
 
-    @Query(
-        filter: #Predicate<WorkModel> { $0.statusRaw != "complete" },
-        sort: [SortDescriptor(\WorkModel.createdAt, order: .reverse)]
+    @FetchRequest(
+        sortDescriptors: [NSSortDescriptor(keyPath: \CDWorkModel.createdAt, ascending: false)],
+        predicate: NSPredicate(format: "statusRaw != %@", "complete")
     )
-    var openWork: [WorkModel]
+    var openWork: FetchedResults<CDWorkModel>
 
-    @Query(
-        filter: #Predicate<WorkCheckIn> { $0.statusRaw == "Scheduled" },
-        sort: [SortDescriptor(\WorkCheckIn.date)]
+    @FetchRequest(
+        sortDescriptors: [NSSortDescriptor(keyPath: \CDWorkCheckIn.date, ascending: true)],
+        predicate: NSPredicate(format: "statusRaw == %@", "Scheduled")
     )
-    var scheduledCheckIns: [WorkCheckIn]
+    var scheduledCheckIns: FetchedResults<CDWorkCheckIn>
 
     // PERF: Use lightweight count-based change detection instead of loading full tables.
     @State var lessonChangeToken: Int = 0
@@ -147,16 +146,9 @@ struct WorksAgendaView: View {
                     }
                 }
                 .navigationTitle("Work Agenda")
-                .sheet(item: $selected, onDismiss: { selected = nil }, content: { token in
-                    let id = token.workID
-                    let fetch = FetchDescriptor<WorkModel>(predicate: #Predicate { $0.id == id })
-                    if let w = modelContext.safeFetchFirst(fetch) {
-                        WorkDetailView(workID: w.id)
-                            .id(token.id)
-                    } else {
-                        ContentUnavailableView("Work not found", systemImage: "exclamationmark.triangle")
-                    }
-                })
+                .sheet(item: $selected, onDismiss: { selected = nil }) { token in
+                    sheetContent(for: token)
+                }
             }
         }
         .onAppear {
@@ -169,6 +161,24 @@ struct WorksAgendaView: View {
         .onReceive(NotificationCenter.default.publisher(for: .NSManagedObjectContextDidSave)) { _ in
             refreshChangeTokens()
         }
+    }
+
+    @ViewBuilder
+    private func sheetContent(for token: SelectionToken) -> some View {
+        let work = fetchWork(id: token.workID)
+        if let w = work {
+            WorkDetailView(workID: w.id ?? UUID())
+                .id(token.id)
+        } else {
+            ContentUnavailableView("Work not found", systemImage: "exclamationmark.triangle")
+        }
+    }
+
+    private func fetchWork(id: UUID) -> CDWorkModel? {
+        let request: NSFetchRequest<CDWorkModel> = NSFetchRequest(entityName: "WorkModel")
+        request.predicate = NSPredicate(format: "id == %@", id as CVarArg)
+        request.fetchLimit = 1
+        return viewContext.safeFetch(request).first
     }
 
     private var header: some View {
@@ -247,28 +257,17 @@ struct WorksAgendaView: View {
 }
 
 #Preview {
-    // Encapsulate data setup in a closure to avoid Void return statements in ViewBuilder
-    let container: ModelContainer = {
-        let schema = AppSchema.schema
-        let configuration = ModelConfiguration(isStoredInMemoryOnly: true)
-        let container: ModelContainer
-        do {
-            container = try ModelContainer(for: schema, configurations: configuration)
-        } catch {
-            fatalError("Failed to create preview container: \(error)")
-        }
-        let ctx = container.mainContext
+    let stack = CoreDataStack.preview
+    let ctx = stack.viewContext
 
-        let s = Student(firstName: "Ada", lastName: "Lovelace", birthday: Date(), level: .upper)
-        let l = Lesson(name: "Long Division", subject: "Math", group: "Ops", subheading: "", writeUp: "")
-        ctx.insert(s)
-        ctx.insert(l)
-        let w = WorkModel(status: .active, studentID: s.id.uuidString, lessonID: l.id.uuidString)
-        ctx.insert(w)
-        return container
-    }()
+    let s = Student(context: ctx)
+    s.firstName = "Ada"; s.lastName = "Lovelace"; s.birthday = Date(); s.level = .upper
+    let l = Lesson(context: ctx)
+    l.name = "Long Division"; l.subject = "Math"; l.group = "Ops"
+    let w = WorkModel(context: ctx)
+    w.status = .active; w.studentID = s.id?.uuidString ?? ""; w.lessonID = l.id?.uuidString ?? ""
 
-    WorksAgendaView()
-        .previewEnvironment(using: container)
+    return WorksAgendaView()
+        .previewEnvironment(using: stack)
         .environment(SaveCoordinator.preview)
 }

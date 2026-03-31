@@ -72,7 +72,7 @@ extension QuickNewWorkItemSheet {
             }
 
             // Sample work picker (when lesson has templates)
-            if let lesson = selectedLesson, !lesson.sortedSampleWorks.isEmpty {
+            if let lesson = selectedLesson, !lesson.orderedSampleWorks.isEmpty {
                 VStack(alignment: .leading, spacing: 6) {
                     Text("Template")
                         .font(AppTheme.ScaledFont.captionSemibold)
@@ -80,7 +80,7 @@ extension QuickNewWorkItemSheet {
 
                     Picker("Sample Work", selection: $selectedSampleWorkID) {
                         Text("None").tag(UUID?.none)
-                        ForEach(lesson.sortedSampleWorks) { sw in
+                        ForEach(lesson.orderedSampleWorks, id: \.id) { sw in
                             HStack {
                                 Text(sw.title)
                                 if sw.stepCount > 0 {
@@ -88,7 +88,7 @@ extension QuickNewWorkItemSheet {
                                         .foregroundStyle(.secondary)
                                 }
                             }
-                            .tag(UUID?.some(sw.id))
+                            .tag(sw.id)
                         }
                     }
                     .pickerStyle(.menu)
@@ -96,7 +96,7 @@ extension QuickNewWorkItemSheet {
                 .onChange(of: selectedSampleWorkID) { _, newID in
                     guard let id = newID,
                           let lesson = selectedLesson,
-                          let sw = lesson.sortedSampleWorks.first(where: { $0.id == id }) else { return }
+                          let sw = lesson.orderedSampleWorks.first(where: { $0.id == id }) else { return }
                     workTitle = sw.title
                     if let kind = sw.workKind { workKind = kind }
                 }
@@ -176,7 +176,7 @@ extension QuickNewWorkItemSheet {
                 .clipShape(Capsule())
 
             Button {
-                removeStudent(id: student.id)
+                if let studentID = student.id { removeStudent(id: studentID) }
             } label: {
                 Image(systemName: "xmark.circle.fill")
                     .foregroundStyle(Color.accentColor)
@@ -196,7 +196,7 @@ extension QuickNewWorkItemSheet {
                 if !selectedStudents.isEmpty {
                     ScrollView(.horizontal, showsIndicators: false) {
                         HStack(spacing: 8) {
-                            ForEach(selectedStudents) { student in
+                            ForEach(selectedStudents, id: \.id) { student in
                                 studentChip(for: student)
                             }
                         }

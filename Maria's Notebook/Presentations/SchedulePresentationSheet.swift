@@ -1,26 +1,26 @@
 import SwiftUI
-import SwiftData
+import CoreData
 
 struct SchedulePresentationSheet: View {
-    let lesson: Lesson
+    let lesson: CDLesson
     let onPlan: (Set<UUID>) -> Void
     let onCancel: () -> Void
 
     @Environment(\.dismiss) private var dismiss
-    @Environment(\.modelContext) private var modelContext
+    @Environment(\.managedObjectContext) private var viewContext
 
     // Test student filtering
     @AppStorage(UserDefaultsKeys.generalShowTestStudents) private var showTestStudents: Bool = false
     @AppStorage(UserDefaultsKeys.generalTestStudentNames)
     private var testStudentNamesRaw: String = "Danny De Berry,Lil Dan D"
 
-    @Query(sort: Student.sortByName)
-    private var allStudentsRaw: [Student]
+    @FetchRequest(sortDescriptors: [NSSortDescriptor(keyPath: \CDStudent.firstName, ascending: true), NSSortDescriptor(keyPath: \CDStudent.lastName, ascending: true)])
+    private var allStudentsRaw: FetchedResults<CDStudent>
     // DEDUPLICATION: CloudKit sync can create duplicate records with the same ID.
     // Filter out test students when setting is disabled
-    private var allStudents: [Student] {
+    private var allStudents: [CDStudent] {
         TestStudentsFilter.filterVisible(
-            allStudentsRaw.uniqueByID.filter(\.isEnrolled), show: showTestStudents,
+            Array(allStudentsRaw).uniqueByID.filter(\.isEnrolled), show: showTestStudents,
             namesRaw: testStudentNamesRaw
         )
     }
@@ -28,7 +28,7 @@ struct SchedulePresentationSheet: View {
     @State private var selectedStudentIDs: Set<UUID> = []
     @State private var studentSearchText: String = ""
     
-    private var filteredStudents: [Student] {
+    private var filteredStudents: [CDStudent] {
         let query = studentSearchText.normalizedForComparison()
         guard !query.isEmpty else { return allStudents }
         
@@ -42,7 +42,7 @@ struct SchedulePresentationSheet: View {
     var body: some View {
         NavigationStack {
             VStack(spacing: 20) {
-                // Lesson info
+                // CDLesson info
                 VStack(alignment: .leading, spacing: 8) {
                     Text("Plan Presentation")
                         .font(.headline)
@@ -57,7 +57,7 @@ struct SchedulePresentationSheet: View {
                 
                 Divider()
                 
-                // Student selection
+                // CDStudent selection
                 VStack(alignment: .leading, spacing: 8) {
                     HStack {
                         Text("Students")
@@ -83,7 +83,9 @@ struct SchedulePresentationSheet: View {
                                         Text(StudentFormatter.displayName(for: student))
                                             .font(.caption)
                                         Button {
-                                            selectedStudentIDs.remove(student.id)
+                                            if let studentID = student.id {
+                                                selectedStudentIDs.remove(studentID)
+                                            }
                                         } label: {
                                             Image(systemName: "xmark.circle.fill")
                                                 .font(.caption2)
@@ -98,23 +100,24 @@ struct SchedulePresentationSheet: View {
                         }
                     }
                     
-                    // Student list
+                    // CDStudent list
                     List {
                         ForEach(filteredStudents, id: \.id) { student in
                             HStack {
                                 Text(StudentFormatter.displayName(for: student))
                                 Spacer()
-                                if selectedStudentIDs.contains(student.id) {
+                                if let studentID = student.id, selectedStudentIDs.contains(studentID) {
                                     Image(systemName: "checkmark.circle.fill")
                                         .foregroundStyle(.accent)
                                 }
                             }
                             .contentShape(Rectangle())
                             .onTapGesture {
-                                if selectedStudentIDs.contains(student.id) {
-                                    selectedStudentIDs.remove(student.id)
+                                guard let studentID = student.id else { return }
+                                if selectedStudentIDs.contains(studentID) {
+                                    selectedStudentIDs.remove(studentID)
                                 } else {
-                                    selectedStudentIDs.insert(student.id)
+                                    selectedStudentIDs.insert(studentID)
                                 }
                             }
                         }
@@ -149,7 +152,10 @@ struct SchedulePresentationSheet: View {
         #endif
     }
     
-    private var selectedStudents: [Student] {
-        allStudents.filter { selectedStudentIDs.contains($0.id) }
+    private var selectedStudents: [CDStudent] {
+        allStudents.filter { student in
+            guard let studentID = student.id else { return false }
+            return selectedStudentIDs.contains(studentID)
+        }
     }
 }

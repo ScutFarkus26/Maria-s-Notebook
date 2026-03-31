@@ -4,7 +4,6 @@
 
 import Foundation
 import CoreData
-import SwiftData
 
 /// A small service that centralizes persistence for WorkCheckIn operations.
 ///
@@ -13,18 +12,14 @@ import SwiftData
 /// operations that throw on failure.
 /// This file includes only structural and documentation improvements; behavior is unchanged.
 @MainActor
-struct WorkCheckInService {
+struct WorkCheckInService: WorkCheckInServiceProtocol {
     let context: NSManagedObjectContext
 
     init(context: NSManagedObjectContext) {
         self.context = context
     }
 
-    /// Deprecated init for callers still passing ModelContext.
-    @available(*, deprecated, message: "Pass NSManagedObjectContext instead of ModelContext")
-    init(context: ModelContext) {
-        self.context = AppBootstrapping.getSharedCoreDataStack().viewContext
-    }
+    // Deprecated ModelContext init removed - no longer needed with Core Data.
 
     // MARK: - Creation
 

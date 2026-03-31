@@ -1,12 +1,12 @@
 // swiftlint:disable file_length
 import SwiftUI
-import SwiftData
+import CoreData
 import OSLog
 
 // swiftlint:disable:next type_body_length
 struct AttendanceLogView: View {
     private static let logger = Logger.attendance
-    @Environment(\.modelContext) private var modelContext
+    @Environment(\.managedObjectContext) private var viewContext
     @Environment(\.calendar) private var calendar
 
     // Test student filtering
@@ -14,16 +14,23 @@ struct AttendanceLogView: View {
     @AppStorage(UserDefaultsKeys.generalTestStudentNames)
     private var testStudentNamesRaw: String = "Danny De Berry,Lil Dan D"
 
-    @Query(sort: [SortDescriptor(\AttendanceRecord.date, order: .reverse)])
-    private var allRecords: [AttendanceRecord]
+    @FetchRequest(
+        sortDescriptors: [NSSortDescriptor(keyPath: \CDAttendanceRecord.date, ascending: false)]
+    )
+    private var allRecords: FetchedResults<CDAttendanceRecord>
 
-    @Query(sort: Student.sortByName)
-    private var studentsRaw: [Student]
+    @FetchRequest(
+        sortDescriptors: [
+            NSSortDescriptor(keyPath: \CDStudent.firstName, ascending: true),
+            NSSortDescriptor(keyPath: \CDStudent.lastName, ascending: true)
+        ]
+    )
+    private var studentsRaw: FetchedResults<CDStudent>
     // DEDUPLICATION: CloudKit sync can create duplicate records with the same ID.
     // Filter out test students when setting is disabled
-    private var students: [Student] {
+    private var students: [CDStudent] {
         TestStudentsFilter.filterVisible(
-            studentsRaw.uniqueByID.filter(\.isEnrolled),
+            Array(studentsRaw).uniqueByID.filter(\.isEnrolled),
             show: showTestStudents,
             namesRaw: testStudentNamesRaw
         )
@@ -50,8 +57,8 @@ struct AttendanceLogView: View {
 
     // Maps for quick lookup
     // Use uniquingKeysWith to handle CloudKit sync duplicates
-    private var studentsByID: [UUID: Student] {
-        Dictionary(students.map { ($0.id, $0) }, uniquingKeysWith: { first, _ in first })
+    private var studentsByID: [UUID: CDStudent] {
+        Dictionary(students.compactMap { s in s.id.map { ($0, s) } }, uniquingKeysWith: { first, _ in first })
     }
 
     // Date range bounds
@@ -83,14 +90,15 @@ struct AttendanceLogView: View {
     }
 
     // Filtered records
-    private var filteredRecords: [AttendanceRecord] {
+    private var filteredRecords: [CDAttendanceRecord] {
         allRecords.filter { record in
             // Exclude unmarked records from the log
             if record.status == .unmarked { return false }
 
             // Date range filter
             if let bounds = dateRangeBounds {
-                if record.date < bounds.start || record.date >= bounds.end { return false }
+                guard let date = record.date else { return false }
+                if date < bounds.start || date >= bounds.end { return false }
             }
 
             // Student filter
@@ -148,9 +156,9 @@ struct AttendanceLogView: View {
         calendar.startOfDay(for: date)
     }
 
-    private var groupedByDay: [(day: Date, items: [AttendanceRecord])] {
+    private var groupedByDay: [(day: Date, items: [CDAttendanceRecord])] {
         let dict = filteredRecords
-            .grouped { dayKey($0.date) }
+            .grouped { dayKey($0.date ?? Date.distantPast) }
             .mapValues { arr in arr.sorted { lhs, rhs in
                 // Sort by student name within a day
                 let lhsName = studentsByID[lhs.studentIDUUID ?? UUID()]?.firstName ?? ""
@@ -184,7 +192,7 @@ struct AttendanceLogView: View {
         }
     }
 
-    private func displayName(for student: Student) -> String {
+    private func displayName(for student: CDStudent) -> String {
         let first = student.firstName.trimmed()
         let last = student.lastName.trimmed()
         let li = last.first.map { String($0).uppercased() } ?? ""
@@ -236,20 +244,22 @@ struct AttendanceLogView: View {
                 Button("All Students") { selectedStudentIDs.removeAll() }
                 Divider()
                 ForEach(students) { student in
-                    Button(action: {
-                        if selectedStudentIDs.contains(student.id) {
-                            selectedStudentIDs.remove(student.id)
-                        } else {
-                            selectedStudentIDs.insert(student.id)
-                        }
-                    }, label: {
-                        HStack {
-                            if selectedStudentIDs.contains(student.id) {
-                                Image(systemName: "checkmark")
+                    if let studentID = student.id {
+                        Button(action: {
+                            if selectedStudentIDs.contains(studentID) {
+                                selectedStudentIDs.remove(studentID)
+                            } else {
+                                selectedStudentIDs.insert(studentID)
                             }
-                            Text(displayName(for: student))
-                        }
-                    })
+                        }, label: {
+                            HStack {
+                                if selectedStudentIDs.contains(studentID) {
+                                    Image(systemName: "checkmark")
+                                }
+                                Text(displayName(for: student))
+                            }
+                        })
+                    }
                 }
             } label: {
                 HStack(spacing: 6) {
@@ -395,7 +405,7 @@ struct AttendanceLogView: View {
 
     @ViewBuilder
     // swiftlint:disable:next function_body_length
-    private func attendanceRow(for record: AttendanceRecord) -> some View {
+    private func attendanceRow(for record: CDAttendanceRecord) -> some View {
         HStack(alignment: .center, spacing: 12) {
             // Status indicator
             Circle()
@@ -482,19 +492,19 @@ struct AttendanceLogView: View {
         }
     }
 
-    private func updateRecordStatus(_ record: AttendanceRecord, to status: AttendanceStatus) {
+    private func updateRecordStatus(_ record: CDAttendanceRecord, to status: AttendanceStatus) {
         record.status = status
         do {
-            try modelContext.save()
+            try viewContext.save()
         } catch {
             Self.logger.warning("Failed to save after updating record status: \(error, privacy: .public)")
         }
     }
 
-    private func deleteRecord(_ record: AttendanceRecord) {
-        modelContext.delete(record)
+    private func deleteRecord(_ record: CDAttendanceRecord) {
+        viewContext.delete(record)
         do {
-            try modelContext.save()
+            try viewContext.save()
         } catch {
             Self.logger.warning("Failed to save after deleting record: \(error, privacy: .public)")
         }
@@ -503,4 +513,5 @@ struct AttendanceLogView: View {
 
 #Preview {
     AttendanceLogView()
+        .previewEnvironment()
 }

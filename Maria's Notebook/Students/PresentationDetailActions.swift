@@ -1,7 +1,7 @@
 import Foundation
 import OSLog
-import SwiftData
 import SwiftUI
+import CoreData
 
 @Observable
 @MainActor
@@ -10,7 +10,7 @@ final class PresentationDetailActions {
 
     // swiftlint:disable:next function_parameter_count
     func applyEditsToModel(
-        lessonAssignment: LessonAssignment,
+        lessonAssignment: CDLessonAssignment,
         editingLessonID: UUID,
         scheduledFor: Date?,
         givenAt: Date?,
@@ -18,8 +18,8 @@ final class PresentationDetailActions {
         notes: String,
         needsAnotherPresentation: Bool,
         selectedStudentIDs: Set<UUID>,
-        studentsAll: [Student],
-        lessons: [Lesson],
+        studentsAll: [CDStudent],
+        lessons: [CDLesson],
         calendar: Calendar
     ) {
         // Do not allow zero-student lessons; skip applying edits if empty selection
@@ -29,7 +29,6 @@ final class PresentationDetailActions {
         lessonAssignment.notes = notes
         lessonAssignment.needsAnotherPresentation = needsAnotherPresentation
         lessonAssignment.studentIDs = selectedStudentIDs.map(\.uuidString)
-        lessonAssignment.students = studentsAll.filter { selectedStudentIDs.contains($0.id) }
         lessonAssignment.lesson = lessons.first(where: { $0.id == editingLessonID })
 
         // State transitions: presented > scheduled > draft
@@ -48,12 +47,12 @@ final class PresentationDetailActions {
     func autoCreateNextIfNeeded(
         wasGiven: Bool,
         nowGiven: Bool,
-        nextLesson: Lesson?,
+        nextLesson: CDLesson?,
         selectedStudentIDs: Set<UUID>,
-        studentsAll: [Student],
-        lessons: [Lesson],
-        lessonAssignmentsAll: [LessonAssignment],
-        context: ModelContext
+        studentsAll: [CDStudent],
+        lessons: [CDLesson],
+        lessonAssignmentsAll: [CDLessonAssignment],
+        context: NSManagedObjectContext
     ) {
         #if DEBUG
         // swiftlint:disable:next line_length
@@ -79,15 +78,15 @@ final class PresentationDetailActions {
         )
         #endif
 
-        // Fetch LessonAssignments for duplicate checking (service now expects LessonAssignment)
-        let lessonAssignments: [LessonAssignment]
+        // Fetch LessonAssignments for duplicate checking (service now expects CDLessonAssignment)
+        let lessonAssignments: [CDLessonAssignment]
         do {
-            lessonAssignments = try context.fetch(FetchDescriptor<LessonAssignment>())
+            lessonAssignments = try context.fetch(NSFetchRequest<CDLessonAssignment>(entityName: "LessonAssignment"))
         } catch {
             Self.logger.warning("Failed to fetch LessonAssignments: \(error)")
             lessonAssignments = []
         }
-        
+
         let result = PlanNextLessonService.planLesson(
             next,
             forStudents: selectedStudentIDs,
@@ -121,22 +120,22 @@ final class PresentationDetailActions {
 
     // swiftlint:disable:next function_parameter_count
     func planNextLessonInGroup(
-        next: Lesson,
+        next: CDLesson,
         selectedStudentIDs: Set<UUID>,
-        studentsAll: [Student],
-        lessons: [Lesson],
-        lessonAssignmentsAll: [LessonAssignment],
-        context: ModelContext
+        studentsAll: [CDStudent],
+        lessons: [CDLesson],
+        lessonAssignmentsAll: [CDLessonAssignment],
+        context: NSManagedObjectContext
     ) -> Bool {
-        // Fetch LessonAssignments for duplicate checking (service now expects LessonAssignment)
-        let lessonAssignments: [LessonAssignment]
+        // Fetch LessonAssignments for duplicate checking (service now expects CDLessonAssignment)
+        let lessonAssignments: [CDLessonAssignment]
         do {
-            lessonAssignments = try context.fetch(FetchDescriptor<LessonAssignment>())
+            lessonAssignments = try context.fetch(NSFetchRequest<CDLessonAssignment>(entityName: "LessonAssignment"))
         } catch {
             Self.logger.warning("Failed to fetch LessonAssignments: \(error)")
             lessonAssignments = []
         }
-        
+
         let result = PlanNextLessonService.planLesson(
             next,
             forStudents: selectedStudentIDs,
@@ -155,38 +154,35 @@ final class PresentationDetailActions {
     }
 
     func moveStudentsToInbox(
-        currentLesson: Lesson,
+        currentLesson: CDLesson,
         studentsToMove: Set<UUID>,
-        studentsAll: [Student],
-        lessonAssignmentsAll: [LessonAssignment],
-        context: ModelContext
+        studentsAll: [CDStudent],
+        lessonAssignmentsAll: [CDLessonAssignment],
+        context: NSManagedObjectContext
     ) -> [String] {
         guard !studentsToMove.isEmpty else { return [] }
 
         let movedStudentNames = studentsAll
-            .filter { studentsToMove.contains($0.id) }
+            .filter { guard let sid = $0.id else { return false }; return studentsToMove.contains(sid) }
             .map { StudentFormatter.displayName(for: $0) }
 
+        let currentLessonID = currentLesson.id ?? UUID()
         let targetSet = studentsToMove
         let existing = lessonAssignmentsAll.first(where: { la in
-            la.resolvedLessonID == currentLesson.id && la.scheduledFor == nil
+            la.resolvedLessonID == currentLessonID && la.scheduledFor == nil
                 && !la.isPresented && Set(la.resolvedStudentIDs) == targetSet
         })
 
         if let ex = existing {
-            ex.students = studentsAll.filter { targetSet.contains($0.id) }
+            ex.studentIDs = studentsAll.compactMap(\.id).filter { targetSet.contains($0) }.map(\.uuidString)
             ex.lesson = currentLesson
         } else {
             let newLA = PresentationFactory.makeDraft(
-                lessonID: currentLesson.id,
-                studentIDs: Array(targetSet)
-            )
-            PresentationFactory.attachRelationships(
-                to: newLA,
                 lesson: currentLesson,
-                students: studentsAll.filter { targetSet.contains($0.id) }
+                students: studentsAll.filter { guard let sid = $0.id else { return false }; return targetSet.contains(sid) },
+                context: context
             )
-            context.insert(newLA)
+            _ = newLA // Core Data auto-inserts into context
         }
 
         context.safeSave()
@@ -194,7 +190,7 @@ final class PresentationDetailActions {
         return movedStudentNames
     }
 
-    func toggleWorkCompletion(_ work: WorkModel, studentID: UUID, context: ModelContext) {
+    func toggleWorkCompletion(_ work: CDWorkModel, studentID: UUID, context: NSManagedObjectContext) {
         if work.isStudentCompleted(studentID) {
             // Un-complete: Remove from participant (historical records preserved)
             if let participant = work.participant(for: studentID) {
@@ -203,7 +199,7 @@ final class PresentationDetailActions {
         } else {
             // Complete: Use WorkCompletionService for proper historical tracking
             do {
-                try WorkCompletionService.markCompleted(workID: work.id, studentID: studentID, in: context)
+                try WorkCompletionService.markCompleted(workID: work.id ?? UUID(), studentID: studentID, in: context)
                 // Also update participant for backwards compatibility
                 if let participant = work.participant(for: studentID) {
                     participant.completedAt = Date()
@@ -215,7 +211,7 @@ final class PresentationDetailActions {
         context.safeSave()
     }
 
-    func nextLessonInGroup(from current: Lesson?, lessons: [Lesson]) -> Lesson? {
+    func nextLessonInGroup(from current: CDLesson?, lessons: [CDLesson]) -> CDLesson? {
         guard let current else { return nil }
         return PlanNextLessonService.findNextLesson(after: current, in: lessons)
     }

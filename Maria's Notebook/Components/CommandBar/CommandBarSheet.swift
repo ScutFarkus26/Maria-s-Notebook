@@ -2,11 +2,11 @@
 // Natural language command bar for quick record keeping
 
 import SwiftUI
-import SwiftData
+import CoreData
 
 struct CommandBarSheet: View {
     @Environment(\.dismiss) private var dismiss
-    @Environment(\.modelContext) private var modelContext
+    @Environment(\.managedObjectContext) private var viewContext
     @Environment(\.dependencies) private var dependencies
 
     // Callbacks to RootView for opening sheets
@@ -18,17 +18,16 @@ struct CommandBarSheet: View {
 
     // MARK: - Data
 
-    @Query(sort: Student.sortByName) private var allStudents: [Student]
-    @Query(sort: [SortDescriptor(\Lesson.subject), SortDescriptor(\Lesson.name)])
-    private var allLessons: [Lesson]
+    @FetchRequest(sortDescriptors: CDStudent.sortByName)private var allStudents: FetchedResults<CDStudent>
+    @FetchRequest(sortDescriptors: [NSSortDescriptor(keyPath: \CDLesson.subject, ascending: true), NSSortDescriptor(keyPath: \CDLesson.name, ascending: true)]) private var allLessons: FetchedResults<CDLesson>
 
     @AppStorage(UserDefaultsKeys.generalShowTestStudents) private var showTestStudents: Bool = false
     @AppStorage(UserDefaultsKeys.generalTestStudentNames)
     private var testStudentNamesRaw: String = "Danny De Berry,Lil Dan D"
 
-    private var students: [Student] {
+    private var students: [CDStudent] {
         TestStudentsFilter.filterVisible(
-            allStudents.uniqueByID.filter(\.isEnrolled), show: showTestStudents, namesRaw: testStudentNamesRaw
+            Array(allStudents).uniqueByID.filter(\.isEnrolled), show: showTestStudents, namesRaw: testStudentNamesRaw
         )
     }
 
@@ -231,7 +230,7 @@ struct CommandBarSheet: View {
                 if let lesson = command.rawLessonName {
                     entityRow(
                         icon: "book.fill",
-                        label: "Lesson",
+                        label: "CDLesson",
                         values: [lesson],
                         color: .orange
                     )
@@ -283,11 +282,13 @@ struct CommandBarSheet: View {
             viewModel.speechService.stopRecording()
         }
 
-        let studentData = students.map {
-            StudentData(id: $0.id, firstName: $0.firstName, lastName: $0.lastName, nickname: $0.nickname)
+        let studentData = students.compactMap { s -> StudentData? in
+            guard let id = s.id else { return nil }
+            return StudentData(id: id, firstName: s.firstName, lastName: s.lastName, nickname: s.nickname)
         }
-        let lessonData = allLessons.map {
-            LessonData(id: $0.id, name: $0.name, subject: $0.subject, group: $0.group)
+        let lessonData = allLessons.compactMap { l -> LessonData? in
+            guard let id = l.id else { return nil }
+            return LessonData(id: id, name: l.name, subject: l.subject, group: l.group)
         }
 
         Task {
@@ -301,7 +302,7 @@ struct CommandBarSheet: View {
 
     private func executeCommand(_ command: ParsedCommand) {
         viewModel.addToRecent(viewModel.inputText.trimmed())
-        let action = viewModel.buildAction(from: command, modelContext: modelContext)
+        let action = viewModel.buildAction(from: command, modelContext: viewContext)
 
         switch action {
         case .openPresentation(let draftID):

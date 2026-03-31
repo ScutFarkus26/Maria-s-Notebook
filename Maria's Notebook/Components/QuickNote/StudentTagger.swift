@@ -2,7 +2,7 @@ import Foundation
 import NaturalLanguage
 import OSLog
 
-// MARK: - Student Data Structures
+// MARK: - CDStudent Data Structures
 
 struct StudentData: Sendable {
     let id: UUID
@@ -23,7 +23,7 @@ struct StudentMatchResult: Sendable {
     var replacements: [TextReplacement] = [] // Text replacements to apply
 }
 
-// MARK: - Student Tagger Actor
+// MARK: - CDStudent Tagger Actor
 // Runs heavy regex/NLP off the main thread to keep typing smooth
 
 // swiftlint:disable:next type_body_length

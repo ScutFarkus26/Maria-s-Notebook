@@ -1,5 +1,6 @@
 // swiftlint:disable file_length
 import SwiftUI
+import CoreData
 
 // MARK: - Reusable Button Components
 
@@ -385,7 +386,7 @@ struct PlanningContentSections<
     let studentPills: () -> StudentPills
     let inboxStatus: () -> InboxStatus
     let notes: () -> Notes
-    
+
     init(
         horizontalPadding: CGFloat = 32,
         @ViewBuilder lessonHeader: @escaping () -> LessonHeader,
@@ -404,15 +405,15 @@ struct PlanningContentSections<
     
     var body: some View {
         VStack(spacing: 0) {
-            // 1. Lesson Title & Tags Header
+            // 1. CDLesson Title & Tags Header
             lessonHeader()
                 .padding(.horizontal, horizontalPadding)
                 .padding(.top, horizontalPadding)
             
-            // 2. Lesson Picker
+            // 2. CDLesson Picker
             lessonPicker()
             
-            // 3. Student Pills Block
+            // 3. CDStudent Pills Block
             studentPills()
                 .padding(.horizontal, horizontalPadding)
                 .padding(.top, 20)

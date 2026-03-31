@@ -2,7 +2,7 @@
 // Retry logic with exponential backoff for cloud backup operations
 
 import Foundation
-import SwiftData
+import CoreData
 import OSLog
 
 extension CloudBackupService {
@@ -55,13 +55,13 @@ extension CloudBackupService {
 
     /// Exports a backup to iCloud with automatic retry on failure.
     public func exportToCloudWithRetry(
-        modelContext: ModelContext,
+        viewContext: NSManagedObjectContext,
         password: String? = nil,
         progress: @escaping BackupService.ProgressCallback
     ) async throws -> URL {
         try await withRetry {
             try await self.exportToCloud(
-                modelContext: modelContext,
+                viewContext: viewContext,
                 password: password,
                 progress: progress
             )

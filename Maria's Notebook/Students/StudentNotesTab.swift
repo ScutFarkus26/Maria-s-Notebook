@@ -2,24 +2,26 @@
 // Notes tab content extracted from StudentDetailView
 
 import SwiftUI
-import SwiftData
+import CoreData
 
 struct StudentNotesTab: View {
-    let student: Student
+    let student: CDStudent
     
     // 1. Efficient Hybrid Fetch: Get notes for this student OR global notes
-    @Query private var notes: [Note]
+    @FetchRequest(sortDescriptors: []) private var notes: FetchedResults<CDNote>
     @State private var showingSmartAssistant = false
     @State private var showingReportGenerator = false
 
-    init(student: Student) {
+    init(student: CDStudent) {
         self.student = student
-        let studentID = student.id
-        
-        let predicate = #Predicate<Note> { note in
-            note.searchIndexStudentID == studentID || note.scopeIsAll == true
+
+        let predicate: NSPredicate
+        if let studentID = student.id {
+            predicate = NSPredicate(format: "searchIndexStudentID == %@ OR scopeIsAll == YES", studentID as CVarArg)
+        } else {
+            predicate = NSPredicate(format: "scopeIsAll == YES")
         }
-        _notes = Query(filter: predicate, sort: \.updatedAt, order: .reverse)
+        _notes = FetchRequest(sortDescriptors: [NSSortDescriptor(keyPath: \CDNote.updatedAt, ascending: false)], predicate: predicate)
     }
 
     var body: some View {
@@ -45,7 +47,7 @@ struct StudentNotesTab: View {
                 }
             }
             .sheet(isPresented: $showingSmartAssistant) {
-                AppleIntelligenceSheet(notes: notes)
+                AppleIntelligenceSheet(notes: Array(notes))
                     #if os(iOS)
                     .presentationDetents([.medium, .large])
                     .presentationDragIndicator(.visible)

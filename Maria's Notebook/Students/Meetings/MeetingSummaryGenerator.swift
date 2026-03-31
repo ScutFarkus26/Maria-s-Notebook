@@ -1,5 +1,6 @@
 import Foundation
 import OSLog
+import CoreData
 
 #if ENABLE_FOUNDATION_MODELS && canImport(FoundationModels)
 import FoundationModels
@@ -14,7 +15,7 @@ enum MeetingSummaryGenerator {
     // MARK: - Fallback Summary
 
     /// Generates a fallback summary when AI is unavailable.
-    static func generateFallbackSummary(for meeting: StudentMeeting) -> String {
+    static func generateFallbackSummary(for meeting: CDStudentMeeting) -> String {
         // For single-line display, prefer the most important field first
         let focusTrim = meeting.focus.trimmed()
         if !focusTrim.isEmpty {
@@ -43,7 +44,7 @@ enum MeetingSummaryGenerator {
     ///   - meeting: The meeting to summarize
     ///   - onSummaryGenerated: Callback with the generated summary and whether it was AI-generated
     static func generateSummary(
-        for meeting: StudentMeeting,
+        for meeting: CDStudentMeeting,
         onSummaryGenerated: @escaping @MainActor (String, Bool) -> Void
     ) async {
         let manualSummary = generateFallbackSummary(for: meeting)
@@ -68,7 +69,7 @@ enum MeetingSummaryGenerator {
         }
 
         let context = """
-        Student Reflection: \(meeting.reflection)
+        CDStudent Reflection: \(meeting.reflection)
         Focus: \(meeting.focus)
         Requests: \(meeting.requests)
         Guide Notes: \(meeting.guideNotes)

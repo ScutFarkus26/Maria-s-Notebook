@@ -1,6 +1,6 @@
 import OSLog
 import SwiftUI
-import SwiftData
+import CoreData
 
 extension TodoListPanel {
     private static let logger = Logger.todos
@@ -10,14 +10,12 @@ extension TodoListPanel {
         guard !trimmed.isEmpty else { return }
 
         let parseResult = TodoDateParser.parse(trimmed)
-        let newTodo = TodoItem(
-            title: parseResult.cleanTitle,
-            orderIndex: todos.count,
-            scheduledDate: parseResult.suggestedDate
-        )
-        modelContext.insert(newTodo)
+        let newTodo = CDTodoItem(context: viewContext)
+        newTodo.title = parseResult.cleanTitle
+        newTodo.orderIndex = Int64(todos.count)
+        newTodo.scheduledDate = parseResult.suggestedDate
         do {
-            try modelContext.save()
+            try viewContext.save()
         } catch {
             Self.logger.error("Failed to save new todo: \(error.localizedDescription, privacy: .public)")
         }
@@ -67,17 +65,14 @@ extension TodoListPanel {
                     }
                 }()
 
-                let newTodo = TodoItem(
-                    title: parsed.title.isEmpty ? trimmed : parsed.title,
-                    orderIndex: todos.count,
-                    dueDate: dueDate,
-                    priority: priority,
-                    recurrence: recurrence
-                )
-
-                modelContext.insert(newTodo)
+                let newTodo = CDTodoItem(context: viewContext)
+                newTodo.title = parsed.title.isEmpty ? trimmed : parsed.title
+                newTodo.orderIndex = Int64(todos.count)
+                newTodo.dueDate = dueDate
+                newTodo.priority = priority
+                newTodo.recurrence = recurrence
                 do {
-                    try modelContext.save()
+                    try viewContext.save()
                 } catch {
                     Self.logger.error("Failed to save new todo: \(error.localizedDescription, privacy: .public)")
                 }
@@ -95,7 +90,7 @@ extension TodoListPanel {
         #endif
     }
 
-    func toggleTodo(_ todo: TodoItem) {
+    func toggleTodo(_ todo: CDTodoItem) {
         todo.isCompleted.toggle()
         if todo.isCompleted {
             todo.completedAt = Date()
@@ -113,8 +108,8 @@ extension TodoListPanel {
                 }
 
                 let nextDueDate: Date?
-                if todo.recurrence == .custom, let interval = todo.customIntervalDays {
-                    nextDueDate = Calendar.current.date(byAdding: .day, value: interval, to: baseDate)
+                if todo.recurrence == .custom, todo.customIntervalDays > 0 {
+                    nextDueDate = Calendar.current.date(byAdding: .day, value: Int(todo.customIntervalDays), to: baseDate)
                 } else {
                     nextDueDate = todo.recurrence.nextDate(after: baseDate)
                 }
@@ -129,52 +124,50 @@ extension TodoListPanel {
                         nextScheduled = nextDueDate
                     }
 
-                    let newTodo = TodoItem(
-                        title: todo.title,
-                        notes: todo.notes,
-                        orderIndex: todos.count,
-                        studentIDs: todo.studentIDs,
-                        dueDate: nextDueDate,
-                        scheduledDate: nextScheduled,
-                        priority: todo.priority,
-                        recurrence: todo.recurrence
-                    )
+                    let newTodo = CDTodoItem(context: viewContext)
+                    newTodo.title = todo.title
+                    newTodo.notes = todo.notes
+                    newTodo.orderIndex = Int64(todos.count)
+                    newTodo.studentIDs = todo.studentIDs
+                    newTodo.dueDate = nextDueDate
+                    newTodo.scheduledDate = nextScheduled
+                    newTodo.priority = todo.priority
+                    newTodo.recurrence = todo.recurrence
                     newTodo.repeatAfterCompletion = todo.repeatAfterCompletion
                     newTodo.customIntervalDays = todo.customIntervalDays
                     newTodo.tags = todo.tags
-                    modelContext.insert(newTodo)
                 }
             }
         } else {
             todo.completedAt = nil
         }
         do {
-            try modelContext.save()
+            try viewContext.save()
         } catch {
             Self.logger.error("Failed to save todo completion: \(error.localizedDescription, privacy: .public)")
         }
     }
 
-    func deleteTodo(_ todo: TodoItem) {
-        modelContext.delete(todo)
+    func deleteTodo(_ todo: CDTodoItem) {
+        viewContext.delete(todo)
         do {
-            try modelContext.save()
+            try viewContext.save()
         } catch {
             Self.logger.error("Failed to delete todo: \(error.localizedDescription, privacy: .public)")
         }
     }
 
     func moveTodos(from source: IndexSet, to destination: Int) {
-        var reorderedTodos = todos
+        var reorderedTodos = Array(todos)
         reorderedTodos.move(fromOffsets: source, toOffset: destination)
 
         // Update orderIndex for all todos
         for (index, todo) in reorderedTodos.enumerated() {
-            todo.orderIndex = index
+            todo.orderIndex = Int64(index)
         }
 
         do {
-            try modelContext.save()
+            try viewContext.save()
         } catch {
             Self.logger.error("Failed to update todo order: \(error.localizedDescription, privacy: .public)")
         }

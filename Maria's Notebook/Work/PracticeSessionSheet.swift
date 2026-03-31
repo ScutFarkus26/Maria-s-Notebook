@@ -1,6 +1,6 @@
 import OSLog
 import SwiftUI
-import SwiftData
+import CoreData
 
 /// Sheet for recording a practice session (solo or group) with students
 struct PracticeSessionSheet: View {
@@ -8,15 +8,19 @@ struct PracticeSessionSheet: View {
 
     let initialWorkItem: WorkModel
     var onSave: ((PracticeSession) -> Void)?
-    
+
     @Environment(\.dismiss) private var dismiss
-    @Environment(\.modelContext) private var modelContext
-    
-    @Query private var allStudentsRaw: [Student]
-    private var allStudents: [Student] { allStudentsRaw.filter(\.isEnrolled) }
-    @Query private var allWork: [WorkModel]
-    @Query private var allLessonAssignments: [LessonAssignment]
-    @Query private var allPracticeSessions: [PracticeSession]
+    @Environment(\.managedObjectContext) private var viewContext
+
+    @FetchRequest(sortDescriptors: [NSSortDescriptor(keyPath: \CDStudent.firstName, ascending: true)])
+    private var allStudentsRaw: FetchedResults<CDStudent>
+    private var allStudents: [Student] { Array(allStudentsRaw).filter(\.isEnrolled) }
+    @FetchRequest(sortDescriptors: [NSSortDescriptor(keyPath: \CDWorkModel.createdAt, ascending: false)])
+    private var allWork: FetchedResults<CDWorkModel>
+    @FetchRequest(sortDescriptors: [NSSortDescriptor(keyPath: \CDLessonAssignment.presentedAt, ascending: false)])
+    private var allLessonAssignments: FetchedResults<CDLessonAssignment>
+    @FetchRequest(sortDescriptors: [NSSortDescriptor(keyPath: \CDPracticeSession.date, ascending: false)])
+    private var allPracticeSessions: FetchedResults<CDPracticeSession>
 
     @State var selectedDate: Date = Date()
     @State var selectedStudentIDs: Set<UUID> = []
@@ -45,7 +49,7 @@ struct PracticeSessionSheet: View {
     @State private var relatedLesson: Lesson?
     
     private var repository: PracticeSessionRepository {
-        PracticeSessionRepository(modelContext: modelContext) // swiftlint:disable:this deprecated
+        PracticeSessionRepository(context: viewContext) // swiftlint:disable:this deprecated
     }
     
     // Co-learner student IDs (students who had the lesson together)
@@ -56,9 +60,9 @@ struct PracticeSessionSheet: View {
     private var categorizer: StudentCategorizer {
         StudentCategorizer(
             initialWorkItem: initialWorkItem,
-            allWork: allWork,
-            allLessonAssignments: allLessonAssignments,
-            allPracticeSessions: allPracticeSessions,
+            allWork: Array(allWork),
+            allLessonAssignments: Array(allLessonAssignments),
+            allPracticeSessions: Array(allPracticeSessions),
             coLearnerIDs: coLearnerIDs
         )
     }
@@ -66,7 +70,7 @@ struct PracticeSessionSheet: View {
     // All students ordered by category and search filter
     var orderedStudents: [CategorizedStudent] {
         let categorized = allStudents
-            .filter { !selectedStudentIDs.contains($0.id) }
+            .filter { guard let id = $0.id else { return false }; return !selectedStudentIDs.contains(id) }
             .map { categorizer.categorize($0) }
             .filter { categorized in
                 // Apply search filter
@@ -80,13 +84,13 @@ struct PracticeSessionSheet: View {
 
     var selectedStudents: [Student] {
         allStudents
-            .filter { selectedStudentIDs.contains($0.id) }
+            .filter { guard let id = $0.id else { return false }; return selectedStudentIDs.contains(id) }
             .sorted { $0.firstName < $1.firstName }
     }
-    
+
     var selectedWorkItems: [WorkModel] {
-        allWork
-            .filter { selectedWorkItemIDs.contains($0.id) }
+        Array(allWork)
+            .filter { guard let id = $0.id else { return false }; return selectedWorkItemIDs.contains(id) }
             .sorted { $0.title < $1.title }
     }
     
@@ -193,12 +197,12 @@ struct PracticeSessionSheet: View {
             ForEach(selectedStudents) { student in
                 SelectedStudentRow(
                     student: student,
-                    workTitle: selectedWorkItems.first(where: { $0.studentID == student.id.uuidString })?.title,
+                    workTitle: selectedWorkItems.first(where: { $0.studentID == student.id?.uuidString ?? "" })?.title,
                     showRemoveButton: selectedStudents.count > 1,
                     onRemove: {
-                        selectedStudentIDs.remove(student.id)
-                        if let work = selectedWorkItems.first(where: { $0.studentID == student.id.uuidString }) {
-                            selectedWorkItemIDs.remove(work.id)
+                        if let sid = student.id { selectedStudentIDs.remove(sid) }
+                        if let work = selectedWorkItems.first(where: { $0.studentID == (student.id?.uuidString ?? "") }) {
+                            if let wid = work.id { selectedWorkItemIDs.remove(wid) }
                         }
                     }
                 )
@@ -229,32 +233,36 @@ struct PracticeSessionSheet: View {
         if let studentID = UUID(uuidString: initialWorkItem.studentID) {
             selectedStudentIDs.insert(studentID)
         }
-        selectedWorkItemIDs.insert(initialWorkItem.id)
+        if let workID = initialWorkItem.id {
+            selectedWorkItemIDs.insert(workID)
+        }
         
         // Load presentation and lesson context
-        relatedPresentation = initialWorkItem.fetchPresentation(from: modelContext)
-        relatedLesson = initialWorkItem.fetchLesson(from: modelContext)
+        relatedPresentation = initialWorkItem.fetchPresentation(from: viewContext)
+        relatedLesson = initialWorkItem.fetchLesson(from: viewContext)
     }
     
     func toggleStudent(_ student: Student) {
-        if selectedStudentIDs.contains(student.id) {
-            selectedStudentIDs.remove(student.id)
+        guard let studentID = student.id else { return }
+        if selectedStudentIDs.contains(studentID) {
+            selectedStudentIDs.remove(studentID)
             // Remove their work item too
-            if let work = findWorkForStudent(student) {
-                selectedWorkItemIDs.remove(work.id)
+            if let work = findWorkForStudent(student), let wid = work.id {
+                selectedWorkItemIDs.remove(wid)
             }
         } else {
-            selectedStudentIDs.insert(student.id)
+            selectedStudentIDs.insert(studentID)
             // Add their work item
-            if let work = findWorkForStudent(student) {
-                selectedWorkItemIDs.insert(work.id)
+            if let work = findWorkForStudent(student), let wid = work.id {
+                selectedWorkItemIDs.insert(wid)
             }
         }
     }
     
     private func findWorkForStudent(_ student: Student) -> WorkModel? {
-        allWork.first { work in
-            work.studentID == student.id.uuidString &&
+        let studentIDString = student.id?.uuidString ?? ""
+        return allWork.first { work in
+            work.studentID == studentIDString &&
             work.lessonID == initialWorkItem.lessonID &&
             work.status != .complete
         }
@@ -262,20 +270,18 @@ struct PracticeSessionSheet: View {
     
     @MainActor
     private func saveSession() {
-        // Create practice session (using SwiftData directly — views migrate to CD in Phase 4)
-        let session = PracticeSession(
-            date: selectedDate,
-            duration: hasDuration ? duration : nil,
-            studentIDs: Array(selectedStudentIDs).map(\.uuidString),
-            workItemIDs: Array(selectedWorkItemIDs).map(\.uuidString),
-            sharedNotes: sharedNotes,
-            location: hasLocation ? location : nil
-        )
-        modelContext.insert(session)
+        // Create practice session
+        let session = PracticeSession(context: viewContext)
+        session.date = selectedDate
+        session.durationInterval = hasDuration ? duration : nil
+        session.studentIDsArray = Array(selectedStudentIDs).map(\.uuidString)
+        session.workItemIDsArray = Array(selectedWorkItemIDs).map(\.uuidString)
+        session.sharedNotes = sharedNotes
+        session.location = hasLocation ? location : nil
 
         // Set quality metrics
-        session.practiceQuality = practiceQuality
-        session.independenceLevel = independenceLevel
+        session.practiceQualityValue = practiceQuality
+        session.independenceLevelValue = independenceLevel
         
         // Create individual notes with understanding levels if provided
         for studentID in selectedStudentIDs {
@@ -298,18 +304,16 @@ struct PracticeSessionSheet: View {
                 fullNoteBody = noteText
             }
 
-            let note = Note(
-                body: fullNoteBody,
-                scope: .student(studentID),
-                tags: [TagHelper.tagFromNoteCategory("academic")],
-                practiceSession: session
-            )
-            modelContext.insert(note)
-            note.syncStudentLinksIfNeeded(in: modelContext)
+            let note = Note(context: viewContext)
+            note.body = fullNoteBody
+            note.scope = .student(studentID)
+            note.tagsArray = [TagHelper.tagFromNoteCategory("academic")]
+            note.practiceSession = session
+            // Student links managed by Core Data relationships
         }
 
         do {
-            try modelContext.save()
+            try viewContext.save()
         } catch {
             Self.logger.warning("Failed to save practice session: \(error)")
         }
@@ -322,56 +326,29 @@ struct PracticeSessionSheet: View {
 // MARK: - Preview
 
 #Preview("Group Practice Sheet") {
-    let config = ModelConfiguration(isStoredInMemoryOnly: true)
-    let container: ModelContainer
-    do {
-        container = try ModelContainer(for: AppSchema.schema, configurations: config)
-    } catch {
-        fatalError("Preview ModelContainer failed: \(error)")
-    }
-    let context = container.mainContext
+    let stack = CoreDataStack.preview
+    let ctx = stack.viewContext
 
-    // Create sample students
-    let mary = Student(firstName: "Mary", lastName: "Smith", birthday: Date(), level: .lower)
-    let danny = Student(firstName: "Danny", lastName: "Jones", birthday: Date(), level: .lower)
-    let jane = Student(firstName: "Jane", lastName: "Doe", birthday: Date(), level: .lower)
-    
-    context.insert(mary)
-    context.insert(danny)
-    context.insert(jane)
-    
-    // Create sample lesson
-    let lesson = Lesson()
-    lesson.name = "Long Division"
-    lesson.subject = "Math"
-    lesson.group = "Operations"
-    context.insert(lesson)
-    
-    // Create sample work items
-    let work1 = WorkModel(
-        title: "Practice Long Division",
-        kind: .practiceLesson,
-        studentID: danny.id.uuidString,
-        lessonID: lesson.id.uuidString
-    )
-    let work2 = WorkModel(
-        title: "Practice Long Division",
-        kind: .practiceLesson,
-        studentID: mary.id.uuidString,
-        lessonID: lesson.id.uuidString
-    )
-    let work3 = WorkModel(
-        title: "Practice Long Division",
-        kind: .practiceLesson,
-        studentID: jane.id.uuidString,
-        lessonID: lesson.id.uuidString
-    )
-    
-    context.insert(work1)
-    context.insert(work2)
-    context.insert(work3)
-    
+    let mary = Student(context: ctx)
+    mary.firstName = "Mary"; mary.lastName = "Smith"; mary.birthday = Date(); mary.level = .lower
+    let danny = Student(context: ctx)
+    danny.firstName = "Danny"; danny.lastName = "Jones"; danny.birthday = Date(); danny.level = .lower
+    let jane = Student(context: ctx)
+    jane.firstName = "Jane"; jane.lastName = "Doe"; jane.birthday = Date(); jane.level = .lower
+
+    let lesson = Lesson(context: ctx)
+    lesson.name = "Long Division"; lesson.subject = "Math"; lesson.group = "Operations"
+
+    let work1 = WorkModel(context: ctx)
+    work1.title = "Practice Long Division"; work1.kind = .practiceLesson
+    work1.studentID = danny.id?.uuidString ?? ""; work1.lessonID = lesson.id?.uuidString ?? ""
+    let work2 = WorkModel(context: ctx)
+    work2.title = "Practice Long Division"; work2.kind = .practiceLesson
+    work2.studentID = mary.id?.uuidString ?? ""; work2.lessonID = lesson.id?.uuidString ?? ""
+    let work3 = WorkModel(context: ctx)
+    work3.title = "Practice Long Division"; work3.kind = .practiceLesson
+    work3.studentID = jane.id?.uuidString ?? ""; work3.lessonID = lesson.id?.uuidString ?? ""
+
     return PracticeSessionSheet(initialWorkItem: work1)
-        .modelContainer(container)
-        .environment(SaveCoordinator())
+        .previewEnvironment(using: stack)
 }

@@ -1,0 +1,56 @@
+{
+  "source": "/Users/dannydeberry/Documents/Projects/MariasNotebook-Rewrite/Maria's Notebook/Settings/SettingsView.swift",
+  "tables": {
+    "Localizable": [
+      {
+        "comment": "",
+        "key": "Settings Import",
+        "location": {
+          "startingColumn": 16,
+          "startingLine": 86
+        }
+      },
+      {
+        "comment": "",
+        "key": "OK",
+        "location": {
+          "startingColumn": 20,
+          "startingLine": 90
+        }
+      },
+      {
+        "comment": "",
+        "key": "Search settings",
+        "location": {
+          "startingColumn": 48,
+          "startingLine": 259
+        }
+      },
+      {
+        "comment": "",
+        "key": "Search",
+        "location": {
+          "startingColumn": 27,
+          "startingLine": 133
+        }
+      },
+      {
+        "comment": "",
+        "key": "Available",
+        "location": {
+          "startingColumn": 43,
+          "startingLine": 297
+        }
+      },
+      {
+        "comment": "",
+        "key": "Not Available",
+        "location": {
+          "startingColumn": 57,
+          "startingLine": 297
+        }
+      }
+    ]
+  },
+  "version": 1
+}

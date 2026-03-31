@@ -1,5 +1,5 @@
 import SwiftUI
-import SwiftData
+import CoreData
 
 struct AttendanceGrid: View {
     let students: [Student]

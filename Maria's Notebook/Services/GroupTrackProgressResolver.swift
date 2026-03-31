@@ -49,7 +49,7 @@ struct GroupTrackProgressResolver {
         lesson: Lesson, studentID: String,
         lessonPresentations: [LessonPresentation]
     ) -> Bool {
-        let lessonIDStr = lesson.id.uuidString
+        let lessonIDStr = lesson.id?.uuidString ?? ""
         return lessonPresentations.contains { lp in
             // Check student ID matches
             guard lp.studentID == studentID else { return false }

@@ -1,5 +1,5 @@
 import Foundation
-import SwiftData
+import CoreData
 import OSLog
 
 // MARK: - Payload Collection
@@ -12,20 +12,20 @@ extension IncrementalBackupService {
     }
 
     fileprivate struct RemainingEntities {
-        var nonSchoolDays: [NonSchoolDay] = []
-        var schoolDayOverrides: [SchoolDayOverride] = []
-        var studentMeetings: [StudentMeeting] = []
-        var communityTopics: [CommunityTopic] = []
-        var proposedSolutions: [ProposedSolution] = []
-        var communityAttachments: [CommunityAttachment] = []
-        var attendance: [AttendanceRecord] = []
-        var workCompletions: [WorkCompletionRecord] = []
-        var projects: [Project] = []
-        var projectTemplates: [ProjectAssignmentTemplate] = []
-        var projectSessions: [ProjectSession] = []
-        var projectRoles: [ProjectRole] = []
-        var projectWeeks: [ProjectTemplateWeek] = []
-        var projectWeekAssignments: [ProjectWeekRoleAssignment] = []
+        var nonSchoolDays: [CDNonSchoolDay] = []
+        var schoolDayOverrides: [CDSchoolDayOverride] = []
+        var studentMeetings: [CDStudentMeeting] = []
+        var communityTopics: [CDCommunityTopicEntity] = []
+        var proposedSolutions: [CDProposedSolutionEntity] = []
+        var communityAttachments: [CDCommunityAttachmentEntity] = []
+        var attendance: [CDAttendanceRecord] = []
+        var workCompletions: [CDWorkCompletionRecord] = []
+        var projects: [CDProject] = []
+        var projectTemplates: [CDProjectAssignmentTemplate] = []
+        var projectSessions: [CDProjectSession] = []
+        var projectRoles: [CDProjectRole] = []
+        var projectWeeks: [CDProjectTemplateWeek] = []
+        var projectWeekAssignments: [CDProjectWeekRoleAssignment] = []
     }
 }
 
@@ -33,7 +33,7 @@ extension IncrementalBackupService {
     private static let logger = Logger.backup
 
     func collectPayload(
-        modelContext: ModelContext,
+        viewContext: NSManagedObjectContext,
         sinceDate: Date?,
         progress: @escaping BackupService.ProgressCallback
     ) throws -> PayloadCollectionResult {
@@ -43,29 +43,29 @@ extension IncrementalBackupService {
 
         progress(0.1, "Collecting students...")
         let students = fetchFilteredEntities(
-            Student.self, using: modelContext, sinceDate: sinceDate,
+            CDStudent.self, using: viewContext, sinceDate: sinceDate,
             changedCounts: &changedCounts, totalCounts: &totalCounts
         )
 
         progress(0.2, "Collecting lessons...")
         let lessons = fetchFilteredEntities(
-            Lesson.self, using: modelContext, sinceDate: sinceDate,
+            CDLesson.self, using: viewContext, sinceDate: sinceDate,
             changedCounts: &changedCounts, totalCounts: &totalCounts
         )
 
         progress(0.35, "Collecting lesson assignments...")
         let lessonAssignments = fetchFilteredEntities(
-            LessonAssignment.self, using: modelContext, sinceDate: sinceDate,
+            CDLessonAssignment.self, using: viewContext, sinceDate: sinceDate,
             changedCounts: &changedCounts, totalCounts: &totalCounts
         )
 
         let notes = collectFilteredNotes(
-            using: modelContext, sinceDate: sinceDate,
+            using: viewContext, sinceDate: sinceDate,
             changedCounts: &changedCounts, totalCounts: &totalCounts
         )
 
         let remaining = collectRemainingEntities(
-            using: modelContext, sinceDate: sinceDate, progress: progress,
+            using: viewContext, sinceDate: sinceDate, progress: progress,
             changedCounts: &changedCounts, totalCounts: &totalCounts
         )
 
@@ -80,18 +80,18 @@ extension IncrementalBackupService {
 
     // MARK: - Payload Collection Helpers
 
-    private func fetchFilteredEntities<T: PersistentModel>(
+    private func fetchFilteredEntities<T: NSManagedObject>(
         _ type: T.Type,
         keyPath: KeyPath<T, Date?>? = nil,
-        using modelContext: ModelContext,
+        using viewContext: NSManagedObjectContext,
         sinceDate: Date?,
         changedCounts: inout [String: Int],
         totalCounts: inout [String: Int]
     ) -> [T] {
-        let descriptor = FetchDescriptor<T>()
+        let descriptor = T.fetchRequest() as! NSFetchRequest<T>
         let all: [T]
         do {
-            all = try modelContext.fetch(descriptor)
+            all = try viewContext.fetch(descriptor)
         } catch {
             let desc = error.localizedDescription
             Self.logger.warning("Failed to fetch \(T.self, privacy: .public): \(desc, privacy: .public)")
@@ -113,32 +113,32 @@ extension IncrementalBackupService {
     }
 
     private func collectFilteredNotes(
-        using modelContext: ModelContext,
+        using viewContext: NSManagedObjectContext,
         sinceDate: Date?,
         changedCounts: inout [String: Int],
         totalCounts: inout [String: Int]
-    ) -> [Note] {
+    ) -> [CDNote] {
         // Notes need special handling since updatedAt is non-optional
-        let allNotes: [Note]
+        let allNotes: [CDNote]
         do {
-            allNotes = try modelContext.fetch(FetchDescriptor<Note>())
+            allNotes = try viewContext.fetch(CDNote.fetchRequest() as! NSFetchRequest<CDNote>)
         } catch {
-            Self.logger.warning("Failed to fetch Note: \(error.localizedDescription, privacy: .public)")
+            Self.logger.warning("Failed to fetch CDNote: \(error.localizedDescription, privacy: .public)")
             allNotes = []
         }
-        totalCounts["Note"] = allNotes.count
-        let notes: [Note]
+        totalCounts["CDNote"] = allNotes.count
+        let notes: [CDNote]
         if let sinceDate {
-            notes = allNotes.filter { $0.updatedAt >= sinceDate }
+            notes = allNotes.filter { ($0.updatedAt ?? .distantPast) >= sinceDate }
         } else {
             notes = allNotes
         }
-        changedCounts["Note"] = notes.count
+        changedCounts["CDNote"] = notes.count
         return notes
     }
 
     private func collectRemainingEntities(
-        using modelContext: ModelContext,
+        using viewContext: NSManagedObjectContext,
         sinceDate: Date?,
         progress: @escaping BackupService.ProgressCallback,
         changedCounts: inout [String: Int],
@@ -146,11 +146,11 @@ extension IncrementalBackupService {
     ) -> RemainingEntities {
         var result = RemainingEntities()
         collectCalendarAndCommunityModels(
-            into: &result, using: modelContext, sinceDate: sinceDate,
+            into: &result, using: viewContext, sinceDate: sinceDate,
             progress: progress, changedCounts: &changedCounts, totalCounts: &totalCounts
         )
         collectRecordAndProjectModels(
-            into: &result, using: modelContext, sinceDate: sinceDate,
+            into: &result, using: viewContext, sinceDate: sinceDate,
             progress: progress, changedCounts: &changedCounts, totalCounts: &totalCounts
         )
         return result
@@ -159,7 +159,7 @@ extension IncrementalBackupService {
     // swiftlint:disable:next function_parameter_count
     private func collectCalendarAndCommunityModels(
         into result: inout RemainingEntities,
-        using modelContext: ModelContext,
+        using viewContext: NSManagedObjectContext,
         sinceDate: Date?,
         progress: @escaping BackupService.ProgressCallback,
         changedCounts: inout [String: Int],
@@ -167,31 +167,31 @@ extension IncrementalBackupService {
     ) {
         progress(0.5, "Collecting calendar data...")
         result.nonSchoolDays = fetchFilteredEntities(
-            NonSchoolDay.self, using: modelContext, sinceDate: sinceDate,
+            CDNonSchoolDay.self, using: viewContext, sinceDate: sinceDate,
             changedCounts: &changedCounts, totalCounts: &totalCounts
         )
         result.schoolDayOverrides = fetchFilteredEntities(
-            SchoolDayOverride.self, using: modelContext, sinceDate: sinceDate,
+            CDSchoolDayOverride.self, using: viewContext, sinceDate: sinceDate,
             changedCounts: &changedCounts, totalCounts: &totalCounts
         )
 
         progress(0.6, "Collecting meetings...")
         result.studentMeetings = fetchFilteredEntities(
-            StudentMeeting.self, using: modelContext, sinceDate: sinceDate,
+            CDStudentMeeting.self, using: viewContext, sinceDate: sinceDate,
             changedCounts: &changedCounts, totalCounts: &totalCounts
         )
 
         progress(0.7, "Collecting community data...")
         result.communityTopics = fetchFilteredEntities(
-            CommunityTopic.self, using: modelContext, sinceDate: sinceDate,
+            CDCommunityTopicEntity.self, using: viewContext, sinceDate: sinceDate,
             changedCounts: &changedCounts, totalCounts: &totalCounts
         )
         result.proposedSolutions = fetchFilteredEntities(
-            ProposedSolution.self, using: modelContext, sinceDate: sinceDate,
+            CDProposedSolutionEntity.self, using: viewContext, sinceDate: sinceDate,
             changedCounts: &changedCounts, totalCounts: &totalCounts
         )
         result.communityAttachments = fetchFilteredEntities(
-            CommunityAttachment.self, using: modelContext, sinceDate: sinceDate,
+            CDCommunityAttachmentEntity.self, using: viewContext, sinceDate: sinceDate,
             changedCounts: &changedCounts, totalCounts: &totalCounts
         )
     }
@@ -199,7 +199,7 @@ extension IncrementalBackupService {
     // swiftlint:disable:next function_parameter_count
     private func collectRecordAndProjectModels(
         into result: inout RemainingEntities,
-        using modelContext: ModelContext,
+        using viewContext: NSManagedObjectContext,
         sinceDate: Date?,
         progress: @escaping BackupService.ProgressCallback,
         changedCounts: inout [String: Int],
@@ -207,46 +207,46 @@ extension IncrementalBackupService {
     ) {
         progress(0.8, "Collecting attendance...")
         result.attendance = fetchFilteredEntities(
-            AttendanceRecord.self, using: modelContext, sinceDate: sinceDate,
+            CDAttendanceRecord.self, using: viewContext, sinceDate: sinceDate,
             changedCounts: &changedCounts, totalCounts: &totalCounts
         )
         result.workCompletions = fetchFilteredEntities(
-            WorkCompletionRecord.self, using: modelContext, sinceDate: sinceDate,
+            CDWorkCompletionRecord.self, using: viewContext, sinceDate: sinceDate,
             changedCounts: &changedCounts, totalCounts: &totalCounts
         )
 
         progress(0.9, "Collecting projects...")
         result.projects = fetchFilteredEntities(
-            Project.self, using: modelContext, sinceDate: sinceDate,
+            CDProject.self, using: viewContext, sinceDate: sinceDate,
             changedCounts: &changedCounts, totalCounts: &totalCounts
         )
         result.projectTemplates = fetchFilteredEntities(
-            ProjectAssignmentTemplate.self, using: modelContext, sinceDate: sinceDate,
+            CDProjectAssignmentTemplate.self, using: viewContext, sinceDate: sinceDate,
             changedCounts: &changedCounts, totalCounts: &totalCounts
         )
         result.projectSessions = fetchFilteredEntities(
-            ProjectSession.self, using: modelContext, sinceDate: sinceDate,
+            CDProjectSession.self, using: viewContext, sinceDate: sinceDate,
             changedCounts: &changedCounts, totalCounts: &totalCounts
         )
         result.projectRoles = fetchFilteredEntities(
-            ProjectRole.self, using: modelContext, sinceDate: sinceDate,
+            CDProjectRole.self, using: viewContext, sinceDate: sinceDate,
             changedCounts: &changedCounts, totalCounts: &totalCounts
         )
         result.projectWeeks = fetchFilteredEntities(
-            ProjectTemplateWeek.self, using: modelContext, sinceDate: sinceDate,
+            CDProjectTemplateWeek.self, using: viewContext, sinceDate: sinceDate,
             changedCounts: &changedCounts, totalCounts: &totalCounts
         )
         result.projectWeekAssignments = fetchFilteredEntities(
-            ProjectWeekRoleAssignment.self, using: modelContext, sinceDate: sinceDate,
+            CDProjectWeekRoleAssignment.self, using: viewContext, sinceDate: sinceDate,
             changedCounts: &changedCounts, totalCounts: &totalCounts
         )
     }
 
     private func buildIncrementalPayload(
-        students: [Student],
-        lessons: [Lesson],
-        lessonAssignments: [LessonAssignment],
-        notes: [Note],
+        students: [CDStudent],
+        lessons: [CDLesson],
+        lessonAssignments: [CDLessonAssignment],
+        notes: [CDNote],
         remaining: RemainingEntities
     ) -> BackupPayload {
         let studentDTOs = BackupServiceHelpers.toDTOs(students)
@@ -293,12 +293,13 @@ extension IncrementalBackupService {
         )
     }
 
-    private func mapLessonAssignmentDTOs(_ lessonAssignments: [LessonAssignment]) -> [LessonAssignmentDTO] {
-        lessonAssignments.map { la in
-            LessonAssignmentDTO(
-                id: la.id,
-                createdAt: la.createdAt,
-                modifiedAt: la.modifiedAt,
+    private func mapLessonAssignmentDTOs(_ lessonAssignments: [CDLessonAssignment]) -> [LessonAssignmentDTO] {
+        lessonAssignments.compactMap { la in
+            guard let laID = la.id, let laCreatedAt = la.createdAt, let laModifiedAt = la.modifiedAt else { return nil }
+            return LessonAssignmentDTO(
+                id: laID,
+                createdAt: laCreatedAt,
+                modifiedAt: laModifiedAt,
                 stateRaw: la.stateRaw,
                 scheduledFor: la.scheduledFor,
                 presentedAt: la.presentedAt,

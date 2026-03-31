@@ -1,4 +1,5 @@
 import SwiftUI
+import CoreData
 
 // Public enum so both views can see it
 enum StudentMode: String, CaseIterable, Identifiable {

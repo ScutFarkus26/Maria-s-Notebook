@@ -1,6 +1,5 @@
 import Foundation
 import CoreData
-import SwiftData
 import OSLog
 
 /// Generates AI-powered narrative summaries for student progress reports.
@@ -110,58 +109,6 @@ enum AIReportService {
         return ReportData(
             studentFirstName: student.firstName ?? "",
             studentLastName: student.lastName ?? "",
-            notes: noteData,
-            attendanceRate: rate,
-            totalSchoolDays: totalDays,
-            daysPresent: daysPresent,
-            masteryBreakdown: mastery,
-            lessonCount: lessonCount,
-            dateRange: dateRange,
-            style: style
-        )
-    }
-
-    /// Gather all report data from the model context for a student and date range.
-    @available(*, deprecated, message: "Use Core Data overload")
-    static func gatherReportData(
-        student: Student,
-        notes: [Note],
-        dateRange: ClosedRange<Date>,
-        style: ReportGeneratorService.ReportStyle,
-        context: ModelContext
-    ) -> ReportData {
-        // Attendance
-        let (daysPresent, totalDays, rate) = fetchAttendanceStatsLegacy(
-            studentID: student.id,
-            dateRange: dateRange,
-            context: context
-        )
-
-        // Mastery
-        let mastery = fetchMasteryBreakdownLegacy(
-            studentID: student.id,
-            dateRange: dateRange,
-            context: context
-        )
-
-        // Lesson count
-        let lessonCount = fetchLessonPresentationCountLegacy(
-            studentID: student.id,
-            dateRange: dateRange,
-            context: context
-        )
-
-        let noteData = notes.map { note in
-            ReportData.NoteData(
-                body: note.body,
-                tags: note.tags,
-                createdAt: note.createdAt
-            )
-        }
-
-        return ReportData(
-            studentFirstName: student.firstName,
-            studentLastName: student.lastName,
             notes: noteData,
             attendanceRate: rate,
             totalSchoolDays: totalDays,
@@ -303,83 +250,6 @@ enum AIReportService {
         return context.safeFetch(request).count
     }
 
-    // MARK: - Deprecated SwiftData Fetch Helpers
-
-    @available(*, deprecated, message: "Use Core Data overload")
-    private static func fetchAttendanceStatsLegacy(
-        studentID: UUID,
-        dateRange: ClosedRange<Date>,
-        context: ModelContext
-    ) -> (daysPresent: Int, totalDays: Int, rate: Double?) {
-        let studentIDStr = studentID.uuidString
-        let startDate = dateRange.lowerBound
-        let endDate = dateRange.upperBound
-
-        let descriptor = FetchDescriptor<AttendanceRecord>(
-            predicate: #Predicate<AttendanceRecord> {
-                $0.studentID == studentIDStr &&
-                $0.date >= startDate &&
-                $0.date <= endDate
-            }
-        )
-        let records = context.safeFetch(descriptor)
-        guard !records.isEmpty else { return (0, 0, nil) }
-
-        let present = records.filter { $0.status == .present || $0.status == .tardy }.count
-        let total = records.count
-        let rate = total > 0 ? Double(present) / Double(total) : nil
-        return (present, total, rate)
-    }
-
-    @available(*, deprecated, message: "Use Core Data overload")
-    private static func fetchMasteryBreakdownLegacy(
-        studentID: UUID,
-        dateRange: ClosedRange<Date>,
-        context: ModelContext
-    ) -> MasteryBreakdown? {
-        let studentIDStr = studentID.uuidString
-        let presentations = context.safeFetch(FetchDescriptor<LessonPresentation>())
-            .filter { $0.studentID == studentIDStr }
-
-        guard !presentations.isEmpty else { return nil }
-
-        var presented = 0, practicing = 0, ready = 0, proficient = 0
-        for p in presentations {
-            switch p.state {
-            case .presented: presented += 1
-            case .practicing: practicing += 1
-            case .readyForAssessment: ready += 1
-            case .proficient: proficient += 1
-            }
-        }
-
-        return MasteryBreakdown(
-            presented: presented,
-            practicing: practicing,
-            readyForAssessment: ready,
-            proficient: proficient
-        )
-    }
-
-    @available(*, deprecated, message: "Use Core Data overload")
-    private static func fetchLessonPresentationCountLegacy(
-        studentID: UUID,
-        dateRange: ClosedRange<Date>,
-        context: ModelContext
-    ) -> Int {
-        let studentIDStr = studentID.uuidString
-        let startDate = dateRange.lowerBound
-        let endDate = dateRange.upperBound
-
-        let descriptor = FetchDescriptor<LessonPresentation>(
-            predicate: #Predicate<LessonPresentation> {
-                $0.studentID == studentIDStr &&
-                $0.presentedAt >= startDate &&
-                $0.presentedAt <= endDate
-            }
-        )
-        return context.safeFetch(descriptor).count
-    }
 }
 
 // MARK: - ReportStyle Extension

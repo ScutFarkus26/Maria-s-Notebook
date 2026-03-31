@@ -64,10 +64,10 @@ enum TodoListFilter: String, CaseIterable, Identifiable {
         }
     }
 
-    func matches(_ todo: TodoItem) -> Bool {
+    func matches(_ todo: CDTodoItem) -> Bool {
         switch self {
         case .inbox:
-            return !todo.isCompleted && !todo.isSomeday && todo.tags.isEmpty
+            return !todo.isCompleted && !todo.isSomeday && todo.tagsArray.isEmpty
         case .today:
             return !todo.isCompleted && !todo.isSomeday && todo.isScheduledForToday
         case .upcoming:

@@ -23,12 +23,13 @@ enum WorksInboxOrderStore {
         var order = parsed.filter { id in base.contains(where: { $0.id == id }) }
 
         // Append any missing works by createdAt ascending (older first)
-        let missing = base.map(\.id).filter { !order.contains($0) }
-        let missingWorks = base.filter { missing.contains($0.id) }.sorted { $0.createdAt < $1.createdAt }
-        order.append(contentsOf: missingWorks.map(\.id))
+        let missing = base.compactMap(\.id).filter { !order.contains($0) }
+        let missingSet = Set(missing)
+        let missingWorks = base.filter { $0.id.map { missingSet.contains($0) } ?? false }.sorted { ($0.createdAt ?? .distantPast) < ($1.createdAt ?? .distantPast) }
+        order.append(contentsOf: missingWorks.compactMap(\.id))
 
         // Use uniquingKeysWith to handle potential duplicates
         let indexMap = Dictionary(order.enumerated().map { ($1, $0) }, uniquingKeysWith: { first, _ in first })
-        return base.sorted { (indexMap[$0.id] ?? Int.max) < (indexMap[$1.id] ?? Int.max) }
+        return base.sorted { ($0.id.flatMap { indexMap[$0] } ?? Int.max) < ($1.id.flatMap { indexMap[$0] } ?? Int.max) }
     }
 }

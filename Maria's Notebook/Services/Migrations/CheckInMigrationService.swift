@@ -1,6 +1,5 @@
 import Foundation
 import CoreData
-import SwiftData
 import OSLog
 
 // MARK: - Check-In Migration Service

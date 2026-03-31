@@ -1,11 +1,11 @@
 import OSLog
-import SwiftData
 import SwiftUI
+import CoreData
 
 private let logger = Logger.students
 
 struct PresentationDetailView: View {
-    @Environment(\.modelContext) private var modelContext
+    @Environment(\.managedObjectContext) private var viewContext
     @Environment(SaveCoordinator.self) private var saveCoordinator
 
     // Test student filtering
@@ -14,25 +14,25 @@ struct PresentationDetailView: View {
     private var testStudentNamesRaw: String = "Danny De Berry,Lil Dan D"
 
     // Live Queries
-    @Query private var lessons: [Lesson]
-    @Query private var studentsAllRaw: [Student]
-    @Query private var lessonAssignmentsAll: [LessonAssignment]
+    @FetchRequest(sortDescriptors: []) private var lessons: FetchedResults<CDLesson>
+    @FetchRequest(sortDescriptors: []) private var studentsAllRaw: FetchedResults<CDStudent>
+    @FetchRequest(sortDescriptors: []) private var lessonAssignmentsAll: FetchedResults<CDLessonAssignment>
 
     private var lessonIDs: [UUID] {
-        lessons.map(\.id)
+        lessons.compactMap(\.id)
     }
 
     // DEDUPLICATION: CloudKit sync can create duplicate records with the same ID.
     // Use uniqueByID to prevent SwiftUI crash on "Duplicate values for key"
     // Filter out test students when setting is disabled
-    private var studentsAll: [Student] {
+    private var studentsAll: [CDStudent] {
         TestStudentsFilter.filterVisible(
-            studentsAllRaw.uniqueByID, show: showTestStudents,
+            Array(studentsAllRaw).uniqueByID, show: showTestStudents,
             namesRaw: testStudentNamesRaw
         )
     }
 
-    let lessonAssignment: LessonAssignment
+    let lessonAssignment: CDLessonAssignment
     let autoFocusLessonPicker: Bool
     var onDone: (() -> Void)?
 
@@ -43,7 +43,7 @@ struct PresentationDetailView: View {
     // We initialize it with a dummy state; it will be configured in onAppear
     @State private var lessonPickerVM = LessonPickerViewModel(selectedStudentIDs: [], selectedLessonID: UUID())
 
-    init(lessonAssignment: LessonAssignment, onDone: (() -> Void)? = nil, autoFocusLessonPicker: Bool = false) {
+    init(lessonAssignment: CDLessonAssignment, onDone: (() -> Void)? = nil, autoFocusLessonPicker: Bool = false) {
         self.lessonAssignment = lessonAssignment
         self.onDone = onDone
         self.autoFocusLessonPicker = autoFocusLessonPicker
@@ -56,9 +56,9 @@ struct PresentationDetailView: View {
                 PresentationDetailContentView(
                     vm: vm,
                     lessonPickerVM: lessonPickerVM,
-                    lessons: lessons,
+                    lessons: Array(lessons),
                     studentsAll: studentsAll,
-                    lessonAssignmentsAll: lessonAssignmentsAll,
+                    lessonAssignmentsAll: Array(lessonAssignmentsAll),
                     onDone: onDone
                 )
             } else {
@@ -70,19 +70,19 @@ struct PresentationDetailView: View {
                 // Initialize Main VM
                 let newVM = PresentationDetailViewModel(
                     lessonAssignment: lessonAssignment,
-                    modelContext: modelContext,
+                    viewContext: viewContext,
                     saveCoordinator: saveCoordinator,
                     autoFocusLessonPicker: autoFocusLessonPicker
                 )
                 self.vm = newVM
 
                 // Configure Picker VM
-                lessonPickerVM.configure(lessons: lessons, students: studentsAll)
+                lessonPickerVM.configure(lessons: Array(lessons), students: studentsAll)
                 lessonPickerVM.selectLesson(newVM.editingLessonID)
             }
         }
         .onChange(of: lessonIDs) { _, _ in
-            lessonPickerVM.configure(lessons: lessons, students: studentsAll)
+            lessonPickerVM.configure(lessons: Array(lessons), students: studentsAll)
         }
         .onChange(of: lessonPickerVM.selectedLessonID) { _, newValue in
             // Sync Picker -> Main VM
@@ -97,8 +97,8 @@ struct PresentationDetailView: View {
                 vm.handleNeedsAnotherChange(
                     newValue: val,
                     studentsAll: studentsAll,
-                    lessonAssignmentsAll: lessonAssignmentsAll,
-                    lessons: lessons
+                    lessonAssignmentsAll: Array(lessonAssignmentsAll),
+                    lessons: Array(lessons)
                 )
             }
         }
@@ -111,13 +111,13 @@ struct PresentationDetailContentView: View {
     @Bindable var vm: PresentationDetailViewModel
     @Bindable var lessonPickerVM: LessonPickerViewModel
 
-    let lessons: [Lesson]
-    let studentsAll: [Student]
-    let lessonAssignmentsAll: [LessonAssignment]
+    let lessons: [CDLesson]
+    let studentsAll: [CDStudent]
+    let lessonAssignmentsAll: [CDLessonAssignment]
     let onDone: (() -> Void)?
 
     @Environment(\.dismiss) var dismiss
-    @Environment(\.modelContext) var modelContext
+    @Environment(\.managedObjectContext) var viewContext
     @Environment(\.calendar) var calendar
     @State var lessonPickerFocused: Bool = false
     @State var showUnsavedChangesAlert: Bool = false
@@ -246,13 +246,13 @@ struct PresentationDetailContentView: View {
         vm.lessonObject(from: lessons)?.id ?? vm.editingLessonID
     }
 
-    var currentLesson: Lesson? {
+    var currentLesson: CDLesson? {
         vm.lessonObject(from: lessons)
     }
 
-    var selectedStudentsList: [Student] {
+    var selectedStudentsList: [CDStudent] {
         studentsAll
-            .filter { vm.selectedStudentIDs.contains($0.id) }
+            .filter { guard let sid = $0.id else { return false }; return vm.selectedStudentIDs.contains(sid) }
             .sorted(by: StudentSortComparator.byFirstName)
     }
 
@@ -279,9 +279,9 @@ struct PresentationDetailContentView: View {
     func handleCancelWithCleanup() {
         // Cleanup empty drafts if cancelling
         if vm.lessonAssignment.studentIDs.isEmpty {
-            modelContext.delete(vm.lessonAssignment)
+            viewContext.delete(vm.lessonAssignment)
             do {
-                try modelContext.save()
+                try viewContext.save()
             } catch {
                 logger.warning("Failed to save after cancel cleanup: \(error)")
             }

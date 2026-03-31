@@ -1,0 +1,16 @@
+{
+  "source": "/Users/dannydeberry/Documents/Projects/MariasNotebook-Rewrite/Maria's Notebook/Components/Shared/ComboBoxField.swift",
+  "tables": {
+    "Localizable": [
+      {
+        "comment": "",
+        "key": "Choose from existing %@s",
+        "location": {
+          "startingColumn": 27,
+          "startingLine": 35
+        }
+      }
+    ]
+  },
+  "version": 1
+}

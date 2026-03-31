@@ -3,22 +3,22 @@
 
 import OSLog
 import SwiftUI
-import SwiftData
+import CoreData
 
 // MARK: - New Todo Form
 
 struct NewTodoForm: View {
     private static let logger = Logger.todos
-    @Environment(\.modelContext) private var modelContext
+    @Environment(\.managedObjectContext) private var viewContext
     @Environment(\.dismiss) private var dismiss
-    @Query(sort: Student.sortByName) private var allStudentsRaw: [Student]
+    @FetchRequest(sortDescriptors: CDStudent.sortByName)private var allStudentsRaw: FetchedResults<CDStudent>
     @AppStorage(UserDefaultsKeys.generalShowTestStudents) private var showTestStudents: Bool = false
     @AppStorage(UserDefaultsKeys.generalTestStudentNames)
     private var testStudentNamesRaw: String = "Danny De Berry,Lil Dan D"
 
-    private var allStudents: [Student] {
+    private var allStudents: [CDStudent] {
         TestStudentsFilter.filterVisible(
-            allStudentsRaw.uniqueByID.filter(\.isEnrolled), show: showTestStudents, namesRaw: testStudentNamesRaw
+            Array(allStudentsRaw).uniqueByID.filter(\.isEnrolled), show: showTestStudents, namesRaw: testStudentNamesRaw
         )
     }
 
@@ -65,12 +65,13 @@ struct NewTodoForm: View {
                     ScrollView(.horizontal, showsIndicators: false) {
                         HStack(spacing: 8) {
                             ForEach(allStudents) { student in
-                                let isSelected = selectedStudentIDs.contains(student.id)
+                                let sid = student.id ?? UUID()
+                                let isSelected = selectedStudentIDs.contains(sid)
                                 Button {
                                     if isSelected {
-                                        selectedStudentIDs.remove(student.id)
+                                        selectedStudentIDs.remove(sid)
                                     } else {
-                                        selectedStudentIDs.insert(student.id)
+                                        selectedStudentIDs.insert(sid)
                                     }
                                 } label: {
                                     Text(student.firstName)
@@ -89,8 +90,8 @@ struct NewTodoForm: View {
                 }
             }
 
-            // Schedule
-            Section("Schedule") {
+            // CDSchedule
+            Section("CDSchedule") {
                 HStack {
                     Text("When")
                     Spacer()
@@ -214,46 +215,44 @@ struct NewTodoForm: View {
 
         let resolvedStudentIDs = resolveStudentIDs()
         let resolvedStudentNames = allStudents
-            .filter { resolvedStudentIDs.contains($0.id) }
+            .filter { resolvedStudentIDs.contains($0.id ?? UUID()) }
             .map(\.fullName)
         let resolvedTags = TodoTagHelper.syncStudentTags(
             existingTags: selectedTags,
             studentNames: resolvedStudentNames
         )
 
-        let todo = TodoItem(
-            title: title.trimmed(),
-            notes: notes.trimmed(),
-            studentIDs: resolvedStudentIDs.map(\.uuidString),
-            dueDate: dueDate,
-            scheduledDate: scheduledDate,
-            priority: priority,
-            recurrence: recurrence
-        )
+        let todo = CDTodoItem(context: viewContext)
+        todo.title = title.trimmed()
+        todo.notes = notes.trimmed()
+        todo.studentIDsArray = resolvedStudentIDs.map(\.uuidString)
+        todo.dueDate = dueDate
+        todo.scheduledDate = scheduledDate
+        todo.priority = priority
+        todo.recurrence = recurrence
         todo.isSomeday = isSomeday
         todo.repeatAfterCompletion = repeatAfterCompletion
         if recurrence == .custom {
-            todo.customIntervalDays = customIntervalDays
+            todo.customIntervalDays = Int64(customIntervalDays)
         }
 
-        todo.tags = resolvedTags
+        todo.tagsArray = resolvedTags
 
         let totalEstimated = estimatedHours * 60 + estimatedMinutes
         if totalEstimated > 0 {
-            todo.estimatedMinutes = totalEstimated
+            todo.estimatedMinutes = Int64(totalEstimated)
         }
-
-        modelContext.insert(todo)
 
         // Create subtasks
         for (index, subtaskTitle) in subtaskTitles.enumerated() {
-            let subtask = TodoSubtask(title: subtaskTitle, orderIndex: index)
+            let subtask = CDTodoSubtask(context: viewContext)
+            subtask.title = subtaskTitle
+            subtask.orderIndex = Int64(index)
             subtask.todo = todo
-            modelContext.insert(subtask)
         }
 
         do {
-            try modelContext.save()
+            try viewContext.save()
         } catch {
             Self.logger.error("[\(#function)] Failed to create todo: \(error)")
         }

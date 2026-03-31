@@ -2,7 +2,7 @@
 // ViewModel for InboxSheetView - handles consolidation and drop logic
 
 import SwiftUI
-import SwiftData
+import CoreData
 import OSLog
 
 @Observable
@@ -31,8 +31,11 @@ final class InboxSheetViewModel {
         !selected.isEmpty
     }
 
-    func canConsolidate(orderedUnscheduledLessons: [LessonAssignment]) -> Bool {
-        let selectedLAs = orderedUnscheduledLessons.filter { selected.contains($0.id) }
+    func canConsolidate(orderedUnscheduledLessons: [CDLessonAssignment]) -> Bool {
+        let selectedLAs = orderedUnscheduledLessons.filter { la in
+            guard let id = la.id else { return false }
+            return selected.contains(id)
+        }
         let groups = selectedLAs.grouped(by: { $0.lessonID })
         return groups.values.contains { $0.count >= 2 }
     }
@@ -55,23 +58,26 @@ final class InboxSheetViewModel {
 
     // swiftlint:disable:next function_parameter_count
     func consolidateSelected(
-        orderedUnscheduledLessons: [LessonAssignment],
-        lessonAssignments: [LessonAssignment],
+        orderedUnscheduledLessons: [CDLessonAssignment],
+        lessonAssignments: [CDLessonAssignment],
         inboxOrderRaw: Binding<String>,
-        modelContext: ModelContext,
+        viewContext: NSManagedObjectContext,
         appRouter: AppRouter,
         saveCoordinator: SaveCoordinator
     ) {
-        let selectedLAs = orderedUnscheduledLessons.filter { selected.contains($0.id) }
+        let selectedLAs = orderedUnscheduledLessons.filter { la in
+            guard let id = la.id else { return false }
+            return selected.contains(id)
+        }
         guard !selectedLAs.isEmpty else { return }
 
         let groups = selectedLAs.grouped(by: { $0.lessonIDUUID })
-        let currentOrder = orderedUnscheduledLessons.map(\.id)
+        let currentOrder = orderedUnscheduledLessons.compactMap(\.id)
         let (consolidatedGroups, deletedIDs) = applyGroupConsolidations(
-            groups, currentOrder: currentOrder, lessonAssignments: lessonAssignments, modelContext: modelContext
+            groups, currentOrder: currentOrder, lessonAssignments: lessonAssignments, viewContext: viewContext
         )
 
-        saveCoordinator.save(modelContext, reason: "Consolidating lessons")
+        saveCoordinator.save(viewContext, reason: "Consolidating lessons")
 
         var newOrder = currentOrder
         for id in deletedIDs { newOrder.removeAll { $0 == id } }
@@ -87,17 +93,17 @@ final class InboxSheetViewModel {
     }
 
     private func applyGroupConsolidations(
-        _ groups: [UUID?: [LessonAssignment]],
+        _ groups: [UUID?: [CDLessonAssignment]],
         currentOrder: [UUID],
-        lessonAssignments: [LessonAssignment],
-        modelContext: ModelContext
+        lessonAssignments: [CDLessonAssignment],
+        viewContext: NSManagedObjectContext
     ) -> (consolidatedCount: Int, deletedIDs: [UUID]) {
         var consolidatedCount = 0
         var deletedIDs: [UUID] = []
         for (_, group) in groups {
             guard group.count >= 2 else { continue }
             consolidatedCount += 1
-            let groupIDs = group.map(\.id)
+            let groupIDs = group.compactMap(\.id)
             guard let targetID = currentOrder.first(where: { groupIDs.contains($0) }),
                   let target = lessonAssignments.first(where: { $0.id == targetID }) else { continue }
             var union = Set<UUID>(target.studentUUIDs)
@@ -105,20 +111,14 @@ final class InboxSheetViewModel {
             let remainingIDs = Array(union)
             if remainingIDs.isEmpty {
                 deletedIDs.append(targetID)
-                modelContext.delete(target)
+                viewContext.delete(target)
             } else {
                 target.studentIDs = remainingIDs.map(\.uuidString)
-                // NOTE: SwiftData #Predicate doesn't support capturing local Array/Set variables,
-                // so we fetch all and filter in memory
-                let remainingSet = Set(remainingIDs)
-                let allStudents = safeFetch(
-                    FetchDescriptor<Student>(), modelContext: modelContext, context: "consolidateSelected"
-                )
-                target.students = allStudents.filter { remainingSet.contains($0.id) }
             }
-            for la in group where la.id != targetID {
-                deletedIDs.append(la.id)
-                modelContext.delete(la)
+            for la in group {
+                guard let laID = la.id, laID != targetID else { continue }
+                deletedIDs.append(laID)
+                viewContext.delete(la)
             }
         }
         return (consolidatedCount, deletedIDs)
@@ -140,11 +140,11 @@ extension InboxSheetViewModel {
     func handleDrop(
         providers: [NSItemProvider],
         location: CGPoint,
-        lessonAssignments: [LessonAssignment],
-        orderedUnscheduledLessons: [LessonAssignment],
+        lessonAssignments: [CDLessonAssignment],
+        orderedUnscheduledLessons: [CDLessonAssignment],
         itemFrames: [UUID: CGRect],
         inboxOrderRaw: Binding<String>,
-        modelContext: ModelContext,
+        viewContext: NSManagedObjectContext,
         saveCoordinator: SaveCoordinator
     ) -> Bool {
         guard let itemProvider = providers.first else { return false }
@@ -161,7 +161,7 @@ extension InboxSheetViewModel {
                             orderedUnscheduledLessons: orderedUnscheduledLessons,
                             itemFrames: itemFrames,
                             inboxOrderRaw: inboxOrderRaw,
-                            modelContext: modelContext,
+                            viewContext: viewContext,
                             saveCoordinator: saveCoordinator
                         )
                     } else if let droppedId = UUID(uuidString: raw.trimmed()) {
@@ -172,7 +172,7 @@ extension InboxSheetViewModel {
                             orderedUnscheduledLessons: orderedUnscheduledLessons,
                             itemFrames: itemFrames,
                             inboxOrderRaw: inboxOrderRaw,
-                            modelContext: modelContext,
+                            viewContext: viewContext,
                             saveCoordinator: saveCoordinator
                         )
                     }
@@ -205,11 +205,11 @@ extension InboxSheetViewModel {
     private func handleStudentToInboxDrop(
         payload: String,
         location: CGPoint,
-        lessonAssignments: [LessonAssignment],
-        orderedUnscheduledLessons: [LessonAssignment],
+        lessonAssignments: [CDLessonAssignment],
+        orderedUnscheduledLessons: [CDLessonAssignment],
         itemFrames: [UUID: CGRect],
         inboxOrderRaw: Binding<String>,
-        modelContext: ModelContext,
+        viewContext: NSManagedObjectContext,
         saveCoordinator: SaveCoordinator
     ) {
         let parts = payload.split(separator: ":")
@@ -221,60 +221,60 @@ extension InboxSheetViewModel {
 
         let targetLA = findOrCreateInboxLA(
             lessonID: lessonID, studentID: studentID,
-            lessonAssignments: lessonAssignments, modelContext: modelContext
+            lessonAssignments: lessonAssignments, viewContext: viewContext
         )
 
         // Remove the student from the source
-        let sourceDescriptor = FetchDescriptor<LessonAssignment>(predicate: #Predicate { $0.id == sourceID })
-        if let src = modelContext.safeFetchFirst(sourceDescriptor) {
+        let sourceDescriptor = { let r = CDLessonAssignment.fetchRequest() as! NSFetchRequest<CDLessonAssignment>; r.predicate = NSPredicate(format: "id == %@", sourceID as CVarArg); return r }()
+        if let src = viewContext.safeFetchFirst(sourceDescriptor) {
             let studentIDString = studentID.uuidString
             src.studentIDs.removeAll { $0 == studentIDString }
-            src.students.removeAll { $0.id == studentID }
-            if src.studentIDs.isEmpty { modelContext.delete(src) }
+            if src.studentIDs.isEmpty { viewContext.delete(src) }
         }
 
         // Insert into inbox order
-        let currentOrder = orderedUnscheduledLessons.map(\.id)
+        let currentOrder = orderedUnscheduledLessons.compactMap(\.id)
         var framesByID: [UUID: CGRect] = [:]
         for id in currentOrder {
             if let frame = itemFrames[id] { framesByID[id] = frame }
         }
         let insertionIndex = PlanningDropUtils.computeInsertionIndex(locationY: location.y, frames: framesByID)
         var newOrder = currentOrder
-        newOrder.removeAll(where: { $0 == targetLA.id })
+        let targetLAID = targetLA.id ?? UUID()
+        newOrder.removeAll(where: { $0 == targetLAID })
         let boundedIndex = max(0, min(insertionIndex, newOrder.count))
-        newOrder.insert(targetLA.id, at: boundedIndex)
+        newOrder.insert(targetLAID, at: boundedIndex)
         let serialized = InboxOrderStore.serialize(newOrder)
         inboxOrderRaw.wrappedValue = serialized
         onUpdateOrder?(serialized)
-        saveCoordinator.save(modelContext, reason: "Handling student to inbox drop")
+        saveCoordinator.save(viewContext, reason: "Handling student to inbox drop")
     }
 
     private func findOrCreateInboxLA(
         lessonID: UUID,
         studentID: UUID,
-        lessonAssignments: [LessonAssignment],
-        modelContext: ModelContext
-    ) -> LessonAssignment {
-        let matchesLesson = { (la: LessonAssignment) in la.lessonIDUUID == lessonID }
-        let isUnscheduled = { (la: LessonAssignment) in la.scheduledFor == nil && !la.isGiven }
-        let matchesStudent = { (la: LessonAssignment) in Set(la.studentUUIDs) == Set([studentID]) }
+        lessonAssignments: [CDLessonAssignment],
+        viewContext: NSManagedObjectContext
+    ) -> CDLessonAssignment {
+        let matchesLesson = { (la: CDLessonAssignment) in la.lessonIDUUID == lessonID }
+        let isUnscheduled = { (la: CDLessonAssignment) in la.scheduledFor == nil && !la.isGiven }
+        let matchesStudent = { (la: CDLessonAssignment) in Set(la.studentUUIDs) == Set([studentID]) }
         if let existing = lessonAssignments.first(where: { la in
             matchesLesson(la) && isUnscheduled(la) && matchesStudent(la)
         }) {
             return existing
         }
-        var lessonFetch = FetchDescriptor<Lesson>(predicate: #Predicate { $0.id == lessonID })
+        var lessonFetch = { let r = CDLesson.fetchRequest() as! NSFetchRequest<CDLesson>; r.predicate = NSPredicate(format: "id == %@", lessonID as CVarArg); return r }()
         lessonFetch.fetchLimit = 1
-        var studentFetch = FetchDescriptor<Student>(predicate: #Predicate { $0.id == studentID })
+        var studentFetch = { let r = CDStudent.fetchRequest() as! NSFetchRequest<CDStudent>; r.predicate = NSPredicate(format: "id == %@", studentID as CVarArg); return r }()
         studentFetch.fetchLimit = 1
-        let lessonObj = safeFetchFirst(lessonFetch, modelContext: modelContext, context: "findOrCreateInboxLA-lesson")
+        let lessonObj = safeFetchFirst(lessonFetch, viewContext: viewContext, context: "findOrCreateInboxLA-lesson")
         let studentObj = safeFetchFirst(
-            studentFetch, modelContext: modelContext, context: "findOrCreateInboxLA-student"
+            studentFetch, viewContext: viewContext, context: "findOrCreateInboxLA-student"
         )
         let new = PresentationFactory.makeDraft(lessonID: lessonID, studentIDs: [studentID])
         PresentationFactory.attachRelationships(to: new, lesson: lessonObj, students: studentObj.map { [$0] } ?? [])
-        modelContext.insert(new)
+        viewContext.insert(new)
         return new
     }
 
@@ -282,35 +282,37 @@ extension InboxSheetViewModel {
     private func handleLessonDrop(
         droppedId: UUID,
         location: CGPoint,
-        lessonAssignments: [LessonAssignment],
-        orderedUnscheduledLessons: [LessonAssignment],
+        lessonAssignments: [CDLessonAssignment],
+        orderedUnscheduledLessons: [CDLessonAssignment],
         itemFrames: [UUID: CGRect],
         inboxOrderRaw: Binding<String>,
-        modelContext: ModelContext,
+        viewContext: NSManagedObjectContext,
         saveCoordinator: SaveCoordinator
     ) {
-        let descriptor = FetchDescriptor<LessonAssignment>(
-            predicate: #Predicate { $0.id == droppedId }
-        )
-        guard let la = modelContext.safeFetchFirst(descriptor)
+        let descriptor: NSFetchRequest<CDLessonAssignment> = {
+            let r = CDLessonAssignment.fetchRequest() as! NSFetchRequest<CDLessonAssignment>
+            r.predicate = NSPredicate(format: "id == %@", droppedId as CVarArg)
+            return r
+        }()
+        guard let la = viewContext.safeFetchFirst(descriptor)
                 ?? lessonAssignments.first(where: { $0.id == droppedId })
         else { return }
 
-        let currentOrder = orderedUnscheduledLessons.map(\.id)
+        let currentOrder = orderedUnscheduledLessons.compactMap(\.id)
         var framesByID: [UUID: CGRect] = [:]
         for id in currentOrder {
             if let frame = itemFrames[id] { framesByID[id] = frame }
         }
         let insertionIndex = PlanningDropUtils.computeInsertionIndex(locationY: location.y, frames: framesByID)
-        var newOrder = currentOrder.filter { currentOrder.contains($0) }
+        var newOrder = currentOrder
 
         // If scheduled, clear scheduledFor
         if la.scheduledFor != nil {
             let targetId = droppedId
-            let laDescriptor = FetchDescriptor<LessonAssignment>(predicate: #Predicate { $0.id == targetId })
-            if let lesson = modelContext.safeFetchFirst(laDescriptor) {
+            let laDescriptor = { let r = CDLessonAssignment.fetchRequest() as! NSFetchRequest<CDLessonAssignment>; r.predicate = NSPredicate(format: "id == %@", targetId as CVarArg); return r }()
+            if let lesson = viewContext.safeFetchFirst(laDescriptor) {
                 lesson.scheduledFor = nil
-                saveCoordinator.save(modelContext, reason: "Clearing scheduled date")
+                saveCoordinator.save(viewContext, reason: "Clearing scheduled date")
             }
         }
 
@@ -320,18 +322,18 @@ extension InboxSheetViewModel {
         let serialized = InboxOrderStore.serialize(newOrder)
         inboxOrderRaw.wrappedValue = serialized
         onUpdateOrder?(serialized)
-        saveCoordinator.save(modelContext, reason: "Handling lesson drop")
+        saveCoordinator.save(viewContext, reason: "Handling lesson drop")
     }
 
     // MARK: - Error Handling Helpers
 
     private func safeFetch<T>(
-        _ descriptor: FetchDescriptor<T>,
-        modelContext: ModelContext,
+        _ descriptor: NSFetchRequest<T>,
+        viewContext: NSManagedObjectContext,
         context: String = #function
     ) -> [T] {
         do {
-            return try modelContext.fetch(descriptor)
+            return try viewContext.fetch(descriptor)
         } catch {
             Self.logger.warning("Failed to fetch \(T.self, privacy: .public) in \(context, privacy: .public): \(error)")
             return []
@@ -339,12 +341,12 @@ extension InboxSheetViewModel {
     }
 
     private func safeFetchFirst<T>(
-        _ descriptor: FetchDescriptor<T>,
-        modelContext: ModelContext,
+        _ descriptor: NSFetchRequest<T>,
+        viewContext: NSManagedObjectContext,
         context: String = #function
     ) -> T? {
         do {
-            return try modelContext.fetch(descriptor).first
+            return try viewContext.fetch(descriptor).first
         } catch {
             Self.logger.warning("Failed to fetch \(T.self, privacy: .public) in \(context, privacy: .public): \(error)")
             return nil

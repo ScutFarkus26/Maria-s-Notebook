@@ -1,7 +1,6 @@
 import Foundation
 import OSLog
 import CoreData
-import SwiftData
 
 /// Repository for managing CDPracticeSession CRUD operations
 struct PracticeSessionRepository {
@@ -13,12 +12,7 @@ struct PracticeSessionRepository {
         self.context = context
     }
 
-    /// Deprecated init for callers still passing ModelContext.
-    @available(*, deprecated, message: "Pass NSManagedObjectContext instead of ModelContext")
-    @MainActor
-    init(modelContext: ModelContext) {
-        self.context = AppBootstrapping.getSharedCoreDataStack().viewContext
-    }
+    // Deprecated ModelContext init removed - no longer needed with Core Data.
 
     // MARK: - Create
 

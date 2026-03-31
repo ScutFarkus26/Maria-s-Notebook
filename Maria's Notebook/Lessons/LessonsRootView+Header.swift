@@ -2,6 +2,7 @@
 // Header trailing controls extracted to keep LessonsRootView type body within limits.
 
 import SwiftUI
+import CoreData
 
 extension LessonsRootView {
     // MARK: - Header Controls

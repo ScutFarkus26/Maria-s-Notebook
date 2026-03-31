@@ -2,8 +2,8 @@
 // Reusable components extracted from StudentDetailView
 
 import OSLog
-import SwiftData
 import SwiftUI
+import CoreData
 
 // MARK: - StudentEditForm
 
@@ -12,9 +12,9 @@ struct StudentEditForm: View {
     @Binding var draftLastName: String
     @Binding var draftNickname: String
     @Binding var draftBirthday: Date
-    @Binding var draftLevel: Student.Level
+    @Binding var draftLevel: CDStudent.Level
     @Binding var draftStartDate: Date
-    @Binding var draftEnrollmentStatus: Student.EnrollmentStatus
+    @Binding var draftEnrollmentStatus: CDStudent.EnrollmentStatus
     @Binding var draftDateWithdrawn: Date?
 
     var body: some View {
@@ -30,16 +30,16 @@ struct StudentEditForm: View {
             DatePicker("Birthday", selection: $draftBirthday, displayedComponents: .date)
             DatePicker("Start Date", selection: $draftStartDate, displayedComponents: .date)
             Picker("Level", selection: $draftLevel) {
-                Text(Student.Level.lower.rawValue).tag(Student.Level.lower)
-                Text(Student.Level.upper.rawValue).tag(Student.Level.upper)
+                Text(CDStudent.Level.lower.rawValue).tag(CDStudent.Level.lower)
+                Text(CDStudent.Level.upper.rawValue).tag(CDStudent.Level.upper)
             }
             .pickerStyle(.segmented)
 
             Divider()
 
             Picker("Enrollment", selection: $draftEnrollmentStatus) {
-                Text("Enrolled").tag(Student.EnrollmentStatus.enrolled)
-                Text("Withdrawn").tag(Student.EnrollmentStatus.withdrawn)
+                Text("Enrolled").tag(CDStudent.EnrollmentStatus.enrolled)
+                Text("Withdrawn").tag(CDStudent.EnrollmentStatus.withdrawn)
             }
             .pickerStyle(.segmented)
             .onChange(of: draftEnrollmentStatus) { _, newValue in
@@ -93,15 +93,15 @@ struct WithdrawnBanner: View {
 // MARK: - StudentInfoRows
 
 struct StudentInfoRows: View {
-    let student: Student
-    @Environment(\.modelContext) private var modelContext
+    let student: CDStudent
+    @Environment(\.managedObjectContext) private var viewContext
     
     private var formattedBirthday: String {
-        DateFormatters.longDate.string(from: student.birthday)
+        DateFormatters.longDate.string(from: student.birthday ?? Date())
     }
-    
+
     private var ageDescription: String {
-        AgeUtils.verboseAgeString(for: student.birthday)
+        AgeUtils.verboseAgeString(for: student.birthday ?? Date())
     }
     
     private var attendanceInfoRow: some View {
@@ -121,7 +121,7 @@ struct StudentInfoRows: View {
             InfoRowView(icon: "gift", title: "Age", value: ageDescription)
             InfoRowView(
                 icon: "graduationcap", title: "Florida Grade Equivalent",
-                value: FloridaGradeCalculator.grade(for: student.birthday).displayString
+                value: FloridaGradeCalculator.grade(for: student.birthday ?? Date()).displayString
             )
             DaysSinceLastLessonView(student: student)
             attendanceInfoRow
@@ -135,24 +135,21 @@ struct StudentInfoRows: View {
 struct AttendanceInfoRow: View {
     private static let logger = Logger.students
 
-    let student: Student
-    @Environment(\.modelContext) private var modelContext
+    let student: CDStudent
+    @Environment(\.managedObjectContext) private var viewContext
     
     private var daysTardyThisSchoolYear: Int {
         let calendar = Calendar.current
         let start = FloridaGradeCalculator.schoolYearStart(for: Date(), calendar: calendar)
         guard let end = calendar.date(byAdding: .year, value: 1, to: start) else { return 0 }
-        let studentIDString = student.id.uuidString
+        let studentIDString = student.id?.uuidString ?? ""
         let from = start
         let to = end
-        let descriptor = FetchDescriptor<AttendanceRecord>(
-            predicate: #Predicate<AttendanceRecord> { rec in
-                rec.studentID == studentIDString && rec.date >= from && rec.date < to
-            }
-        )
-        let records: [AttendanceRecord]
+        let descriptor: NSFetchRequest<CDAttendanceRecord> = NSFetchRequest(entityName: "CDAttendanceRecord")
+        descriptor.predicate = NSPredicate(format: "studentID == %@ AND date >= %@ AND date < %@", studentIDString, from as CVarArg, to as CVarArg)
+        let records: [CDAttendanceRecord]
         do {
-            records = try modelContext.fetch(descriptor)
+            records = try viewContext.fetch(descriptor)
         } catch {
             Self.logger.warning("Failed to fetch tardy records: \(error)")
             records = []
@@ -164,17 +161,14 @@ struct AttendanceInfoRow: View {
         let calendar = Calendar.current
         let start = FloridaGradeCalculator.schoolYearStart(for: Date(), calendar: calendar)
         guard let end = calendar.date(byAdding: .year, value: 1, to: start) else { return 0 }
-        let studentIDString = student.id.uuidString
+        let studentIDString = student.id?.uuidString ?? ""
         let from = start
         let to = end
-        let descriptor = FetchDescriptor<AttendanceRecord>(
-            predicate: #Predicate<AttendanceRecord> { rec in
-                rec.studentID == studentIDString && rec.date >= from && rec.date < to
-            }
-        )
-        let records: [AttendanceRecord]
+        let descriptor: NSFetchRequest<CDAttendanceRecord> = NSFetchRequest(entityName: "CDAttendanceRecord")
+        descriptor.predicate = NSPredicate(format: "studentID == %@ AND date >= %@ AND date < %@", studentIDString, from as CVarArg, to as CVarArg)
+        let records: [CDAttendanceRecord]
         do {
-            records = try modelContext.fetch(descriptor)
+            records = try viewContext.fetch(descriptor)
         } catch {
             Self.logger.warning("Failed to fetch absent records: \(error)")
             records = []

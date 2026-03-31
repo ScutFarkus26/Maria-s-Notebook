@@ -1,26 +1,26 @@
 // PresentationDetailViewModel+MasteryTracking.swift
-// LessonPresentation mastery state loading and updating for PresentationDetailViewModel.
+// CDLessonPresentation mastery state loading and updating for PresentationDetailViewModel.
 
 import Foundation
 import OSLog
-import SwiftData
+import CoreData
 
 extension PresentationDetailViewModel {
 
     // MARK: - Mastery State Loading (Static)
 
-    /// Loads the "highest" mastery state from all students' LessonPresentation records.
+    /// Loads the "highest" mastery state from all students' CDLessonPresentation records.
     /// If any student has mastered, returns .proficient. Otherwise returns the highest state found.
     static func loadProficiencyState(
         lessonID: String,
         studentIDs: [String],
-        modelContext: ModelContext
+        viewContext: NSManagedObjectContext
     ) -> LessonPresentationState {
         guard !studentIDs.isEmpty, !lessonID.isEmpty else { return .presented }
 
-        let allLessonPresentations: [LessonPresentation]
+        let allLessonPresentations: [CDLessonPresentation]
         do {
-            allLessonPresentations = try modelContext.fetch(FetchDescriptor<LessonPresentation>())
+            allLessonPresentations = try viewContext.fetch(NSFetchRequest<CDLessonPresentation>(entityName: "LessonPresentation"))
         } catch {
             Self.logger.warning("Failed to fetch LessonPresentation: \(error)")
             return .presented
@@ -42,7 +42,7 @@ extension PresentationDetailViewModel {
 
     // MARK: - Mastery State Updating
 
-    /// Updates the mastery state on all LessonPresentation records for this lesson and students.
+    /// Updates the mastery state on all CDLessonPresentation records for this lesson and students.
     func updateProficiencyState(
         lessonID: String,
         studentIDs: [String],
@@ -50,7 +50,7 @@ extension PresentationDetailViewModel {
     ) {
         guard !studentIDs.isEmpty, !lessonID.isEmpty else { return }
 
-        let allLessonPresentations = safeFetch(FetchDescriptor<LessonPresentation>())
+        let allLessonPresentations = safeFetch(NSFetchRequest<CDLessonPresentation>(entityName: "LessonPresentation"))
 
         for studentID in studentIDs {
             if let existing = allLessonPresentations.first(where: {
@@ -64,16 +64,14 @@ extension PresentationDetailViewModel {
                     existing.masteredAt = nil
                 }
             } else {
-                let lp = LessonPresentation(
-                    studentID: studentID,
-                    lessonID: lessonID,
-                    presentationID: nil,
-                    state: state,
-                    presentedAt: Date(),
-                    lastObservedAt: Date(),
-                    masteredAt: state == .proficient ? Date() : nil
-                )
-                modelContext.insert(lp)
+                let lp = CDLessonPresentation(context: viewContext)
+                lp.studentID = studentID
+                lp.lessonID = lessonID
+                lp.presentationID = nil
+                lp.state = state
+                lp.presentedAt = Date()
+                lp.lastObservedAt = Date()
+                lp.masteredAt = state == .proficient ? Date() : nil
             }
         }
 
@@ -81,9 +79,10 @@ extension PresentationDetailViewModel {
         if state == .proficient, let lesson = lessonAssignment.lesson {
             for studentID in studentIDs {
                 GroupTrackService.checkAndCompleteTrackIfNeeded(
-                    lesson: lesson,
+                    lessonSubject: lesson.subject,
+                    lessonGroup: lesson.group,
                     studentID: studentID,
-                    modelContext: modelContext,
+                    context: viewContext,
                     saveCoordinator: saveCoordinator
                 )
             }

@@ -1,7 +1,7 @@
 import Foundation
 import CoreData
 
-@objc(JobAssignment)
+@objc(CDJobAssignment)
 public class CDJobAssignment: NSManagedObject {
     // MARK: - Core Data Properties
     @NSManaged public var id: UUID?
@@ -18,7 +18,7 @@ public class CDJobAssignment: NSManagedObject {
     // MARK: - Convenience Initializer
     @discardableResult
     convenience init(context: NSManagedObjectContext) {
-        let entity = NSEntityDescription.entity(forEntityName: "JobAssignment", in: context)!
+        let entity = NSEntityDescription.entity(forEntityName: "CDJobAssignment", in: context)!
         self.init(entity: entity, insertInto: context)
         self.id = UUID()
         self.createdAt = Date()

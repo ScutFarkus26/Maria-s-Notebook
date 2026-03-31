@@ -1,4 +1,5 @@
 import SwiftUI
+import CoreData
 
 /// Grid view showing a weekly lesson plan with columns for each weekday.
 /// Cells display compact lesson cards with student initials and subject color coding.
@@ -106,7 +107,7 @@ struct WeekPlanOverviewView: View {
         .background(.secondary.opacity(UIConstants.OpacityConstants.trace), in: RoundedRectangle(cornerRadius: 10))
     }
     
-    // MARK: - Compact Lesson Card
+    // MARK: - Compact CDLesson Card
     
     // swiftlint:disable:next function_body_length
     private func compactLessonCard(_ rec: LessonRecommendation) -> some View {
@@ -122,7 +123,7 @@ struct WeekPlanOverviewView: View {
                     .lineLimit(2)
             }
             
-            // Student initials
+            // CDStudent initials
             HStack(spacing: 2) {
                 ForEach(rec.studentNames, id: \.self) { name in
                     Text(initials(from: name))

@@ -36,7 +36,7 @@ enum AnalyticsTimeRange: String, CaseIterable, Identifiable {
 /// View scope: classroom-wide vs per-student drill-down.
 enum AnalyticsScope: String, CaseIterable, Identifiable {
     case classroom = "Classroom"
-    case perStudent = "Per Student"
+    case perStudent = "Per CDStudent"
 
     var id: String { rawValue }
 }
@@ -75,7 +75,7 @@ struct StudentBalanceCard: Identifiable {
     let firstName: String
     let lastName: String
     let nickname: String?
-    let level: Student.Level
+    let level: CDStudent.Level
     let totalLessons: Int
     let subjectCounts: [SubjectDistribution]
     let gaps: [SubjectGap]

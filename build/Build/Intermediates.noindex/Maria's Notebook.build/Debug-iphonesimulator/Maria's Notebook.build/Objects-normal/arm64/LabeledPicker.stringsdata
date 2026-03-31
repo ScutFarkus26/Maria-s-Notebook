@@ -1,0 +1,32 @@
+{
+  "source": "/Users/dannydeberry/Documents/Projects/MariasNotebook-Rewrite/Maria's Notebook/Components/Shared/LabeledPicker.swift",
+  "tables": {
+    "Localizable": [
+      {
+        "comment": "",
+        "key": "Option 1",
+        "location": {
+          "startingColumn": 1,
+          "startingLine": 35
+        }
+      },
+      {
+        "comment": "",
+        "key": "Option 2",
+        "location": {
+          "startingColumn": 1,
+          "startingLine": 35
+        }
+      },
+      {
+        "comment": "",
+        "key": "Option 3",
+        "location": {
+          "startingColumn": 1,
+          "startingLine": 35
+        }
+      }
+    ]
+  },
+  "version": 1
+}

@@ -2,18 +2,18 @@
 // Context pane showing student work snapshot, lessons, and meeting history
 
 import SwiftUI
-import SwiftData
+import CoreData
 
 // MARK: - Context Pane
 
 struct MeetingContextPane: View {
-    let student: Student
-    let openWork: [WorkModel]
-    let overdueWork: [WorkModel]
-    let recentCompleted: [WorkModel]
-    let lessonsSinceLastMeeting: [LessonAssignment]
-    let meetings: [StudentMeeting]
-    let lessonsByID: [UUID: Lesson]
+    let student: CDStudent
+    let openWork: [CDWorkModel]
+    let overdueWork: [CDWorkModel]
+    let recentCompleted: [CDWorkModel]
+    let lessonsSinceLastMeeting: [CDLessonAssignment]
+    let meetings: [CDStudentMeeting]
+    let lessonsByID: [UUID: CDLesson]
     var isCompact: Bool = false
 
     @State private var selectedWorkID: UUID?
@@ -147,7 +147,7 @@ struct MeetingContextPane: View {
         .clipShape(RoundedRectangle(cornerRadius: 8, style: .continuous))
     }
 
-    private func workRow(_ work: WorkModel) -> some View {
+    private func workRow(_ work: CDWorkModel) -> some View {
         Button {
             selectedWorkID = work.id
         } label: {
@@ -172,7 +172,7 @@ struct MeetingContextPane: View {
         .padding(.vertical, 2)
     }
 
-    private func workDisplayTitle(_ work: WorkModel) -> String {
+    private func workDisplayTitle(_ work: CDWorkModel) -> String {
         lessonsByID[uuidString: work.lessonID]?.name ?? "Lesson"
     }
 
@@ -203,7 +203,7 @@ struct MeetingContextPane: View {
         .background(cardBackground)
     }
 
-    private func lessonRow(_ la: LessonAssignment) -> some View {
+    private func lessonRow(_ la: CDLessonAssignment) -> some View {
         HStack(spacing: 6) {
             Image(systemName: "book.fill")
                 .font(.system(size: 8))
@@ -255,10 +255,10 @@ struct MeetingContextPane: View {
         .background(cardBackground)
     }
 
-    private func meetingHistoryRow(_ meeting: StudentMeeting) -> some View {
+    private func meetingHistoryRow(_ meeting: CDStudentMeeting) -> some View {
         VStack(alignment: .leading, spacing: 4) {
             HStack {
-                Text(meeting.date.formatted(date: .abbreviated, time: .omitted))
+                Text((meeting.date ?? Date()).formatted(date: .abbreviated, time: .omitted))
                     .font(.footnote.weight(.medium))
 
                 if meeting.completed {

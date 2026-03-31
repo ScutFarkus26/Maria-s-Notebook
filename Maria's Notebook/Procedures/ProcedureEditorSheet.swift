@@ -1,11 +1,11 @@
 import SwiftUI
-import SwiftData
+import CoreData
 
 /// Sheet for adding or editing a procedure
 struct ProcedureEditorSheet: View {
     let procedure: Procedure?
 
-    @Environment(\.modelContext) private var modelContext
+    @Environment(\.managedObjectContext) private var viewContext
     @Environment(\.dismiss) private var dismiss
 
     @State private var title: String = ""
@@ -265,7 +265,7 @@ struct ProcedureEditorSheet: View {
                 category: category,
                 icon: icon,
                 relatedProcedureIDs: procedure.relatedProcedureIDs,
-                in: modelContext
+                in: viewContext
             )
         } else {
             // Create new
@@ -276,7 +276,7 @@ struct ProcedureEditorSheet: View {
                 category: category,
                 icon: icon,
                 relatedProcedureIDs: [],
-                in: modelContext
+                in: viewContext
             )
         }
 
@@ -365,14 +365,15 @@ struct IconPickerSheet: View {
 }
 
 #Preview("Edit Procedure") {
-    ProcedureEditorSheet(
-        procedure: Procedure(
-            title: "Morning Arrival",
-            summary: "Steps for welcoming students",
-            content: "## Overview\n\nThis procedure outlines...",
-            category: .dailyRoutines,
-            icon: "sunrise"
-        )
-    )
-    .previewEnvironment()
+    let stack = CoreDataStack.preview
+    let ctx = stack.viewContext
+    let procedure = Procedure(context: ctx)
+    procedure.title = "Morning Arrival"
+    procedure.summary = "Steps for welcoming students"
+    procedure.content = "## Overview\n\nThis procedure outlines..."
+    procedure.category = .dailyRoutines
+    procedure.icon = "sunrise"
+
+    return ProcedureEditorSheet(procedure: procedure)
+        .previewEnvironment(using: stack)
 }

@@ -2,7 +2,7 @@
 // Attendance card component extracted from AttendanceView
 
 import SwiftUI
-import SwiftData
+import CoreData
 #if os(macOS)
 import AppKit
 #else
@@ -40,7 +40,7 @@ struct AttendanceCard: View {
     // Helper to resolve the most relevant note content from unified notes
     private var resolvedNote: (text: String, object: Note?) {
         guard let record else { return ("", nil) }
-        let note = Note.latestNote(in: record.notes)
+        let note = Note.latestNote(in: (record.notes?.allObjects as? [CDNote]) ?? [])
         return (note?.body ?? "", note)
     }
 

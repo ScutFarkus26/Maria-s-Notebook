@@ -1,6 +1,5 @@
 import OSLog
 import SwiftUI
-import SwiftData
 import UniformTypeIdentifiers
 #if os(macOS)
 import AppKit
@@ -9,13 +8,13 @@ import CoreData
 
 struct LessonDetailView: View {
     static let logger = Logger.lessons
-    var lesson: Lesson
-    var allLessons: [Lesson] = []
-    var onSave: (Lesson) -> Void
+    var lesson: CDLesson
+    var allLessons: [CDLesson] = []
+    var onSave: (CDLesson) -> Void
     var onDone: (() -> Void)?
 
     @Environment(\.dismiss) private var dismiss
-    @Environment(\.modelContext) var modelContext
+    @Environment(\.managedObjectContext) var viewContext
     @Environment(\.managedObjectContext) var managedObjectContext
     @Environment(SaveCoordinator.self) var saveCoordinator
 
@@ -85,7 +84,7 @@ struct LessonDetailView: View {
         VStack(spacing: 0) {
             // Header
             HStack {
-                Text("Lesson Info")
+                Text("CDLesson Info")
                     .font(AppTheme.ScaledFont.titleSmall)
                 Spacer()
             }
@@ -111,10 +110,10 @@ struct LessonDetailView: View {
 
                         // Journey Timeline
                         VStack(alignment: .leading, spacing: AppTheme.Spacing.compact) {
-                            Text("Lesson Journey")
+                            Text("CDLesson Journey")
                                 .font(AppTheme.ScaledFont.titleSmall)
 
-                            LessonJourneyTimeline(lesson: lesson, modelContext: modelContext)
+                            LessonJourneyTimeline(lesson: lesson, viewContext: viewContext)
                                 .frame(height: 350)
                         }
                         .padding(.top, AppTheme.Spacing.large - 4)
@@ -128,7 +127,7 @@ struct LessonDetailView: View {
         .safeAreaInset(edge: .bottom) {
             bottomBar
         }
-        .alert("Delete Lesson?", isPresented: $showDeleteAlert) {
+        .alert("Delete CDLesson?", isPresented: $showDeleteAlert) {
             Button("Delete", role: .destructive) {
                 if let url = resolveLessonFileURL() {
                     do {
@@ -138,7 +137,8 @@ struct LessonDetailView: View {
                     }
                 }
                 do {
-                    try repository.deleteLesson(id: lesson.id)
+                    guard let lessonID = lesson.id else { return }
+                    try repository.deleteLesson(id: lessonID)
                 } catch {
                     Self.logger.warning("Failed to delete lesson: \(error)")
                 }
@@ -183,9 +183,10 @@ struct LessonDetailView: View {
                     let needsAccess = pickedURL.startAccessingSecurityScopedResource()
                     defer { if needsAccess { pickedURL.stopAccessingSecurityScopedResource() } }
                     do {
+                        guard let lessonID = lesson.id else { return }
                         let destURL = try LessonFileStorage.importFile(
                             from: pickedURL,
-                            forLessonWithID: lesson.id,
+                            forLessonWithID: lessonID,
                             lessonName: lesson.name
                         )
                         let bookmark = try LessonFileStorage.makeBookmark(for: destURL)
@@ -202,7 +203,7 @@ struct LessonDetailView: View {
                             lesson.pagesFileRelativePath = rel
                             resolvedPagesURL = destURL
                             previousManagedURL = destURL
-                            saveCoordinator.save(modelContext, reason: "Import lesson Pages file")
+                            saveCoordinator.save(viewContext, reason: "Import lesson Pages file")
                         }
                     } catch {
                         await MainActor.run { importError = error.localizedDescription }
@@ -263,7 +264,7 @@ extension LessonDetailView {
                 }
             }
 
-            // Great Lesson tag button
+            // Great CDLesson tag button
             Button {
                 showingGreatLessonTagEditor = true
             } label: {
@@ -353,13 +354,14 @@ extension LessonDetailView {
 }
 
 #Preview {
-    let container = ModelContainer.preview
-    let ctx = container.mainContext
-    let lesson = Lesson(
-        name: "Decimal System", subject: "Math", group: "Number Work",
-        subheading: "Intro to base-10", writeUp: "Sample write up."
-    )
-    ctx.insert(lesson)
+    let ctx = CoreDataStack.preview.viewContext
+    let lesson = CDLesson(context: ctx)
+    lesson.name = "Decimal System"
+    lesson.subject = "Math"
+    lesson.group = "Number Work"
+    lesson.subheading = "Intro to base-10"
+    lesson.writeUp = "Sample write up."
+
     return LessonDetailView(lesson: lesson, onSave: { _ in })
-        .previewEnvironment(using: container)
+        .previewEnvironment()
 }

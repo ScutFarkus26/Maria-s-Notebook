@@ -1,5 +1,5 @@
 import Foundation
-import SwiftData
+import CoreData
 
 // MARK: - Backup Services
 

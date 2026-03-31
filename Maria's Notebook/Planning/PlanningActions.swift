@@ -1,12 +1,12 @@
 import Foundation
-import SwiftData
 import OSLog
+import CoreData
 
 @MainActor
 enum PlanningActions {
     private static let logger = Logger.planning
 
-    static func moveToInbox(_ la: LessonAssignment, context: ModelContext) {
+    static func moveToInbox(_ la: CDLessonAssignment, context: NSManagedObjectContext) {
         la.scheduledFor = nil
         la.stateRaw = LessonAssignmentState.draft.rawValue
         la.modifiedAt = Date()
@@ -14,11 +14,11 @@ enum PlanningActions {
     }
 
     static func planNextLesson(
-        for la: LessonAssignment,
-        lessons: [Lesson],
-        students: [Student],
-        lessonAssignments: [LessonAssignment],
-        context: ModelContext
+        for la: CDLessonAssignment,
+        lessons: [CDLesson],
+        students: [CDStudent],
+        lessonAssignments: [CDLessonAssignment],
+        context: NSManagedObjectContext
     ) {
         let result = PlanNextLessonService.planNextLesson(
             for: la,
@@ -34,30 +34,30 @@ enum PlanningActions {
     }
 
     /// Push all scheduled lessons that include at least one absent student to the next school day.
-    static func pushLessonsWithAbsentStudents(in days: [Date], calendar: Calendar, context: ModelContext) async {
+    static func pushLessonsWithAbsentStudents(in days: [Date], calendar: Calendar, context: NSManagedObjectContext) async {
         guard let firstDay = days.first else { return }
         let start = calendar.startOfDay(for: firstDay)
         let lastDay = days.last ?? firstDay
         let endDate = calendar.date(byAdding: .day, value: 1, to: lastDay) ?? lastDay
         let end = calendar.startOfDay(for: endDate)
         let scheduledRaw = LessonAssignmentState.scheduled.rawValue
-        let descriptor = FetchDescriptor<LessonAssignment>(
-            predicate: #Predicate { la in
-                la.stateRaw == scheduledRaw && la.scheduledFor.flatMap { $0 >= start && $0 < end } == true
-            }
+        let descriptor: NSFetchRequest<CDLessonAssignment> = NSFetchRequest(entityName: "CDLessonAssignment")
+        descriptor.predicate = NSPredicate(
+            format: "stateRaw == %@ AND scheduledFor >= %@ AND scheduledFor < %@",
+            scheduledRaw, start as CVarArg, end as CVarArg
         )
-        let scheduled: [LessonAssignment] = context.safeFetch(descriptor)
+        let scheduled: [CDLessonAssignment] = context.safeFetch(descriptor)
 
         // Fetch attendance records for the same range
-        let attDescriptor = FetchDescriptor<AttendanceRecord>(
-            predicate: #Predicate { rec in rec.date >= start && rec.date < end }
-        )
-        let attendance: [AttendanceRecord] = context.safeFetch(attDescriptor)
+        let attDescriptor: NSFetchRequest<CDAttendanceRecord> = NSFetchRequest(entityName: "CDAttendanceRecord")
+        attDescriptor.predicate = NSPredicate(format: "date >= %@ AND date < %@", start as CVarArg, end as CVarArg)
+        let attendance: [CDAttendanceRecord] = context.safeFetch(attDescriptor)
 
         // Build lookup: (dayStart, studentID) -> status
         var attendanceMap: [Date: [UUID: AttendanceStatus]] = [:]
         for rec in attendance {
-            let day = calendar.startOfDay(for: rec.date)
+            guard let recDate = rec.date else { continue }
+            let day = calendar.startOfDay(for: recDate)
             var inner = attendanceMap[day] ?? [:]
             if let studentIDUUID = UUID(uuidString: rec.studentID) {
                 inner[studentIDUUID] = rec.status
@@ -92,19 +92,19 @@ enum PlanningActions {
     }
 
     /// Push all scheduled lessons forward by one school day, preserving their time-of-day.
-    static func pushAllLessonsByOneDay(in days: [Date], calendar: Calendar, context: ModelContext) async {
+    static func pushAllLessonsByOneDay(in days: [Date], calendar: Calendar, context: NSManagedObjectContext) async {
         guard let firstDay = days.first else { return }
         let start = calendar.startOfDay(for: firstDay)
         let lastDay = days.last ?? firstDay
         let endDate = calendar.date(byAdding: .day, value: 1, to: lastDay) ?? lastDay
         let end = calendar.startOfDay(for: endDate)
         let scheduledRaw = LessonAssignmentState.scheduled.rawValue
-        let descriptor = FetchDescriptor<LessonAssignment>(
-            predicate: #Predicate { la in
-                la.stateRaw == scheduledRaw && la.scheduledFor.flatMap { $0 >= start && $0 < end } == true
-            }
+        let descriptor: NSFetchRequest<CDLessonAssignment> = NSFetchRequest(entityName: "CDLessonAssignment")
+        descriptor.predicate = NSPredicate(
+            format: "stateRaw == %@ AND scheduledFor >= %@ AND scheduledFor < %@",
+            scheduledRaw, start as CVarArg, end as CVarArg
         )
-        let scheduled: [LessonAssignment] = context.safeFetch(descriptor)
+        let scheduled: [CDLessonAssignment] = context.safeFetch(descriptor)
 
         var changed = false
         for la in scheduled {

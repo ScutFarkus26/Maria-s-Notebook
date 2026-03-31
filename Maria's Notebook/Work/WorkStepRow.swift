@@ -1,12 +1,12 @@
 import OSLog
 import SwiftUI
-import SwiftData
+import CoreData
 
 struct WorkStepRow: View {
     private static let logger = Logger.work
 
-    @Environment(\.modelContext) private var modelContext
-    @Bindable var step: WorkStep
+    @Environment(\.managedObjectContext) private var modelContext
+    @ObservedObject var step: WorkStep
     var onEdit: () -> Void
 
     var body: some View {
@@ -73,7 +73,7 @@ struct WorkStepRow: View {
     }
 
     private func toggleCompletion() {
-        let service = WorkStepServiceAdapter(context: modelContext)
+        let service = CDWorkStepServiceImpl(context: modelContext)
         do {
             try service.toggleCompletion(step)
         } catch {

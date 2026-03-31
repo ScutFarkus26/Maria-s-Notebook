@@ -4,7 +4,6 @@
 
 import Foundation
 import CoreData
-import SwiftData
 import SwiftUI
 import PDFKit
 import OSLog
@@ -50,24 +49,7 @@ struct ReportGeneratorService {
         }
     }
 
-    // MARK: - Deprecated SwiftData Helper
-
-    @available(*, deprecated, message: "Use Core Data overload")
-    private func safeFetch<T>(
-        _ descriptor: FetchDescriptor<T>,
-        context: ModelContext,
-        contextName: String = #function
-    ) -> [T] {
-        do {
-            return try context.fetch(descriptor)
-        } catch {
-            Self.logger.warning(
-                // swiftlint:disable:next line_length
-                "Failed to fetch \(String(describing: T.self), privacy: .public) in \(contextName, privacy: .public): \(error, privacy: .public)"
-            )
-            return []
-        }
-    }
+    // Deprecated SwiftData safeFetch helper removed.
 
     // MARK: - Report Options
 
@@ -128,34 +110,7 @@ struct ReportGeneratorService {
         }
     }
 
-    // MARK: - Fetch Notes (Deprecated SwiftData)
-
-    @available(*, deprecated, message: "Use Core Data overload with NSManagedObjectContext")
-    func fetchReportNotes(
-        for student: Student,
-        dateRange: ClosedRange<Date>,
-        context: ModelContext
-    ) -> [Note] {
-        let startDate = dateRange.lowerBound
-        let endDate = dateRange.upperBound
-
-        // Fetch notes that are flagged for report and within date range
-        let descriptor = FetchDescriptor<Note>(
-            predicate: #Predicate<Note> { note in
-                note.includeInReport == true &&
-                note.createdAt >= startDate &&
-                note.createdAt <= endDate
-            },
-            sortBy: [SortDescriptor(\Note.createdAt, order: .reverse)]
-        )
-
-        let allFlagged = safeFetch(descriptor, context: context, contextName: "fetchReportNotes")
-
-        // Filter to notes visible to this student
-        return allFlagged.filter { note in
-            note.scopeIsAll || note.searchIndexStudentID == student.id || note.scope.applies(to: student.id)
-        }
-    }
+    // Deprecated SwiftData fetchReportNotes removed - use Core Data overload.
 
     // MARK: - Generate PDF
 
@@ -384,7 +339,7 @@ extension ReportGeneratorService {
         var y = currentY
 
         // Date
-        let dateText = DateFormatters.shortDateTime.string(from: note.createdAt)
+        let dateText = DateFormatters.shortDateTime.string(from: note.createdAt ?? Date())
         let dateAttrs: [NSAttributedString.Key: Any] = [
             .font: PlatformFont.systemFont(ofSize: 10),
             .foregroundColor: PlatformColor.secondaryLabel
@@ -409,7 +364,7 @@ extension ReportGeneratorService {
         y += boundingRect.height + 4
 
         // Tags badge
-        let tagNames = note.tags.map { TagHelper.tagName($0) }.joined(separator: ", ")
+        let tagNames = ((note.tags as? [String]) ?? []).map { TagHelper.tagName($0) }.joined(separator: ", ")
         let categoryText = tagNames.isEmpty ? "[General]" : "[\(tagNames)]"
         let categoryAttrs: [NSAttributedString.Key: Any] = [
             .font: PlatformFont.systemFont(ofSize: 9),
@@ -718,7 +673,7 @@ extension ReportGeneratorService {
         // Group notes by their first tag (or "General" if untagged)
         var grouped: [String: [Note]] = [:]
         for note in notes {
-            if let firstTag = note.tags.first {
+            if let firstTag = (note.tags as? [String])?.first {
                 let tagName = TagHelper.tagName(firstTag)
                 grouped[tagName, default: []].append(note)
             } else {

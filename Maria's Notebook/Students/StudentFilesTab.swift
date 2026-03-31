@@ -1,5 +1,4 @@
 import OSLog
-import SwiftData
 import SwiftUI
 import UniformTypeIdentifiers
 import CoreData
@@ -13,9 +12,9 @@ enum DocumentSortOption {
 struct StudentFilesTab: View {
     static let logger = Logger.students
 
-    let student: Student
+    let student: CDStudent
 
-    @Environment(\.modelContext) private var modelContext
+    @Environment(\.managedObjectContext) private var viewContext
     @Environment(\.managedObjectContext) private var managedObjectContext
     @Environment(SaveCoordinator.self) private var saveCoordinator
 
@@ -38,11 +37,11 @@ struct StudentFilesTab: View {
         let data: Data
     }
 
-    private var allDocuments: [Document] {
-        student.documents ?? []
+    private var allDocuments: [CDDocument] {
+        (student.documents?.allObjects as? [CDDocument]) ?? []
     }
 
-    private var documents: [Document] {
+    private var documents: [CDDocument] {
         var filtered = allDocuments
 
         // Filter by category if set
@@ -53,9 +52,9 @@ struct StudentFilesTab: View {
         // Sort based on option
         switch sortOption {
         case .dateDesc:
-            filtered.sort { $0.uploadDate > $1.uploadDate }
+            filtered.sort { ($0.uploadDate ?? .distantPast) > ($1.uploadDate ?? .distantPast) }
         case .dateAsc:
-            filtered.sort { $0.uploadDate < $1.uploadDate }
+            filtered.sort { ($0.uploadDate ?? .distantPast) < ($1.uploadDate ?? .distantPast) }
         case .title:
             filtered.sort { $0.title.localizedCaseInsensitiveCompare($1.title) == .orderedAscending }
         }
@@ -224,15 +223,17 @@ struct StudentFilesTab: View {
 private enum StudentFilesTabPreviewFactory {
     @MainActor
     static func makeView() -> some View {
-        let container = ModelContainer.preview
-        let context = container.mainContext
-        let student = Student(
-            firstName: "Alan", lastName: "Turing",
-            birthday: Date(timeIntervalSince1970: 0), level: .upper
-        )
-        context.insert(student)
+        let stack = CoreDataStack.preview
+        let context = stack.viewContext
+        let student = CDStudent(context: context)
+        student.id = UUID()
+        student.firstName = "Alan"
+        student.lastName = "Turing"
+        student.birthday = Date(timeIntervalSince1970: 0)
+        student.level = .upper
+        try? context.save()
         return StudentFilesTab(student: student)
-            .previewEnvironment(using: container)
+            .previewEnvironment()
             .padding()
     }
 }

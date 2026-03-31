@@ -1,7 +1,6 @@
 import Foundation
 import UserNotifications
 import CoreData
-import SwiftData
 import OSLog
 
 /// Service for managing todo notifications and reminders
@@ -42,7 +41,7 @@ class TodoNotificationService {
         // Create notification content
         let content = UNMutableNotificationContent()
         content.title = "Todo Reminder"
-        content.body = todo.title ?? ""
+        content.body = todo.title
         content.sound = .default
 
         // Add tag info as subtitle if available
@@ -88,80 +87,7 @@ class TodoNotificationService {
         try await scheduleNotification(for: todo, at: newDate, context: context)
     }
 
-    // MARK: - Deprecated SwiftData Methods
-
-    /// Schedule a notification for a todo item (SwiftData)
-    @available(*, deprecated, message: "Use Core Data overload")
-    func scheduleNotification(for todo: TodoItem, at date: Date) async throws {
-        // Cancel any existing notification
-        if let existingID = todo.notificationID {
-            UNUserNotificationCenter.current().removePendingNotificationRequests(withIdentifiers: [existingID])
-        }
-
-        // Create notification content
-        let content = UNMutableNotificationContent()
-        content.title = "Todo Reminder"
-        content.body = todo.title
-        content.sound = .default
-
-        // Add tag info as subtitle if available
-        if let firstTag = todo.tags.first {
-            content.subtitle = TodoTagHelper.tagName(firstTag)
-        }
-
-        // Set user info for handling notification tap
-        content.userInfo = ["todoID": todo.id.uuidString]
-
-        // Create trigger from date
-        let components = Calendar.current.dateComponents([.year, .month, .day, .hour, .minute], from: date)
-        let trigger = UNCalendarNotificationTrigger(dateMatching: components, repeats: false)
-
-        // Create unique identifier
-        let identifier = "todo-\(todo.id.uuidString)"
-
-        // Create and add request
-        let request = UNNotificationRequest(identifier: identifier, content: content, trigger: trigger)
-        try await UNUserNotificationCenter.current().add(request)
-
-        // Update todo with notification ID
-        todo.notificationID = identifier
-        todo.reminderDate = date
-
-        if let context = todo.modelContext {
-            safeSave(context: context, contextName: "scheduleNotification")
-        }
-    }
-
-    /// Cancel scheduled notification for a todo (SwiftData)
-    @available(*, deprecated, message: "Use Core Data overload")
-    func cancelNotification(for todo: TodoItem) {
-        guard let notificationID = todo.notificationID else { return }
-
-        UNUserNotificationCenter.current().removePendingNotificationRequests(withIdentifiers: [notificationID])
-
-        todo.notificationID = nil
-        todo.reminderDate = nil
-
-        if let context = todo.modelContext {
-            safeSave(context: context, contextName: "cancelNotification")
-        }
-    }
-
-    /// Reschedule notification if reminder date changes (SwiftData)
-    @available(*, deprecated, message: "Use Core Data overload")
-    func rescheduleNotification(for todo: TodoItem, newDate: Date) async throws {
-        try await scheduleNotification(for: todo, at: newDate)
-    }
-
     // MARK: - Helper Methods
-
-    private func safeSave(context: ModelContext, contextName: String = #function) {
-        do {
-            try context.save()
-        } catch {
-            Self.logger.warning("Failed to save in \(contextName, privacy: .public): \(error, privacy: .public)")
-        }
-    }
 
     /// Get all pending notifications for debugging
     func getPendingNotifications() async -> [UNNotificationRequest] {

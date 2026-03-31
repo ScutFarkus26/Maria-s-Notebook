@@ -1,5 +1,5 @@
 import SwiftUI
-import SwiftData
+import CoreData
 import UniformTypeIdentifiers
 import OSLog
 #if os(macOS)
@@ -15,7 +15,7 @@ extension UTType {
 
 struct BackupRestoreSectionView: View {
     private static let logger = Logger.backup
-    @Environment(\.modelContext) private var modelContext
+    @Environment(\.managedObjectContext) private var viewContext
     @Environment(\.appRouter) private var appRouter
     @Environment(\.dependencies) private var dependencies
     @State private var viewModel: SettingsViewModel
@@ -48,7 +48,7 @@ struct BackupRestoreSectionView: View {
             performExport: {
                 Task {
                     await viewModel.performExport(
-                        modelContext: modelContext,
+                        viewContext: viewContext,
                         encryptBackups: encryptBackups
                     )
                 }
@@ -103,7 +103,7 @@ struct BackupRestoreSectionView: View {
         ) { result in
             switch result {
             case .success(let url):
-                Task { await viewModel.previewImportedURL(modelContext: modelContext, url: url) }
+                Task { await viewModel.previewImportedURL(viewContext: viewContext, url: url) }
             case .failure(let error):
                 viewModel.importError = "Failed to restore: \(error.localizedDescription)"
             }
@@ -151,14 +151,14 @@ struct BackupRestoreSectionView: View {
                         viewModel.restorePreviewData = nil
                     },
                     onConfirm: {
-                        Task { await viewModel.performImportConfirmed(modelContext: modelContext) }
+                        Task { await viewModel.performImportConfirmed(viewContext: viewContext) }
                     }
                 )
             }
         }
         .onChange(of: appRouter.navigationDestination) { _, newValue in
             if case .createBackup = newValue {
-                Task { await viewModel.performExport(modelContext: modelContext, encryptBackups: encryptBackups) }
+                Task { await viewModel.performExport(viewContext: viewContext, encryptBackups: encryptBackups) }
                 appRouter.clearNavigation()
             } else if case .restoreBackup = newValue {
                 showingImporter = true
@@ -167,7 +167,7 @@ struct BackupRestoreSectionView: View {
         }
         .onAppear {
             viewModel.loadDefaultFolderName()
-            viewModel.calculateEstimatedBackupSize(modelContext: modelContext)
+            viewModel.calculateEstimatedBackupSize(viewContext: viewContext)
         }
 #if os(iOS)
         .onChange(of: viewModel.exportData) { _, newValue in

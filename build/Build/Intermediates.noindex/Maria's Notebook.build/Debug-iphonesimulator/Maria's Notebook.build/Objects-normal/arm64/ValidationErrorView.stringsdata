@@ -1,0 +1,80 @@
+{
+  "source": "/Users/dannydeberry/Documents/Projects/MariasNotebook-Rewrite/Maria's Notebook/Backup/UI/ValidationErrorView.swift",
+  "tables": {
+    "Localizable": [
+      {
+        "comment": "",
+        "key": "Backup Validation",
+        "location": {
+          "startingColumn": 26,
+          "startingLine": 21
+        }
+      },
+      {
+        "comment": "",
+        "key": "Ready to restore",
+        "location": {
+          "startingColumn": 47,
+          "startingLine": 25
+        }
+      },
+      {
+        "comment": "",
+        "key": "%lld issues found",
+        "location": {
+          "startingColumn": 68,
+          "startingLine": 25
+        }
+      },
+      {
+        "comment": "",
+        "key": "Validation Errors",
+        "location": {
+          "startingColumn": 26,
+          "startingLine": 39
+        }
+      },
+      {
+        "comment": "",
+        "key": "Warnings",
+        "location": {
+          "startingColumn": 26,
+          "startingLine": 60
+        }
+      },
+      {
+        "comment": "",
+        "key": "Cancel",
+        "location": {
+          "startingColumn": 24,
+          "startingLine": 89
+        }
+      },
+      {
+        "comment": "",
+        "key": "Proceed Anyway",
+        "location": {
+          "startingColumn": 28,
+          "startingLine": 97
+        }
+      },
+      {
+        "comment": "",
+        "key": "Continue",
+        "location": {
+          "startingColumn": 28,
+          "startingLine": 104
+        }
+      },
+      {
+        "comment": "",
+        "key": "Field: %@",
+        "location": {
+          "startingColumn": 26,
+          "startingLine": 134
+        }
+      }
+    ]
+  },
+  "version": 1
+}

@@ -9,7 +9,7 @@
 // - ClassSubjectChecklistViewModel+PresentationHelpers.swift (findOrCreateWork, upsert/deleteLessonPresentation)
 
 import SwiftUI
-import SwiftData
+import CoreData
 import OSLog
 
 // MARK: - ViewModel
@@ -23,9 +23,9 @@ import OSLog
 class ClassSubjectChecklistViewModel {
     static let logger = Logger.lessons
 
-    var students: [Student] = []
-    private var allStudents: [Student] = []
-    var lessons: [Lesson] = []
+    var students: [CDStudent] = []
+    private var allStudents: [CDStudent] = []
+    var lessons: [CDLesson] = []
     var orderedGroups: [String] = []
     var availableSubjects: [String] = []
     var selectedSubject: String = ""
@@ -43,15 +43,16 @@ class ClassSubjectChecklistViewModel {
     var lastStudentHashForDuplicates: Int?
 
     // OPTIMIZATION: Cache lessons-per-group to avoid filtering + sorting on every body evaluation
-    private var cachedLessonsByGroup: [String: [Lesson]] = [:]
+    private var cachedLessonsByGroup: [String: [CDLesson]] = [:]
 
-    func loadData(context: ModelContext) {
-        let studentFetch = FetchDescriptor<Student>(sortBy: [SortDescriptor(\.birthday)])
+    func loadData(context: NSManagedObjectContext) {
+        let studentFetch = CDFetchRequest(CDStudent.self)
+        studentFetch.sortDescriptors = [NSSortDescriptor(keyPath: \CDStudent.birthday, ascending: true)]
         let fetched = context.safeFetch(studentFetch)
         self.allStudents = fetched
         self.students = fetched
 
-        let allLessonsFetch = FetchDescriptor<Lesson>()
+        let allLessonsFetch = CDFetchRequest(CDLesson.self)
         let allLessons = context.safeFetch(allLessonsFetch)
         self.availableSubjects = lessonsLogic.subjects(from: allLessons)
 
@@ -69,20 +70,19 @@ class ClassSubjectChecklistViewModel {
         refreshLessonsAndGroups(context: context)
     }
 
-    func applyVisibilityFilter(context: ModelContext, show: Bool, namesRaw: String) {
+    func applyVisibilityFilter(context: NSManagedObjectContext, show: Bool, namesRaw: String) {
         self.students = TestStudentsFilter.filterVisible(allStudents, show: show, namesRaw: namesRaw)
         recomputeMatrix(context: context)
     }
 
     /// Refresh lesson list and group ordering without recomputing the matrix.
     /// PERF: Uses subject predicate to narrow the query instead of loading all lessons.
-    private func refreshLessonsAndGroups(context: ModelContext) {
+    private func refreshLessonsAndGroups(context: NSManagedObjectContext) {
         guard !selectedSubject.isEmpty else { return }
         let sub = selectedSubject.trimmed()
-        // SwiftData #Predicate supports localizedStandardContains for case-insensitive matching
-        let lessonsDescriptor = FetchDescriptor<Lesson>(
-            predicate: #Predicate<Lesson> { $0.subject.localizedStandardContains(sub) }
-        )
+        // Use case-insensitive CONTAINS for subject matching
+        let lessonsDescriptor = CDFetchRequest(CDLesson.self)
+        lessonsDescriptor.predicate = NSPredicate(format: "subject CONTAINS[cd] %@", sub)
         let fetchedLessons = context.safeFetch(lessonsDescriptor)
         // Post-filter for exact match (localizedStandardContains is substring-based)
         self.lessons = fetchedLessons.filter {
@@ -92,12 +92,12 @@ class ClassSubjectChecklistViewModel {
         invalidateLessonsCache()
     }
 
-    func refreshMatrix(context: ModelContext) {
+    func refreshMatrix(context: NSManagedObjectContext) {
         refreshLessonsAndGroups(context: context)
         recomputeMatrix(context: context)
     }
 
-    func lessonsIn(group: String) -> [Lesson] {
+    func lessonsIn(group: String) -> [CDLesson] {
         if let cached = cachedLessonsByGroup[group] {
             return cached
         }
@@ -114,7 +114,8 @@ class ClassSubjectChecklistViewModel {
     }
 
     func state(for student: Student, lesson: Lesson) -> StudentChecklistRowState? {
-        return matrixStates[student.id]?[lesson.id]
+        guard let sid = student.id, let lid = lesson.id else { return nil }
+        return matrixStates[sid]?[lid]
     }
 
     // MARK: - Multi-Selection Methods
@@ -132,7 +133,8 @@ class ClassSubjectChecklistViewModel {
     }
 
     func toggleSelection(student: Student, lesson: Lesson) {
-        let id = CellIdentifier(studentID: student.id, lessonID: lesson.id)
+        guard let sid = student.id, let lid = lesson.id else { return }
+        let id = CellIdentifier(studentID: sid, lessonID: lid)
         if selectedCells.contains(id) {
             selectedCells.remove(id)
         } else {
@@ -145,12 +147,13 @@ class ClassSubjectChecklistViewModel {
     }
 
     func isSelected(student: Student, lesson: Lesson) -> Bool {
-        selectedCells.contains(CellIdentifier(studentID: student.id, lessonID: lesson.id))
+        guard let sid = student.id, let lid = lesson.id else { return false }
+        return selectedCells.contains(CellIdentifier(studentID: sid, lessonID: lid))
     }
 
     // MARK: - Batch Actions (delegated to ChecklistBatchActionExecutor)
 
-    func batchAddToInbox(context: ModelContext) {
+    func batchAddToInbox(context: NSManagedObjectContext) {
         ChecklistBatchActionExecutor.batchAddToInbox(
             selectedCells: selectedCells,
             students: students,
@@ -162,7 +165,7 @@ class ClassSubjectChecklistViewModel {
         clearSelection()
     }
 
-    func batchMarkPresented(context: ModelContext) {
+    func batchMarkPresented(context: NSManagedObjectContext) {
         ChecklistBatchActionExecutor.batchMarkPresented(
             selectedCells: selectedCells,
             students: students,
@@ -174,7 +177,7 @@ class ClassSubjectChecklistViewModel {
         clearSelection()
     }
 
-    func batchMarkPreviouslyPresented(context: ModelContext) {
+    func batchMarkPreviouslyPresented(context: NSManagedObjectContext) {
         ChecklistBatchActionExecutor.batchMarkPreviouslyPresented(
             selectedCells: selectedCells,
             students: students,
@@ -186,7 +189,7 @@ class ClassSubjectChecklistViewModel {
         clearSelection()
     }
 
-    func batchMarkProficient(context: ModelContext) {
+    func batchMarkProficient(context: NSManagedObjectContext) {
         ChecklistBatchActionExecutor.batchMarkProficient(
             selectedCells: selectedCells,
             students: students,
@@ -198,7 +201,7 @@ class ClassSubjectChecklistViewModel {
         clearSelection()
     }
 
-    func batchClearStatus(context: ModelContext) {
+    func batchClearStatus(context: NSManagedObjectContext) {
         ChecklistBatchActionExecutor.batchClearStatus(
             selectedCells: selectedCells,
             students: students,
@@ -211,7 +214,7 @@ class ClassSubjectChecklistViewModel {
 
     // MARK: - Matrix Computation (delegated to ChecklistMatrixBuilder)
 
-    func recomputeMatrix(context: ModelContext) {
+    func recomputeMatrix(context: NSManagedObjectContext) {
         guard !lessons.isEmpty else { matrixStates = [:]; return }
         self.matrixStates = ChecklistMatrixBuilder.buildMatrix(
             students: students,

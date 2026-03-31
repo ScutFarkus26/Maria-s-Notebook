@@ -1,6 +1,5 @@
 import Foundation
 import CoreData
-import SwiftData
 import OSLog
 
 /// Records teacher decisions on AI recommendations and tracks outcomes.
@@ -75,105 +74,16 @@ struct PlanningFeedbackTracker {
     /// Fetches calibration data summarizing past teacher decisions for prompt enrichment.
     /// Returns a string suitable for including in planning prompts.
     static func calibrationSummary(context: NSManagedObjectContext) -> String? {
-        // Use SwiftData to fetch PlanningRecommendation (same SQLite store).
-        // Full CD conversion happens when PlanningRecommendation model is converted.
-        let modelContext = AppBootstrapping.getSharedModelContainer().mainContext
-        let descriptor = FetchDescriptor<PlanningRecommendation>(
-            sortBy: [SortDescriptor(\PlanningRecommendation.createdAt, order: .reverse)]
-        )
-        guard let records = try? modelContext.fetch(descriptor), !records.isEmpty else {
-            return nil
-        }
-        return buildCalibrationSummary(from: records)
-    }
-
-    // MARK: - Record Decisions (SwiftData — Deprecated)
-
-    /// Records a teacher decision on a recommendation.
-    @available(*, deprecated, message: "Use Core Data overload")
-    static func recordDecision(
-        recommendation: LessonRecommendation,
-        decision: TeacherDecision,
-        session: PlanningSession,
-        teacherNote: String? = nil,
-        modelContext: ModelContext
-    ) {
-        let record = PlanningRecommendation(
-            lessonID: recommendation.lessonID,
-            studentIDs: recommendation.studentIDs,
-            reasoning: recommendation.reasoning,
-            confidence: recommendation.confidence,
-            priority: recommendation.priority,
-            subjectContext: recommendation.subject,
-            groupContext: recommendation.group,
-            planningSessionID: session.id,
-            depthLevel: session.depth
-        )
-
-        record.decision = decision
-        record.teacherNote = teacherNote
-
-        modelContext.insert(record)
-
-        Self.logger.info("Recorded \(decision.rawValue) decision for \(recommendation.lessonName)")
-    }
-
-    /// Links an accepted recommendation to its created LessonAssignment.
-    @available(*, deprecated, message: "Use Core Data overload")
-    static func linkToPresentation(
-        recommendationID: UUID,
-        presentationID: UUID,
-        modelContext: ModelContext
-    ) {
-        let idStr = recommendationID.uuidString
-        let descriptor = FetchDescriptor<PlanningRecommendation>(
-            predicate: #Predicate<PlanningRecommendation> { rec in
-                rec.id.uuidString == idStr
-            }
-        )
-
-        guard let record = (try? modelContext.fetch(descriptor))?.first else {
-            Self.logger.warning("PlanningRecommendation not found for linking: \(recommendationID)")
-            return
-        }
-
-        record.presentationID = presentationID.uuidString
-        record.modifiedAt = Date()
-    }
-
-    /// Records the outcome after a recommendation was applied.
-    @available(*, deprecated, message: "Use Core Data overload")
-    static func recordOutcome(
-        recommendationID: UUID,
-        outcome: RecommendationOutcome,
-        modelContext: ModelContext
-    ) {
-        let idStr = recommendationID.uuidString
-        let descriptor = FetchDescriptor<PlanningRecommendation>(
-            predicate: #Predicate<PlanningRecommendation> { rec in
-                rec.id.uuidString == idStr
-            }
-        )
-
-        guard let record = (try? modelContext.fetch(descriptor))?.first else { return }
-        record.outcome = outcome
-    }
-
-    /// Fetches calibration data summarizing past teacher decisions for prompt enrichment.
-    @available(*, deprecated, message: "Use Core Data overload")
-    static func calibrationSummary(modelContext: ModelContext) -> String? {
-        let descriptor = FetchDescriptor<PlanningRecommendation>(
-            sortBy: [SortDescriptor(\PlanningRecommendation.createdAt, order: .reverse)]
-        )
-
-        guard let records = try? modelContext.fetch(descriptor), !records.isEmpty else {
-            return nil
-        }
-
+        let request = CDFetchRequest(CDPlanningRecommendation.self)
+        request.sortDescriptors = [NSSortDescriptor(key: "createdAt", ascending: false)]
+        let records = context.safeFetch(request)
+        guard !records.isEmpty else { return nil }
         return buildCalibrationSummary(from: records)
     }
 
     // MARK: - Shared Helpers
+
+    // Deprecated SwiftData methods removed - use Core Data overloads.
 
     private static func buildCalibrationSummary(from records: [PlanningRecommendation]) -> String? {
         // Aggregate decision patterns

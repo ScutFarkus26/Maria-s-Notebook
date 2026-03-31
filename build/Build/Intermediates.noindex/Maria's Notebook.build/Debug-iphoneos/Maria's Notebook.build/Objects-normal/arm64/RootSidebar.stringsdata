@@ -1,0 +1,520 @@
+{
+  "source": "/Users/dannydeberry/Documents/Projects/MariasNotebook-Rewrite/Maria's Notebook/AppCore/RootView/RootSidebar.swift",
+  "tables": {
+    "Localizable": [
+      {
+        "comment": "",
+        "key": "Today",
+        "location": {
+          "startingColumn": 21,
+          "startingLine": 146
+        }
+      },
+      {
+        "comment": "",
+        "key": "Students",
+        "location": {
+          "startingColumn": 21,
+          "startingLine": 160
+        }
+      },
+      {
+        "comment": "",
+        "key": "Classroom",
+        "location": {
+          "startingColumn": 21,
+          "startingLine": 181
+        }
+      },
+      {
+        "comment": "",
+        "key": "Curriculum",
+        "location": {
+          "startingColumn": 21,
+          "startingLine": 201
+        }
+      },
+      {
+        "comment": "",
+        "key": "Progress",
+        "location": {
+          "startingColumn": 21,
+          "startingLine": 239
+        }
+      },
+      {
+        "comment": "",
+        "key": "Resources",
+        "location": {
+          "startingColumn": 21,
+          "startingLine": 271
+        }
+      },
+      {
+        "comment": "",
+        "key": "Tools",
+        "location": {
+          "startingColumn": 21,
+          "startingLine": 309
+        }
+      },
+      {
+        "comment": "",
+        "key": "System",
+        "location": {
+          "startingColumn": 21,
+          "startingLine": 317
+        }
+      },
+      {
+        "comment": "",
+        "key": "View today's schedule, reminders, and tasks",
+        "location": {
+          "startingColumn": 36,
+          "startingLine": 151
+        }
+      },
+      {
+        "comment": "",
+        "key": "Manage your personal todos and tasks",
+        "location": {
+          "startingColumn": 36,
+          "startingLine": 157
+        }
+      },
+      {
+        "comment": "",
+        "key": "Today",
+        "location": {
+          "startingColumn": 27,
+          "startingLine": 148
+        }
+      },
+      {
+        "comment": "",
+        "key": "Todos",
+        "location": {
+          "startingColumn": 27,
+          "startingLine": 154
+        }
+      },
+      {
+        "comment": "",
+        "key": "Manage student profiles and records",
+        "location": {
+          "startingColumn": 36,
+          "startingLine": 165
+        }
+      },
+      {
+        "comment": "",
+        "key": "Conduct weekly student meetings",
+        "location": {
+          "startingColumn": 36,
+          "startingLine": 171
+        }
+      },
+      {
+        "comment": "",
+        "key": "Plan and track student going-out excursions",
+        "location": {
+          "startingColumn": 36,
+          "startingLine": 177
+        }
+      },
+      {
+        "comment": "",
+        "key": "Students",
+        "location": {
+          "startingColumn": 27,
+          "startingLine": 162
+        }
+      },
+      {
+        "comment": "",
+        "key": "Meetings",
+        "location": {
+          "startingColumn": 27,
+          "startingLine": 168
+        }
+      },
+      {
+        "comment": "",
+        "key": "Going Out",
+        "location": {
+          "startingColumn": 27,
+          "startingLine": 174
+        }
+      },
+      {
+        "comment": "",
+        "key": "View community meetings and topics",
+        "location": {
+          "startingColumn": 36,
+          "startingLine": 186
+        }
+      },
+      {
+        "comment": "",
+        "key": "Manage classroom job rotation board",
+        "location": {
+          "startingColumn": 36,
+          "startingLine": 192
+        }
+      },
+      {
+        "comment": "",
+        "key": "Track daily student attendance",
+        "location": {
+          "startingColumn": 36,
+          "startingLine": 198
+        }
+      },
+      {
+        "comment": "",
+        "key": "Community",
+        "location": {
+          "startingColumn": 27,
+          "startingLine": 183
+        }
+      },
+      {
+        "comment": "",
+        "key": "Jobs",
+        "location": {
+          "startingColumn": 27,
+          "startingLine": 189
+        }
+      },
+      {
+        "comment": "",
+        "key": "Attendance",
+        "location": {
+          "startingColumn": 27,
+          "startingLine": 195
+        }
+      },
+      {
+        "comment": "",
+        "key": "Browse and manage lesson plans",
+        "location": {
+          "startingColumn": 36,
+          "startingLine": 206
+        }
+      },
+      {
+        "comment": "",
+        "key": "View class subject checklist",
+        "location": {
+          "startingColumn": 36,
+          "startingLine": 212
+        }
+      },
+      {
+        "comment": "",
+        "key": "Manage lesson presentations agenda",
+        "location": {
+          "startingColumn": 36,
+          "startingLine": 218
+        }
+      },
+      {
+        "comment": "",
+        "key": "View and manage student work",
+        "location": {
+          "startingColumn": 36,
+          "startingLine": 224
+        }
+      },
+      {
+        "comment": "",
+        "key": "See which students need a lesson based on days since last presentation",
+        "location": {
+          "startingColumn": 36,
+          "startingLine": 230
+        }
+      },
+      {
+        "comment": "",
+        "key": "Manage student projects",
+        "location": {
+          "startingColumn": 36,
+          "startingLine": 236
+        }
+      },
+      {
+        "comment": "",
+        "key": "Lessons",
+        "location": {
+          "startingColumn": 27,
+          "startingLine": 203
+        }
+      },
+      {
+        "comment": "",
+        "key": "Checklist",
+        "location": {
+          "startingColumn": 27,
+          "startingLine": 209
+        }
+      },
+      {
+        "comment": "",
+        "key": "Presentations",
+        "location": {
+          "startingColumn": 27,
+          "startingLine": 215
+        }
+      },
+      {
+        "comment": "",
+        "key": "Open Work",
+        "location": {
+          "startingColumn": 27,
+          "startingLine": 221
+        }
+      },
+      {
+        "comment": "",
+        "key": "Needs Lesson",
+        "location": {
+          "startingColumn": 27,
+          "startingLine": 227
+        }
+      },
+      {
+        "comment": "",
+        "key": "Projects",
+        "location": {
+          "startingColumn": 27,
+          "startingLine": 233
+        }
+      },
+      {
+        "comment": "",
+        "key": "View student progression through curriculum",
+        "location": {
+          "startingColumn": 36,
+          "startingLine": 244
+        }
+      },
+      {
+        "comment": "",
+        "key": "View per-student progress across all subjects",
+        "location": {
+          "startingColumn": 36,
+          "startingLine": 250
+        }
+      },
+      {
+        "comment": "",
+        "key": "View weekly lesson frequency per student",
+        "location": {
+          "startingColumn": 36,
+          "startingLine": 256
+        }
+      },
+      {
+        "comment": "",
+        "key": "Analyze subject distribution and curriculum gaps",
+        "location": {
+          "startingColumn": 36,
+          "startingLine": 262
+        }
+      },
+      {
+        "comment": "",
+        "key": "Plan and track student transitions between levels",
+        "location": {
+          "startingColumn": 36,
+          "startingLine": 268
+        }
+      },
+      {
+        "comment": "",
+        "key": "Progression",
+        "location": {
+          "startingColumn": 27,
+          "startingLine": 241
+        }
+      },
+      {
+        "comment": "",
+        "key": "Progress Dashboard",
+        "location": {
+          "startingColumn": 27,
+          "startingLine": 247
+        }
+      },
+      {
+        "comment": "",
+        "key": "Lesson Frequency",
+        "location": {
+          "startingColumn": 27,
+          "startingLine": 253
+        }
+      },
+      {
+        "comment": "",
+        "key": "Curriculum Balance",
+        "location": {
+          "startingColumn": 27,
+          "startingLine": 259
+        }
+      },
+      {
+        "comment": "",
+        "key": "Transitions",
+        "location": {
+          "startingColumn": 27,
+          "startingLine": 265
+        }
+      },
+      {
+        "comment": "",
+        "key": "Browse and organize classroom resource documents",
+        "location": {
+          "startingColumn": 36,
+          "startingLine": 276
+        }
+      },
+      {
+        "comment": "",
+        "key": "Track classroom supplies and inventory",
+        "location": {
+          "startingColumn": 36,
+          "startingLine": 282
+        }
+      },
+      {
+        "comment": "",
+        "key": "View classroom procedures and routines",
+        "location": {
+          "startingColumn": 36,
+          "startingLine": 288
+        }
+      },
+      {
+        "comment": "",
+        "key": "View recurring schedules",
+        "location": {
+          "startingColumn": 36,
+          "startingLine": 294
+        }
+      },
+      {
+        "comment": "",
+        "key": "View perpetual year-at-a-glance calendar",
+        "location": {
+          "startingColumn": 36,
+          "startingLine": 300
+        }
+      },
+      {
+        "comment": "",
+        "key": "Track and resolve classroom issues",
+        "location": {
+          "startingColumn": 36,
+          "startingLine": 306
+        }
+      },
+      {
+        "comment": "",
+        "key": "Resources",
+        "location": {
+          "startingColumn": 27,
+          "startingLine": 273
+        }
+      },
+      {
+        "comment": "",
+        "key": "Supplies",
+        "location": {
+          "startingColumn": 27,
+          "startingLine": 279
+        }
+      },
+      {
+        "comment": "",
+        "key": "Procedures",
+        "location": {
+          "startingColumn": 27,
+          "startingLine": 285
+        }
+      },
+      {
+        "comment": "",
+        "key": "Schedules",
+        "location": {
+          "startingColumn": 27,
+          "startingLine": 291
+        }
+      },
+      {
+        "comment": "",
+        "key": "Calendar",
+        "location": {
+          "startingColumn": 27,
+          "startingLine": 297
+        }
+      },
+      {
+        "comment": "",
+        "key": "Issues",
+        "location": {
+          "startingColumn": 27,
+          "startingLine": 303
+        }
+      },
+      {
+        "comment": "",
+        "key": "Ask questions about your classroom data",
+        "location": {
+          "startingColumn": 36,
+          "startingLine": 314
+        }
+      },
+      {
+        "comment": "",
+        "key": "Ask AI",
+        "location": {
+          "startingColumn": 27,
+          "startingLine": 311
+        }
+      },
+      {
+        "comment": "",
+        "key": "View activity and observation logs",
+        "location": {
+          "startingColumn": 36,
+          "startingLine": 322
+        }
+      },
+      {
+        "comment": "",
+        "key": "Configure app preferences and sync options",
+        "location": {
+          "startingColumn": 36,
+          "startingLine": 328
+        }
+      },
+      {
+        "comment": "",
+        "key": "Logs",
+        "location": {
+          "startingColumn": 27,
+          "startingLine": 319
+        }
+      },
+      {
+        "comment": "",
+        "key": "Settings",
+        "location": {
+          "startingColumn": 27,
+          "startingLine": 325
+        }
+      }
+    ]
+  },
+  "version": 1
+}

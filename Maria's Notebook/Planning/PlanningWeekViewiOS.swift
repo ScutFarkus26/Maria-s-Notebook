@@ -1,11 +1,11 @@
 import SwiftUI
-import SwiftData
+import CoreData
 import OSLog
 #if DEBUG
 import Foundation
 #endif
 
-/// iOS version of PlanningWeekView using manual FetchDescriptor for battery optimization.
+/// iOS version of PlanningWeekView using manual NSFetchRequest for battery optimization.
 /// On iPhone, we fetch data on-demand to save battery and memory instead of maintaining
 /// constant @Query monitoring.
 @MainActor
@@ -13,13 +13,13 @@ struct PlanningWeekViewiOS: View {
     private static let logger = Logger.planning
     @Environment(\.calendar) private var calendar
     @Environment(\.appRouter) private var appRouter
-    @Environment(\.modelContext) private var modelContext
+    @Environment(\.managedObjectContext) private var viewContext
     
     // Manual fetch - loaded on-demand to save battery
-    // Migrated to LessonAssignment
-    @State private var inboxLessons: [LessonAssignment] = []
-    @State private var lessons: [Lesson] = []
-    @State private var students: [Student] = []
+    // Migrated to CDLessonAssignment
+    @State private var inboxLessons: [CDLessonAssignment] = []
+    @State private var lessons: [CDLesson] = []
+    @State private var students: [CDStudent] = []
     
     @AppStorage(UserDefaultsKeys.planningInboxOrder) private var inboxOrderRaw: String = ""
     @State private var startDate: Date = Date()
@@ -45,7 +45,7 @@ struct PlanningWeekViewiOS: View {
         .onChange(of: appRouter.planningInboxRefreshTrigger) { _, _ in
             // Reload data when external changes occur
             loadData()
-            DataMigrations.deduplicateDraftLessonAssignments(using: modelContext)
+            DataMigrations.deduplicateDraftLessonAssignments(using: viewContext)
             syncInboxOrderWithCurrentBase()
         }
         .onChange(of: inboxLessons.map(\.id)) { _, _ in
@@ -55,45 +55,42 @@ struct PlanningWeekViewiOS: View {
     
     // MARK: - Data Loading
     
-    // Manually fetch data using FetchDescriptor instead of @Query
+    // Manually fetch data using NSFetchRequest instead of @Query
     // swiftlint:disable:next function_body_length
     private func loadData() {
         #if DEBUG
         let startTime = Date()
         #endif
         
-        // Fetch unscheduled inbox lessons (migrated to LessonAssignment)
-        let inboxDescriptor = FetchDescriptor<LessonAssignment>(
-            predicate: #Predicate<LessonAssignment> { $0.scheduledFor == nil && $0.presentedAt == nil },
-            sortBy: [SortDescriptor(\.createdAt, order: .forward)]
-        )
+        // Fetch unscheduled inbox lessons (migrated to CDLessonAssignment)
+        let inboxDescriptor: NSFetchRequest<CDLessonAssignment> = NSFetchRequest(entityName: "CDLessonAssignment")
+        inboxDescriptor.predicate = NSPredicate(format: "scheduledFor == nil AND presentedAt == nil")
+        inboxDescriptor.sortDescriptors = [NSSortDescriptor(key: "createdAt", ascending: true)]
         do {
-            inboxLessons = try modelContext.fetch(inboxDescriptor)
+            inboxLessons = try viewContext.fetch(inboxDescriptor)
         } catch {
             Self.logger.warning("Failed to fetch inbox lessons: \(error, privacy: .public)")
             inboxLessons = []
         }
 
         // Fetch all lessons (needed for lookups and relationships)
-        let lessonsDescriptor = FetchDescriptor<Lesson>(
-            sortBy: [SortDescriptor(\.name)]
-        )
+        let lessonsDescriptor: NSFetchRequest<CDLesson> = NSFetchRequest(entityName: "CDLesson")
+        lessonsDescriptor.sortDescriptors = [NSSortDescriptor(key: "name", ascending: true)]
         do {
-            lessons = try modelContext.fetch(lessonsDescriptor)
+            lessons = try viewContext.fetch(lessonsDescriptor)
         } catch {
             Self.logger.warning("Failed to fetch lessons: \(error, privacy: .public)")
             lessons = []
         }
 
         // Fetch all students (needed for relationships)
-        let studentsDescriptor = FetchDescriptor<Student>(
-            sortBy: [
-                SortDescriptor(\.lastName),
-                SortDescriptor(\.firstName)
+        let studentsDescriptor: NSFetchRequest<CDStudent> = NSFetchRequest(entityName: "CDStudent")
+        studentsDescriptor.sortDescriptors = [
+                NSSortDescriptor(key: "lastName", ascending: true),
+                NSSortDescriptor(key: "firstName", ascending: true)
             ]
-        )
         do {
-            students = try modelContext.fetch(studentsDescriptor)
+            students = try viewContext.fetch(studentsDescriptor)
         } catch {
             Self.logger.warning("Failed to fetch students: \(error, privacy: .public)")
             students = []
@@ -124,23 +121,23 @@ struct PlanningWeekViewiOS: View {
         )
         #endif
         
-        DataMigrations.deduplicateDraftLessonAssignments(using: modelContext)
+        DataMigrations.deduplicateDraftLessonAssignments(using: viewContext)
     }
     
     // MARK: - Helpers
     
-    /// Synchronous helper that determines if a date is a non-school day using direct ModelContext fetches.
+    /// Synchronous helper that determines if a date is a non-school day using direct NSManagedObjectContext fetches.
     /// Rules:
-    /// - Explicit NonSchoolDay records mark weekdays as non-school
-    /// - Weekends are non-school by default unless a SchoolDayOverride exists for that date
+    /// - Explicit CDNonSchoolDay records mark weekdays as non-school
+    /// - Weekends are non-school by default unless a CDSchoolDayOverride exists for that date
     private func isNonSchoolDay(_ day: Date) -> Bool {
         let day = calendar.startOfDay(for: day)
 
         // 1) Explicit non-school day wins
         do {
-            var nsDescriptor = FetchDescriptor<NonSchoolDay>(predicate: #Predicate { $0.date == day })
+            var nsDescriptor = { let r = NSFetchRequest<CDNonSchoolDay>(entityName: "CDNonSchoolDay"); r.predicate = NSPredicate(format: "date == %@", day as CVarArg); r.fetchLimit = 0; return r }()
             nsDescriptor.fetchLimit = 1
-            let nonSchoolDays: [NonSchoolDay] = try modelContext.fetch(nsDescriptor)
+            let nonSchoolDays: [CDNonSchoolDay] = try viewContext.fetch(nsDescriptor)
             if !nonSchoolDays.isEmpty { return true }
         } catch {
             // On fetch error, fall back to weekend logic below
@@ -153,9 +150,9 @@ struct PlanningWeekViewiOS: View {
 
         // 3) Weekend override makes it a school day
         do {
-            var ovDescriptor = FetchDescriptor<SchoolDayOverride>(predicate: #Predicate { $0.date == day })
+            var ovDescriptor = { let r = NSFetchRequest<CDSchoolDayOverride>(entityName: "CDSchoolDayOverride"); r.predicate = NSPredicate(format: "date == %@", day as CVarArg); r.fetchLimit = 0; return r }()
             ovDescriptor.fetchLimit = 1
-            let overrides: [SchoolDayOverride] = try modelContext.fetch(ovDescriptor)
+            let overrides: [CDSchoolDayOverride] = try viewContext.fetch(ovDescriptor)
             if !overrides.isEmpty { return false }
         } catch {
             // If override fetch fails, assume weekend remains non-school
@@ -174,14 +171,13 @@ struct PlanningWeekViewiOS: View {
     private func computeInitialStartDate() {
         let today = calendar.startOfDay(for: Date())
         
-        // Fetch only future scheduled lessons to find the next one (using LessonAssignment)
-        var descriptor = FetchDescriptor<LessonAssignment>(
-            predicate: #Predicate { $0.scheduledFor != nil && $0.presentedAt == nil },
-            sortBy: [SortDescriptor(\.scheduledFor)]
-        )
+        // Fetch only future scheduled lessons to find the next one (using CDLessonAssignment)
+        var descriptor: NSFetchRequest<CDLessonAssignment> = NSFetchRequest(entityName: "CDLessonAssignment")
+        descriptor.predicate = NSPredicate(format: "scheduledFor != nil AND presentedAt == nil")
+        descriptor.sortDescriptors = [NSSortDescriptor(key: "scheduledFor", ascending: true)]
         descriptor.fetchLimit = 1
         
-        if let nextUp = modelContext.safeFetchFirst(descriptor),
+        if let nextUp = viewContext.safeFetchFirst(descriptor),
            let date = nextUp.scheduledFor {
             let start = calendar.startOfDay(for: date)
             if start >= today && !isNonSchoolDay(start) {
@@ -195,12 +191,12 @@ struct PlanningWeekViewiOS: View {
     
     @MainActor
     private func syncInboxOrderWithCurrentBase() {
-        let baseIDs = inboxLessons.map(\.id)
+        let baseIDs = inboxLessons.compactMap(\.id)
         var order = InboxOrderStore.parse(inboxOrderRaw).filter { baseIDs.contains($0) }
         let missing = inboxLessons
-            .filter { !order.contains($0.id) }
-            .sorted { $0.createdAt < $1.createdAt }
-            .map(\.id)
+            .filter { guard let id = $0.id else { return false }; return !order.contains(id) }
+            .sorted { ($0.createdAt ?? .distantPast) < ($1.createdAt ?? .distantPast) }
+            .compactMap(\.id)
         order.append(contentsOf: missing)
         inboxOrderRaw = InboxOrderStore.serialize(order)
     }

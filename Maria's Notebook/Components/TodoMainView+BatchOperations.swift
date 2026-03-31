@@ -3,20 +3,20 @@
 
 import OSLog
 import SwiftUI
-import SwiftData
+import CoreData
 
 extension TodoMainView {
     private static let logger = Logger.todos
 
     func batchComplete() {
         adaptiveWithAnimation(.snappy(duration: 0.2)) {
-            let todosToComplete = allTodos.filter { selectedTodoIDs.contains($0.id) }
+            let todosToComplete = allTodos.filter { $0.id.map { selectedTodoIDs.contains($0) } ?? false }
             for todo in todosToComplete {
                 todo.isCompleted = true
                 todo.completedAt = Date()
             }
             do {
-                try modelContext.save()
+                try viewContext.save()
             } catch {
                 Self.logger.error("[\(#function)] Failed to batch complete: \(error)")
             }
@@ -27,12 +27,12 @@ extension TodoMainView {
 
     func batchSetHighPriority() {
         adaptiveWithAnimation(.snappy(duration: 0.2)) {
-            let todos = allTodos.filter { selectedTodoIDs.contains($0.id) }
+            let todos = allTodos.filter { $0.id.map { selectedTodoIDs.contains($0) } ?? false }
             for todo in todos {
                 todo.priority = .high
             }
             do {
-                try modelContext.save()
+                try viewContext.save()
             } catch {
                 Self.logger.error("[\(#function)] Failed to batch set priority: \(error)")
             }
@@ -43,13 +43,13 @@ extension TodoMainView {
 
     func batchSetDueToday() {
         adaptiveWithAnimation(.snappy(duration: 0.2)) {
-            let todos = allTodos.filter { selectedTodoIDs.contains($0.id) }
+            let todos = allTodos.filter { $0.id.map { selectedTodoIDs.contains($0) } ?? false }
             let today = Calendar.current.startOfDay(for: Date())
             for todo in todos {
                 todo.dueDate = today
             }
             do {
-                try modelContext.save()
+                try viewContext.save()
             } catch {
                 Self.logger.error("[\(#function)] Failed to batch set due date: \(error)")
             }
@@ -60,12 +60,12 @@ extension TodoMainView {
 
     func batchDelete() {
         adaptiveWithAnimation(.snappy(duration: 0.2)) {
-            let todosToDelete = allTodos.filter { selectedTodoIDs.contains($0.id) }
+            let todosToDelete = allTodos.filter { $0.id.map { selectedTodoIDs.contains($0) } ?? false }
             for todo in todosToDelete {
-                modelContext.delete(todo)
+                viewContext.delete(todo)
             }
             do {
-                try modelContext.save()
+                try viewContext.save()
             } catch {
                 Self.logger.error("[\(#function)] Failed to batch delete: \(error)")
             }

@@ -2,11 +2,11 @@
 // Interactive checklist section within the Going-Out detail view.
 
 import SwiftUI
-import SwiftData
+import CoreData
 
 struct GoingOutChecklistSection: View {
-    @Bindable var goingOut: GoingOut
-    @Environment(\.modelContext) private var modelContext
+    @ObservedObject var goingOut: GoingOut
+    @Environment(\.managedObjectContext) private var modelContext
     @State private var newItemTitle: String = ""
 
     var body: some View {
@@ -16,7 +16,7 @@ struct GoingOutChecklistSection: View {
                 .fontWeight(.semibold)
 
             // Existing items
-            ForEach(goingOut.sortedChecklistItems) { item in
+            ForEach(goingOut.sortedChecklistItems, id: \.objectID) { item in
                 checklistRow(item)
             }
 
@@ -77,14 +77,12 @@ struct GoingOutChecklistSection: View {
         let trimmed = newItemTitle.trimmed()
         guard !trimmed.isEmpty else { return }
 
-        let nextOrder = (goingOut.checklistItems?.count ?? 0)
-        let item = GoingOutChecklistItem(
-            goingOutID: goingOut.id,
-            title: trimmed,
-            sortOrder: nextOrder
-        )
+        let nextOrder = goingOut.sortedChecklistItems.count
+        let item = CDGoingOutChecklistItem(context: modelContext)
+        item.goingOutID = (goingOut.id ?? UUID()).uuidString
+        item.title = trimmed
+        item.sortOrder = Int64(nextOrder)
         item.goingOut = goingOut
-        modelContext.insert(item)
         modelContext.safeSave()
         newItemTitle = ""
     }

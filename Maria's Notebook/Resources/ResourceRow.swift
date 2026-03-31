@@ -2,7 +2,7 @@ import SwiftUI
 
 /// Compact list row for displaying a resource.
 struct ResourceRow: View {
-    let resource: Resource
+    let resource: CDResource
 
     var body: some View {
         HStack(spacing: 12) {
@@ -30,7 +30,7 @@ struct ResourceRow: View {
                             .foregroundStyle(.tertiary)
                     }
 
-                    ForEach(resource.tags.prefix(3), id: \.self) { tag in
+                    ForEach(resource.tagsArray.prefix(3), id: \.self) { tag in
                         TagBadge(tag: tag, compact: true)
                     }
                 }
@@ -46,7 +46,7 @@ struct ResourceRow: View {
             }
 
             // Date
-            Text(resource.createdAt, style: .date)
+            Text(resource.createdAt ?? Date(), style: .date)
                 .font(.caption)
                 .foregroundStyle(.tertiary)
         }

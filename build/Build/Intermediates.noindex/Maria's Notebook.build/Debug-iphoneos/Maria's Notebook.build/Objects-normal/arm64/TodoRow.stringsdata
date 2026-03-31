@@ -1,0 +1,120 @@
+{
+  "source": "/Users/dannydeberry/Documents/Projects/MariasNotebook-Rewrite/Maria's Notebook/Components/TodoRow.swift",
+  "tables": {
+    "Localizable": [
+      {
+        "comment": "",
+        "key": "Delete",
+        "location": {
+          "startingColumn": 23,
+          "startingLine": 223
+        }
+      },
+      {
+        "comment": "",
+        "key": "Edit",
+        "location": {
+          "startingColumn": 23,
+          "startingLine": 229
+        }
+      },
+      {
+        "comment": "",
+        "key": "Incomplete",
+        "location": {
+          "startingColumn": 42,
+          "startingLine": 237
+        }
+      },
+      {
+        "comment": "",
+        "key": "Complete",
+        "location": {
+          "startingColumn": 57,
+          "startingLine": 237
+        }
+      },
+      {
+        "comment": "",
+        "key": "Today",
+        "location": {
+          "startingColumn": 23,
+          "startingLine": 246
+        }
+      },
+      {
+        "comment": "",
+        "key": "Tomorrow",
+        "location": {
+          "startingColumn": 23,
+          "startingLine": 255
+        }
+      },
+      {
+        "comment": "",
+        "key": "Move to...",
+        "location": {
+          "startingColumn": 18,
+          "startingLine": 268
+        }
+      },
+      {
+        "comment": "",
+        "key": "Edit",
+        "location": {
+          "startingColumn": 23,
+          "startingLine": 265
+        }
+      },
+      {
+        "comment": "",
+        "key": "Today",
+        "location": {
+          "startingColumn": 27,
+          "startingLine": 273
+        }
+      },
+      {
+        "comment": "",
+        "key": "Tomorrow",
+        "location": {
+          "startingColumn": 27,
+          "startingLine": 280
+        }
+      },
+      {
+        "comment": "",
+        "key": "Next Week",
+        "location": {
+          "startingColumn": 27,
+          "startingLine": 290
+        }
+      },
+      {
+        "comment": "",
+        "key": "Someday",
+        "location": {
+          "startingColumn": 27,
+          "startingLine": 297
+        }
+      },
+      {
+        "comment": "",
+        "key": "Remove Date",
+        "location": {
+          "startingColumn": 27,
+          "startingLine": 304
+        }
+      },
+      {
+        "comment": "",
+        "key": "Delete",
+        "location": {
+          "startingColumn": 23,
+          "startingLine": 309
+        }
+      }
+    ]
+  },
+  "version": 1
+}

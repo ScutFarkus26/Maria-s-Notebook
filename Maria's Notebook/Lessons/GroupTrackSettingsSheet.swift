@@ -2,13 +2,13 @@
 // Sheet for configuring whether a group is a track and if it's sequential
 
 import SwiftUI
-import SwiftData
+import CoreData
 import OSLog
 
 struct GroupTrackSettingsSheet: View {
     private static let logger = Logger.lessons
 
-    @Environment(\.modelContext) private var modelContext
+    @Environment(\.managedObjectContext) private var viewContext
     @Environment(\.dismiss) private var dismiss
     
     let subject: String
@@ -24,7 +24,7 @@ struct GroupTrackSettingsSheet: View {
                     Toggle("Use as Track", isOn: $isTrack)
                     
                     if isTrack {
-                        Picker("Track Type", selection: $isSequential) {
+                        Picker("CDTrackEntity Type", selection: $isSequential) {
                             Text("Sequential (order matters)").tag(true)
                             Text("Group (no order)").tag(false)
                         }
@@ -48,7 +48,7 @@ struct GroupTrackSettingsSheet: View {
                     }
                 }
             }
-            .navigationTitle("Track Settings")
+            .navigationTitle("CDTrackEntity Settings")
             .inlineNavigationTitle()
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {
@@ -74,10 +74,10 @@ struct GroupTrackSettingsSheet: View {
     private func loadSettings() {
         do {
             // Default behavior: all groups are tracks (sequential) unless explicitly disabled
-            if let track = try GroupTrackService.getGroupTrack(
+            if let track = try GroupTrackService.cdGetGroupTrack(
                 subject: subject,
                 group: group,
-                modelContext: modelContext
+                context: viewContext
             ) {
                 // If a record exists, check if it's explicitly disabled
                 isTrack = !track.isExplicitlyDisabled
@@ -99,23 +99,24 @@ struct GroupTrackSettingsSheet: View {
         do {
             if isTrack {
                 // User wants this to be a track - create or update record
-                let track = try GroupTrackService.getOrCreateGroupTrack(
+                let track = try GroupTrackService.cdGetOrCreateGroupTrack(
                     subject: subject,
                     group: group,
-                    modelContext: modelContext
+                    context: viewContext
                 )
                 track.isSequential = isSequential
                 track.isExplicitlyDisabled = false // Explicitly enabled
             } else {
                 // User unchecked "Use as Track" - explicitly disable
-                try GroupTrackService.removeTrack(
+                let track = try GroupTrackService.cdGetOrCreateGroupTrack(
                     subject: subject,
                     group: group,
-                    modelContext: modelContext
+                    context: viewContext
                 )
+                track.isExplicitlyDisabled = true
             }
             
-            try modelContext.save()
+            try viewContext.save()
             dismiss()
         } catch {
             Self.logger.error("Failed to save track settings: \(error)")

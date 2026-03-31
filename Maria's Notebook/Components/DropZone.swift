@@ -1,14 +1,14 @@
 import OSLog
 import SwiftUI
-import SwiftData
+import CoreData
 import UniformTypeIdentifiers
 
 struct DropZone: View {
     private static let logger = Logger.lessons
-    @Environment(\.modelContext) private var modelContext
+    @Environment(\.managedObjectContext) private var viewContext
     @Environment(\.calendar) private var calendar
 
-    let allLessonAssignments: [LessonAssignment]
+    let allLessonAssignments: [CDLessonAssignment]
 
     // Visual/drag state
     @State private var isTargeted: Bool = false
@@ -19,20 +19,20 @@ struct DropZone: View {
     // Inputs
     let day: Date
     let period: PlanningDayPeriod
-    let onSelectLesson: (LessonAssignment) -> Void
-    let onQuickActions: (LessonAssignment) -> Void
-    let onPlanNext: (LessonAssignment) -> Void
+    let onSelectLesson: (CDLessonAssignment) -> Void
+    let onQuickActions: (CDLessonAssignment) -> Void
+    let onPlanNext: (CDLessonAssignment) -> Void
 
-    /// Synchronous helper that determines if a date is a non-school day using direct ModelContext fetches.
+    /// Synchronous helper that determines if a date is a non-school day using direct NSManagedObjectContext fetches.
     private func isNonSchoolDaySync(_ date: Date) -> Bool {
         let day = AppCalendar.startOfDay(date)
         let cal = AppCalendar.shared
 
         // 1) Explicit non-school day wins
         do {
-            var nsDescriptor = FetchDescriptor<NonSchoolDay>(predicate: #Predicate { $0.date == day })
+            var nsDescriptor = { let r = CDNonSchoolDay.fetchRequest() as! NSFetchRequest<CDNonSchoolDay>; r.predicate = NSPredicate(format: "date == %@", day as CVarArg); return r }()
             nsDescriptor.fetchLimit = 1
-            let nonSchoolDays: [NonSchoolDay] = try modelContext.fetch(nsDescriptor)
+            let nonSchoolDays: [CDNonSchoolDay] = try viewContext.fetch(nsDescriptor)
             if !nonSchoolDays.isEmpty { return true }
         } catch {
             Self.logger.error("[\(#function)] Failed to fetch non-school days: \(error)")
@@ -45,9 +45,9 @@ struct DropZone: View {
 
         // 3) Weekend override makes it a school day
         do {
-            var ovDescriptor = FetchDescriptor<SchoolDayOverride>(predicate: #Predicate { $0.date == day })
+            var ovDescriptor = { let r = CDSchoolDayOverride.fetchRequest() as! NSFetchRequest<CDSchoolDayOverride>; r.predicate = NSPredicate(format: "date == %@", day as CVarArg); return r }()
             ovDescriptor.fetchLimit = 1
-            let overrides: [SchoolDayOverride] = try modelContext.fetch(ovDescriptor)
+            let overrides: [CDSchoolDayOverride] = try viewContext.fetch(ovDescriptor)
             if !overrides.isEmpty { return false }
         } catch {
             Self.logger.error("[\(#function)] Failed to fetch school day overrides: \(error)")
@@ -57,7 +57,7 @@ struct DropZone: View {
 
     private var isNonSchool: Bool { isNonSchoolDaySync(day) }
 
-    private var scheduledLessonsForSlot: [LessonAssignment] {
+    private var scheduledLessonsForSlot: [CDLessonAssignment] {
         allLessonAssignments.filter { la in
             guard let scheduled = la.scheduledFor, !la.isGiven else { return false }
             return calendar.isDate(scheduled, inSameDayAs: day) && isInSlot(scheduled, period: period)
@@ -106,8 +106,8 @@ struct DropZone: View {
                 GeometryReader { proxy in
                     if let idx = insertionIndex {
                         let frames: [(UUID, CGRect)] = scheduledLessonsForSlot.compactMap { item in
-                            if let rect = itemFrames[item.id] { return (item.id, rect) }
-                            return nil
+                            guard let itemID = item.id, let rect = itemFrames[itemID] else { return nil }
+                            return (itemID, rect)
                         }.sorted { $0.1.minY < $1.1.minY }
 
                         if frames.isEmpty {
@@ -143,7 +143,7 @@ struct DropZone: View {
         .contentShape(RoundedRectangle(cornerRadius: 14, style: .continuous))
         .onDrop(of: [UTType.text], delegate: PlanningSlotDropDelegate(
             calendar: calendar,
-            modelContext: modelContext,
+            viewContext: viewContext,
             allLessonAssignments: allLessonAssignments,
             day: day,
             baseDateProvider: { dateForSlot(day: day, period: period) },
@@ -167,7 +167,7 @@ struct DropZone: View {
     }
 
     @ViewBuilder
-    private func lessonPillView(for la: LessonAssignment) -> some View {
+    private func lessonPillView(for la: CDLessonAssignment) -> some View {
         PresentationPill(
             snapshot: la.snapshot(),
             day: day,
@@ -175,7 +175,7 @@ struct DropZone: View {
             targetLessonAssignmentID: la.id,
             enableMergeDrop: true
         )
-        .draggable(la.id.uuidString) {
+        .draggable((la.id ?? UUID()).uuidString) {
             PresentationPill(
                 snapshot: la.snapshot(),
                 day: day,
@@ -188,7 +188,7 @@ struct DropZone: View {
         .contextMenu {
             Button { onQuickActions(la) } label: { Label("Quick Actions…", systemImage: "bolt") }
             Button { onPlanNext(la) } label: {
-                Label("Plan Next Lesson in Group", systemImage: SFSymbol.Time.calendarBadgePlus)
+                Label("Plan Next CDLesson in Group", systemImage: SFSymbol.Time.calendarBadgePlus)
             }
             Button { onSelectLesson(la) } label: { Label("Open Details", systemImage: SFSymbol.Status.infoCircle) }
         }
@@ -196,7 +196,7 @@ struct DropZone: View {
             GeometryReader { proxy in
                 Color.clear.preference(
                     key: PillFramePreference.self,
-                    value: [la.id: proxy.frame(in: .named(zoneSpaceID))]
+                    value: la.id.map { [$0: proxy.frame(in: .named(zoneSpaceID))] } ?? [:]
                 )
             }
         )

@@ -1,5 +1,5 @@
 import SwiftUI
-import SwiftData
+import CoreData
 
 // Main chat-style AI planning assistant view.
 // Presents recommendations inline with conversation messages,
@@ -9,7 +9,7 @@ struct AIPlanningAssistantView: View {
     let mode: PlanningMode
     
     @Environment(\.dismiss) private var dismiss
-    @Environment(\.modelContext) private var modelContext
+    @Environment(\.managedObjectContext) private var viewContext
     @Environment(\.dependencies) private var dependencies
     
     @State private var vm: LessonPlanningViewModel
@@ -47,7 +47,7 @@ struct AIPlanningAssistantView: View {
         .presentationDragIndicator(.visible)
         #endif
         .onAppear {
-            vm.configure(modelContext: modelContext, mcpClient: dependencies.mcpClient)
+            vm.configure(context: viewContext, mcpClient: dependencies.mcpClient)
             vm.startPlanning()
         }
     }

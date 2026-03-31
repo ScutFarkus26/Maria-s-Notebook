@@ -1,7 +1,7 @@
 import Foundation
 import CoreData
 
-@objc(TransitionPlan)
+@objc(CDTransitionPlan)
 public class CDTransitionPlan: NSManagedObject {
     // MARK: - Core Data Properties
     @NSManaged public var id: UUID?
@@ -21,7 +21,7 @@ public class CDTransitionPlan: NSManagedObject {
     // MARK: - Convenience Initializer
     @discardableResult
     convenience init(context: NSManagedObjectContext) {
-        let entity = NSEntityDescription.entity(forEntityName: "TransitionPlan", in: context)!
+        let entity = NSEntityDescription.entity(forEntityName: "CDTransitionPlan", in: context)!
         self.init(entity: entity, insertInto: context)
         self.id = UUID()
         self.createdAt = Date()

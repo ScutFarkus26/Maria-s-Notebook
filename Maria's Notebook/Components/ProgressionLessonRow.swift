@@ -29,7 +29,7 @@ struct ProgressionLessonRow: View {
 
             // Content
             VStack(alignment: .leading, spacing: 6) {
-                // Lesson header
+                // CDLesson header
                 HStack {
                     Text(node.lesson.name)
                         .font(.subheadline.bold())
@@ -76,7 +76,7 @@ struct ProgressionLessonRow: View {
                     Button {
                         action()
                     } label: {
-                        Label("Schedule Lesson", systemImage: SFSymbol.Time.calendar)
+                        Label("CDSchedule CDLesson", systemImage: SFSymbol.Time.calendar)
                             .font(.caption)
                     }
                     .buttonStyle(.bordered)
@@ -115,11 +115,11 @@ struct ProgressionLessonRow: View {
             Spacer()
 
             // Check-in indicators
-            if let next = item.nextCheckIn {
+            if let next = item.nextCheckIn, let checkInDate = next.date {
                 HStack(spacing: 2) {
                     Image(systemName: "clock")
                         .font(.caption2)
-                    Text("Check-in \(next.date, style: .date)")
+                    Text("Check-in \(checkInDate, style: .date)")
                         .font(.caption2)
                 }
                 .foregroundStyle(AppColors.warning)

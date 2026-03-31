@@ -2,21 +2,21 @@
 // Lightweight preview for macOS inspector pane showing key student info.
 
 import SwiftUI
-import SwiftData
+import CoreData
 
 #if os(macOS)
 /// A lightweight preview view for the macOS inspector pane.
 /// Shows essential student information without the full detail view complexity.
 @available(macOS 14.0, *)
 struct StudentInspectorView: View {
-    let student: Student
+    let student: CDStudent
     var onOpenFullDetails: (() -> Void)?
     var onOpenInNewWindow: (() -> Void)?
 
     @Environment(\.calendar) private var calendar
 
     private var ageDisplay: String {
-        let components = AgeUtils.quarterRoundedAgeComponents(birthday: student.birthday)
+        let components = AgeUtils.quarterRoundedAgeComponents(birthday: student.birthday ?? Date())
         let y = components.years
         let m = components.months
         switch m {
@@ -29,7 +29,7 @@ struct StudentInspectorView: View {
     }
 
     private var birthdayDisplay: String {
-        DateFormatters.mediumDate.string(from: student.birthday)
+        DateFormatters.mediumDate.string(from: student.birthday ?? Date())
     }
 
     var body: some View {
@@ -109,8 +109,8 @@ private struct InfoRow: View {
 }
 #endif
 
-// Extension to get initials from Student
-extension Student {
+// Extension to get initials from CDStudent
+extension CDStudent {
     var initials: String {
         let parts = fullName.split(separator: " ")
         if parts.count >= 2 {

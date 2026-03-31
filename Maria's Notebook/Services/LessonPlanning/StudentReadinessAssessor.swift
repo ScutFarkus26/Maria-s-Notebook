@@ -1,6 +1,5 @@
 import Foundation
 import CoreData
-import SwiftData
 import OSLog
 
 /// Pure local computation service that assesses each student's readiness for new lessons.
@@ -10,7 +9,7 @@ import OSLog
 struct StudentReadinessAssessor {
     private static let logger = Logger.ai
 
-    // MARK: - Public API (Core Data)
+    // MARK: - Public API
 
     /// Assesses readiness for a set of students.
     /// - Parameters:
@@ -45,9 +44,9 @@ struct StudentReadinessAssessor {
         context: NSManagedObjectContext
     ) -> StudentReadinessProfile {
         guard let profile = assessReadiness(for: [student], context: context).first else {
-            logger.error("assessReadiness returned empty array for single student \(student.id)")
+            logger.error("assessReadiness returned empty array for single student \(student.id?.uuidString ?? "nil")")
             return StudentReadinessProfile(
-                studentID: student.id,
+                studentID: student.id ?? UUID(),
                 studentName: student.firstName,
                 level: "",
                 subjectReadiness: [],
@@ -61,54 +60,7 @@ struct StudentReadinessAssessor {
         return profile
     }
 
-    // MARK: - Public API (SwiftData — Deprecated)
-
-    /// Assesses readiness for a set of students.
-    
-    static func assessReadiness(
-        for students: [Student],
-        modelContext: ModelContext
-    ) -> [StudentReadinessProfile] {
-        let allLessons = fetchAllLessons(modelContext: modelContext)
-        let allPresentations = fetchPresentations(modelContext: modelContext)
-        let allWork = fetchAllWork(modelContext: modelContext)
-        let recentSessions = fetchRecentPracticeSessions(modelContext: modelContext, daysBefore: 30)
-        let recentNotes = fetchRecentNotes(modelContext: modelContext, daysBefore: 30)
-
-        return students.map { student in
-            buildProfile(
-                for: student,
-                allLessons: allLessons,
-                allPresentations: allPresentations,
-                allWork: allWork,
-                recentSessions: recentSessions,
-                recentNotes: recentNotes
-            )
-        }
-    }
-
-    /// Assesses readiness for a single student.
-    
-    static func assessReadiness(
-        for student: Student,
-        modelContext: ModelContext
-    ) -> StudentReadinessProfile {
-        guard let profile = assessReadiness(for: [student], modelContext: modelContext).first else {
-            logger.error("assessReadiness returned empty array for single student \(student.id)")
-            return StudentReadinessProfile(
-                studentID: student.id,
-                studentName: student.firstName,
-                level: "",
-                subjectReadiness: [],
-                practiceQualityAvg: nil,
-                independenceAvg: nil,
-                daysSinceLastPresentation: nil,
-                activeWorkCount: 0,
-                behavioralFlags: []
-            )
-        }
-        return profile
-    }
+    // Deprecated SwiftData API removed - use Core Data overloads.
     
     // MARK: - Profile Building
 
@@ -121,10 +73,10 @@ struct StudentReadinessAssessor {
         recentSessions: [PracticeSession],
         recentNotes: [Note]
     ) -> StudentReadinessProfile {
-        let studentIDStr = student.id.uuidString
+        let studentIDStr = student.id?.uuidString ?? ""
         let studentPresentations = allPresentations.filter { $0.studentIDs.contains(studentIDStr) }
         let studentWork = allWork.filter { $0.studentID == studentIDStr }
-        let studentSessions = recentSessions.filter { $0.studentIDs.contains(studentIDStr) }
+        let studentSessions = recentSessions.filter { $0.studentIDsArray.contains(studentIDStr) }
         let studentNotes = recentNotes.filter { note in
             note.searchIndexStudentID == student.id || note.scopeIsAll
         }
@@ -134,10 +86,10 @@ struct StudentReadinessAssessor {
         )
         let metrics = computePracticeMetrics(sessions: studentSessions)
         let daysSinceLastPresentation = computeDaysSinceLastPresentation(studentPresentations)
-        let activeWorkCount = studentWork.filter { $0.status != .complete }.count
+        let activeWorkCount = studentWork.filter { $0.status != WorkStatus.complete }.count
         let behavioralFlags = computeBehavioralFlags(sessions: studentSessions, studentNotes: studentNotes)
         return StudentReadinessProfile(
-            studentID: student.id,
+            studentID: student.id ?? UUID(),
             studentName: student.fullName,
             level: student.level.rawValue,
             subjectReadiness: subjectReadiness,
@@ -174,7 +126,7 @@ struct StudentReadinessAssessor {
         if recent.contains(where: { $0.struggledWithConcept }) { flags.append("struggling with concept") }
         if recent.contains(where: { $0.madeBreakthrough }) { flags.append("recent breakthrough") }
         let behavioralNotes = studentNotes.filter { note in
-            note.tags.contains { tag in
+            note.tagsArray.contains { tag in
                 let name = TagHelper.tagName(tag).lowercased()
                 return name == "behavioral" || name == "emotional"
             }
@@ -227,7 +179,7 @@ struct StudentReadinessAssessor {
     ) -> LessonGroupProgress {
         var progress = LessonGroupProgress()
         for lesson in sorted {
-            let lessonIDStr = lesson.id.uuidString
+            let lessonIDStr = lesson.id?.uuidString ?? ""
             let presented = presentations.contains { la in
                 la.lessonID == lessonIDStr && la.presentedAt != nil
             }
@@ -235,9 +187,9 @@ struct StudentReadinessAssessor {
                 progress.completedInGroup += 1
                 progress.currentLesson = lesson
                 let lessonWork = work.filter { $0.lessonID == lessonIDStr }
-                let activeWork = lessonWork.filter { $0.status != .complete }
+                let activeWork = lessonWork.filter { $0.status != WorkStatus.complete }
                 progress.activeWorkInGroup += activeWork.count
-                let completedWork = lessonWork.filter { $0.status == .complete }
+                let completedWork = lessonWork.filter { $0.status == WorkStatus.complete }
                 progress.proficiency = determineProficiency(activeWork: activeWork, completedWork: completedWork)
             } else if progress.currentLesson != nil && progress.nextLesson == nil {
                 progress.nextLesson = lesson
@@ -319,86 +271,46 @@ extension StudentReadinessAssessor {
 }
 
 // MARK: - Core Data Fetching
-// These methods delegate to SwiftData since the readiness logic operates on SwiftData types.
-// Both contexts share the same SQLite store. Full conversion happens in Phase 4.
 
 extension StudentReadinessAssessor {
     private static func fetchAllLessons(context: NSManagedObjectContext) -> [Lesson] {
-        let modelContext = AppBootstrapping.getSharedModelContainer().mainContext
-        return fetchAllLessons(modelContext: modelContext)
+        let request = CDFetchRequest(CDLesson.self)
+        request.sortDescriptors = [
+            NSSortDescriptor(key: "subject", ascending: true),
+            NSSortDescriptor(key: "group", ascending: true),
+            NSSortDescriptor(key: "orderInGroup", ascending: true)
+        ]
+        return context.safeFetch(request)
     }
 
     private static func fetchPresentations(context: NSManagedObjectContext) -> [LessonAssignment] {
-        let modelContext = AppBootstrapping.getSharedModelContainer().mainContext
-        return fetchPresentations(modelContext: modelContext)
+        let request = CDFetchRequest(CDLessonAssignment.self)
+        return context.safeFetch(request)
     }
 
     private static func fetchAllWork(context: NSManagedObjectContext) -> [WorkModel] {
-        let modelContext = AppBootstrapping.getSharedModelContainer().mainContext
-        return fetchAllWork(modelContext: modelContext)
+        let request = CDFetchRequest(CDWorkModel.self)
+        return context.safeFetch(request)
     }
 
     private static func fetchRecentPracticeSessions(context: NSManagedObjectContext, daysBefore: Int) -> [PracticeSession] {
-        let modelContext = AppBootstrapping.getSharedModelContainer().mainContext
-        return fetchRecentPracticeSessions(modelContext: modelContext, daysBefore: daysBefore)
+        let cutoff = Calendar.current.date(byAdding: .day, value: -daysBefore, to: Date()) ?? Date()
+        let request = CDFetchRequest(CDPracticeSession.self)
+        request.predicate = NSPredicate(format: "date >= %@", cutoff as NSDate)
+        request.sortDescriptors = [NSSortDescriptor(key: "date", ascending: false)]
+        return context.safeFetch(request)
     }
 
     private static func fetchRecentNotes(context: NSManagedObjectContext, daysBefore: Int) -> [Note] {
-        let modelContext = AppBootstrapping.getSharedModelContainer().mainContext
-        return fetchRecentNotes(modelContext: modelContext, daysBefore: daysBefore)
+        let cutoff = Calendar.current.date(byAdding: .day, value: -daysBefore, to: Date()) ?? Date()
+        let request = CDFetchRequest(CDNote.self)
+        request.predicate = NSPredicate(format: "createdAt >= %@", cutoff as NSDate)
+        request.sortDescriptors = [NSSortDescriptor(key: "createdAt", ascending: false)]
+        return context.safeFetch(request)
     }
 }
 
-// MARK: - SwiftData Fetching
-
-extension StudentReadinessAssessor {
-    private static func fetchAllLessons(modelContext: ModelContext) -> [Lesson] {
-        let descriptor = FetchDescriptor<Lesson>(
-            sortBy: [
-                SortDescriptor(\Lesson.subject),
-                SortDescriptor(\Lesson.group),
-                SortDescriptor(\Lesson.orderInGroup)
-            ]
-        )
-        return (try? modelContext.fetch(descriptor)) ?? []
-    }
-
-    
-    private static func fetchPresentations(modelContext: ModelContext) -> [LessonAssignment] {
-        let descriptor = FetchDescriptor<LessonAssignment>()
-        return (try? modelContext.fetch(descriptor)) ?? []
-    }
-
-    
-    private static func fetchAllWork(modelContext: ModelContext) -> [WorkModel] {
-        let descriptor = FetchDescriptor<WorkModel>()
-        return (try? modelContext.fetch(descriptor)) ?? []
-    }
-
-    
-    private static func fetchRecentPracticeSessions(modelContext: ModelContext, daysBefore: Int) -> [PracticeSession] {
-        let cutoff = Calendar.current.date(byAdding: .day, value: -daysBefore, to: Date()) ?? Date()
-        let descriptor = FetchDescriptor<PracticeSession>(
-            predicate: #Predicate<PracticeSession> { session in
-                session.date >= cutoff
-            },
-            sortBy: [SortDescriptor(\PracticeSession.date, order: .reverse)]
-        )
-        return (try? modelContext.fetch(descriptor)) ?? []
-    }
-
-    
-    private static func fetchRecentNotes(modelContext: ModelContext, daysBefore: Int) -> [Note] {
-        let cutoff = Calendar.current.date(byAdding: .day, value: -daysBefore, to: Date()) ?? Date()
-        let descriptor = FetchDescriptor<Note>(
-            predicate: #Predicate<Note> { note in
-                note.createdAt >= cutoff
-            },
-            sortBy: [SortDescriptor(\Note.createdAt, order: .reverse)]
-        )
-        return (try? modelContext.fetch(descriptor)) ?? []
-    }
-}
+// Deprecated SwiftData fetching methods removed - Core Data versions are used.
 
 // MARK: - Helper Types
 

@@ -1,0 +1,40 @@
+{
+  "source": "/Users/dannydeberry/Documents/Projects/MariasNotebook-Rewrite/Maria's Notebook/Components/SyncStatusBadge.swift",
+  "tables": {
+    "Localizable": [
+      {
+        "comment": "",
+        "key": "iCloud Sync Status",
+        "location": {
+          "startingColumn": 19,
+          "startingLine": 36
+        }
+      },
+      {
+        "comment": "",
+        "key": "Last synced:",
+        "location": {
+          "startingColumn": 26,
+          "startingLine": 66
+        }
+      },
+      {
+        "comment": "",
+        "key": "ago",
+        "location": {
+          "startingColumn": 26,
+          "startingLine": 69
+        }
+      },
+      {
+        "comment": "",
+        "key": "Sync Now",
+        "location": {
+          "startingColumn": 26,
+          "startingLine": 99
+        }
+      }
+    ]
+  },
+  "version": 1
+}

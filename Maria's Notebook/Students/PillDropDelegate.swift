@@ -1,12 +1,12 @@
 import OSLog
 import SwiftUI
-import SwiftData
+import CoreData
 import UniformTypeIdentifiers
 
 private let logger = Logger.students
 
 struct PillDropDelegate: DropDelegate {
-    let modelContext: ModelContext
+    let viewContext: NSManagedObjectContext
     let appRouter: AppRouter
     let targetLessonID: UUID
     let targetLessonAssignmentID: UUID?
@@ -46,15 +46,15 @@ struct PillDropDelegate: DropDelegate {
                     let sourceID = decoded.sourceID
                     let lessonID = decoded.lessonID
                     let studentID = decoded.studentID
-                    var srcDesc = FetchDescriptor<LessonAssignment>(predicate: #Predicate { $0.id == sourceID })
+                    var srcDesc = { let r = NSFetchRequest<CDLessonAssignment>(entityName: "LessonAssignment"); r.predicate = NSPredicate(format: "id == %@", sourceID as CVarArg); r.fetchLimit = 0; return r }()
                     srcDesc.fetchLimit = 1
-                    var tgtDesc = FetchDescriptor<LessonAssignment>(predicate: #Predicate { $0.id == targetID })
+                    var tgtDesc = { let r = NSFetchRequest<CDLessonAssignment>(entityName: "LessonAssignment"); r.predicate = NSPredicate(format: "id == %@", targetID as CVarArg); r.fetchLimit = 0; return r }()
                     tgtDesc.fetchLimit = 1
-                    let src: LessonAssignment?
-                    let tgt: LessonAssignment?
+                    let src: CDLessonAssignment?
+                    let tgt: CDLessonAssignment?
                     do {
-                        src = try modelContext.fetch(srcDesc).first
-                        tgt = try modelContext.fetch(tgtDesc).first
+                        src = try viewContext.fetch(srcDesc).first
+                        tgt = try viewContext.fetch(tgtDesc).first
                     } catch {
                         logger.warning("Failed to fetch LessonAssignments on drop: \(error)")
                         return
@@ -65,42 +65,10 @@ struct PillDropDelegate: DropDelegate {
                     let studentIDString = studentID.uuidString
                     if !target.studentIDs.contains(studentIDString) {
                         target.studentIDs.append(studentIDString)
-                        if !target.students.contains(where: { $0.id == studentID }) {
-                            var stuDesc = FetchDescriptor<Student>(predicate: #Predicate { $0.id == studentID })
-                            stuDesc.fetchLimit = 1
-                            do {
-                                if let s = try modelContext.fetch(stuDesc).first {
-                                    target.students.append(s)
-                                } else if let s2 = source.students.first(where: { $0.id == studentID }) {
-                                    target.students.append(s2)
-                                }
-                            } catch {
-                                logger.warning("Failed to fetch Student on drop: \(error)")
-                                if let s2 = source.students.first(where: { $0.id == studentID }) {
-                                    target.students.append(s2)
-                                }
-                            }
-                        }
-
                     }
                     source.studentIDs.removeAll { $0 == studentIDString }
                     if source.studentIDs.isEmpty {
-                        modelContext.delete(source)
-                    } else {
-                        let remainingIDs = source.studentIDs.compactMap { UUID(uuidString: $0) }
-                        // NOTE: SwiftData #Predicate doesn't support capturing local Array/Set variables,
-                        // so we fetch all and filter in memory
-                        let remainingSet = Set(remainingIDs)
-                        let allStudents: [Student]
-                        do {
-                            allStudents = try modelContext.fetch(FetchDescriptor<Student>())
-                        } catch {
-                            logger.warning("Failed to fetch all Students on drop: \(error)")
-                            allStudents = []
-                        }
-                        let fetched = allStudents.filter { remainingSet.contains($0.id) }
-                        source.students = fetched
-
+                        viewContext.delete(source)
                     }
                     onDidMutate("Move student between lessons")
                     appRouter.refreshPlanningInbox()
@@ -113,7 +81,7 @@ struct PillDropDelegate: DropDelegate {
                     _ = PresentationMergeService.merge(
                         sourceID: sourceID,
                         targetID: targetID,
-                        context: modelContext
+                        context: viewContext
                     )
                 }
             }
@@ -147,11 +115,11 @@ struct PillDropDelegate: DropDelegate {
                         setMergeHighlight(false)
                         return
                     }
-                    var srcDesc = FetchDescriptor<LessonAssignment>(predicate: #Predicate { $0.id == sourceID })
+                    var srcDesc = { let r = NSFetchRequest<CDLessonAssignment>(entityName: "LessonAssignment"); r.predicate = NSPredicate(format: "id == %@", sourceID as CVarArg); r.fetchLimit = 0; return r }()
                     srcDesc.fetchLimit = 1
-                    let source: LessonAssignment?
+                    let source: CDLessonAssignment?
                     do {
-                        source = try modelContext.fetch(srcDesc).first
+                        source = try viewContext.fetch(srcDesc).first
                     } catch {
                         logger.warning("Failed to fetch source for merge drop: \(error)")
                         source = nil

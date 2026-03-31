@@ -1,5 +1,5 @@
 import SwiftUI
-import SwiftData
+import CoreData
 import UniformTypeIdentifiers
 
 private struct InboxPillFramePreference: PreferenceKey {
@@ -10,18 +10,18 @@ private struct InboxPillFramePreference: PreferenceKey {
 }
 
 public struct InboxSheetView: View {
-  let lessonAssignments: [LessonAssignment]
-  let orderedUnscheduledLessons: [LessonAssignment]
+  let lessonAssignments: [CDLessonAssignment]
+  let orderedUnscheduledLessons: [CDLessonAssignment]
   @Binding var inboxOrderRaw: String
 
   let onOpenDetails: (UUID) -> Void
   let onQuickActions: (UUID) -> Void
-  let onPlanNext: (LessonAssignment) -> Void
+  let onPlanNext: (CDLessonAssignment) -> Void
   let onUpdateOrder: ((String) -> Void)?
 
   @Environment(\.calendar) private var calendar
   @Environment(\.appRouter) private var appRouter
-  @Environment(\.modelContext) private var modelContext
+  @Environment(\.managedObjectContext) private var viewContext
   @Environment(SaveCoordinator.self) private var saveCoordinator
   @State private var viewModel = InboxSheetViewModel()
 
@@ -32,12 +32,12 @@ public struct InboxSheetView: View {
   @State private var baseFrames: [UUID: CGRect]?
 
   init(
-    lessonAssignments: [LessonAssignment],
-    orderedUnscheduledLessons: [LessonAssignment],
+    lessonAssignments: [CDLessonAssignment],
+    orderedUnscheduledLessons: [CDLessonAssignment],
     inboxOrderRaw: Binding<String>,
     onOpenDetails: @escaping (UUID) -> Void,
     onQuickActions: @escaping (UUID) -> Void,
-    onPlanNext: @escaping (LessonAssignment) -> Void,
+    onPlanNext: @escaping (CDLessonAssignment) -> Void,
     onUpdateOrder: ((String) -> Void)? = nil
   ) {
     self.lessonAssignments = lessonAssignments
@@ -93,7 +93,7 @@ public struct InboxSheetView: View {
               orderedUnscheduledLessons: orderedUnscheduledLessons,
               lessonAssignments: lessonAssignments,
               inboxOrderRaw: $inboxOrderRaw,
-              modelContext: modelContext,
+              viewContext: viewContext,
               appRouter: appRouter,
               saveCoordinator: saveCoordinator
             )
@@ -113,14 +113,16 @@ public struct InboxSheetView: View {
 
         ScrollView {
           VStack(spacing: 10) {
-            ForEach(Array(orderedUnscheduledLessons.enumerated()), id: \.element.id) { _, sl in
+            ForEach(Array(orderedUnscheduledLessons.enumerated()), id: \.element.objectID) { _, sl in
+              let slID = sl.id ?? UUID()
               InboxRow(
                 sl: sl,
-                isSelected: viewModel.selected.contains(sl.id),
+                slID: slID,
+                isSelected: viewModel.selected.contains(slID),
                 isSelectionMode: viewModel.isSelectionMode,
                 spaceID: spaceID,
                 onToggleSelected: {
-                  viewModel.toggleSelection(sl.id)
+                  viewModel.toggleSelection(slID)
                 },
                 onOpenDetails: onOpenDetails,
                 onQuickActions: onQuickActions,
@@ -165,7 +167,7 @@ public struct InboxSheetView: View {
               orderedUnscheduledLessons: orderedUnscheduledLessons,
               itemFrames: baseFrames ?? itemFrames,
               inboxOrderRaw: $inboxOrderRaw,
-              modelContext: modelContext,
+              viewContext: viewContext,
               saveCoordinator: saveCoordinator
             )
           }
@@ -177,9 +179,9 @@ public struct InboxSheetView: View {
 
             Group {
               if let idx = insertionIndex {
-                let frames: [(UUID, CGRect)] = orderedUnscheduledLessons.compactMap { item in
-                  if let rect = (baseFrames ?? itemFrames)[item.id] { return (item.id, rect) }
-                  return nil
+                let frames: [(UUID, CGRect)] = orderedUnscheduledLessons.compactMap { item -> (UUID, CGRect)? in
+                  guard let id = item.id, let rect = (baseFrames ?? itemFrames)[id] else { return nil }
+                  return (id, rect)
                 }.sorted { $0.1.minY < $1.1.minY }
 
                 if frames.isEmpty {
@@ -276,14 +278,15 @@ public struct InboxSheetView: View {
 }
 
 private struct InboxRow: View {
-  let sl: LessonAssignment
+  let sl: CDLessonAssignment
+  let slID: UUID
   let isSelected: Bool
   let isSelectionMode: Bool
   let spaceID: UUID
   let onToggleSelected: () -> Void
   let onOpenDetails: (UUID) -> Void
   let onQuickActions: (UUID) -> Void
-  let onPlanNext: (LessonAssignment) -> Void
+  let onPlanNext: (CDLessonAssignment) -> Void
   var body: some View {
     HStack(spacing: 8) {
       Button(action: onToggleSelected) {
@@ -292,23 +295,23 @@ private struct InboxRow: View {
       }
       .buttonStyle(.plain)
 
-      PresentationPill(snapshot: sl.snapshot(), day: Date(), targetLessonAssignmentID: sl.id)
+      PresentationPill(snapshot: sl.snapshot(), day: Date(), targetLessonAssignmentID: slID)
         .onTapGesture {
           if isSelectionMode {
             onToggleSelected()
           } else {
-            onOpenDetails(sl.id)
+            onOpenDetails(slID)
           }
         }
         .onDrag {
-          let provider = NSItemProvider(object: NSString(string: sl.id.uuidString))
-          provider.suggestedName = sl.lesson?.name ?? "Lesson"
+          let provider = NSItemProvider(object: NSString(string: slID.uuidString))
+          provider.suggestedName = sl.lesson?.name ?? "CDLesson"
           return provider
         }
         .contextMenu {
-          Button { onQuickActions(sl.id) } label: { Label("Quick Actions…", systemImage: "bolt") }
-          Button { onPlanNext(sl) } label: { Label("Plan Next Lesson in Group", systemImage: "calendar.badge.plus") }
-          Button { onOpenDetails(sl.id) } label: { Label("Open Details", systemImage: "info.circle") }
+          Button { onQuickActions(slID) } label: { Label("Quick Actions…", systemImage: "bolt") }
+          Button { onPlanNext(sl) } label: { Label("Plan Next CDLesson in Group", systemImage: "calendar.badge.plus") }
+          Button { onOpenDetails(slID) } label: { Label("Open Details", systemImage: "info.circle") }
         }
     }
     .background(
@@ -321,7 +324,7 @@ private struct InboxRow: View {
         Color.clear
           .preference(
             key: InboxPillFramePreference.self,
-            value: [sl.id: proxy.frame(in: .named(spaceID))]
+            value: [slID: proxy.frame(in: .named(spaceID))]
           )
       }
     )
@@ -329,7 +332,7 @@ private struct InboxRow: View {
 }
 
 private struct InboxDropDelegate: DropDelegate {
-  let getCurrent: () -> [LessonAssignment]
+  let getCurrent: () -> [CDLessonAssignment]
   let itemFramesProvider: () -> [UUID: CGRect]
   let onTargetChange: (Bool) -> Void
   let onInsertionIndexChange: (Int?) -> Void
@@ -365,8 +368,8 @@ private struct InboxDropDelegate: DropDelegate {
     let frames = itemFramesProvider()
     let dict: [UUID: CGRect] = Dictionary(
       current.compactMap { item -> (UUID, CGRect)? in
-        if let rect = frames[item.id] { return (item.id, rect) }
-        return nil
+        guard let id = item.id, let rect = frames[id] else { return nil }
+        return (id, rect)
       },
       uniquingKeysWith: { first, _ in first }
     )

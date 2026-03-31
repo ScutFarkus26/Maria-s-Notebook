@@ -2,27 +2,27 @@
 // Detail view for a group-based track showing lessons in order with optional student progress
 
 import OSLog
-import SwiftData
 import SwiftUI
+import CoreData
 
 struct GroupTrackDetailView: View {
     private static let logger = Logger.students
 
-    @Environment(\.modelContext) private var modelContext
+    @Environment(\.managedObjectContext) private var viewContext
 
     let subject: String
     let group: String
     /// Optional student to show progress for. If nil, shows track structure only.
-    var student: Student?
+    var student: CDStudent?
 
-    @Query(sort: [SortDescriptor(\Lesson.subject), SortDescriptor(\Lesson.orderInGroup)])
-    private var allLessons: [Lesson]
+    @FetchRequest(sortDescriptors: [NSSortDescriptor(keyPath: \CDLesson.subject, ascending: true), NSSortDescriptor(keyPath: \CDLesson.orderInGroup, ascending: true)])
+    private var allLessons: FetchedResults<CDLesson>
 
-    @Query private var allLessonPresentations: [LessonPresentation]
+    @FetchRequest(sortDescriptors: []) private var allLessonPresentations: FetchedResults<CDLessonPresentation>
 
-    private var groupTrack: GroupTrack? {
+    private var groupTrack: CDGroupTrack? {
         do {
-            return try GroupTrackService.getGroupTrack(subject: subject, group: group, modelContext: modelContext)
+            return try GroupTrackService.cdGetGroupTrack(subject: subject, group: group, context: viewContext)
         } catch {
             Self.logger.warning("Failed to fetch group track: \(error)")
             return nil
@@ -30,31 +30,27 @@ struct GroupTrackDetailView: View {
     }
 
     private var effectiveTrackSettings: (isSequential: Bool, isExplicitlyDisabled: Bool) {
-        do {
-            return try GroupTrackService.getEffectiveTrackSettings(
-                subject: subject, group: group, modelContext: modelContext
-            )
-        } catch {
-            Self.logger.warning("Failed to fetch effective track settings: \(error)")
-            return (isSequential: true, isExplicitlyDisabled: false)
+        if let track = groupTrack {
+            return (isSequential: track.isSequential, isExplicitlyDisabled: track.isExplicitlyDisabled)
         }
+        return (isSequential: true, isExplicitlyDisabled: false)
     }
 
-    private var lessons: [Lesson] {
+    private var lessons: [CDLesson] {
         // Check if this group is a track (all groups are tracks by default unless explicitly disabled)
-        guard GroupTrackService.isTrack(subject: subject, group: group, modelContext: modelContext) else {
+        guard GroupTrackService.isTrack(subject: subject, group: group, context: viewContext) else {
             return []
         }
 
-        // If we have an actual GroupTrack record, use it
+        // If we have an actual CDGroupTrack record, use it
         if let track = groupTrack {
-            return GroupTrackService.getLessonsForTrack(track: track, allLessons: allLessons)
+            return GroupTrackService.getLessonsForTrack(track: track, allLessons: Array(allLessons))
         }
 
         // No record exists = default behavior = sequential track
         // Filter and sort lessons for this group manually
         let settings = effectiveTrackSettings
-        let filtered = allLessons.filter { lesson in
+        let filtered = Array(allLessons).filter { lesson in
             lesson.subject.trimmed().caseInsensitiveCompare(subject.trimmed()) == .orderedSame &&
             lesson.group.trimmed().caseInsensitiveCompare(group.trimmed()) == .orderedSame
         }
@@ -74,7 +70,7 @@ struct GroupTrackDetailView: View {
     /// Progress state for each lesson for the given student
     private var progressByLessonID: [String: LessonPresentationState] {
         guard let student else { return [:] }
-        let studentIDString = student.id.uuidString
+        let studentIDString = student.id?.uuidString ?? ""
 
         var result: [String: LessonPresentationState] = [:]
         for lp in allLessonPresentations where lp.studentID == studentIDString {
@@ -99,7 +95,7 @@ struct GroupTrackDetailView: View {
         var proficient = 0
 
         for lesson in lessons {
-            if let state = progressByLessonID[lesson.id.uuidString] {
+            if let state = progressByLessonID[lesson.id?.uuidString ?? ""] {
                 switch state {
                 case .presented:
                     presented += 1
@@ -202,11 +198,11 @@ struct GroupTrackDetailView: View {
                         .foregroundStyle(.secondary)
                         .font(.caption)
                 } else {
-                    ForEach(Array(lessons.enumerated()), id: \.element.id) { index, lesson in
+                    ForEach(Array(lessons.enumerated()), id: \.element.objectID) { index, lesson in
                         LessonStepRow(
                             lesson: lesson,
                             stepNumber: effectiveTrackSettings.isSequential ? index + 1 : nil,
-                            progressState: student != nil ? progressByLessonID[lesson.id.uuidString] : nil
+                            progressState: student != nil ? progressByLessonID[lesson.id?.uuidString ?? ""] : nil
                         )
                     }
                 }
@@ -235,7 +231,7 @@ struct GroupTrackDetailView: View {
 }
 
 private struct LessonStepRow: View {
-    let lesson: Lesson
+    let lesson: CDLesson
     let stepNumber: Int?
     let progressState: LessonPresentationState?
 

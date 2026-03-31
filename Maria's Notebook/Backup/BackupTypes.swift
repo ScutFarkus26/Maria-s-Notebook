@@ -4,12 +4,12 @@ import Foundation
 public enum BackupFile: Sendable {
     /// Marked as nonisolated to allow access from Sendable contexts (e.g., FileDocument static properties)
     nonisolated public static let fileExtension = "mtbbackup"
-    /// Format version 12: Adds GoingOut, ClassroomJob, TransitionPlan, CalendarNote,
-    /// ScheduledMeeting, AlbumGroupOrder, AlbumGroupUIState backup coverage
-    /// Format version 11: Adds WorkModel/PlanningRecommendation/Resource/NoteStudentLink;
+    /// Format version 12: Adds CDGoingOut, CDClassroomJob, CDTransitionPlan, CDCalendarNote,
+    /// CDScheduledMeeting, AlbumGroupOrder, AlbumGroupUIState backup coverage
+    /// Format version 11: Adds CDWorkModel/PlanningRecommendation/CDResource/CDNoteStudentLink;
     /// removes LegacyPresentation backward compatibility
-    /// Format version 10: Adds SampleWork/SampleWorkStep, WorkStep completionOutcome, PracticeSession workStepID
-    /// Format version 8: Adds backup coverage for all entity types (Work, Track, Supply, Todo, etc.)
+    /// Format version 10: Adds CDSampleWork/CDSampleWorkStep, CDWorkStep completionOutcome, CDPracticeSession workStepID
+    /// Format version 8: Adds backup coverage for all entity types (Work, CDTrackEntity, CDSupply, Todo, etc.)
     /// Format version 7: Removes legacy WorkPlanItem backup compatibility
     /// Format version 6: Adds compression support (LZFSE)
     /// Format version 5: Enforces checksum validation with deterministic JSON encoding (.sortedKeys)
@@ -230,7 +230,7 @@ public struct BackupPayload: Codable, Sendable {
     public var attendance: [AttendanceRecordDTO]
     public var workCompletions: [WorkCompletionRecordDTO]
 
-    // Project entities
+    // CDProject entities
     public var projects: [ProjectDTO]
     public var projectAssignmentTemplates: [ProjectAssignmentTemplateDTO]
     public var projectSessions: [ProjectSessionDTO]
@@ -247,7 +247,7 @@ public struct BackupPayload: Codable, Sendable {
     public var workParticipants: [WorkParticipantEntityDTO]?
     public var practiceSessions: [PracticeSessionDTO]?
 
-    // Lesson extras (format v8+)
+    // CDLesson extras (format v8+)
     public var lessonAttachments: [LessonAttachmentDTO]?
     public var lessonPresentations: [LessonPresentationDTO]?
     // Sample works (format v10+)
@@ -301,7 +301,7 @@ public struct BackupPayload: Codable, Sendable {
     // Resources (format v11+)
     public var resources: [ResourceDTO]?
 
-    // Note-Student junction links (format v11+)
+    // CDNote-CDStudent junction links (format v11+)
     public var noteStudentLinks: [NoteStudentLinkDTO]?
 
     // Going Out (format v12+)

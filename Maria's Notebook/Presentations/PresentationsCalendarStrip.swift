@@ -2,7 +2,7 @@
 // Calendar strip section extracted from PresentationsView
 
 import SwiftUI
-import SwiftData
+import CoreData
 import OSLog
 
 struct PresentationsCalendarStrip: View {
@@ -10,20 +10,20 @@ struct PresentationsCalendarStrip: View {
     let days: [Date]
     @Binding var startDate: Date
     let isNonSchool: (Date) -> Bool
-    let onClear: (LessonAssignment) -> Void
-    let onSelect: (LessonAssignment) -> Void
+    let onClear: (CDLessonAssignment) -> Void
+    let onSelect: (CDLessonAssignment) -> Void
     
     @Environment(\.calendar) private var calendar
-    @Environment(\.modelContext) private var modelContext
+    @Environment(\.managedObjectContext) private var viewContext
     
-    @Query private var lessonAssignments: [LessonAssignment]
+    @FetchRequest(sortDescriptors: []) private var lessonAssignments: FetchedResults<CDLessonAssignment>
     
     @AppStorage(UserDefaultsKeys.presentationsCalendarShowWork) private var showWork: Bool = true
 
     // OPTIMIZATION: Cache work items in @State instead of fetching in a computed property.
     // The computed property was executing a DB query on every body evaluation.
     // Now fetched once in .task and refreshed via .onChange when days or showWork change.
-    @State private var cachedWorkItems: [WorkCheckIn] = []
+    @State private var cachedWorkItems: [CDWorkCheckIn] = []
 
     private func fetchWorkItems() {
         guard showWork, let firstDay = days.first, let lastDay = days.last else {
@@ -32,11 +32,10 @@ struct PresentationsCalendarStrip: View {
         }
         let (start, _) = AppCalendar.dayRange(for: firstDay)
         let (_, end) = AppCalendar.dayRange(for: lastDay)
-        let descriptor = FetchDescriptor<WorkCheckIn>(
-            predicate: #Predicate { $0.date >= start && $0.date < end }
-        )
+        let descriptor: NSFetchRequest<CDWorkCheckIn> = NSFetchRequest(entityName: "WorkCheckIn")
+        descriptor.predicate = NSPredicate(format: "date >= %@ AND date < %@", start as CVarArg, end as CVarArg)
         do {
-            cachedWorkItems = try modelContext.fetch(descriptor)
+            cachedWorkItems = try viewContext.fetch(descriptor)
         } catch {
             Self.logger.warning("Failed to fetch work items for range: \(error)")
             cachedWorkItems = []
@@ -116,7 +115,7 @@ struct PresentationsCalendarStrip: View {
                         ForEach(days, id: \.self) { day in
                             PresentationsDayColumn(
                                 day: day,
-                                allLessonAssignments: lessonAssignments,
+                                allLessonAssignments: Array(lessonAssignments),
                                 showWork: showWork,
                                 preloadedWorkItems: cachedWorkItems,
                                 onClear: onClear,
@@ -195,13 +194,13 @@ struct PresentationsCalendarStrip: View {
         // Move each lesson forward by one school day
         for lesson in scheduledLessons {
             guard let currentDate = lesson.scheduledFor else { continue }
-            let nextSchoolDay = await SchoolCalendar.nextSchoolDay(after: currentDate, using: modelContext)
+            let nextSchoolDay = await SchoolCalendar.nextSchoolDay(after: currentDate, using: viewContext)
             lesson.setScheduledFor(nextSchoolDay, using: calendar)
         }
         
         // Save changes
         do {
-            try modelContext.save()
+            try viewContext.save()
         } catch {
             Self.logger.warning("Failed to save lesson schedule changes: \(error)")
         }

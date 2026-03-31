@@ -2,20 +2,24 @@
 // Shows linked curriculum lessons with subject colors.
 
 import SwiftUI
-import SwiftData
+import CoreData
 
 struct GoingOutCurriculumLinkSection: View {
-    @Bindable var goingOut: GoingOut
-    @Environment(\.modelContext) private var modelContext
+    @ObservedObject var goingOut: GoingOut
+    @Environment(\.managedObjectContext) private var modelContext
     @State private var showingLessonPicker = false
 
-    private var linkedLessons: [Lesson] {
+    private var linkedLessons: [CDLesson] {
         let uuids = goingOut.curriculumLinkUUIDs
         guard !uuids.isEmpty else { return [] }
 
-        let descriptor = FetchDescriptor<Lesson>()
-        let allLessons = modelContext.safeFetch(descriptor)
-        return allLessons.filter { uuids.contains($0.id) }
+        let request: NSFetchRequest<CDLesson> = CDFetchRequest(CDLesson.self)
+        let allLessons = modelContext.safeFetch(request)
+        let uuidSet = Set(uuids)
+        return allLessons.filter { lesson in
+            guard let lessonID = lesson.id else { return false }
+            return uuidSet.contains(lessonID)
+        }
     }
 
     var body: some View {
@@ -48,7 +52,7 @@ struct GoingOutCurriculumLinkSection: View {
                     .padding(.vertical, 4)
             } else {
                 FlowLayout(spacing: 6) {
-                    ForEach(linkedLessons) { lesson in
+                    ForEach(linkedLessons, id: \.objectID) { lesson in
                         HStack(spacing: 4) {
                             Circle()
                                 .fill(AppColors.color(forSubject: lesson.subject))
@@ -113,9 +117,10 @@ struct GoingOutCurriculumLinkSection: View {
         #endif
     }
 
-    private func removeLink(_ lesson: Lesson) {
+    private func removeLink(_ lesson: CDLesson) {
+        guard let lessonID = lesson.id else { return }
         var current = goingOut.curriculumLinkUUIDs
-        current.removeAll { $0 == lesson.id }
+        current.removeAll { $0 == lessonID }
         goingOut.curriculumLinkUUIDs = current
         goingOut.modifiedAt = Date()
         modelContext.safeSave()
@@ -128,15 +133,20 @@ private struct LessonPickerList: View {
     let selectedIDs: Set<UUID>
     let onToggle: (UUID) -> Void
 
-    @Query(sort: [SortDescriptor(\Lesson.subject), SortDescriptor(\Lesson.sortIndex)])
-    private var lessons: [Lesson]
+    @FetchRequest(
+        sortDescriptors: [
+            NSSortDescriptor(keyPath: \CDLesson.subject, ascending: true),
+            NSSortDescriptor(keyPath: \CDLesson.sortIndex, ascending: true)
+        ]
+    ) private var lessons: FetchedResults<CDLesson>
 
     @State private var searchText = ""
 
-    private var filteredLessons: [Lesson] {
-        guard !searchText.isEmpty else { return lessons }
+    private var filteredLessons: [CDLesson] {
+        let all = Array(lessons)
+        guard !searchText.isEmpty else { return all }
         let query = searchText.lowercased()
-        return lessons.filter {
+        return all.filter {
             $0.name.lowercased().contains(query) ||
             $0.subject.lowercased().contains(query)
         }
@@ -144,9 +154,10 @@ private struct LessonPickerList: View {
 
     var body: some View {
         List {
-            ForEach(filteredLessons) { lesson in
+            ForEach(filteredLessons, id: \.objectID) { lesson in
                 Button {
-                    onToggle(lesson.id)
+                    guard let lessonID = lesson.id else { return }
+                    onToggle(lessonID)
                 } label: {
                     HStack(spacing: 10) {
                         Circle()
@@ -165,7 +176,7 @@ private struct LessonPickerList: View {
 
                         Spacer()
 
-                        if selectedIDs.contains(lesson.id) {
+                        if let lessonID = lesson.id, selectedIDs.contains(lessonID) {
                             Image(systemName: SFSymbol.Action.checkmarkCircleFill)
                                 .foregroundStyle(Color.accentColor)
                         }

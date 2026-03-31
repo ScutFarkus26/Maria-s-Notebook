@@ -1,9 +1,9 @@
 import SwiftUI
-import SwiftData
+import CoreData
 
 /// A row displaying a supply item with status indicators
 struct SupplyRow: View {
-    let supply: Supply
+    let supply: CDSupply
     var onQuickAdjust: ((Int) -> Void)?
 
     var body: some View {
@@ -14,7 +14,7 @@ struct SupplyRow: View {
                 .foregroundStyle(supply.status.color)
                 .frame(width: 32)
 
-            // Supply info
+            // CDSupply info
             VStack(alignment: .leading, spacing: 2) {
                 Text(supply.name)
                     .font(.headline)
@@ -144,39 +144,38 @@ struct SupplyRow: View {
 }
 
 #Preview {
-    VStack(spacing: 12) {
-        SupplyRow(
-            supply: Supply(
-                name: "Crayons (24-pack)",
-                category: .art,
-                location: "Cabinet A",
-                currentQuantity: 12,
-                minimumThreshold: 5,
-                unit: "boxes"
-            )
-        )
+    let stack = CoreDataStack.preview
+    let ctx = stack.viewContext
 
-        SupplyRow(
-            supply: Supply(
-                name: "Safety Scissors",
-                category: .art,
-                location: "Drawer 2",
-                currentQuantity: 4,
-                minimumThreshold: 10,
-                unit: "pairs"
-            )
-        )
+    let s1 = CDSupply(context: ctx)
+    s1.name = "Crayons (24-pack)"
+    s1.category = .art
+    s1.location = "Cabinet A"
+    s1.currentQuantity = 12
+    s1.minimumThreshold = 5
+    s1.unit = "boxes"
 
-        SupplyRow(
-            supply: Supply(
-                name: "Number Rods",
-                category: .math,
-                location: "Shelf B3",
-                currentQuantity: 0,
-                minimumThreshold: 2,
-                unit: "sets"
-            )
-        )
+    let s2 = CDSupply(context: ctx)
+    s2.name = "Safety Scissors"
+    s2.category = .art
+    s2.location = "Drawer 2"
+    s2.currentQuantity = 4
+    s2.minimumThreshold = 10
+    s2.unit = "pairs"
+
+    let s3 = CDSupply(context: ctx)
+    s3.name = "Number Rods"
+    s3.category = .math
+    s3.location = "Shelf B3"
+    s3.currentQuantity = 0
+    s3.minimumThreshold = 2
+    s3.unit = "sets"
+
+    return VStack(spacing: 12) {
+        SupplyRow(supply: s1)
+        SupplyRow(supply: s2)
+        SupplyRow(supply: s3)
     }
     .padding()
+    .previewEnvironment(using: stack)
 }

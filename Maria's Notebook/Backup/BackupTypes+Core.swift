@@ -95,9 +95,9 @@ public struct LessonPresentationDTO: Codable, Sendable {
     public var notes: String?
 }
 
-// MARK: - LessonAssignment DTO
-/// DTO for the unified LessonAssignment model.
-/// This model replaces LegacyPresentation + Presentation in the new architecture.
+// MARK: - CDLessonAssignment DTO
+/// DTO for the unified CDLessonAssignment model.
+/// This model replaces LegacyPresentation + CDPresentation in the new architecture.
 public struct LessonAssignmentDTO: Codable, Sendable {
     public var id: UUID
     public var createdAt: Date

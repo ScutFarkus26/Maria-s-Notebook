@@ -2,21 +2,21 @@
 // Sheet for importing a track from lessons organized by subject and group
 
 import OSLog
-import SwiftData
 import SwiftUI
+import CoreData
 
 struct ImportTrackFromLessonsSheet: View {
     private static let logger = Logger.students
 
     // MARK: - Environment
-    @Environment(\.modelContext) private var modelContext
+    @Environment(\.managedObjectContext) private var viewContext
     @Environment(\.dismiss) private var dismiss
     
     // MARK: - Callback
     var onImport: ((UUID) -> Void)?
     
     // MARK: - State
-    @State private var allLessons: [Lesson] = []
+    @State private var allLessons: [CDLesson] = []
     @State private var selectedSubject: String?
     @State private var selectedGroup: String?
     @State private var trackTitle: String = ""
@@ -116,8 +116,8 @@ struct ImportTrackFromLessonsSheet: View {
     // MARK: - Data Loading
     private func loadLessons() {
         do {
-            let descriptor = FetchDescriptor<Lesson>()
-            allLessons = try modelContext.fetch(descriptor)
+            let descriptor = NSFetchRequest<CDLesson>(entityName: "Lesson")
+            allLessons = try viewContext.fetch(descriptor)
         } catch {
             allLessons = []
         }
@@ -147,10 +147,10 @@ struct ImportTrackFromLessonsSheet: View {
         guard !title.isEmpty else { return }
         
         // Fetch all lessons (no predicate)
-        let allLessonsFetched: [Lesson]
+        let allLessonsFetched: [CDLesson]
         do {
-            let descriptor = FetchDescriptor<Lesson>()
-            allLessonsFetched = try modelContext.fetch(descriptor)
+            let descriptor = NSFetchRequest<CDLesson>(entityName: "Lesson")
+            allLessonsFetched = try viewContext.fetch(descriptor)
         } catch {
             Self.logger.warning("Failed to fetch lessons: \(error)")
             return
@@ -170,35 +170,32 @@ struct ImportTrackFromLessonsSheet: View {
             }
             let nameOrder = lhs.name.localizedCaseInsensitiveCompare(rhs.name)
             if nameOrder == .orderedSame {
-                return lhs.id.uuidString < rhs.id.uuidString
+                return (lhs.id?.uuidString ?? "") < (rhs.id?.uuidString ?? "")
             }
             return nameOrder == .orderedAscending
         }
         
-        // Create new Track
-        let newTrack = Track(title: title)
-        modelContext.insert(newTrack)
-        
-        // Create TrackStep for each lesson
-        var steps: [TrackStep] = []
+        // Create new CDTrackEntity
+        let newTrack = CDTrackEntity(context: viewContext)
+        newTrack.title = title
+
+        // Create CDTrackStep for each lesson
+        var steps: [CDTrackStepEntity] = []
         for (index, lesson) in sortedLessons.enumerated() {
-            let step = TrackStep(
-                track: newTrack,
-                orderIndex: index,
-                lessonTemplateID: lesson.id
-            )
-            modelContext.insert(step)
+            let step = CDTrackStepEntity(context: viewContext)
+            step.orderIndex = Int64(index)
+            step.lessonTemplateID = lesson.id
             steps.append(step)
         }
-        
+
         // Set the steps relationship
-        newTrack.steps = steps
+        newTrack.steps = NSSet(array: steps)
         
         // Save
         do {
-            try modelContext.save()
+            try viewContext.save()
             // Call callback with the new track ID
-            onImport?(newTrack.id)
+            if let trackID = newTrack.id { onImport?(trackID) }
             dismiss()
         } catch {
             Self.logger.warning("Failed to import track: \(error)")

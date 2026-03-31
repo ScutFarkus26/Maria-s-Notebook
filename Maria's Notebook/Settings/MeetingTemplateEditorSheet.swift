@@ -2,15 +2,15 @@
 // Create or edit a weekly meeting template
 
 import SwiftUI
-import SwiftData
+import CoreData
 import OSLog
 
 struct MeetingTemplateEditorSheet: View {
     private static let logger = Logger.settings
-    @Environment(\.modelContext) private var modelContext
+    @Environment(\.managedObjectContext) private var viewContext
     @Environment(\.dismiss) private var dismiss
 
-    let template: MeetingTemplate?
+    let template: CDMeetingTemplate?
     var onSaved: () -> Void
 
     @State private var nameText: String = ""
@@ -21,7 +21,7 @@ struct MeetingTemplateEditorSheet: View {
 
     private var isEditing: Bool { template != nil }
 
-    init(template: MeetingTemplate?, onSaved: @escaping () -> Void) {
+    init(template: CDMeetingTemplate?, onSaved: @escaping () -> Void) {
         self.template = template
         self.onSaved = onSaved
         if let template {
@@ -140,31 +140,28 @@ struct MeetingTemplateEditorSheet: View {
             // Create new template
             let customCount: Int
             do {
-                customCount = try modelContext.fetchCount(
-                    FetchDescriptor<MeetingTemplate>(
-                        predicate: #Predicate<MeetingTemplate> { !$0.isBuiltIn }
-                    )
-                )
+                let countRequest = NSFetchRequest<CDMeetingTemplate>(entityName: "MeetingTemplate")
+                countRequest.predicate = NSPredicate(format: "isBuiltIn == NO")
+                customCount = try viewContext.count(for: countRequest)
             } catch {
                 Self.logger.warning("Failed to fetch custom template count: \(error, privacy: .public)")
                 customCount = 0
             }
 
-            let newTemplate = MeetingTemplate(
-                name: trimmedName,
-                reflectionPrompt: trimmedReflection,
-                focusPrompt: trimmedFocus,
-                requestsPrompt: trimmedRequests,
-                guideNotesPrompt: trimmedGuideNotes,
-                sortOrder: 100 + customCount,
-                isActive: false,
-                isBuiltIn: false
-            )
-            modelContext.insert(newTemplate)
+            let newTemplate = CDMeetingTemplateEntity(context: viewContext)
+            newTemplate.id = UUID()
+            newTemplate.name = trimmedName
+            newTemplate.reflectionPrompt = trimmedReflection
+            newTemplate.focusPrompt = trimmedFocus
+            newTemplate.requestsPrompt = trimmedRequests
+            newTemplate.guideNotesPrompt = trimmedGuideNotes
+            newTemplate.sortOrder = Int64(100 + customCount)
+            newTemplate.isActive = false
+            newTemplate.isBuiltIn = false
         }
 
         do {
-            try modelContext.save()
+            try viewContext.save()
         } catch {
             Self.logger.warning("Failed to save meeting template: \(error, privacy: .public)")
         }

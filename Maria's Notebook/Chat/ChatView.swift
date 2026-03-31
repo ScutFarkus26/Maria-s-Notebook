@@ -1,12 +1,12 @@
 // swiftlint:disable file_length
 import SwiftUI
-import SwiftData
+import CoreData
 
 // Main chat view for the Ask AI feature.
 // Provides a whimsical, conversational interface for teachers to ask questions about classroom data.
 // swiftlint:disable:next type_body_length
 struct ChatView: View {
-    @Environment(\.modelContext) private var modelContext
+    @Environment(\.managedObjectContext) private var viewContext
     @Environment(\.dependencies) private var dependencies
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @State private var viewModel = ChatViewModel()
@@ -49,7 +49,7 @@ struct ChatView: View {
             }
             .onAppear {
                 viewModel.configure(
-                    modelContext: modelContext,
+                    viewContext: viewContext,
                     mcpClient: dependencies.mcpClient
                 )
             }

@@ -1,5 +1,5 @@
 import Foundation
-import SwiftData
+import CoreData
 
 /// Centralized service for resolving student and lesson names from IDs.
 /// Eliminates duplicate name resolution logic across the codebase.

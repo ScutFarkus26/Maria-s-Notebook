@@ -1,0 +1,16 @@
+{
+  "source": "/Users/dannydeberry/Documents/Projects/MariasNotebook-Rewrite/Maria's Notebook/Components/ScheduledCheckInsListSection.swift",
+  "tables": {
+    "Localizable": [
+      {
+        "comment": "",
+        "key": "No check-ins scheduled yet.",
+        "location": {
+          "startingColumn": 14,
+          "startingLine": 29
+        }
+      }
+    ]
+  },
+  "version": 1
+}

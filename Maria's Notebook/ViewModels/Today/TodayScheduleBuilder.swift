@@ -1,5 +1,5 @@
 import Foundation
-import SwiftData
+import CoreData
 
 // MARK: - Today Schedule Builder
 
@@ -27,7 +27,7 @@ enum TodayScheduleBuilder {
     //   - studentsByID: Cached students for level filtering
     //   - levelFilter: Current level filter
     //   - referenceDate: The date to use as "today" for calculations
-    //   - modelContext: Model context for aging policy checks
+    //   - context: Managed object context for aging policy checks
     // - Returns: A ScheduleResult containing overdue, today, and stale items
     // swiftlint:disable:next function_parameter_count
     static func buildSchedule(
@@ -37,7 +37,7 @@ enum TodayScheduleBuilder {
         studentsByID: [UUID: Student],
         levelFilter: LevelFilter,
         referenceDate: Date,
-        modelContext: ModelContext
+        context: NSManagedObjectContext
     ) -> ScheduleResult {
         var newOverdue: [ScheduledWorkItem] = []
         var newToday: [ScheduledWorkItem] = []
@@ -53,23 +53,24 @@ enum TodayScheduleBuilder {
                 continue
             }
 
-            let workCheckIns = checkInsByWork[work.id] ?? []
-            let workNotes = notesByWork[work.id] ?? []
+            guard let workID = work.id else { continue }
+            let workCheckIns = checkInsByWork[workID] ?? []
+            let workNotes = notesByWork[workID] ?? []
 
             // Determine Last Meaningful Touch to validate overdue status
-            let checkIns = work.checkIns ?? []
+            let checkIns = (work.checkIns?.allObjects as? [CDWorkCheckIn]) ?? []
             let lastTouch = WorkAgingPolicy.lastMeaningfulTouchDate(for: work, checkIns: checkIns, notes: workNotes)
             let startLastTouch = lastTouch.startOfDay
 
             // Sort scheduled check-ins to find earliest relevant
-            let sortedCheckIns = workCheckIns.sorted { $0.date < $1.date }
+            let sortedCheckIns = workCheckIns.sorted { ($0.date ?? .distantPast) < ($1.date ?? .distantPast) }
 
             // --- Overdue Logic ---
             // An item is overdue if its date is < Today AND last touch is BEFORE that date.
             var isOverdueOrToday = false
 
             if let overdueItem = sortedCheckIns.first(where: { item in
-                let itemDate = item.date.startOfDay
+                let itemDate = (item.date ?? .distantPast).startOfDay
                 return itemDate < startToday && startLastTouch < itemDate
             }) {
                 newOverdue.append(ScheduledWorkItem(work: work, checkIn: overdueItem))
@@ -77,16 +78,16 @@ enum TodayScheduleBuilder {
             }
 
             // --- Due Today Logic ---
-            if let todayItem = sortedCheckIns.first(where: { $0.date.isSameDay(as: referenceDate) }) {
+            if let todayItem = sortedCheckIns.first(where: { ($0.date ?? .distantPast).isSameDay(as: referenceDate) }) {
                 newToday.append(ScheduledWorkItem(work: work, checkIn: todayItem))
                 isOverdueOrToday = true
             }
 
             // --- Stale/Follow-Up Logic ---
             if !isOverdueOrToday {
-                if WorkAgingPolicy.isStale(work, modelContext: modelContext, checkIns: checkIns, notes: workNotes) {
+                if WorkAgingPolicy.isStale(work, using: context, checkIns: checkIns, notes: workNotes) {
                     let days = WorkAgingPolicy.daysSinceLastTouch(
-                        for: work, modelContext: modelContext,
+                        for: work, using: context,
                         checkIns: checkIns, notes: workNotes
                     )
                     newStale.append(FollowUpWorkItem(work: work, daysSinceTouch: days))
@@ -95,8 +96,8 @@ enum TodayScheduleBuilder {
         }
 
         return ScheduleResult(
-            overdue: newOverdue.sorted { $0.checkIn.date < $1.checkIn.date },
-            today: newToday.sorted { $0.checkIn.date < $1.checkIn.date },
+            overdue: newOverdue.sorted { ($0.checkIn.date ?? .distantPast) < ($1.checkIn.date ?? .distantPast) },
+            today: newToday.sorted { ($0.checkIn.date ?? .distantPast) < ($1.checkIn.date ?? .distantPast) },
             stale: Array(newStale.sorted { $0.daysSinceTouch > $1.daysSinceTouch }.prefix(15))
         )
     }

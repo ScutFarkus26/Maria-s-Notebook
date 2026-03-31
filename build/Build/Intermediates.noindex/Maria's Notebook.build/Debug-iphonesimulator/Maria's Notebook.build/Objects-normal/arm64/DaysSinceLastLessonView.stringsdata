@@ -1,0 +1,16 @@
+{
+  "source": "/Users/dannydeberry/Documents/Projects/MariasNotebook-Rewrite/Maria's Notebook/Components/DaysSinceLastLessonView.swift",
+  "tables": {
+    "Localizable": [
+      {
+        "comment": "",
+        "key": "DaysSinceLastLessonView Preview requires app data.",
+        "location": {
+          "startingColumn": 1,
+          "startingLine": 62
+        }
+      }
+    ]
+  },
+  "version": 1
+}

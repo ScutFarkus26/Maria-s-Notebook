@@ -1,6 +1,6 @@
 import Foundation
 import OSLog
-import SwiftData
+import CoreData
 
 // MARK: - Checklist Batch Action Executor
 
@@ -16,10 +16,10 @@ enum ChecklistBatchActionExecutor {
     /// Adds selected cells to inbox (creates draft LessonAssignments).
     static func batchAddToInbox(
         selectedCells: Set<CellIdentifier>,
-        students: [Student],
-        lessons: [Lesson],
+        students: [CDStudent],
+        lessons: [CDLesson],
         matrixStates: [UUID: [UUID: StudentChecklistRowState]],
-        context: ModelContext
+        context: NSManagedObjectContext
     ) {
         for cell in selectedCells {
             guard let student = students.first(where: { $0.id == cell.studentID }),
@@ -38,13 +38,13 @@ enum ChecklistBatchActionExecutor {
     /// Marks selected cells as presented.
     static func batchMarkPresented(
         selectedCells: Set<CellIdentifier>,
-        students: [Student],
-        lessons: [Lesson],
+        students: [CDStudent],
+        lessons: [CDLesson],
         matrixStates: [UUID: [UUID: StudentChecklistRowState]],
-        context: ModelContext
+        context: NSManagedObjectContext
     ) {
         // Pre-fetch all LessonPresentations once for upsert operations
-        let allLPs = context.safeFetch(FetchDescriptor<LessonPresentation>())
+        let allLPs = context.safeFetch(CDFetchRequest(CDLessonPresentation.self))
 
         for cell in selectedCells {
             guard let student = students.first(where: { $0.id == cell.studentID }),
@@ -65,12 +65,12 @@ enum ChecklistBatchActionExecutor {
     /// Marks selected cells as previously presented (undated).
     static func batchMarkPreviouslyPresented(
         selectedCells: Set<CellIdentifier>,
-        students: [Student],
-        lessons: [Lesson],
+        students: [CDStudent],
+        lessons: [CDLesson],
         matrixStates: [UUID: [UUID: StudentChecklistRowState]],
-        context: ModelContext
+        context: NSManagedObjectContext
     ) {
-        let allLPs = context.safeFetch(FetchDescriptor<LessonPresentation>())
+        let allLPs = context.safeFetch(CDFetchRequest(CDLessonPresentation.self))
 
         for cell in selectedCells {
             guard let student = students.first(where: { $0.id == cell.studentID }),
@@ -91,14 +91,14 @@ enum ChecklistBatchActionExecutor {
     /// Marks selected cells as mastered/complete.
     static func batchMarkProficient(
         selectedCells: Set<CellIdentifier>,
-        students: [Student],
-        lessons: [Lesson],
+        students: [CDStudent],
+        lessons: [CDLesson],
         matrixStates: [UUID: [UUID: StudentChecklistRowState]],
-        context: ModelContext
+        context: NSManagedObjectContext
     ) {
         // Pre-fetch shared data once before the loop
-        let allWorkModels = context.safeFetch(FetchDescriptor<WorkModel>())
-        let allLPs = context.safeFetch(FetchDescriptor<LessonPresentation>())
+        let allWorkModels = context.safeFetch(CDFetchRequest(CDWorkModel.self))
+        let allLPs = context.safeFetch(CDFetchRequest(CDLessonPresentation.self))
 
         for cell in selectedCells {
             guard let student = students.first(where: { $0.id == cell.studentID }),
@@ -121,13 +121,13 @@ enum ChecklistBatchActionExecutor {
     /// Clears all status from selected cells.
     static func batchClearStatus(
         selectedCells: Set<CellIdentifier>,
-        students: [Student],
-        lessons: [Lesson],
-        context: ModelContext
+        students: [CDStudent],
+        lessons: [CDLesson],
+        context: NSManagedObjectContext
     ) {
         // Pre-fetch shared data once before the loop
-        let allWorkModels = context.safeFetch(FetchDescriptor<WorkModel>())
-        let allLPs = context.safeFetch(FetchDescriptor<LessonPresentation>())
+        let allWorkModels = context.safeFetch(CDFetchRequest(CDWorkModel.self))
+        let allLPs = context.safeFetch(CDFetchRequest(CDLessonPresentation.self))
 
         for cell in selectedCells {
             guard let student = students.first(where: { $0.id == cell.studentID }),
@@ -144,13 +144,13 @@ enum ChecklistBatchActionExecutor {
 
     // MARK: - Private Helpers
 
-    private static func toggleScheduledNoRecompute(student: Student, lesson: Lesson, context: ModelContext) {
-        let lessonIDString = lesson.id.uuidString
+    private static func toggleScheduledNoRecompute(student: CDStudent, lesson: CDLesson, context: NSManagedObjectContext) {
+        let lessonIDString = lesson.id?.uuidString ?? ""
         let studentIDString = student.cloudKitKey
 
-        let allLAs = context.safeFetch(
-            FetchDescriptor<LessonAssignment>(predicate: #Predicate { $0.lessonID == lessonIDString })
-        )
+        let laRequest = CDFetchRequest(CDLessonAssignment.self)
+        laRequest.predicate = NSPredicate(format: "lessonID == %@", lessonIDString as CVarArg)
+        let allLAs = context.safeFetch(laRequest)
 
         if let existing = allLAs.first(where: {
             !$0.isPresented && $0.studentIDs.contains(studentIDString)
@@ -168,9 +168,10 @@ enum ChecklistBatchActionExecutor {
                     group.studentIDs.append(studentIDString)
                 }
             } else {
+                guard let lessonID = lesson.id, let studentID = student.id else { return }
                 PresentationFactory.insertDraft(
-                    lessonID: lesson.id,
-                    studentIDs: [student.id],
+                    lessonID: lessonID,
+                    studentIDs: [studentID],
                     context: context
                 )
             }
@@ -178,16 +179,16 @@ enum ChecklistBatchActionExecutor {
     }
 
     private static func togglePresentedNoRecompute(
-        student: Student, lesson: Lesson,
-        prefetchedLPs: [LessonPresentation],
-        context: ModelContext
+        student: CDStudent, lesson: CDLesson,
+        prefetchedLPs: [CDLessonPresentation],
+        context: NSManagedObjectContext
     ) {
         let studentIDString = student.cloudKitKey
-        let lessonIDString = lesson.id.uuidString
+        let lessonIDString = lesson.id?.uuidString ?? ""
 
-        let allLAs = context.safeFetch(
-            FetchDescriptor<LessonAssignment>(predicate: #Predicate { $0.lessonID == lessonIDString })
-        )
+        let laRequest = CDFetchRequest(CDLessonAssignment.self)
+        laRequest.predicate = NSPredicate(format: "lessonID == %@", lessonIDString as CVarArg)
+        let allLAs = context.safeFetch(laRequest)
 
         if let existing = allLAs.first(where: {
             $0.isPresented && $0.studentIDs.contains(studentIDString)
@@ -216,17 +217,17 @@ enum ChecklistBatchActionExecutor {
     }
 
     private static func markCompleteNoRecompute(
-        student: Student, lesson: Lesson,
-        prefetchedWorkModels: [WorkModel],
-        prefetchedLPs: [LessonPresentation],
-        context: ModelContext
+        student: CDStudent, lesson: CDLesson,
+        prefetchedWorkModels: [CDWorkModel],
+        prefetchedLPs: [CDLessonPresentation],
+        context: NSManagedObjectContext
     ) {
         let studentIDString = student.cloudKitKey
-        let lessonIDString = lesson.id.uuidString
+        let lessonIDString = lesson.id?.uuidString ?? ""
 
-        let allLAs = context.safeFetch(
-            FetchDescriptor<LessonAssignment>(predicate: #Predicate { $0.lessonID == lessonIDString })
-        )
+        let laRequest = CDFetchRequest(CDLessonAssignment.self)
+        laRequest.predicate = NSPredicate(format: "lessonID == %@", lessonIDString as CVarArg)
+        let allLAs = context.safeFetch(laRequest)
         if allLAs.first(where: { $0.isPresented && $0.studentIDs.contains(studentIDString) }) == nil {
             addStudentToGivenLesson(
                 student: student, studentIDString: studentIDString,
@@ -245,25 +246,27 @@ enum ChecklistBatchActionExecutor {
         )
 
         GroupTrackService.autoEnrollInTrackIfNeeded(
-            lesson: lesson, studentIDs: [studentIDString], modelContext: context
+            lessonSubject: lesson.subject, lessonGroup: lesson.group,
+            studentIDs: [studentIDString], context: context
         )
         GroupTrackService.checkAndCompleteTrackIfNeeded(
-            lesson: lesson, studentID: studentIDString, modelContext: context
+            lessonSubject: lesson.subject, lessonGroup: lesson.group,
+            studentID: studentIDString, context: context
         )
     }
 
     private static func clearStatusNoRecompute(
-        student: Student, lesson: Lesson,
-        prefetchedWorkModels: [WorkModel],
-        prefetchedLPs: [LessonPresentation],
-        context: ModelContext
+        student: CDStudent, lesson: CDLesson,
+        prefetchedWorkModels: [CDWorkModel],
+        prefetchedLPs: [CDLessonPresentation],
+        context: NSManagedObjectContext
     ) {
         let sidString = student.cloudKitKey
-        let lidString = lesson.id.uuidString
+        let lidString = lesson.id?.uuidString ?? ""
 
-        let las = context.safeFetch(
-            FetchDescriptor<LessonAssignment>(predicate: #Predicate { $0.lessonID == lidString })
-        )
+        let lasRequest = CDFetchRequest(CDLessonAssignment.self)
+        lasRequest.predicate = NSPredicate(format: "lessonID == %@", lidString as CVarArg)
+        let las = context.safeFetch(lasRequest)
         for la in las where la.studentIDs.contains(sidString) {
             var newIDs = la.studentIDs
             newIDs.removeAll { $0 == sidString }
@@ -277,7 +280,8 @@ enum ChecklistBatchActionExecutor {
         // Filter from pre-fetched WorkModels instead of re-fetching all
         let workModelsToDelete = prefetchedWorkModels.filter { work in
             guard work.lessonID == lidString else { return false }
-            return (work.participants ?? []).contains { $0.studentID == sidString }
+            let parts = (work.participants?.allObjects as? [CDWorkParticipantEntity]) ?? []
+            return parts.contains { $0.studentID == sidString }
         }
         for work in workModelsToDelete {
             context.delete(work)
@@ -290,11 +294,11 @@ enum ChecklistBatchActionExecutor {
     }
 
     private static func addStudentToGivenLesson(
-        student: Student,
+        student: CDStudent,
         studentIDString: String,
-        lesson: Lesson,
-        in allLAs: [LessonAssignment],
-        context: ModelContext
+        lesson: CDLesson,
+        in allLAs: [CDLessonAssignment],
+        context: NSManagedObjectContext
     ) {
         let today = Date()
         if let group = allLAs.first(where: {
@@ -303,44 +307,48 @@ enum ChecklistBatchActionExecutor {
             if !group.studentIDs.contains(studentIDString) {
                 group.studentIDs.append(studentIDString)
                 GroupTrackService.autoEnrollInTrackIfNeeded(
-                    lesson: lesson, studentIDs: [studentIDString], modelContext: context
+                    lessonSubject: lesson.subject, lessonGroup: lesson.group,
+                    studentIDs: [studentIDString], context: context
                 )
             }
         } else {
+            guard let lessonID = lesson.id, let studentID = student.id else { return }
             PresentationFactory.insertPresented(
-                lessonID: lesson.id,
-                studentIDs: [student.id],
+                lessonID: lessonID,
+                studentIDs: [studentID],
                 context: context
             )
             GroupTrackService.autoEnrollInTrackIfNeeded(
-                lesson: lesson, studentIDs: [studentIDString], modelContext: context
+                lessonSubject: lesson.subject, lessonGroup: lesson.group,
+                studentIDs: [studentIDString], context: context
             )
         }
     }
 
     private static func findOrCreateWorkAndMarkComplete(
-        student: Student, lesson: Lesson,
-        prefetchedWorkModels: [WorkModel],
-        context: ModelContext
+        student: CDStudent, lesson: CDLesson,
+        prefetchedWorkModels: [CDWorkModel],
+        context: NSManagedObjectContext
     ) {
-        let sid = student.id
-        let lidString = lesson.id.uuidString
+        guard let sid = student.id, let lid = lesson.id else { return }
+        let lidString = lid.uuidString
 
         // Filter from pre-fetched data instead of re-fetching all WorkModels
         if let existingWork = prefetchedWorkModels.first(where: { work in
             guard work.lessonID == lidString else { return false }
-            return (work.participants ?? []).contains { $0.studentID == sid.uuidString }
+            let parts = (work.participants?.allObjects as? [CDWorkParticipantEntity]) ?? []
+            return parts.contains { $0.studentID == sid.uuidString }
         }) {
             existingWork.status = .complete
             existingWork.completedAt = AppCalendar.startOfDay(Date())
             return
         }
 
-        let repository = WorkRepository(modelContext: context)
+        let repository = WorkRepository(context: context)
         do {
             let work = try repository.createWork(
                 studentID: sid,
-                lessonID: lesson.id,
+                lessonID: lid,
                 title: nil,
                 kind: nil,
                 presentationID: nil,
@@ -357,8 +365,8 @@ enum ChecklistBatchActionExecutor {
         studentID: String,
         lessonID: String,
         state: LessonPresentationState,
-        from prefetchedLPs: [LessonPresentation],
-        context: ModelContext
+        from prefetchedLPs: [CDLessonPresentation],
+        context: NSManagedObjectContext
     ) {
         // Filter from pre-fetched data instead of re-fetching all LessonPresentations
         let existing = prefetchedLPs.first { lp in
@@ -372,16 +380,13 @@ enum ChecklistBatchActionExecutor {
             }
             existing.lastObservedAt = Date()
         } else {
-            let lp = LessonPresentation(
-                studentID: studentID,
-                lessonID: lessonID,
-                presentationID: nil,
-                state: state,
-                presentedAt: Date(),
-                lastObservedAt: Date(),
-                masteredAt: state == .proficient ? Date() : nil
-            )
-            context.insert(lp)
+            let lp = CDLessonPresentation(context: context)
+            lp.studentID = studentID
+            lp.lessonID = lessonID
+            lp.state = state
+            lp.presentedAt = Date()
+            lp.lastObservedAt = Date()
+            lp.masteredAt = state == .proficient ? Date() : nil
         }
     }
 

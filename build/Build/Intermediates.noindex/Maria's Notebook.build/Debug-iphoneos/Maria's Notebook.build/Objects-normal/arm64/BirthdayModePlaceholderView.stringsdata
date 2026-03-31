@@ -1,0 +1,16 @@
+{
+  "source": "/Users/dannydeberry/Documents/Projects/MariasNotebook-Rewrite/Maria's Notebook/Students/BirthdayModePlaceholderView.swift",
+  "tables": {
+    "Localizable": [
+      {
+        "comment": "",
+        "key": "Birthday Mode",
+        "location": {
+          "startingColumn": 19,
+          "startingLine": 7
+        }
+      }
+    ]
+  },
+  "version": 1
+}

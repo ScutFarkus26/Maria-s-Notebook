@@ -2,7 +2,7 @@
 // ViewModel for the Progress Dashboard — loads per-student, per-category progress.
 
 import Foundation
-import SwiftData
+import CoreData
 import OSLog
 
 @Observable
@@ -16,7 +16,7 @@ final class ProgressDashboardViewModel {
     private(set) var isLoading = false
 
     // Lookup for sheet navigation
-    private(set) var lessonAssignmentsByID: [UUID: LessonAssignment] = [:]
+    private(set) var lessonAssignmentsByID: [UUID: CDLessonAssignment] = [:]
 
     // MARK: - Filters
 
@@ -45,7 +45,7 @@ final class ProgressDashboardViewModel {
     // MARK: - Data Loading
 
     // swiftlint:disable:next function_body_length cyclomatic_complexity
-    func loadData(context: ModelContext) {
+    func loadData(context: NSManagedObjectContext) {
         isLoading = true
         defer { isLoading = false }
 
@@ -58,8 +58,11 @@ final class ProgressDashboardViewModel {
         let today = Date()
 
         // Pre-index for O(1) lookups
-        let lessonsByID: [UUID: Lesson] = Dictionary(
-            uniqueKeysWithValues: allLessons.map { ($0.id, $0) }
+        let lessonsByID: [UUID: CDLesson] = Dictionary(
+            uniqueKeysWithValues: allLessons.compactMap { lesson in
+                guard let id = lesson.id else { return nil }
+                return (id, lesson)
+            }
         )
 
         // Index assignments by lessonID
@@ -77,9 +80,10 @@ final class ProgressDashboardViewModel {
         }
 
         // Build lessonAssignmentsByID for sheet navigation
-        var assignmentLookup: [UUID: LessonAssignment] = [:]
+        var assignmentLookup: [UUID: CDLessonAssignment] = [:]
         for la in allAssignments {
-            assignmentLookup[la.id] = la
+            guard let laID = la.id else { continue }
+            assignmentLookup[laID] = la
         }
         lessonAssignmentsByID = assignmentLookup
 
@@ -87,7 +91,8 @@ final class ProgressDashboardViewModel {
         var cards: [StudentDashboardCard] = []
 
         for student in visibleStudents {
-            let studentIDStr = student.id.uuidString
+            guard let studentID = student.id else { continue }
+            let studentIDStr = studentID.uuidString
 
             // Find all (subject, group) pairs where this student has a presented assignment
             var activePairs = Set<SubjectGroupKey>()
@@ -123,12 +128,13 @@ final class ProgressDashboardViewModel {
                 let sortedLessons = lessonsInGroup.sorted { $0.orderInGroup < $1.orderInGroup }
 
                 // Find the most recently presented lesson for this student in this group
-                var bestPresentedLesson: Lesson?
+                var bestPresentedLesson: CDLesson?
                 var bestPresentedAt: Date?
                 var bestAssignmentID: UUID?
 
                 for lesson in sortedLessons {
-                    guard let assignments = assignmentsByLesson[lesson.id.uuidString] else { continue }
+                    guard let lessonID = lesson.id,
+                          let assignments = assignmentsByLesson[lessonID.uuidString] else { continue }
                     for la in assignments where la.presentedAt != nil {
                         guard la.studentIDs.contains(studentIDStr) else { continue }
                         if bestPresentedAt == nil || la.presentedAt! > bestPresentedAt! {
@@ -140,10 +146,10 @@ final class ProgressDashboardViewModel {
                 }
 
                 let previousLesson: PreviousLessonSummary?
-                if let lesson = bestPresentedLesson, let at = bestPresentedAt, let aID = bestAssignmentID {
+                if let lesson = bestPresentedLesson, let lessonID = lesson.id, let at = bestPresentedAt, let aID = bestAssignmentID {
                     previousLesson = PreviousLessonSummary(
                         id: aID,
-                        lessonID: lesson.id,
+                        lessonID: lessonID,
                         name: lesson.name,
                         presentedAt: at,
                         assignmentID: aID
@@ -155,12 +161,13 @@ final class ProgressDashboardViewModel {
                 // Collect open work for this student in this group's lessons
                 var workSummaries: [OpenWorkSummary] = []
                 for lesson in sortedLessons {
-                    let key = "\(studentIDStr)|\(lesson.id.uuidString)"
+                    guard let lessonID = lesson.id else { continue }
+                    let key = "\(studentIDStr)|\(lessonID.uuidString)"
                     guard let workItems = openWorkByStudentLesson[key] else { continue }
                     for work in workItems {
-                        let age = Self.weekdaysBetween(from: work.assignedAt, to: today)
+                        let age = Self.weekdaysBetween(from: work.assignedAt ?? Date(), to: today)
                         workSummaries.append(OpenWorkSummary(
-                            id: work.id,
+                            id: work.id ?? UUID(),
                             title: work.title,
                             kind: work.kind,
                             status: work.status,
@@ -201,7 +208,7 @@ final class ProgressDashboardViewModel {
                 let displayGroup = sortedLessons.first?.group.trimmed() ?? pairKey.group
 
                 categoryRows.append(StudentCategoryProgress(
-                    id: "\(student.id)|\(displaySubject)|\(displayGroup)",
+                    id: "\(studentID)|\(displaySubject)|\(displayGroup)",
                     subject: displaySubject,
                     group: displayGroup,
                     previousLesson: previousLesson,
@@ -214,7 +221,7 @@ final class ProgressDashboardViewModel {
             categoryRows.sort { ($0.subject, $0.group) < ($1.subject, $1.group) }
 
             cards.append(StudentDashboardCard(
-                id: student.id,
+                id: studentID,
                 firstName: student.firstName,
                 lastName: student.lastName,
                 nickname: student.nickname,
@@ -229,11 +236,12 @@ final class ProgressDashboardViewModel {
     // MARK: - Helpers
 
     private static func resolveNextLessonState(
-        lesson: Lesson,
+        lesson: CDLesson,
         studentIDStr: String,
-        assignmentsByLesson: [String: [LessonAssignment]]
+        assignmentsByLesson: [String: [CDLessonAssignment]]
     ) -> NextLessonInfo {
-        let lessonIDStr = lesson.id.uuidString
+        let lessonID = lesson.id ?? UUID()
+        let lessonIDStr = lessonID.uuidString
         var state: NextLessonState = .notPlanned
         var assignmentID: UUID?
 
@@ -252,7 +260,7 @@ final class ProgressDashboardViewModel {
         }
 
         return NextLessonInfo(
-            id: lesson.id,
+            id: lessonID,
             name: lesson.name,
             state: state,
             assignmentID: assignmentID
@@ -280,24 +288,26 @@ final class ProgressDashboardViewModel {
 
     // MARK: - Fetching
 
-    private func fetchAllStudents(context: ModelContext) -> [Student] {
-        context.safeFetch(FetchDescriptor<Student>(sortBy: Student.sortByName)).filter(\.isEnrolled)
+    private func fetchAllStudents(context: NSManagedObjectContext) -> [CDStudent] {
+        context.safeFetch({ let r = CDStudent.fetchRequest() as! NSFetchRequest<CDStudent>; r.sortDescriptors = CDStudent.sortByName; return r }()).filter(\.isEnrolled)
     }
 
-    private func fetchAllLessons(context: ModelContext) -> [Lesson] {
-        context.safeFetch(FetchDescriptor<Lesson>(sortBy: [
-            SortDescriptor(\Lesson.subject),
-            SortDescriptor(\Lesson.group),
-            SortDescriptor(\Lesson.orderInGroup)
-        ]))
+    private func fetchAllLessons(context: NSManagedObjectContext) -> [CDLesson] {
+        let request = CDLesson.fetchRequest() as! NSFetchRequest<CDLesson>
+        request.sortDescriptors = [
+            NSSortDescriptor(keyPath: \CDLesson.subject, ascending: true),
+            NSSortDescriptor(keyPath: \CDLesson.group, ascending: true),
+            NSSortDescriptor(keyPath: \CDLesson.orderInGroup, ascending: true)
+        ]
+        return context.safeFetch(request)
     }
 
-    private func fetchAllAssignments(context: ModelContext) -> [LessonAssignment] {
-        context.safeFetch(FetchDescriptor<LessonAssignment>())
+    private func fetchAllAssignments(context: NSManagedObjectContext) -> [CDLessonAssignment] {
+        context.safeFetch(CDLessonAssignment.fetchRequest() as! NSFetchRequest<CDLessonAssignment>)
     }
 
-    private func fetchAllWork(context: ModelContext) -> [WorkModel] {
-        context.safeFetch(FetchDescriptor<WorkModel>())
+    private func fetchAllWork(context: NSManagedObjectContext) -> [CDWorkModel] {
+        context.safeFetch(CDWorkModel.fetchRequest() as! NSFetchRequest<CDWorkModel>)
     }
 }
 

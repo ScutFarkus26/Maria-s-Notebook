@@ -2,6 +2,7 @@
 // Content rendering extracted from PresentationsListView
 
 import SwiftUI
+import CoreData
 
 extension PresentationsListView {
     // MARK: - Content

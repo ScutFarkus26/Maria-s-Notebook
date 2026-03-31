@@ -3,7 +3,7 @@
 // Progress tab showing student's active projects and track enrollments with detailed cards
 
 import SwiftUI
-import SwiftData
+import CoreData
 #if os(macOS)
 import AppKit
 #else
@@ -12,31 +12,31 @@ import UIKit
 
 // swiftlint:disable:next type_body_length
 struct StudentProgressTab: View {
-    let student: Student
+    let student: CDStudent
 
-    @Environment(\.modelContext) private var modelContext
+    @Environment(\.managedObjectContext) private var viewContext
     @State private var viewModel = StudentProgressTabViewModel()
 
     // MARK: - State
-    @State private var selectedEnrollment: StudentTrackEnrollment?
-    @State private var selectedProject: Project?
-    @State private var selectedReport: WorkModel?
+    @State private var selectedEnrollment: CDStudentTrackEnrollmentEntity?
+    @State private var selectedProject: CDProject?
+    @State private var selectedReport: CDWorkModel?
     @State private var filterSheet: FilterSheet?
 
     // MARK: - Filter Sheet State
     enum FilterSheet: Identifiable {
-        case presentations(StudentTrackEnrollment, Track)
-        case work(StudentTrackEnrollment, Track)
-        case notes(StudentTrackEnrollment, Track)
+        case presentations(CDStudentTrackEnrollmentEntity, CDTrackEntity)
+        case work(CDStudentTrackEnrollmentEntity, CDTrackEntity)
+        case notes(CDStudentTrackEnrollmentEntity, CDTrackEntity)
 
         var id: String {
             switch self {
             case .presentations(let enrollment, _):
-                return "presentations_\(enrollment.id.uuidString)"
+                return "presentations_\(enrollment.id?.uuidString ?? "")"
             case .work(let enrollment, _):
-                return "work_\(enrollment.id.uuidString)"
+                return "work_\(enrollment.id?.uuidString ?? "")"
             case .notes(let enrollment, _):
-                return "notes_\(enrollment.id.uuidString)"
+                return "notes_\(enrollment.id?.uuidString ?? "")"
             }
         }
     }
@@ -149,7 +149,7 @@ struct StudentProgressTab: View {
             .padding(.vertical, AppTheme.Spacing.medium)
         }
         .onAppear {
-            viewModel.configure(for: student, context: modelContext)
+            viewModel.configure(for: student, context: viewContext)
         }
         // Sheets
         .sheet(item: $selectedEnrollment) { enrollment in
@@ -163,7 +163,7 @@ struct StudentProgressTab: View {
                 .studentDetailSheetSizing()
         }
         .sheet(item: $selectedReport) { report in
-            WorkDetailView(workID: report.id) {
+            WorkDetailView(workID: report.id ?? UUID()) {
                 selectedReport = nil
             }
             .studentDetailSheetSizing()
@@ -190,8 +190,8 @@ struct StudentProgressTab: View {
         }
     }
     
-    // MARK: - Project Row
-    private func projectRow(_ project: Project) -> some View {
+    // MARK: - CDProject Row
+    private func projectRow(_ project: CDProject) -> some View {
         HStack(alignment: .center, spacing: AppTheme.Spacing.compact) {
             ZStack {
                 RoundedRectangle(cornerRadius: 10, style: .continuous)
@@ -229,7 +229,7 @@ struct StudentProgressTab: View {
     // MARK: - Enrollment Card
     @ViewBuilder
     // swiftlint:disable:next function_body_length
-    private func enrollmentCard(enrollment: StudentTrackEnrollment, track: Track) -> some View {
+    private func enrollmentCard(enrollment: CDStudentTrackEnrollmentEntity, track: CDTrackEntity) -> some View {
         let stats = viewModel.trackStats(for: enrollment, track: track)
         let progress = viewModel.trackProgress(for: track)
         let trackColor = viewModel.trackColor(for: track.title)
@@ -242,7 +242,7 @@ struct StudentProgressTab: View {
                     title: track.title,
                     subtitle: enrollment.startedAt.map {
                         "Started \($0.formatted(.relative(presentation: .named)))"
-                    } ?? "Enrolled \(enrollment.createdAt.formatted(.relative(presentation: .named)))",
+                    } ?? "Enrolled \((enrollment.createdAt ?? Date()).formatted(.relative(presentation: .named)))",
                     isComplete: progress.isComplete && progress.totalSteps > 0,
                     isActive: enrollment.isActive
                 )
@@ -341,14 +341,14 @@ struct StudentProgressTab: View {
         }
         .onAppear {
             viewModel.autoCompleteTrackIfNeeded(
-                enrollment: enrollment, progress: progress, context: modelContext
+                enrollment: enrollment, progress: progress, context: viewContext
             )
         }
     }
 
     // MARK: - Report Card
     @ViewBuilder
-    private func reportCard(report: WorkModel) -> some View {
+    private func reportCard(report: CDWorkModel) -> some View {
         let progress = report.stepProgress
         let orderedSteps = report.orderedSteps
         let isComplete = progress.completed == progress.total && progress.total > 0
@@ -359,7 +359,7 @@ struct StudentProgressTab: View {
                     iconName: "doc.text.fill",
                     color: .green,
                     title: viewModel.reportTitle(for: report),
-                    subtitle: "Assigned \(report.assignedAt.formatted(.relative(presentation: .named)))",
+                    subtitle: "Assigned \((report.assignedAt ?? Date()).formatted(.relative(presentation: .named)))",
                     isComplete: isComplete,
                     isActive: false
                 )
@@ -376,7 +376,7 @@ struct StudentProgressTab: View {
                             steps: orderedSteps,
                             completedStepIDs: Set(
                                 orderedSteps.filter { $0.completedAt != nil }
-                                    .map { $0.id.uuidString }
+                                    .compactMap { $0.id?.uuidString }
                             ),
                             color: .green,
                             maxSteps: 15
@@ -405,32 +405,43 @@ struct StudentProgressTab: View {
     }
 }
 
-// MARK: - Track Filtered List Sheet Wrapper
+// MARK: - CDTrackEntity Filtered List Sheet Wrapper
 /// Wrapper view that fetches its own data for TrackFilteredListView
 private struct TrackFilteredListSheet: View {
     let sheet: StudentProgressTab.FilterSheet
-    let student: Student
+    let student: CDStudent
     let onDismiss: () -> Void
 
-    @Environment(\.modelContext) private var modelContext
+    @Environment(\.managedObjectContext) private var viewContext
 
     var body: some View {
         let params = extractParams()
         let (enrollment, track, filterType) = (params.enrollment, params.track, params.filterType)
 
         // Fetch data on-demand
-        let allLessonAssignments = modelContext.safeFetch(FetchDescriptor<LessonAssignment>(
-            sortBy: [SortDescriptor(\.presentedAt, order: .reverse)]
-        ))
-        let allWorkModels = modelContext.safeFetch(FetchDescriptor<WorkModel>(
-            sortBy: [SortDescriptor(\.createdAt, order: .reverse)]
-        ))
-        let allNotes = modelContext.safeFetch(FetchDescriptor<Note>(
-            sortBy: [SortDescriptor(\.updatedAt, order: .reverse)]
-        ))
-        let allLessons = modelContext.safeFetch(FetchDescriptor<Lesson>(
-            sortBy: [SortDescriptor(\.name)]
-        ))
+        let allLessonAssignments: [CDLessonAssignment] = {
+            let r: NSFetchRequest<CDLessonAssignment> = NSFetchRequest(entityName: "CDLessonAssignment")
+            r.sortDescriptors = [NSSortDescriptor(key: "presentedAt", ascending: false)]
+            return viewContext.safeFetch(r)
+        }()
+
+        let allWorkModels: [CDWorkModel] = {
+            let r: NSFetchRequest<CDWorkModel> = NSFetchRequest(entityName: "CDWorkModel")
+            r.sortDescriptors = [NSSortDescriptor(key: "createdAt", ascending: false)]
+            return viewContext.safeFetch(r)
+        }()
+
+        let allNotes: [CDNote] = {
+            let r: NSFetchRequest<CDNote> = NSFetchRequest(entityName: "CDNote")
+            r.sortDescriptors = [NSSortDescriptor(key: "updatedAt", ascending: false)]
+            return viewContext.safeFetch(r)
+        }()
+
+        let allLessons: [CDLesson] = {
+            let r: NSFetchRequest<CDLesson> = NSFetchRequest(entityName: "CDLesson")
+            r.sortDescriptors = [NSSortDescriptor(key: "name", ascending: true)]
+            return viewContext.safeFetch(r)
+        }()
 
         TrackFilteredListView(
             enrollment: enrollment,
@@ -446,8 +457,8 @@ private struct TrackFilteredListSheet: View {
     }
 
     private struct SheetParams {
-        let enrollment: StudentTrackEnrollment
-        let track: Track
+        let enrollment: CDStudentTrackEnrollmentEntity
+        let track: CDTrackEntity
         let filterType: TrackFilterType
     }
 

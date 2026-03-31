@@ -2,8 +2,8 @@
 // ViewModel for single student's progression through a subject/group.
 
 import Foundation
-import SwiftData
 import OSLog
+import CoreData
 
 /// Builds the lesson timeline for one student in a subject/group.
 @Observable
@@ -16,14 +16,14 @@ final class StudentSubjectProgressionViewModel {
     private(set) var totalCount = 0
     private(set) var isLoading = false
 
-    private var student: Student?
-    private var allLessons: [Lesson] = []
-    private var allPresentations: [LessonAssignment] = []
+    private var student: CDStudent?
+    private var allLessons: [CDLesson] = []
+    private var allPresentations: [CDLessonAssignment] = []
 
     // MARK: - Configuration
 
     // swiftlint:disable:next function_body_length
-    func configure(for student: Student, subject: String, group: String, context: ModelContext) {
+    func configure(for student: CDStudent, subject: String, group: String, context: NSManagedObjectContext) {
         isLoading = true
         defer { isLoading = false }
 
@@ -36,7 +36,7 @@ final class StudentSubjectProgressionViewModel {
         allPresentations = fetchedPresentations
         self.student = student
 
-        let studentIDStr = student.id.uuidString
+        let studentIDStr = student.id?.uuidString ?? ""
 
         // Lessons in this group sorted by orderInGroup
         let groupLessons = fetchedLessons
@@ -64,7 +64,7 @@ final class StudentSubjectProgressionViewModel {
         var result: [LessonProgressionNode] = []
 
         for lesson in groupLessons {
-            let lessonIDStr = lesson.id.uuidString
+            let lessonIDStr = lesson.id?.uuidString ?? ""
 
             // Find matching presentation
             let presentation = studentPresentations.first {
@@ -79,20 +79,20 @@ final class StudentSubjectProgressionViewModel {
 
             // Build work progress items
             let workItems: [WorkProgressItem] = lessonWork.map { work in
-                let workCheckIns = studentCheckIns.filter { $0.workIDUUID == work.id }
+                let workCheckIns = studentCheckIns.filter { $0.workIDUUID != nil && $0.workIDUUID == work.id }
                 let lastCheckIn = workCheckIns
                     .filter { $0.status == .completed }
-                    .max { $0.date < $1.date }
+                    .max { ($0.date ?? .distantPast) < ($1.date ?? .distantPast) }
                 let nextCheckIn = workCheckIns
                     .filter(\.isScheduled)
-                    .min { $0.date < $1.date }
+                    .min { ($0.date ?? .distantFuture) < ($1.date ?? .distantFuture) }
 
                 // Approximate school day age (weekdays only)
-                let createdDay = calendar.startOfDay(for: work.assignedAt)
+                let createdDay = calendar.startOfDay(for: work.assignedAt ?? Date())
                 let weekdaysBetween = countWeekdays(from: createdDay, to: today, calendar: calendar)
 
                 return WorkProgressItem(
-                    id: work.id,
+                    id: work.id ?? UUID(),
                     work: work,
                     status: work.status,
                     kind: work.kind,
@@ -135,9 +135,9 @@ final class StudentSubjectProgressionViewModel {
             }
 
             result.append(LessonProgressionNode(
-                id: lesson.id,
+                id: lesson.id ?? UUID(),
                 lesson: lesson,
-                orderInGroup: lesson.orderInGroup,
+                orderInGroup: Int(lesson.orderInGroup),
                 status: status,
                 presentedAt: presentation?.presentedAt,
                 presentationID: presentation?.id,
@@ -152,12 +152,13 @@ final class StudentSubjectProgressionViewModel {
 
     // MARK: - Actions
 
-    func scheduleNextLesson(after lesson: Lesson, context: ModelContext) {
+    func scheduleNextLesson(after lesson: CDLesson, context: NSManagedObjectContext) {
         guard let student else { return }
         guard let nextLesson = PlanNextLessonService.findNextLesson(after: lesson, in: allLessons) else { return }
+        guard let studentID = student.id else { return }
         PlanNextLessonService.planLesson(
             nextLesson,
-            forStudents: [student.id],
+            forStudents: [studentID],
             allStudents: [student],
             allLessons: allLessons,
             existingLessonAssignments: allPresentations,
@@ -187,29 +188,28 @@ final class StudentSubjectProgressionViewModel {
 
     // MARK: - Fetching
 
-    private func fetchAllLessons(context: ModelContext) -> [Lesson] {
-        let descriptor = FetchDescriptor<Lesson>(
-            sortBy: [
-                SortDescriptor(\Lesson.subject),
-                SortDescriptor(\Lesson.group),
-                SortDescriptor(\Lesson.orderInGroup)
+    private func fetchAllLessons(context: NSManagedObjectContext) -> [CDLesson] {
+        let descriptor: NSFetchRequest<CDLesson> = NSFetchRequest(entityName: "CDLesson")
+        descriptor.sortDescriptors = [
+                NSSortDescriptor(keyPath: \CDLesson.subject, ascending: true),
+                NSSortDescriptor(keyPath: \CDLesson.group, ascending: true),
+                NSSortDescriptor(keyPath: \CDLesson.orderInGroup, ascending: true)
             ]
-        )
         return context.safeFetch(descriptor)
     }
 
-    private func fetchPresentations(context: ModelContext) -> [LessonAssignment] {
-        let descriptor = FetchDescriptor<LessonAssignment>()
+    private func fetchPresentations(context: NSManagedObjectContext) -> [CDLessonAssignment] {
+        let descriptor = NSFetchRequest<CDLessonAssignment>(entityName: "CDLessonAssignment")
         return context.safeFetch(descriptor)
     }
 
-    private func fetchAllWork(context: ModelContext) -> [WorkModel] {
-        let descriptor = FetchDescriptor<WorkModel>()
+    private func fetchAllWork(context: NSManagedObjectContext) -> [CDWorkModel] {
+        let descriptor = NSFetchRequest<CDWorkModel>(entityName: "CDWorkModel")
         return context.safeFetch(descriptor)
     }
 
-    private func fetchCheckIns(context: ModelContext) -> [WorkCheckIn] {
-        let descriptor = FetchDescriptor<WorkCheckIn>()
+    private func fetchCheckIns(context: NSManagedObjectContext) -> [CDWorkCheckIn] {
+        let descriptor = NSFetchRequest<CDWorkCheckIn>(entityName: "CDWorkCheckIn")
         return context.safeFetch(descriptor)
     }
 }

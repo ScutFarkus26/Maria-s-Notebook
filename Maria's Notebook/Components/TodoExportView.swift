@@ -5,7 +5,7 @@ import UniformTypeIdentifiers
 struct TodoExportView: View {
     private static let logger = Logger.todos
     @Environment(\.dismiss) private var dismiss
-    let todos: [TodoItem]
+    let todos: [CDTodoItem]
     
     @State private var selectedFormat: TodoExportService.ExportFormat = .text
     @State private var exportedContent: String = ""

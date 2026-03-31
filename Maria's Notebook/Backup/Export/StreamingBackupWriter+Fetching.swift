@@ -1,86 +1,86 @@
 import Foundation
-import SwiftData
+import CoreData
 
 // MARK: - Stream Fetching & Entity Counts
 
 extension StreamingBackupWriter {
 
-    func collectEntityCounts(modelContext: ModelContext) async throws -> [String: Int] {
-        var counts = try countCoreEntities(modelContext)
-        counts.merge(try countV8Entities(modelContext)) { _, new in new }
-        counts.merge(try countV11Entities(modelContext)) { _, new in new }
+    func collectEntityCounts(viewContext: NSManagedObjectContext) async throws -> [String: Int] {
+        var counts = try countCoreEntities(viewContext)
+        counts.merge(try countV8Entities(viewContext)) { _, new in new }
+        counts.merge(try countV11Entities(viewContext)) { _, new in new }
         return counts
     }
 
-    private func countCoreEntities(_ context: ModelContext) throws -> [String: Int] {
+    private func countCoreEntities(_ context: NSManagedObjectContext) throws -> [String: Int] {
         var counts: [String: Int] = [:]
-        counts["Student"] = try context.fetchCount(FetchDescriptor<Student>())
-        counts["Lesson"] = try context.fetchCount(FetchDescriptor<Lesson>())
-        counts["LessonAssignment"] = try context.fetchCount(FetchDescriptor<LessonAssignment>())
-        counts["Note"] = try context.fetchCount(FetchDescriptor<Note>())
-        counts["NonSchoolDay"] = try context.fetchCount(FetchDescriptor<NonSchoolDay>())
-        counts["SchoolDayOverride"] = try context.fetchCount(FetchDescriptor<SchoolDayOverride>())
-        counts["StudentMeeting"] = try context.fetchCount(FetchDescriptor<StudentMeeting>())
-        counts["CommunityTopic"] = try context.fetchCount(FetchDescriptor<CommunityTopic>())
-        counts["ProposedSolution"] = try context.fetchCount(FetchDescriptor<ProposedSolution>())
-        counts["CommunityAttachment"] = try context.fetchCount(FetchDescriptor<CommunityAttachment>())
-        counts["AttendanceRecord"] = try context.fetchCount(FetchDescriptor<AttendanceRecord>())
-        counts["WorkCompletionRecord"] = try context.fetchCount(FetchDescriptor<WorkCompletionRecord>())
-        counts["Project"] = try context.fetchCount(FetchDescriptor<Project>())
-        counts["ProjectAssignmentTemplate"] = try context.fetchCount(FetchDescriptor<ProjectAssignmentTemplate>())
-        counts["ProjectSession"] = try context.fetchCount(FetchDescriptor<ProjectSession>())
-        counts["ProjectRole"] = try context.fetchCount(FetchDescriptor<ProjectRole>())
-        counts["ProjectTemplateWeek"] = try context.fetchCount(FetchDescriptor<ProjectTemplateWeek>())
-        counts["ProjectWeekRoleAssignment"] = try context.fetchCount(FetchDescriptor<ProjectWeekRoleAssignment>())
+        counts["CDStudent"] = try context.count(for:CDStudent.fetchRequest() as! NSFetchRequest<CDStudent>)
+        counts["CDLesson"] = try context.count(for:CDLesson.fetchRequest() as! NSFetchRequest<CDLesson>)
+        counts["CDLessonAssignment"] = try context.count(for:CDLessonAssignment.fetchRequest() as! NSFetchRequest<CDLessonAssignment>)
+        counts["CDNote"] = try context.count(for:CDNote.fetchRequest() as! NSFetchRequest<CDNote>)
+        counts["CDNonSchoolDay"] = try context.count(for:CDNonSchoolDay.fetchRequest() as! NSFetchRequest<CDNonSchoolDay>)
+        counts["CDSchoolDayOverride"] = try context.count(for:CDSchoolDayOverride.fetchRequest() as! NSFetchRequest<CDSchoolDayOverride>)
+        counts["CDStudentMeeting"] = try context.count(for:CDStudentMeeting.fetchRequest() as! NSFetchRequest<CDStudentMeeting>)
+        counts["CDCommunityTopicEntity"] = try context.count(for:CDCommunityTopicEntity.fetchRequest() as! NSFetchRequest<CDCommunityTopicEntity>)
+        counts["ProposedSolution"] = try context.count(for:ProposedSolution.fetchRequest() as! NSFetchRequest<ProposedSolution>)
+        counts["CommunityAttachment"] = try context.count(for:CommunityAttachment.fetchRequest() as! NSFetchRequest<CommunityAttachment>)
+        counts["CDAttendanceRecord"] = try context.count(for:CDAttendanceRecord.fetchRequest() as! NSFetchRequest<CDAttendanceRecord>)
+        counts["CDWorkCompletionRecord"] = try context.count(for:CDWorkCompletionRecord.fetchRequest() as! NSFetchRequest<CDWorkCompletionRecord>)
+        counts["CDProject"] = try context.count(for:CDProject.fetchRequest() as! NSFetchRequest<CDProject>)
+        counts["ProjectAssignmentTemplate"] = try context.count(for:ProjectAssignmentTemplate.fetchRequest() as! NSFetchRequest<ProjectAssignmentTemplate>)
+        counts["CDProjectSession"] = try context.count(for:CDProjectSession.fetchRequest() as! NSFetchRequest<CDProjectSession>)
+        counts["ProjectRole"] = try context.count(for:ProjectRole.fetchRequest() as! NSFetchRequest<ProjectRole>)
+        counts["ProjectTemplateWeek"] = try context.count(for:ProjectTemplateWeek.fetchRequest() as! NSFetchRequest<ProjectTemplateWeek>)
+        counts["ProjectWeekRoleAssignment"] = try context.count(for:ProjectWeekRoleAssignment.fetchRequest() as! NSFetchRequest<ProjectWeekRoleAssignment>)
         return counts
     }
 
-    private func countV8Entities(_ context: ModelContext) throws -> [String: Int] {
+    private func countV8Entities(_ context: NSManagedObjectContext) throws -> [String: Int] {
         var counts: [String: Int] = [:]
-        counts["WorkModel"] = try context.fetchCount(FetchDescriptor<WorkModel>())
-        counts["WorkCheckIn"] = try context.fetchCount(FetchDescriptor<WorkCheckIn>())
-        counts["WorkStep"] = try context.fetchCount(FetchDescriptor<WorkStep>())
-        counts["WorkParticipantEntity"] = try context.fetchCount(FetchDescriptor<WorkParticipantEntity>())
-        counts["PracticeSession"] = try context.fetchCount(FetchDescriptor<PracticeSession>())
-        counts["LessonAttachment"] = try context.fetchCount(FetchDescriptor<LessonAttachment>())
-        counts["LessonPresentation"] = try context.fetchCount(FetchDescriptor<LessonPresentation>())
-        counts["SampleWork"] = try context.fetchCount(FetchDescriptor<SampleWork>())
-        counts["SampleWorkStep"] = try context.fetchCount(FetchDescriptor<SampleWorkStep>())
-        counts["NoteTemplate"] = try context.fetchCount(FetchDescriptor<NoteTemplate>())
-        counts["MeetingTemplate"] = try context.fetchCount(FetchDescriptor<MeetingTemplate>())
-        counts["Reminder"] = try context.fetchCount(FetchDescriptor<Reminder>())
-        counts["CalendarEvent"] = try context.fetchCount(FetchDescriptor<CalendarEvent>())
-        counts["Track"] = try context.fetchCount(FetchDescriptor<Track>())
-        counts["TrackStep"] = try context.fetchCount(FetchDescriptor<TrackStep>())
-        counts["StudentTrackEnrollment"] = try context.fetchCount(FetchDescriptor<StudentTrackEnrollment>())
-        counts["GroupTrack"] = try context.fetchCount(FetchDescriptor<GroupTrack>())
-        counts["Document"] = try context.fetchCount(FetchDescriptor<Document>())
-        counts["Supply"] = try context.fetchCount(FetchDescriptor<Supply>())
-        counts["SupplyTransaction"] = try context.fetchCount(FetchDescriptor<SupplyTransaction>())
-        counts["Procedure"] = try context.fetchCount(FetchDescriptor<Procedure>())
-        counts["Schedule"] = try context.fetchCount(FetchDescriptor<Schedule>())
-        counts["ScheduleSlot"] = try context.fetchCount(FetchDescriptor<ScheduleSlot>())
-        counts["Issue"] = try context.fetchCount(FetchDescriptor<Issue>())
-        counts["IssueAction"] = try context.fetchCount(FetchDescriptor<IssueAction>())
-        counts["DevelopmentSnapshot"] = try context.fetchCount(FetchDescriptor<DevelopmentSnapshot>())
-        counts["TodoItem"] = try context.fetchCount(FetchDescriptor<TodoItem>())
-        counts["TodoSubtask"] = try context.fetchCount(FetchDescriptor<TodoSubtask>())
-        counts["TodoTemplate"] = try context.fetchCount(FetchDescriptor<TodoTemplate>())
-        counts["TodayAgendaOrder"] = try context.fetchCount(FetchDescriptor<TodayAgendaOrder>())
+        counts["CDWorkModel"] = try context.count(for:CDWorkModel.fetchRequest() as! NSFetchRequest<CDWorkModel>)
+        counts["CDWorkCheckIn"] = try context.count(for:CDWorkCheckIn.fetchRequest() as! NSFetchRequest<CDWorkCheckIn>)
+        counts["CDWorkStep"] = try context.count(for:CDWorkStep.fetchRequest() as! NSFetchRequest<CDWorkStep>)
+        counts["WorkParticipantEntity"] = try context.count(for:WorkParticipantEntity.fetchRequest() as! NSFetchRequest<WorkParticipantEntity>)
+        counts["CDPracticeSession"] = try context.count(for:CDPracticeSession.fetchRequest() as! NSFetchRequest<CDPracticeSession>)
+        counts["LessonAttachment"] = try context.count(for:LessonAttachment.fetchRequest() as! NSFetchRequest<LessonAttachment>)
+        counts["CDLessonPresentation"] = try context.count(for:CDLessonPresentation.fetchRequest() as! NSFetchRequest<CDLessonPresentation>)
+        counts["CDSampleWork"] = try context.count(for:CDSampleWork.fetchRequest() as! NSFetchRequest<CDSampleWork>)
+        counts["CDSampleWorkStep"] = try context.count(for:CDSampleWorkStep.fetchRequest() as! NSFetchRequest<CDSampleWorkStep>)
+        counts["CDNoteTemplate"] = try context.count(for:CDNoteTemplate.fetchRequest() as! NSFetchRequest<CDNoteTemplate>)
+        counts["CDMeetingTemplate"] = try context.count(for:CDMeetingTemplate.fetchRequest() as! NSFetchRequest<CDMeetingTemplate>)
+        counts["CDReminder"] = try context.count(for:CDReminder.fetchRequest() as! NSFetchRequest<CDReminder>)
+        counts["CDCalendarEvent"] = try context.count(for:CDCalendarEvent.fetchRequest() as! NSFetchRequest<CDCalendarEvent>)
+        counts["CDTrackEntity"] = try context.count(for:CDTrackEntity.fetchRequest() as! NSFetchRequest<CDTrackEntity>)
+        counts["TrackStep"] = try context.count(for:TrackStep.fetchRequest() as! NSFetchRequest<TrackStep>)
+        counts["CDStudentTrackEnrollmentEntity"] = try context.count(for:CDStudentTrackEnrollmentEntity.fetchRequest() as! NSFetchRequest<CDStudentTrackEnrollmentEntity>)
+        counts["CDGroupTrack"] = try context.count(for:CDGroupTrack.fetchRequest() as! NSFetchRequest<CDGroupTrack>)
+        counts["CDDocument"] = try context.count(for:CDDocument.fetchRequest() as! NSFetchRequest<CDDocument>)
+        counts["CDSupply"] = try context.count(for:CDSupply.fetchRequest() as! NSFetchRequest<CDSupply>)
+        counts["SupplyTransaction"] = try context.count(for:SupplyTransaction.fetchRequest() as! NSFetchRequest<SupplyTransaction>)
+        counts["CDProcedure"] = try context.count(for:CDProcedure.fetchRequest() as! NSFetchRequest<CDProcedure>)
+        counts["CDSchedule"] = try context.count(for:CDSchedule.fetchRequest() as! NSFetchRequest<CDSchedule>)
+        counts["CDScheduleSlot"] = try context.count(for:CDScheduleSlot.fetchRequest() as! NSFetchRequest<CDScheduleSlot>)
+        counts["CDIssue"] = try context.count(for:CDIssue.fetchRequest() as! NSFetchRequest<CDIssue>)
+        counts["IssueAction"] = try context.count(for:IssueAction.fetchRequest() as! NSFetchRequest<IssueAction>)
+        counts["DevelopmentSnapshot"] = try context.count(for:DevelopmentSnapshot.fetchRequest() as! NSFetchRequest<DevelopmentSnapshot>)
+        counts["CDTodoItem"] = try context.count(for:CDTodoItem.fetchRequest() as! NSFetchRequest<CDTodoItem>)
+        counts["CDTodoSubtask"] = try context.count(for:CDTodoSubtask.fetchRequest() as! NSFetchRequest<CDTodoSubtask>)
+        counts["CDTodoTemplate"] = try context.count(for:CDTodoTemplate.fetchRequest() as! NSFetchRequest<CDTodoTemplate>)
+        counts["CDTodayAgendaOrder"] = try context.count(for:CDTodayAgendaOrder.fetchRequest() as! NSFetchRequest<CDTodayAgendaOrder>)
         return counts
     }
 
-    private func countV11Entities(_ context: ModelContext) throws -> [String: Int] {
+    private func countV11Entities(_ context: NSManagedObjectContext) throws -> [String: Int] {
         var counts: [String: Int] = [:]
-        counts["PlanningRecommendation"] = try context.fetchCount(FetchDescriptor<PlanningRecommendation>())
-        counts["Resource"] = try context.fetchCount(FetchDescriptor<Resource>())
-        counts["NoteStudentLink"] = try context.fetchCount(FetchDescriptor<NoteStudentLink>())
+        counts["PlanningRecommendation"] = try context.count(for:PlanningRecommendation.fetchRequest() as! NSFetchRequest<PlanningRecommendation>)
+        counts["CDResource"] = try context.count(for:CDResource.fetchRequest() as! NSFetchRequest<CDResource>)
+        counts["CDNoteStudentLink"] = try context.count(for:CDNoteStudentLink.fetchRequest() as! NSFetchRequest<CDNoteStudentLink>)
         return counts
     }
 
-    func streamFetch<T: PersistentModel>(
+    func streamFetch<T: NSManagedObject>(
         _ type: T.Type,
-        from context: ModelContext,
+        from context: NSManagedObjectContext,
         progress: @escaping (Int, String) -> Void
     ) async throws -> [Any] {
         var allDTOs: [Any] = []
@@ -90,7 +90,7 @@ extension StreamingBackupWriter {
         while true {
             // Modern approach: Use FetchDescriptor batch configuration
             // SwiftData handles memory management internally
-            var descriptor = FetchDescriptor<T>()
+            var descriptor = T.fetchRequest() as! NSFetchRequest<T>
             descriptor.fetchOffset = offset
             descriptor.fetchLimit = configuration.batchSize
 
@@ -119,16 +119,16 @@ extension StreamingBackupWriter {
         return allDTOs
     }
 
-    func streamFetchRaw<T: PersistentModel>(
+    func streamFetchRaw<T: NSManagedObject>(
         _ type: T.Type,
-        from context: ModelContext
+        from context: NSManagedObjectContext
     ) async throws -> [T] {
         var allEntities: [T] = []
         var offset = 0
 
         while true {
             // Modern approach: Use FetchDescriptor batch configuration
-            var descriptor = FetchDescriptor<T>()
+            var descriptor = T.fetchRequest() as! NSFetchRequest<T>
             descriptor.fetchOffset = offset
             descriptor.fetchLimit = configuration.batchSize
 

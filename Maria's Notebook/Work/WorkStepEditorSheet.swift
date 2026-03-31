@@ -1,12 +1,12 @@
 import OSLog
 import SwiftUI
-import SwiftData
+import CoreData
 
 struct WorkStepEditorSheet: View {
     private static let logger = Logger.work
 
     @Environment(\.dismiss) private var dismiss
-    @Environment(\.modelContext) private var modelContext
+    @Environment(\.managedObjectContext) private var modelContext
 
     let work: WorkModel
     var existingStep: WorkStep?
@@ -62,7 +62,7 @@ struct WorkStepEditorSheet: View {
     }
 
     private func save() {
-        let service = WorkStepServiceAdapter(context: modelContext)
+        let service = CDWorkStepServiceImpl(context: modelContext)
 
         do {
             if let step = existingStep {
@@ -80,7 +80,7 @@ struct WorkStepEditorSheet: View {
 
     private func deleteStep() {
         guard let step = existingStep else { return }
-        let service = WorkStepServiceAdapter(context: modelContext)
+        let service = CDWorkStepServiceImpl(context: modelContext)
         do {
             try service.delete(step, from: work)
         } catch {

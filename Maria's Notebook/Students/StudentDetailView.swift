@@ -1,7 +1,6 @@
 // StudentDetailView.swift
 
 import OSLog
-import SwiftData
 import SwiftUI
 import CoreData
 
@@ -9,12 +8,12 @@ struct StudentDetailView: View {
     private static let logger = Logger.students
 
     // MARK: - Inputs
-    let student: Student
+    let student: CDStudent
     var onDone: (() -> Void)?
 
     // MARK: - Environment
     @Environment(\.dismiss) private var dismiss
-    @Environment(\.modelContext) private var modelContext
+    @Environment(\.managedObjectContext) private var viewContext
     @Environment(\.managedObjectContext) private var managedObjectContext
     @Environment(SaveCoordinator.self) private var saveCoordinator
 
@@ -30,20 +29,20 @@ struct StudentDetailView: View {
     @State private var draftLastName = ""
     @State private var draftNickname = ""
     @State private var draftBirthday = Date()
-    @State private var draftLevel: Student.Level = .lower
+    @State private var draftLevel: CDStudent.Level = .lower
     @State private var draftStartDate = Date()
-    @State private var draftEnrollmentStatus: Student.EnrollmentStatus = .enrolled
+    @State private var draftEnrollmentStatus: CDStudent.EnrollmentStatus = .enrolled
     @State private var draftDateWithdrawn: Date?
     @State private var showDeleteAlert = false
 
     @AppStorage(UserDefaultsKeys.studentDetailViewActiveTab) private var selectedTab: StudentDetailTab = .overview
 
     @State private var selectedWorkID: UUID?
-    @State private var workCache: [WorkModel] = []
+    @State private var workCache: [CDWorkModel] = []
     @State private var showAIPlanning = false
 
-    private var lessonIDs: [UUID] { vm.lessons.map(\.id) }
-    private var lessonAssignmentIDs: [UUID] { vm.lessonAssignments.map(\.id) }
+    private var lessonIDs: [UUID] { vm.lessons.compactMap(\.id) }
+    private var lessonAssignmentIDs: [UUID] { vm.lessonAssignments.compactMap(\.id) }
 
     private var tabUsesUnscrolledLayout: Bool {
         selectedTab == .progress || selectedTab == .developmentalTraits
@@ -80,7 +79,7 @@ struct StudentDetailView: View {
             StudentProgressTab(student: student)
                 .padding(.top, 36)
         case .developmentalTraits:
-            DevelopmentalTraitsView(studentID: student.id)
+            DevelopmentalTraitsView(studentID: student.id ?? UUID())
                 .padding(.top, 36)
         case .history:
             StudentHistoryTab(student: student)
@@ -91,18 +90,18 @@ struct StudentDetailView: View {
         }
     }
 
-    private func fetchWorkForStudent() -> [WorkModel] {
-        return vm.fetchWorkModelsForStudent(modelContext: modelContext)
+    private func fetchWorkForStudent() -> [CDWorkModel] {
+        return vm.fetchWorkModelsForStudent(viewContext: viewContext)
     }
 
     @ViewBuilder
-    private func lessonGiveSheet(for lesson: Lesson) -> some View {
+    private func lessonGiveSheet(for lesson: CDLesson) -> some View {
         let newLA = vm.createDraftLessonAssignment(
-            for: lesson, modelContext: modelContext, saveCoordinator: saveCoordinator
+            for: lesson, viewContext: viewContext, saveCoordinator: saveCoordinator
         )
         PresentationDetailView(lessonAssignment: newLA) {
             vm.selectedLessonForGive = nil
-            vm.loadData(modelContext: modelContext)
+            vm.loadData(viewContext: viewContext)
         }
         .studentDetailSheetSizing()
     }
@@ -114,8 +113,9 @@ struct StudentDetailView: View {
         let ln = draftLastName.trimmed()
         guard !fn.isEmpty, !ln.isEmpty else { return }
         let nick = draftNickname.trimmed()
+        guard let studentID = student.id else { return }
         repository.updateStudent(
-            id: student.id,
+            id: studentID,
             firstName: fn,
             lastName: ln,
             birthday: draftBirthday,
@@ -133,7 +133,7 @@ struct StudentDetailView: View {
         draftFirstName = student.firstName
         draftLastName = student.lastName
         draftNickname = student.nickname ?? ""
-        draftBirthday = student.birthday
+        draftBirthday = student.birthday ?? Date()
         draftLevel = student.level
         draftStartDate = student.dateStarted ?? Date()
         draftEnrollmentStatus = student.enrollmentStatus
@@ -209,7 +209,8 @@ struct StudentDetailView: View {
         .alert("Delete Student?", isPresented: $showDeleteAlert) {
             Button("Delete", role: .destructive) {
                 do {
-                    try repository.deleteStudent(id: student.id)
+                    guard let studentID = student.id else { return }
+                    try repository.deleteStudent(id: studentID)
                 } catch {
                     Self.logger.warning("Failed to delete student: \(error)")
                 }
@@ -233,8 +234,8 @@ struct StudentDetailView: View {
             set: { if !$0 { selectedWorkID = nil } }
         )) {
             if let workID = selectedWorkID,
-               let workModel = modelContext.resolveWorkModel(from: workID) {
-                WorkDetailView(workID: workModel.id) {
+               let workModel = viewContext.resolveWorkModel(from: workID) {
+                WorkDetailView(workID: workModel.id ?? UUID()) {
                     selectedWorkID = nil
                 }
                 .studentDetailSheetSizing()
@@ -243,23 +244,23 @@ struct StudentDetailView: View {
             }
         }
         .sheet(isPresented: $showAIPlanning) {
-            AIPlanningAssistantView(mode: .singleStudent(student.id))
+            AIPlanningAssistantView(mode: .singleStudent(student.id ?? UUID()))
         }
         .task {
-            vm.loadData(modelContext: modelContext)
+            vm.loadData(viewContext: viewContext)
             workCache = fetchWorkForStudent()
         }
         .onChange(of: lessonIDs) { _, _ in
-            vm.loadData(modelContext: modelContext)
+            vm.loadData(viewContext: viewContext)
             workCache = fetchWorkForStudent()
         }
         .onChange(of: lessonAssignmentIDs) { _, _ in
-            vm.loadData(modelContext: modelContext)
+            vm.loadData(viewContext: viewContext)
             workCache = fetchWorkForStudent()
         }
     }
 
-    init(student: Student, onDone: (() -> Void)? = nil) {
+    init(student: CDStudent, onDone: (() -> Void)? = nil) {
         self.student = student
         self.onDone = onDone
         _vm = State(wrappedValue: StudentDetailViewModel(

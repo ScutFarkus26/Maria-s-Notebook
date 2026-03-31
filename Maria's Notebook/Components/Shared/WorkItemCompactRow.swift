@@ -6,11 +6,11 @@
 //
 
 import SwiftUI
-import SwiftData
+import CoreData
 
 struct WorkItemCompactRow: View {
-    let work: WorkModel
-    let modelContext: ModelContext
+    let work: CDWorkModel
+    let viewContext: NSManagedObjectContext
 
     var body: some View {
         HStack(spacing: 12) {
@@ -31,7 +31,7 @@ struct WorkItemCompactRow: View {
                     .foregroundStyle(.primary)
 
                 HStack(spacing: 6) {
-                    if let student = work.fetchStudent(from: modelContext) {
+                    if let student = work.fetchStudent(from: viewContext) {
                         Text(StudentFormatter.displayName(for: student))
                             .font(AppTheme.ScaledFont.caption)
                             .foregroundStyle(.secondary)

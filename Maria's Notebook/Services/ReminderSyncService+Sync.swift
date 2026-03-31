@@ -2,7 +2,6 @@ import Foundation
 import CoreData
 import OSLog
 import EventKit
-import SwiftData
 
 // MARK: - Sync Logic
 
@@ -204,41 +203,5 @@ extension ReminderSyncService {
         reminder.lastSyncedAt = Date()
     }
 
-    // MARK: - Deprecated SwiftData CRUD Helpers
-
-    @available(*, deprecated, message: "Use fetchAllCDReminders(context:)")
-    func fetchAllReminders() throws -> [Reminder] {
-        guard let modelContext else {
-            return []
-        }
-        let descriptor = FetchDescriptor<Reminder>()
-        return try modelContext.fetch(descriptor)
-    }
-
-    @available(*, deprecated, message: "Use createCDReminder(from:calendarID:context:)")
-    func createReminder(from data: ReminderSyncData, calendarID: String) -> Reminder {
-        Reminder(
-            title: data.title,
-            notes: data.notes,
-            dueDate: data.dueDateComponents?.date,
-            isCompleted: data.isCompleted,
-            completedAt: data.completionDate,
-            createdAt: data.creationDate ?? Date(),
-            updatedAt: data.lastModifiedDate ?? Date(),
-            eventKitReminderID: data.calendarItemIdentifier,
-            eventKitCalendarID: calendarID,
-            lastSyncedAt: Date()
-        )
-    }
-
-    @available(*, deprecated, message: "Use updateCDReminder(_:from:)")
-    func updateReminder(_ reminder: Reminder, from data: ReminderSyncData) {
-        reminder.title = data.title
-        reminder.notes = data.notes
-        reminder.dueDate = data.dueDateComponents?.date
-        reminder.isCompleted = data.isCompleted
-        reminder.completedAt = data.completionDate
-        reminder.updatedAt = data.lastModifiedDate ?? Date()
-        reminder.lastSyncedAt = Date()
-    }
+    // Deprecated SwiftData CRUD helpers removed - no longer needed with Core Data.
 }

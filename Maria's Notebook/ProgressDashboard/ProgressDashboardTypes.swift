@@ -9,7 +9,7 @@ struct StudentDashboardCard: Identifiable {
     let firstName: String
     let lastName: String
     let nickname: String?
-    let level: Student.Level
+    let level: CDStudent.Level
     let categories: [StudentCategoryProgress]
 
     var displayName: String {

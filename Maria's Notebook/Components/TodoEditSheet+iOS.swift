@@ -1,5 +1,5 @@
 import SwiftUI
-import SwiftData
+import CoreData
 
 #if !os(macOS)
 extension TodoEditSheet {
@@ -64,7 +64,7 @@ extension TodoEditSheet {
 
                     Divider()
 
-                    // Reminder Section
+                    // CDReminder Section
                     reminderSection
 
                     Divider()
@@ -74,7 +74,7 @@ extension TodoEditSheet {
 
                     Divider()
 
-                    // Location Reminder Section
+                    // Location CDReminder Section
                     locationReminderSection
 
                     Divider()

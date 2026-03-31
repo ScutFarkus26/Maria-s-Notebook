@@ -1,12 +1,12 @@
 import SwiftUI
 
 struct InboxViewContent: View {
-    let lessonAssignments: [LessonAssignment]
-    let orderedUnscheduledLessons: [LessonAssignment]
+    let lessonAssignments: [CDLessonAssignment]
+    let orderedUnscheduledLessons: [CDLessonAssignment]
     @Binding var inboxOrderRaw: String
     let onOpenDetails: (UUID) -> Void
     let onQuickActions: (UUID) -> Void
-    let onPlanNext: (LessonAssignment) -> Void
+    let onPlanNext: (CDLessonAssignment) -> Void
     let onUpdateOrder: (String) -> Void
 
     var body: some View {

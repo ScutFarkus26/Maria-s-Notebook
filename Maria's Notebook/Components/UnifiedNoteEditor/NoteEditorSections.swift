@@ -1,10 +1,10 @@
 // NoteEditorSections.swift
 // View sections for UnifiedNoteEditor - extracted for maintainability
-// Student selection UI moved to NoteEditorStudentSelection.swift
+// CDStudent selection UI moved to NoteEditorStudentSelection.swift
 // TemplatePickerView moved to TemplatePickerView.swift
 
 import SwiftUI
-import SwiftData
+import CoreData
 import PhotosUI
 
 // MARK: - UnifiedNoteEditor Sections Extension
@@ -107,12 +107,12 @@ extension UnifiedNoteEditor {
         }
     }
 
-    // MARK: - Note Body Section
+    // MARK: - CDNote Body Section
 
     var noteBodySection: some View {
         VStack(alignment: .leading, spacing: AppTheme.Spacing.small) {
             HStack {
-                Text("Note")
+                Text("CDNote")
                     .font(AppTheme.ScaledFont.caption.weight(.semibold))
                     .foregroundStyle(.secondary)
                 Spacer()
@@ -367,12 +367,12 @@ extension UnifiedNoteEditor {
         }
     }
 
-    private func insertTemplate(_ template: NoteTemplate) {
+    private func insertTemplate(_ template: CDNoteTemplate) {
         // If body is empty, replace entirely; otherwise append
         if bodyText.trimmed().isEmpty {
             bodyText = template.body
             // Apply template tags, merging with any existing
-            for tag in template.tags where !tags.contains(tag) {
+            for tag in template.tagsArray where !tags.contains(tag) {
                 tags.append(tag)
             }
         } else {

@@ -1,6 +1,5 @@
 import Foundation
 import CoreData
-import SwiftData
 import OSLog
 
 /// Entity types that can be indexed for full-text search.
@@ -58,27 +57,7 @@ final class SearchIndexService {
         Self.logger.info("Search index built: \(self.resultsById.count) entities, \(self.index.count) tokens in \(String(format: "%.2f", elapsed))s")
     }
 
-    // MARK: - Deprecated SwiftData Index Building
-
-    @available(*, deprecated, message: "Use rebuildIndex(context: NSManagedObjectContext)")
-    func rebuildIndex(container: ModelContainer) {
-        let start = Date()
-        let context = ModelContext(container)
-        context.autosaveEnabled = false
-
-        index.removeAll()
-        resultsById.removeAll()
-
-        indexStudentsLegacy(context: context)
-        indexLessonsLegacy(context: context)
-        indexNotesLegacy(context: context)
-        indexTodosLegacy(context: context)
-        indexWorkLegacy(context: context)
-
-        isReady = true
-        let elapsed = Date().timeIntervalSince(start)
-        Self.logger.info("Search index built: \(self.resultsById.count) entities, \(self.index.count) tokens in \(String(format: "%.2f", elapsed))s")
-    }
+    // Deprecated SwiftData rebuildIndex(container:) removed - use rebuildIndex(context:) with NSManagedObjectContext.
 
     // MARK: - Incremental Updates
 
@@ -238,82 +217,7 @@ final class SearchIndexService {
         }
     }
 
-    // MARK: - Deprecated SwiftData Private Indexing
-
-    @available(*, deprecated, message: "Use Core Data indexing methods")
-    private func indexStudentsLegacy(context: ModelContext) {
-        let students = context.safeFetch(FetchDescriptor<Student>())
-        for student in students {
-            let text = "\(student.firstName) \(student.lastName) \(student.nickname ?? "")"
-            let result = SearchResult(
-                id: student.id,
-                entityType: .student,
-                title: student.fullName,
-                snippet: student.level.rawValue
-            )
-            indexResult(result, text: text)
-        }
-    }
-
-    @available(*, deprecated, message: "Use Core Data indexing methods")
-    private func indexLessonsLegacy(context: ModelContext) {
-        let lessons = context.safeFetch(FetchDescriptor<Lesson>())
-        for lesson in lessons {
-            let text = "\(lesson.name) \(lesson.subject) \(lesson.group) \(lesson.subheading)"
-            let result = SearchResult(
-                id: lesson.id,
-                entityType: .lesson,
-                title: lesson.name,
-                snippet: lesson.subject
-            )
-            indexResult(result, text: text)
-        }
-    }
-
-    @available(*, deprecated, message: "Use Core Data indexing methods")
-    private func indexNotesLegacy(context: ModelContext) {
-        let notes = context.safeFetch(FetchDescriptor<Note>())
-        for note in notes {
-            let text = "\(note.body) \(note.tags.joined(separator: " "))"
-            let result = SearchResult(
-                id: note.id,
-                entityType: .note,
-                title: String(note.body.prefix(80)),
-                snippet: note.tags.first ?? ""
-            )
-            indexResult(result, text: text)
-        }
-    }
-
-    @available(*, deprecated, message: "Use Core Data indexing methods")
-    private func indexTodosLegacy(context: ModelContext) {
-        let todos = context.safeFetch(FetchDescriptor<TodoItem>())
-        for todo in todos {
-            let text = "\(todo.title) \(todo.notes ?? "")"
-            let result = SearchResult(
-                id: todo.id,
-                entityType: .todo,
-                title: todo.title,
-                snippet: todo.notes ?? ""
-            )
-            indexResult(result, text: text)
-        }
-    }
-
-    @available(*, deprecated, message: "Use Core Data indexing methods")
-    private func indexWorkLegacy(context: ModelContext) {
-        let items = context.safeFetch(FetchDescriptor<WorkModel>())
-        for work in items {
-            let text = "\(work.title)"
-            let result = SearchResult(
-                id: work.id,
-                entityType: .work,
-                title: work.title,
-                snippet: work.status.rawValue
-            )
-            indexResult(result, text: text)
-        }
-    }
+    // Deprecated SwiftData legacy indexing methods removed - Core Data versions are used.
 
     // MARK: - Tokenization
 

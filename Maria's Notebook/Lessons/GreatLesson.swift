@@ -3,6 +3,7 @@
 // Used to connect individual lessons to cosmic education themes.
 
 import SwiftUI
+import CoreData
 
 enum GreatLesson: String, CaseIterable, Identifiable, Codable {
     case comingOfUniverse
@@ -68,7 +69,7 @@ enum GreatLesson: String, CaseIterable, Identifiable, Codable {
         }
     }
 
-    /// Primary subjects that relate to this Great Lesson
+    /// Primary subjects that relate to this Great CDLesson
     var relatedSubjects: [String] {
         switch self {
         case .comingOfUniverse:

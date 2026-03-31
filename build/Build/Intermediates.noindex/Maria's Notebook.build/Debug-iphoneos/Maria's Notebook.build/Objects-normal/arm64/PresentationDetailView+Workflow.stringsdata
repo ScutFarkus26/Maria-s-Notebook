@@ -1,0 +1,40 @@
+{
+  "source": "/Users/dannydeberry/Documents/Projects/MariasNotebook-Rewrite/Maria's Notebook/Students/PresentationDetailView+Workflow.swift",
+  "tables": {
+    "Localizable": [
+      {
+        "comment": "",
+        "key": "Unsaved Changes",
+        "location": {
+          "startingColumn": 20,
+          "startingLine": 86
+        }
+      },
+      {
+        "comment": "",
+        "key": "Discard Changes",
+        "location": {
+          "startingColumn": 24,
+          "startingLine": 87
+        }
+      },
+      {
+        "comment": "",
+        "key": "Continue Editing",
+        "location": {
+          "startingColumn": 24,
+          "startingLine": 90
+        }
+      },
+      {
+        "comment": "",
+        "key": "You have unsaved changes in the workflow. Are you sure you want to go back?",
+        "location": {
+          "startingColumn": 22,
+          "startingLine": 92
+        }
+      }
+    ]
+  },
+  "version": 1
+}

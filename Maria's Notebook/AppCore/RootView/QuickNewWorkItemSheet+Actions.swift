@@ -2,7 +2,6 @@
 // Save logic and check-in reason helpers for QuickNewWorkItemSheet.
 
 import SwiftUI
-import SwiftData
 import CoreData
 
 extension QuickNewWorkItemSheet {
@@ -14,7 +13,7 @@ extension QuickNewWorkItemSheet {
               !selectedStudentIDs.isEmpty else { return }
         isSaving = true
 
-        let repository = WorkRepository(modelContext: modelContext)
+        let repository = WorkRepository(context: viewContext)
 
         do {
             var createdWorkID: UUID?
@@ -39,13 +38,11 @@ extension QuickNewWorkItemSheet {
                     let normalized = AppCalendar.startOfDay(checkInDate)
 
                     // Create WorkCheckIn for scheduled check-ins
-                    let checkIn = WorkCheckIn(
-                        workID: workID,
-                        date: normalized,
-                        status: .scheduled,
-                        purpose: CheckInMigrationService.mapReasonToPurpose(checkInReason)
-                    )
-                    modelContext.insert(checkIn)
+                    let checkIn = CDWorkCheckIn(context: viewContext)
+                    checkIn.workID = workID.uuidString
+                    checkIn.date = normalized
+                    checkIn.status = WorkCheckInStatus.scheduled
+                    checkIn.purpose = CheckInMigrationService.mapReasonToPurpose(checkInReason)
                 }
 
                 // Keep reference to first created work for "Create & Open"
@@ -53,7 +50,7 @@ extension QuickNewWorkItemSheet {
                     createdWorkID = work.id
                 }
             }
-            saveCoordinator.save(modelContext, reason: "Quick New Work Item")
+            saveCoordinator.save(viewContext, reason: "Quick New Work Item")
             dismiss()
 
             // If user wants to open the detail view, call the callback after dismiss

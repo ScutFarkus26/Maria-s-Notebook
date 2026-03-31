@@ -1,27 +1,27 @@
 import SwiftUI
-import SwiftData
+import CoreData
 import UniformTypeIdentifiers
 import OSLog
 
 struct AgendaSlot: View {
-    @Environment(\.modelContext) private var modelContext
+    @Environment(\.managedObjectContext) private var viewContext
     @Environment(\.calendar) private var calendar
 
-    let allLessonAssignments: [LessonAssignment]
+    let allLessonAssignments: [CDLessonAssignment]
     let day: Date
     let period: DayPeriod
-    let onSelectLesson: (LessonAssignment) -> Void
-    let onQuickActions: (LessonAssignment) -> Void
-    let onPlanNext: (LessonAssignment) -> Void
-    let onMoveToInbox: (LessonAssignment) -> Void
-    let onMoveStudents: (LessonAssignment) -> Void
+    let onSelectLesson: (CDLessonAssignment) -> Void
+    let onQuickActions: (CDLessonAssignment) -> Void
+    let onPlanNext: (CDLessonAssignment) -> Void
+    let onMoveToInbox: (CDLessonAssignment) -> Void
+    let onMoveStudents: (CDLessonAssignment) -> Void
 
     @State private var itemFrames: [UUID: CGRect] = [:]
     @State private var zoneSpaceID = UUID()
     @State private var isTargeted: Bool = false
     @State private var insertionIndex: Int?
 
-    private var scheduledLessonsForSlot: [LessonAssignment] {
+    private var scheduledLessonsForSlot: [CDLessonAssignment] {
         allLessonAssignments.filter { la in
             guard let scheduled = la.scheduledFor, !la.isGiven else { return false }
             return calendar.isDate(scheduled, inSameDayAs: day) && isInSlot(scheduled, period: period)
@@ -30,14 +30,14 @@ struct AgendaSlot: View {
     }
 
     init(
-        allLessonAssignments: [LessonAssignment],
+        allLessonAssignments: [CDLessonAssignment],
         day: Date,
         period: DayPeriod,
-        onSelectLesson: @escaping (LessonAssignment) -> Void,
-        onQuickActions: @escaping (LessonAssignment) -> Void,
-        onPlanNext: @escaping (LessonAssignment) -> Void,
-        onMoveToInbox: @escaping (LessonAssignment) -> Void,
-        onMoveStudents: @escaping (LessonAssignment) -> Void
+        onSelectLesson: @escaping (CDLessonAssignment) -> Void,
+        onQuickActions: @escaping (CDLessonAssignment) -> Void,
+        onPlanNext: @escaping (CDLessonAssignment) -> Void,
+        onMoveToInbox: @escaping (CDLessonAssignment) -> Void,
+        onMoveStudents: @escaping (CDLessonAssignment) -> Void
     ) {
         self.allLessonAssignments = allLessonAssignments
         self.day = day
@@ -78,8 +78,8 @@ struct AgendaSlot: View {
                 GeometryReader { proxy in
                     if let idx = insertionIndex {
                         let frames: [(UUID, CGRect)] = scheduledLessonsForSlot.compactMap { item in
-                            if let rect = itemFrames[item.id] { return (item.id, rect) }
-                            return nil
+                            guard let id = item.id, let rect = itemFrames[id] else { return nil }
+                            return (id, rect)
                         }.sorted { $0.1.minY < $1.1.minY }
 
                         if frames.isEmpty {
@@ -119,7 +119,7 @@ struct AgendaSlot: View {
         .contentShape(RoundedRectangle(cornerRadius: 14, style: .continuous))
         .onDrop(of: [UTType.text], delegate: PlanningSlotDropDelegate(
             calendar: calendar,
-            modelContext: modelContext,
+            viewContext: viewContext,
             allLessonAssignments: allLessonAssignments,
             day: day,
             baseDateProvider: { AgendaSlot.baseDateForSlot(day: day, period: period, calendar: calendar) },
@@ -139,7 +139,7 @@ struct AgendaSlot: View {
 
     @ViewBuilder
     // swiftlint:disable:next function_body_length
-    private func lessonPillView(for la: LessonAssignment) -> some View {
+    private func lessonPillView(for la: CDLessonAssignment) -> some View {
         PresentationPill(
             snapshot: la.snapshot(),
             day: day,
@@ -147,7 +147,7 @@ struct AgendaSlot: View {
             targetLessonAssignmentID: la.id,
             enableMergeDrop: true
         )
-        .draggable(la.id.uuidString) {
+        .draggable(la.id?.uuidString ?? "") {
             // Custom drag preview
             PresentationPill(
                 snapshot: la.snapshot(),
@@ -170,7 +170,7 @@ struct AgendaSlot: View {
             Button {
                 onPlanNext(la)
             } label: {
-                Label("Plan Next Lesson in Group", systemImage: SFSymbol.Time.calendarBadgePlus)
+                Label("Plan Next CDLesson in Group", systemImage: SFSymbol.Time.calendarBadgePlus)
             }
 
             Button {
@@ -195,7 +195,7 @@ struct AgendaSlot: View {
             GeometryReader { proxy in
                 Color.clear.preference(
                     key: PillFramePreference.self,
-                    value: [la.id: proxy.frame(in: .named(zoneSpaceID))]
+                    value: la.id.map { [$0: proxy.frame(in: .named(zoneSpaceID))] } ?? [:]
                 )
             }
         )

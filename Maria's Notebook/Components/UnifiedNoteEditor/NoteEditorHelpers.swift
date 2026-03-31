@@ -3,7 +3,7 @@
 
 import OSLog
 import SwiftUI
-import SwiftData
+import CoreData
 import PhotosUI
 
 #if os(macOS)
@@ -21,20 +21,20 @@ extension UnifiedNoteEditor {
 
     var contextTitle: String {
         switch context {
-        case .general: return "Quick Note"
-        case .lesson: return "Lesson Note"
-        case .work: return "Work Note"
-        case .presentation: return "Presentation Note"
-        case .attendance: return "Attendance Note"
-        case .workCheckIn: return "Check-In Note"
-        case .workCompletion: return "Completion Note"
-        case .studentMeeting: return "Meeting Note"
-        case .projectSession: return "Session Note"
-        case .communityTopic: return "Topic Note"
-        case .reminder: return "Reminder Note"
-        case .schoolDayOverride: return "Override Note"
-        case .goingOut: return "Going-Out Note"
-        case .transitionPlan: return "Transition Note"
+        case .general: return "Quick CDNote"
+        case .lesson: return "CDLesson CDNote"
+        case .work: return "Work CDNote"
+        case .presentation: return "CDPresentation CDNote"
+        case .attendance: return "Attendance CDNote"
+        case .workCheckIn: return "Check-In CDNote"
+        case .workCompletion: return "Completion CDNote"
+        case .studentMeeting: return "Meeting CDNote"
+        case .projectSession: return "Session CDNote"
+        case .communityTopic: return "Topic CDNote"
+        case .reminder: return "CDReminder CDNote"
+        case .schoolDayOverride: return "Override CDNote"
+        case .goingOut: return "Going-Out CDNote"
+        case .transitionPlan: return "Transition CDNote"
         }
     }
 
@@ -70,7 +70,8 @@ extension UnifiedNoteEditor {
             // Only pre-select students for already-presented lessons
             return pres.isPresented ? Set(pres.studentUUIDs) : []
         case .work(let work):
-            return Set((work.participants ?? []).compactMap { UUID(uuidString: $0.studentID) })
+            let parts = (work.participants?.allObjects as? [CDWorkParticipantEntity]) ?? []
+            return Set(parts.compactMap { UUID(uuidString: $0.studentID) })
         default:
             break
         }
@@ -107,7 +108,7 @@ extension UnifiedNoteEditor {
 
         if let note = initialNote {
             bodyText = note.body
-            tags = note.tags
+            tags = (note.tags as? [String]) ?? []
             includeInReport = note.includeInReport
             needsFollowUp = note.needsFollowUp
             imagePath = note.imagePath
@@ -131,7 +132,7 @@ extension UnifiedNoteEditor {
 
     // MARK: - Name Display
 
-    func displayName(for student: Student) -> String {
+    func displayName(for student: CDStudent) -> String {
         let first = student.firstName.trimmed()
         let last = student.lastName.trimmed()
         let li = last.first.map { String($0).uppercased() } ?? ""
@@ -220,9 +221,10 @@ extension UnifiedNoteEditor {
         detectedStudentIDs.removeAll()
         guard !text.isEmpty else { return }
 
-        let studentData = students.map { student in
-            StudentData(
-                id: student.id,
+        let studentData = students.compactMap { student -> StudentData? in
+            guard let id = student.id else { return nil }
+            return StudentData(
+                id: id,
                 firstName: student.firstName,
                 lastName: student.lastName,
                 nickname: student.nickname
@@ -245,7 +247,7 @@ extension UnifiedNoteEditor {
         let text = bodyText
         guard !text.isEmpty else { return }
 
-        var initialsMap: [String: [Student]] = [:]
+        var initialsMap: [String: [CDStudent]] = [:]
         for s in students {
             let first = s.firstName.trimmed()
             let last = s.lastName.trimmed()

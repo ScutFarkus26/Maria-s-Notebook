@@ -1,5 +1,5 @@
 import Foundation
-import SwiftData
+import CoreData
 import OSLog
 
 /// Thread-safe cache for school day calculations to avoid repeated database queries during rendering
@@ -31,7 +31,7 @@ final class SchoolDayCalculationCache {
     func preloadNonSchoolDays(
         from start: Date,
         to end: Date,
-        using context: ModelContext,
+        using context: NSManagedObjectContext,
         calendar: Calendar = .current
     ) {
         // Check if cache needs refresh
@@ -43,40 +43,34 @@ final class SchoolDayCalculationCache {
         let endDay = calendar.startOfDay(for: end)
         
         // Fetch all non-school days in range
-        let nonSchoolDescriptor = FetchDescriptor<NonSchoolDay>(
-            predicate: #Predicate<NonSchoolDay> { day in
-                day.date >= startDay && day.date <= endDay
-            }
-        )
-        
-        let overridesDescriptor = FetchDescriptor<SchoolDayOverride>(
-            predicate: #Predicate<SchoolDayOverride> { override in
-                override.date >= startDay && override.date <= endDay
-            }
-        )
-        
-        let nonSchoolDays: [NonSchoolDay]
-        let overrides: [SchoolDayOverride]
+        let nonSchoolFetch: NSFetchRequest<CDNonSchoolDay> = CDNonSchoolDay.fetchRequest() as! NSFetchRequest<CDNonSchoolDay>
+        nonSchoolFetch.predicate = NSPredicate(format: "date >= %@ AND date <= %@", startDay as NSDate, endDay as NSDate)
+
+        let overridesFetch: NSFetchRequest<CDSchoolDayOverride> = CDSchoolDayOverride.fetchRequest() as! NSFetchRequest<CDSchoolDayOverride>
+        overridesFetch.predicate = NSPredicate(format: "date >= %@ AND date <= %@", startDay as NSDate, endDay as NSDate)
+
+        let nonSchoolDays: [CDNonSchoolDay]
+        let overrides: [CDSchoolDayOverride]
         do {
-            nonSchoolDays = try context.fetch(nonSchoolDescriptor)
+            nonSchoolDays = try context.fetch(nonSchoolFetch)
         } catch {
             Self.logger.warning("Failed to fetch non-school days: \(error)")
             nonSchoolDays = []
         }
         do {
-            overrides = try context.fetch(overridesDescriptor)
+            overrides = try context.fetch(overridesFetch)
         } catch {
             Self.logger.warning("Failed to fetch school day overrides: \(error)")
             overrides = []
         }
-        let overrideDates = Set(overrides.map(\.date))
+        let overrideDates = Set(overrides.map { $0.date ?? .distantPast })
         
         // Build cache of non-school days
         var result: Set<Date> = []
         
         // Add explicit non-school days
         for day in nonSchoolDays {
-            result.insert(day.date)
+            result.insert(day.date ?? .distantPast)
         }
         
         // Add weekends (unless overridden)
@@ -100,7 +94,7 @@ final class SchoolDayCalculationCache {
     
     /// Calculate school days between two dates using cached data
     /// Returns cached result if available, otherwise computes and caches
-    func schoolDaysBetween(start: Date, end: Date, using context: ModelContext, calendar: Calendar = .current) -> Int {
+    func schoolDaysBetween(start: Date, end: Date, using context: NSManagedObjectContext, calendar: Calendar = .current) -> Int {
         let startDay = calendar.startOfDay(for: start)
         let endDay = calendar.startOfDay(for: end)
         
@@ -139,7 +133,7 @@ final class SchoolDayCalculationCache {
     func schoolDaysSinceCreation(
         createdAt: Date,
         asOf today: Date = Date(),
-        using context: ModelContext,
+        using context: NSManagedObjectContext,
         calendar: Calendar = .current
     ) -> Int {
         return schoolDaysBetween(start: createdAt, end: today, using: context, calendar: calendar)

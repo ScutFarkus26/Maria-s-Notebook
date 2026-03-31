@@ -5,7 +5,7 @@
 // Split into multiple files for maintainability:
 // - UnifiedNoteEditor.swift (this file) - Main view structure and body
 // - NoteEditorSections.swift - View sections (tags, note body, photos, etc.)
-// - NoteEditorStudentSelection.swift - Student selection UI (surfacing banner, student picker)
+// - NoteEditorStudentSelection.swift - CDStudent selection UI (surfacing banner, student picker)
 // - NoteEditorHelpers.swift - Helper methods and computed properties
 // - NoteEditorSaveLogic.swift - Save functionality and relationship mapping
 // - NoteEditorAISuggestion.swift - AI suggestion functionality
@@ -13,7 +13,7 @@
 // - SmartTextEditor.swift - Smart text editor component
 
 import SwiftUI
-import SwiftData
+import CoreData
 import PhotosUI
 
 #if os(macOS)
@@ -33,7 +33,7 @@ struct NoteTagSuggestion {
     @Guide(description: "Suggested tag names, e.g. Academic, Behavioral, Social, Emotional, Health, Attendance, or any relevant custom tag")
     var suggestedTags: [String]
 
-    @Guide(description: "Student names mentioned in the note; empty means all students")
+    @Guide(description: "CDStudent names mentioned in the note; empty means all students")
     var studentIdentifiers: [String]
 }
 #endif
@@ -42,36 +42,35 @@ struct NoteTagSuggestion {
 struct UnifiedNoteEditor: View {
     // MARK: - Environment
     @Environment(\.dismiss) var dismiss
-    @Environment(\.modelContext) var modelContext
+    @Environment(\.managedObjectContext) var viewContext
 
     // MARK: - Context Configuration
     enum NoteContext {
         case general
-        case lesson(Lesson)
-        case work(WorkModel)
-        case presentation(Presentation)
-        case attendance(AttendanceRecord)
-        case workCheckIn(WorkCheckIn)
-        case workCompletion(WorkCompletionRecord)
-        case studentMeeting(StudentMeeting)
-        case projectSession(ProjectSession)
-        case communityTopic(CommunityTopic)
-        case reminder(Reminder)
-        case schoolDayOverride(SchoolDayOverride)
-        case goingOut(GoingOut)
-        case transitionPlan(TransitionPlan)
+        case lesson(CDLesson)
+        case work(CDWorkModel)
+        case presentation(CDLessonAssignment)
+        case attendance(CDAttendanceRecord)
+        case workCheckIn(CDWorkCheckIn)
+        case workCompletion(CDWorkCompletionRecord)
+        case studentMeeting(CDStudentMeeting)
+        case projectSession(CDProjectSession)
+        case communityTopic(CDCommunityTopicEntity)
+        case reminder(CDReminder)
+        case schoolDayOverride(CDSchoolDayOverride)
+        case goingOut(CDGoingOut)
+        case transitionPlan(CDTransitionPlan)
     }
 
     // MARK: - Properties
     let context: NoteContext
-    let initialNote: Note?
-    let onSave: (Note) -> Void
+    let initialNote: CDNote?
+    let onSave: (CDNote) -> Void
     let onCancel: () -> Void
 
     // MARK: - Query
-    @Query(sort: Student.sortByName)
-    var studentsRaw: [Student]
-    var students: [Student] { studentsRaw.filter(\.isEnrolled) }
+    @FetchRequest(sortDescriptors: CDStudent.sortByName)var studentsRaw: FetchedResults<CDStudent>
+    var students: [CDStudent] { studentsRaw.filter(\.isEnrolled) }
 
     // MARK: - State
     @State var selectedStudentIDs: Set<UUID> = []

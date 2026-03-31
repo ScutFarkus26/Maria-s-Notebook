@@ -149,7 +149,7 @@ extension ResourceLibraryView {
                 if selectedResourceIDs.count == filteredResources.count {
                     selectedResourceIDs.removeAll()
                 } else {
-                    selectedResourceIDs = Set(filteredResources.map(\.id))
+                    selectedResourceIDs = Set(filteredResources.compactMap(\.id))
                 }
             } label: {
                 Text(selectedResourceIDs.count == filteredResources.count ? "Deselect All" : "Select All")

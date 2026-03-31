@@ -3,6 +3,7 @@
 // Each student section is rendered as an atomic block — sections are never split across pages.
 
 import SwiftUI
+import CoreData
 
 // MARK: - Shared Constants
 
@@ -34,7 +35,7 @@ struct PDFRenderer {
     /// Renders a multi-page PDF from open work data, keeping each student section intact.
     static func renderGroupedPDF(
         groups: [WorkPrintGroup],
-        lessons: [Lesson],
+        lessons: [CDLesson],
         filterDescription: String,
         sortDescription: String,
         workItemCount: Int
@@ -208,7 +209,7 @@ enum MacPDFRenderer {
     /// Renders a multi-page PDF from open work data, keeping each student section intact.
     static func renderGroupedPDF(
         groups: [WorkPrintGroup],
-        lessons: [Lesson],
+        lessons: [CDLesson],
         filterDescription: String,
         sortDescription: String,
         workItemCount: Int

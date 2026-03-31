@@ -1,26 +1,26 @@
 import OSLog
 import SwiftUI
-import SwiftData
+import CoreData
 
 // swiftlint:disable:next type_body_length
 struct StudentTrackDetailView: View {
     private static let logger = Logger.students
 
-    let enrollment: StudentTrackEnrollment
-    let track: Track
+    let enrollment: CDStudentTrackEnrollmentEntity
+    let track: CDTrackEntity
 
-    @Environment(\.modelContext) private var modelContext
+    @Environment(\.managedObjectContext) private var viewContext
     @Environment(\.dismiss) private var dismiss
 
     // Pre-computed data loaded on appear for better performance
-    @State private var trackLessons: [Lesson] = []
+    @State private var trackLessons: [CDLesson] = []
     @State private var proficientLessonIDs: Set<String> = []
     @State private var presentedLessonIDs: Set<String> = []
     @State private var isLoaded = false
 
     // Timeline data from StudentSubjectProgressionViewModel
     @State private var progressionVM = StudentSubjectProgressionViewModel()
-    @State private var student: Student?
+    @State private var student: CDStudent?
     @State private var parsedSubject: String = ""
     @State private var parsedGroup: String = ""
 
@@ -90,13 +90,13 @@ struct StudentTrackDetailView: View {
         let studentID = enrollment.studentID
 
         // Fetch the student
-        let allStudents = modelContext.safeFetch(FetchDescriptor<Student>())
+        let allStudents = viewContext.safeFetch(NSFetchRequest<CDStudent>(entityName: "CDStudent"))
         student = allStudents.first { $0.cloudKitKey == studentID }
 
         // Fetch lessons for this subject/group
-        let allLessons: [Lesson]
+        let allLessons: [CDLesson]
         do {
-            allLessons = try modelContext.fetch(FetchDescriptor<Lesson>())
+            allLessons = try viewContext.fetch(NSFetchRequest<CDLesson>(entityName: "CDLesson"))
         } catch {
             Self.logger.warning("Failed to fetch Lessons: \(error)")
             allLessons = []
@@ -109,10 +109,10 @@ struct StudentTrackDetailView: View {
             .sorted { $0.orderInGroup < $1.orderInGroup }
 
         // Fetch LessonPresentations for this student
-        let lessonIDStrings = Set(trackLessons.map { $0.id.uuidString })
-        let allPresentations: [LessonPresentation]
+        let lessonIDStrings = Set(trackLessons.compactMap { $0.id?.uuidString })
+        let allPresentations: [CDLessonPresentation]
         do {
-            allPresentations = try modelContext.fetch(FetchDescriptor<LessonPresentation>())
+            allPresentations = try viewContext.fetch(NSFetchRequest<CDLessonPresentation>(entityName: "CDLessonPresentation"))
         } catch {
             Self.logger.warning("Failed to fetch LessonPresentations: \(error)")
             allPresentations = []
@@ -126,7 +126,7 @@ struct StudentTrackDetailView: View {
 
         // Load timeline via progression VM
         if let foundStudent = student {
-            progressionVM.configure(for: foundStudent, subject: subject, group: group, context: modelContext)
+            progressionVM.configure(for: foundStudent, subject: subject, group: group, context: viewContext)
         }
 
         isLoaded = true
@@ -162,7 +162,7 @@ struct StudentTrackDetailView: View {
             }
 
             VStack(spacing: 4) {
-                Text("Track Completed!")
+                Text("CDTrackEntity Completed!")
                     .font(.title2)
                     .fontWeight(.bold)
                     .foregroundStyle(.primary)
@@ -331,10 +331,10 @@ struct StudentTrackDetailView: View {
     // MARK: - Actions
 
     private func scheduleNextLesson(after node: LessonProgressionNode) {
-        progressionVM.scheduleNextLesson(after: node.lesson, context: modelContext)
+        progressionVM.scheduleNextLesson(after: node.lesson, context: viewContext)
         if let foundStudent = student {
             progressionVM.configure(
-                for: foundStudent, subject: parsedSubject, group: parsedGroup, context: modelContext
+                for: foundStudent, subject: parsedSubject, group: parsedGroup, context: viewContext
             )
         }
     }
@@ -342,19 +342,24 @@ struct StudentTrackDetailView: View {
 }
 
 #Preview {
-    let container = ModelContainer.preview
-    let context = container.mainContext
-    let track = Track(title: "Math — Fundamentals")
-    let student = Student(firstName: "Alan", lastName: "Turing", birthday: Date(), level: .upper)
-    let enrollment = StudentTrackEnrollment(
-        studentID: student.id.uuidString,
-        trackID: track.id.uuidString,
-        startedAt: Date(),
-        isActive: false
-    )
-    context.insert(track)
-    context.insert(student)
-    context.insert(enrollment)
+    let stack = CoreDataStack.preview
+    let ctx = stack.viewContext
+
+    let track = Track(context: ctx)
+    track.title = "Math — Fundamentals"
+
+    let student = Student(context: ctx)
+    student.firstName = "Alan"
+    student.lastName = "Turing"
+    student.birthday = Date()
+    student.level = .upper
+
+    let enrollment = StudentTrackEnrollment(context: ctx)
+    enrollment.studentID = student.id?.uuidString ?? ""
+    enrollment.trackID = track.id?.uuidString ?? ""
+    enrollment.startedAt = Date()
+    enrollment.isActive = false
+
     return StudentTrackDetailView(enrollment: enrollment, track: track)
-        .previewEnvironment(using: container)
+        .previewEnvironment(using: stack)
 }

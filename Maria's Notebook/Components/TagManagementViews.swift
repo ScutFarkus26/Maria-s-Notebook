@@ -3,7 +3,7 @@
 
 import OSLog
 import SwiftUI
-import SwiftData
+import CoreData
 
 // MARK: - Tag Badge Component
 
@@ -38,10 +38,10 @@ struct TagBadge: View {
 struct TagPicker: View {
     private static let logger = Logger.todos
     @Binding var selectedTags: [String]
-    @Environment(\.modelContext) private var modelContext
-    @Query(sort: Student.sortByName) private var studentsRaw: [Student]
-    private var students: [Student] { studentsRaw.filter(\.isEnrolled) }
-    @Query(sort: \TodoItem.createdAt, order: .reverse) private var allTodos: [TodoItem]
+    @Environment(\.managedObjectContext) private var viewContext
+    @FetchRequest(sortDescriptors: CDStudent.sortByName)private var studentsRaw: FetchedResults<CDStudent>
+    private var students: [CDStudent] { Array(studentsRaw).uniqueByID.filter(\.isEnrolled) }
+    @FetchRequest(sortDescriptors: [NSSortDescriptor(keyPath: \CDTodoItem.createdAt, ascending: false)]) private var allTodos: FetchedResults<CDTodoItem>
     @State private var isShowingCustomTagSheet = false
     @State private var searchText = ""
     @State private var pendingNewTagName = ""
@@ -74,7 +74,7 @@ struct TagPicker: View {
             #endif
             .clipShape(RoundedRectangle(cornerRadius: 8))
 
-            // Student tags
+            // CDStudent tags
             ScrollView(.horizontal, showsIndicators: false) {
                 HStack(spacing: 8) {
                     ForEach(filteredStudentTags, id: \.self) { tag in
@@ -163,7 +163,7 @@ struct TagPicker: View {
     private var usedNonStudentTags: [String] {
         let tags = Set(
             allTodos
-                .flatMap(\.tags)
+                .flatMap(\.tagsArray)
                 .filter { !TodoTagHelper.isStudentTag($0) }
         )
         return tags.sorted {
@@ -221,13 +221,13 @@ struct TagPicker: View {
         if let originalTag = editingOriginalTag {
             selectedTags = uniqueTags(selectedTags.map { $0 == originalTag ? savedTag : $0 })
 
-            for todo in allTodos where todo.tags.contains(originalTag) {
-                let updated = todo.tags.map { $0 == originalTag ? savedTag : $0 }
-                todo.tags = uniqueTags(updated)
+            for todo in allTodos where todo.tagsArray.contains(originalTag) {
+                let updated = todo.tagsArray.map { $0 == originalTag ? savedTag : $0 }
+                todo.tagsArray = uniqueTags(updated)
             }
 
             do {
-                try modelContext.save()
+                try viewContext.save()
             } catch {
                 Self.logger.error("[\(#function)] Failed to save tag edit: \(error)")
             }

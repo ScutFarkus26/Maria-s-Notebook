@@ -1,14 +1,13 @@
 import SwiftUI
-import SwiftData
 import CoreData
 
 struct DocumentImportSheet: View {
     let pdfURL: URL
     let pdfData: Data
-    let student: Student
+    let student: CDStudent
     let onSave: () -> Void
     
-    @Environment(\.modelContext) private var modelContext
+    @Environment(\.managedObjectContext) private var viewContext
     @Environment(\.managedObjectContext) private var managedObjectContext
     @Environment(\.dismiss) private var dismiss
     @Environment(SaveCoordinator.self) private var saveCoordinator
@@ -22,7 +21,7 @@ struct DocumentImportSheet: View {
     
     private let categoryOptions = ["Progress Report", "Standardized Test", "IEP/504", "Work Sample", "Other"]
     
-    init(pdfURL: URL, pdfData: Data, student: Student, onSave: @escaping () -> Void) {
+    init(pdfURL: URL, pdfData: Data, student: CDStudent, onSave: @escaping () -> Void) {
         self.pdfURL = pdfURL
         self.pdfData = pdfData
         self.student = student
@@ -69,7 +68,7 @@ struct DocumentImportSheet: View {
 
         // Look up CDStudent by ID for the Core Data repository
         let studentRepo = StudentRepository(context: managedObjectContext)
-        let cdStudent = studentRepo.fetchStudent(id: student.id)
+        let cdStudent = student.id.flatMap { studentRepo.fetchStudent(id: $0) }
         repository.createDocument(
             title: trimmedTitle,
             category: category,
@@ -84,23 +83,23 @@ struct DocumentImportSheet: View {
 }
 
 #Preview {
-    let container = ModelContainer.preview
-    let context = container.mainContext
-    let student = Student(
-        firstName: "Alan", lastName: "Turing",
-        birthday: Date(timeIntervalSince1970: 0), level: .upper
-    )
-    context.insert(student)
-    
+    let stack = CoreDataStack.preview
+    let ctx = stack.viewContext
+    let student = Student(context: ctx)
+    student.firstName = "Alan"
+    student.lastName = "Turing"
+    student.birthday = Date(timeIntervalSince1970: 0)
+    student.level = .upper
+
     // Create dummy data
     let dummyData = Data("PDF content".utf8)
     let dummyURL = URL(fileURLWithPath: "/tmp/test.pdf")
-    
+
     return DocumentImportSheet(
         pdfURL: dummyURL,
         pdfData: dummyData,
         student: student,
         onSave: {}
     )
-    .previewEnvironment(using: container)
+    .previewEnvironment(using: stack)
 }

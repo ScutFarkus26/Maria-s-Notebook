@@ -1,12 +1,8 @@
 import Foundation
 import CoreData
 
-@objc(Student)
+@objc(CDStudent)
 public class CDStudent: NSManagedObject {
-    // MARK: - Type Aliases (enums defined in SwiftData models)
-    typealias EnrollmentStatus = Student.EnrollmentStatus
-    typealias Level = Student.Level
-
     // MARK: - Core Data Properties
     @NSManaged public var id: UUID?
     @NSManaged public var firstName: String
@@ -42,12 +38,6 @@ public class CDStudent: NSManagedObject {
         self.dateWithdrawn = nil
         self.modifiedAt = Date()
     }
-}
-
-// MARK: - Enums
-
-extension CDStudent {
-
 }
 
 // MARK: - Computed Properties

@@ -3,7 +3,7 @@
 
 import OSLog
 import SwiftUI
-import SwiftData
+import CoreData
 
 extension TodoEditSheet {
     // MARK: - Subtasks Section
@@ -20,7 +20,8 @@ extension TodoEditSheet {
 
                 Spacer()
 
-                if !(todo.subtasks ?? []).isEmpty {
+                let subtaskItems = (todo.subtasks as? Set<CDTodoSubtaskEntity>) ?? []
+                if !subtaskItems.isEmpty {
                     Text(todo.subtasksProgressText ?? "")
                         .font(AppTheme.ScaledFont.captionSemibold)
                         .foregroundStyle(.secondary)
@@ -36,15 +37,16 @@ extension TodoEditSheet {
                 .buttonStyle(.plain)
             }
 
-            if (todo.subtasks ?? []).isEmpty {
+            let allSubtaskItems = (todo.subtasks as? Set<CDTodoSubtaskEntity>) ?? []
+            if allSubtaskItems.isEmpty {
                 Text("No checklist items")
                     .foregroundStyle(.secondary)
                     .font(.subheadline)
                     .padding(.vertical, 8)
             } else {
-                let sortedSubtasks = (todo.subtasks ?? []).sorted { $0.orderIndex < $1.orderIndex }
+                let sortedSubtasks = allSubtaskItems.sorted { $0.orderIndex < $1.orderIndex }
                 VStack(spacing: 6) {
-                    ForEach(sortedSubtasks) { subtask in
+                    ForEach(sortedSubtasks, id: \.objectID) { subtask in
                         SubtaskRow(
                             subtask: subtask,
                             onToggle: { toggleSubtask(subtask) },
@@ -89,7 +91,7 @@ extension TodoEditSheet {
 
                     Button {
                         todo.linkedWorkItemID = nil
-                        if let context = todo.modelContext {
+                        if let context = todo.managedObjectContext {
                             do {
                                 try context.save()
                             } catch {
@@ -158,14 +160,14 @@ extension TodoEditSheet {
                 .buttonStyle(.plain)
             }
 
-            if todo.attachmentPaths.isEmpty {
+            if todo.attachmentPathsArray.isEmpty {
                 Text("No attachments")
                     .font(.subheadline)
                     .foregroundStyle(.secondary)
                     .padding(.vertical, 8)
             } else {
                 VStack(spacing: 8) {
-                    ForEach(Array(todo.attachmentPaths.enumerated()), id: \.offset) { index, path in
+                    ForEach(Array(todo.attachmentPathsArray.enumerated()), id: \.offset) { index, path in
                         HStack(spacing: 10) {
                             Image(systemName: fileIcon(for: path))
                                 .font(.system(size: 20))
@@ -211,13 +213,13 @@ extension TodoEditSheet {
         }
     }
 
-    // MARK: - Reminder Section
+    // MARK: - CDReminder Section
 
     @ViewBuilder
     var reminderSection: some View {
         VStack(alignment: .leading, spacing: 12) {
             HStack {
-                Text("Reminder")
+                Text("CDReminder")
                     .font(AppTheme.ScaledFont.captionSemibold)
                     .foregroundStyle(.secondary)
                     .textCase(.uppercase)

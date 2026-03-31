@@ -1,5 +1,5 @@
 import SwiftUI
-import SwiftData
+import CoreData
 import PhotosUI
 
 #if os(macOS)
@@ -8,10 +8,10 @@ import AppKit
 import UIKit
 #endif
 
-// MARK: - Student Chip
+// MARK: - CDStudent Chip
 
 struct QuickNoteStudentChip: View {
-    let student: Student
+    let student: CDStudent
     let displayName: String
     let onRemove: () -> Void
     
@@ -48,9 +48,9 @@ struct QuickNoteStudentChip: View {
 // MARK: - Selected Students Bar
 
 struct SelectedStudentsBar: View {
-    let students: [Student]
+    let students: [CDStudent]
     let selectedStudentIDs: Set<UUID>
-    let displayName: (Student) -> String
+    let displayName: (CDStudent) -> String
     let onRemove: (UUID) -> Void
     
     var body: some View {
@@ -76,9 +76,9 @@ struct SelectedStudentsBar: View {
 // MARK: - Suggestions Bar
 
 struct SuggestionsBar: View {
-    let students: [Student]
+    let students: [CDStudent]
     let detectedCandidateIDs: Set<UUID>
-    let displayName: (Student) -> String
+    let displayName: (CDStudent) -> String
     let onAdd: (UUID) -> Void
     
     var body: some View {
@@ -166,7 +166,7 @@ struct QuickNoteAIMenuButton: View {
                 if let onExpandNote {
                     Button(action: onExpandNote) {
                         Label {
-                            Text("Expand Note")
+                            Text("Expand CDNote")
                         } icon: {
                             Image(systemName: "arrow.up.left.and.arrow.down.right")
                         }
@@ -216,7 +216,7 @@ struct QuickNoteAttachmentThumbnail: View {
 }
 #endif
 
-// MARK: - Quick Note Editor
+// MARK: - Quick CDNote Editor
 
 struct QuickNoteEditor: View {
     @Binding var bodyText: String
@@ -302,18 +302,18 @@ struct Center<Content: View>: View {
     }
 }
 
-// MARK: - Lesson Picker
+// MARK: - CDLesson Picker
 
 struct QuickNoteLessonPicker: View {
     @Binding var selectedLessonID: UUID?
     var onDone: (() -> Void)?
 
     @State private var searchText: String = ""
-    @Query(sort: [SortDescriptor(\Lesson.name)]) private var lessons: [Lesson]
+    @FetchRequest(sortDescriptors: [NSSortDescriptor(keyPath: \CDLesson.name, ascending: true)]) private var lessons: FetchedResults<CDLesson>
     @Environment(\.dismiss) private var dismiss
 
-    private var filteredLessons: [Lesson] {
-        if searchText.trimmed().isEmpty { return lessons }
+    private var filteredLessons: [CDLesson] {
+        if searchText.trimmed().isEmpty { return Array(lessons) }
         let query = searchText.trimmed()
         return lessons.filter {
             $0.name.localizedCaseInsensitiveContains(query) ||
@@ -367,7 +367,7 @@ struct QuickNoteLessonPicker: View {
                     } label: {
                         HStack {
                             VStack(alignment: .leading, spacing: 2) {
-                                Text(lesson.name.isEmpty ? "Untitled Lesson" : lesson.name)
+                                Text(lesson.name.isEmpty ? "Untitled CDLesson" : lesson.name)
                                     .foregroundStyle(.primary)
                                 let subtitle = [lesson.subject, lesson.group]
                                     .filter { !$0.isEmpty }

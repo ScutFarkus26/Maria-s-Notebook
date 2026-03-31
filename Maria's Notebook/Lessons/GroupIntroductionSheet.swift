@@ -4,6 +4,7 @@
 // Renders markdown content with proper styling.
 
 import SwiftUI
+import CoreData
 
 struct GroupIntroductionSheet: View {
     let introduction: CurriculumIntroduction

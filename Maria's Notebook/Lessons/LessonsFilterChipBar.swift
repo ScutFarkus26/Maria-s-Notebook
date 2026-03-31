@@ -4,6 +4,7 @@
 // Horizontal scrolling chip bar for quick lesson filtering.
 
 import SwiftUI
+import CoreData
 
 struct LessonsFilterChipBar: View {
     @Binding var sourceFilter: LessonSource?
@@ -165,7 +166,7 @@ extension PersonalLessonKind {
         case .personal: return "Custom"
         case .observation: return "Observation"
         case .adaptation: return "Adaptation"
-        case .studentRequested: return "Student Ask"
+        case .studentRequested: return "CDStudent Ask"
         case .external: return "External"
         }
     }

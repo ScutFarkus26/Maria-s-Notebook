@@ -1,12 +1,11 @@
 import SwiftUI
-import SwiftData
+import CoreData
 
 struct CommunityMeetingsView: View {
-    @Environment(\.modelContext) private var modelContext
+    @Environment(\.managedObjectContext) private var viewContext
     @Environment(SaveCoordinator.self) private var saveCoordinator
 
-    @Query(sort: [SortDescriptor(\CommunityTopic.createdAt, order: .reverse)])
-    private var topics: [CommunityTopic]
+    @FetchRequest(sortDescriptors: [NSSortDescriptor(keyPath: \CDCommunityTopicEntity.createdAt, ascending: false)]) private var topics: FetchedResults<CDCommunityTopicEntity>
 
     @State private var showingAdd = false
     @State private var selectedTopicID: UUID?
@@ -16,8 +15,8 @@ struct CommunityMeetingsView: View {
     @State private var selectedTag: String?
     @State private var searchText: String = ""
 
-    private var openTopics: [CommunityTopic] { topics.filter { !$0.isResolved } }
-    private var resolvedTopics: [CommunityTopic] { topics.filter(\.isResolved) }
+    private var openTopics: [CDCommunityTopicEntity] { topics.filter { !$0.isResolved } }
+    private var resolvedTopics: [CDCommunityTopicEntity] { topics.filter(\.isResolved) }
 
     private var allTags: [String] {
         let raw = topics.flatMap { $0.tags }
@@ -26,25 +25,26 @@ struct CommunityMeetingsView: View {
         return Array(Set(filtered)).sorted()
     }
 
-    private func passesDateFilter(_ t: CommunityTopic) -> Bool {
+    private func passesDateFilter(_ t: CDCommunityTopicEntity) -> Bool {
         guard let f = filterDate else { return true }
+        guard let createdAt = t.createdAt else { return false }
         let cal = Calendar.current
         let now = Date()
         switch f {
         case .today:
-            return cal.isDate(t.createdAt, inSameDayAs: now)
+            return cal.isDate(createdAt, inSameDayAs: now)
         case .thisWeek:
-            return cal.isDate(t.createdAt, equalTo: now, toGranularity: .weekOfYear)
+            return cal.isDate(createdAt, equalTo: now, toGranularity: .weekOfYear)
         case .thisMonth:
-            return cal.isDate(t.createdAt, equalTo: now, toGranularity: .month)
+            return cal.isDate(createdAt, equalTo: now, toGranularity: .month)
         case .last30:
-            return t.createdAt >= cal.date(byAdding: .day, value: -30, to: now)!
+            return createdAt >= cal.date(byAdding: .day, value: -30, to: now)!
         case .thisYear:
-            return cal.isDate(t.createdAt, equalTo: now, toGranularity: .year)
+            return cal.isDate(createdAt, equalTo: now, toGranularity: .year)
         }
     }
 
-    private func matchesSearch(_ t: CommunityTopic) -> Bool {
+    private func matchesSearch(_ t: CDCommunityTopicEntity) -> Bool {
         let q = searchText.trimmed()
         if q.isEmpty { return true }
         let qLower = q.lowercased()
@@ -52,13 +52,13 @@ struct CommunityMeetingsView: View {
         let baseParts = [t.title, t.issueDescription, t.resolution]
         let baseText = baseParts.joined(separator: "\n")
 
-        let solutionsText = (t.proposedSolutions ?? []).map { part in
+        let solutionsText = ((t.proposedSolutions?.allObjects as? [CDProposedSolutionEntity]) ?? []).map { part in
             let title = part.title
             let details = part.details
             return "\(title)\n\(details)"
         }.joined(separator: "\n")
 
-        let notesText = (t.unifiedNotes ?? []).map { note in
+        let notesText = ((t.unifiedNotes?.allObjects as? [CDNote]) ?? []).map { note in
             let speaker = note.reporterName ?? ""
             let content = note.body
             return "\(speaker)\n\(content)"
@@ -72,7 +72,7 @@ struct CommunityMeetingsView: View {
         return combinedLower.contains(qLower)
     }
 
-    private var filteredOpenTopics: [CommunityTopic] {
+    private var filteredOpenTopics: [CDCommunityTopicEntity] {
         let tag = selectedTag?.lowercased()
         return openTopics.filter { t in
             let dateOK = passesDateFilter(t)
@@ -84,7 +84,7 @@ struct CommunityMeetingsView: View {
             return dateOK && searchOK && tagOK
         }
     }
-    private var filteredResolvedTopics: [CommunityTopic] {
+    private var filteredResolvedTopics: [CDCommunityTopicEntity] {
         let tag = selectedTag?.lowercased()
         return resolvedTopics.filter { t in
             let dateOK = passesDateFilter(t)
@@ -120,9 +120,10 @@ struct CommunityMeetingsView: View {
         }
         .sheet(isPresented: $showingAdd) {
             AddTopicSheet { title, issue in
-                let t = CommunityTopic(title: title, issueDescription: issue)
-                modelContext.insert(t)
-                saveCoordinator.save(modelContext, reason: "Add community topic")
+                let t = CDCommunityTopicEntity(context: viewContext)
+                t.title = title
+                t.issueDescription = issue
+                saveCoordinator.save(viewContext, reason: "Add community topic")
             }
         }
         .sheet(isPresented: Binding<Bool>(
@@ -131,7 +132,7 @@ struct CommunityMeetingsView: View {
         )) {
             if let id = selectedTopicID {
                 TopicDetailView(topicID: id) { _ in
-                    saveCoordinator.save(modelContext, reason: "Update community topic")
+                    saveCoordinator.save(viewContext, reason: "Update community topic")
                 }
             } else {
                 EmptyView()
@@ -147,9 +148,10 @@ struct CommunityMeetingsView: View {
             searchText: $searchText,
             showingAdd: $showingAdd,
             onAddTopic: { title in
-                let t = CommunityTopic(title: title, issueDescription: "")
-                modelContext.insert(t)
-                saveCoordinator.save(modelContext, reason: "Quick add community topic")
+                let t = CDCommunityTopicEntity(context: viewContext)
+                t.title = title
+                t.issueDescription = ""
+                saveCoordinator.save(viewContext, reason: "Quick add community topic")
                 // Clear the search text so the newly added appears and UI resets
                 searchText = ""
                 // Optionally open the detail editor for the new topic
@@ -203,51 +205,6 @@ struct CommunityMeetingsView: View {
 }
 
 #Preview {
-    let container = ModelContainer.preview
-    let ctx = container.mainContext
-
-    let t1 = CommunityTopic(
-        title: "Playground supervision",
-        issueDescription: "We need clearer rotation and visibility for lower elementary."
-    )
-    let s1 = ProposedSolution(
-        title: "Color-coded vests",
-        details: "Assign vests and zones per day.",
-        proposedBy: "Maria",
-        topic: t1
-    )
-    let s2 = ProposedSolution(
-        title: "Student helpers",
-        details: "Older students pair with guides.",
-        proposedBy: "Ami",
-        topic: t1
-    )
-    t1.proposedSolutions = [s1, s2]
-    let note1 = Note(
-        body: "Safety near swings is the main concern.",
-        scope: .all,
-        communityTopic: t1,
-        reporterName: "John"
-    )
-    t1.unifiedNotes = [note1]
-
-    let t2 = CommunityTopic(
-        title: "Library noise",
-        issueDescription: "Afternoon work cycle is too loud.",
-        addressedDate: Date(),
-        resolution: "Post visual noise meter and soft music."
-    )
-    let s3 = ProposedSolution(
-        title: "Quiet corners",
-        details: "Add more rugs and dividers.",
-        proposedBy: "Sara",
-        topic: t2
-    )
-    t2.proposedSolutions = [s3]
-
-    ctx.insert(t1)
-    ctx.insert(t2)
-
-    return CommunityMeetingsView()
-        .previewEnvironment(using: container)
+    CommunityMeetingsView()
+        .previewEnvironment()
 }

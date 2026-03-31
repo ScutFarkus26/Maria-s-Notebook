@@ -1,0 +1,48 @@
+{
+  "source": "/Users/dannydeberry/Documents/Projects/MariasNotebook-Rewrite/Maria's Notebook/Planning/AIPlanning/AIPlanningAssistantView.swift",
+  "tables": {
+    "Localizable": [
+      {
+        "comment": "",
+        "key": "Depth",
+        "location": {
+          "startingColumn": 20,
+          "startingLine": 71
+        }
+      },
+      {
+        "comment": "",
+        "key": "Done",
+        "location": {
+          "startingColumn": 20,
+          "startingLine": 88
+        }
+      },
+      {
+        "comment": "",
+        "key": "Recommendations",
+        "location": {
+          "startingColumn": 22,
+          "startingLine": 205
+        }
+      },
+      {
+        "comment": "",
+        "key": "Ask a question or refine the plan...",
+        "location": {
+          "startingColumn": 23,
+          "startingLine": 280
+        }
+      },
+      {
+        "comment": "",
+        "key": "Apply %lld Lesson%@",
+        "location": {
+          "startingColumn": 17,
+          "startingLine": 305
+        }
+      }
+    ]
+  },
+  "version": 1
+}

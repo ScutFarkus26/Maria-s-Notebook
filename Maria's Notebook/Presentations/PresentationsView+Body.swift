@@ -1,6 +1,6 @@
 import OSLog
-import SwiftData
 import SwiftUI
+import CoreData
 
 // MARK: - Body & Layout
 
@@ -43,7 +43,7 @@ extension PresentationsView {
                             onClear: { la in
                                 la.unschedule()
                                 do {
-                                    try modelContext.save()
+                                    try viewContext.save()
                                 } catch {
                                     Self.logger.warning("Failed to save schedule clear: \(error)")
                                 }
@@ -91,7 +91,7 @@ extension PresentationsView {
                                     onClear: { la in
                                         la.unschedule()
                                         do {
-                                            try modelContext.save()
+                                            try viewContext.save()
                                         } catch {
                                             Self.logger.warning("Failed to save schedule clear: \(error)")
                                         }
@@ -187,7 +187,7 @@ extension PresentationsView {
 
     private func updateViewModel() {
         viewModel.update(
-            modelContext: modelContext,
+            viewContext: viewContext,
             calendar: calendar,
             inboxOrderRaw: inboxOrderRaw,
             missWindow: missWindow,
@@ -198,33 +198,32 @@ extension PresentationsView {
 
     private func syncInboxOrderWithCurrentBase() {
         let draftRaw = LessonAssignmentState.draft.rawValue
-        let descriptor = FetchDescriptor<LessonAssignment>(
-            predicate: #Predicate { $0.stateRaw == draftRaw }
-        )
-        let base: [LessonAssignment]
+        let descriptor: NSFetchRequest<CDLessonAssignment> = NSFetchRequest(entityName: "LessonAssignment")
+        descriptor.predicate = NSPredicate(format: "stateRaw == %@", draftRaw as CVarArg)
+        let base: [CDLessonAssignment]
         do {
-            base = try modelContext.fetch(descriptor)
+            base = try viewContext.fetch(descriptor)
         } catch {
             Self.logger.warning("Failed to fetch unscheduled lessons: \(error)")
             base = []
         }
-        let baseIDs = base.map(\.id)
+        let baseIDs = base.compactMap(\.id)
         var order = InboxOrderStore.parse(inboxOrderRaw).filter { baseIDs.contains($0) }
         let missing = base
-            .filter { !order.contains($0.id) }
-            .sorted { $0.createdAt < $1.createdAt }
-            .map(\.id)
+            .filter { guard let id = $0.id else { return false }; return !order.contains(id) }
+            .sorted { ($0.createdAt ?? .distantPast) < ($1.createdAt ?? .distantPast) }
+            .compactMap(\.id)
         order.append(contentsOf: missing)
         inboxOrderRaw = InboxOrderStore.serialize(order)
     }
 
-    private func filteredSnapshot(_ la: LessonAssignment) -> LessonAssignmentSnapshot {
+    private func filteredSnapshot(_ la: CDLessonAssignment) -> LessonAssignmentSnapshot {
         let snap = la.snapshot()
         let allStudents = viewModel.cachedStudents
         let hiddenIDs = TestStudentsFilter.hiddenIDs(
             from: allStudents, show: showTestStudents, namesRaw: testStudentNamesRaw
         )
-        let enrolledVisibleIDs = Set(allStudents.map(\.id))
+        let enrolledVisibleIDs = Set(allStudents.compactMap(\.id))
         let visibleIDs = snap.studentIDs.filter { enrolledVisibleIDs.contains($0) && !hiddenIDs.contains($0) }
         return LessonAssignmentSnapshot(
             id: snap.id,
@@ -244,7 +243,7 @@ extension PresentationsView {
 
     // MARK: - Helper Functions
 
-    static func unresolvedWorkCount(forPresentationID pid: String, studentIDs: [String], allWork: [WorkModel]) -> Int {
+    static func unresolvedWorkCount(forPresentationID pid: String, studentIDs: [String], allWork: [CDWorkModel]) -> Int {
         return allWork.filter { w in
             w.presentationID == pid &&
             studentIDs.contains(w.studentID) &&

@@ -1,6 +1,4 @@
 import Foundation
-import OSLog
-import SwiftData
 
 /// Categories of classroom/facility issues
 enum IssueCategory: String, Codable, CaseIterable, Sendable {
@@ -12,7 +10,7 @@ enum IssueCategory: String, Codable, CaseIterable, Sendable {
     case health = "Health"
     case communication = "Communication"
     case other = "Other"
-    
+
     var systemImage: String {
         switch self {
         case .behavioral: return "exclamationmark.bubble"
@@ -33,7 +31,7 @@ enum IssuePriority: String, Codable, CaseIterable, Sendable {
     case medium = "Medium"
     case high = "High"
     case urgent = "Urgent"
-    
+
     var color: String {
         switch self {
         case .low: return "gray"
@@ -51,7 +49,7 @@ enum IssueStatus: String, Codable, CaseIterable, Sendable {
     case inProgress = "In Progress"
     case resolved = "Resolved"
     case closed = "Closed"
-    
+
     var systemImage: String {
         switch self {
         case .open: return "circle"
@@ -72,7 +70,7 @@ enum IssueActionType: String, Codable, CaseIterable, Sendable {
     case observation = "Observation"
     case resolution = "Resolution"
     case note = "Note"
-    
+
     var systemImage: String {
         switch self {
         case .initialReport: return "flag"
@@ -83,155 +81,5 @@ enum IssueActionType: String, Codable, CaseIterable, Sendable {
         case .resolution: return "checkmark.seal"
         case .note: return "note.text"
         }
-    }
-}
-
-/// Main issue tracking entity
-@Model
-final class Issue: Identifiable {
-    private static let logger = Logger.database
-
-    var id: UUID = UUID()
-    var createdAt: Date = Date()
-    var updatedAt: Date = Date()
-    var modifiedAt: Date = Date()
-    
-    // Core fields
-    var title: String = ""
-    var issueDescription: String = ""
-    
-    // Category and priority (using manual enum pattern for SwiftData predicates)
-    private var categoryRaw: String = IssueCategory.other.rawValue
-    var category: IssueCategory {
-        get { IssueCategory(rawValue: categoryRaw) ?? .other }
-        set { categoryRaw = newValue.rawValue }
-    }
-    
-    private var priorityRaw: String = IssuePriority.medium.rawValue
-    var priority: IssuePriority {
-        get { IssuePriority(rawValue: priorityRaw) ?? .medium }
-        set { priorityRaw = newValue.rawValue }
-    }
-    
-    private var statusRaw: String = IssueStatus.open.rawValue
-    var status: IssueStatus {
-        get { IssueStatus(rawValue: statusRaw) ?? .open }
-        set { statusRaw = newValue.rawValue }
-    }
-    
-    // Related students (stored as UUIDs in string format for CloudKit compatibility)
-    @Attribute(.externalStorage) private var _studentIDsData: Data?
-    
-    @Transient
-    var studentIDs: [String] {
-        get { CloudKitStringArrayStorage.decode(from: _studentIDsData) }
-        set {
-            _studentIDsData = CloudKitStringArrayStorage.encode(newValue)
-            updatedAt = Date()
-        }
-    }
-    
-    // Location/context
-    var location: String?
-    
-    // Resolution tracking
-    var resolvedAt: Date?
-    var resolutionSummary: String?
-    
-    // Relationships
-    @Relationship(deleteRule: .cascade, inverse: \IssueAction.issue)
-    var actions: [IssueAction]? = []
-    
-    @Relationship(deleteRule: .cascade, inverse: \Note.issue)
-    var notes: [Note]? = []
-    
-    init(
-        title: String = "",
-        description: String = "",
-        category: IssueCategory = .other,
-        priority: IssuePriority = .medium,
-        status: IssueStatus = .open,
-        studentIDs: [String] = [],
-        location: String? = nil
-    ) {
-        self.id = UUID()
-        self.createdAt = Date()
-        self.updatedAt = Date()
-        self.modifiedAt = Date()
-        self.title = title
-        self.issueDescription = description
-        self.categoryRaw = category.rawValue
-        self.priorityRaw = priority.rawValue
-        self.statusRaw = status.rawValue
-        self.studentIDs = studentIDs
-        self.location = location
-    }
-}
-
-/// Actions taken on an issue (conversations, agreements, follow-ups)
-@Model
-final class IssueAction: Identifiable {
-    private static let logger = Logger.database
-
-    var id: UUID = UUID()
-    var createdAt: Date = Date()
-    var updatedAt: Date = Date()
-    var modifiedAt: Date = Date()
-    
-    // Parent relationship
-    var issueID: String = ""
-    @Relationship var issue: Issue?
-    
-    // Action details
-    private var actionTypeRaw: String = IssueActionType.note.rawValue
-    var actionType: IssueActionType {
-        get { IssueActionType(rawValue: actionTypeRaw) ?? .note }
-        set { actionTypeRaw = newValue.rawValue }
-    }
-    
-    var actionDescription: String = ""
-    var actionDate: Date = Date()
-    
-    // Who was involved (stored as UUIDs in string format)
-    @Attribute(.externalStorage) private var _participantIDsData: Data?
-    
-    @Transient
-    var participantStudentIDs: [String] {
-        get { CloudKitStringArrayStorage.decode(from: _participantIDsData) }
-        set {
-            _participantIDsData = CloudKitStringArrayStorage.encode(newValue)
-            updatedAt = Date()
-        }
-    }
-    
-    // Next steps or agreements
-    var nextSteps: String?
-    var followUpRequired: Bool = false
-    var followUpDate: Date?
-    var followUpCompleted: Bool = false
-    
-    init(
-        issue: Issue? = nil,
-        actionType: IssueActionType = .note,
-        description: String = "",
-        actionDate: Date = Date(),
-        participantStudentIDs: [String] = [],
-        nextSteps: String? = nil,
-        followUpRequired: Bool = false,
-        followUpDate: Date? = nil
-    ) {
-        self.id = UUID()
-        self.createdAt = Date()
-        self.updatedAt = Date()
-        self.modifiedAt = Date()
-        self.issue = issue
-        self.issueID = issue?.id.uuidString ?? ""
-        self.actionTypeRaw = actionType.rawValue
-        self.actionDescription = description
-        self.actionDate = actionDate
-        self.participantStudentIDs = participantStudentIDs
-        self.nextSteps = nextSteps
-        self.followUpRequired = followUpRequired
-        self.followUpDate = followUpDate
     }
 }

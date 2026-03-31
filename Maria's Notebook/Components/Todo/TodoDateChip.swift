@@ -2,7 +2,7 @@ import SwiftUI
 
 /// A tappable capsule chip that displays a todo's scheduling state and opens the When popover.
 struct TodoDateChip: View {
-    @Bindable var todo: TodoItem
+    @ObservedObject var todo: CDTodoItem
     @State private var showWhenPopover = false
 
     var body: some View {

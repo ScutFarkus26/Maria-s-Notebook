@@ -1,16 +1,16 @@
 import SwiftUI
-import SwiftData
+import CoreData
 
 struct ScheduledCheckInsListSection: View {
-    let checkIns: [WorkCheckIn]
-    let onEditNote: (WorkCheckIn) -> Void
+    let checkIns: [CDWorkCheckIn]
+    let onEditNote: (CDWorkCheckIn) -> Void
     let onSetStatus: (UUID, WorkCheckInStatus) -> Void
-    let onDelete: (WorkCheckIn) -> Void
+    let onDelete: (CDWorkCheckIn) -> Void
     
-    @State private var selectedCheckInForNote: WorkCheckIn?
+    @State private var selectedCheckInForNote: CDWorkCheckIn?
     
-    private var sortedCheckIns: [WorkCheckIn] {
-        checkIns.sorted { $0.date < $1.date }
+    private var sortedCheckIns: [CDWorkCheckIn] {
+        checkIns.sorted { ($0.date ?? .distantPast) < ($1.date ?? .distantPast) }
     }
     
     var body: some View {
@@ -34,7 +34,7 @@ struct ScheduledCheckInsListSection: View {
     
     private var checkInsList: some View {
         VStack(alignment: .leading, spacing: 8) {
-            ForEach(sortedCheckIns, id: \.id) { checkIn in
+            ForEach(sortedCheckIns, id: \.objectID) { checkIn in
                 WorkCheckInRow(
                     checkIn: checkIn,
                     onEditNote: { handleEditNote($0) },
@@ -48,7 +48,7 @@ struct ScheduledCheckInsListSection: View {
         }
     }
     
-    private func handleEditNote(_ checkIn: WorkCheckIn) {
+    private func handleEditNote(_ checkIn: CDWorkCheckIn) {
         // Use new UnifiedNoteEditor system
         selectedCheckInForNote = checkIn
         // Also call legacy callback for backward compatibility (in case parent view needs to do something)

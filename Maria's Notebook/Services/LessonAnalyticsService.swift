@@ -5,7 +5,6 @@
 
 import Foundation
 import CoreData
-import SwiftData
 
 enum LessonAnalyticsService {
 
@@ -81,55 +80,7 @@ enum LessonAnalyticsService {
         return records
     }
 
-    // MARK: - Deprecated SwiftData Data Fetching
-
-    @available(*, deprecated, message: "Use Core Data overload")
-    static func fetchPresentedRecords(
-        context: ModelContext,
-        from startDate: Date,
-        to endDate: Date
-    ) -> [PresentedRecord] {
-        let presentedState = LessonAssignmentState.presented.rawValue
-        let presented: [LessonAssignment] = context.safeFetch(
-            FetchDescriptor<LessonAssignment>(
-                predicate: #Predicate {
-                    $0.stateRaw == presentedState &&
-                    $0.presentedAt != nil &&
-                    $0.presentedAt! >= startDate &&
-                    $0.presentedAt! < endDate
-                }
-            )
-        )
-
-        let neededLessonIDs = Set(presented.map(\.lessonID))
-        let allLessons: [Lesson]
-        if neededLessonIDs.isEmpty {
-            allLessons = []
-        } else {
-            allLessons = context.safeFetch(FetchDescriptor<Lesson>())
-                .filter { neededLessonIDs.contains($0.id.uuidString) }
-        }
-        let lessonsByID: [String: Lesson] = Dictionary(
-            uniqueKeysWithValues: allLessons.map { ($0.id.uuidString, $0) }
-        )
-
-        var records: [PresentedRecord] = []
-        for la in presented {
-            guard let lesson = lessonsByID[la.lessonID],
-                  let presentedAt = la.presentedAt else { continue }
-            for studentIDStr in la.studentIDs {
-                records.append(PresentedRecord(
-                    assignmentID: la.id,
-                    studentID: studentIDStr,
-                    lessonID: lesson.id,
-                    subject: lesson.subject.trimmed(),
-                    group: lesson.group.trimmed(),
-                    presentedAt: presentedAt
-                ))
-            }
-        }
-        return records
-    }
+    // Deprecated SwiftData fetchPresentedRecords removed - no longer needed with Core Data.
 
     // MARK: - Date Utilities
 

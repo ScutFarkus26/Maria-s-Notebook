@@ -2,7 +2,7 @@
 // Completed meetings section for TodayView (left column)
 
 import SwiftUI
-import SwiftData
+import CoreData
 
 extension TodayView {
 
@@ -61,7 +61,7 @@ extension TodayView {
 
     // MARK: - Helpers
 
-    func completedMeetingStudentName(for meeting: StudentMeeting) -> String {
+    func completedMeetingStudentName(for meeting: CDStudentMeeting) -> String {
         guard let studentID = meeting.studentIDUUID else { return "Unknown" }
         return viewModel.displayName(for: studentID)
     }

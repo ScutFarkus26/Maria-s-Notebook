@@ -1,0 +1,64 @@
+{
+  "source": "/Users/dannydeberry/Documents/Projects/MariasNotebook-Rewrite/Maria's Notebook/AppCore/Tips/AppTips.swift",
+  "tables": {
+    "Localizable": [
+      {
+        "comment": "",
+        "key": "Quick Actions",
+        "location": {
+          "startingColumn": 14,
+          "startingLine": 12
+        }
+      },
+      {
+        "comment": "",
+        "key": "Long-press this button for quick access to notes, presentations, work items, and to-dos.",
+        "location": {
+          "startingColumn": 14,
+          "startingLine": 16
+        }
+      },
+      {
+        "comment": "",
+        "key": "Pull to Refresh",
+        "location": {
+          "startingColumn": 14,
+          "startingLine": 29
+        }
+      },
+      {
+        "comment": "",
+        "key": "Pull down on any list to refresh your data and sync with iCloud.",
+        "location": {
+          "startingColumn": 14,
+          "startingLine": 33
+        }
+      },
+      {
+        "comment": "",
+        "key": "Keyboard Shortcuts",
+        "location": {
+          "startingColumn": 14,
+          "startingLine": 46
+        }
+      },
+      {
+        "comment": "",
+        "key": "Press ⌘? to see all available keyboard shortcuts.",
+        "location": {
+          "startingColumn": 14,
+          "startingLine": 50
+        }
+      },
+      {
+        "comment": "",
+        "key": "Work Lifecycle",
+        "location": {
+          "startingColumn": 14,
+          "startingLine": 63
+        }
+      }
+    ]
+  },
+  "version": 1
+}

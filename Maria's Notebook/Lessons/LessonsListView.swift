@@ -1,32 +1,32 @@
 // Maria's Notebook/Lessons/LessonsListView.swift
 
 import SwiftUI
-import SwiftData
+import CoreData
 
 /// Curriculum-only list view for lessons inside a selected subject+group.
 /// Shows Section headers by subheading (if present) and supports lesson reordering (List-only).
 struct LessonsListView: View {
     let subject: String
     let group: String
-    let lessons: [Lesson]
+    let lessons: [CDLesson]
 
     let canReorderLessons: Bool
-    let onMoveLesson: (_ source: IndexSet, _ destination: Int, _ orderedSubset: [Lesson]) -> Void
+    let onMoveLesson: (_ source: IndexSet, _ destination: Int, _ orderedSubset: [CDLesson]) -> Void
 
     // MODERN: Computed properties - no manual cache management needed
     
-    private var lessonsInGroup: [Lesson] {
+    private var lessonsInGroup: [CDLesson] {
         lessons
             .filter { $0.subject.caseInsensitiveCompare(subject) == .orderedSame }
             .filter { $0.group.caseInsensitiveCompare(group) == .orderedSame }
     }
 
-    private var orderedLessons: [Lesson] {
+    private var orderedLessons: [CDLesson] {
         lessonsInGroup.sorted { lhs, rhs in
             if lhs.orderInGroup != rhs.orderInGroup { return lhs.orderInGroup < rhs.orderInGroup }
             let nameCompare = lhs.name.localizedCaseInsensitiveCompare(rhs.name)
             if nameCompare != .orderedSame { return nameCompare == .orderedAscending }
-            return lhs.id.uuidString < rhs.id.uuidString
+            return (lhs.id?.uuidString ?? "") < (rhs.id?.uuidString ?? "")
         }
     }
     

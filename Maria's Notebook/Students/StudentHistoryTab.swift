@@ -2,57 +2,57 @@
 // History tab showing student's finished track enrollments
 
 import SwiftUI
-import SwiftData
+import CoreData
 
 struct StudentHistoryTab: View {
-    let student: Student
+    let student: CDStudent
 
-    @Environment(\.modelContext) private var modelContext
+    @Environment(\.managedObjectContext) private var viewContext
 
-    @Query(sort: [SortDescriptor(\StudentTrackEnrollment.createdAt, order: .reverse)])
-    private var allEnrollments: [StudentTrackEnrollment]
+    @FetchRequest(sortDescriptors: [NSSortDescriptor(keyPath: \CDStudentTrackEnrollmentEntity.createdAt, ascending: false)])
+    private var allEnrollments: FetchedResults<CDStudentTrackEnrollmentEntity>
 
-    @Query(sort: [SortDescriptor(\Track.title)])
-    private var allTracks: [Track]
+    @FetchRequest(sortDescriptors: [NSSortDescriptor(keyPath: \CDTrackEntity.title, ascending: true)])
+    private var allTracks: FetchedResults<CDTrackEntity>
 
-    @Query(sort: [SortDescriptor(\Project.createdAt, order: .reverse)])
-    private var allProjects: [Project]
+    @FetchRequest(sortDescriptors: [NSSortDescriptor(keyPath: \CDProject.createdAt, ascending: false)])
+    private var allProjects: FetchedResults<CDProject>
 
-    @State private var selectedEnrollment: StudentTrackEnrollment?
-    @State private var selectedProject: Project?
+    @State private var selectedEnrollment: CDStudentTrackEnrollmentEntity?
+    @State private var selectedProject: CDProject?
 
     // Use uniquingKeysWith to handle CloudKit sync duplicates
-    private var tracksByID: [String: Track] {
-        Dictionary(allTracks.map { ($0.id.uuidString, $0) }, uniquingKeysWith: { first, _ in first })
+    private var tracksByID: [String: CDTrackEntity] {
+        Dictionary(allTracks.compactMap { t in t.id.map { ($0.uuidString, t) } }, uniquingKeysWith: { first, _ in first })
     }
 
     /// Deduplicated finished enrollments - keeps only one enrollment per track TITLE (not ID)
-    /// This handles the case where duplicate Track objects exist with the same title
-    private var finishedEnrollments: [StudentTrackEnrollment] {
-        let sid = student.id.uuidString
+    /// This handles the case where duplicate CDTrackEntity objects exist with the same title
+    private var finishedEnrollments: [CDStudentTrackEnrollmentEntity] {
+        let sid = student.id?.uuidString ?? ""
         let finished = allEnrollments.filter { $0.studentID == sid && !$0.isActive }
 
         // Deduplicate by track title, keeping the one with more activity
-        var bestByTitle: [String: StudentTrackEnrollment] = [:]
+        var bestByTitle: [String: CDStudentTrackEnrollmentEntity] = [:]
         for enrollment in finished {
             guard let track = tracksByID[enrollment.trackID] else { continue }
             let title = track.title
 
             if let existing = bestByTitle[title] {
                 // Keep the newer one (first in sorted array since sorted by createdAt desc)
-                if enrollment.createdAt > existing.createdAt {
+                if (enrollment.createdAt ?? .distantPast) > (existing.createdAt ?? .distantPast) {
                     bestByTitle[title] = enrollment
                 }
             } else {
                 bestByTitle[title] = enrollment
             }
         }
-        return Array(bestByTitle.values).sorted { ($0.createdAt) > ($1.createdAt) }
+        return Array(bestByTitle.values).sorted { ($0.createdAt ?? .distantPast) > ($1.createdAt ?? .distantPast) }
     }
 
-    private var finishedProjects: [Project] {
-        let sid = student.id.uuidString
-        return allProjects.filter { $0.memberStudentIDs.contains(sid) && !$0.isActive }
+    private var finishedProjects: [CDProject] {
+        let sid = student.id?.uuidString ?? ""
+        return allProjects.filter { $0.memberStudentIDsArray.contains(sid) && !$0.isActive }
     }
 
     // Celebration colors for completed tracks
@@ -94,7 +94,7 @@ struct StudentHistoryTab: View {
                         }
                         .padding(.horizontal, 4)
 
-                        ForEach(Array(finishedEnrollments.enumerated()), id: \.element.id) { index, enrollment in
+                        ForEach(Array(finishedEnrollments.enumerated()), id: \.element.objectID) { index, enrollment in
                             if let track = tracksByID[enrollment.trackID] {
                                 finishedTrackCard(enrollment: enrollment, track: track, colorIndex: index)
                                     .contentShape(Rectangle())
@@ -142,7 +142,7 @@ struct StudentHistoryTab: View {
     }
 
     @ViewBuilder
-    private func finishedProjectRow(_ project: Project) -> some View {
+    private func finishedProjectRow(_ project: CDProject) -> some View {
         HStack(alignment: .center, spacing: 12) {
             ZStack {
                 Circle()
@@ -182,7 +182,7 @@ struct StudentHistoryTab: View {
         )
     }
 
-    private func finishedTrackCard(enrollment: StudentTrackEnrollment, track: Track, colorIndex: Int) -> some View {
+    private func finishedTrackCard(enrollment: CDStudentTrackEnrollmentEntity, track: CDTrackEntity, colorIndex: Int) -> some View {
         let accentColor = celebrationColors[colorIndex % celebrationColors.count]
 
         return HStack(alignment: .center, spacing: 14) {

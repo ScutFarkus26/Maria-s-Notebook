@@ -1,5 +1,5 @@
 import SwiftUI
-import SwiftData
+import CoreData
 import UniformTypeIdentifiers
 import OSLog
 
@@ -11,12 +11,12 @@ class GlobalAttachmentImportHandler {
 
     var isShowingImportSheet = false
     var pendingFileURL: URL?
-    var preselectedLesson: Lesson?
+    var preselectedLesson: CDLesson?
     
-    let modelContext: ModelContext
+    let viewContext: NSManagedObjectContext
     
-    init(modelContext: ModelContext) {
-        self.modelContext = modelContext
+    init(viewContext: NSManagedObjectContext) {
+        self.viewContext = viewContext
     }
     
     /// Import a file with automatic lesson detection
@@ -27,21 +27,21 @@ class GlobalAttachmentImportHandler {
     }
     
     /// Import a file for a specific lesson (skips lesson selection)
-    func importFile(_ fileURL: URL, forLesson lesson: Lesson, scope: AttachmentScope = .lesson) {
+    func importFile(_ fileURL: URL, forLesson lesson: CDLesson, scope: AttachmentScope = .lesson) {
         Task {
             await performImport(fileURL: fileURL, lesson: lesson, scope: scope)
         }
     }
     
     /// Import a file with a preselected lesson suggestion
-    func importFileWithSuggestion(_ fileURL: URL, suggestedLesson: Lesson?) {
+    func importFileWithSuggestion(_ fileURL: URL, suggestedLesson: CDLesson?) {
         pendingFileURL = fileURL
         preselectedLesson = suggestedLesson
         isShowingImportSheet = true
     }
     
     /// Performs the actual import operation
-    func performImport(fileURL: URL, lesson: Lesson, scope: AttachmentScope) async {
+    func performImport(fileURL: URL, lesson: CDLesson, scope: AttachmentScope) async {
         // Start accessing security-scoped resource
         guard fileURL.startAccessingSecurityScopedResource() else {
             Self.logger.error("Failed to access file")
@@ -64,18 +64,15 @@ class GlobalAttachmentImportHandler {
             let bookmark = try LessonFileStorage.makeBookmark(for: destURL)
             
             // Create attachment entity
-            let attachment = LessonAttachment(
-                fileName: fileURL.lastPathComponent,
-                fileBookmark: bookmark,
-                fileRelativePath: relativePath,
-                fileType: fileURL.pathExtension.lowercased(),
-                fileSizeBytes: fileSize,
-                scope: scope,
-                lesson: lesson
-            )
-            
-            modelContext.insert(attachment)
-            try modelContext.save()
+            let attachment = CDLessonAttachment(context: viewContext)
+            attachment.fileName = fileURL.lastPathComponent
+            attachment.fileBookmark = bookmark
+            attachment.fileRelativePath = relativePath
+            attachment.fileType = fileURL.pathExtension.lowercased()
+            attachment.fileSizeBytes = fileSize
+            attachment.scope = scope
+            attachment.lesson = lesson
+            try viewContext.save()
             
             Self.logger.info("Successfully imported attachment: \(fileURL.lastPathComponent)")
 
@@ -89,8 +86,8 @@ class GlobalAttachmentImportHandler {
 struct GlobalAttachmentImportModifier: ViewModifier {
     @State private var importHandler: GlobalAttachmentImportHandler
     
-    init(modelContext: ModelContext) {
-        _importHandler = State(wrappedValue: GlobalAttachmentImportHandler(modelContext: modelContext))
+    init(viewContext: NSManagedObjectContext) {
+        _importHandler = State(wrappedValue: GlobalAttachmentImportHandler(viewContext: viewContext))
     }
     
     func body(content: Content) -> some View {
@@ -122,8 +119,8 @@ struct GlobalAttachmentImportModifier: ViewModifier {
 
 extension View {
     /// Adds global attachment import capability to the view
-    func withGlobalAttachmentImport(modelContext: ModelContext) -> some View {
-        modifier(GlobalAttachmentImportModifier(modelContext: modelContext))
+    func withGlobalAttachmentImport(viewContext: NSManagedObjectContext) -> some View {
+        modifier(GlobalAttachmentImportModifier(viewContext: viewContext))
     }
 }
 
@@ -131,7 +128,7 @@ extension View {
 struct QuickAttachmentImportButton: View {
     private static let logger = Logger.lessons
 
-    let lesson: Lesson
+    let lesson: CDLesson
     @Environment(GlobalAttachmentImportHandler.self) private var importHandler
     @State private var showingFilePicker = false
     
@@ -158,7 +155,7 @@ struct QuickAttachmentImportButton: View {
 
 /// Drag and drop handler for attachments
 struct AttachmentDropDelegate: DropDelegate {
-    let lesson: Lesson
+    let lesson: CDLesson
     let importHandler: GlobalAttachmentImportHandler
     
     func validateDrop(info: DropInfo) -> Bool {
@@ -187,7 +184,7 @@ struct AttachmentDropDelegate: DropDelegate {
 
 /// Extension to add drop capability to lesson cards
 extension View {
-    func lessonAttachmentDropTarget(lesson: Lesson, importHandler: GlobalAttachmentImportHandler) -> some View {
+    func lessonAttachmentDropTarget(lesson: CDLesson, importHandler: GlobalAttachmentImportHandler) -> some View {
         self.onDrop(
             of: [.pdf, .png, .jpeg, .fileURL],
             delegate: AttachmentDropDelegate(lesson: lesson, importHandler: importHandler)

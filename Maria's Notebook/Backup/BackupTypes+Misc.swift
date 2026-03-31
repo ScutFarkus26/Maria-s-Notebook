@@ -21,7 +21,7 @@ public struct TodoItemDTO: Codable, Sendable {
     public var reminderDate: Date?
     public var reflectionNotes: String
     public var tags: [String]
-    // Schedule fields
+    // CDSchedule fields
     public var scheduledDate: Date?
     public var isSomeday: Bool?
     public var repeatAfterCompletion: Bool?
@@ -58,7 +58,7 @@ public struct TodoTemplateDTO: Codable, Sendable {
     public var tags: [String]?
 }
 
-// MARK: - Track DTOs
+// MARK: - CDTrackEntity DTOs
 
 public struct TrackDTO: Codable, Sendable {
     public var id: UUID
@@ -122,7 +122,7 @@ public struct DevelopmentSnapshotDTO: Codable, Sendable {
     public var sharedAt: Date?
 }
 
-// MARK: - Supply DTOs
+// MARK: - CDSupply DTOs
 
 public struct SupplyDTO: Codable, Sendable {
     public var id: UUID
@@ -146,7 +146,7 @@ public struct SupplyTransactionDTO: Codable, Sendable {
     public var reason: String
 }
 
-// MARK: - Document DTO
+// MARK: - CDDocument DTO
 
 public struct DocumentDTO: Codable, Sendable {
     public var id: UUID
@@ -248,7 +248,7 @@ public struct TransitionChecklistItemDTO: Codable, Sendable {
     public var notes: String
 }
 
-// MARK: - Calendar Note DTO (format v12+)
+// MARK: - Calendar CDNote DTO (format v12+)
 
 public struct CalendarNoteDTO: Codable, Sendable {
     public var id: UUID

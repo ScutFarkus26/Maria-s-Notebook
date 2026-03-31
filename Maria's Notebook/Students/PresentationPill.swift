@@ -1,14 +1,14 @@
 // swiftlint:disable file_length
 import OSLog
 import SwiftUI
-import SwiftData
+import CoreData
 import UniformTypeIdentifiers
 
 private let logger = Logger.students
 
 // swiftlint:disable:next type_body_length
 struct PresentationPill: View {
-    @Environment(\.modelContext) private var modelContext
+    @Environment(\.managedObjectContext) private var viewContext
     @Environment(\.appRouter) private var appRouter
     @Environment(\.calendar) private var calendar
     @Environment(SaveCoordinator.self) private var saveCoordinator
@@ -32,27 +32,27 @@ struct PresentationPill: View {
     var enableMissHighlight: Bool = false
     var enableMergeDrop: Bool = false
     var showAgeIndicator: Bool = true
-    var blockingWork: [UUID: WorkModel] = [:]
+    var blockingWork: [UUID: CDWorkModel] = [:]
 
     // PERFORMANCE: Accept cached data instead of using @Query per-pill
-    var cachedLessons: [Lesson]?
-    var cachedStudents: [Student]?
+    var cachedLessons: [CDLesson]?
+    var cachedStudents: [CDStudent]?
 
     // Fallback queries only used when cached data isn't provided
-    @Query private var lessonsQuery: [Lesson]
-    @Query private var studentsQuery: [Student]
+    @FetchRequest(sortDescriptors: []) private var lessonsQuery: FetchedResults<CDLesson>
+    @FetchRequest(sortDescriptors: []) private var studentsQuery: FetchedResults<CDStudent>
 
     // Use cached data if provided, otherwise fall back to queries
-    private var lessons: [Lesson] {
-        cachedLessons ?? lessonsQuery
+    private var lessons: [CDLesson] {
+        cachedLessons ?? Array(lessonsQuery)
     }
-    private var students: [Student] {
-        (cachedStudents ?? studentsQuery).uniqueByID
+    private var students: [CDStudent] {
+        (cachedStudents ?? Array(studentsQuery)).uniqueByID
     }
 
     @State private var showTimeEditor = false
     @State private var isValidDragTarget = false
-    @State private var selectedWorkForDetail: WorkModel?
+    @State private var selectedWorkForDetail: CDWorkModel?
     @State private var isMergeTargeted = false
 
     // Cached expensive computations to avoid recalculating during scroll
@@ -62,7 +62,7 @@ struct PresentationPill: View {
 
     private var scheduledDate: Date? { snapshot.scheduledFor }
 
-    private var lessonObject: Lesson? { lessons.first(where: { $0.id == snapshot.lessonID }) }
+    private var lessonObject: CDLesson? { lessons.first(where: { $0.id == snapshot.lessonID }) }
 
     private var lessonName: String {
         if let name = lessonObject?.name, !name.isEmpty {
@@ -105,7 +105,7 @@ struct PresentationPill: View {
         return names.joined(separator: ", ")
     }
     
-    /// Synchronous helper that determines if a date is a non-school day using direct ModelContext fetches.
+    /// Synchronous helper that determines if a date is a non-school day using direct NSManagedObjectContext fetches.
     private func isNonSchoolDaySync(_ date: Date) -> Bool {
         let day = AppCalendar.startOfDay(date)
         let cal = AppCalendar.shared
@@ -124,10 +124,10 @@ struct PresentationPill: View {
 
     /// Helper to check if a specific date has a non-school day entry.
     private func hasNonSchoolDay(for day: Date) -> Bool {
-        var descriptor = FetchDescriptor<NonSchoolDay>(predicate: #Predicate { $0.date == day })
+        var descriptor = { let r = NSFetchRequest<CDNonSchoolDay>(entityName: "CDNonSchoolDay"); r.predicate = NSPredicate(format: "date == %@", day as CVarArg); r.fetchLimit = 0; return r }()
         descriptor.fetchLimit = 1
         do {
-            return try !modelContext.fetch(descriptor).isEmpty
+            return try !viewContext.fetch(descriptor).isEmpty
         } catch {
             logger.warning("Failed to fetch non-school day: \(error)")
             return false
@@ -136,10 +136,10 @@ struct PresentationPill: View {
 
     /// Helper to check if a specific date has a school day override entry.
     private func hasSchoolDayOverride(for day: Date) -> Bool {
-        var descriptor = FetchDescriptor<SchoolDayOverride>(predicate: #Predicate { $0.date == day })
+        var descriptor = { let r = NSFetchRequest<CDSchoolDayOverride>(entityName: "CDSchoolDayOverride"); r.predicate = NSPredicate(format: "date == %@", day as CVarArg); r.fetchLimit = 0; return r }()
         descriptor.fetchLimit = 1
         do {
-            return try !modelContext.fetch(descriptor).isEmpty
+            return try !viewContext.fetch(descriptor).isEmpty
         } catch {
             logger.warning("Failed to fetch school day override: \(error)")
             return false
@@ -185,18 +185,17 @@ struct PresentationPill: View {
             let g = normalized(l.group)
             return s == "parsha" || g == "parsha"
         }
-        return Set(parshaLessons.map(\.id))
+        return Set(parshaLessons.compactMap(\.id))
     }
 
     /// Helper to fetch presented LessonAssignments within a date range.
-    private func fetchPresentedLessonAssignments(from start: Date, to endExclusive: Date) -> [LessonAssignment] {
+    private func fetchPresentedLessonAssignments(from start: Date, to endExclusive: Date) -> [CDLessonAssignment] {
         let presentedRaw = LessonAssignmentState.presented.rawValue
-        let predicate = #Predicate<LessonAssignment> {
-            $0.stateRaw == presentedRaw &&
-            $0.presentedAt.flatMap { $0 >= start && $0 < endExclusive } == true
-        }
+        let predicate = NSPredicate(format: "stateRaw == %@ AND presentedAt != nil AND presentedAt >= %@ AND presentedAt < %@", presentedRaw, start as CVarArg, endExclusive as CVarArg)
         do {
-            return try modelContext.fetch(FetchDescriptor<LessonAssignment>(predicate: predicate))
+            let request: NSFetchRequest<CDLessonAssignment> = NSFetchRequest(entityName: "CDLessonAssignment")
+            request.predicate = predicate
+            return try viewContext.fetch(request)
         } catch {
             logger.warning("Failed to fetch presented lesson assignments: \(error)")
             return []
@@ -228,7 +227,7 @@ struct PresentationPill: View {
         let isMissing: Bool
         let status: AttendanceStatus?
         let hasHad: Bool
-        let blockingWork: WorkModel?
+        let blockingWork: CDWorkModel?
     }
     
     private var studentChips: [StudentChip] {
@@ -254,7 +253,7 @@ struct PresentationPill: View {
     }
 
     private var ageSchoolDays: Int {
-        snapshot.schoolDaysSinceCreation(asOf: Date(), using: modelContext, calendar: calendar)
+        snapshot.schoolDaysSinceCreation(asOf: Date(), using: viewContext, calendar: calendar)
     }
 
     private var ageStatus: LessonAgeStatus {
@@ -391,36 +390,41 @@ struct PresentationPill: View {
                 ageIndicator
             }
 
-            pillContent
-            .padding(.horizontal, 10)
-            .padding(.vertical, 8)
-            .background {
-                Capsule().fill(Color.primary.opacity(UIConstants.OpacityConstants.trace))
-                    .overlay {
-                        SubjectGrainBackground(subject: lessonObject?.subject ?? "")
-                            .clipShape(Capsule())
-                    }
-            }
-            .overlay(Capsule().stroke(subjectColor.opacity(UIConstants.OpacityConstants.accent), lineWidth: 1))
-            .overlay(Capsule().stroke(Color.accentColor.opacity(isValidDragTarget ? 0.45 : 0.0), lineWidth: 2))
-            .overlay(mergeHighlightOverlay)
-            .overlay(alignment: .trailing) { timeBadge }
-            .contentShape(Capsule())
-            .accessibilityLabel(accessibilityLabel)
-            .onDrop(of: [UTType.text], delegate: PillDropDelegate(
-                modelContext: modelContext,
-                appRouter: appRouter,
-                targetLessonID: snapshot.lessonID,
-                targetLessonAssignmentID: targetLessonAssignmentID,
-                enableMergeDrop: enableMergeDrop,
-                setHighlight: { isValid in isValidDragTarget = isValid },
-                setMergeHighlight: { isValid in isMergeTargeted = isValid },
-                canAccept: { isValidDragTarget || isMergeTargeted },
-                onDidMutate: { reason in saveCoordinator.save(modelContext, reason: reason) }
-            ))
+            let styledPill = pillContent
+                .padding(.horizontal, 10)
+                .padding(.vertical, 8)
+                .background {
+                    Capsule().fill(Color.primary.opacity(UIConstants.OpacityConstants.trace))
+                        .overlay {
+                            SubjectGrainBackground(subject: lessonObject?.subject ?? "")
+                                .clipShape(Capsule())
+                        }
+                }
+
+            let borderColor = subjectColor.opacity(UIConstants.OpacityConstants.accent)
+            let dragColor = Color.accentColor.opacity(isValidDragTarget ? 0.45 : 0.0)
+
+            styledPill
+                .overlay(Capsule().stroke(borderColor, lineWidth: 1))
+                .overlay(Capsule().stroke(dragColor, lineWidth: 2))
+                .overlay(mergeHighlightOverlay)
+                .overlay(alignment: .trailing) { timeBadge }
+                .contentShape(Capsule())
+                .accessibilityLabel(accessibilityLabel)
+                .onDrop(of: [UTType.text], delegate: PillDropDelegate(
+                    viewContext: viewContext,
+                    appRouter: appRouter,
+                    targetLessonID: snapshot.lessonID,
+                    targetLessonAssignmentID: targetLessonAssignmentID,
+                    enableMergeDrop: enableMergeDrop,
+                    setHighlight: { isValid in isValidDragTarget = isValid },
+                    setMergeHighlight: { isValid in isMergeTargeted = isValid },
+                    canAccept: { isValidDragTarget || isMergeTargeted },
+                    onDidMutate: { reason in saveCoordinator.save(viewContext, reason: reason) }
+                ))
         }
         .sheet(item: $selectedWorkForDetail) { work in
-            WorkDetailView(workID: work.id) {
+            WorkDetailView(workID: work.id ?? UUID()) {
                 selectedWorkForDetail = nil
             }
             #if os(macOS)
@@ -441,7 +445,7 @@ struct PresentationPill: View {
             await Task.yield()
             
             lastCacheDay = currentDay
-            cachedAttendanceStatuses = modelContext.attendanceStatuses(for: snapshot.studentIDs, on: currentDay)
+            cachedAttendanceStatuses = viewContext.attendanceStatuses(for: snapshot.studentIDs, on: currentDay)
             cachedRecentlyPresentedIDs = loadRecentlyPresentedIDsShared(for: currentDay)
         }
     }
@@ -453,15 +457,15 @@ struct PresentationPill: View {
         let baseDate = lessonAssignment.scheduledFor ?? snapshot.scheduledFor ?? Date()
         let combined = mergeDateAndTime(date: baseDate, time: newTime)
         lessonAssignment.setScheduledFor(combined, using: calendar)
-        saveCoordinator.save(modelContext, reason: "Update lesson time")
+        saveCoordinator.save(viewContext, reason: "Update lesson time")
     }
 
-    /// Helper to fetch a LessonAssignment by ID.
-    private func fetchLessonAssignment(by id: UUID) -> LessonAssignment? {
-        var descriptor = FetchDescriptor<LessonAssignment>(predicate: #Predicate { $0.id == id })
+    /// Helper to fetch a CDLessonAssignment by ID.
+    private func fetchLessonAssignment(by id: UUID) -> CDLessonAssignment? {
+        var descriptor = { let r = NSFetchRequest<CDLessonAssignment>(entityName: "CDLessonAssignment"); r.predicate = NSPredicate(format: "id == %@", id as CVarArg); r.fetchLimit = 0; return r }()
         descriptor.fetchLimit = 1
         do {
-            return try modelContext.fetch(descriptor).first
+            return try viewContext.fetch(descriptor).first
         } catch {
             logger.warning("Failed to fetch lesson assignment: \(error)")
             return nil

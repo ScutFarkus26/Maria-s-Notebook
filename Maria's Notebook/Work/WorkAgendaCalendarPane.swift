@@ -1,12 +1,12 @@
 // swiftlint:disable file_length
 import OSLog
 import SwiftUI
-import SwiftData
+import CoreData
 import UniformTypeIdentifiers
 // Uses WorkScheduleDateLogic for consistent labeling
 
 struct WorkAgendaCalendarPane: View {
-    @Environment(\.modelContext) private var modelContext
+    @Environment(\.managedObjectContext) private var modelContext
     @Environment(SaveCoordinator.self) private var saveCoordinator
 
     let startDate: Date
@@ -85,8 +85,9 @@ struct WorkAgendaCalendarPane: View {
             set: { if !$0 { selected = nil } }
         )) {
             if let token = selected,
-               let workModel = modelContext.resolveWorkModel(from: token.contractID) {
-                WorkDetailView(workID: workModel.id) {
+               let workModel = modelContext.resolveWorkModel(from: token.contractID),
+               let resolvedWorkID = workModel.id {
+                WorkDetailView(workID: resolvedWorkID) {
                     selected = nil
                 }
                 .id(token.id)
@@ -138,8 +139,9 @@ struct WorkAgendaCalendarPane: View {
     // MARK: - Data Fetching Helpers
     
     private func fetchWork(id: UUID) -> WorkModel? {
-        let descriptor = FetchDescriptor<WorkModel>(predicate: #Predicate { $0.id == id })
-        return modelContext.safeFetchFirst(descriptor)
+        let request = CDFetchRequest(CDWorkModel.self)
+        request.predicate = NSPredicate(format: "id == %@", id as CVarArg)
+        return modelContext.safeFetchFirst(request)
     }
     
     // MARK: - Actions
@@ -192,13 +194,11 @@ struct WorkAgendaCalendarPane: View {
         let noteOrNil = note.isEmpty ? nil : note
         
         // PHASE 6: Create WorkCheckIn only (WorkPlanItem removed)
-        let checkIn = WorkCheckIn(
-            workID: workID,
-            date: normalized,
-            status: .scheduled,
-            purpose: reason ?? "progressCheck"
-        )
-        modelContext.insert(checkIn)
+        let checkIn = CDWorkCheckIn(context: modelContext)
+        checkIn.workID = workID.uuidString
+        checkIn.date = normalized
+        checkIn.status = .scheduled
+        checkIn.purpose = reason ?? "progressCheck"
         if let noteText = noteOrNil, !noteText.trimmed().isEmpty {
             checkIn.setLegacyNoteText(noteText, in: modelContext)
         }
@@ -210,7 +210,8 @@ struct WorkAgendaCalendarPane: View {
     }
 
     private func rescheduleCheckIn(id: UUID, to day: Date) {
-        let fetch = FetchDescriptor<WorkCheckIn>(predicate: #Predicate<WorkCheckIn> { $0.id == id })
+        let fetch = CDFetchRequest(CDWorkCheckIn.self)
+        fetch.predicate = NSPredicate(format: "id == %@", id as CVarArg)
         guard let checkIn = modelContext.safeFetchFirst(fetch),
               let workID = checkIn.workID.asUUID else { return }
 
@@ -223,7 +224,8 @@ struct WorkAgendaCalendarPane: View {
     }
     
     private func rescheduleLessonAssignment(id: UUID, to day: Date) {
-        let fetch = FetchDescriptor<LessonAssignment>(predicate: #Predicate<LessonAssignment> { $0.id == id })
+        let fetch = CDFetchRequest(CDLessonAssignment.self)
+        fetch.predicate = NSPredicate(format: "id == %@", id as CVarArg)
         guard let la = modelContext.safeFetchFirst(fetch) else { return }
 
         let normalized = AppCalendar.startOfDay(day)
@@ -245,7 +247,7 @@ struct WorkAgendaCalendarPane: View {
 /// Styled like the Work Items column of the post-presentation workflow sheet.
 struct GroupedCheckInDetailSheet: View {
     @Environment(\.dismiss) private var dismiss
-    @Environment(\.modelContext) private var modelContext
+    @Environment(\.managedObjectContext) private var modelContext
 
     let group: WorkAgendaDayColumn.CheckInGroup
     let onSelectWork: (UUID) -> Void
@@ -317,7 +319,9 @@ struct GroupedCheckInDetailSheet: View {
 
     private func studentRow(checkIn: WorkCheckIn, studentName: String) -> some View {
         let work: WorkModel? = checkIn.workID.asUUID.flatMap { id in
-            modelContext.safeFetchFirst(FetchDescriptor<WorkModel>(predicate: #Predicate { $0.id == id }))
+            let request = CDFetchRequest(CDWorkModel.self)
+            request.predicate = NSPredicate(format: "id == %@", id as CVarArg)
+            return modelContext.safeFetchFirst(request)
         }
         return CheckInStudentRow(
             checkIn: checkIn,
@@ -338,7 +342,7 @@ struct GroupedCheckInDetailSheet: View {
 private struct CheckInStudentRow: View {
     private static let logger = Logger.work
 
-    @Environment(\.modelContext) private var modelContext
+    @Environment(\.managedObjectContext) private var modelContext
 
     let checkIn: WorkCheckIn
     let work: WorkModel?

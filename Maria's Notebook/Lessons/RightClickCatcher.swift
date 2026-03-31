@@ -1,6 +1,7 @@
 #if os(macOS)
 import AppKit
 import SwiftUI
+import CoreData
 
 struct RightClickCatcher: NSViewRepresentable {
     let onRightClick: () -> Void

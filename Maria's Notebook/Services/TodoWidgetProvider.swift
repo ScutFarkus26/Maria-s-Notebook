@@ -1,6 +1,6 @@
 import WidgetKit
 import SwiftUI
-import SwiftData
+import CoreData
 
 /*
  * TODO WIDGET IMPLEMENTATION GUIDE

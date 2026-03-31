@@ -8,7 +8,7 @@
 import SwiftUI
 
 struct PracticeSessionCompactRow: View {
-    let session: PracticeSession
+    let session: CDPracticeSession
 
     var body: some View {
         HStack(spacing: 8) {
@@ -16,7 +16,7 @@ struct PracticeSessionCompactRow: View {
                 .font(.system(size: 12))
                 .foregroundStyle(.purple)
 
-            Text(session.date.formatted(date: .abbreviated, time: .omitted))
+            Text((session.date ?? Date()).formatted(date: .abbreviated, time: .omitted))
                 .font(AppTheme.ScaledFont.caption)
                 .foregroundStyle(.secondary)
 

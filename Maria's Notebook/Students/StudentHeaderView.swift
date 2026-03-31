@@ -1,4 +1,5 @@
 import SwiftUI
+import CoreData
 
 struct StudentHeaderView: View {
     let fullName: String
@@ -14,8 +15,8 @@ struct StudentHeaderView: View {
         self.initials = initials
     }
 
-    // Convenience initializer that derives display values from a Student model.
-    init(student: Student) {
+    // Convenience initializer that derives display values from a CDStudent model.
+    init(student: CDStudent) {
         let fullName = student.fullName
         let levelDisplay = student.level.rawValue
         let levelColor: Color = {

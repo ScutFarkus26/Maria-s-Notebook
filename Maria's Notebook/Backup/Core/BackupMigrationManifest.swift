@@ -20,7 +20,7 @@ public enum BackupMigrationManifest {
                 "AES-GCM encryption with HKDF-SHA256 key derivation",
                 "SHA256 checksum validation",
                 "Deterministic JSON encoding with .sortedKeys",
-                "Project entities for group work tracking",
+                "CDProject entities for group work tracking",
                 "Removed legacy WorkPlanItem payload field and restore handling"
             ],
             breakingChanges: [],
@@ -128,47 +128,47 @@ extension BackupMigrationManifest {
     /// Documents entity schemas in the current format (v6)
     public enum EntitySchemaChanges {
 
-        // MARK: - Student
+        // MARK: - CDStudent
 
         public static let studentChanges: [EntityChange] = [
             EntityChange(
-                version: 6, entity: "Student",
+                version: 6, entity: "CDStudent",
                 change: "Fields: id, firstName, lastName, birthday, "
                     + "level, dateStarted, nextLessons, manualOrder"
             )
         ]
 
-        // MARK: - Lesson
+        // MARK: - CDLesson
 
         public static let lessonChanges: [EntityChange] = [
             EntityChange(
-                version: 6, entity: "Lesson",
+                version: 6, entity: "CDLesson",
                 change: "Fields: id, name, subject, group, "
                     + "orderInGroup, subheading, writeUp, "
                     + "pagesFileRelativePath"
             )
         ]
 
-        // MARK: - Note
+        // MARK: - CDNote
 
         public static let noteChanges: [EntityChange] = [
             EntityChange(
-                version: 6, entity: "Note",
+                version: 6, entity: "CDNote",
                 change: "Fields: id, createdAt, updatedAt, body, "
                     + "isPinned, scope (JSON), lessonID, imagePath"
             )
         ]
 
-        // MARK: - Project
+        // MARK: - CDProject
 
         public static let projectChanges: [EntityChange] = [
             EntityChange(
-                version: 6, entity: "Project",
+                version: 6, entity: "CDProject",
                 change: "Fields: id, createdAt, title, bookTitle, "
                     + "memberStudentIDs"
             ),
             EntityChange(
-                version: 6, entity: "ProjectSession",
+                version: 6, entity: "CDProjectSession",
                 change: "Fields: id, createdAt, projectID, "
                     + "meetingDate, chapterOrPages, notes, "
                     + "agendaItemsJSON, templateWeekID"
@@ -201,7 +201,7 @@ extension BackupMigrationManifest {
 
         public static let attendanceChanges: [EntityChange] = [
             EntityChange(
-                version: 6, entity: "AttendanceRecord",
+                version: 6, entity: "CDAttendanceRecord",
                 change: "Fields: id, studentID, date, status, "
                     + "absenceReason, note"
             )
@@ -225,15 +225,15 @@ extension BackupMigrationManifest {
     public static let payloadFields: [PayloadField] = [
         // Core entities
         PayloadField(name: "items", introducedIn: 6, description: "Legacy items array (unused)"),
-        PayloadField(name: "students", introducedIn: 6, description: "Student records"),
-        PayloadField(name: "lessons", introducedIn: 6, description: "Lesson definitions"),
+        PayloadField(name: "students", introducedIn: 6, description: "CDStudent records"),
+        PayloadField(name: "lessons", introducedIn: 6, description: "CDLesson definitions"),
         PayloadField(name: "lessonAssignments", introducedIn: 6, description: "Unified lesson assignments"),
         PayloadField(name: "notes", introducedIn: 6, description: "Notes and observations"),
         PayloadField(name: "nonSchoolDays", introducedIn: 6, description: "Calendar non-school days"),
         PayloadField(name: "schoolDayOverrides", introducedIn: 6, description: "Calendar school day overrides"),
 
         // Meetings
-        PayloadField(name: "studentMeetings", introducedIn: 6, description: "Student meeting records"),
+        PayloadField(name: "studentMeetings", introducedIn: 6, description: "CDStudent meeting records"),
 
         // Community
         PayloadField(name: "communityTopics", introducedIn: 6, description: "Community discussion topics"),
@@ -245,15 +245,15 @@ extension BackupMigrationManifest {
         PayloadField(name: "workCompletions", introducedIn: 6, description: "Work completion records"),
 
         // Projects
-        PayloadField(name: "projects", introducedIn: 6, description: "Project entities for group work"),
-        PayloadField(name: "projectAssignmentTemplates", introducedIn: 6, description: "Project assignment templates"),
-        PayloadField(name: "projectSessions", introducedIn: 6, description: "Project session records"),
-        PayloadField(name: "projectRoles", introducedIn: 6, description: "Project role definitions"),
-        PayloadField(name: "projectTemplateWeeks", introducedIn: 6, description: "Project weekly templates"),
+        PayloadField(name: "projects", introducedIn: 6, description: "CDProject entities for group work"),
+        PayloadField(name: "projectAssignmentTemplates", introducedIn: 6, description: "CDProject assignment templates"),
+        PayloadField(name: "projectSessions", introducedIn: 6, description: "CDProject session records"),
+        PayloadField(name: "projectRoles", introducedIn: 6, description: "CDProject role definitions"),
+        PayloadField(name: "projectTemplateWeeks", introducedIn: 6, description: "CDProject weekly templates"),
         PayloadField(
             name: "projectWeekRoleAssignments",
             introducedIn: 6,
-            description: "Project role assignments per week"
+            description: "CDProject role assignments per week"
         ),
 
         // Preferences

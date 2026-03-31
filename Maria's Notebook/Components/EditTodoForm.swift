@@ -3,14 +3,14 @@
 
 import OSLog
 import SwiftUI
-import SwiftData
+import CoreData
 
 // MARK: - Edit Todo Form
 
 struct EditTodoForm: View {
     private static let logger = Logger.todos
-    @Bindable var todo: TodoItem
-    @Environment(\.modelContext) private var modelContext
+    @ObservedObject var todo: CDTodoItem
+    @Environment(\.managedObjectContext) private var viewContext
 
     var body: some View {
         Form {
@@ -23,7 +23,7 @@ struct EditTodoForm: View {
                     .font(AppTheme.ScaledFont.body)
             }
 
-            Section("Schedule") {
+            Section("CDSchedule") {
                 HStack {
                     Text("When")
                     Spacer()
@@ -44,10 +44,10 @@ struct EditTodoForm: View {
                     Toggle("Repeat after completion", isOn: $todo.repeatAfterCompletion)
                     if todo.recurrence == .custom {
                         Stepper(
-                            "Every \(todo.customIntervalDays ?? 7) days",
+                            "Every \(todo.customIntervalDays == 0 ? 7 : todo.customIntervalDays) days",
                             value: Binding(
-                                get: { todo.customIntervalDays ?? 7 },
-                                set: { todo.customIntervalDays = $0 }
+                                get: { Int(todo.customIntervalDays == 0 ? 7 : todo.customIntervalDays) },
+                                set: { todo.customIntervalDays = Int64($0) }
                             ),
                             in: 1...365
                         )
@@ -69,7 +69,10 @@ struct EditTodoForm: View {
             }
 
             Section("Tags") {
-                TagPicker(selectedTags: $todo.tags)
+                TagPicker(selectedTags: Binding(
+                    get: { todo.tagsArray },
+                    set: { todo.tagsArray = $0 }
+                ))
             }
 
             Section {
@@ -112,7 +115,7 @@ struct EditTodoForm: View {
 
     private func saveTodoChanges() {
         do {
-            try modelContext.save()
+            try viewContext.save()
         } catch {
             Self.logger.error("[\(#function)] Failed to save todo changes: \(error)")
         }

@@ -1,13 +1,15 @@
 // swiftlint:disable file_length
 import SwiftUI
-import SwiftData
+import CoreData
 
 // Main list view for all practice sessions
 // swiftlint:disable:next type_body_length
 struct PracticeSessionsListView: View {
-    @Environment(\.modelContext) private var modelContext
-    @Query(sort: \PracticeSession.date, order: .reverse) private var allSessions: [PracticeSession]
-    @Query private var allStudents: [Student]
+    @Environment(\.managedObjectContext) private var viewContext
+    @FetchRequest(sortDescriptors: [NSSortDescriptor(keyPath: \CDPracticeSession.date, ascending: false)])
+    private var allSessions: FetchedResults<CDPracticeSession>
+    @FetchRequest(sortDescriptors: [NSSortDescriptor(keyPath: \CDStudent.firstName, ascending: true)])
+    private var allStudents: FetchedResults<CDStudent>
     
     @State private var searchText: String = ""
     @State private var selectedFilter: FilterType = .all
@@ -25,8 +27,8 @@ struct PracticeSessionsListView: View {
     }
     
     private var filteredSessions: [PracticeSession] {
-        var sessions = allSessions
-        
+        var sessions = Array(allSessions)
+
         // Apply filter type
         switch selectedFilter {
         case .all:
@@ -37,19 +39,19 @@ struct PracticeSessionsListView: View {
             sessions = sessions.filter(\.isSoloSession)
         case .today:
             let today = AppCalendar.startOfDay(Date())
-            sessions = sessions.filter { AppCalendar.startOfDay($0.date) == today }
+            sessions = sessions.filter { AppCalendar.startOfDay($0.date ?? Date.distantPast) == today }
         case .thisWeek:
             let calendar = Calendar.current
             let weekStart = calendar.dateInterval(of: .weekOfYear, for: Date())?.start ?? Date()
             let weekEnd = calendar.date(byAdding: .day, value: 7, to: weekStart) ?? Date()
-            sessions = sessions.filter { $0.date >= weekStart && $0.date < weekEnd }
+            sessions = sessions.filter { ($0.date ?? Date.distantPast) >= weekStart && ($0.date ?? Date.distantPast) < weekEnd }
         }
-        
+
         // Apply student filter
         if let studentID = selectedStudent {
             sessions = sessions.filter { $0.includes(studentID: studentID) }
         }
-        
+
         // Apply search
         if !searchText.isEmpty {
             sessions = sessions.filter { session in
@@ -57,21 +59,21 @@ struct PracticeSessionsListView: View {
                 session.location?.localizedCaseInsensitiveContains(searchText) ?? false
             }
         }
-        
+
         return sessions
     }
-    
+
     private var sessionsByDate: [(date: Date, sessions: [PracticeSession])] {
         let grouped = Dictionary(grouping: filteredSessions) { session in
-            AppCalendar.startOfDay(session.date)
+            AppCalendar.startOfDay(session.date ?? Date.distantPast)
         }
-        
+
         return grouped.map { (date: $0.key, sessions: $0.value) }
             .sorted { $0.date > $1.date }
     }
-    
+
     private var totalDuration: TimeInterval {
-        filteredSessions.compactMap(\.duration).reduce(0, +)
+        filteredSessions.compactMap(\.durationInterval).reduce(0, +)
     }
     
     var body: some View {
@@ -372,48 +374,31 @@ struct PracticeSessionsListView: View {
 
 // MARK: - Preview
 
-#Preview("Practice Sessions List") {
-    let config = ModelConfiguration(isStoredInMemoryOnly: true)
-    let container: ModelContainer
-    do {
-        container = try ModelContainer(for: AppSchema.schema, configurations: config)
-    } catch {
-        fatalError("Preview ModelContainer failed: \(error)")
-    }
-    let context = container.mainContext
+#Preview {
+    let stack = CoreDataStack.preview
+    let ctx = stack.viewContext
 
-    // Create sample students
-    let danny = Student(firstName: "Danny", lastName: "Jones", birthday: Date(), level: .lower)
-    let mary = Student(firstName: "Mary", lastName: "Smith", birthday: Date(), level: .lower)
-    let jane = Student(firstName: "Jane", lastName: "Doe", birthday: Date(), level: .lower)
-    
-    context.insert(danny)
-    context.insert(mary)
-    context.insert(jane)
-    
-    // Create sample work
-    let work1 = WorkModel(title: "Long Division", studentID: danny.id.uuidString, lessonID: UUID().uuidString)
-    let work2 = WorkModel(title: "Fractions", studentID: mary.id.uuidString, lessonID: UUID().uuidString)
-    
-    context.insert(work1)
-    context.insert(work2)
-    
-    // Create sample sessions
+    let danny = Student(context: ctx)
+    danny.firstName = "Danny"; danny.lastName = "Jones"; danny.birthday = Date(); danny.level = .lower
+    let mary = Student(context: ctx)
+    mary.firstName = "Mary"; mary.lastName = "Smith"; mary.birthday = Date(); mary.level = .lower
+
+    let work1 = WorkModel(context: ctx)
+    work1.title = "Long Division"; work1.studentID = danny.id?.uuidString ?? ""; work1.lessonID = UUID().uuidString
+
     for i in 0..<10 {
         let isGroup = i % 3 == 0
-        let session = PracticeSession(
-            date: Date().addingTimeInterval(Double(-i * 86400)),
-            duration: Double((15 + i * 5) * 60),
-            studentIDs: isGroup ? [danny.id.uuidString, mary.id.uuidString] : [danny.id.uuidString],
-            workItemIDs: [work1.id.uuidString],
-            sharedNotes: isGroup ? "Great teamwork! Both students improving." : "Making steady progress.",
-            location: i % 2 == 0 ? "Classroom" : "Small table"
-        )
-        context.insert(session)
+        let session = PracticeSession(context: ctx)
+        session.date = Date().addingTimeInterval(Double(-i * 86400))
+        session.duration = Double((15 + i * 5) * 60)
+        session.studentIDsArray = isGroup ? [danny.id?.uuidString ?? "", mary.id?.uuidString ?? ""] : [danny.id?.uuidString ?? ""]
+        session.workItemIDsArray = [work1.id?.uuidString ?? ""]
+        session.sharedNotes = isGroup ? "Great teamwork! Both students improving." : "Making steady progress."
+        session.location = i % 2 == 0 ? "Classroom" : "Small table"
     }
-    
+
     return NavigationStack {
         PracticeSessionsListView()
     }
-    .modelContainer(container)
+    .previewEnvironment(using: stack)
 }

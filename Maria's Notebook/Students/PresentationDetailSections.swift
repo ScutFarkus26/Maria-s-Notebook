@@ -1,15 +1,16 @@
 import SwiftUI
+import CoreData
 
 // MARK: - Summary Section
 struct PresentationSummarySection: View {
     let lessonName: String
     let subject: String
     let subjectColor: Color
-    let students: [Student]
+    let students: [CDStudent]
     let canMoveStudents: Bool
     let onMoveStudents: () -> Void
     let onAddRemoveStudents: () -> Void
-    let onRemoveStudent: (Student) -> Void
+    let onRemoveStudent: (CDStudent) -> Void
     
     var body: some View {
         VStack(spacing: 16) {
@@ -33,7 +34,7 @@ struct PresentationSummarySection: View {
             }
             .frame(maxWidth: .infinity)
             
-            // Student chips and action buttons
+            // CDStudent chips and action buttons
             ViewThatFits(in: .horizontal) {
                 // Try single line layout
                 HStack(alignment: .center, spacing: 8) {
@@ -167,10 +168,10 @@ struct PresentationPresentedSection: View {
     }
 }
 
-// MARK: - Next Lesson Section
+// MARK: - Next CDLesson Section
 struct PresentationNextLessonSection: View {
     let isPresented: Bool
-    let nextLesson: Lesson?
+    let nextLesson: CDLesson?
     let canPlanNext: Bool
     let onPlanNext: () -> Void
     
@@ -183,7 +184,7 @@ struct PresentationNextLessonSection: View {
                             .foregroundStyle(.secondary)
                             .frame(width: 20)
                         
-                        Text("Next Lesson in Group")
+                        Text("Next CDLesson in Group")
                             .font(AppTheme.ScaledFont.calloutSemibold)
                             .foregroundStyle(.secondary)
                     }
@@ -195,7 +196,7 @@ struct PresentationNextLessonSection: View {
                         Button {
                             onPlanNext()
                         } label: {
-                            Label("Plan Next Lesson in Group", systemImage: "calendar.badge.plus")
+                            Label("Plan Next CDLesson in Group", systemImage: "calendar.badge.plus")
                         }
                         .buttonStyle(.borderedProminent)
                         .disabled(!canPlanNext)

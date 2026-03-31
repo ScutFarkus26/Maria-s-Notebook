@@ -7,7 +7,6 @@
 //
 
 import Foundation
-import SwiftData
 import CoreData
 
 // MARK: - Protocol Definition
@@ -15,10 +14,10 @@ import CoreData
 /// Protocol for WorkCheckIn operations
 /// Defines the interface for creating, updating, and deleting work check-ins
 protocol WorkCheckInServiceProtocol {
-    var context: ModelContext { get }
-    
+    var context: NSManagedObjectContext { get }
+
     // MARK: - Creation
-    
+
     /// Create and insert a new check-in for the given work
     /// - Parameters:
     ///   - work: The work item to create a check-in for
@@ -26,153 +25,89 @@ protocol WorkCheckInServiceProtocol {
     ///   - status: The status of the check-in (default: .scheduled)
     ///   - purpose: The purpose of the check-in
     ///   - note: Additional notes for the check-in
-    /// - Returns: The newly created WorkCheckIn
-    /// - Throws: SwiftData persistence errors
+    /// - Returns: The newly created CDWorkCheckIn
+    /// - Throws: Core Data persistence errors
     @discardableResult
-    func createCheckIn(for work: WorkModel,
+    func createCheckIn(for work: CDWorkModel,
                        date: Date,
                        status: WorkCheckInStatus,
                        purpose: String,
-                       note: String) throws -> WorkCheckIn
-    
+                       note: String) throws -> CDWorkCheckIn
+
     // MARK: - Updates
-    
+
     /// Mark a check-in as completed
-    /// - Parameters:
-    ///   - checkIn: The check-in to mark as completed
-    ///   - note: Optional note about completion
-    ///   - date: The completion date (default: now)
-    /// - Throws: SwiftData persistence errors
-    func markCompleted(_ checkIn: WorkCheckIn, note: String?, at date: Date) throws
-    
+    func markCompleted(_ checkIn: CDWorkCheckIn, note: String?, at date: Date) throws
+
     /// Reschedule a check-in to a new date
-    /// - Parameters:
-    ///   - checkIn: The check-in to reschedule
-    ///   - date: The new date
-    ///   - note: Optional note about rescheduling
-    /// - Throws: SwiftData persistence errors
-    func reschedule(_ checkIn: WorkCheckIn, to date: Date, note: String?) throws
-    
+    func reschedule(_ checkIn: CDWorkCheckIn, to date: Date, note: String?) throws
+
     /// Skip a check-in
-    /// - Parameters:
-    ///   - checkIn: The check-in to skip
-    ///   - note: Optional note about skipping
-    ///   - date: The skip date (default: now)
-    /// - Throws: SwiftData persistence errors
-    func skip(_ checkIn: WorkCheckIn, note: String?, at date: Date) throws
-    
+    func skip(_ checkIn: CDWorkCheckIn, note: String?, at date: Date) throws
+
     /// Update the note on a check-in
-    /// - Parameters:
-    ///   - checkIn: The check-in to update
-    ///   - note: The new note content
-    /// - Throws: SwiftData persistence errors
-    func updateNote(_ checkIn: WorkCheckIn, to note: String?) throws
-    
+    func updateNote(_ checkIn: CDWorkCheckIn, to note: String?) throws
+
     /// Update core fields on a check-in
-    /// - Parameters:
-    ///   - checkIn: The check-in to update
-    ///   - date: The new date
-    ///   - status: The new status
-    ///   - purpose: The new purpose
-    ///   - note: The new note
-    /// - Throws: SwiftData persistence errors
-    func update(_ checkIn: WorkCheckIn, date: Date, status: WorkCheckInStatus, purpose: String, note: String) throws
-    
+    func update(_ checkIn: CDWorkCheckIn, date: Date, status: WorkCheckInStatus, purpose: String, note: String) throws
+
     // MARK: - Deletion
-    
+
     /// Delete a check-in
-    /// - Parameters:
-    ///   - checkIn: The check-in to delete
-    ///   - work: Optional work item to update relationships
-    /// - Throws: SwiftData persistence errors
-    func delete(_ checkIn: WorkCheckIn, from work: WorkModel?) throws
+    func delete(_ checkIn: CDWorkCheckIn, from work: CDWorkModel?) throws
 }
 
-// MARK: - Adapter Implementation
+// MARK: - Concrete Implementation
 
-/// Adapter that wraps the existing WorkCheckInService struct
-/// Provides protocol-based interface for dependency injection and testing.
-/// Bridges SwiftData types to Core Data internally during the transition.
+/// Concrete implementation that delegates to WorkCheckInService.
+/// Now works directly with Core Data types (no adapter bridging needed).
 @MainActor
-final class WorkCheckInServiceAdapter: WorkCheckInServiceProtocol {
-    let context: ModelContext
+final class CDWorkCheckInServiceImpl: WorkCheckInServiceProtocol {
+    let context: NSManagedObjectContext
     private let cdService: WorkCheckInService
-    private let cdContext: NSManagedObjectContext
 
-    init(context: ModelContext) {
+    init(context: NSManagedObjectContext) {
         self.context = context
-        self.cdContext = AppBootstrapping.getSharedCoreDataStack().viewContext
-        self.cdService = WorkCheckInService(context: cdContext)
-    }
-
-    // MARK: - CD Lookup Helpers
-
-    private func cdWork(for work: WorkModel) -> CDWorkModel? {
-        let request = CDFetchRequest(CDWorkModel.self)
-        request.predicate = NSPredicate(format: "id == %@", work.id as CVarArg)
-        request.fetchLimit = 1
-        return cdContext.safeFetchFirst(request)
-    }
-
-    private func cdCheckIn(for checkIn: WorkCheckIn) -> CDWorkCheckIn? {
-        let request = CDFetchRequest(CDWorkCheckIn.self)
-        request.predicate = NSPredicate(format: "id == %@", checkIn.id as CVarArg)
-        request.fetchLimit = 1
-        return cdContext.safeFetchFirst(request)
+        self.cdService = WorkCheckInService(context: context)
     }
 
     // MARK: - Creation
 
     @discardableResult
-    func createCheckIn(for work: WorkModel,
+    func createCheckIn(for work: CDWorkModel,
                        date: Date = Date(),
                        status: WorkCheckInStatus = .scheduled,
                        purpose: String = "",
-                       note: String = "") throws -> WorkCheckIn {
-        guard let cdW = cdWork(for: work) else {
-            throw NSError(domain: "WorkCheckInServiceAdapter", code: 1, userInfo: [NSLocalizedDescriptionKey: "CDWorkModel not found"])
-        }
-        let cdCI = try cdService.createCheckIn(for: cdW, date: date, status: status, purpose: purpose, note: note)
-        // Return a SwiftData WorkCheckIn for protocol conformance
-        let swiftDataCI = WorkCheckIn(workID: work.id, date: date, status: status, purpose: purpose, work: work)
-        swiftDataCI.id = cdCI.id ?? UUID()
-        context.insert(swiftDataCI)
-        return swiftDataCI
+                       note: String = "") throws -> CDWorkCheckIn {
+        try cdService.createCheckIn(for: work, date: date, status: status, purpose: purpose, note: note)
     }
 
     // MARK: - Updates
 
-    func markCompleted(_ checkIn: WorkCheckIn, note: String? = nil, at date: Date = Date()) throws {
-        guard let cdCI = cdCheckIn(for: checkIn) else { return }
-        try cdService.markCompleted(cdCI, note: note, at: date)
+    func markCompleted(_ checkIn: CDWorkCheckIn, note: String? = nil, at date: Date = Date()) throws {
+        try cdService.markCompleted(checkIn, note: note, at: date)
     }
 
-    func reschedule(_ checkIn: WorkCheckIn, to date: Date, note: String? = nil) throws {
-        guard let cdCI = cdCheckIn(for: checkIn) else { return }
-        try cdService.reschedule(cdCI, to: date, note: note)
+    func reschedule(_ checkIn: CDWorkCheckIn, to date: Date, note: String? = nil) throws {
+        try cdService.reschedule(checkIn, to: date, note: note)
     }
 
-    func skip(_ checkIn: WorkCheckIn, note: String? = nil, at date: Date = Date()) throws {
-        guard let cdCI = cdCheckIn(for: checkIn) else { return }
-        try cdService.skip(cdCI, note: note, at: date)
+    func skip(_ checkIn: CDWorkCheckIn, note: String? = nil, at date: Date = Date()) throws {
+        try cdService.skip(checkIn, note: note, at: date)
     }
 
-    func updateNote(_ checkIn: WorkCheckIn, to note: String?) throws {
-        guard let cdCI = cdCheckIn(for: checkIn) else { return }
-        try cdService.updateNote(cdCI, to: note)
+    func updateNote(_ checkIn: CDWorkCheckIn, to note: String?) throws {
+        try cdService.updateNote(checkIn, to: note)
     }
 
-    func update(_ checkIn: WorkCheckIn, date: Date, status: WorkCheckInStatus, purpose: String, note: String) throws {
-        guard let cdCI = cdCheckIn(for: checkIn) else { return }
-        try cdService.update(cdCI, date: date, status: status, purpose: purpose, note: note)
+    func update(_ checkIn: CDWorkCheckIn, date: Date, status: WorkCheckInStatus, purpose: String, note: String) throws {
+        try cdService.update(checkIn, date: date, status: status, purpose: purpose, note: note)
     }
 
     // MARK: - Deletion
 
-    func delete(_ checkIn: WorkCheckIn, from work: WorkModel? = nil) throws {
-        guard let cdCI = cdCheckIn(for: checkIn) else { return }
-        let cdW = work.flatMap { cdWork(for: $0) }
-        try cdService.delete(cdCI, from: cdW)
+    func delete(_ checkIn: CDWorkCheckIn, from work: CDWorkModel? = nil) throws {
+        try cdService.delete(checkIn, from: work)
     }
 }
 
@@ -182,56 +117,62 @@ final class WorkCheckInServiceAdapter: WorkCheckInServiceProtocol {
 /// Mock implementation for testing
 /// Provides in-memory implementation without actual persistence
 final class MockWorkCheckInService: WorkCheckInServiceProtocol {
-    let context: ModelContext
-    var createdCheckIns: [WorkCheckIn] = []
+    let context: NSManagedObjectContext
+    var createdCheckIns: [CDWorkCheckIn] = []
     var deletedCheckInIDs: [UUID] = []
     var completedCheckInIDs: [UUID] = []
-    
-    init(context: ModelContext) {
+
+    init(context: NSManagedObjectContext) {
         self.context = context
     }
-    
+
     @discardableResult
-    func createCheckIn(for work: WorkModel,
+    func createCheckIn(for work: CDWorkModel,
                        date: Date = Date(),
                        status: WorkCheckInStatus = .scheduled,
                        purpose: String = "",
-                       note: String = "") throws -> WorkCheckIn {
+                       note: String = "") throws -> CDWorkCheckIn {
+        let checkIn = CDWorkCheckIn(context: context)
+        checkIn.id = UUID()
+        checkIn.workID = work.id?.uuidString ?? ""
+        checkIn.date = date
+        checkIn.status = status
+        checkIn.purpose = purpose
+        checkIn.work = work
         let trimmedNote = note.trimmed()
-        let checkIn = WorkCheckIn(workID: work.id, date: date, status: status, purpose: purpose, work: work)
         if !trimmedNote.isEmpty {
             checkIn.setLegacyNoteText(trimmedNote, in: context)
         }
         createdCheckIns.append(checkIn)
         return checkIn
     }
-    
-    func markCompleted(_ checkIn: WorkCheckIn, note: String? = nil, at date: Date = Date()) throws {
-        completedCheckInIDs.append(checkIn.id)
+
+    func markCompleted(_ checkIn: CDWorkCheckIn, note: String? = nil, at date: Date = Date()) throws {
+        if let id = checkIn.id { completedCheckInIDs.append(id) }
         checkIn.status = .completed
     }
-    
-    func reschedule(_ checkIn: WorkCheckIn, to date: Date, note: String? = nil) throws {
+
+    func reschedule(_ checkIn: CDWorkCheckIn, to date: Date, note: String? = nil) throws {
         checkIn.date = date
     }
-    
-    func skip(_ checkIn: WorkCheckIn, note: String? = nil, at date: Date = Date()) throws {
+
+    func skip(_ checkIn: CDWorkCheckIn, note: String? = nil, at date: Date = Date()) throws {
         checkIn.status = .skipped
     }
-    
-    func updateNote(_ checkIn: WorkCheckIn, to note: String?) throws {
+
+    func updateNote(_ checkIn: CDWorkCheckIn, to note: String?) throws {
         checkIn.setLegacyNoteText(note, in: context)
     }
 
-    func update(_ checkIn: WorkCheckIn, date: Date, status: WorkCheckInStatus, purpose: String, note: String) throws {
+    func update(_ checkIn: CDWorkCheckIn, date: Date, status: WorkCheckInStatus, purpose: String, note: String) throws {
         checkIn.date = date
         checkIn.status = status
         checkIn.purpose = purpose
         checkIn.setLegacyNoteText(note, in: context)
     }
-    
-    func delete(_ checkIn: WorkCheckIn, from work: WorkModel? = nil) throws {
-        deletedCheckInIDs.append(checkIn.id)
+
+    func delete(_ checkIn: CDWorkCheckIn, from work: CDWorkModel? = nil) throws {
+        if let id = checkIn.id { deletedCheckInIDs.append(id) }
     }
 }
 #endif

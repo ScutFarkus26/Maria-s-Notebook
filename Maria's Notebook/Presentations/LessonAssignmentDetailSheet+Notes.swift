@@ -1,5 +1,5 @@
 import SwiftUI
-import SwiftData
+import CoreData
 import OSLog
 
 // MARK: - Notes Section
@@ -7,9 +7,9 @@ import OSLog
 extension LessonAssignmentDetailSheet {
 
     @ViewBuilder
-    func unifiedNoteRow(_ note: Note) -> some View {
+    func unifiedNoteRow(_ note: CDNote) -> some View {
         VStack(alignment: .leading, spacing: 8) {
-            // Note body first (like WorkDetailView)
+            // CDNote body first (like WorkDetailView)
             Text(note.body)
                 .font(AppTheme.ScaledFont.body)
                 .fixedSize(horizontal: false, vertical: true)
@@ -24,13 +24,13 @@ extension LessonAssignmentDetailSheet {
             // Metadata row
             HStack(spacing: 8) {
                 // Tag badges
-                if !note.tags.isEmpty {
-                    ForEach(note.tags.prefix(2), id: \.self) { tag in
+                if !note.tagsArray.isEmpty {
+                    ForEach(note.tagsArray.prefix(2), id: \.self) { tag in
                         TagBadge(tag: tag, compact: true)
                     }
                 }
 
-                Text(note.createdAt, style: .date)
+                Text(note.createdAt ?? Date(), style: .date)
                     .font(AppTheme.ScaledFont.captionSmall)
                     .foregroundStyle(.tertiary)
 
@@ -68,17 +68,16 @@ extension LessonAssignmentDetailSheet {
     func reloadNotes() {
         guard let assignment else { return }
 
-        // Load unified Note objects from relationship
+        // Load unified CDNote objects from relationship
         // Refresh the assignment object to get updated relationships
-        let targetID = assignment.id
-        var descriptor = FetchDescriptor<LessonAssignment>(
-            predicate: #Predicate<LessonAssignment> { $0.id == targetID }
-        )
+        guard let targetID = assignment.id else { return }
+        var descriptor: NSFetchRequest<CDLessonAssignment> = NSFetchRequest(entityName: "LessonAssignment")
+        descriptor.predicate = NSPredicate(format: "id == %@", targetID as CVarArg)
         descriptor.fetchLimit = 1
         do {
-            if let refreshed = try modelContext.fetch(descriptor).first {
-                if let notes = refreshed.unifiedNotes {
-                    self.unifiedNotes = Array(notes)
+            if let refreshed = try viewContext.fetch(descriptor).first {
+                if let notes = refreshed.unifiedNotes?.allObjects as? [CDNote], !notes.isEmpty {
+                    self.unifiedNotes = notes
                 } else {
                     self.unifiedNotes = []
                 }

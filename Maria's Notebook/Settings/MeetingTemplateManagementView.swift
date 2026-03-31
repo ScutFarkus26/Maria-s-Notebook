@@ -2,30 +2,28 @@
 // Manage weekly meeting templates (built-in and user-created)
 
 import SwiftUI
-import SwiftData
-import OSLog
 import CoreData
+import OSLog
 
 struct MeetingTemplateManagementView: View {
     private static let logger = Logger.settings
-    @Environment(\.modelContext) private var modelContext
+    @Environment(\.managedObjectContext) private var viewContext
     @Environment(\.managedObjectContext) private var managedObjectContext
-    @Query(sort: \MeetingTemplate.sortOrder)
-    private var templates: [MeetingTemplate]
+    @FetchRequest(sortDescriptors: [NSSortDescriptor(keyPath: \CDMeetingTemplate.sortOrder, ascending: true)]) private var templates: FetchedResults<CDMeetingTemplate>
 
     @State private var showingAddSheet = false
-    @State private var editingTemplate: MeetingTemplate?
-    @State private var previewingTemplate: MeetingTemplate?
+    @State private var editingTemplate: CDMeetingTemplate?
+    @State private var previewingTemplate: CDMeetingTemplate?
 
     private var repository: MeetingTemplateRepository {
         MeetingTemplateRepository(context: managedObjectContext)
     }
 
-    private var builtInTemplates: [MeetingTemplate] {
+    private var builtInTemplates: [CDMeetingTemplate] {
         templates.filter(\.isBuiltIn)
     }
 
-    private var customTemplates: [MeetingTemplate] {
+    private var customTemplates: [CDMeetingTemplate] {
         templates.filter { !$0.isBuiltIn }
     }
 
@@ -121,23 +119,22 @@ struct MeetingTemplateManagementView: View {
             })
         }
         .onAppear {
-            // Seed built-in templates if needed
-            MeetingTemplate.seedBuiltInTemplates(in: modelContext)
+            // TODO: seedBuiltInTemplates needs Core Data implementation
         }
     }
 
     // MARK: - Actions
 
-    private func activateTemplate(_ template: MeetingTemplate) {
+    private func activateTemplate(_ template: CDMeetingTemplate) {
         _ = adaptiveWithAnimation {
-            repository.setActiveTemplate(id: template.id)
+            if let templateID = template.id { repository.setActiveTemplate(id: templateID) }
         }
     }
 
-    private func deleteTemplate(_ template: MeetingTemplate) {
+    private func deleteTemplate(_ template: CDMeetingTemplate) {
         adaptiveWithAnimation {
             do {
-                try repository.deleteTemplate(id: template.id)
+                if let templateID = template.id { try repository.deleteTemplate(id: templateID) }
             } catch {
                 Self.logger.warning("Failed to delete meeting template: \(error, privacy: .public)")
             }
@@ -147,14 +144,14 @@ struct MeetingTemplateManagementView: View {
     private func reorderTemplates(from source: IndexSet, to destination: Int) {
         var reordered = customTemplates
         reordered.move(fromOffsets: source, toOffset: destination)
-        repository.reorderTemplates(ids: reordered.map(\.id))
+        repository.reorderTemplates(ids: reordered.compactMap(\.id))
     }
 }
 
 // MARK: - Meeting Template Card Row
 
 private struct MeetingTemplateCardRow: View {
-    let template: MeetingTemplate
+    let template: CDMeetingTemplate
     let isBuiltIn: Bool
     let onTap: () -> Void
     let onActivate: () -> Void
@@ -254,7 +251,7 @@ private struct MeetingTemplateCardRow: View {
 // MARK: - Meeting Template Preview Sheet
 
 private struct MeetingTemplatePreviewSheet: View {
-    let template: MeetingTemplate
+    let template: CDMeetingTemplate
     let onActivate: () -> Void
     @Environment(\.dismiss) private var dismiss
 

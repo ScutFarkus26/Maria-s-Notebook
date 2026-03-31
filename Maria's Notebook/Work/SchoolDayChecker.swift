@@ -1,6 +1,5 @@
 import Foundation
 import CoreData
-import SwiftData
 
 /// Centralized utility for determining school days vs non-school days.
 /// Consolidates logic previously duplicated in WorkAgendaCalendarPane and WorkAging.
@@ -93,34 +92,7 @@ enum SchoolDayChecker {
         return result
     }
 
-    // MARK: - Deprecated SwiftData Bridge
-
-    @available(*, deprecated, message: "Pass NSManagedObjectContext instead of ModelContext")
-    @MainActor
-    static func isNonSchoolDay(_ date: Date, using modelContext: ModelContext) -> Bool {
-        let cdContext = AppBootstrapping.getSharedCoreDataStack().viewContext
-        return isNonSchoolDay(date, using: cdContext)
-    }
-
-    @available(*, deprecated, message: "Pass NSManagedObjectContext instead of ModelContext")
-    @MainActor
-    static func isSchoolDay(_ date: Date, using modelContext: ModelContext) -> Bool {
-        !isNonSchoolDay(date, using: modelContext)
-    }
-
-    @available(*, deprecated, message: "Pass NSManagedObjectContext instead of ModelContext")
-    @MainActor
-    static func nextSchoolDays(from startDate: Date, count: Int, using modelContext: ModelContext) -> [Date] {
-        let cdContext = AppBootstrapping.getSharedCoreDataStack().viewContext
-        return nextSchoolDays(from: startDate, count: count, using: cdContext)
-    }
-
-    @available(*, deprecated, message: "Pass NSManagedObjectContext instead of ModelContext")
-    @MainActor
-    static func schoolDaysBetween(start: Date, end: Date, using modelContext: ModelContext) -> Int {
-        let cdContext = AppBootstrapping.getSharedCoreDataStack().viewContext
-        return schoolDaysBetween(start: start, end: end, using: cdContext)
-    }
+    // Deprecated ModelContext overloads removed - no longer needed with Core Data.
 
     // MARK: - Private Helpers
 

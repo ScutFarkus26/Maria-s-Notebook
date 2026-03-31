@@ -1,5 +1,6 @@
 import Foundation
 import SwiftUI
+import CoreData
 
 @MainActor
 enum PresentationDetailUtilities {

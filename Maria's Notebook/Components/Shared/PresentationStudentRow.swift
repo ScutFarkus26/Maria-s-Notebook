@@ -8,11 +8,11 @@
 import SwiftUI
 
 struct PresentationStudentRow: View {
-    let student: Student
+    let student: CDStudent
     @Binding var entry: UnifiedPostPresentationSheet.StudentEntry
     @Binding var isExpanded: Bool
     let suggestedWorkItems: [String]
-    let nextLesson: Lesson?
+    let nextLesson: CDLesson?
     @Binding var isUnlockSelected: Bool
     let defaultCheckInDate: Date
     let defaultDueDate: Date
@@ -134,7 +134,7 @@ struct PresentationStudentRow: View {
                 .font(AppTheme.ScaledFont.captionSemibold)
                 .foregroundStyle(.secondary)
 
-            TextField("Note about this student...", text: $entry.observation, axis: .vertical)
+            TextField("CDNote about this student...", text: $entry.observation, axis: .vertical)
                 .textFieldStyle(.roundedBorder)
                 .lineLimit(2...4)
         }
@@ -237,7 +237,7 @@ struct PresentationStudentRow: View {
         if let nextLesson {
             VStack(alignment: .leading, spacing: 8) {
                 HStack {
-                    Text("Next Lesson")
+                    Text("Next CDLesson")
                         .font(AppTheme.ScaledFont.captionSemibold)
                         .foregroundStyle(.secondary)
                     Spacer()
@@ -257,7 +257,7 @@ struct PresentationStudentRow: View {
                             .font(AppTheme.ScaledFont.captionSmall)
                             .foregroundStyle(.primary)
 
-                        Text(isUnlockSelected ? "Will be unlocked when you click Done" : "Lesson will remain blocked")
+                        Text(isUnlockSelected ? "Will be unlocked when you click Done" : "CDLesson will remain blocked")
                             .font(AppTheme.ScaledFont.captionSmall)
                             .foregroundStyle(isUnlockSelected ? .green : .secondary)
                     }

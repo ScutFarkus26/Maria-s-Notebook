@@ -1,0 +1,24 @@
+{
+  "source": "/Users/dannydeberry/Documents/Projects/MariasNotebook-Rewrite/Maria's Notebook/Students/StudentsChipsRow.swift",
+  "tables": {
+    "Localizable": [
+      {
+        "comment": "",
+        "key": "Remove %@",
+        "location": {
+          "startingColumn": 49,
+          "startingLine": 39
+        }
+      },
+      {
+        "comment": "",
+        "key": "Manage Students",
+        "location": {
+          "startingColumn": 23,
+          "startingLine": 53
+        }
+      }
+    ]
+  },
+  "version": 1
+}

@@ -1,5 +1,5 @@
 import Foundation
-import SwiftData
+import CoreData
 import OSLog
 
 /// Handles importing entities from backup DTOs into the database.
@@ -19,13 +19,13 @@ enum BackupEntityImporter {
     private static let logger = Logger.backup
 
     /// Type alias for a function that checks if an entity with a given ID exists
-    typealias EntityExistsCheck<T: PersistentModel> = (UUID) throws -> T?
+    typealias EntityExistsCheck<T: NSManagedObject> = (UUID) throws -> T?
 
     // MARK: - Common Helpers
 
     /// Generic helper to check if an entity exists and skip if it does.
     /// Returns true if the entity should be skipped (already exists).
-    static func shouldSkipExisting<T: PersistentModel>(
+    static func shouldSkipExisting<T: NSManagedObject>(
         id: UUID,
         existingCheck: EntityExistsCheck<T>
     ) -> Bool {
@@ -38,9 +38,9 @@ enum BackupEntityImporter {
     }
 
     /// Generic helper for importing simple entities with common pattern.
-    static func importSimpleEntities<DTO, Entity: PersistentModel>(
+    static func importSimpleEntities<DTO, Entity: NSManagedObject>(
         _ dtos: [DTO],
-        into modelContext: ModelContext,
+        into viewContext: NSManagedObjectContext,
         existingCheck: EntityExistsCheck<Entity>,
         idExtractor: (DTO) -> UUID,
         entityBuilder: (DTO) -> Entity
@@ -49,7 +49,7 @@ enum BackupEntityImporter {
             let id = idExtractor(dto)
             if shouldSkipExisting(id: id, existingCheck: existingCheck) { continue }
             let entity = entityBuilder(dto)
-            modelContext.insert(entity)
+            viewContext.insert(entity)
         }
     }
 }

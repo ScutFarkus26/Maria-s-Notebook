@@ -1,19 +1,22 @@
 import SwiftUI
-import SwiftData
+import CoreData
 
 /// Detail view for viewing a schedule's full configuration
 struct ScheduleDetailSheet: View {
     @Environment(\.dismiss) private var dismiss
-    @Environment(\.modelContext) private var modelContext
+    @Environment(\.managedObjectContext) private var viewContext
 
-    let schedule: Schedule
-    let onEdit: (Schedule) -> Void
+    let schedule: CDSchedule
+    let onEdit: (CDSchedule) -> Void
 
-    @Query(sort: \Student.firstName) private var studentsRaw: [Student]
-    private var students: [Student] { studentsRaw.filter(\.isEnrolled) }
+    @FetchRequest(sortDescriptors: [NSSortDescriptor(keyPath: \CDStudent.firstName, ascending: true)]) private var studentsRaw: FetchedResults<CDStudent>
+    private var students: [CDStudent] { studentsRaw.filter(\.isEnrolled) }
 
-    private var studentLookup: [String: Student] {
-        Dictionary(uniqueKeysWithValues: students.map { ($0.id.uuidString.lowercased(), $0) })
+    private var studentLookup: [String: CDStudent] {
+        Dictionary(uniqueKeysWithValues: students.compactMap { student in
+            guard let id = student.id else { return nil }
+            return (id.uuidString.lowercased(), student)
+        })
     }
 
     var body: some View {
@@ -29,7 +32,7 @@ struct ScheduleDetailSheet: View {
 
                     Divider()
 
-                    // Schedule by day
+                    // CDSchedule by day
                     scheduleSection
                 }
                 .padding(24)
@@ -96,11 +99,11 @@ struct ScheduleDetailSheet: View {
         }
     }
 
-    // MARK: - Schedule Section
+    // MARK: - CDSchedule Section
 
     private var scheduleSection: some View {
         VStack(alignment: .leading, spacing: 16) {
-            Text("Weekly Schedule")
+            Text("Weekly CDSchedule")
                 .font(.title3.weight(.semibold))
 
             if schedule.activeWeekdays.isEmpty {
@@ -148,10 +151,10 @@ struct ScheduleDetailSheet: View {
         }
     }
 
-    private func slotRow(slot: ScheduleSlot) -> some View {
+    private func slotRow(slot: CDScheduleSlot) -> some View {
         HStack(spacing: 12) {
             if let student = studentLookup[slot.studentID.lowercased()] {
-                // Student avatar/initials
+                // CDStudent avatar/initials
                 StudentAvatarView(student: student, size: 28)
 
                 VStack(alignment: .leading, spacing: 2) {
@@ -168,7 +171,7 @@ struct ScheduleDetailSheet: View {
                 Image(systemName: "person.crop.circle.badge.questionmark")
                     .foregroundStyle(.secondary)
 
-                Text("Unknown Student")
+                Text("Unknown CDStudent")
                     .font(.subheadline)
                     .foregroundStyle(.secondary)
                     .italic()
@@ -214,6 +217,11 @@ struct ScheduleDetailSheet: View {
 }
 
 #Preview {
-    ScheduleDetailSheet(schedule: Schedule(name: "Reading Support")) { _ in }
-        .previewEnvironment()
+    let stack = CoreDataStack.preview
+    let ctx = stack.viewContext
+    let schedule = CDSchedule(context: ctx)
+    schedule.name = "Reading Support"
+
+    return ScheduleDetailSheet(schedule: schedule) { _ in }
+        .previewEnvironment(using: stack)
 }

@@ -2,22 +2,22 @@
 // Host view for displaying LessonDetailView in a separate macOS window.
 
 import SwiftUI
-import SwiftData
+import CoreData
 
 #if os(macOS)
 struct LessonDetailWindowHost: View {
     let lessonID: UUID
-    @Environment(\.modelContext) private var modelContext
+    @Environment(\.managedObjectContext) private var viewContext
 
     var body: some View {
-        let fetchDescriptor = FetchDescriptor<Lesson>(predicate: #Predicate { $0.id == lessonID })
-        if let lesson = modelContext.safeFetchFirst(fetchDescriptor) {
+        let fetchDescriptor = { let r = CDLesson.fetchRequest() as! NSFetchRequest<CDLesson>; r.predicate = NSPredicate(format: "id == %@", lessonID as CVarArg); return r }()
+        if let lesson = viewContext.safeFetchFirst(fetchDescriptor) {
             LessonDetailView(lesson: lesson, onSave: { _ in
                 // Save is handled by the view itself with SaveCoordinator
             })
             .frame(minWidth: 500, minHeight: 400)
         } else {
-            ContentUnavailableView("Lesson Not Found", systemImage: "book.closed")
+            ContentUnavailableView("CDLesson Not Found", systemImage: "book.closed")
                 .frame(minWidth: 400, minHeight: 300)
         }
     }

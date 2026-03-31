@@ -111,9 +111,9 @@ struct TodoTodayRow: View {
                                     .foregroundStyle(.purple.opacity(UIConstants.OpacityConstants.prominent))
                             }
 
-                            if !todo.tags.isEmpty {
-                                let firstName = TodoTagHelper.tagName(todo.tags[0])
-                                let firstColor = TodoTagHelper.tagColor(todo.tags[0])
+                            if !todo.tagsArray.isEmpty {
+                                let firstName = TodoTagHelper.tagName(todo.tagsArray[0])
+                                let firstColor = TodoTagHelper.tagColor(todo.tagsArray[0])
                                 Text(firstName)
                                     .font(AppTheme.ScaledFont.captionSmallSemibold)
                                     .foregroundStyle(firstColor.color)
@@ -121,8 +121,8 @@ struct TodoTodayRow: View {
                                     .padding(.vertical, 1)
                                     .background(firstColor.lightColor)
                                     .clipShape(RoundedRectangle(cornerRadius: 3))
-                                if todo.tags.count > 1 {
-                                    Text("+\(todo.tags.count - 1)")
+                                if todo.tagsArray.count > 1 {
+                                    Text("+\(todo.tagsArray.count - 1)")
                                         .font(AppTheme.ScaledFont.captionSmall)
                                         .foregroundStyle(.secondary)
                                 }
@@ -157,7 +157,7 @@ struct CalendarEventListRow: View {
         if event.isAllDay {
             return "All day"
         } else {
-            return DateFormatters.shortTime.string(from: event.startDate)
+            return DateFormatters.shortTime.string(from: event.startDate ?? Date())
         }
     }
 

@@ -2,28 +2,28 @@
 // Day column component extracted from PresentationsView
 
 import SwiftUI
-import SwiftData
+import CoreData
 import UniformTypeIdentifiers
 import OSLog
 
 struct PresentationsDayColumn: View {
-    @Environment(\.modelContext) private var modelContext
+    @Environment(\.managedObjectContext) private var viewContext
     @Environment(\.calendar) private var calendar
 
     let day: Date
-    let allLessonAssignments: [LessonAssignment]
+    let allLessonAssignments: [CDLessonAssignment]
     let showWork: Bool
     // OPTIMIZATION: Accept pre-fetched work items from parent
-    let preloadedWorkItems: [WorkCheckIn]
-    let onClear: (LessonAssignment) -> Void
-    let onSelect: (LessonAssignment) -> Void
+    let preloadedWorkItems: [CDWorkCheckIn]
+    let onClear: (CDLessonAssignment) -> Void
+    let onSelect: (CDLessonAssignment) -> Void
 
     @State private var itemFrames: [UUID: CGRect] = [:]
     @State private var zoneSpaceID = UUID()
     @State private var isTargeted: Bool = false
     @State private var insertionIndex: Int?
 
-    private var scheduledLessonsForDay: [LessonAssignment] {
+    private var scheduledLessonsForDay: [CDLessonAssignment] {
         allLessonAssignments.filter { la in
             guard let scheduled = la.scheduledFor, !la.isGiven else { return false }
             return calendar.isDate(scheduled, inSameDayAs: day)
@@ -31,30 +31,30 @@ struct PresentationsDayColumn: View {
         .sorted { ($0.scheduledFor ?? .distantPast) < ($1.scheduledFor ?? .distantPast) }
     }
     
-    // Phase 6: WorkPlanItem removed from schema - migrated to WorkCheckIn
+    // Phase 6: WorkPlanItem removed from schema - migrated to CDWorkCheckIn
     // OPTIMIZATION: Filter pre-loaded work items instead of fetching from database
     // This eliminates per-column database queries (33 queries -> 0 queries)
-    private var workItemsForDay: [WorkCheckIn] {
+    private var workItemsForDay: [CDWorkCheckIn] {
         let (start, end) = AppCalendar.dayRange(for: day)
-        return preloadedWorkItems.filter { $0.date >= start && $0.date < end }
+        return preloadedWorkItems.filter { ($0.date ?? .distantPast) >= start && ($0.date ?? .distantPast) < end }
     }
     
     /// Note: Cannot conform to Sendable because SwiftData models are not Sendable
     enum CalendarItem: Identifiable {
-        case lessonAssignment(LessonAssignment)
-        case workCheckIn(WorkCheckIn) // Phase 6: renamed from workPlanItem
+        case lessonAssignment(CDLessonAssignment)
+        case workCheckIn(CDWorkCheckIn) // Phase 6: renamed from workPlanItem
 
         var id: UUID {
             switch self {
-            case .lessonAssignment(let la): return la.id
-            case .workCheckIn(let wci): return wci.id
+            case .lessonAssignment(let la): return la.id ?? UUID()
+            case .workCheckIn(let wci): return wci.id ?? UUID()
             }
         }
 
         var sortDate: Date {
             switch self {
             case .lessonAssignment(let la): return la.scheduledFor ?? .distantPast
-            case .workCheckIn(let wci): return wci.date
+            case .workCheckIn(let wci): return wci.date ?? .distantPast
             }
         }
     }
@@ -109,18 +109,19 @@ struct PresentationsDayColumn: View {
                             ForEach(allItemsForDay) { item in
                                 switch item {
                                 case .lessonAssignment(let la):
+                                    let laID = la.id ?? UUID()
                                     PresentationPill(
                                         snapshot: la.snapshot(), day: day,
-                                        targetLessonAssignmentID: la.id,
+                                        targetLessonAssignmentID: laID,
                                         showTimeBadge: false, enableMergeDrop: true
                                     )
                                         .onTapGesture { onSelect(la) }
                                         .draggable(
-                                            UnifiedCalendarDragPayload.presentation(la.id).stringRepresentation
+                                            UnifiedCalendarDragPayload.presentation(laID).stringRepresentation
                                         ) {
                                             PresentationPill(
                                                 snapshot: la.snapshot(), day: day,
-                                                targetLessonAssignmentID: la.id,
+                                                targetLessonAssignmentID: laID,
                                                 showTimeBadge: false, enableMergeDrop: true
                                             ).opacity(UIConstants.OpacityConstants.nearSolid)
                                         }
@@ -133,17 +134,18 @@ struct PresentationsDayColumn: View {
                                             GeometryReader { proxy in
                                                 Color.clear.preference(
                                                     key: PillFramePreference.self,
-                                                    value: [la.id: proxy.frame(in: .named(zoneSpaceID))]
+                                                    value: [laID: proxy.frame(in: .named(zoneSpaceID))]
                                                 )
                                             }
                                         )
                                 case .workCheckIn(let wci):
+                                    let wciID = wci.id ?? UUID()
                                     WorkCheckInPill(checkIn: wci, isDulled: true)
                                         .background(
                                             GeometryReader { proxy in
                                                 Color.clear.preference(
                                                     key: PillFramePreference.self,
-                                                    value: [wci.id: proxy.frame(in: .named(zoneSpaceID))]
+                                                    value: [wciID: proxy.frame(in: .named(zoneSpaceID))]
                                                 )
                                             }
                                         )
@@ -193,7 +195,7 @@ struct PresentationsDayColumn: View {
             .contentShape(RoundedRectangle(cornerRadius: 10))
             .onDrop(of: [UTType.text], delegate: PresentationsDayColumnDropDelegate(
                 calendar: calendar,
-                modelContext: modelContext,
+                viewContext: viewContext,
                 allLessonAssignments: allLessonAssignments,
                 day: day,
                 getCurrentItems: { allItemsForDay },
@@ -226,8 +228,8 @@ struct PresentationsDayColumn: View {
 private struct PresentationsDayColumnDropDelegate: DropDelegate {
     private static let logger = Logger.presentations
     let calendar: Calendar
-    let modelContext: ModelContext
-    let allLessonAssignments: [LessonAssignment]
+    let viewContext: NSManagedObjectContext
+    let allLessonAssignments: [CDLessonAssignment]
     let day: Date
     let getCurrentItems: () -> [PresentationsDayColumn.CalendarItem]
     let itemFramesProvider: () -> [UUID: CGRect]
@@ -304,20 +306,20 @@ private struct PresentationsDayColumnDropDelegate: DropDelegate {
         // Check if the drop landed on a pill for the same lesson — merge instead of reorder
         if let source = allLessonAssignments.first(where: { $0.id == id }), !source.isGiven {
             let frames = itemFramesProvider()
-            let scheduledLessons = current.compactMap { item -> LessonAssignment? in
+            let scheduledLessons = current.compactMap { item -> CDLessonAssignment? in
                 if case .lessonAssignment(let la) = item { return la }
                 return nil
             }
             if let targetSL = scheduledLessons.first(where: { sl in
-                guard sl.id != id, !sl.isGiven,
+                guard let slID = sl.id, slID != id, !sl.isGiven,
                       sl.resolvedLessonID == source.resolvedLessonID,
-                      let frame = frames[sl.id] else { return false }
+                      let frame = frames[slID] else { return false }
                 return locationY >= frame.minY && locationY <= frame.maxY
             }) {
                 PresentationMergeService.merge(
                     sourceID: id,
-                    targetID: targetSL.id,
-                    context: modelContext
+                    targetID: targetSL.id ?? UUID(),
+                    context: viewContext
                 )
                 return
             }
@@ -346,7 +348,7 @@ private struct PresentationsDayColumnDropDelegate: DropDelegate {
                     item.setScheduledFor(timeMap[itemID], using: AppCalendar.shared)
                 }
             }
-            try modelContext.save()
+            try viewContext.save()
         } catch {
             Self.logger.warning("Presentations schedule save failed: \(error)")
         }
@@ -354,12 +356,12 @@ private struct PresentationsDayColumnDropDelegate: DropDelegate {
     
     @MainActor
     private func applyWorkPlanItemDrop(id: UUID, locationY: CGFloat) {
-        // Phase 6: WorkPlanItem removed from schema - migrated to WorkCheckIn
-        // Fetch the WorkCheckIn
-        let descriptor = FetchDescriptor<WorkCheckIn>(predicate: #Predicate<WorkCheckIn> { $0.id == id })
+        // Phase 6: WorkPlanItem removed from schema - migrated to CDWorkCheckIn
+        // Fetch the CDWorkCheckIn
+        let descriptor = { let r = NSFetchRequest<CDWorkCheckIn>(entityName: "WorkCheckIn"); r.predicate = NSPredicate(format: "id == %@", id as CVarArg); r.fetchLimit = 1; return r }()
         guard let item = {
             do {
-                return try modelContext.fetch(descriptor).first
+                return try viewContext.fetch(descriptor).first
             } catch {
                 Self.logger.warning("Failed to fetch work check-in: \(error)")
                 return nil
@@ -372,9 +374,9 @@ private struct PresentationsDayColumnDropDelegate: DropDelegate {
         
         // Also update the associated WorkModel's dueAt
         if let workID = UUID(uuidString: item.workID) {
-            let workDescriptor = FetchDescriptor<WorkModel>(predicate: #Predicate<WorkModel> { $0.id == workID })
+            let workDescriptor = { let r = NSFetchRequest<CDWorkModel>(entityName: "WorkModel"); r.predicate = NSPredicate(format: "id == %@", workID as CVarArg); r.fetchLimit = 1; return r }()
             do {
-                if let work = try modelContext.fetch(workDescriptor).first {
+                if let work = try viewContext.fetch(workDescriptor).first {
                     work.dueAt = normalized
                 }
             } catch {
@@ -383,7 +385,7 @@ private struct PresentationsDayColumnDropDelegate: DropDelegate {
         }
 
         do {
-            try modelContext.save()
+            try viewContext.save()
         } catch {
             Self.logger.warning("Failed to save work item schedule: \(error)")
         }

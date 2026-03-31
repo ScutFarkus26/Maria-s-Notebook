@@ -6,7 +6,7 @@
 // - QuickNewWorkItemSheet+Actions.swift   (saveWorkItem, check-in reason helpers)
 
 import SwiftUI
-import SwiftData
+import CoreData
 
 struct QuickNewWorkItemSheet: View {
     /// Optional callback when work is created and user wants to view details immediately
@@ -29,7 +29,7 @@ struct QuickNewWorkItemSheet: View {
     }
 
     @Environment(\.dismiss) var dismiss
-    @Environment(\.modelContext) var modelContext
+    @Environment(\.managedObjectContext) var viewContext
     @Environment(SaveCoordinator.self) var saveCoordinator
 
     // Test student filtering
@@ -37,16 +37,16 @@ struct QuickNewWorkItemSheet: View {
     @AppStorage(UserDefaultsKeys.generalTestStudentNames)
     var testStudentNamesRaw: String = "Danny De Berry,Lil Dan D"
 
-    @Query(sort: [SortDescriptor(\Lesson.subject), SortDescriptor(\Lesson.sortIndex)])
-    var allLessons: [Lesson]
+    @FetchRequest(sortDescriptors: [NSSortDescriptor(keyPath: \CDLesson.subject, ascending: true), NSSortDescriptor(keyPath: \CDLesson.sortIndex, ascending: true)])
+    var allLessons: FetchedResults<CDLesson>
 
-    @Query(sort: Student.sortByName)
-    private var allStudentsRaw: [Student]
+    @FetchRequest(sortDescriptors: [NSSortDescriptor(keyPath: \CDStudent.lastName, ascending: true), NSSortDescriptor(keyPath: \CDStudent.firstName, ascending: true)])
+    private var allStudentsRaw: FetchedResults<CDStudent>
     // DEDUPLICATION: CloudKit sync can create duplicate records with the same ID.
     // Filter out test students when setting is disabled
-    var allStudents: [Student] {
+    var allStudents: [CDStudent] {
         TestStudentsFilter.filterVisible(
-            allStudentsRaw.uniqueByID.filter(\.isEnrolled),
+            Array(allStudentsRaw).uniqueByID.filter(\.isEnrolled),
             show: showTestStudents,
             namesRaw: testStudentNamesRaw
         )
@@ -75,23 +75,26 @@ struct QuickNewWorkItemSheet: View {
     @State var showingStudentPopover: Bool = false
     @FocusState var lessonFieldFocused: Bool
 
-    var filteredLessons: [Lesson] {
+    var filteredLessons: [CDLesson] {
         let query = lessonSearchText.lowercased().trimmingCharacters(in: .whitespaces)
-        guard !query.isEmpty else { return allLessons }
-        return allLessons.filter {
+        guard !query.isEmpty else { return Array(allLessons) }
+        return Array(allLessons).filter {
             $0.name.lowercased().contains(query) ||
             $0.subject.lowercased().contains(query) ||
             $0.group.lowercased().contains(query)
         }
     }
 
-    var selectedLesson: Lesson? {
+    var selectedLesson: CDLesson? {
         guard let id = selectedLessonID else { return nil }
         return allLessons.first { $0.id == id }
     }
 
-    var selectedStudents: [Student] {
-        allStudents.filter { selectedStudentIDs.contains($0.id) }
+    var selectedStudents: [CDStudent] {
+        allStudents.filter { student in
+            guard let studentID = student.id else { return false }
+            return selectedStudentIDs.contains(studentID)
+        }
     }
 
     var canSave: Bool {

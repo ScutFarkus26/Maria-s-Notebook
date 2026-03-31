@@ -3,26 +3,20 @@
 
 import Foundation
 import CoreData
-import SwiftData
 
 /// A small service that centralizes persistence for WorkStep operations.
 ///
 /// This service ensures that model methods remain free of side-effects
 /// (no implicit saves), while callers can perform explicit, transactional
 /// operations that throw on failure.
-struct WorkStepService {
+struct WorkStepService: WorkStepServiceProtocol {
     let context: NSManagedObjectContext
 
     init(context: NSManagedObjectContext) {
         self.context = context
     }
 
-    /// Deprecated init for callers still passing ModelContext.
-    @available(*, deprecated, message: "Pass NSManagedObjectContext instead of ModelContext")
-    @MainActor
-    init(context: ModelContext) {
-        self.context = AppBootstrapping.getSharedCoreDataStack().viewContext
-    }
+    // Deprecated ModelContext init removed - no longer needed with Core Data.
 
     // MARK: - Creation
 

@@ -1,10 +1,10 @@
 // TodoEditSheet+Sections.swift
-// Schedule and priority sections for TodoEditSheet.
+// CDSchedule and priority sections for TodoEditSheet.
 // Content sections: TodoEditSheet+ContentSections.swift
 // Helpers & actions: TodoEditSheet+SectionHelpers.swift
 
 import SwiftUI
-import SwiftData
+import CoreData
 
 extension TodoEditSheet {
     // MARK: - Due Date Section
@@ -12,7 +12,7 @@ extension TodoEditSheet {
     @ViewBuilder
     var dueDateSection: some View {
         VStack(alignment: .leading, spacing: 12) {
-            Text("Schedule")
+            Text("CDSchedule")
                 .font(AppTheme.ScaledFont.captionSemibold)
                 .foregroundStyle(.secondary)
                 .textCase(.uppercase)

@@ -1,5 +1,4 @@
 import SwiftUI
-import SwiftData
 import CoreData
 import OSLog
 
@@ -71,23 +70,5 @@ extension AppBootstrapping {
         }
     }
 
-    /// Legacy accessor — returns the shared ModelContainer for backward compatibility
-    /// during the migration period. Will be removed after Phase 8.
-    @MainActor
-    static func getSharedModelContainer() -> ModelContainer {
-        if let existing = _sharedModelContainer {
-            return existing
-        }
-        // During the transition, create a minimal SwiftData container for any code
-        // that still references ModelContainer. This will be removed in later phases.
-        let schema = AppSchema.schema
-        let config = ModelConfiguration(isStoredInMemoryOnly: true)
-        do {
-            let container = try ModelContainer(for: schema, configurations: config)
-            _sharedModelContainer = container
-            return container
-        } catch {
-            fatalError("Cannot create legacy ModelContainer: \(error)")
-        }
-    }
+    // Legacy getSharedModelContainer() removed — SwiftData migration complete.
 }

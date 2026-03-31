@@ -1,4 +1,5 @@
 import SwiftUI
+import CoreData
 
 // MARK: - Grid Item & Card
 
@@ -19,7 +20,7 @@ extension LessonsCardsGridView {
     }
 
     @ViewBuilder
-    func card(_ lesson: Lesson) -> some View {
+    func card(_ lesson: CDLesson) -> some View {
         let isDragging = isManualMode && draggingLessonID == lesson.id
         let isHover = hoverTargetID == lesson.id
         let isSelected = selectedLessonID == lesson.id
@@ -35,8 +36,8 @@ extension LessonsCardsGridView {
             disableAnimations: draggingLessonID != nil,
             shouldMeasureFrames: shouldMeasureFrames,
             shouldUseMatchedGeometry: shouldMeasureFrames,
-            statusCount: statusCounts?[lesson.id],
-            lastPresentedDate: lastPresentedDates?[lesson.id]
+            statusCount: lesson.id.flatMap { statusCounts?[$0] },
+            lastPresentedDate: lesson.id.flatMap { lastPresentedDates?[$0] }
         )
         .jiggle(isActive: isManualMode, seed: lessons.firstIndex(where: { $0.id == lesson.id }) ?? 0)
 #if os(macOS)

@@ -1,7 +1,7 @@
 // swiftlint:disable file_length
 import OSLog
 import SwiftUI
-import SwiftData
+import CoreData
 import PhotosUI
 
 // MARK: - QuickNoteSheet
@@ -10,7 +10,7 @@ struct QuickNoteSheet: View {
     private static let logger = Logger.notes
 
     @Environment(\.dismiss) private var dismiss
-    @Environment(\.modelContext) private var modelContext
+    @Environment(\.managedObjectContext) private var viewContext
 
     // Test student filtering
     @AppStorage(UserDefaultsKeys.generalShowTestStudents) private var showTestStudents: Bool = false
@@ -18,20 +18,19 @@ struct QuickNoteSheet: View {
     private var testStudentNamesRaw: String = "Danny De Berry,Lil Dan D"
 
     // MARK: - Data
-    @Query(sort: Student.sortByName)
-    private var studentsRaw: [Student]
+    @FetchRequest(sortDescriptors: CDStudent.sortByName)private var studentsRaw: FetchedResults<CDStudent>
     // DEDUPLICATION: CloudKit sync can create duplicate records with the same ID.
     // Filter out test students when setting is disabled
-    private var students: [Student] {
+    private var students: [CDStudent] {
         TestStudentsFilter.filterVisible(
-            studentsRaw.uniqueByID.filter(\.isEnrolled),
+            Array(studentsRaw).uniqueByID.filter(\.isEnrolled),
             show: showTestStudents,
             namesRaw: testStudentNamesRaw
         )
     }
 
-    @Query(sort: [SortDescriptor(\Lesson.id)]) private var lessons: [Lesson]
-    private var selectedLesson: Lesson? {
+    @FetchRequest(sortDescriptors: [NSSortDescriptor(keyPath: \CDLesson.id, ascending: true)]) private var lessons: FetchedResults<CDLesson>
+    private var selectedLesson: CDLesson? {
         guard let id = viewModel.selectedLessonID else { return nil }
         return lessons.first { $0.id == id }
     }
@@ -55,7 +54,7 @@ struct QuickNoteSheet: View {
         actualView
             .task {
                 // Update view model with students once available
-                // Note: ViewModel holds students for display name logic
+                // CDNote: ViewModel holds students for display name logic
                 viewModel.setupInitialState()
                 
                 // Delay focus to allow animation
@@ -83,7 +82,7 @@ struct QuickNoteSheet: View {
         VStack(spacing: 0) {
             // Header
             ZStack {
-                Text("New Note")
+                Text("New CDNote")
                     .font(.system(.headline, design: .rounded))
                     .foregroundStyle(.secondary)
                 
@@ -96,7 +95,7 @@ struct QuickNoteSheet: View {
                     Spacer()
                     
                     Button("Save") { 
-                        viewModel.saveNote(modelContext: modelContext)
+                        viewModel.saveNote(viewContext: viewContext)
                         dismiss()
                     }
                         .keyboardShortcut(.defaultAction)
@@ -145,9 +144,9 @@ struct QuickNoteSheet: View {
                             .frame(minWidth: 400, minHeight: 400)
                     }
 
-                    // Lesson
+                    // CDLesson
                     VStack(alignment: .leading, spacing: 4) {
-                        Label("Lesson", systemImage: SFSymbol.Education.book)
+                        Label("CDLesson", systemImage: SFSymbol.Education.book)
                             .font(.caption).foregroundStyle(.secondary)
 
                         if let lesson = selectedLesson {
@@ -186,7 +185,7 @@ struct QuickNoteSheet: View {
                     .controlSize(.small)
                     
                     Toggle(isOn: $viewModel.includeInReport) {
-                        Label("Flag for Report", systemImage: SFSymbol.Document.docText)
+                        Label("Flag for Report", systemImage: SFSymbol.CDDocument.docText)
                     }
                     .toggleStyle(.switch)
                     .controlSize(.small)
@@ -241,7 +240,7 @@ struct QuickNoteSheet: View {
                     // Toolbar
                     HStack {
                         Button { viewModel.isShowingStudentPicker = true } label: {
-                            Label("Add Student", systemImage: "person.badge.plus")
+                            Label("Add CDStudent", systemImage: "person.badge.plus")
                         }
                         .buttonStyle(.plain)
                         .popover(isPresented: $viewModel.isShowingStudentPicker) {
@@ -310,7 +309,7 @@ struct QuickNoteSheet: View {
                     Divider()
                 }
 
-                // Selected Lesson
+                // Selected CDLesson
                 if let lesson = selectedLesson {
                     HStack {
                         QuickNoteLessonChip(
@@ -356,13 +355,13 @@ struct QuickNoteSheet: View {
 
                 iOSAccessoryBar(students: students)
             }
-            .navigationTitle("Quick Note")
+            .navigationTitle("Quick CDNote")
             .inlineNavigationTitle()
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) { Button("Cancel") { dismiss() } }
                 ToolbarItem(placement: .confirmationAction) {
                     Button("Save") { 
-                        viewModel.saveNote(modelContext: modelContext)
+                        viewModel.saveNote(viewContext: viewContext)
                         dismiss()
                     }
                         .fontWeight(.bold)
@@ -414,7 +413,7 @@ struct QuickNoteSheet: View {
 
     // Extracted accessory bar to reduce type-checker complexity in iOSLayout.
     // swiftlint:disable:next function_body_length
-    private func iOSAccessoryBar(students: [Student]) -> some View {
+    private func iOSAccessoryBar(students: [CDStudent]) -> some View {
         HStack(spacing: 16) {
             // Date
             ZStack {
@@ -461,7 +460,7 @@ struct QuickNoteSheet: View {
                 Image(systemName: "paperclip").foregroundStyle(.blue).font(.caption)
             }
 
-            // Lesson
+            // CDLesson
             Button { viewModel.isShowingLessonPicker = true } label: {
                 Image(systemName: SFSymbol.Education.book)
                     .foregroundStyle(viewModel.selectedLessonID != nil ? Color.indigo : Color.primary)
@@ -488,7 +487,7 @@ struct QuickNoteSheet: View {
                     .font(.system(size: 20))
             }
 
-            // Add Student
+            // Add CDStudent
             Button { viewModel.isShowingStudentPicker = true } label: {
                 Image(systemName: "person.badge.plus")
                     .foregroundStyle(Color.accentColor)
@@ -504,7 +503,7 @@ struct QuickNoteSheet: View {
     // MARK: - Helper Views
 
     @ViewBuilder
-    private func aiMenuButton(students: [Student]) -> some View {
+    private func aiMenuButton(students: [CDStudent]) -> some View {
         #if ENABLE_FOUNDATION_MODELS
         QuickNoteAIMenuButton(
             onFormatNames: { viewModel.formatNamesLocally(students: students) },

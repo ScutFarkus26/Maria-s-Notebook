@@ -1,4 +1,5 @@
 import SwiftUI
+import CoreData
 
 struct PresentationHeaderView: View {
     let lessonName: String

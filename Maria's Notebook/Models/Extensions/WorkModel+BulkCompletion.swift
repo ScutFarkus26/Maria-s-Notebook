@@ -1,5 +1,4 @@
 import Foundation
-import SwiftData
 import CoreData
 
 extension WorkModel {
@@ -12,13 +11,13 @@ extension WorkModel {
         for studentIDs: [UUID],
         note: String = "",
         at date: Date = Date(),
-        in context: ModelContext
+        in context: NSManagedObjectContext
     ) throws -> [CDWorkCompletionRecord] {
         var results: [CDWorkCompletionRecord] = []
         for id in studentIDs {
             // 1. Create WorkCompletionRecord (new system - preserves history)
             let rec = try WorkCompletionService.markCompleted(
-                workID: self.id,
+                workID: self.id ?? UUID(),
                 studentID: id,
                 note: note,
                 at: date,

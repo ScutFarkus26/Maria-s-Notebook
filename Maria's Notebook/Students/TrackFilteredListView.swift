@@ -1,5 +1,5 @@
 import SwiftUI
-import SwiftData
+import CoreData
 
 enum TrackFilterType: String {
     case presentations
@@ -9,30 +9,30 @@ enum TrackFilterType: String {
 
 // swiftlint:disable:next type_body_length
 struct TrackFilteredListView: View, Identifiable {
-    let enrollment: StudentTrackEnrollment
-    let track: Track
+    let enrollment: CDStudentTrackEnrollmentEntity
+    let track: CDTrackEntity
     let filterType: TrackFilterType
-    let allLessonAssignments: [LessonAssignment]
-    let allWorkModels: [WorkModel]
-    let allNotes: [Note]
-    let allLessons: [Lesson]
+    let allLessonAssignments: [CDLessonAssignment]
+    let allWorkModels: [CDWorkModel]
+    let allNotes: [CDNote]
+    let allLessons: [CDLesson]
     let onDismiss: () -> Void
 
     var id: String {
-        "\(filterType.rawValue)_\(enrollment.id.uuidString)"
+        "\(filterType.rawValue)_\(enrollment.id?.uuidString ?? "")"
     }
 
     @Environment(\.dismiss) private var dismiss
-    @Environment(\.modelContext) private var modelContext
+    @Environment(\.managedObjectContext) private var viewContext
 
     // Use uniquingKeysWith to handle CloudKit sync duplicates
-    private var lessonsByID: [UUID: Lesson] {
-        Dictionary(allLessons.map { ($0.id, $0) }, uniquingKeysWith: { first, _ in first })
+    private var lessonsByID: [UUID: CDLesson] {
+        Dictionary(allLessons.compactMap { l in l.id.map { ($0, l) } }, uniquingKeysWith: { first, _ in first })
     }
 
     // Filter LessonAssignments (unified model) by track and student
-    private var filteredLessonAssignments: [LessonAssignment] {
-        let trackIDString = track.id.uuidString
+    private var filteredLessonAssignments: [CDLessonAssignment] {
+        let trackIDString = track.id?.uuidString ?? ""
         let studentIDString = enrollment.studentID
         return allLessonAssignments.filter { assignment in
             assignment.trackID == trackIDString &&
@@ -41,15 +41,15 @@ struct TrackFilteredListView: View, Identifiable {
         }
     }
     
-    private var filteredWorkModels: [WorkModel] {
-        let trackIDString = track.id.uuidString
+    private var filteredWorkModels: [CDWorkModel] {
+        let trackIDString = track.id?.uuidString ?? ""
         let studentIDString = enrollment.studentID
         return allWorkModels.filter { work in
             work.trackID == trackIDString && work.studentID == studentIDString
         }
     }
     
-    private var filteredNotes: [Note] {
+    private var filteredNotes: [CDNote] {
         return allNotes.filter { note in
             note.studentTrackEnrollment?.id == enrollment.id
         }
@@ -162,7 +162,7 @@ struct TrackFilteredListView: View, Identifiable {
         }
     }
     
-    private func lessonAssignmentRow(_ assignment: LessonAssignment) -> some View {
+    private func lessonAssignmentRow(_ assignment: CDLessonAssignment) -> some View {
         VStack(alignment: .leading, spacing: 8) {
             HStack(spacing: 8) {
                 Image(systemName: "person.3.fill")
@@ -209,7 +209,7 @@ struct TrackFilteredListView: View, Identifiable {
         )
     }
 
-    private func workRow(_ work: WorkModel) -> some View {
+    private func workRow(_ work: CDWorkModel) -> some View {
         VStack(alignment: .leading, spacing: 8) {
             HStack(spacing: 8) {
                 Image(systemName: "briefcase.fill")
@@ -223,7 +223,7 @@ struct TrackFilteredListView: View, Identifiable {
                 
                 Spacer()
                 
-                Text(DateFormatters.mediumDate.string(from: work.completedAt ?? work.createdAt))
+                Text(DateFormatters.mediumDate.string(from: work.completedAt ?? work.createdAt ?? Date()))
                     .font(.caption)
                     .foregroundStyle(.secondary)
             }
@@ -255,7 +255,7 @@ struct TrackFilteredListView: View, Identifiable {
         )
     }
     
-    private func noteRow(_ note: Note) -> some View {
+    private func noteRow(_ note: CDNote) -> some View {
         VStack(alignment: .leading, spacing: 8) {
             HStack(spacing: 8) {
                 Image(systemName: "note.text")
@@ -269,7 +269,7 @@ struct TrackFilteredListView: View, Identifiable {
                 
                 Spacer()
                 
-                Text(DateFormatters.mediumDate.string(from: note.updatedAt))
+                Text(DateFormatters.mediumDate.string(from: note.updatedAt ?? Date()))
                     .font(.caption)
                     .foregroundStyle(.secondary)
             }

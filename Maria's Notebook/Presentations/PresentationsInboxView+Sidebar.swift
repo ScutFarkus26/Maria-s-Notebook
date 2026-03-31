@@ -2,6 +2,7 @@
 // Students sidebar extracted from PresentationsInboxView
 
 import SwiftUI
+import CoreData
 
 extension PresentationsInboxView {
     // MARK: - Students Sidebar
@@ -30,7 +31,7 @@ extension PresentationsInboxView {
 
             Divider()
 
-            // Student list
+            // CDStudent list
             ScrollView {
                 if studentsNeedingLessons.isEmpty {
                     VStack(spacing: AppTheme.Spacing.small) {
@@ -45,7 +46,7 @@ extension PresentationsInboxView {
                     .padding(.top, AppTheme.Spacing.xxlarge + AppTheme.Spacing.medium)
                 } else {
                     LazyVStack(spacing: AppTheme.Spacing.xsmall) {
-                        ForEach(studentsNeedingLessons, id: \.id) { student in
+                        ForEach(studentsNeedingLessons, id: \.objectID) { student in
                             studentRow(student)
                         }
                     }
@@ -61,7 +62,7 @@ extension PresentationsInboxView {
 
     /// Students who don't have any scheduled presentations
     /// Sorted by days since last lesson, oldest first (students who haven't had a lesson longest come first)
-    var studentsNeedingLessons: [Student] {
+    var studentsNeedingLessons: [CDStudent] {
         // Find all student IDs that have a scheduled lesson
         let scheduledStudentIDs: Set<UUID> = {
             var ids = Set<UUID>()
@@ -77,7 +78,7 @@ extension PresentationsInboxView {
         // Filter to students without scheduled lessons
         let unscheduledStudents = cachedStudents.filter { student in
             // Check if student has no scheduled lessons
-            guard !scheduledStudentIDs.contains(student.id) else { return false }
+            guard let sid = student.id, !scheduledStudentIDs.contains(sid) else { return false }
 
             // Apply search filter
             if !trimmedSearch.isEmpty {
@@ -90,8 +91,8 @@ extension PresentationsInboxView {
 
         // Sort by days since last lesson (oldest first = highest days first, then Int.max for never)
         return unscheduledStudents.sorted { a, b in
-            let daysA = daysSinceLastLessonByStudent[a.id] ?? Int.max
-            let daysB = daysSinceLastLessonByStudent[b.id] ?? Int.max
+            let daysA = a.id.flatMap { daysSinceLastLessonByStudent[$0] } ?? Int.max
+            let daysB = b.id.flatMap { daysSinceLastLessonByStudent[$0] } ?? Int.max
             // Sort descending: students with more days since last lesson come first
             return daysA > daysB
         }
@@ -99,8 +100,9 @@ extension PresentationsInboxView {
 
     @ViewBuilder
     // swiftlint:disable:next function_body_length
-    func studentRow(_ student: Student) -> some View {
-        let isSelected = coordinator.selectedStudentFilter == student.id
+    func studentRow(_ student: CDStudent) -> some View {
+        let studentID = student.id ?? UUID()
+        let isSelected = coordinator.selectedStudentFilter == studentID
 
         HStack(spacing: AppTheme.Spacing.small) {
             VStack(alignment: .leading, spacing: AppTheme.Spacing.xxsmall) {
@@ -109,7 +111,7 @@ extension PresentationsInboxView {
                     .lineLimit(1)
 
                 // Days since last lesson - compact format
-                if let days = daysSinceLastLessonByStudent[student.id] {
+                if let days = student.id.flatMap({ daysSinceLastLessonByStudent[$0] }) {
                     if days == Int.max {
                         Text("No lessons")
                             .font(.caption2)
@@ -133,7 +135,7 @@ extension PresentationsInboxView {
             Spacer()
 
             // Days badge for quick scanning
-            if let days = daysSinceLastLessonByStudent[student.id], days != Int.max && days > 0 {
+            if let days = student.id.flatMap({ daysSinceLastLessonByStudent[$0] }), days != Int.max && days > 0 {
                 Text("\(days)")
                     .font(.caption2.weight(.bold))
                     .foregroundStyle(days >= 3 ? .white : .secondary)
@@ -166,10 +168,10 @@ extension PresentationsInboxView {
         .contentShape(Rectangle())
         .onTapGesture {
             adaptiveWithAnimation(.easeInOut(duration: 0.15)) {
-                if coordinator.selectedStudentFilter == student.id {
+                if coordinator.selectedStudentFilter == studentID {
                     coordinator.clearStudentFilter()
                 } else {
-                    coordinator.filterByStudent(student.id)
+                    coordinator.filterByStudent(studentID)
                 }
             }
         }

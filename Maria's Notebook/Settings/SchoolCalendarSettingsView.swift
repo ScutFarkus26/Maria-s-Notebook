@@ -1,5 +1,5 @@
 import SwiftUI
-import SwiftData
+import CoreData
 import OSLog
 
 #if os(macOS)
@@ -10,7 +10,7 @@ import UIKit
 
 struct SchoolCalendarSettingsView: View {
     private static let logger = Logger.settings
-    @Environment(\.modelContext) private var modelContext
+    @Environment(\.managedObjectContext) private var viewContext
     @Environment(\.calendar) private var calendar
     @State private var currentMonth: Date = Date()
     @State private var selected: Set<DateComponents> = []
@@ -141,7 +141,7 @@ struct SchoolCalendarSettingsView: View {
 
     private func reload() async {
         let range = monthInterval.start ..< monthInterval.end
-        nonSchoolDates = await SchoolCalendar.nonSchoolDays(in: range, using: modelContext)
+        nonSchoolDates = await SchoolCalendar.nonSchoolDays(in: range, using: viewContext)
     }
 
     private func shiftMonth(_ delta: Int) {
@@ -161,12 +161,12 @@ struct SchoolCalendarSettingsView: View {
         let cal = calendar
         var d = cal.startOfDay(for: monthInterval.start)
         while d < monthInterval.end {
-            var descriptor = FetchDescriptor<NonSchoolDay>(predicate: #Predicate { $0.date == d })
+            var descriptor = { let r = CDNonSchoolDay.fetchRequest() as! NSFetchRequest<CDNonSchoolDay>; r.predicate = NSPredicate(format: "date == %@", d as CVarArg); return r }()
             descriptor.fetchLimit = 1
             do {
-                let arr = try modelContext.fetch(descriptor)
+                let arr = try viewContext.fetch(descriptor)
                 if let existing = arr.first {
-                    modelContext.delete(existing)
+                    viewContext.delete(existing)
                 }
             } catch {
                 Self.logger.warning("Failed to fetch non-school day: \(error, privacy: .public)")
@@ -174,7 +174,7 @@ struct SchoolCalendarSettingsView: View {
             d = cal.date(byAdding: .day, value: 1, to: d) ?? d
         }
         do {
-            try modelContext.save()
+            try viewContext.save()
         } catch {
             Self.logger.warning("Failed to save after clearing month: \(error, privacy: .public)")
         }
@@ -191,23 +191,23 @@ struct SchoolCalendarSettingsView: View {
             let weekday = cal.component(.weekday, from: d)
             if weekday != 1 && weekday != 7 { // 1=Sun, 7=Sat
                 // ensure weekdays are not marked as non-school
-                var descriptor = FetchDescriptor<NonSchoolDay>(predicate: #Predicate { $0.date == d })
+                var descriptor = { let r = CDNonSchoolDay.fetchRequest() as! NSFetchRequest<CDNonSchoolDay>; r.predicate = NSPredicate(format: "date == %@", d as CVarArg); return r }()
                 descriptor.fetchLimit = 1
-                let items: [NonSchoolDay]
+                let items: [CDNonSchoolDay]
                 do {
-                    items = try modelContext.fetch(descriptor)
+                    items = try viewContext.fetch(descriptor)
                 } catch {
                     Self.logger.warning("Failed to fetch non-school days: \(error, privacy: .public)")
                     items = []
                 }
                 if let existing = items.first {
-                    modelContext.delete(existing)
+                    viewContext.delete(existing)
                 }
             }
             d = cal.date(byAdding: .day, value: 1, to: d) ?? d
         }
         do {
-            try modelContext.save()
+            try viewContext.save()
         } catch {
             Self.logger.warning("Failed to save after marking weekdays: \(error, privacy: .public)")
         }

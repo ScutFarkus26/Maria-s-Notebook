@@ -1,11 +1,10 @@
 import Foundation
-import SwiftData
 
 @MainActor
 struct LessonsImportCoordinator {
     static func startImport(
         from url: URL,
-        lessons: [Lesson],
+        lessons: [CDLesson],
         onParsed: @MainActor @Sendable @escaping (LessonCSVImporter.Parsed) -> Void,
         onError: @MainActor @Sendable @escaping (Error) -> Void,
         onFinally: @MainActor @Sendable @escaping () -> Void

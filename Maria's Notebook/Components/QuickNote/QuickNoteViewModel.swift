@@ -1,7 +1,7 @@
 // swiftlint:disable file_length
 import OSLog
 import SwiftUI
-import SwiftData
+import CoreData
 import PhotosUI
 
 // Conditional Import for Apple Intelligence features
@@ -46,10 +46,10 @@ class QuickNoteViewModel {
     var isShowingStudentPicker: Bool = false
     var isShowingCamera: Bool = false
 
-    // Track Context
+    // CDTrackEntity Context
     var selectedEnrollmentID: UUID?
 
-    // Lesson Context
+    // CDLesson Context
     var selectedLessonID: UUID?
     var isShowingLessonPicker: Bool = false
     
@@ -84,7 +84,7 @@ class QuickNoteViewModel {
     }
     
     // swiftlint:disable:next cyclomatic_complexity function_body_length
-    func analyzeText(_ text: String, students: [Student]) {
+    func analyzeText(_ text: String, students: [CDStudent]) {
         // Don't analyze if we're currently applying replacements to avoid infinite loops
         guard !isApplyingReplacements else { return }
         
@@ -219,7 +219,7 @@ class QuickNoteViewModel {
         }
     }
     
-    func formatNamesLocally(students: [Student]) {
+    func formatNamesLocally(students: [CDStudent]) {
         guard !bodyText.isEmpty else { return }
         isProcessingAI = true // Show spinner
         
@@ -237,7 +237,7 @@ class QuickNoteViewModel {
         }
     }
     
-    func saveNote(modelContext: ModelContext) {
+    func saveNote(viewContext: NSManagedObjectContext) {
         let trimmed = bodyText.trimmed()
         guard !trimmed.isEmpty else { return }
         
@@ -250,38 +250,33 @@ class QuickNoteViewModel {
             scope = .all
         }
         
-        // Fetch StudentTrackEnrollment if selectedEnrollmentID is set
-        var studentTrackEnrollment: StudentTrackEnrollment?
+        // Fetch CDStudentTrackEnrollmentEntity if selectedEnrollmentID is set
+        var studentTrackEnrollment: CDStudentTrackEnrollmentEntity?
         if let enrollmentID = selectedEnrollmentID {
-            let descriptor = FetchDescriptor<StudentTrackEnrollment>(
-                predicate: #Predicate<StudentTrackEnrollment> { $0.id == enrollmentID }
-            )
-            studentTrackEnrollment = modelContext.safeFetchFirst(descriptor)
+            let descriptor = NSFetchRequest<CDStudentTrackEnrollmentEntity>(entityName: "StudentTrackEnrollment")
+            descriptor.predicate = NSPredicate(format: "id == %@", enrollmentID as CVarArg)
+            studentTrackEnrollment = viewContext.safeFetchFirst(descriptor)
         }
 
-        // Fetch Lesson if selectedLessonID is set
-        var lesson: Lesson?
+        // Fetch CDLesson if selectedLessonID is set
+        var lesson: CDLesson?
         if let lessonID = selectedLessonID {
-            let descriptor = FetchDescriptor<Lesson>(
-                predicate: #Predicate<Lesson> { $0.id == lessonID }
-            )
-            lesson = modelContext.safeFetchFirst(descriptor)
+            let descriptor = NSFetchRequest<CDLesson>(entityName: "Lesson")
+            descriptor.predicate = NSPredicate(format: "id == %@", lessonID as CVarArg)
+            lesson = viewContext.safeFetchFirst(descriptor)
         }
 
-        let newNote = Note(
-            createdAt: noteDate,
-            body: trimmed,
-            scope: scope,
-            tags: tags,
-            includeInReport: includeInReport,
-            needsFollowUp: needsFollowUp,
-            lesson: lesson,
-            studentTrackEnrollment: studentTrackEnrollment,
-            imagePath: attachedImagePath
-        )
-        
-        modelContext.insert(newNote)
-        ToastService.shared.show("Note saved", type: .success, duration: 1.5)
+        let newNote = CDNote(context: viewContext)
+        newNote.createdAt = noteDate
+        newNote.body = trimmed
+        newNote.scope = scope
+        newNote.tags = tags as NSArray
+        newNote.includeInReport = includeInReport
+        newNote.needsFollowUp = needsFollowUp
+        newNote.lesson = lesson
+        newNote.studentTrackEnrollment = studentTrackEnrollment
+        newNote.imagePath = attachedImagePath
+        ToastService.shared.show("CDNote saved", type: .success, duration: 1.5)
     }
 
     func loadPhoto(_ item: PhotosPickerItem?) {
@@ -307,7 +302,7 @@ class QuickNoteViewModel {
         }
     }
     
-    func getDisplayName(for student: Student, students: [Student]) -> String {
+    func getDisplayName(for student: CDStudent, students: [CDStudent]) -> String {
         // If there are other students in the full roster with the same first name, use Last Initial
         let duplicateCount = students.filter { $0.firstName.lowercased() == student.firstName.lowercased() }.count
         if duplicateCount > 1 {
@@ -319,10 +314,11 @@ class QuickNoteViewModel {
     
     // MARK: - Private Methods
     
-    private func getStudentData(from students: [Student]) -> [StudentData] {
-        return students.map { student in
-            StudentData(
-                id: student.id,
+    private func getStudentData(from students: [CDStudent]) -> [StudentData] {
+        return students.compactMap { student in
+            guard let id = student.id else { return nil }
+            return StudentData(
+                id: id,
                 firstName: student.firstName,
                 lastName: student.lastName,
                 nickname: student.nickname

@@ -1,7 +1,7 @@
 // ClassroomJobsViewModel.swift
 // ViewModel for the Classroom Job Rotation Board.
 
-import SwiftData
+import CoreData
 import SwiftUI
 
 struct ClassroomJobFields {
@@ -15,11 +15,11 @@ struct ClassroomJobFields {
 @Observable
 @MainActor
 final class ClassroomJobsViewModel {
-    var jobs: [ClassroomJob] = []
-    var currentAssignments: [UUID: [JobAssignment]] = [:]  // jobID -> assignments
-    var students: [Student] = []
+    var jobs: [CDClassroomJob] = []
+    var currentAssignments: [UUID: [CDJobAssignment]] = [:]  // jobID -> assignments
+    var students: [CDStudent] = []
     var showingEditor = false
-    var editingJob: ClassroomJob?
+    var editingJob: CDClassroomJob?
     var showingHistory = false
 
     var currentWeekStart: Date {
@@ -34,26 +34,22 @@ final class ClassroomJobsViewModel {
         return "\(currentWeekStart.formatted(fmt)) – \(end.formatted(fmt))"
     }
 
-    func loadData(context: ModelContext) {
-        let jobDescriptor = FetchDescriptor<ClassroomJob>(
-            sortBy: [SortDescriptor(\.sortOrder)]
-        )
+    func loadData(context: NSManagedObjectContext) {
+        let jobDescriptor: NSFetchRequest<CDClassroomJob> = CDClassroomJob.fetchRequest() as! NSFetchRequest<CDClassroomJob>
+        jobDescriptor.sortDescriptors = [NSSortDescriptor(keyPath: \CDClassroomJob.sortOrder, ascending: true)]
         jobs = context.safeFetch(jobDescriptor)
 
-        let studentDescriptor = FetchDescriptor<Student>(sortBy: Student.sortByName)
+        let studentDescriptor = { let r = CDStudent.fetchRequest() as! NSFetchRequest<CDStudent>; r.sortDescriptors = CDStudent.sortByName; return r }()
         students = TestStudentsFilter.filterVisible(context.safeFetch(studentDescriptor).filter(\.isEnrolled))
 
         loadCurrentAssignments(context: context)
     }
 
-    private func loadCurrentAssignments(context: ModelContext) {
+    private func loadCurrentAssignments(context: NSManagedObjectContext) {
         let weekStart = currentWeekStart
         let weekEnd = Calendar.current.date(byAdding: .day, value: 7, to: weekStart) ?? weekStart
-        let descriptor = FetchDescriptor<JobAssignment>(
-            predicate: #Predicate {
-                $0.weekStartDate >= weekStart && $0.weekStartDate < weekEnd
-            }
-        )
+        let descriptor: NSFetchRequest<CDJobAssignment> = CDJobAssignment.fetchRequest() as! NSFetchRequest<CDJobAssignment>
+        descriptor.predicate = NSPredicate(format: "weekStartDate >= %@ AND weekStartDate < %@", weekStart as CVarArg, weekEnd as CVarArg)
         let assignments = context.safeFetch(descriptor)
         currentAssignments = [:]
         for assignment in assignments {
@@ -68,45 +64,43 @@ final class ClassroomJobsViewModel {
         return "\(student.firstName) \(student.lastName.prefix(1))."
     }
 
-    func student(for studentID: String) -> Student? {
+    func student(for studentID: String) -> CDStudent? {
         guard let uuid = UUID(uuidString: studentID) else { return nil }
         return students.first(where: { $0.id == uuid })
     }
 
     // MARK: - CRUD
 
-    func createJob(_ fields: ClassroomJobFields, context: ModelContext) {
-        let job = ClassroomJob(
-            name: fields.name,
-            jobDescription: fields.description,
-            icon: fields.icon,
-            colorRaw: fields.colorRaw,
-            sortOrder: jobs.count,
-            maxStudents: fields.maxStudents
-        )
-        context.insert(job)
-        context.safeSave()
-        loadData(context: context)
-    }
-
-    func updateJob(_ job: ClassroomJob, with fields: ClassroomJobFields, context: ModelContext) {
+    func createJob(_ fields: ClassroomJobFields, context: NSManagedObjectContext) {
+        let job = CDClassroomJob(context: context)
         job.name = fields.name
         job.jobDescription = fields.description
         job.icon = fields.icon
         job.colorRaw = fields.colorRaw
-        job.maxStudents = fields.maxStudents
+        job.sortOrder = Int64(jobs.count)
+        job.maxStudents = Int64(fields.maxStudents)
+        context.safeSave()
+        loadData(context: context)
+    }
+
+    func updateJob(_ job: CDClassroomJob, with fields: ClassroomJobFields, context: NSManagedObjectContext) {
+        job.name = fields.name
+        job.jobDescription = fields.description
+        job.icon = fields.icon
+        job.colorRaw = fields.colorRaw
+        job.maxStudents = Int64(fields.maxStudents)
         job.modifiedAt = Date()
         context.safeSave()
         loadData(context: context)
     }
 
-    func deleteJob(_ job: ClassroomJob, context: ModelContext) {
+    func deleteJob(_ job: CDClassroomJob, context: NSManagedObjectContext) {
         context.delete(job)
         context.safeSave()
         loadData(context: context)
     }
 
-    func toggleAssignmentCompleted(_ assignment: JobAssignment, context: ModelContext) {
+    func toggleAssignmentCompleted(_ assignment: CDJobAssignment, context: NSManagedObjectContext) {
         assignment.isCompleted.toggle()
         assignment.modifiedAt = Date()
         context.safeSave()
@@ -114,7 +108,7 @@ final class ClassroomJobsViewModel {
 
     // MARK: - Rotation
 
-    func rotateJobs(context: ModelContext) {
+    func rotateJobs(context: NSManagedObjectContext) {
         let activeJobs = jobs.filter(\.isActive).sorted { $0.sortOrder < $1.sortOrder }
         guard !activeJobs.isEmpty, !students.isEmpty else { return }
 
@@ -122,7 +116,7 @@ final class ClassroomJobsViewModel {
         let lastWeekMap = fetchLastWeekMap(context: context, weekStart: weekStart)
         clearCurrentWeekAssignments(context: context, weekStart: weekStart)
 
-        let studentIDs = students.map { $0.id.uuidString }
+        let studentIDs = students.compactMap { $0.id?.uuidString }
         var usedStudents: Set<String> = []
 
         for (index, job) in activeJobs.enumerated() {
@@ -130,16 +124,15 @@ final class ClassroomJobsViewModel {
             let nextJob = activeJobs[nextJobIndex]
             let assignees = buildAssignees(
                 for: job,
-                previousStudents: lastWeekMap[nextJob.id.uuidString] ?? [],
+                previousStudents: lastWeekMap[nextJob.id?.uuidString ?? ""] ?? [],
                 allStudentIDs: studentIDs,
                 usedStudents: &usedStudents
             )
             for studentID in assignees {
-                context.insert(JobAssignment(
-                    jobID: job.id.uuidString,
-                    studentID: studentID,
-                    weekStartDate: weekStart
-                ))
+                let assignment = CDJobAssignment(context: context)
+                assignment.jobID = job.id?.uuidString ?? ""
+                assignment.studentID = studentID
+                assignment.weekStartDate = weekStart
             }
         }
 
@@ -149,13 +142,10 @@ final class ClassroomJobsViewModel {
 
     // MARK: - Rotation Helpers
 
-    private func fetchLastWeekMap(context: ModelContext, weekStart: Date) -> [String: [String]] {
+    private func fetchLastWeekMap(context: NSManagedObjectContext, weekStart: Date) -> [String: [String]] {
         let lastWeekStart = Calendar.current.date(byAdding: .day, value: -7, to: weekStart) ?? weekStart
-        let descriptor = FetchDescriptor<JobAssignment>(
-            predicate: #Predicate {
-                $0.weekStartDate >= lastWeekStart && $0.weekStartDate < weekStart
-            }
-        )
+        let descriptor: NSFetchRequest<CDJobAssignment> = CDJobAssignment.fetchRequest() as! NSFetchRequest<CDJobAssignment>
+        descriptor.predicate = NSPredicate(format: "weekStartDate >= %@ AND weekStartDate < %@", lastWeekStart as CVarArg, weekStart as CVarArg)
         var map: [String: [String]] = [:]
         for assignment in context.safeFetch(descriptor) {
             map[assignment.jobID, default: []].append(assignment.studentID)
@@ -163,20 +153,17 @@ final class ClassroomJobsViewModel {
         return map
     }
 
-    private func clearCurrentWeekAssignments(context: ModelContext, weekStart: Date) {
+    private func clearCurrentWeekAssignments(context: NSManagedObjectContext, weekStart: Date) {
         let weekEnd = Calendar.current.date(byAdding: .day, value: 7, to: weekStart) ?? weekStart
-        let descriptor = FetchDescriptor<JobAssignment>(
-            predicate: #Predicate {
-                $0.weekStartDate >= weekStart && $0.weekStartDate < weekEnd
-            }
-        )
+        let descriptor: NSFetchRequest<CDJobAssignment> = CDJobAssignment.fetchRequest() as! NSFetchRequest<CDJobAssignment>
+        descriptor.predicate = NSPredicate(format: "weekStartDate >= %@ AND weekStartDate < %@", weekStart as CVarArg, weekEnd as CVarArg)
         for existing in context.safeFetch(descriptor) {
             context.delete(existing)
         }
     }
 
     private func buildAssignees(
-        for job: ClassroomJob,
+        for job: CDClassroomJob,
         previousStudents: [String],
         allStudentIDs: [String],
         usedStudents: inout Set<String>
@@ -186,13 +173,13 @@ final class ClassroomJobsViewModel {
             guard !usedStudents.contains(studentID) else { continue }
             assignees.append(studentID)
             usedStudents.insert(studentID)
-            if assignees.count >= job.maxStudents { break }
+            if assignees.count >= Int(job.maxStudents) { break }
         }
-        if assignees.count < job.maxStudents {
+        if assignees.count < Int(job.maxStudents) {
             for studentID in allStudentIDs where !usedStudents.contains(studentID) {
                 assignees.append(studentID)
                 usedStudents.insert(studentID)
-                if assignees.count >= job.maxStudents { break }
+                if assignees.count >= Int(job.maxStudents) { break }
             }
         }
         return assignees

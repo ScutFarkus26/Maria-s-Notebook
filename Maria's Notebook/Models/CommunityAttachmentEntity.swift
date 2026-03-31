@@ -4,7 +4,7 @@ import CoreData
 @objc(CommunityAttachmentEntity)
 public class CDCommunityAttachmentEntity: NSManagedObject {
     // MARK: - Type Aliases (enums defined in SwiftData models)
-    typealias Kind = CommunityAttachment.Kind
+    typealias Kind = CommunityAttachmentKind
 
     // MARK: - Attributes
     @NSManaged public var id: UUID?

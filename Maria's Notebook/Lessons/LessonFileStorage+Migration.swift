@@ -1,5 +1,6 @@
 import Foundation
 import OSLog
+import CoreData
 
 // MARK: - Migration
 
@@ -13,7 +14,7 @@ extension LessonFileStorage {
     public static func migrateToICloudDrive() -> Int? {
         let fm = FileManager.default
 
-        // Get the old location (private container - iCloud~AppID~/Documents/Lesson Files/)
+        // Get the old location (private container - iCloud~AppID~/Documents/CDLesson Files/)
         guard let ubiquityURL = fm.url(forUbiquityContainerIdentifier: nil) else {
             logger.warning("No iCloud container available for migration")
             return nil
@@ -21,7 +22,7 @@ extension LessonFileStorage {
 
         let oldLocation = ubiquityURL
             .appendingPathComponent("Documents", isDirectory: true)
-            .appendingPathComponent("Lesson Files", isDirectory: true)
+            .appendingPathComponent("CDLesson Files", isDirectory: true)
 
         // Check if old location exists and has files
         guard fm.fileExists(atPath: oldLocation.path) else {

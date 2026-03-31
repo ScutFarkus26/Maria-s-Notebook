@@ -1,4 +1,5 @@
 import SwiftUI
+import CoreData
 
 struct StudentInfoRowsView: View {
     let birthdayText: String

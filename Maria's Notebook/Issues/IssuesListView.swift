@@ -1,40 +1,41 @@
 import SwiftUI
-import SwiftData
+import CoreData
 
 struct IssuesListView: View {
-    @Environment(\.modelContext) private var modelContext
-    
-    @Query(sort: \Issue.createdAt, order: .reverse) private var allIssues: [Issue]
-    
-    @State private var selectedIssue: Issue?
+    @Environment(\.managedObjectContext) private var viewContext
+
+    @FetchRequest(sortDescriptors: [NSSortDescriptor(keyPath: \CDIssue.createdAt, ascending: false)])
+    private var allIssues: FetchedResults<CDIssue>
+
+    @State private var selectedIssue: CDIssue?
     @State private var showingNewIssueSheet = false
     @State private var filterStatus: IssueStatus?
     @State private var filterCategory: IssueCategory?
     @State private var searchText = ""
-    
-    var filteredIssues: [Issue] {
+
+    var filteredIssues: [CDIssue] {
         allIssues.filter { issue in
             // Filter by status
             if let filterStatus, issue.status != filterStatus {
                 return false
             }
-            
+
             // Filter by category
             if let filterCategory, issue.category != filterCategory {
                 return false
             }
-            
+
             // Filter by search text
             if !searchText.isEmpty {
                 let searchLower = searchText.lowercased()
                 return issue.title.lowercased().contains(searchLower) ||
                        issue.issueDescription.lowercased().contains(searchLower)
             }
-            
+
             return true
         }
     }
-    
+
     var body: some View {
         List {
             // Summary stats
@@ -58,7 +59,7 @@ struct IssuesListView: View {
                 }
                 .padding(.vertical, 8)
             }
-            
+
             // Filters
             Section("Filters") {
                 Picker("Status", selection: $filterStatus) {
@@ -68,7 +69,7 @@ struct IssuesListView: View {
                             .tag(status as IssueStatus?)
                     }
                 }
-                
+
                 Picker("Category", selection: $filterCategory) {
                     Text("All").tag(nil as IssueCategory?)
                     ForEach(IssueCategory.allCases, id: \.self) { category in
@@ -77,7 +78,7 @@ struct IssuesListView: View {
                     }
                 }
             }
-            
+
             // Issues list
             Section {
                 if filteredIssues.isEmpty {
@@ -116,13 +117,13 @@ struct IssuesListView: View {
             IssueDetailSheet(issue: nil)
         }
     }
-    
+
     private func deleteIssues(at offsets: IndexSet) {
         for index in offsets {
             let issue = filteredIssues[index]
-            modelContext.delete(issue)
+            viewContext.delete(issue)
         }
-        modelContext.safeSave()
+        viewContext.safeSave()
     }
 }
 
@@ -130,7 +131,7 @@ struct IssueStatCard: View {
     let title: String
     let count: Int
     let color: Color
-    
+
     var body: some View {
         VStack(alignment: .leading, spacing: 4) {
             Text("\(count)")
@@ -145,59 +146,64 @@ struct IssueStatCard: View {
 }
 
 struct IssueRowView: View {
-    let issue: Issue
-    @Query private var allStudents: [Student]
-    
+    let issue: CDIssue
+
+    @FetchRequest(sortDescriptors: [NSSortDescriptor(keyPath: \CDStudent.firstName, ascending: true)])
+    private var allStudents: FetchedResults<CDStudent>
+
     var body: some View {
         VStack(alignment: .leading, spacing: 6) {
             HStack {
                 Label(issue.category.rawValue, systemImage: issue.category.systemImage)
                     .font(.caption)
                     .foregroundStyle(.secondary)
-                
+
                 Spacer()
-                
+
                 Label(issue.priority.rawValue, systemImage: "exclamationmark")
                     .font(.caption)
                     .foregroundStyle(Color(issue.priority.color))
             }
-            
+
             Text(issue.title)
                 .font(.headline)
-            
+
             if !issue.issueDescription.isEmpty {
                 Text(issue.issueDescription)
                     .font(.subheadline)
                     .foregroundStyle(.secondary)
                     .lineLimit(2)
             }
-            
+
             HStack {
                 Label(issue.status.rawValue, systemImage: issue.status.systemImage)
                     .font(.caption)
                     .foregroundStyle(.secondary)
-                
+
                 if !issue.studentIDs.isEmpty {
-                    Text("•")
+                    Text("\u{2022}")
                         .foregroundStyle(.secondary)
                     Text("\(issue.studentIDs.count) student\(issue.studentIDs.count == 1 ? "" : "s")")
                         .font(.caption)
                         .foregroundStyle(.secondary)
                 }
-                
-                if let actions = issue.actions, !actions.isEmpty {
-                    Text("•")
+
+                let actionsArray = (issue.actions?.allObjects as? [CDIssueAction]) ?? []
+                if !actionsArray.isEmpty {
+                    Text("\u{2022}")
                         .foregroundStyle(.secondary)
-                    Text("\(actions.count) action\(actions.count == 1 ? "" : "s")")
+                    Text("\(actionsArray.count) action\(actionsArray.count == 1 ? "" : "s")")
                         .font(.caption)
                         .foregroundStyle(.secondary)
                 }
-                
+
                 Spacer()
-                
-                Text(issue.createdAt, style: .relative)
-                    .font(.caption)
-                    .foregroundStyle(.tertiary)
+
+                if let createdAt = issue.createdAt {
+                    Text(createdAt, style: .relative)
+                        .font(.caption)
+                        .foregroundStyle(.tertiary)
+                }
             }
         }
         .padding(.vertical, 4)

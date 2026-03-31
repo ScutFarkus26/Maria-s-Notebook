@@ -3,7 +3,7 @@
 
 import OSLog
 import SwiftUI
-import SwiftData
+import CoreData
 
 // MARK: - UnifiedNoteEditor Save Logic Extension
 
@@ -17,16 +17,15 @@ extension UnifiedNoteEditor {
 
         let scope = determineScope()
 
-        let note: Note
+        let note: CDNote
         if let existing = initialNote {
             note = updateExistingNote(existing, body: trimmedBody, scope: scope)
         } else {
             note = createNewNote(body: trimmedBody, scope: scope)
         }
 
-        note.assertStudentLinksSynced()
         do {
-            try modelContext.save()
+            try viewContext.save()
         } catch {
             Self.logger.error("Failed to save note: \(error.localizedDescription)")
         }
@@ -46,7 +45,7 @@ extension UnifiedNoteEditor {
         }
     }
 
-    private func updateExistingNote(_ existing: Note, body: String, scope: NoteScope) -> Note {
+    private func updateExistingNote(_ existing: CDNote, body: String, scope: NoteScope) -> CDNote {
         // Clean up old image if it changed
         if let oldPath = originalImagePath,
            !oldPath.isEmpty,
@@ -59,41 +58,32 @@ extension UnifiedNoteEditor {
         }
 
         existing.body = body
-        existing.tags = tags
+        existing.tags = tags as NSObject
         existing.includeInReport = includeInReport
         existing.needsFollowUp = needsFollowUp
         existing.imagePath = imagePath
         existing.updatedAt = Date()
         existing.scope = scope
 
-        // Sync student links atomically after scope change
-        existing.syncStudentLinksIfNeeded(in: modelContext)
-
         return existing
     }
 
-    private func createNewNote(body: String, scope: NoteScope) -> Note {
-        let note = Note(
-            body: body,
-            scope: scope,
-            tags: tags,
-            includeInReport: includeInReport,
-            needsFollowUp: needsFollowUp,
-            imagePath: imagePath
-        )
+    private func createNewNote(body: String, scope: NoteScope) -> CDNote {
+        let note = CDNote(context: viewContext)
+        note.body = body
+        note.scope = scope
+        note.tags = tags as NSObject
+        note.includeInReport = includeInReport
+        note.needsFollowUp = needsFollowUp
+        note.imagePath = imagePath
 
         applyContextRelationship(to: note)
-
-        modelContext.insert(note)
-
-        // Sync student links atomically after note creation
-        note.syncStudentLinksIfNeeded(in: modelContext)
 
         return note
     }
 
     // swiftlint:disable:next cyclomatic_complexity
-    private func applyContextRelationship(to note: Note) {
+    private func applyContextRelationship(to note: CDNote) {
         switch context {
         case .lesson(let lesson):
             note.lesson = lesson

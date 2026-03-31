@@ -1,4 +1,5 @@
 import SwiftUI
+import CoreData
 
 /// A compact sheet for picking a meeting date.
 struct MeetingDatePickerSheet: View {

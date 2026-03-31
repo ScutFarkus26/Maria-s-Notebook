@@ -2,20 +2,21 @@
 // Detail view for a single transition plan with checklist and notes.
 
 import SwiftUI
-import SwiftData
+import CoreData
 
 struct TransitionPlanDetailView: View {
-    @Bindable var plan: TransitionPlan
+    @ObservedObject var plan: CDTransitionPlan
     let viewModel: TransitionPlannerViewModel
-    @Environment(\.modelContext) private var modelContext
+    @Environment(\.managedObjectContext) private var viewContext
     @Environment(\.dismiss) private var dismiss
     @State private var showingNoteEditor = false
 
-    private var sortedItems: [TransitionChecklistItem] {
-        (plan.checklistItems ?? []).sorted { $0.sortOrder < $1.sortOrder }
+    private var sortedItems: [CDTransitionChecklistItem] {
+        ((plan.checklistItems?.allObjects as? [CDTransitionChecklistItem]) ?? [])
+            .sorted { $0.sortOrder < $1.sortOrder }
     }
 
-    private var itemsByCategory: [(category: ChecklistCategory, items: [TransitionChecklistItem])] {
+    private var itemsByCategory: [(category: ChecklistCategory, items: [CDTransitionChecklistItem])] {
         let grouped = Dictionary(grouping: sortedItems, by: \.category)
         return ChecklistCategory.allCases.compactMap { cat in
             guard let items = grouped[cat], !items.isEmpty else { return nil }
@@ -26,7 +27,7 @@ struct TransitionPlanDetailView: View {
     var body: some View {
         ScrollView {
             VStack(alignment: .leading, spacing: 16) {
-                // Student header
+                // CDStudent header
                 studentHeader
                     .padding(.horizontal)
                     .padding(.top, 12)
@@ -70,7 +71,7 @@ struct TransitionPlanDetailView: View {
         }
     }
 
-    // MARK: - Student Header
+    // MARK: - CDStudent Header
 
     private var studentHeader: some View {
         HStack(spacing: 12) {
@@ -141,7 +142,7 @@ struct TransitionPlanDetailView: View {
             HStack(spacing: 8) {
                 ForEach(TransitionStatus.allCases) { status in
                     Button {
-                        viewModel.updateStatus(plan, to: status, context: modelContext)
+                        viewModel.updateStatus(plan, to: status, context: viewContext)
                     } label: {
                         HStack(spacing: 4) {
                             Image(systemName: status.icon)
@@ -168,7 +169,7 @@ struct TransitionPlanDetailView: View {
 
     // MARK: - Checklist Section
 
-    private func checklistSection(category: ChecklistCategory, items: [TransitionChecklistItem]) -> some View {
+    private func checklistSection(category: ChecklistCategory, items: [CDTransitionChecklistItem]) -> some View {
         VStack(alignment: .leading, spacing: 8) {
             HStack(spacing: 6) {
                 Image(systemName: category.icon)
@@ -187,7 +188,7 @@ struct TransitionPlanDetailView: View {
 
             ForEach(items) { item in
                 Button {
-                    viewModel.toggleChecklistItem(item, context: modelContext)
+                    viewModel.toggleChecklistItem(item, context: viewContext)
                 } label: {
                     HStack(spacing: 8) {
                         Image(systemName: item.isCompleted ? "checkmark.circle.fill" : "circle")
@@ -239,21 +240,21 @@ struct TransitionPlanDetailView: View {
                 .buttonStyle(.plain)
             }
 
-            let linkedNotes = plan.observationNotes ?? []
+            let linkedNotes = (plan.observationNotes?.allObjects as? [CDNote]) ?? []
             if linkedNotes.isEmpty {
                 Text("No observation notes yet")
                     .font(.caption)
                     .foregroundStyle(.tertiary)
                     .padding(.vertical, 4)
             } else {
-                ForEach(linkedNotes.sorted { $0.createdAt > $1.createdAt }) { note in
+                ForEach(linkedNotes.sorted { ($0.createdAt ?? .distantPast) > ($1.createdAt ?? .distantPast) }, id: \.objectID) { note in
                     VStack(alignment: .leading, spacing: 4) {
                         Text(note.body)
                             .font(.caption)
                             .foregroundStyle(.secondary)
                             .lineLimit(3)
 
-                        Text(note.createdAt.formatted(date: .abbreviated, time: .shortened))
+                        Text((note.createdAt ?? Date()).formatted(date: .abbreviated, time: .shortened))
                             .font(.caption2)
                             .foregroundStyle(.tertiary)
                     }

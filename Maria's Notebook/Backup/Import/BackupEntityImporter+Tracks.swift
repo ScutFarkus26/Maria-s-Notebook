@@ -1,8 +1,8 @@
 import Foundation
-import SwiftData
+import CoreData
 import OSLog
 
-// MARK: - Track/Group Imports
+// MARK: - CDTrackEntity/Group Imports
 
 extension BackupEntityImporter {
 
@@ -10,15 +10,15 @@ extension BackupEntityImporter {
 
     static func importTracks(
         _ dtos: [TrackDTO],
-        into modelContext: ModelContext,
-        existingCheck: EntityExistsCheck<Track>
+        into viewContext: NSManagedObjectContext,
+        existingCheck: EntityExistsCheck<CDTrackEntity>
     ) rethrows {
         try importSimpleEntities(
-            dtos, into: modelContext,
+            dtos, into: viewContext,
             existingCheck: existingCheck,
             idExtractor: { $0.id },
             entityBuilder: { dto in
-            let t = Track()
+            let t = CDTrackEntity(context: viewContext)
             t.id = dto.id
             t.title = dto.title
             t.createdAt = dto.createdAt
@@ -26,19 +26,19 @@ extension BackupEntityImporter {
         })
     }
 
-    // MARK: - Track Steps
+    // MARK: - CDTrackEntity Steps
 
     static func importTrackSteps(
         _ dtos: [TrackStepDTO],
-        into modelContext: ModelContext,
+        into viewContext: NSManagedObjectContext,
         existingCheck: EntityExistsCheck<TrackStep>,
-        trackCheck: EntityExistsCheck<Track>
+        trackCheck: EntityExistsCheck<CDTrackEntity>
     ) rethrows {
         for dto in dtos {
             if shouldSkipExisting(id: dto.id, existingCheck: existingCheck) { continue }
-            let step = TrackStep()
+            let step = TrackStep(context: viewContext)
             step.id = dto.id
-            step.orderIndex = dto.orderIndex
+            step.orderIndex = Int64(dto.orderIndex)
             step.lessonTemplateID = dto.lessonTemplateID
             step.createdAt = dto.createdAt
             if let trackID = dto.trackID {
@@ -51,23 +51,23 @@ extension BackupEntityImporter {
                     Logger.backup.warning("Failed to check track for step: \(desc, privacy: .public)")
                 }
             }
-            modelContext.insert(step)
+            viewContext.insert(step)
         }
     }
 
-    // MARK: - Student Track Enrollments
+    // MARK: - CDStudent CDTrackEntity Enrollments
 
     static func importStudentTrackEnrollments(
         _ dtos: [StudentTrackEnrollmentDTO],
-        into modelContext: ModelContext,
-        existingCheck: EntityExistsCheck<StudentTrackEnrollment>
+        into viewContext: NSManagedObjectContext,
+        existingCheck: EntityExistsCheck<CDStudentTrackEnrollmentEntity>
     ) rethrows {
         try importSimpleEntities(
-            dtos, into: modelContext,
+            dtos, into: viewContext,
             existingCheck: existingCheck,
             idExtractor: { $0.id },
             entityBuilder: { dto in
-            let e = StudentTrackEnrollment()
+            let e = CDStudentTrackEnrollmentEntity(context: viewContext)
             e.id = dto.id
             e.createdAt = dto.createdAt
             e.studentID = dto.studentID
@@ -82,22 +82,21 @@ extension BackupEntityImporter {
 
     static func importGroupTracks(
         _ dtos: [GroupTrackDTO],
-        into modelContext: ModelContext,
-        existingCheck: EntityExistsCheck<GroupTrack>
+        into viewContext: NSManagedObjectContext,
+        existingCheck: EntityExistsCheck<CDGroupTrack>
     ) rethrows {
         try importSimpleEntities(
-            dtos, into: modelContext,
+            dtos, into: viewContext,
             existingCheck: existingCheck,
             idExtractor: { $0.id },
             entityBuilder: { dto in
-            let g = GroupTrack(
-                id: dto.id,
-                subject: dto.subject,
-                group: dto.group,
-                isSequential: dto.isSequential,
-                isExplicitlyDisabled: dto.isExplicitlyDisabled,
-                createdAt: dto.createdAt
-            )
+            let g = CDGroupTrack(context: viewContext)
+            g.id = dto.id
+            g.subject = dto.subject
+            g.group = dto.group
+            g.isSequential = dto.isSequential
+            g.isExplicitlyDisabled = dto.isExplicitlyDisabled
+            g.createdAt = dto.createdAt
             return g
         })
     }

@@ -223,7 +223,7 @@ public actor BandwidthThrottler {
     private func trackTransfer(bytes: Int) {
         totalBytesTransferred += Int64(bytes)
 
-        // Track peak speed (instantaneous)
+        // CDTrackEntity peak speed (instantaneous)
         if let start = transferStartTime {
             let elapsed = Date().timeIntervalSince(start)
             if elapsed > 0 {

@@ -1,5 +1,5 @@
 import Foundation
-import SwiftData
+import CoreData
 
 // MARK: - Checklist Matrix Builder
 
@@ -17,31 +17,29 @@ enum ChecklistMatrixBuilder {
     ///   - context: Model context for fetching data
     /// - Returns: Dictionary mapping student ID -> lesson ID -> state
     static func buildMatrix(
-        students: [Student],
-        lessons: [Lesson],
-        context: ModelContext
+        students: [CDStudent],
+        lessons: [CDLesson],
+        context: NSManagedObjectContext
     ) -> [UUID: [UUID: StudentChecklistRowState]] {
-        let lessonIDStrings = Set(lessons.map { $0.id.uuidString })
+        let lessonIDStrings = Set(lessons.compactMap { $0.id?.uuidString })
         guard !lessonIDStrings.isEmpty else { return [:] }
 
         // Fetch LessonAssignments scoped to current lessons.
-        // LessonAssignment has an #Index on lessonID, so per-lesson predicates are fast.
+        // CDLessonAssignment has an #Index on lessonID, so per-lesson predicates are fast.
         // We batch fetches by lesson to leverage the index rather than fetching all records.
-        var lasByLessonID: [String: [LessonAssignment]] = [:]
+        var lasByLessonID: [String: [CDLessonAssignment]] = [:]
         for lessonIDString in lessonIDStrings {
-            let descriptor = FetchDescriptor<LessonAssignment>(
-                predicate: #Predicate { $0.lessonID == lessonIDString }
-            )
+            let descriptor: NSFetchRequest<CDLessonAssignment> = CDFetchRequest(CDLessonAssignment.self)
+            descriptor.predicate = NSPredicate(format: "lessonID == %@", lessonIDString as CVarArg)
             lasByLessonID[lessonIDString] = context.safeFetch(descriptor)
         }
 
         // Fetch WorkModels scoped to current lessons using studentID index.
         // Build a lookup by lessonID for O(1) access per cell.
-        var worksByLessonID: [String: [WorkModel]] = [:]
+        var worksByLessonID: [String: [CDWorkModel]] = [:]
         for lessonIDString in lessonIDStrings {
-            let descriptor = FetchDescriptor<WorkModel>(
-                predicate: #Predicate { $0.lessonID == lessonIDString }
-            )
+            let descriptor: NSFetchRequest<CDWorkModel> = CDFetchRequest(CDWorkModel.self)
+            descriptor.predicate = NSPredicate(format: "lessonID == %@", lessonIDString as CVarArg)
             worksByLessonID[lessonIDString] = context.safeFetch(descriptor)
         }
 
@@ -56,12 +54,13 @@ enum ChecklistMatrixBuilder {
             let studentKey = student.cloudKitKey
 
             for lesson in lessons {
-                let lessonIDString = lesson.id.uuidString
+                guard let lessonID = lesson.id else { continue }
+                let lessonIDString = lessonID.uuidString
                 let lasForLesson = lasByLessonID[lessonIDString] ?? []
                 let studentLAs = lasForLesson.filter { $0.studentIDs.contains(studentKey) }
                 let worksForLesson = worksByLessonID[lessonIDString] ?? []
                 let studentWorks = worksForLesson.filter { work in
-                    (work.participants ?? []).contains { $0.studentID == studentKey }
+                    ((work.participants?.allObjects as? [CDWorkParticipantEntity]) ?? []).contains { $0.studentID == studentKey }
                 }
 
                 let state = buildCellState(
@@ -71,9 +70,10 @@ enum ChecklistMatrixBuilder {
                     calendar: calendar,
                     today: today
                 )
-                studentRow[lesson.id] = state
+                studentRow[lessonID] = state
             }
-            newMatrix[student.id] = studentRow
+            guard let studentID = student.id else { continue }
+            newMatrix[studentID] = studentRow
         }
 
         return newMatrix
@@ -85,9 +85,9 @@ enum ChecklistMatrixBuilder {
     private static let staleWeekdays = 14
 
     private static func buildCellState(
-        lesson: Lesson,
-        studentLAs: [LessonAssignment],
-        studentWorkModels: [WorkModel],
+        lesson: CDLesson,
+        studentLAs: [CDLessonAssignment],
+        studentWorkModels: [CDWorkModel],
         calendar: Calendar,
         today: Date
     ) -> StudentChecklistRowState {
@@ -99,9 +99,9 @@ enum ChecklistMatrixBuilder {
 
         let workModelForLesson = studentWorkModels.first
         let isActive = workModelForLesson?.isOpen ?? false
-        let isComplete = workModelForLesson?.status == .complete
-        let isWorkActive = studentWorkModels.contains { $0.status == .active }
-        let isWorkReview = studentWorkModels.contains { $0.status == .review }
+        let isComplete = workModelForLesson?.status == WorkStatus.complete
+        let isWorkActive = studentWorkModels.contains { $0.status == WorkStatus.active }
+        let isWorkReview = studentWorkModels.contains { $0.status == WorkStatus.review }
 
         // Compute staleness using pre-computed calendar & today (avoids per-cell allocation)
         let lastActivityDate = workModelForLesson?.lastTouchedAt ?? workModelForLesson?.createdAt
@@ -122,7 +122,7 @@ enum ChecklistMatrixBuilder {
         }()
 
         return StudentChecklistRowState(
-            lessonID: lesson.id,
+            lessonID: lesson.id ?? UUID(),
             plannedItemID: plannedCandidate?.id,
             presentationLogID: nil,
             contractID: workModelForLesson?.id,

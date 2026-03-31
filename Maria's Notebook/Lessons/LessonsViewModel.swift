@@ -3,7 +3,7 @@
 
 import Foundation
 import OSLog
-import SwiftData
+import CoreData
 
 /// Provides filtering and ordering utilities for Lessons screens.
 /// Methods here are pure functions and do not mutate external state.
@@ -14,14 +14,14 @@ struct LessonsViewModel {
     // MARK: - Public API
 
     // Compute ordered unique subjects using FilterOrderStore
-    func subjects(from lessons: [Lesson]) -> [String] {
+    func subjects(from lessons: [CDLesson]) -> [String] {
         let unique = Set(lessons.map { $0.subject.trimmed() }.filter { !$0.isEmpty })
         let existing = Array(unique).sorted { $0.localizedCaseInsensitiveCompare($1) == .orderedAscending }
         return FilterOrderStore.loadSubjectOrder(existing: existing)
     }
 
     // Compute ordered unique groups for a given subject using FilterOrderStore
-    func groups(for subject: String, lessons: [Lesson]) -> [String] {
+    func groups(for subject: String, lessons: [CDLesson]) -> [String] {
         let trimmedSubject = subject.trimmed()
         let unique = Set(
             lessons
@@ -38,12 +38,12 @@ struct LessonsViewModel {
 
     func norm(_ s: String) -> String { s.trimmed().lowercased() }
 
-    func subjectIndexMap(from lessons: [Lesson]) -> [String: Int] {
+    func subjectIndexMap(from lessons: [CDLesson]) -> [String: Int] {
         let list = subjects(from: lessons)
         return list.enumerated().reduce(into: [:]) { $0[norm($1.element)] = $1.offset }
     }
 
-    func groupIndex(for subject: String, lessons: [Lesson]) -> [String: Int] {
+    func groupIndex(for subject: String, lessons: [CDLesson]) -> [String: Int] {
         let orderedGroups = groups(for: subject, lessons: lessons)
         return orderedGroups.enumerated().reduce(into: [:]) { (d: inout [String: Int], p) in
             d[norm(p.element)] = p.offset
@@ -54,7 +54,7 @@ struct LessonsViewModel {
         _ group: String,
         inSubject subject: String,
         cache: inout [String: [String: Int]],
-        lessons: [Lesson]
+        lessons: [CDLesson]
     ) -> Int {
         let key = norm(subject)
         if cache[key] == nil { cache[key] = groupIndex(for: subject, lessons: lessons) }
@@ -70,82 +70,79 @@ struct LessonsViewModel {
         selectedSubject: String?,
         selectedGroup: String?,
         searchText: String
-    ) -> Predicate<Lesson>? {
+    ) -> NSPredicate? {
         let query = searchText.trimmed()
-        
+
         guard query.isEmpty else {
             return buildSourceAndKindPredicate(sourceFilter: sourceFilter, personalKindFilter: personalKindFilter)
         }
-        
-        let sourceFilterRaw = sourceFilter?.rawValue
-        let personalKindFilterRaw = personalKindFilter?.rawValue
-        let personalRawValue = "personal"
-        let personalKindPersonalRaw = "personal"
-        let trimmedSubject = selectedSubject?.trimmed()
-        let trimmedGroup = selectedGroup?.trimmed()
-        let hasSubject = trimmedSubject.map { !$0.isEmpty } ?? false
-        let hasGroup = trimmedGroup.map { !$0.isEmpty } ?? false
-        let isPersonalSourceFilter = sourceFilter == .personal || sourceFilter == nil
-        let hasPersonalKindFilter = personalKindFilterRaw != nil && isPersonalSourceFilter
-        
-        return #Predicate<Lesson> { lesson in
-            (sourceFilterRaw == nil || lesson.sourceRaw == sourceFilterRaw!) &&
-            (!hasPersonalKindFilter ||
-                (lesson.sourceRaw == personalRawValue &&
-                    (lesson.personalKindRaw == personalKindFilterRaw ||
-                        (lesson.personalKindRaw == nil &&
-                            personalKindFilterRaw == personalKindPersonalRaw)))) &&
-            (!hasSubject || lesson.subject == trimmedSubject!) &&
-            (!hasGroup || lesson.group == trimmedGroup!)
+
+        var subpredicates: [NSPredicate] = []
+
+        // Source filter
+        if let sourceFilterRaw = sourceFilter?.rawValue {
+            subpredicates.append(NSPredicate(format: "sourceRaw == %@", sourceFilterRaw))
         }
+
+        // Personal kind filter
+        let isPersonalSourceFilter = sourceFilter == .personal || sourceFilter == nil
+        if let personalKindFilterRaw = personalKindFilter?.rawValue, isPersonalSourceFilter {
+            subpredicates.append(NSPredicate(format: "sourceRaw == %@ AND (personalKindRaw == %@ OR (personalKindRaw == nil AND %@ == %@))",
+                "personal", personalKindFilterRaw, personalKindFilterRaw, "personal"))
+        }
+
+        // Subject filter
+        if let trimmedSubject = selectedSubject?.trimmed(), !trimmedSubject.isEmpty {
+            subpredicates.append(NSPredicate(format: "subject == %@", trimmedSubject))
+        }
+
+        // Group filter
+        if let trimmedGroup = selectedGroup?.trimmed(), !trimmedGroup.isEmpty {
+            subpredicates.append(NSPredicate(format: "group == %@", trimmedGroup))
+        }
+
+        guard !subpredicates.isEmpty else { return nil }
+        return NSCompoundPredicate(andPredicateWithSubpredicates: subpredicates)
     }
     
     func buildSourceAndKindPredicate(
         sourceFilter: LessonSource?,
         personalKindFilter: PersonalLessonKind?
-    ) -> Predicate<Lesson>? {
-        let personalRawValue = "personal"
-        let personalKindPersonalRaw = "personal"
-        
+    ) -> NSPredicate? {
         guard let sourceFilter else {
             if let personalKindFilterRaw = personalKindFilter?.rawValue {
-                return #Predicate<Lesson> {
-                    $0.sourceRaw == personalRawValue &&
-                    ($0.personalKindRaw == personalKindFilterRaw ||
-                        ($0.personalKindRaw == nil &&
-                            personalKindFilterRaw == personalKindPersonalRaw))
-                }
+                return NSPredicate(
+                    format: "sourceRaw == %@ AND (personalKindRaw == %@ OR (personalKindRaw == nil AND %@ == %@))",
+                    "personal", personalKindFilterRaw, personalKindFilterRaw, "personal"
+                )
             }
             return nil
         }
-        
+
         let sourceFilterRaw = sourceFilter.rawValue
-        let isPersonalSourceFilter = sourceFilter == .personal
-        
-        if let personalKindFilterRaw = personalKindFilter?.rawValue, isPersonalSourceFilter {
-            return #Predicate<Lesson> {
-                $0.sourceRaw == personalRawValue &&
-                ($0.personalKindRaw == personalKindFilterRaw ||
-                    ($0.personalKindRaw == nil &&
-                        personalKindFilterRaw == personalKindPersonalRaw))
-            }
+
+        if let personalKindFilterRaw = personalKindFilter?.rawValue, sourceFilter == .personal {
+            return NSPredicate(
+                format: "sourceRaw == %@ AND (personalKindRaw == %@ OR (personalKindRaw == nil AND %@ == %@))",
+                "personal", personalKindFilterRaw, personalKindFilterRaw, "personal"
+            )
         }
-        
-        return #Predicate<Lesson> { $0.sourceRaw == sourceFilterRaw }
+
+        return NSPredicate(format: "sourceRaw == %@", sourceFilterRaw as CVarArg)
     }
 
     struct LessonSortKey {
         let subjectIdx: Int
         let groupIdx: Int
-        let orderInGroup: Int
+        let orderInGroup: Int64
         let name: String
         let id: String
     }
 
-    func ensureInitialOrderInGroupIfNeeded(_ lessons: [Lesson]) -> Bool {
+    func ensureInitialOrderInGroupIfNeeded(_ lessons: [CDLesson]) -> Bool {
         var changed = false
         func norm(_ s: String) -> String { s.trimmed().lowercased() }
-        var buckets: [String: [Lesson]] = [:]
+        var buckets: [String: [CDLesson]] = [:]
         for l in lessons {
             let key = norm(l.subject) + "|" + norm(l.group)
             buckets[key, default: []].append(l)
@@ -158,13 +155,13 @@ struct LessonsViewModel {
                 let sorted = arr.sorted { lhs, rhs in
                     lhs.name.localizedCaseInsensitiveCompare(rhs.name) == .orderedAscending
                 }
-                for (idx, l) in sorted.enumerated() where l.orderInGroup != idx {
-                    l.orderInGroup = idx; changed = true
+                for (idx, l) in sorted.enumerated() where l.orderInGroup != Int64(idx) {
+                    l.orderInGroup = Int64(idx); changed = true
                 }
                 continue
             }
-            var seen = Set<Int>()
-            var duplicates: [Lesson] = []
+            var seen = Set<Int64>()
+            var duplicates: [CDLesson] = []
             for l in arr.sorted(by: { $0.orderInGroup < $1.orderInGroup }) {
                 if seen.contains(l.orderInGroup) {
                     duplicates.append(l)
@@ -186,7 +183,7 @@ struct LessonsViewModel {
     
 }
 
-// MARK: - Lesson Status
+// MARK: - CDLesson Status
 
 extension LessonsViewModel {
     enum LessonStatus {
@@ -202,16 +199,16 @@ extension LessonsViewModel {
     }
 
     static func computeLessonStatusInfo(
-        lesson: Lesson,
-        lessonAssignments: [LessonAssignment],
-        workModels: [WorkModel],
-        modelContext: ModelContext,
+        lesson: CDLesson,
+        lessonAssignments: [CDLessonAssignment],
+        workModels: [CDWorkModel],
+        viewContext: NSManagedObjectContext,
         schoolDayCache: SchoolDayLookupCache? = nil
     ) -> LessonStatusInfo {
-        let lessonIDString = lesson.id.uuidString
+        let lessonIDString = lesson.id?.uuidString ?? ""
         let lasForLesson = lessonAssignments.filter { $0.lessonID == lessonIDString }
         let isPresented = lasForLesson.contains { $0.isPresented }
-        let laIDs = Set(lasForLesson.map(\.id))
+        let laIDs = Set(lasForLesson.compactMap(\.id))
         let workForLesson = workModels.filter { work in
             work.lessonID == lessonIDString || laIDs.contains(work.studentLessonID ?? UUID())
         }
@@ -220,7 +217,7 @@ extension LessonsViewModel {
         let lastActivity = computeLastActivityDate(
             lasForLesson: lasForLesson, workForLesson: workForLesson, isPresented: isPresented
         )
-        let (isStale, isOverdue) = computeWorkFlags(activeWork: activeWork, modelContext: modelContext)
+        let (isStale, isOverdue) = computeWorkFlags(activeWork: activeWork, viewContext: viewContext)
 
         let status: LessonStatus
         if isStale || isOverdue {
@@ -238,7 +235,7 @@ extension LessonsViewModel {
             resolvedCache = schoolDayCache
         } else {
             resolvedCache = SchoolDayLookupCache()
-            resolvedCache.preload(using: modelContext)
+            resolvedCache.preload(using: viewContext)
         }
         let ageString = formatAgeString(from: lastActivity, schoolDayCache: resolvedCache)
 
@@ -249,15 +246,15 @@ extension LessonsViewModel {
     }
 
     private static func computeLastActivityDate(
-        lasForLesson: [LessonAssignment],
-        workForLesson: [WorkModel],
+        lasForLesson: [CDLessonAssignment],
+        workForLesson: [CDWorkModel],
         isPresented: Bool
     ) -> Date? {
         let activeWork = workForLesson.filter { $0.completedAt == nil }
         if !activeWork.isEmpty {
             let lastTouches = activeWork.compactMap { work -> Date? in
-                let checkIns = work.checkIns ?? []
-                let notes = work.unifiedNotes ?? []
+                let checkIns = (work.checkIns?.allObjects as? [CDWorkCheckIn]) ?? []
+                let notes = (work.unifiedNotes?.allObjects as? [CDNote]) ?? []
                 return WorkAgingPolicy.lastMeaningfulTouchDate(for: work, checkIns: checkIns, notes: notes)
             }
             return lastTouches.max()
@@ -269,14 +266,14 @@ extension LessonsViewModel {
     }
 
     private static func computeWorkFlags(
-        activeWork: [WorkModel],
-        modelContext: ModelContext
+        activeWork: [CDWorkModel],
+        viewContext: NSManagedObjectContext
     ) -> (isStale: Bool, isOverdue: Bool) {
         guard let work = activeWork.first else { return (false, false) }
-        let checkIns = work.checkIns ?? []
-        let notes = work.unifiedNotes ?? []
+        let checkIns = (work.checkIns?.allObjects as? [CDWorkCheckIn]) ?? []
+        let notes = (work.unifiedNotes?.allObjects as? [CDNote]) ?? []
         return (
-            WorkAgingPolicy.isStale(work, modelContext: modelContext, checkIns: checkIns, notes: notes),
+            WorkAgingPolicy.isStale(work, using: viewContext, checkIns: checkIns, notes: notes),
             WorkAgingPolicy.isOverdue(work, checkIns: checkIns)
         )
     }
@@ -301,19 +298,18 @@ extension LessonsViewModel {
     /// Returns a dictionary mapping lesson UUID to student count.
     func computeLessonStatusCounts(
         for lessonIDs: [UUID],
-        context: ModelContext
+        context: NSManagedObjectContext
     ) -> [UUID: Int] {
         guard !lessonIDs.isEmpty else { return [:] }
 
         var result: [UUID: Int] = [:]
         let lessonIDStrings = Set(lessonIDs.uuidStrings)
 
-        // Fetch only un-presented LessonAssignment records (drafts and scheduled).
+        // Fetch only un-presented CDLessonAssignment records (drafts and scheduled).
         let presentedRaw = LessonAssignmentState.presented.rawValue
-        let descriptor = FetchDescriptor<LessonAssignment>(
-            predicate: #Predicate<LessonAssignment> { $0.stateRaw != presentedRaw }
-        )
-        let assignments: [LessonAssignment]
+        let descriptor: NSFetchRequest<CDLessonAssignment> = NSFetchRequest(entityName: "LessonAssignment")
+        descriptor.predicate = NSPredicate(format: "stateRaw != %@", presentedRaw as CVarArg)
+        let assignments: [CDLessonAssignment]
         do {
             assignments = try context.fetch(descriptor)
         } catch {

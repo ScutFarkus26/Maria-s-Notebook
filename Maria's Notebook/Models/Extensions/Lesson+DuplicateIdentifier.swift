@@ -1,5 +1,5 @@
 import Foundation
-import SwiftData
+import CoreData
 
 extension Lesson {
     /// A computed property that returns a normalized identifier string

@@ -46,6 +46,7 @@ public enum ChecklistDisplayStatus: Sendable {
 }
 
 import SwiftUI
+import CoreData
 
 public struct StudentChecklistRowState: Identifiable, Equatable {
     public var id: UUID { lessonID }

@@ -1,5 +1,5 @@
 import SwiftUI
-import SwiftData
+import CoreData
 #if os(macOS)
 import AppKit
 #else
@@ -10,7 +10,7 @@ import UIKit
 /// Shows the student's avatar (initials), name, and optional status badge based on sort mode.
 /// Includes "fun" visuals matching the card designs: birthday cakes, age displays, and lesson status badges.
 struct StudentListRow: View {
-    let student: Student
+    let student: CDStudent
     let sortOrder: SortOrder
     let daysSinceLastLesson: Int?
 
@@ -31,7 +31,7 @@ struct StudentListRow: View {
     
     private var nextBirthdayDate: Date {
         let today = Date()
-        let comps = calendar.dateComponents([.month, .day], from: student.birthday)
+        let comps = calendar.dateComponents([.month, .day], from: student.birthday ?? Date())
         let currentYear = calendar.component(.year, from: today)
         var thisYear = calendar.date(from: DateComponents(year: currentYear, month: comps.month, day: comps.day))
         // Handle Feb 29 on non-leap years by using Feb 28
@@ -56,7 +56,7 @@ struct StudentListRow: View {
     // MARK: - Age Computations
     
     private var ageQuarter: (years: Int, months: Int) {
-        AgeUtils.quarterRoundedAgeComponents(birthday: student.birthday)
+        AgeUtils.quarterRoundedAgeComponents(birthday: student.birthday ?? Date())
     }
     
     private var ageDisplayString: String {
@@ -112,7 +112,7 @@ struct StudentListRow: View {
                 if let onOpenInNewWindow {
                     onOpenInNewWindow()
                 } else {
-                    openStudentInNewWindow(student.id)
+                    if let id = student.id { openStudentInNewWindow(id) }
                 }
             } label: {
                 Label("Open in New Window", systemImage: "uiwindow.split.2x1")
@@ -141,18 +141,18 @@ struct StudentListRow: View {
 }
 
 #Preview {
-    let container = ModelContainer.preview
-    let student = Student(
-        firstName: "John",
-        lastName: "Doe",
-        birthday: Date(),
-        level: .upper
-    )
-    
-    List {
+    let stack = CoreDataStack.preview
+    let ctx = stack.viewContext
+    let student = Student(context: ctx)
+    student.firstName = "John"
+    student.lastName = "Doe"
+    student.birthday = Date()
+    student.level = .upper
+
+    return List {
         StudentListRow(student: student, sortOrder: .alphabetical, daysSinceLastLesson: nil)
         StudentListRow(student: student, sortOrder: .birthday, daysSinceLastLesson: nil)
         StudentListRow(student: student, sortOrder: .age, daysSinceLastLesson: nil)
     }
-    .modelContainer(container)
+    .previewEnvironment(using: stack)
 }

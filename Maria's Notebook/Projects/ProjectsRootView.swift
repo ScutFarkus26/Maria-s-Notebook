@@ -1,18 +1,18 @@
 import OSLog
 import SwiftUI
-import SwiftData
+import CoreData
 #if os(iOS)
 import UIKit
 #endif
 
 struct ProjectsRootView: View {
     private static let logger = Logger.projects
-    @Environment(\.modelContext) private var modelContext
+    @Environment(\.managedObjectContext) private var modelContext
     @Environment(SaveCoordinator.self) private var saveCoordinator
 
     // MARK: - Data
-    @Query(sort: [SortDescriptor(\Project.createdAt, order: .reverse)]) private var clubsRaw: [Project]
-    private var clubs: [Project] { clubsRaw.uniqueByID }
+    @FetchRequest(sortDescriptors: [NSSortDescriptor(keyPath: \CDProject.createdAt, ascending: false)]) private var clubsRaw: FetchedResults<CDProject>
+    private var clubs: [Project] { Array(clubsRaw).uniqueByID }
     
     // OPTIMIZATION: Removed unfiltered queries - deletion logic uses targeted FetchDescriptor
     // when needed, avoiding loading all records into memory upfront
@@ -35,7 +35,7 @@ struct ProjectsRootView: View {
     }
 
     private var selectedClub: Project? {
-        clubs.first { $0.id.uuidString == selectedClubIDString }
+        clubs.first { $0.id?.uuidString == selectedClubIDString }
     }
 
     private var filteredClubs: [Project] {
@@ -93,12 +93,12 @@ struct ProjectsRootView: View {
             #if os(iOS)
             if UIDevice.current.userInterfaceIdiom == .pad {
                 if selectedClubIDString.isEmpty, let first = clubs.first {
-                    selectedClubIDString = first.id.uuidString
+                    selectedClubIDString = first.id?.uuidString ?? ""
                 }
             }
             #else
             if selectedClubIDString.isEmpty, let first = clubs.first {
-                selectedClubIDString = first.id.uuidString
+                selectedClubIDString = first.id?.uuidString ?? ""
             }
             #endif
         }
@@ -108,10 +108,10 @@ struct ProjectsRootView: View {
 
     private var projectsSidebar: some View {
         List(selection: selectedClubID) {
-            ForEach(filteredClubs) { club in
+            ForEach(filteredClubs, id: \.objectID) { club in
                 ProjectSidebarRow(
                     club: club,
-                    isSelected: club.id.uuidString == selectedClubIDString,
+                    isSelected: club.id?.uuidString == selectedClubIDString,
                     lastSessionDate: lastSessionDate(for: club)
                 )
                 .tag(club.id)
@@ -158,7 +158,7 @@ struct ProjectsRootView: View {
     // MARK: - Helpers
 
     private func lastSessionDate(for club: Project) -> Date? {
-        (club.sessions ?? []).map(\.meetingDate).max()
+        ((club.sessions?.allObjects as? [CDProjectSession]) ?? []).compactMap(\.meetingDate).max()
     }
 
     // swiftlint:disable:next cyclomatic_complexity function_body_length
@@ -167,14 +167,14 @@ struct ProjectsRootView: View {
         // SwiftData predicates can't compare captured UUID values, so we fetch and filter
         // This is still more efficient than the original which loaded everything into @Query properties
         
-        let clubID = club.id
-        
+        let clubID = club.id ?? UUID()
+
         // Delete sessions and their related work contracts
         // Fetch all sessions (can't use predicate with captured UUID), then filter
         let clubIDString = clubID.uuidString
         let allSessions: [ProjectSession]
         do {
-            allSessions = try modelContext.fetch(FetchDescriptor<ProjectSession>())
+            allSessions = try modelContext.fetch(CDFetchRequest(CDProjectSession.self))
         } catch {
             Self.logger.warning("Failed to fetch project sessions: \(error)")
             allSessions = []
@@ -182,10 +182,10 @@ struct ProjectsRootView: View {
         let sessions = allSessions.filter { $0.projectID == clubIDString }
 
         // Fetch work models only for these sessions
-        let sessionIDs = Set(sessions.map { $0.id.uuidString })
+        let sessionIDs = Set(sessions.compactMap { $0.id?.uuidString })
         let allWorkModels: [WorkModel]
         do {
-            allWorkModels = try modelContext.fetch(FetchDescriptor<WorkModel>())
+            allWorkModels = try modelContext.fetch(CDFetchRequest(CDWorkModel.self))
         } catch {
             Self.logger.warning("Failed to fetch work models: \(error)")
             allWorkModels = []
@@ -205,7 +205,7 @@ struct ProjectsRootView: View {
         // Delete templates associated with this club
         let allTemplates: [ProjectAssignmentTemplate]
         do {
-            allTemplates = try modelContext.fetch(FetchDescriptor<ProjectAssignmentTemplate>())
+            allTemplates = try modelContext.fetch(CDFetchRequest(CDProjectAssignmentTemplate.self))
         } catch {
             Self.logger.warning("Failed to fetch project templates: \(error)")
             allTemplates = []
@@ -216,7 +216,7 @@ struct ProjectsRootView: View {
         // Delete roles for this club
         let allRoles: [ProjectRole]
         do {
-            allRoles = try modelContext.fetch(FetchDescriptor<ProjectRole>())
+            allRoles = try modelContext.fetch(CDFetchRequest(CDProjectRole.self))
         } catch {
             Self.logger.warning("Failed to fetch project roles: \(error)")
             allRoles = []
@@ -227,7 +227,7 @@ struct ProjectsRootView: View {
         // Delete template weeks and their related data
         let allWeeks: [ProjectTemplateWeek]
         do {
-            allWeeks = try modelContext.fetch(FetchDescriptor<ProjectTemplateWeek>())
+            allWeeks = try modelContext.fetch(CDFetchRequest(CDProjectTemplateWeek.self))
         } catch {
             Self.logger.warning("Failed to fetch project template weeks: \(error)")
             allWeeks = []
@@ -237,12 +237,12 @@ struct ProjectsRootView: View {
             // Role assignments for the week
             let allAssigns: [ProjectWeekRoleAssignment]
             do {
-                allAssigns = try modelContext.fetch(FetchDescriptor<ProjectWeekRoleAssignment>())
+                allAssigns = try modelContext.fetch(CDFetchRequest(CDProjectWeekRoleAssignment.self))
             } catch {
                 Self.logger.warning("Failed to fetch week role assignments: \(error)")
                 allAssigns = []
             }
-            let assigns = allAssigns.filter { $0.weekID == w.id.uuidString }
+            let assigns = allAssigns.filter { $0.weekID == w.id?.uuidString }
             for a in assigns { modelContext.delete(a) }
 
             modelContext.delete(w)
@@ -254,7 +254,7 @@ struct ProjectsRootView: View {
         modelContext.delete(club)
         
         // Clear selection if needed
-        if selectedClubIDString == club.id.uuidString {
+        if selectedClubIDString == club.id?.uuidString {
             selectedClubIDString = ""
         }
         
@@ -308,7 +308,7 @@ struct ProjectSidebarRow: View {
                     .lineLimit(1)
 
                 // Member count as secondary text
-                let memberCount = club.memberStudentIDs.count
+                let memberCount = club.memberStudentIDsArray.count
                 HStack(spacing: AppTheme.Spacing.xsmall) {
                     Circle().fill(projectColor).frame(width: 6, height: 6)
                     Text("\(memberCount) \(memberCount == 1 ? "member" : "members")")

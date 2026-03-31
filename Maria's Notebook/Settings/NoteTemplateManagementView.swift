@@ -2,30 +2,29 @@
 // Manage note templates (built-in and user-created)
 
 import SwiftUI
-import SwiftData
-import OSLog
 import CoreData
+import OSLog
+
 
 struct NoteTemplateManagementView: View {
     private static let logger = Logger.settings
-    @Environment(\.modelContext) private var modelContext
+    @Environment(\.managedObjectContext) private var viewContext
     @Environment(\.managedObjectContext) private var managedObjectContext
-    @Query(sort: \NoteTemplate.sortOrder)
-    private var templates: [NoteTemplate]
+    @FetchRequest(sortDescriptors: [NSSortDescriptor(keyPath: \CDNoteTemplate.sortOrder, ascending: true)]) private var templates: FetchedResults<CDNoteTemplate>
 
     @State private var showingAddSheet = false
-    @State private var editingTemplate: NoteTemplate?
-    @State private var previewingTemplate: NoteTemplate?
+    @State private var editingTemplate: CDNoteTemplate?
+    @State private var previewingTemplate: CDNoteTemplate?
 
     private var repository: NoteTemplateRepository {
         NoteTemplateRepository(context: managedObjectContext)
     }
 
-    private var builtInTemplates: [NoteTemplate] {
+    private var builtInTemplates: [CDNoteTemplate] {
         templates.filter(\.isBuiltIn)
     }
 
-    private var customTemplates: [NoteTemplate] {
+    private var customTemplates: [CDNoteTemplate] {
         templates.filter { !$0.isBuiltIn }
     }
 
@@ -93,7 +92,7 @@ struct NoteTemplateManagementView: View {
             }
             .padding(SettingsStyle.padding)
         }
-        .navigationTitle("Note Templates")
+        .navigationTitle("CDNote Templates")
         .toolbar {
             ToolbarItem(placement: .primaryAction) {
                 Button {
@@ -120,10 +119,11 @@ struct NoteTemplateManagementView: View {
 
     // MARK: - Actions
 
-    private func deleteTemplate(_ template: NoteTemplate) {
+    private func deleteTemplate(_ template: CDNoteTemplate) {
+        guard let id = template.id else { return }
         adaptiveWithAnimation {
             do {
-                try repository.deleteTemplate(id: template.id)
+                try repository.deleteTemplate(id: id)
             } catch {
                 Self.logger.warning("Failed to delete note template: \(error, privacy: .public)")
             }
@@ -133,14 +133,14 @@ struct NoteTemplateManagementView: View {
     private func reorderTemplates(from source: IndexSet, to destination: Int) {
         var reordered = customTemplates
         reordered.move(fromOffsets: source, toOffset: destination)
-        repository.reorderTemplates(ids: reordered.map(\.id))
+        repository.reorderTemplates(ids: reordered.compactMap(\.id))
     }
 }
 
-// MARK: - Note Template Card Row
+// MARK: - CDNote Template Card Row
 
 private struct NoteTemplateCardRow: View {
-    let template: NoteTemplate
+    let template: CDNoteTemplate
     let isBuiltIn: Bool
     let onTap: () -> Void
     let onEdit: (() -> Void)?
@@ -155,7 +155,7 @@ private struct NoteTemplateCardRow: View {
                             .font(.headline)
                             .foregroundStyle(.primary)
 
-                        ForEach(template.tags.prefix(2), id: \.self) { tag in
+                        ForEach(((template.tags as? [String]) ?? []).prefix(2), id: \.self) { tag in
                             TagBadge(tag: tag, compact: true)
                         }
                     }
@@ -215,10 +215,10 @@ private struct NoteTemplateCardRow: View {
 
 }
 
-// MARK: - Note Template Preview Sheet
+// MARK: - CDNote Template Preview Sheet
 
 private struct NoteTemplatePreviewSheet: View {
-    let template: NoteTemplate
+    let template: CDNoteTemplate
     @Environment(\.dismiss) private var dismiss
 
     var body: some View {
@@ -226,9 +226,9 @@ private struct NoteTemplatePreviewSheet: View {
             ScrollView {
                 VStack(alignment: .leading, spacing: 16) {
                     // Tag badges
-                    if !template.tags.isEmpty {
+                    if !((template.tags as? [String]) ?? []).isEmpty {
                         HStack(spacing: 6) {
-                            ForEach(template.tags, id: \.self) { tag in
+                            ForEach((template.tags as? [String]) ?? [], id: \.self) { tag in
                                 TagBadge(tag: tag)
                             }
                             Spacer()

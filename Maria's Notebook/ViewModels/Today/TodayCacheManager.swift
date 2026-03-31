@@ -1,5 +1,5 @@
 import Foundation
-import SwiftData
+import CoreData
 
 // MARK: - Today Cache Manager
 
@@ -46,7 +46,9 @@ final class TodayCacheManager {
     /// Merges additional students into the cache.
     func mergeStudents(_ students: [Student]) {
         for student in students {
-            studentsByID[student.id] = student
+            if let studentID = student.id {
+                studentsByID[studentID] = student
+            }
         }
         cachedDuplicateFirstNames = nil
     }
@@ -59,7 +61,9 @@ final class TodayCacheManager {
     /// Merges additional lessons into the cache.
     func mergeLessons(_ lessons: [Lesson]) {
         for lesson in lessons {
-            lessonsByID[lesson.id] = lesson
+            if let lessonID = lesson.id {
+                lessonsByID[lessonID] = lesson
+            }
         }
     }
 
@@ -91,48 +95,58 @@ final class TodayCacheManager {
     // MARK: - Loading Methods
 
     /// Loads students if not already cached.
-    func loadStudentsIfNeeded(ids: Set<UUID>, context: ModelContext) {
+    func loadStudentsIfNeeded(ids: Set<UUID>, context: NSManagedObjectContext) {
         guard !ids.isEmpty else { return }
 
         let missingIDs = ids.filter { studentsByID[$0] == nil }
         guard !missingIDs.isEmpty else { return }
 
         // PERFORMANCE: Fetch all students once and filter in memory
-        // SwiftData #Predicate doesn't support capturing local Set variables
-        var descriptor = FetchDescriptor<Student>()
-        descriptor.fetchLimit = 500 // Safety limit for student roster
-        let allStudents = context.safeFetch(descriptor).filter(\.isEnrolled)
+        // Core Data NSPredicate doesn't efficiently support IN queries with large UUID sets
+        let request = CDFetchRequest(Student.self)
+        request.fetchLimit = 500 // Safety limit for student roster
+        let allStudents = context.safeFetch(request).filter(\.isEnrolled)
 
         // OPTIMIZATION: Use Set for O(1) lookups instead of repeated array searches
         let missingIDSet = Set(missingIDs)
-        let filtered = allStudents.filter { missingIDSet.contains($0.id) }
+        let filtered = allStudents.filter { student in
+            guard let studentID = student.id else { return false }
+            return missingIDSet.contains(studentID)
+        }
         let visibleStudents = TestStudentsFilter.filterVisible(filtered)
-        
+
         for student in visibleStudents {
-            studentsByID[student.id] = student
+            if let studentID = student.id {
+                studentsByID[studentID] = student
+            }
         }
         cachedDuplicateFirstNames = nil
     }
 
     /// Loads lessons if not already cached.
-    func loadLessonsIfNeeded(ids: Set<UUID>, context: ModelContext) {
+    func loadLessonsIfNeeded(ids: Set<UUID>, context: NSManagedObjectContext) {
         guard !ids.isEmpty else { return }
 
         let missingIDs = ids.filter { lessonsByID[$0] == nil }
         guard !missingIDs.isEmpty else { return }
 
         // PERFORMANCE: Fetch all lessons once and filter in memory
-        // SwiftData #Predicate doesn't support capturing local Set variables
-        var descriptor = FetchDescriptor<Lesson>()
-        descriptor.fetchLimit = 1000 // Safety limit for lesson library
-        let allLessons = context.safeFetch(descriptor)
-        
+        // Core Data NSPredicate doesn't efficiently support IN queries with large UUID sets
+        let request = CDFetchRequest(Lesson.self)
+        request.fetchLimit = 1000 // Safety limit for lesson library
+        let allLessons = context.safeFetch(request)
+
         // OPTIMIZATION: Use Set for O(1) lookups instead of repeated array searches
         let missingIDSet = Set(missingIDs)
-        let filtered = allLessons.filter { missingIDSet.contains($0.id) }
-        
+        let filtered = allLessons.filter { lesson in
+            guard let lessonID = lesson.id else { return false }
+            return missingIDSet.contains(lessonID)
+        }
+
         for lesson in filtered {
-            lessonsByID[lesson.id] = lesson
+            if let lessonID = lesson.id {
+                lessonsByID[lessonID] = lesson
+            }
         }
     }
 

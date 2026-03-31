@@ -239,14 +239,14 @@ struct APIKeyInformationSheet: View {
                     .background(Color.green.opacity(UIConstants.OpacityConstants.light))
                     .cornerRadius(12)
                     
-                    // Privacy Note
+                    // Privacy CDNote
                     VStack(alignment: .leading, spacing: 8) {
                         Label("Privacy & Security", systemImage: "lock.shield")
                             .font(.headline)
                         
                         Text(
                             "Your API key is stored securely on your device."
-                            + " Student data is sent directly to Anthropic's secure servers"
+                            + " CDStudent data is sent directly to Anthropic's secure servers"
                             + " for analysis and is not stored by Anthropic or any third parties."
                         )
                             .font(.body)

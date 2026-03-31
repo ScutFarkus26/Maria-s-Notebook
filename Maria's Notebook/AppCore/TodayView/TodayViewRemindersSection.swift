@@ -2,7 +2,7 @@
 // Reminders and Calendar sections for TodayView - extracted for maintainability
 
 import SwiftUI
-import SwiftData
+import CoreData
 
 // MARK: - TodayView Reminders & Calendar Section Extension
 
@@ -26,7 +26,7 @@ extension TodayView {
                         .tracking(0.5)
                         .listRowBackground(Color.clear)
                         .listRowInsets(EdgeInsets(top: 16, leading: 20, bottom: 4, trailing: 20))
-                    ForEach(viewModel.overdueReminders) { reminder in
+                    ForEach(viewModel.overdueReminders, id: \.objectID) { reminder in
                         ReminderListRow(reminder: reminder, onToggle: { toggleReminder(reminder) })
                             .id(reminder.id)
                             .listRowInsets(EdgeInsets(top: 6, leading: 20, bottom: 6, trailing: 20))
@@ -51,7 +51,7 @@ extension TodayView {
                             .listRowBackground(Color.clear)
                             .listRowInsets(EdgeInsets(top: 16, leading: 20, bottom: 4, trailing: 20))
                     }
-                    ForEach(viewModel.todaysReminders) { reminder in
+                    ForEach(viewModel.todaysReminders, id: \.objectID) { reminder in
                         ReminderListRow(reminder: reminder, onToggle: { toggleReminder(reminder) })
                             .id(reminder.id)
                             .listRowInsets(EdgeInsets(top: 6, leading: 20, bottom: 6, trailing: 20))
@@ -76,7 +76,7 @@ extension TodayView {
                             .listRowBackground(Color.clear)
                             .listRowInsets(EdgeInsets(top: 16, leading: 20, bottom: 4, trailing: 20))
                     }
-                    ForEach(viewModel.anytimeReminders) { reminder in
+                    ForEach(viewModel.anytimeReminders, id: \.objectID) { reminder in
                         ReminderListRow(reminder: reminder, onToggle: { toggleReminder(reminder) })
                             .id(reminder.id)
                             .listRowInsets(EdgeInsets(top: 6, leading: 20, bottom: 6, trailing: 20))

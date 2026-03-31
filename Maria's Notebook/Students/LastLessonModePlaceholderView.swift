@@ -1,9 +1,10 @@
 import SwiftUI
+import CoreData
 
 struct LastLessonModePlaceholderView: View {
     var body: some View {
         ContentUnavailableView {
-            Label("Last Lesson Mode", systemImage: "clock.badge.exclamationmark")
+            Label("Last CDLesson Mode", systemImage: "clock.badge.exclamationmark")
         } description: {
             Text(
                 "Identify students who need attention based on how long it has been" +

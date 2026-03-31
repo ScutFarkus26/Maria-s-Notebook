@@ -6,7 +6,7 @@
 // - LessonsRootViewReordering.swift - Reordering logic for groups and lessons
 
 import SwiftUI
-import SwiftData
+import CoreData
 
 // MARK: - Supporting Types
 
@@ -40,17 +40,13 @@ struct SubheadingReorderItem: Identifiable {
 
 struct LessonsRootView: View {
     // MARK: - Environment
-    @Environment(\.modelContext) var modelContext
+    @Environment(\.managedObjectContext) var viewContext
     @Environment(\.appRouter) var appRouter
     @Environment(SaveCoordinator.self) var saveCoordinator
 
     // MARK: - Data Query
-    @Query(sort: [
-        SortDescriptor(\Lesson.subject),
-        SortDescriptor(\Lesson.sortIndex),
-        SortDescriptor(\Lesson.orderInGroup)
-    ])
-    var lessons: [Lesson]
+    @FetchRequest(sortDescriptors: [NSSortDescriptor(keyPath: \CDLesson.subject, ascending: true), NSSortDescriptor(keyPath: \CDLesson.sortIndex, ascending: true), NSSortDescriptor(keyPath: \CDLesson.orderInGroup, ascending: true)])
+    var lessons: FetchedResults<CDLesson>
 
     // MARK: - UI State
     @State var filterState = LessonsFilterState()
@@ -63,10 +59,10 @@ struct LessonsRootView: View {
     @SceneStorage("Lessons.displayMode") var displayModeRaw: String = LessonsDisplayMode.browse.rawValue
 
     // MARK: - Sheet State
-    @State var lessonToSchedule: Lesson?
+    @State var lessonToSchedule: CDLesson?
     @State var trackSettingsItem: TrackSettingsItem?
     @State var reorderSubheadingsItem: SubheadingReorderItem?
-    @State var selectedLessonDetail: Lesson?
+    @State var selectedLessonDetail: CDLesson?
     @State var showingAddLesson = false
     @State var showingBulkEntry = false
 
@@ -90,7 +86,7 @@ struct LessonsRootView: View {
     // MARK: - Computed Properties
 
     var subjects: [String] {
-        helper.subjects(from: lessons)
+        helper.subjects(from: Array(lessons))
     }
 
     var selectedSubject: String? {
@@ -99,7 +95,7 @@ struct LessonsRootView: View {
 
     var groupsForSelectedSubject: [String] {
         guard let subject = selectedSubject, !subject.trimmed().isEmpty else { return [] }
-        return helper.groups(for: subject, lessons: lessons)
+        return helper.groups(for: subject, lessons: Array(lessons))
     }
 
     var groupsFromFilteredLessons: [String] {
@@ -115,20 +111,20 @@ struct LessonsRootView: View {
     /// Sentinel value for the "All Stories" sidebar entry
     static let storiesSentinel = "__stories__"
 
-    var lessonsForSubject: [Lesson] {
+    var lessonsForSubject: [CDLesson] {
         let hasSearchText = !filterState.debouncedSearchText.trimmed().isEmpty
         let isStoriesView = filterState.selectedSubject == Self.storiesSentinel
         // DEDUPLICATION: CloudKit sync can create duplicate records with the same ID.
         // Use uniqueByID to prevent SwiftUI crash on "Duplicate values for key"
         return helper.filteredLessons(
-            modelContext: modelContext,
+            viewContext: viewContext,
             sourceFilter: filterState.sourceFilter,
             personalKindFilter: filterState.personalKindFilter,
             formatFilter: filterState.formatFilter,
             searchText: filterState.debouncedSearchText,
             selectedSubject: (hasSearchText || isStoriesView) ? nil : filterState.selectedSubject,
             selectedGroup: nil,
-            allLessons: lessons
+            allLessons: Array(lessons)
         ).uniqueByID
     }
 
@@ -190,7 +186,7 @@ struct LessonsRootView: View {
         .task {
             await handleInitialLoad()
         }
-        .task(id: lessonsForSubject.map(\.id)) {
+        .task(id: lessonsForSubject.compactMap(\.id)) {
             await fetchPresentationHistory()
         }
         .onChange(of: listSelectedSubject) { _, newValue in
@@ -231,7 +227,7 @@ struct LessonsRootView: View {
             ReorderSubheadingsSheet(
                 subject: item.subject,
                 group: item.group,
-                lessons: lessons
+                lessons: Array(lessons)
             )
         }
         .sheet(isPresented: $showingAddLesson) {
@@ -247,7 +243,7 @@ struct LessonsRootView: View {
     @MainActor
     private func handleInitialLoad() async {
         if !sortIndexMigrated {
-            _ = LessonOrderMigration.migrateSortIndices(context: modelContext)
+            _ = LessonOrderMigration.migrateSortIndices(context: viewContext)
             sortIndexMigrated = true
         }
 
@@ -306,7 +302,7 @@ struct LessonsRootView: View {
 
     @MainActor
     private func fetchPresentationHistory() async {
-        let lessonIDs = lessonsForSubject.map(\.id)
+        let lessonIDs = lessonsForSubject.compactMap(\.id)
         guard !lessonIDs.isEmpty else {
             statusCounts = nil
             lastPresentedDates = nil
@@ -316,7 +312,7 @@ struct LessonsRootView: View {
         // Fetch last presented dates
         let history = LessonsPresentationHistoryProvider.fetchPresentationHistory(
             lessonIDs: lessonIDs,
-            context: modelContext
+            context: viewContext
         )
         lastPresentedDates = history.lastPresented
 
@@ -324,7 +320,7 @@ struct LessonsRootView: View {
         // This uses the existing helper method if available, or we compute it here
         statusCounts = helper.computeLessonStatusCounts(
             for: lessonIDs,
-            context: modelContext
+            context: viewContext
         )
     }
 }

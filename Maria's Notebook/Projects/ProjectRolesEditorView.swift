@@ -1,16 +1,15 @@
 import SwiftUI
-import SwiftData
+import CoreData
 
 struct ProjectRolesEditorView: View {
     let club: Project
 
-    @Environment(\.modelContext) private var modelContext
+    @Environment(\.managedObjectContext) private var modelContext
     @Environment(SaveCoordinator.self) private var saveCoordinator
     @Environment(\.dismiss) private var dismiss
 
     // Performance: Filter roles by projectID at query level
-    @Query(sort: [SortDescriptor<ProjectRole>(\.createdAt, order: .forward)])
-    private var roles: [ProjectRole]
+    @FetchRequest private var roles: FetchedResults<CDProjectRole>
 
     @State private var showEditor: Bool = false
     @State private var editingRole: ProjectRole?
@@ -18,10 +17,10 @@ struct ProjectRolesEditorView: View {
     init(club: Project) {
         self.club = club
         // Performance: Filter roles by projectID at query level
-        let projectIDString = club.id.uuidString
-        _roles = Query(
-            filter: #Predicate<ProjectRole> { $0.projectID == projectIDString },
-            sort: [SortDescriptor(\.createdAt, order: .forward)]
+        let projectIDString = (club.id ?? UUID()).uuidString
+        _roles = FetchRequest(
+            sortDescriptors: [NSSortDescriptor(keyPath: \CDProjectRole.createdAt, ascending: true)],
+            predicate: NSPredicate(format: "projectID == %@", projectIDString)
         )
     }
 
@@ -46,7 +45,7 @@ struct ProjectRolesEditorView: View {
                 .padding()
             } else {
                 List {
-                    ForEach(roles, id: \.id) { role in
+                    ForEach(Array(roles), id: \.objectID) { role in
                         Button {
                             editingRole = role
                             showEditor = true
@@ -125,7 +124,7 @@ private struct ProjectRoleEditorSheet: View {
     let onDone: () -> Void
 
     @Environment(\.dismiss) private var dismiss
-    @Environment(\.modelContext) private var modelContext
+    @Environment(\.managedObjectContext) private var modelContext
     @Environment(SaveCoordinator.self) private var saveCoordinator
 
     @State private var title: String = ""
@@ -186,13 +185,11 @@ private struct ProjectRoleEditorSheet: View {
             role.instructions = instructions
         } else {
             // IMPORTANT: Associates role with this club so it shows in the filtered list.
-            let newRole = ProjectRole(
-                projectID: club.id,
-                title: trimmedTitle,
-                summary: summary,
-                instructions: instructions
-            )
-            modelContext.insert(newRole)
+            let newRole = CDProjectRole(context: modelContext)
+            newRole.projectID = (club.id ?? UUID()).uuidString
+            newRole.title = trimmedTitle
+            newRole.summary = summary
+            newRole.instructions = instructions
         }
 
         saveCoordinator.save(modelContext, reason: "Save project role")

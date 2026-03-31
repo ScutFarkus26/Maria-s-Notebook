@@ -1,19 +1,19 @@
 import SwiftUI
-import SwiftData
+import CoreData
 
 /// Main view for managing classroom supplies
 struct SuppliesListView: View {
-    @Environment(\.modelContext) var modelContext
-    @Query(sort: \Supply.name) private var supplies: [Supply]
+    @Environment(\.managedObjectContext) var viewContext
+    @FetchRequest(sortDescriptors: [NSSortDescriptor(keyPath: \CDSupply.name, ascending: true)]) private var supplies: FetchedResults<CDSupply>
 
     @State var searchText = ""
     @State private var selectedCategory: SupplyCategory?
     @State var showingAddSheet = false
-    @State var selectedSupply: Supply?
+    @State var selectedSupply: CDSupply?
     @State private var showingQuickAdjustSheet = false
-    @State var quickAdjustSupply: Supply?
-    @State var orderSupply: Supply?
-    @State var receiveSupply: Supply?
+    @State var quickAdjustSupply: CDSupply?
+    @State var orderSupply: CDSupply?
+    @State var receiveSupply: CDSupply?
 
     var stats: SupplyStats {
         let lowStock = supplies.filter { $0.status == .low || $0.status == .critical }.count
@@ -29,7 +29,7 @@ struct SuppliesListView: View {
         )
     }
 
-    var filteredSupplies: [Supply] {
+    var filteredSupplies: [CDSupply] {
         var result = Array(supplies)
 
         if let category = selectedCategory {
@@ -48,7 +48,7 @@ struct SuppliesListView: View {
         return result
     }
 
-    var groupedSupplies: [(category: SupplyCategory, supplies: [Supply])] {
+    var groupedSupplies: [(category: SupplyCategory, supplies: [CDSupply])] {
         let searchFiltered = filteredSupplies
         let grouped = Dictionary(grouping: searchFiltered) { $0.category }
         return SupplyCategory.allCases.compactMap { category in
@@ -86,7 +86,7 @@ struct SuppliesListView: View {
                     Button {
                         showingAddSheet = true
                     } label: {
-                        Label("Add Supply", systemImage: "plus")
+                        Label("Add CDSupply", systemImage: "plus")
                     }
                     .buttonStyle(.borderedProminent)
                     .controlSize(.small)

@@ -14,7 +14,10 @@ extension LessonPlanningService {
         do {
             let response = try JSONDecoder().decode(PlanningResponse.self, from: data)
             let allLessons = fetchAllLessons()
-            let studentNameMap = Dictionary(uniqueKeysWithValues: students.map { ($0.fullName.lowercased(), $0.id) })
+            let studentNameMap = Dictionary(uniqueKeysWithValues: students.compactMap { student -> (String, UUID)? in
+                guard let id = student.id else { return nil }
+                return (student.fullName.lowercased(), id)
+            })
 
             return response.recommendations.compactMap { apiRec in
                 // Resolve lesson ID from name
@@ -59,7 +62,10 @@ extension LessonPlanningService {
         do {
             let response = try JSONDecoder().decode(PlanningResponse.self, from: data)
             let allLessons = fetchAllLessons()
-            let studentNameMap = Dictionary(uniqueKeysWithValues: students.map { ($0.fullName.lowercased(), $0.id) })
+            let studentNameMap = Dictionary(uniqueKeysWithValues: students.compactMap { student -> (String, UUID)? in
+                guard let id = student.id else { return nil }
+                return (student.fullName.lowercased(), id)
+            })
 
             return (response.groupingSuggestions ?? []).compactMap { apiGroup in
                 let lesson = allLessons.first { $0.name.lowercased() == apiGroup.lessonName.lowercased() }

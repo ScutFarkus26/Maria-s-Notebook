@@ -1,8 +1,8 @@
 import Foundation
-import SwiftData
+import CoreData
 import OSLog
 
-// MARK: - Calendar/Schedule Imports
+// MARK: - Calendar/CDSchedule Imports
 
 extension BackupEntityImporter {
     private static let logger = Logger.backup
@@ -12,15 +12,17 @@ extension BackupEntityImporter {
     /// Imports non-school days from DTOs.
     static func importNonSchoolDays(
         _ dtos: [NonSchoolDayDTO],
-        into modelContext: ModelContext,
-        existingCheck: EntityExistsCheck<NonSchoolDay>
+        into viewContext: NSManagedObjectContext,
+        existingCheck: EntityExistsCheck<CDNonSchoolDay>
     ) rethrows {
         try importSimpleEntities(
-            dtos, into: modelContext,
+            dtos, into: viewContext,
             existingCheck: existingCheck,
             idExtractor: { $0.id },
             entityBuilder: { dto in
-            let day = NonSchoolDay(id: dto.id, date: dto.date)
+            let day = CDNonSchoolDay(context: viewContext)
+            day.id = dto.id
+            day.date = dto.date
             day.reason = dto.reason
             return day
         })
@@ -31,15 +33,17 @@ extension BackupEntityImporter {
     /// Imports school day overrides from DTOs.
     static func importSchoolDayOverrides(
         _ dtos: [SchoolDayOverrideDTO],
-        into modelContext: ModelContext,
-        existingCheck: EntityExistsCheck<SchoolDayOverride>
+        into viewContext: NSManagedObjectContext,
+        existingCheck: EntityExistsCheck<CDSchoolDayOverride>
     ) rethrows {
         try importSimpleEntities(
-            dtos, into: modelContext,
+            dtos, into: viewContext,
             existingCheck: existingCheck,
             idExtractor: { $0.id },
             entityBuilder: { dto in
-            let override = SchoolDayOverride(id: dto.id, date: dto.date)
+            let override = CDSchoolDayOverride(context: viewContext)
+            override.id = dto.id
+            override.date = dto.date
             return override
         })
     }
@@ -48,48 +52,46 @@ extension BackupEntityImporter {
 
     static func importSchedules(
         _ dtos: [ScheduleDTO],
-        into modelContext: ModelContext,
-        existingCheck: EntityExistsCheck<Schedule>
+        into viewContext: NSManagedObjectContext,
+        existingCheck: EntityExistsCheck<CDSchedule>
     ) rethrows {
         try importSimpleEntities(
-            dtos, into: modelContext,
+            dtos, into: viewContext,
             existingCheck: existingCheck,
             idExtractor: { $0.id },
             entityBuilder: { dto in
-            let s = Schedule(
-                id: dto.id,
-                name: dto.name,
-                notes: dto.notes,
-                colorHex: dto.colorHex,
-                icon: dto.icon,
-                createdAt: dto.createdAt,
-                modifiedAt: dto.modifiedAt
-            )
+            let s = CDSchedule(context: viewContext)
+            s.id = dto.id
+            s.name = dto.name
+            s.notes = dto.notes
+            s.colorHex = dto.colorHex
+            s.icon = dto.icon
+            s.createdAt = dto.createdAt
+            s.modifiedAt = dto.modifiedAt
             return s
         })
     }
 
-    // MARK: - Schedule Slots
+    // MARK: - CDSchedule Slots
 
     static func importScheduleSlots(
         _ dtos: [ScheduleSlotDTO],
-        into modelContext: ModelContext,
-        existingCheck: EntityExistsCheck<ScheduleSlot>,
-        scheduleCheck: EntityExistsCheck<Schedule>
+        into viewContext: NSManagedObjectContext,
+        existingCheck: EntityExistsCheck<CDScheduleSlot>,
+        scheduleCheck: EntityExistsCheck<CDSchedule>
     ) rethrows {
         for dto in dtos {
             if shouldSkipExisting(id: dto.id, existingCheck: existingCheck) { continue }
-            let slot = ScheduleSlot(
-                id: dto.id,
-                scheduleID: dto.scheduleID,
-                studentID: dto.studentID,
-                weekday: Weekday(rawValue: dto.weekdayRaw) ?? .monday,
-                timeString: dto.timeString,
-                sortOrder: dto.sortOrder,
-                notes: dto.notes,
-                createdAt: dto.createdAt,
-                modifiedAt: dto.modifiedAt
-            )
+            let slot = CDScheduleSlot(context: viewContext)
+            slot.id = dto.id
+            slot.scheduleID = dto.scheduleID
+            slot.studentID = dto.studentID
+            slot.weekdayRaw = (Weekday(rawValue: dto.weekdayRaw) ?? .monday).rawValue
+            slot.timeString = dto.timeString
+            slot.sortOrder = Int64(dto.sortOrder)
+            slot.notes = dto.notes
+            slot.createdAt = dto.createdAt
+            slot.modifiedAt = dto.modifiedAt
             if let scheduleUUID = UUID(uuidString: dto.scheduleID) {
                 do {
                     if let schedule = try scheduleCheck(scheduleUUID) {
@@ -100,7 +102,7 @@ extension BackupEntityImporter {
                     Self.logger.warning("Failed to check schedule for slot: \(desc, privacy: .public)")
                 }
             }
-            modelContext.insert(slot)
+            viewContext.insert(slot)
         }
     }
 }

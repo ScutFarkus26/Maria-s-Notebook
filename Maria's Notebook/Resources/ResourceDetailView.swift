@@ -1,20 +1,18 @@
 // swiftlint:disable file_length
 import SwiftUI
-import SwiftData
+import CoreData
 @preconcurrency import PDFKit
 import OSLog
-import CoreData
 
 // Detail view for a single resource, showing PDF preview, metadata, and edit/delete actions.
 // swiftlint:disable:next type_body_length
 struct ResourceDetailView: View {
-    @Environment(\.modelContext) private var modelContext
-    @Environment(\.managedObjectContext) private var managedObjectContext
+    @Environment(\.managedObjectContext) private var viewContext
     @Environment(\.dismiss) private var dismiss
 
-    @Bindable var resource: Resource
+    @ObservedObject var resource: CDResource
 
-    @Query(sort: [SortDescriptor(\Lesson.name)]) private var allLessons: [Lesson]
+    @FetchRequest(sortDescriptors: [NSSortDescriptor(keyPath: \CDLesson.name, ascending: true)]) private var allLessons: FetchedResults<CDLesson>
 
     @State private var isEditing = false
     @State private var editTitle = ""
@@ -48,9 +46,12 @@ struct ResourceDetailView: View {
             .filter { !$0.isEmpty }
     }
 
-    private var linkedLessons: [Lesson] {
+    private var linkedLessons: [CDLesson] {
         let ids = linkedLessonIDSet
-        return allLessons.filter { ids.contains($0.id) }
+        return allLessons.filter { lesson in
+            guard let lessonID = lesson.id else { return false }
+            return ids.contains(lessonID)
+        }
     }
 
     var body: some View {
@@ -66,7 +67,7 @@ struct ResourceDetailView: View {
                     metadataSection
 
                     // Tags
-                    if !resource.tags.isEmpty {
+                    if !resource.tagsArray.isEmpty {
                         tagsSection
                     }
 
@@ -204,12 +205,12 @@ struct ResourceDetailView: View {
             }
 
             metadataRow(label: "Added", icon: "calendar") {
-                Text(resource.createdAt, style: .date)
+                Text(resource.createdAt ?? Date(), style: .date)
             }
 
             if resource.modifiedAt != resource.createdAt {
                 metadataRow(label: "Modified", icon: "pencil") {
-                    Text(resource.modifiedAt, style: .date)
+                    Text(resource.modifiedAt ?? Date(), style: .date)
                 }
             }
         }
@@ -243,7 +244,7 @@ struct ResourceDetailView: View {
                 .font(.headline)
 
             FlowLayout(spacing: 8) {
-                ForEach(resource.tags, id: \.self) { tag in
+                ForEach(resource.tagsArray, id: \.self) { tag in
                     TagBadge(tag: tag)
                 }
             }
@@ -279,7 +280,7 @@ struct ResourceDetailView: View {
                     Text("Linked Lessons")
                         .font(.headline)
 
-                    ForEach(linkedLessons) { lesson in
+                    ForEach(linkedLessons, id: \.objectID) { lesson in
                         HStack(spacing: 8) {
                             Image(systemName: "book")
                                 .font(.caption)
@@ -372,7 +373,7 @@ struct ResourceDetailView: View {
 
                     NavigationLink {
                         ResourceLessonPicker(
-                            allLessons: allLessons,
+                            allLessons: Array(allLessons),
                             selectedLessonIDs: $editLessonIDs
                         )
                     } label: {
@@ -440,14 +441,14 @@ struct ResourceDetailView: View {
     private func toggleFavorite() {
         resource.isFavorite.toggle()
         resource.modifiedAt = Date()
-        modelContext.safeSave()
+        viewContext.safeSave()
     }
 
     private func startEditing() {
         editTitle = resource.title
         editCategory = resource.category
         editDescription = resource.descriptionText
-        editTags = resource.tags
+        editTags = resource.tagsArray
         editLessonIDs = linkedLessonIDSet
         editSubjects = Set(linkedSubjectSet)
         isEditing = true
@@ -457,11 +458,11 @@ struct ResourceDetailView: View {
         resource.title = editTitle.trimmingCharacters(in: .whitespaces)
         resource.category = editCategory
         resource.descriptionText = editDescription.trimmingCharacters(in: .whitespaces)
-        resource.tags = editTags
+        resource.tagsArray = editTags
         resource.linkedLessonIDs = editLessonIDs.map(\.uuidString).sorted().joined(separator: ",")
         resource.linkedSubjects = editSubjects.sorted().joined(separator: ",")
         resource.modifiedAt = Date()
-        modelContext.safeSave()
+        viewContext.safeSave()
         isEditing = false
     }
 
@@ -500,8 +501,8 @@ struct ResourceDetailView: View {
     #endif
 
     private func deleteResource() {
-        modelContext.delete(resource)
-        modelContext.safeSave()
+        viewContext.delete(resource)
+        viewContext.safeSave()
         dismiss()
     }
 }

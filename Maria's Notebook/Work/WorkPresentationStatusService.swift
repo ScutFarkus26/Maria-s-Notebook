@@ -2,7 +2,6 @@ import Foundation
 import OSLog
 import CoreData
 import SwiftUI
-import SwiftData
 
 /// Service to determine the presentation status of the next presentation for a work item
 struct WorkPresentationStatusService {
@@ -127,21 +126,7 @@ struct WorkPresentationStatusService {
     }
 }
 
-// MARK: - Deprecated SwiftData Bridge
-
-extension WorkPresentationStatusService {
-    /// Deprecated overload for views still using SwiftData WorkModel + ModelContext.
-    @available(*, deprecated, message: "Use findNextPresentationStatus(for:context:) with CDWorkModel")
-    @MainActor
-    static func findNextPresentationStatus(for work: WorkModel, modelContext: ModelContext) -> PresentationStatus {
-        let cdContext = AppBootstrapping.getSharedCoreDataStack().viewContext
-        let request = CDFetchRequest(CDWorkModel.self)
-        request.predicate = NSPredicate(format: "id == %@", work.id as CVarArg)
-        request.fetchLimit = 1
-        guard let cdWork = cdContext.safeFetchFirst(request) else { return .notFound }
-        return findNextPresentationStatus(for: cdWork, context: cdContext)
-    }
-}
+// Deprecated ModelContext overloads removed - no longer needed with Core Data.
 
 extension WorkPresentationStatusService.PresentationStatus {
     var isNotFound: Bool {

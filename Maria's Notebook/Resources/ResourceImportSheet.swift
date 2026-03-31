@@ -1,16 +1,14 @@
 import SwiftUI
-import SwiftData
+import CoreData
 import UniformTypeIdentifiers
 import OSLog
-import CoreData
 
-/// Sheet for importing a PDF into the Resource Library.
+/// Sheet for importing a PDF into the CDResource Library.
 struct ResourceImportSheet: View {
-    @Environment(\.modelContext) private var modelContext
-    @Environment(\.managedObjectContext) private var managedObjectContext
+    @Environment(\.managedObjectContext) private var viewContext
     @Environment(\.dismiss) private var dismiss
 
-    @Query(sort: [SortDescriptor(\Lesson.name)]) private var allLessons: [Lesson]
+    @FetchRequest(sortDescriptors: [NSSortDescriptor(keyPath: \CDLesson.name, ascending: true)]) private var allLessons: FetchedResults<CDLesson>
 
     @State private var title = ""
     @State private var selectedCategory: ResourceCategory = .other
@@ -108,7 +106,7 @@ struct ResourceImportSheet: View {
 
                     NavigationLink {
                         ResourceLessonPicker(
-                            allLessons: allLessons,
+                            allLessons: Array(allLessons),
                             selectedLessonIDs: $selectedLessonIDs
                         )
                     } label: {
@@ -231,7 +229,7 @@ struct ResourceImportSheet: View {
             let subjectsString = selectedSubjects.sorted().joined(separator: ",")
 
             // Create resource
-            let repo = ResourceRepository(context: managedObjectContext)
+            let repo = ResourceRepository(context: viewContext)
             repo.createResource(
                 title: trimmedTitle,
                 category: selectedCategory,
@@ -244,7 +242,7 @@ struct ResourceImportSheet: View {
                 linkedLessonIDs: lessonIDsString,
                 linkedSubjects: subjectsString
             )
-            modelContext.safeSave()
+            viewContext.safeSave()
 
             dismiss()
         } catch {

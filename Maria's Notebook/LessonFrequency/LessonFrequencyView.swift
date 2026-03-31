@@ -4,28 +4,27 @@
 // Design follows ProgressDashboardView: level filters, summary row, student cards.
 
 import SwiftUI
-import SwiftData
+import CoreData
 
 struct LessonFrequencyView: View {
-    @Environment(\.modelContext) private var modelContext
+    @Environment(\.managedObjectContext) private var viewContext
     @State private var viewModel = LessonFrequencyViewModel()
 
     // Change detection to trigger reload when assignments change
-    @Query(sort: [SortDescriptor(\LessonAssignment.id)])
-    private var assignmentsForChange: [LessonAssignment]
+    @FetchRequest(sortDescriptors: [NSSortDescriptor(keyPath: \CDLessonAssignment.id, ascending: true)]) private var assignmentsForChange: FetchedResults<CDLessonAssignment>
 
     private var assignmentChangeToken: Int { assignmentsForChange.count }
 
     var body: some View {
         content
-            .navigationTitle("Lesson Frequency")
+            .navigationTitle("CDLesson Frequency")
             .searchable(text: $viewModel.searchText, prompt: "Search students")
-            .onAppear { viewModel.loadData(context: modelContext) }
+            .onAppear { viewModel.loadData(context: viewContext) }
             .onChange(of: assignmentChangeToken) { _, _ in
-                viewModel.loadData(context: modelContext)
+                viewModel.loadData(context: viewContext)
             }
             .onChange(of: viewModel.selectedWeekOffset) { _, _ in
-                viewModel.loadData(context: modelContext)
+                viewModel.loadData(context: viewContext)
             }
     }
 
@@ -62,7 +61,7 @@ struct LessonFrequencyView: View {
                     .padding(.horizontal)
                     .padding(.bottom, 16)
 
-                // Student cards
+                // CDStudent cards
                 LazyVStack(spacing: 10) {
                     ForEach(viewModel.filteredCards) { card in
                         LessonFrequencyStudentRow(
@@ -189,7 +188,7 @@ struct LessonFrequencyView: View {
 
     private var emptyState: some View {
         ContentUnavailableView {
-            Label("No Lesson Data", systemImage: SFSymbol.Chart.chartBar)
+            Label("No CDLesson Data", systemImage: SFSymbol.Chart.chartBar)
         } description: {
             Text("Present lessons to students to see weekly frequency data here.")
         }

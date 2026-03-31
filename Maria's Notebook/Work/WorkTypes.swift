@@ -193,12 +193,12 @@ public extension WorkKind {
 // MARK: - WorkKind to WorkType Conversion (Internal)
 
 extension WorkKind {
-    /// Convert to legacy WorkModel.WorkType for backward compatibility
+    /// Convert to legacy LegacyWorkType for backward compatibility
     /// - Note: Marked nonisolated to allow access from WorkModel initializer
-    /// - Note: Intentionally uses deprecated WorkType for backward compatibility during migration
-    @available(*, deprecated, message: "Uses deprecated WorkType for backward compatibility")
-    nonisolated var asWorkType: WorkModel.WorkType {
-        // Intentional use of deprecated WorkType enum for backward compatibility
+    /// - Note: Intentionally uses deprecated LegacyWorkType for backward compatibility during migration
+    @available(*, deprecated, message: "Uses deprecated LegacyWorkType for backward compatibility")
+    nonisolated var asWorkType: LegacyWorkType {
+        // Intentional use of deprecated LegacyWorkType enum for backward compatibility
         // This property exists to support gradual migration from WorkType to WorkKind
         switch self {
         case .practiceLesson: return .practice

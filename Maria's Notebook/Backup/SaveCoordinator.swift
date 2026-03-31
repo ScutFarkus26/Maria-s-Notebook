@@ -1,7 +1,6 @@
 import Foundation
 import SwiftUI
 import CoreData
-import SwiftData
 
 @Observable
 @MainActor
@@ -35,7 +34,7 @@ final class SaveCoordinator {
     private var saveTimer: Timer?
     private let saveBatchInterval: TimeInterval = 0.5 // 500ms debounce
 
-    /// Schedule a batched save operation (debounced by 500ms).
+    /// CDSchedule a batched save operation (debounced by 500ms).
     /// Multiple save requests for the same context within the debounce window are coalesced.
     /// - Parameters:
     ///   - context: The `NSManagedObjectContext` to save.
@@ -117,44 +116,7 @@ final class SaveCoordinator {
         return success
     }
 
-    // MARK: - Legacy SwiftData overloads (transition period — remove in Phase 4)
-
-    /// Legacy save accepting ModelContext. Delegates to ModelContext.save() directly.
-    @available(*, deprecated, message: "Migrate caller to NSManagedObjectContext")
-    @discardableResult
-    func save(_ context: ModelContext, reason: String? = nil) -> Bool {
-        do {
-            try context.save()
-            return true
-        } catch {
-            let ns = error as NSError
-            lastSaveError = error
-            var message = ns.localizedDescription
-            if let why = reason, !why.trimmed().isEmpty {
-                message = "\(why):\n\n\(message)"
-            }
-            lastSaveErrorMessage = message
-            if !suppressAlerts && !isShowingSaveError {
-                isShowingSaveError = true
-            }
-            return false
-        }
-    }
-
-    /// Legacy scheduleSave accepting ModelContext.
-    @available(*, deprecated, message: "Migrate caller to NSManagedObjectContext")
-    func scheduleSave(_ context: ModelContext, reason: String? = nil) {
-        save(context, reason: reason)
-    }
-
-    /// Legacy saveWithToast accepting ModelContext.
-    @available(*, deprecated, message: "Migrate caller to NSManagedObjectContext")
-    @discardableResult
-    func saveWithToast(_ context: ModelContext, successMessage: String, reason: String? = nil) -> Bool {
-        let success = save(context, reason: reason)
-        if success { toastService.showSuccess(successMessage) }
-        return success
-    }
+    // Legacy SwiftData overloads removed — primary methods already accept NSManagedObjectContext.
 
     /// Clear any previously captured error state and dismiss the alert.
     func clearError() {

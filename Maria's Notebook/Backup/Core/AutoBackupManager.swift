@@ -1,5 +1,5 @@
 import Foundation
-import SwiftData
+import CoreData
 import SwiftUI
 import OSLog
 #if os(macOS)
@@ -77,7 +77,7 @@ final class AutoBackupManager {
 
     private let backupService: BackupService
     private var scheduledBackupTask: Task<Void, Never>?
-    private var modelContext: ModelContext?
+    private var viewContext: NSManagedObjectContext?
 
     // MARK: - Initialization
 
@@ -94,9 +94,9 @@ final class AutoBackupManager {
     // MARK: - Scheduled Backup Management
 
     /// Starts the scheduled backup timer
-    /// - Parameter modelContext: The SwiftData model context to use for backups
-    func startScheduledBackups(modelContext: ModelContext) {
-        self.modelContext = modelContext
+    /// - Parameter viewContext: The SwiftData model context to use for backups
+    func startScheduledBackups(viewContext: NSManagedObjectContext) {
+        self.viewContext = viewContext
         stopScheduledBackups()
 
         guard scheduledEnabled && intervalHours > 0 else { return }
@@ -145,28 +145,28 @@ final class AutoBackupManager {
 
     /// Performs a scheduled backup
     private func performScheduledBackup() async {
-        guard let modelContext else { return }
-        _ = await performBackup(modelContext: modelContext, trigger: .scheduled, prefix: "ScheduledBackup")
+        guard let viewContext else { return }
+        _ = await performBackup(viewContext: viewContext, trigger: .scheduled, prefix: "ScheduledBackup")
     }
 
     // MARK: - App Quit Backup
 
     /// Performs an automatic backup when the app quits.
     /// This runs on the main thread (acceptable since app is closing).
-    func performBackupOnQuit(modelContext: ModelContext) async {
+    func performBackupOnQuit(viewContext: NSManagedObjectContext) async {
         guard isEnabled else { return }
-        _ = await performBackup(modelContext: modelContext, trigger: .appQuit, prefix: "AutoBackup")
+        _ = await performBackup(viewContext: viewContext, trigger: .appQuit, prefix: "AutoBackup")
     }
 
     // MARK: - Pre-Destructive Backup
 
     /// Creates a backup before a potentially destructive operation
     /// - Parameters:
-    ///   - modelContext: The SwiftData model context
+    ///   - viewContext: The SwiftData model context
     ///   - operationName: Name of the operation (for filename)
     /// - Returns: URL of the created backup, or nil if backup failed
     func createPreDestructiveBackup(
-        modelContext: ModelContext,
+        viewContext: NSManagedObjectContext,
         operationName: String
     ) async -> URL? {
         let sanitizedName = operationName
@@ -174,7 +174,7 @@ final class AutoBackupManager {
             .replacingOccurrences(of: "/", with: "-")
 
         let result = await performBackup(
-            modelContext: modelContext,
+            viewContext: viewContext,
             trigger: .preDestructive,
             prefix: "PreOp-\(sanitizedName)"
         )
@@ -188,7 +188,7 @@ final class AutoBackupManager {
     // MARK: - Core Backup Logic
 
     private func performBackup(
-        modelContext: ModelContext,
+        viewContext: NSManagedObjectContext,
         trigger: BackupTrigger,
         prefix: String
     ) async -> BackupResult {
@@ -223,7 +223,7 @@ final class AutoBackupManager {
 
         // Perform export
         do {
-            _ = try await backupService.exportBackup(modelContext: modelContext, to: url) { _, _ in
+            _ = try await backupService.exportBackup(viewContext: viewContext, to: url) { _, _ in
                 // Silent progress
             }
 
@@ -335,8 +335,8 @@ final class AutoBackupManager {
         get { scheduledEnabled }
         set {
             scheduledEnabled = newValue
-            if newValue, let context = modelContext {
-                startScheduledBackups(modelContext: context)
+            if newValue, let context = viewContext {
+                startScheduledBackups(viewContext: context)
             } else {
                 stopScheduledBackups()
             }
@@ -348,8 +348,8 @@ final class AutoBackupManager {
         set {
             intervalHours = max(1, min(newValue, 24))
             // Restart scheduled backups with new interval
-            if scheduledEnabled, let context = modelContext {
-                startScheduledBackups(modelContext: context)
+            if scheduledEnabled, let context = viewContext {
+                startScheduledBackups(viewContext: context)
             }
         }
     }

@@ -30,8 +30,8 @@ struct GroupedScheduledWorkListRow: View {
                     adaptiveWithAnimation(.spring(response: 0.25, dampingFraction: 0.8)) {
                         isExpanded.toggle()
                     }
-                } else if let first = items.first {
-                    onTap(first.work.id)
+                } else if let first = items.first, let workID = first.work.id {
+                    onTap(workID)
                 }
             } label: {
                 HStack(spacing: 12) {
@@ -78,7 +78,7 @@ struct GroupedScheduledWorkListRow: View {
                 VStack(spacing: 4) {
                     ForEach(Array(zip(items, studentNames)), id: \.0.id) { item, name in
                         Button {
-                            onTap(item.work.id)
+                            if let workID = item.work.id { onTap(workID) }
                         } label: {
                             HStack(spacing: 8) {
                                 Image(systemName: SFSymbol.People.personFill)
@@ -131,8 +131,8 @@ struct GroupedFollowUpWorkListRow: View {
                     adaptiveWithAnimation(.spring(response: 0.25, dampingFraction: 0.8)) {
                         isExpanded.toggle()
                     }
-                } else if let first = items.first {
-                    onTap(first.work.id)
+                } else if let first = items.first, let workID = first.work.id {
+                    onTap(workID)
                 }
             } label: {
                 HStack(spacing: 12) {
@@ -176,7 +176,7 @@ struct GroupedFollowUpWorkListRow: View {
                 VStack(spacing: 4) {
                     ForEach(Array(zip(items, studentNames)), id: \.0.id) { item, name in
                         Button {
-                            onTap(item.work.id)
+                            if let workID = item.work.id { onTap(workID) }
                         } label: {
                             HStack(spacing: 8) {
                                 Image(systemName: SFSymbol.People.personFill)

@@ -23,7 +23,7 @@ extension PresentationDetailViewModel {
 
             await MainActor.run {
                 lessonAssignment.notes = notes
-                saveCoordinator.save(modelContext, reason: "Auto-saving notes")
+                saveCoordinator.save(viewContext, reason: "Auto-saving notes")
 
                 originalNotes = notes
                 notesDirty = false
@@ -37,7 +37,7 @@ extension PresentationDetailViewModel {
         guard notesDirty else { return }
 
         lessonAssignment.notes = notes
-        saveCoordinator.save(modelContext, reason: "Saving notes")
+        saveCoordinator.save(viewContext, reason: "Saving notes")
 
         originalNotes = notes
         notesDirty = false

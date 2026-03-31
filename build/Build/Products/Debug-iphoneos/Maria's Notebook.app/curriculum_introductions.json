@@ -1,0 +1,14 @@
+{
+  "introductions": [
+    {
+      "id": "A1B2C3D4-E5F6-7890-ABCD-EF1234567890",
+      "subject": "Math",
+      "group": "Algebra",
+      "content": "# Algebra\n\n## Introduction to Algebra\n\nWe approach algebra in the elementary classroom as a puzzle to solve. Be clear with children about this framing—they may be hearing at home that algebra is hard or intimidating. With our approach, algebra is simply a thinking exercise, a reasoning game. Nothing more.\n\nThis work can begin fairly young, especially when we introduce addition and subtraction through balancing equations. These activities help children develop skills required by Common Core at an early age. Don't save algebra for later just because of its name. Consider the skills involved and where they might apply with younger children. The youngest students will work at the beginning of this sequence; older students will progress toward the end.\n\n## What Is Algebra?\n\nMathematics has three branches: geometry, arithmetic, and algebra. For our purposes, we group algebra with our math work.\n\n**Arithmetic** concerns itself with the properties of and relationships between real numbers. It involves only constants—no variables.\n\n**Algebra**, in contrast, expresses itself through variables and symbols. When we substitute a letter to represent something, we're using algebra. This extends into later geometry work, building formulas, and beyond.\n\n## Our Approach\n\nWe approach algebra concretely using materials, so it genuinely looks like a game, a mystery, or a puzzle. The question is simply: How do we rearrange things to find our answer?\n\nIn the beginning, the work focuses on balancing equations—that's all. You can start very young. It's a restful activity, yet children feel empowered when we call it algebra. Using that term validates what they're doing, even when the mathematics isn't complicated.\n\nAs children develop comfort and skill, they'll create their own complicated problems or seek out challenging ones from textbooks. We don't need to present these—the reasoning mind seeks them out naturally. I once had a group of children who pursued linear algebra with four variables. When they reached the limits of what we could explore together, they contacted a mathematician, arranged a visit, and learned how to solve those equations directly from an expert.\n\n## The Foundation\n\nWhen you break it down, we're exploring two fundamental questions:\n\n1. What is an equation?\n2. How can you manipulate equations?\n\nUnderstanding these concepts is essential for algebra. The later work extends into the 9-to-12 classroom. Younger children do introductory work balancing equations and asking, \"What can we put on one side to make it equal to the other?\"",
+      "prerequisites": null,
+      "ageRange": "6-12",
+      "modifiedAt": "2025-01-30T12:00:00Z"
+    }
+  ],
+  "version": 1
+}

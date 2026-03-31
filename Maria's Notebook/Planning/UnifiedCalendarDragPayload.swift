@@ -2,7 +2,7 @@ import Foundation
 import UniformTypeIdentifiers
 
 /// Unified drag payload for all calendar drag operations:
-/// presentations (LessonAssignment), work check-ins (WorkCheckIn), and work items (WorkModel).
+/// presentations (CDLessonAssignment), work check-ins (CDWorkCheckIn), and work items (CDWorkModel).
 /// Used across PresentationsCalendarStrip, WorkAgendaCalendarPane, and planning views.
 public enum UnifiedCalendarDragPayload: Equatable {
     case presentation(UUID)

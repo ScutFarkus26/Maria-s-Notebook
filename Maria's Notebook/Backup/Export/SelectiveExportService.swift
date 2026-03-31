@@ -3,7 +3,7 @@
 // swiftlint:disable file_length
 
 import Foundation
-import SwiftData
+import CoreData
 import OSLog
 
 /// Service for creating selective backups with filtered entities
@@ -67,9 +67,9 @@ public final class SelectiveExportService {
 
         public var description: String {
             switch self {
-            case .students: return "Student records and profiles"
-            case .lessons: return "Lesson definitions and materials"
-            case .presentations: return "Lesson presentation records"
+            case .students: return "CDStudent records and profiles"
+            case .lessons: return "CDLesson definitions and materials"
+            case .presentations: return "CDLesson presentation records"
             case .notes: return "Notes attached to various entities"
             case .calendar: return "Non-school days and overrides"
             case .attendance: return "Attendance records"
@@ -97,9 +97,9 @@ public final class SelectiveExportService {
     
     // MARK: - Helper
     
-    private func safeFetch<T: PersistentModel>(
-        _ descriptor: FetchDescriptor<T>,
-        context: ModelContext,
+    private func safeFetch<T: NSManagedObject>(
+        _ descriptor: NSFetchRequest<T>,
+        context: NSManagedObjectContext,
         functionName: String = #function
     ) -> [T] {
         do {
@@ -121,14 +121,14 @@ public final class SelectiveExportService {
     // swiftlint:disable function_body_length
     /// Creates a selective backup with the given filter
     /// - Parameters:
-    ///   - modelContext: The SwiftData model context
+    ///   - viewContext: The SwiftData model context
     ///   - url: Destination URL for the backup file
     ///   - filter: Filter options for what to include
     ///   - password: Optional encryption password
     ///   - progress: Progress callback
     /// - Returns: Summary of the export operation
     public func exportSelective(
-        modelContext: ModelContext,
+        viewContext: NSManagedObjectContext,
         to url: URL,
         filter: ExportFilter,
         password: String? = nil,
@@ -139,7 +139,7 @@ public final class SelectiveExportService {
 
         // Collect filtered entities
         let (payload, counts) = try collectFilteredPayload(
-            modelContext: modelContext,
+            viewContext: viewContext,
             filter: filter,
             progress: { subProgress, message in
                 progress(subProgress * 0.4, message)
@@ -211,7 +211,7 @@ public final class SelectiveExportService {
     // swiftlint:disable function_body_length
     /// Previews what would be included in a selective export
     public func previewSelectiveExport(
-        modelContext: ModelContext,
+        viewContext: NSManagedObjectContext,
         filter: ExportFilter
     ) -> ExportStatistics {
         var includedCounts: [String: Int] = [:]
@@ -219,56 +219,56 @@ public final class SelectiveExportService {
         let relatedEntitiesAdded = 0
 
         // Count all entities
-        let allStudents = safeFetch(FetchDescriptor<Student>(), context: modelContext)
-        let allLessons = safeFetch(FetchDescriptor<Lesson>(), context: modelContext)
-        let allNotes = safeFetch(FetchDescriptor<Note>(), context: modelContext)
-        let allProjects = safeFetch(FetchDescriptor<Project>(), context: modelContext)
+        let allStudents = safeFetch(CDStudent.fetchRequest() as! NSFetchRequest<CDStudent>, context: viewContext)
+        let allLessons = safeFetch(CDLesson.fetchRequest() as! NSFetchRequest<CDLesson>, context: viewContext)
+        let allNotes = safeFetch(CDNote.fetchRequest() as! NSFetchRequest<CDNote>, context: viewContext)
+        let allProjects = safeFetch(CDProject.fetchRequest() as! NSFetchRequest<CDProject>, context: viewContext)
 
         // Apply student filter
-        let includedStudents: [Student]
+        let includedStudents: [CDStudent]
         if let studentIDs = filter.studentIDs {
-            includedStudents = allStudents.filter { studentIDs.contains($0.id) }
+            includedStudents = allStudents.filter { guard let sid = $0.id else { return false }; return studentIDs.contains(sid) }
         } else {
             includedStudents = allStudents
         }
-        includedCounts["Student"] = includedStudents.count
-        excludedCounts["Student"] = allStudents.count - includedStudents.count
+        includedCounts["CDStudent"] = includedStudents.count
+        excludedCounts["CDStudent"] = allStudents.count - includedStudents.count
 
         // Filter lessons (include all if related entities enabled, or specific filter)
-        let includedLessons: [Lesson]
+        let includedLessons: [CDLesson]
         if filter.entityTypes?.contains(.lessons) ?? true {
             includedLessons = allLessons
         } else {
             includedLessons = []
         }
-        includedCounts["Lesson"] = includedLessons.count
-        excludedCounts["Lesson"] = allLessons.count - includedLessons.count
+        includedCounts["CDLesson"] = includedLessons.count
+        excludedCounts["CDLesson"] = allLessons.count - includedLessons.count
 
         // Filter notes
-        let includedNotes: [Note]
+        let includedNotes: [CDNote]
         if filter.entityTypes?.contains(.notes) ?? true {
             if let dateRange = filter.dateRange {
-                includedNotes = allNotes.filter { dateRange.contains($0.createdAt) }
+                includedNotes = allNotes.filter { guard let d = $0.createdAt else { return false }; return dateRange.contains(d) }
             } else {
                 includedNotes = allNotes
             }
         } else {
             includedNotes = []
         }
-        includedCounts["Note"] = includedNotes.count
-        excludedCounts["Note"] = allNotes.count - includedNotes.count
+        includedCounts["CDNote"] = includedNotes.count
+        excludedCounts["CDNote"] = allNotes.count - includedNotes.count
 
         // Filter projects
-        let includedProjects: [Project]
+        let includedProjects: [CDProject]
         if let projectIDs = filter.projectIDs {
-            includedProjects = allProjects.filter { projectIDs.contains($0.id) }
+            includedProjects = allProjects.filter { guard let pid = $0.id else { return false }; return projectIDs.contains(pid) }
         } else if filter.entityTypes?.contains(.projects) ?? true {
             includedProjects = allProjects
         } else {
             includedProjects = []
         }
-        includedCounts["Project"] = includedProjects.count
-        excludedCounts["Project"] = allProjects.count - includedProjects.count
+        includedCounts["CDProject"] = includedProjects.count
+        excludedCounts["CDProject"] = allProjects.count - includedProjects.count
 
         // Estimate size
         let estimatedSize = backupService.estimateBackupSizeFromCounts(includedCounts)
@@ -286,7 +286,7 @@ public final class SelectiveExportService {
     /// Exports a single project with all related data
     public func exportProject(
         _ projectID: UUID,
-        modelContext: ModelContext,
+        viewContext: NSManagedObjectContext,
         to url: URL,
         password: String? = nil,
         progress: @escaping BackupService.ProgressCallback
@@ -298,7 +298,7 @@ public final class SelectiveExportService {
         )
 
         return try await exportSelective(
-            modelContext: modelContext,
+            viewContext: viewContext,
             to: url,
             filter: filter,
             password: password,
@@ -309,7 +309,7 @@ public final class SelectiveExportService {
     /// Exports data for specific students
     public func exportStudents(
         _ studentIDs: Set<UUID>,
-        modelContext: ModelContext,
+        viewContext: NSManagedObjectContext,
         to url: URL,
         includeHistory: Bool = true,
         password: String? = nil,
@@ -330,7 +330,7 @@ public final class SelectiveExportService {
         )
 
         return try await exportSelective(
-            modelContext: modelContext,
+            viewContext: viewContext,
             to: url,
             filter: filter,
             password: password,
@@ -341,7 +341,7 @@ public final class SelectiveExportService {
     // MARK: - Private Helpers
 
     private func collectFilteredPayload(
-        modelContext: ModelContext,
+        viewContext: NSManagedObjectContext,
         filter: ExportFilter,
         progress: @escaping BackupService.ProgressCallback
     ) throws -> (BackupPayload, [String: Int]) {
@@ -365,11 +365,11 @@ public final class SelectiveExportService {
         )
 
         collectCoreFilteredDTOs(
-            into: &payload, counts: &counts, modelContext: modelContext,
+            into: &payload, counts: &counts, viewContext: viewContext,
             filter: filter, shouldInclude: shouldInclude, progress: progress
         )
         collectProjectFilteredDTOs(
-            into: &payload, counts: &counts, modelContext: modelContext,
+            into: &payload, counts: &counts, viewContext: viewContext,
             filter: filter, shouldInclude: shouldInclude, progress: progress
         )
 
@@ -385,86 +385,86 @@ public final class SelectiveExportService {
     private func collectCoreFilteredDTOs(
         into payload: inout BackupPayload,
         counts: inout [String: Int],
-        modelContext: ModelContext,
+        viewContext: NSManagedObjectContext,
         filter: ExportFilter,
         shouldInclude: (EntityType) -> Bool,
         progress: @escaping BackupService.ProgressCallback
     ) {
         progress(0.1, "Collecting students…")
         payload.students = shouldInclude(.students)
-            ? collectStudents(modelContext: modelContext, filter: filter) : []
-        counts["Student"] = payload.students.count
+            ? collectStudents(viewContext: viewContext, filter: filter) : []
+        counts["CDStudent"] = payload.students.count
 
         progress(0.2, "Collecting lessons…")
         payload.lessons = shouldInclude(.lessons)
-            ? collectLessons(modelContext: modelContext) : []
-        counts["Lesson"] = payload.lessons.count
+            ? collectLessons(viewContext: viewContext) : []
+        counts["CDLesson"] = payload.lessons.count
 
         progress(0.5, "Collecting other entities…")
         payload.notes = shouldInclude(.notes)
-            ? collectNotes(modelContext: modelContext, filter: filter) : []
-        counts["Note"] = payload.notes.count
+            ? collectNotes(viewContext: viewContext, filter: filter) : []
+        counts["CDNote"] = payload.notes.count
 
         payload.nonSchoolDays = shouldInclude(.calendar)
-            ? collectNonSchoolDays(modelContext: modelContext, filter: filter) : []
-        counts["NonSchoolDay"] = payload.nonSchoolDays.count
+            ? collectNonSchoolDays(viewContext: viewContext, filter: filter) : []
+        counts["CDNonSchoolDay"] = payload.nonSchoolDays.count
 
         payload.schoolDayOverrides = shouldInclude(.calendar)
-            ? collectSchoolDayOverrides(modelContext: modelContext, filter: filter) : []
-        counts["SchoolDayOverride"] = payload.schoolDayOverrides.count
+            ? collectSchoolDayOverrides(viewContext: viewContext, filter: filter) : []
+        counts["CDSchoolDayOverride"] = payload.schoolDayOverrides.count
 
         payload.attendance = shouldInclude(.attendance)
-            ? collectAttendance(modelContext: modelContext, filter: filter) : []
-        counts["AttendanceRecord"] = payload.attendance.count
+            ? collectAttendance(viewContext: viewContext, filter: filter) : []
+        counts["CDAttendanceRecord"] = payload.attendance.count
 
         payload.workCompletions = shouldInclude(.workCompletions)
-            ? collectWorkCompletions(modelContext: modelContext, filter: filter) : []
-        counts["WorkCompletionRecord"] = payload.workCompletions.count
+            ? collectWorkCompletions(viewContext: viewContext, filter: filter) : []
+        counts["CDWorkCompletionRecord"] = payload.workCompletions.count
     }
 
     // swiftlint:disable:next function_parameter_count
     private func collectProjectFilteredDTOs(
         into payload: inout BackupPayload,
         counts: inout [String: Int],
-        modelContext: ModelContext,
+        viewContext: NSManagedObjectContext,
         filter: ExportFilter,
         shouldInclude: (EntityType) -> Bool,
         progress: @escaping BackupService.ProgressCallback
     ) {
         progress(0.7, "Collecting projects…")
         payload.projects = shouldInclude(.projects)
-            ? collectProjects(modelContext: modelContext, filter: filter) : []
-        counts["Project"] = payload.projects.count
+            ? collectProjects(viewContext: viewContext, filter: filter) : []
+        counts["CDProject"] = payload.projects.count
 
         payload.projectAssignmentTemplates = shouldInclude(.projects)
-            ? collectProjectTemplates(modelContext: modelContext, filter: filter) : []
+            ? collectProjectTemplates(viewContext: viewContext, filter: filter) : []
         counts["ProjectAssignmentTemplate"] = payload.projectAssignmentTemplates.count
 
         payload.projectSessions = shouldInclude(.projects)
-            ? collectProjectSessions(modelContext: modelContext, filter: filter) : []
-        counts["ProjectSession"] = payload.projectSessions.count
+            ? collectProjectSessions(viewContext: viewContext, filter: filter) : []
+        counts["CDProjectSession"] = payload.projectSessions.count
 
         payload.projectRoles = shouldInclude(.projects)
-            ? collectProjectRoles(modelContext: modelContext, filter: filter) : []
+            ? collectProjectRoles(viewContext: viewContext, filter: filter) : []
         counts["ProjectRole"] = payload.projectRoles.count
 
         payload.projectTemplateWeeks = shouldInclude(.projects)
-            ? collectProjectWeeks(modelContext: modelContext, filter: filter) : []
+            ? collectProjectWeeks(viewContext: viewContext, filter: filter) : []
         counts["ProjectTemplateWeek"] = payload.projectTemplateWeeks.count
 
         payload.projectWeekRoleAssignments = shouldInclude(.projects)
-            ? collectProjectWeekAssignments(modelContext: modelContext, filter: filter) : []
+            ? collectProjectWeekAssignments(viewContext: viewContext, filter: filter) : []
         counts["ProjectWeekRoleAssignment"] = payload.projectWeekRoleAssignments.count
     }
 
-    private func collectStudents(modelContext: ModelContext, filter: ExportFilter) -> [StudentDTO] {
-        let allStudents = safeFetch(FetchDescriptor<Student>(), context: modelContext)
-        let filtered = filter.studentIDs.map { ids in allStudents.filter { ids.contains($0.id) } } ?? allStudents
+    private func collectStudents(viewContext: NSManagedObjectContext, filter: ExportFilter) -> [StudentDTO] {
+        let allStudents = safeFetch(CDStudent.fetchRequest() as! NSFetchRequest<CDStudent>, context: viewContext)
+        let filtered = filter.studentIDs.map { ids in allStudents.filter { guard let sid = $0.id else { return false }; return ids.contains(sid) } } ?? allStudents
         return BackupServiceHelpers.toDTOs(filtered)
     }
 
-    private func collectLessons(modelContext: ModelContext) -> [LessonDTO] {
-        let allLessons = safeFetch(FetchDescriptor<Lesson>(), context: modelContext)
+    private func collectLessons(viewContext: NSManagedObjectContext) -> [LessonDTO] {
+        let allLessons = safeFetch(CDLesson.fetchRequest() as! NSFetchRequest<CDLesson>, context: viewContext)
         return BackupServiceHelpers.toDTOs(allLessons)
     }
 
@@ -473,30 +473,30 @@ public final class SelectiveExportService {
 // MARK: - Collection Helpers
 
 extension SelectiveExportService {
-    private func collectNotes(modelContext: ModelContext, filter: ExportFilter) -> [NoteDTO] {
-        let all = safeFetch(FetchDescriptor<Note>(), context: modelContext)
+    private func collectNotes(viewContext: NSManagedObjectContext, filter: ExportFilter) -> [NoteDTO] {
+        let all = safeFetch(CDNote.fetchRequest() as! NSFetchRequest<CDNote>, context: viewContext)
         let filtered = BackupServiceHelpers.filterByDateRange(all, dateRange: filter.dateRange) { $0.createdAt }
         return BackupServiceHelpers.toDTOs(filtered)
     }
 
-    // Removed: collectPresentations - Presentations are no longer exported; LessonAssignment is used instead
+    // Removed: collectPresentations - Presentations are no longer exported; CDLessonAssignment is used instead
 
-    private func collectNonSchoolDays(modelContext: ModelContext, filter: ExportFilter) -> [NonSchoolDayDTO] {
-        let all = safeFetch(FetchDescriptor<NonSchoolDay>(), context: modelContext)
+    private func collectNonSchoolDays(viewContext: NSManagedObjectContext, filter: ExportFilter) -> [NonSchoolDayDTO] {
+        let all = safeFetch(CDNonSchoolDay.fetchRequest() as! NSFetchRequest<CDNonSchoolDay>, context: viewContext)
         let filtered = BackupServiceHelpers.filterByDateRange(all, dateRange: filter.dateRange) { $0.date }
         return BackupServiceHelpers.toDTOs(filtered)
     }
 
     private func collectSchoolDayOverrides(
-        modelContext: ModelContext, filter: ExportFilter
+        viewContext: NSManagedObjectContext, filter: ExportFilter
     ) -> [SchoolDayOverrideDTO] {
-        let all = safeFetch(FetchDescriptor<SchoolDayOverride>(), context: modelContext)
+        let all = safeFetch(CDSchoolDayOverride.fetchRequest() as! NSFetchRequest<CDSchoolDayOverride>, context: viewContext)
         let filtered = BackupServiceHelpers.filterByDateRange(all, dateRange: filter.dateRange) { $0.date }
         return BackupServiceHelpers.toDTOs(filtered)
     }
 
-    private func collectAttendance(modelContext: ModelContext, filter: ExportFilter) -> [AttendanceRecordDTO] {
-        let all = safeFetch(FetchDescriptor<AttendanceRecord>(), context: modelContext)
+    private func collectAttendance(viewContext: NSManagedObjectContext, filter: ExportFilter) -> [AttendanceRecordDTO] {
+        let all = safeFetch(CDAttendanceRecord.fetchRequest() as! NSFetchRequest<CDAttendanceRecord>, context: viewContext)
         var filtered = BackupServiceHelpers.filterByStudents(
             all, studentIDs: filter.studentIDs
         ) { UUID(uuidString: $0.studentID) }
@@ -505,9 +505,9 @@ extension SelectiveExportService {
     }
 
     private func collectWorkCompletions(
-        modelContext: ModelContext, filter: ExportFilter
+        viewContext: NSManagedObjectContext, filter: ExportFilter
     ) -> [WorkCompletionRecordDTO] {
-        let all = safeFetch(FetchDescriptor<WorkCompletionRecord>(), context: modelContext)
+        let all = safeFetch(CDWorkCompletionRecord.fetchRequest() as! NSFetchRequest<CDWorkCompletionRecord>, context: viewContext)
         var filtered = BackupServiceHelpers.filterByStudents(
             all, studentIDs: filter.studentIDs
         ) { UUID(uuidString: $0.studentID) }
@@ -517,18 +517,18 @@ extension SelectiveExportService {
         return BackupServiceHelpers.toDTOs(filtered)
     }
 
-    private func collectProjects(modelContext: ModelContext, filter: ExportFilter) -> [ProjectDTO] {
-        let all = safeFetch(FetchDescriptor<Project>(), context: modelContext)
+    private func collectProjects(viewContext: NSManagedObjectContext, filter: ExportFilter) -> [ProjectDTO] {
+        let all = safeFetch(CDProject.fetchRequest() as! NSFetchRequest<CDProject>, context: viewContext)
         let filtered = BackupServiceHelpers.filterByProjects(all, projectIDs: filter.projectIDs) { $0.id }
         return BackupServiceHelpers.toDTOs(filtered)
     }
 
     private func collectProjectTemplates(
-        modelContext: ModelContext, filter: ExportFilter
+        viewContext: NSManagedObjectContext, filter: ExportFilter
     ) -> [ProjectAssignmentTemplateDTO] {
         let all = safeFetch(
-            FetchDescriptor<ProjectAssignmentTemplate>(),
-            context: modelContext
+            ProjectAssignmentTemplate.fetchRequest() as! NSFetchRequest<ProjectAssignmentTemplate>,
+            context: viewContext
         )
         let filtered = BackupServiceHelpers.filterByProjects(
             all, projectIDs: filter.projectIDs
@@ -537,10 +537,10 @@ extension SelectiveExportService {
     }
 
     private func collectProjectSessions(
-        modelContext: ModelContext, filter: ExportFilter
+        viewContext: NSManagedObjectContext, filter: ExportFilter
     ) -> [ProjectSessionDTO] {
         let all = safeFetch(
-            FetchDescriptor<ProjectSession>(), context: modelContext
+            CDProjectSession.fetchRequest() as! NSFetchRequest<CDProjectSession>, context: viewContext
         )
         let filtered = BackupServiceHelpers.filterByProjects(
             all, projectIDs: filter.projectIDs
@@ -548,8 +548,8 @@ extension SelectiveExportService {
         return BackupServiceHelpers.toDTOs(filtered)
     }
 
-    private func collectProjectRoles(modelContext: ModelContext, filter: ExportFilter) -> [ProjectRoleDTO] {
-        let all = safeFetch(FetchDescriptor<ProjectRole>(), context: modelContext)
+    private func collectProjectRoles(viewContext: NSManagedObjectContext, filter: ExportFilter) -> [ProjectRoleDTO] {
+        let all = safeFetch(ProjectRole.fetchRequest() as! NSFetchRequest<ProjectRole>, context: viewContext)
         let filtered = BackupServiceHelpers.filterByProjects(
             all, projectIDs: filter.projectIDs
         ) { UUID(uuidString: $0.projectID) }
@@ -557,11 +557,11 @@ extension SelectiveExportService {
     }
 
     private func collectProjectWeeks(
-        modelContext: ModelContext, filter: ExportFilter
+        viewContext: NSManagedObjectContext, filter: ExportFilter
     ) -> [ProjectTemplateWeekDTO] {
         let all = safeFetch(
-            FetchDescriptor<ProjectTemplateWeek>(),
-            context: modelContext
+            ProjectTemplateWeek.fetchRequest() as! NSFetchRequest<ProjectTemplateWeek>,
+            context: viewContext
         )
         let filtered = BackupServiceHelpers.filterByProjects(
             all, projectIDs: filter.projectIDs
@@ -570,16 +570,16 @@ extension SelectiveExportService {
     }
 
     private func collectProjectWeekAssignments(
-        modelContext: ModelContext, filter: ExportFilter
+        viewContext: NSManagedObjectContext, filter: ExportFilter
     ) -> [ProjectWeekRoleAssignmentDTO] {
-        let all = safeFetch(FetchDescriptor<ProjectWeekRoleAssignment>(), context: modelContext)
+        let all = safeFetch(ProjectWeekRoleAssignment.fetchRequest() as! NSFetchRequest<ProjectWeekRoleAssignment>, context: viewContext)
 
         if let projectIDs = filter.projectIDs {
-            let weeks = safeFetch(FetchDescriptor<ProjectTemplateWeek>(), context: modelContext)
+            let weeks = safeFetch(ProjectTemplateWeek.fetchRequest() as! NSFetchRequest<ProjectTemplateWeek>, context: viewContext)
             let includedWeekIDs = Set(weeks.filter { w in
                 guard let pid = UUID(uuidString: w.projectID) else { return false }
                 return projectIDs.contains(pid)
-            }.map { $0.id.uuidString })
+            }.compactMap { $0.id?.uuidString })
             let filtered = all.filter { includedWeekIDs.contains($0.weekID) }
             return BackupServiceHelpers.toDTOs(filtered)
         }

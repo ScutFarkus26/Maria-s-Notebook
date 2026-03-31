@@ -1,6 +1,5 @@
 import Foundation
 import CoreData
-import SwiftData
 
 /// Centralized service for common data queries with optional caching.
 ///
@@ -30,10 +29,7 @@ final class DataQueryService {
         self.context = context
     }
 
-    @available(*, deprecated, message: "Pass NSManagedObjectContext instead of ModelContext")
-    convenience init(context: ModelContext) {
-        self.init(context: AppBootstrapping.getSharedCoreDataStack().viewContext)
-    }
+    // Deprecated ModelContext convenience init removed - no longer needed with Core Data.
 
     // MARK: - Students
 

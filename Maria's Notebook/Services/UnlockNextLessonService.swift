@@ -8,7 +8,6 @@
 
 import Foundation
 import CoreData
-import SwiftData
 import OSLog
 
 /// Service for manually unlocking next lessons when students are ready to progress
@@ -64,7 +63,8 @@ struct UnlockNextLessonService {
             return .noNextLesson
         }
 
-        let nextLessonIDString = nextLesson.id.uuidString
+        guard let nextLessonID = nextLesson.id else { return .noNextLesson }
+        let nextLessonIDString = nextLessonID.uuidString
 
         // Check if a CDLessonAssignment already exists for this lesson + students combo
         // Look for unscheduled, ungiven lessons (in the inbox)
@@ -87,7 +87,7 @@ struct UnlockNextLessonService {
 
         // Doesn't exist yet - create it
         let newAssignment = PresentationFactory.makeDraft(
-            lessonID: nextLesson.id,
+            lessonID: nextLessonID,
             studentIDs: Array(studentIDs),
             context: context
         )
@@ -115,45 +115,7 @@ struct UnlockNextLessonService {
 
     // MARK: - Deprecated SwiftData Overloads
 
-    /// Unlocks the next lesson for specific students (SwiftData)
-    @available(*, deprecated, message: "Use Core Data overload with cdAssignments:")
-    static func unlockNextLesson(
-        after currentLessonID: UUID,
-        for studentIDs: Set<UUID>,
-        modelContext: ModelContext,
-        lessons: [Lesson],
-        lessonAssignments: [LessonAssignment]
-    ) -> UnlockResult {
-        let cdContext = AppBootstrapping.getSharedCoreDataStack().viewContext
-        let cdAssignments = cdContext.safeFetch(CDFetchRequest(CDLessonAssignment.self))
-        return unlockNextLesson(
-            after: currentLessonID,
-            for: studentIDs,
-            context: cdContext,
-            lessons: lessons,
-            cdAssignments: cdAssignments
-        )
-    }
-
-    /// Convenience method to unlock for a single student (SwiftData)
-    @available(*, deprecated, message: "Use Core Data overload with cdAssignments:")
-    static func unlockNextLesson(
-        after currentLessonID: UUID,
-        for studentID: UUID,
-        modelContext: ModelContext,
-        lessons: [Lesson],
-        lessonAssignments: [LessonAssignment]
-    ) -> UnlockResult {
-        let cdContext = AppBootstrapping.getSharedCoreDataStack().viewContext
-        let cdAssignments = cdContext.safeFetch(CDFetchRequest(CDLessonAssignment.self))
-        return unlockNextLesson(
-            after: currentLessonID,
-            for: [studentID],
-            context: cdContext,
-            lessons: lessons,
-            cdAssignments: cdAssignments
-        )
-    }
+    // Deprecated SwiftData bridge methods removed - no longer needed with Core Data.
 
     /// Gets the name of the next lesson (for UI display)
     static func getNextLessonName(

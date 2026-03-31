@@ -1,5 +1,5 @@
 import Foundation
-import SwiftData
+import CoreData
 
 // MARK: - Chain Consolidation
 
@@ -77,21 +77,21 @@ extension IncrementalBackupService {
 
         func entityCounts() -> [String: Int] {
             [
-                "Student": students.count,
-                "Lesson": lessons.count,
-                "LessonAssignment": lessonAssignments.count,
-                "Note": notes.count,
-                "NonSchoolDay": nonSchoolDays.count,
-                "SchoolDayOverride": schoolDayOverrides.count,
-                "StudentMeeting": studentMeetings.count,
-                "CommunityTopic": communityTopics.count,
+                "CDStudent": students.count,
+                "CDLesson": lessons.count,
+                "CDLessonAssignment": lessonAssignments.count,
+                "CDNote": notes.count,
+                "CDNonSchoolDay": nonSchoolDays.count,
+                "CDSchoolDayOverride": schoolDayOverrides.count,
+                "CDStudentMeeting": studentMeetings.count,
+                "CDCommunityTopicEntity": communityTopics.count,
                 "ProposedSolution": proposedSolutions.count,
                 "CommunityAttachment": communityAttachments.count,
-                "AttendanceRecord": attendance.count,
-                "WorkCompletionRecord": workCompletions.count,
-                "Project": projects.count,
+                "CDAttendanceRecord": attendance.count,
+                "CDWorkCompletionRecord": workCompletions.count,
+                "CDProject": projects.count,
                 "ProjectAssignmentTemplate": projectTemplates.count,
-                "ProjectSession": projectSessions.count,
+                "CDProjectSession": projectSessions.count,
                 "ProjectRole": projectRoles.count,
                 "ProjectTemplateWeek": projectWeeks.count,
                 "ProjectWeekRoleAssignment": projectWeekAssignments.count

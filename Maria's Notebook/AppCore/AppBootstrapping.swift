@@ -6,7 +6,6 @@
 //
 
 import SwiftUI
-import SwiftData
 import CoreData
 import OSLog
 
@@ -25,9 +24,7 @@ final class AppBootstrapping {
     @MainActor
     static var _sharedCoreDataStack: CoreDataStack?
 
-    /// Legacy SwiftData container — kept only for Phase 8 migration reads.
-    @MainActor
-    static var _sharedModelContainer: ModelContainer?
+    // Legacy _sharedModelContainer removed — SwiftData migration complete.
 
     /// Runtime-only CloudKit disable flag used during XCTest runs.
     /// This prevents tests from touching CloudKit without persisting the disabled state.
@@ -101,7 +98,7 @@ final class AppBootstrapping {
     }
 
     /// Configures SQLite to suppress detached signature logging errors.
-    static func configureSQLiteToSuppressDetachedSignatureErrors(for container: ModelContainer) {
+    static func configureSQLiteToSuppressDetachedSignatureErrors(for container: NSPersistentContainer) {
         DatabaseInitializationService.configureSQLiteToSuppressDetachedSignatureErrors(for: container)
     }
     

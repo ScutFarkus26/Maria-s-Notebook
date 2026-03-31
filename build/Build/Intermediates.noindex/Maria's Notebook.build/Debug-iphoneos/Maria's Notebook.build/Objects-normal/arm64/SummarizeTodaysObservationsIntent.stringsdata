@@ -1,0 +1,48 @@
+{
+  "source": "/Users/dannydeberry/Documents/Projects/MariasNotebook-Rewrite/Maria's Notebook/Students/SummarizeTodaysObservationsIntent.swift",
+  "tables": {
+    "Localizable": [
+      {
+        "comment": "",
+        "key": "•",
+        "location": {
+          "startingColumn": 34,
+          "startingLine": 27
+        }
+      },
+      {
+        "comment": "",
+        "key": "Follow-ups:",
+        "location": {
+          "startingColumn": 26,
+          "startingLine": 36
+        }
+      },
+      {
+        "comment": "",
+        "key": "• %@",
+        "location": {
+          "startingColumn": 30,
+          "startingLine": 40
+        }
+      },
+      {
+        "comment": "",
+        "key": "Summarize Today's Observations",
+        "location": {
+          "startingColumn": 69,
+          "startingLine": 57
+        }
+      },
+      {
+        "comment": "",
+        "key": "Provides a summary snippet of today's observations.",
+        "location": {
+          "startingColumn": 9,
+          "startingLine": 59
+        }
+      }
+    ]
+  },
+  "version": 1
+}

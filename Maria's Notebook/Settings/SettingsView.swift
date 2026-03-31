@@ -1,11 +1,11 @@
 import SwiftUI
-import SwiftData
+import CoreData
 import UniformTypeIdentifiers
 
 // MARK: - SettingsView
 
 struct SettingsView: View {
-    @Environment(\.modelContext) private var modelContext
+    @Environment(\.managedObjectContext) private var viewContext
     @Environment(\.dependencies) private var dependencies
     @State var statsViewModel = SettingsStatsViewModel()
     @Environment(\.horizontalSizeClass) var horizontalSizeClass
@@ -94,7 +94,7 @@ struct SettingsView: View {
             }
         }
         .onAppear {
-            statsViewModel.loadCounts(context: modelContext)
+            statsViewModel.loadCounts(context: viewContext)
 
             if !UserDefaults.standard.bool(forKey: UserDefaultsKeys.ephemeralSessionFlag) {
                 UserDefaults.standard.removeObject(forKey: UserDefaultsKeys.lastStoreErrorDescription)

@@ -2,7 +2,7 @@
 // Meeting history section and editing functionality
 
 import SwiftUI
-import SwiftData
+import CoreData
 
 extension StudentMeetingsTab {
 
@@ -20,12 +20,13 @@ extension StudentMeetingsTab {
                         .padding(.vertical, 4)
                 } else {
                     VStack(alignment: .leading, spacing: 8) {
-                        ForEach(meetingItems) { item in
-                            let isExpanded = expandedHistoryIDs.contains(item.id)
+                        ForEach(meetingItems, id: \.objectID) { item in
+                            let itemID = item.id ?? UUID()
+                            let isExpanded = expandedHistoryIDs.contains(itemID)
                             VStack(alignment: .leading, spacing: 0) {
                                 // Header (always visible)
                                 HStack(spacing: 8) {
-                                    Text(DateFormatters.mediumDate.string(from: item.date))
+                                    Text(DateFormatters.mediumDate.string(from: item.date ?? Date()))
                                         .font(.subheadline)
                                         .foregroundStyle(.secondary)
                                     if item.completed {
@@ -37,9 +38,9 @@ extension StudentMeetingsTab {
 
                                     // Summary with AI indicator
                                     HStack(spacing: 4) {
-                                        if let summary = meetingSummaries[item.id] {
+                                        if let summary = meetingSummaries[itemID] {
                                             // Show sparkle only if AI actually generated it
-                                            if aiGeneratedSummaries.contains(item.id) {
+                                            if aiGeneratedSummaries.contains(itemID) {
                                                 Image(systemName: "sparkles")
                                                     .foregroundStyle(.purple)
                                                     .font(.caption2)
@@ -47,7 +48,7 @@ extension StudentMeetingsTab {
                                             Text(summary)
                                                 .font(.subheadline)
                                                 .foregroundStyle(.primary)
-                                        } else if generatingSummaries.contains(item.id) {
+                                        } else if generatingSummaries.contains(itemID) {
                                             ProgressView()
                                                 .controlSize(.mini)
                                             Text("Summarizing...")
@@ -72,9 +73,9 @@ extension StudentMeetingsTab {
                                 .onTapGesture {
                                     adaptiveWithAnimation {
                                         if isExpanded {
-                                            expandedHistoryIDs.remove(item.id)
+                                            expandedHistoryIDs.remove(itemID)
                                         } else {
-                                            expandedHistoryIDs.insert(item.id)
+                                            expandedHistoryIDs.insert(itemID)
                                         }
                                     }
                                 }
@@ -94,7 +95,7 @@ extension StudentMeetingsTab {
                             }
                             .task {
                                 // Generate summary when meeting appears
-                                if meetingSummaries[item.id] == nil && !generatingSummaries.contains(item.id) {
+                                if meetingSummaries[itemID] == nil && !generatingSummaries.contains(itemID) {
                                     await generateSummary(for: item)
                                 }
                             }

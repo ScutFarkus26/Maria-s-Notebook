@@ -2,11 +2,11 @@
 // View for generating PDF reports from flagged notes
 
 import SwiftUI
-import SwiftData
+import CoreData
 
 struct ReportGeneratorView: View {
-    let student: Student
-    @Environment(\.modelContext) private var modelContext
+    let student: CDStudent
+    @Environment(\.managedObjectContext) private var viewContext
     @Environment(\.dismiss) private var dismiss
 
     @State private var selectedDateRange: ReportGeneratorService.DateRangeOption = .lastMonth
@@ -197,7 +197,7 @@ struct ReportGeneratorView: View {
         let notes = reportService.fetchReportNotes(
             for: student,
             dateRange: effectiveDateRange,
-            context: modelContext
+            context: viewContext
         )
         noteCount = notes.count
     }
@@ -211,7 +211,7 @@ struct ReportGeneratorView: View {
             let notes = reportService.fetchReportNotes(
                 for: student,
                 dateRange: effectiveDateRange,
-                context: modelContext
+                context: viewContext
             )
 
             if notes.isEmpty {
@@ -297,7 +297,7 @@ struct PDFKitView: NSViewRepresentable {
         let pdfView = PDFView()
         pdfView.autoScales = true
         pdfView.displayMode = .singlePageContinuous
-        // Document assignment is deferred to updateNSView to avoid layout recursion
+        // CDDocument assignment is deferred to updateNSView to avoid layout recursion
         return pdfView
     }
 
@@ -326,7 +326,9 @@ struct PDFKitView: NSViewRepresentable {
 // MARK: - Preview
 
 #Preview {
-    @Previewable @State var student = Student(firstName: "Test", lastName: "Student", birthday: Date(), level: .lower)
-    ReportGeneratorView(student: student)
-        .previewEnvironment()
+    let stack = CoreDataStack.preview
+    let student = CDStudent(context: stack.viewContext)
+    let _ = { student.firstName = "Test"; student.lastName = "Student" }()
+    return ReportGeneratorView(student: student)
+        .previewEnvironment(using: stack)
 }

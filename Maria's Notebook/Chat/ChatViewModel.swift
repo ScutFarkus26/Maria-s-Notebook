@@ -1,5 +1,5 @@
 import Foundation
-import SwiftData
+import CoreData
 import OSLog
 
 /// ViewModel for the Ask AI chat interface.
@@ -62,7 +62,7 @@ final class ChatViewModel {
         AnthropicAPIClient.hasAPIKey()
     }
 
-    /// Student names for dynamic suggested questions.
+    /// CDStudent names for dynamic suggested questions.
     var studentNames: [String] {
         session?.studentNames ?? []
     }
@@ -100,9 +100,9 @@ final class ChatViewModel {
     // MARK: - Configuration
 
     /// Configure with dependencies. Called from the view's onAppear.
-    func configure(modelContext: ModelContext, mcpClient: MCPClientProtocol) {
+    func configure(viewContext: NSManagedObjectContext, mcpClient: MCPClientProtocol) {
         guard chatService == nil else { return } // Already configured
-        let service = ChatService(modelContext: modelContext, mcpClient: mcpClient)
+        let service = ChatService(modelContext: viewContext, mcpClient: mcpClient)
         self.chatService = service
 
         // Try to restore a saved session, otherwise start fresh

@@ -2,11 +2,12 @@
 // Birthday celebration card for student grid view
 
 import SwiftUI
+import CoreData
 
-// MARK: - Birthday Student Card
+// MARK: - Birthday CDStudent Card
 
 struct BirthdayStudentCard: View {
-    let student: Student
+    let student: CDStudent
     @Environment(\.calendar) private var calendar
     @State private var bob = false
 
@@ -136,14 +137,14 @@ struct BirthdayStudentCard: View {
     }
 
     private var turningAge: Int {
-        let birthYear = calendar.component(.year, from: student.birthday)
+        let birthYear = calendar.component(.year, from: student.birthday ?? Date())
         let targetYear = calendar.component(.year, from: nextBirthdayDate)
         return max(0, targetYear - birthYear)
     }
 
     private var nextBirthdayDate: Date {
         let today = Date()
-        let comps = calendar.dateComponents([.month, .day], from: student.birthday)
+        let comps = calendar.dateComponents([.month, .day], from: student.birthday ?? Date())
         let currentYear = calendar.component(.year, from: today)
         var thisYear = calendar.date(from: DateComponents(year: currentYear, month: comps.month, day: comps.day))
         // Handle Feb 29 on non-leap years by using Feb 28

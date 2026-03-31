@@ -2,7 +2,7 @@
 // List rendering, rows, and data loading for ObservationsView
 
 import SwiftUI
-import SwiftData
+import CoreData
 
 extension ObservationsView {
     // MARK: - Observations List
@@ -113,7 +113,7 @@ extension ObservationsView {
             Button {
                 editItem(item)
             } label: {
-                Label("Edit Note", systemImage: "pencil")
+                Label("Edit CDNote", systemImage: "pencil")
             }
         }
     }
@@ -130,17 +130,17 @@ extension ObservationsView {
     // MARK: - Context Text
 
     // swiftlint:disable:next cyclomatic_complexity
-    func contextText(for note: Note) -> String? {
-        if let lesson = note.lesson { return "Lesson: \(lesson.name)" }
+    func contextText(for note: CDNote) -> String? {
+        if let lesson = note.lesson { return "CDLesson: \(lesson.name)" }
         if let work = note.work { return "Work: \(work.title)" }
-        if note.lessonAssignment != nil { return "Presentation" }
+        if note.lessonAssignment != nil { return "CDPresentation" }
         if note.attendanceRecord != nil { return "Attendance" }
         if note.workCheckIn != nil { return "Check-In" }
         if note.workCompletionRecord != nil { return "Completion" }
         if note.studentMeeting != nil { return "Meeting" }
         if note.projectSession != nil { return "Session" }
         if let communityTopic = note.communityTopic { return "Topic: \(communityTopic.title)" }
-        if note.reminder != nil { return "Reminder" }
+        if note.reminder != nil { return "CDReminder" }
         if note.schoolDayOverride != nil { return "Override" }
         return nil
     }
@@ -165,7 +165,7 @@ extension ObservationsView {
         return trimmed
     }
 
-    func displayName(for student: Student) -> String {
+    func displayName(for student: CDStudent) -> String {
         let first = student.firstName.trimmed()
         let last = student.lastName.trimmed()
         let li = last.first.map { String($0).uppercased() } ?? ""
@@ -194,7 +194,7 @@ extension ObservationsView {
         defer { isLoading = false }
 
         loadedItems = ObservationsDataLoader.loadAllNotes(
-            context: modelContext,
+            context: viewContext,
             contextTextProvider: { contextText(for: $0) }
         )
         hasMore = false
@@ -210,12 +210,12 @@ extension ObservationsView {
         studentsByID = ObservationsDataLoader.loadStudents(
             for: items,
             existingCache: studentsByID,
-            context: modelContext
+            context: viewContext
         )
     }
 
     // swiftlint:disable:next cyclomatic_complexity
-    func contextForNote(_ note: Note) -> UnifiedNoteEditor.NoteContext {
+    func contextForNote(_ note: CDNote) -> UnifiedNoteEditor.NoteContext {
         if let lesson = note.lesson { return .lesson(lesson) }
         if let work = note.work { return .work(work) }
         if let pres = note.lessonAssignment { return .presentation(pres) }

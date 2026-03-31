@@ -3,7 +3,7 @@
 // Handles iCloud Drive integration for backups
 
 import Foundation
-import SwiftData
+import CoreData
 import OSLog
 
 // swiftlint:disable type_body_length
@@ -67,7 +67,7 @@ public final class CloudBackupService {
     /// Retry configuration
     public var retryConfiguration = RetryConfiguration.default
 
-    /// Schedule configuration (persisted in UserDefaults)
+    /// CDSchedule configuration (persisted in UserDefaults)
     public var scheduleConfiguration: ScheduleConfiguration {
         get {
             if let data = UserDefaults.standard.data(forKey: "CloudBackup.scheduleConfig") {
@@ -97,7 +97,7 @@ public final class CloudBackupService {
     var scheduledBackupTask: Task<Void, Never>?
 
     /// Model context for scheduled backups
-    var scheduledModelContext: ModelContext?
+    var scheduledModelContext: NSManagedObjectContext?
 
     // MARK: - UserDefaults Keys
 
@@ -153,12 +153,12 @@ public final class CloudBackupService {
 
     /// Exports a backup directly to iCloud Drive
     /// - Parameters:
-    ///   - modelContext: The SwiftData model context
+    ///   - viewContext: The SwiftData model context
     ///   - password: Optional encryption password
     ///   - progress: Progress callback
     /// - Returns: The URL of the created backup file
     public func exportToCloud(
-        modelContext: ModelContext,
+        viewContext: NSManagedObjectContext,
         password: String? = nil,
         progress: @escaping BackupService.ProgressCallback
     ) async throws -> URL {
@@ -182,7 +182,7 @@ public final class CloudBackupService {
 
         do {
             _ = try await backupService.exportBackup(
-                modelContext: modelContext,
+                viewContext: viewContext,
                 to: destinationURL,
                 password: password,
                 progress: progress
@@ -255,8 +255,8 @@ public final class CloudBackupService {
     // MARK: - Private Helpers
 
     func updateScheduledBackups() {
-        if let modelContext = scheduledModelContext {
-            startScheduledBackups(modelContext: modelContext)
+        if let viewContext = scheduledModelContext {
+            startScheduledBackups(viewContext: viewContext)
         }
     }
 

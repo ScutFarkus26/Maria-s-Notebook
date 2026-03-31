@@ -6,7 +6,7 @@
 //
 
 import SwiftUI
-import SwiftData
+import CoreData
 import os
 
 extension LessonAssignmentHistoryView {
@@ -15,17 +15,16 @@ extension LessonAssignmentHistoryView {
 
     func loadAssignments(limit: Int? = nil) {
         let presentedState = LessonAssignmentState.presented.rawValue
-        var descriptor = FetchDescriptor<LessonAssignment>(
-            predicate: #Predicate { $0.stateRaw == presentedState },
-            sortBy: [
-                SortDescriptor(\LessonAssignment.presentedAt, order: .reverse),
-                SortDescriptor(\LessonAssignment.createdAt, order: .reverse)
+        var descriptor: NSFetchRequest<CDLessonAssignment> = NSFetchRequest(entityName: "LessonAssignment")
+        descriptor.predicate = NSPredicate(format: "stateRaw == %@", presentedState as CVarArg)
+        descriptor.sortDescriptors = [
+                NSSortDescriptor(keyPath: \CDLessonAssignment.presentedAt, ascending: false),
+                NSSortDescriptor(keyPath: \CDLessonAssignment.createdAt, ascending: false)
             ]
-        )
         if let limit {
             descriptor.fetchLimit = limit
         }
-        loadedAssignments = modelContext.safeFetch(descriptor)
+        loadedAssignments = viewContext.safeFetch(descriptor)
         // If we requested a limit and got fewer results, we've loaded all available
         if let limit {
             hasLoadedMore = loadedAssignments.count < limit
@@ -38,15 +37,14 @@ extension LessonAssignmentHistoryView {
         guard !hasLoadedMore else { return }
         let currentCount = loadedAssignments.count
         let presentedState = LessonAssignmentState.presented.rawValue
-        var descriptor = FetchDescriptor<LessonAssignment>(
-            predicate: #Predicate { $0.stateRaw == presentedState },
-            sortBy: [
-                SortDescriptor(\LessonAssignment.presentedAt, order: .reverse),
-                SortDescriptor(\LessonAssignment.createdAt, order: .reverse)
+        var descriptor: NSFetchRequest<CDLessonAssignment> = NSFetchRequest(entityName: "LessonAssignment")
+        descriptor.predicate = NSPredicate(format: "stateRaw == %@", presentedState as CVarArg)
+        descriptor.sortDescriptors = [
+                NSSortDescriptor(keyPath: \CDLessonAssignment.presentedAt, ascending: false),
+                NSSortDescriptor(keyPath: \CDLessonAssignment.createdAt, ascending: false)
             ]
-        )
         descriptor.fetchLimit = currentCount + Self.loadMoreCount
-        let newResults = modelContext.safeFetch(descriptor)
+        let newResults = viewContext.safeFetch(descriptor)
         loadedAssignments = newResults
         // If we got fewer results than requested, we've loaded all available
         hasLoadedMore = newResults.count < currentCount + Self.loadMoreCount
@@ -60,12 +58,12 @@ extension LessonAssignmentHistoryView {
     func buildCachesAsync() async {
         // Extract primitive/Sendable values on main thread before background processing
         // This avoids passing SwiftData model objects across actor boundaries
-        let assignmentIDs: [String] = recentNotes.compactMap { $0.lessonAssignment?.id.uuidString }
-        let studentIDs = safeStudents.map(\.id)
-        let studentFirstNames = safeStudents.map(\.firstName)
-        let studentLastNames = safeStudents.map(\.lastName)
-        let lessonIDs = lessons.map(\.id)
-        let lessonNames = lessons.map(\.name)
+        let assignmentIDs: [String] = recentNotes.compactMap { $0.lessonAssignment?.id?.uuidString }
+        let studentIDs: [UUID] = safeStudents.compactMap(\.id)
+        let studentFirstNames: [String] = safeStudents.compactMap { $0.id != nil ? $0.firstName : nil }
+        let studentLastNames: [String] = safeStudents.compactMap { $0.id != nil ? $0.lastName : nil }
+        let lessonIDs: [UUID] = lessons.compactMap(\.id)
+        let lessonNames: [String] = lessons.compactMap { $0.id != nil ? $0.name : nil }
 
         // Build caches on background thread using only Sendable data
         let (counts, sNames, lTitles) = await Task.detached(priority: .userInitiated) {
@@ -101,10 +99,10 @@ extension LessonAssignmentHistoryView {
 
     // MARK: - Delete
 
-    func deleteAssignment(_ assignment: LessonAssignment) {
-        modelContext.delete(assignment)
+    func deleteAssignment(_ assignment: CDLessonAssignment) {
+        viewContext.delete(assignment)
         do {
-            try modelContext.save()
+            try viewContext.save()
         } catch {
             Self.logger.warning("Failed to save assignment deletion: \(error)")
         }

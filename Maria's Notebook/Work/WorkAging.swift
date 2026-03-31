@@ -1,6 +1,5 @@
 import Foundation
 import CoreData
-import SwiftData
 
 // MARK: - Aging Types
 enum AgingBucket: Int, Codable, Comparable, Sendable {
@@ -49,22 +48,22 @@ enum WorkAgingPolicy {
         }
         
         // 2) Most recent past completed check-in date
-        let workCheckIns = checkIns ?? (work.checkIns ?? [])
+        let workCheckIns = checkIns ?? ((work.checkIns?.allObjects as? [CDWorkCheckIn]) ?? [])
         let pastCheckInDates: [Date] = workCheckIns
             .filter { $0.status == .completed }
-            .map { AppCalendar.startOfDay($0.date) }
+            .map { AppCalendar.startOfDay($0.date ?? .distantPast) }
             .filter { $0 <= today }
         let latestCheckIn = pastCheckInDates.max()
         
         // 3) Most recent note timestamp
-        let workNotes = notes ?? (work.unifiedNotes ?? [])
-        let latestNote: Date? = workNotes.map { max($0.updatedAt, $0.createdAt) }.max()
+        let workNotes = notes ?? ((work.unifiedNotes?.allObjects as? [CDNote]) ?? [])
+        let latestNote: Date? = workNotes.map { max($0.updatedAt ?? .distantPast, $0.createdAt ?? .distantPast) }.max()
         
         // 4) Status change timestamp (completedAt)
         let statusChange: Date? = work.completedAt.map { AppCalendar.startOfDay($0) }
         
         // 5) Fallbacks
-        let assigned = AppCalendar.startOfDay(work.assignedAt)
+        let assigned = AppCalendar.startOfDay(work.assignedAt ?? Date())
         
         // Return the most recent non-nil in priority order
         // Note: assigned is non-optional, so it's always available as final fallback
@@ -84,18 +83,7 @@ enum WorkAgingPolicy {
         return SchoolDayChecker.schoolDaysBetween(start: last, end: today, using: context)
     }
 
-    @available(*, deprecated, message: "Pass NSManagedObjectContext instead of ModelContext")
-    nonisolated static func daysSinceLastTouch(
-        for work: WorkModel,
-        modelContext: ModelContext,
-        checkIns: [WorkCheckIn]? = nil,
-        notes: [Note]? = nil
-    ) -> Int {
-        let cdContext = MainActor.assumeIsolated {
-            AppBootstrapping.getSharedCoreDataStack().viewContext
-        }
-        return daysSinceLastTouch(for: work, using: cdContext, checkIns: checkIns, notes: notes)
-    }
+    // Deprecated ModelContext overload for daysSinceLastTouch removed.
 
     /// Maps day difference to an AgingBucket using school days.
     nonisolated static func agingBucket(
@@ -110,18 +98,7 @@ enum WorkAgingPolicy {
         return .fresh
     }
 
-    @available(*, deprecated, message: "Pass NSManagedObjectContext instead of ModelContext")
-    nonisolated static func agingBucket(
-        for work: WorkModel,
-        modelContext: ModelContext,
-        checkIns: [WorkCheckIn]? = nil,
-        notes: [Note]? = nil
-    ) -> AgingBucket {
-        let cdContext = MainActor.assumeIsolated {
-            AppBootstrapping.getSharedCoreDataStack().viewContext
-        }
-        return agingBucket(for: work, using: cdContext, checkIns: checkIns, notes: notes)
-    }
+    // Deprecated ModelContext overload for agingBucket removed.
 
     /// Convenience predicate for stale status using school days.
     nonisolated static func isStale(
@@ -133,19 +110,8 @@ enum WorkAgingPolicy {
         agingBucket(for: work, using: context, checkIns: checkIns, notes: notes) == .stale
     }
 
-    @available(*, deprecated, message: "Pass NSManagedObjectContext instead of ModelContext")
-    nonisolated static func isStale(
-        _ work: WorkModel,
-        modelContext: ModelContext,
-        checkIns: [WorkCheckIn]? = nil,
-        notes: [Note]? = nil
-    ) -> Bool {
-        let cdContext = MainActor.assumeIsolated {
-            AppBootstrapping.getSharedCoreDataStack().viewContext
-        }
-        return isStale(work, using: cdContext, checkIns: checkIns, notes: notes)
-    }
-    
+    // Deprecated ModelContext overload for isStale removed.
+
     /// Intent-aware overdue check.
     /// True only when:
     /// - There exists a dueAt date (or due date from check-ins)
@@ -168,12 +134,12 @@ enum WorkAgingPolicy {
         }
         
         // Fallback: check scheduled check-ins for due dates
-        let workCheckIns = checkIns ?? (work.checkIns ?? [])
+        let workCheckIns = checkIns ?? ((work.checkIns?.allObjects as? [CDWorkCheckIn]) ?? [])
         let dueCheckIns = workCheckIns
             .filter { $0.status == .scheduled }
-            .map { AppCalendar.startOfDay($0.date) }
+            .map { AppCalendar.startOfDay($0.date ?? .distantPast) }
             .filter { $0 < today }
-        
+
         guard let earliestDue = dueCheckIns.min() else { return false }
         
         let last: Date
@@ -197,10 +163,10 @@ enum WorkAgingPolicy {
             return AppCalendar.startOfDay(dueAt) == today
         }
         
-        let workCheckIns = checkIns ?? (work.checkIns ?? [])
-        return workCheckIns.contains { $0.status == .scheduled && AppCalendar.startOfDay($0.date) == today }
+        let workCheckIns = checkIns ?? ((work.checkIns?.allObjects as? [CDWorkCheckIn]) ?? [])
+        return workCheckIns.contains { $0.status == .scheduled && AppCalendar.startOfDay($0.date ?? .distantPast) == today }
     }
-    
+
     /// Check if work is upcoming (due in 1-2 days)
     nonisolated static func isUpcoming(
         _ work: WorkModel,
@@ -215,10 +181,10 @@ enum WorkAgingPolicy {
             return (dueDay == tomorrow || dueDay == dayAfter) && dueDay > today
         }
         
-        let workCheckIns = checkIns ?? (work.checkIns ?? [])
+        let workCheckIns = checkIns ?? ((work.checkIns?.allObjects as? [CDWorkCheckIn]) ?? [])
         return workCheckIns.contains { checkIn in
             guard checkIn.status == .scheduled else { return false }
-            let checkInDay = AppCalendar.startOfDay(checkIn.date)
+            let checkInDay = AppCalendar.startOfDay(checkIn.date ?? .distantPast)
             return (checkInDay == tomorrow || checkInDay == dayAfter) && checkInDay > today
         }
     }
@@ -239,11 +205,11 @@ enum WorkAgingPolicy {
     /// Determine urgency bucket for a work item
     nonisolated static func urgencyBucket(
         for work: WorkModel,
-        modelContext: ModelContext,
+        using context: NSManagedObjectContext,
         checkIns: [WorkCheckIn]? = nil,
         notes: [Note]? = nil
     ) -> UrgencyBucket {
-        if isStale(work, modelContext: modelContext, checkIns: checkIns, notes: notes) {
+        if isStale(work, using: context, checkIns: checkIns, notes: notes) {
             return .stale
         }
         if isOverdue(work, checkIns: checkIns) {
@@ -264,17 +230,17 @@ enum WorkAgingPolicy {
 enum WorkAgingDebug {
     static func describe(
         work: WorkModel,
-        modelContext: ModelContext,
+        using context: NSManagedObjectContext,
         checkIns: [WorkCheckIn]? = nil,
         notes: [Note]? = nil
     ) -> String {
         let last = WorkAgingPolicy.lastMeaningfulTouchDate(for: work, checkIns: checkIns, notes: notes)
         let days = WorkAgingPolicy.daysSinceLastTouch(
-            for: work, modelContext: modelContext,
+            for: work, using: context,
             checkIns: checkIns, notes: notes
         )
         let bucket = WorkAgingPolicy.agingBucket(
-            for: work, modelContext: modelContext,
+            for: work, using: context,
             checkIns: checkIns, notes: notes
         )
         let overdue = WorkAgingPolicy.isOverdue(work, checkIns: checkIns, lastTouch: last)

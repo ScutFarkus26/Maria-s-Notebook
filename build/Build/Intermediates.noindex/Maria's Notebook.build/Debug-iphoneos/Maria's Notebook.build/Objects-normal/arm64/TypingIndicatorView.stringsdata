@@ -1,0 +1,16 @@
+{
+  "source": "/Users/dannydeberry/Documents/Projects/MariasNotebook-Rewrite/Maria's Notebook/Chat/TypingIndicatorView.swift",
+  "tables": {
+    "Localizable": [
+      {
+        "comment": "",
+        "key": "Assistant is thinking",
+        "location": {
+          "startingColumn": 29,
+          "startingLine": 25
+        }
+      }
+    ]
+  },
+  "version": 1
+}

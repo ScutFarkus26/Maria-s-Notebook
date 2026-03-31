@@ -1,4 +1,5 @@
 import SwiftUI
+import CoreData
 
 /// Helper for building toolbar content for StudentsView to reduce duplication
 struct StudentsViewToolbarHelper<ModePicker: View, AddButton: View> {

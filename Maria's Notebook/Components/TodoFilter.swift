@@ -1,5 +1,5 @@
 import SwiftUI
-import SwiftData
+import CoreData
 
 enum TodoFilter: String, CaseIterable, Identifiable {
     case all = "All"
@@ -56,7 +56,7 @@ enum TodoFilter: String, CaseIterable, Identifiable {
         }
     }
 
-    func matches(_ todo: TodoItem) -> Bool {
+    func matches(_ todo: CDTodoItem) -> Bool {
         switch self {
         case .all:
             return true
@@ -75,7 +75,7 @@ enum TodoFilter: String, CaseIterable, Identifiable {
         case .highPriority:
             return todo.priority == .high && !todo.isCompleted
         case .hasSubtasks:
-            return !(todo.subtasks ?? []).isEmpty
+            return !((todo.subtasks as? Set<CDTodoSubtaskEntity>) ?? []).isEmpty
         }
     }
 }

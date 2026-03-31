@@ -3,7 +3,7 @@
 // Extracted for maintainability
 
 import SwiftUI
-import SwiftData
+import CoreData
 
 // MARK: - TodayView Agenda Section Extension
 
@@ -223,7 +223,7 @@ extension TodayView {
     }
 
     @ViewBuilder
-    private func agendaLessonRow(_ sl: LessonAssignment) -> some View {
+    private func agendaLessonRow(_ sl: CDLessonAssignment) -> some View {
         let lesson = lessonForPresentation(sl)
         LessonListRow(
             lessonName: nameForLesson(sl.resolvedLessonID),
@@ -242,7 +242,7 @@ extension TodayView {
     }
 
     @ViewBuilder
-    private func agendaMeetingRow(_ meeting: ScheduledMeeting) -> some View {
+    private func agendaMeetingRow(_ meeting: CDScheduledMeeting) -> some View {
         ScheduledMeetingListRow(
             studentName: meetingStudentName(for: meeting),
             showsLeadingIcon: false,

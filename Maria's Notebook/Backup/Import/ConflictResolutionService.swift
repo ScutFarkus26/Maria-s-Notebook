@@ -3,7 +3,7 @@
 // Handles conflict resolution strategies for backup restore merge mode
 
 import Foundation
-import SwiftData
+import CoreData
 import OSLog
 
 /// Service for resolving conflicts when merging backup data with existing data
@@ -89,12 +89,12 @@ public final class ConflictResolutionService {
     /// Analyzes conflicts between backup payload and existing data
     /// - Parameters:
     ///   - payload: The backup payload to analyze
-    ///   - modelContext: The SwiftData model context
+    ///   - viewContext: The SwiftData model context
     ///   - strategy: The conflict resolution strategy
     /// - Returns: Analysis of all conflicts found
     public func analyzeConflicts(
         payload: BackupPayload,
-        modelContext: ModelContext,
+        viewContext: NSManagedObjectContext,
         strategy: ConflictStrategy
     ) -> ConflictAnalysis {
         var conflicts: [Conflict] = []
@@ -102,25 +102,25 @@ public final class ConflictResolutionService {
         // Analyze Students
         conflicts.append(contentsOf: analyzeStudentConflicts(
             payload.students,
-            modelContext: modelContext
+            viewContext: viewContext
         ))
 
         // Analyze Lessons
         conflicts.append(contentsOf: analyzeLessonConflicts(
             payload.lessons,
-            modelContext: modelContext
+            viewContext: viewContext
         ))
 
         // Analyze Notes
         conflicts.append(contentsOf: analyzeNoteConflicts(
             payload.notes,
-            modelContext: modelContext
+            viewContext: viewContext
         ))
 
         // Analyze Projects
         conflicts.append(contentsOf: analyzeProjectConflicts(
             payload.projects,
-            modelContext: modelContext
+            viewContext: viewContext
         ))
 
         // Apply strategy-based auto-resolution
@@ -155,36 +155,36 @@ public final class ConflictResolutionService {
     // - Parameters:
     //   - conflicts: The conflicts with their resolutions
     //   - payload: The backup payload
-    //   - modelContext: The SwiftData model context
+    //   - viewContext: The SwiftData model context
     // - Returns: Number of records updated
     // swiftlint:disable:next cyclomatic_complexity
     public func applyResolutions(
         conflicts: [Conflict],
         payload: BackupPayload,
-        modelContext: ModelContext
+        viewContext: NSManagedObjectContext
     ) throws -> Int {
         var updatedCount = 0
 
         for conflict in conflicts where conflict.resolution == .useBackup {
             switch conflict.entityType {
-            case "Student":
+            case "CDStudent":
                 if let dto = payload.students.first(where: { $0.id == conflict.entityID }) {
-                    try updateStudent(dto, in: modelContext)
+                    try updateStudent(dto, in: viewContext)
                     updatedCount += 1
                 }
-            case "Lesson":
+            case "CDLesson":
                 if let dto = payload.lessons.first(where: { $0.id == conflict.entityID }) {
-                    try updateLesson(dto, in: modelContext)
+                    try updateLesson(dto, in: viewContext)
                     updatedCount += 1
                 }
-            case "Note":
+            case "CDNote":
                 if let dto = payload.notes.first(where: { $0.id == conflict.entityID }) {
-                    try updateNote(dto, in: modelContext)
+                    try updateNote(dto, in: viewContext)
                     updatedCount += 1
                 }
-            case "Project":
+            case "CDProject":
                 if let dto = payload.projects.first(where: { $0.id == conflict.entityID }) {
-                    try updateProject(dto, in: modelContext)
+                    try updateProject(dto, in: viewContext)
                     updatedCount += 1
                 }
             default:
@@ -193,7 +193,7 @@ public final class ConflictResolutionService {
         }
 
         if updatedCount > 0 {
-            try modelContext.save()
+            try viewContext.save()
         }
 
         return updatedCount
@@ -203,17 +203,17 @@ public final class ConflictResolutionService {
 
     private func analyzeStudentConflicts(
         _ dtos: [StudentDTO],
-        modelContext: ModelContext
+        viewContext: NSManagedObjectContext
     ) -> [Conflict] {
         var conflicts: [Conflict] = []
 
         for dto in dtos {
             let dtoID = dto.id
-            var descriptor = FetchDescriptor<Student>(predicate: #Predicate { $0.id == dtoID })
+            var descriptor = { let r = CDStudent.fetchRequest() as! NSFetchRequest<CDStudent>; r.predicate = NSPredicate(format: "id == %@", dtoID as CVarArg); return r }()
             descriptor.fetchLimit = 1
-            let existing: Student?
+            let existing: CDStudent?
             do {
-                existing = try modelContext.fetch(descriptor).first
+                existing = try viewContext.fetch(descriptor).first
             } catch {
                 Self.logger.warning("Failed to fetch student: \(error)")
                 continue
@@ -222,9 +222,9 @@ public final class ConflictResolutionService {
 
             conflicts.append(Conflict(
                 id: UUID(),
-                entityType: "Student",
+                entityType: "CDStudent",
                 entityID: dto.id,
-                localUpdatedAt: nil, // Student doesn't have updatedAt
+                localUpdatedAt: nil, // CDStudent doesn't have updatedAt
                 backupUpdatedAt: dto.updatedAt,
                 localSummary: "\(existing.firstName) \(existing.lastName)",
                 backupSummary: "\(dto.firstName) \(dto.lastName)",
@@ -237,17 +237,17 @@ public final class ConflictResolutionService {
 
     private func analyzeLessonConflicts(
         _ dtos: [LessonDTO],
-        modelContext: ModelContext
+        viewContext: NSManagedObjectContext
     ) -> [Conflict] {
         var conflicts: [Conflict] = []
 
         for dto in dtos {
             let dtoID = dto.id
-            var descriptor = FetchDescriptor<Lesson>(predicate: #Predicate { $0.id == dtoID })
+            var descriptor = { let r = CDLesson.fetchRequest() as! NSFetchRequest<CDLesson>; r.predicate = NSPredicate(format: "id == %@", dtoID as CVarArg); return r }()
             descriptor.fetchLimit = 1
-            let existing: Lesson?
+            let existing: CDLesson?
             do {
-                existing = try modelContext.fetch(descriptor).first
+                existing = try viewContext.fetch(descriptor).first
             } catch {
                 Self.logger.warning("Failed to fetch lesson: \(error)")
                 continue
@@ -256,9 +256,9 @@ public final class ConflictResolutionService {
 
             conflicts.append(Conflict(
                 id: UUID(),
-                entityType: "Lesson",
+                entityType: "CDLesson",
                 entityID: dto.id,
-                localUpdatedAt: nil, // Lesson doesn't have updatedAt
+                localUpdatedAt: nil, // CDLesson doesn't have updatedAt
                 backupUpdatedAt: dto.updatedAt,
                 localSummary: existing.name,
                 backupSummary: dto.name,
@@ -271,17 +271,17 @@ public final class ConflictResolutionService {
 
     private func analyzeNoteConflicts(
         _ dtos: [NoteDTO],
-        modelContext: ModelContext
+        viewContext: NSManagedObjectContext
     ) -> [Conflict] {
         var conflicts: [Conflict] = []
 
         for dto in dtos {
             let dtoID = dto.id
-            var descriptor = FetchDescriptor<Note>(predicate: #Predicate { $0.id == dtoID })
+            var descriptor = { let r = CDNote.fetchRequest() as! NSFetchRequest<CDNote>; r.predicate = NSPredicate(format: "id == %@", dtoID as CVarArg); return r }()
             descriptor.fetchLimit = 1
-            let existing: Note?
+            let existing: CDNote?
             do {
-                existing = try modelContext.fetch(descriptor).first
+                existing = try viewContext.fetch(descriptor).first
             } catch {
                 Self.logger.warning("Failed to fetch note: \(error)")
                 continue
@@ -293,7 +293,7 @@ public final class ConflictResolutionService {
 
             conflicts.append(Conflict(
                 id: UUID(),
-                entityType: "Note",
+                entityType: "CDNote",
                 entityID: dto.id,
                 localUpdatedAt: existing.updatedAt,
                 backupUpdatedAt: dto.updatedAt,
@@ -308,17 +308,17 @@ public final class ConflictResolutionService {
 
     private func analyzeProjectConflicts(
         _ dtos: [ProjectDTO],
-        modelContext: ModelContext
+        viewContext: NSManagedObjectContext
     ) -> [Conflict] {
         var conflicts: [Conflict] = []
 
         for dto in dtos {
             let dtoID = dto.id
-            var descriptor = FetchDescriptor<Project>(predicate: #Predicate { $0.id == dtoID })
+            var descriptor = { let r = CDProject.fetchRequest() as! NSFetchRequest<CDProject>; r.predicate = NSPredicate(format: "id == %@", dtoID as CVarArg); return r }()
             descriptor.fetchLimit = 1
-            let existing: Project?
+            let existing: CDProject?
             do {
-                existing = try modelContext.fetch(descriptor).first
+                existing = try viewContext.fetch(descriptor).first
             } catch {
                 Self.logger.warning("Failed to fetch project: \(error)")
                 continue
@@ -327,7 +327,7 @@ public final class ConflictResolutionService {
 
             conflicts.append(Conflict(
                 id: UUID(),
-                entityType: "Project",
+                entityType: "CDProject",
                 entityID: dto.id,
                 localUpdatedAt: nil,
                 backupUpdatedAt: nil,
@@ -342,13 +342,13 @@ public final class ConflictResolutionService {
 
     // MARK: - Update Helpers
 
-    private func updateStudent(_ dto: StudentDTO, in modelContext: ModelContext) throws {
+    private func updateStudent(_ dto: StudentDTO, in viewContext: NSManagedObjectContext) throws {
         let dtoID = dto.id
-        var descriptor = FetchDescriptor<Student>(predicate: #Predicate { $0.id == dtoID })
+        var descriptor = { let r = CDStudent.fetchRequest() as! NSFetchRequest<CDStudent>; r.predicate = NSPredicate(format: "id == %@", dtoID as CVarArg); return r }()
         descriptor.fetchLimit = 1
-        let student: Student?
+        let student: CDStudent?
         do {
-            student = try modelContext.fetch(descriptor).first
+            student = try viewContext.fetch(descriptor).first
         } catch {
             Self.logger.error("Failed to fetch student: \(error.localizedDescription, privacy: .public)")
             return
@@ -360,17 +360,17 @@ public final class ConflictResolutionService {
         student.birthday = dto.birthday
         student.dateStarted = dto.dateStarted
         student.level = dto.level == .upper ? .upper : .lower
-        student.nextLessons = dto.nextLessons.map(\.uuidString)
-        student.manualOrder = dto.manualOrder
+        student.nextLessonUUIDs = dto.nextLessons
+        student.manualOrder = Int64(dto.manualOrder)
     }
 
-    private func updateLesson(_ dto: LessonDTO, in modelContext: ModelContext) throws {
+    private func updateLesson(_ dto: LessonDTO, in viewContext: NSManagedObjectContext) throws {
         let dtoID = dto.id
-        var descriptor = FetchDescriptor<Lesson>(predicate: #Predicate { $0.id == dtoID })
+        var descriptor = { let r = CDLesson.fetchRequest() as! NSFetchRequest<CDLesson>; r.predicate = NSPredicate(format: "id == %@", dtoID as CVarArg); return r }()
         descriptor.fetchLimit = 1
-        let lesson: Lesson?
+        let lesson: CDLesson?
         do {
-            lesson = try modelContext.fetch(descriptor).first
+            lesson = try viewContext.fetch(descriptor).first
         } catch {
             Self.logger.error("Failed to fetch lesson: \(error.localizedDescription, privacy: .public)")
             return
@@ -380,7 +380,7 @@ public final class ConflictResolutionService {
         lesson.name = dto.name
         lesson.subject = dto.subject
         lesson.group = dto.group
-        lesson.orderInGroup = dto.orderInGroup
+        lesson.orderInGroup = Int64(dto.orderInGroup)
         lesson.subheading = dto.subheading
         lesson.writeUp = dto.writeUp
         if let pages = dto.pagesFileRelativePath {
@@ -388,13 +388,13 @@ public final class ConflictResolutionService {
         }
     }
 
-    private func updateNote(_ dto: NoteDTO, in modelContext: ModelContext) throws {
+    private func updateNote(_ dto: NoteDTO, in viewContext: NSManagedObjectContext) throws {
         let dtoID = dto.id
-        var descriptor = FetchDescriptor<Note>(predicate: #Predicate { $0.id == dtoID })
+        var descriptor = { let r = CDNote.fetchRequest() as! NSFetchRequest<CDNote>; r.predicate = NSPredicate(format: "id == %@", dtoID as CVarArg); return r }()
         descriptor.fetchLimit = 1
-        let note: Note?
+        let note: CDNote?
         do {
-            note = try modelContext.fetch(descriptor).first
+            note = try viewContext.fetch(descriptor).first
         } catch {
             Self.logger.error("Failed to fetch note: \(error.localizedDescription, privacy: .public)")
             return
@@ -414,13 +414,13 @@ public final class ConflictResolutionService {
         }
     }
 
-    private func updateProject(_ dto: ProjectDTO, in modelContext: ModelContext) throws {
+    private func updateProject(_ dto: ProjectDTO, in viewContext: NSManagedObjectContext) throws {
         let dtoID = dto.id
-        var descriptor = FetchDescriptor<Project>(predicate: #Predicate { $0.id == dtoID })
+        var descriptor = { let r = CDProject.fetchRequest() as! NSFetchRequest<CDProject>; r.predicate = NSPredicate(format: "id == %@", dtoID as CVarArg); return r }()
         descriptor.fetchLimit = 1
-        let project: Project?
+        let project: CDProject?
         do {
-            project = try modelContext.fetch(descriptor).first
+            project = try viewContext.fetch(descriptor).first
         } catch {
             Self.logger.error("Failed to fetch project: \(error.localizedDescription, privacy: .public)")
             return
@@ -429,6 +429,6 @@ public final class ConflictResolutionService {
 
         project.title = dto.title
         project.bookTitle = dto.bookTitle
-        project.memberStudentIDs = dto.memberStudentIDs
+        project.memberStudentIDsArray = dto.memberStudentIDs
     }
 }

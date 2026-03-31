@@ -1,30 +1,33 @@
 import SwiftUI
-import SwiftData
+import CoreData
 
-/// Unified notes section for a LessonAssignment that displays both new Note objects and legacy string field
+/// Unified notes section for a CDLessonAssignment that displays both new CDNote objects and legacy string field
 struct PresentationNotesSectionUnified: View {
-    let lessonAssignment: LessonAssignment
+    let lessonAssignment: CDLessonAssignment
     @Binding var legacyNotes: String
     let onLegacyNotesChange: (String) -> Void
 
-    @Environment(\.modelContext) private var modelContext
+    @Environment(\.managedObjectContext) private var viewContext
     @State private var showAddNoteSheet: Bool = false
-    @State private var noteBeingEdited: Note?
+    @State private var noteBeingEdited: CDNote?
 
-    // We already have the LessonAssignment directly — no matching needed
-    private var matchedLessonAssignments: [LessonAssignment] {
+    // We already have the CDLessonAssignment directly — no matching needed
+    private var matchedLessonAssignments: [CDLessonAssignment] {
         [lessonAssignment]
     }
 
     private var matchedAssignmentIDs: Set<UUID> {
-        Set([lessonAssignment.id])
+        if let id = lessonAssignment.id {
+            return Set([id])
+        }
+        return []
     }
 
     // Get notes from WorkModels associated with this lesson assignment
-    private var workNotesForThisPresentation: [Note] {
+    private var workNotesForThisPresentation: [CDNote] {
         do {
             // Fetch all Notes to avoid SwiftData predicate limitations
-            let allNotes = try modelContext.fetch(FetchDescriptor<Note>())
+            let allNotes = try viewContext.fetch(NSFetchRequest<CDNote>(entityName: "CDNote"))
 
             // Convert studentIDs (String array) to UUID set for comparison
             let presentationStudentIDs = Set(lessonAssignment.studentIDs.compactMap { UUID(uuidString: $0) })
@@ -52,32 +55,33 @@ struct PresentationNotesSectionUnified: View {
         }
     }
 
-    // Get lesson-attached notes from the LessonAssignment
-    private var lessonNotes: [Note] {
-        lessonAssignment.unifiedNotes ?? []
+    // Get lesson-attached notes from the CDLessonAssignment
+    private var lessonNotes: [CDNote] {
+        (lessonAssignment.unifiedNotes?.allObjects as? [CDNote]) ?? []
     }
     
     // Get all unified notes (lesson + work),
     // merged, de-duplicated, and sorted
-    private var allUnifiedNotes: [Note] {
+    private var allUnifiedNotes: [CDNote] {
         let lessonNotes = self.lessonNotes
         let workNotes = workNotesForThisPresentation
 
         // Merge and de-duplicate by note.id (keep first occurrence)
         var seenIDs: Set<UUID> = []
-        var merged: [Note] = []
+        var merged: [CDNote] = []
 
-        for note in lessonNotes + workNotes where !seenIDs.contains(note.id) {
-            seenIDs.insert(note.id)
+        for note in lessonNotes + workNotes {
+            guard let noteID = note.id, !seenIDs.contains(noteID) else { continue }
+            seenIDs.insert(noteID)
             merged.append(note)
         }
-        
+
         // Sort by createdAt descending
-        return merged.sorted { $0.createdAt > $1.createdAt }
+        return merged.sorted { ($0.createdAt ?? .distantPast) > ($1.createdAt ?? .distantPast) }
     }
     
     // Legacy computed property for backwards compatibility (now just uses allUnifiedNotes)
-    private var unifiedNotes: [Note] {
+    private var unifiedNotes: [CDNote] {
         allUnifiedNotes
     }
     
@@ -101,10 +105,10 @@ struct PresentationNotesSectionUnified: View {
                         .foregroundStyle(.accent)
                 }
             }
-            // Show Note objects
+            // Show CDNote objects
             if !allUnifiedNotes.isEmpty {
                 VStack(alignment: .leading, spacing: 8) {
-                    ForEach(allUnifiedNotes, id: \.id) { note in
+                    ForEach(allUnifiedNotes, id: \.objectID) { note in
                         unifiedNoteRow(note)
                     }
                 }
@@ -136,7 +140,7 @@ struct PresentationNotesSectionUnified: View {
                 context: .presentation(lessonAssignment),
                 initialNote: nil,
                 onSave: { _ in
-                    // Note is automatically saved via relationship
+                    // CDNote is automatically saved via relationship
                     showAddNoteSheet = false
                 },
                 onCancel: {
@@ -159,14 +163,14 @@ struct PresentationNotesSectionUnified: View {
     }
     
     @ViewBuilder
-    private func unifiedNoteRow(_ note: Note) -> some View {
+    private func unifiedNoteRow(_ note: CDNote) -> some View {
         VStack(alignment: .leading, spacing: 6) {
             HStack(spacing: 8) {
-                ForEach(note.tags, id: \.self) { tag in
+                ForEach(note.tagsArray, id: \.self) { tag in
                     TagBadge(tag: tag, compact: true)
                 }
                 Spacer()
-                Text(note.createdAt, style: .date)
+                Text(note.createdAt ?? Date(), style: .date)
                     .font(.caption)
                     .foregroundStyle(.secondary)
             }

@@ -1,16 +1,16 @@
 // swiftlint:disable file_length
 import SwiftUI
-import SwiftData
+import CoreData
 import OSLog
 
 // swiftlint:disable:next type_body_length
 struct ObservationHeatmapView: View {
     private static let logger = Logger.students
-    @Environment(\.modelContext) private var modelContext
-    @Query(sort: Student.sortByName)
-    private var allStudentsRaw: [Student]
+    @Environment(\.managedObjectContext) private var viewContext
+    @FetchRequest(sortDescriptors: [NSSortDescriptor(keyPath: \CDStudent.firstName, ascending: true), NSSortDescriptor(keyPath: \CDStudent.lastName, ascending: true)])
+    private var allStudentsRaw: FetchedResults<CDStudent>
     // DEDUPLICATION: CloudKit sync can create duplicate records with the same ID.
-    private var allStudents: [Student] { allStudentsRaw.uniqueByID }
+    private var allStudents: [CDStudent] { Array(allStudentsRaw).uniqueByID }
     
     @State private var studentObservations: [StudentObservation] = []
     @State private var showingQuickNote: Bool = false
@@ -104,28 +104,30 @@ struct ObservationHeatmapView: View {
     private struct ObservationLookups {
         var meetingsByStudentID: [String: Date] = [:]
         var workIDsByStudentID: [String: Set<UUID>] = [:]
-        var lessonAssignmentsByID: [UUID: LessonAssignment] = [:]
-        var studentScopedNotesByStudentID: [UUID: [Note]] = [:]
-        var workNotesByWorkID: [UUID: Note] = [:]
-        var presentationNotesByPresentationID: [UUID: Note] = [:]
+        var lessonAssignmentsByID: [UUID: CDLessonAssignment] = [:]
+        var studentScopedNotesByStudentID: [UUID: [CDNote]] = [:]
+        var workNotesByWorkID: [UUID: CDNote] = [:]
+        var presentationNotesByPresentationID: [UUID: CDNote] = [:]
     }
 
     /// Fetches all entities once and builds lookup dictionaries.
     private func buildObservationLookups() -> ObservationLookups {
         var lookups = ObservationLookups()
-        let context = modelContext
+        let context = viewContext
 
-        let allMeetings = (try? context.fetch(FetchDescriptor<StudentMeeting>())) ?? []
-        let allWorkModels = (try? context.fetch(FetchDescriptor<WorkModel>())) ?? []
-        let allNotes = (try? context.fetch(FetchDescriptor<Note>())) ?? []
-        let allAssignments = (try? context.fetch(FetchDescriptor<LessonAssignment>())) ?? []
+        let allMeetings = (try? context.fetch(NSFetchRequest<CDStudentMeeting>(entityName: "StudentMeeting"))) ?? []
+        let allWorkModels = (try? context.fetch(NSFetchRequest<CDWorkModel>(entityName: "WorkModel"))) ?? []
+        let allNotes = (try? context.fetch(NSFetchRequest<CDNote>(entityName: "Note"))) ?? []
+        let allAssignments = (try? context.fetch(NSFetchRequest<CDLessonAssignment>(entityName: "LessonAssignment"))) ?? []
 
         buildMeetingLookup(from: allMeetings, into: &lookups)
         for work in allWorkModels {
-            lookups.workIDsByStudentID[work.studentID, default: []].insert(work.id)
+            guard let workID = work.id else { continue }
+            lookups.workIDsByStudentID[work.studentID, default: []].insert(workID)
         }
         for assignment in allAssignments {
-            lookups.lessonAssignmentsByID[assignment.id] = assignment
+            guard let assignmentID = assignment.id else { continue }
+            lookups.lessonAssignmentsByID[assignmentID] = assignment
         }
         buildNoteLookups(from: allNotes, into: &lookups)
 
@@ -133,7 +135,7 @@ struct ObservationHeatmapView: View {
     }
 
     /// Groups meetings by studentID, keeping the most recent date with content.
-    private func buildMeetingLookup(from meetings: [StudentMeeting], into lookups: inout ObservationLookups) {
+    private func buildMeetingLookup(from meetings: [CDStudentMeeting], into lookups: inout ObservationLookups) {
         for meeting in meetings {
             let hasContent = !meeting.reflection.trimmed().isEmpty ||
                             !meeting.focus.trimmed().isEmpty ||
@@ -141,36 +143,37 @@ struct ObservationHeatmapView: View {
                             !meeting.guideNotes.trimmed().isEmpty
             guard hasContent else { continue }
 
+            let meetingDate = meeting.date ?? .distantPast
             if let existing = lookups.meetingsByStudentID[meeting.studentID] {
-                if meeting.date > existing { lookups.meetingsByStudentID[meeting.studentID] = meeting.date }
+                if meetingDate > existing { lookups.meetingsByStudentID[meeting.studentID] = meetingDate }
             } else {
-                lookups.meetingsByStudentID[meeting.studentID] = meeting.date
+                lookups.meetingsByStudentID[meeting.studentID] = meetingDate
             }
         }
     }
 
     /// Groups notes by scope (student, work, presentation), keeping the most recent per key.
-    private func buildNoteLookups(from notes: [Note], into lookups: inout ObservationLookups) {
+    private func buildNoteLookups(from notes: [CDNote], into lookups: inout ObservationLookups) {
         for note in notes {
             if case .student(let studentID) = note.scope {
                 lookups.studentScopedNotesByStudentID[studentID, default: []].append(note)
             }
-            if let work = note.work {
-                updateMostRecentNote(for: work.id, note: note, in: &lookups.workNotesByWorkID)
+            if let work = note.work, let workID = work.id {
+                updateMostRecentNote(for: workID, note: note, in: &lookups.workNotesByWorkID)
             }
-            if let assignment = note.lessonAssignment {
+            if let assignment = note.lessonAssignment, let assignmentID = assignment.id {
                 updateMostRecentNote(
-                    for: assignment.id, note: note, in: &lookups.presentationNotesByPresentationID
+                    for: assignmentID, note: note, in: &lookups.presentationNotesByPresentationID
                 )
             }
         }
     }
 
     /// Keeps the most recent note per key in a dictionary.
-    private func updateMostRecentNote(for key: UUID, note: Note, in dict: inout [UUID: Note]) {
-        let noteDate = max(note.updatedAt, note.createdAt)
+    private func updateMostRecentNote(for key: UUID, note: CDNote, in dict: inout [UUID: CDNote]) {
+        let noteDate = max(note.updatedAt ?? .distantPast, note.createdAt ?? .distantPast)
         if let existing = dict[key] {
-            let existingDate = max(existing.updatedAt, existing.createdAt)
+            let existingDate = max(existing.updatedAt ?? .distantPast, existing.createdAt ?? .distantPast)
             if noteDate > existingDate { dict[key] = note }
         } else {
             dict[key] = note
@@ -180,36 +183,36 @@ struct ObservationHeatmapView: View {
     // Finds the most recent observation date for a student using pre-built lookups.
     // swiftlint:disable:next cyclomatic_complexity
     private func findMostRecentDateFromLookups(
-        for student: Student, lookups: ObservationLookups
+        for student: CDStudent, lookups: ObservationLookups
     ) -> Date? {
         var mostRecentDate: Date?
-        let studentIDString = student.id.uuidString
+        let studentIDString = student.id?.uuidString ?? ""
 
         // 1) Student-scoped notes
-        if let studentNotes = lookups.studentScopedNotesByStudentID[student.id] {
+        if let sid = student.id, let studentNotes = lookups.studentScopedNotesByStudentID[sid] {
             for note in studentNotes {
-                let noteDate = max(note.updatedAt, note.createdAt)
+                let noteDate = max(note.updatedAt ?? .distantPast, note.createdAt ?? .distantPast)
                 if mostRecentDate == nil || noteDate > mostRecentDate! { mostRecentDate = noteDate }
             }
         }
-        // 2) WorkModel notes
+        // 2) CDWorkModel notes
         if let workIDs = lookups.workIDsByStudentID[studentIDString] {
             for workID in workIDs {
                 if let note = lookups.workNotesByWorkID[workID] {
-                    let noteDate = max(note.updatedAt, note.createdAt)
+                    let noteDate = max(note.updatedAt ?? .distantPast, note.createdAt ?? .distantPast)
                     if mostRecentDate == nil || noteDate > mostRecentDate! { mostRecentDate = noteDate }
                 }
             }
         }
-        // 3) LessonAssignment notes
+        // 3) CDLessonAssignment notes
         for (assignmentID, assignment) in lookups.lessonAssignmentsByID
             where assignment.studentIDs.contains(studentIDString) {
             if let note = lookups.presentationNotesByPresentationID[assignmentID] {
-                let noteDate = max(note.updatedAt, note.createdAt)
+                let noteDate = max(note.updatedAt ?? .distantPast, note.createdAt ?? .distantPast)
                 if mostRecentDate == nil || noteDate > mostRecentDate! { mostRecentDate = noteDate }
             }
         }
-        // 4) StudentMeeting records
+        // 4) CDStudentMeeting records
         if let meetingDate = lookups.meetingsByStudentID[studentIDString] {
             if mostRecentDate == nil || meetingDate > mostRecentDate! { mostRecentDate = meetingDate }
         }
@@ -228,19 +231,19 @@ struct ObservationHeatmapView: View {
     }
 
     /// Per-student fetch version (used by synchronous `calculateObservations`).
-    private func findMostRecentNoteDate(for student: Student) -> Date? {
+    private func findMostRecentNoteDate(for student: CDStudent) -> Date? {
         var mostRecentDate: Date?
-        let studentIDString = student.id.uuidString
+        let studentIDString = student.id?.uuidString ?? ""
 
         // 1) Student-scoped notes
         mostRecentDate = findMostRecentStudentScopedNoteDate(for: student)
 
-        // 2) LessonAssignment notes
+        // 2) CDLessonAssignment notes
         mostRecentDate = findMostRecentPresentationNoteDate(
             studentIDString: studentIDString, current: mostRecentDate
         )
 
-        // 3) StudentMeeting records
+        // 3) CDStudentMeeting records
         mostRecentDate = findMostRecentMeetingDate(
             studentIDString: studentIDString, current: mostRecentDate
         )
@@ -248,13 +251,13 @@ struct ObservationHeatmapView: View {
         return mostRecentDate
     }
 
-    private func findMostRecentStudentScopedNoteDate(for student: Student) -> Date? {
-        let noteDesc = FetchDescriptor<Note>()
-        let allNotes = (try? modelContext.fetch(noteDesc)) ?? []
+    private func findMostRecentStudentScopedNoteDate(for student: CDStudent) -> Date? {
+        let noteDesc = NSFetchRequest<CDNote>(entityName: "Note")
+        let allNotes = (try? viewContext.fetch(noteDesc)) ?? []
         var mostRecent: Date?
         for note in allNotes {
             guard case .student(let id) = note.scope, id == student.id else { continue }
-            let noteDate = max(note.updatedAt, note.createdAt)
+            let noteDate = max(note.updatedAt ?? .distantPast, note.createdAt ?? .distantPast)
             if mostRecent == nil || noteDate > mostRecent! { mostRecent = noteDate }
         }
         return mostRecent
@@ -263,26 +266,24 @@ struct ObservationHeatmapView: View {
     private func findMostRecentPresentationNoteDate(
         studentIDString: String, current: Date?
     ) -> Date? {
-        let fetch = FetchDescriptor<Note>(
-            predicate: #Predicate<Note> { $0.lessonAssignment != nil }
-        )
-        let notes = (try? modelContext.fetch(fetch)) ?? []
+        let fetch: NSFetchRequest<CDNote> = NSFetchRequest(entityName: "Note")
+        fetch.predicate = NSPredicate(format: "lessonAssignment != nil")
+        let notes = (try? viewContext.fetch(fetch)) ?? []
         var mostRecent = current
         for note in notes {
             guard let pres = note.lessonAssignment,
                   pres.studentIDs.contains(studentIDString) else { continue }
-            let noteDate = max(note.updatedAt, note.createdAt)
+            let noteDate = max(note.updatedAt ?? .distantPast, note.createdAt ?? .distantPast)
             if mostRecent == nil || noteDate > mostRecent! { mostRecent = noteDate }
         }
         return mostRecent
     }
 
     private func findMostRecentMeetingDate(studentIDString: String, current: Date?) -> Date? {
-        let fetch = FetchDescriptor<StudentMeeting>(
-            predicate: #Predicate<StudentMeeting> { $0.studentID == studentIDString },
-            sortBy: [SortDescriptor(\StudentMeeting.date, order: .reverse)]
-        )
-        let meetings = (try? modelContext.fetch(fetch)) ?? []
+        let fetch: NSFetchRequest<CDStudentMeeting> = NSFetchRequest(entityName: "StudentMeeting")
+        fetch.predicate = NSPredicate(format: "studentID == %@", studentIDString as CVarArg)
+        fetch.sortDescriptors = [NSSortDescriptor(keyPath: \CDStudentMeeting.date, ascending: false)]
+        let meetings = (try? viewContext.fetch(fetch)) ?? []
         var mostRecent = current
         for meeting in meetings {
             let hasContent = !meeting.reflection.trimmed().isEmpty ||
@@ -290,7 +291,8 @@ struct ObservationHeatmapView: View {
                             !meeting.requests.trimmed().isEmpty ||
                             !meeting.guideNotes.trimmed().isEmpty
             if hasContent {
-                if mostRecent == nil || meeting.date > mostRecent! { mostRecent = meeting.date }
+                let meetingDate = meeting.date ?? .distantPast
+                if mostRecent == nil || meetingDate > mostRecent! { mostRecent = meetingDate }
             }
         }
         return mostRecent
@@ -325,12 +327,12 @@ struct ObservationHeatmapView: View {
 
 struct StudentObservation: Identifiable {
     let id: UUID
-    let student: Student
+    let student: CDStudent
     let daysSinceLastObservation: Int
     let mostRecentDate: Date?
     
-    init(student: Student, daysSinceLastObservation: Int, mostRecentDate: Date?) {
-        self.id = student.id
+    init(student: CDStudent, daysSinceLastObservation: Int, mostRecentDate: Date?) {
+        self.id = student.id ?? UUID()
         self.student = student
         self.daysSinceLastObservation = daysSinceLastObservation
         self.mostRecentDate = mostRecentDate

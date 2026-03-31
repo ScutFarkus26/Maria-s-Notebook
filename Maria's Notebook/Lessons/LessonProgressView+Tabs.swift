@@ -2,7 +2,7 @@
 // Presentations, Work, and Practice tab content extracted from LessonProgressView
 
 import SwiftUI
-import SwiftData
+import CoreData
 
 extension LessonProgressView {
     // MARK: - Presentations Tab
@@ -56,7 +56,7 @@ extension LessonProgressView {
 
                 Spacer()
 
-                let students = presentation.fetchStudents(from: modelContext)
+                let students = presentation.fetchStudents(from: viewContext)
                 StatusPill(
                     text: "\(students.count) \(students.count == 1 ? "student" : "students")",
                     color: .secondary,
@@ -65,7 +65,7 @@ extension LessonProgressView {
             }
 
             // Related work summary
-            let work = allWork.filter { $0.presentationID == presentation.id.uuidString }
+            let work = allWork.filter { $0.presentationID == presentation.id?.uuidString }
             if !work.isEmpty {
                 HStack(spacing: AppTheme.Spacing.verySmall) {
                     Image(systemName: "arrow.right")
@@ -114,7 +114,7 @@ extension LessonProgressView {
     }
 
     @ViewBuilder
-    func workRow(_ work: WorkModel) -> some View {
+    func workRow(_ work: CDWorkModel) -> some View {
         HStack(spacing: AppTheme.Spacing.compact) {
             ZStack {
                 Circle()
@@ -131,7 +131,7 @@ extension LessonProgressView {
                     .font(AppTheme.ScaledFont.bodySemibold)
 
                 HStack(spacing: AppTheme.Spacing.verySmall) {
-                    if let student = work.fetchStudent(from: modelContext) {
+                    if let student = work.fetchStudent(from: viewContext) {
                         Text(StudentFormatter.displayName(for: student))
                             .font(AppTheme.ScaledFont.caption)
                             .foregroundStyle(.secondary)
@@ -206,7 +206,7 @@ extension LessonProgressView {
                     Text(session.isGroupSession ? "Group Practice" : "Solo Practice")
                         .font(AppTheme.ScaledFont.bodySemibold)
 
-                    Text(session.date.formatted(date: .abbreviated, time: .omitted))
+                    Text((session.date ?? Date()).formatted(date: .abbreviated, time: .omitted))
                         .font(AppTheme.ScaledFont.caption)
                         .foregroundStyle(.secondary)
                 }
@@ -223,7 +223,7 @@ extension LessonProgressView {
             }
 
             // Students
-            let students = session.fetchStudents(from: modelContext)
+            let students = session.fetchStudents(from: viewContext)
             if !students.isEmpty {
                 HStack(spacing: AppTheme.Spacing.verySmall) {
                     Image(systemName: "person.2")

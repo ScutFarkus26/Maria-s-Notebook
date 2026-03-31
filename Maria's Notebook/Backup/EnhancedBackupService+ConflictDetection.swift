@@ -1,5 +1,5 @@
 import Foundation
-import SwiftData
+import CoreData
 
 // MARK: - Conflict Detection
 
@@ -9,7 +9,7 @@ extension EnhancedBackupService {
     /// This helps identify issues before attempting a restore operation
     func detectRestoreConflicts(
         payload: BackupPayload,
-        modelContext: ModelContext,
+        viewContext: NSManagedObjectContext,
         mode: RestoreMode
     ) async throws -> [CloudSyncConflictResolver.Conflict] {
         var conflicts: [CloudSyncConflictResolver.Conflict] = []
@@ -20,7 +20,7 @@ extension EnhancedBackupService {
         }
 
         let backupCounts = getPayloadEntityCounts(payload)
-        let localCounts = try currentEntityCounts(modelContext: modelContext)
+        let localCounts = try currentEntityCounts(viewContext: viewContext)
         let localInfo = makeLocalBackupInfo(entityCounts: localCounts)
         let incomingInfo = makeIncomingBackupInfo(entityCounts: backupCounts)
 
@@ -44,7 +44,7 @@ extension EnhancedBackupService {
         }
 
         // Entity-level overlap detects likely duplicates during merge.
-        let duplicateCandidates = try duplicateConflictCandidates(payload: payload, modelContext: modelContext)
+        let duplicateCandidates = try duplicateConflictCandidates(payload: payload, viewContext: viewContext)
         for candidate in duplicateCandidates {
             conflicts.append(
                 CloudSyncConflictResolver.Conflict(
@@ -71,27 +71,27 @@ extension EnhancedBackupService {
         ]
     }
 
-    func currentEntityCounts(modelContext: ModelContext) throws -> [String: Int] {
+    func currentEntityCounts(viewContext: NSManagedObjectContext) throws -> [String: Int] {
         [
-            "students": try modelContext.fetchCount(FetchDescriptor<Student>()),
-            "lessons": try modelContext.fetchCount(FetchDescriptor<Lesson>()),
-            "notes": try modelContext.fetchCount(FetchDescriptor<Note>()),
-            "attendance": try modelContext.fetchCount(FetchDescriptor<AttendanceRecord>()),
-            "lessonAssignments": try modelContext.fetchCount(FetchDescriptor<LessonAssignment>())
+            "students": try viewContext.count(for: CDFetchRequest(CDStudent.self)),
+            "lessons": try viewContext.count(for: CDFetchRequest(CDLesson.self)),
+            "notes": try viewContext.count(for: CDFetchRequest(CDNote.self)),
+            "attendance": try viewContext.count(for: CDFetchRequest(CDAttendanceRecord.self)),
+            "lessonAssignments": try viewContext.count(for: CDFetchRequest(CDLessonAssignment.self))
         ]
     }
 
     func duplicateConflictCandidates(
         payload: BackupPayload,
-        modelContext: ModelContext
+        viewContext: NSManagedObjectContext
     ) throws -> [String] {
         var conflicts: [String] = []
 
-        let localStudentIDs = Set(try modelContext.fetch(FetchDescriptor<Student>()).map(\.id))
-        let localLessonIDs = Set(try modelContext.fetch(FetchDescriptor<Lesson>()).map(\.id))
-        let localNoteIDs = Set(try modelContext.fetch(FetchDescriptor<Note>()).map(\.id))
-        let localAttendanceIDs = Set(try modelContext.fetch(FetchDescriptor<AttendanceRecord>()).map(\.id))
-        let localAssignmentIDs = Set(try modelContext.fetch(FetchDescriptor<LessonAssignment>()).map(\.id))
+        let localStudentIDs = Set(viewContext.safeFetch(CDFetchRequest(CDStudent.self)).compactMap(\.id))
+        let localLessonIDs = Set(viewContext.safeFetch(CDFetchRequest(CDLesson.self)).compactMap(\.id))
+        let localNoteIDs = Set(viewContext.safeFetch(CDFetchRequest(CDNote.self)).compactMap(\.id))
+        let localAttendanceIDs = Set(viewContext.safeFetch(CDFetchRequest(CDAttendanceRecord.self)).compactMap(\.id))
+        let localAssignmentIDs = Set(viewContext.safeFetch(CDFetchRequest(CDLessonAssignment.self)).compactMap(\.id))
 
         appendDuplicateConflict(
             label: "students",

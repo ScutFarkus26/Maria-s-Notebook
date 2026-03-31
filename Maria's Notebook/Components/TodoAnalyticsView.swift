@@ -3,9 +3,9 @@ import Charts
 
 struct TodoAnalyticsView: View {
     @Environment(\.dismiss) private var dismiss
-    let todos: [TodoItem]
+    let todos: [CDTodoItem]
     
-    private var completedTodos: [TodoItem] {
+    private var completedTodos: [CDTodoItem] {
         todos.filter(\.isCompleted)
     }
     
@@ -14,7 +14,7 @@ struct TodoAnalyticsView: View {
         return Double(completedTodos.count) / Double(todos.count) * 100
     }
     
-    private var completedLast7Days: [TodoItem] {
+    private var completedLast7Days: [CDTodoItem] {
         let sevenDaysAgo = Calendar.current.date(byAdding: .day, value: -7, to: Date()) ?? Date()
         return completedTodos.filter { todo in
             guard let completedAt = todo.completedAt else { return false }
@@ -22,7 +22,7 @@ struct TodoAnalyticsView: View {
         }
     }
     
-    private var completedLast30Days: [TodoItem] {
+    private var completedLast30Days: [CDTodoItem] {
         let thirtyDaysAgo = Calendar.current.date(byAdding: .day, value: -30, to: Date()) ?? Date()
         return completedTodos.filter { todo in
             guard let completedAt = todo.completedAt else { return false }
@@ -33,7 +33,7 @@ struct TodoAnalyticsView: View {
     private var tagBreakdown: [(tag: String, count: Int)] {
         var tagCounts: [String: Int] = [:]
         for todo in completedTodos {
-            for tag in todo.tags {
+            for tag in todo.tagsArray {
                 tagCounts[tag, default: 0] += 1
             }
         }

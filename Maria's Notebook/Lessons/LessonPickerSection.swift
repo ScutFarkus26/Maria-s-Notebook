@@ -1,5 +1,5 @@
 // LessonPickerSection.swift
-// Thin wrapper around the core Lesson picker UI, extracted for reuse.
+// Thin wrapper around the core CDLesson picker UI, extracted for reuse.
 // This view delegates to `LessonSection` (defined in the lesson picker components)
 // and forwards a view model plus the computed display-title function.
 //
@@ -8,9 +8,9 @@
 // - Keep this file tiny so the main picker components remain discoverable.
 
 import SwiftUI
-import SwiftData
+import CoreData
 
-/// A lightweight wrapper that renders the shared Lesson picker UI.
+/// A lightweight wrapper that renders the shared CDLesson picker UI.
 ///
 /// - Parameters:
 ///   - viewModel: The `LessonPickerViewModel` driving the selection and search.
@@ -19,7 +19,7 @@ import SwiftData
 @MainActor
 struct LessonPickerSection: View {
     @Bindable var viewModel: LessonPickerViewModel
-    let resolvedLesson: Lesson?
+    let resolvedLesson: CDLesson?
     @Binding var isFocused: Bool
 
     var body: some View {

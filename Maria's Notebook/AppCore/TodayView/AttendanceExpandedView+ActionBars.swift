@@ -23,8 +23,8 @@ extension AttendanceExpandedView {
 
             // Mark All Present
             Button {
-                viewModel.markAllPresent(students: filteredStudents, modelContext: modelContext)
-                saveCoordinator.save(modelContext, reason: "Mark all present")
+                viewModel.markAllPresent(students: filteredStudents, modelContext: viewContext)
+                saveCoordinator.save(viewContext, reason: "Mark all present")
                 onChange()
             } label: {
                 Label("All Present", systemImage: "checkmark.circle.fill")
@@ -46,8 +46,8 @@ extension AttendanceExpandedView {
 
                 // Reset
                 Button(role: .destructive) {
-                    viewModel.resetDay(students: filteredStudents, modelContext: modelContext)
-                    saveCoordinator.save(modelContext, reason: "Reset day")
+                    viewModel.resetDay(students: filteredStudents, modelContext: viewContext)
+                    saveCoordinator.save(viewContext, reason: "Reset day")
                     onChange()
                 } label: {
                     Label("Reset Day", systemImage: SFSymbol.Action.arrowCounterclockwise)
@@ -115,8 +115,8 @@ extension AttendanceExpandedView {
 
             // Reset
             Button {
-                viewModel.resetDay(students: filteredStudents, modelContext: modelContext)
-                saveCoordinator.save(modelContext, reason: "Reset day")
+                viewModel.resetDay(students: filteredStudents, modelContext: viewContext)
+                saveCoordinator.save(viewContext, reason: "Reset day")
                 onChange()
             } label: {
                 Image(systemName: SFSymbol.Action.arrowCounterclockwise)
@@ -127,8 +127,8 @@ extension AttendanceExpandedView {
 
             // Mark All Present
             Button("Mark All Present") {
-                viewModel.markAllPresent(students: filteredStudents, modelContext: modelContext)
-                saveCoordinator.save(modelContext, reason: "Mark all present")
+                viewModel.markAllPresent(students: filteredStudents, modelContext: viewContext)
+                saveCoordinator.save(viewContext, reason: "Mark all present")
                 onChange()
             }
             .buttonStyle(.borderedProminent)

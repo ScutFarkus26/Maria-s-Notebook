@@ -29,7 +29,7 @@ extension BackupDiffService {
                 )
             }
 
-        return EntityDiff(entityType: "Student", added: added, removed: removed, modified: [])
+        return EntityDiff(entityType: "CDStudent", added: added, removed: removed, modified: [])
     }
 
     func compareLessons(older: [LessonDTO], newer: [LessonDTO]) -> EntityDiff {
@@ -46,7 +46,7 @@ extension BackupDiffService {
             .filter { removedIDs.contains($0.id) }
             .map { EntityChange(id: UUID(), entityID: $0.id, description: $0.name, timestamp: $0.updatedAt) }
 
-        return EntityDiff(entityType: "Lesson", added: added, removed: removed, modified: [])
+        return EntityDiff(entityType: "CDLesson", added: added, removed: removed, modified: [])
     }
 
     func compareNotes(older: [NoteDTO], newer: [NoteDTO]) -> EntityDiff {
@@ -73,7 +73,7 @@ extension BackupDiffService {
                 )
             }
 
-        return EntityDiff(entityType: "Note", added: added, removed: removed, modified: [])
+        return EntityDiff(entityType: "CDNote", added: added, removed: removed, modified: [])
     }
 
     func compareProjects(older: [ProjectDTO], newer: [ProjectDTO]) -> EntityDiff {
@@ -90,6 +90,6 @@ extension BackupDiffService {
             .filter { removedIDs.contains($0.id) }
             .map { EntityChange(id: UUID(), entityID: $0.id, description: $0.title, timestamp: $0.createdAt) }
 
-        return EntityDiff(entityType: "Project", added: added, removed: removed, modified: [])
+        return EntityDiff(entityType: "CDProject", added: added, removed: removed, modified: [])
     }
 }

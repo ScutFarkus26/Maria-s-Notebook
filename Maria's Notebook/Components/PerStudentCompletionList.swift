@@ -1,5 +1,5 @@
 import SwiftUI
-import SwiftData
+import CoreData
 
 struct StudentLite: Identifiable, Hashable {
     let id: UUID
@@ -36,7 +36,7 @@ struct PerStudentCompletionList: View {
 
     private var header: some View {
         VStack(alignment: .leading, spacing: 4) {
-            Text("Per-Student Completion")
+            Text("Per-CDStudent Completion")
                 .font(.subheadline).bold()
             Text("Mark completions for each student and view their history.")
                 .font(.footnote)
@@ -62,15 +62,6 @@ struct PerStudentCompletionList: View {
         }
     }
 
-    return PreviewContainer(PreviewHost())
-}
-
-private struct PreviewContainer<Content: View>: View {
-    private let content: Content
-    init(_ content: Content) { self.content = content }
-
-    var body: some View {
-        content
-            .modelContainer(PreviewEnvironment.previewContainer(for: [WorkCompletionRecord.self]))
-    }
+    return PreviewHost()
+        .previewEnvironment()
 }

@@ -1,0 +1,40 @@
+{
+  "source": "/Users/dannydeberry/Documents/Projects/MariasNotebook-Rewrite/Maria's Notebook/Lessons/LessonsRootView/LessonsRootViewPanes.swift",
+  "tables": {
+    "Localizable": [
+      {
+        "comment": "",
+        "key": "All Stories",
+        "location": {
+          "startingColumn": 30,
+          "startingLine": 38
+        }
+      },
+      {
+        "comment": "",
+        "key": "%lld",
+        "location": {
+          "startingColumn": 34,
+          "startingLine": 41
+        }
+      },
+      {
+        "comment": "",
+        "key": "Select a subject from the sidebar to view lessons.",
+        "location": {
+          "startingColumn": 31,
+          "startingLine": 172
+        }
+      },
+      {
+        "comment": "",
+        "key": "Select an Album",
+        "location": {
+          "startingColumn": 13,
+          "startingLine": 170
+        }
+      }
+    ]
+  },
+  "version": 1
+}

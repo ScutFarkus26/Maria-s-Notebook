@@ -1,11 +1,11 @@
 import SwiftUI
-import SwiftData
+import CoreData
 import EventKit
 
 /// Settings view for configuring Calendar sync with Apple's Calendar app.
 /// Supports selecting multiple calendars to sync.
 public struct CalendarSyncSettingsView: View {
-    @Environment(\.modelContext) private var modelContext
+    @Environment(\.managedObjectContext) private var viewContext
     @Environment(\.dependencies) private var dependencies
     @State private var syncService: CalendarSyncService
     @State private var selectedCalendarIdentifiers: Set<String> = []
@@ -94,7 +94,7 @@ public struct CalendarSyncSettingsView: View {
             }
         }
         .task {
-            syncService.modelContext = modelContext
+            syncService.managedObjectContext = viewContext
             selectedCalendarIdentifiers = Set(syncService.syncCalendarIdentifiers)
             await loadAvailableCalendars()
         }

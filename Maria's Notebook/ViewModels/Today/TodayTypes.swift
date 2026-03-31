@@ -10,14 +10,14 @@ import Foundation
 struct ScheduledWorkItem: Identifiable {
     let work: WorkModel
     let checkIn: WorkCheckIn
-    var id: UUID { checkIn.id }
+    var id: UUID { checkIn.id ?? UUID() }
 }
 
 /// Data structure for a stale follow-up (implicit WorkModel aging).
 struct FollowUpWorkItem: Identifiable {
     let work: WorkModel
     let daysSinceTouch: Int
-    var id: UUID { work.id }
+    var id: UUID { work.id ?? UUID() }
 }
 
 // MARK: - Agenda Item Types
@@ -45,8 +45,8 @@ enum AgendaItem: Identifiable {
 
     var id: UUID {
         switch self {
-        case .lesson(let sl): return sl.id
-        case .meeting(let meeting): return meeting.id
+        case .lesson(let sl): return sl.id ?? UUID()
+        case .meeting(let meeting): return meeting.id ?? UUID()
         case .scheduledWork(let item): return item.id
         case .followUp(let item): return item.id
         case .groupedScheduledWork(let items): return items.first?.id ?? UUID()

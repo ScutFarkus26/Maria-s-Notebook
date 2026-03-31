@@ -5,7 +5,7 @@ import Foundation
 struct TrackProgressResolver {
     /// Returns the total number of steps in the track.
     static func totalSteps(track: Track) -> Int {
-        let steps = (track.steps ?? []).sorted { $0.orderIndex < $1.orderIndex }
+        let steps = ((track.steps?.allObjects as? [CDTrackStepEntity]) ?? []).sorted { $0.orderIndex < $1.orderIndex }
         return steps.count
     }
     
@@ -15,7 +15,7 @@ struct TrackProgressResolver {
     /// - (masteredAt != nil OR state == .proficient)
     /// - (trackStepID matches step.id OR lessonID matches step.lessonTemplateID)
     static func proficientCount(track: Track, studentID: String, lessonPresentations: [LessonPresentation]) -> Int {
-        let steps = (track.steps ?? []).sorted { $0.orderIndex < $1.orderIndex }
+        let steps = ((track.steps?.allObjects as? [CDTrackStepEntity]) ?? []).sorted { $0.orderIndex < $1.orderIndex }
         
         return steps.filter { step in
             isStepProficient(step: step, studentID: studentID, lessonPresentations: lessonPresentations)
@@ -24,7 +24,7 @@ struct TrackProgressResolver {
     
     /// Returns the first unmastered step in the track, or nil if all steps are mastered.
     static func currentStep(track: Track, studentID: String, lessonPresentations: [LessonPresentation]) -> TrackStep? {
-        let steps = (track.steps ?? []).sorted { $0.orderIndex < $1.orderIndex }
+        let steps = ((track.steps?.allObjects as? [CDTrackStepEntity]) ?? []).sorted { $0.orderIndex < $1.orderIndex }
         
         return steps.first { step in
             !isStepProficient(step: step, studentID: studentID, lessonPresentations: lessonPresentations)
@@ -44,7 +44,7 @@ struct TrackProgressResolver {
             
             // Check if this presentation matches the step
             // Either by trackStepID or by lessonTemplateID
-            let matchesByTrackStepID = lp.trackStepID != nil && lp.trackStepID == step.id.uuidString
+            let matchesByTrackStepID = lp.trackStepID != nil && lp.trackStepID == step.id?.uuidString
             let matchesByLessonID = step.lessonTemplateID.map { lp.lessonID == $0.uuidString } ?? false
             
             return matchesByTrackStepID || matchesByLessonID

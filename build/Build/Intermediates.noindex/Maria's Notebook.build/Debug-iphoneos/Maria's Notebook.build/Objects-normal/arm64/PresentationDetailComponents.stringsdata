@@ -1,0 +1,64 @@
+{
+  "source": "/Users/dannydeberry/Documents/Projects/MariasNotebook-Rewrite/Maria's Notebook/Students/PresentationDetailComponents.swift",
+  "tables": {
+    "Localizable": [
+      {
+        "comment": "",
+        "key": "Remove %@",
+        "location": {
+          "startingColumn": 33,
+          "startingLine": 23
+        }
+      },
+      {
+        "comment": "",
+        "key": "Move Students to New Lesson",
+        "location": {
+          "startingColumn": 22,
+          "startingLine": 75
+        }
+      },
+      {
+        "comment": "",
+        "key": "Select students who didn't attend. They'll be moved to a new lesson with \"%@\".",
+        "location": {
+          "startingColumn": 22,
+          "startingLine": 85
+        }
+      },
+      {
+        "comment": "",
+        "key": "Cancel",
+        "location": {
+          "startingColumn": 28,
+          "startingLine": 113
+        }
+      },
+      {
+        "comment": "",
+        "key": "Move %lld Student%@",
+        "location": {
+          "startingColumn": 29,
+          "startingLine": 123
+        }
+      },
+      {
+        "comment": "",
+        "key": "Next lesson added to Ready to Schedule",
+        "location": {
+          "startingColumn": 14,
+          "startingLine": 175
+        }
+      },
+      {
+        "comment": "",
+        "key": "Students moved to new lesson",
+        "location": {
+          "startingColumn": 18,
+          "startingLine": 194
+        }
+      }
+    ]
+  },
+  "version": 1
+}

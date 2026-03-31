@@ -1,11 +1,11 @@
 import SwiftUI
-import SwiftData
+import CoreData
 import OSLog
 
 // swiftlint:disable:next type_body_length
 struct MeetingsLogView: View {
     private static let logger = Logger.app_
-    @Environment(\.modelContext) private var modelContext
+    @Environment(\.managedObjectContext) private var viewContext
     @Environment(\.calendar) private var calendar
 
     // Test student filtering
@@ -13,16 +13,23 @@ struct MeetingsLogView: View {
     @AppStorage(UserDefaultsKeys.generalTestStudentNames)
     private var testStudentNamesRaw: String = "Danny De Berry,Lil Dan D"
 
-    @Query(sort: [SortDescriptor(\StudentMeeting.date, order: .reverse)])
-    private var allMeetings: [StudentMeeting]
+    @FetchRequest(
+        sortDescriptors: [NSSortDescriptor(keyPath: \CDStudentMeeting.date, ascending: false)]
+    )
+    private var allMeetings: FetchedResults<CDStudentMeeting>
 
-    @Query(sort: Student.sortByName)
-    private var studentsRaw: [Student]
+    @FetchRequest(
+        sortDescriptors: [
+            NSSortDescriptor(keyPath: \CDStudent.firstName, ascending: true),
+            NSSortDescriptor(keyPath: \CDStudent.lastName, ascending: true)
+        ]
+    )
+    private var studentsRaw: FetchedResults<CDStudent>
     // DEDUPLICATION: CloudKit sync can create duplicate records with the same ID.
     // Filter out test students when setting is disabled
-    private var students: [Student] {
+    private var students: [CDStudent] {
         TestStudentsFilter.filterVisible(
-            studentsRaw.uniqueByID.filter(\.isEnrolled),
+            Array(studentsRaw).uniqueByID.filter(\.isEnrolled),
             show: showTestStudents,
             namesRaw: testStudentNamesRaw
         )
@@ -44,12 +51,12 @@ struct MeetingsLogView: View {
 
     // Maps for quick lookup
     // Use uniquingKeysWith to handle CloudKit sync duplicates
-    private var studentsByID: [UUID: Student] {
-        Dictionary(students.map { ($0.id, $0) }, uniquingKeysWith: { first, _ in first })
+    private var studentsByID: [UUID: CDStudent] {
+        Dictionary(students.compactMap { s in s.id.map { ($0, s) } }, uniquingKeysWith: { first, _ in first })
     }
 
     // Filtered meetings
-    private var filteredMeetings: [StudentMeeting] {
+    private var filteredMeetings: [CDStudentMeeting] {
         allMeetings.filter { meeting in
             // Student filter
             if !selectedStudentIDs.isEmpty {
@@ -61,7 +68,7 @@ struct MeetingsLogView: View {
             if !selectedAgeRanges.isEmpty {
                 guard let studentID = meeting.studentIDUUID,
                       let student = studentsByID[studentID] else { return false }
-                if !AgeRange.matchesAny(student.birthday, in: selectedAgeRanges) { return false }
+                if !AgeRange.matchesAny(student.birthday ?? Date(), in: selectedAgeRanges) { return false }
             }
 
             // Completion filter
@@ -101,10 +108,10 @@ struct MeetingsLogView: View {
         calendar.startOfDay(for: date)
     }
 
-    private var groupedByDay: [(day: Date, items: [StudentMeeting])] {
+    private var groupedByDay: [(day: Date, items: [CDStudentMeeting])] {
         let dict = filteredMeetings
-            .grouped { dayKey($0.date) }
-            .mapValues { arr in arr.sorted { lhs, rhs in lhs.date > rhs.date }}
+            .grouped { dayKey($0.date ?? Date.distantPast) }
+            .mapValues { arr in arr.sorted { lhs, rhs in (lhs.date ?? .distantPast) > (rhs.date ?? .distantPast) }}
         let days = dict.keys.sorted(by: >)
         return days.map { ($0, dict[$0] ?? []) }
     }
@@ -132,7 +139,7 @@ struct MeetingsLogView: View {
         }
     }
 
-    private func displayName(for student: Student) -> String {
+    private func displayName(for student: CDStudent) -> String {
         let first = student.firstName.trimmed()
         let last = student.lastName.trimmed()
         let li = last.first.map { String($0).uppercased() } ?? ""
@@ -148,20 +155,22 @@ struct MeetingsLogView: View {
                 Button("All Students") { selectedStudentIDs.removeAll() }
                 Divider()
                 ForEach(students) { student in
-                    Button(action: {
-                        if selectedStudentIDs.contains(student.id) {
-                            selectedStudentIDs.remove(student.id)
-                        } else {
-                            selectedStudentIDs.insert(student.id)
-                        }
-                    }, label: {
-                        HStack {
-                            if selectedStudentIDs.contains(student.id) {
-                                Image(systemName: "checkmark")
+                    if let studentID = student.id {
+                        Button(action: {
+                            if selectedStudentIDs.contains(studentID) {
+                                selectedStudentIDs.remove(studentID)
+                            } else {
+                                selectedStudentIDs.insert(studentID)
                             }
-                            Text(displayName(for: student))
-                        }
-                    })
+                        }, label: {
+                            HStack {
+                                if selectedStudentIDs.contains(studentID) {
+                                    Image(systemName: "checkmark")
+                                }
+                                Text(displayName(for: student))
+                            }
+                        })
+                    }
                 }
             } label: {
                 HStack(spacing: 6) {
@@ -278,7 +287,7 @@ struct MeetingsLogView: View {
 
     @ViewBuilder
     // swiftlint:disable:next function_body_length
-    private func meetingRow(for meeting: StudentMeeting) -> some View {
+    private func meetingRow(for meeting: CDStudentMeeting) -> some View {
         HStack(alignment: .top, spacing: 12) {
             // Completion indicator
             Image(systemName: meeting.completed ? "checkmark.circle.fill" : "circle")
@@ -364,19 +373,19 @@ struct MeetingsLogView: View {
         }
     }
 
-    private func toggleMeetingCompletion(_ meeting: StudentMeeting) {
+    private func toggleMeetingCompletion(_ meeting: CDStudentMeeting) {
         meeting.completed.toggle()
         do {
-            try modelContext.save()
+            try viewContext.save()
         } catch {
             Self.logger.warning("Failed to save after toggling meeting completion: \(error, privacy: .public)")
         }
     }
 
-    private func deleteMeeting(_ meeting: StudentMeeting) {
-        modelContext.delete(meeting)
+    private func deleteMeeting(_ meeting: CDStudentMeeting) {
+        viewContext.delete(meeting)
         do {
-            try modelContext.save()
+            try viewContext.save()
         } catch {
             Self.logger.warning("Failed to save after deleting meeting: \(error, privacy: .public)")
         }
@@ -385,4 +394,5 @@ struct MeetingsLogView: View {
 
 #Preview {
     MeetingsLogView()
+        .previewEnvironment()
 }

@@ -2,7 +2,7 @@
 // Encapsulated schedule sheet UI used by WorksPlanningView
 
 import SwiftUI
-import SwiftData
+import CoreData
 
 struct ScheduleCheckInSheet: View {
     let workID: UUID

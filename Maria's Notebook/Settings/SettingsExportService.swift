@@ -33,7 +33,7 @@ enum SettingsExportService {
 
     // Each setting is declared once — used for both export and import.
     private static let descriptors: [Descriptor] = [
-        // General — Age Indicators (Lesson)
+        // General — Age Indicators (CDLesson)
         .init(jsonKey: "lessonAgeWarningDays", storeKey: "LessonAge.warningDays", store: .synced, type: .int),
         .init(jsonKey: "lessonAgeOverdueDays", storeKey: "LessonAge.overdueDays", store: .synced, type: .int),
         .init(jsonKey: "lessonAgeFreshColorHex", storeKey: "LessonAge.freshColorHex", store: .synced, type: .string),
@@ -57,7 +57,7 @@ enum SettingsExportService {
               store: .userDefaults, type: .string),
         .init(jsonKey: "ollamaModelName", storeKey: UserDefaultsKeys.ollamaModelName,
               store: .userDefaults, type: .string),
-        // Lesson Planning
+        // CDLesson Planning
         .init(jsonKey: "lessonPlanningTimeout", storeKey: UserDefaultsKeys.lessonPlanningTimeout,
               store: .userDefaults, type: .int),
         .init(jsonKey: "lessonPlanningDefaultDepth", storeKey: UserDefaultsKeys.lessonPlanningDefaultDepth,

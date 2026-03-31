@@ -49,7 +49,7 @@ struct SupplyHistorySection: View {
                 Text(transaction.reason)
                     .font(.subheadline)
 
-                Text(transaction.date, style: .date)
+                Text(transaction.date ?? Date(), style: .date)
                     .font(.caption)
                     .foregroundStyle(.secondary)
             }

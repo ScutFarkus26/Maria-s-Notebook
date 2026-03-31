@@ -1,8 +1,9 @@
 // GroupListView.swift
 // Column 2 of the 3-column NavigationSplitView: Displays groups/tracks for the selected subject.
-// Groups are derived from existing Lesson data using LessonsViewModel.
+// Groups are derived from existing CDLesson data using LessonsViewModel.
 
 import SwiftUI
+import CoreData
 #if os(macOS)
 import AppKit
 #else

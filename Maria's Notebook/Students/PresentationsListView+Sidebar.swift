@@ -2,6 +2,7 @@
 // Sidebar extracted from PresentationsListView
 
 import SwiftUI
+import CoreData
 
 extension PresentationsListView {
     // MARK: - Sidebar

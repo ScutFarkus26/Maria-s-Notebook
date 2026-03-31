@@ -63,7 +63,7 @@ enum BackupPayloadExtractor {
         // Expect opening brace
         guard searchStart < jsonString.endIndex && jsonString[searchStart] == "{" else { return nil }
 
-        // Track braces to find matching close
+        // CDTrackEntity braces to find matching close
         var braceCount = 0
         var inString = false
         var escapeNext = false

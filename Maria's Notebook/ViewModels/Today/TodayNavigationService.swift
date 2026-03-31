@@ -3,7 +3,7 @@
 // Encapsulates school day calculation logic used by TodayViewModel.
 
 import Foundation
-import SwiftData
+import CoreData
 
 // MARK: - Today Navigation Service
 
@@ -17,15 +17,15 @@ enum TodayNavigationService {
     /// - Parameters:
     ///   - date: The reference date
     ///   - cache: School day cache to use (will be populated if needed)
-    ///   - context: Model context for fetching school day data
+    ///   - context: Managed object context for fetching school day data
     /// - Returns: The next school day after the given date
     static func nextSchoolDay(
         after date: Date,
         cache: inout SchoolDayCache,
-        context: ModelContext
+        context: NSManagedObjectContext
     ) -> Date {
         // Cache school day data once at the start to avoid repeated database fetches
-        cache.cacheSchoolDayData(for: date, modelContext: context)
+        cache.cacheSchoolDayData(for: date, viewContext: context)
 
         let cal = AppCalendar.shared
         var d = cal.startOfDay(for: date)
@@ -43,15 +43,15 @@ enum TodayNavigationService {
     /// - Parameters:
     ///   - date: The reference date
     ///   - cache: School day cache to use (will be populated if needed)
-    ///   - context: Model context for fetching school day data
+    ///   - context: Managed object context for fetching school day data
     /// - Returns: The previous school day before the given date
     static func previousSchoolDay(
         before date: Date,
         cache: inout SchoolDayCache,
-        context: ModelContext
+        context: NSManagedObjectContext
     ) -> Date {
         // Cache school day data once at the start to avoid repeated database fetches
-        cache.cacheSchoolDayData(for: date, modelContext: context)
+        cache.cacheSchoolDayData(for: date, viewContext: context)
 
         let cal = AppCalendar.shared
         var d = cal.startOfDay(for: date)
@@ -68,14 +68,14 @@ enum TodayNavigationService {
     /// - Parameters:
     ///   - date: The date to check
     ///   - cache: School day cache to use (will be populated if needed)
-    ///   - context: Model context for fetching school day data
+    ///   - context: Managed object context for fetching school day data
     /// - Returns: True if the date is a non-school day
     static func isNonSchoolDay(
         _ date: Date,
         cache: inout SchoolDayCache,
-        context: ModelContext
+        context: NSManagedObjectContext
     ) -> Bool {
-        cache.cacheSchoolDayData(for: date, modelContext: context)
+        cache.cacheSchoolDayData(for: date, viewContext: context)
         return cache.isNonSchoolDay(date)
     }
 
@@ -87,13 +87,13 @@ enum TodayNavigationService {
     ///   - date: The reference date
     ///   - levelFilter: Level filter to apply
     ///   - cache: School day cache to use
-    ///   - context: Model context for fetching data
+    ///   - context: Managed object context for fetching data
     /// - Returns: The next day with lessons, or the next school day if none found
     static func nextDayWithLessons(
         after date: Date,
         levelFilter: LevelFilter,
         cache: inout SchoolDayCache,
-        context: ModelContext
+        context: NSManagedObjectContext
     ) -> Date {
         var current = nextSchoolDay(after: date, cache: &cache, context: context)
         // Safety cap: search up to 2 years forward
@@ -117,13 +117,13 @@ enum TodayNavigationService {
     ///   - date: The reference date
     ///   - levelFilter: Level filter to apply
     ///   - cache: School day cache to use
-    ///   - context: Model context for fetching data
+    ///   - context: Managed object context for fetching data
     /// - Returns: The previous day with lessons, or the previous school day if none found
     static func previousDayWithLessons(
         before date: Date,
         levelFilter: LevelFilter,
         cache: inout SchoolDayCache,
-        context: ModelContext
+        context: NSManagedObjectContext
     ) -> Date {
         var current = previousSchoolDay(before: date, cache: &cache, context: context)
         // Safety cap: search up to 2 years backward
@@ -148,16 +148,16 @@ enum TodayNavigationService {
     private static func hasLessonsMatching(
         on date: Date,
         levelFilter: LevelFilter,
-        context: ModelContext
+        context: NSManagedObjectContext
     ) -> Bool {
         let (day, nextDay) = AppCalendar.dayRange(for: date)
         do {
-            let descriptor = FetchDescriptor<LessonAssignment>(
-                predicate: #Predicate { sl in
-                    sl.scheduledForDay >= day && sl.scheduledForDay < nextDay
-                }
+            let request = CDFetchRequest(LessonAssignment.self)
+            request.predicate = NSPredicate(
+                format: "scheduledForDay >= %@ AND scheduledForDay < %@",
+                day as NSDate, nextDay as NSDate
             )
-            let lessons = try context.fetch(descriptor)
+            let lessons = try context.fetch(request)
             if lessons.isEmpty {
                 return false
             }
@@ -173,17 +173,23 @@ enum TodayNavigationService {
                 return true
             }
 
-            // NOTE: SwiftData #Predicate doesn't support capturing local Set variables,
+            // NOTE: Core Data NSPredicate doesn't efficiently support IN queries with large UUID sets,
             // so we fetch all and filter in memory
             if !neededStudentIDs.isEmpty {
-                var studentDescriptor = FetchDescriptor<Student>()
-                studentDescriptor.fetchLimit = 500 // Safety limit for student roster
-                let allStudents = try context.fetch(studentDescriptor).filter(\.isEnrolled)
-                let filtered = allStudents.filter { neededStudentIDs.contains($0.id) }
+                let studentRequest = CDFetchRequest(Student.self)
+                studentRequest.fetchLimit = 500 // Safety limit for student roster
+                let allStudents = try context.fetch(studentRequest).filter(\.isEnrolled)
+                let filtered = allStudents.filter { student in
+                    guard let studentID = student.id else { return false }
+                    return neededStudentIDs.contains(studentID)
+                }
                 // DEDUPLICATION: CloudKit sync can create duplicate records with the same ID.
                 let visibleStudents = TestStudentsFilter.filterVisible(filtered).uniqueByID
                 let studentsByID = Dictionary(
-                    visibleStudents.map { ($0.id, $0) },
+                    visibleStudents.compactMap { student -> (UUID, Student)? in
+                        guard let studentID = student.id else { return nil }
+                        return (studentID, student)
+                    },
                     uniquingKeysWith: { first, _ in first }
                 )
 

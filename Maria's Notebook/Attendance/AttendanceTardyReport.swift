@@ -1,16 +1,16 @@
 import SwiftUI
-import SwiftData
+import CoreData
 import OSLog
 
 /// Sheet showing tardy counts per student over a selected date range.
 struct AttendanceTardyReport: View {
     private static let logger = Logger.attendance
-    @Environment(\.modelContext) private var modelContext
+    @Environment(\.managedObjectContext) private var viewContext
     @Environment(\.dismiss) private var dismiss
 
-    @Query(sort: Student.sortByLastName)
-    private var allStudentsRaw: [Student]
-    private var students: [Student] { allStudentsRaw.uniqueByID.filter(\.isEnrolled) }
+    @FetchRequest(sortDescriptors: [NSSortDescriptor(keyPath: \CDStudent.lastName, ascending: true)])
+    private var allStudentsRaw: FetchedResults<CDStudent>
+    private var students: [CDStudent] { Array(allStudentsRaw).uniqueByID.filter(\.isEnrolled) }
 
     // Default range: last 30 days
     @State private var startDate: Date = AppCalendar.startOfDay(
@@ -24,12 +24,9 @@ struct AttendanceTardyReport: View {
         let end = AppCalendar.startOfDay(endDate)
 
         // Fetch all records in the range, then filter for tardy in memory
-        // (#Predicate cannot reference private stored properties like statusRaw)
-        let predicate = #Predicate<AttendanceRecord> {
-            $0.date >= start && $0.date <= end
-        }
-        let descriptor = FetchDescriptor<AttendanceRecord>(predicate: predicate)
-        let records = safeFetch(descriptor, context: "AttendanceTardyReport.rows")
+        let fetchRequest = NSFetchRequest<CDAttendanceRecord>(entityName: "AttendanceRecord")
+        fetchRequest.predicate = NSPredicate(format: "date >= %@ AND date <= %@", start as NSDate, end as NSDate)
+        let records = safeFetch(fetchRequest, context: "AttendanceTardyReport.rows")
 
         // Count tardies per studentID
         var countsByID: [String: Int] = [:]
@@ -206,9 +203,9 @@ struct AttendanceTardyReport: View {
 
     // MARK: - Helpers
 
-    private func safeFetch<T>(_ descriptor: FetchDescriptor<T>, context: String = #function) -> [T] {
+    private func safeFetch<T: NSManagedObject>(_ request: NSFetchRequest<T>, context: String = #function) -> [T] {
         do {
-            return try modelContext.fetch(descriptor)
+            return try viewContext.fetch(request)
         } catch {
             Self.logger.warning("Failed to fetch \(T.self, privacy: .public) in \(context, privacy: .public): \(error)")
             return []

@@ -2,7 +2,7 @@
 // Compares backups and shows what changed between them
 
 import Foundation
-import SwiftData
+import CoreData
 
 /// Service for comparing backups and showing differences.
 /// Useful for understanding what changed since the last backup.
@@ -19,13 +19,13 @@ public final class BackupDiffService {
     //
     // - Parameters:
     //   - backupURL: URL of the backup to compare against
-    //   - modelContext: The current model context
+    //   - viewContext: The current model context
     //   - password: Optional decryption password
     //   - progress: Progress callback
     // - Returns: Diff showing what changed since the backup
     public func diffWithCurrentData(
         backupURL: URL,
-        modelContext: ModelContext,
+        viewContext: NSManagedObjectContext,
         password: String? = nil,
         progress: @escaping BackupService.ProgressCallback
     ) async throws -> BackupDiff {
@@ -38,38 +38,38 @@ public final class BackupDiffService {
         progress(0.3, "Analyzing students…")
         let studentDiff = analyzeStudentDiff(
             backupStudents: backupPayload.students,
-            modelContext: modelContext
+            viewContext: viewContext
         )
 
         progress(0.4, "Analyzing lessons…")
         let lessonDiff = analyzeLessonDiff(
             backupLessons: backupPayload.lessons,
-            modelContext: modelContext
+            viewContext: viewContext
         )
 
         progress(0.6, "Analyzing notes…")
         let noteDiff = analyzeNoteDiff(
             backupNotes: backupPayload.notes,
-            modelContext: modelContext
+            viewContext: viewContext
         )
 
         progress(0.7, "Analyzing calendar…")
         let calendarDiff = analyzeCalendarDiff(
             backupNonSchoolDays: backupPayload.nonSchoolDays,
             backupOverrides: backupPayload.schoolDayOverrides,
-            modelContext: modelContext
+            viewContext: viewContext
         )
 
         progress(0.8, "Analyzing projects…")
         let projectDiff = analyzeProjectDiff(
             backupProjects: backupPayload.projects,
-            modelContext: modelContext
+            viewContext: viewContext
         )
 
         progress(0.9, "Analyzing attendance…")
         let attendanceDiff = analyzeAttendanceDiff(
             backupAttendance: backupPayload.attendance,
-            modelContext: modelContext
+            viewContext: viewContext
         )
 
         progress(1.0, "Diff complete")

@@ -1,6 +1,6 @@
 import OSLog
 import SwiftUI
-import SwiftData
+import CoreData
 
 /// Quick entry form for recording a practice observation
 /// Optimized workflow: observe -> add partner -> note -> schedule check-in
@@ -11,12 +11,12 @@ struct QuickPracticeSessionSheet: View {
     var onSave: ((PracticeSession) -> Void)?
 
     @Environment(\.dismiss) var dismiss
-    @Environment(\.modelContext) var modelContext
+    @Environment(\.managedObjectContext) var modelContext
 
-    @Query private var allStudentsRaw: [Student]
-    private var allStudents: [Student] { allStudentsRaw.filter(\.isEnrolled) }
-    @Query private var allWork: [WorkModel]
-    @Query private var allLessonAssignments: [LessonAssignment]
+    @FetchRequest(sortDescriptors: []) private var allStudentsRaw: FetchedResults<CDStudent>
+    private var allStudents: [CDStudent] { allStudentsRaw.filter(\.isEnrolled) }
+    @FetchRequest(sortDescriptors: []) private var allWork: FetchedResults<CDWorkModel>
+    @FetchRequest(sortDescriptors: []) private var allLessonAssignments: FetchedResults<CDLessonAssignment>
 
     // Session basics
     @State var sessionDate: Date = Date()
@@ -50,7 +50,7 @@ struct QuickPracticeSessionSheet: View {
     @State var sessionNotes: String = ""
 
     var repository: PracticeSessionRepository {
-        PracticeSessionRepository(modelContext: modelContext)
+        PracticeSessionRepository(context: modelContext)
     }
 
     private var studentForWork: Student? {
@@ -76,7 +76,10 @@ struct QuickPracticeSessionSheet: View {
         }
 
         return allStudents
-            .filter { coLearnerIDs.contains($0.id) && $0.id != studentUUID }
+            .filter { student in
+                guard let sid = student.id else { return false }
+                return coLearnerIDs.contains(sid) && sid != studentUUID
+            }
             .sorted { $0.firstName < $1.firstName }
     }
 

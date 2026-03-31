@@ -1,5 +1,5 @@
 import Foundation
-import SwiftData
+import CoreData
 import OSLog
 
 /// Handles transformation between domain models and backup DTOs.
@@ -8,24 +8,24 @@ import OSLog
 /// testability and separation of concerns.
 ///
 /// Transformers are organized into domain-specific extensions:
-/// - `BackupDTOTransformers+Core.swift` — Student, Lesson, Note,
-///   LessonAttachment, LessonPresentation, SampleWork, SampleWorkStep
-/// - `BackupDTOTransformers+Work.swift` — WorkCheckIn, WorkStep,
-///   WorkParticipant, PracticeSession
-/// - `BackupDTOTransformers+Projects.swift` — Project, ProjectSession,
+/// - `BackupDTOTransformers+Core.swift` — CDStudent, CDLesson, CDNote,
+///   LessonAttachment, CDLessonPresentation, CDSampleWork, CDSampleWorkStep
+/// - `BackupDTOTransformers+Work.swift` — CDWorkCheckIn, CDWorkStep,
+///   WorkParticipant, CDPracticeSession
+/// - `BackupDTOTransformers+Projects.swift` — CDProject, CDProjectSession,
 ///   ProjectRole, ProjectTemplateWeek, ProjectWeekRoleAssignment,
-///   CommunityTopic, ProposedSolution, CommunityAttachment
-/// - `BackupDTOTransformers+Misc.swift` — Calendar, Todo, Track,
-///   Supply, Schedule, Issue, Procedure, Document, and remaining types
+///   CDCommunityTopicEntity, ProposedSolution, CommunityAttachment
+/// - `BackupDTOTransformers+Misc.swift` — Calendar, Todo, CDTrackEntity,
+///   CDSupply, CDSchedule, CDIssue, CDProcedure, CDDocument, and remaining types
 enum BackupDTOTransformers {
     static let logger = Logger.backup
 
-    // MARK: - LegacyPresentation (removed — model fully migrated to LessonAssignment)
+    // MARK: - LegacyPresentation (removed — model fully migrated to CDLessonAssignment)
     // LegacyPresentationDTO is kept for import backward compatibility only.
 
     // MARK: - WorkPlanItem - REMOVED IN PHASE 6
-    // WorkPlanItem has been migrated to WorkCheckIn and removed from schema
+    // WorkPlanItem has been migrated to CDWorkCheckIn and removed from schema
 
-    // MARK: - Presentation (Removed)
-    // Presentation model has been removed. Use LessonAssignment instead.
+    // MARK: - CDPresentation (Removed)
+    // CDPresentation model has been removed. Use CDLessonAssignment instead.
 }

@@ -1,5 +1,5 @@
 import Foundation
-import SwiftData
+import CoreData
 import SwiftUI
 import OSLog
 
@@ -62,8 +62,8 @@ public final class EnhancedBackupService {
 
     // MARK: - Size Estimation
 
-    public func estimateBackupSize(modelContext: ModelContext) -> Int64 {
-        BackupSizeEstimator.estimateBackupSize(modelContext: modelContext)
+    public func estimateBackupSize(viewContext: NSManagedObjectContext) -> Int64 {
+        BackupSizeEstimator.estimateBackupSize(viewContext: viewContext)
     }
 
     public func estimateBackupSizeFromCounts(_ counts: [String: Int]) -> Int64 {
@@ -75,7 +75,7 @@ public final class EnhancedBackupService {
     // Enhanced export with mode selection and automatic verification
     // swiftlint:disable:next function_body_length
     public func exportBackup(
-        modelContext: ModelContext,
+        viewContext: NSManagedObjectContext,
         to url: URL,
         password: String? = nil,
         mode: ExportMode? = nil,
@@ -90,7 +90,7 @@ public final class EnhancedBackupService {
         switch exportMode {
         case .streaming:
             summary = try await streamingWriter.streamingExport(
-                modelContext: modelContext,
+                viewContext: viewContext,
                 to: url,
                 password: password,
                 progress: { prog, msg, _, _ in
@@ -100,7 +100,7 @@ public final class EnhancedBackupService {
 
         case .incremental:
             let result = try await incrementalService.createIncrementalBackup(
-                modelContext: modelContext,
+                viewContext: viewContext,
                 to: url,
                 password: password,
                 forceFullBackup: false,
@@ -118,7 +118,7 @@ public final class EnhancedBackupService {
 
         case .standard:
             summary = try await backupService.exportBackup(
-                modelContext: modelContext,
+                viewContext: viewContext,
                 to: url,
                 password: password,
                 progress: progress
@@ -210,14 +210,14 @@ public final class EnhancedBackupService {
 
     /// Creates an incremental backup
     public func createIncrementalBackup(
-        modelContext: ModelContext,
+        viewContext: NSManagedObjectContext,
         to url: URL,
         password: String? = nil,
         forceFullBackup: Bool = false,
         progress: @escaping BackupService.ProgressCallback
     ) async throws -> IncrementalBackupService.IncrementalBackupResult {
         return try await incrementalService.createIncrementalBackup(
-            modelContext: modelContext,
+            viewContext: viewContext,
             to: url,
             password: password,
             forceFullBackup: forceFullBackup,

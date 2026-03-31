@@ -1,5 +1,5 @@
 import SwiftUI
-import SwiftData
+import CoreData
 
 // MARK: - WorkModel Check-in Counts
 
@@ -11,7 +11,7 @@ struct CheckInCounts {
 
 extension WorkModel {
     func checkInCounts() -> CheckInCounts {
-        let list = participants ?? []
+        let list = (participants?.allObjects as? [CDWorkParticipantEntity]) ?? []
         let total = list.count
         let completed = list.reduce(0) { partial, p in
             partial + (p.completedAt != nil ? 1 : 0)

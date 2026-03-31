@@ -1,6 +1,6 @@
 // swiftlint:disable file_length
 import SwiftUI
-import SwiftData
+import CoreData
 import UniformTypeIdentifiers
 import OSLog
 
@@ -41,32 +41,32 @@ private enum FileImportHelpers {
 struct LessonAttachmentsSection: View {
     private static let logger = Logger.lessons
 
-    let lesson: Lesson
-    @Environment(\.modelContext) private var modelContext
+    let lesson: CDLesson
+    @Environment(\.managedObjectContext) private var viewContext
     
     @State private var showingScopeSheet = false
     @State private var selectedScope: AttachmentScope = .lesson
     @State private var pendingImportURL: URL?
     @State private var showingDeleteAlert = false
-    @State private var attachmentToDelete: LessonAttachment?
-    @State private var attachmentToRename: LessonAttachment?
+    @State private var attachmentToDelete: CDLessonAttachment?
+    @State private var attachmentToRename: CDLessonAttachment?
     @State private var renameFileName = ""
     @State private var isDropTargeted = false
     @State private var deleteOriginalAfterImport = false
     
-    private var attachments: [LessonAttachment] {
+    private var attachments: [CDLessonAttachment] {
         LessonFileStorage.getAttachments(forLesson: lesson, includeInherited: true)
     }
     
-    private var lessonAttachments: [LessonAttachment] {
+    private var lessonAttachments: [CDLessonAttachment] {
         attachments.filter { $0.scope == .lesson }
     }
     
-    private var groupAttachments: [LessonAttachment] {
+    private var groupAttachments: [CDLessonAttachment] {
         attachments.filter { $0.scope == .group }
     }
     
-    private var subjectAttachments: [LessonAttachment] {
+    private var subjectAttachments: [CDLessonAttachment] {
         attachments.filter { $0.scope == .subject }
     }
     
@@ -204,7 +204,7 @@ struct LessonAttachmentsSection: View {
     }
     
     private func attachmentGroup(
-        title: String, attachments: [LessonAttachment], isInherited: Bool = false
+        title: String, attachments: [CDLessonAttachment], isInherited: Bool = false
     ) -> some View {
         VStack(alignment: .leading, spacing: 8) {
             Text(title)
@@ -212,7 +212,7 @@ struct LessonAttachmentsSection: View {
                 .foregroundStyle(.secondary)
                 .textCase(.uppercase)
             
-            ForEach(attachments) { attachment in
+            ForEach(attachments, id: \.id) { attachment in
                 AttachmentRow(
                     attachment: attachment,
                     isInherited: isInherited,
@@ -271,21 +271,17 @@ struct LessonAttachmentsSection: View {
                 FileImportHelpers.logImportSuccess(url: destURL, relativePath: relativePath, fileSize: fileSize)
                 
                 // Create attachment entity
-                let attachment = LessonAttachment(
-                    fileName: url.lastPathComponent,
-                    fileBookmark: bookmark,
-                    fileRelativePath: relativePath,
-                    fileType: url.pathExtension.lowercased(),
-                    fileSizeBytes: fileSize,
-                    scope: selectedScope,
-                    lesson: lesson
-                )
+                let attachment = CDLessonAttachment(context: viewContext)
+                attachment.fileName = url.lastPathComponent
+                attachment.fileBookmark = bookmark
+                attachment.fileRelativePath = relativePath
+                attachment.fileType = url.pathExtension.lowercased()
+                attachment.fileSizeBytes = fileSize
+                attachment.scope = selectedScope
+                attachment.lesson = lesson
                 
-                Self.logger.debug("Inserting attachment into context")
-                modelContext.insert(attachment)
-
                 Self.logger.debug("Saving context")
-                try modelContext.save()
+                try viewContext.save()
                 
                 // Delete original file if requested
                 if deleteOriginalAfterImport {
@@ -306,7 +302,7 @@ struct LessonAttachmentsSection: View {
         }
     }
     
-    private func deleteAttachment(_ attachment: LessonAttachment) {
+    private func deleteAttachment(_ attachment: CDLessonAttachment) {
         do {
             if lesson.primaryAttachmentIDUUID == attachment.id {
                 lesson.primaryAttachmentID = nil
@@ -319,23 +315,23 @@ struct LessonAttachmentsSection: View {
             }
             
             // Delete the attachment entity
-            modelContext.delete(attachment)
-            try modelContext.save()
+            viewContext.delete(attachment)
+            try viewContext.save()
             
         } catch {
             Self.logger.error("Failed to delete attachment: \(error)")
         }
     }
 
-    private func togglePrimaryAttachment(_ attachment: LessonAttachment) {
+    private func togglePrimaryAttachment(_ attachment: CDLessonAttachment) {
         if lesson.primaryAttachmentIDUUID == attachment.id {
             lesson.primaryAttachmentID = nil
         } else {
-            lesson.primaryAttachmentID = attachment.id.uuidString
+            lesson.primaryAttachmentID = attachment.id?.uuidString
         }
 
         do {
-            try modelContext.save()
+            try viewContext.save()
         } catch {
             Self.logger.error("Failed to update primary attachment: \(error)")
         }
@@ -350,7 +346,7 @@ struct LessonAttachmentsSection: View {
             attachment.fileRelativePath = renamedFile.relativePath
             attachment.fileBookmark = try LessonFileStorage.makeBookmark(for: renamedFile.url)
             attachment.fileType = renamedFile.fileType
-            try modelContext.save()
+            try viewContext.save()
 
             attachmentToRename = nil
             renameFileName = ""
@@ -435,44 +431,14 @@ struct LessonAttachmentsSection: View {
 // swiftlint:enable type_body_length
 
 #Preview {
-    let config = ModelConfiguration(isStoredInMemoryOnly: true)
-    let container: ModelContainer
-    do {
-        container = try ModelContainer(for: Lesson.self, LessonAttachment.self, configurations: config)
-    } catch {
-        fatalError("Preview ModelContainer failed: \(error)")
-    }
+    let ctx = CoreDataStack.preview.viewContext
+    let lesson = CDLesson(context: ctx)
+    lesson.name = "Introduction to Place Value"
+    lesson.subject = "Math"
+    lesson.group = "Decimal System"
 
-    let lesson = Lesson(
-        name: "Introduction to Place Value",
-        subject: "Math",
-        group: "Decimal System"
-    )
-    container.mainContext.insert(lesson)
-    
-    // Add some sample attachments
-    let attachment1 = LessonAttachment(
-        fileName: "Teacher Guide.pdf",
-        fileRelativePath: "Math/Decimal System/Teacher Guide.pdf",
-        fileType: "pdf",
-        fileSizeBytes: 1024 * 1024 * 12,
-        scope: .lesson,
-        lesson: lesson
-    )
-    container.mainContext.insert(attachment1)
-    
-    let attachment2 = LessonAttachment(
-        fileName: "Practice Sheets.pdf",
-        fileRelativePath: "Math/Decimal System/Practice Sheets.pdf",
-        fileType: "pdf",
-        fileSizeBytes: 1024 * 1024 * 2,
-        scope: .group,
-        lesson: lesson
-    )
-    container.mainContext.insert(attachment2)
-    
     return LessonAttachmentsSection(lesson: lesson)
-        .modelContainer(container)
+        .previewEnvironment()
         .frame(width: 500)
         .padding()
 }

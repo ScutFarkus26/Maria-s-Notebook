@@ -3,18 +3,18 @@
 
 import OSLog
 import SwiftUI
-import SwiftData
+import CoreData
 
 struct TrackDetailView: View {
     private static let logger = Logger.students
 
-    @Environment(\.modelContext) private var modelContext
-    @Bindable var track: Track
+    @Environment(\.managedObjectContext) private var viewContext
+    @ObservedObject var track: CDTrackEntity
     @State private var showingLessonPicker = false
-    @Query(sort: [SortDescriptor(\Lesson.name)]) private var allLessons: [Lesson]
+    @FetchRequest(sortDescriptors: [NSSortDescriptor(keyPath: \CDLesson.name, ascending: true)]) private var allLessons: FetchedResults<CDLesson>
     
-    private var orderedSteps: [TrackStep] {
-        let steps = track.steps ?? []
+    private var orderedSteps: [CDTrackStep] {
+        let steps = (track.steps as? Set<CDTrackStep>) ?? []
         return steps.sorted { $0.orderIndex < $1.orderIndex }
     }
     
@@ -31,7 +31,7 @@ struct TrackDetailView: View {
                         .font(.caption)
                 } else {
                     ForEach(orderedSteps) { step in
-                        StepRow(step: step, allLessons: allLessons)
+                        StepRow(step: step, allLessons: Array(allLessons))
                     }
                     .onMove(perform: moveSteps)
                 }
@@ -60,21 +60,16 @@ struct TrackDetailView: View {
     
     private func addStep(for lessonID: UUID?) {
         guard let lessonID else { return }
-        
-        let existingSteps = track.steps ?? []
-        let nextOrderIndex = existingSteps.isEmpty ? 0 : (existingSteps.map(\.orderIndex).max() ?? -1) + 1
-        
-        let newStep = TrackStep(
-            track: track,
-            orderIndex: nextOrderIndex,
-            lessonTemplateID: lessonID
-        )
-        modelContext.insert(newStep)
-        
-        if track.steps == nil {
-            track.steps = []
-        }
-        track.steps = (track.steps ?? []) + [newStep]
+
+        let existingSteps = (track.steps?.allObjects as? [CDTrackStepEntity]) ?? []
+        let nextOrderIndex = existingSteps.isEmpty ? Int64(0) : (existingSteps.map(\.orderIndex).max() ?? -1) + 1
+
+        let newStep = CDTrackStepEntity(context: viewContext)
+        newStep.track = track
+        newStep.orderIndex = nextOrderIndex
+        newStep.lessonTemplateID = lessonID
+
+        track.addToSteps(newStep)
         
         saveContext()
     }
@@ -85,7 +80,7 @@ struct TrackDetailView: View {
         
         // Update orderIndex for all steps
         for (index, step) in steps.enumerated() {
-            step.orderIndex = index
+            step.orderIndex = Int64(index)
         }
         
         saveContext()
@@ -93,7 +88,7 @@ struct TrackDetailView: View {
     
     private func saveContext() {
         do {
-            try modelContext.save()
+            try viewContext.save()
         } catch {
             Self.logger.warning("Failed to save track: \(error)")
         }
@@ -101,11 +96,11 @@ struct TrackDetailView: View {
 }
 
 private struct StepRow: View {
-    @Environment(\.modelContext) private var modelContext
-    @Bindable var step: TrackStep
-    let allLessons: [Lesson]
+    @Environment(\.managedObjectContext) private var viewContext
+    @ObservedObject var step: CDTrackStep
+    let allLessons: [CDLesson]
     
-    private var lesson: Lesson? {
+    private var lesson: CDLesson? {
         guard let lessonID = step.lessonTemplateID else { return nil }
         return allLessons.first { $0.id == lessonID }
     }
@@ -145,11 +140,11 @@ private struct LessonPickerSheet: View {
     let onSelect: (UUID?) -> Void
     
     @State private var searchText: String = ""
-    @Query(sort: [SortDescriptor(\Lesson.name)]) private var lessons: [Lesson]
+    @FetchRequest(sortDescriptors: [NSSortDescriptor(keyPath: \CDLesson.name, ascending: true)]) private var lessons: FetchedResults<CDLesson>
     
-    private var filteredLessons: [Lesson] {
+    private var filteredLessons: [CDLesson] {
         if searchText.isEmpty {
-            return lessons
+            return Array(lessons)
         }
         return lessons.filter { lesson in
             lesson.name.localizedCaseInsensitiveContains(searchText) ||

@@ -6,16 +6,16 @@
 //
 
 import SwiftUI
-import SwiftData
+import CoreData
 import OSLog
 
 /// View displaying AI-generated student development insights
 struct StudentInsightsView: View {
     private static let logger = Logger.students
     @Environment(\.dependencies) var dependencies
-    @Environment(\.modelContext) var modelContext
+    @Environment(\.managedObjectContext) var viewContext
 
-    let student: Student
+    let student: CDStudent
 
     @State var snapshots: [DevelopmentSnapshot] = []
     @State var isGenerating = false
@@ -70,16 +70,13 @@ struct StudentInsightsView: View {
     // MARK: - Actions
 
     func loadSnapshots() async {
-        let studentIDString = student.id.uuidString
-        let descriptor = FetchDescriptor<DevelopmentSnapshot>(
-            predicate: #Predicate<DevelopmentSnapshot> { snapshot in
-                snapshot.studentID == studentIDString
-            },
-            sortBy: [SortDescriptor(\.generatedAt, order: .reverse)]
-        )
+        let studentIDString = student.id?.uuidString ?? ""
+        let descriptor: NSFetchRequest<DevelopmentSnapshot> = NSFetchRequest(entityName: "DevelopmentSnapshot")
+        descriptor.predicate = NSPredicate(format: "studentID == %@", studentIDString as CVarArg)
+        descriptor.sortDescriptors = [NSSortDescriptor(key: "generatedAt", ascending: false)]
 
         do {
-            snapshots = try modelContext.fetch(descriptor)
+            snapshots = try viewContext.fetch(descriptor)
         } catch {
             errorMessage = "Failed to load snapshots: \(error.localizedDescription)"
         }
@@ -104,8 +101,8 @@ struct StudentInsightsView: View {
                     lookbackDays: selectedLookbackDays
                 )
 
-                modelContext.insert(snapshot)
-                try modelContext.save()
+                viewContext.insert(snapshot)
+                try viewContext.save()
 
                 await loadSnapshots()
             } catch {
@@ -119,7 +116,7 @@ struct StudentInsightsView: View {
     func markAsReviewed(_ snapshot: DevelopmentSnapshot) {
         snapshot.isReviewed = true
         do {
-            try modelContext.save()
+            try viewContext.save()
         } catch {
             Self.logger.warning("Failed to save: \(error)")
         }
@@ -140,44 +137,34 @@ struct StudentInsightsView: View {
 // MARK: - Preview
 
 #Preview {
-    let config = ModelConfiguration(isStoredInMemoryOnly: true)
-    let container: ModelContainer
-    do {
-        container = try ModelContainer(for: AppSchema.schema, configurations: config)
-    } catch {
-        fatalError("Preview ModelContainer failed: \(error)")
-    }
-    let context = container.mainContext
+    let stack = CoreDataStack.preview
+    let ctx = stack.viewContext
 
-    let student = Student(
-        firstName: "Emma",
-        lastName: "Johnson",
-        birthday: Calendar.current.date(byAdding: .year, value: -4, to: Date())!,
-        level: .lower
-    )
-    context.insert(student)
+    let student = Student(context: ctx)
+    student.firstName = "Emma"
+    student.lastName = "Johnson"
+    student.birthday = Calendar.current.date(byAdding: .year, value: -4, to: Date())!
+    student.level = .lower
 
-    let snapshot = DevelopmentSnapshot(
-        studentID: student.id.uuidString,
-        generatedAt: Date(),
-        lookbackDays: 30,
-        overallProgress: "Emma shows steady progress across academic and social domains." +
-            " Notable growth in independence and peer collaboration.",
-        keyStrengths: ["Strong focus during practice", "Helps peers frequently", "Growing independence"],
-        areasForGrowth: ["Building confidence with new materials", "Managing frustration"],
-        developmentalMilestones: ["Consistent 3-period retention", "Age-appropriate fine motor control"],
-        recommendedNextLessons: ["Complex math materials", "Extended practical life"],
-        totalNotesAnalyzed: 12,
-        practiceSessionsAnalyzed: 8,
-        workCompletionsAnalyzed: 5,
-        averagePracticeQuality: 4.2,
-        independenceLevel: 3.8
-    )
-    context.insert(snapshot)
+    let snapshot = DevelopmentSnapshot(context: ctx)
+    snapshot.studentID = student.id?.uuidString ?? ""
+    snapshot.generatedAt = Date()
+    snapshot.lookbackDays = 30
+    snapshot.overallProgress = "Emma shows steady progress across academic and social domains." +
+        " Notable growth in independence and peer collaboration."
+    snapshot.keyStrengths = ["Strong focus during practice", "Helps peers frequently", "Growing independence"]
+    snapshot.areasForGrowth = ["Building confidence with new materials", "Managing frustration"]
+    snapshot.developmentalMilestones = ["Consistent 3-period retention", "Age-appropriate fine motor control"]
+    snapshot.recommendedNextLessons = ["Complex math materials", "Extended practical life"]
+    snapshot.totalNotesAnalyzed = 12
+    snapshot.practiceSessionsAnalyzed = 8
+    snapshot.workCompletionsAnalyzed = 5
+    snapshot.averagePracticeQuality = 4.2
+    snapshot.independenceLevel = 3.8
 
     return NavigationStack {
         StudentInsightsView(student: student)
-            .modelContainer(container)
-            .environment(\.dependencies, AppDependencies(modelContext: context))
+            .previewEnvironment(using: stack)
+            .environment(\.dependencies, AppDependencies(coreDataStack: stack))
     }
 }

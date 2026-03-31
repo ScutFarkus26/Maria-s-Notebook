@@ -2,7 +2,7 @@
 // Handles incremental backups that only export changed entities
 
 import Foundation
-import SwiftData
+import CoreData
 
 /// Service for creating incremental backups that only include entities
 /// modified since the last backup, reducing backup size and time.
@@ -77,7 +77,7 @@ public final class IncrementalBackupService {
 
     // Creates an incremental backup containing only entities changed since the last backup
     // - Parameters:
-    //   - modelContext: The SwiftData model context
+    //   - viewContext: The SwiftData model context
     //   - url: Destination URL for the backup file
     //   - password: Optional encryption password
     //   - forceFullBackup: If true, creates a full backup regardless of last backup date
@@ -85,7 +85,7 @@ public final class IncrementalBackupService {
     // - Returns: Result containing metadata and statistics
     // swiftlint:disable:next function_body_length
     public func createIncrementalBackup(
-        modelContext: ModelContext,
+        viewContext: NSManagedObjectContext,
         to url: URL,
         password: String? = nil,
         forceFullBackup: Bool = false,
@@ -99,7 +99,7 @@ public final class IncrementalBackupService {
 
         // Collect all entities and filter by updatedAt if incremental
         let collectionResult = try collectPayload(
-            modelContext: modelContext,
+            viewContext: viewContext,
             sinceDate: sinceDate,
             progress: { subProgress, message in
                 progress(subProgress * 0.3, message)

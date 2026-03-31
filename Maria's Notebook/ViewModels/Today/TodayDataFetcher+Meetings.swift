@@ -1,5 +1,5 @@
 import Foundation
-import SwiftData
+import CoreData
 
 // MARK: - Meeting Fetching
 
@@ -17,13 +17,15 @@ extension TodayDataFetcher {
     static func fetchScheduledMeetings(
         day: Date,
         nextDay: Date,
-        context: ModelContext
+        context: NSManagedObjectContext
     ) -> ScheduledMeetingsFetchResult {
-        let descriptor = FetchDescriptor<ScheduledMeeting>(
-            predicate: #Predicate { $0.date >= day && $0.date < nextDay },
-            sortBy: [SortDescriptor(\ScheduledMeeting.createdAt)]
+        let request = CDFetchRequest(ScheduledMeeting.self)
+        request.predicate = NSPredicate(
+            format: "date >= %@ AND date < %@",
+            day as NSDate, nextDay as NSDate
         )
-        let meetings = context.safeFetch(descriptor)
+        request.sortDescriptors = [NSSortDescriptor(keyPath: \ScheduledMeeting.createdAt, ascending: true)]
+        let meetings = context.safeFetch(request)
         let studentIDs = Set(meetings.compactMap(\.studentIDUUID))
         return ScheduledMeetingsFetchResult(meetings: meetings, neededStudentIDs: studentIDs)
     }
@@ -39,13 +41,15 @@ extension TodayDataFetcher {
     static func fetchCompletedMeetings(
         day: Date,
         nextDay: Date,
-        context: ModelContext
+        context: NSManagedObjectContext
     ) -> CompletedMeetingsFetchResult {
-        let descriptor = FetchDescriptor<StudentMeeting>(
-            predicate: #Predicate { $0.completed == true && $0.date >= day && $0.date < nextDay },
-            sortBy: [SortDescriptor(\StudentMeeting.date)]
+        let request = CDFetchRequest(StudentMeeting.self)
+        request.predicate = NSPredicate(
+            format: "completed == YES AND date >= %@ AND date < %@",
+            day as NSDate, nextDay as NSDate
         )
-        let meetings = context.safeFetch(descriptor)
+        request.sortDescriptors = [NSSortDescriptor(keyPath: \StudentMeeting.date, ascending: true)]
+        let meetings = context.safeFetch(request)
         let studentIDs = Set(meetings.compactMap(\.studentIDUUID))
         return CompletedMeetingsFetchResult(meetings: meetings, neededStudentIDs: studentIDs)
     }

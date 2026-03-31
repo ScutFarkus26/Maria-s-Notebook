@@ -1,6 +1,6 @@
 import Foundation
 import OSLog
-import SwiftData
+import CoreData
 
 // MARK: - Today Data Fetcher
 
@@ -19,50 +19,48 @@ enum TodayDataFetcher {
     static func fetchLessons(
         day: Date,
         nextDay: Date,
-        context: ModelContext
+        context: NSManagedObjectContext
     ) -> [LessonAssignment] {
         do {
             // Fetch lessons scheduled for this day
-            let byDayDescriptor = FetchDescriptor<LessonAssignment>(
-                predicate: #Predicate { sl in
-                    sl.scheduledForDay >= day && sl.scheduledForDay < nextDay
-                },
-                sortBy: []
+            let byDayRequest = CDFetchRequest(LessonAssignment.self)
+            byDayRequest.predicate = NSPredicate(
+                format: "scheduledForDay >= %@ AND scheduledForDay < %@",
+                day as NSDate, nextDay as NSDate
             )
-            var dayLessons = try context.fetch(byDayDescriptor)
+            var dayLessons = try context.fetch(byDayRequest)
 
             // Also fetch lessons that were presented (presentedAt) on this day but not scheduled for it.
             // This catches inbox items or lessons scheduled for other days that were presented today.
             let presentedState = LessonAssignmentState.presented.rawValue
-            let presentedDescriptor = FetchDescriptor<LessonAssignment>(
-                predicate: #Predicate { sl in
-                    if let presentedAt = sl.presentedAt {
-                        return sl.stateRaw == presentedState &&
-                            presentedAt >= day && presentedAt < nextDay &&
-                            (sl.scheduledForDay < day || sl.scheduledForDay >= nextDay)
-                    } else {
-                        return false
-                    }
-                },
-                sortBy: []
+            let presentedRequest = CDFetchRequest(LessonAssignment.self)
+            presentedRequest.predicate = NSPredicate(
+                format: "stateRaw == %@ AND presentedAt >= %@ AND presentedAt < %@ AND (scheduledForDay < %@ OR scheduledForDay >= %@)",
+                presentedState, day as NSDate, nextDay as NSDate,
+                day as NSDate, nextDay as NSDate
             )
-            let presentedLessons = try context.fetch(presentedDescriptor)
+            let presentedLessons = try context.fetch(presentedRequest)
 
             // Deduplicate against already-fetched scheduled lessons
-            let scheduledIDs = Set(dayLessons.map(\.id))
-            let additionalPresented = presentedLessons.filter { !scheduledIDs.contains($0.id) }
+            let scheduledIDs = Set(dayLessons.compactMap { $0.id })
+            let additionalPresented = presentedLessons.filter { lesson in
+                guard let lessonID = lesson.id else { return false }
+                return !scheduledIDs.contains(lessonID)
+            }
             dayLessons.append(contentsOf: additionalPresented)
 
             // Stable sort
             dayLessons.sort { lhs, rhs in
-                if lhs.scheduledForDay != rhs.scheduledForDay {
-                    return lhs.scheduledForDay < rhs.scheduledForDay
+                let lhsDay = lhs.scheduledForDay ?? .distantPast
+                let rhsDay = rhs.scheduledForDay ?? .distantPast
+                if lhsDay != rhsDay {
+                    return lhsDay < rhsDay
                 }
                 switch (lhs.scheduledFor, rhs.scheduledFor) {
                 case let (l?, r?): return l < r
                 case (_?, nil): return true
                 case (nil, _?): return false
-                default: return lhs.createdAt < rhs.createdAt
+                default: return (lhs.createdAt ?? .distantPast) < (rhs.createdAt ?? .distantPast)
                 }
             }
 
@@ -89,7 +87,7 @@ enum TodayDataFetcher {
         day: Date,
         nextDay: Date,
         referenceDate: Date,
-        context: ModelContext
+        context: NSManagedObjectContext
     ) -> WorkFetchResult? {
         do {
             // ENERGY OPTIMIZATION: Limit work fetch to relevant time window
@@ -99,15 +97,14 @@ enum TodayDataFetcher {
 
             // Fetch Active/Review WorkModels with date filter
             // PERFORMANCE: Add fetch limit to prevent unbounded result sets
-            var workDescriptor = FetchDescriptor<WorkModel>(
-                predicate: #Predicate { w in
-                    (w.statusRaw == "active" || w.statusRaw == "review") &&
-                    w.createdAt >= cutoffDate
-                },
-                sortBy: [SortDescriptor(\WorkModel.createdAt, order: .reverse)]
+            let workRequest = CDFetchRequest(WorkModel.self)
+            workRequest.predicate = NSPredicate(
+                format: "(statusRaw == %@ OR statusRaw == %@) AND createdAt >= %@",
+                "active", "review", cutoffDate as NSDate
             )
-            workDescriptor.fetchLimit = 1000 // Reasonable limit for active work items
-            let workItems = try context.fetch(workDescriptor)
+            workRequest.sortDescriptors = [NSSortDescriptor(keyPath: \WorkModel.createdAt, ascending: false)]
+            workRequest.fetchLimit = 1000 // Reasonable limit for active work items
+            let workItems = try context.fetch(workRequest)
 
             // Collect student/lesson IDs from work
             var workStudentIDs = Set<UUID>()
@@ -122,60 +119,58 @@ enum TodayDataFetcher {
             }
 
             // PERFORMANCE: Build workIDStrings Set once for efficient lookups
-            let workIDStrings = Set(workItems.map { $0.id.uuidString })
-            
+            let workIDStrings = Set(workItems.map { $0.id?.uuidString ?? "" }).subtracting([""])
+
             // Fetch Scheduled Check-Ins (WorkCheckIn with .scheduled status)
             // Migration Note: Uses WorkCheckIn for scheduled check-ins
             let scheduledCheckIns: [WorkCheckIn]
             let scheduledStatus = WorkCheckInStatus.scheduled.rawValue
             if workIDStrings.count > 100 {
                 // For large result sets, filter in memory to avoid predicate complexity
-                let checkInDescriptor = FetchDescriptor<WorkCheckIn>(
-                    predicate: #Predicate<WorkCheckIn> { checkIn in
-                        checkIn.statusRaw == scheduledStatus &&
-                        checkIn.date <= nextDay
-                    }
+                let checkInRequest = CDFetchRequest(WorkCheckIn.self)
+                checkInRequest.predicate = NSPredicate(
+                    format: "statusRaw == %@ AND date <= %@",
+                    scheduledStatus, nextDay as NSDate
                 )
-                let fetchedCheckIns = try context.fetch(checkInDescriptor)
+                let fetchedCheckIns = try context.fetch(checkInRequest)
                 scheduledCheckIns = fetchedCheckIns.filter { workIDStrings.contains($0.workID) }
             } else {
                 // For smaller sets, let the predicate handle it
-                let checkInDescriptor = FetchDescriptor<WorkCheckIn>(
-                    predicate: #Predicate<WorkCheckIn> { checkIn in
-                        checkIn.statusRaw == scheduledStatus &&
-                        workIDStrings.contains(checkIn.workID)
-                    }
+                let checkInRequest = CDFetchRequest(WorkCheckIn.self)
+                checkInRequest.predicate = NSPredicate(
+                    format: "statusRaw == %@ AND workID IN %@",
+                    scheduledStatus, Array(workIDStrings)
                 )
-                scheduledCheckIns = try context.fetch(checkInDescriptor)
+                scheduledCheckIns = try context.fetch(checkInRequest)
             }
 
             // Fetch Notes
             let notesCutoffDate = Calendar.current.date(byAdding: .day, value: -90, to: Date())
                 ?? Date().addingTimeInterval(-90*24*3600)
             // PERFORMANCE: Add fetch limit and sort to prevent unbounded result sets
-            var notesDescriptor = FetchDescriptor<Note>(
-                predicate: #Predicate<Note> { note in
-                    note.createdAt >= notesCutoffDate && note.work != nil
-                },
-                sortBy: [SortDescriptor(\Note.createdAt, order: .reverse)]
+            let notesRequest = CDFetchRequest(Note.self)
+            notesRequest.predicate = NSPredicate(
+                format: "createdAt >= %@ AND work != nil",
+                notesCutoffDate as NSDate
             )
-            notesDescriptor.fetchLimit = 500 // Reasonable limit for recent notes
-            let fetchedNotes = try context.fetch(notesDescriptor)
-            
+            notesRequest.sortDescriptors = [NSSortDescriptor(keyPath: \Note.createdAt, ascending: false)]
+            notesRequest.fetchLimit = 500 // Reasonable limit for recent notes
+            let fetchedNotes = try context.fetch(notesRequest)
+
             // PERFORMANCE: Filter notes and group both checkIns and notes in a single pass
             // This reduces iterations from 3 separate loops to 1
             var checkInsByWork: [UUID: [WorkCheckIn]] = [:]
             var notesByWork: [UUID: [Note]] = [:]
-            
+
             for checkIn in scheduledCheckIns {
                 if let workID = UUID(uuidString: checkIn.workID) {
                     checkInsByWork[workID, default: []].append(checkIn)
                 }
             }
-            
+
             for note in fetchedNotes {
-                if let work = note.work, workIDStrings.contains(work.id.uuidString) {
-                    notesByWork[work.id, default: []].append(note)
+                if let work = note.work, let workID = work.id, workIDStrings.contains(workID.uuidString) {
+                    notesByWork[workID, default: []].append(note)
                 }
             }
 
@@ -199,22 +194,18 @@ enum TodayDataFetcher {
     static func fetchCompletedWork(
         day: Date,
         nextDay: Date,
-        context: ModelContext
+        context: NSManagedObjectContext
     ) -> [WorkModel] {
         do {
-            var descriptor = FetchDescriptor<WorkModel>(
-                predicate: #Predicate { w in
-                    if let ca = w.completedAt {
-                        return ca >= day && ca < nextDay
-                    } else {
-                        return false
-                    }
-                },
-                sortBy: [SortDescriptor(\.completedAt, order: .reverse)]
+            let request = CDFetchRequest(WorkModel.self)
+            request.predicate = NSPredicate(
+                format: "completedAt >= %@ AND completedAt < %@",
+                day as NSDate, nextDay as NSDate
             )
+            request.sortDescriptors = [NSSortDescriptor(keyPath: \WorkModel.completedAt, ascending: false)]
             // OPTIMIZATION: Limit to 100 most recent completed items for performance
-            descriptor.fetchLimit = 100
-            return try context.fetch(descriptor)
+            request.fetchLimit = 100
+            return try context.fetch(request)
         } catch {
             return []
         }
@@ -234,21 +225,23 @@ enum TodayDataFetcher {
     @MainActor static func fetchReminders(
         day: Date,
         nextDay: Date,
-        context: ModelContext
+        context: NSManagedObjectContext
     ) -> ReminderFetchResult {
         do {
             let startOfDay = AppCalendar.startOfDay(day)
 
             // Get the configured sync list identifier
-            let syncListIdentifier = ReminderSyncService.shared.syncListIdentifier
+            guard let syncListIdentifier = ReminderSyncService.shared.syncListIdentifier else {
+                return ReminderFetchResult(overdue: [], today: [], anytime: [])
+            }
 
             // Only fetch incomplete reminders from the configured list
-            let incompleteDescriptor = FetchDescriptor<Reminder>(
-                predicate: #Predicate { r in
-                    r.isCompleted == false && r.eventKitCalendarID == syncListIdentifier
-                }
+            let incompleteRequest = CDFetchRequest(Reminder.self)
+            incompleteRequest.predicate = NSPredicate(
+                format: "isCompleted == NO AND eventKitCalendarID == %@",
+                syncListIdentifier
             )
-            let allReminders = try context.fetch(incompleteDescriptor)
+            let allReminders = try context.fetch(incompleteRequest)
 
             var overdue: [Reminder] = []
             var today: [Reminder] = []
@@ -285,16 +278,16 @@ enum TodayDataFetcher {
     static func fetchCalendarEvents(
         day: Date,
         nextDay: Date,
-        context: ModelContext
+        context: NSManagedObjectContext
     ) -> [CalendarEvent] {
         do {
-            let descriptor = FetchDescriptor<CalendarEvent>(
-                predicate: #Predicate { event in
-                    event.startDate < nextDay && event.endDate > day
-                },
-                sortBy: [SortDescriptor(\CalendarEvent.startDate)]
+            let request = CDFetchRequest(CalendarEvent.self)
+            request.predicate = NSPredicate(
+                format: "startDate < %@ AND endDate > %@",
+                nextDay as NSDate, day as NSDate
             )
-            return try context.fetch(descriptor)
+            request.sortDescriptors = [NSSortDescriptor(keyPath: \CalendarEvent.startDate, ascending: true)]
+            return try context.fetch(request)
         } catch {
             logger.error("Error loading calendar events: \(error)")
             return []
@@ -313,14 +306,15 @@ enum TodayDataFetcher {
     static func fetchAttendance(
         day: Date,
         nextDay: Date,
-        context: ModelContext
+        context: NSManagedObjectContext
     ) -> AttendanceFetchResult {
         do {
-            let descriptor = FetchDescriptor<AttendanceRecord>(
-                predicate: #Predicate { rec in rec.date >= day && rec.date < nextDay },
-                sortBy: []
+            let request = CDFetchRequest(AttendanceRecord.self)
+            request.predicate = NSPredicate(
+                format: "date >= %@ AND date < %@",
+                day as NSDate, nextDay as NSDate
             )
-            let records = try context.fetch(descriptor)
+            let records = try context.fetch(request)
             let studentIDs = Set(records.compactMap { $0.studentID.asUUID })
             return AttendanceFetchResult(records: records, neededStudentIDs: studentIDs)
         } catch {
@@ -337,23 +331,22 @@ enum TodayDataFetcher {
     }
 
     /// Fetches recent notes from the last 7 days.
-    static func fetchRecentNotes(context: ModelContext) -> RecentNotesFetchResult {
+    static func fetchRecentNotes(context: NSManagedObjectContext) -> RecentNotesFetchResult {
         let cutoff = Calendar.current.date(byAdding: .day, value: -7, to: Date())
             ?? Date().addingTimeInterval(-7*24*3600)
         do {
-            let descriptor = FetchDescriptor<Note>(
-                predicate: #Predicate { $0.createdAt >= cutoff }
-            )
-            var fetchedNotes = try context.fetch(descriptor)
-            fetchedNotes.sort { $0.createdAt > $1.createdAt }
-            let limitedNotes = Array(fetchedNotes.prefix(10))
+            let request = CDFetchRequest(Note.self)
+            request.predicate = NSPredicate(format: "createdAt >= %@", cutoff as NSDate)
+            request.sortDescriptors = [NSSortDescriptor(keyPath: \Note.createdAt, ascending: false)]
+            request.fetchLimit = 10
+            let fetchedNotes = try context.fetch(request)
 
             var noteStudentIDs = Set<UUID>()
-            for note in limitedNotes {
+            for note in fetchedNotes {
                 noteStudentIDs.formUnion(studentIDs(for: note))
             }
 
-            return RecentNotesFetchResult(notes: limitedNotes, neededStudentIDs: noteStudentIDs)
+            return RecentNotesFetchResult(notes: fetchedNotes, neededStudentIDs: noteStudentIDs)
         } catch {
             return RecentNotesFetchResult(notes: [], neededStudentIDs: [])
         }

@@ -2,7 +2,7 @@
 // ViewModel for the Progression landing page.
 
 import Foundation
-import SwiftData
+import CoreData
 import OSLog
 
 /// Loads subject/group summaries for the Progression landing page.
@@ -17,7 +17,7 @@ final class ProgressionRootViewModel {
     // MARK: - Data Loading
 
     // swiftlint:disable:next cyclomatic_complexity function_body_length
-    func loadData(context: ModelContext) {
+    func loadData(context: NSManagedObjectContext) {
         isLoading = true
         defer { isLoading = false }
 
@@ -26,7 +26,7 @@ final class ProgressionRootViewModel {
         let allWork = fetchAllWork(context: context)
         let allStudents = fetchAllStudents(context: context)
         let visibleStudents = TestStudentsFilter.filterVisible(allStudents.filter(\.isEnrolled))
-        let visibleStudentIDs = Set(visibleStudents.map { $0.id.uuidString })
+        let visibleStudentIDs = Set(visibleStudents.compactMap { $0.id?.uuidString })
 
         // Pre-index presentations and work by lessonID for O(1) lookups
         let presentationsByLesson = Dictionary(grouping: allPresentations) { $0.lessonID }
@@ -47,14 +47,14 @@ final class ProgressionRootViewModel {
             let sorted = lessons.sorted { $0.orderInGroup < $1.orderInGroup }
 
             // Collect presentations and work for this group using pre-indexed dictionaries
-            var groupPresentations: [LessonAssignment] = []
-            var groupWork: [WorkModel] = []
+            var groupPresentations: [CDLessonAssignment] = []
+            var groupWork: [CDWorkModel] = []
             // Also build a lessonID → orderInGroup lookup for this group
             var orderByLessonID: [String: Int] = [:]
 
             for lesson in sorted {
-                let lessonIDStr = lesson.id.uuidString
-                orderByLessonID[lessonIDStr] = lesson.orderInGroup
+                let lessonIDStr = lesson.id?.uuidString ?? ""
+                orderByLessonID[lessonIDStr] = Int(lesson.orderInGroup)
                 if let pres = presentationsByLesson[lessonIDStr] {
                     groupPresentations.append(contentsOf: pres.filter { $0.presentedAt != nil })
                 }
@@ -111,7 +111,7 @@ final class ProgressionRootViewModel {
 
                     // Check for stale work (active work with no recent touch)
                     let hasStaleWork = studentActiveWork.contains { w in
-                        (w.lastTouchedAt ?? w.createdAt) < staleThreshold
+                        (w.lastTouchedAt ?? w.createdAt ?? .distantPast) < staleThreshold
                     }
                     if hasStaleWork {
                         needsAttentionCount += 1
@@ -121,7 +121,7 @@ final class ProgressionRootViewModel {
 
             // Find furthest lesson name across all students
             let allPresentedLessonIDs = Set(groupPresentations.map(\.lessonID))
-            let furthestLesson = sorted.last { allPresentedLessonIDs.contains($0.id.uuidString) }
+            let furthestLesson = sorted.last { allPresentedLessonIDs.contains($0.id?.uuidString ?? "") }
 
             summaries.append(GroupSummary(
                 id: "\(key.subject)|\(key.group)",
@@ -141,29 +141,28 @@ final class ProgressionRootViewModel {
 
     // MARK: - Data Fetching
 
-    private func fetchAllLessons(context: ModelContext) -> [Lesson] {
-        let descriptor = FetchDescriptor<Lesson>(
-            sortBy: [
-                SortDescriptor(\Lesson.subject),
-                SortDescriptor(\Lesson.group),
-                SortDescriptor(\Lesson.orderInGroup)
-            ]
-        )
+    private func fetchAllLessons(context: NSManagedObjectContext) -> [CDLesson] {
+        let request = CDLesson.fetchRequest() as! NSFetchRequest<CDLesson>
+        request.sortDescriptors = [
+            NSSortDescriptor(keyPath: \CDLesson.subject, ascending: true),
+            NSSortDescriptor(keyPath: \CDLesson.group, ascending: true),
+            NSSortDescriptor(keyPath: \CDLesson.orderInGroup, ascending: true)
+        ]
+        return context.safeFetch(request)
+    }
+
+    private func fetchPresentations(context: NSManagedObjectContext) -> [CDLessonAssignment] {
+        let descriptor = CDLessonAssignment.fetchRequest() as! NSFetchRequest<CDLessonAssignment>
         return context.safeFetch(descriptor)
     }
 
-    private func fetchPresentations(context: ModelContext) -> [LessonAssignment] {
-        let descriptor = FetchDescriptor<LessonAssignment>()
+    private func fetchAllWork(context: NSManagedObjectContext) -> [CDWorkModel] {
+        let descriptor = CDWorkModel.fetchRequest() as! NSFetchRequest<CDWorkModel>
         return context.safeFetch(descriptor)
     }
 
-    private func fetchAllWork(context: ModelContext) -> [WorkModel] {
-        let descriptor = FetchDescriptor<WorkModel>()
-        return context.safeFetch(descriptor)
-    }
-
-    private func fetchAllStudents(context: ModelContext) -> [Student] {
-        let descriptor = FetchDescriptor<Student>(sortBy: Student.sortByName)
+    private func fetchAllStudents(context: NSManagedObjectContext) -> [CDStudent] {
+        let descriptor = { let r = CDStudent.fetchRequest() as! NSFetchRequest<CDStudent>; r.sortDescriptors = CDStudent.sortByName; return r }()
         return context.safeFetch(descriptor)
     }
 }

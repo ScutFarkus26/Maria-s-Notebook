@@ -4,12 +4,12 @@
 import SwiftUI
 
 struct TransitionPlanCard: View {
-    let plan: TransitionPlan
+    let plan: CDTransitionPlan
     let viewModel: TransitionPlannerViewModel
 
     var body: some View {
         HStack(spacing: 12) {
-            // Student avatar
+            // CDStudent avatar
             if let student = viewModel.student(for: plan) {
                 Text("\(student.firstName.prefix(1))\(student.lastName.prefix(1))")
                     .font(.caption)

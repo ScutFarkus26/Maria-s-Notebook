@@ -1,4 +1,4 @@
-import SwiftData
+import CoreData
 import Foundation
 
 #if DEBUG
@@ -38,8 +38,10 @@ extension Note {
 @MainActor
 private func notesSortedNewestFirst(_ notes: [Note]) -> [Note] {
     notes.sorted { lhs, rhs in
-        if lhs.updatedAt != rhs.updatedAt { return lhs.updatedAt > rhs.updatedAt }
-        return lhs.createdAt > rhs.createdAt
+        let lhsUpdated = lhs.updatedAt ?? .distantPast
+        let rhsUpdated = rhs.updatedAt ?? .distantPast
+        if lhsUpdated != rhsUpdated { return lhsUpdated > rhsUpdated }
+        return (lhs.createdAt ?? .distantPast) > (rhs.createdAt ?? .distantPast)
     }
 }
 
@@ -49,8 +51,8 @@ extension Lesson {
     /// Notes visible to a specific student: includes `.all` and any note scoped to that student.
     /// Sorted newest first (updatedAt, then createdAt).
     func notesVisible(to studentID: UUID) -> [Note] {
-        // FIX: 'notes' is now optional [Note]?, defaulting to []
-        let filtered = (notes ?? []).filter { note in
+        let allNotes = (notes?.allObjects as? [CDNote]) ?? []
+        let filtered = allNotes.filter { note in
             switch note.scope {
             case .all:
                 return true

@@ -1,7 +1,6 @@
 import Foundation
 import SwiftUI
 import CoreData
-import SwiftData
 import OSLog
 
 /// Service that monitors CloudKit sync activity and provides status information.
@@ -68,8 +67,7 @@ final class CloudKitSyncStatusService {
     var cloudKitEventObserver: NSObjectProtocol?
     var syncStartTime: Date?
     private var coreDataStack: CoreDataStack?
-    @available(*, deprecated, message: "Use coreDataStack instead")
-    private var modelContainer: ModelContainer?
+    // Legacy modelContainer removed — use coreDataStack instead
     var syncingTask: Task<Void, Never>?
 
     // Task tracking for notification handlers to prevent accumulation
@@ -165,31 +163,7 @@ final class CloudKitSyncStatusService {
         }
     }
 
-    @available(*, deprecated, message: "Use configure(with: CoreDataStack)")
-    func configure(with container: ModelContainer) {
-        removeAllObservers()
-        syncingTask?.cancel()
-        syncingTask = nil
-
-        self.modelContainer = container
-
-        Task { [weak self] in
-            do {
-                try await Task.sleep(for: .seconds(2))
-                guard !Task.isCancelled else { return }
-            } catch is CancellationError {
-                return
-            } catch {
-                return
-            }
-            await MainActor.run { [weak self] in
-                guard let self else { return }
-                self.startObserving()
-                self.healthCheck.startICloudAccountMonitoring()
-                self.updateSyncHealth()
-            }
-        }
-    }
+    // Deprecated configure(with: ModelContainer) removed — use configure(with: CoreDataStack)
 
     // MARK: - Manual Sync
 
@@ -197,14 +171,7 @@ final class CloudKitSyncStatusService {
     /// Returns true if save succeeded, false otherwise.
     @discardableResult
     func syncNow() async -> Bool {
-        // Prefer Core Data stack; fall back to legacy ModelContainer
-        let viewContext: NSManagedObjectContext? = coreDataStack?.viewContext
-        let legacyFallback: (() throws -> Void)? = {
-            guard let container = self.modelContainer else { return nil }
-            return { try container.mainContext.save() }
-        }()
-
-        guard viewContext != nil || legacyFallback != nil else { return false }
+        guard let viewContext = coreDataStack?.viewContext else { return false }
 
         isSyncing = true
         syncStartTime = Date()
@@ -215,11 +182,7 @@ final class CloudKitSyncStatusService {
         do {
             // Use the view context so any pending local changes are actually
             // committed to the store (and thus queued for CloudKit mirroring).
-            if let viewContext {
-                try viewContext.save()
-            } else if let legacyFallback {
-                try legacyFallback()
-            }
+            try viewContext.save()
 
             // Update success state
             let now = Date()

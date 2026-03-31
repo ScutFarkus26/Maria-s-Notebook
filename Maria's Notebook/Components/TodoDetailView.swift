@@ -2,22 +2,22 @@
 // Elegant full-screen todo list view inspired by Things and Bear
 
 import SwiftUI
-import SwiftData
+import CoreData
 
 // MARK: - Todo Detail View
 
 // swiftlint:disable:next type_body_length
 struct TodoDetailView: View {
-    @Bindable var todo: TodoItem
-    @Environment(\.modelContext) private var modelContext
-    @Query(sort: Student.sortByName) private var allStudentsRaw: [Student]
+    @ObservedObject var todo: CDTodoItem
+    @Environment(\.managedObjectContext) private var viewContext
+    @FetchRequest(sortDescriptors: CDStudent.sortByName)private var allStudentsRaw: FetchedResults<CDStudent>
     @AppStorage(UserDefaultsKeys.generalShowTestStudents) private var showTestStudents: Bool = false
     @AppStorage(UserDefaultsKeys.generalTestStudentNames)
     private var testStudentNamesRaw: String = "Danny De Berry,Lil Dan D"
 
-    private var allStudents: [Student] {
+    private var allStudents: [CDStudent] {
         TestStudentsFilter.filterVisible(
-            allStudentsRaw.uniqueByID.filter(\.isEnrolled),
+            Array(allStudentsRaw).uniqueByID.filter(\.isEnrolled),
             show: showTestStudents,
             namesRaw: testStudentNamesRaw
         )
@@ -35,7 +35,7 @@ struct TodoDetailView: View {
                         adaptiveWithAnimation(.snappy(duration: 0.2)) {
                             todo.isCompleted.toggle()
                             todo.completedAt = todo.isCompleted ? Date() : nil
-                            try? modelContext.save()
+                            try? viewContext.save()
                         }
                     } label: {
                         Image(systemName: todo.isCompleted ? "checkmark.circle.fill" : "circle")
@@ -51,7 +51,7 @@ struct TodoDetailView: View {
                 }
 
                 // Students
-                if !todo.studentIDs.isEmpty {
+                if !todo.studentIDsArray.isEmpty {
                     detailSection("Students", icon: "person.2.fill") {
                         FlowLayout(spacing: 8) {
                             ForEach(todo.studentUUIDs, id: \.self) { studentID in
@@ -71,7 +71,7 @@ struct TodoDetailView: View {
 
                 // Due Date & Recurrence
                 if todo.dueDate != nil || todo.scheduledDate != nil || todo.isSomeday || todo.recurrence != .none {
-                    detailSection("Schedule", icon: "calendar") {
+                    detailSection("CDSchedule", icon: "calendar") {
                         VStack(alignment: .leading, spacing: 10) {
                             if let scheduled = todo.scheduledDate {
                                 metadataRow(
@@ -118,10 +118,10 @@ struct TodoDetailView: View {
                 }
 
                 // Tags
-                if !todo.tags.isEmpty {
+                if !todo.tagsArray.isEmpty {
                     detailSection("Tags", icon: "tag.fill") {
                         FlowLayout(spacing: 8) {
-                            ForEach(todo.tags, id: \.self) { tag in
+                            ForEach(todo.tagsArray, id: \.self) { tag in
                                 TagBadge(tag: tag)
                             }
                         }
@@ -129,7 +129,7 @@ struct TodoDetailView: View {
                 }
 
                 // Subtasks
-                let viewSubs = todo.subtasks ?? []
+                let viewSubs = ((todo.subtasks as? Set<CDTodoSubtaskEntity>) ?? []).sorted { $0.orderIndex < $1.orderIndex }
                 if !viewSubs.isEmpty {
                     detailSection("Checklist", icon: "checklist") {
                         VStack(alignment: .leading, spacing: 2) {
@@ -145,7 +145,7 @@ struct TodoDetailView: View {
                             }
                             .padding(.bottom, 8)
 
-                            ForEach(viewSubs.sorted { $0.orderIndex < $1.orderIndex }) { subtask in
+                            ForEach(viewSubs, id: \.objectID) { subtask in
                                 HStack(spacing: 10) {
                                     Image(systemName: subtask.isCompleted ? "checkmark.circle.fill" : "circle")
                                         .font(.system(size: 16))
@@ -162,22 +162,24 @@ struct TodoDetailView: View {
                 }
 
                 // Time Tracking
-                if todo.estimatedMinutes != nil || todo.actualMinutes != nil {
+                if todo.estimatedMinutes > 0 || todo.actualMinutes > 0 {
                     detailSection("Time", icon: "clock.fill") {
                         VStack(alignment: .leading, spacing: 8) {
-                            if let est = todo.estimatedMinutes {
+                            if todo.estimatedMinutes > 0 {
                                 metadataRow(
                                     icon: "hourglass", label: "Estimated",
-                                    value: formatMinutes(est), valueColor: .secondary
+                                    value: formatMinutes(Int(todo.estimatedMinutes)), valueColor: .secondary
                                 )
                             }
-                            if let actual = todo.actualMinutes {
+                            if todo.actualMinutes > 0 {
                                 metadataRow(
                                     icon: "stopwatch", label: "Actual",
-                                    value: formatMinutes(actual), valueColor: .secondary
+                                    value: formatMinutes(Int(todo.actualMinutes)), valueColor: .secondary
                                 )
                             }
-                            if let est = todo.estimatedMinutes, let actual = todo.actualMinutes, est > 0 {
+                            if todo.estimatedMinutes > 0 && todo.actualMinutes > 0 {
+                                let est = Int(todo.estimatedMinutes)
+                                let actual = Int(todo.actualMinutes)
                                 let variance = actual - est
                                 let color: Color = variance > 0 ? .red : (variance < 0 ? .green : .secondary)
                                 let sign = variance > 0 ? "+" : ""
@@ -191,9 +193,9 @@ struct TodoDetailView: View {
                     }
                 }
 
-                // Reminder
+                // CDReminder
                 if let reminderDate = todo.reminderDate {
-                    detailSection("Reminder", icon: "bell.fill") {
+                    detailSection("CDReminder", icon: "bell.fill") {
                         metadataRow(
                             icon: "bell", label: "Alert at",
                             value: formatDate(reminderDate), valueColor: .yellow
@@ -201,7 +203,7 @@ struct TodoDetailView: View {
                     }
                 }
 
-                // Location Reminder
+                // Location CDReminder
                 if todo.hasLocationReminder, let locationName = todo.locationName {
                     detailSection("Location", icon: "location.fill") {
                         VStack(alignment: .leading, spacing: 8) {
@@ -238,7 +240,7 @@ struct TodoDetailView: View {
                 // Attachments
                 if todo.hasAttachments {
                     detailSection("Attachments", icon: "paperclip") {
-                        Text("\(todo.attachmentPaths.count) file\(todo.attachmentPaths.count == 1 ? "" : "s")")
+                        Text("\(todo.attachmentPathsArray.count) file\(todo.attachmentPathsArray.count == 1 ? "" : "s")")
                             .font(AppTheme.ScaledFont.body)
                             .foregroundStyle(.secondary)
                     }
@@ -290,11 +292,13 @@ struct TodoDetailView: View {
                 }
 
                 // Created timestamp
-                detailSection("Created", icon: "clock.arrow.circlepath") {
-                    metadataRow(
-                        icon: "plus.circle", label: "Created",
-                        value: formatDate(todo.createdAt), valueColor: .secondary
-                    )
+                if let createdAt = todo.createdAt {
+                    detailSection("Created", icon: "clock.arrow.circlepath") {
+                        metadataRow(
+                            icon: "plus.circle", label: "Created",
+                            value: formatDate(createdAt), valueColor: .secondary
+                        )
+                    }
                 }
             }
             .padding(24)

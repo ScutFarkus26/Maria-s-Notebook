@@ -1,9 +1,9 @@
 // StudentNotesViewModel.swift
-// Aggregates all notes for a specific Student
+// Aggregates all notes for a specific CDStudent
 
 import OSLog
-import SwiftData
 import SwiftUI
+import CoreData
 
 // MARK: - View Model
 @Observable
@@ -11,8 +11,8 @@ import SwiftUI
 final class StudentNotesViewModel {
     private static let logger = Logger.students
 
-    private let student: Student
-    let modelContext: ModelContext
+    private let student: CDStudent
+    let viewContext: NSManagedObjectContext
     let saveCoordinator: SaveCoordinator
 
     var items: [UnifiedNoteItem] = []
@@ -26,18 +26,18 @@ final class StudentNotesViewModel {
         Array(items.prefix(displayedItemCount))
     }
 
-    init(student: Student, modelContext: ModelContext, saveCoordinator: SaveCoordinator) {
+    init(student: CDStudent, viewContext: NSManagedObjectContext, saveCoordinator: SaveCoordinator) {
         self.student = student
-        self.modelContext = modelContext
+        self.viewContext = viewContext
         self.saveCoordinator = saveCoordinator
         fetchAllNotes()
     }
 
     // MARK: - Error Handling Helpers
 
-    private func safeFetch<T>(_ descriptor: FetchDescriptor<T>, functionName: String = #function) -> [T] {
+    private func safeFetch<T>(_ descriptor: NSFetchRequest<T>, functionName: String = #function) -> [T] {
         do {
-            return try modelContext.fetch(descriptor)
+            return try viewContext.fetch(descriptor)
         } catch {
             Self.logger.warning(
                 "Failed to fetch \(T.self, privacy: .public) in \(functionName, privacy: .public): \(error)"
@@ -60,10 +60,10 @@ final class StudentNotesViewModel {
 
     // MARK: - Fetch
     func fetchAllNotes() {
-        let studentIDString = student.id.uuidString
-        let noteSort: [SortDescriptor<Note>] = [
-            SortDescriptor(\Note.updatedAt, order: .reverse),
-            SortDescriptor(\Note.createdAt, order: .reverse)
+        let studentIDString = student.id?.uuidString ?? ""
+        let noteSort: [NSSortDescriptor] = [
+            NSSortDescriptor(keyPath: \CDNote.updatedAt, ascending: false),
+            NSSortDescriptor(keyPath: \CDNote.createdAt, ascending: false)
         ]
 
         var aggregated: [UnifiedNoteItem] = []
@@ -86,13 +86,13 @@ final class StudentNotesViewModel {
         let trimmed = body.trimmed()
         guard !trimmed.isEmpty else { return }
 
-        let newNote = Note(
-            body: trimmed,
-            scope: .student(student.id)
-        )
-        modelContext.insert(newNote)
+        let newNote = CDNote(context: viewContext)
+        newNote.body = trimmed
+        if let studentID = student.id {
+            newNote.scope = .student(studentID)
+        }
 
-        if saveCoordinator.save(modelContext, reason: "Adding note") {
+        if saveCoordinator.save(viewContext, reason: "Adding note") {
             fetchAllNotes()
         }
     }
@@ -101,8 +101,8 @@ final class StudentNotesViewModel {
     func delete(item: UnifiedNoteItem) {
         if let note = note(by: item.id) {
             note.deleteAssociatedImage()
-            modelContext.delete(note)
-            if saveCoordinator.save(modelContext, reason: "Deleting note") {
+            viewContext.delete(note)
+            if saveCoordinator.save(viewContext, reason: "Deleting note") {
                 items.removeAll { $0.id == item.id }
             }
         }
@@ -110,39 +110,38 @@ final class StudentNotesViewModel {
 
 }
 
-// MARK: - Note Source Fetchers
+// MARK: - CDNote Source Fetchers
 
 extension StudentNotesViewModel {
 
     /// 1) General notes where scope matches this student.
     func fetchGeneralNotes(
-        noteSort: [SortDescriptor<Note>], studentIDString: String
+        noteSort: [NSSortDescriptor], studentIDString: String
     ) -> [UnifiedNoteItem] {
-        let studentID = student.id
-        let primaryFetch = FetchDescriptor<Note>(
-            predicate: #Predicate<Note> { note in
-                note.scopeIsAll == true || note.searchIndexStudentID == studentID
-            },
-            sortBy: noteSort
-        )
-        let primaryNotes: [Note] = safeFetch(primaryFetch)
+        let primaryFetch: NSFetchRequest<CDNote> = NSFetchRequest(entityName: "CDNote")
+        if let studentID = student.id {
+            primaryFetch.predicate = NSPredicate(format: "scopeIsAll == YES OR searchIndexStudentID == %@", studentID as CVarArg)
+        } else {
+            primaryFetch.predicate = NSPredicate(format: "scopeIsAll == YES")
+        }
+        primaryFetch.sortDescriptors = noteSort
+        let primaryNotes: [CDNote] = safeFetch(primaryFetch)
 
-        let linkFetch = FetchDescriptor<NoteStudentLink>(
-            predicate: #Predicate<NoteStudentLink> { link in
-                link.studentID == studentIDString
-            }
-        )
-        let links: [NoteStudentLink] = safeFetch(linkFetch)
+        let linkFetch: NSFetchRequest<CDNoteStudentLink> = NSFetchRequest(entityName: "CDNoteStudentLink")
+        linkFetch.predicate = NSPredicate(format: "studentID == %@", studentIDString as CVarArg)
+        let links: [CDNoteStudentLink] = safeFetch(linkFetch)
         let linkedNotes = links.compactMap(\.note)
 
-        var seenIDs = Set(primaryNotes.map(\.id))
+        var seenIDs = Set(primaryNotes.compactMap(\.id))
         var visibleNotes = primaryNotes
-        for note in linkedNotes where !seenIDs.contains(note.id) {
-            seenIDs.insert(note.id)
+        for note in linkedNotes {
+            guard let noteID = note.id, !seenIDs.contains(noteID) else { continue }
+            seenIDs.insert(noteID)
             visibleNotes.append(note)
         }
 
         return visibleNotes.compactMap { note in
+            guard let noteID = note.id else { return nil }
             if note.work != nil { return nil }
             if note.lessonAssignment != nil { return nil }
             if note.studentMeeting != nil { return nil }
@@ -157,9 +156,9 @@ extension StudentNotesViewModel {
             }()
 
             return UnifiedNoteItem(
-                id: note.id, date: note.updatedAt, body: note.body,
+                id: noteID, date: note.updatedAt ?? Date(), body: note.body,
                 source: .general, contextText: context, color: .blue,
-                associatedID: note.id, tags: note.tags,
+                associatedID: noteID, tags: note.tagsArray,
                 includeInReport: note.includeInReport, needsFollowUp: note.needsFollowUp,
                 imagePath: note.imagePath, reportedBy: note.reportedBy,
                 reporterName: note.reporterName, isPinned: note.isPinned
@@ -169,32 +168,33 @@ extension StudentNotesViewModel {
 
     /// 2) Work-related notes.
     func fetchWorkRelatedNotes(
-        noteSort: [SortDescriptor<Note>], studentIDString: String
+        noteSort: [NSSortDescriptor], studentIDString: String
     ) -> [UnifiedNoteItem] {
-        let workFetch = FetchDescriptor<WorkModel>(
-            predicate: #Predicate<WorkModel> { $0.studentID == studentIDString }
-        )
-        let workModels: [WorkModel] = safeFetch(workFetch)
-        let workIDs = Set(workModels.map(\.id))
+        let workFetch: NSFetchRequest<CDWorkModel> = NSFetchRequest(entityName: "CDWorkModel")
+        workFetch.predicate = NSPredicate(format: "studentID == %@", studentIDString as CVarArg)
+        let workModels: [CDWorkModel] = safeFetch(workFetch)
+        let workIDs = Set(workModels.compactMap(\.id))
         guard !workIDs.isEmpty else { return [] }
 
-        let workNoteFetch = FetchDescriptor<Note>(
-            predicate: #Predicate<Note> { $0.work != nil },
-            sortBy: noteSort
-        )
-        let workNotes: [Note] = safeFetch(workNoteFetch)
+        let workNoteFetch: NSFetchRequest<CDNote> = NSFetchRequest(entityName: "CDNote")
+        workNoteFetch.predicate = NSPredicate(format: "work != nil")
+        workNoteFetch.sortDescriptors = noteSort
+        let workNotes: [CDNote] = safeFetch(workNoteFetch)
         let lessonNameByWorkID = buildLessonNameLookup(forWorkModels: workModels)
 
         return workNotes.compactMap { note in
-            guard let work = note.work, workIDs.contains(work.id) else { return nil }
+            guard let noteID = note.id,
+                  let work = note.work,
+                  let workID = work.id,
+                  workIDs.contains(workID) else { return nil }
             if !note.scopeIsAll && note.searchIndexStudentID == nil {
-                guard note.scope.applies(to: student.id) else { return nil }
+                guard let studentID = student.id, note.scope.applies(to: studentID) else { return nil }
             }
-            let context = lessonNameByWorkID[work.id.uuidString] ?? (work.title.isEmpty ? "Work" : work.title)
+            let context = lessonNameByWorkID[workID.uuidString] ?? (work.title.isEmpty ? "Work" : work.title)
             return UnifiedNoteItem(
-                id: note.id, date: note.updatedAt, body: note.body,
+                id: noteID, date: note.updatedAt ?? Date(), body: note.body,
                 source: .work, contextText: context, color: .orange,
-                associatedID: work.id, tags: note.tags,
+                associatedID: workID, tags: note.tagsArray,
                 includeInReport: note.includeInReport, needsFollowUp: note.needsFollowUp,
                 imagePath: note.imagePath, reportedBy: note.reportedBy,
                 reporterName: note.reporterName, isPinned: note.isPinned
@@ -202,23 +202,25 @@ extension StudentNotesViewModel {
         }
     }
 
-    /// 3) Presentation-related notes (from LessonAssignment).
+    /// 3) Presentation-related notes (from CDLessonAssignment).
     func fetchPresentationNotes(
-        noteSort: [SortDescriptor<Note>], studentIDString: String
+        noteSort: [NSSortDescriptor], studentIDString: String
     ) -> [UnifiedNoteItem] {
-        let presentationNoteFetch = FetchDescriptor<Note>(
-            predicate: #Predicate<Note> { $0.lessonAssignment != nil },
-            sortBy: noteSort
-        )
-        let presentationNotes: [Note] = safeFetch(presentationNoteFetch)
-        let allLessons: [Lesson] = safeFetch(FetchDescriptor<Lesson>())
-        var lessonsByID: [UUID: Lesson] = [:]
-        for lesson in allLessons { lessonsByID[lesson.id] = lesson }
+        let presentationNoteFetch: NSFetchRequest<CDNote> = NSFetchRequest(entityName: "CDNote")
+        presentationNoteFetch.predicate = NSPredicate(format: "lessonAssignment != nil")
+        presentationNoteFetch.sortDescriptors = noteSort
+        let presentationNotes: [CDNote] = safeFetch(presentationNoteFetch)
+        let allLessons: [CDLesson] = safeFetch(NSFetchRequest<CDLesson>(entityName: "CDLesson"))
+        var lessonsByID: [UUID: CDLesson] = [:]
+        for lesson in allLessons {
+            if let lessonID = lesson.id { lessonsByID[lessonID] = lesson }
+        }
 
         return presentationNotes.compactMap { note in
-            guard let pres = note.lessonAssignment,
+            guard let noteID = note.id,
+                  let pres = note.lessonAssignment,
                   pres.studentIDs.contains(studentIDString) else { return nil }
-            guard note.scope.applies(to: student.id) else { return nil }
+            guard let studentID = student.id, note.scope.applies(to: studentID) else { return nil }
 
             let context: String = {
                 if let lessonID = UUID(uuidString: pres.lessonID),
@@ -233,9 +235,9 @@ extension StudentNotesViewModel {
             }()
 
             return UnifiedNoteItem(
-                id: note.id, date: note.updatedAt, body: note.body,
+                id: noteID, date: note.updatedAt ?? Date(), body: note.body,
                 source: .presentation, contextText: context, color: .purple,
-                associatedID: pres.id, tags: note.tags,
+                associatedID: pres.id, tags: note.tagsArray,
                 includeInReport: note.includeInReport, needsFollowUp: note.needsFollowUp,
                 imagePath: note.imagePath, reportedBy: note.reportedBy,
                 reporterName: note.reporterName, isPinned: note.isPinned
@@ -245,11 +247,10 @@ extension StudentNotesViewModel {
 
     /// 4) Meeting-related notes.
     func fetchMeetingNotes(studentIDString: String) -> [UnifiedNoteItem] {
-        let meetingFetch = FetchDescriptor<StudentMeeting>(
-            predicate: #Predicate<StudentMeeting> { $0.studentID == studentIDString },
-            sortBy: [SortDescriptor(\StudentMeeting.date, order: .reverse)]
-        )
-        let studentMeetings: [StudentMeeting] = safeFetch(meetingFetch)
+        let meetingFetch: NSFetchRequest<CDStudentMeeting> = NSFetchRequest(entityName: "CDStudentMeeting")
+        meetingFetch.predicate = NSPredicate(format: "studentID == %@", studentIDString as CVarArg)
+        meetingFetch.sortDescriptors = [NSSortDescriptor(keyPath: \CDStudentMeeting.date, ascending: false)]
+        let studentMeetings: [CDStudentMeeting] = safeFetch(meetingFetch)
 
         return studentMeetings.flatMap { meeting -> [UnifiedNoteItem] in
             var items: [UnifiedNoteItem] = []
@@ -271,24 +272,23 @@ extension StudentNotesViewModel {
 
     /// 5) Attendance-related notes.
     func fetchAttendanceNotes(
-        noteSort: [SortDescriptor<Note>], studentIDString: String
-    ) -> [UnifiedNoteItem] {
-        let attNoteFetch = FetchDescriptor<Note>(
-            predicate: #Predicate<Note> { $0.attendanceRecord != nil },
-            sortBy: noteSort
-        )
-        let attNotes: [Note] = safeFetch(attNoteFetch)
+        noteSort: [NSSortDescriptor], studentIDString: String) -> [UnifiedNoteItem] {
+        let attNoteFetch: NSFetchRequest<CDNote> = NSFetchRequest(entityName: "CDNote")
+        attNoteFetch.predicate = NSPredicate(format: "attendanceRecord != nil")
+        attNoteFetch.sortDescriptors = noteSort
+        let attNotes: [CDNote] = safeFetch(attNoteFetch)
 
         return attNotes.compactMap { note in
-            guard let record = note.attendanceRecord,
+            guard let noteID = note.id,
+                  let record = note.attendanceRecord,
                   record.studentID == studentIDString else { return nil }
-            guard note.scope.applies(to: student.id) else { return nil }
+            guard let studentID = student.id, note.scope.applies(to: studentID) else { return nil }
 
             return UnifiedNoteItem(
-                id: note.id, date: note.updatedAt, body: note.body,
+                id: noteID, date: note.updatedAt ?? Date(), body: note.body,
                 source: .attendance, contextText: "Attendance Note",
                 color: record.status.color, associatedID: record.id,
-                tags: note.tags, includeInReport: note.includeInReport,
+                tags: note.tagsArray, includeInReport: note.includeInReport,
                 needsFollowUp: note.needsFollowUp, imagePath: note.imagePath,
                 reportedBy: note.reportedBy, reporterName: note.reporterName,
                 isPinned: note.isPinned
@@ -296,15 +296,15 @@ extension StudentNotesViewModel {
         }
     }
 
-    func makeMeetingNote(_ meeting: StudentMeeting, body: String, context: String) -> UnifiedNoteItem {
+    func makeMeetingNote(_ meeting: CDStudentMeeting, body: String, context: String) -> UnifiedNoteItem {
         UnifiedNoteItem(
             id: UUID(),
-            date: meeting.date,
+            date: meeting.date ?? Date(),
             body: body,
             source: .meeting,
             contextText: context,
             color: .green,
-            associatedID: meeting.id,
+            associatedID: meeting.id ?? UUID(),
             tags: [],
             includeInReport: false,
             needsFollowUp: false,
@@ -315,24 +315,25 @@ extension StudentNotesViewModel {
         )
     }
 
-    func buildLessonNameLookup(forWorkModels workModels: [WorkModel]) -> [String: String] {
+    func buildLessonNameLookup(forWorkModels workModels: [CDWorkModel]) -> [String: String] {
         let lessonIDs = Set(workModels.compactMap { UUID(uuidString: $0.lessonID) })
         guard !lessonIDs.isEmpty else { return [:] }
 
-        let allLessons: [Lesson] = safeFetch(FetchDescriptor<Lesson>())
-        let lessons = allLessons.filter { lessonIDs.contains($0.id) }
-        var byID: [UUID: Lesson] = [:]
+        let allLessons: [CDLesson] = safeFetch(NSFetchRequest<CDLesson>(entityName: "CDLesson"))
+        let lessons = allLessons.filter { $0.id != nil && lessonIDs.contains($0.id!) }
+        var byID: [UUID: CDLesson] = [:]
         for lesson in lessons {
-            byID[lesson.id] = lesson
+            if let lessonID = lesson.id { byID[lessonID] = lesson }
         }
 
         var map: [String: String] = [:]
         for work in workModels {
+            let workIDString = work.id?.uuidString ?? UUID().uuidString
             if let lesson = byID[uuidString: work.lessonID] {
                 let name = lesson.name.trimmed()
-                map[work.id.uuidString] = name.isEmpty ? "Work" : name
+                map[workIDString] = name.isEmpty ? "Work" : name
             } else {
-                map[work.id.uuidString] = work.title.isEmpty ? "Work" : work.title
+                map[workIDString] = work.title.isEmpty ? "Work" : work.title
             }
         }
         return map

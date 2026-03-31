@@ -1,6 +1,6 @@
 import SwiftUI
 
-// MARK: - Lesson Chip
+// MARK: - CDLesson Chip
 
 struct QuickNoteLessonChip: View {
     let lessonName: String

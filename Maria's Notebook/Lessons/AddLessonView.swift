@@ -1,5 +1,4 @@
 import SwiftUI
-import SwiftData
 import OSLog
 import CoreData
 
@@ -11,7 +10,7 @@ struct AddLessonView: View {
     let defaultGroup: String?
 
     @Environment(\.dismiss) private var dismiss
-    @Environment(\.modelContext) private var modelContext
+    @Environment(\.managedObjectContext) private var viewContext
     @Environment(\.managedObjectContext) private var managedObjectContext
     @Environment(SaveCoordinator.self) private var saveCoordinator
 
@@ -57,7 +56,7 @@ struct AddLessonView: View {
 
             Form {
                 Section("Basics") {
-                    TextField("Lesson Name", text: $name)
+                    TextField("CDLesson Name", text: $name)
                     TextField("Subject", text: $subject)
                     TextField("Group", text: $group)
                     TextField("Subheading", text: $subheading)
@@ -80,11 +79,10 @@ struct AddLessonView: View {
                     }
                     if lessonFormat == .story {
                         let storyRaw = LessonFormat.story.rawValue
-                        let storyLessons: [Lesson] = {
-                            let descriptor = FetchDescriptor<Lesson>(
-                                predicate: #Predicate { $0.lessonFormatRaw == storyRaw }
-                            )
-                            return modelContext.safeFetch(descriptor)
+                        let storyLessons: [CDLesson] = {
+                            let descriptor: NSFetchRequest<CDLesson> = NSFetchRequest(entityName: "CDLesson")
+        descriptor.predicate = NSPredicate(format: "lessonFormatRaw == %@", storyRaw as CVarArg)
+                            return viewContext.safeFetch(descriptor)
                         }()
                         Picker("Parent Story", selection: $parentStoryID) {
                             Text("None (Root Story)").tag(nil as UUID?)
@@ -152,23 +150,23 @@ struct AddLessonView: View {
                         parentStoryID: lessonFormat == .story ? parentStoryID?.uuidString : nil
                     )
 
-                    // Automatically create/update Track object if lesson belongs to a track
+                    // Automatically create/update CDTrackEntity object if lesson belongs to a track
                     let subjectTrimmed = newLesson.subject.trimmed()
                     let groupTrimmed = newLesson.group.trimmed()
                     if !subjectTrimmed.isEmpty && !groupTrimmed.isEmpty {
                         let isTrack = GroupTrackService.isTrack(
-                            subject: subjectTrimmed, group: groupTrimmed, modelContext: modelContext
+                            subject: subjectTrimmed, group: groupTrimmed, context: viewContext
                         )
                         if isTrack {
                             do {
                                 _ = try GroupTrackService.getOrCreateTrack(
                                     subject: subjectTrimmed,
                                     group: groupTrimmed,
-                                    modelContext: modelContext
+                                    context: viewContext
                                 )
                             } catch {
                                 // swiftlint:disable:next line_length
-                                Self.logger.warning("Failed to create/update Track for \(subjectTrimmed)/\(groupTrimmed): \(error)")
+                                Self.logger.warning("Failed to create/update CDTrackEntity for \(subjectTrimmed)/\(groupTrimmed): \(error)")
                             }
                         }
                     }

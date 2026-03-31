@@ -1,0 +1,163 @@
+[
+  {
+    "typeName": "Maria_s_Notebook.SummarizeTodaysObservationsIntent",
+    "mangledTypeName": "16Maria_s_Notebook33SummarizeTodaysObservationsIntentV",
+    "kind": "struct",
+    "file": "/Users/dannydeberry/Documents/Projects/MariasNotebook-Rewrite/Maria's Notebook/Students/SummarizeTodaysObservationsIntent.swift",
+    "line": 53,
+    "conformances": [
+      "AppIntents.AppIntent",
+      "AppIntents.SnippetIntent",
+      "AppIntents.PersistentlyIdentifiable",
+      "AppIntents._SupportsAppDependencies",
+      "Swift.Sendable",
+      "Swift.SendableMetatype",
+      "Swift.BitwiseCopyable"
+    ],
+    "allConformances": [
+      {
+        "protocolName": "AppIntents.AppIntent",
+        "conformanceDefiningModule": "Maria_s_Notebook"
+      },
+      {
+        "protocolName": "AppIntents.SnippetIntent",
+        "conformanceDefiningModule": "Maria_s_Notebook"
+      },
+      {
+        "protocolName": "AppIntents.PersistentlyIdentifiable",
+        "conformanceDefiningModule": "Maria_s_Notebook"
+      },
+      {
+        "protocolName": "AppIntents._SupportsAppDependencies",
+        "conformanceDefiningModule": "Maria_s_Notebook"
+      },
+      {
+        "protocolName": "Swift.Sendable",
+        "conformanceDefiningModule": "Maria_s_Notebook"
+      },
+      {
+        "protocolName": "Swift.SendableMetatype",
+        "conformanceDefiningModule": "Maria_s_Notebook"
+      },
+      {
+        "protocolName": "Swift.BitwiseCopyable",
+        "conformanceDefiningModule": "Maria_s_Notebook"
+      }
+    ],
+    "associatedTypeAliases": [
+      {
+        "typeAliasName": "PerformResult",
+        "substitutedTypeName": "some AppIntents.ShowsSnippetView",
+        "substitutedMangledTypeName": "16Maria_s_Notebook33SummarizeTodaysObservationsIntentV7performQryYaKFQOy_Qo_",
+        "opaqueTypeProtocolRequirements": [
+          "AppIntents.ShowsSnippetView"
+        ],
+        "opaqueTypeSameTypeRequirements": []
+      },
+      {
+        "typeAliasName": "SummaryContent",
+        "substitutedTypeName": "some AppIntents.ParameterSummary",
+        "substitutedMangledTypeName": "10AppIntents0A6IntentPAAE16parameterSummaryQrvpZQOy16Maria_s_Notebook027SummarizeTodaysObservationsC0V_Qo_",
+        "opaqueTypeProtocolRequirements": [
+          "AppIntents.ParameterSummary"
+        ],
+        "opaqueTypeSameTypeRequirements": []
+      }
+    ],
+    "properties": [
+      {
+        "label": "title",
+        "type": "Foundation.LocalizedStringResource",
+        "mangledTypeName": "n/a - deprecated",
+        "isStatic": "true",
+        "isComputed": "false",
+        "file": "/Users/dannydeberry/Documents/Projects/MariasNotebook-Rewrite/Maria's Notebook/Students/SummarizeTodaysObservationsIntent.swift",
+        "line": 57,
+        "valueKind": "RawLiteral",
+        "value": "Summarize Today's Observations"
+      },
+      {
+        "label": "description",
+        "type": "AppIntents.IntentDescription",
+        "mangledTypeName": "n/a - deprecated",
+        "isStatic": "true",
+        "isComputed": "false",
+        "file": "/Users/dannydeberry/Documents/Projects/MariasNotebook-Rewrite/Maria's Notebook/Students/SummarizeTodaysObservationsIntent.swift",
+        "line": 58,
+        "valueKind": "RawLiteral",
+        "value": "Provides a summary snippet of today's observations."
+      },
+      {
+        "label": "openAppWhenRun",
+        "type": "Swift.Bool",
+        "mangledTypeName": "n/a - deprecated",
+        "isStatic": "true",
+        "isComputed": "false",
+        "file": "/Users/dannydeberry/Documents/Projects/MariasNotebook-Rewrite/Maria's Notebook/Students/SummarizeTodaysObservationsIntent.swift",
+        "line": 61,
+        "valueKind": "RawLiteral",
+        "value": "false"
+      },
+      {
+        "label": "snippet",
+        "type": "some SwiftUICore.View",
+        "mangledTypeName": "n/a - deprecated",
+        "isStatic": "false",
+        "isComputed": "true",
+        "file": "/Users/dannydeberry/Documents/Projects/MariasNotebook-Rewrite/Maria's Notebook/Students/SummarizeTodaysObservationsIntent.swift",
+        "line": 67,
+        "valueKind": "InitCall",
+        "value": {
+          "type": "Maria_s_Notebook.SummarySnippetView",
+          "arguments": [
+            {
+              "label": "title",
+              "type": "Swift.Optional<Swift.String>",
+              "valueKind": "RawLiteral",
+              "value": "Today's Summary"
+            },
+            {
+              "label": "bodyText",
+              "type": "Swift.Optional<Swift.String>",
+              "valueKind": "NilLiteral"
+            },
+            {
+              "label": "bullets",
+              "type": "Swift.Array<Swift.String>",
+              "valueKind": "Array",
+              "value": [
+                {
+                  "valueKind": "RawLiteral",
+                  "value": "Observed increased user engagement in the morning hours."
+                },
+                {
+                  "valueKind": "RawLiteral",
+                  "value": "Noted a drop in error rates compared to yesterday."
+                },
+                {
+                  "valueKind": "RawLiteral",
+                  "value": "Received positive feedback from beta testers."
+                }
+              ]
+            },
+            {
+              "label": "followUps",
+              "type": "Swift.Array<Swift.String>",
+              "valueKind": "Array",
+              "value": [
+                {
+                  "valueKind": "RawLiteral",
+                  "value": "Review detailed analytics report."
+                },
+                {
+                  "valueKind": "RawLiteral",
+                  "value": "Plan team meeting for feedback discussion."
+                }
+              ]
+            }
+          ]
+        }
+      }
+    ]
+  }
+]

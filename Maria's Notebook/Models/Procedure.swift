@@ -1,5 +1,4 @@
 import Foundation
-import SwiftData
 
 /// Categories for classroom procedures
 enum ProcedureCategory: String, Codable, CaseIterable, Identifiable, Sendable {
@@ -38,85 +37,5 @@ enum ProcedureCategory: String, Codable, CaseIterable, Identifiable, Sendable {
         case .behavioral: return "Conflict resolution, classroom expectations"
         case .other: return "Other classroom procedures"
         }
-    }
-}
-
-/// A documented classroom procedure
-@Model
-final class Procedure: Identifiable {
-    /// Unique identifier
-    var id: UUID = UUID()
-
-    /// Title of the procedure
-    var title: String = ""
-
-    /// Brief summary shown in list views
-    var summary: String = ""
-
-    /// Full content in Markdown format
-    var content: String = ""
-
-    /// Category stored as raw string for CloudKit compatibility
-    private var categoryRaw: String = ProcedureCategory.other.rawValue
-
-    /// Icon name (SF Symbol or emoji)
-    var icon: String = ""
-
-    /// IDs of related procedures (stored as comma-separated string for CloudKit)
-    private var relatedProcedureIDsRaw: String = ""
-
-    /// When this procedure was created
-    var createdAt: Date = Date()
-
-    /// When this procedure was last modified
-    var modifiedAt: Date = Date()
-
-    /// Computed property for category enum
-    var category: ProcedureCategory {
-        get { ProcedureCategory(rawValue: categoryRaw) ?? .other }
-        set { categoryRaw = newValue.rawValue }
-    }
-
-    /// Computed property for related procedure IDs
-    var relatedProcedureIDs: [String] {
-        get {
-            guard !relatedProcedureIDsRaw.isEmpty else { return [] }
-            return relatedProcedureIDsRaw.components(separatedBy: ",")
-        }
-        set {
-            relatedProcedureIDsRaw = newValue.joined(separator: ",")
-        }
-    }
-
-    /// Display icon - uses custom icon if set, otherwise category default
-    var displayIcon: String {
-        icon.isEmpty ? category.icon : icon
-    }
-
-    init(
-        id: UUID = UUID(),
-        title: String,
-        summary: String = "",
-        content: String = "",
-        category: ProcedureCategory = .other,
-        icon: String = "",
-        relatedProcedureIDs: [String] = [],
-        createdAt: Date = Date(),
-        modifiedAt: Date = Date()
-    ) {
-        self.id = id
-        self.title = title
-        self.summary = summary
-        self.content = content
-        self.categoryRaw = category.rawValue
-        self.icon = icon
-        self.relatedProcedureIDsRaw = relatedProcedureIDs.joined(separator: ",")
-        self.createdAt = createdAt
-        self.modifiedAt = modifiedAt
-    }
-
-    /// Updates the modification timestamp
-    func touch() {
-        modifiedAt = Date()
     }
 }

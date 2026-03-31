@@ -51,23 +51,23 @@ public final class ChecksumVerificationService {
         let encoder = JSONEncoder.backupConfigured()
         
         // Generate checksums for each entity type
-        entityChecksums["Student"] = try checksumFor(payload.students, encoder: encoder)
-        entityChecksums["Lesson"] = try checksumFor(payload.lessons, encoder: encoder)
-        entityChecksums["LessonAssignment"] = try checksumFor(payload.lessonAssignments, encoder: encoder)
-        entityChecksums["Note"] = try checksumFor(payload.notes, encoder: encoder)
-        entityChecksums["NonSchoolDay"] = try checksumFor(payload.nonSchoolDays, encoder: encoder)
-        entityChecksums["SchoolDayOverride"] = try checksumFor(payload.schoolDayOverrides, encoder: encoder)
-        entityChecksums["StudentMeeting"] = try checksumFor(payload.studentMeetings, encoder: encoder)
-        entityChecksums["CommunityTopic"] = try checksumFor(payload.communityTopics, encoder: encoder)
+        entityChecksums["CDStudent"] = try checksumFor(payload.students, encoder: encoder)
+        entityChecksums["CDLesson"] = try checksumFor(payload.lessons, encoder: encoder)
+        entityChecksums["CDLessonAssignment"] = try checksumFor(payload.lessonAssignments, encoder: encoder)
+        entityChecksums["CDNote"] = try checksumFor(payload.notes, encoder: encoder)
+        entityChecksums["CDNonSchoolDay"] = try checksumFor(payload.nonSchoolDays, encoder: encoder)
+        entityChecksums["CDSchoolDayOverride"] = try checksumFor(payload.schoolDayOverrides, encoder: encoder)
+        entityChecksums["CDStudentMeeting"] = try checksumFor(payload.studentMeetings, encoder: encoder)
+        entityChecksums["CDCommunityTopicEntity"] = try checksumFor(payload.communityTopics, encoder: encoder)
         entityChecksums["ProposedSolution"] = try checksumFor(payload.proposedSolutions, encoder: encoder)
         entityChecksums["CommunityAttachment"] = try checksumFor(payload.communityAttachments, encoder: encoder)
-        entityChecksums["AttendanceRecord"] = try checksumFor(payload.attendance, encoder: encoder)
-        entityChecksums["WorkCompletionRecord"] = try checksumFor(payload.workCompletions, encoder: encoder)
-        entityChecksums["Project"] = try checksumFor(payload.projects, encoder: encoder)
+        entityChecksums["CDAttendanceRecord"] = try checksumFor(payload.attendance, encoder: encoder)
+        entityChecksums["CDWorkCompletionRecord"] = try checksumFor(payload.workCompletions, encoder: encoder)
+        entityChecksums["CDProject"] = try checksumFor(payload.projects, encoder: encoder)
         entityChecksums["ProjectAssignmentTemplate"] = try checksumFor(
             payload.projectAssignmentTemplates, encoder: encoder
         )
-        entityChecksums["ProjectSession"] = try checksumFor(payload.projectSessions, encoder: encoder)
+        entityChecksums["CDProjectSession"] = try checksumFor(payload.projectSessions, encoder: encoder)
         entityChecksums["ProjectRole"] = try checksumFor(payload.projectRoles, encoder: encoder)
         entityChecksums["ProjectTemplateWeek"] = try checksumFor(
             payload.projectTemplateWeeks, encoder: encoder
@@ -107,21 +107,21 @@ public final class ChecksumVerificationService {
         
         // Verify each entity type
         let entityTypes: [(String, Any)] = [
-            ("Student", payload.students),
-            ("Lesson", payload.lessons),
-            ("LessonAssignment", payload.lessonAssignments),
-            ("Note", payload.notes),
-            ("NonSchoolDay", payload.nonSchoolDays),
-            ("SchoolDayOverride", payload.schoolDayOverrides),
-            ("StudentMeeting", payload.studentMeetings),
-            ("CommunityTopic", payload.communityTopics),
+            ("CDStudent", payload.students),
+            ("CDLesson", payload.lessons),
+            ("CDLessonAssignment", payload.lessonAssignments),
+            ("CDNote", payload.notes),
+            ("CDNonSchoolDay", payload.nonSchoolDays),
+            ("CDSchoolDayOverride", payload.schoolDayOverrides),
+            ("CDStudentMeeting", payload.studentMeetings),
+            ("CDCommunityTopicEntity", payload.communityTopics),
             ("ProposedSolution", payload.proposedSolutions),
             ("CommunityAttachment", payload.communityAttachments),
-            ("AttendanceRecord", payload.attendance),
-            ("WorkCompletionRecord", payload.workCompletions),
-            ("Project", payload.projects),
+            ("CDAttendanceRecord", payload.attendance),
+            ("CDWorkCompletionRecord", payload.workCompletions),
+            ("CDProject", payload.projects),
             ("ProjectAssignmentTemplate", payload.projectAssignmentTemplates),
-            ("ProjectSession", payload.projectSessions),
+            ("CDProjectSession", payload.projectSessions),
             ("ProjectRole", payload.projectRoles),
             ("ProjectTemplateWeek", payload.projectTemplateWeeks),
             ("ProjectWeekRoleAssignment", payload.projectWeekRoleAssignments),

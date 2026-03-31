@@ -1,26 +1,26 @@
 #if os(macOS)
 import AppKit
-import SwiftData
+import CoreData
 import SwiftUI
 
 /// AppDelegate to handle automatic backups on app termination
 @MainActor
 final class AutoBackupAppDelegate: NSObject, NSApplicationDelegate {
-    private var modelContainer: ModelContainer?
+    private var coreDataStack: CoreDataStack?
     private var autoBackupManager: AutoBackupManager?
-    
-    func setModelContainer(_ container: ModelContainer) {
-        self.modelContainer = container
+
+    func setCoreDataStack(_ stack: CoreDataStack) {
+        self.coreDataStack = stack
         // Create AutoBackupManager with BackupService
         self.autoBackupManager = AutoBackupManager(backupService: BackupService())
     }
     
     func applicationWillTerminate(_ notification: Notification) {
         // Perform automatic backup before app quits
-        guard let modelContainer,
+        guard let coreDataStack,
               let autoBackupManager = autoBackupManager else { return }
-        
-        let modelContext = modelContainer.mainContext
+
+        let viewContext = coreDataStack.viewContext
         
         // Run backup on main thread (app is quitting, blocking is acceptable)
         // Since AutoBackupManager is @MainActor, we need to run this on the main thread
@@ -28,7 +28,7 @@ final class AutoBackupAppDelegate: NSObject, NSApplicationDelegate {
         let semaphore = DispatchSemaphore(value: 0)
         
         Task { @MainActor in
-            await autoBackupManager.performBackupOnQuit(modelContext: modelContext)
+            await autoBackupManager.performBackupOnQuit(viewContext: viewContext)
             semaphore.signal()
         }
         

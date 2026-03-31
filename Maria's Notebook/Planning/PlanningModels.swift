@@ -1,4 +1,5 @@
 import SwiftUI
+import CoreData
 import Foundation
 
 enum DayPeriod: CaseIterable, Hashable, Sendable {
@@ -32,11 +33,11 @@ struct DayKey: Hashable {
 }
 
 struct ScheduledItem: Identifiable, Hashable {
-    let work: WorkModel
-    let checkIn: WorkCheckIn
-    var id: UUID { checkIn.id }
+    let work: CDWorkModel
+    let checkIn: CDWorkCheckIn
+    var id: UUID { checkIn.id ?? UUID() }
 
-    init(work: WorkModel, checkIn: WorkCheckIn) {
+    init(work: CDWorkModel, checkIn: CDWorkCheckIn) {
         self.work = work
         self.checkIn = checkIn
     }

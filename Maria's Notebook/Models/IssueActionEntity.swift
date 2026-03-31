@@ -42,6 +42,10 @@ public class CDIssueAction: NSManagedObject {
     }
 }
 
+// MARK: - Identifiable
+
+extension CDIssueAction: Identifiable {}
+
 // MARK: - Enums
 
 extension CDIssueAction {

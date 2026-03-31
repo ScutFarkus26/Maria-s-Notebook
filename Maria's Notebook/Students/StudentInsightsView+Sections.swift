@@ -6,7 +6,7 @@
 //
 
 import SwiftUI
-import SwiftData
+import CoreData
 
 extension StudentInsightsView {
 
@@ -41,14 +41,14 @@ extension StudentInsightsView {
     // MARK: - Latest Insights Card
 
     // swiftlint:disable:next function_body_length
-    func latestInsightsCard(_ snapshot: DevelopmentSnapshot) -> some View {
+    func latestInsightsCard(_ snapshot: CDDevelopmentSnapshotEntity) -> some View {
         VStack(alignment: .leading, spacing: 16) {
             // Header with date
             HStack {
                 VStack(alignment: .leading, spacing: 4) {
                     Text("Latest Analysis")
                         .font(.headline)
-                    Text(snapshot.generatedAt, style: .date)
+                    Text(snapshot.generatedAt ?? Date(), style: .date)
                         .font(.caption)
                         .foregroundStyle(.secondary)
                 }
@@ -156,7 +156,7 @@ extension StudentInsightsView {
 
     // MARK: - Metrics Grid
 
-    func metricsGrid(_ snapshot: DevelopmentSnapshot) -> some View {
+    func metricsGrid(_ snapshot: CDDevelopmentSnapshotEntity) -> some View {
         LazyVGrid(columns: [
             GridItem(.flexible()),
             GridItem(.flexible()),
@@ -180,18 +180,18 @@ extension StudentInsightsView {
                 icon: "checkmark.circle"
             )
 
-            if let quality = snapshot.averagePracticeQuality {
+            if snapshot.averagePracticeQuality > 0 {
                 metricCard(
                     title: "Quality",
-                    value: quality.formatAsScore(),
+                    value: snapshot.averagePracticeQuality.formatAsScore(),
                     icon: "star.fill"
                 )
             }
 
-            if let independence = snapshot.independenceLevel {
+            if snapshot.independenceLevel > 0 {
                 metricCard(
                     title: "Independence",
-                    value: independence.formatAsScore(),
+                    value: snapshot.independenceLevel.formatAsScore(),
                     icon: "person.fill.checkmark"
                 )
             }
@@ -298,11 +298,11 @@ extension StudentInsightsView {
             Text("Previous Analyses")
                 .font(.headline)
 
-            ForEach(Array(snapshots.dropFirst()), id: \.id) { snapshot in
+            ForEach(Array(snapshots.dropFirst()), id: \.objectID) { snapshot in
                 Button(action: { /* Navigate to detail view */ }, label: {
                     HStack {
                         VStack(alignment: .leading, spacing: 4) {
-                            Text(snapshot.generatedAt, style: .date)
+                            Text(snapshot.generatedAt ?? Date(), style: .date)
                                 .font(.subheadline)
                                 .fontWeight(.medium)
                             Text("\(snapshot.lookbackDays) days \u{2022} \(snapshot.totalNotesAnalyzed) notes")

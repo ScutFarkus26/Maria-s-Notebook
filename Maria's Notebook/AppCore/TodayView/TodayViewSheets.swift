@@ -2,7 +2,7 @@
 // Sheet presentations for TodayView - extracted for maintainability
 
 import SwiftUI
-import SwiftData
+import CoreData
 
 // MARK: - TodayView Sheets Extension
 
@@ -94,7 +94,7 @@ extension TodayView {
             .sheet(id: $selectedMeetingStudentID) { studentID in
                 ScheduledMeetingSessionSheet(studentID: studentID) {
                     if let meetingID = selectedMeetingID {
-                        MeetingScheduler.clearMeeting(id: meetingID, context: modelContext)
+                        MeetingScheduler.clearMeeting(id: meetingID, context: viewContext)
                     }
                     selectedMeetingStudentID = nil
                     selectedMeetingID = nil

@@ -2,6 +2,7 @@
 // Content sections extracted from PresentationsInboxView
 
 import SwiftUI
+import CoreData
 
 extension PresentationsInboxView {
     // MARK: - Content Views

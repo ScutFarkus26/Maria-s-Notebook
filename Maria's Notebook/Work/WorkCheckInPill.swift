@@ -1,9 +1,9 @@
 import SwiftUI
-import SwiftData
+import CoreData
 
 /// A reusable pill component for displaying WorkCheckIn entries in calendars
 struct WorkCheckInPill: View {
-    @Environment(\.modelContext) private var modelContext
+    @Environment(\.managedObjectContext) private var modelContext
     
     let checkIn: WorkCheckIn
     var isDulled: Bool = false
@@ -54,8 +54,9 @@ struct WorkCheckInPill: View {
               let work = fetchWork(id: workID) else { return "Work" }
         
         if let lessonID = work.lessonID.asUUID {
-            let descriptor = FetchDescriptor<Lesson>(predicate: #Predicate { $0.id == lessonID })
-            if let lesson = modelContext.safeFetchFirst(descriptor) {
+            let request = CDFetchRequest(CDLesson.self)
+            request.predicate = NSPredicate(format: "id == %@", lessonID as CVarArg)
+            if let lesson = modelContext.safeFetchFirst(request) {
                 let name = lesson.name.trimmed()
                 if !name.isEmpty { return name }
             }
@@ -68,8 +69,9 @@ struct WorkCheckInPill: View {
               let work = fetchWork(id: workID),
               let studentID = work.studentID.asUUID else { return "" }
         
-        let descriptor = FetchDescriptor<Student>(predicate: #Predicate { $0.id == studentID })
-        if let student = modelContext.safeFetchFirst(descriptor) {
+        let request = CDFetchRequest(CDStudent.self)
+        request.predicate = NSPredicate(format: "id == %@", studentID as CVarArg)
+        if let student = modelContext.safeFetchFirst(request) {
             return StudentFormatter.displayName(for: student)
         }
         return ""
@@ -91,7 +93,8 @@ struct WorkCheckInPill: View {
     }
     
     private func fetchWork(id: UUID) -> WorkModel? {
-        let descriptor = FetchDescriptor<WorkModel>(predicate: #Predicate { $0.id == id })
-        return modelContext.safeFetchFirst(descriptor)
+        let request = CDFetchRequest(CDWorkModel.self)
+        request.predicate = NSPredicate(format: "id == %@", id as CVarArg)
+        return modelContext.safeFetchFirst(request)
     }
 }

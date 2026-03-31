@@ -10,7 +10,7 @@ enum SheetSizePreset {
     case small
     /// Compact sheets for minimal dialogs - 400×400
     case compact
-    /// Note editor sheets - 480×560
+    /// CDNote editor sheets - 480×560
     case note
 
     var size: CGSize {

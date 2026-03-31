@@ -1,128 +1,124 @@
 import Foundation
+import CoreData
 import OSLog
-import SwiftData
 
 private let logger = Logger.database
 
-// MARK: - ModelContext Extensions
+// MARK: - NSManagedObjectContext Extensions
 
-extension ModelContext {
-    /// Resolves a WorkModel by ID with automatic fallback to legacy contract ID
-    func resolveWorkModel(from workID: UUID) -> WorkModel? {
+extension NSManagedObjectContext {
+    /// Resolves a CDWorkModel by ID with automatic fallback to legacy contract ID
+    func resolveWorkModel(from workID: UUID) -> CDWorkModel? {
         // Try primary ID first
-        let primaryFetch = FetchDescriptor<WorkModel>(
-            predicate: #Predicate { $0.id == workID }
-        )
-        if let model = safeFetchFirst(primaryFetch) {
+        let primaryRequest = NSFetchRequest<CDWorkModel>(entityName: "WorkModel")
+        primaryRequest.predicate = NSPredicate(format: "id == %@", workID as CVarArg)
+        if let model = safeFetchFirst(primaryRequest) {
             return model
         }
-        
+
         // Fallback to legacy contract ID
-        let legacyFetch = FetchDescriptor<WorkModel>(
-            predicate: #Predicate { $0.legacyContractID == workID }
-        )
-        return safeFetchFirst(legacyFetch)
+        let legacyRequest = NSFetchRequest<CDWorkModel>(entityName: "WorkModel")
+        legacyRequest.predicate = NSPredicate(format: "legacyContractID == %@", workID as CVarArg)
+        return safeFetchFirst(legacyRequest)
     }
 }
 
 // MARK: - WorkModel Extensions
 
-extension WorkModel {
+extension CDWorkModel {
     /// Fetches the presentation that spawned this work item
-    func fetchPresentation(from context: ModelContext) -> Presentation? {
+    func fetchPresentation(from context: NSManagedObjectContext) -> CDLessonAssignment? {
         guard let presentationID,
               let uuid = UUID(uuidString: presentationID) else { return nil }
 
-        let descriptor = FetchDescriptor<LessonAssignment>(
-            predicate: #Predicate { $0.id == uuid }
-        )
+        let request = NSFetchRequest<CDLessonAssignment>(entityName: "LessonAssignment")
+        request.predicate = NSPredicate(format: "id == %@", uuid as CVarArg)
 
         do {
-            return try context.fetch(descriptor).first
+            return try context.fetch(request).first
         } catch {
             logger.warning("Failed to fetch presentation: \(error.localizedDescription)")
             return nil
         }
     }
-    
+
     /// Fetches the lesson associated with this work item
-    func fetchLesson(from context: ModelContext) -> Lesson? {
+    func fetchLesson(from context: NSManagedObjectContext) -> CDLesson? {
         guard !lessonID.isEmpty,
               let uuid = UUID(uuidString: lessonID) else { return nil }
 
-        let descriptor = FetchDescriptor<Lesson>(
-            predicate: #Predicate { $0.id == uuid }
-        )
+        let request = NSFetchRequest<CDLesson>(entityName: "Lesson")
+        request.predicate = NSPredicate(format: "id == %@", uuid as CVarArg)
 
         do {
-            return try context.fetch(descriptor).first
+            return try context.fetch(request).first
         } catch {
             logger.warning("Failed to fetch lesson: \(error.localizedDescription)")
             return nil
         }
     }
-    
+
     /// Fetches the student assigned to this work item
-    func fetchStudent(from context: ModelContext) -> Student? {
+    func fetchStudent(from context: NSManagedObjectContext) -> CDStudent? {
         guard !studentID.isEmpty,
               let uuid = UUID(uuidString: studentID) else { return nil }
 
-        let descriptor = FetchDescriptor<Student>(
-            predicate: #Predicate { $0.id == uuid }
-        )
+        let request = NSFetchRequest<CDStudent>(entityName: "Student")
+        request.predicate = NSPredicate(format: "id == %@", uuid as CVarArg)
 
         do {
-            return try context.fetch(descriptor).first
+            return try context.fetch(request).first
         } catch {
             logger.warning("Failed to fetch student: \(error.localizedDescription)")
             return nil
         }
     }
-    
+
     /// Fetches all practice sessions that include this work item
-    func fetchPracticeSessions(from context: ModelContext) -> [PracticeSession] {
-        let workIDString = id.uuidString
+    func fetchPracticeSessions(from context: NSManagedObjectContext) -> [CDPracticeSession] {
+        let workIDString = id?.uuidString ?? ""
+        guard !workIDString.isEmpty else { return [] }
 
         // Fetch all practice sessions and filter in memory
-        // This is necessary because SwiftData predicates don't support contains() on string arrays
-        let descriptor = FetchDescriptor<PracticeSession>(
-            sortBy: [SortDescriptor(\.date, order: .reverse)]
-        )
+        // Core Data predicates don't support contains() on Transformable arrays
+        let request = NSFetchRequest<CDPracticeSession>(entityName: "PracticeSession")
+        request.sortDescriptors = [NSSortDescriptor(keyPath: \CDPracticeSession.date, ascending: false)]
 
-        let allSessions: [PracticeSession]
+        let allSessions: [CDPracticeSession]
         do {
-            allSessions = try context.fetch(descriptor)
+            allSessions = try context.fetch(request)
         } catch {
             logger.warning("Failed to fetch practice sessions: \(error.localizedDescription)")
             return []
         }
         return allSessions.filter { session in
-            session.workItemIDs.contains(workIDString)
+            session.workItemIDsArray.contains(workIDString)
         }
     }
 }
 
 // MARK: - Presentation (LessonAssignment) Extensions
 
-extension LessonAssignment {
+extension CDLessonAssignment {
     /// Fetches all work items spawned from this presentation
-    func fetchRelatedWork(from context: ModelContext) -> [WorkModel] {
-        let presentationIDString = id.uuidString
-        let descriptor = FetchDescriptor<WorkModel>(
-            predicate: #Predicate { $0.presentationID == presentationIDString },
-            sortBy: [SortDescriptor(\.createdAt)]
-        )
+    func fetchRelatedWork(from context: NSManagedObjectContext) -> [CDWorkModel] {
+        let presentationIDString = id?.uuidString ?? ""
+        guard !presentationIDString.isEmpty else { return [] }
+
+        let request = NSFetchRequest<CDWorkModel>(entityName: "WorkModel")
+        request.predicate = NSPredicate(format: "presentationID == %@", presentationIDString)
+        request.sortDescriptors = [NSSortDescriptor(keyPath: \CDWorkModel.createdAt, ascending: true)]
 
         do {
-            return try context.fetch(descriptor)
+            return try context.fetch(request)
         } catch {
             logger.warning("Failed to fetch related work: \(error.localizedDescription)")
             return []
         }
     }
-    
+
     /// Fetches all students assigned to this presentation
-    func fetchStudents(from context: ModelContext) -> [Student] {
+    func fetchStudents(from context: NSManagedObjectContext) -> [CDStudent] {
         let studentUUIDStrings = studentIDs
         guard !studentUUIDStrings.isEmpty else { return [] }
 
@@ -131,49 +127,48 @@ extension LessonAssignment {
         guard !uuids.isEmpty else { return [] }
 
         // Fetch all students and filter in-memory
-        // This is necessary because SwiftData predicates don't support id.uuidString keypaths
-        let descriptor = FetchDescriptor<Student>(
-            sortBy: [SortDescriptor(\.firstName)]
-        )
+        // Core Data predicates don't support id.uuidString keypaths on Transformable arrays
+        let request = NSFetchRequest<CDStudent>(entityName: "Student")
+        request.sortDescriptors = [NSSortDescriptor(keyPath: \CDStudent.firstName, ascending: true)]
 
-        let allStudents: [Student]
+        let allStudents: [CDStudent]
         do {
-            allStudents = try context.fetch(descriptor)
+            allStudents = try context.fetch(request)
         } catch {
             logger.warning("Failed to fetch students: \(error.localizedDescription)")
             return []
         }
         return allStudents.filter { student in
-            studentUUIDStrings.contains(student.id.uuidString)
+            guard let studentID = student.id else { return false }
+            return studentUUIDStrings.contains(studentID.uuidString)
         }
     }
-    
+
     /// Fetches practice sessions related to work from this presentation
-    func fetchRelatedPracticeSessions(from context: ModelContext) -> [PracticeSession] {
+    func fetchRelatedPracticeSessions(from context: NSManagedObjectContext) -> [CDPracticeSession] {
         let workItems = fetchRelatedWork(from: context)
-        let workIDs = Set(workItems.map { $0.id.uuidString })
+        let workIDs = Set(workItems.compactMap { $0.id?.uuidString })
         guard !workIDs.isEmpty else { return [] }
 
         // Fetch all practice sessions and filter in memory
-        // This is necessary because SwiftData predicates don't support complex array operations
-        let descriptor = FetchDescriptor<PracticeSession>(
-            sortBy: [SortDescriptor(\.date, order: .reverse)]
-        )
+        // Core Data predicates don't support complex array operations on Transformable
+        let request = NSFetchRequest<CDPracticeSession>(entityName: "PracticeSession")
+        request.sortDescriptors = [NSSortDescriptor(keyPath: \CDPracticeSession.date, ascending: false)]
 
-        let allSessions: [PracticeSession]
+        let allSessions: [CDPracticeSession]
         do {
-            allSessions = try context.fetch(descriptor)
+            allSessions = try context.fetch(request)
         } catch {
             logger.warning("Failed to fetch practice sessions: \(error.localizedDescription)")
             return []
         }
         return allSessions.filter { session in
-            session.workItemIDs.contains(where: { workIDs.contains($0) })
+            session.workItemIDsArray.contains(where: { workIDs.contains($0) })
         }
     }
 
     /// Returns work completion statistics for this presentation
-    func workCompletionStats(from context: ModelContext) -> (completed: Int, total: Int) {
+    func workCompletionStats(from context: NSManagedObjectContext) -> (completed: Int, total: Int) {
         let work = fetchRelatedWork(from: context)
         let completed = work.filter { $0.status == .complete }.count
         return (completed, work.count)
@@ -182,33 +177,35 @@ extension LessonAssignment {
 
 // MARK: - Lesson Extensions
 
-extension Lesson {
+extension CDLesson {
     /// Fetches all presentations (lesson assignments) of this lesson
-    func fetchAllPresentations(from context: ModelContext) -> [LessonAssignment] {
-        let lessonIDString = id.uuidString
-        let descriptor = FetchDescriptor<LessonAssignment>(
-            predicate: #Predicate { $0.lessonID == lessonIDString },
-            sortBy: [SortDescriptor(\.scheduledForDay, order: .reverse)]
-        )
+    func fetchAllPresentations(from context: NSManagedObjectContext) -> [CDLessonAssignment] {
+        let lessonIDString = id?.uuidString ?? ""
+        guard !lessonIDString.isEmpty else { return [] }
+
+        let request = NSFetchRequest<CDLessonAssignment>(entityName: "LessonAssignment")
+        request.predicate = NSPredicate(format: "lessonID == %@", lessonIDString)
+        request.sortDescriptors = [NSSortDescriptor(keyPath: \CDLessonAssignment.scheduledForDay, ascending: false)]
 
         do {
-            return try context.fetch(descriptor)
+            return try context.fetch(request)
         } catch {
             logger.warning("Failed to fetch presentations: \(error.localizedDescription)")
             return []
         }
     }
-    
+
     /// Fetches all work items related to this lesson
-    func fetchAllWork(from context: ModelContext) -> [WorkModel] {
-        let lessonIDString = id.uuidString
-        let descriptor = FetchDescriptor<WorkModel>(
-            predicate: #Predicate { $0.lessonID == lessonIDString },
-            sortBy: [SortDescriptor(\.createdAt, order: .reverse)]
-        )
+    func fetchAllWork(from context: NSManagedObjectContext) -> [CDWorkModel] {
+        let lessonIDString = id?.uuidString ?? ""
+        guard !lessonIDString.isEmpty else { return [] }
+
+        let request = NSFetchRequest<CDWorkModel>(entityName: "WorkModel")
+        request.predicate = NSPredicate(format: "lessonID == %@", lessonIDString)
+        request.sortDescriptors = [NSSortDescriptor(keyPath: \CDWorkModel.createdAt, ascending: false)]
 
         do {
-            return try context.fetch(descriptor)
+            return try context.fetch(request)
         } catch {
             logger.warning("Failed to fetch work items: \(error.localizedDescription)")
             return []
@@ -216,38 +213,37 @@ extension Lesson {
     }
 
     /// Fetches all practice sessions involving this lesson's work
-    func fetchAllPracticeSessions(from context: ModelContext) -> [PracticeSession] {
+    func fetchAllPracticeSessions(from context: NSManagedObjectContext) -> [CDPracticeSession] {
         let workItems = fetchAllWork(from: context)
-        let workIDs = Set(workItems.map { $0.id.uuidString })
+        let workIDs = Set(workItems.compactMap { $0.id?.uuidString })
         guard !workIDs.isEmpty else { return [] }
 
         // Fetch all practice sessions and filter in memory
-        // This is necessary because SwiftData predicates don't support complex array operations
-        let descriptor = FetchDescriptor<PracticeSession>(
-            sortBy: [SortDescriptor(\.date, order: .reverse)]
-        )
+        // Core Data predicates don't support complex array operations on Transformable
+        let request = NSFetchRequest<CDPracticeSession>(entityName: "PracticeSession")
+        request.sortDescriptors = [NSSortDescriptor(keyPath: \CDPracticeSession.date, ascending: false)]
 
-        let allSessions: [PracticeSession]
+        let allSessions: [CDPracticeSession]
         do {
-            allSessions = try context.fetch(descriptor)
+            allSessions = try context.fetch(request)
         } catch {
             logger.warning("Failed to fetch practice sessions: \(error.localizedDescription)")
             return []
         }
         return allSessions.filter { session in
-            session.workItemIDs.contains(where: { workIDs.contains($0) })
+            session.workItemIDsArray.contains(where: { workIDs.contains($0) })
         }
     }
 
     /// Returns statistics about this lesson's usage
-    func getLessonStats(from context: ModelContext) -> LessonStats {
+    func getLessonStats(from context: NSManagedObjectContext) -> LessonStats {
         let presentations = fetchAllPresentations(from: context)
         let work = fetchAllWork(from: context)
         let practiceSessions = fetchAllPracticeSessions(from: context)
-        
+
         let presentedCount = presentations.filter { $0.state == .presented }.count
         let completedWork = work.filter { $0.status == .complete }.count
-        
+
         return LessonStats(
             totalPresentations: presentations.count,
             presentedCount: presentedCount,
@@ -263,58 +259,61 @@ extension Lesson {
 
 // MARK: - PracticeSession Extensions
 
-extension PracticeSession {
+extension CDPracticeSession {
     /// Fetches all students who participated in this session
-    func fetchStudents(from context: ModelContext) -> [Student] {
-        guard !studentIDs.isEmpty else { return [] }
+    func fetchStudents(from context: NSManagedObjectContext) -> [CDStudent] {
+        let studentIDStrings = studentIDsArray
+        guard !studentIDStrings.isEmpty else { return [] }
 
         // Convert string IDs to UUIDs for querying
-        let uuids = studentIDs.compactMap { UUID(uuidString: $0) }
+        let uuids = studentIDStrings.compactMap { UUID(uuidString: $0) }
         guard !uuids.isEmpty else { return [] }
 
         // Fetch students by UUIDs
-        let descriptor = FetchDescriptor<Student>(
-            sortBy: [SortDescriptor(\.firstName)]
-        )
+        let request = NSFetchRequest<CDStudent>(entityName: "Student")
+        request.sortDescriptors = [NSSortDescriptor(keyPath: \CDStudent.firstName, ascending: true)]
 
-        let allStudents: [Student]
+        let allStudents: [CDStudent]
         do {
-            allStudents = try context.fetch(descriptor)
+            allStudents = try context.fetch(request)
         } catch {
             logger.warning("Failed to fetch students: \(error.localizedDescription)")
             return []
         }
         return allStudents.filter { student in
-            studentIDs.contains(student.id.uuidString)
+            guard let studentID = student.id else { return false }
+            return studentIDStrings.contains(studentID.uuidString)
         }
     }
-    
+
     /// Fetches all work items practiced in this session
-    func fetchWorkItems(from context: ModelContext) -> [WorkModel] {
-        guard !workItemIDs.isEmpty else { return [] }
+    func fetchWorkItems(from context: NSManagedObjectContext) -> [CDWorkModel] {
+        let workIDStrings = workItemIDsArray
+        guard !workIDStrings.isEmpty else { return [] }
 
         // Convert string IDs to UUIDs for querying
-        let uuids = workItemIDs.compactMap { UUID(uuidString: $0) }
+        let uuids = workIDStrings.compactMap { UUID(uuidString: $0) }
         guard !uuids.isEmpty else { return [] }
 
         // Fetch all work items and filter in memory
-        // This is necessary because SwiftData predicates don't support checking if UUID is in string array
-        let descriptor = FetchDescriptor<WorkModel>()
-        let allWork: [WorkModel]
+        // Core Data predicates don't support checking if UUID is in Transformable array
+        let request = NSFetchRequest<CDWorkModel>(entityName: "WorkModel")
+        let allWork: [CDWorkModel]
         do {
-            allWork = try context.fetch(descriptor)
+            allWork = try context.fetch(request)
         } catch {
             logger.warning("Failed to fetch work items: \(error.localizedDescription)")
             return []
         }
 
         return allWork.filter { work in
-            workItemIDs.contains(work.id.uuidString)
+            guard let workID = work.id else { return false }
+            return workIDStrings.contains(workID.uuidString)
         }
     }
-    
+
     /// Fetches the common lesson if all work items are for the same lesson
-    func fetchCommonLesson(from context: ModelContext) -> Lesson? {
+    func fetchCommonLesson(from context: NSManagedObjectContext) -> CDLesson? {
         let workItems = fetchWorkItems(from: context)
         guard !workItems.isEmpty else { return nil }
 
@@ -323,12 +322,11 @@ extension PracticeSession {
               let lessonID = lessonIDs.first,
               let uuid = UUID(uuidString: lessonID) else { return nil }
 
-        let descriptor = FetchDescriptor<Lesson>(
-            predicate: #Predicate { $0.id == uuid }
-        )
+        let request = NSFetchRequest<CDLesson>(entityName: "Lesson")
+        request.predicate = NSPredicate(format: "id == %@", uuid as CVarArg)
 
         do {
-            return try context.fetch(descriptor).first
+            return try context.fetch(request).first
         } catch {
             logger.warning("Failed to fetch common lesson: \(error.localizedDescription)")
             return nil
@@ -347,7 +345,7 @@ struct LessonStats {
     let activeWorkItems: Int
     let totalPracticeSessions: Int
     let lastPresentedDate: Date?
-    
+
     var workCompletionRate: Double {
         guard totalWorkItems > 0 else { return 0 }
         return Double(completedWorkItems) / Double(totalWorkItems)

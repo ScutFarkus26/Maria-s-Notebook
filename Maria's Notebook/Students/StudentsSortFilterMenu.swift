@@ -1,4 +1,5 @@
 import SwiftUI
+import CoreData
 
 /// Provides reusable sort and filter menu content for the Students view.
 ///

@@ -1,6 +1,6 @@
 import Foundation
 import OSLog
-import SwiftData
+import CoreData
 
 /// Property wrapper that provides type-safe UUID access while storing as String for CloudKit compatibility.
 ///

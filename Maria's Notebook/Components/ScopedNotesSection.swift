@@ -3,8 +3,8 @@ import Foundation
 
 struct ScopedNotesSection: View {
     let title: String
-    let notes: [Note]
-    let availableStudents: [Student]
+    let notes: [CDNote]
+    let availableStudents: [CDStudent]
     let defaultScope: NoteScope
     let onAddNote: (String, NoteScope) -> Void
 
@@ -18,8 +18,8 @@ struct ScopedNotesSection: View {
 
     init(
         title: String,
-        notes: [Note],
-        availableStudents: [Student],
+        notes: [CDNote],
+        availableStudents: [CDStudent],
         defaultScope: NoteScope = .all,
         onAddNote: @escaping (String, NoteScope) -> Void
     ) {
@@ -42,21 +42,29 @@ struct ScopedNotesSection: View {
         }
     }
 
-    private var sortedNotes: [Note] {
+    private var sortedNotes: [CDNote] {
         notes.sorted {
-            if $0.updatedAt != $1.updatedAt {
-                return $0.updatedAt > $1.updatedAt
+            let u0 = $0.updatedAt ?? .distantPast
+            let u1 = $1.updatedAt ?? .distantPast
+            if u0 != u1 {
+                return u0 > u1
             }
-            return $0.createdAt > $1.createdAt
+            return ($0.createdAt ?? .distantPast) > ($1.createdAt ?? .distantPast)
         }
     }
     
-    private var studentsByID: [UUID: Student] {
+    private var studentsByID: [UUID: CDStudent] {
         // DEDUPLICATION: CloudKit sync can create duplicate records with the same ID.
-        Dictionary(availableStudents.uniqueByID.map { ($0.id, $0) }, uniquingKeysWith: { first, _ in first })
+        Dictionary(
+            availableStudents.uniqueByID.compactMap { student in
+                guard let id = student.id else { return nil }
+                return (id, student)
+            },
+            uniquingKeysWith: { first, _ in first }
+        )
     }
 
-    private func scopeLabel(for note: Note) -> String {
+    private func scopeLabel(for note: CDNote) -> String {
         switch note.scope {
         case .all:
             return "All"
@@ -64,14 +72,14 @@ struct ScopedNotesSection: View {
             if let student = studentsByID[id] {
                 return displayName(for: student)
             } else {
-                return "Student"
+                return "CDStudent"
             }
         case let .students(ids):
             return "\(ids.count) students"
         }
     }
 
-    private func displayName(for student: Student) -> String {
+    private func displayName(for student: CDStudent) -> String {
         let first = student.firstName.trimmed()
         let last = student.lastName.trimmed()
         let full = [first, last].filter { !$0.isEmpty }.joined(separator: " ")
@@ -103,7 +111,7 @@ struct ScopedNotesSection: View {
                     .foregroundStyle(.secondary)
             } else {
                 VStack(spacing: 12) {
-                    ForEach(sortedNotes, id: \.id) { note in
+                    ForEach(sortedNotes, id: \.objectID) { note in
                         VStack(alignment: .leading, spacing: 6) {
                             Text(note.body)
                                 .frame(maxWidth: .infinity, alignment: .leading)
@@ -118,9 +126,9 @@ struct ScopedNotesSection: View {
                                             .strokeBorder(Color.secondary, lineWidth: 1)
                                     )
                                 HStack(spacing: 0) {
-                                    Text(note.updatedAt, style: .date)
+                                    Text(note.updatedAt ?? Date(), style: .date)
                                     Text(" ")
-                                    Text(note.updatedAt, style: .time)
+                                    Text(note.updatedAt ?? Date(), style: .time)
                                 }
                                 .font(.caption)
                                 .foregroundStyle(.secondary)
@@ -140,9 +148,11 @@ struct ScopedNotesSection: View {
                 HStack {
                     Picker("Scope", selection: $scopeChoice) {
                         Text("All").tag(ScopeChoice.all)
-                        ForEach(availableStudents.sorted(by: StudentSortComparator.byFirstName), id: \.id) { student in
-                            Text(displayName(for: student))
-                                .tag(ScopeChoice.student(student.id))
+                        ForEach(availableStudents.sorted(by: StudentSortComparator.byFirstName), id: \.objectID) { student in
+                            if let studentID = student.id {
+                                Text(displayName(for: student))
+                                    .tag(ScopeChoice.student(studentID))
+                            }
                         }
                     }
                     .pickerStyle(MenuPickerStyle())

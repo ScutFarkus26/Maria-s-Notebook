@@ -6,17 +6,18 @@
 
 import OSLog
 import SwiftUI
+import CoreData
 import Foundation
 
 // swiftlint:disable:next type_body_length
 struct LessonsCardsGridView: View {
     private static let logger = Logger.lessons
-    let lessons: [Lesson]
+    let lessons: [CDLesson]
     let isManualMode: Bool
-    let onTapLesson: (Lesson) -> Void
+    let onTapLesson: (CDLesson) -> Void
     // Optional reorder callback; if provided and manual mode is enabled, supports drag reordering
-    let onReorder: ((_ movingLesson: Lesson, _ fromIndex: Int, _ toIndex: Int, _ subset: [Lesson]) -> Void)?
-    let onGiveLesson: ((Lesson) -> Void)?
+    let onReorder: ((_ movingLesson: CDLesson, _ fromIndex: Int, _ toIndex: Int, _ subset: [CDLesson]) -> Void)?
+    let onGiveLesson: ((CDLesson) -> Void)?
     let onActivateJiggle: (() -> Void)?
     let statusCounts: [UUID: Int]?
     let selectedSubject: String?
@@ -25,11 +26,11 @@ struct LessonsCardsGridView: View {
     let showIntroductionCards: Bool
 
     init(
-        lessons: [Lesson],
+        lessons: [CDLesson],
         isManualMode: Bool,
-        onTapLesson: @escaping (Lesson) -> Void,
-        onReorder: ((_ movingLesson: Lesson, _ fromIndex: Int, _ toIndex: Int, _ subset: [Lesson]) -> Void)? = nil,
-        onGiveLesson: ((Lesson) -> Void)? = nil,
+        onTapLesson: @escaping (CDLesson) -> Void,
+        onReorder: ((_ movingLesson: CDLesson, _ fromIndex: Int, _ toIndex: Int, _ subset: [CDLesson]) -> Void)? = nil,
+        onGiveLesson: ((CDLesson) -> Void)? = nil,
         onActivateJiggle: (() -> Void)? = nil,
         statusCounts: [UUID: Int]? = nil,
         selectedSubject: String? = nil,
@@ -68,7 +69,7 @@ struct LessonsCardsGridView: View {
         CardGridLayout.columns(for: sizeClass)
     }
 
-    private var idList: [UUID] { lessons.map(\.id) }
+    private var idList: [UUID] { lessons.compactMap(\.id) }
 
     /// Groups lessons by group and prepends introduction cards where available.
     private var groupedItems: [(key: String, value: [LessonsGridItem])] {
@@ -93,9 +94,9 @@ struct LessonsCardsGridView: View {
     /// Organizes lessons within a group by subheading for hierarchical display.
     /// Returns ordered subheading keys (empty string = no subheading) and a lookup of lessons per subheading.
     private func subheadingsForGroup(
-        _ groupLessons: [Lesson],
+        _ groupLessons: [CDLesson],
         groupName: String
-    ) -> (order: [String], bySubheading: [String: [Lesson]]) {
+    ) -> (order: [String], bySubheading: [String: [CDLesson]]) {
         let bySubheading = groupLessons.grouped { $0.subheading.trimmed() }
         let nonEmpty = Array(Set(bySubheading.keys.filter { !$0.isEmpty }))
             .sorted { $0.localizedCaseInsensitiveCompare($1) == .orderedAscending }
@@ -112,12 +113,12 @@ struct LessonsCardsGridView: View {
     }
 
     /// Whether a group has more than one distinct non-empty subheading (worth showing sub-sections).
-    private func groupHasSubheadings(_ groupLessons: [Lesson]) -> Bool {
+    private func groupHasSubheadings(_ groupLessons: [CDLesson]) -> Bool {
         let distinct = Set(groupLessons.map { $0.subheading.trimmed() }.filter { !$0.isEmpty })
         return !distinct.isEmpty
     }
 
-    private var groupedByGroup: [(key: String, value: [Lesson])] {
+    private var groupedByGroup: [(key: String, value: [CDLesson])] {
         let dict = lessons.grouped { $0.group.trimmed() }
         let mapped = dict
             .map { (key: $0.key, value: $0.value.sorted { lhs, rhs in
@@ -301,7 +302,7 @@ struct LessonsCardsGridView: View {
                     Section {
                         ForEach(shLessons, id: \.id) { lesson in
                             gridItemView(.lesson(lesson))
-                                .id("lesson-\(lesson.id.uuidString)")
+                                .id("lesson-\(lesson.id?.uuidString ?? "")")
                         }
                     } header: {
                         subheadingHeader(sh.isEmpty ? "Other" : sh)

@@ -1,8 +1,9 @@
 import SwiftUI
+import CoreData
 
-// MARK: - Student Chip Component
+// MARK: - CDStudent Chip Component
 struct StudentChip: View {
-    let student: Student
+    let student: CDStudent
     let subjectColor: Color
     let onRemove: () -> Void
     
@@ -31,9 +32,9 @@ struct StudentChip: View {
     }
 }
 
-// MARK: - Student Selection Row
+// MARK: - CDStudent Selection Row
 struct StudentSelectionRow: View {
-    let student: Student
+    let student: CDStudent
     let isSelected: Bool
     let onToggle: () -> Void
     
@@ -61,7 +62,7 @@ struct StudentSelectionRow: View {
 // MARK: - Move Students Sheet
 struct MoveStudentsSheet: View {
     let lessonName: String
-    let students: [Student]
+    let students: [CDStudent]
     @Binding var studentsToMove: Set<UUID>
     let selectedStudentIDs: Set<UUID>
     let onMove: () -> Void
@@ -86,15 +87,16 @@ struct MoveStudentsSheet: View {
                     .foregroundStyle(.secondary)
                 
                 VStack(alignment: .leading, spacing: 8) {
-                    ForEach(students, id: \.id) { student in
+                    ForEach(students, id: \.objectID) { student in
+                        let studentID = student.id ?? UUID()
                         MoveStudentRow(
                             student: student,
-                            isSelected: studentsToMove.contains(student.id)
+                            isSelected: studentsToMove.contains(studentID)
                         ) {
-                            if studentsToMove.contains(student.id) {
-                                studentsToMove.remove(student.id)
+                            if studentsToMove.contains(studentID) {
+                                studentsToMove.remove(studentID)
                             } else {
-                                studentsToMove.insert(student.id)
+                                studentsToMove.insert(studentID)
                             }
                         }
                     }
@@ -134,9 +136,9 @@ struct MoveStudentsSheet: View {
     }
 }
 
-// MARK: - Move Student Row
+// MARK: - Move CDStudent Row
 struct MoveStudentRow: View {
-    let student: Student
+    let student: CDStudent
     let isSelected: Bool
     let onToggle: () -> Void
     
@@ -209,12 +211,12 @@ struct MovedStudentsBanner: View {
     }
 }
 
-// MARK: - Utility for Student Name Formatting
+// MARK: - Utility for CDStudent Name Formatting
 
 /// Consistent student name formatting used across the app.
 enum StudentFormatter {
     /// Returns "FirstName L." format (e.g. "Maria D.")
-    static func displayName(for student: Student) -> String {
+    static func displayName(for student: CDStudent) -> String {
         let parts = student.fullName.split(separator: " ")
         guard let first = parts.first else { return student.fullName }
         let lastInitial = parts.dropFirst().first?.first.map { String($0) } ?? ""
@@ -222,7 +224,7 @@ enum StudentFormatter {
     }
 
     /// Returns just the first name
-    static func firstName(for student: Student) -> String {
+    static func firstName(for student: CDStudent) -> String {
         let parts = student.fullName.split(separator: " ")
         return parts.first.map(String.init) ?? student.fullName
     }

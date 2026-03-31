@@ -2,7 +2,7 @@
 // Active work snapshot and lessons-since-last-meeting sections
 
 import SwiftUI
-import SwiftData
+import CoreData
 
 extension StudentMeetingsTab {
 
@@ -23,7 +23,7 @@ extension StudentMeetingsTab {
                                         workRowLine(work)
                                             .contentShape(Rectangle())
                                             .onTapGesture {
-                                                selectedWorkID = work.id
+                                                selectedWorkID = work.id ?? UUID()
                                             }
                                     }
                                 }
@@ -35,7 +35,7 @@ extension StudentMeetingsTab {
                                         workRowLine(work)
                                             .contentShape(Rectangle())
                                             .onTapGesture {
-                                                selectedWorkID = work.id
+                                                selectedWorkID = work.id ?? UUID()
                                             }
                                     }
                                 }
@@ -52,7 +52,7 @@ extension StudentMeetingsTab {
                                         workRowLine(work, showCompletedDate: true)
                                             .contentShape(Rectangle())
                                             .onTapGesture {
-                                                selectedWorkID = work.id
+                                                selectedWorkID = work.id ?? UUID()
                                             }
                                     }
                                 }

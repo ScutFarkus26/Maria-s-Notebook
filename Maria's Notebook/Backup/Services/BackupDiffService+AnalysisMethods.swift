@@ -2,7 +2,7 @@
 // Entity-specific diff analysis methods for comparing backup data against current database
 
 import Foundation
-import SwiftData
+import CoreData
 import OSLog
 
 extension BackupDiffService {
@@ -12,26 +12,27 @@ extension BackupDiffService {
     // swiftlint:disable:next function_body_length
     func analyzeStudentDiff(
         backupStudents: [StudentDTO],
-        modelContext: ModelContext
+        viewContext: NSManagedObjectContext
     ) -> EntityDiff {
-        let currentStudents: [Student]
+        let currentStudents: [CDStudent]
         do {
-            currentStudents = try modelContext.fetch(FetchDescriptor<Student>())
+            currentStudents = try viewContext.fetch(CDStudent.fetchRequest() as! NSFetchRequest<CDStudent>)
         } catch {
             Self.logger.warning("Failed to fetch current students: \(error.localizedDescription, privacy: .public)")
             currentStudents = []
         }
-        let currentIDs = Set(currentStudents.map(\.id))
+        let currentIDs = Set(currentStudents.compactMap(\.id))
         let backupIDs = Set(backupStudents.map(\.id))
 
         // Added (in current but not in backup)
         let addedIDs = currentIDs.subtracting(backupIDs)
         let added = currentStudents
-            .filter { addedIDs.contains($0.id) }
-            .map {
-                EntityChange(
-                    id: UUID(), entityID: $0.id,
-                    description: "\($0.firstName) \($0.lastName)",
+            .filter { $0.id.map { addedIDs.contains($0) } ?? false }
+            .compactMap { s -> EntityChange? in
+                guard let entityID = s.id else { return nil }
+                return EntityChange(
+                    id: UUID(), entityID: entityID,
+                    description: "\(s.firstName) \(s.lastName)",
                     timestamp: nil
                 )
             }
@@ -54,6 +55,7 @@ extension BackupDiffService {
             guard let current = currentStudents.first(
                 where: { $0.id == dto.id }
             ) else { continue }
+            guard let currentID = current.id else { continue }
             var changes: [FieldChange] = []
 
             if current.firstName != dto.firstName {
@@ -65,48 +67,50 @@ extension BackupDiffService {
                 changes.append(FieldChange(fieldName: "Last Name", oldValue: dto.lastName, newValue: current.lastName))
             }
             if current.birthday != dto.birthday {
+                let currentBday = current.birthday?.formatted(date: .abbreviated, time: .omitted) ?? "N/A"
                 changes.append(FieldChange(
                     fieldName: "Birthday",
                     oldValue: dto.birthday.formatted(date: .abbreviated, time: .omitted),
-                    newValue: current.birthday.formatted(date: .abbreviated, time: .omitted)
+                    newValue: currentBday
                 ))
             }
 
             if !changes.isEmpty {
                 modified.append(EntityModification(
                     id: UUID(),
-                    entityID: current.id,
+                    entityID: currentID,
                     description: "\(current.firstName) \(current.lastName)",
                     fieldChanges: changes
                 ))
             }
         }
 
-        return EntityDiff(entityType: "Student", added: added, removed: removed, modified: modified)
+        return EntityDiff(entityType: "CDStudent", added: added, removed: removed, modified: modified)
     }
 
     // swiftlint:disable:next function_body_length
     func analyzeLessonDiff(
         backupLessons: [LessonDTO],
-        modelContext: ModelContext
+        viewContext: NSManagedObjectContext
     ) -> EntityDiff {
-        let currentLessons: [Lesson]
+        let currentLessons: [CDLesson]
         do {
-            currentLessons = try modelContext.fetch(FetchDescriptor<Lesson>())
+            currentLessons = try viewContext.fetch(CDLesson.fetchRequest() as! NSFetchRequest<CDLesson>)
         } catch {
             Self.logger.warning("Failed to fetch current lessons: \(error.localizedDescription, privacy: .public)")
             currentLessons = []
         }
-        let currentIDs = Set(currentLessons.map(\.id))
+        let currentIDs = Set(currentLessons.compactMap(\.id))
         let backupIDs = Set(backupLessons.map(\.id))
 
         let addedIDs = currentIDs.subtracting(backupIDs)
         let added = currentLessons
-            .filter { addedIDs.contains($0.id) }
-            .map {
-                EntityChange(
-                    id: UUID(), entityID: $0.id,
-                    description: $0.name, timestamp: nil
+            .filter { $0.id.map { addedIDs.contains($0) } ?? false }
+            .compactMap { l -> EntityChange? in
+                guard let entityID = l.id else { return nil }
+                return EntityChange(
+                    id: UUID(), entityID: entityID,
+                    description: l.name, timestamp: nil
                 )
             }
 
@@ -124,6 +128,7 @@ extension BackupDiffService {
         var modified: [EntityModification] = []
         for dto in backupLessons {
             guard let current = currentLessons.first(where: { $0.id == dto.id }) else { continue }
+            guard let currentID = current.id else { continue }
             var changes: [FieldChange] = []
 
             if current.name != dto.name {
@@ -143,38 +148,39 @@ extension BackupDiffService {
             if !changes.isEmpty {
                 modified.append(EntityModification(
                     id: UUID(),
-                    entityID: current.id,
+                    entityID: currentID,
                     description: current.name,
                     fieldChanges: changes
                 ))
             }
         }
 
-        return EntityDiff(entityType: "Lesson", added: added, removed: removed, modified: modified)
+        return EntityDiff(entityType: "CDLesson", added: added, removed: removed, modified: modified)
     }
 
     func analyzeNoteDiff(
         backupNotes: [NoteDTO],
-        modelContext: ModelContext
+        viewContext: NSManagedObjectContext
     ) -> EntityDiff {
-        let current: [Note]
+        let current: [CDNote]
         do {
-            current = try modelContext.fetch(FetchDescriptor<Note>())
+            current = try viewContext.fetch(CDNote.fetchRequest() as! NSFetchRequest<CDNote>)
         } catch {
             Self.logger.warning("Failed to fetch current notes: \(error.localizedDescription, privacy: .public)")
             current = []
         }
-        let currentIDs = Set(current.map(\.id))
+        let currentIDs = Set(current.compactMap(\.id))
         let backupIDs = Set(backupNotes.map(\.id))
 
         let addedIDs = currentIDs.subtracting(backupIDs)
         let added = current
-            .filter { addedIDs.contains($0.id) }
-            .map {
-                EntityChange(
-                    id: UUID(), entityID: $0.id,
-                    description: String($0.body.prefix(40)),
-                    timestamp: $0.createdAt
+            .filter { $0.id.map { addedIDs.contains($0) } ?? false }
+            .compactMap { n -> EntityChange? in
+                guard let entityID = n.id else { return nil }
+                return EntityChange(
+                    id: UUID(), entityID: entityID,
+                    description: String(n.body.prefix(40)),
+                    timestamp: n.createdAt
                 )
             }
 
@@ -192,10 +198,11 @@ extension BackupDiffService {
         var modified: [EntityModification] = []
         for dto in backupNotes {
             guard let c = current.first(where: { $0.id == dto.id }) else { continue }
+            guard let cID = c.id else { continue }
             if c.body != dto.body {
                 modified.append(EntityModification(
                     id: UUID(),
-                    entityID: c.id,
+                    entityID: cID,
                     description: String(c.body.prefix(40)),
                     fieldChanges: [FieldChange(
                         fieldName: "Body",
@@ -206,25 +213,25 @@ extension BackupDiffService {
             }
         }
 
-        return EntityDiff(entityType: "Note", added: added, removed: removed, modified: modified)
+        return EntityDiff(entityType: "CDNote", added: added, removed: removed, modified: modified)
     }
 
     func analyzeCalendarDiff(
         backupNonSchoolDays: [NonSchoolDayDTO],
         backupOverrides: [SchoolDayOverrideDTO],
-        modelContext: ModelContext
+        viewContext: NSManagedObjectContext
     ) -> EntityDiff {
-        let currentNSD: [NonSchoolDay]
-        let currentOvr: [SchoolDayOverride]
+        let currentNSD: [CDNonSchoolDay]
+        let currentOvr: [CDSchoolDayOverride]
         do {
-            currentNSD = try modelContext.fetch(FetchDescriptor<NonSchoolDay>())
+            currentNSD = try viewContext.fetch(CDNonSchoolDay.fetchRequest() as! NSFetchRequest<CDNonSchoolDay>)
         } catch {
             let desc = error.localizedDescription
             Self.logger.warning("Failed to fetch current non-school days: \(desc, privacy: .public)")
             currentNSD = []
         }
         do {
-            currentOvr = try modelContext.fetch(FetchDescriptor<SchoolDayOverride>())
+            currentOvr = try viewContext.fetch(CDSchoolDayOverride.fetchRequest() as! NSFetchRequest<CDSchoolDayOverride>)
         } catch {
             let desc = error.localizedDescription
             Self.logger.warning("Failed to fetch current school day overrides: \(desc, privacy: .public)")
@@ -235,12 +242,13 @@ extension BackupDiffService {
         var removed: [EntityChange] = []
 
         // Non-school days
-        let currentNSDIDs = Set(currentNSD.map(\.id))
+        let currentNSDIDs = Set(currentNSD.compactMap(\.id))
         let backupNSDIDs = Set(backupNonSchoolDays.map(\.id))
 
         for id in currentNSDIDs.subtracting(backupNSDIDs) {
             if let nsd = currentNSD.first(where: { $0.id == id }) {
-                let desc = "Non-School Day: \(nsd.date.formatted(date: .abbreviated, time: .omitted))"
+                let dateStr = nsd.date?.formatted(date: .abbreviated, time: .omitted) ?? "N/A"
+                let desc = "Non-School Day: \(dateStr)"
                 added.append(EntityChange(id: UUID(), entityID: id, description: desc, timestamp: nil))
             }
         }
@@ -252,12 +260,13 @@ extension BackupDiffService {
         }
 
         // School day overrides
-        let currentOvrIDs = Set(currentOvr.map(\.id))
+        let currentOvrIDs = Set(currentOvr.compactMap(\.id))
         let backupOvrIDs = Set(backupOverrides.map(\.id))
 
         for id in currentOvrIDs.subtracting(backupOvrIDs) {
             if let ovr = currentOvr.first(where: { $0.id == id }) {
-                let desc = "Override: \(ovr.date.formatted(date: .abbreviated, time: .omitted))"
+                let dateStr = ovr.date?.formatted(date: .abbreviated, time: .omitted) ?? "N/A"
+                let desc = "Override: \(dateStr)"
                 added.append(EntityChange(id: UUID(), entityID: id, description: desc, timestamp: nil))
             }
         }
@@ -273,27 +282,28 @@ extension BackupDiffService {
 
     func analyzeProjectDiff(
         backupProjects: [ProjectDTO],
-        modelContext: ModelContext
+        viewContext: NSManagedObjectContext
     ) -> EntityDiff {
-        let current: [Project]
+        let current: [CDProject]
         do {
-            current = try modelContext.fetch(FetchDescriptor<Project>())
+            current = try viewContext.fetch(CDProject.fetchRequest() as! NSFetchRequest<CDProject>)
         } catch {
             let desc = error.localizedDescription
             Self.logger.warning("Failed to fetch current projects: \(desc, privacy: .public)")
             current = []
         }
-        let currentIDs = Set(current.map(\.id))
+        let currentIDs = Set(current.compactMap(\.id))
         let backupIDs = Set(backupProjects.map(\.id))
 
         let addedIDs = currentIDs.subtracting(backupIDs)
         let added = current
-            .filter { addedIDs.contains($0.id) }
-            .map {
-                EntityChange(
-                    id: UUID(), entityID: $0.id,
-                    description: $0.title,
-                    timestamp: $0.createdAt
+            .filter { $0.id.map { addedIDs.contains($0) } ?? false }
+            .compactMap { p -> EntityChange? in
+                guard let entityID = p.id else { return nil }
+                return EntityChange(
+                    id: UUID(), entityID: entityID,
+                    description: p.title,
+                    timestamp: p.createdAt
                 )
             }
 
@@ -308,30 +318,32 @@ extension BackupDiffService {
                 )
             }
 
-        return EntityDiff(entityType: "Project", added: added, removed: removed, modified: [])
+        return EntityDiff(entityType: "CDProject", added: added, removed: removed, modified: [])
     }
 
     func analyzeAttendanceDiff(
         backupAttendance: [AttendanceRecordDTO],
-        modelContext: ModelContext
+        viewContext: NSManagedObjectContext
     ) -> EntityDiff {
-        let current: [AttendanceRecord]
+        let current: [CDAttendanceRecord]
         do {
-            current = try modelContext.fetch(FetchDescriptor<AttendanceRecord>())
+            current = try viewContext.fetch(CDAttendanceRecord.fetchRequest() as! NSFetchRequest<CDAttendanceRecord>)
         } catch {
             let desc = error.localizedDescription
             Self.logger.warning("Failed to fetch current attendance records: \(desc, privacy: .public)")
             current = []
         }
-        let currentIDs = Set(current.map(\.id))
+        let currentIDs = Set(current.compactMap(\.id))
         let backupIDs = Set(backupAttendance.map(\.id))
 
         let addedIDs = currentIDs.subtracting(backupIDs)
         let added = current
-            .filter { addedIDs.contains($0.id) }
-            .map {
-                let desc = "Attendance \($0.date.formatted(date: .abbreviated, time: .omitted))"
-                return EntityChange(id: UUID(), entityID: $0.id, description: desc, timestamp: nil)
+            .filter { $0.id.map { addedIDs.contains($0) } ?? false }
+            .compactMap { a -> EntityChange? in
+                guard let entityID = a.id else { return nil }
+                let dateStr = a.date?.formatted(date: .abbreviated, time: .omitted) ?? "N/A"
+                let desc = "Attendance \(dateStr)"
+                return EntityChange(id: UUID(), entityID: entityID, description: desc, timestamp: nil)
             }
 
         let removedIDs = backupIDs.subtracting(currentIDs)

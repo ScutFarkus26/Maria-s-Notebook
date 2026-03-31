@@ -2,7 +2,7 @@
 // Cache loading, filtering, and display helpers for WorksAgendaView.
 
 import SwiftUI
-import SwiftData
+import CoreData
 import OSLog
 
 extension WorksAgendaView {
@@ -12,9 +12,11 @@ extension WorksAgendaView {
     /// PERF: Lightweight change detection using fetchCount() instead of loading full tables.
     func refreshChangeTokens() {
         do {
-            let lCount = try modelContext.fetchCount(FetchDescriptor<Lesson>())
+            let lRequest: NSFetchRequest<CDLesson> = NSFetchRequest(entityName: "Lesson")
+            let lCount = try viewContext.count(for: lRequest)
             if lCount != lessonChangeToken { lessonChangeToken = lCount }
-            let sCount = try modelContext.fetchCount(FetchDescriptor<Student>())
+            let sRequest: NSFetchRequest<CDStudent> = NSFetchRequest(entityName: "Student")
+            let sCount = try viewContext.count(for: sRequest)
             if sCount != studentChangeToken { studentChangeToken = sCount }
         } catch {
             Self.logger.warning("Failed to refresh change tokens: \(error)")
@@ -38,42 +40,25 @@ extension WorksAgendaView {
         }
 
         // Load only needed lessons
-        // NOTE: SwiftData #Predicate doesn't support capturing local Set variables,
-        // so we fetch all and filter in memory
         // Use uniquingKeysWith to handle CloudKit sync duplicates
         if !neededLessonIDs.isEmpty {
-            let all: [Lesson]
-            do {
-                all = try modelContext.fetch(FetchDescriptor<Lesson>())
-            } catch {
-                Self.logger.warning("Failed to fetch lessons: \(error)")
-                all = []
-            }
-            let filtered = all.filter { neededLessonIDs.contains($0.id) }
-            lessonsByIDCache = Dictionary(filtered.map { ($0.id, $0) }, uniquingKeysWith: { first, _ in first })
+            let all: [Lesson] = viewContext.safeFetch(NSFetchRequest<CDLesson>(entityName: "Lesson"))
+            let filtered = all.filter { neededLessonIDs.contains($0.id ?? UUID()) }
+            lessonsByIDCache = Dictionary(filtered.compactMap { guard let id = $0.id else { return nil }; return (id, $0) }, uniquingKeysWith: { first, _ in first })
         } else {
             lessonsByIDCache = [:]
         }
 
-        // Load only needed students
-        // NOTE: SwiftData #Predicate doesn't support capturing local Set variables,
-        // so we fetch all and filter in memory
         // Use uniquingKeysWith to handle CloudKit sync duplicates
         if !neededStudentIDs.isEmpty {
-            let all: [Student]
-            do {
-                all = try modelContext.fetch(FetchDescriptor<Student>())
-            } catch {
-                Self.logger.warning("Failed to fetch students: \(error)")
-                all = []
-            }
-            let filtered = all.filter { neededStudentIDs.contains($0.id) }
+            let all: [Student] = viewContext.safeFetch(NSFetchRequest<CDStudent>(entityName: "Student"))
+            let filtered = all.filter { neededStudentIDs.contains($0.id ?? UUID()) }
             // DEDUPLICATION: CloudKit sync can create duplicate records with the same ID.
             let visible = TestStudentsFilter.filterVisible(
                 filtered, show: showTestStudents,
                 namesRaw: testStudentNamesRaw
             ).uniqueByID
-            studentsByIDCache = Dictionary(visible.map { ($0.id, $0) }, uniquingKeysWith: { first, _ in first })
+            studentsByIDCache = Dictionary(visible.compactMap { guard let id = $0.id else { return nil }; return (id, $0) }, uniquingKeysWith: { first, _ in first })
         } else {
             studentsByIDCache = [:]
         }
@@ -83,12 +68,12 @@ extension WorksAgendaView {
 
     func openWorksFiltered() -> [WorkModel] {
         // Filter open work in memory (anything NOT .complete)
-        var works = openWork
+        var works = Array(openWork)
 
         // Hide scheduled work if enabled
         if hideScheduled {
             let scheduledWorkIDs = Set(scheduledCheckIns.compactMap { UUID(uuidString: $0.workID) })
-            works = works.filter { !scheduledWorkIDs.contains($0.id) }
+            works = works.filter { !scheduledWorkIDs.contains($0.id ?? UUID()) }
         }
 
         // Optional search (use debounced text for filtering)
@@ -122,7 +107,7 @@ extension WorksAgendaView {
                 .flatMap { studentsByID[$0] }
                 .map(StudentFormatter.displayName(for:)) ?? "Student"
             return WorkPDFRenderer.PrintItem(
-                id: w.id,
+                id: w.id ?? UUID(),
                 lessonTitle: title,
                 studentName: student,
                 statusLabel: statusLabel(for: w),
@@ -143,7 +128,7 @@ extension WorksAgendaView {
     }
 
     func ageDays(for w: WorkModel) -> Int {
-        let start = AppCalendar.startOfDay(w.createdAt)
+        let start = AppCalendar.startOfDay(w.createdAt ?? Date())
         let end = AppCalendar.startOfDay(Date())
         return AppCalendar.shared.dateComponents([.day], from: start, to: end).day ?? 0
     }
@@ -153,8 +138,8 @@ extension WorksAgendaView {
            AppCalendar.startOfDay(due) < AppCalendar.startOfDay(Date()) {
             return true
         }
-        if let lastNoteDate = (w.unifiedNotes ?? [])
-            .map({ max($0.updatedAt, $0.createdAt) }).max() {
+        if let lastNoteDate = ((w.unifiedNotes?.allObjects as? [CDNote]) ?? [])
+            .map({ max($0.updatedAt ?? Date.distantPast, $0.createdAt ?? Date.distantPast) }).max() {
             let days = AppCalendar.shared.dateComponents(
                 [.day],
                 from: AppCalendar.startOfDay(lastNoteDate),
@@ -163,8 +148,8 @@ extension WorksAgendaView {
             if days >= 10 { return true }
         }
         return LessonAgeHelper.schoolDaysSinceCreation(
-            createdAt: w.createdAt, asOf: Date(),
-            using: modelContext, calendar: calendar
+            createdAt: w.createdAt ?? Date(), asOf: Date(),
+            using: viewContext, calendar: calendar
         ) >= 10
     }
 }

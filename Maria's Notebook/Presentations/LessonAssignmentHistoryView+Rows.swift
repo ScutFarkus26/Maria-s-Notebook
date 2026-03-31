@@ -6,7 +6,7 @@
 //
 
 import SwiftUI
-import SwiftData
+import CoreData
 
 extension LessonAssignmentHistoryView {
 
@@ -50,9 +50,9 @@ extension LessonAssignmentHistoryView {
     }
 
     @ViewBuilder
-    func daySection(dayIndex: Int, entry: (day: Date, items: [LessonAssignment])) -> some View {
+    func daySection(dayIndex: Int, entry: (day: Date, items: [CDLessonAssignment])) -> some View {
         Section {
-            ForEach(Array(entry.items.enumerated()), id: \.element.id) { itemIndex, la in
+            ForEach(Array(entry.items.enumerated()), id: \.element.objectID) { itemIndex, la in
                 row(for: la)
                     .onTapGesture { selectedAssignment = la }
                     .onAppear {
@@ -73,7 +73,7 @@ extension LessonAssignmentHistoryView {
 
     @ViewBuilder
     // swiftlint:disable:next function_body_length
-    func row(for la: LessonAssignment) -> some View {
+    func row(for la: CDLessonAssignment) -> some View {
         VStack(alignment: .leading, spacing: 0) {
             // Header row
             HStack(alignment: .firstTextBaseline, spacing: 12) {
@@ -99,9 +99,9 @@ extension LessonAssignmentHistoryView {
             .padding(.vertical, 8)
 
             // Display notes inline if present
-            if let notes = la.unifiedNotes, !notes.isEmpty {
+            if let notesSet = la.unifiedNotes, let notes = notesSet.allObjects as? [CDNote], !notes.isEmpty {
                 VStack(alignment: .leading, spacing: 6) {
-                    ForEach(notes.sorted { $0.createdAt > $1.createdAt }, id: \.id) { note in
+                    ForEach(notes.sorted { ($0.createdAt ?? .distantPast) > ($1.createdAt ?? .distantPast) }, id: \.objectID) { note in
                         noteRow(note)
                     }
                 }
@@ -142,7 +142,7 @@ extension LessonAssignmentHistoryView {
     }
 
     @ViewBuilder
-    func noteRow(_ note: Note) -> some View {
+    func noteRow(_ note: CDNote) -> some View {
         VStack(alignment: .leading, spacing: 4) {
             Text(note.body)
                 .font(AppTheme.ScaledFont.caption)
@@ -151,8 +151,8 @@ extension LessonAssignmentHistoryView {
 
             HStack(spacing: 6) {
                 // Tag badges
-                if !note.tags.isEmpty {
-                    ForEach(note.tags.prefix(2), id: \.self) { tag in
+                if !note.tagsArray.isEmpty {
+                    ForEach(note.tagsArray.prefix(2), id: \.self) { tag in
                         TagBadge(tag: tag, compact: true)
                     }
                 }

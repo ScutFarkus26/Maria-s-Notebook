@@ -1,11 +1,11 @@
 import SwiftUI
-import SwiftData
+import CoreData
 
 struct ProjectEditorSheet: View {
     let club: Project?
 
     @Environment(\.dismiss) private var dismiss
-    @Environment(\.modelContext) private var modelContext
+    @Environment(\.managedObjectContext) private var modelContext
     @Environment(SaveCoordinator.self) private var saveCoordinator
 
     // Test student filtering
@@ -13,12 +13,12 @@ struct ProjectEditorSheet: View {
     @AppStorage(UserDefaultsKeys.generalTestStudentNames)
     private var testStudentNamesRaw: String = "Danny De Berry,Lil Dan D"
 
-    @Query(sort: Student.sortByName) private var studentsRaw: [Student]
+    @FetchRequest(sortDescriptors: CDStudent.sortByName) private var studentsRaw: FetchedResults<CDStudent>
     // DEDUPLICATION: CloudKit sync can create duplicate records with the same ID.
     // Filter out test students when setting is disabled
     private var students: [Student] {
         TestStudentsFilter.filterVisible(
-            studentsRaw.uniqueByID.filter(\.isEnrolled),
+            Array(studentsRaw).uniqueByID.filter(\.isEnrolled),
             show: showTestStudents,
             namesRaw: testStudentNamesRaw
         )
@@ -40,9 +40,9 @@ struct ProjectEditorSheet: View {
         self.club = club
         _title = State(initialValue: club?.title ?? "")
         _bookTitle = State(initialValue: club?.bookTitle ?? "")
-        _selectedMemberIDs = State(initialValue: Set(club?.memberStudentIDs ?? []))
+        _selectedMemberIDs = State(initialValue: Set(club?.memberStudentIDsArray ?? []))
         if let club {
-            let drafts = (club.sharedTemplates ?? [])
+            let drafts = ((club.sharedTemplates?.allObjects as? [CDProjectAssignmentTemplate]) ?? [])
                 .filter(\.isShared)
                 .map { t in
                     TemplateDraft(
@@ -75,7 +75,7 @@ struct ProjectEditorSheet: View {
                 ScrollView {
                     LazyVStack(alignment: .leading, spacing: 6) {
                         ForEach(students) { s in
-                            let sid = s.id.uuidString
+                            let sid = (s.id ?? UUID()).uuidString
                             HStack {
                                 Toggle(isOn: Binding(
                                 get: { selectedMemberIDs.contains(sid) },
@@ -157,42 +157,39 @@ struct ProjectEditorSheet: View {
             // Update existing
             club.title = trimmedTitle
             club.bookTitle = bt.isEmpty ? nil : bt
-            club.memberStudentIDs = Array(selectedMemberIDs)
+            club.memberStudentIDsArray = Array(selectedMemberIDs)
 
-            // Replace shared templates (keep only isShared ones)
-            let existingNonShared = (club.sharedTemplates ?? []).filter { !$0.isShared }
-            club.sharedTemplates = existingNonShared
+            // Replace shared templates: remove existing shared ones
+            let existingTemplates = (club.sharedTemplates?.allObjects as? [CDProjectAssignmentTemplate]) ?? []
+            for tpl in existingTemplates where tpl.isShared {
+                modelContext.delete(tpl)
+            }
             for draft in sharedTemplates.prefix(2) {
-                let tpl = ProjectAssignmentTemplate(
-                    projectID: club.id,
-                    title: draft.title,
-                    instructions: draft.instructions,
-                    isShared: true,
-                    defaultLinkedLessonID: draft.defaultLinkedLessonID
-                )
-                club.sharedTemplates = (club.sharedTemplates ?? []) + [tpl]
+                let tpl = CDProjectAssignmentTemplate(context: modelContext)
+                tpl.projectID = (club.id ?? UUID()).uuidString
+                tpl.title = draft.title
+                tpl.instructions = draft.instructions
+                tpl.isShared = true
+                tpl.defaultLinkedLessonID = draft.defaultLinkedLessonID
+                club.addToSharedTemplates(tpl)
             }
         } else {
             // Create new
-            let newClub = Project(
-                title: trimmedTitle,
-                bookTitle: bt.isEmpty ? nil : bt,
-                memberStudentIDs: Array(selectedMemberIDs)
-            )
+            let newClub = CDProject(context: modelContext)
+            newClub.title = trimmedTitle
+            newClub.bookTitle = bt.isEmpty ? nil : bt
+            newClub.memberStudentIDsArray = Array(selectedMemberIDs)
+
             // Two shared templates (allow fewer if user left blank; still create placeholders)
-            var templates: [ProjectAssignmentTemplate] = []
             for draft in sharedTemplates.prefix(2) {
-                let tpl = ProjectAssignmentTemplate(
-                    projectID: newClub.id,
-                    title: draft.title,
-                    instructions: draft.instructions,
-                    isShared: true,
-                    defaultLinkedLessonID: draft.defaultLinkedLessonID
-                )
-                templates.append(tpl)
+                let tpl = CDProjectAssignmentTemplate(context: modelContext)
+                tpl.projectID = (newClub.id ?? UUID()).uuidString
+                tpl.title = draft.title
+                tpl.instructions = draft.instructions
+                tpl.isShared = true
+                tpl.defaultLinkedLessonID = draft.defaultLinkedLessonID
+                newClub.addToSharedTemplates(tpl)
             }
-            newClub.sharedTemplates = templates
-            modelContext.insert(newClub)
         }
 
         saveCoordinator.save(modelContext, reason: "Save Project")

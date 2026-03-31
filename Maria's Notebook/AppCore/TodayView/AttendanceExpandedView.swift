@@ -2,7 +2,7 @@
 // Expanded attendance grid view for TodayView
 
 import SwiftUI
-import SwiftData
+import CoreData
 #if os(iOS)
 import MessageUI
 #endif
@@ -14,15 +14,15 @@ struct AttendanceExpandedView: View {
     let onChange: () -> Void
     let onToast: (String) -> Void
 
-    @Environment(\.modelContext) var modelContext
+    @Environment(\.managedObjectContext) var viewContext
     @Environment(\.horizontalSizeClass) var hSizeClass
     @Environment(SaveCoordinator.self) var saveCoordinator
 
-    @Query(sort: Student.sortByLastName)
-    private var allStudentsRaw: [Student]
+    @FetchRequest(sortDescriptors: [NSSortDescriptor(keyPath: \CDStudent.lastName, ascending: true)])
+    private var allStudentsRaw: FetchedResults<CDStudent>
     // DEDUPLICATION: CloudKit sync can create duplicate records with the same ID.
-    private var allStudents: [Student] { allStudentsRaw.uniqueByID.filter(\.isEnrolled) }
-    private var allStudentIDs: [UUID] { allStudents.map(\.id) }
+    private var allStudents: [CDStudent] { Array(allStudentsRaw).uniqueByID.filter(\.isEnrolled) }
+    private var allStudentIDs: [UUID] { allStudents.compactMap(\.id) }
 
     @State var viewModel = AttendanceViewModel()
 
@@ -56,7 +56,7 @@ struct AttendanceExpandedView: View {
         }
     }
 
-    var filteredStudents: [Student] {
+    var filteredStudents: [CDStudent] {
         let visible = viewModel.visibleStudents(from: allStudents)
         return viewModel.sortedAndFiltered(students: visible)
     }
@@ -76,17 +76,17 @@ struct AttendanceExpandedView: View {
             students: filteredStudents,
             recordsByStudentID: viewModel.recordsByStudentID,
             onCycleStatus: { student in
-                viewModel.cycleStatus(for: student, modelContext: modelContext)
-                saveCoordinator.save(modelContext, reason: "Update status")
+                viewModel.cycleStatus(for: student, modelContext: viewContext)
+                saveCoordinator.save(viewContext, reason: "Update status")
                 onChange()
             },
             onUpdateNote: { student, note in
-                viewModel.updateNote(for: student, note: note, modelContext: modelContext)
-                saveCoordinator.save(modelContext, reason: "Update note")
+                viewModel.updateNote(for: student, note: note, modelContext: viewContext)
+                saveCoordinator.save(viewContext, reason: "Update note")
             },
             onUpdateAbsenceReason: { student, reason in
-                viewModel.updateAbsenceReason(for: student, reason: reason, modelContext: modelContext)
-                saveCoordinator.save(modelContext, reason: "Update reason")
+                viewModel.updateAbsenceReason(for: student, reason: reason, modelContext: viewContext)
+                saveCoordinator.save(viewContext, reason: "Update reason")
             }
         )
         .frame(maxWidth: .infinity, maxHeight: .infinity)
@@ -242,7 +242,7 @@ struct AttendanceExpandedView: View {
     }
 
     private func loadData() {
-        viewModel.load(for: date, students: viewModel.visibleStudents(from: allStudents), modelContext: modelContext)
+        viewModel.load(for: date, students: viewModel.visibleStudents(from: allStudents), modelContext: viewContext)
         isEditing = !isLocked(for: date)
         localSortKey = viewModel.sortKey
     }

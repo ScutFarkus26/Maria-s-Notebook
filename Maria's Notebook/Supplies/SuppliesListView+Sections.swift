@@ -2,7 +2,7 @@
 // Extracted sections to keep SuppliesListView type body within SwiftLint limits.
 
 import SwiftUI
-import SwiftData
+import CoreData
 
 extension SuppliesListView {
     // MARK: - Stats Section
@@ -112,7 +112,7 @@ extension SuppliesListView {
 
     // MARK: - Supplies List
 
-    func suppliesList(_ items: [Supply]) -> some View {
+    func suppliesList(_ items: [CDSupply]) -> some View {
         VStack(spacing: 8) {
             ForEach(items) { supply in
                 SupplyRow(supply: supply) { adjustment in
@@ -154,7 +154,7 @@ extension SuppliesListView {
                     Divider()
 
                     Button(role: .destructive) {
-                        SupplyService.deleteSupply(supply, in: modelContext)
+                        SupplyService.deleteSupply(supply, in: viewContext)
                     } label: {
                         Label("Delete", systemImage: "trash")
                     }
@@ -182,7 +182,7 @@ extension SuppliesListView {
             Button {
                 showingAddSheet = true
             } label: {
-                Label("Add First Supply", systemImage: "plus")
+                Label("Add First CDSupply", systemImage: "plus")
             }
             .buttonStyle(.borderedProminent)
         }
@@ -209,12 +209,12 @@ extension SuppliesListView {
 
     // MARK: - Actions
 
-    func handleQuickAdjust(supply: Supply, adjustment: Int) {
+    func handleQuickAdjust(supply: CDSupply, adjustment: Int) {
         let reason = adjustment > 0 ? "Quick add" : "Quick remove"
         if adjustment > 0 {
-            SupplyService.addStock(to: supply, amount: adjustment, reason: reason, in: modelContext)
+            SupplyService.addStock(to: supply, amount: adjustment, reason: reason, in: viewContext)
         } else {
-            SupplyService.removeStock(from: supply, amount: abs(adjustment), reason: reason, in: modelContext)
+            SupplyService.removeStock(from: supply, amount: abs(adjustment), reason: reason, in: viewContext)
         }
     }
 }

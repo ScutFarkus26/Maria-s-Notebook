@@ -1,22 +1,25 @@
 import SwiftUI
-import SwiftData
+import CoreData
 
 /// The main meeting session view showing student context and the meeting form side by side.
 struct MeetingSessionView: View {
-    let student: Student
-    let allWorkModels: [WorkModel]
-    let allLessonAssignments: [LessonAssignment]
-    let lessons: [Lesson]
-    let meetings: [StudentMeeting]
-    let meetingTemplates: [MeetingTemplate]
+    let student: CDStudent
+    let allWorkModels: [CDWorkModel]
+    let allLessonAssignments: [CDLessonAssignment]
+    let lessons: [CDLesson]
+    let meetings: [CDStudentMeeting]
+    let meetingTemplates: [CDMeetingTemplate]
     let workOverdueDays: Int
     var onComplete: (() -> Void)?
 
-    @Environment(\.modelContext) private var modelContext
+    @Environment(\.managedObjectContext) private var viewContext
 
     // Use uniquingKeysWith to handle CloudKit sync duplicates
-    private var lessonsByID: [UUID: Lesson] {
-        Dictionary(lessons.map { ($0.id, $0) }, uniquingKeysWith: { first, _ in first })
+    private var lessonsByID: [UUID: CDLesson] {
+        Dictionary(lessons.compactMap { lesson -> (UUID, CDLesson)? in
+            guard let id = lesson.id else { return nil }
+            return (id, lesson)
+        }, uniquingKeysWith: { first, _ in first })
     }
 
     private var lastMeetingDate: Date? {
@@ -26,16 +29,20 @@ struct MeetingSessionView: View {
     // MARK: - Work Stats (delegated to helper)
 
     private var workStats: MeetingWorkSnapshotHelper.WorkStats {
-        MeetingWorkSnapshotHelper.computeWorkStats(
-            for: student.id,
+        guard let studentID = student.id else {
+            return MeetingWorkSnapshotHelper.WorkStats(open: [], overdue: [], recentCompleted: [])
+        }
+        return MeetingWorkSnapshotHelper.computeWorkStats(
+            for: studentID,
             allWorkModels: allWorkModels,
             workOverdueDays: workOverdueDays
         )
     }
 
-    private var lessonsSinceLastMeeting: [LessonAssignment] {
-        MeetingWorkSnapshotHelper.lessonsSinceLastMeeting(
-            for: student.id,
+    private var lessonsSinceLastMeeting: [CDLessonAssignment] {
+        guard let studentID = student.id else { return [] }
+        return MeetingWorkSnapshotHelper.lessonsSinceLastMeeting(
+            for: studentID,
             lastMeetingDate: lastMeetingDate,
             allLessonAssignments: allLessonAssignments
         )
@@ -110,13 +117,13 @@ struct MeetingSessionView: View {
 // MARK: - Preview
 
 #Preview {
-    let container = ModelContainer.preview
-    let context = container.mainContext
-    let student = Student(
-        firstName: "Alan", lastName: "Turing",
-        birthday: Date(timeIntervalSince1970: 0), level: .upper
-    )
-    context.insert(student)
+    let stack = CoreDataStack.preview
+    let ctx = stack.viewContext
+    let student = Student(context: ctx)
+    student.firstName = "Alan"
+    student.lastName = "Turing"
+    student.birthday = Date(timeIntervalSince1970: 0)
+    student.level = .upper
 
     return MeetingSessionView(
         student: student,
@@ -127,5 +134,5 @@ struct MeetingSessionView: View {
         meetingTemplates: [],
         workOverdueDays: 14
     )
-    .previewEnvironment(using: container)
+    .previewEnvironment(using: stack)
 }

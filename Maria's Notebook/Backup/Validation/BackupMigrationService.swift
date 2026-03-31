@@ -1,5 +1,5 @@
 import Foundation
-import SwiftData
+import CoreData
 
 /// Handles migration between backup format versions.
 /// Current policy: only format version 6 is supported.

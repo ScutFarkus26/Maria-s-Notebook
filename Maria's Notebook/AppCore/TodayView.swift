@@ -13,7 +13,7 @@
 // - SchoolDayCache.swift - School day caching
 
 import SwiftUI
-import SwiftData
+import CoreData
 import UniformTypeIdentifiers
 import OSLog
 #if os(iOS)
@@ -28,7 +28,7 @@ import AppKit
 // swiftlint:disable:next type_body_length
 struct TodayView: View {
     // MARK: - Environment
-    @Environment(\.modelContext) var modelContext
+    @Environment(\.managedObjectContext) var viewContext
     @Environment(\.appRouter) var appRouter
     @Environment(\.calendar) var calendar
     @Environment(\.scenePhase) private var scenePhase
@@ -43,9 +43,9 @@ struct TodayView: View {
 
     // MARK: - Navigation State
     @State var selectedWorkID: UUID?
-    @State var selectedLessonAssignment: LessonAssignment?
+    @State var selectedLessonAssignment: CDLessonAssignment?
     @State var isShowingQuickNote = false
-    @State var noteBeingEdited: Note?
+    @State var noteBeingEdited: CDNote?
 
     // MARK: - Attendance State
     @State var isAttendanceExpanded = false
@@ -58,13 +58,12 @@ struct TodayView: View {
     @State var selectedMeetingID: UUID?
 
     // MARK: - Todo State
-    @State var selectedTodoItem: TodoItem?
+    @State var selectedTodoItem: CDTodoItem?
     @State var isShowingNewTodo = false
-    @Query(
-        filter: #Predicate<TodoItem> { !$0.isCompleted },
-        sort: \TodoItem.createdAt,
-        order: .reverse
-    ) var todayTodoItems: [TodoItem]
+    @FetchRequest(
+        sortDescriptors: [NSSortDescriptor(keyPath: \CDTodoItem.createdAt, ascending: false)],
+        predicate: NSPredicate(format: "isCompleted == NO")
+    ) var todayTodoItems: FetchedResults<CDTodoItem>
 
     // MARK: - Filtered Query State
     // ENERGY OPTIMIZATION: Filter change detection queries to only the relevant date window
@@ -88,7 +87,7 @@ struct TodayView: View {
     }
 
     // MARK: - Init
-    init(context: ModelContext) {
+    init(context: NSManagedObjectContext) {
         _viewModel = State(wrappedValue: TodayViewModel(context: context, calendar: AppCalendar.shared))
     }
 
@@ -189,7 +188,7 @@ struct TodayView: View {
         .sheet(id: $selectedMeetingStudentID) { studentID in
             ScheduledMeetingSessionSheet(studentID: studentID) {
                 if let meetingID = selectedMeetingID {
-                    MeetingScheduler.clearMeeting(id: meetingID, context: modelContext)
+                    MeetingScheduler.clearMeeting(id: meetingID, context: viewContext)
                 }
                 selectedMeetingStudentID = nil
                 selectedMeetingID = nil
@@ -452,7 +451,7 @@ struct TodayView: View {
     // Callers use structured concurrency (async let / .task) for automatic cancellation.
     private func syncReminders() async {
         let syncService = ReminderSyncService.shared
-        syncService.modelContext = modelContext
+        syncService.managedObjectContext = viewContext
         if syncService.syncListIdentifier != nil || syncService.syncListName != nil {
             do {
                 try await syncService.syncReminders()
@@ -466,7 +465,7 @@ struct TodayView: View {
 
     private func syncCalendarEvents() async {
         let calendarSyncService = CalendarSyncService.shared
-        calendarSyncService.modelContext = modelContext
+        calendarSyncService.managedObjectContext = viewContext
         if !calendarSyncService.syncCalendarIdentifiers.isEmpty {
             do {
                 try await calendarSyncService.syncEvents()

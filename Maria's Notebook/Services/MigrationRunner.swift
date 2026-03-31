@@ -1,5 +1,4 @@
 import CoreData
-import SwiftData
 import Foundation
 import OSLog
 
@@ -42,22 +41,6 @@ enum MigrationRunner {
         // These still use SwiftData models and are called via the deprecated bridge below
     }
 
-    /// Seed templates that still require a ModelContext (SwiftData).
-    /// Call this alongside `runIfNeeded(context:)` until the template models are converted.
-    static func seedTemplatesIfNeeded(modelContext: ModelContext) {
-        NoteTemplate.seedBuiltInTemplates(in: modelContext)
-        MeetingTemplate.seedBuiltInTemplates(in: modelContext)
-    }
-
-    // MARK: - Deprecated SwiftData Bridge
-
-    @available(*, deprecated, message: "Use runIfNeeded(context:) with NSManagedObjectContext")
-    @MainActor static func runIfNeeded(context: ModelContext) async {
-        let cdContext = AppBootstrapping.getSharedCoreDataStack().viewContext
-        await runIfNeeded(context: cdContext)
-
-
-        // Seed templates via SwiftData (still needs ModelContext)
-        seedTemplatesIfNeeded(modelContext: context)
-    }
+    // TODO: Convert NoteTemplate/MeetingTemplate seeding to Core Data
+    // Deprecated ModelContext bridge and seedTemplatesIfNeeded removed.
 }

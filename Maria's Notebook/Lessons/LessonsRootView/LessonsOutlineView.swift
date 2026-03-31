@@ -2,24 +2,24 @@
 // Hierarchical outline view for plan mode with jiggle-mode drag/drop reordering
 
 import SwiftUI
-import SwiftData
+import CoreData
 
 // MARK: - LessonsOutlineView
 
-/// A hierarchical outline view showing Group > Subheading > Lesson with
+/// A hierarchical outline view showing Group > Subheading > CDLesson with
 /// DisclosureGroups, context menus, and iOS-style jiggle mode for reordering.
 struct LessonsOutlineView: View {
     let subject: String
     let displayGroups: [String]
-    let lessonsByGroup: [String: [Lesson]]
+    let lessonsByGroup: [String: [CDLesson]]
     let allSubheadings: [String: [String]]
     let selectedLessonID: UUID?
     let isJiggling: Bool
 
-    var onSelectLesson: ((Lesson) -> Void)?
-    var onScheduleLesson: ((Lesson) -> Void)?
-    var onMoveToGroup: ((Lesson, String) -> Void)?
-    var onMoveToSubheading: ((Lesson, String) -> Void)?
+    var onSelectLesson: ((CDLesson) -> Void)?
+    var onScheduleLesson: ((CDLesson) -> Void)?
+    var onMoveToGroup: ((CDLesson, String) -> Void)?
+    var onMoveToSubheading: ((CDLesson, String) -> Void)?
     var onReorderSubheadings: ((String) -> Void)?
     var onConfigureTrack: ((String) -> Void)?
     var onActivateJiggle: (() -> Void)?
@@ -71,7 +71,7 @@ struct LessonsOutlineView: View {
     @ViewBuilder
     private func groupContent(
         group: String,
-        lessons: [Lesson],
+        lessons: [CDLesson],
         subheadings: GroupSubheadings
     ) -> some View {
         if subheadings.hasSubheadings {
@@ -100,7 +100,7 @@ struct LessonsOutlineView: View {
     @ViewBuilder
     private func groupLabel(
         group: String,
-        lessons: [Lesson],
+        lessons: [CDLesson],
         subheadings: GroupSubheadings
     ) -> some View {
         HStack {
@@ -147,7 +147,7 @@ struct LessonsOutlineView: View {
     @ViewBuilder
     private func subheadingSection(
         name: String,
-        lessons: [Lesson],
+        lessons: [CDLesson],
         group: String,
         allGroupSubheadings: [String]
     ) -> some View {
@@ -174,11 +174,11 @@ struct LessonsOutlineView: View {
         }
     }
 
-    // MARK: - Lesson Row
+    // MARK: - CDLesson Row
 
     @ViewBuilder
     private func lessonOutlineRow(
-        lesson: Lesson,
+        lesson: CDLesson,
         group: String,
         subheadings: [String]
     ) -> some View {
@@ -229,7 +229,7 @@ struct LessonsOutlineView: View {
 
     @ViewBuilder
     private func lessonContextMenu(
-        lesson: Lesson, group: String, subheadings: [String]
+        lesson: CDLesson, group: String, subheadings: [String]
     ) -> some View {
         Button { onSelectLesson?(lesson) } label: {
             Label("View Details", systemImage: "info.circle")
@@ -264,11 +264,11 @@ struct LessonsOutlineView: View {
 
     private struct GroupSubheadings {
         let order: [String]
-        let bySubheading: [String: [Lesson]]
+        let bySubheading: [String: [CDLesson]]
         let hasSubheadings: Bool
     }
 
-    private func groupSubheadings(for group: String, lessons: [Lesson]) -> GroupSubheadings {
+    private func groupSubheadings(for group: String, lessons: [CDLesson]) -> GroupSubheadings {
         let bySubheading = Dictionary(grouping: lessons) { $0.subheading.trimmed() }
         let nonEmpty = Array(Set(bySubheading.keys.filter { !$0.isEmpty }))
             .sorted { $0.localizedCaseInsensitiveCompare($1) == .orderedAscending }

@@ -1,5 +1,4 @@
 import Foundation
-import SwiftData
 
 @MainActor
 struct StudentsImportCoordinator {
@@ -39,7 +38,7 @@ struct StudentsImportCoordinator {
     static func startMappedParse(
         from url: URL,
         mapping: StudentCSVImporter.Mapping,
-        students: [Student],
+        students: [CDStudent],
         onParsed: @MainActor @Sendable @escaping (StudentCSVImporter.Parsed) -> Void,
         onError: @MainActor @Sendable @escaping (Error) -> Void,
         onFinally: @MainActor @Sendable @escaping () -> Void

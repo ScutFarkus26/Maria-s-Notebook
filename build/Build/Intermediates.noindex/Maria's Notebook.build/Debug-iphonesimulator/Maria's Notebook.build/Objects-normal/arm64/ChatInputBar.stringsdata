@@ -1,0 +1,16 @@
+{
+  "source": "/Users/dannydeberry/Documents/Projects/MariasNotebook-Rewrite/Maria's Notebook/Chat/ChatInputBar.swift",
+  "tables": {
+    "Localizable": [
+      {
+        "comment": "",
+        "key": "Ask about your classroom...",
+        "location": {
+          "startingColumn": 27,
+          "startingLine": 27
+        }
+      }
+    ]
+  },
+  "version": 1
+}

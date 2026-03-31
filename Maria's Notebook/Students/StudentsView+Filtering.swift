@@ -1,6 +1,6 @@
 import OSLog
 import SwiftUI
-import SwiftData
+import CoreData
 
 // MARK: - Filtering & Sorting Computed Properties
 
@@ -62,10 +62,10 @@ extension StudentsView {
         }
     }
 
-    var filteredStudents: [Student] {
+    var filteredStudents: [CDStudent] {
         let currentSortOrder = effectiveSortOrder
         let base = viewModel.filteredStudents(
-            modelContext: modelContext,
+            viewContext: viewContext,
             filter: selectedFilter,
             sortOrder: currentSortOrder,
             searchString: searchText,
@@ -87,7 +87,7 @@ extension StudentsView {
 
     #if DEBUG
     // Temporary helper to check for duplicate IDs (debug only)
-    func checkForDuplicateIDs(in students: [Student]) {
+    func checkForDuplicateIDs(in students: [CDStudent]) {
         let uniqueIDs = Set(students.map(\.id))
         if uniqueIDs.count != students.count {
             Logger.students.warning(

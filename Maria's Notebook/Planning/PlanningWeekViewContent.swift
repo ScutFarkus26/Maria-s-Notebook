@@ -1,5 +1,4 @@
 import SwiftUI
-import SwiftData
 import OSLog
 import CoreData
 
@@ -11,7 +10,7 @@ struct PlanningWeekViewContent: View {
     private static let logger = Logger.planning
     @Environment(\.calendar) private var calendar
     @Environment(\.appRouter) private var appRouter
-    @Environment(\.modelContext) var modelContext
+    @Environment(\.managedObjectContext) var viewContext
     @Environment(\.managedObjectContext) private var managedObjectContext
     @Environment(SaveCoordinator.self) var saveCoordinator
 
@@ -20,12 +19,12 @@ struct PlanningWeekViewContent: View {
     }
 
     // Data provided by the platform-specific parent view
-    let inboxLessons: [LessonAssignment]
-    let lessons: [Lesson]
-    let students: [Student]
+    let inboxLessons: [CDLessonAssignment]
+    let lessons: [CDLesson]
+    let students: [CDStudent]
     
     private var inboxLessonIDs: [UUID] {
-        inboxLessons.map(\.id)
+        inboxLessons.compactMap(\.id)
     }
     
     @Binding var inboxOrderRaw: String
@@ -37,7 +36,7 @@ struct PlanningWeekViewContent: View {
     
     // OPTIMIZATION: Load lesson assignments for the entire week at once using database-level predicate
     // This avoids 7 separate per-day queries and significantly reduces memory usage
-    @State private var weekLessonAssignments: [LessonAssignment] = []
+    @State private var weekLessonAssignments: [CDLessonAssignment] = []
     
     private var days: [Date] {
         var result: [Date] = []
@@ -61,37 +60,39 @@ struct PlanningWeekViewContent: View {
         let weekEnd = calendar.date(byAdding: .day, value: 1, to: AppCalendar.startOfDay(lastDay)) ?? weekStart
         let presentedRaw = LessonAssignmentState.presented.rawValue
 
-        let descriptor = FetchDescriptor<LessonAssignment>(
-            predicate: #Predicate<LessonAssignment> { la in
-                la.stateRaw != presentedRaw &&
-                ((la.scheduledForDay >= weekStart && la.scheduledForDay < weekEnd) ||
-                 (la.scheduledFor.flatMap { $0 >= weekStart && $0 < weekEnd } == true))
-            },
-            sortBy: [
-                SortDescriptor(\.scheduledForDay, order: .forward),
-                SortDescriptor(\.createdAt, order: .forward)
-            ]
+        let descriptor: NSFetchRequest<CDLessonAssignment> = NSFetchRequest(entityName: "CDLessonAssignment")
+        descriptor.predicate = NSPredicate(
+            format: "stateRaw != %@ AND ((scheduledForDay >= %@ AND scheduledForDay < %@) OR (scheduledFor >= %@ AND scheduledFor < %@))",
+            presentedRaw, weekStart as CVarArg, weekEnd as CVarArg, weekStart as CVarArg, weekEnd as CVarArg
         )
+        descriptor.sortDescriptors = [
+                NSSortDescriptor(key: "scheduledForDay", ascending: true),
+                NSSortDescriptor(key: "createdAt", ascending: true)
+            ]
         do {
-            weekLessonAssignments = try modelContext.fetch(descriptor)
+            weekLessonAssignments = try viewContext.fetch(descriptor)
         } catch {
             Self.logger.warning("Failed to fetch week lesson assignments: \(error, privacy: .public)")
             weekLessonAssignments = []
         }
     }
     
-    @MainActor func planNextLesson(for la: LessonAssignment) {
+    @MainActor func planNextLesson(for la: CDLessonAssignment) {
         // Fetch existing LessonAssignments via SwiftData (PlanNextLessonService expects SwiftData types)
         let presentedRaw = LessonAssignmentState.presented.rawValue
-        let fetch = FetchDescriptor<LessonAssignment>(predicate: #Predicate { $0.stateRaw != presentedRaw })
-        let existingLessonAssignments = (try? modelContext.fetch(fetch)) ?? []
+        let fetch: NSFetchRequest<CDLessonAssignment> = {
+            let r = NSFetchRequest<CDLessonAssignment>(entityName: "LessonAssignment")
+            r.predicate = NSPredicate(format: "stateRaw != %@", presentedRaw)
+            return r
+        }()
+        let existingLessonAssignments = (try? viewContext.fetch(fetch)) ?? []
 
         let result = PlanNextLessonService.planNextLesson(
             for: la,
             allLessons: lessons,
             allStudents: students,
             existingLessonAssignments: existingLessonAssignments,
-            context: modelContext
+            context: viewContext
         )
 
         if case .success = result {
@@ -100,7 +101,7 @@ struct PlanningWeekViewContent: View {
         }
     }
     
-    var orderedUnscheduledLessons: [LessonAssignment] {
+    var orderedUnscheduledLessons: [CDLessonAssignment] {
         InboxOrderStore.orderedUnscheduled(from: inboxLessons, orderRaw: inboxOrderRaw)
     }
     
@@ -115,7 +116,7 @@ struct PlanningWeekViewContent: View {
                 onPlanNext: { la in planNextLesson(for: la) },
                 onUpdateOrder: { newOrderRaw in
                     inboxOrderRaw = newOrderRaw
-                    saveCoordinator.save(modelContext, reason: "Updating inbox order")
+                    saveCoordinator.save(viewContext, reason: "Updating inbox order")
                     onRefreshNeeded?()
                 }
             )
@@ -150,8 +151,8 @@ struct PlanningWeekViewContent: View {
                             allLessonAssignments: weekLessonAssignments,
                             availableWidth: geometry.size.width - (UIConstants.contentHorizontalPadding * 2),
                             availableHeight: geometry.size.height,
-                            onSelectLesson: { la in activeSheet = .presentationDetail(la.id) },
-                            onQuickActions: { la in activeSheet = .quickActions(la.id) },
+                            onSelectLesson: { la in if let id = la.id { activeSheet = .presentationDetail(id) } },
+                            onQuickActions: { la in if let id = la.id { activeSheet = .quickActions(id) } },
                             onPlanNext: { la in planNextLesson(for: la) }
                         )
                         .padding(.horizontal, UIConstants.contentHorizontalPadding)
@@ -166,7 +167,7 @@ struct PlanningWeekViewContent: View {
                             await PlanningActions.pushLessonsWithAbsentStudents(
                                 in: days,
                                 calendar: calendar,
-                                context: modelContext
+                                context: viewContext
                             )
                             onRefreshNeeded?()
                         }
@@ -178,7 +179,7 @@ struct PlanningWeekViewContent: View {
                             await PlanningActions.pushAllLessonsByOneDay(
                                 in: days,
                                 calendar: calendar,
-                                context: modelContext
+                                context: viewContext
                             )
                             onRefreshNeeded?()
                         }
@@ -219,18 +220,18 @@ struct PlanningWeekViewContent: View {
         return "\(start) - \(end)"
     }
 
-    /// Synchronous helper that determines if a date is a non-school day using direct ModelContext fetches.
+    /// Synchronous helper that determines if a date is a non-school day using direct NSManagedObjectContext fetches.
     /// Rules:
-    /// - Explicit NonSchoolDay records mark weekdays as non-school
-    /// - Weekends are non-school by default unless a SchoolDayOverride exists for that date
+    /// - Explicit CDNonSchoolDay records mark weekdays as non-school
+    /// - Weekends are non-school by default unless a CDSchoolDayOverride exists for that date
     private func isNonSchoolDay(_ day: Date) -> Bool {
         let day = calendar.startOfDay(for: day)
 
         // 1) Explicit non-school day wins
         do {
-            var nsDescriptor = FetchDescriptor<NonSchoolDay>(predicate: #Predicate { $0.date == day })
+            var nsDescriptor = { let r = NSFetchRequest<CDNonSchoolDay>(entityName: "CDNonSchoolDay"); r.predicate = NSPredicate(format: "date == %@", day as CVarArg); r.fetchLimit = 0; return r }()
             nsDescriptor.fetchLimit = 1
-            let nonSchoolDays: [NonSchoolDay] = try modelContext.fetch(nsDescriptor)
+            let nonSchoolDays: [CDNonSchoolDay] = try viewContext.fetch(nsDescriptor)
             if !nonSchoolDays.isEmpty { return true }
         } catch {
             // On fetch error, fall back to weekend logic below
@@ -243,9 +244,9 @@ struct PlanningWeekViewContent: View {
 
         // 3) Weekend override makes it a school day
         do {
-            var ovDescriptor = FetchDescriptor<SchoolDayOverride>(predicate: #Predicate { $0.date == day })
+            var ovDescriptor = { let r = NSFetchRequest<CDSchoolDayOverride>(entityName: "CDSchoolDayOverride"); r.predicate = NSPredicate(format: "date == %@", day as CVarArg); r.fetchLimit = 0; return r }()
             ovDescriptor.fetchLimit = 1
-            let overrides: [SchoolDayOverride] = try modelContext.fetch(ovDescriptor)
+            let overrides: [CDSchoolDayOverride] = try viewContext.fetch(ovDescriptor)
             if !overrides.isEmpty { return false }
         } catch {
             // If override fetch fails, assume weekend remains non-school
@@ -277,13 +278,12 @@ struct PlanningWeekViewContent: View {
         let today = calendar.startOfDay(for: Date())
         let scheduledRaw = LessonAssignmentState.scheduled.rawValue
 
-        var descriptor = FetchDescriptor<LessonAssignment>(
-            predicate: #Predicate { $0.stateRaw == scheduledRaw },
-            sortBy: [SortDescriptor(\.scheduledForDay)]
-        )
+        var descriptor: NSFetchRequest<CDLessonAssignment> = NSFetchRequest(entityName: "CDLessonAssignment")
+        descriptor.predicate = NSPredicate(format: "stateRaw == %@", scheduledRaw as CVarArg)
+        descriptor.sortDescriptors = [NSSortDescriptor(key: "scheduledForDay", ascending: true)]
         descriptor.fetchLimit = 1
 
-        if let nextUp = modelContext.safeFetchFirst(descriptor),
+        if let nextUp = viewContext.safeFetchFirst(descriptor),
            let date = nextUp.scheduledFor {
             let start = calendar.startOfDay(for: date)
             if start >= today && !isNonSchoolDay(start) {
@@ -297,12 +297,12 @@ struct PlanningWeekViewContent: View {
 
     @MainActor
     private func syncInboxOrderWithCurrentBase() {
-        let baseIDs = inboxLessons.map(\.id)
+        let baseIDs = inboxLessons.compactMap(\.id)
         var order = InboxOrderStore.parse(inboxOrderRaw).filter { baseIDs.contains($0) }
         let missing = inboxLessons
-            .filter { !order.contains($0.id) }
-            .sorted { $0.createdAt < $1.createdAt }
-            .map(\.id)
+            .filter { guard let id = $0.id else { return false }; return !order.contains(id) }
+            .sorted { ($0.createdAt ?? .distantPast) < ($1.createdAt ?? .distantPast) }
+            .compactMap(\.id)
         order.append(contentsOf: missing)
         inboxOrderRaw = InboxOrderStore.serialize(order)
     }
@@ -330,7 +330,9 @@ struct PlanningWeekViewContent: View {
     private func handleAddNew() {
         let newLA = PresentationFactory.makeDraft(lessonID: UUID(), studentIDs: [], context: managedObjectContext)
         presentationRepository.save(reason: "Creating new presentation")
-        activeSheet = .giveLessonDraft(newLA.id ?? UUID())
+        if let laID = newLA.id {
+            activeSheet = .giveLessonDraft(laID)
+        }
         onRefreshNeeded?()
     }
 }

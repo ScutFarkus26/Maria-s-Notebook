@@ -1,5 +1,5 @@
 import SwiftUI
-import SwiftData
+import CoreData
 
 // MARK: - Note Tag Picker Sheet
 
@@ -11,12 +11,12 @@ struct NoteTagPickerSheet: View {
     @FocusState private var isSearchFocused: Bool
 
     /// All tags currently used across notes in the database
-    @Query private var allNotes: [Note]
+    @FetchRequest(sortDescriptors: []) private var allNotes: FetchedResults<CDNote>
 
     private var allUsedTags: [String] {
         var tagSet = Set<String>()
         for note in allNotes {
-            for tag in note.tags {
+            for tag in (note.tags as? [String]) ?? [] {
                 tagSet.insert(tag)
             }
         }

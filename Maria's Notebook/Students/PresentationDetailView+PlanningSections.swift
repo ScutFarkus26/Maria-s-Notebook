@@ -1,4 +1,5 @@
 import SwiftUI
+import CoreData
 
 // MARK: - Planning Section Builders
 
@@ -199,7 +200,7 @@ extension PresentationDetailContentView {
         PresentationAbsentHelper.computeAbsentStudentIDs(
             selectedStudentIDs: vm.selectedStudentIDs,
             scheduledDay: scheduledAttendanceDay,
-            modelContext: modelContext
+            viewContext: viewContext
         )
     }
 

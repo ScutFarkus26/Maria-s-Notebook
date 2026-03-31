@@ -3,19 +3,18 @@
 // Design: Linear-inspired clean layout, Things 3 capsule filters, generous whitespace.
 
 import SwiftUI
-import SwiftData
+import CoreData
 
 struct ProgressDashboardView: View {
-    @Environment(\.modelContext) private var modelContext
+    @Environment(\.managedObjectContext) private var viewContext
     @State private var viewModel = ProgressDashboardViewModel()
 
     // Sheet state
-    @State private var selectedLessonAssignment: LessonAssignment?
+    @State private var selectedLessonAssignment: CDLessonAssignment?
     @State private var selectedWorkID: UUID?
 
     // Change detection to trigger reload
-    @Query(sort: [SortDescriptor(\LessonAssignment.id)])
-    private var assignmentsForChange: [LessonAssignment]
+    @FetchRequest(sortDescriptors: [NSSortDescriptor(keyPath: \CDLessonAssignment.id, ascending: true)]) private var assignmentsForChange: FetchedResults<CDLessonAssignment>
 
     private var assignmentChangeToken: Int { assignmentsForChange.count }
 
@@ -23,14 +22,14 @@ struct ProgressDashboardView: View {
         content
             .navigationTitle("Progress")
             .searchable(text: $viewModel.searchText, prompt: "Search students")
-            .onAppear { viewModel.loadData(context: modelContext) }
+            .onAppear { viewModel.loadData(context: viewContext) }
             .onChange(of: assignmentChangeToken) { _, _ in
-                viewModel.loadData(context: modelContext)
+                viewModel.loadData(context: viewContext)
             }
             .sheet(item: $selectedLessonAssignment) { la in
                 PresentationDetailView(lessonAssignment: la) {
                     selectedLessonAssignment = nil
-                    viewModel.loadData(context: modelContext)
+                    viewModel.loadData(context: viewContext)
                 }
 #if os(macOS)
                 .frame(minWidth: 720, minHeight: 640)
@@ -43,7 +42,7 @@ struct ProgressDashboardView: View {
             .sheet(id: $selectedWorkID) { id in
                 WorkDetailView(workID: id) {
                     selectedWorkID = nil
-                    viewModel.loadData(context: modelContext)
+                    viewModel.loadData(context: viewContext)
                 }
             }
     }

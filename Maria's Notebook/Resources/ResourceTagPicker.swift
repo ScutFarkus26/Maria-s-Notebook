@@ -1,13 +1,13 @@
 import SwiftUI
-import SwiftData
+import CoreData
 
 /// Tag picker for resources — excludes student-specific tags.
 /// Shown as a NavigationLink destination inside import/edit sheets.
 struct ResourceTagPicker: View {
     @Binding var selectedTags: [String]
 
-    @Query(sort: \Resource.title) private var allResources: [Resource]
-    @Query(sort: \TodoItem.createdAt, order: .reverse) private var allTodos: [TodoItem]
+    @FetchRequest(sortDescriptors: [NSSortDescriptor(keyPath: \CDResource.title, ascending: true)]) private var allResources: FetchedResults<CDResource>
+    @FetchRequest(sortDescriptors: [NSSortDescriptor(keyPath: \CDTodoItemEntity.createdAt, ascending: false)]) private var allTodos: FetchedResults<CDTodoItemEntity>
 
     @State private var searchText = ""
     @State private var isShowingNewTag = false
@@ -19,13 +19,13 @@ struct ResourceTagPicker: View {
         var tagSet = Set<String>()
 
         for resource in allResources {
-            for tag in resource.tags where !TodoTagHelper.isStudentTag(tag) {
+            for tag in resource.tagsArray where !TodoTagHelper.isStudentTag(tag) {
                 tagSet.insert(tag)
             }
         }
 
         for todo in allTodos {
-            for tag in todo.tags where !TodoTagHelper.isStudentTag(tag) {
+            for tag in todo.tagsArray where !TodoTagHelper.isStudentTag(tag) {
                 tagSet.insert(tag)
             }
         }

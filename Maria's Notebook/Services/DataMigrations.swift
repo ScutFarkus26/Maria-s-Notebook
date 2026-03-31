@@ -1,5 +1,4 @@
 import Foundation
-import SwiftData
 import CoreData
 import OSLog
 
@@ -90,90 +89,7 @@ enum DataMigrations {
         RelationshipBackfillService.migrateWorkTypeToKind(using: context)
     }
 
-    // MARK: - Deprecated ModelContext Bridges
-
-    /// Helper to get the CD view context from within a nonisolated deprecated bridge.
-    /// Callers must be on the main thread (migration runner, view callbacks).
-    private static var cdViewContext: NSManagedObjectContext {
-        MainActor.assumeIsolated {
-            AppBootstrapping.getSharedCoreDataStack().viewContext
-        }
-    }
-
-    @available(*, deprecated, message: "Pass NSManagedObjectContext instead of ModelContext")
-    static func migrateAttendanceRecordStudentIDToStringIfNeeded(using context: ModelContext) {
-        migrateAttendanceRecordStudentIDToStringIfNeeded(using: cdViewContext)
-    }
-
-    @available(*, deprecated, message: "Pass NSManagedObjectContext instead of ModelContext")
-    static func migrateGroupTracksToDefaultBehaviorIfNeeded(using context: ModelContext) {
-        migrateGroupTracksToDefaultBehaviorIfNeeded(using: cdViewContext)
-    }
-
-    @available(*, deprecated, message: "Pass NSManagedObjectContext instead of ModelContext")
-    @discardableResult
-    static func deduplicateAllModels(using context: ModelContext) -> [String: Int] {
-        deduplicateAllModels(using: cdViewContext)
-    }
-
-    @available(*, deprecated, message: "Pass NSManagedObjectContext instead of ModelContext")
-    static func deduplicateDraftLessonAssignments(using context: ModelContext) {
-        deduplicateDraftLessonAssignments(using: cdViewContext)
-    }
-
-    @available(*, deprecated, message: "Pass NSManagedObjectContext instead of ModelContext")
-    static func repairDenormalizedScheduledForDay(using context: ModelContext) async {
-        await repairDenormalizedScheduledForDay(using: cdViewContext)
-    }
-
-    @available(*, deprecated, message: "Pass NSManagedObjectContext instead of ModelContext")
-    static func cleanOrphanedStudentIDs(using context: ModelContext) async {
-        await cleanOrphanedStudentIDs(using: cdViewContext)
-    }
-
-    @available(*, deprecated, message: "Pass NSManagedObjectContext instead of ModelContext")
-    static func cleanOrphanedWorkStudentIDs(using context: ModelContext) async {
-        await cleanOrphanedWorkStudentIDs(using: cdViewContext)
-    }
-
-    @available(*, deprecated, message: "Pass NSManagedObjectContext instead of ModelContext")
-    static func repairScopeForContextualNotes(using context: ModelContext) async {
-        await repairScopeForContextualNotes(using: cdViewContext)
-    }
-
-    @available(*, deprecated, message: "Pass NSManagedObjectContext instead of ModelContext")
-    static func cleanupOrphanedNoteImages(using context: ModelContext) {
-        cleanupOrphanedNoteImages(using: cdViewContext)
-    }
-
-    @available(*, deprecated, message: "Pass NSManagedObjectContext instead of ModelContext")
-    static func createNoteStudentLinksForExistingNotes(using context: ModelContext) {
-        createNoteStudentLinksForExistingNotes(using: cdViewContext)
-    }
-
-    @available(*, deprecated, message: "Pass NSManagedObjectContext instead of ModelContext")
-    static func backfillNoteSearchIndex(using context: ModelContext) {
-        backfillNoteSearchIndex(using: cdViewContext)
-    }
-
-    @available(*, deprecated, message: "Pass NSManagedObjectContext instead of ModelContext")
-    static func backfillWorkCompletionRecords(using context: ModelContext) {
-        MainActor.assumeIsolated {
-            RelationshipBackfillService.backfillWorkCompletionRecords(using: cdViewContext)
-        }
-    }
-
-    @available(*, deprecated, message: "Pass NSManagedObjectContext instead of ModelContext")
-    static func migrateWorkTypeToKind(using context: ModelContext) {
-        MainActor.assumeIsolated {
-            RelationshipBackfillService.migrateWorkTypeToKind(using: cdViewContext)
-        }
-    }
-
-    @available(*, deprecated, message: "Pass NSManagedObjectContext instead of ModelContext")
-    static func migrateNoteCategoryToTagsIfNeeded(using context: ModelContext) async {
-        await SchemaMigrationService.migrateNoteCategoryToTagsIfNeeded(using: cdViewContext)
-    }
+    // Deprecated ModelContext bridge methods removed - no longer needed with Core Data.
 
     /// Note category to tags migration — Core Data version.
     static func migrateNoteCategoryToTagsIfNeeded(using context: NSManagedObjectContext) async {

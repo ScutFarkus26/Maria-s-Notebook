@@ -3,17 +3,17 @@
 
 import OSLog
 import SwiftUI
-import SwiftData
+import CoreData
 
 /// Main todo view with elegant layout inspired by Things and Bear
 struct TodoMainView: View {
     private static let logger = Logger.todos
-    @Environment(\.modelContext) var modelContext
-    @Query(sort: \TodoItem.createdAt, order: .reverse) var allTodos: [TodoItem]
+    @Environment(\.managedObjectContext) var viewContext
+    @FetchRequest(sortDescriptors: [NSSortDescriptor(keyPath: \CDTodoItem.createdAt, ascending: false)]) var allTodos: FetchedResults<CDTodoItem>
 
     @State var selectedFilter: TodoListFilter? = .inbox
     @State var searchText = ""
-    @State var selectedTodo: TodoItem?
+    @State var selectedTodo: CDTodoItem?
     @State private var isShowingNewTodo = false
     @State private var isShowingTemplates = false
     @State private var isShowingExport = false
@@ -172,7 +172,7 @@ struct TodoMainView: View {
                 }
             }
             // Collect tags and count per-tag
-            for tag in todo.tags {
+            for tag in todo.tagsArray {
                 tagSet.insert(tag)
                 if !hideCompleted || !todo.isCompleted {
                     tagCounts[tag, default: 0] += 1
@@ -201,31 +201,32 @@ struct TodoMainView: View {
     private func deleteCompletedTodos() {
         let completed = allTodos.filter(\.isCompleted)
         for todo in completed {
-            modelContext.delete(todo)
+            viewContext.delete(todo)
         }
         do {
-            try modelContext.save()
+            try viewContext.save()
         } catch {
             Self.logger.error("[\(#function)] Failed to delete completed todos: \(error)")
         }
     }
 
-    func deleteTodo(_ todo: TodoItem) {
+    func deleteTodo(_ todo: CDTodoItem) {
         adaptiveWithAnimation {
-            modelContext.delete(todo)
+            viewContext.delete(todo)
             do {
-                try modelContext.save()
+                try viewContext.save()
             } catch {
                 Self.logger.error("[\(#function)] Failed to delete todo: \(error)")
             }
         }
     }
 
-    func toggleSelection(_ todo: TodoItem) {
-        if selectedTodoIDs.contains(todo.id) {
-            selectedTodoIDs.remove(todo.id)
+    func toggleSelection(_ todo: CDTodoItem) {
+        guard let id = todo.id else { return }
+        if selectedTodoIDs.contains(id) {
+            selectedTodoIDs.remove(id)
         } else {
-            selectedTodoIDs.insert(todo.id)
+            selectedTodoIDs.insert(id)
         }
     }
 

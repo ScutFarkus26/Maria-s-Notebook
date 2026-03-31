@@ -1,12 +1,13 @@
 import SwiftUI
+import CoreData
 
 /// Helper for managing sheet presentations in StudentsView
 @MainActor
 struct StudentsViewSheetHelper {
     /// Standard sheet modifiers for student detail views
     static func studentDetailSheet<Content: View>(
-        item: Binding<Student?>,
-        @ViewBuilder content: @escaping (Student) -> Content
+        item: Binding<CDStudent?>,
+        @ViewBuilder content: @escaping (CDStudent) -> Content
     ) -> some View {
         EmptyView()
             .sheet(item: item, onDismiss: {}, content: { student in

@@ -1,5 +1,4 @@
 import SwiftUI
-import SwiftData
 import CoreData
 
 extension LessonDetailCard {
@@ -106,7 +105,7 @@ extension LessonDetailCard {
                     title: "Prerequisites",
                     icon: "arrow.backward.circle",
                     lessonIDs: lesson.prerequisiteLessonUUIDs,
-                    modelContext: modelContext
+                    viewContext: viewContext
                 )
             }
 
@@ -116,7 +115,7 @@ extension LessonDetailCard {
                     title: "Related Lessons",
                     icon: "link",
                     lessonIDs: lesson.relatedLessonUUIDs,
-                    modelContext: modelContext
+                    viewContext: viewContext
                 )
             }
 
@@ -126,20 +125,20 @@ extension LessonDetailCard {
                     title: "Parent Story",
                     icon: "arrow.up.circle",
                     lessonIDs: [parentID],
-                    modelContext: modelContext
+                    viewContext: viewContext
                 )
             }
 
             // Story Branches (child stories)
-            if lesson.isStory {
+            if lesson.isStory, let lessonID = lesson.id {
                 let repo = LessonRepository(context: managedObjectContext, saveCoordinator: saveCoordinator)
-                let children = repo.fetchChildStories(parentID: lesson.id)
+                let children = repo.fetchChildStories(parentID: lessonID)
                 if !children.isEmpty {
                     LessonRelationshipsSection(
                         title: "Story Branches",
                         icon: "arrow.triangle.branch",
                         lessonIDs: children.compactMap(\.id),
-                        modelContext: modelContext
+                        viewContext: viewContext
                     )
                 }
             }
@@ -149,7 +148,7 @@ extension LessonDetailCard {
     @ViewBuilder
     private var suggestedFollowUpSection: some View {
         let textItems = lesson.suggestedFollowUpWorkItems
-        let sampleWorks = lesson.sortedSampleWorks
+        let sampleWorks = lesson.orderedSampleWorks
 
         if !textItems.isEmpty || !sampleWorks.isEmpty {
             VStack(alignment: .leading, spacing: 6) {

@@ -1,7 +1,6 @@
 import Foundation
 import OSLog
 import CoreData
-import SwiftData
 
 @MainActor
 struct WorkRepository {
@@ -13,14 +12,7 @@ struct WorkRepository {
         self.context = context
     }
 
-    // MARK: - Deprecated SwiftData Bridge
-
-    /// Deprecated init for callers still passing ModelContext (VMs/services not yet converted).
-    /// Uses the shared CoreDataStack's viewContext. Both contexts hit the same SQLite store.
-    @available(*, deprecated, message: "Pass NSManagedObjectContext instead of ModelContext")
-    init(modelContext: ModelContext) {
-        self.context = AppBootstrapping.getSharedCoreDataStack().viewContext
-    }
+    // Deprecated ModelContext init removed - no longer needed with Core Data.
 
     // MARK: - Track Linking Helper
 

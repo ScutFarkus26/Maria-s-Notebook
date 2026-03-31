@@ -1,4 +1,5 @@
 import SwiftUI
+import CoreData
 
 /// Collapsible section for deciding what happens with the next lesson after a presentation.
 /// Used in both the split-panel workflow (iPad/macOS) and the compact sheet (iPhone).
@@ -43,8 +44,8 @@ struct NextLessonSection: View {
     // MARK: - Expanded Content
 
     @ViewBuilder
-    private func expandedContent(nextLesson: Lesson) -> some View {
-        // Lesson name
+    private func expandedContent(nextLesson: CDLesson) -> some View {
+        // CDLesson name
         HStack(spacing: 8) {
             Image(systemName: SFSymbol.Education.bookFill)
                 .font(.system(size: 12))
@@ -158,7 +159,7 @@ struct NextLessonSection: View {
             : Color.primary.opacity(UIConstants.OpacityConstants.accent)
     }
 
-    // MARK: - No Next Lesson
+    // MARK: - No Next CDLesson
 
     private var noNextLessonContent: some View {
         HStack(spacing: 8) {
@@ -173,7 +174,7 @@ struct NextLessonSection: View {
     // MARK: - Existing Assignment Badge
 
     @ViewBuilder
-    private func existingAssignmentBadge(_ assignment: LessonAssignment) -> some View {
+    private func existingAssignmentBadge(_ assignment: CDLessonAssignment) -> some View {
         HStack(spacing: 6) {
             Image(systemName: "info.circle.fill")
                 .font(.system(size: 11))

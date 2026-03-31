@@ -1,5 +1,4 @@
 import Foundation
-import SwiftData
 import OSLog
 import CoreData
 
@@ -17,11 +16,11 @@ enum PresentationAssignmentService {
     /// - Parameters:
     ///   - assignments: Array of assignment entries from the composer sheet
     ///   - lessonID: The lesson ID to associate with the assignments
-    ///   - modelContext: Model context for database operations
+    ///   - viewContext: Model context for database operations
     static func createFollowUpAssignments(
         _ assignments: [PostPresentationAssignmentsSheet.AssignmentEntry],
         lessonID: UUID,
-        modelContext: ModelContext
+        viewContext: NSManagedObjectContext
     ) {
         let activeRaw = WorkStatus.active.rawValue
         let reviewRaw = WorkStatus.review.rawValue
@@ -31,19 +30,20 @@ enum PresentationAssignmentService {
             let studentUUID = entry.studentID
 
             // Fetch all WorkModels and filter in memory (no predicates)
-            let allWorkModels: [WorkModel]
+            let allWorkModels: [CDWorkModel]
             do {
-                allWorkModels = try modelContext.fetch(FetchDescriptor<WorkModel>())
+                allWorkModels = try viewContext.fetch(NSFetchRequest<CDWorkModel>(entityName: "CDWorkModel"))
             } catch {
                 logger.warning("Failed to fetch WorkModels: \(error)")
                 allWorkModels = []
             }
 
-            // Find existing WorkModel for this student/lesson with follow-up kind
+            // Find existing CDWorkModel for this student/lesson with follow-up kind
             let lessonIDString = lessonID.uuidString
             let existingWork = allWorkModels.first { work in
                 // Check if student is a participant
-                let hasStudent = (work.participants ?? []).contains { $0.studentID == studentUUID.uuidString }
+                let participantsArray = (work.participants?.allObjects as? [CDWorkParticipantEntity]) ?? []
+                let hasStudent = participantsArray.contains { $0.studentID == studentUUID.uuidString }
                 guard hasStudent else { return false }
 
                 // Check if work is for this lesson
@@ -61,24 +61,24 @@ enum PresentationAssignmentService {
                 // Update notes if provided (unified notes)
                 if !trimmed.isEmpty {
                     Task { @MainActor in
-                        existing.setLegacyNoteText(trimmed, in: modelContext)
+                        existing.setLegacyNoteText(trimmed, in: viewContext)
                     }
                 }
                 // Schedule check-in if provided
                 if let sched = entry.schedule {
-                    scheduleCheckIn(for: existing, schedule: sched, modelContext: modelContext)
+                    scheduleCheckIn(for: existing, schedule: sched, viewContext: viewContext)
                 }
             } else {
-                // Create new WorkModel via Core Data repository
-                let repository = WorkRepository(modelContext: modelContext)
+                // Create new CDWorkModel via Core Data repository
+                let repository = WorkRepository(context: viewContext)
                 do {
                     let cdWork = try repository.createWork(
                         studentID: studentUUID,
                         lessonID: lessonID,
                         title: trimmed,
-                        kind: .followUpAssignment,
-                        presentationID: nil,
-                        scheduledDate: nil
+                        kind: WorkKind.followUpAssignment,
+                        presentationID: nil as UUID?,
+                        scheduledDate: nil as Date?
                     )
                     // Update notes if provided (unified notes)
                     if !trimmed.isEmpty {
@@ -127,31 +127,27 @@ enum PresentationAssignmentService {
     /// Schedules a check-in for a work item.
     @available(*, deprecated, message: "Use scheduleCheckIn(for:schedule:context:) with CDWorkModel")
     private static func scheduleCheckIn(
-        for work: WorkModel,
+        for work: CDWorkModel,
         schedule: PostPresentationAssignmentsSheet.Schedule,
-        modelContext: ModelContext
+        viewContext: NSManagedObjectContext
     ) {
         let normalized = AppCalendar.startOfDay(schedule.date)
         let checkInKind = PostPresentationAssignmentsSheet.ScheduleKind.checkIn
 
         // Check if check-in already exists
-        let existingCheckIns = work.checkIns ?? []
-        let hasCheckIn = existingCheckIns.contains { checkIn in
-            AppCalendar.startOfDay(checkIn.date) == normalized && checkIn.status == .scheduled
+        let existingCheckIns = (work.checkIns?.allObjects as? [CDWorkCheckIn]) ?? []
+        let hasCheckIn = existingCheckIns.contains { (checkIn: CDWorkCheckIn) in
+            AppCalendar.startOfDay(checkIn.date ?? Date()) == normalized && checkIn.status == .scheduled
         }
 
         if !hasCheckIn {
             let purpose: String = (schedule.kind == checkInKind) ? "Progress check" : "Due date"
-            let checkIn = WorkCheckIn(
-                workID: work.id,
-                date: normalized,
-                status: .scheduled,
-                purpose: purpose,
-                work: work
-            )
-            modelContext.insert(checkIn)
-            if work.checkIns == nil { work.checkIns = [] }
-            work.checkIns = (work.checkIns ?? []) + [checkIn]
+            let checkIn = CDWorkCheckIn(context: viewContext)
+            checkIn.workID = work.id?.uuidString ?? ""
+            checkIn.date = normalized
+            checkIn.statusRaw = WorkCheckInStatus.scheduled.rawValue
+            checkIn.purpose = purpose
+            checkIn.work = work
         }
     }
 }

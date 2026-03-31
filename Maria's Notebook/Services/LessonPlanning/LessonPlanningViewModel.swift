@@ -1,6 +1,5 @@
 import Foundation
 import CoreData
-import SwiftData
 import OSLog
 
 /// ViewModel for the AI lesson planning assistant UI.
@@ -80,7 +79,7 @@ final class LessonPlanningViewModel {
 
     /// Configure with dependencies (called from view's onAppear)
     @available(*, deprecated, message: "Use Core Data overload")
-    func configure(modelContext: ModelContext, mcpClient: MCPClientProtocol) {
+    func configure(modelContext: NSManagedObjectContext, mcpClient: MCPClientProtocol) {
         let coreDataContext = MainActor.assumeIsolated { AppBootstrapping.getSharedCoreDataStack().viewContext }
         self.configure(context: coreDataContext, mcpClient: mcpClient)
     }
@@ -283,7 +282,10 @@ final class LessonPlanningViewModel {
         context: NSManagedObjectContext
     ) async throws {
         let students = fetchStudents(context: context)
-        let filtered = students.filter { studentIDs.contains($0.id) }
+        let filtered = students.filter { student in
+            guard let id = student.id else { return false }
+            return studentIDs.contains(id)
+        }
         guard !filtered.isEmpty else {
             throw PlanningError.noStudents
         }
@@ -315,10 +317,10 @@ final class LessonPlanningViewModel {
         self.currentStep = .presentingPlan
     }
     
-    private func fetchStudents(context: NSManagedObjectContext) -> [Student] {
-        let modelContext = AppBootstrapping.getSharedModelContainer().mainContext
-        let descriptor = FetchDescriptor<Student>(sortBy: [SortDescriptor(\Student.lastName)])
-        let all = (try? modelContext.fetch(descriptor)) ?? []
+    private func fetchStudents(context: NSManagedObjectContext) -> [CDStudent] {
+        let request = CDFetchRequest(CDStudent.self)
+        request.sortDescriptors = [NSSortDescriptor(keyPath: \CDStudent.lastName, ascending: true)]
+        let all = context.safeFetch(request)
         return TestStudentsFilter.filterVisible(all.filter(\.isEnrolled))
     }
 }

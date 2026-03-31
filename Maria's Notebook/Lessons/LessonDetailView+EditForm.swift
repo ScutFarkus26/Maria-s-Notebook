@@ -1,4 +1,5 @@
 import SwiftUI
+import CoreData
 import os
 
 // MARK: - Edit Form
@@ -6,7 +7,7 @@ import os
 extension LessonDetailView {
     var editForm: some View {
         VStack(spacing: AppTheme.Spacing.compact + 2) {
-            TextField("Lesson Name", text: $draftName)
+            TextField("CDLesson Name", text: $draftName)
                 .textFieldStyle(.roundedBorder)
             HStack(alignment: .top) {
                 ComboBoxField(title: "Subject", text: $draftSubject, options: existingSubjects)
@@ -92,7 +93,7 @@ extension LessonDetailView {
                                 lesson.pagesFileRelativePath = nil
                                 resolvedPagesURL = nil
                                 previousManagedURL = nil
-                                saveCoordinator.save(modelContext, reason: "Remove lesson Pages file")
+                                saveCoordinator.save(viewContext, reason: "Remove lesson Pages file")
                             }
                         }
                         Button("Import\u{2026}") { showingPagesImporter = true }
@@ -157,7 +158,7 @@ extension LessonDetailView {
                     )
 
                 // Structured sample works (with steps)
-                ForEach(lesson.sortedSampleWorks) { sw in
+                ForEach(lesson.orderedSampleWorks) { sw in
                     SampleWorkRow(sampleWork: sw)
                         .contentShape(Rectangle())
                         .onTapGesture {

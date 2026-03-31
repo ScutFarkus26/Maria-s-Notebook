@@ -9,14 +9,14 @@ import Foundation
 /// Introductions always sort before lessons within a group.
 enum LessonsGridItem: Identifiable, Equatable {
     case introduction(CurriculumIntroduction)
-    case lesson(Lesson)
+    case lesson(CDLesson)
 
     var id: String {
         switch self {
         case .introduction(let intro):
             return "intro-\(intro.id.uuidString)"
         case .lesson(let lesson):
-            return "lesson-\(lesson.id.uuidString)"
+            return "lesson-\(lesson.id?.uuidString ?? UUID().uuidString)"
         }
     }
 
@@ -62,7 +62,7 @@ enum LessonsGridItem: Identifiable, Equatable {
     }
 
     /// Extracts the lesson if this is a lesson item.
-    var asLesson: Lesson? {
+    var asLesson: CDLesson? {
         if case .lesson(let lesson) = self { return lesson }
         return nil
     }
@@ -84,7 +84,7 @@ enum LessonsGridItem: Identifiable, Equatable {
 
 extension Array where Element == LessonsGridItem {
     /// Filters to only lesson items.
-    var lessons: [Lesson] {
+    var lessons: [CDLesson] {
         compactMap { $0.asLesson }
     }
 

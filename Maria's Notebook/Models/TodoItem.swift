@@ -1,5 +1,4 @@
 import Foundation
-import SwiftData
 import SwiftUI
 
 enum TodoMood: String, Codable, CaseIterable, Sendable {
@@ -11,7 +10,7 @@ enum TodoMood: String, Codable, CaseIterable, Sendable {
     case frustrated = "Frustrated"
     case motivated = "Motivated"
     case tired = "Tired"
-    
+
     var emoji: String {
         switch self {
         case .energized: return "⚡️"
@@ -24,7 +23,7 @@ enum TodoMood: String, Codable, CaseIterable, Sendable {
         case .tired: return "😴"
         }
     }
-    
+
     var color: Color {
         switch self {
         case .energized: return .yellow
@@ -48,7 +47,7 @@ enum RecurrencePattern: String, Codable, CaseIterable, Sendable {
     case monthly = "Monthly"
     case yearly = "Yearly"
     case custom = "Custom"
-    
+
     var icon: String {
         switch self {
         case .none: return "calendar"
@@ -61,7 +60,7 @@ enum RecurrencePattern: String, Codable, CaseIterable, Sendable {
         case .custom: return "calendar.badge.clock"
         }
     }
-    
+
     var description: String {
         switch self {
         case .none: return "Does not repeat"
@@ -87,7 +86,7 @@ enum RecurrencePattern: String, Codable, CaseIterable, Sendable {
         case .custom: return "Custom"
         }
     }
-    
+
     /// Calculate the next due date based on the current due date
     /// For `.custom`, returns nil — handled externally using `customIntervalDays`.
     func nextDate(after date: Date) -> Date? {
@@ -122,7 +121,7 @@ enum TodoPriority: String, Codable, CaseIterable, Sendable {
     case low = "Low"
     case medium = "Medium"
     case high = "High"
-    
+
     var icon: String {
         switch self {
         case .none: return "circle"
@@ -131,7 +130,7 @@ enum TodoPriority: String, Codable, CaseIterable, Sendable {
         case .high: return "arrow.up.circle.fill"
         }
     }
-    
+
     var color: Color {
         switch self {
         case .none: return .gray
@@ -140,7 +139,7 @@ enum TodoPriority: String, Codable, CaseIterable, Sendable {
         case .high: return .red
         }
     }
-    
+
     var sortOrder: Int {
         switch self {
         case .high: return 0
@@ -148,196 +147,5 @@ enum TodoPriority: String, Codable, CaseIterable, Sendable {
         case .low: return 2
         case .none: return 3
         }
-    }
-}
-
-@Model
-final class TodoItem {
-    var id: UUID = UUID()
-    var title: String = ""
-    var notes: String = ""
-    var isCompleted: Bool = false
-    var createdAt: Date = Date()
-    var completedAt: Date?
-    var orderIndex: Int = 0
-    var dueDate: Date?
-    var scheduledDate: Date? // When to work on it (appears in Today view)
-    var isSomeday: Bool = false // Deferred — hidden from Inbox/Today/Upcoming
-    var repeatAfterCompletion: Bool = false // Recur relative to completion date, not calendar
-    var customIntervalDays: Int? // Custom recurrence interval in days (e.g., 14 = every 2 weeks)
-    private var priorityRaw: String = TodoPriority.none.rawValue
-    private var recurrenceRaw: String = RecurrencePattern.none.rawValue
-    
-    // Store student IDs as strings for CloudKit compatibility
-    var studentIDs: [String] = []
-    
-    // Store linked work item ID as string for CloudKit compatibility
-    var linkedWorkItemID: String?
-    
-    // Store attachment file paths (CloudKit compatible)
-    var attachmentPaths: [String] = []
-    
-    // Time tracking (in minutes)
-    var estimatedMinutes: Int?
-    var actualMinutes: Int?
-    
-    // Notifications/Reminders
-    var reminderDate: Date?
-    var notificationID: String? // Store the scheduled notification identifier
-    
-    // Mood and Reflection
-    private var moodRaw: String? // Store mood as string
-    var reflectionNotes: String = "" // Personal reflection/journal entry
-    
-    // Location-based Reminders
-    var locationName: String? // e.g., "School", "Home", "Office"
-    var locationLatitude: Double? // Latitude coordinate
-    var locationLongitude: Double? // Longitude coordinate
-    var locationRadius: Double = 100.0 // Geofence radius in meters (default 100m)
-    var notifyOnEntry: Bool = true // Trigger on entering location
-    var notifyOnExit: Bool = false // Trigger on leaving location
-    
-    // Tags/Labels
-    var tags: [String] = [] // Colorful, filterable tags for organization
-    
-    // Relationship to subtasks (optional for CloudKit compatibility)
-    @Relationship(deleteRule: .cascade, inverse: \TodoSubtask.todo)
-    var subtasks: [TodoSubtask]? = []
-    
-    var priority: TodoPriority {
-        get { TodoPriority(rawValue: priorityRaw) ?? .none }
-        set { priorityRaw = newValue.rawValue }
-    }
-    
-    var recurrence: RecurrencePattern {
-        get { RecurrencePattern(rawValue: recurrenceRaw) ?? .none }
-        set { recurrenceRaw = newValue.rawValue }
-    }
-    
-    var mood: TodoMood? {
-        get { moodRaw.flatMap { TodoMood(rawValue: $0) } }
-        set { moodRaw = newValue?.rawValue }
-    }
-    
-    /// Convenience computed property to get linked work item ID as UUID
-    var linkedWorkItemUUID: UUID? {
-        get { linkedWorkItemID.flatMap { UUID(uuidString: $0) } }
-        set { linkedWorkItemID = newValue?.uuidString }
-    }
-    
-    init(
-        id: UUID = UUID(),
-        title: String,
-        notes: String = "",
-        isCompleted: Bool = false,
-        createdAt: Date = Date(),
-        completedAt: Date? = nil,
-        orderIndex: Int = 0,
-        studentIDs: [String] = [],
-        dueDate: Date? = nil,
-        scheduledDate: Date? = nil,
-        priority: TodoPriority = .none,
-        recurrence: RecurrencePattern = .none,
-        linkedWorkItemID: String? = nil
-    ) {
-        self.id = id
-        self.title = title
-        self.notes = notes
-        self.isCompleted = isCompleted
-        self.createdAt = createdAt
-        self.completedAt = completedAt
-        self.orderIndex = orderIndex
-        self.studentIDs = studentIDs
-        self.dueDate = dueDate
-        self.scheduledDate = scheduledDate
-        self.priorityRaw = priority.rawValue
-        self.recurrenceRaw = recurrence.rawValue
-        self.linkedWorkItemID = linkedWorkItemID
-    }
-    
-    /// Convenience computed property to get student IDs as UUIDs
-    var studentUUIDs: [UUID] {
-        get { studentIDs.compactMap { UUID(uuidString: $0) } }
-        set { studentIDs = newValue.map(\.uuidString) }
-    }
-    
-    /// Check if todo is overdue
-    var isOverdue: Bool {
-        guard let dueDate, !isCompleted else { return false }
-        return dueDate < AppCalendar.startOfDay(Date())
-    }
-    
-    /// Check if todo is due today
-    var isDueToday: Bool {
-        guard let dueDate, !isCompleted else { return false }
-        return Calendar.current.isDateInToday(dueDate)
-    }
-
-    /// Check if todo is due this week
-    var isDueThisWeek: Bool {
-        guard let dueDate, !isCompleted else { return false }
-        let now = Date()
-        guard let weekEnd = Calendar.current.date(
-            byAdding: .day,
-            value: 7,
-            to: AppCalendar.startOfDay(now)
-        ) else { return false }
-        return dueDate >= AppCalendar.startOfDay(now) && dueDate < weekEnd
-    }
-    
-    /// Get subtasks progress text
-    var subtasksProgressText: String? {
-        let items = subtasks ?? []
-        guard !items.isEmpty else { return nil }
-        let completed = items.filter(\.isCompleted).count
-        return "\(completed)/\(items.count)"
-    }
-
-    /// Check if all subtasks are completed
-    var allSubtasksCompleted: Bool {
-        let items = subtasks ?? []
-        guard !items.isEmpty else { return true }
-        return items.allSatisfy { $0.isCompleted }
-    }
-    
-    /// Check if todo has attachments
-    var hasAttachments: Bool {
-        !attachmentPaths.isEmpty
-    }
-    
-    /// Check if todo has a reminder set
-    var hasReminder: Bool {
-        reminderDate != nil
-    }
-    
-    /// Check if todo has mood or reflection notes
-    var hasMoodOrReflection: Bool {
-        mood != nil || !reflectionNotes.trimmed().isEmpty
-    }
-    
-    /// Check if todo has location-based reminder
-    var hasLocationReminder: Bool {
-        locationLatitude != nil && locationLongitude != nil
-    }
-    
-    /// The effective date for sorting and grouping (scheduled date takes priority)
-    var effectiveDate: Date? {
-        scheduledDate ?? dueDate
-    }
-    
-    /// Whether this todo has a hard deadline set
-    var hasDeadline: Bool {
-        dueDate != nil
-    }
-    
-    /// Whether this todo is scheduled for today (checks scheduledDate first, falls back to dueDate)
-    var isScheduledForToday: Bool {
-        if let scheduled = scheduledDate {
-            return Calendar.current.isDateInToday(scheduled)
-        }
-        if let due = dueDate {
-            return Calendar.current.isDateInToday(due)
-        }
-        return false
     }
 }

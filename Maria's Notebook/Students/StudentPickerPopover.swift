@@ -1,7 +1,8 @@
 import SwiftUI
+import CoreData
 
 struct StudentPickerPopover: View {
-    let students: [Student]
+    let students: [CDStudent]
     @Binding var selectedIDs: Set<UUID>
     var onDone: (() -> Void)?
 
@@ -19,7 +20,7 @@ struct StudentPickerPopover: View {
         var id: String { rawValue }
     }
 
-    var filteredStudentsForPicker: [Student] {
+    var filteredStudentsForPicker: [CDStudent] {
         let search = searchText.normalizedForComparison()
         let enrolled = students.filter(\.isEnrolled)
 
@@ -52,7 +53,7 @@ struct StudentPickerPopover: View {
         }
     }
     
-    func displayName(for student: Student) -> String {
+    func displayName(for student: CDStudent) -> String {
         return StudentFormatter.displayName(for: student)
     }
 
@@ -89,10 +90,11 @@ struct StudentPickerPopover: View {
                     ForEach(filteredStudentsForPicker) { student in
                         Button {
                             adaptiveWithAnimation {
-                                if selectedIDs.contains(student.id) {
-                                    selectedIDs.remove(student.id)
+                                guard let studentID = student.id else { return }
+                                if selectedIDs.contains(studentID) {
+                                    selectedIDs.remove(studentID)
                                 } else {
-                                    selectedIDs.insert(student.id)
+                                    selectedIDs.insert(studentID)
                                 }
                             }
                         } label: {
@@ -100,7 +102,7 @@ struct StudentPickerPopover: View {
                                 Text(displayName(for: student))
                                     .foregroundStyle(.primary)
                                 Spacer()
-                                if selectedIDs.contains(student.id) {
+                                if let studentID = student.id, selectedIDs.contains(studentID) {
                                     Image(systemName: "checkmark")
                                         .foregroundStyle(Color.accentColor)
                                 }

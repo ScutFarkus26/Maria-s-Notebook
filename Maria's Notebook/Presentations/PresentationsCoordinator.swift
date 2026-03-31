@@ -8,6 +8,7 @@
 
 import Foundation
 import SwiftUI
+import CoreData
 
 /// Centralized navigation coordinator for Presentations menu
 /// Uses @Observable for automatic SwiftUI dependency tracking
@@ -20,11 +21,11 @@ final class PresentationsCoordinator {
     /// Enum representing all possible sheet destinations in Presentations
     /// Note: Cannot conform to Sendable because SwiftData models are not Sendable
     enum Sheet: Identifiable {
-        case lessonAssignmentDetail(LessonAssignment)
-        case schedulePresentationFor(Lesson)
-        case postPresentation(LessonAssignment)
-        case unifiedWorkflow(LessonAssignment)
-        case lessonAssignmentHistory(Lesson)
+        case lessonAssignmentDetail(CDLessonAssignment)
+        case schedulePresentationFor(CDLesson)
+        case postPresentation(CDLessonAssignment)
+        case unifiedWorkflow(CDLessonAssignment)
+        case lessonAssignmentHistory(CDLesson)
 
         var id: String {
             switch self {
@@ -63,27 +64,27 @@ final class PresentationsCoordinator {
     // MARK: - Navigation Actions
 
     /// Present lesson assignment detail sheet
-    func showLessonAssignmentDetail(_ lessonAssignment: LessonAssignment) {
+    func showLessonAssignmentDetail(_ lessonAssignment: CDLessonAssignment) {
         activeSheet = .lessonAssignmentDetail(lessonAssignment)
     }
 
     /// Present schedule presentation sheet
-    func showSchedulePresentation(for lesson: Lesson) {
+    func showSchedulePresentation(for lesson: CDLesson) {
         activeSheet = .schedulePresentationFor(lesson)
     }
 
     /// Present post-presentation workflow
-    func showPostPresentation(_ lessonAssignment: LessonAssignment) {
+    func showPostPresentation(_ lessonAssignment: CDLessonAssignment) {
         activeSheet = .postPresentation(lessonAssignment)
     }
 
     /// Present unified presentation workflow
-    func showUnifiedWorkflow(_ lessonAssignment: LessonAssignment) {
+    func showUnifiedWorkflow(_ lessonAssignment: CDLessonAssignment) {
         activeSheet = .unifiedWorkflow(lessonAssignment)
     }
 
     /// Present lesson assignment history
-    func showLessonAssignmentHistory(for lesson: Lesson) {
+    func showLessonAssignmentHistory(for lesson: CDLesson) {
         activeSheet = .lessonAssignmentHistory(lesson)
     }
 

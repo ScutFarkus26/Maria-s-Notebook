@@ -2,15 +2,15 @@
 // Create or edit a note template
 
 import SwiftUI
-import SwiftData
+import CoreData
 import OSLog
 
 struct NoteTemplateEditorSheet: View {
     private static let logger = Logger.settings
-    @Environment(\.modelContext) private var modelContext
+    @Environment(\.managedObjectContext) private var viewContext
     @Environment(\.dismiss) private var dismiss
 
-    let template: NoteTemplate?
+    let template: CDNoteTemplate?
     var onSaved: () -> Void
 
     @State private var titleText: String = ""
@@ -20,13 +20,13 @@ struct NoteTemplateEditorSheet: View {
 
     private var isEditing: Bool { template != nil }
 
-    init(template: NoteTemplate?, onSaved: @escaping () -> Void) {
+    init(template: CDNoteTemplate?, onSaved: @escaping () -> Void) {
         self.template = template
         self.onSaved = onSaved
         if let template {
             _titleText = State(initialValue: template.title)
             _bodyText = State(initialValue: template.body)
-            _tags = State(initialValue: template.tags)
+            _tags = State(initialValue: (template.tags as? [String]) ?? [])
         }
     }
 
@@ -131,34 +131,30 @@ struct NoteTemplateEditorSheet: View {
             // Update existing template
             existing.title = trimmedTitle
             existing.body = trimmedBody
-            existing.tags = tags
+            existing.tags = tags as NSObject
         } else {
             // Create new template
             // Get the next sort order for custom templates
             let customCount: Int
             do {
-                customCount = try modelContext.fetchCount(
-                    FetchDescriptor<NoteTemplate>(
-                        predicate: #Predicate<NoteTemplate> { !$0.isBuiltIn }
-                    )
-                )
+                let countRequest = NSFetchRequest<CDNoteTemplate>(entityName: "NoteTemplate")
+                countRequest.predicate = NSPredicate(format: "isBuiltIn == NO")
+                customCount = try viewContext.count(for: countRequest)
             } catch {
                 Self.logger.warning("Failed to fetch custom template count: \(error, privacy: .public)")
                 customCount = 0
             }
 
-            let newTemplate = NoteTemplate(
-                title: trimmedTitle,
-                body: trimmedBody,
-                tags: tags,
-                sortOrder: 100 + customCount, // Custom templates start at 100
-                isBuiltIn: false
-            )
-            modelContext.insert(newTemplate)
+            let newTemplate = CDNoteTemplate(context: viewContext)
+            newTemplate.title = trimmedTitle
+            newTemplate.body = trimmedBody
+            newTemplate.tags = tags as NSObject
+            newTemplate.sortOrder = Int64(100 + customCount) // Custom templates start at 100
+            newTemplate.isBuiltIn = false
         }
 
         do {
-            try modelContext.save()
+            try viewContext.save()
         } catch {
             Self.logger.warning("Failed to save note template: \(error, privacy: .public)")
         }

@@ -1,5 +1,4 @@
 import SwiftUI
-import SwiftData
 import OSLog
 import CoreData
 
@@ -10,7 +9,7 @@ extension UnifiedPresentationWorkflowPanel {
     // MARK: - Computed Properties
 
     /// Existing work items for this lesson and these students
-    func existingWorkItems(for studentID: UUID) -> [WorkModel] {
+    func existingWorkItems(for studentID: UUID) -> [CDWorkModel] {
         let studentIDString = studentID.uuidString
         let lessonIDString = lessonID.uuidString
         return allWorkModels.filter { work in
@@ -44,9 +43,9 @@ extension UnifiedPresentationWorkflowPanel {
         // 1. Unlock next lessons if needed
         presentationViewModel.unlockNextLessonsIfNeeded(
             lessonID: lessonID,
-            modelContext: modelContext,
-            lessons: lessons,
-            lessonAssignments: lessonAssignments
+            viewContext: viewContext,
+            lessons: Array(lessons),
+            lessonAssignments: Array(lessonAssignments)
         )
 
         // 2. Create work items
@@ -94,15 +93,15 @@ extension UnifiedPresentationWorkflowPanel {
 
         // 3. Execute next lesson action
         presentationViewModel.executeNextLessonAction(
-            studentIDs: Set(students.map(\.id)),
+            studentIDs: Set(students.compactMap(\.id)),
             allStudents: students,
-            allLessons: lessons,
-            lessonAssignments: lessonAssignments,
-            modelContext: modelContext
+            allLessons: Array(lessons),
+            lessonAssignments: Array(lessonAssignments),
+            viewContext: viewContext
         )
 
         // 4. Save everything
-        saveCoordinator.save(modelContext, reason: "Unified Presentation Workflow")
+        saveCoordinator.save(viewContext, reason: "Unified Presentation Workflow")
 
         onComplete()
     }

@@ -1,0 +1,72 @@
+{
+  "source": "/Users/dannydeberry/Documents/Projects/MariasNotebook-Rewrite/Maria's Notebook/Components/PaginatedList.swift",
+  "tables": {
+    "Localizable": [
+      {
+        "comment": "",
+        "key": "Load %lld more",
+        "location": {
+          "startingColumn": 22,
+          "startingLine": 85
+        }
+      },
+      {
+        "comment": "",
+        "key": "(%lld remaining)",
+        "location": {
+          "startingColumn": 22,
+          "startingLine": 86
+        }
+      },
+      {
+        "comment": "",
+        "key": "Showing %lld of %lld %@",
+        "location": {
+          "startingColumn": 22,
+          "startingLine": 136
+        }
+      },
+      {
+        "comment": "",
+        "key": "Total: %lld",
+        "location": {
+          "startingColumn": 1,
+          "startingLine": 158
+        }
+      },
+      {
+        "comment": "",
+        "key": "Displayed: %lld",
+        "location": {
+          "startingColumn": 1,
+          "startingLine": 158
+        }
+      },
+      {
+        "comment": "",
+        "key": "Has More: %@",
+        "location": {
+          "startingColumn": 1,
+          "startingLine": 158
+        }
+      },
+      {
+        "comment": "",
+        "key": "Set Total to 50",
+        "location": {
+          "startingColumn": 1,
+          "startingLine": 158
+        }
+      },
+      {
+        "comment": "",
+        "key": "Reset",
+        "location": {
+          "startingColumn": 1,
+          "startingLine": 158
+        }
+      }
+    ]
+  },
+  "version": 1
+}

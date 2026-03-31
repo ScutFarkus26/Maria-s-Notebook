@@ -6,6 +6,7 @@
 //
 
 import SwiftUI
+import CoreData
 
 struct StudentNoteRowView: View {
     let item: UnifiedNoteItem

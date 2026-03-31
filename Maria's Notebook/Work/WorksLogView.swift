@@ -1,5 +1,5 @@
 import SwiftUI
-import SwiftData
+import CoreData
 
 struct WorksLogView: View {
     // Test student filtering
@@ -7,24 +7,27 @@ struct WorksLogView: View {
     @AppStorage(UserDefaultsKeys.generalTestStudentNames)
     private var testStudentNamesRaw: String = "Danny De Berry,Lil Dan D"
 
-    @Query(sort: [SortDescriptor(\WorkModel.createdAt, order: .reverse)])
-    private var allWorks: [WorkModel]
+    @FetchRequest(sortDescriptors: [NSSortDescriptor(keyPath: \CDWorkModel.createdAt, ascending: false)])
+    private var allWorks: FetchedResults<CDWorkModel>
 
-    @Query private var lessons: [Lesson]
-    @Query private var lessonAssignments: [LessonAssignment]
-    @Query(sort: Student.sortByName)
-    private var studentsRaw: [Student]
+    @FetchRequest(sortDescriptors: []) private var lessons: FetchedResults<CDLesson>
+    @FetchRequest(sortDescriptors: []) private var lessonAssignments: FetchedResults<CDLessonAssignment>
+    @FetchRequest(sortDescriptors: [
+        NSSortDescriptor(keyPath: \CDStudent.firstName, ascending: true),
+        NSSortDescriptor(keyPath: \CDStudent.lastName, ascending: true)
+    ])
+    private var studentsRaw: FetchedResults<CDStudent>
     // DEDUPLICATION: CloudKit sync can create duplicate records with the same ID.
     // Filter out test students when setting is disabled
-    private var students: [Student] {
+    private var students: [CDStudent] {
         TestStudentsFilter.filterVisible(
-            studentsRaw.uniqueByID.filter(\.isEnrolled),
+            Array(studentsRaw).uniqueByID.filter(\.isEnrolled),
             show: showTestStudents,
             namesRaw: testStudentNamesRaw
         )
     }
 
-    @State private var selectedWork: WorkModel?
+    @State private var selectedWork: CDWorkModel?
 
     // Filter state
     @State private var selectedKind: WorkKind?
@@ -37,12 +40,12 @@ struct WorksLogView: View {
 
     private var lessonsByID: [UUID: Lesson] {
         // Use uniquingKeysWith to handle CloudKit sync duplicates
-        Dictionary(lessons.map { ($0.id, $0) }, uniquingKeysWith: { first, _ in first })
+        Dictionary(lessons.compactMap { l in l.id.map { ($0, l) } }, uniquingKeysWith: { first, _ in first })
     }
 
     private var lessonAssignmentsByID: [UUID: LessonAssignment] {
         // Use uniquingKeysWith to handle CloudKit sync duplicates
-        Dictionary(lessonAssignments.map { ($0.id, $0) }, uniquingKeysWith: { first, _ in first })
+        Dictionary(lessonAssignments.compactMap { la in la.id.map { ($0, la) } }, uniquingKeysWith: { first, _ in first })
     }
 
     /// Filtered works based on current filter selections
@@ -56,7 +59,7 @@ struct WorksLogView: View {
 
             // Student filter (check participants)
             if !selectedStudentIDs.isEmpty {
-                let workStudentIDs = Set((work.participants ?? []).compactMap {
+                let workStudentIDs = Set((work.participants as? Set<CDWorkParticipantEntity> ?? []).compactMap {
                     UUID(uuidString: $0.studentID)
                 })
                 if workStudentIDs.isDisjoint(with: selectedStudentIDs) { return false }
@@ -103,9 +106,9 @@ struct WorksLogView: View {
     private func workSubtitle(_ work: WorkModel) -> String {
         let date: Date = {
             if let la = linkedLessonAssignment(for: work) {
-                return la.presentedAt ?? la.scheduledFor ?? la.createdAt
+                return la.presentedAt ?? la.scheduledFor ?? la.createdAt ?? Date()
             }
-            return work.createdAt
+            return work.createdAt ?? Date()
         }()
         let dateString = DateFormatter.localizedString(from: date, dateStyle: .medium, timeStyle: .none)
         if let lesson = linkedLesson(for: work) {
@@ -117,7 +120,7 @@ struct WorksLogView: View {
 
     @ViewBuilder
     private func workDetailSheetContent(for work: WorkModel) -> some View {
-        WorkDetailView(workID: work.id, onDone: {
+        WorkDetailView(workID: work.id ?? UUID(), onDone: {
             selectedWork = nil
         })
         #if os(macOS)
@@ -172,20 +175,22 @@ struct WorksLogView: View {
                 Button("All Students") { selectedStudentIDs.removeAll() }
                 Divider()
                 ForEach(students) { student in
-                    Button(action: {
-                        if selectedStudentIDs.contains(student.id) {
-                            selectedStudentIDs.remove(student.id)
-                        } else {
-                            selectedStudentIDs.insert(student.id)
-                        }
-                    }, label: {
-                        HStack {
-                            if selectedStudentIDs.contains(student.id) {
-                                Image(systemName: "checkmark")
+                    if let studentID = student.id {
+                        Button(action: {
+                            if selectedStudentIDs.contains(studentID) {
+                                selectedStudentIDs.remove(studentID)
+                            } else {
+                                selectedStudentIDs.insert(studentID)
                             }
-                            Text(displayName(for: student))
-                        }
-                    })
+                        }, label: {
+                            HStack {
+                                if selectedStudentIDs.contains(studentID) {
+                                    Image(systemName: "checkmark")
+                                }
+                                Text(displayName(for: student))
+                            }
+                        })
+                    }
                 }
             } label: {
                 HStack(spacing: 6) {
@@ -303,5 +308,5 @@ struct WorksLogView: View {
 
 #Preview {
     WorksLogView()
-        .modelContainer(PreviewEnvironment.previewContainer(for: [WorkModel.self, Lesson.self, LessonAssignment.self]))
+        .previewEnvironment()
 }

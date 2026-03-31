@@ -1,25 +1,25 @@
 import SwiftUI
-import SwiftData
+import CoreData
 
 struct TodoListPanel: View {
     @Environment(\.dismiss) private var dismiss
-    @Query(sort: \TodoItem.orderIndex) var todos: [TodoItem]
-    @Query(sort: \Student.firstName) private var studentsRaw: [Student]
+    @FetchRequest(sortDescriptors: [NSSortDescriptor(keyPath: \CDTodoItem.orderIndex, ascending: true)]) var todos: FetchedResults<CDTodoItem>
+    @FetchRequest(sortDescriptors: [NSSortDescriptor(keyPath: \CDStudent.firstName, ascending: true)]) private var studentsRaw: FetchedResults<CDStudent>
     @AppStorage(UserDefaultsKeys.generalShowTestStudents) private var showTestStudents: Bool = false
     @AppStorage(UserDefaultsKeys.generalTestStudentNames)
     private var testStudentNamesRaw: String = "Danny De Berry,Lil Dan D"
-    @Environment(\.modelContext) var modelContext
+    @Environment(\.managedObjectContext) var viewContext
 
-    private var students: [Student] {
+    private var students: [CDStudent] {
         TestStudentsFilter.filterVisible(
-            studentsRaw.uniqueByID.filter(\.isEnrolled),
+            Array(studentsRaw).uniqueByID.filter(\.isEnrolled),
             show: showTestStudents,
             namesRaw: testStudentNamesRaw
         )
     }
 
     @State var newTodoTitle = ""
-    @State private var editingTodo: TodoItem?
+    @State private var editingTodo: CDTodoItem?
     @State private var selectedFilter: TodoFilter = .all
     @State var isParsingWithAI = false
     @State private var showAnalytics = false
@@ -27,7 +27,7 @@ struct TodoListPanel: View {
     @State private var showExport = false
     @FocusState var isAddingFocused: Bool
 
-    private var filteredTodos: [TodoItem] {
+    private var filteredTodos: [CDTodoItem] {
         todos.filter { todo in
             selectedFilter.matches(todo)
         }
@@ -216,7 +216,7 @@ struct TodoListPanel: View {
         }
 #endif
         .sheet(isPresented: $showAnalytics) {
-            TodoAnalyticsView(todos: todos)
+            TodoAnalyticsView(todos: Array(todos))
         }
         .sheet(isPresented: $showTemplates) {
             TodoTemplatesView()

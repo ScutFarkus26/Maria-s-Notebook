@@ -1,6 +1,5 @@
 import Foundation
 import CoreData
-import SwiftData
 import OSLog
 
 /// Service for managing work assignments in project sessions
@@ -16,10 +15,7 @@ struct SessionWorkAssignmentService {
         self.context = context
     }
 
-    @available(*, deprecated, message: "Pass NSManagedObjectContext instead of ModelContext")
-    init(context: ModelContext) {
-        self.context = AppBootstrapping.getSharedCoreDataStack().viewContext
-    }
+    // Deprecated ModelContext init removed - no longer needed with Core Data.
 
     // MARK: - Uniform Mode
 
@@ -45,7 +41,7 @@ struct SessionWorkAssignmentService {
         work.studentID = memberStudentIDs.first ?? ""
         work.lessonID = lessonID.uuidString
         work.sourceContextType = .projectSession
-        work.sourceContextID = session.id.uuidString
+        work.sourceContextID = session.id?.uuidString ?? ""
 
         // Create participants for all members
         for idString in memberStudentIDs {
@@ -84,7 +80,7 @@ struct SessionWorkAssignmentService {
         work.studentID = ""  // Empty - offered to group
         work.lessonID = lessonID.uuidString
         work.sourceContextType = .projectSession
-        work.sourceContextID = session.id.uuidString
+        work.sourceContextID = session.id?.uuidString ?? ""
 
         if !instructions.trimmed().isEmpty {
             work.setLegacyNoteText(instructions, in: context)
@@ -133,7 +129,7 @@ struct SessionWorkAssignmentService {
 
     /// Gets all works for a session
     func worksForSession(_ session: ProjectSession) -> [CDWorkModel] {
-        let sessionID = session.id.uuidString
+        let sessionID = session.id?.uuidString ?? ""
         let request = CDFetchRequest(CDWorkModel.self)
         request.predicate = NSPredicate(format: "sourceContextID == %@", sessionID)
         return context.safeFetch(request)
@@ -162,34 +158,18 @@ struct SessionWorkAssignmentService {
         let min = session.minSelections
         let max = session.maxSelections
 
-        if count < min {
-            return .needsMore(selected: count, minimum: min)
-        } else if max > 0 && count >= max {
+        let minInt = Int(min)
+        let maxInt = Int(max)
+        if count < minInt {
+            return .needsMore(selected: count, minimum: minInt)
+        } else if maxInt > 0 && count >= maxInt {
             return .complete(selected: count)
         } else {
-            return .inProgress(selected: count, minimum: min, maximum: max)
+            return .inProgress(selected: count, minimum: minInt, maximum: maxInt)
         }
     }
 
-    // MARK: - Deprecated SwiftData Adapters
-
-    /// Records a student's selection for an offered work (SwiftData WorkModel)
-    @available(*, deprecated, message: "Use CDWorkModel overload")
-    func recordSelection(work: WorkModel, studentID: UUID) {
-        let request = CDFetchRequest(CDWorkModel.self)
-        request.predicate = NSPredicate(format: "id == %@", work.id as CVarArg)
-        guard let cdWork = context.safeFetch(request).first else { return }
-        recordSelection(work: cdWork, studentID: studentID)
-    }
-
-    /// Removes a student's selection (SwiftData WorkModel)
-    @available(*, deprecated, message: "Use CDWorkModel overload")
-    func removeSelection(work: WorkModel, studentID: UUID) {
-        let request = CDFetchRequest(CDWorkModel.self)
-        request.predicate = NSPredicate(format: "id == %@", work.id as CVarArg)
-        guard let cdWork = context.safeFetch(request).first else { return }
-        removeSelection(work: cdWork, studentID: studentID)
-    }
+    // Deprecated SwiftData adapter overloads removed - typealiases now point to CD types directly.
 
     // MARK: - Private Helpers
 

@@ -1,15 +1,14 @@
 // PresentationsViewModel+DaysSince.swift
 
 import Foundation
-import SwiftData
 
-// MARK: - Days Since Last Lesson
+// MARK: - Days Since Last CDLesson
 
 extension PresentationsViewModel {
     func calculateDaysSinceLastLesson(
-        lessonAssignments: [LessonAssignment],
-        lessons: [Lesson],
-        students: [Student]
+        lessonAssignments: [CDLessonAssignment],
+        lessons: [CDLesson],
+        students: [CDStudent]
     ) {
         var result: [UUID: Int] = [:]
 
@@ -22,7 +21,7 @@ extension PresentationsViewModel {
                 let s = norm(l.subject)
                 let g = norm(l.group)
                 return s == "parsha" || g == "parsha"
-            }.map(\.id)
+            }.compactMap(\.id)
             return Set(ids)
         }()
 
@@ -30,28 +29,29 @@ extension PresentationsViewModel {
             $0.isGiven && !excludedLessonIDs.contains($0.resolvedLessonID)
         }
 
-        let lessonsByID = Dictionary(lessons.map { ($0.id, $0) }, uniquingKeysWith: { first, _ in first })
+        let lessonsByID: [UUID: CDLesson] = Dictionary(uniqueKeysWithValues: lessons.compactMap { lesson in guard let id = lesson.id else { return nil }; return (id, lesson) })
 
         let (lastDateByStudent, lastLessonIDByStudent) = buildLastLessonData(from: given)
 
         var subjects: [UUID: String] = [:]
         for s in students {
-            if let last = lastDateByStudent[s.id] {
-                guard let modelContext else { continue }
+            guard let sid = s.id else { continue }
+            if let last = lastDateByStudent[sid] {
+                guard let viewContext else { continue }
                 let days = LessonAgeHelper.schoolDaysSinceCreation(
                     createdAt: last,
                     asOf: Date(),
-                    using: modelContext,
+                    using: viewContext,
                     calendar: calendar
                 )
-                result[s.id] = days
+                result[sid] = days
             } else {
-                result[s.id] = Int.max
+                result[sid] = Int.max
             }
-            if let lessonID = lastLessonIDByStudent[s.id],
+            if let lessonID = lastLessonIDByStudent[sid],
                let subject = lessonsByID[lessonID]?.subject,
                !subject.isEmpty {
-                subjects[s.id] = subject
+                subjects[sid] = subject
             }
         }
 
@@ -60,12 +60,12 @@ extension PresentationsViewModel {
     }
 
     func buildLastLessonData(
-        from given: [LessonAssignment]
+        from given: [CDLessonAssignment]
     ) -> (dateByStudent: [UUID: Date], lessonIDByStudent: [UUID: UUID]) {
         var lastDateByStudent: [UUID: Date] = [:]
         var lastLessonIDByStudent: [UUID: UUID] = [:]
         for la in given {
-            let when = la.presentedAt ?? la.scheduledFor ?? la.createdAt
+            let when = la.presentedAt ?? la.scheduledFor ?? la.createdAt ?? .distantPast
             for sid in la.resolvedStudentIDs {
                 if let existing = lastDateByStudent[sid] {
                     if when > existing {

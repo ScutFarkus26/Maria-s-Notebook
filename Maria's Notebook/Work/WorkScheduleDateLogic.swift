@@ -40,14 +40,15 @@ enum WorkScheduleDateLogic {
     static func compute(forCheckIns items: [WorkCheckIn]) -> WorkScheduleDates {
         // Consider only check-in and due items based on purpose
         let normalized: [(kind: WorkScheduleDateKind, date: Date)] = items.compactMap { item in
+            guard let date = item.date else { return nil }
             let purpose = item.purpose.lowercased()
             if purpose.contains("progress") || purpose.contains("assessment") || purpose.contains("check") {
-                return (.checkIn, AppCalendar.startOfDay(item.date))
+                return (.checkIn, AppCalendar.startOfDay(date))
             } else if purpose.contains("due") {
-                return (.due, AppCalendar.startOfDay(item.date))
+                return (.due, AppCalendar.startOfDay(date))
             } else {
                 // Default to check-in for other purposes
-                return (.checkIn, AppCalendar.startOfDay(item.date))
+                return (.checkIn, AppCalendar.startOfDay(date))
             }
         }
 

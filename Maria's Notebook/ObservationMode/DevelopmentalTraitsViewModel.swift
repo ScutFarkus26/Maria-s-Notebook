@@ -3,7 +3,7 @@
 // Queries Notes tagged with developmental traits and computes patterns.
 
 import Foundation
-import SwiftData
+import CoreData
 import SwiftUI
 
 @Observable
@@ -23,7 +23,7 @@ final class DevelopmentalTraitsViewModel {
 
     // MARK: - Load Data
 
-    func loadData(context: ModelContext) {
+    func loadData(context: NSManagedObjectContext) {
         guard let studentID else {
             traitCards = []
             recentObservations = []
@@ -33,9 +33,7 @@ final class DevelopmentalTraitsViewModel {
         isLoading = true
         defer { isLoading = false }
 
-        let descriptor = FetchDescriptor<Note>(
-            sortBy: [SortDescriptor(\Note.createdAt, order: .reverse)]
-        )
+        let descriptor = { let r = CDNote.fetchRequest() as! NSFetchRequest<CDNote>; r.sortDescriptors = [NSSortDescriptor(keyPath: \CDNote.createdAt, ascending: false)]; return r }()
         let allNotes = context.safeFetch(descriptor)
         let range = timeRange.dateRange(from: Date())
         let traitNotes = filterTraitNotes(from: allNotes, studentID: studentID, range: range)
@@ -48,12 +46,13 @@ final class DevelopmentalTraitsViewModel {
     // MARK: - Private Helpers
 
     private func filterTraitNotes(
-        from allNotes: [Note],
+        from allNotes: [CDNote],
         studentID: UUID,
         range: (start: Date, end: Date)
-    ) -> [Note] {
+    ) -> [CDNote] {
         allNotes.filter { note in
-            let inRange = note.createdAt >= range.start && note.createdAt <= range.end
+            guard let createdAt = note.createdAt else { return false }
+            let inRange = createdAt >= range.start && createdAt <= range.end
             guard inRange else { return false }
             switch note.scope {
             case .all:
@@ -64,14 +63,15 @@ final class DevelopmentalTraitsViewModel {
                 return ids.contains(studentID)
             }
         }.filter { note in
-            note.tags.contains { DevelopmentalCharacteristic.isCharacteristicTag($0) }
+            let tags = (note.tags as? [String]) ?? []
+            return tags.contains { DevelopmentalCharacteristic.isCharacteristicTag($0) }
         }
     }
 
-    private func buildTraitCards(from traitNotes: [Note]) -> [DevelopmentalTraitCardData] {
-        var traitNotesMap: [DevelopmentalCharacteristic: [Note]] = [:]
+    private func buildTraitCards(from traitNotes: [CDNote]) -> [DevelopmentalTraitCardData] {
+        var traitNotesMap: [DevelopmentalCharacteristic: [CDNote]] = [:]
         for note in traitNotes {
-            for tag in note.tags {
+            for tag in (note.tags as? [String]) ?? [] {
                 if let characteristic = DevelopmentalCharacteristic.from(tag: tag) {
                     traitNotesMap[characteristic, default: []].append(note)
                 }
@@ -88,13 +88,14 @@ final class DevelopmentalTraitsViewModel {
         .sorted { $0.observationCount > $1.observationCount }
     }
 
-    private func buildRecentObservations(from traitNotes: [Note]) -> [TraitObservation] {
+    private func buildRecentObservations(from traitNotes: [CDNote]) -> [TraitObservation] {
         traitNotes.prefix(20).map { note in
-            let traits = note.tags.compactMap { DevelopmentalCharacteristic.from(tag: $0) }
+            let tags = (note.tags as? [String]) ?? []
+            let traits = tags.compactMap { DevelopmentalCharacteristic.from(tag: $0) }
             return TraitObservation(
-                id: note.id,
-                date: note.createdAt,
-                bodyPreview: String(note.body.prefix(100)),
+                id: note.id ?? UUID(),
+                date: note.createdAt ?? Date(),
+                bodyPreview: String((note.body ?? "").prefix(100)),
                 traits: traits
             )
         }

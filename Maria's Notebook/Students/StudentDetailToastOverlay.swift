@@ -2,6 +2,7 @@
 // Toast overlay component extracted from StudentDetailView
 
 import SwiftUI
+import CoreData
 
 struct StudentDetailToastOverlay: View {
     let message: String?

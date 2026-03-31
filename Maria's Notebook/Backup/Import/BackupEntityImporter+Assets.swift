@@ -1,8 +1,8 @@
 import Foundation
-import SwiftData
+import CoreData
 import OSLog
 
-// MARK: - Document/Supply/Procedure Imports
+// MARK: - CDDocument/CDSupply/CDProcedure Imports
 
 extension BackupEntityImporter {
 
@@ -10,18 +10,17 @@ extension BackupEntityImporter {
 
     static func importDocuments(
         _ dtos: [DocumentDTO],
-        into modelContext: ModelContext,
-        existingCheck: EntityExistsCheck<Document>,
-        studentCheck: EntityExistsCheck<Student>
+        into viewContext: NSManagedObjectContext,
+        existingCheck: EntityExistsCheck<CDDocument>,
+        studentCheck: EntityExistsCheck<CDStudent>
     ) rethrows {
         for dto in dtos {
             if shouldSkipExisting(id: dto.id, existingCheck: existingCheck) { continue }
-            let d = Document(
-                id: dto.id,
-                title: dto.title,
-                category: dto.category,
-                uploadDate: dto.uploadDate
-            )
+            let d = CDDocument(context: viewContext)
+            d.id = dto.id
+            d.title = dto.title
+            d.category = dto.category
+            d.uploadDate = dto.uploadDate
             if let studentID = dto.studentID {
                 do {
                     if let student = try studentCheck(studentID) {
@@ -32,7 +31,7 @@ extension BackupEntityImporter {
                     Logger.backup.warning("Failed to check student for document: \(desc, privacy: .public)")
                 }
             }
-            modelContext.insert(d)
+            viewContext.insert(d)
         }
     }
 
@@ -40,48 +39,46 @@ extension BackupEntityImporter {
 
     static func importSupplies(
         _ dtos: [SupplyDTO],
-        into modelContext: ModelContext,
-        existingCheck: EntityExistsCheck<Supply>
+        into viewContext: NSManagedObjectContext,
+        existingCheck: EntityExistsCheck<CDSupply>
     ) rethrows {
         try importSimpleEntities(
-            dtos, into: modelContext,
+            dtos, into: viewContext,
             existingCheck: existingCheck,
             idExtractor: { $0.id },
             entityBuilder: { dto in
-            let s = Supply(
-                id: dto.id,
-                name: dto.name,
-                category: SupplyCategory(rawValue: dto.categoryRaw) ?? .other,
-                location: dto.location,
-                currentQuantity: dto.currentQuantity,
-                minimumThreshold: dto.minimumThreshold,
-                reorderAmount: dto.reorderAmount,
-                unit: dto.unit,
-                notes: dto.notes,
-                createdAt: dto.createdAt,
-                modifiedAt: dto.modifiedAt
-            )
+            let s = CDSupply(context: viewContext)
+            s.id = dto.id
+            s.name = dto.name
+            s.categoryRaw = (SupplyCategory(rawValue: dto.categoryRaw) ?? .other).rawValue
+            s.location = dto.location
+            s.currentQuantity = Int64(dto.currentQuantity)
+            s.minimumThreshold = Int64(dto.minimumThreshold)
+            s.reorderAmount = Int64(dto.reorderAmount)
+            s.unit = dto.unit
+            s.notes = dto.notes
+            s.createdAt = dto.createdAt
+            s.modifiedAt = dto.modifiedAt
             return s
         })
     }
 
-    // MARK: - Supply Transactions
+    // MARK: - CDSupply Transactions
 
     static func importSupplyTransactions(
         _ dtos: [SupplyTransactionDTO],
-        into modelContext: ModelContext,
+        into viewContext: NSManagedObjectContext,
         existingCheck: EntityExistsCheck<SupplyTransaction>,
-        supplyCheck: EntityExistsCheck<Supply>
+        supplyCheck: EntityExistsCheck<CDSupply>
     ) rethrows {
         for dto in dtos {
             if shouldSkipExisting(id: dto.id, existingCheck: existingCheck) { continue }
-            let t = SupplyTransaction(
-                id: dto.id,
-                supplyID: dto.supplyID,
-                date: dto.date,
-                quantityChange: dto.quantityChange,
-                reason: dto.reason
-            )
+            let t = SupplyTransaction(context: viewContext)
+            t.id = dto.id
+            t.supplyID = dto.supplyID
+            t.date = dto.date
+            t.quantityChange = Int64(dto.quantityChange)
+            t.reason = dto.reason
             if let supplyUUID = UUID(uuidString: dto.supplyID) {
                 do {
                     if let supply = try supplyCheck(supplyUUID) {
@@ -92,7 +89,7 @@ extension BackupEntityImporter {
                     Logger.backup.warning("Failed to check supply for transaction: \(desc, privacy: .public)")
                 }
             }
-            modelContext.insert(t)
+            viewContext.insert(t)
         }
     }
 
@@ -100,25 +97,24 @@ extension BackupEntityImporter {
 
     static func importProcedures(
         _ dtos: [ProcedureDTO],
-        into modelContext: ModelContext,
-        existingCheck: EntityExistsCheck<Procedure>
+        into viewContext: NSManagedObjectContext,
+        existingCheck: EntityExistsCheck<CDProcedure>
     ) rethrows {
         try importSimpleEntities(
-            dtos, into: modelContext,
+            dtos, into: viewContext,
             existingCheck: existingCheck,
             idExtractor: { $0.id },
             entityBuilder: { dto in
-            let p = Procedure(
-                id: dto.id,
-                title: dto.title,
-                summary: dto.summary,
-                content: dto.content,
-                category: ProcedureCategory(rawValue: dto.categoryRaw) ?? .other,
-                icon: dto.icon,
-                relatedProcedureIDs: dto.relatedProcedureIDs,
-                createdAt: dto.createdAt,
-                modifiedAt: dto.modifiedAt
-            )
+            let p = CDProcedure(context: viewContext)
+            p.id = dto.id
+            p.title = dto.title
+            p.summary = dto.summary
+            p.content = dto.content
+            p.categoryRaw = (ProcedureCategory(rawValue: dto.categoryRaw) ?? .other).rawValue
+            p.icon = dto.icon
+            p.relatedProcedureIDs = dto.relatedProcedureIDs
+            p.createdAt = dto.createdAt
+            p.modifiedAt = dto.modifiedAt
             return p
         })
     }

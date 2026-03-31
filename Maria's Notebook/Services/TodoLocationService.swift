@@ -1,7 +1,7 @@
 import Foundation
 import CoreLocation
 import UserNotifications
-import SwiftData
+import CoreData
 import OSLog
 
 /// Service for managing location-based todo reminders
@@ -32,37 +32,38 @@ class TodoLocationService: NSObject, CLLocationManagerDelegate {
     
     /// Set up geofence for a todo item
     func setupGeofence(for todo: TodoItem) {
-        guard let latitude = todo.locationLatitude,
-              let longitude = todo.locationLongitude else {
+        guard todo.hasLocationReminder,
+              let todoID = todo.id?.uuidString else {
             return
         }
-        
+
         // Remove existing geofence if any
         removeGeofence(for: todo)
-        
-        let center = CLLocationCoordinate2D(latitude: latitude, longitude: longitude)
+
+        let center = CLLocationCoordinate2D(latitude: todo.locationLatitude, longitude: todo.locationLongitude)
         let region = CLCircularRegion(
             center: center,
             radius: todo.locationRadius,
-            identifier: "todo-\(todo.id.uuidString)"
+            identifier: "todo-\(todoID)"
         )
-        
+
         region.notifyOnEntry = todo.notifyOnEntry
         region.notifyOnExit = todo.notifyOnExit
-        
+
         locationManager.startMonitoring(for: region)
-        monitoredTodos[todo.id.uuidString] = todo
+        monitoredTodos[todoID] = todo
     }
     
     /// Remove geofence for a todo item
     func removeGeofence(for todo: TodoItem) {
-        let identifier = "todo-\(todo.id.uuidString)"
-        
+        guard let todoID = todo.id?.uuidString else { return }
+        let identifier = "todo-\(todoID)"
+
         if let region = locationManager.monitoredRegions.first(where: { $0.identifier == identifier }) {
             locationManager.stopMonitoring(for: region)
         }
-        
-        monitoredTodos.removeValue(forKey: todo.id.uuidString)
+
+        monitoredTodos.removeValue(forKey: todoID)
     }
     
     /// Get current location
@@ -114,10 +115,11 @@ class TodoLocationService: NSObject, CLLocationManagerDelegate {
             ? "Arrived at \(locName)" : "Leaving \(locName)"
         content.body = todo.title
         content.sound = .default
-        content.userInfo = ["todoID": todo.id.uuidString]
-        
+        let todoIDString = todo.id?.uuidString ?? UUID().uuidString
+        content.userInfo = ["todoID": todoIDString]
+
         let request = UNNotificationRequest(
-            identifier: "location-\(todo.id.uuidString)-\(isEntry ? "entry" : "exit")",
+            identifier: "location-\(todoIDString)-\(isEntry ? "entry" : "exit")",
             content: content,
             trigger: nil // Immediate notification
         )

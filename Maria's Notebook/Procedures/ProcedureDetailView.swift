@@ -1,17 +1,17 @@
 import SwiftUI
-import SwiftData
+import CoreData
 
 /// Detail view for viewing a procedure
 struct ProcedureDetailView: View {
     let procedure: Procedure
     var onEdit: ((Procedure) -> Void)?
 
-    @Environment(\.modelContext) private var modelContext
+    @Environment(\.managedObjectContext) private var viewContext
     @Environment(\.dismiss) private var dismiss
     @State private var showingDeleteConfirmation = false
 
     private var relatedProcedures: [Procedure] {
-        ProcedureService.fetchRelatedProcedures(for: procedure, in: modelContext)
+        ProcedureService.fetchRelatedProcedures(for: procedure, in: viewContext)
     }
 
     var body: some View {
@@ -78,7 +78,7 @@ struct ProcedureDetailView: View {
                 titleVisibility: .visible
             ) {
                 Button("Delete", role: .destructive) {
-                    ProcedureService.deleteProcedure(procedure, in: modelContext)
+                    ProcedureService.deleteProcedure(procedure, in: viewContext)
                     dismiss()
                 }
             } message: {
@@ -131,12 +131,12 @@ struct ProcedureDetailView: View {
                 metadataItem(
                     icon: "calendar",
                     label: "Created",
-                    value: procedure.createdAt.formatted(date: .abbreviated, time: .omitted)
+                    value: (procedure.createdAt ?? Date()).formatted(date: .abbreviated, time: .omitted)
                 )
                 metadataItem(
                     icon: "clock.arrow.circlepath",
                     label: "Updated",
-                    value: procedure.modifiedAt.formatted(date: .abbreviated, time: .omitted)
+                    value: (procedure.modifiedAt ?? Date()).formatted(date: .abbreviated, time: .omitted)
                 )
             }
         }
@@ -258,36 +258,38 @@ struct ProcedureDetailView: View {
 }
 
 #Preview {
-    ProcedureDetailView(
-        procedure: Procedure(
-            title: "Morning Arrival",
-            summary: "Steps for welcoming students and starting the day",
-            content: """
-            ## Overview
+    let stack = CoreDataStack.preview
+    let ctx = stack.viewContext
+    let procedure = Procedure(context: ctx)
+    procedure.title = "Morning Arrival"
+    procedure.summary = "Steps for welcoming students and starting the day"
+    procedure.content = """
+        ## Overview
 
-            This procedure outlines the steps for welcoming students each morning \
-            and establishing a calm start to the day.
+        This procedure outlines the steps for welcoming students each morning \
+        and establishing a calm start to the day.
 
-            ## Steps
+        ## Steps
 
-            1. **7:45 AM** - Unlock classroom and prepare materials
-            2. **8:00 AM** - Greet students at the door
-            3. **8:00-8:15** - Students unpack and choose morning work
-            4. **8:15 AM** - Morning circle begins
+        1. **7:45 AM** - Unlock classroom and prepare materials
+        2. **8:00 AM** - Greet students at the door
+        3. **8:00-8:15** - Students unpack and choose morning work
+        4. **8:15 AM** - Morning circle begins
 
-            ## Materials Needed
+        ## Materials Needed
 
-            - Attendance clipboard
-            - Morning work bins
-            - Circle time materials
+        - Attendance clipboard
+        - Morning work bins
+        - Circle time materials
 
-            ## Notes
+        ## Notes
 
-            - Allow 2-3 minutes grace period for late arrivals
-            - Substitute teachers: see backup folder in desk
-            """,
-            category: .dailyRoutines,
-            icon: "sunrise"
-        )
-    )
+        - Allow 2-3 minutes grace period for late arrivals
+        - Substitute teachers: see backup folder in desk
+        """
+    procedure.category = .dailyRoutines
+    procedure.icon = "sunrise"
+
+    return ProcedureDetailView(procedure: procedure)
+        .previewEnvironment(using: stack)
 }

@@ -2,17 +2,14 @@
 // Template picker component for the note editor - extracted from NoteEditorSections.swift
 
 import SwiftUI
-import SwiftData
+import CoreData
 
 // MARK: - Template Picker View
 
 struct TemplatePickerView: View {
-    @Query(sort: [
-        SortDescriptor(\NoteTemplate.sortOrder),
-        SortDescriptor(\NoteTemplate.title)
-    ]) var templates: [NoteTemplate]
+    @FetchRequest(sortDescriptors: [NSSortDescriptor(keyPath: \CDNoteTemplate.sortOrder, ascending: true), NSSortDescriptor(keyPath: \CDNoteTemplate.title, ascending: true)]) var templates: FetchedResults<CDNoteTemplate>
 
-    let onSelect: (NoteTemplate) -> Void
+    let onSelect: (CDNoteTemplate) -> Void
 
     @State private var isExpanded: Bool = false
     @State private var selectedFilterTag: String?
@@ -21,7 +18,7 @@ struct TemplatePickerView: View {
     private var allTemplateTags: [String] {
         var tagSet = Set<String>()
         for template in templates {
-            for tag in template.tags { tagSet.insert(tag) }
+            for tag in (template.tags as? [String]) ?? [] { tagSet.insert(tag) }
         }
         return tagSet.sorted {
             TagHelper.tagName($0)
@@ -29,11 +26,11 @@ struct TemplatePickerView: View {
         }
     }
 
-    var filteredTemplates: [NoteTemplate] {
+    var filteredTemplates: [CDNoteTemplate] {
         if let filterTag = selectedFilterTag {
-            return templates.filter { $0.tags.contains(filterTag) }
+            return Array(templates).filter { ($0.tags as? [String] ?? []).contains(filterTag) }
         }
-        return templates
+        return Array(templates)
     }
 
     var body: some View {
@@ -103,7 +100,7 @@ struct TemplatePickerView: View {
 
                 // Tag filter chips
                 ForEach(allTemplateTags, id: \.self) { tag in
-                    let count = templates.filter { $0.tags.contains(tag) }.count
+                    let count = templates.filter { ($0.tags as? [String] ?? []).contains(tag) }.count
                     if count > 0 {
                         let tagColor = TagHelper.tagColor(tag).color
                         Button {
@@ -135,7 +132,7 @@ struct TemplatePickerView: View {
     private var templateChipsGrid: some View {
         FlowLayout(spacing: AppTheme.Spacing.verySmall) {
             ForEach(filteredTemplates) { template in
-                let chipColor = template.tags.first.map { TagHelper.tagColor($0).color } ?? Color.gray
+                let chipColor = (template.tags as? [String])?.first.map { TagHelper.tagColor($0).color } ?? Color.gray
                 Button {
                     onSelect(template)
                 } label: {
@@ -158,4 +155,4 @@ struct TemplatePickerView: View {
     }
 }
 
-// Note: Uses FlowLayout from /Components/FlowLayout.swift
+// CDNote: Uses FlowLayout from /Components/FlowLayout.swift

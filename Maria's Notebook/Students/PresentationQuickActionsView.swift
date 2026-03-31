@@ -1,5 +1,4 @@
 import OSLog
-import SwiftData
 import SwiftUI
 import CoreData
 
@@ -7,7 +6,7 @@ private let logger = Logger.students
 
 // swiftlint:disable:next type_body_length
 struct PresentationQuickActionsView: View {
-    @Environment(\.modelContext) private var modelContext
+    @Environment(\.managedObjectContext) private var viewContext
     @Environment(\.managedObjectContext) private var managedObjectContext
     @Environment(\.appRouter) private var appRouter
     @Environment(\.dismiss) private var dismiss
@@ -18,24 +17,24 @@ struct PresentationQuickActionsView: View {
     @AppStorage(UserDefaultsKeys.generalTestStudentNames)
     private var testStudentNamesRaw: String = "Danny De Berry,Lil Dan D"
 
-    @Query(sort: \Lesson.name, animation: .default)
-    private var lessons: [Lesson]
+    @FetchRequest(sortDescriptors: [NSSortDescriptor(keyPath: \CDLesson.name, ascending: true)], animation: .default)
+    private var lessons: FetchedResults<CDLesson>
 
-    @Query(sort: \Student.firstName, animation: .default)
-    private var studentsAllRaw: [Student]
+    @FetchRequest(sortDescriptors: [NSSortDescriptor(keyPath: \CDStudent.firstName, ascending: true)], animation: .default)
+    private var studentsAllRaw: FetchedResults<CDStudent>
     // DEDUPLICATION: CloudKit sync can create duplicate records with the same ID.
     // Filter out test students when setting is disabled
-    private var studentsAll: [Student] {
+    private var studentsAll: [CDStudent] {
         TestStudentsFilter.filterVisible(
-            studentsAllRaw.uniqueByID, show: showTestStudents,
+            Array(studentsAllRaw).uniqueByID, show: showTestStudents,
             namesRaw: testStudentNamesRaw
         )
     }
 
-    @Query(sort: \LessonAssignment.createdAt, animation: .default)
-    private var lessonAssignmentsAll: [LessonAssignment]
+    @FetchRequest(sortDescriptors: [NSSortDescriptor(keyPath: \CDLessonAssignment.createdAt, ascending: true)], animation: .default)
+    private var lessonAssignmentsAll: FetchedResults<CDLessonAssignment>
 
-    let lessonAssignment: LessonAssignment
+    let lessonAssignment: CDLessonAssignment
     let onDone: (() -> Void)?
 
     @State private var needsPractice: Bool
@@ -48,7 +47,7 @@ struct PresentationQuickActionsView: View {
     @State private var showFollowUpSheet: Bool = false
     @State private var followUpDraft: String = ""
 
-    init(lessonAssignment: LessonAssignment, onDone: (() -> Void)? = nil) {
+    init(lessonAssignment: CDLessonAssignment, onDone: (() -> Void)? = nil) {
         self.lessonAssignment = lessonAssignment
         self.onDone = onDone
         _needsPractice = State(initialValue: lessonAssignment.needsPractice)
@@ -56,7 +55,7 @@ struct PresentationQuickActionsView: View {
         _followUpWork = State(initialValue: lessonAssignment.followUpWork)
     }
 
-    private var lesson: Lesson? {
+    private var lesson: CDLesson? {
         // CloudKit compatibility: lessonID is now String, convert to UUID for comparison
         guard let lessonIDUUID = UUID(uuidString: lessonAssignment.lessonID) else { return nil }
         return lessons.first(where: { $0.id == lessonIDUUID })
@@ -70,7 +69,7 @@ struct PresentationQuickActionsView: View {
         (lesson?.group.trimmed()) ?? ""
     }
 
-    private var nextLessonInGroup: Lesson? {
+    private var nextLessonInGroup: CDLesson? {
         guard let current = lesson else { return nil }
         let currentSubject = subject
         let currentGroup = group
@@ -111,7 +110,7 @@ struct PresentationQuickActionsView: View {
                     }
                 }
 
-                Section(header: Text("Next Lesson in Group")) {
+                Section(header: Text("Next CDLesson in Group")) {
                     if let next = nextLessonInGroup {
                         Text(next.name)
                             .fontWeight(.medium)
@@ -119,28 +118,29 @@ struct PresentationQuickActionsView: View {
                         Text("No next lesson available")
                             .foregroundStyle(.secondary)
                     }
-                    Button("Plan Next Lesson in Group") {
+                    Button("Plan Next CDLesson in Group") {
                         guard let next = nextLessonInGroup else { return }
                         // Do not create or plan lessons for zero students
                         guard !lessonAssignment.resolvedStudentIDs.isEmpty else { return }
                         let sameStudents = Set(lessonAssignment.resolvedStudentIDs)
+                        guard let nextID = next.id else { return }
                         let exists = lessonAssignmentsAll.contains { la in
-                            la.resolvedLessonID == next.id
+                            la.resolvedLessonID == nextID
                                 && Set(la.resolvedStudentIDs) == sameStudents
                                 && !la.isPresented
                         }
                         if !exists {
                             let newLA = PresentationFactory.makeDraft(
-                                lessonID: next.id,
+                                lessonID: nextID,
                                 studentIDs: lessonAssignment.resolvedStudentIDs
                             )
                             PresentationFactory.attachRelationships(
                                 to: newLA,
-                                lesson: lessons.first(where: { $0.id == next.id }),
-                                students: studentsAll.filter { sameStudents.contains($0.id) }
+                                lesson: lessons.first(where: { $0.id == nextID }),
+                                students: studentsAll.filter { $0.id.map { sameStudents.contains($0) } ?? false }
                             )
-                            modelContext.insert(newLA)
-                            saveCoordinator.save(modelContext, reason: "Planning next lesson")
+                            viewContext.insert(newLA)
+                            saveCoordinator.save(viewContext, reason: "Planning next lesson")
                         }
                         didPlanNext = true
                         showPlannedBanner = true
@@ -199,15 +199,11 @@ struct PresentationQuickActionsView: View {
                                 let activeRaw = WorkStatus.active.rawValue
                                 let reviewRaw = WorkStatus.review.rawValue
                                 let followRaw = WorkKind.followUpAssignment.rawValue
-                                let fetch = FetchDescriptor<WorkModel>(predicate: #Predicate<WorkModel> {
-                                    $0.studentID == sid &&
-                                    $0.lessonID == lidString &&
-                                    ($0.statusRaw == activeRaw || $0.statusRaw == reviewRaw) &&
-                                    ($0.kindRaw ?? "") == followRaw
-                                })
-                                let exists = modelContext.safeFetchFirst(fetch) != nil
+                                let fetch: NSFetchRequest<CDWorkModel> = NSFetchRequest(entityName: "CDWorkModel")
+                                fetch.predicate = NSPredicate(format: "studentID == %@ AND lessonID == %@ AND (statusRaw == %@ OR statusRaw == %@) AND kindRaw == %@", sid, lidString, activeRaw, reviewRaw, followRaw)
+                                let exists = viewContext.safeFetchFirst(fetch) != nil
                                 if !exists {
-                                    // Create WorkModel
+                                    // Create CDWorkModel
                                     guard let studentUUID = UUID(uuidString: sid),
                                           let lessonUUID = UUID(uuidString: lidString) else { continue }
                                     let repository = WorkRepository(context: managedObjectContext)
@@ -226,7 +222,7 @@ struct PresentationQuickActionsView: View {
                                     }
                                 }
                             }
-                            saveCoordinator.save(modelContext, reason: "Adding follow-up work")
+                            saveCoordinator.save(viewContext, reason: "Adding follow-up work")
                         }
                         showFollowUpSheet = false
                     }
@@ -250,7 +246,7 @@ struct PresentationQuickActionsView: View {
                 _ = try LifecycleService.recordPresentation(
                     from: lessonAssignment,
                     presentedAt: presentedDate,
-                    modelContext: modelContext
+                    modelContext: viewContext
                 )
             } catch {
                 // ignore
@@ -259,9 +255,10 @@ struct PresentationQuickActionsView: View {
             // Auto-enroll in track if lesson belongs to a track
             if let lesson = lessonAssignment.lesson {
                 GroupTrackService.autoEnrollInTrackIfNeeded(
-                    lesson: lesson,
+                    lessonSubject: lesson.subject,
+                    lessonGroup: lesson.group,
                     studentIDs: lessonAssignment.studentIDs,
-                    modelContext: modelContext,
+                    context: viewContext,
                     saveCoordinator: saveCoordinator
                 )
             }
@@ -280,24 +277,25 @@ struct PresentationQuickActionsView: View {
                 .sorted { $0.orderInGroup < $1.orderInGroup }
                 if let idx = candidates.firstIndex(where: { $0.id == current.id }), idx + 1 < candidates.count {
                     let next = candidates[idx + 1]
+                    guard let nextID = next.id else { return }
                     let sameStudents = Set(lessonAssignment.resolvedStudentIDs)
                     // Skip if there are no students attached
                     guard !sameStudents.isEmpty else { return }
                     let exists = lessonAssignmentsAll.contains { la in
-                        la.resolvedLessonID == next.id && Set(la.resolvedStudentIDs) == sameStudents && !la.isPresented
+                        la.resolvedLessonID == nextID && Set(la.resolvedStudentIDs) == sameStudents && !la.isPresented
                     }
                     if !exists {
                         let newLA = PresentationFactory.makeDraft(
-                            lessonID: next.id,
+                            lessonID: nextID,
                             studentIDs: Array(sameStudents)
                         )
                         PresentationFactory.attachRelationships(
                             to: newLA,
-                            lesson: lessons.first(where: { $0.id == next.id }),
-                            students: studentsAll.filter { sameStudents.contains($0.id) }
+                            lesson: lessons.first(where: { $0.id == nextID }),
+                            students: studentsAll.filter { $0.id.map { sameStudents.contains($0) } ?? false }
                         )
-                        modelContext.insert(newLA)
-                        saveCoordinator.save(modelContext, reason: "Auto-creating next lesson")
+                        viewContext.insert(newLA)
+                        saveCoordinator.save(viewContext, reason: "Auto-creating next lesson")
                         appRouter.refreshPlanningInbox()
                     }
                 }
@@ -306,8 +304,7 @@ struct PresentationQuickActionsView: View {
 
         lessonAssignment.needsAnotherPresentation = needsAnotherPresentation
 
-        // Ensure relationships mirror snapshots
-        lessonAssignment.students = studentsAll.filter { lessonAssignment.resolvedStudentIDs.contains($0.id) }
+        // Ensure lesson relationship mirrors snapshot
         if let lessonIDUUID = UUID(uuidString: lessonAssignment.lessonID) {
             lessonAssignment.lesson = lessons.first(where: { $0.id == lessonIDUUID })
         }
@@ -329,13 +326,13 @@ struct PresentationQuickActionsView: View {
                     to: newLA,
                     lesson: UUID(uuidString: lessonAssignment.lessonID)
                         .flatMap { lid in lessons.first(where: { $0.id == lid }) },
-                    students: studentsAll.filter { lessonAssignment.resolvedStudentIDs.contains($0.id) }
+                    students: studentsAll.filter { s in s.id.map { lessonAssignment.resolvedStudentIDs.contains($0) } ?? false }
                 )
-                modelContext.insert(newLA)
+                viewContext.insert(newLA)
             }
         }
 
-        saveCoordinator.save(modelContext, reason: "Saving quick actions")
+        saveCoordinator.save(viewContext, reason: "Saving quick actions")
 
         onDone?() ?? dismiss()
     }
@@ -350,15 +347,11 @@ struct PresentationQuickActionsView: View {
             let activeRaw = WorkStatus.active.rawValue
             let reviewRaw = WorkStatus.review.rawValue
             let practiceRaw = WorkKind.practiceLesson.rawValue
-            let fetch = FetchDescriptor<WorkModel>(predicate: #Predicate<WorkModel> {
-                $0.studentID == sid &&
-                $0.lessonID == lidString &&
-                ($0.statusRaw == activeRaw || $0.statusRaw == reviewRaw) &&
-                ($0.kindRaw ?? "") == practiceRaw
-            })
-            let exists = modelContext.safeFetchFirst(fetch) != nil
+            let fetch: NSFetchRequest<CDWorkModel> = NSFetchRequest(entityName: "CDWorkModel")
+            fetch.predicate = NSPredicate(format: "studentID == %@ AND lessonID == %@ AND (statusRaw == %@ OR statusRaw == %@) AND kindRaw == %@", sid, lidString, activeRaw, reviewRaw, practiceRaw)
+            let exists = viewContext.safeFetchFirst(fetch) != nil
             if !exists {
-                // Create WorkModel
+                // Create CDWorkModel
                 guard let studentUUID = UUID(uuidString: sid),
                       let lessonUUID = UUID(uuidString: lidString) else { continue }
                 let repository = WorkRepository(context: managedObjectContext)
@@ -377,7 +370,7 @@ struct PresentationQuickActionsView: View {
                 }
             }
         }
-        if createdAny { saveCoordinator.save(modelContext, reason: "Adding practice work") }
+        if createdAny { saveCoordinator.save(viewContext, reason: "Adding practice work") }
     }
 
     private var plannedBanner: some View {

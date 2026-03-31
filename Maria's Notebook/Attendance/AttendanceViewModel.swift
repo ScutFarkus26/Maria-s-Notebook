@@ -1,6 +1,6 @@
 import Foundation
 import SwiftUI
-import SwiftData
+import CoreData
 import OSLog
 
 @Observable
@@ -20,11 +20,11 @@ final class AttendanceViewModel {
 
     // MARK: - Filtering
 
-    func visibleStudents(from all: [Student]) -> [Student] {
+    func visibleStudents(from all: [CDStudent]) -> [CDStudent] {
         TestStudentsFilter.filterVisible(all)
     }
 
-    func sortedAndFiltered(students: [Student]) -> [Student] {
+    func sortedAndFiltered(students: [CDStudent]) -> [CDStudent] {
         switch sortKey {
         case .firstName:
             return students.sorted(by: StudentSortComparator.byFirstName)
@@ -34,15 +34,15 @@ final class AttendanceViewModel {
     }
 
     // MARK: - Loading
-    func load(for date: Date? = nil, students: [Student], modelContext: ModelContext) {
+    func load(for date: Date? = nil, students: [CDStudent], modelContext: NSManagedObjectContext) {
         let target = (date ?? selectedDate).normalizedDay()
         selectedDate = target
-        let store = AttendanceStore(context: modelContext)
+        let store = CDAttendanceStore(context: modelContext)
         do {
             let result = try store.loadOrCreateRecords(for: target, students: students)
             let records = result.records
             // CloudKit compatibility: Convert UUIDs to Strings for comparison
-            let allowed = Set(students.map { $0.id.uuidString })
+            let allowed = Set(students.compactMap { $0.id?.uuidString })
             let filtered = records.filter { allowed.contains($0.studentID) }
             // Build dictionary safely, handling potential duplicates by keeping the first occurrence
             var recordsByStudentID: [String: AttendanceRecord] = [:]
@@ -56,46 +56,46 @@ final class AttendanceViewModel {
     }
 
     // MARK: - Actions
-    func cycleStatus(for student: Student, modelContext: ModelContext) {
+    func cycleStatus(for student: Student, modelContext: NSManagedObjectContext) {
         // CloudKit compatibility: Convert UUID to String for lookup
         let studentIDString = student.cloudKitKey
         guard let rec = recordsByStudentID[studentIDString] else { return }
         let next = rec.status.next()
-        let store = AttendanceStore(context: modelContext)
+        let store = CDAttendanceStore(context: modelContext)
         if store.updateStatus(rec, to: next) {
             recordsByStudentID[studentIDString]?.status = next
             HapticService.shared.selection()
         }
     }
 
-    func updateNote(for student: Student, note: String?, modelContext: ModelContext) {
+    func updateNote(for student: Student, note: String?, modelContext: NSManagedObjectContext) {
         // CloudKit compatibility: Convert UUID to String for lookup
         let studentIDString = student.cloudKitKey
         guard let rec = recordsByStudentID[studentIDString] else { return }
-        let store = AttendanceStore(context: modelContext)
+        let store = CDAttendanceStore(context: modelContext)
         if store.updateNote(rec, to: note) {
             recordsByStudentID[studentIDString] = rec
         }
     }
 
-    func updateAbsenceReason(for student: Student, reason: AbsenceReason, modelContext: ModelContext) {
+    func updateAbsenceReason(for student: Student, reason: AbsenceReason, modelContext: NSManagedObjectContext) {
         // CloudKit compatibility: Convert UUID to String for lookup
         let studentIDString = student.cloudKitKey
         guard let rec = recordsByStudentID[studentIDString] else { return }
         // Only allow setting absence reason if status is absent
         guard rec.status == .absent else { return }
-        let store = AttendanceStore(context: modelContext)
+        let store = CDAttendanceStore(context: modelContext)
         if store.updateAbsenceReason(rec, to: reason) {
             recordsByStudentID[studentIDString]?.absenceReason = reason
         }
     }
 
-    func markAllPresent(students: [Student], modelContext: ModelContext) {
-        let store = AttendanceStore(context: modelContext)
+    func markAllPresent(students: [CDStudent], modelContext: NSManagedObjectContext) {
+        let store = CDAttendanceStore(context: modelContext)
         do {
             let updated = try store.markAllPresent(for: selectedDate, students: students)
             // CloudKit compatibility: Convert UUIDs to Strings for comparison
-            let allowed = Set(students.map { $0.id.uuidString })
+            let allowed = Set(students.compactMap { $0.id?.uuidString })
             for rec in updated where allowed.contains(rec.studentID) {
                 recordsByStudentID[rec.studentID] = rec
             }
@@ -104,12 +104,12 @@ final class AttendanceViewModel {
         }
     }
 
-    func resetDay(students: [Student], modelContext: ModelContext) {
-        let store = AttendanceStore(context: modelContext)
+    func resetDay(students: [CDStudent], modelContext: NSManagedObjectContext) {
+        let store = CDAttendanceStore(context: modelContext)
         do {
             let updated = try store.resetDay(for: selectedDate, students: students)
             // CloudKit compatibility: Convert UUIDs to Strings for comparison
-            let allowed = Set(students.map { $0.id.uuidString })
+            let allowed = Set(students.compactMap { $0.id?.uuidString })
             for rec in updated where allowed.contains(rec.studentID) {
                 recordsByStudentID[rec.studentID] = rec
             }

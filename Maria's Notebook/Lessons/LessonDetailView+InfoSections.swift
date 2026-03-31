@@ -1,5 +1,4 @@
 import SwiftUI
-import SwiftData
 import CoreData
 
 // MARK: - Info Display Sections
@@ -134,7 +133,7 @@ extension LessonDetailView {
                 }
 
                 let textItems = lesson.suggestedFollowUpWorkItems
-                let sampleWorks = lesson.sortedSampleWorks
+                let sampleWorks = lesson.orderedSampleWorks
 
                 if textItems.isEmpty && sampleWorks.isEmpty {
                     Text("No suggestions yet.")
@@ -166,7 +165,7 @@ extension LessonDetailView {
                     title: "Prerequisites",
                     icon: "arrow.backward.circle",
                     lessonIDs: lesson.prerequisiteLessonUUIDs,
-                    modelContext: modelContext
+                    viewContext: viewContext
                 )
             }
 
@@ -176,7 +175,7 @@ extension LessonDetailView {
                     title: "Related Lessons",
                     icon: "link",
                     lessonIDs: lesson.relatedLessonUUIDs,
-                    modelContext: modelContext
+                    viewContext: viewContext
                 )
             }
 
@@ -186,26 +185,28 @@ extension LessonDetailView {
                     title: "Parent Story",
                     icon: "arrow.up.circle",
                     lessonIDs: [parentID],
-                    modelContext: modelContext
+                    viewContext: viewContext
                 )
             }
 
             // Story Branches (child stories)
-            if lesson.isStory {
+            if lesson.isStory, let lessonID = lesson.id {
                 let repo = LessonRepository(context: managedObjectContext, saveCoordinator: saveCoordinator)
-                let children = repo.fetchChildStories(parentID: lesson.id)
+                let children = repo.fetchChildStories(parentID: lessonID)
                 if !children.isEmpty {
                     LessonRelationshipsSection(
                         title: "Story Branches",
                         icon: "arrow.triangle.branch",
                         lessonIDs: children.compactMap(\.id),
-                        modelContext: modelContext
+                        viewContext: viewContext
                     )
                 }
             }
 
             // Related Resources
-            RelatedResourcesSection(lessonID: lesson.id, lessonSubject: lesson.subject)
+            if let lessonID = lesson.id {
+                RelatedResourcesSection(lessonID: lessonID, lessonSubject: lesson.subject)
+            }
 
             if let url = resolvedPagesURL {
                 HStack { Spacer() }

@@ -3,7 +3,7 @@
 // Encapsulates the attendance aggregation logic used by TodayViewModel.
 
 import Foundation
-import SwiftData
+import CoreData
 
 // MARK: - Today Attendance Loader
 

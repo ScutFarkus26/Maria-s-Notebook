@@ -1,11 +1,11 @@
 import SwiftUI
-import SwiftData
+import CoreData
 
 struct MarkAsOrderedSheet: View {
-    @Environment(\.modelContext) private var modelContext
+    @Environment(\.managedObjectContext) private var viewContext
     @Environment(\.dismiss) private var dismiss
 
-    let supply: Supply
+    let supply: CDSupply
 
     @State private var quantity: Int = 0
 
@@ -14,7 +14,7 @@ struct MarkAsOrderedSheet: View {
             Form {
                 Section {
                     HStack {
-                        Text("Supply")
+                        Text("CDSupply")
                         Spacer()
                         Text(supply.name)
                             .foregroundStyle(.secondary)
@@ -48,7 +48,7 @@ struct MarkAsOrderedSheet: View {
                 }
                 ToolbarItem(placement: .confirmationAction) {
                     Button("Mark as Ordered") {
-                        SupplyService.markAsOrdered(supply, quantity: quantity, in: modelContext)
+                        SupplyService.markAsOrdered(supply, quantity: quantity, in: viewContext)
                         dismiss()
                     }
                     .disabled(quantity <= 0)
@@ -56,7 +56,7 @@ struct MarkAsOrderedSheet: View {
             }
         }
         .onAppear {
-            quantity = supply.reorderAmount > 0 ? supply.reorderAmount : 1
+            quantity = supply.reorderAmount > 0 ? Int(supply.reorderAmount) : 1
         }
         #if os(macOS)
         .frame(minWidth: 400, minHeight: 250)
@@ -67,10 +67,10 @@ struct MarkAsOrderedSheet: View {
 // MARK: - Mark as Received Sheet
 
 struct MarkAsReceivedSheet: View {
-    @Environment(\.modelContext) private var modelContext
+    @Environment(\.managedObjectContext) private var viewContext
     @Environment(\.dismiss) private var dismiss
 
-    let supply: Supply
+    let supply: CDSupply
 
     @State private var receivedQuantity: Int = 0
 
@@ -79,7 +79,7 @@ struct MarkAsReceivedSheet: View {
             Form {
                 Section {
                     HStack {
-                        Text("Supply")
+                        Text("CDSupply")
                         Spacer()
                         Text(supply.name)
                             .foregroundStyle(.secondary)
@@ -114,7 +114,7 @@ struct MarkAsReceivedSheet: View {
                     HStack {
                         Text("New Total")
                         Spacer()
-                        Text("\(supply.currentQuantity + receivedQuantity) \(supply.unit)")
+                        Text("\(Int(supply.currentQuantity) + receivedQuantity) \(supply.unit)")
                             .foregroundStyle(.secondary)
                     }
                 }
@@ -128,7 +128,7 @@ struct MarkAsReceivedSheet: View {
                 ToolbarItem(placement: .confirmationAction) {
                     Button("Mark as Received") {
                         SupplyService.markAsReceived(
-                            supply, receivedQuantity: receivedQuantity, in: modelContext
+                            supply, receivedQuantity: receivedQuantity, in: viewContext
                         )
                         dismiss()
                     }
@@ -137,7 +137,7 @@ struct MarkAsReceivedSheet: View {
             }
         }
         .onAppear {
-            receivedQuantity = supply.orderedQuantity
+            receivedQuantity = Int(supply.orderedQuantity)
         }
         #if os(macOS)
         .frame(minWidth: 400, minHeight: 300)

@@ -2,6 +2,7 @@
 // File operation methods extracted from StudentFilesTab
 
 import SwiftUI
+import CoreData
 import UniformTypeIdentifiers
 import os
 #if os(macOS)
@@ -36,8 +37,9 @@ extension StudentFilesTab {
     }
 
     func deleteDocument(_ document: Document) {
+        guard let documentID = document.id else { return }
         do {
-            try repository.deleteDocument(id: document.id)
+            try repository.deleteDocument(id: documentID)
         } catch {
             Self.logger.warning("Failed to delete document: \(error)")
         }
@@ -80,7 +82,8 @@ extension StudentFilesTab {
         let trimmedTitle = renameTitleText.trimmed()
         guard !trimmedTitle.isEmpty else { return }
 
-        repository.updateDocument(id: document.id, title: trimmedTitle)
+        guard let documentID = document.id else { return }
+        repository.updateDocument(id: documentID, title: trimmedTitle)
         _ = repository.save(reason: "Rename document")
 
         documentToRename = nil

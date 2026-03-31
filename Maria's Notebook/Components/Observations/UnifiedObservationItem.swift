@@ -15,7 +15,7 @@ struct UnifiedObservationItem: Identifiable {
 
     // Source tracking for editing
     enum Source {
-        case note(Note)
+        case note(CDNote)
     }
     let source: Source
 }

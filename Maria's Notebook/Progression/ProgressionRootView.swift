@@ -2,11 +2,11 @@
 // Landing page for the Progression feature -- shows subject/group cards.
 
 import SwiftUI
-import SwiftData
+import CoreData
 
 /// Landing page that shows subject/group cards for groups with student activity.
 struct ProgressionRootView: View {
-    @Environment(\.modelContext) private var modelContext
+    @Environment(\.managedObjectContext) private var viewContext
     @State private var viewModel = ProgressionRootViewModel()
     @State private var searchText = ""
 
@@ -45,10 +45,10 @@ struct ProgressionRootView: View {
             #endif
             .searchable(text: $searchText, prompt: "Search subjects or groups")
             .onAppear {
-                viewModel.loadData(context: modelContext)
+                viewModel.loadData(context: viewContext)
             }
             .refreshable {
-                viewModel.loadData(context: modelContext)
+                viewModel.loadData(context: viewContext)
             }
         }
     }

@@ -1,6 +1,6 @@
 import Foundation
 import OSLog
-import SwiftData
+import CoreData
 import SwiftUI
 
 @Observable
@@ -9,13 +9,13 @@ final class WorkDetailViewModel {
     private static let logger = Logger.work
 
     // MARK: - State
-    var work: WorkModel?
-    var relatedLesson: Lesson?
-    var relatedLessons: [Lesson] = []
-    var relatedStudent: Student?
-    var workModelNotes: [Note] = []
-    var relatedPresentation: LessonAssignment?
-    var relatedLessonAssignments: [LessonAssignment] = []
+    var work: CDWorkModel?
+    var relatedLesson: CDLesson?
+    var relatedLessons: [CDLesson] = []
+    var relatedStudent: CDStudent?
+    var workModelNotes: [CDNote] = []
+    var relatedPresentation: CDLessonAssignment?
+    var relatedLessonAssignments: [CDLessonAssignment] = []
     var resolvedPresentationID: UUID?
     // PERF: Cached UUID parses to avoid repeated UUID(uuidString:) in body-path computed properties
     var resolvedLessonID: UUID?
@@ -23,7 +23,7 @@ final class WorkDetailViewModel {
 
     var showPresentationNotes = false
     var showAddNoteSheet = false
-    var noteBeingEdited: Note?
+    var noteBeingEdited: CDNote?
     var showScheduleSheet = false
     var showPlannedBanner = false
     var showDeleteAlert = false
@@ -31,7 +31,7 @@ final class WorkDetailViewModel {
     var stepBeingEdited: WorkStep?
     var showPracticeSessionSheet = false
     var showUnlockNextLessonAlert = false
-    var nextLessonToUnlock: Lesson?
+    var nextLessonToUnlock: CDLesson?
 
     var status: WorkStatus = .active
     var workKind: WorkKind = .practiceLesson
@@ -46,7 +46,7 @@ final class WorkDetailViewModel {
     
     // MARK: - Dependencies
     private let workID: UUID
-    private var modelContext: ModelContext?
+    private var modelContext: NSManagedObjectContext?
     private var saveCoordinator: SaveCoordinator?
     
     // MARK: - Initialization
@@ -56,13 +56,13 @@ final class WorkDetailViewModel {
 
     // MARK: - Error Handling Helpers
 
-    private func safeFetch<T>(
-        _ descriptor: FetchDescriptor<T>,
-        context: ModelContext,
+    private func safeFetch<T: NSManagedObject>(
+        _ request: NSFetchRequest<T>,
+        context: NSManagedObjectContext,
         functionName: String = #function
     ) -> [T] {
         do {
-            return try context.fetch(descriptor)
+            return try context.fetch(request)
         } catch {
             Self.logger.warning("\(functionName): Failed to fetch \(T.self): \(error)")
             return []
@@ -70,12 +70,12 @@ final class WorkDetailViewModel {
     }
 
     // MARK: - Computed Properties
-    func scheduleDates(checkIns: [WorkCheckIn]) -> WorkScheduleDates {
+    func scheduleDates(checkIns: [CDWorkCheckIn]) -> WorkScheduleDates {
         WorkScheduleDateLogic.compute(forCheckIns: checkIns)
     }
     
     // PERF: Uses pre-fetched relatedLessons (same subject+group) instead of all lessons
-    func likelyNextLesson() -> Lesson? {
+    func likelyNextLesson() -> CDLesson? {
         guard let currentLesson = relatedLesson else { return nil }
         return PlanNextLessonService.findNextLesson(
             after: currentLesson,
@@ -83,25 +83,24 @@ final class WorkDetailViewModel {
         )
     }
     
-    func practiceSessions(allSessions: [PracticeSession]) -> [PracticeSession] {
+    func practiceSessions(allSessions: [CDPracticeSession]) -> [CDPracticeSession] {
         guard let work else { return [] }
+        let workIDString = (work.id ?? UUID()).uuidString
         return allSessions
-            .filter { $0.workItemIDs.contains(work.id.uuidString) }
-            .sorted { $0.date > $1.date }
+            .filter { $0.workItemIDsArray.contains(workIDString) }
+            .sorted { ($0.date ?? Date.distantPast) > ($1.date ?? Date.distantPast) }
     }
     
     // MARK: - Data Loading
-    func loadWork(modelContext: ModelContext, saveCoordinator: SaveCoordinator) {
+    func loadWork(modelContext: NSManagedObjectContext, saveCoordinator: SaveCoordinator) {
         self.modelContext = modelContext
         self.saveCoordinator = saveCoordinator
         
-        let descriptor = FetchDescriptor<WorkModel>(
-            predicate: #Predicate<WorkModel> { work in
-                work.id == workID
-            }
-        )
-        
-        let fetchedWork = safeFetch(descriptor, context: modelContext).first
+        let request = CDFetchRequest(CDWorkModel.self)
+        request.predicate = NSPredicate(format: "id == %@", workID as CVarArg)
+        request.fetchLimit = 1
+
+        let fetchedWork = safeFetch(request, context: modelContext).first
         guard let fetchedWork else {
             return
         }
@@ -121,44 +120,41 @@ final class WorkDetailViewModel {
         resolvePresentationID(for: fetchedWork, modelContext: modelContext)
     }
     
-    private func loadRelatedData(for workModel: WorkModel?, modelContext: ModelContext) {
+    private func loadRelatedData(for workModel: CDWorkModel?, modelContext: NSManagedObjectContext) {
         guard let workModel else { return }
         
         // Load student
         if let studentID = UUID(uuidString: workModel.studentID) {
-            let studentDescriptor = FetchDescriptor<Student>(
-                predicate: #Predicate<Student> { $0.id == studentID }
-            )
-            relatedStudent = safeFetch(studentDescriptor, context: modelContext).first
+            let studentRequest = CDFetchRequest(CDStudent.self)
+            studentRequest.predicate = NSPredicate(format: "id == %@", studentID as CVarArg)
+            studentRequest.fetchLimit = 1
+            relatedStudent = safeFetch(studentRequest, context: modelContext).first
         }
-        
+
         // Load lesson
         if let lessonID = UUID(uuidString: workModel.lessonID) {
-            let lessonDescriptor = FetchDescriptor<Lesson>(
-                predicate: #Predicate<Lesson> { $0.id == lessonID }
-            )
-            relatedLesson = safeFetch(lessonDescriptor, context: modelContext).first
+            let lessonRequest = CDFetchRequest(CDLesson.self)
+            lessonRequest.predicate = NSPredicate(format: "id == %@", lessonID as CVarArg)
+            lessonRequest.fetchLimit = 1
+            relatedLesson = safeFetch(lessonRequest, context: modelContext).first
         }
-        
+
         // Load related lessons
         if let currentLesson = relatedLesson {
             let subject = currentLesson.subject.trimmed()
             let group = currentLesson.group.trimmed()
-            
-            let descriptor = FetchDescriptor<Lesson>(
-                predicate: #Predicate<Lesson> { lesson in
-                    lesson.subject.contains(subject) && lesson.group.contains(group)
-                }
-            )
-            relatedLessons = safeFetch(descriptor, context: modelContext)
+
+            let lessonRequest = CDFetchRequest(CDLesson.self)
+            lessonRequest.predicate = NSPredicate(format: "subject CONTAINS %@ AND group CONTAINS %@", subject, group)
+            relatedLessons = safeFetch(lessonRequest, context: modelContext)
         }
-        
+
         // PERF: Load only lesson assignments for lessons in the same subject+group
         // instead of loading all LessonAssignments via @Query
         if !relatedLessons.isEmpty {
-            let relatedLessonIDs = Set(relatedLessons.map { $0.id.uuidString })
-            let allLADescriptor = FetchDescriptor<LessonAssignment>()
-            let allLAs = safeFetch(allLADescriptor, context: modelContext)
+            let relatedLessonIDs = Set(relatedLessons.compactMap { $0.id?.uuidString })
+            let allLARequest = CDFetchRequest(CDLessonAssignment.self)
+            let allLAs = safeFetch(allLARequest, context: modelContext)
             relatedLessonAssignments = allLAs.filter { la in
                 relatedLessonIDs.contains(la.lessonID)
             }
@@ -168,12 +164,13 @@ final class WorkDetailViewModel {
         relatedPresentation = workModel.fetchPresentation(from: modelContext)
     }
     
-    private func loadWorkNotes(for workModel: WorkModel?) {
+    private func loadWorkNotes(for workModel: CDWorkModel?) {
         guard let workModel else { return }
-        workModelNotes = workModel.unifiedNotes?.sorted { $0.createdAt > $1.createdAt } ?? []
+        workModelNotes = ((workModel.unifiedNotes?.allObjects as? [CDNote]) ?? [])
+            .sorted { ($0.createdAt ?? Date.distantPast) > ($1.createdAt ?? Date.distantPast) }
     }
     
-    private func resolvePresentationID(for workModel: WorkModel?, modelContext: ModelContext) {
+    private func resolvePresentationID(for workModel: CDWorkModel?, modelContext: NSManagedObjectContext) {
         guard let workModel else { return }
         
         if let presentationIDString = workModel.presentationID,
@@ -206,34 +203,33 @@ final class WorkDetailViewModel {
         }
     }
 
-    func unlockNextLesson(modelContext: ModelContext) {
+    func unlockNextLesson(modelContext: NSManagedObjectContext) {
         guard let lesson = relatedLesson,
               let studentIDString = work?.studentID,
               let studentID = UUID(uuidString: studentIDString) else { return }
 
         _ = UnlockNextLessonService.unlockNextLesson(
-            after: lesson.id,
+            after: lesson.id ?? UUID(),
             for: Set([studentID]),
-            modelContext: modelContext,
+            context: modelContext,
             lessons: relatedLessons,
-            lessonAssignments: relatedLessonAssignments
+            cdAssignments: relatedLessonAssignments
         )
 
         showScheduleSheet = true
     }
     
-    func addPlan(modelContext: ModelContext) {
+    func addPlan(modelContext: NSManagedObjectContext) {
         guard let work else { return }
-        
-        let checkIn = WorkCheckIn(
-            id: UUID(),
-            workID: work.id,
-            date: newPlanDate,
-            status: .scheduled,
-            purpose: newPlanPurpose
-        )
 
-        modelContext.insert(checkIn)
+        let checkIn = CDWorkCheckIn(context: modelContext)
+        checkIn.id = UUID()
+        checkIn.workID = work.id?.uuidString ?? ""
+        checkIn.date = newPlanDate
+        checkIn.status = .scheduled
+        checkIn.purpose = newPlanPurpose
+        checkIn.work = work
+
         let trimmedNote = newPlanNote.trimmed()
         if !trimmedNote.isEmpty {
             checkIn.setLegacyNoteText(trimmedNote, in: modelContext)
@@ -241,7 +237,7 @@ final class WorkDetailViewModel {
         showPlannedBanner = true
     }
     
-    func save(modelContext: ModelContext, saveCoordinator: SaveCoordinator) {
+    func save(modelContext: NSManagedObjectContext, saveCoordinator: SaveCoordinator) {
         guard let work else { return }
         
         work.status = status
@@ -253,7 +249,7 @@ final class WorkDetailViewModel {
         saveCoordinator.save(modelContext)
     }
     
-    func deleteWork(modelContext: ModelContext, saveCoordinator: SaveCoordinator, onDeleted: @escaping () -> Void) {
+    func deleteWork(modelContext: NSManagedObjectContext, saveCoordinator: SaveCoordinator, onDeleted: @escaping () -> Void) {
         guard let work else { return }
         
         modelContext.delete(work)

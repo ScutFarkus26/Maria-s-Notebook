@@ -113,7 +113,7 @@ extension CloudBackupService {
         } catch {
             let name = fileURL.lastPathComponent
             let desc = error.localizedDescription
-            Self.logger.warning("Resource values failed for \(name, privacy: .public): \(desc, privacy: .public)")
+            Self.logger.warning("CDResource values failed for \(name, privacy: .public): \(desc, privacy: .public)")
             return nil
         }
 

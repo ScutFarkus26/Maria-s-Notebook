@@ -6,13 +6,14 @@
 //
 
 import SwiftUI
+import CoreData
 
 // MARK: - Parent Summary Sheet
 
 struct ParentSummarySheet: View {
     @Environment(\.dismiss) private var dismiss
     let summary: String
-    let student: Student
+    let student: CDStudent
 
     var body: some View {
         NavigationStack {

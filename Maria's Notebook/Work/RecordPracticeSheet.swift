@@ -4,18 +4,18 @@
 
 import OSLog
 import SwiftUI
-import SwiftData
+import CoreData
 
 struct RecordPracticeSheet: View {
     static let logger = Logger.work
 
     @Environment(\.dismiss) var dismiss
-    @Environment(\.modelContext) var modelContext
+    @Environment(\.managedObjectContext) var viewContext
 
-    @Query private var allStudentsRaw: [Student]
-    var allStudents: [Student] { allStudentsRaw.filter(\.isEnrolled) }
-    @Query var allLessons: [Lesson]
-    @Query private var allWork: [WorkModel]
+    @FetchRequest(sortDescriptors: []) private var allStudentsRaw: FetchedResults<CDStudent>
+    var allStudents: [CDStudent] { allStudentsRaw.filter(\.isEnrolled) }
+    @FetchRequest(sortDescriptors: []) var allLessons: FetchedResults<CDLesson>
+    @FetchRequest(sortDescriptors: []) private var allWork: FetchedResults<CDWorkModel>
 
     // Lesson selection
     @State var lessonPickerVM = LessonPickerViewModel()
@@ -85,24 +85,24 @@ struct RecordPracticeSheet: View {
 
     /// IDs of students who have open practice work (for chip display)
     var practiceStudentIDs: Set<UUID> {
-        Set(studentsWithOpenWork.map { $0.student.id })
+        Set(studentsWithOpenWork.compactMap { $0.student.id })
     }
 
     /// All chip-visible students: those with open work + manually added
     var chipStudents: [Student] {
         let ids = practiceStudentIDs.union(manuallyAddedStudentIDs)
         return allStudents
-            .filter { ids.contains($0.id) }
+            .filter { guard let sid = $0.id else { return false }; return ids.contains(sid) }
             .sorted { $0.firstName < $1.firstName }
     }
 
     /// Students matching the search query (excluding those already shown as chips)
     var searchResults: [Student] {
         guard !studentSearchText.isEmpty else { return [] }
-        let chipIDs = Set(chipStudents.map(\.id))
+        let chipIDs = Set(chipStudents.compactMap(\.id))
         let query = studentSearchText.lowercased()
         return allStudents
-            .filter { !chipIDs.contains($0.id) }
+            .filter { guard let sid = $0.id else { return false }; return !chipIDs.contains(sid) }
             .filter {
                 $0.firstName.lowercased().contains(query) ||
                 $0.lastName.lowercased().contains(query)
@@ -162,7 +162,7 @@ struct RecordPracticeSheet: View {
                 }
             }
             .onAppear {
-                lessonPickerVM.configure(lessons: allLessons, students: allStudents)
+                lessonPickerVM.configure(lessons: Array(allLessons), students: Array(allStudents))
             }
             .onChange(of: lessonPickerVM.selectedLessonID) { _, _ in
                 // Pre-select all students with open practice work for this lesson

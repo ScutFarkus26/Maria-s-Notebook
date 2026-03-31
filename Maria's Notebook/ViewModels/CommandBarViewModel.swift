@@ -2,7 +2,7 @@
 // ViewModel for the natural language command bar
 
 import Foundation
-import SwiftData
+import CoreData
 import OSLog
 
 @Observable
@@ -84,10 +84,10 @@ final class CommandBarViewModel {
     }
 
     /// Build a CommandAction from the parsed command, creating any necessary
-    /// SwiftData objects (like presentation drafts) using the provided context.
+    /// Core Data objects (like presentation drafts) using the provided context.
     func buildAction(
         from command: ParsedCommand,
-        modelContext: ModelContext
+        modelContext: NSManagedObjectContext
     ) -> CommandAction {
         switch command.intent {
         case .recordPresentation:
@@ -102,7 +102,7 @@ final class CommandBarViewModel {
             } catch {
                 Self.logger.warning("Failed to save presentation draft: \(error)")
             }
-            return .openPresentation(draftID: draft.id)
+            return .openPresentation(draftID: draft.id ?? UUID())
 
         case .assignWork:
             return .openWorkItem(

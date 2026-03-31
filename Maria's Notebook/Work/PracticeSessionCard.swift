@@ -1,14 +1,16 @@
 import SwiftUI
-import SwiftData
+import CoreData
 
 /// Display card for a practice session
 struct PracticeSessionCard: View {
     let session: PracticeSession
     let displayMode: DisplayMode
     var onTap: (() -> Void)?
-    
-    @Query var allStudents: [Student]
-    @Query var allWork: [WorkModel]
+
+    @FetchRequest(sortDescriptors: [NSSortDescriptor(keyPath: \CDStudent.firstName, ascending: true)])
+    var allStudents: FetchedResults<CDStudent>
+    @FetchRequest(sortDescriptors: [NSSortDescriptor(keyPath: \CDWorkModel.createdAt, ascending: false)])
+    var allWork: FetchedResults<CDWorkModel>
     
     enum DisplayMode {
         case compact    // Minimal display
@@ -18,13 +20,13 @@ struct PracticeSessionCard: View {
     
     var students: [Student] {
         allStudents.filter { student in
-            session.studentIDs.contains(student.id.uuidString)
+            session.studentIDsArray.contains(student.id?.uuidString ?? "")
         }.sorted { $0.firstName < $1.firstName }
     }
-    
+
     var workItems: [WorkModel] {
         allWork.filter { work in
-            session.workItemIDs.contains(work.id.uuidString)
+            session.workItemIDsArray.contains(work.id?.uuidString ?? "")
         }
     }
     
@@ -57,84 +59,47 @@ struct PracticeSessionCard: View {
 // MARK: - Preview
 
 #Preview("Practice Session Cards") {
-    let config = ModelConfiguration(isStoredInMemoryOnly: true)
-    let container: ModelContainer
-    do {
-        container = try ModelContainer(for: AppSchema.schema, configurations: config)
-    } catch {
-        fatalError("Preview ModelContainer failed: \(error)")
-    }
-    let context = container.mainContext
+    let stack = CoreDataStack.preview
+    let ctx = stack.viewContext
 
-    // Create sample students
-    let mary = Student(firstName: "Mary", lastName: "Smith", birthday: Date(), level: .lower)
-    let danny = Student(firstName: "Danny", lastName: "Jones", birthday: Date(), level: .lower)
-    
-    context.insert(mary)
-    context.insert(danny)
-    
-    // Create sample lesson
-    let lesson = Lesson()
+    let mary = Student(context: ctx)
+    mary.firstName = "Mary"; mary.lastName = "Smith"; mary.birthday = Date(); mary.level = .lower
+    let danny = Student(context: ctx)
+    danny.firstName = "Danny"; danny.lastName = "Jones"; danny.birthday = Date(); danny.level = .lower
+
+    let lesson = Lesson(context: ctx)
     lesson.name = "Long Division"
-    context.insert(lesson)
-    
-    // Create sample work
-    let work1 = WorkModel(
-        title: "Practice Long Division",
-        studentID: danny.id.uuidString,
-        lessonID: lesson.id.uuidString
-    )
-    let work2 = WorkModel(
-        title: "Practice Long Division",
-        studentID: mary.id.uuidString,
-        lessonID: lesson.id.uuidString
-    )
-    
-    context.insert(work1)
-    context.insert(work2)
-    
-    // Create sample sessions
-    let groupSession = PracticeSession(
-        date: Date(),
-        duration: 1800, // 30 minutes
-        studentIDs: [danny.id.uuidString, mary.id.uuidString],
-        workItemIDs: [work1.id.uuidString, work2.id.uuidString],
-        sharedNotes: "Both students struggled with remainders but showed improvement " +
-            "by the end. Need more practice with manipulatives.",
-        location: "Small table"
-    )
-    
-    let soloSession = PracticeSession(
-        date: Date().addingTimeInterval(-86400), // Yesterday
-        duration: 900, // 15 minutes
-        studentIDs: [danny.id.uuidString],
-        workItemIDs: [work1.id.uuidString],
-        sharedNotes: "Quick review session. Danny is getting better!",
-        location: nil
-    )
-    
-    context.insert(groupSession)
-    context.insert(soloSession)
-    
+
+    let work1 = WorkModel(context: ctx)
+    work1.title = "Practice Long Division"; work1.studentID = danny.id?.uuidString ?? ""; work1.lessonID = lesson.id?.uuidString ?? ""
+    let work2 = WorkModel(context: ctx)
+    work2.title = "Practice Long Division"; work2.studentID = mary.id?.uuidString ?? ""; work2.lessonID = lesson.id?.uuidString ?? ""
+
+    let groupSession = PracticeSession(context: ctx)
+    groupSession.date = Date(); groupSession.duration = 1800
+    groupSession.studentIDsArray = [danny.id?.uuidString ?? "", mary.id?.uuidString ?? ""]
+    groupSession.workItemIDsArray = [work1.id?.uuidString ?? "", work2.id?.uuidString ?? ""]
+    groupSession.sharedNotes = "Both students struggled with remainders but showed improvement by the end."
+    groupSession.location = "Small table"
+
+    let soloSession = PracticeSession(context: ctx)
+    soloSession.date = Date().addingTimeInterval(-86400); soloSession.duration = 900
+    soloSession.studentIDsArray = [danny.id?.uuidString ?? ""]
+    soloSession.workItemIDsArray = [work1.id?.uuidString ?? ""]
+    soloSession.sharedNotes = "Quick review session. Danny is getting better!"
+
     return ScrollView {
         VStack(spacing: 20) {
-            Text("Compact")
-                .font(.headline)
+            Text("Compact").font(.headline)
             PracticeSessionCard(session: groupSession, displayMode: .compact)
-            
-            Text("Standard")
-                .font(.headline)
+            Text("Standard").font(.headline)
             PracticeSessionCard(session: groupSession, displayMode: .standard)
-            
-            Text("Expanded")
-                .font(.headline)
+            Text("Expanded").font(.headline)
             PracticeSessionCard(session: groupSession, displayMode: .expanded)
-            
-            Text("Solo Session")
-                .font(.headline)
+            Text("Solo Session").font(.headline)
             PracticeSessionCard(session: soloSession, displayMode: .standard)
         }
         .padding()
     }
-    .modelContainer(container)
+    .previewEnvironment(using: stack)
 }

@@ -1,21 +1,21 @@
 import SwiftUI
-import SwiftData
+import CoreData
 
 // MARK: - Queue Sidebar (Separate View)
 
 struct MeetingsQueueSidebar: View {
-    let studentsNeedingMeeting: [Student]
-    let studentsCompleted: [Student]
+    let studentsNeedingMeeting: [CDStudent]
+    let studentsCompleted: [CDStudent]
     @Binding var selectedStudentID: UUID?
     @Binding var searchText: String
     @Binding var showCompletedThisWeek: Bool
     @Binding var daysSinceThreshold: Int
     @Binding var selectedAgeRanges: Set<AgeRange>
-    let lastMeetingFor: (Student) -> StudentMeeting?
+    let lastMeetingFor: (CDStudent) -> CDStudentMeeting?
     let onMove: (IndexSet, Int) -> Void
     var scheduledMeetingDates: [UUID: Date] = [:]
-    var onScheduleMeeting: ((Student, Date?) -> Void)?
-    var onPickMeetingDate: ((Student) -> Void)?
+    var onScheduleMeeting: ((CDStudent, Date?) -> Void)?
+    var onPickMeetingDate: ((CDStudent) -> Void)?
 
     var body: some View {
         List(selection: $selectedStudentID) {
@@ -32,7 +32,7 @@ struct MeetingsQueueSidebar: View {
                         lastMeeting: lastMeetingFor(student),
                         isSelected: selectedStudentID == student.id,
                         showCheckmark: false,
-                        scheduledDate: scheduledMeetingDates[student.id]
+                        scheduledDate: student.id.flatMap { scheduledMeetingDates[$0] }
                     )
                     .tag(student.id)
                     .contextMenu {
@@ -50,7 +50,7 @@ struct MeetingsQueueSidebar: View {
                             lastMeeting: lastMeetingFor(student),
                             isSelected: selectedStudentID == student.id,
                             showCheckmark: true,
-                            scheduledDate: scheduledMeetingDates[student.id]
+                            scheduledDate: student.id.flatMap { scheduledMeetingDates[$0] }
                         )
                         .tag(student.id)
                         .contextMenu {
@@ -77,8 +77,8 @@ struct MeetingsQueueSidebar: View {
     // MARK: - Schedule Meeting Context Menu
 
     @ViewBuilder
-    private func scheduleMeetingMenu(for student: Student) -> some View {
-        let scheduledDate = scheduledMeetingDates[student.id]
+    private func scheduleMeetingMenu(for student: CDStudent) -> some View {
+        let scheduledDate = student.id.flatMap { scheduledMeetingDates[$0] }
 
         Button {
             selectedStudentID = student.id
@@ -270,24 +270,25 @@ struct MeetingThresholdPicker: View {
     }
 }
 
-// MARK: - Student Queue Row
+// MARK: - CDStudent Queue Row
 
 struct StudentQueueRow: View {
-    let student: Student
-    let lastMeeting: StudentMeeting?
+    let student: CDStudent
+    let lastMeeting: CDStudentMeeting?
     var isSelected: Bool = false
     var showCheckmark: Bool = false
     var scheduledDate: Date?
 
-    @Environment(\.modelContext) private var modelContext
+    @Environment(\.managedObjectContext) private var viewContext
 
     private var daysSinceLastMeeting: Int? {
         guard let lastMeeting else { return nil }
-        return Calendar.current.dateComponents([.day], from: lastMeeting.date, to: Date()).day
+        return Calendar.current.dateComponents([.day], from: lastMeeting.date ?? Date(), to: Date()).day
     }
 
     private var isAbsentToday: Bool {
-        modelContext.attendanceStatus(for: student.id, on: Date()) == .absent
+        guard let studentID = student.id else { return false }
+        return viewContext.attendanceStatus(for: studentID, on: Date()) == .absent
     }
 
     var body: some View {

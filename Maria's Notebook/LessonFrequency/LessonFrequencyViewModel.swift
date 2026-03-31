@@ -1,9 +1,9 @@
 // LessonFrequencyViewModel.swift
-// ViewModel for the Lesson Frequency Dashboard — loads per-student weekly lesson counts
+// ViewModel for the CDLesson Frequency Dashboard — loads per-student weekly lesson counts
 // and highlights students below the AMI target of 5–7 lessons per week.
 
 import Foundation
-import SwiftData
+import CoreData
 import OSLog
 
 @Observable
@@ -81,7 +81,7 @@ final class LessonFrequencyViewModel {
 
     // MARK: - Data Loading
 
-    func loadData(context: ModelContext) {
+    func loadData(context: NSManagedObjectContext) {
         isLoading = true
         defer { isLoading = false }
 
@@ -97,9 +97,9 @@ final class LessonFrequencyViewModel {
         )
 
         // 3. Fetch all students, filter visible
-        let allStudents = context.safeFetch(
-            FetchDescriptor<Student>(sortBy: Student.sortByName)
-        ).filter(\.isEnrolled)
+        let studentRequest: NSFetchRequest<CDStudent> = CDFetchRequest()
+        studentRequest.sortDescriptors = CDStudent.sortByName
+        let allStudents = context.safeFetch(studentRequest).filter(\.isEnrolled)
         let visibleStudents = TestStudentsFilter.filterVisible(allStudents)
 
         // 4. Group records by studentID
@@ -108,14 +108,15 @@ final class LessonFrequencyViewModel {
         // 5. Build cards — include students with 0 lessons
         var cards: [StudentFrequencyCard] = []
         for student in visibleStudents {
-            let studentRecords = recordsByStudent[student.id.uuidString] ?? []
+            let studentID = student.id ?? UUID()
+            let studentRecords = recordsByStudent[studentID.uuidString] ?? []
             let subjectGroups = Dictionary(grouping: studentRecords) { $0.subject }
             let breakdown = subjectGroups.map {
                 SubjectCount(subject: $0.key, count: $0.value.count)
             }.sorted { $0.count > $1.count }
 
             cards.append(StudentFrequencyCard(
-                id: student.id,
+                id: studentID,
                 firstName: student.firstName,
                 lastName: student.lastName,
                 nickname: student.nickname,

@@ -1,6 +1,5 @@
 import Foundation
 import CoreData
-import SwiftData
 import OSLog
 
 // MARK: - Relationship Backfill Service
@@ -86,19 +85,5 @@ enum RelationshipBackfillService {
         }
     }
 
-    // MARK: - Deprecated SwiftData Bridge
-
-    @available(*, deprecated, message: "Pass NSManagedObjectContext instead of ModelContext")
-    @MainActor
-    static func backfillWorkCompletionRecords(using modelContext: ModelContext) {
-        let cdContext = AppBootstrapping.getSharedCoreDataStack().viewContext
-        backfillWorkCompletionRecords(using: cdContext)
-    }
-
-    @available(*, deprecated, message: "Pass NSManagedObjectContext instead of ModelContext")
-    @MainActor
-    static func migrateWorkTypeToKind(using modelContext: ModelContext) {
-        let cdContext = AppBootstrapping.getSharedCoreDataStack().viewContext
-        migrateWorkTypeToKind(using: cdContext)
-    }
+    // Deprecated ModelContext bridge methods removed - no longer needed with Core Data.
 }

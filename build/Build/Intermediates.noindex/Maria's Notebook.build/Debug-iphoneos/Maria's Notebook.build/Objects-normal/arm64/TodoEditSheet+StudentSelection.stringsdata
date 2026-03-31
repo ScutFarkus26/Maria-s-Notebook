@@ -1,0 +1,32 @@
+{
+  "source": "/Users/dannydeberry/Documents/Projects/MariasNotebook-Rewrite/Maria's Notebook/Components/TodoEditSheet+StudentSelection.swift",
+  "tables": {
+    "Localizable": [
+      {
+        "comment": "",
+        "key": "No students available",
+        "location": {
+          "startingColumn": 14,
+          "startingLine": 59
+        }
+      },
+      {
+        "comment": "",
+        "key": "Assigned To",
+        "location": {
+          "startingColumn": 18,
+          "startingLine": 23
+        }
+      },
+      {
+        "comment": "",
+        "key": "Suggest",
+        "location": {
+          "startingColumn": 26,
+          "startingLine": 47
+        }
+      }
+    ]
+  },
+  "version": 1
+}

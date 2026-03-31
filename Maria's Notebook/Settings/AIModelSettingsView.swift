@@ -77,7 +77,7 @@ enum AIFeatureArea: String, CaseIterable, Identifiable {
     var displayName: String {
         switch self {
         case .chat: return "Ask AI"
-        case .lessonPlanning: return "Lesson Planning"
+        case .lessonPlanning: return "CDLesson Planning"
         case .backgroundTasks: return "Background Tasks"
         }
     }
@@ -86,7 +86,7 @@ enum AIFeatureArea: String, CaseIterable, Identifiable {
         switch self {
         case .chat: return "Conversational classroom assistant"
         case .lessonPlanning: return "Curriculum planning recommendations"
-        case .backgroundTasks: return "Note suggestions, drafting, and data analysis"
+        case .backgroundTasks: return "CDNote suggestions, drafting, and data analysis"
         }
     }
 

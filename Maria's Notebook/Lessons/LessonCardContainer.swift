@@ -1,4 +1,5 @@
 import SwiftUI
+import CoreData
 
 struct LessonItemFramePreference: PreferenceKey {
     nonisolated(unsafe) static var defaultValue: [UUID: CGRect] = [:]
@@ -8,7 +9,7 @@ struct LessonItemFramePreference: PreferenceKey {
 }
 
 struct LessonCardContainer: View {
-    let lesson: Lesson
+    let lesson: CDLesson
     let isDragging: Bool
     let isHover: Bool
     let isSelected: Bool
@@ -27,16 +28,18 @@ struct LessonCardContainer: View {
             lastPresentedDate: lastPresentedDate
         )
 
-        Group {
+        let baseView = Group {
             if shouldUseMatchedGeometry {
                 card.matchedGeometryEffect(id: lesson.id, in: gridNamespace)
             } else {
                 card
             }
         }
-            .when(hasAppeared) { view in
-                view.transition(.opacity.combined(with: .scale(scale: 0.98)))
-            }
+        .when(hasAppeared) { view in
+            view.transition(.opacity.combined(with: .scale(scale: 0.98)))
+        }
+
+        let overlaidView = baseView
             .overlay(
                 RoundedRectangle(cornerRadius: 14)
                     .stroke(
@@ -55,6 +58,8 @@ struct LessonCardContainer: View {
                 RoundedRectangle(cornerRadius: 14)
                     .stroke(isSelected ? Color.accentColor : Color.clear, lineWidth: 3)
             )
+
+        overlaidView
             .transaction { tx in
                 if disableAnimations { tx.animation = nil }
             }
@@ -65,7 +70,7 @@ struct LessonCardContainer: View {
                         GeometryReader { proxy in
                             Color.clear.preference(
                                 key: LessonItemFramePreference.self,
-                                value: [lesson.id: proxy.frame(in: .named("lessonsGridScroll"))]
+                                value: [lesson.id ?? UUID(): proxy.frame(in: .named("lessonsGridScroll"))]
                             )
                         }
                     }

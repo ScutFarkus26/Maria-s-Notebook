@@ -2,16 +2,16 @@
 // Inbox section extracted from PresentationsView
 
 import SwiftUI
-import SwiftData
+import CoreData
 import UniformTypeIdentifiers
 import OSLog
 
 struct PresentationsInboxView: View {
     private static let logger = Logger.presentations
-    let readyLessons: [LessonAssignment]
-    let blockedLessons: [LessonAssignment]
-    let getBlockingWork: (LessonAssignment) -> [UUID: WorkModel]
-    let filteredSnapshot: (LessonAssignment) -> LessonAssignmentSnapshot
+    let readyLessons: [CDLessonAssignment]
+    let blockedLessons: [CDLessonAssignment]
+    let getBlockingWork: (CDLessonAssignment) -> [UUID: CDWorkModel]
+    let filteredSnapshot: (CDLessonAssignment) -> LessonAssignmentSnapshot
     let missWindow: PresentationsMissWindow
     @Binding var missWindowRaw: String
     
@@ -19,8 +19,8 @@ struct PresentationsInboxView: View {
     let coordinator: PresentationsCoordinator
 
     // Pass cached data from parent to avoid duplicate queries
-    let cachedLessons: [Lesson]
-    let cachedStudents: [Student]
+    let cachedLessons: [CDLesson]
+    let cachedStudents: [CDStudent]
 
     // Days since last lesson for each student (for Students section)
     let daysSinceLastLessonByStudent: [UUID: Int]
@@ -31,10 +31,10 @@ struct PresentationsInboxView: View {
     // Open work count per student (fewer = needs a presentation sooner)
     let openWorkCountByStudent: [UUID: Int]
 
-    @Environment(\.modelContext) private var modelContext
+    @Environment(\.managedObjectContext) private var viewContext
     @Environment(\.calendar) private var calendar
 
-    @Query var lessonAssignments: [LessonAssignment]
+    @FetchRequest(sortDescriptors: []) var lessonAssignments: FetchedResults<CDLessonAssignment>
 
     @State var searchText: String = ""
     @State var debouncedSearchText: String = ""
@@ -47,30 +47,30 @@ struct PresentationsInboxView: View {
 
     // OPTIMIZATION: Cache dictionary lookups to avoid rebuilding on every access
     // These are recomputed only when the underlying cached data changes
-    @State var cachedLessonsByID: [UUID: Lesson] = [:]
-    @State var cachedStudentsByID: [UUID: Student] = [:]
+    @State var cachedLessonsByID: [UUID: CDLesson] = [:]
+    @State var cachedStudentsByID: [UUID: CDStudent] = [:]
     
     // MODERN: Computed properties with automatic dependency tracking
     // SwiftUI automatically recomputes these when their dependencies change
     
     /// Fast lookup dictionary for lessons - uses cached value
-    var lessonsByID: [UUID: Lesson] {
+    var lessonsByID: [UUID: CDLesson] {
         cachedLessonsByID
     }
 
     /// Fast lookup dictionary for students - uses cached value
-    var studentsByID: [UUID: Student] {
+    var studentsByID: [UUID: CDStudent] {
         cachedStudentsByID
     }
 
     /// Lessons filtered by selected student (if any) - automatically updates
-    var studentFilteredReadyLessons: [LessonAssignment] {
+    var studentFilteredReadyLessons: [CDLessonAssignment] {
         guard let studentID = coordinator.selectedStudentFilter else { return readyLessons }
         let studentIDString = studentID.uuidString
         return readyLessons.filter { $0.studentIDs.contains(studentIDString) }
     }
     
-    var studentFilteredBlockedLessons: [LessonAssignment] {
+    var studentFilteredBlockedLessons: [CDLessonAssignment] {
         guard let studentID = coordinator.selectedStudentFilter else { return blockedLessons }
         let studentIDString = studentID.uuidString
         return blockedLessons.filter { $0.studentIDs.contains(studentIDString) }
@@ -227,21 +227,21 @@ struct PresentationsInboxView: View {
                   let la = lessonAssignments.first(where: { $0.id == id }),
                   la.scheduledFor != nil else { return false }
             la.unschedule()
-            modelContext.safeSave()
+            viewContext.safeSave()
             return true
         } isTargeted: { targeted in
             adaptiveWithAnimation { coordinator.setInboxTargeted(targeted) }
         }
         .onChange(of: cachedLessons) { _, newLessons in
-            cachedLessonsByID = Dictionary(newLessons.map { ($0.id, $0) }, uniquingKeysWith: { first, _ in first })
+            cachedLessonsByID = Dictionary(newLessons.compactMap { guard let id = $0.id else { return nil }; return (id, $0) }, uniquingKeysWith: { first, _ in first })
         }
         .onChange(of: cachedStudents) { _, newStudents in
-            cachedStudentsByID = Dictionary(newStudents.map { ($0.id, $0) }, uniquingKeysWith: { first, _ in first })
+            cachedStudentsByID = Dictionary(newStudents.compactMap { guard let id = $0.id else { return nil }; return (id, $0) }, uniquingKeysWith: { first, _ in first })
         }
         .task {
             // Initialize cached dictionaries on first load
-            cachedLessonsByID = Dictionary(cachedLessons.map { ($0.id, $0) }, uniquingKeysWith: { first, _ in first })
-            cachedStudentsByID = Dictionary(cachedStudents.map { ($0.id, $0) }, uniquingKeysWith: { first, _ in first })
+            cachedLessonsByID = Dictionary(cachedLessons.compactMap { guard let id = $0.id else { return nil }; return (id, $0) }, uniquingKeysWith: { first, _ in first })
+            cachedStudentsByID = Dictionary(cachedStudents.compactMap { guard let id = $0.id else { return nil }; return (id, $0) }, uniquingKeysWith: { first, _ in first })
         }
         .onDisappear {
             suggestDismissTask?.cancel()
@@ -254,15 +254,15 @@ struct PresentationsInboxView: View {
 
 extension PresentationsInboxView {
 
-    func lessonTitle(for la: LessonAssignment, using lookupCache: [UUID: Lesson]) -> String {
+    func lessonTitle(for la: CDLessonAssignment, using lookupCache: [UUID: CDLesson]) -> String {
         if let lesson = lookupCache[uuidString: la.lessonID] {
             let name = lesson.name.trimmed()
             if !name.isEmpty { return name }
         }
-        return "Lesson \(String(la.lessonID.prefix(6)))"
+        return "CDLesson \(String(la.lessonID.prefix(6)))"
     }
 
-    func studentNames(for la: LessonAssignment, using lookupCache: [UUID: Student]) -> String {
+    func studentNames(for la: CDLessonAssignment, using lookupCache: [UUID: CDStudent]) -> String {
         let snapshot = filteredSnapshot(la)
         let names = snapshot.studentIDs.compactMap { id -> String? in
             guard let student = lookupCache[id] else { return nil }
@@ -271,14 +271,14 @@ extension PresentationsInboxView {
         return names.joined(separator: ", ")
     }
 
-    func matchesSearch(_ la: LessonAssignment, query: String) -> Bool {
+    func matchesSearch(_ la: CDLessonAssignment, query: String) -> Bool {
         guard !query.isEmpty else { return true }
         let lessonTitleLower = lessonTitle(for: la, using: lessonsByID).lowercased()
         let studentNamesLower = studentNames(for: la, using: studentsByID).lowercased()
         return lessonTitleLower.contains(query) || studentNamesLower.contains(query)
     }
 
-    func sortedLessons(_ lessons: [LessonAssignment], query: String) -> [LessonAssignment] {
+    func sortedLessons(_ lessons: [CDLessonAssignment], query: String) -> [CDLessonAssignment] {
         let matched = lessons.filter { matchesSearch($0, query: query) }
 
         switch sortMode {
@@ -294,23 +294,23 @@ extension PresentationsInboxView {
             }
         case .age:
             // Sort by creation date (older first)
-            return matched.sorted { $0.createdAt < $1.createdAt }
+            return matched.sorted { ($0.createdAt ?? .distantPast) < ($1.createdAt ?? .distantPast) }
         case .needsAttention:
             // Sort by creation date (older first, as older lessons need more attention)
-            return matched.sorted { $0.createdAt < $1.createdAt }
+            return matched.sorted { ($0.createdAt ?? .distantPast) < ($1.createdAt ?? .distantPast) }
         }
     }
 
     // MARK: - Suggest Next
 
     /// Picks the highest-priority ready lesson based on student need and lesson age.
-    var suggestedNextLesson: LessonAssignment? {
+    var suggestedNextLesson: CDLessonAssignment? {
         let lessons = filteredAndSortedReadyLessons
         guard !lessons.isEmpty else { return nil }
         return lessons.max { suggestScore(for: $0) < suggestScore(for: $1) }
     }
 
-    /// Student IDs that already have a scheduled (but not yet given) lesson
+    /// CDStudent IDs that already have a scheduled (but not yet given) lesson
     private var scheduledStudentIDs: Set<UUID> {
         var ids = Set<UUID>()
         for la in lessonAssignments where la.scheduledFor != nil && !la.isGiven {
@@ -319,7 +319,7 @@ extension PresentationsInboxView {
         return ids
     }
 
-    private func suggestScore(for la: LessonAssignment) -> Double {
+    private func suggestScore(for la: CDLessonAssignment) -> Double {
         let scheduled = scheduledStudentIDs
 
         // Factor 1: Max days since last lesson, only counting students
@@ -330,10 +330,10 @@ extension PresentationsInboxView {
             .max() ?? 0
         let studentScore = Double(min(maxStudentDays, 999))
 
-        // Factor 2: Lesson age in inbox (school days, not calendar days)
+        // Factor 2: CDLesson age in inbox (school days, not calendar days)
         let ageInSchoolDays = Double(LessonAgeHelper.schoolDaysSinceCreation(
-            createdAt: la.createdAt, asOf: Date(),
-            using: modelContext, calendar: calendar
+            createdAt: la.createdAt ?? Date(), asOf: Date(),
+            using: viewContext, calendar: calendar
         ))
 
         // Factor 3: Open work — boost lessons for students with less open work
@@ -358,19 +358,19 @@ extension PresentationsInboxView {
     }
 
     /// Filtered and sorted ready lessons - automatically recomputes when dependencies change
-    var filteredAndSortedReadyLessons: [LessonAssignment] {
+    var filteredAndSortedReadyLessons: [CDLessonAssignment] {
         let trimmedSearch = debouncedSearchText.trimmed().lowercased()
         return sortedLessons(studentFilteredReadyLessons, query: trimmedSearch)
     }
 
     /// Filtered and sorted blocked lessons - automatically recomputes when dependencies change
-    var filteredAndSortedBlockedLessons: [LessonAssignment] {
+    var filteredAndSortedBlockedLessons: [CDLessonAssignment] {
         let trimmedSearch = debouncedSearchText.trimmed().lowercased()
         return sortedLessons(studentFilteredBlockedLessons, query: trimmedSearch)
     }
 
     @ViewBuilder
-    func inboxRow(_ la: LessonAssignment, blockingWork: [UUID: WorkModel] = [:]) -> some View {
+    func inboxRow(_ la: CDLessonAssignment, blockingWork: [UUID: CDWorkModel] = [:]) -> some View {
         HStack(spacing: 0) {
             PresentationPill(
                 snapshot: filteredSnapshot(la),
@@ -384,7 +384,7 @@ extension PresentationsInboxView {
             )
             .onTapGesture { coordinator.showLessonAssignmentDetail(la) }
             .onDrag {
-                let provider = NSItemProvider(object: NSString(string: la.id.uuidString))
+                let provider = NSItemProvider(object: NSString(string: (la.id ?? UUID()).uuidString))
                 provider.suggestedName = lessonsByID[uuidString: la.lessonID]?.name ?? "Lesson"
                 return provider
             }

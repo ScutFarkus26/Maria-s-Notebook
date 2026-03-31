@@ -1,5 +1,5 @@
 import SwiftUI
-import SwiftData
+import CoreData
 import UniformTypeIdentifiers
 import OSLog
 
@@ -7,22 +7,21 @@ import OSLog
 struct LessonAttachmentImporter {
     private static let logger = Logger.lessons
 
-    let modelContext: ModelContext
+    let viewContext: NSManagedObjectContext
     
     /// Suggests lessons that might be related to the given file based on filename analysis
     /// - Parameter fileURL: The URL of the file to import
     /// - Returns: Array of suggested lessons, sorted by relevance
-    func suggestLessons(for fileURL: URL) -> [Lesson] {
+    func suggestLessons(for fileURL: URL) -> [CDLesson] {
         let fileName = fileURL.deletingPathExtension().lastPathComponent
         let searchTerms = extractSearchTerms(from: fileName)
         
-        let descriptor = FetchDescriptor<Lesson>(
-            sortBy: [SortDescriptor(\.sortIndex)]
-        )
+        let descriptor: NSFetchRequest<CDLesson> = NSFetchRequest(entityName: "CDLesson")
+        descriptor.sortDescriptors = [NSSortDescriptor(key: "sortIndex", ascending: true)]
         
-        let allLessons: [Lesson]
+        let allLessons: [CDLesson]
         do {
-            allLessons = try modelContext.fetch(descriptor)
+            allLessons = try viewContext.fetch(descriptor)
         } catch {
             Self.logger.warning("Failed to fetch lessons: \(error)")
             return []
@@ -58,7 +57,7 @@ struct LessonAttachmentImporter {
     }
     
     /// Calculates how relevant a lesson is to the search terms
-    private func calculateRelevanceScore(lesson: Lesson, searchTerms: [String]) -> Int {
+    private func calculateRelevanceScore(lesson: CDLesson, searchTerms: [String]) -> Int {
         var score = 0
         
         let lessonName = lesson.name.lowercased()
@@ -101,14 +100,13 @@ struct LessonAttachmentImporter {
     }
     
     /// Gets recently viewed or modified lessons (placeholder for actual implementation)
-    func getRecentLessons(limit: Int = 5) -> [Lesson] {
-        let descriptor = FetchDescriptor<Lesson>(
-            sortBy: [SortDescriptor(\.sortIndex, order: .reverse)]
-        )
+    func getRecentLessons(limit: Int = 5) -> [CDLesson] {
+        let descriptor: NSFetchRequest<CDLesson> = NSFetchRequest(entityName: "CDLesson")
+        descriptor.sortDescriptors = [NSSortDescriptor(key: "sortIndex", ascending: false)]
         
-        let lessons: [Lesson]
+        let lessons: [CDLesson]
         do {
-            lessons = try modelContext.fetch(descriptor)
+            lessons = try viewContext.fetch(descriptor)
         } catch {
             Self.logger.warning("Failed to fetch lessons: \(error)")
             return []
@@ -123,21 +121,21 @@ struct LessonAttachmentImportSheet: View {
     private static let logger = Logger.lessons
 
     let fileURL: URL
-    let onImport: (Lesson, AttachmentScope) -> Void
+    let onImport: (CDLesson, AttachmentScope) -> Void
     let onCancel: () -> Void
     
-    @Environment(\.modelContext) private var modelContext
-    @State private var selectedLesson: Lesson?
+    @Environment(\.managedObjectContext) private var viewContext
+    @State private var selectedLesson: CDLesson?
     @State private var selectedScope: AttachmentScope = .lesson
     @State private var searchText = ""
-    @State private var suggestedLessons: [Lesson] = []
-    @State private var allLessons: [Lesson] = []
+    @State private var suggestedLessons: [CDLesson] = []
+    @State private var allLessons: [CDLesson] = []
     
     private var importer: LessonAttachmentImporter {
-        LessonAttachmentImporter(modelContext: modelContext)
+        LessonAttachmentImporter(viewContext: viewContext)
     }
     
-    private var filteredLessons: [Lesson] {
+    private var filteredLessons: [CDLesson] {
         if searchText.isEmpty {
             return allLessons
         }
@@ -274,16 +272,15 @@ struct LessonAttachmentImportSheet: View {
         }
         
         // Load all lessons
-        let descriptor = FetchDescriptor<Lesson>(
-            sortBy: [
-                SortDescriptor(\.subject),
-                SortDescriptor(\.group),
-                SortDescriptor(\.orderInGroup)
+        let descriptor: NSFetchRequest<CDLesson> = NSFetchRequest(entityName: "CDLesson")
+        descriptor.sortDescriptors = [
+                NSSortDescriptor(key: "subject", ascending: true),
+                NSSortDescriptor(key: "group", ascending: true),
+                NSSortDescriptor(key: "orderInGroup", ascending: true)
             ]
-        )
         
         do {
-            allLessons = try modelContext.fetch(descriptor)
+            allLessons = try viewContext.fetch(descriptor)
         } catch {
             Self.logger.warning("Failed to fetch lessons: \(error)")
         }
@@ -292,7 +289,7 @@ struct LessonAttachmentImportSheet: View {
 
 /// Row view for lesson selection
 struct LessonSelectionRow: View {
-    let lesson: Lesson
+    let lesson: CDLesson
     let isSelected: Bool
     let onSelect: () -> Void
     
@@ -338,26 +335,10 @@ struct LessonSelectionRow: View {
 }
 
 #Preview("Import Sheet") {
-    let config = ModelConfiguration(isStoredInMemoryOnly: true)
-    let container: ModelContainer
-    do {
-        container = try ModelContainer(for: Lesson.self, configurations: config)
-    } catch {
-        fatalError("Preview ModelContainer failed: \(error)")
-    }
-
-    let lesson1 = Lesson(name: "Introduction to Place Value", subject: "Math", group: "Decimal System")
-    let lesson2 = Lesson(name: "Addition with Golden Beads", subject: "Math", group: "Decimal System")
-    let lesson3 = Lesson(name: "Parts of Speech", subject: "Language", group: "Grammar")
-    
-    container.mainContext.insert(lesson1)
-    container.mainContext.insert(lesson2)
-    container.mainContext.insert(lesson3)
-    
-    return LessonAttachmentImportSheet(
+    LessonAttachmentImportSheet(
         fileURL: URL(fileURLWithPath: "/tmp/Math-Decimal-System-Practice.pdf"),
         onImport: { _, _ in },
         onCancel: {}
     )
-    .modelContainer(container)
+    .previewEnvironment()
 }

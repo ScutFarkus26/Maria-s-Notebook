@@ -1,9 +1,9 @@
 import SwiftUI
-import SwiftData
+import CoreData
 
 /// Sheet for adding a new supply
 struct AddSupplySheet: View {
-    @Environment(\.modelContext) private var modelContext
+    @Environment(\.managedObjectContext) private var viewContext
     @Environment(\.dismiss) private var dismiss
 
     @State private var name: String = ""
@@ -24,7 +24,7 @@ struct AddSupplySheet: View {
             ScrollView {
                 VStack(alignment: .leading, spacing: 20) {
                     // Header
-                    Text("New Supply")
+                    Text("New CDSupply")
                         .font(AppTheme.ScaledFont.titleXLarge)
 
                     // Basic Info Section
@@ -54,7 +54,7 @@ struct AddSupplySheet: View {
             HStack {
                 Button("Cancel") { dismiss() }
                 Spacer()
-                Button("Add Supply") { addSupply() }
+                Button("Add CDSupply") { addSupply() }
                     .buttonStyle(.borderedProminent)
                     .disabled(!isValid)
             }
@@ -77,7 +77,7 @@ struct AddSupplySheet: View {
             Text("Basic Information")
                 .font(.headline)
 
-            TextField("Supply Name", text: $name)
+            TextField("CDSupply Name", text: $name)
                 .textFieldStyle(.roundedBorder)
 
             // Category picker
@@ -235,7 +235,7 @@ struct AddSupplySheet: View {
             reorderAmount: reorderAmount,
             unit: unit.trimmed(),
             notes: notes.trimmed(),
-            in: modelContext
+            in: viewContext
         )
         dismiss()
     }

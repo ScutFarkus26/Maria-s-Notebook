@@ -29,11 +29,11 @@ struct GoingOutSidebarRow: View {
                             .lineLimit(1)
                     }
 
-                    if !goingOut.studentIDs.isEmpty {
+                    if !goingOut.studentIDsArray.isEmpty {
                         Text("·")
                             .font(.caption2)
                             .foregroundStyle(.quaternary)
-                        Text("\(goingOut.studentIDs.count) students")
+                        Text("\(goingOut.studentIDsArray.count) students")
                             .font(.caption2)
                             .foregroundStyle(.tertiary)
                     }

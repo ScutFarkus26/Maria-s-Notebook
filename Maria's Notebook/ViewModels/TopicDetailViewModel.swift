@@ -1,5 +1,5 @@
 import SwiftUI
-@preconcurrency import SwiftData
+@preconcurrency import CoreData
 
 @Observable
 @MainActor
@@ -8,7 +8,7 @@ final class TopicDetailViewModel {
     var isLoading: Bool = false
 
     // Backing model
-    var topic: CommunityTopic?
+    var topic: CDCommunityTopicEntity?
 
     // Lightweight editable fields
     var title: String = ""
@@ -21,9 +21,9 @@ final class TopicDetailViewModel {
     var tagsDraft: String = ""
 
     // Derived lists (loaded lazily)
-    var proposedSolutions: [ProposedSolution] = []
-    var notes: [Note] = []
-    var attachments: [CommunityAttachment] = []
+    var proposedSolutions: [CDProposedSolutionEntity] = []
+    var notes: [CDNote] = []
+    var attachments: [CDCommunityAttachment] = []
 
     // MARK: - Mapping helpers
 
@@ -38,18 +38,18 @@ final class TopicDetailViewModel {
         tags.joined(separator: ", ")
     }
 
-    private func populateFields(from topic: CommunityTopic) {
+    private func populateFields(from topic: CDCommunityTopicEntity) {
         self.title = topic.title
         self.issue = topic.issueDescription
         self.resolution = topic.resolution
         self.raisedBy = topic.raisedBy
-        self.createdAt = topic.createdAt
+        self.createdAt = topic.createdAt ?? Date()
         self.addressed = topic.isResolved
         self.addressedDate = topic.addressedDate ?? Date()
         self.tagsDraft = Self.joinTags(topic.tags)
     }
 
-    private func applyFields(to topic: CommunityTopic) {
+    private func applyFields(to topic: CDCommunityTopicEntity) {
         topic.tags = Self.parseTags(from: tagsDraft)
         topic.title = title
         topic.issueDescription = issue
@@ -59,52 +59,46 @@ final class TopicDetailViewModel {
         topic.addressedDate = addressed ? addressedDate : nil
     }
 
-    // MARK: - Fetch descriptors
+    // MARK: - Fetch request builders
 
-    private static func descriptorForTopic(id: UUID) -> FetchDescriptor<CommunityTopic> {
-        FetchDescriptor<CommunityTopic>(
-            predicate: #Predicate { $0.id == id }
-        )
+    private static func requestForTopic(id: UUID) -> NSFetchRequest<CDCommunityTopicEntity> {
+        let request = CDFetchRequest(CDCommunityTopicEntity.self)
+        request.predicate = NSPredicate(format: "id == %@", id as CVarArg)
+        return request
     }
 
-    private static func descriptorForSolutions(topicID id: UUID) -> FetchDescriptor<ProposedSolution> {
-        FetchDescriptor<ProposedSolution>(
-            predicate: #Predicate { s in
-                s.topic?.id == id
-            },
-            sortBy: [SortDescriptor(\.createdAt, order: .forward)]
-        )
+    private static func requestForSolutions(topicID id: UUID) -> NSFetchRequest<CDProposedSolutionEntity> {
+        let request = CDFetchRequest(CDProposedSolutionEntity.self)
+        request.predicate = NSPredicate(format: "topic.id == %@", id as CVarArg)
+        request.sortDescriptors = [NSSortDescriptor(keyPath: \CDProposedSolutionEntity.createdAt, ascending: true)]
+        return request
     }
 
-    private static func descriptorForNotes(topicID id: UUID) -> FetchDescriptor<Note> {
-        FetchDescriptor<Note>(
-            predicate: #Predicate { n in
-                n.communityTopic?.id == id
-            },
-            sortBy: [SortDescriptor(\.createdAt, order: .forward)]
-        )
+    private static func requestForNotes(topicID id: UUID) -> NSFetchRequest<CDNote> {
+        let request = CDFetchRequest(CDNote.self)
+        request.predicate = NSPredicate(format: "communityTopic.id == %@", id as CVarArg)
+        request.sortDescriptors = [NSSortDescriptor(keyPath: \CDNote.createdAt, ascending: true)]
+        return request
     }
 
-    private static func descriptorForAttachments(topicID id: UUID) -> FetchDescriptor<CommunityAttachment> {
-        FetchDescriptor<CommunityAttachment>(
-            predicate: #Predicate { a in
-                a.topic?.id == id
-            },
-            sortBy: [SortDescriptor(\.createdAt, order: .forward)]
-        )
+    private static func requestForAttachments(topicID id: UUID) -> NSFetchRequest<CDCommunityAttachment> {
+        let request = CDFetchRequest(CDCommunityAttachment.self)
+        request.predicate = NSPredicate(format: "topic.id == %@", id as CVarArg)
+        request.sortDescriptors = [NSSortDescriptor(keyPath: \CDCommunityAttachment.createdAt, ascending: true)]
+        return request
     }
 
-    func load(context: ModelContext, topicID: UUID) async {
-        // ModelContext is not Sendable, but this function is @MainActor isolated
+    func load(context: NSManagedObjectContext, topicID: UUID) async {
+        // NSManagedObjectContext is not Sendable, but this function is @MainActor isolated
         // so it's safe to use the context here
         isLoading = true
         defer { isLoading = false }
 
         do {
             // Fetch the topic by ID
-            var descriptor = Self.descriptorForTopic(id: topicID)
-            descriptor.fetchLimit = 1
-            let topics = try context.fetch(descriptor)
+            let topicRequest = Self.requestForTopic(id: topicID)
+            topicRequest.fetchLimit = 1
+            let topics = try context.fetch(topicRequest)
             guard let topic = topics.first else {
                 self.topic = nil
                 return
@@ -115,57 +109,63 @@ final class TopicDetailViewModel {
             populateFields(from: topic)
 
             // Targeted fetches for relationships
-            let solDesc = Self.descriptorForSolutions(topicID: topicID)
-            let noteDesc = Self.descriptorForNotes(topicID: topicID)
-            let attDesc = Self.descriptorForAttachments(topicID: topicID)
+            let solRequest = Self.requestForSolutions(topicID: topicID)
+            let noteRequest = Self.requestForNotes(topicID: topicID)
+            let attRequest = Self.requestForAttachments(topicID: topicID)
 
-            // ModelContext is not Sendable, so fetch sequentially
-            self.proposedSolutions = try context.fetch(solDesc)
-            self.notes = try context.fetch(noteDesc)
-            self.attachments = try context.fetch(attDesc)
+            // NSManagedObjectContext is not Sendable, so fetch sequentially
+            self.proposedSolutions = try context.fetch(solRequest)
+            self.notes = try context.fetch(noteRequest)
+            self.attachments = try context.fetch(attRequest)
         } catch {
         }
     }
 
-    func persistChanges(context: ModelContext) {
+    func persistChanges(context: NSManagedObjectContext) {
         guard let topic else { return }
         applyFields(to: topic)
     }
 
     // MARK: - Relationship mutations (in-memory; caller saves)
 
-    func addSolution(context: ModelContext, title: String, details: String, proposedBy: String) {
+    func addSolution(context: NSManagedObjectContext, title: String, details: String, proposedBy: String) {
         guard let topic else { return }
-        let s = ProposedSolution(title: title, details: details, proposedBy: proposedBy, topic: topic)
-        context.insert(s)
+        let s = CDProposedSolutionEntity(context: context)
+        s.id = UUID()
+        s.title = title
+        s.details = details
+        s.proposedBy = proposedBy
+        s.topic = topic
+        s.createdAt = Date()
         proposedSolutions.append(s)
     }
 
-    func toggleSolutionAdopted(_ solution: ProposedSolution) {
+    func toggleSolutionAdopted(_ solution: CDProposedSolutionEntity) {
         guard let idx = proposedSolutions.firstIndex(where: { $0.id == solution.id }) else { return }
         proposedSolutions[idx].isAdopted.toggle()
     }
 
-    func deleteSolution(context: ModelContext, _ solution: ProposedSolution) {
+    func deleteSolution(context: NSManagedObjectContext, _ solution: CDProposedSolutionEntity) {
         if let idx = proposedSolutions.firstIndex(where: { $0.id == solution.id }) {
             proposedSolutions.remove(at: idx)
             context.delete(solution)
         }
     }
 
-    func addNote(context: ModelContext, speaker: String, content: String) {
+    func addNote(context: NSManagedObjectContext, speaker: String, content: String) {
         guard let topic else { return }
-        let n = Note(
-            body: content,
-            scope: .all,
-            communityTopic: topic,
-            reporterName: speaker.isEmpty ? nil : speaker
-        )
-        context.insert(n)
+        let n = CDNote(context: context)
+        n.id = UUID()
+        n.body = content
+        n.scope = .all
+        n.communityTopic = topic
+        n.reporterName = speaker.isEmpty ? nil : speaker
+        n.createdAt = Date()
+        n.updatedAt = Date()
         notes.append(n)
     }
 
-    func deleteNote(context: ModelContext, _ note: Note) {
+    func deleteNote(context: NSManagedObjectContext, _ note: CDNote) {
         if let idx = notes.firstIndex(where: { $0.id == note.id }) {
             notes.remove(at: idx)
             // Clean up associated image file before deleting the note
@@ -174,7 +174,7 @@ final class TopicDetailViewModel {
         }
     }
 
-    func deleteAttachment(context: ModelContext, _ attachment: CommunityAttachment) {
+    func deleteAttachment(context: NSManagedObjectContext, _ attachment: CDCommunityAttachment) {
         if let idx = attachments.firstIndex(where: { $0.id == attachment.id }) {
             attachments.remove(at: idx)
             context.delete(attachment)

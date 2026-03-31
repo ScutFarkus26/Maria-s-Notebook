@@ -1,38 +1,38 @@
 import Foundation
-import SwiftData
+import CoreData
 import OSLog
 
-// MARK: - Core Transformers (Student, Lesson, Note, LessonAttachment, LessonPresentation)
+// MARK: - Core Transformers (CDStudent, CDLesson, CDNote, LessonAttachment, CDLessonPresentation)
 
 extension BackupDTOTransformers {
 
-    // MARK: - Student
+    // MARK: - CDStudent
 
-    static func toDTO(_ student: Student) -> StudentDTO {
+    static func toDTO(_ student: CDStudent) -> StudentDTO {
         let level: StudentDTO.Level = (student.level == .upper) ? .upper : .lower
         return StudentDTO(
-            id: student.id,
+            id: student.id ?? UUID(),
             firstName: student.firstName,
             lastName: student.lastName,
-            birthday: student.birthday,
+            birthday: student.birthday ?? Date.distantPast,
             dateStarted: student.dateStarted,
             level: level,
             nextLessons: student.nextLessonUUIDs,
-            manualOrder: student.manualOrder,
+            manualOrder: Int(student.manualOrder),
             createdAt: nil,
             updatedAt: nil
         )
     }
 
-    // MARK: - Lesson
+    // MARK: - CDLesson
 
-    static func toDTO(_ lesson: Lesson) -> LessonDTO {
+    static func toDTO(_ lesson: CDLesson) -> LessonDTO {
         LessonDTO(
-            id: lesson.id,
+            id: lesson.id ?? UUID(),
             name: lesson.name,
             subject: lesson.subject,
             group: lesson.group,
-            orderInGroup: lesson.orderInGroup,
+            orderInGroup: Int(lesson.orderInGroup),
             subheading: lesson.subheading,
             writeUp: lesson.writeUp,
             createdAt: nil,
@@ -52,36 +52,36 @@ extension BackupDTOTransformers {
         )
     }
 
-    // MARK: - SampleWork
+    // MARK: - CDSampleWork
 
-    static func toDTO(_ sw: SampleWork) -> SampleWorkDTO {
+    static func toDTO(_ sw: CDSampleWork) -> SampleWorkDTO {
         SampleWorkDTO(
-            id: sw.id,
-            lessonID: sw.lesson?.id,
+            id: sw.id ?? UUID(),
+            lessonID: (sw.lesson as? CDLesson)?.id,
             title: sw.title,
             workKindRaw: sw.workKindRaw,
-            orderIndex: sw.orderIndex,
+            orderIndex: Int(sw.orderIndex),
             notes: sw.notes,
-            createdAt: sw.createdAt
+            createdAt: sw.createdAt ?? Date()
         )
     }
 
-    // MARK: - SampleWorkStep
+    // MARK: - CDSampleWorkStep
 
-    static func toDTO(_ step: SampleWorkStep) -> SampleWorkStepDTO {
+    static func toDTO(_ step: CDSampleWorkStep) -> SampleWorkStepDTO {
         SampleWorkStepDTO(
-            id: step.id,
+            id: step.id ?? UUID(),
             sampleWorkID: step.sampleWork?.id,
             title: step.title,
-            orderIndex: step.orderIndex,
+            orderIndex: Int(step.orderIndex),
             instructions: step.instructions,
-            createdAt: step.createdAt
+            createdAt: step.createdAt ?? Date()
         )
     }
 
-    // MARK: - Note
+    // MARK: - CDNote
 
-    static func toDTO(_ note: Note) -> NoteDTO {
+    static func toDTO(_ note: CDNote) -> NoteDTO {
         let scopeString: String
         do {
             let data = try JSONEncoder().encode(note.scope)
@@ -91,14 +91,15 @@ extension BackupDTOTransformers {
             scopeString = "{}"
         }
 
+        let tagsArray = (note.tags as? [String]) ?? []
         return NoteDTO(
-            id: note.id,
-            createdAt: note.createdAt,
-            updatedAt: note.updatedAt,
+            id: note.id ?? UUID(),
+            createdAt: note.createdAt ?? Date(),
+            updatedAt: note.updatedAt ?? Date(),
             body: note.body,
             isPinned: note.isPinned,
             scope: scopeString,
-            tags: note.tags.isEmpty ? nil : note.tags,
+            tags: tagsArray.isEmpty ? nil : tagsArray,
             needsFollowUp: note.needsFollowUp ? true : nil,
             lessonID: note.lesson?.id,
             imagePath: note.imagePath
@@ -109,10 +110,10 @@ extension BackupDTOTransformers {
 
     static func toDTO(_ attachment: LessonAttachment) -> LessonAttachmentDTO {
         LessonAttachmentDTO(
-            id: attachment.id,
+            id: attachment.id ?? UUID(),
             fileName: attachment.fileName,
             fileRelativePath: attachment.fileRelativePath,
-            attachedAt: attachment.attachedAt,
+            attachedAt: attachment.attachedAt ?? Date(),
             fileType: attachment.fileType,
             fileSizeBytes: attachment.fileSizeBytes,
             scopeRaw: attachment.scopeRaw,
@@ -121,19 +122,19 @@ extension BackupDTOTransformers {
         )
     }
 
-    // MARK: - LessonPresentation
+    // MARK: - CDLessonPresentation
 
-    static func toDTO(_ lp: LessonPresentation) -> LessonPresentationDTO {
+    static func toDTO(_ lp: CDLessonPresentation) -> LessonPresentationDTO {
         LessonPresentationDTO(
-            id: lp.id,
-            createdAt: lp.createdAt,
+            id: lp.id ?? UUID(),
+            createdAt: lp.createdAt ?? Date(),
             studentID: lp.studentID,
             lessonID: lp.lessonID,
             presentationID: lp.presentationID,
             trackID: lp.trackID,
             trackStepID: lp.trackStepID,
             stateRaw: lp.stateRaw,
-            presentedAt: lp.presentedAt,
+            presentedAt: lp.presentedAt ?? Date(),
             lastObservedAt: lp.lastObservedAt,
             masteredAt: lp.masteredAt,
             notes: lp.notes
@@ -142,23 +143,23 @@ extension BackupDTOTransformers {
 
     // MARK: - Batch Transformations (Core)
 
-    static func toDTOs(_ students: [Student]) -> [StudentDTO] {
+    static func toDTOs(_ students: [CDStudent]) -> [StudentDTO] {
         students.map { toDTO($0) }
     }
 
-    static func toDTOs(_ lessons: [Lesson]) -> [LessonDTO] {
+    static func toDTOs(_ lessons: [CDLesson]) -> [LessonDTO] {
         lessons.map { toDTO($0) }
     }
 
-    static func toDTOs(_ notes: [Note]) -> [NoteDTO] {
+    static func toDTOs(_ notes: [CDNote]) -> [NoteDTO] {
         notes.map { toDTO($0) }
     }
 
-    static func toDTOs(_ sampleWorks: [SampleWork]) -> [SampleWorkDTO] {
+    static func toDTOs(_ sampleWorks: [CDSampleWork]) -> [SampleWorkDTO] {
         sampleWorks.map { toDTO($0) }
     }
 
-    static func toDTOs(_ sampleWorkSteps: [SampleWorkStep]) -> [SampleWorkStepDTO] {
+    static func toDTOs(_ sampleWorkSteps: [CDSampleWorkStep]) -> [SampleWorkStepDTO] {
         sampleWorkSteps.map { toDTO($0) }
     }
 
@@ -166,7 +167,7 @@ extension BackupDTOTransformers {
         attachments.map { toDTO($0) }
     }
 
-    static func toDTOs(_ presentations: [LessonPresentation]) -> [LessonPresentationDTO] {
+    static func toDTOs(_ presentations: [CDLessonPresentation]) -> [LessonPresentationDTO] {
         presentations.map { toDTO($0) }
     }
 }

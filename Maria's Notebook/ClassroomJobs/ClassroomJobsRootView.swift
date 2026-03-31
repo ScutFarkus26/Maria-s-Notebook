@@ -2,10 +2,10 @@
 // Main view for the Classroom Job Rotation Board.
 
 import SwiftUI
-import SwiftData
+import CoreData
 
 struct ClassroomJobsRootView: View {
-    @Environment(\.modelContext) private var modelContext
+    @Environment(\.managedObjectContext) private var viewContext
     @State private var viewModel = ClassroomJobsViewModel()
 
     var body: some View {
@@ -24,7 +24,7 @@ struct ClassroomJobsRootView: View {
                 Spacer()
 
                 Button {
-                    viewModel.rotateJobs(context: modelContext)
+                    viewModel.rotateJobs(context: viewContext)
                 } label: {
                     HStack(spacing: 4) {
                         Image(systemName: "arrow.triangle.2.circlepath")
@@ -58,12 +58,12 @@ struct ClassroomJobsRootView: View {
             } else {
                 ScrollView {
                     LazyVStack(spacing: 12) {
-                        ForEach(viewModel.jobs) { job in
+                        ForEach(viewModel.jobs, id: \.objectID) { job in
                             ClassroomJobCard(
                                 job: job,
-                                assignments: viewModel.currentAssignments[job.id] ?? [],
+                                assignments: job.id.flatMap { viewModel.currentAssignments[$0] } ?? [],
                                 viewModel: viewModel,
-                                modelContext: modelContext
+                                viewContext: viewContext
                             )
                         }
                     }
@@ -85,7 +85,7 @@ struct ClassroomJobsRootView: View {
             ClassroomJobEditorSheet(
                 existingJob: viewModel.editingJob,
                 viewModel: viewModel,
-                modelContext: modelContext
+                viewContext: viewContext
             )
         }
         .sheet(isPresented: $viewModel.showingHistory) {
@@ -103,6 +103,6 @@ struct ClassroomJobsRootView: View {
             .presentationDragIndicator(.visible)
             #endif
         }
-        .onAppear { viewModel.loadData(context: modelContext) }
+        .onAppear { viewModel.loadData(context: viewContext) }
     }
 }

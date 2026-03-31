@@ -9,7 +9,6 @@
 
 import Foundation
 import CoreData
-import SwiftData
 
 /// Service for finding and creating the next lesson in a subject/group sequence.
 /// Ensures consistent duplicate checking and creation logic across all entry points.
@@ -118,14 +117,16 @@ struct PlanNextLessonService {
             return .noStudents
         }
 
+        guard let nextLessonID = nextLesson.id else { return .noNextLesson }
+
         // Check if it already exists (using strict inbox check)
-        if existsInInbox(lessonID: nextLesson.id, studentIDs: studentIDs, in: existingLessonAssignments) {
+        if existsInInbox(lessonID: nextLessonID, studentIDs: studentIDs, in: existingLessonAssignments) {
             return .alreadyExists
         }
 
         // Create the new CDLessonAssignment (auto-inserted by Core Data init)
         let newAssignment = PresentationFactory.makeDraft(
-            lessonID: nextLesson.id,
+            lessonID: nextLessonID,
             studentIDs: Array(studentIDs),
             context: context
         )
@@ -148,58 +149,21 @@ struct PlanNextLessonService {
             return .noStudents
         }
 
+        guard let nextLessonID = nextLesson.id else { return .noNextLesson }
+
         // Check if it already exists
-        if existsInInbox(lessonID: nextLesson.id, studentIDs: studentIDs, in: existingLessonAssignments) {
+        if existsInInbox(lessonID: nextLessonID, studentIDs: studentIDs, in: existingLessonAssignments) {
             return .alreadyExists
         }
 
         // Create the new CDLessonAssignment (auto-inserted by Core Data init)
         let newAssignment = PresentationFactory.makeDraft(
-            lessonID: nextLesson.id,
+            lessonID: nextLessonID,
             studentIDs: Array(studentIDs),
             context: context
         )
         return .success(newAssignment)
     }
 
-    // MARK: - Deprecated SwiftData Overloads
-
-    @available(*, deprecated, message: "Use Core Data overload")
-    @discardableResult
-    static func planNextLesson(
-        for lessonAssignment: LessonAssignment,
-        allLessons: [Lesson],
-        allStudents: [Student],
-        existingLessonAssignments: [LessonAssignment],
-        context: ModelContext
-    ) -> PlanResult {
-        planNextLesson(
-            for: lessonAssignment,
-            allLessons: allLessons,
-            allStudents: allStudents,
-            existingLessonAssignments: existingLessonAssignments,
-            context: AppBootstrapping.getSharedCoreDataStack().viewContext
-        )
-    }
-
-    @available(*, deprecated, message: "Use Core Data overload")
-    @discardableResult
-    // swiftlint:disable:next function_parameter_count
-    static func planLesson(
-        _ nextLesson: Lesson,
-        forStudents studentIDs: Set<UUID>,
-        allStudents: [Student],
-        allLessons: [Lesson],
-        existingLessonAssignments: [LessonAssignment],
-        context: ModelContext
-    ) -> PlanResult {
-        planLesson(
-            nextLesson,
-            forStudents: studentIDs,
-            allStudents: allStudents,
-            allLessons: allLessons,
-            existingLessonAssignments: existingLessonAssignments,
-            context: AppBootstrapping.getSharedCoreDataStack().viewContext
-        )
-    }
+    // Deprecated SwiftData bridge methods removed - no longer needed with Core Data.
 }

@@ -1,5 +1,5 @@
 // LessonFrequencyTypes.swift
-// Value types for the Lesson Frequency Dashboard.
+// Value types for the CDLesson Frequency Dashboard.
 // Tracks per-student weekly lesson counts relative to the AMI target of 5–7 lessons/week.
 
 import Foundation
@@ -11,7 +11,7 @@ struct StudentFrequencyCard: Identifiable {
     let firstName: String
     let lastName: String
     let nickname: String?
-    let level: Student.Level
+    let level: CDStudent.Level
     let lessonCount: Int          // total lessons this week
     let subjectBreakdown: [SubjectCount]  // sorted by count descending
 

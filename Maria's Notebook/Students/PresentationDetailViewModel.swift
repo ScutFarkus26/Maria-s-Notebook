@@ -8,8 +8,8 @@
 //                                                       scheduleNextLessonToInbox)
 
 import Foundation
-import SwiftData
 import SwiftUI
+import CoreData
 import OSLog
 
 @Observable
@@ -18,8 +18,8 @@ final class PresentationDetailViewModel {
     static let logger = Logger.students
 
     // MARK: - Dependencies
-    var lessonAssignment: LessonAssignment
-    var modelContext: ModelContext
+    var lessonAssignment: CDLessonAssignment
+    var viewContext: NSManagedObjectContext
     var saveCoordinator: SaveCoordinator
 
     // MARK: - Editable State
@@ -69,13 +69,13 @@ final class PresentationDetailViewModel {
     // MARK: - Initialization
 
     init(
-        lessonAssignment: LessonAssignment,
-        modelContext: ModelContext,
+        lessonAssignment: CDLessonAssignment,
+        viewContext: NSManagedObjectContext,
         saveCoordinator: SaveCoordinator,
         autoFocusLessonPicker: Bool = false
     ) {
         self.lessonAssignment = lessonAssignment
-        self.modelContext = modelContext
+        self.viewContext = viewContext
         self.saveCoordinator = saveCoordinator
 
         // Initialize local state from the model
@@ -90,20 +90,20 @@ final class PresentationDetailViewModel {
 
         self.showLessonPicker = autoFocusLessonPicker
 
-        // Load mastery state from existing LessonPresentation records
+        // Load mastery state from existing CDLessonPresentation records
         self.proficiencyState = Self.loadProficiencyState(
             lessonID: lessonAssignment.lessonID,
             studentIDs: lessonAssignment.studentIDs,
-            modelContext: modelContext
+            viewContext: viewContext
         )
     }
 
     // MARK: - Error Handling Helpers
 
     /// Internal (not private) so +MasteryTracking extension can call it.
-    func safeFetch<T>(_ descriptor: FetchDescriptor<T>, functionName: String = #function) -> [T] {
+    func safeFetch<T>(_ descriptor: NSFetchRequest<T>, functionName: String = #function) -> [T] {
         do {
-            return try modelContext.fetch(descriptor)
+            return try viewContext.fetch(descriptor)
         } catch {
             Self.logger.warning("[\(functionName)] Failed to fetch \(String(describing: T.self)): \(error)")
             return []
@@ -112,13 +112,13 @@ final class PresentationDetailViewModel {
 
     // MARK: - Computed Helpers
 
-    /// Resolves the currently selected Lesson object from the provided list
-    func lessonObject(from lessons: [Lesson]) -> Lesson? {
+    /// Resolves the currently selected CDLesson object from the provided list
+    func lessonObject(from lessons: [CDLesson]) -> CDLesson? {
         lessons.first(where: { $0.id == editingLessonID })
     }
 
     /// Determines the next lesson in the group based on the current selection
-    func nextLessonInGroup(from lessons: [Lesson]) -> Lesson? {
+    func nextLessonInGroup(from lessons: [CDLesson]) -> CDLesson? {
         guard let current = lessonObject(from: lessons) else { return nil }
         let actions = PresentationDetailActions()
         return actions.nextLessonInGroup(from: current, lessons: lessons)
@@ -127,7 +127,7 @@ final class PresentationDetailViewModel {
     // MARK: - Actions
 
     /// Applies local state to the persistent model without saving (useful for immediate updates)
-    func applyEditsToModel(studentsAll: [Student], lessons: [Lesson], calendar: Calendar) {
+    func applyEditsToModel(studentsAll: [CDStudent], lessons: [CDLesson], calendar: Calendar) {
         let actions = PresentationDetailActions()
         actions.applyEditsToModel(
             lessonAssignment: lessonAssignment,
@@ -146,9 +146,9 @@ final class PresentationDetailViewModel {
 
     // Saves changes to the database, handles lifecycle events, and auto-creates next lessons
     func save(
-        studentsAll: [Student],
-        lessons: [Lesson],
-        lessonAssignmentsAll: [LessonAssignment],
+        studentsAll: [CDStudent],
+        lessons: [CDLesson],
+        lessonAssignmentsAll: [CDLessonAssignment],
         calendar: Calendar,
         onDone: (() -> Void)? = nil
     ) {
@@ -173,11 +173,11 @@ final class PresentationDetailViewModel {
             studentsAll: studentsAll,
             lessons: lessons,
             lessonAssignmentsAll: lessonAssignmentsAll,
-            context: modelContext
+            context: viewContext
         )
 
         // 4. Persist
-        if saveCoordinator.save(modelContext, reason: "Saving lesson assignment") {
+        if saveCoordinator.save(viewContext, reason: "Saving lesson assignment") {
             // Reset autosave state
             notesAutosaveTask?.cancel()
             originalNotes = notes
@@ -198,7 +198,7 @@ final class PresentationDetailViewModel {
                 _ = try LifecycleService.recordPresentation(
                     from: lessonAssignment,
                     presentedAt: AppCalendar.startOfDay(givenAt ?? Date()),
-                    modelContext: modelContext
+                    modelContext: viewContext
                 )
             } catch {
                 Self.logger.debug("LifecycleService error: \(error)")
@@ -212,9 +212,10 @@ final class PresentationDetailViewModel {
 
             if let lesson = lessonAssignment.lesson {
                 GroupTrackService.autoEnrollInTrackIfNeeded(
-                    lesson: lesson,
+                    lessonSubject: lesson.subject,
+                    lessonGroup: lesson.group,
                     studentIDs: lessonAssignment.studentIDs,
-                    modelContext: modelContext,
+                    context: viewContext,
                     saveCoordinator: saveCoordinator
                 )
             }
@@ -223,9 +224,10 @@ final class PresentationDetailViewModel {
         if !nowGiven, lessonAssignment.scheduledFor != nil {
             if let lesson = lessonAssignment.lesson {
                 GroupTrackService.autoEnrollInTrackIfNeeded(
-                    lesson: lesson,
+                    lessonSubject: lesson.subject,
+                    lessonGroup: lesson.group,
                     studentIDs: lessonAssignment.studentIDs,
-                    modelContext: modelContext,
+                    context: viewContext,
                     saveCoordinator: saveCoordinator
                 )
             }
@@ -235,15 +237,15 @@ final class PresentationDetailViewModel {
     }
 
     /// A lightweight save for autosaving notes or minor updates
-    func saveImmediate(studentsAll: [Student], lessons: [Lesson], calendar: Calendar) {
+    func saveImmediate(studentsAll: [CDStudent], lessons: [CDLesson], calendar: Calendar) {
         applyEditsToModel(studentsAll: studentsAll, lessons: lessons, calendar: calendar)
-        saveCoordinator.save(modelContext, reason: "Auto-saving lesson assignment")
+        saveCoordinator.save(viewContext, reason: "Auto-saving lesson assignment")
     }
 
     /// Deletes the lesson assignment
     func delete(onDone: (() -> Void)? = nil) {
-        let id = lessonAssignment.id
-        let ctx = modelContext
+        let id = lessonAssignment.id ?? UUID()
+        let ctx = viewContext
         let coordinator = saveCoordinator
 
         // Execute callback immediately to dismiss UI
@@ -251,7 +253,7 @@ final class PresentationDetailViewModel {
 
         // Perform deletion asynchronously
         Task { @MainActor in
-            var desc = FetchDescriptor<LessonAssignment>(predicate: #Predicate { $0.id == id })
+            var desc = { let r = NSFetchRequest<CDLessonAssignment>(entityName: "LessonAssignment"); r.predicate = NSPredicate(format: "id == %@", id as CVarArg); r.fetchLimit = 0; return r }()
             desc.fetchLimit = 1
             do {
                 if let toDelete = try ctx.fetch(desc).first {
@@ -260,7 +262,7 @@ final class PresentationDetailViewModel {
                     coordinator.save(ctx, reason: "Deleting lesson assignment")
                 }
             } catch {
-                Self.logger.warning("Failed to fetch LessonAssignment for deletion: \(error)")
+                Self.logger.warning("Failed to fetch CDLessonAssignment for deletion: \(error)")
             }
             PresentationDetailUtilities.notifyInboxRefresh()
         }
@@ -269,7 +271,7 @@ final class PresentationDetailViewModel {
     // MARK: - Workflow Panel Management
 
     /// Enters workflow mode by initializing the presentation view model
-    func enterWorkflowMode(students: [Student]) {
+    func enterWorkflowMode(students: [CDStudent]) {
         presentationViewModel = PostPresentationFormViewModel(students: students)
         showWorkflowPanel = true
     }

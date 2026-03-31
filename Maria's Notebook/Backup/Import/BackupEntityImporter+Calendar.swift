@@ -1,24 +1,27 @@
 import Foundation
-import SwiftData
+import CoreData
 
 // MARK: - Calendar & Meetings
 
 extension BackupEntityImporter {
 
-    // MARK: - Student Meetings
+    // MARK: - CDStudent Meetings
 
     /// Imports student meetings from DTOs.
     static func importStudentMeetings(
         _ dtos: [StudentMeetingDTO],
-        into modelContext: ModelContext,
-        existingCheck: EntityExistsCheck<StudentMeeting>
+        into viewContext: NSManagedObjectContext,
+        existingCheck: EntityExistsCheck<CDStudentMeeting>
     ) rethrows {
         try importSimpleEntities(
-            dtos, into: modelContext,
+            dtos, into: viewContext,
             existingCheck: existingCheck,
             idExtractor: { $0.id },
             entityBuilder: { dto in
-            let meeting = StudentMeeting(id: dto.id, studentID: dto.studentID, date: dto.date)
+            let meeting = CDStudentMeeting(context: viewContext)
+            meeting.id = dto.id
+            meeting.studentID = dto.studentID.uuidString
+            meeting.date = dto.date
             meeting.completed = dto.completed
             meeting.reflection = dto.reflection
             meeting.focus = dto.focus
@@ -33,11 +36,11 @@ extension BackupEntityImporter {
     /// Imports attendance records from DTOs.
     static func importAttendanceRecords(
         _ dtos: [AttendanceRecordDTO],
-        into modelContext: ModelContext,
-        existingCheck: EntityExistsCheck<AttendanceRecord>
+        into viewContext: NSManagedObjectContext,
+        existingCheck: EntityExistsCheck<CDAttendanceRecord>
     ) rethrows {
         try importSimpleEntities(
-            dtos, into: modelContext,
+            dtos, into: viewContext,
             existingCheck: existingCheck,
             idExtractor: { $0.id },
             entityBuilder: { dto in
@@ -46,11 +49,13 @@ extension BackupEntityImporter {
                 let status = AttendanceStatus(
                     rawValue: dto.status
                 ) ?? .unmarked
-                return AttendanceRecord(
-                    id: dto.id, studentID: dto.studentID,
-                    date: dto.date, status: status,
-                    absenceReason: absenceReason
-                )
+                let record = CDAttendanceRecord(context: viewContext)
+                record.id = dto.id
+                record.studentID = dto.studentID.uuidString
+                record.date = dto.date
+                record.statusRaw = status.rawValue
+                record.absenceReasonRaw = absenceReason.rawValue
+                return record
             }
         )
     }
@@ -59,26 +64,26 @@ extension BackupEntityImporter {
 
     static func importMeetingTemplates(
         _ dtos: [MeetingTemplateDTO],
-        into modelContext: ModelContext,
-        existingCheck: EntityExistsCheck<MeetingTemplate>
+        into viewContext: NSManagedObjectContext,
+        existingCheck: EntityExistsCheck<CDMeetingTemplate>
     ) rethrows {
         try importSimpleEntities(
-            dtos, into: modelContext,
+            dtos, into: viewContext,
             existingCheck: existingCheck,
             idExtractor: { $0.id },
             entityBuilder: { dto in
-            MeetingTemplate(
-                id: dto.id,
-                createdAt: dto.createdAt,
-                name: dto.name,
-                reflectionPrompt: dto.reflectionPrompt,
-                focusPrompt: dto.focusPrompt,
-                requestsPrompt: dto.requestsPrompt,
-                guideNotesPrompt: dto.guideNotesPrompt,
-                sortOrder: dto.sortOrder,
-                isActive: dto.isActive,
-                isBuiltIn: dto.isBuiltIn
-            )
+            let mt = CDMeetingTemplate(context: viewContext)
+            mt.id = dto.id
+            mt.createdAt = dto.createdAt
+            mt.name = dto.name
+            mt.reflectionPrompt = dto.reflectionPrompt
+            mt.focusPrompt = dto.focusPrompt
+            mt.requestsPrompt = dto.requestsPrompt
+            mt.guideNotesPrompt = dto.guideNotesPrompt
+            mt.sortOrder = Int64(dto.sortOrder)
+            mt.isActive = dto.isActive
+            mt.isBuiltIn = dto.isBuiltIn
+            return mt
         })
     }
 
@@ -86,24 +91,24 @@ extension BackupEntityImporter {
 
     static func importReminders(
         _ dtos: [ReminderDTO],
-        into modelContext: ModelContext,
-        existingCheck: EntityExistsCheck<Reminder>
+        into viewContext: NSManagedObjectContext,
+        existingCheck: EntityExistsCheck<CDReminder>
     ) rethrows {
         try importSimpleEntities(
-            dtos, into: modelContext,
+            dtos, into: viewContext,
             existingCheck: existingCheck,
             idExtractor: { $0.id },
             entityBuilder: { dto in
-            Reminder(
-                id: dto.id,
-                title: dto.title,
-                notes: dto.notes,
-                dueDate: dto.dueDate,
-                isCompleted: dto.isCompleted,
-                completedAt: dto.completedAt,
-                createdAt: dto.createdAt,
-                updatedAt: dto.updatedAt
-            )
+            let r = CDReminder(context: viewContext)
+            r.id = dto.id
+            r.title = dto.title
+            r.notes = dto.notes
+            r.dueDate = dto.dueDate
+            r.isCompleted = dto.isCompleted
+            r.completedAt = dto.completedAt
+            r.createdAt = dto.createdAt
+            r.updatedAt = dto.updatedAt
+            return r
         })
     }
 
@@ -111,23 +116,22 @@ extension BackupEntityImporter {
 
     static func importCalendarEvents(
         _ dtos: [CalendarEventDTO],
-        into modelContext: ModelContext,
-        existingCheck: EntityExistsCheck<CalendarEvent>
+        into viewContext: NSManagedObjectContext,
+        existingCheck: EntityExistsCheck<CDCalendarEvent>
     ) rethrows {
         try importSimpleEntities(
-            dtos, into: modelContext,
+            dtos, into: viewContext,
             existingCheck: existingCheck,
             idExtractor: { $0.id },
             entityBuilder: { dto in
-            let e = CalendarEvent(
-                id: dto.id,
-                title: dto.title,
-                startDate: dto.startDate,
-                endDate: dto.endDate,
-                location: dto.location,
-                notes: dto.notes,
-                isAllDay: dto.isAllDay
-            )
+            let e = CDCalendarEvent(context: viewContext)
+            e.id = dto.id
+            e.title = dto.title
+            e.startDate = dto.startDate
+            e.endDate = dto.endDate
+            e.location = dto.location
+            e.notes = dto.notes
+            e.isAllDay = dto.isAllDay
             return e
         })
     }

@@ -1,11 +1,11 @@
 import SwiftUI
-import SwiftData
+import CoreData
 import UniformTypeIdentifiers
 import OSLog
 
 struct PresentationsView: View {
     static let logger = Logger.presentations
-    @Environment(\.modelContext) var modelContext
+    @Environment(\.managedObjectContext) var viewContext
     @Environment(\.calendar) var calendar
     @Environment(\.horizontalSizeClass) var horizontalSizeClass
     @Environment(\.dependencies) private var dependencies
@@ -13,11 +13,11 @@ struct PresentationsView: View {
     // OPTIMIZATION: Use lightweight queries for change detection only
     // Extract IDs immediately to avoid retaining full objects - significantly reduces memory usage
     // The ViewModel handles all actual data loading with targeted fetches
-    @Query(sort: [SortDescriptor(\LessonAssignment.id)])
-    var lessonAssignmentsForChangeDetection: [LessonAssignment]
-    @Query(sort: [SortDescriptor(\Lesson.id)]) private var lessonsForChangeDetection: [Lesson]
-    @Query(sort: [SortDescriptor(\Student.id)]) private var studentsForChangeDetection: [Student]
-    @Query(sort: [SortDescriptor(\WorkModel.id)]) private var workModelsForChangeDetection: [WorkModel]
+    @FetchRequest(sortDescriptors: [NSSortDescriptor(keyPath: \CDLessonAssignment.id, ascending: true)])
+    var lessonAssignmentsForChangeDetection: FetchedResults<CDLessonAssignment>
+    @FetchRequest(sortDescriptors: [NSSortDescriptor(keyPath: \CDLesson.id, ascending: true)]) private var lessonsForChangeDetection: FetchedResults<CDLesson>
+    @FetchRequest(sortDescriptors: [NSSortDescriptor(keyPath: \CDStudent.id, ascending: true)]) private var studentsForChangeDetection: FetchedResults<CDStudent>
+    @FetchRequest(sortDescriptors: [NSSortDescriptor(keyPath: \CDWorkModel.id, ascending: true)]) private var workModelsForChangeDetection: FetchedResults<CDWorkModel>
 
     struct LessonAssignmentChangeKey: Hashable {
         let id: UUID
@@ -28,29 +28,30 @@ struct PresentationsView: View {
 
     private var lessonAssignmentChangeKeys: [LessonAssignmentChangeKey] {
         lessonAssignmentsForChangeDetection
-            .map {
-                LessonAssignmentChangeKey(
-                    id: $0.id,
-                    scheduledFor: $0.scheduledFor?.timeIntervalSinceReferenceDate ?? -1,
-                    presentedAt: $0.presentedAt?.timeIntervalSinceReferenceDate ?? -1,
-                    stateRaw: $0.stateRaw
+            .compactMap { la -> LessonAssignmentChangeKey? in
+                guard let id = la.id else { return nil }
+                return LessonAssignmentChangeKey(
+                    id: id,
+                    scheduledFor: la.scheduledFor?.timeIntervalSinceReferenceDate ?? -1,
+                    presentedAt: la.presentedAt?.timeIntervalSinceReferenceDate ?? -1,
+                    stateRaw: la.stateRaw
                 )
             }
             .sorted { $0.id.uuidString < $1.id.uuidString }
     }
 
     private var lessonIDs: [UUID] {
-        lessonsForChangeDetection.map(\.id)
+        lessonsForChangeDetection.compactMap(\.id)
     }
 
     private var studentIDs: [UUID] {
-        studentsForChangeDetection.map(\.id)
+        studentsForChangeDetection.compactMap(\.id)
     }
 
     private var activeWorkIDs: [UUID] {
         workModelsForChangeDetection
             .filter { $0.statusRaw != "complete" }
-            .map(\.id)
+            .compactMap(\.id)
     }
 
     // MODERN: Unified dependency tracker for ViewModel updates
@@ -78,28 +79,28 @@ struct PresentationsView: View {
     }
 
     // Active WorkModels: unresolved work items (statusRaw != "complete")
-    private var activeWork: [WorkModel] {
+    private var activeWork: [CDWorkModel] {
         workModelsForChangeDetection.filter { $0.statusRaw != "complete" }
     }
 
     // Helper: All WorkModels from the existing @Query
-    private var allWorkModels: [WorkModel] {
-        workModelsForChangeDetection
+    private var allWorkModels: [CDWorkModel] {
+        Array(workModelsForChangeDetection)
     }
 
     // Helper: Open WorkModels (statusRaw != "complete")
-    private var openWorkModels: [WorkModel] {
+    private var openWorkModels: [CDWorkModel] {
         allWorkModels.filter { $0.statusRaw != "complete" }
     }
 
     // Dictionary for fast lookup: Group open WorkModels by presentationID
-    private var openWorkByPresentationID: [String: [WorkModel]] {
+    private var openWorkByPresentationID: [String: [CDWorkModel]] {
         openWorkModels
             .filter { $0.presentationID != nil }
             .grouped { $0.presentationID ?? "" }
     }
 
-    // NOTE: WorkModel fetching is now handled by ViewModel
+    // NOTE: CDWorkModel fetching is now handled by ViewModel
 
     @AppStorage(UserDefaultsKeys.planningInboxOrder) var inboxOrderRaw: String = ""
     @AppStorage(UserDefaultsKeys.lessonsAgendaStartDate) var startDateRaw: Double = 0
@@ -142,9 +143,9 @@ struct PresentationsView: View {
     }
 
     // Computed properties that use ViewModel (preserves exact same functionality)
-    var readyLessons: [LessonAssignment] { viewModel.readyLessons }
-    var blockedLessons: [LessonAssignment] { viewModel.blockedLessons }
-    func getBlockingWork(_ la: LessonAssignment) -> [UUID: WorkModel] {
+    var readyLessons: [CDLessonAssignment] { viewModel.readyLessons }
+    var blockedLessons: [CDLessonAssignment] { viewModel.blockedLessons }
+    func getBlockingWork(_ la: CDLessonAssignment) -> [UUID: CDWorkModel] {
         viewModel.getBlockingWork(la)
     }
 
@@ -157,7 +158,7 @@ struct PresentationsView: View {
         let baseDate = calendar.startOfDay(for: startDate)
         // Load enough dates to cover the days array (14 school days might span ~20 calendar days)
         let endDate = calendar.date(byAdding: .day, value: 30, to: baseDate) ?? baseDate
-        let set = await SchoolCalendar.nonSchoolDays(in: baseDate..<endDate, using: modelContext)
+        let set = await SchoolCalendar.nonSchoolDays(in: baseDate..<endDate, using: viewContext)
         await MainActor.run { cachedNonSchoolDates = set }
     }
 

@@ -1,37 +1,36 @@
 import Foundation
-import SwiftData
+import CoreData
 import OSLog
 
-// MARK: - GoingOut, ClassroomJob, TransitionPlan, CalendarNote, ScheduledMeeting, AlbumGroup entities
+// MARK: - CDGoingOut, CDClassroomJob, CDTransitionPlan, CDCalendarNote, CDScheduledMeeting, AlbumGroup entities
 
 extension BackupEntityImporter {
 
-    // MARK: - GoingOut
+    // MARK: - CDGoingOut
 
     static func importGoingOuts(
         _ dtos: [GoingOutDTO],
-        into modelContext: ModelContext,
-        existingCheck: EntityExistsCheck<GoingOut>
+        into viewContext: NSManagedObjectContext,
+        existingCheck: EntityExistsCheck<CDGoingOut>
     ) rethrows {
         try importSimpleEntities(
-            dtos, into: modelContext,
+            dtos, into: viewContext,
             existingCheck: existingCheck,
             idExtractor: { $0.id },
             entityBuilder: { dto in
-            let g = GoingOut(
-                id: dto.id,
-                title: dto.title,
-                purpose: dto.purpose,
-                destination: dto.destination,
-                proposedDate: dto.proposedDate,
-                statusRaw: dto.statusRaw,
-                studentIDs: dto.studentIDs,
-                curriculumLinkIDs: dto.curriculumLinkIDs,
-                permissionStatusRaw: dto.permissionStatusRaw,
-                notes: dto.notes,
-                followUpWork: dto.followUpWork,
-                supervisorName: dto.supervisorName
-            )
+            let g = CDGoingOut(context: viewContext)
+            g.id = dto.id
+            g.title = dto.title
+            g.purpose = dto.purpose
+            g.destination = dto.destination
+            g.proposedDate = dto.proposedDate
+            g.statusRaw = dto.statusRaw
+            g.studentIDs = dto.studentIDs as NSObject
+            g.curriculumLinkIDs = dto.curriculumLinkIDs
+            g.permissionStatusRaw = dto.permissionStatusRaw
+            g.notes = dto.notes
+            g.followUpWork = dto.followUpWork
+            g.supervisorName = dto.supervisorName
             g.createdAt = dto.createdAt
             g.modifiedAt = dto.modifiedAt
             g.actualDate = dto.actualDate
@@ -43,21 +42,20 @@ extension BackupEntityImporter {
 
     static func importGoingOutChecklistItems(
         _ dtos: [GoingOutChecklistItemDTO],
-        into modelContext: ModelContext,
+        into viewContext: NSManagedObjectContext,
         existingCheck: EntityExistsCheck<GoingOutChecklistItem>,
-        goingOutCheck: EntityExistsCheck<GoingOut>
+        goingOutCheck: EntityExistsCheck<CDGoingOut>
     ) rethrows {
         for dto in dtos {
             if shouldSkipExisting(id: dto.id, existingCheck: existingCheck) { continue }
             guard let goingOutUUID = UUID(uuidString: dto.goingOutID) else { continue }
-            let item = GoingOutChecklistItem(
-                id: dto.id,
-                goingOutID: goingOutUUID,
-                title: dto.title,
-                isCompleted: dto.isCompleted,
-                sortOrder: dto.sortOrder,
-                assignedToStudentID: dto.assignedToStudentID.flatMap { UUID(uuidString: $0) }
-            )
+            let item = GoingOutChecklistItem(context: viewContext)
+            item.id = dto.id
+            item.goingOutID = goingOutUUID.uuidString
+            item.title = dto.title
+            item.isCompleted = dto.isCompleted
+            item.sortOrder = Int64(dto.sortOrder)
+            item.assignedToStudentID = dto.assignedToStudentID
             item.createdAt = dto.createdAt
             do {
                 if let goingOut = try goingOutCheck(goingOutUUID) {
@@ -68,55 +66,53 @@ extension BackupEntityImporter {
                     "Failed to check goingOut for checklist item: \(error.localizedDescription, privacy: .public)"
                 )
             }
-            modelContext.insert(item)
+            viewContext.insert(item)
         }
     }
 
-    // MARK: - ClassroomJob
+    // MARK: - CDClassroomJob
 
     static func importClassroomJobs(
         _ dtos: [ClassroomJobDTO],
-        into modelContext: ModelContext,
-        existingCheck: EntityExistsCheck<ClassroomJob>
+        into viewContext: NSManagedObjectContext,
+        existingCheck: EntityExistsCheck<CDClassroomJob>
     ) rethrows {
         try importSimpleEntities(
-            dtos, into: modelContext,
+            dtos, into: viewContext,
             existingCheck: existingCheck,
             idExtractor: { $0.id },
             entityBuilder: { dto in
-            let job = ClassroomJob(
-                id: dto.id,
-                name: dto.name,
-                jobDescription: dto.jobDescription,
-                icon: dto.icon,
-                colorRaw: dto.colorRaw,
-                sortOrder: dto.sortOrder,
-                isActive: dto.isActive,
-                maxStudents: dto.maxStudents
-            )
+            let job = CDClassroomJob(context: viewContext)
+            job.id = dto.id
+            job.name = dto.name
+            job.jobDescription = dto.jobDescription
+            job.icon = dto.icon
+            job.colorRaw = dto.colorRaw
+            job.sortOrder = Int64(dto.sortOrder)
+            job.isActive = dto.isActive
+            job.maxStudents = Int64(dto.maxStudents)
             job.createdAt = dto.createdAt
             job.modifiedAt = dto.modifiedAt
             return job
         })
     }
 
-    // MARK: - JobAssignment
+    // MARK: - CDJobAssignment
 
     static func importJobAssignments(
         _ dtos: [JobAssignmentDTO],
-        into modelContext: ModelContext,
-        existingCheck: EntityExistsCheck<JobAssignment>,
-        jobCheck: EntityExistsCheck<ClassroomJob>
+        into viewContext: NSManagedObjectContext,
+        existingCheck: EntityExistsCheck<CDJobAssignment>,
+        jobCheck: EntityExistsCheck<CDClassroomJob>
     ) rethrows {
         for dto in dtos {
             if shouldSkipExisting(id: dto.id, existingCheck: existingCheck) { continue }
-            let a = JobAssignment(
-                id: dto.id,
-                jobID: dto.jobID,
-                studentID: dto.studentID,
-                weekStartDate: dto.weekStartDate,
-                isCompleted: dto.isCompleted
-            )
+            let a = CDJobAssignment(context: viewContext)
+            a.id = dto.id
+            a.jobID = dto.jobID
+            a.studentID = dto.studentID
+            a.weekStartDate = dto.weekStartDate
+            a.isCompleted = dto.isCompleted
             a.createdAt = dto.createdAt
             a.modifiedAt = dto.modifiedAt
             if let jobUUID = UUID(uuidString: dto.jobID) {
@@ -130,31 +126,30 @@ extension BackupEntityImporter {
                     )
                 }
             }
-            modelContext.insert(a)
+            viewContext.insert(a)
         }
     }
 
-    // MARK: - TransitionPlan
+    // MARK: - CDTransitionPlan
 
     static func importTransitionPlans(
         _ dtos: [TransitionPlanDTO],
-        into modelContext: ModelContext,
-        existingCheck: EntityExistsCheck<TransitionPlan>
+        into viewContext: NSManagedObjectContext,
+        existingCheck: EntityExistsCheck<CDTransitionPlan>
     ) rethrows {
         try importSimpleEntities(
-            dtos, into: modelContext,
+            dtos, into: viewContext,
             existingCheck: existingCheck,
             idExtractor: { $0.id },
             entityBuilder: { dto in
-            let plan = TransitionPlan(
-                id: dto.id,
-                studentID: dto.studentID,
-                fromLevelRaw: dto.fromLevelRaw,
-                toLevelRaw: dto.toLevelRaw,
-                status: TransitionStatus(rawValue: dto.statusRaw) ?? .notStarted,
-                targetDate: dto.targetDate,
-                notes: dto.notes
-            )
+            let plan = CDTransitionPlan(context: viewContext)
+            plan.id = dto.id
+            plan.studentID = dto.studentID
+            plan.fromLevelRaw = dto.fromLevelRaw
+            plan.toLevelRaw = dto.toLevelRaw
+            plan.statusRaw = (TransitionStatus(rawValue: dto.statusRaw) ?? .notStarted).rawValue
+            plan.targetDate = dto.targetDate
+            plan.notes = dto.notes
             plan.createdAt = dto.createdAt
             plan.modifiedAt = dto.modifiedAt
             return plan
@@ -165,19 +160,18 @@ extension BackupEntityImporter {
 
     static func importTransitionChecklistItems(
         _ dtos: [TransitionChecklistItemDTO],
-        into modelContext: ModelContext,
+        into viewContext: NSManagedObjectContext,
         existingCheck: EntityExistsCheck<TransitionChecklistItem>,
-        planCheck: EntityExistsCheck<TransitionPlan>
+        planCheck: EntityExistsCheck<CDTransitionPlan>
     ) rethrows {
         for dto in dtos {
             if shouldSkipExisting(id: dto.id, existingCheck: existingCheck) { continue }
-            let item = TransitionChecklistItem(
-                id: dto.id,
-                transitionPlanID: dto.transitionPlanID,
-                title: dto.title,
-                category: ChecklistCategory(rawValue: dto.categoryRaw) ?? .academic,
-                sortOrder: dto.sortOrder
-            )
+            let item = TransitionChecklistItem(context: viewContext)
+            item.id = dto.id
+            item.transitionPlanID = dto.transitionPlanID
+            item.title = dto.title
+            item.categoryRaw = (ChecklistCategory(rawValue: dto.categoryRaw) ?? .academic).rawValue
+            item.sortOrder = Int64(dto.sortOrder)
             item.createdAt = dto.createdAt
             item.isCompleted = dto.isCompleted
             item.completedAt = dto.completedAt
@@ -193,47 +187,50 @@ extension BackupEntityImporter {
                     )
                 }
             }
-            modelContext.insert(item)
+            viewContext.insert(item)
         }
     }
 
-    // MARK: - CalendarNote
+    // MARK: - CDCalendarNote
 
     static func importCalendarNotes(
         _ dtos: [CalendarNoteDTO],
-        into modelContext: ModelContext,
-        existingCheck: EntityExistsCheck<CalendarNote>
+        into viewContext: NSManagedObjectContext,
+        existingCheck: EntityExistsCheck<CDCalendarNote>
     ) rethrows {
         try importSimpleEntities(
-            dtos, into: modelContext,
+            dtos, into: viewContext,
             existingCheck: existingCheck,
             idExtractor: { $0.id },
             entityBuilder: { dto in
-            let note = CalendarNote(year: dto.year, month: dto.month, day: dto.day, text: dto.text)
+            let note = CDCalendarNote(context: viewContext)
             note.id = dto.id
+            note.year = Int64(dto.year)
+            note.month = Int64(dto.month)
+            note.day = Int64(dto.day)
+            note.text = dto.text
             note.createdAt = dto.createdAt
             note.modifiedAt = dto.modifiedAt
             return note
         })
     }
 
-    // MARK: - ScheduledMeeting
+    // MARK: - CDScheduledMeeting
 
     static func importScheduledMeetings(
         _ dtos: [ScheduledMeetingDTO],
-        into modelContext: ModelContext,
-        existingCheck: EntityExistsCheck<ScheduledMeeting>
+        into viewContext: NSManagedObjectContext,
+        existingCheck: EntityExistsCheck<CDScheduledMeeting>
     ) rethrows {
         for dto in dtos {
             if shouldSkipExisting(id: dto.id, existingCheck: existingCheck) { continue }
             guard let studentUUID = UUID(uuidString: dto.studentID) else { continue }
-            let meeting = ScheduledMeeting(
-                id: dto.id,
-                studentID: studentUUID,
-                date: dto.date
-            )
+            let meeting = CDScheduledMeeting(context: viewContext)
+            meeting.id = dto.id
+            meeting.studentID = studentUUID.uuidString
+            meeting.date = dto.date
             meeting.createdAt = dto.createdAt
-            modelContext.insert(meeting)
+            viewContext.insert(meeting)
         }
     }
 
@@ -241,20 +238,20 @@ extension BackupEntityImporter {
 
     static func importAlbumGroupOrders(
         _ dtos: [AlbumGroupOrderDTO],
-        into modelContext: ModelContext,
+        into viewContext: NSManagedObjectContext,
         existingCheck: EntityExistsCheck<AlbumGroupOrder>
     ) rethrows {
         try importSimpleEntities(
-            dtos, into: modelContext,
+            dtos, into: viewContext,
             existingCheck: existingCheck,
             idExtractor: { $0.id },
             entityBuilder: { dto in
-            AlbumGroupOrder(
-                id: dto.id,
-                scopeKey: dto.scopeKey,
-                groupName: dto.groupName,
-                sortIndex: dto.sortIndex
-            )
+            let order = AlbumGroupOrder(context: viewContext)
+            order.id = dto.id
+            order.scopeKey = dto.scopeKey
+            order.groupName = dto.groupName
+            order.sortIndex = Int64(dto.sortIndex)
+            return order
         })
     }
 
@@ -262,20 +259,20 @@ extension BackupEntityImporter {
 
     static func importAlbumGroupUIStates(
         _ dtos: [AlbumGroupUIStateDTO],
-        into modelContext: ModelContext,
+        into viewContext: NSManagedObjectContext,
         existingCheck: EntityExistsCheck<AlbumGroupUIState>
     ) rethrows {
         try importSimpleEntities(
-            dtos, into: modelContext,
+            dtos, into: viewContext,
             existingCheck: existingCheck,
             idExtractor: { $0.id },
             entityBuilder: { dto in
-            AlbumGroupUIState(
-                id: dto.id,
-                scopeKey: dto.scopeKey,
-                groupName: dto.groupName,
-                isCollapsed: dto.isCollapsed
-            )
+            let state = AlbumGroupUIState(context: viewContext)
+            state.id = dto.id
+            state.scopeKey = dto.scopeKey
+            state.groupName = dto.groupName
+            state.isCollapsed = dto.isCollapsed
+            return state
         })
     }
 }

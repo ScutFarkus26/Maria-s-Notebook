@@ -2,12 +2,12 @@
 // Detail content routing for RootView - extracted for maintainability
 
 import SwiftUI
-import SwiftData
+import CoreData
 
 /// Extracted detail content for RootView. Routes based on NavigationItem selection.
 struct RootDetailContent: View {
     let selectedNavItem: RootView.NavigationItem
-    @Environment(\.modelContext) private var modelContext
+    @Environment(\.managedObjectContext) private var viewContext
     @Environment(\.appRouter) private var appRouter
     @State private var isShowingQuickNote = false
     #if os(iOS)
@@ -27,13 +27,13 @@ struct RootDetailContent: View {
         Group {
             switch selectedNavItem {
             case .today:
-                TodayView(context: modelContext)
+                TodayView(context: viewContext)
             case .attendance:
                 // On iPhone compact, use standalone attendance view
                 if isIPhoneCompact {
                     AttendanceStandaloneView()
                 } else {
-                    TodayView(context: modelContext)
+                    TodayView(context: viewContext)
                 }
             case .note:
                 noteTabContent

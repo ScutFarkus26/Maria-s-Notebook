@@ -2,7 +2,7 @@
 // AI suggestion functionality for UnifiedNoteEditor - extracted for maintainability
 
 import SwiftUI
-import SwiftData
+import CoreData
 
 #if ENABLE_FOUNDATION_MODELS && canImport(FoundationModels)
 import FoundationModels
@@ -94,7 +94,7 @@ extension UnifiedNoteEditor {
 struct SuggestionPreviewSheet: View {
     let proposedTags: [String]
     let proposedStudentIDs: [UUID]
-    let allStudents: [Student]
+    let allStudents: [CDStudent]
     let onApply: ([String]) -> Void
     let onCancel: () -> Void
 

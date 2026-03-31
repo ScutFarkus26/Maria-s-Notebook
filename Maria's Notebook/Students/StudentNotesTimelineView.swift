@@ -8,14 +8,14 @@
 
 import OSLog
 import SwiftUI
-import SwiftData
+import CoreData
 
 private let logger = Logger.students
 
 extension StudentNotesViewModel {
     // Hooks that the real view model can set; safe no-ops by default
-    var itemsNoteLookup: ((UUID) -> Note?)? {
-        get { objc_getAssociatedObject(self, &AssociatedKeys.lookup) as? (UUID) -> Note? }
+    var itemsNoteLookup: ((UUID) -> CDNote?)? {
+        get { objc_getAssociatedObject(self, &AssociatedKeys.lookup) as? (UUID) -> CDNote? }
         set { objc_setAssociatedObject(self, &AssociatedKeys.lookup, newValue, .OBJC_ASSOCIATION_RETAIN_NONATOMIC) }
     }
     var reloadItems: (() -> Void)? {
@@ -29,8 +29,8 @@ extension StudentNotesViewModel {
 }
 
 struct StudentNotesTimelineView: View {
-    let student: Student
-    @Environment(\.modelContext) private var modelContext
+    let student: CDStudent
+    @Environment(\.managedObjectContext) private var viewContext
     @Environment(SaveCoordinator.self) private var saveCoordinator
     @State private var viewModel: StudentNotesViewModel?
 
@@ -46,7 +46,7 @@ struct StudentNotesTimelineView: View {
             if viewModel == nil {
                 let newViewModel = StudentNotesViewModel(
                     student: student,
-                    modelContext: modelContext,
+                    viewContext: viewContext,
                     saveCoordinator: saveCoordinator
                 )
                 // Set up the note lookup function
@@ -79,7 +79,7 @@ struct StudentNotesTimelineList: View {
 
     @State var selectedFilter: NoteFilter = .all
     @State private var newNoteText: String = ""
-    @State private var noteBeingEdited: Note?
+    @State private var noteBeingEdited: CDNote?
 
     // Search and tag filtering state
     @State var searchText: String = ""
@@ -208,7 +208,7 @@ struct StudentNotesTimelineList: View {
                 }
             }
             
-            // Quick Note Bar
+            // Quick CDNote Bar
             Divider()
             HStack(spacing: 10) {
                 TextField("Add a note...", text: $newNoteText)
@@ -361,13 +361,13 @@ struct StudentNotesTimelineList: View {
     }
 
     @MainActor
-    private func resolveEditableNote(from item: UnifiedNoteItem) -> Note? {
-        // Attempt to look up the Note by ID.
-        // If it returns a valid Note object (whether attached to Work, Lesson, or General), it will be editable.
+    private func resolveEditableNote(from item: UnifiedNoteItem) -> CDNote? {
+        // Attempt to look up the CDNote by ID.
+        // If it returns a valid CDNote object (whether attached to Work, CDLesson, or General), it will be editable.
         return viewModel.note(by: item.id)
     }
 
-    // MARK: - Note Row
+    // MARK: - CDNote Row
 
     @ViewBuilder
     private func noteRow(for item: UnifiedNoteItem) -> some View {
@@ -386,7 +386,7 @@ struct StudentNotesTimelineList: View {
                 .buttonStyle(.plain)
             }
 
-            // Note content
+            // CDNote content
             Button {
                 if isSelecting {
                     toggleSelection(for: item.id)
@@ -474,12 +474,12 @@ struct StudentNotesTimelineList: View {
     // MARK: - Pin/Unpin
 
     @MainActor
-    private func togglePin(_ note: Note) {
+    private func togglePin(_ note: CDNote) {
         adaptiveWithAnimation {
             note.isPinned.toggle()
             note.updatedAt = Date()
             do {
-                try viewModel.modelContext.save()
+                try viewModel.viewContext.save()
             } catch {
                 logger.warning("Failed to save pin toggle: \(error)")
             }

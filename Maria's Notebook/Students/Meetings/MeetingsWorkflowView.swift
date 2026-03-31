@@ -1,52 +1,52 @@
 import SwiftUI
-import SwiftData
+import CoreData
 
 /// A dedicated workflow view for conducting weekly student meetings.
 /// Provides a queue of students, context pane, and meeting form in a focused layout.
 struct MeetingsWorkflowView: View {
-    @Environment(\.modelContext) private var modelContext
+    @Environment(\.managedObjectContext) private var viewContext
     @Environment(SaveCoordinator.self) private var saveCoordinator
 
     // MARK: - Queries
 
-    @Query(sort: Student.sortByName)
-    private var studentsRaw: [Student]
+    @FetchRequest(sortDescriptors: [NSSortDescriptor(keyPath: \CDStudent.firstName, ascending: true), NSSortDescriptor(keyPath: \CDStudent.lastName, ascending: true)])
+    private var studentsRaw: FetchedResults<CDStudent>
 
-    @Query(sort: [SortDescriptor(\StudentMeeting.date, order: .reverse)])
-    private var allMeetings: [StudentMeeting]
+    @FetchRequest(sortDescriptors: [NSSortDescriptor(keyPath: \CDStudentMeeting.date, ascending: false)])
+    private var allMeetings: FetchedResults<CDStudentMeeting>
 
-    @Query(sort: [SortDescriptor(\WorkModel.createdAt, order: .reverse)])
-    private var allWorkModels: [WorkModel]
+    @FetchRequest(sortDescriptors: [NSSortDescriptor(keyPath: \CDWorkModel.createdAt, ascending: false)])
+    private var allWorkModels: FetchedResults<CDWorkModel>
 
-    @Query(sort: [SortDescriptor(\LessonAssignment.presentedAt, order: .reverse)])
-    private var allLessonAssignments: [LessonAssignment]
+    @FetchRequest(sortDescriptors: [NSSortDescriptor(keyPath: \CDLessonAssignment.presentedAt, ascending: false)])
+    private var allLessonAssignments: FetchedResults<CDLessonAssignment>
 
-    @Query(sort: [SortDescriptor(\Lesson.name)])
-    private var lessons: [Lesson]
+    @FetchRequest(sortDescriptors: [NSSortDescriptor(keyPath: \CDLesson.name, ascending: true)])
+    private var lessons: FetchedResults<CDLesson>
 
-    @Query(sort: [SortDescriptor(\MeetingTemplate.sortOrder)])
-    private var meetingTemplates: [MeetingTemplate]
+    @FetchRequest(sortDescriptors: [NSSortDescriptor(keyPath: \CDMeetingTemplate.sortOrder, ascending: true)])
+    private var meetingTemplates: FetchedResults<CDMeetingTemplate>
 
     // Test student filtering
     @AppStorage(UserDefaultsKeys.generalShowTestStudents) private var showTestStudents: Bool = false
     @AppStorage(UserDefaultsKeys.generalTestStudentNames)
     private var testStudentNamesRaw: String = "Danny De Berry,Lil Dan D"
 
-    private var students: [Student] {
-        TestStudentsFilter.filterVisible(studentsRaw.uniqueByID, show: showTestStudents, namesRaw: testStudentNamesRaw)
+    private var students: [CDStudent] {
+        TestStudentsFilter.filterVisible(Array(studentsRaw).uniqueByID, show: showTestStudents, namesRaw: testStudentNamesRaw)
     }
 
     // MARK: - State
 
-    @Query(sort: [SortDescriptor(\ScheduledMeeting.date)])
-    private var scheduledMeetingsQuery: [ScheduledMeeting]
+    @FetchRequest(sortDescriptors: [NSSortDescriptor(keyPath: \CDScheduledMeeting.date, ascending: true)])
+    private var scheduledMeetingsQuery: FetchedResults<CDScheduledMeeting>
 
     @State private var selectedStudentID: UUID?
     @State private var searchText: String = ""
     @State private var showCompletedThisWeek: Bool = false
     @State private var orderedStudentIDs: [UUID] = []
     @State private var selectedAgeRanges: Set<AgeRange> = []
-    @State private var studentForMeetingDatePicker: Student?
+    @State private var studentForMeetingDatePicker: CDStudent?
 
     // Meeting frequency threshold (persisted)
     @AppStorage(UserDefaultsKeys.meetingsWorkflowDaysSinceThreshold) private var daysSinceThreshold: Int = 7
@@ -69,7 +69,7 @@ struct MeetingsWorkflowView: View {
         return result
     }
 
-    private var selectedStudent: Student? {
+    private var selectedStudent: CDStudent? {
         guard let id = selectedStudentID else { return nil }
         return students.first { $0.id == id }
     }
@@ -82,16 +82,16 @@ struct MeetingsWorkflowView: View {
     private var studentsNeedingMeetingSet: Set<UUID> {
         let needsMeeting = students.filter { student in
             let studentMeetings = meetingsFor(student)
-            let hasRecentMeeting = studentMeetings.contains { $0.date >= thresholdDate }
+            let hasRecentMeeting = studentMeetings.contains { ($0.date ?? .distantPast) >= thresholdDate }
             return !hasRecentMeeting
         }
-        return Set(needsMeeting.map(\.id))
+        return Set(needsMeeting.compactMap(\.id))
     }
 
     /// Ordered list of students needing meetings
-    private var studentsNeedingMeeting: [Student] {
+    private var studentsNeedingMeeting: [CDStudent] {
         // Start with ordered IDs that are still valid
-        var result: [Student] = []
+        var result: [CDStudent] = []
         var addedIDs = Set<UUID>()
 
         for id in orderedStudentIDs where studentsNeedingMeetingSet.contains(id) {
@@ -102,7 +102,7 @@ struct MeetingsWorkflowView: View {
         }
 
         // Add any students not yet in the ordered list (alphabetically)
-        for student in students where studentsNeedingMeetingSet.contains(student.id) && !addedIDs.contains(student.id) {
+        for student in students where student.id.map({ studentsNeedingMeetingSet.contains($0) && !addedIDs.contains($0) }) ?? false {
             result.append(student)
         }
 
@@ -110,21 +110,21 @@ struct MeetingsWorkflowView: View {
     }
 
     /// Students who have had a meeting within the threshold
-    private var studentsWithRecentMeeting: [Student] {
+    private var studentsWithRecentMeeting: [CDStudent] {
         students.filter { student in
             let studentMeetings = meetingsFor(student)
-            return studentMeetings.contains { $0.date >= thresholdDate }
+            return studentMeetings.contains { ($0.date ?? .distantPast) >= thresholdDate }
         }
     }
 
     /// Filter students based on search and age.
     /// Search brings matching students to the top rather than hiding non-matches.
-    private var filteredStudentsNeedingMeeting: [Student] {
+    private var filteredStudentsNeedingMeeting: [CDStudent] {
         var result = studentsNeedingMeeting
 
         // Age filter
         if !selectedAgeRanges.isEmpty {
-            result = result.filter { AgeRange.matchesAny($0.birthday, in: selectedAgeRanges) }
+            result = result.filter { AgeRange.matchesAny($0.birthday ?? Date(), in: selectedAgeRanges) }
         }
 
         // Search: bring matching students to the top
@@ -140,12 +140,12 @@ struct MeetingsWorkflowView: View {
         return result
     }
 
-    private var filteredStudentsCompleted: [Student] {
+    private var filteredStudentsCompleted: [CDStudent] {
         var result = studentsWithRecentMeeting
 
         // Age filter
         if !selectedAgeRanges.isEmpty {
-            result = result.filter { AgeRange.matchesAny($0.birthday, in: selectedAgeRanges) }
+            result = result.filter { AgeRange.matchesAny($0.birthday ?? Date(), in: selectedAgeRanges) }
         }
 
         // Search: bring matching students to the top
@@ -161,12 +161,12 @@ struct MeetingsWorkflowView: View {
         return result
     }
 
-    private func meetingsFor(_ student: Student) -> [StudentMeeting] {
-        let studentIDString = student.id.uuidString
+    private func meetingsFor(_ student: CDStudent) -> [CDStudentMeeting] {
+        let studentIDString = student.id?.uuidString ?? ""
         return allMeetings.filter { $0.studentID == studentIDString }
     }
 
-    private func lastMeetingFor(_ student: Student) -> StudentMeeting? {
+    private func lastMeetingFor(_ student: CDStudent) -> CDStudentMeeting? {
         meetingsFor(student).first
     }
 
@@ -194,11 +194,11 @@ struct MeetingsWorkflowView: View {
             if let student = selectedStudent {
                 MeetingSessionView(
                     student: student,
-                    allWorkModels: allWorkModels,
-                    allLessonAssignments: allLessonAssignments,
-                    lessons: lessons,
+                    allWorkModels: Array(allWorkModels),
+                    allLessonAssignments: Array(allLessonAssignments),
+                    lessons: Array(lessons),
                     meetings: meetingsFor(student),
-                    meetingTemplates: meetingTemplates,
+                    meetingTemplates: Array(meetingTemplates),
                     workOverdueDays: workOverdueDays,
                     onComplete: {
                         moveToNextStudent()
@@ -215,11 +215,13 @@ struct MeetingsWorkflowView: View {
         }
         .sheet(item: $studentForMeetingDatePicker) { student in
             MeetingDatePickerSheet(studentName: student.fullName) { date in
-                MeetingScheduler.scheduleMeeting(
-                    studentID: student.id,
-                    date: date,
-                    context: modelContext
-                )
+                if let studentID = student.id {
+                    MeetingScheduler.scheduleMeeting(
+                        studentID: studentID,
+                        date: date,
+                        context: viewContext
+                    )
+                }
             }
         }
     }
@@ -274,11 +276,12 @@ struct MeetingsWorkflowView: View {
 
     // MARK: - Meeting Scheduling
 
-    private func handleScheduleMeeting(student: Student, date: Date?) {
+    private func handleScheduleMeeting(student: CDStudent, date: Date?) {
+        guard let studentID = student.id else { return }
         if let date {
-            MeetingScheduler.scheduleMeeting(studentID: student.id, date: date, context: modelContext)
+            MeetingScheduler.scheduleMeeting(studentID: studentID, date: date, context: viewContext)
         } else {
-            MeetingScheduler.clearMeetings(studentID: student.id, context: modelContext)
+            MeetingScheduler.clearMeetings(studentID: studentID, context: viewContext)
         }
     }
 
@@ -296,7 +299,7 @@ struct MeetingsWorkflowView: View {
     }
 
     private func moveStudent(from source: IndexSet, to destination: Int) {
-        var ids = filteredStudentsNeedingMeeting.map(\.id)
+        var ids = filteredStudentsNeedingMeeting.compactMap(\.id)
         ids.move(fromOffsets: source, toOffset: destination)
         orderedStudentIDs = ids
         saveCustomOrder()

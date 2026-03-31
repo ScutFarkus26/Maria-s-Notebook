@@ -1,4 +1,5 @@
 import SwiftUI
+import CoreData
 
 struct PlanningHeaderView: View {
     let weekRange: String

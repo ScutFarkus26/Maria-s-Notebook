@@ -1,5 +1,5 @@
 import SwiftUI
-import SwiftData
+import CoreData
 
 // MARK: - Sheet Types & Content
 
@@ -54,7 +54,7 @@ extension PlanningWeekViewContent {
                 onPlanNext: { la in planNextLesson(for: la) },
                 onUpdateOrder: { newOrderRaw in
                     inboxOrderRaw = newOrderRaw
-                    saveCoordinator.save(modelContext, reason: "Updating inbox order")
+                    saveCoordinator.save(viewContext, reason: "Updating inbox order")
                     onRefreshNeeded?()
                 }
             )
@@ -69,7 +69,7 @@ extension PlanningWeekViewContent {
     @ViewBuilder
     private func sheetForAssignment<Content: View>(
         id: UUID,
-        @ViewBuilder content: (LessonAssignment) -> Content
+        @ViewBuilder content: (CDLessonAssignment) -> Content
     ) -> some View {
         if let la = fetchLessonAssignment(by: id) {
             content(la)
@@ -91,7 +91,7 @@ extension PlanningWeekViewContent {
                 .onDisappear {
                     if let current = fetchLessonAssignment(by: id) {
                         if current.lesson == nil && current.studentIDs.isEmpty {
-                            modelContext.delete(current)
+                            viewContext.delete(current)
                             presentationRepository.save(reason: "Deleting empty draft")
                             onRefreshNeeded?()
                         }
@@ -109,13 +109,13 @@ extension PlanningWeekViewContent {
         }
     }
 
-    func fetchLessonAssignment(by id: UUID) -> LessonAssignment? {
+    func fetchLessonAssignment(by id: UUID) -> CDLessonAssignment? {
         if let found = inboxLessons.first(where: { $0.id == id }) {
             return found
         }
-        // Fallback to SwiftData fetch (PlanningWeekViewContent works with SwiftData LessonAssignment)
-        var fetch = FetchDescriptor<LessonAssignment>(predicate: #Predicate { $0.id == id })
+        // Fallback to SwiftData fetch (PlanningWeekViewContent works with SwiftData CDLessonAssignment)
+        var fetch = { let r = NSFetchRequest<CDLessonAssignment>(entityName: "CDLessonAssignment"); r.predicate = NSPredicate(format: "id == %@", id as CVarArg); r.fetchLimit = 0; return r }()
         fetch.fetchLimit = 1
-        return try? modelContext.fetch(fetch).first
+        return try? viewContext.fetch(fetch).first
     }
 }

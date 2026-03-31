@@ -1,7 +1,6 @@
 // swiftlint:disable file_length
 import OSLog
 import SwiftUI
-import SwiftData
 import CoreData
 
 // swiftlint:disable:next type_body_length
@@ -10,7 +9,6 @@ struct NewProjectSessionSheet: View {
     let club: Project
 
     @Environment(\.dismiss) private var dismiss
-    @Environment(\.modelContext) private var modelContext
     @Environment(\.managedObjectContext) private var managedObjectContext
     @Environment(SaveCoordinator.self) private var saveCoordinator
 
@@ -40,24 +38,23 @@ struct NewProjectSessionSheet: View {
     }
 
     // Performance: Filter template weeks by projectID at query level
-    @Query(sort: [SortDescriptor(\ProjectTemplateWeek.weekIndex, order: .forward)])
-    private var templateWeeks: [ProjectTemplateWeek]
+    @FetchRequest private var templateWeeks: FetchedResults<CDProjectTemplateWeek>
     // Performance: Filter roles by projectID at query level
-    @Query(sort: [SortDescriptor(\ProjectRole.createdAt, order: .forward)]) private var roles: [ProjectRole]
-    @Query private var allLessonAssignments: [LessonAssignment]
+    @FetchRequest private var roles: FetchedResults<CDProjectRole>
+    @FetchRequest(sortDescriptors: []) private var allLessonAssignments: FetchedResults<CDLessonAssignment>
 
     init(club: Project) {
         self.club = club
         // Performance: Filter template weeks by projectID at query level
-        let projectIDString = club.id.uuidString
-        _templateWeeks = Query(
-            filter: #Predicate<ProjectTemplateWeek> { $0.projectID == projectIDString },
-            sort: [SortDescriptor(\.weekIndex, order: .forward)]
+        let projectIDString = (club.id ?? UUID()).uuidString
+        _templateWeeks = FetchRequest(
+            sortDescriptors: [NSSortDescriptor(keyPath: \CDProjectTemplateWeek.weekIndex, ascending: true)],
+            predicate: NSPredicate(format: "projectID == %@", projectIDString)
         )
         // Performance: Filter roles by projectID at query level
-        _roles = Query(
-            filter: #Predicate<ProjectRole> { $0.projectID == projectIDString },
-            sort: [SortDescriptor(\.createdAt, order: .forward)]
+        _roles = FetchRequest(
+            sortDescriptors: [NSSortDescriptor(keyPath: \CDProjectRole.createdAt, ascending: true)],
+            predicate: NSPredicate(format: "projectID == %@", projectIDString)
         )
     }
 
@@ -82,7 +79,7 @@ struct NewProjectSessionSheet: View {
                 if useTemplateWeek {
                     Picker("Week", selection: $selectedTemplateWeekID) {
                         ForEach(templateWeeks.sorted { $0.weekIndex < $1.weekIndex }) { w in
-                            Text("Week \(w.weekIndex) — \(w.readingRange)").tag(Optional(w.id))
+                            Text("Week \(w.weekIndex) — \(w.readingRange)").tag(w.id)
                         }
                     }
                     .pickerStyle(.menu)
@@ -197,7 +194,7 @@ struct NewProjectSessionSheet: View {
     }
 
     private var isValid: Bool {
-        guard !club.memberStudentIDs.isEmpty else { return false }
+        guard !club.memberStudentIDsArray.isEmpty else { return false }
 
         // For choice mode, need at least minSelections work offers with titles
         if assignmentMode == .choice {
@@ -212,8 +209,8 @@ struct NewProjectSessionSheet: View {
     private func applyTemplateConfig(_ week: ProjectTemplateWeek) {
         chapterOrPages = week.readingRange
         assignmentMode = week.assignmentMode
-        minSelections = week.minSelections > 0 ? week.minSelections : 1
-        maxSelections = week.maxSelections > 0 ? week.maxSelections : 2
+        minSelections = week.minSelections > 0 ? Int(week.minSelections) : 1
+        maxSelections = week.maxSelections > 0 ? Int(week.maxSelections) : 2
         // Convert template offered works to session work drafts
         offeredWorks = week.offeredWorks.map { templateWork in
             WorkDraft(title: templateWork.title, instructions: templateWork.instructions)
@@ -226,14 +223,13 @@ struct NewProjectSessionSheet: View {
 
     // swiftlint:disable:next function_body_length
     private func create() {
-        let session = ProjectSession(
-            projectID: club.id,
-            meetingDate: AppCalendar.startOfDay(meetingDate),
-            chapterOrPages: chapterOrPages.isEmpty ? nil : chapterOrPages,
-            assignmentMode: assignmentMode,
-            minSelections: assignmentMode == .choice ? minSelections : 0,
-            maxSelections: assignmentMode == .choice ? maxSelections : 0
-        )
+        let session = CDProjectSession(context: managedObjectContext)
+        session.projectID = club.id?.uuidString ?? ""
+        session.meetingDate = AppCalendar.startOfDay(meetingDate)
+        session.chapterOrPages = chapterOrPages.isEmpty ? nil : chapterOrPages
+        session.assignmentMode = assignmentMode
+        session.minSelections = assignmentMode == .choice ? Int64(minSelections) : 0
+        session.maxSelections = assignmentMode == .choice ? Int64(maxSelections) : 0
 
         // Populate generic session info
         if useTemplateWeek,
@@ -241,12 +237,11 @@ struct NewProjectSessionSheet: View {
            let week = templateWeeks.first(where: { $0.id == selectedID }) {
             session.chapterOrPages = week.readingRange
             session.agendaItems = week.agendaItems
-            session.templateWeekID = week.id.uuidString
+            session.templateWeekID = week.id?.uuidString
         }
 
         // Attach to club immediately so ID is valid
-        club.sessions = (club.sessions ?? []) + [session]
-        modelContext.insert(session)
+        club.addToSessions(session)
 
         let scheduledDay = AppCalendar.startOfDay(meetingDate)
 
@@ -257,7 +252,7 @@ struct NewProjectSessionSheet: View {
 
             for lessonIDStr in week.linkedLessonIDs {
                 guard let lessonID = UUID(uuidString: lessonIDStr) else { continue }
-                let memberUUIDs = club.memberStudentIDs.compactMap { UUID(uuidString: $0) }.sorted()
+                let memberUUIDs = club.memberStudentIDsArray.compactMap { UUID(uuidString: $0) }.sorted()
                 let existing = allLessonAssignments.first { la in
                     la.lessonIDUUID == lessonID && Set(la.studentUUIDs) == Set(memberUUIDs)
                 }
@@ -279,7 +274,7 @@ struct NewProjectSessionSheet: View {
         }
 
         // 2. Create Work Items based on assignment mode
-        let assignmentService = SessionWorkAssignmentService(context: modelContext)
+        let assignmentService = SessionWorkAssignmentService(context: managedObjectContext)
 
         switch assignmentMode {
         case .choice:
@@ -302,23 +297,23 @@ struct NewProjectSessionSheet: View {
             createUniformWorks(session: session, scheduledDay: scheduledDay)
         }
 
-        saveCoordinator.save(modelContext, reason: "Create Project Session")
+        saveCoordinator.save(managedObjectContext, reason: "Create Project Session")
         dismiss()
     }
 
     /// Creates uniform works using existing template/generic logic
     private func createUniformWorks(session: ProjectSession, scheduledDay: Date) {
-        let lessonUUID = resolveGenericProjectLessonID(context: modelContext)
-        let sharedTemplates = (club.sharedTemplates ?? []).filter(\.isShared)
+        let lessonUUID = resolveGenericProjectLessonID(context: managedObjectContext)
+        let sharedTemplates = ((club.sharedTemplates as? Set<CDProjectAssignmentTemplate>) ?? []).filter(\.isShared)
         let templateWeek: ProjectTemplateWeek? = (useTemplateWeek && selectedTemplateWeekID != nil)
             ? templateWeeks.first(where: { $0.id == selectedTemplateWeekID! })
             : nil
 
-        for sid in club.memberStudentIDs {
+        for sid in club.memberStudentIDsArray {
             if let week = templateWeek {
                 // Template Mode
                 var roleName = "Member"
-                if let assignment = week.roleAssignments?.first(where: { $0.studentID == sid }),
+                if let assignment = (week.roleAssignments as? Set<CDProjectWeekRoleAssignment>)?.first(where: { $0.studentID == sid }),
                    let roleID = UUID(uuidString: assignment.roleID),
                    let role = fetchRole(roleID) {
                     roleName = role.title
@@ -331,7 +326,7 @@ struct NewProjectSessionSheet: View {
                 createWork(
                     studentID: sid,
                     lessonID: lessonUUID,
-                    sessionID: session.id,
+                    sessionID: session.id ?? UUID(),
                     scheduledDate: scheduledDay,
                     title: title,
                     instructions: [range, extras].filter { !$0.isEmpty }.joined(separator: "\n\n")
@@ -342,7 +337,7 @@ struct NewProjectSessionSheet: View {
                     createWork(
                         studentID: sid,
                         lessonID: lessonUUID,
-                        sessionID: session.id,
+                        sessionID: session.id ?? UUID(),
                         scheduledDate: scheduledDay,
                         title: tpl.title.isEmpty ? "Shared Assignment" : tpl.title,
                         instructions: tpl.instructions
@@ -352,7 +347,7 @@ struct NewProjectSessionSheet: View {
                 createWork(
                     studentID: sid,
                     lessonID: lessonUUID,
-                    sessionID: session.id,
+                    sessionID: session.id ?? UUID(),
                     scheduledDate: scheduledDay,
                     title: "\(club.title): Individual Work",
                     instructions: "See session notes."
@@ -403,20 +398,20 @@ struct NewProjectSessionSheet: View {
         }
     }
 
-    private func resolveGenericProjectLessonID(context: ModelContext) -> UUID {
+    private func resolveGenericProjectLessonID(context: NSManagedObjectContext) -> UUID {
         let name = "Project Work"
-        var fetch = FetchDescriptor<Lesson>(predicate: #Predicate { $0.name == name })
-        fetch.fetchLimit = 1
-        do {
-            let existing = try context.fetch(fetch)
-            if let first = existing.first {
-                return first.id
-            }
-        } catch {
-            Self.logger.warning("Failed to fetch existing project lesson: \(error)")
+        let request = CDFetchRequest(CDLesson.self)
+        request.predicate = NSPredicate(format: "name == %@", name)
+        request.fetchLimit = 1
+        let existing = context.safeFetch(request)
+        if let first = existing.first, let firstID = first.id {
+            return firstID
         }
-        let l = Lesson(name: name, subject: "Projects", group: "Project")
-        context.insert(l)
-        return l.id
+        let l = CDLesson(context: context)
+        l.id = UUID()
+        l.name = name
+        l.subject = "Projects"
+        l.group = "Project"
+        return l.id!
     }
 }

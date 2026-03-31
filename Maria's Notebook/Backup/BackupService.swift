@@ -1,5 +1,5 @@
 import Foundation
-import SwiftData
+import CoreData
 import SwiftUI
 import CryptoKit
 import Compression
@@ -24,8 +24,8 @@ public final class BackupService {
 
     /// Estimates the backup size in bytes based on current entity counts.
     /// Delegates to BackupSizeEstimator for the actual calculation.
-    public func estimateBackupSize(modelContext: ModelContext) -> Int64 {
-        BackupSizeEstimator.estimateBackupSize(modelContext: modelContext)
+    public func estimateBackupSize(viewContext: NSManagedObjectContext) -> Int64 {
+        BackupSizeEstimator.estimateBackupSize(viewContext: viewContext)
     }
 
     /// Estimates backup size from entity counts dictionary.
@@ -36,13 +36,13 @@ public final class BackupService {
 
     // MARK: - Export
     public func exportBackup(
-        modelContext: ModelContext,
+        viewContext: NSManagedObjectContext,
         to url: URL,
         password: String? = nil,
         progress: @escaping ProgressCallback
     ) async throws -> BackupOperationSummary {
         return try withSecurityScopedResource(url) {
-            try performExport(modelContext: modelContext, to: url, password: password, progress: progress)
+            try performExport(viewContext: viewContext, to: url, password: password, progress: progress)
         }
     }
 }

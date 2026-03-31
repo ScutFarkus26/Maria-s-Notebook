@@ -1,5 +1,6 @@
 import OSLog
 import SwiftUI
+import CoreData
 #if os(macOS)
 import AppKit
 #endif
@@ -11,7 +12,7 @@ extension LessonDetailCard {
     @ViewBuilder
     var headerBar: some View {
         HStack(alignment: .firstTextBaseline) {
-            Text(isEditing ? "Edit Lesson" : "Lesson Details")
+            Text(isEditing ? "Edit Lesson" : "CDLesson Details")
                 .font(AppTheme.ScaledFont.titleSmall)
             Spacer()
             Button {
@@ -221,9 +222,10 @@ extension LessonDetailCard {
         guard let legacyURL = resolvePagesURL(), !LessonFileStorage.isManagedURL(legacyURL) else { return }
         Task(priority: .utility) {
             do {
+                guard let lessonID = lesson.id else { return }
                 let destURL = try LessonFileStorage.importFile(
                     from: legacyURL,
-                    forLessonWithID: lesson.id,
+                    forLessonWithID: lessonID,
                     lessonName: lesson.name
                 )
                 let bookmark = try LessonFileStorage.makeBookmark(for: destURL)
@@ -233,7 +235,7 @@ extension LessonDetailCard {
                     lesson.pagesFileRelativePath = rel
                     resolvedPagesURL = destURL
                     previousManagedURL = destURL
-                    saveCoordinator.save(modelContext, reason: "Migrate lesson file to managed storage")
+                    saveCoordinator.save(viewContext, reason: "Migrate lesson file to managed storage")
                 }
             } catch {
                 await MainActor.run { importError = error.localizedDescription }
@@ -252,9 +254,10 @@ extension LessonDetailCard {
             if response == .OK, let url = panel.url {
                 Task(priority: .userInitiated) {
                     do {
+                        guard let lessonID = lesson.id else { return }
                         let destURL = try LessonFileStorage.importFile(
                             from: url,
-                            forLessonWithID: lesson.id,
+                            forLessonWithID: lessonID,
                             lessonName: lesson.name
                         )
                         let bookmark = try LessonFileStorage.makeBookmark(for: destURL)
@@ -271,7 +274,7 @@ extension LessonDetailCard {
                             lesson.pagesFileRelativePath = rel
                             resolvedPagesURL = destURL
                             previousManagedURL = destURL
-                            saveCoordinator.save(modelContext, reason: "Import lesson Pages file")
+                            saveCoordinator.save(viewContext, reason: "Import lesson Pages file")
                         }
                     } catch {
                         await MainActor.run { importError = error.localizedDescription }

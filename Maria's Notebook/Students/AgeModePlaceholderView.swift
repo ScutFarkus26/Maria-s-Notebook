@@ -1,4 +1,5 @@
 import SwiftUI
+import CoreData
 
 struct AgeModePlaceholderView: View {
     var body: some View {

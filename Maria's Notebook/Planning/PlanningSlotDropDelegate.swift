@@ -1,24 +1,24 @@
 import SwiftUI
-import SwiftData
+import CoreData
 import OSLog
 import UniformTypeIdentifiers
 
 /// Unified drop delegate for planning slots (used by both the Planning Board and Agenda views).
 ///
 /// Handles three payload types:
-/// 1. Plain UUID — reorder or merge a LessonAssignment within a slot
+/// 1. Plain UUID — reorder or merge a CDLessonAssignment within a slot
 /// 2. `STUDENT_TO_INBOX:` / `STUDENT_TO_SLOT:` — move a student into a slot
 /// 3. `UnifiedCalendarDragPayload` — presentation or work check-in scheduling
 struct PlanningSlotDropDelegate: DropDelegate {
     private static let logger = Logger.planning
 
     let calendar: Calendar
-    let modelContext: ModelContext
-    let allLessonAssignments: [LessonAssignment]
+    let viewContext: NSManagedObjectContext
+    let allLessonAssignments: [CDLessonAssignment]
     let day: Date
     let baseDateProvider: () -> Date
     let spacingSeconds: Int
-    let getCurrent: () -> [LessonAssignment]
+    let getCurrent: () -> [CDLessonAssignment]
     let itemFramesProvider: () -> [UUID: CGRect]
     let onTargetChange: (Bool) -> Void
     let onInsertionIndexChange: (Int?) -> Void
@@ -91,15 +91,16 @@ struct PlanningSlotDropDelegate: DropDelegate {
         }
 
         let current = getCurrent()
-        var ids = current.map(\.id)
+        var ids = current.compactMap(\.id)
         let dict = buildFramesDictionary(current: current)
         let insertionIndex = PlanningDropUtils.computeInsertionIndex(locationY: location.y, frames: dict)
 
         let targetLA = findOrCreateTargetLessonAssignment(lessonID: lessonID, studentID: studentID)
+        guard let targetID = targetLA.id else { return }
 
-        ids.removeAll(where: { $0 == targetLA.id })
+        ids.removeAll(where: { $0 == targetID })
         let boundedIndex = max(0, min(insertionIndex, ids.count))
-        ids.insert(targetLA.id, at: boundedIndex)
+        ids.insert(targetID, at: boundedIndex)
 
         let timeMap = PlanningDropUtils.assignSequentialTimes(
             ids: ids, base: baseDateProvider(), calendar: calendar,
@@ -126,21 +127,23 @@ struct PlanningSlotDropDelegate: DropDelegate {
             let frames = itemFramesProvider()
             let dropY = location.y
             if let targetLA = current.first(where: { la in
-                guard la.id != id, !la.isGiven,
+                guard let laID = la.id, laID != id, !la.isGiven,
                       la.resolvedLessonID == source.resolvedLessonID,
-                      let frame = frames[la.id] else { return false }
+                      let frame = frames[laID] else { return false }
                 return dropY >= frame.minY && dropY <= frame.maxY
             }) {
-                PresentationMergeService.merge(
-                    sourceID: id,
-                    targetID: targetLA.id,
-                    context: modelContext
-                )
+                if let targetLAID = targetLA.id {
+                    PresentationMergeService.merge(
+                        sourceID: id,
+                        targetID: targetLAID,
+                        context: viewContext
+                    )
+                }
                 return
             }
         }
 
-        var ids = current.map(\.id)
+        var ids = current.compactMap(\.id)
         if let existing = ids.firstIndex(of: id) {
             ids.remove(at: existing)
         }
@@ -160,19 +163,19 @@ struct PlanningSlotDropDelegate: DropDelegate {
 
     // MARK: - Helpers
 
-    private func buildFramesDictionary(current: [LessonAssignment]) -> [UUID: CGRect] {
+    private func buildFramesDictionary(current: [CDLessonAssignment]) -> [UUID: CGRect] {
         let frames = itemFramesProvider()
         return Dictionary(
             current.compactMap { item -> (UUID, CGRect)? in
-                guard let rect = frames[item.id] else { return nil }
-                return (item.id, rect)
+                guard let itemID = item.id, let rect = frames[itemID] else { return nil }
+                return (itemID, rect)
             },
             uniquingKeysWith: { first, _ in first }
         )
     }
 
     @MainActor
-    private func findOrCreateTargetLessonAssignment(lessonID: UUID, studentID: UUID) -> LessonAssignment {
+    private func findOrCreateTargetLessonAssignment(lessonID: UUID, studentID: UUID) -> CDLessonAssignment {
         let studentIDString = studentID.uuidString
         let lessonIDString = lessonID.uuidString
 
@@ -184,28 +187,19 @@ struct PlanningSlotDropDelegate: DropDelegate {
 
         let new = PresentationFactory.makeDraft(lessonID: lessonID, studentIDs: [studentID])
 
-        var lessonFetch = FetchDescriptor<Lesson>(predicate: #Predicate { $0.id == lessonID })
+        let lessonFetch = NSFetchRequest<CDLesson>(entityName: "CDLesson")
+        lessonFetch.predicate = NSPredicate(format: "id == %@", lessonID as CVarArg)
         lessonFetch.fetchLimit = 1
-        var studentFetch = FetchDescriptor<Student>(predicate: #Predicate { $0.id == studentID })
-        studentFetch.fetchLimit = 1
         do {
-            new.lesson = try modelContext.fetch(lessonFetch).first
+            new.lesson = try viewContext.fetch(lessonFetch).first
         } catch {
             Self.logger.warning("Failed to fetch lesson: \(error)")
         }
-        do {
-            if let s = try modelContext.fetch(studentFetch).first {
-                new.students = [s]
-            }
-        } catch {
-            Self.logger.warning("Failed to fetch student: \(error)")
-        }
-        modelContext.insert(new)
         return new
     }
 
     @MainActor
-    private func applyTimeMap(ids: [UUID], timeMap: [UUID: Date], targetLA: LessonAssignment) {
+    private func applyTimeMap(ids: [UUID], timeMap: [UUID: Date], targetLA: CDLessonAssignment) {
         for id in ids {
             if let item = allLessonAssignments.first(where: { $0.id == id }) {
                 item.setScheduledFor(timeMap[id], using: AppCalendar.shared)
@@ -228,12 +222,13 @@ struct PlanningSlotDropDelegate: DropDelegate {
         }
     }
 
-    private func autoEnrollIfNeeded(_ item: LessonAssignment) {
+    private func autoEnrollIfNeeded(_ item: CDLessonAssignment) {
         if let lesson = item.lesson {
             GroupTrackService.autoEnrollInTrackIfNeeded(
-                lesson: lesson,
+                lessonSubject: lesson.subject,
+                lessonGroup: lesson.group,
                 studentIDs: item.studentIDs,
-                modelContext: modelContext
+                context: viewContext
             )
         }
     }
@@ -246,10 +241,9 @@ struct PlanningSlotDropDelegate: DropDelegate {
 
         let studentIDString = studentID.uuidString
         src.studentIDs.removeAll { $0 == studentIDString }
-        src.students.removeAll { $0.id == studentID }
 
         if src.studentIDs.isEmpty {
-            modelContext.delete(src)
+            viewContext.delete(src)
         }
     }
 
@@ -261,7 +255,7 @@ struct PlanningSlotDropDelegate: DropDelegate {
 
     private func saveContext(_ operation: String) {
         do {
-            try modelContext.save()
+            try viewContext.save()
         } catch {
             Self.logger.warning("Failed to save context after \(operation): \(error)")
         }

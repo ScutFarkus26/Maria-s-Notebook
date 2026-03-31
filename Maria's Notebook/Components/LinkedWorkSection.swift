@@ -1,10 +1,10 @@
 import SwiftUI
 
 struct LinkedWorkSection: View {
-    let works: [WorkModel]
-    let studentsAll: [Student]
-    var displayName: (Student) -> String
-    var onToggle: (WorkModel, UUID) -> Void
+    let works: [CDWorkModel]
+    let studentsAll: [CDStudent]
+    var displayName: (CDStudent) -> String
+    var onToggle: (CDWorkModel, UUID) -> Void
 
     var body: some View {
         Group {
@@ -35,12 +35,12 @@ struct LinkedWorkSection: View {
         }
     }
 
-    private func workCardType(for work: WorkModel) -> WorkCardWorkType {
+    private func workCardType(for work: CDWorkModel) -> WorkCardWorkType {
         // All work should have kind set after migration
         return WorkCardWorkType(from: work.kind ?? .research)
     }
 
-    private func workTitle(for work: WorkModel) -> String {
+    private func workTitle(for work: CDWorkModel) -> String {
         let rawTitle = work.title.trimmed()
         if rawTitle.isEmpty {
             // Use kind for default title
@@ -50,14 +50,15 @@ struct LinkedWorkSection: View {
         return rawTitle
     }
 
-    private func participants(for work: WorkModel) -> [WorkCardParticipant] {
-        let workParticipants = work.participants ?? []
+    private func participants(for work: CDWorkModel) -> [WorkCardParticipant] {
+        let workParticipants = (work.participants?.allObjects as? [CDWorkParticipantEntity]) ?? []
         return workParticipants.compactMap { participant in
             guard let studentIDUUID = UUID(uuidString: participant.studentID),
                   let student = studentsAll.first(where: { $0.id == studentIDUUID }) else { return nil }
+            let sid = student.id ?? UUID()
             return WorkCardParticipant(
-                id: student.id,
-                studentID: student.id,
+                id: sid,
+                studentID: sid,
                 name: displayName(student),
                 isCompleted: participant.completedAt != nil
             )

@@ -1,7 +1,7 @@
 import SwiftUI
 
 struct LinkedLessonSection: View {
-    let lessonsByID: [UUID: Lesson]
+    let lessonsByID: [UUID: CDLesson]
     let presentationSnapshotsByID: [UUID: LessonAssignmentSnapshot]
     @Binding var selectedPresentationID: UUID?
     let createdDateOnlyFormatter: DateFormatter
@@ -13,7 +13,7 @@ struct LinkedLessonSection: View {
     
     var body: some View {
         VStack(alignment: .leading, spacing: 10) {
-            WorkSectionHeader(icon: "link", title: "Linked Lesson")
+            WorkSectionHeader(icon: "link", title: "Linked CDLesson")
                 .contentShape(Rectangle())
                 .onTapGesture { showingLinkPicker = true }
             
@@ -21,7 +21,7 @@ struct LinkedLessonSection: View {
                let snapshot = presentationSnapshotsByID[selectedID] {
                 
                 let lesson = lessonsByID[snapshot.lessonID]
-                let lessonName = lesson?.name ?? "Unknown Lesson"
+                let lessonName = lesson?.name ?? "Unknown CDLesson"
                 let date = snapshot.scheduledFor ?? snapshot.presentedAt ?? snapshot.createdAt
                 let formattedDate = createdDateOnlyFormatter.string(from: date)
                 
@@ -44,7 +44,7 @@ struct LinkedLessonSection: View {
                         Button {
                             onOpenBaseLesson()
                         } label: {
-                            Text("Base Lesson")
+                            Text("Base CDLesson")
                                 .frame(minWidth: 0)
                         }
                         .buttonStyle(.bordered)
@@ -59,7 +59,7 @@ struct LinkedLessonSection: View {
                     Button {
                         showingLinkPicker = true
                     } label: {
-                        Label("Link Lesson…", systemImage: "link.badge.plus")
+                        Label("Link CDLesson…", systemImage: "link.badge.plus")
                     }
                     .buttonStyle(.borderedProminent)
                 }
@@ -86,7 +86,7 @@ struct LinkedLessonSection: View {
                     } else {
                         ForEach(filtered, id: \.id) { snap in
                             let lesson = lessonsByID[snap.lessonID]
-                            let name = lesson?.name ?? "Lesson"
+                            let name = lesson?.name ?? "CDLesson"
                             let snapDate = snap.scheduledFor ?? snap.presentedAt ?? snap.createdAt
                             let date = createdDateOnlyFormatter.string(from: snapDate)
                             Button {
@@ -106,11 +106,11 @@ struct LinkedLessonSection: View {
                             showingLinkPicker = false
                             onCreateNewPresentation()
                         } label: {
-                            Label("Create New Presentation…", systemImage: "plus")
+                            Label("Create New CDPresentation…", systemImage: "plus")
                         }
                     }
                 }
-                .navigationTitle("Link to Lesson")
+                .navigationTitle("Link to CDLesson")
                 .toolbar {
                     ToolbarItem(placement: .cancellationAction) {
                         Button("Cancel") { showingLinkPicker = false }

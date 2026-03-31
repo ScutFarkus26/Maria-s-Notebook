@@ -2,7 +2,7 @@
 // Payload extraction, decoding, and entity lookup cache management
 
 import Foundation
-import SwiftData
+import CoreData
 import OSLog
 
 extension SelectiveRestoreService {
@@ -51,12 +51,13 @@ extension SelectiveRestoreService {
     // MARK: - Cache Helpers
 
     /// Helper to fetch and cache entity IDs for a given type.
-    func cacheEntityIDs<T: PersistentModel & Identifiable>(
-        _ type: T.Type, key: String, in context: ModelContext
-    ) where T.ID == UUID {
+    /// Core Data entities have optional `id: UUID?`, so we compactMap to filter out nils.
+    func cacheEntityIDs<T: NSManagedObject>(
+        _ type: T.Type, key: String, idKeyPath: KeyPath<T, UUID?>, in context: NSManagedObjectContext
+    ) {
         do {
-            let entities = try context.fetch(FetchDescriptor<T>())
-            existingIDSets[key] = Set(entities.map(\.id))
+            let entities = try context.fetch(T.fetchRequest() as! NSFetchRequest<T>)
+            existingIDSets[key] = Set(entities.compactMap { $0[keyPath: idKeyPath] })
         } catch {
             let desc = error.localizedDescription
             Self.logger.warning("Failed to cache entity IDs for \(key, privacy: .public): \(desc, privacy: .public)")
@@ -65,12 +66,15 @@ extension SelectiveRestoreService {
     }
 
     /// Helper to fetch and cache entities with full objects for relationships.
-    func cacheDictionary<T: PersistentModel & Identifiable>(
-        _ type: T.Type, in context: ModelContext
-    ) -> [UUID: T] where T.ID == UUID {
+    /// Core Data entities have optional `id: UUID?`, so we compactMap to filter out nils.
+    func cacheDictionary<T: NSManagedObject>(
+        _ type: T.Type, idKeyPath: KeyPath<T, UUID?>, in context: NSManagedObjectContext
+    ) -> [UUID: T] {
         do {
-            let entities = try context.fetch(FetchDescriptor<T>())
-            return entities.toDictionary(by: \.id)
+            let entities = try context.fetch(T.fetchRequest() as! NSFetchRequest<T>)
+            return Dictionary(uniqueKeysWithValues: entities.compactMap { e in
+                e[keyPath: idKeyPath].map { ($0, e) }
+            })
         } catch {
             let desc = error.localizedDescription
             Self.logger.warning("Failed to cache dictionary for \(T.self, privacy: .public): \(desc, privacy: .public)")
@@ -83,32 +87,48 @@ extension SelectiveRestoreService {
         return existingIDSets[key] ?? []
     }
 
+    /// Creates an existence-check closure that uses the cached ID set for O(1) lookup
+    /// and fetches the actual entity only when a match is found.
+    func cachedExistenceCheck<T: NSManagedObject>(
+        key: String,
+        entityName: String,
+        in context: NSManagedObjectContext
+    ) -> BackupEntityImporter.EntityExistsCheck<T> {
+        return { [self] id in
+            guard self.getCachedIDs(key).contains(id) else { return nil }
+            let request = NSFetchRequest<T>(entityName: entityName)
+            request.predicate = NSPredicate(format: "id == %@", id as CVarArg)
+            request.fetchLimit = 1
+            return try context.fetch(request).first
+        }
+    }
+
     /// Pre-builds lookup caches for all entity types to enable O(1) existence checks.
     /// This is much faster than querying the database for each entity.
-    func buildExistingIDCaches(in context: ModelContext) {
+    func buildExistingIDCaches(in context: NSManagedObjectContext) {
         // Build lookup dictionaries for entities needed for relationship linking
-        studentsByID = cacheDictionary(Student.self, in: context)
-        lessonsByID = cacheDictionary(Lesson.self, in: context)
-        topicsByID = cacheDictionary(CommunityTopic.self, in: context)
-        templateWeeksByID = cacheDictionary(ProjectTemplateWeek.self, in: context)
+        studentsByID = cacheDictionary(CDStudent.self, idKeyPath: \.id, in: context)
+        lessonsByID = cacheDictionary(CDLesson.self, idKeyPath: \.id, in: context)
+        topicsByID = cacheDictionary(CDCommunityTopicEntity.self, idKeyPath: \.id, in: context)
+        templateWeeksByID = cacheDictionary(CDProjectTemplateWeek.self, idKeyPath: \.id, in: context)
 
         // Build ID sets for simple existence checks
-        // LegacyPresentation removed — entity IDs cached via LessonAssignment below
-        cacheEntityIDs(Note.self, key: "notes", in: context)
-        // WorkPlanItem removed in Phase 6 - migrated to WorkCheckIn
-        cacheEntityIDs(NonSchoolDay.self, key: "nonSchoolDays", in: context)
-        cacheEntityIDs(SchoolDayOverride.self, key: "schoolDayOverrides", in: context)
-        cacheEntityIDs(StudentMeeting.self, key: "studentMeetings", in: context)
-        cacheEntityIDs(LessonAssignment.self, key: "lessonAssignments", in: context)
-        cacheEntityIDs(ProposedSolution.self, key: "proposedSolutions", in: context)
-        cacheEntityIDs(CommunityAttachment.self, key: "communityAttachments", in: context)
-        cacheEntityIDs(AttendanceRecord.self, key: "attendanceRecords", in: context)
-        cacheEntityIDs(WorkCompletionRecord.self, key: "workCompletionRecords", in: context)
-        cacheEntityIDs(Project.self, key: "projects", in: context)
-        cacheEntityIDs(ProjectRole.self, key: "projectRoles", in: context)
-        cacheEntityIDs(ProjectAssignmentTemplate.self, key: "projectAssignmentTemplates", in: context)
-        cacheEntityIDs(ProjectWeekRoleAssignment.self, key: "projectWeekRoleAssignments", in: context)
-        cacheEntityIDs(ProjectSession.self, key: "projectSessions", in: context)
+        // LegacyPresentation removed — entity IDs cached via CDLessonAssignment below
+        cacheEntityIDs(CDNote.self, key: "notes", idKeyPath: \.id, in: context)
+        // WorkPlanItem removed in Phase 6 - migrated to CDWorkCheckIn
+        cacheEntityIDs(CDNonSchoolDay.self, key: "nonSchoolDays", idKeyPath: \.id, in: context)
+        cacheEntityIDs(CDSchoolDayOverride.self, key: "schoolDayOverrides", idKeyPath: \.id, in: context)
+        cacheEntityIDs(CDStudentMeeting.self, key: "studentMeetings", idKeyPath: \.id, in: context)
+        cacheEntityIDs(CDLessonAssignment.self, key: "lessonAssignments", idKeyPath: \.id, in: context)
+        cacheEntityIDs(CDProposedSolutionEntity.self, key: "proposedSolutions", idKeyPath: \.id, in: context)
+        cacheEntityIDs(CDCommunityAttachmentEntity.self, key: "communityAttachments", idKeyPath: \.id, in: context)
+        cacheEntityIDs(CDAttendanceRecord.self, key: "attendanceRecords", idKeyPath: \.id, in: context)
+        cacheEntityIDs(CDWorkCompletionRecord.self, key: "workCompletionRecords", idKeyPath: \.id, in: context)
+        cacheEntityIDs(CDProject.self, key: "projects", idKeyPath: \.id, in: context)
+        cacheEntityIDs(CDProjectRole.self, key: "projectRoles", idKeyPath: \.id, in: context)
+        cacheEntityIDs(CDProjectAssignmentTemplate.self, key: "projectAssignmentTemplates", idKeyPath: \.id, in: context)
+        cacheEntityIDs(CDProjectWeekRoleAssignment.self, key: "projectWeekRoleAssignments", idKeyPath: \.id, in: context)
+        cacheEntityIDs(CDProjectSession.self, key: "projectSessions", idKeyPath: \.id, in: context)
     }
 
     /// Clears the lookup caches to free memory after restore is complete

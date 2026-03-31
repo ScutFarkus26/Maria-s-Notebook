@@ -1,70 +1,16 @@
-import SwiftData
+import CoreData
 
-/// Centralized SwiftData schema for the app. Keep this list as the single source of truth.
-/// Both the production ModelContainer and the preview container should reference this schema
-/// to avoid drift between builds and previews.
+/// Centralized schema reference for the app.
+/// The Core Data model is defined in the .xcdatamodeld file.
+/// This struct provides a single place to reference the managed object model
+/// used by both the production Core Data stack and preview containers.
 struct AppSchema {
-    static let schema = Schema([
-        Student.self,
-        Lesson.self,
-        LessonAttachment.self,
-        // Legacy model removed — fully migrated to LessonAssignment
-        WorkCompletionRecord.self,
-        WorkModel.self,
-        WorkCheckIn.self,
-        WorkParticipantEntity.self,
-        WorkStep.self,
-        SampleWork.self,
-        SampleWorkStep.self,
-        PracticeSession.self,
-        AttendanceRecord.self,
-        NonSchoolDay.self,
-        SchoolDayOverride.self,
-        Note.self,
-        NoteStudentLink.self,
-        NoteTemplate.self,
-        MeetingTemplate.self,
-        CommunityTopic.self,
-        ProposedSolution.self,
-        CommunityAttachment.self,
-        LessonPresentation.self,
-        LessonAssignment.self,  // Entity name must match stored data; Presentation is a typealias
-        // Legacy check-in system removed - now using WorkCheckIn
-        StudentMeeting.self,
-        ScheduledMeeting.self,
-        Project.self,
-        ProjectAssignmentTemplate.self,
-        ProjectSession.self,
-        ProjectRole.self,
-        ProjectTemplateWeek.self,
-        ProjectWeekRoleAssignment.self,
-        Reminder.self,
-        CalendarEvent.self,
-        Track.self,
-        TrackStep.self,
-        StudentTrackEnrollment.self,
-        GroupTrack.self,
-        Document.self,
-        Supply.self,
-        SupplyTransaction.self,
-        Procedure.self,
-        Schedule.self,
-        ScheduleSlot.self,
-        Issue.self,
-        IssueAction.self,
-        DevelopmentSnapshot.self,
-        TodoItem.self,
-        TodoSubtask.self,
-        TodoTemplate.self,
-        TodayAgendaOrder.self,
-        PlanningRecommendation.self,
-        Resource.self,
-        GoingOut.self,
-        GoingOutChecklistItem.self,
-        ClassroomJob.self,
-        JobAssignment.self,
-        TransitionPlan.self,
-        TransitionChecklistItem.self,
-        CalendarNote.self
-    ])
+    /// The Core Data managed object model loaded from the app bundle.
+    nonisolated(unsafe) static let managedObjectModel: NSManagedObjectModel = {
+        guard let modelURL = Bundle.main.url(forResource: "MariasNotebook", withExtension: "momd"),
+              let model = NSManagedObjectModel(contentsOf: modelURL) else {
+            fatalError("Failed to load Core Data managed object model")
+        }
+        return model
+    }()
 }

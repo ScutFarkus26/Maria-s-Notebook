@@ -1,44 +1,28 @@
 import Foundation
-import SwiftData
+import CoreData
 
-/// Helper functions for building common SwiftData predicates, especially for CloudKit compatibility.
+/// Helper functions for building common Core Data predicates.
 /// These helpers reduce duplication and ensure consistent UUID-to-String conversion patterns.
 enum PredicateHelpers {
-    /// Creates a predicate for matching a work ID (UUID stored as String in CloudKit).
-    /// - Parameter workID: The work model UUID
-    /// - Returns: A predicate that matches the work ID
-    static func workID(_ workID: UUID) -> Predicate<WorkModel> {
-        #Predicate<WorkModel> { work in
-            work.id == workID
-        }
+    /// Creates a predicate for matching a work ID.
+    static func workID(_ workID: UUID) -> NSPredicate {
+        NSPredicate(format: "id == %@", workID as CVarArg)
     }
 
     /// Creates a predicate for matching a student ID in a LessonAssignment.
-    /// - Parameter studentID: The student UUID
-    /// - Returns: A predicate that matches the student ID
-    static func studentID(_ studentID: UUID) -> Predicate<LessonAssignment> {
+    static func studentID(_ studentID: UUID) -> NSPredicate {
         let idString = studentID.uuidString
-        return #Predicate<LessonAssignment> { la in
-            la.studentIDs.contains(idString)
-        }
+        return NSPredicate(format: "studentIDs CONTAINS %@", idString)
     }
 
     /// Creates a predicate for matching multiple work IDs.
-    /// - Parameter workIDs: Set of work model UUIDs
-    /// - Returns: A predicate that matches any of the work IDs
-    static func workIDs(_ workIDs: Set<UUID>) -> Predicate<WorkModel> {
-        return #Predicate<WorkModel> { work in
-            workIDs.contains(work.id)
-        }
+    static func workIDs(_ workIDs: Set<UUID>) -> NSPredicate {
+        NSPredicate(format: "id IN %@", workIDs as CVarArg)
     }
 
     /// Creates a predicate for matching a lesson ID in a LessonAssignment.
-    /// - Parameter lessonID: The lesson UUID
-    /// - Returns: A predicate that matches the lesson ID
-    static func lessonID(_ lessonID: UUID) -> Predicate<LessonAssignment> {
+    static func lessonID(_ lessonID: UUID) -> NSPredicate {
         let idString = lessonID.uuidString
-        return #Predicate<LessonAssignment> { la in
-            la.lessonID == idString
-        }
+        return NSPredicate(format: "lessonID == %@", idString)
     }
 }

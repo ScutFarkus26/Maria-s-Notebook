@@ -1,4 +1,5 @@
 import SwiftUI
+import CoreData
 #if canImport(AppIntents)
 import AppIntents
 #endif

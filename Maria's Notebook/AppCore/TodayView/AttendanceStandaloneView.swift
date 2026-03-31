@@ -3,7 +3,7 @@
 // Shows only attendance functionality without the Today view's other sections.
 
 import SwiftUI
-import SwiftData
+import CoreData
 import OSLog
 
 /// Standalone attendance view for iPhone that displays just the attendance grid
@@ -12,7 +12,7 @@ struct AttendanceStandaloneView: View {
     private static let logger = Logger.attendance
 
     // MARK: - Environment
-    @Environment(\.modelContext) var modelContext
+    @Environment(\.managedObjectContext) var viewContext
     @Environment(\.calendar) var calendar
     @Environment(RestoreCoordinator.self) var restoreCoordinator
 
@@ -137,12 +137,12 @@ struct AttendanceStandaloneView: View {
     // MARK: - School Day Navigation
 
     private func isNonSchoolDaySync(_ date: Date) -> Bool {
-        schoolDayCache.cacheSchoolDayData(for: date, modelContext: modelContext)
+        schoolDayCache.cacheSchoolDayData(for: date, viewContext: viewContext)
         return schoolDayCache.isNonSchoolDay(date)
     }
 
     private func nextSchoolDaySync(after date: Date) -> Date {
-        schoolDayCache.cacheSchoolDayData(for: date, modelContext: modelContext)
+        schoolDayCache.cacheSchoolDayData(for: date, viewContext: viewContext)
         let cal = AppCalendar.shared
         var d = cal.startOfDay(for: date)
         d = cal.date(byAdding: .day, value: 1, to: d) ?? d
@@ -154,7 +154,7 @@ struct AttendanceStandaloneView: View {
     }
 
     private func previousSchoolDaySync(before date: Date) -> Date {
-        schoolDayCache.cacheSchoolDayData(for: date, modelContext: modelContext)
+        schoolDayCache.cacheSchoolDayData(for: date, viewContext: viewContext)
         let cal = AppCalendar.shared
         var d = cal.startOfDay(for: date)
         d = cal.date(byAdding: .day, value: -1, to: d) ?? d
@@ -166,7 +166,7 @@ struct AttendanceStandaloneView: View {
     }
 
     private func nearestSchoolDaySync(to date: Date) -> Date {
-        schoolDayCache.cacheSchoolDayData(for: date, modelContext: modelContext)
+        schoolDayCache.cacheSchoolDayData(for: date, viewContext: viewContext)
         let day = AppCalendar.startOfDay(date)
         if !schoolDayCache.isNonSchoolDay(day) { return day }
         let prev = previousSchoolDaySync(before: day)

@@ -1,5 +1,5 @@
 import SwiftUI
-import SwiftData
+import CoreData
 
 // MARK: - CSV Import Handlers
 
@@ -35,7 +35,7 @@ extension StudentsView {
         parsingTask = StudentsCSVImportHandler.handleMappingConfirm(
             mapping: mapping,
             fileURL: pendingFileURL,
-            students: students,
+            students: Array(students),
             cancellingTask: parsingTask,
             onParsed: { parsed in
                 self.pendingParsedImport = parsed
@@ -55,8 +55,8 @@ extension StudentsView {
     func handleImportCommit(_ filtered: StudentCSVImporter.Parsed) {
         importAlert = StudentsCSVImportHandler.handleImportCommit(
             filtered,
-            modelContext: modelContext,
-            existingStudents: students
+            viewContext: viewContext,
+            existingStudents: Array(students)
         )
         pendingParsedImport = nil
     }

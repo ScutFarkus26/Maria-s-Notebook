@@ -1,6 +1,6 @@
 import Foundation
 
-// MARK: - Project DTOs
+// MARK: - CDProject DTOs
 
 public struct ProjectDTO: Codable, Sendable {
     public var id: UUID

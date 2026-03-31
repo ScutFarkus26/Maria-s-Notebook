@@ -2,7 +2,7 @@
 // Handles transaction rollback for failed imports and pre-import safety backups
 
 import Foundation
-import SwiftData
+import CoreData
 import OSLog
 
 /// Manages backup transactions with rollback capability.
@@ -72,12 +72,12 @@ public final class BackupTransactionManager {
     /// This backup can be used to restore the database if the operation fails.
     ///
     /// - Parameters:
-    ///   - modelContext: The model context to backup
+    ///   - viewContext: The model context to backup
     ///   - operationName: Name of the operation (for filename)
     ///   - progress: Optional progress callback
     /// - Returns: URL of the checkpoint file
     public func createCheckpoint(
-        modelContext: ModelContext,
+        viewContext: NSManagedObjectContext,
         operationName: String,
         progress: BackupService.ProgressCallback? = nil
     ) async throws -> URL {
@@ -100,7 +100,7 @@ public final class BackupTransactionManager {
 
         do {
             _ = try await backupService.exportBackup(
-                modelContext: modelContext,
+                viewContext: viewContext,
                 to: checkpointURL,
                 password: nil,
                 progress: progress ?? { _, _ in }
@@ -116,7 +116,7 @@ public final class BackupTransactionManager {
     // Executes an import operation with automatic rollback on failure.
     //
     // - Parameters:
-    //   - modelContext: The model context to import into
+    //   - viewContext: The model context to import into
     //   - backupURL: The backup file to import
     //   - mode: The restore mode (merge or replace)
     //   - password: Optional decryption password
@@ -125,7 +125,7 @@ public final class BackupTransactionManager {
     // - Returns: Transaction result with import summary or error details
     // swiftlint:disable:next function_body_length
     public func executeImportWithRollback(
-        modelContext: ModelContext,
+        viewContext: NSManagedObjectContext,
         from backupURL: URL,
         mode: BackupService.RestoreMode,
         password: String? = nil,
@@ -143,7 +143,7 @@ public final class BackupTransactionManager {
             progress(0.0, "Creating safety checkpoint…")
             do {
                 checkpointURL = try await self.createCheckpoint(
-                    modelContext: modelContext,
+                    viewContext: viewContext,
                     operationName: "PreImport",
                     progress: { subProgress, message in
                         // Scale checkpoint progress to 0-15%
@@ -161,7 +161,7 @@ public final class BackupTransactionManager {
         progress(0.15, "Starting import…")
         do {
             let summary = try await backupService.importBackup(
-                modelContext: modelContext,
+                viewContext: viewContext,
                 from: backupURL,
                 mode: mode,
                 password: password,
@@ -188,7 +188,7 @@ public final class BackupTransactionManager {
 
                 do {
                     try await rollback(
-                        modelContext: modelContext,
+                        viewContext: viewContext,
                         from: checkpointURL,
                         progress: { subProgress, message in
                             progress(0.96 + (subProgress * 0.04), "Rollback: \(message)")
@@ -214,11 +214,11 @@ public final class BackupTransactionManager {
     /// Manually rolls back to a checkpoint.
     ///
     /// - Parameters:
-    ///   - modelContext: The model context to restore
+    ///   - viewContext: The model context to restore
     ///   - checkpointURL: The checkpoint file to restore from
     ///   - progress: Progress callback
     public func rollback(
-        modelContext: ModelContext,
+        viewContext: NSManagedObjectContext,
         from checkpointURL: URL,
         progress: @escaping BackupService.ProgressCallback
     ) async throws {
@@ -228,7 +228,7 @@ public final class BackupTransactionManager {
 
         do {
             _ = try await backupService.importBackup(
-                modelContext: modelContext,
+                viewContext: viewContext,
                 from: checkpointURL,
                 mode: .replace,
                 password: nil,
@@ -242,10 +242,10 @@ public final class BackupTransactionManager {
     /// Rolls back to the most recent active checkpoint.
     ///
     /// - Parameters:
-    ///   - modelContext: The model context to restore
+    ///   - viewContext: The model context to restore
     ///   - progress: Progress callback
     public func rollbackToActiveCheckpoint(
-        modelContext: ModelContext,
+        viewContext: NSManagedObjectContext,
         progress: @escaping BackupService.ProgressCallback
     ) async throws {
         guard let checkpointURL = activeCheckpointURL else {
@@ -253,7 +253,7 @@ public final class BackupTransactionManager {
         }
 
         try await rollback(
-            modelContext: modelContext,
+            viewContext: viewContext,
             from: checkpointURL,
             progress: progress
         )

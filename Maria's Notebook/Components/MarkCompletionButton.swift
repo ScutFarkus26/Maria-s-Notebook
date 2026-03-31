@@ -1,6 +1,6 @@
 import OSLog
 import SwiftUI
-import SwiftData
+import CoreData
 
 struct MarkCompletionButton: View {
     private static let logger = Logger.work
@@ -9,7 +9,7 @@ struct MarkCompletionButton: View {
     var label: String = "Mark Completed"
     var noteProvider: (() -> String)?
 
-    @Environment(\.modelContext) private var modelContext
+    @Environment(\.managedObjectContext) private var viewContext
     @State private var isWorking = false
     @State private var justCompleted = false
 
@@ -37,7 +37,7 @@ struct MarkCompletionButton: View {
         let note = noteProvider?() ?? ""
         do {
             _ = try WorkCompletionService.markCompleted(
-                workID: workID, studentID: studentID, note: note, in: modelContext
+                workID: workID, studentID: studentID, note: note, in: viewContext
             )
             #if canImport(UIKit)
             UINotificationFeedbackGenerator().notificationOccurred(.success)
@@ -60,24 +60,7 @@ struct MarkCompletionButton: View {
 }
 
 #Preview {
-    struct PreviewHost: View {
-        @State private var workID = UUID()
-        @State private var studentID = UUID()
-        var body: some View {
-            MarkCompletionButton(workID: workID, studentID: studentID)
-        }
-    }
-
-    return PreviewContainer(PreviewHost())
-}
-
-private struct PreviewContainer<Content: View>: View {
-    private let content: Content
-    init(_ content: Content) { self.content = content }
-
-    var body: some View {
-        content
-            .padding()
-            .modelContainer(ModelContainer.previewContainer(for: Schema([WorkCompletionRecord.self])))
-    }
+    MarkCompletionButton(workID: UUID(), studentID: UUID())
+        .padding()
+        .previewEnvironment()
 }

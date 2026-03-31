@@ -1,6 +1,6 @@
 import Foundation
 import OSLog
-import SwiftData
+import CoreData
 import Observation
 
 @Observable
@@ -17,13 +17,13 @@ final class WorksPlanningViewModel {
     // Dependencies
     private let calendar: Calendar
     private let isNonSchoolDay: (Date) -> Bool
-    private let checkInServiceFactory: (ModelContext) -> WorkCheckInServiceProtocol
+    private let checkInServiceFactory: (NSManagedObjectContext) -> WorkCheckInServiceProtocol
 
     init(
         startDate: Date,
         calendar: Calendar,
         isNonSchoolDay: @escaping (Date) -> Bool,
-        checkInService: @escaping (ModelContext) -> WorkCheckInServiceProtocol
+        checkInService: @escaping (NSManagedObjectContext) -> WorkCheckInServiceProtocol
     ) {
         self.startDate = startDate
         self.calendar = calendar
@@ -74,13 +74,14 @@ final class WorksPlanningViewModel {
 
     func scheduleCheckIn(
         for workID: UUID, on date: Date,
-        context: ModelContext, saveCoordinator: SaveCoordinator
+        context: NSManagedObjectContext, saveCoordinator: SaveCoordinator
     ) throws {
         let service = checkInServiceFactory(context)
-        var descriptor = FetchDescriptor<WorkModel>(predicate: #Predicate { $0.id == workID })
-        descriptor.fetchLimit = 1
+        let request = CDFetchRequest(CDWorkModel.self)
+        request.predicate = NSPredicate(format: "id == %@", workID as CVarArg)
+        request.fetchLimit = 1
         do {
-            if let work = try context.fetch(descriptor).first {
+            if let work = try context.fetch(request).first {
                 do {
                     _ = try service.createCheckIn(for: work, date: date, status: .scheduled, purpose: "", note: "")
                     saveCoordinator.save(context, reason: "Schedule check-in")
@@ -93,7 +94,7 @@ final class WorksPlanningViewModel {
         }
     }
 
-    func markCompleted(_ ci: WorkCheckIn, context: ModelContext, saveCoordinator: SaveCoordinator) {
+    func markCompleted(_ ci: WorkCheckIn, context: NSManagedObjectContext, saveCoordinator: SaveCoordinator) {
         let svc = checkInServiceFactory(context)
         do {
             try svc.markCompleted(ci, note: nil, at: Date())

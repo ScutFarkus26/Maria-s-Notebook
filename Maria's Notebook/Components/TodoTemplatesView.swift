@@ -1,15 +1,15 @@
 // swiftlint:disable file_length
 import OSLog
 import SwiftUI
-import SwiftData
+import CoreData
 
 struct TodoTemplatesView: View {
     private static let logger = Logger.todos
     @Environment(\.dismiss) private var dismiss
-    @Environment(\.modelContext) private var modelContext
-    @Query(sort: \TodoTemplate.name) private var templates: [TodoTemplate]
+    @Environment(\.managedObjectContext) private var viewContext
+    @FetchRequest(sortDescriptors: [NSSortDescriptor(keyPath: \CDTodoTemplate.name, ascending: true)]) private var templates: FetchedResults<CDTodoTemplate>
     
-    @State private var editingTemplate: TodoTemplate?
+    @State private var editingTemplate: CDTodoTemplate?
     @State private var showingCreateSheet = false
     
     var body: some View {
@@ -86,20 +86,27 @@ struct TodoTemplatesView: View {
         .listStyle(.plain)
     }
     
-    private func createTodoFromTemplate(_ template: TodoTemplate) {
-        _ = template.createTodoFromTemplate(context: modelContext)
+    private func createTodoFromTemplate(_ template: CDTodoTemplate) {
+        let todo = CDTodoItemEntity(context: viewContext)
+        todo.title = template.title
+        todo.notes = template.notes
+        todo.priority = template.priority
+        if template.defaultEstimatedMinutes > 0 { todo.estimatedMinutes = template.defaultEstimatedMinutes }
+        todo.tagsArray = template.tagsArray
+        todo.studentIDsArray = template.defaultStudentIDsArray
+        template.useCount += 1
         do {
-            try modelContext.save()
+            try viewContext.save()
         } catch {
             Self.logger.error("[\(#function)] Failed to save todo from template: \(error)")
         }
         dismiss()
     }
     
-    private func deleteTemplate(_ template: TodoTemplate) {
-        modelContext.delete(template)
+    private func deleteTemplate(_ template: CDTodoTemplate) {
+        viewContext.delete(template)
         do {
-            try modelContext.save()
+            try viewContext.save()
         } catch {
             Self.logger.error("[\(#function)] Failed to delete template: \(error)")
         }
@@ -109,7 +116,7 @@ struct TodoTemplatesView: View {
 // MARK: - Template Row
 
 private struct TemplateRow: View {
-    let template: TodoTemplate
+    let template: CDTodoTemplate
     let onCreate: () -> Void
     let onEdit: () -> Void
     let onDelete: () -> Void
@@ -135,21 +142,21 @@ private struct TemplateRow: View {
                         .foregroundStyle(priorityColor(template.priority))
                     }
                     
-                    if let estimated = template.defaultEstimatedMinutes, estimated > 0 {
+                    if template.defaultEstimatedMinutes > 0 {
                         HStack(spacing: 4) {
                             Image(systemName: "clock")
                                 .font(.caption2)
-                            Text(formatMinutes(estimated))
+                            Text(formatMinutes(Int(template.defaultEstimatedMinutes)))
                                 .font(.caption)
                         }
                         .foregroundStyle(.cyan)
                     }
                     
-                    if !template.tags.isEmpty {
+                    if !template.tagsArray.isEmpty {
                         HStack(spacing: 4) {
                             Image(systemName: "tag")
                                 .font(.caption2)
-                            Text("\(template.tags.count)")
+                            Text("\(template.tagsArray.count)")
                                 .font(.caption)
                         }
                         .foregroundStyle(.purple)
@@ -227,11 +234,11 @@ private struct TemplateRow: View {
 private struct TodoTemplateEditSheet: View {
     private static let logger = Logger.todos
     @Environment(\.dismiss) private var dismiss
-    @Environment(\.modelContext) private var modelContext
-    @Query(sort: \Student.firstName) private var studentsRaw: [Student]
-    private var students: [Student] { studentsRaw.filter(\.isEnrolled) }
+    @Environment(\.managedObjectContext) private var viewContext
+    @FetchRequest(sortDescriptors: [NSSortDescriptor(keyPath: \CDStudent.firstName, ascending: true)]) private var studentsRaw: FetchedResults<CDStudent>
+    private var students: [CDStudent] { studentsRaw.filter(\.isEnrolled) }
     
-    let template: TodoTemplate?
+    let template: CDTodoTemplate?
     
     @State private var name: String
     @State private var title: String
@@ -243,18 +250,18 @@ private struct TodoTemplateEditSheet: View {
     @State private var selectedTags: [String]
     @State private var isShowingTagPicker = false
     
-    init(template: TodoTemplate?) {
+    init(template: CDTodoTemplate?) {
         self.template = template
         _name = State(initialValue: template?.name ?? "")
         _title = State(initialValue: template?.title ?? "")
         _notes = State(initialValue: template?.notes ?? "")
         _priority = State(initialValue: template?.priority ?? .none)
         
-        let estTotal = template?.defaultEstimatedMinutes ?? 0
+        let estTotal = Int(template?.defaultEstimatedMinutes ?? 0)
         _estimatedHours = State(initialValue: estTotal / 60)
         _estimatedMinutes = State(initialValue: estTotal % 60)
-        _selectedStudentIDs = State(initialValue: Set(template?.defaultStudentIDs ?? []))
-        _selectedTags = State(initialValue: template?.tags ?? [])
+        _selectedStudentIDs = State(initialValue: Set(template?.defaultStudentIDsArray ?? []))
+        _selectedTags = State(initialValue: template?.tagsArray ?? [])
     }
     
     private var canSave: Bool {
@@ -266,7 +273,7 @@ private struct TodoTemplateEditSheet: View {
         NavigationStack {
             Form {
                 Section("Template Name") {
-                    TextField("e.g., Weekly Lesson Plan", text: $name)
+                    TextField("e.g., Weekly CDLesson Plan", text: $name)
                 }
                 
                 Section("Default Todo Title") {
@@ -333,17 +340,18 @@ private struct TodoTemplateEditSheet: View {
         Section("Default Students") {
             ForEach(students) { student in
                 Button {
-                    if selectedStudentIDs.contains(student.id.uuidString) {
-                        selectedStudentIDs.remove(student.id.uuidString)
+                    let idStr = student.id?.uuidString ?? ""
+                    if selectedStudentIDs.contains(idStr) {
+                        selectedStudentIDs.remove(idStr)
                     } else {
-                        selectedStudentIDs.insert(student.id.uuidString)
+                        selectedStudentIDs.insert(idStr)
                     }
                 } label: {
                     HStack {
                         Text("\(student.firstName) \(student.lastName)")
                             .foregroundStyle(.primary)
                         Spacer()
-                        if selectedStudentIDs.contains(student.id.uuidString) {
+                        if selectedStudentIDs.contains(student.id?.uuidString ?? "") {
                             Image(systemName: "checkmark")
                                 .foregroundStyle(.blue)
                         }
@@ -406,25 +414,23 @@ private struct TodoTemplateEditSheet: View {
             existing.title = trimmedTitle
             existing.notes = trimmedNotes
             existing.priority = priority
-            existing.defaultEstimatedMinutes = totalEstimated > 0 ? totalEstimated : nil
-            existing.defaultStudentIDs = Array(selectedStudentIDs)
-            existing.tags = selectedTags
+            existing.defaultEstimatedMinutes = Int64(totalEstimated)
+            existing.defaultStudentIDsArray = Array(selectedStudentIDs)
+            existing.tagsArray = selectedTags
         } else {
             // Create new template
-            let newTemplate = TodoTemplate(
-                name: trimmedName,
-                title: trimmedTitle,
-                notes: trimmedNotes,
-                priority: priority,
-                defaultEstimatedMinutes: totalEstimated > 0 ? totalEstimated : nil,
-                defaultStudentIDs: Array(selectedStudentIDs),
-                tags: selectedTags
-            )
-            modelContext.insert(newTemplate)
+            let newTemplate = CDTodoTemplateEntity(context: viewContext)
+            newTemplate.name = trimmedName
+            newTemplate.title = trimmedTitle
+            newTemplate.notes = trimmedNotes
+            newTemplate.priority = priority
+            newTemplate.defaultEstimatedMinutes = Int64(totalEstimated)
+            newTemplate.defaultStudentIDsArray = Array(selectedStudentIDs)
+            newTemplate.tagsArray = selectedTags
         }
 
         do {
-            try modelContext.save()
+            try viewContext.save()
         } catch {
             Self.logger.error("[\(#function)] Failed to save template: \(error)")
         }

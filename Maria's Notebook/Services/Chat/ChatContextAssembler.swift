@@ -1,7 +1,6 @@
 // swiftlint:disable file_length
 import Foundation
 import CoreData
-import SwiftData
 import OSLog
 
 /// Assembles classroom data context for chat requests.
@@ -19,11 +18,7 @@ final class ChatContextAssembler {
         self.context = context
     }
 
-    /// Deprecated bridge: accepts a SwiftData ModelContext but uses the shared Core Data stack instead.
-    @available(*, deprecated, message: "Use init(context: NSManagedObjectContext) instead")
-    init(context: ModelContext) {
-        self.context = AppBootstrapping.getSharedCoreDataStack().viewContext
-    }
+    // Deprecated ModelContext init removed - no longer needed with Core Data.
 
     // MARK: - Tier 1: Classroom Snapshot
 

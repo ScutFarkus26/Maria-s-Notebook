@@ -2,6 +2,7 @@
 // Reusable components extracted from StudentsView
 
 import SwiftUI
+import CoreData
 
 // MARK: - Empty State View
 
@@ -25,7 +26,7 @@ struct NoStudentsEmptyState: View {
     }
 }
 
-// MARK: - Select Student Empty State
+// MARK: - Select CDStudent Empty State
 
 /// Reusable empty state for when no student is selected
 struct SelectStudentEmptyState: View {
@@ -161,7 +162,7 @@ struct StudentModePicker: View {
     }
 }
 
-// MARK: - Add Student Button
+// MARK: - Add CDStudent Button
 
 /// Reusable add student button with CSV import context menu
 struct AddStudentButton: View {

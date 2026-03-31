@@ -2,32 +2,32 @@
 // Data mutation actions, selection management, bulk operations, and drag-and-drop import.
 
 import SwiftUI
-import SwiftData
-import UniformTypeIdentifiers
 import CoreData
+import UniformTypeIdentifiers
 
 extension ResourceLibraryView {
 
     // MARK: - Individual Actions
 
-    func deleteResource(_ resource: Resource) {
-        modelContext.delete(resource)
-        modelContext.safeSave()
+    func deleteResource(_ resource: CDResource) {
+        viewContext.delete(resource)
+        viewContext.safeSave()
     }
 
-    func toggleFavorite(_ resource: Resource) {
+    func toggleFavorite(_ resource: CDResource) {
         resource.isFavorite.toggle()
         resource.modifiedAt = Date()
-        modelContext.safeSave()
+        viewContext.safeSave()
     }
 
     // MARK: - Selection
 
-    func toggleSelection(_ resource: Resource) {
-        if selectedResourceIDs.contains(resource.id) {
-            selectedResourceIDs.remove(resource.id)
+    func toggleSelection(_ resource: CDResource) {
+        guard let resourceID = resource.id else { return }
+        if selectedResourceIDs.contains(resourceID) {
+            selectedResourceIDs.remove(resourceID)
         } else {
-            selectedResourceIDs.insert(resource.id)
+            selectedResourceIDs.insert(resourceID)
         }
     }
 
@@ -45,7 +45,7 @@ extension ResourceLibraryView {
             resource.isFavorite = !allFavorited
             resource.modifiedAt = Date()
         }
-        modelContext.safeSave()
+        viewContext.safeSave()
     }
 
     func bulkSetCategory(_ category: ResourceCategory) {
@@ -53,27 +53,27 @@ extension ResourceLibraryView {
             resource.category = category
             resource.modifiedAt = Date()
         }
-        modelContext.safeSave()
+        viewContext.safeSave()
     }
 
     func bulkAddTags(_ tags: [String]) {
         for resource in selectedResources {
             for tag in tags {
                 let tagName = TagHelper.tagName(tag).lowercased()
-                if !resource.tags.contains(where: { TagHelper.tagName($0).lowercased() == tagName }) {
-                    resource.tags.append(tag)
+                if !resource.tagsArray.contains(where: { TagHelper.tagName($0).lowercased() == tagName }) {
+                    resource.tagsArray.append(tag)
                 }
             }
             resource.modifiedAt = Date()
         }
-        modelContext.safeSave()
+        viewContext.safeSave()
     }
 
     func bulkDelete() {
         for resource in selectedResources {
-            modelContext.delete(resource)
+            viewContext.delete(resource)
         }
-        modelContext.safeSave()
+        viewContext.safeSave()
         exitSelectMode()
     }
 
@@ -118,16 +118,14 @@ extension ResourceLibraryView {
             let bookmark = try ResourceFileStorage.makeBookmark(for: destURL)
             let thumbnail = ResourceThumbnailGenerator.generateThumbnail(from: destURL)
 
-            let resource = Resource(
-                title: title,
-                category: .other,
-                fileBookmark: bookmark,
-                fileRelativePath: relativePath,
-                fileSizeBytes: fileSize,
-                thumbnailData: thumbnail
-            )
-            modelContext.insert(resource)
-            modelContext.safeSave()
+            let resource = CDResource(context: viewContext)
+            resource.title = title
+            resource.category = .other
+            resource.fileBookmark = bookmark
+            resource.fileRelativePath = relativePath
+            resource.fileSizeBytes = fileSize
+            resource.thumbnailData = thumbnail
+            viewContext.safeSave()
         } catch {
             // Silently fail — resource wasn't imported
         }

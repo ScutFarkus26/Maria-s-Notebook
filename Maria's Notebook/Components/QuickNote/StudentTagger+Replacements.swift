@@ -57,7 +57,7 @@ extension StudentTagger {
         return resultText
     }
 
-    // MARK: - Per-Student Replacement Context
+    // MARK: - Per-CDStudent Replacement Context
 
     /// Bundles per-student data needed by all replacement pattern helpers.
     private struct ReplacementContext {

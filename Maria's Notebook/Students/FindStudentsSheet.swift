@@ -1,10 +1,11 @@
 import SwiftUI
+import CoreData
 
 struct FindStudentsSheet: View {
     let lessonID: UUID
     let existingStudentIDs: Set<UUID>
-    let allStudents: [Student]
-    let allLessonAssignments: [LessonAssignment]
+    let allStudents: [CDStudent]
+    let allLessonAssignments: [CDLessonAssignment]
     let onAdd: (Set<UUID>) -> Void
     let onCancel: () -> Void
 

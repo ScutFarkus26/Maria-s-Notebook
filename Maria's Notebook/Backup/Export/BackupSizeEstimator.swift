@@ -1,5 +1,5 @@
 import Foundation
-import SwiftData
+import CoreData
 import OSLog
 
 /// Estimates backup file sizes based on entity counts.
@@ -10,23 +10,23 @@ enum BackupSizeEstimator {
     private static let logger = Logger.backup
     /// Average bytes per entity type (empirically determined)
     static let averageBytesPerEntity: [String: Int] = [
-        "Student": 600,
-        "Lesson": 2500,
+        "CDStudent": 600,
+        "CDLesson": 2500,
         "LegacyPresentation": 300,
-        // WorkPlanItem removed in Phase 6 - migrated to WorkCheckIn
-        "Note": 300,
-        "NonSchoolDay": 200,
-        "SchoolDayOverride": 200,
-        "StudentMeeting": 1200,
-        // Presentation removed - using LessonAssignment instead
-        "CommunityTopic": 1500,
+        // WorkPlanItem removed in Phase 6 - migrated to CDWorkCheckIn
+        "CDNote": 300,
+        "CDNonSchoolDay": 200,
+        "CDSchoolDayOverride": 200,
+        "CDStudentMeeting": 1200,
+        // CDPresentation removed - using CDLessonAssignment instead
+        "CDCommunityTopicEntity": 1500,
         "ProposedSolution": BatchingConstants.estimatedBytesPerEntity,
         "CommunityAttachment": 600,
-        "AttendanceRecord": 300,
-        "WorkCompletionRecord": 400,
-        "Project": 2000,
+        "CDAttendanceRecord": 300,
+        "CDWorkCompletionRecord": 400,
+        "CDProject": 2000,
         "ProjectAssignmentTemplate": 2500,
-        "ProjectSession": 1500,
+        "CDProjectSession": 1500,
         "ProjectRole": 1200,
         "ProjectTemplateWeek": 1800,
         "ProjectWeekRoleAssignment": 300
@@ -43,40 +43,40 @@ enum BackupSizeEstimator {
 
     /// Estimates the backup size in bytes based on current entity counts.
     ///
-    /// - Parameter modelContext: The model context to count entities from
+    /// - Parameter viewContext: The model context to count entities from
     /// - Returns: Estimated compressed backup size in bytes
-    static func estimateBackupSize(modelContext: ModelContext) -> Int64 {
-        let counts = countEntities(modelContext: modelContext)
+    static func estimateBackupSize(viewContext: NSManagedObjectContext) -> Int64 {
+        let counts = countEntities(viewContext: viewContext)
         return estimateFromCounts(counts)
     }
 
     /// Counts all exportable entities in the database.
     ///
-    /// - Parameter modelContext: The model context to count entities from
+    /// - Parameter viewContext: The model context to count entities from
     /// - Returns: Dictionary mapping entity type names to counts
-    static func countEntities(modelContext: ModelContext) -> [String: Int] {
+    static func countEntities(viewContext: NSManagedObjectContext) -> [String: Int] {
         var counts: [String: Int] = [:]
 
-        counts["Student"] = safeFetchCount(Student.self, using: modelContext)
-        counts["Lesson"] = safeFetchCount(Lesson.self, using: modelContext)
-        // LegacyPresentation removed — fully migrated to LessonAssignment
-        // WorkPlanItem removed in Phase 6 - migrated to WorkCheckIn
-        counts["Note"] = safeFetchCount(Note.self, using: modelContext)
-        counts["NonSchoolDay"] = safeFetchCount(NonSchoolDay.self, using: modelContext)
-        counts["SchoolDayOverride"] = safeFetchCount(SchoolDayOverride.self, using: modelContext)
-        counts["StudentMeeting"] = safeFetchCount(StudentMeeting.self, using: modelContext)
-        // Presentation removed - using LessonAssignment instead
-        counts["CommunityTopic"] = safeFetchCount(CommunityTopic.self, using: modelContext)
-        counts["ProposedSolution"] = safeFetchCount(ProposedSolution.self, using: modelContext)
-        counts["CommunityAttachment"] = safeFetchCount(CommunityAttachment.self, using: modelContext)
-        counts["AttendanceRecord"] = safeFetchCount(AttendanceRecord.self, using: modelContext)
-        counts["WorkCompletionRecord"] = safeFetchCount(WorkCompletionRecord.self, using: modelContext)
-        counts["Project"] = safeFetchCount(Project.self, using: modelContext)
-        counts["ProjectAssignmentTemplate"] = safeFetchCount(ProjectAssignmentTemplate.self, using: modelContext)
-        counts["ProjectSession"] = safeFetchCount(ProjectSession.self, using: modelContext)
-        counts["ProjectRole"] = safeFetchCount(ProjectRole.self, using: modelContext)
-        counts["ProjectTemplateWeek"] = safeFetchCount(ProjectTemplateWeek.self, using: modelContext)
-        counts["ProjectWeekRoleAssignment"] = safeFetchCount(ProjectWeekRoleAssignment.self, using: modelContext)
+        counts["CDStudent"] = safeFetchCount(CDStudent.self, using: viewContext)
+        counts["CDLesson"] = safeFetchCount(CDLesson.self, using: viewContext)
+        // LegacyPresentation removed — fully migrated to CDLessonAssignment
+        // WorkPlanItem removed in Phase 6 - migrated to CDWorkCheckIn
+        counts["CDNote"] = safeFetchCount(CDNote.self, using: viewContext)
+        counts["CDNonSchoolDay"] = safeFetchCount(CDNonSchoolDay.self, using: viewContext)
+        counts["CDSchoolDayOverride"] = safeFetchCount(CDSchoolDayOverride.self, using: viewContext)
+        counts["CDStudentMeeting"] = safeFetchCount(CDStudentMeeting.self, using: viewContext)
+        // CDPresentation removed - using CDLessonAssignment instead
+        counts["CDCommunityTopicEntity"] = safeFetchCount(CDCommunityTopicEntity.self, using: viewContext)
+        counts["ProposedSolution"] = safeFetchCount(ProposedSolution.self, using: viewContext)
+        counts["CommunityAttachment"] = safeFetchCount(CommunityAttachment.self, using: viewContext)
+        counts["CDAttendanceRecord"] = safeFetchCount(CDAttendanceRecord.self, using: viewContext)
+        counts["CDWorkCompletionRecord"] = safeFetchCount(CDWorkCompletionRecord.self, using: viewContext)
+        counts["CDProject"] = safeFetchCount(CDProject.self, using: viewContext)
+        counts["ProjectAssignmentTemplate"] = safeFetchCount(ProjectAssignmentTemplate.self, using: viewContext)
+        counts["CDProjectSession"] = safeFetchCount(CDProjectSession.self, using: viewContext)
+        counts["ProjectRole"] = safeFetchCount(ProjectRole.self, using: viewContext)
+        counts["ProjectTemplateWeek"] = safeFetchCount(ProjectTemplateWeek.self, using: viewContext)
+        counts["ProjectWeekRoleAssignment"] = safeFetchCount(ProjectWeekRoleAssignment.self, using: viewContext)
 
         return counts
     }
@@ -113,12 +113,12 @@ enum BackupSizeEstimator {
     /// This provides accurate size instead of estimation.
     ///
     /// - Parameters:
-    ///   - modelContext: The model context to backup
+    ///   - viewContext: The model context to backup
     ///   - compress: Whether to apply compression
     /// - Returns: The actual size in bytes
     @MainActor
     static func measureActualSize(
-        modelContext: ModelContext,
+        viewContext: NSManagedObjectContext,
         compress: Bool = true
     ) async throws -> ActualSizeMeasurement {
         let backupService = BackupService()
@@ -138,7 +138,7 @@ enum BackupSizeEstimator {
 
         // Perform actual export to measure size
         _ = try await backupService.exportBackup(
-            modelContext: modelContext,
+            viewContext: viewContext,
             to: tempURL,
             password: nil,
             progress: { _, _ in }
@@ -190,10 +190,10 @@ enum BackupSizeEstimator {
 
     // MARK: - Private Helpers
 
-    private static func safeFetchCount<T: PersistentModel>(_ type: T.Type, using context: ModelContext) -> Int {
-        let descriptor = FetchDescriptor<T>()
+    private static func safeFetchCount<T: NSManagedObject>(_ type: T.Type, using context: NSManagedObjectContext) -> Int {
+        let descriptor = T.fetchRequest() as! NSFetchRequest<T>
         do {
-            return try context.fetchCount(descriptor)
+            return try context.count(for: descriptor)
         } catch {
             logger.warning("Failed to fetch count for \(T.self): \(error)")
             return 0

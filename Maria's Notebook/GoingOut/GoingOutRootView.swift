@@ -3,17 +3,17 @@
 // Shows a list of going-outs with status filters and detail navigation.
 
 import SwiftUI
-import SwiftData
+import CoreData
 
 struct GoingOutRootView: View {
-    @Environment(\.modelContext) private var modelContext
+    @Environment(\.managedObjectContext) private var modelContext
     @State private var viewModel = GoingOutViewModel()
     @State private var showingNewSheet = false
     @State private var selectedGoingOut: GoingOut?
 
     // Change detection
-    @Query(sort: [SortDescriptor(\GoingOut.createdAt, order: .reverse)])
-    private var goingOutsForChange: [GoingOut]
+    @FetchRequest(sortDescriptors: [NSSortDescriptor(keyPath: \CDGoingOut.createdAt, ascending: false)])
+    private var goingOutsForChange: FetchedResults<CDGoingOut>
     private var changeToken: Int { goingOutsForChange.count }
 
     var body: some View {
@@ -74,7 +74,7 @@ struct GoingOutRootView: View {
                             .padding(.horizontal)
 
                         LazyVStack(spacing: 8) {
-                            ForEach(viewModel.activeGoingOuts) { goingOut in
+                            ForEach(viewModel.activeGoingOuts, id: \.objectID) { goingOut in
                                 NavigationLink {
                                     GoingOutDetailView(goingOut: goingOut)
                                 } label: {
@@ -97,7 +97,7 @@ struct GoingOutRootView: View {
                             .padding(.horizontal)
 
                         LazyVStack(spacing: 8) {
-                            ForEach(viewModel.completedGoingOuts) { goingOut in
+                            ForEach(viewModel.completedGoingOuts, id: \.objectID) { goingOut in
                                 NavigationLink {
                                     GoingOutDetailView(goingOut: goingOut)
                                 } label: {

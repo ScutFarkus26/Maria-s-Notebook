@@ -138,7 +138,7 @@ import Testing
             result["Account"] = calcStats(entityName: "AccountDTO", payloadIds: [payload.account.id])
             result["Attachment"] = calcStats(entityName: "AttachmentDTO", payloadIds: [payload.attachment.id])
             result["Calendar"] = calcStats(entityName: "CalendarDTO", payloadIds: [payload.calendar.id])
-            result["CalendarEvent"] = calcStats(entityName: "CalendarEventDTO", payloadIds: [payload.calendarEvent.id])
+            result["CDCalendarEvent"] = calcStats(entityName: "CalendarEventDTO", payloadIds: [payload.calendarEvent.id])
             result["Contact"] = calcStats(entityName: "ContactDTO", payloadIds: [payload.contact.id])
             result["Folder"] = calcStats(entityName: "FolderDTO", payloadIds: [payload.folder.id])
             result["MailMessage"] = calcStats(entityName: "MailMessageDTO", payloadIds: [payload.mailMessage.id])

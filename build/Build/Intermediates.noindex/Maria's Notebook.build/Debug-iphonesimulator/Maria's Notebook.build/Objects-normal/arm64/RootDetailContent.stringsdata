@@ -1,0 +1,344 @@
+{
+  "source": "/Users/dannydeberry/Documents/Projects/MariasNotebook-Rewrite/Maria's Notebook/AppCore/RootView/RootDetailContent.swift",
+  "tables": {
+    "Localizable": [
+      {
+        "comment": "",
+        "key": "Today",
+        "location": {
+          "startingColumn": 17,
+          "startingLine": 129
+        }
+      },
+      {
+        "comment": "",
+        "key": "Students",
+        "location": {
+          "startingColumn": 17,
+          "startingLine": 133
+        }
+      },
+      {
+        "comment": "",
+        "key": "Attendance",
+        "location": {
+          "startingColumn": 17,
+          "startingLine": 137
+        }
+      },
+      {
+        "comment": "",
+        "key": "Community",
+        "location": {
+          "startingColumn": 17,
+          "startingLine": 141
+        }
+      },
+      {
+        "comment": "",
+        "key": "Todos",
+        "location": {
+          "startingColumn": 23,
+          "startingLine": 157
+        }
+      },
+      {
+        "comment": "",
+        "key": "Today",
+        "location": {
+          "startingColumn": 18,
+          "startingLine": 160
+        }
+      },
+      {
+        "comment": "",
+        "key": "Meetings",
+        "location": {
+          "startingColumn": 23,
+          "startingLine": 167
+        }
+      },
+      {
+        "comment": "",
+        "key": "Going Out",
+        "location": {
+          "startingColumn": 23,
+          "startingLine": 172
+        }
+      },
+      {
+        "comment": "",
+        "key": "Students",
+        "location": {
+          "startingColumn": 18,
+          "startingLine": 175
+        }
+      },
+      {
+        "comment": "",
+        "key": "Jobs",
+        "location": {
+          "startingColumn": 23,
+          "startingLine": 182
+        }
+      },
+      {
+        "comment": "",
+        "key": "Classroom",
+        "location": {
+          "startingColumn": 18,
+          "startingLine": 185
+        }
+      },
+      {
+        "comment": "",
+        "key": "Lessons",
+        "location": {
+          "startingColumn": 23,
+          "startingLine": 192
+        }
+      },
+      {
+        "comment": "",
+        "key": "Checklist",
+        "location": {
+          "startingColumn": 23,
+          "startingLine": 197
+        }
+      },
+      {
+        "comment": "",
+        "key": "Presentations",
+        "location": {
+          "startingColumn": 23,
+          "startingLine": 202
+        }
+      },
+      {
+        "comment": "",
+        "key": "Open Work",
+        "location": {
+          "startingColumn": 23,
+          "startingLine": 207
+        }
+      },
+      {
+        "comment": "",
+        "key": "Needs Lesson",
+        "location": {
+          "startingColumn": 23,
+          "startingLine": 212
+        }
+      },
+      {
+        "comment": "",
+        "key": "Projects",
+        "location": {
+          "startingColumn": 23,
+          "startingLine": 217
+        }
+      },
+      {
+        "comment": "",
+        "key": "Curriculum",
+        "location": {
+          "startingColumn": 18,
+          "startingLine": 220
+        }
+      },
+      {
+        "comment": "",
+        "key": "Progression",
+        "location": {
+          "startingColumn": 23,
+          "startingLine": 227
+        }
+      },
+      {
+        "comment": "",
+        "key": "Progress Dashboard",
+        "location": {
+          "startingColumn": 23,
+          "startingLine": 232
+        }
+      },
+      {
+        "comment": "",
+        "key": "Lesson Frequency",
+        "location": {
+          "startingColumn": 23,
+          "startingLine": 237
+        }
+      },
+      {
+        "comment": "",
+        "key": "Curriculum Balance",
+        "location": {
+          "startingColumn": 23,
+          "startingLine": 242
+        }
+      },
+      {
+        "comment": "",
+        "key": "Transitions",
+        "location": {
+          "startingColumn": 23,
+          "startingLine": 247
+        }
+      },
+      {
+        "comment": "",
+        "key": "Progress",
+        "location": {
+          "startingColumn": 18,
+          "startingLine": 250
+        }
+      },
+      {
+        "comment": "",
+        "key": "Resources",
+        "location": {
+          "startingColumn": 23,
+          "startingLine": 257
+        }
+      },
+      {
+        "comment": "",
+        "key": "Supplies",
+        "location": {
+          "startingColumn": 23,
+          "startingLine": 262
+        }
+      },
+      {
+        "comment": "",
+        "key": "Procedures",
+        "location": {
+          "startingColumn": 23,
+          "startingLine": 267
+        }
+      },
+      {
+        "comment": "",
+        "key": "Schedules",
+        "location": {
+          "startingColumn": 23,
+          "startingLine": 272
+        }
+      },
+      {
+        "comment": "",
+        "key": "Calendar",
+        "location": {
+          "startingColumn": 23,
+          "startingLine": 277
+        }
+      },
+      {
+        "comment": "",
+        "key": "Issues",
+        "location": {
+          "startingColumn": 23,
+          "startingLine": 282
+        }
+      },
+      {
+        "comment": "",
+        "key": "Resources",
+        "location": {
+          "startingColumn": 18,
+          "startingLine": 285
+        }
+      },
+      {
+        "comment": "",
+        "key": "Ask AI",
+        "location": {
+          "startingColumn": 23,
+          "startingLine": 292
+        }
+      },
+      {
+        "comment": "",
+        "key": "Tools",
+        "location": {
+          "startingColumn": 18,
+          "startingLine": 295
+        }
+      },
+      {
+        "comment": "",
+        "key": "Logs",
+        "location": {
+          "startingColumn": 23,
+          "startingLine": 302
+        }
+      },
+      {
+        "comment": "",
+        "key": "Settings",
+        "location": {
+          "startingColumn": 23,
+          "startingLine": 307
+        }
+      },
+      {
+        "comment": "",
+        "key": "System",
+        "location": {
+          "startingColumn": 18,
+          "startingLine": 310
+        }
+      },
+      {
+        "comment": "",
+        "key": "More",
+        "location": {
+          "startingColumn": 30,
+          "startingLine": 360
+        }
+      },
+      {
+        "comment": "",
+        "key": "Daily",
+        "location": {
+          "startingColumn": 25,
+          "startingLine": 323
+        }
+      },
+      {
+        "comment": "",
+        "key": "Planning",
+        "location": {
+          "startingColumn": 25,
+          "startingLine": 329
+        }
+      },
+      {
+        "comment": "",
+        "key": "Resources",
+        "location": {
+          "startingColumn": 25,
+          "startingLine": 342
+        }
+      },
+      {
+        "comment": "",
+        "key": "AI",
+        "location": {
+          "startingColumn": 25,
+          "startingLine": 351
+        }
+      },
+      {
+        "comment": "",
+        "key": "System",
+        "location": {
+          "startingColumn": 25,
+          "startingLine": 355
+        }
+      }
+    ]
+  },
+  "version": 1
+}

@@ -1,13 +1,13 @@
 import SwiftUI
-import SwiftData
+import CoreData
 import OSLog
 
 struct PresentationDraftSheet: View {
     private static let logger = Logger.students
-    @Environment(\.modelContext) private var modelContext
+    @Environment(\.managedObjectContext) private var viewContext
 
     // Filtered query to observe the draft by its ID
-    @Query private var matches: [LessonAssignment]
+    @FetchRequest(sortDescriptors: []) private var matches: FetchedResults<CDLessonAssignment>
 
     let id: UUID
     let onDone: () -> Void
@@ -15,7 +15,7 @@ struct PresentationDraftSheet: View {
     init(id: UUID, onDone: @escaping () -> Void) {
         self.id = id
         self.onDone = onDone
-        _matches = Query(filter: #Predicate<LessonAssignment> { $0.id == id })
+        _matches = FetchRequest(sortDescriptors: [], predicate: NSPredicate(format: "id == %@", id as CVarArg))
     }
 
     var body: some View {
@@ -26,9 +26,9 @@ struct PresentationDraftSheet: View {
                         // If the draft is still empty when the sheet closes, remove it
                         if let current = matches.first {
                             if current.lesson == nil && current.studentIDs.isEmpty {
-                                modelContext.delete(current)
+                                viewContext.delete(current)
                                 do {
-                                    try modelContext.save()
+                                    try viewContext.save()
                                 } catch {
                                     Self.logger.warning("Failed to save: \(error)")
                                 }

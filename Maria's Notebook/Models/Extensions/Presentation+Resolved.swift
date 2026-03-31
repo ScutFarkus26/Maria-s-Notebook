@@ -10,15 +10,14 @@ import Foundation
 // MARK: - DenormalizedSchedulable Conformance
 
 extension Presentation: DenormalizedSchedulable {
-    /// Prefer the relationship; fall back to stored IDs for compatibility.
+    /// Resolved student IDs from stored string IDs.
     var resolvedStudentIDs: [UUID] {
-        if !students.isEmpty { return students.map(\.id) }
-        return studentUUIDs
+        studentUUIDs
     }
 
     // Bridge properties for protocol default implementations
     var lessonRelationshipID: UUID? { lesson?.id }
-    var studentRelationshipIDStrings: [String] { students.uuidStrings }
+    var studentRelationshipIDStrings: [String] { studentIDs }
 }
 
 // MARK: - Display Helpers
@@ -36,13 +35,12 @@ extension Presentation {
 
     /// Whether this presentation has any students assigned.
     var hasStudents: Bool {
-        !students.isEmpty || !studentIDs.isEmpty
+        !studentIDs.isEmpty
     }
 
     /// Number of students assigned.
     var studentCount: Int {
-        if !students.isEmpty { return students.count }
-        return studentIDs.count
+        studentIDs.count
     }
 }
 

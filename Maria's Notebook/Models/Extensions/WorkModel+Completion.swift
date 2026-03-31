@@ -1,23 +1,22 @@
 import Foundation
-import SwiftData
 import CoreData
 
 // WorkCompletionService is @MainActor, so we must isolate these convenience methods to MainActor as well.
 @MainActor
 extension WorkModel {
     /// Returns all completion records for this work (optionally filtered by student).
-    func completionRecords(for studentID: UUID? = nil, in context: ModelContext) throws -> [CDWorkCompletionRecord] {
-        try WorkCompletionService.records(for: self.id, studentID: studentID, in: context)
+    func completionRecords(for studentID: UUID? = nil, in context: NSManagedObjectContext) throws -> [CDWorkCompletionRecord] {
+        try WorkCompletionService.records(for: self.id ?? UUID(), studentID: studentID, in: context)
     }
 
     /// Returns the latest completion record for a given student.
-    func latestCompletion(for studentID: UUID, in context: ModelContext) throws -> CDWorkCompletionRecord? {
-        try WorkCompletionService.latest(for: self.id, studentID: studentID, in: context)
+    func latestCompletion(for studentID: UUID, in context: NSManagedObjectContext) throws -> CDWorkCompletionRecord? {
+        try WorkCompletionService.latest(for: self.id ?? UUID(), studentID: studentID, in: context)
     }
 
     /// Whether the given student has completed this work at least once.
-    func isCompleted(by studentID: UUID, in context: ModelContext) throws -> Bool {
-        try WorkCompletionService.isCompleted(workID: self.id, studentID: studentID, in: context)
+    func isCompleted(by studentID: UUID, in context: NSManagedObjectContext) throws -> Bool {
+        try WorkCompletionService.isCompleted(workID: self.id ?? UUID(), studentID: studentID, in: context)
     }
 
     /// Mark this work as completed by a student. History is preserved.
@@ -26,10 +25,10 @@ extension WorkModel {
         by studentID: UUID,
         note: String = "",
         at date: Date = Date(),
-        in context: ModelContext
+        in context: NSManagedObjectContext
     ) throws -> CDWorkCompletionRecord {
         try WorkCompletionService.markCompleted(
-            workID: self.id,
+            workID: self.id ?? UUID(),
             studentID: studentID,
             note: note,
             at: date,
@@ -43,8 +42,8 @@ extension WorkModel {
         by student: Student,
         note: String = "",
         at date: Date = Date(),
-        in context: ModelContext
+        in context: NSManagedObjectContext
     ) throws -> CDWorkCompletionRecord {
-        try markCompleted(by: student.id, note: note, at: date, in: context)
+        try markCompleted(by: student.id ?? UUID(), note: note, at: date, in: context)
     }
 }

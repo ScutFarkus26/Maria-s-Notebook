@@ -1,5 +1,5 @@
 import SwiftUI
-import SwiftData
+import CoreData
 
 // MARK: - Content Mode Sections
 
@@ -11,7 +11,7 @@ extension ProjectSessionDetailView {
     var choiceModeContent: some View {
         // Offered works section
         Section("Offered Works") {
-            ForEach(offeredWorks) { work in
+            ForEach(offeredWorks, id: \.objectID) { work in
                 offeredWorkRow(work)
             }
 
@@ -66,10 +66,10 @@ extension ProjectSessionDetailView {
     @ViewBuilder
     func studentSelectionRow(studentID: String) -> some View {
         let selectedWorks = sessionWorkModels.filter { work in
-            (work.participants ?? []).contains { $0.studentID == studentID }
+            ((work.participants?.allObjects as? [CDWorkParticipantEntity]) ?? []).contains { $0.studentID == studentID }
         }
         let count = selectedWorks.count
-        let min = session.minSelections
+        let min = Int(session.minSelections)
         let isComplete = count >= min
 
         Button {
@@ -120,7 +120,7 @@ extension ProjectSessionDetailView {
         } else {
             ForEach(groupedByStudent, id: \.id) { bucket in
                 Section(header: Text(studentName(for: bucket.id)).font(.headline)) {
-                    ForEach(bucket.items, id: \.id) { work in
+                    ForEach(bucket.items, id: \.objectID) { work in
                         workRow(work)
                     }
                 }

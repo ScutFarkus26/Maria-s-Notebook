@@ -1,12 +1,12 @@
 import SwiftUI
-import SwiftData
+import CoreData
 
-// MARK: - Lesson Section
+// MARK: - CDLesson Section
 
 struct LessonSection: View {
     @Bindable var viewModel: LessonPickerViewModel
-    let resolvedLesson: Lesson?
-    let lessonDisplayTitle: (Lesson) -> String
+    let resolvedLesson: CDLesson?
+    let lessonDisplayTitle: (CDLesson) -> String
     @Binding var isFocused: Bool
     
     var body: some View {
@@ -35,13 +35,13 @@ struct LessonSection: View {
     }
 }
 
-// MARK: - Lesson Search Field
+// MARK: - CDLesson Search Field
 
 struct LessonSearchField: View {
     @Binding var searchText: String
-    let filteredLessons: [Lesson]
+    let filteredLessons: [CDLesson]
     @Binding var selectedLessonID: UUID?
-    let lessonDisplayTitle: (Lesson) -> String
+    let lessonDisplayTitle: (CDLesson) -> String
     @Binding var isFocused: Bool
     
     @FocusState private var textFocused: Bool
@@ -103,15 +103,15 @@ struct LessonSearchField: View {
     }
 }
 
-// MARK: - Lesson Picker Popover
+// MARK: - CDLesson Picker Popover
 
 struct LessonPickerPopover: View {
-    let filteredLessons: [Lesson]
+    let filteredLessons: [CDLesson]
     @Binding var selectedLessonID: UUID?
     @Binding var searchText: String
     @Binding var isPresented: Bool
     @Binding var isFocused: Bool
-    let lessonDisplayTitle: (Lesson) -> String
+    let lessonDisplayTitle: (CDLesson) -> String
     
     var body: some View {
         VStack(alignment: .leading, spacing: 8) {
@@ -151,7 +151,7 @@ struct LessonPickerPopover: View {
 struct StudentsSection: View {
     @Bindable var viewModel: LessonPickerViewModel
     let subjectColor: Color
-    let displayName: (Student) -> String
+    let displayName: (CDStudent) -> String
     @Binding var showingAddStudentSheet: Bool
     @Binding var showingStudentPickerPopover: Bool
     
@@ -207,12 +207,12 @@ struct StudentsSection: View {
     }
 }
 
-// MARK: - Student Chips List
+// MARK: - CDStudent Chips List
 
 struct StudentChipsList: View {
-    let students: [Student]
+    let students: [CDStudent]
     let subjectColor: Color
-    let displayName: (Student) -> String
+    let displayName: (CDStudent) -> String
     let onRemove: (UUID) -> Void
     
     var body: some View {
@@ -226,7 +226,8 @@ struct StudentChipsList: View {
                         .foregroundStyle(subjectColor)
                         .clipShape(Capsule())
                     Button {
-                        onRemove(student.id)
+                        guard let studentID = student.id else { return }
+                        onRemove(studentID)
                     } label: {
                         Image(systemName: "xmark.circle.fill")
                             .foregroundStyle(subjectColor)

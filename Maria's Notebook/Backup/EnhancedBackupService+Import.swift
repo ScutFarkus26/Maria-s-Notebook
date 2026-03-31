@@ -1,5 +1,5 @@
 import Foundation
-import SwiftData
+import CoreData
 import SwiftUI
 
 // MARK: - Import Methods
@@ -8,7 +8,7 @@ extension EnhancedBackupService {
 
     /// Enhanced import with validation and transactional support
     public func importBackup(
-        modelContext: ModelContext,
+        viewContext: NSManagedObjectContext,
         from url: URL,
         mode: RestoreMode,
         password: String? = nil,
@@ -26,7 +26,7 @@ extension EnhancedBackupService {
         progress(0.1, "Validating backup data\u{2026}")
         let validationResult = try await validationService.validate(
             payload: payload,
-            against: modelContext,
+            against: viewContext,
             mode: mode
         )
 
@@ -43,7 +43,7 @@ extension EnhancedBackupService {
 
         // Perform import using standard mode
         let summary = try await backupService.importBackup(
-            modelContext: modelContext,
+            viewContext: viewContext,
             from: url,
             mode: mode,
             password: password,
@@ -66,7 +66,7 @@ extension EnhancedBackupService {
     // MARK: - Preview
 
     public func previewImport(
-        modelContext: ModelContext,
+        viewContext: NSManagedObjectContext,
         from url: URL,
         mode: RestoreMode,
         password: String? = nil,
@@ -74,7 +74,7 @@ extension EnhancedBackupService {
     ) async throws -> EnhancedRestorePreview {
 
         let preview = try await backupService.previewImport(
-            modelContext: modelContext,
+            viewContext: viewContext,
             from: url,
             mode: mode,
             password: password,
@@ -85,14 +85,14 @@ extension EnhancedBackupService {
         let payload = try await extractPayload(from: url, password: password)
         let validation = try await validationService.validate(
             payload: payload,
-            against: modelContext,
+            against: viewContext,
             mode: mode
         )
 
         // Detect conflicts between backup data and current database state
         let conflicts = try await detectRestoreConflicts(
             payload: payload,
-            modelContext: modelContext,
+            viewContext: viewContext,
             mode: mode
         )
 

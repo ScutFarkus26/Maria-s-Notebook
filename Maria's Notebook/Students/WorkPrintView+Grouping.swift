@@ -6,8 +6,8 @@ import Foundation
 struct WorkPrintGroup: Identifiable {
     let id: String
     let title: String
-    let student: Student?
-    let works: [WorkModel]
+    let student: CDStudent?
+    let works: [CDWorkModel]
 }
 
 extension WorkPrintView {
@@ -16,7 +16,7 @@ extension WorkPrintView {
         Self.computeGroups(workItems: workItems, students: students)
     }
 
-    static func computeGroups(workItems: [WorkModel], students: [Student]) -> [WorkPrintGroup] {
+    static func computeGroups(workItems: [CDWorkModel], students: [CDStudent]) -> [WorkPrintGroup] {
         // Group work by student for clearer organization
         let studentDict = Dictionary(grouping: workItems) { work in
             work.studentID
@@ -41,7 +41,7 @@ extension WorkPrintView {
                 }
                 if work1.dueAt != nil { return true }
                 if work2.dueAt != nil { return false }
-                return work1.assignedAt < work2.assignedAt
+                return (work1.assignedAt ?? .distantPast) < (work2.assignedAt ?? .distantPast)
             }
 
             let groupID = studentIDString.trimmed().isEmpty ? "unassigned" : studentIDString

@@ -1,5 +1,5 @@
 import Foundation
-import SwiftData
+import CoreData
 
 /// Handles conflict resolution for cloud-synced backups
 /// Implements three-way merge and conflict detection strategies
@@ -364,21 +364,21 @@ public final class CloudSyncConflictResolver {
     
     private func countEntities(in payload: BackupPayload) -> [String: Int] {
         return [
-            "Student": payload.students.count,
-            "Lesson": payload.lessons.count,
-            "LessonAssignment": payload.lessonAssignments.count,
-            "Note": payload.notes.count,
-            "NonSchoolDay": payload.nonSchoolDays.count,
-            "SchoolDayOverride": payload.schoolDayOverrides.count,
-            "StudentMeeting": payload.studentMeetings.count,
-            "CommunityTopic": payload.communityTopics.count,
+            "CDStudent": payload.students.count,
+            "CDLesson": payload.lessons.count,
+            "CDLessonAssignment": payload.lessonAssignments.count,
+            "CDNote": payload.notes.count,
+            "CDNonSchoolDay": payload.nonSchoolDays.count,
+            "CDSchoolDayOverride": payload.schoolDayOverrides.count,
+            "CDStudentMeeting": payload.studentMeetings.count,
+            "CDCommunityTopicEntity": payload.communityTopics.count,
             "ProposedSolution": payload.proposedSolutions.count,
             "CommunityAttachment": payload.communityAttachments.count,
-            "AttendanceRecord": payload.attendance.count,
-            "WorkCompletionRecord": payload.workCompletions.count,
-            "Project": payload.projects.count,
+            "CDAttendanceRecord": payload.attendance.count,
+            "CDWorkCompletionRecord": payload.workCompletions.count,
+            "CDProject": payload.projects.count,
             "ProjectAssignmentTemplate": payload.projectAssignmentTemplates.count,
-            "ProjectSession": payload.projectSessions.count,
+            "CDProjectSession": payload.projectSessions.count,
             "ProjectRole": payload.projectRoles.count,
             "ProjectTemplateWeek": payload.projectTemplateWeeks.count,
             "ProjectWeekRoleAssignment": payload.projectWeekRoleAssignments.count

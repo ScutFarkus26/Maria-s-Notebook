@@ -3,7 +3,7 @@
 
 import SwiftUI
 
-// MARK: - Lesson Node Status
+// MARK: - CDLesson Node Status
 
 /// Status of a single lesson in a student's progression timeline.
 enum LessonNodeStatus: Sendable {
@@ -48,12 +48,12 @@ enum LessonNodeStatus: Sendable {
     }
 }
 
-// MARK: - Lesson Progression Node
+// MARK: - CDLesson Progression Node
 
 /// A single lesson in a student's progression timeline, with nested work items.
 struct LessonProgressionNode: Identifiable {
     let id: UUID
-    let lesson: Lesson
+    let lesson: CDLesson
     let orderInGroup: Int
     let status: LessonNodeStatus
     let presentedAt: Date?
@@ -67,12 +67,12 @@ struct LessonProgressionNode: Identifiable {
 /// A work item attached to a lesson in the progression timeline.
 struct WorkProgressItem: Identifiable {
     let id: UUID
-    let work: WorkModel
+    let work: CDWorkModel
     let status: WorkStatus
     let kind: WorkKind?
     let ageSchoolDays: Int
-    let lastCheckIn: WorkCheckIn?
-    let nextCheckIn: WorkCheckIn?
+    let lastCheckIn: CDWorkCheckIn?
+    let nextCheckIn: CDWorkCheckIn?
 }
 
 // MARK: - Group Summary

@@ -1,5 +1,5 @@
 import Foundation
-import SwiftData
+import CoreData
 import OSLog
 
 // MARK: - Lessons
@@ -10,21 +10,22 @@ extension BackupEntityImporter {
     // swiftlint:disable:next cyclomatic_complexity
     static func importLessons(
         _ dtos: [LessonDTO],
-        into modelContext: ModelContext,
-        existingCheck: EntityExistsCheck<Lesson>
+        into viewContext: NSManagedObjectContext,
+        existingCheck: EntityExistsCheck<CDLesson>
     ) rethrows {
         try importSimpleEntities(
-            dtos, into: modelContext,
+            dtos, into: viewContext,
             existingCheck: existingCheck,
             idExtractor: { $0.id },
             entityBuilder: { dto in
-            let lesson = Lesson(
-                id: dto.id, name: dto.name,
-                subject: dto.subject, group: dto.group,
-                orderInGroup: dto.orderInGroup,
-                subheading: dto.subheading,
-                writeUp: dto.writeUp
-            )
+            let lesson = CDLesson(context: viewContext)
+            lesson.id = dto.id
+            lesson.name = dto.name
+            lesson.subject = dto.subject
+            lesson.group = dto.group
+            lesson.orderInGroup = Int64(dto.orderInGroup)
+            lesson.subheading = dto.subheading
+            lesson.writeUp = dto.writeUp
             if let pages = dto.pagesFileRelativePath { lesson.pagesFileRelativePath = pages }
             if let primaryAttachmentID = dto.primaryAttachmentID {
                 lesson.primaryAttachmentID = primaryAttachmentID.uuidString
@@ -49,20 +50,19 @@ extension BackupEntityImporter {
     /// Imports sample works from DTOs.
     static func importSampleWorks(
         _ dtos: [SampleWorkDTO],
-        into modelContext: ModelContext,
-        existingCheck: EntityExistsCheck<SampleWork>,
-        lessonCheck: EntityExistsCheck<Lesson>
+        into viewContext: NSManagedObjectContext,
+        existingCheck: EntityExistsCheck<CDSampleWork>,
+        lessonCheck: EntityExistsCheck<CDLesson>
     ) rethrows {
         for dto in dtos {
             if shouldSkipExisting(id: dto.id, existingCheck: existingCheck) { continue }
-            let sw = SampleWork(
-                id: dto.id,
-                title: dto.title,
-                workKind: WorkKind(rawValue: dto.workKindRaw) ?? .practiceLesson,
-                orderIndex: dto.orderIndex,
-                notes: dto.notes,
-                createdAt: dto.createdAt
-            )
+            let sw = CDSampleWork(context: viewContext)
+            sw.id = dto.id
+            sw.title = dto.title
+            sw.workKindRaw = (WorkKind(rawValue: dto.workKindRaw) ?? .practiceLesson).rawValue
+            sw.orderIndex = Int64(dto.orderIndex)
+            sw.notes = dto.notes
+            sw.createdAt = dto.createdAt
             if let lessonID = dto.lessonID {
                 do {
                     if let lesson = try lessonCheck(lessonID) {
@@ -73,7 +73,7 @@ extension BackupEntityImporter {
                     Logger.backup.warning("Failed to check lesson for sample work: \(desc, privacy: .public)")
                 }
             }
-            modelContext.insert(sw)
+            viewContext.insert(sw)
         }
     }
 
@@ -82,19 +82,18 @@ extension BackupEntityImporter {
     /// Imports sample work steps from DTOs.
     static func importSampleWorkSteps(
         _ dtos: [SampleWorkStepDTO],
-        into modelContext: ModelContext,
-        existingCheck: EntityExistsCheck<SampleWorkStep>,
-        sampleWorkCheck: EntityExistsCheck<SampleWork>
+        into viewContext: NSManagedObjectContext,
+        existingCheck: EntityExistsCheck<CDSampleWorkStep>,
+        sampleWorkCheck: EntityExistsCheck<CDSampleWork>
     ) rethrows {
         for dto in dtos {
             if shouldSkipExisting(id: dto.id, existingCheck: existingCheck) { continue }
-            let step = SampleWorkStep(
-                id: dto.id,
-                title: dto.title,
-                orderIndex: dto.orderIndex,
-                instructions: dto.instructions,
-                createdAt: dto.createdAt
-            )
+            let step = CDSampleWorkStep(context: viewContext)
+            step.id = dto.id
+            step.title = dto.title
+            step.orderIndex = Int64(dto.orderIndex)
+            step.instructions = dto.instructions
+            step.createdAt = dto.createdAt
             if let sampleWorkID = dto.sampleWorkID {
                 do {
                     if let sw = try sampleWorkCheck(sampleWorkID) {
@@ -105,7 +104,7 @@ extension BackupEntityImporter {
                     Logger.backup.warning("Failed to check sample work for step: \(desc, privacy: .public)")
                 }
             }
-            modelContext.insert(step)
+            viewContext.insert(step)
         }
     }
 
@@ -115,14 +114,14 @@ extension BackupEntityImporter {
     ///
     /// - Parameters:
     ///   - dtos: The lesson assignment DTOs to import
-    ///   - modelContext: The model context for database operations
+    ///   - viewContext: The model context for database operations
     ///   - existingCheck: Function to check if a lesson assignment already exists
     ///   - lessonCheck: Function to look up a lesson by ID for linking
     static func importLessonAssignments(
         _ dtos: [LessonAssignmentDTO],
-        into modelContext: ModelContext,
-        existingCheck: EntityExistsCheck<LessonAssignment>,
-        lessonCheck: EntityExistsCheck<Lesson>
+        into viewContext: NSManagedObjectContext,
+        existingCheck: EntityExistsCheck<CDLessonAssignment>,
+        lessonCheck: EntityExistsCheck<CDLesson>
     ) rethrows {
         for dto in dtos {
             do {
@@ -142,22 +141,20 @@ extension BackupEntityImporter {
             // Parse student IDs
             let studentUUIDs = dto.studentIDs.compactMap { UUID(uuidString: $0) }
 
-            let assignment = LessonAssignment(
-                id: dto.id,
-                createdAt: dto.createdAt,
-                state: state,
-                scheduledFor: dto.scheduledFor,
-                presentedAt: dto.presentedAt,
-                lessonID: lessonUUID,
-                studentIDs: studentUUIDs,
-                lesson: nil,
-                needsPractice: dto.needsPractice,
-                needsAnotherPresentation: dto.needsAnotherPresentation,
-                followUpWork: dto.followUpWork,
-                notes: dto.notes,
-                trackID: dto.trackID,
-                trackStepID: dto.trackStepID
-            )
+            let assignment = CDLessonAssignment(context: viewContext)
+            assignment.id = dto.id
+            assignment.createdAt = dto.createdAt
+            assignment.stateRaw = state.rawValue
+            assignment.scheduledFor = dto.scheduledFor
+            assignment.presentedAt = dto.presentedAt
+            assignment.lessonID = lessonUUID.uuidString
+            assignment.studentIDs = studentUUIDs.map(\.uuidString)
+            assignment.needsPractice = dto.needsPractice
+            assignment.needsAnotherPresentation = dto.needsAnotherPresentation
+            assignment.followUpWork = dto.followUpWork
+            assignment.notes = dto.notes
+            assignment.trackID = dto.trackID
+            assignment.trackStepID = dto.trackStepID
 
             // Update modifiedAt
             assignment.modifiedAt = dto.modifiedAt
@@ -180,21 +177,21 @@ extension BackupEntityImporter {
                 Logger.backup.warning("Failed to check lesson for assignment: \(desc, privacy: .public)")
             }
 
-            modelContext.insert(assignment)
+            viewContext.insert(assignment)
         }
     }
 
-    // MARK: - Lesson Attachments
+    // MARK: - CDLesson Attachments
 
     static func importLessonAttachments(
         _ dtos: [LessonAttachmentDTO],
-        into modelContext: ModelContext,
+        into viewContext: NSManagedObjectContext,
         existingCheck: EntityExistsCheck<LessonAttachment>,
-        lessonCheck: EntityExistsCheck<Lesson>
+        lessonCheck: EntityExistsCheck<CDLesson>
     ) rethrows {
         for dto in dtos {
             if shouldSkipExisting(id: dto.id, existingCheck: existingCheck) { continue }
-            let attachment = LessonAttachment()
+            let attachment = LessonAttachment(context: viewContext)
             attachment.id = dto.id
             attachment.fileName = dto.fileName
             attachment.fileRelativePath = dto.fileRelativePath
@@ -213,36 +210,35 @@ extension BackupEntityImporter {
                     Logger.backup.warning("Failed to check lesson for attachment: \(desc, privacy: .public)")
                 }
             }
-            modelContext.insert(attachment)
+            viewContext.insert(attachment)
         }
     }
 
-    // MARK: - Lesson Presentations
+    // MARK: - CDLesson Presentations
 
     static func importLessonPresentations(
         _ dtos: [LessonPresentationDTO],
-        into modelContext: ModelContext,
-        existingCheck: EntityExistsCheck<LessonPresentation>
+        into viewContext: NSManagedObjectContext,
+        existingCheck: EntityExistsCheck<CDLessonPresentation>
     ) rethrows {
         try importSimpleEntities(
-            dtos, into: modelContext,
+            dtos, into: viewContext,
             existingCheck: existingCheck,
             idExtractor: { $0.id },
             entityBuilder: { dto in
-            let lp = LessonPresentation(
-                id: dto.id,
-                createdAt: dto.createdAt,
-                studentID: dto.studentID,
-                lessonID: dto.lessonID,
-                presentationID: dto.presentationID,
-                trackID: dto.trackID,
-                trackStepID: dto.trackStepID,
-                state: LessonPresentationState(rawValue: dto.stateRaw) ?? .presented,
-                presentedAt: dto.presentedAt,
-                lastObservedAt: dto.lastObservedAt,
-                masteredAt: dto.masteredAt,
-                notes: dto.notes
-            )
+            let lp = CDLessonPresentation(context: viewContext)
+            lp.id = dto.id
+            lp.createdAt = dto.createdAt
+            lp.studentID = dto.studentID
+            lp.lessonID = dto.lessonID
+            lp.presentationID = dto.presentationID
+            lp.trackID = dto.trackID
+            lp.trackStepID = dto.trackStepID
+            lp.stateRaw = (LessonPresentationState(rawValue: dto.stateRaw) ?? .presented).rawValue
+            lp.presentedAt = dto.presentedAt
+            lp.lastObservedAt = dto.lastObservedAt
+            lp.masteredAt = dto.masteredAt
+            lp.notes = dto.notes
             return lp
         })
     }

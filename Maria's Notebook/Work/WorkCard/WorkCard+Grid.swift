@@ -152,7 +152,7 @@ struct WorkCardGridContent: View {
                 Label("Copy Title", systemImage: "doc.on.doc")
             }
         }
-        .draggable(UnifiedCalendarDragPayload.work(config.work.id).stringRepresentation) {
+        .draggable(UnifiedCalendarDragPayload.work(config.work.id ?? UUID()).stringRepresentation) {
             VStack(alignment: .leading, spacing: 6) {
                 Text(displayTitle).font(.subheadline)
                 Text(config.studentDisplay).font(.caption).foregroundStyle(.secondary)
@@ -173,8 +173,13 @@ struct WorkCardGridContent: View {
 }
 
 #Preview {
-    WorkCard.grid(
-        work: WorkModel(status: .active, studentID: UUID().uuidString, lessonID: UUID().uuidString),
+    let stack = CoreDataStack.preview
+    let ctx = stack.viewContext
+    let work = WorkModel(context: ctx)
+    work.status = .active; work.studentID = UUID().uuidString; work.lessonID = UUID().uuidString
+
+    return WorkCard.grid(
+        work: work,
         lessonTitle: "Long Division",
         studentDisplay: "Ada Lovelace",
         needsAttention: true,
@@ -184,4 +189,5 @@ struct WorkCardGridContent: View {
         onScheduleToday: { _ in }
     )
     .padding()
+    .previewEnvironment(using: stack)
 }

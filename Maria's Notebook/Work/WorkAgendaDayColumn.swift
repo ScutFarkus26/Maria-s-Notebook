@@ -1,9 +1,9 @@
 import SwiftUI
-import SwiftData
+import CoreData
 
 /// A day column for the Work agenda calendar that displays both work items and lesson assignments
 struct WorkAgendaDayColumn: View {
-    @Environment(\.modelContext) private var modelContext
+    @Environment(\.managedObjectContext) private var modelContext
 
     let day: Date
     let availableHeight: CGFloat
@@ -13,11 +13,10 @@ struct WorkAgendaDayColumn: View {
     let onLessonAssignmentSelect: ((LessonAssignment) -> Void)?
 
     // Fetch work check-ins for this day (scheduled status only)
-    @Query private var allCheckIns: [WorkCheckIn]
+    @FetchRequest private var allCheckIns: FetchedResults<CDWorkCheckIn>
 
     // Fetch scheduled lesson assignments (not yet presented)
-    @Query(filter: #Predicate<LessonAssignment> { $0.stateRaw != "presented" })
-    private var allLessonAssignments: [LessonAssignment]
+    @FetchRequest private var allLessonAssignments: FetchedResults<CDLessonAssignment>
 
     init(
         day: Date,
@@ -36,10 +35,17 @@ struct WorkAgendaDayColumn: View {
 
         // Initialize work check-ins query for this day (scheduled status only)
         let (start, end) = AppCalendar.dayRange(for: day)
-        let scheduledStatus = "Scheduled"
-        _allCheckIns = Query(filter: #Predicate {
-            $0.statusRaw == scheduledStatus && $0.date >= start && $0.date < end
-        })
+        _allCheckIns = FetchRequest(
+            sortDescriptors: [],
+            predicate: NSCompoundPredicate(andPredicateWithSubpredicates: [
+                NSPredicate(format: "statusRaw == %@", "Scheduled"),
+                NSPredicate(format: "date >= %@ AND date < %@", start as NSDate, end as NSDate)
+            ])
+        )
+        _allLessonAssignments = FetchRequest(
+            sortDescriptors: [],
+            predicate: NSPredicate(format: "stateRaw != %@", "presented")
+        )
     }
 
     private var lessonAssignmentsForDay: [LessonAssignment] {
@@ -70,8 +76,9 @@ struct WorkAgendaDayColumn: View {
     /// Resolves lesson title for a work's lessonID
     private func resolvedLessonTitle(for work: WorkModel) -> String {
         if let lessonID = work.lessonID.asUUID {
-            let descriptor = FetchDescriptor<Lesson>(predicate: #Predicate { $0.id == lessonID })
-            if let lesson = modelContext.safeFetchFirst(descriptor) {
+            let request = CDFetchRequest(CDLesson.self)
+            request.predicate = NSPredicate(format: "id == %@", lessonID as CVarArg)
+            if let lesson = modelContext.safeFetchFirst(request) {
                 let name = lesson.name.trimmed()
                 if !name.isEmpty { return name }
             }
@@ -82,8 +89,9 @@ struct WorkAgendaDayColumn: View {
     /// Resolves display name for a work's studentID
     private func resolvedStudentName(for work: WorkModel) -> String {
         if let studentID = work.studentID.asUUID {
-            let descriptor = FetchDescriptor<Student>(predicate: #Predicate { $0.id == studentID })
-            if let student = modelContext.safeFetchFirst(descriptor) {
+            let request = CDFetchRequest(CDStudent.self)
+            request.predicate = NSPredicate(format: "id == %@", studentID as CVarArg)
+            if let student = modelContext.safeFetchFirst(request) {
                 return StudentFormatter.displayName(for: student)
             }
         }
@@ -106,8 +114,9 @@ struct WorkAgendaDayColumn: View {
         var resolved: [Resolved] = []
         for ci in allCheckIns {
             guard let workID = ci.workID.asUUID else { continue }
-            let descriptor = FetchDescriptor<WorkModel>(predicate: #Predicate { $0.id == workID })
-            guard let work = modelContext.safeFetchFirst(descriptor) else { continue }
+            let workRequest = CDFetchRequest(CDWorkModel.self)
+            workRequest.predicate = NSPredicate(format: "id == %@", workID as CVarArg)
+            guard let work = modelContext.safeFetchFirst(workRequest) else { continue }
             let lessonTitle = resolvedLessonTitle(for: work)
             let studentName = resolvedStudentName(for: work)
             let groupKey = "\(work.lessonID)|\(ci.purpose)"
@@ -147,24 +156,24 @@ struct WorkAgendaDayColumn: View {
             let checkIns = items.map(\.checkIn)
             let studentNames = items.map(\.studentName).filter { !$0.isEmpty }
             result.append(CheckInGroup(
-                id: items[0].checkIn.id,
+                id: items[0].checkIn.id ?? UUID(),
                 checkIns: checkIns,
                 lessonTitle: items[0].lessonTitle,
                 studentNames: studentNames,
                 purpose: items[0].checkIn.purpose,
-                sortDate: items[0].checkIn.date
+                sortDate: items[0].checkIn.date ?? Date()
             ))
         }
 
         // Emit individual items as single-item groups
         for r in individualItems {
             result.append(CheckInGroup(
-                id: r.checkIn.id,
+                id: r.checkIn.id ?? UUID(),
                 checkIns: [r.checkIn],
                 lessonTitle: r.lessonTitle,
                 studentNames: r.studentName.isEmpty ? [] : [r.studentName],
                 purpose: r.checkIn.purpose,
-                sortDate: r.checkIn.date
+                sortDate: r.checkIn.date ?? Date()
             ))
         }
 
@@ -178,7 +187,7 @@ struct WorkAgendaDayColumn: View {
         var id: UUID {
             switch self {
             case .checkInGroup(let g): return g.id
-            case .lessonAssignment(let la): return la.id
+            case .lessonAssignment(let la): return la.id ?? UUID()
             }
         }
 
@@ -208,7 +217,7 @@ struct WorkAgendaDayColumn: View {
                             GroupedWorkCheckInPill(group: group) {
                                 if let onGroupTap { onGroupTap(group) } else { onPillTap(group.primary) }
                             }
-                            .draggable(UnifiedCalendarDragPayload.workCheckIn(group.primary.id).stringRepresentation) {
+                            .draggable(UnifiedCalendarDragPayload.workCheckIn(group.primary.id ?? UUID()).stringRepresentation) {
                                 GroupedWorkCheckInPill(group: group)
                                     .opacity(UIConstants.OpacityConstants.almostOpaque)
                             }
@@ -216,7 +225,7 @@ struct WorkAgendaDayColumn: View {
                             WorkCheckInPill(checkIn: group.primary, isDulled: false) {
                                 onPillTap(group.primary)
                             }
-                            .draggable(UnifiedCalendarDragPayload.workCheckIn(group.primary.id).stringRepresentation) {
+                            .draggable(UnifiedCalendarDragPayload.workCheckIn(group.primary.id ?? UUID()).stringRepresentation) {
                                 WorkCheckInPill(checkIn: group.primary, isDulled: false)
                                     .opacity(UIConstants.OpacityConstants.almostOpaque)
                             }
@@ -231,7 +240,7 @@ struct WorkAgendaDayColumn: View {
                             showAgeIndicator: false
                         )
                         .opacity(UIConstants.OpacityConstants.half)
-                        .draggable(UnifiedCalendarDragPayload.presentation(la.id).stringRepresentation) {
+                        .draggable(UnifiedCalendarDragPayload.presentation(la.id ?? UUID()).stringRepresentation) {
                             PresentationPill(
                                 snapshot: la.snapshot(),
                                 day: day,

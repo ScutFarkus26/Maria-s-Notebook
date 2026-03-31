@@ -1,5 +1,5 @@
 import SwiftUI
-import SwiftData
+import CoreData
 import OSLog
 
 /// Reusable panel component for presentation workflow (can be used in sheets or embedded)
@@ -10,7 +10,7 @@ struct UnifiedPresentationWorkflowPanel: View {
     // MARK: - Input
 
     @Bindable var presentationViewModel: PostPresentationFormViewModel
-    let students: [Student]
+    let students: [CDStudent]
     let lessonName: String
     let lessonID: UUID
     let onComplete: () -> Void
@@ -21,12 +21,12 @@ struct UnifiedPresentationWorkflowPanel: View {
 
     // MARK: - Environment
 
-    @Environment(\.modelContext) var modelContext
+    @Environment(\.managedObjectContext) var viewContext
     @Environment(SaveCoordinator.self) var saveCoordinator
 
-    @Query(sort: \Lesson.sortIndex) var lessons: [Lesson]
-    @Query var lessonAssignments: [LessonAssignment]
-    @Query(sort: \WorkModel.createdAt, order: .reverse) var allWorkModels: [WorkModel]
+    @FetchRequest(sortDescriptors: [NSSortDescriptor(keyPath: \CDLesson.sortIndex, ascending: true)]) var lessons: FetchedResults<CDLesson>
+    @FetchRequest(sortDescriptors: []) var lessonAssignments: FetchedResults<CDLessonAssignment>
+    @FetchRequest(sortDescriptors: [NSSortDescriptor(keyPath: \CDWorkModel.createdAt, ascending: false)]) var allWorkModels: FetchedResults<CDWorkModel>
 
     #if os(iOS)
     @Environment(\.horizontalSizeClass) private var horizontalSizeClass
@@ -52,7 +52,7 @@ struct UnifiedPresentationWorkflowPanel: View {
 
     // MARK: - Computed
 
-    var sortedStudents: [Student] {
+    var sortedStudents: [CDStudent] {
         students.sorted(by: StudentSortComparator.byFirstName)
     }
 
@@ -71,12 +71,12 @@ struct UnifiedPresentationWorkflowPanel: View {
             #endif
         }
         .onAppear {
-            let studentIDs = Set(students.map(\.id))
+            let studentIDs = Set(students.compactMap(\.id))
             presentationViewModel.resolveNextLesson(
                 lessonID: lessonID,
                 studentIDs: studentIDs,
-                lessons: lessons,
-                lessonAssignments: lessonAssignments
+                lessons: Array(lessons),
+                lessonAssignments: Array(lessonAssignments)
             )
         }
         .onChange(of: triggerCompletion?.wrappedValue) { _, newValue in

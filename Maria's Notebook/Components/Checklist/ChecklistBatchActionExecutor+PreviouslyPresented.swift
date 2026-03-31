@@ -1,6 +1,6 @@
 import Foundation
 import OSLog
-import SwiftData
+import CoreData
 
 // MARK: - Previously Presented Helpers
 
@@ -9,8 +9,8 @@ extension ChecklistBatchActionExecutor {
 
     static func deleteLessonPresentation(
         studentID: String, lessonID: String,
-        from prefetchedLPs: [LessonPresentation],
-        context: ModelContext
+        from prefetchedLPs: [CDLessonPresentation],
+        context: NSManagedObjectContext
     ) {
         // Filter from pre-fetched data instead of re-fetching all LessonPresentations
         let toDelete = prefetchedLPs.filter { lp in
@@ -22,16 +22,16 @@ extension ChecklistBatchActionExecutor {
     }
 
     static func togglePreviouslyPresentedNoRecompute(
-        student: Student, lesson: Lesson,
-        prefetchedLPs: [LessonPresentation],
-        context: ModelContext
+        student: CDStudent, lesson: CDLesson,
+        prefetchedLPs: [CDLessonPresentation],
+        context: NSManagedObjectContext
     ) {
         let studentIDString = student.cloudKitKey
-        let lessonIDString = lesson.id.uuidString
+        let lessonIDString = lesson.id?.uuidString ?? ""
 
-        let allLAs = context.safeFetch(
-            FetchDescriptor<LessonAssignment>(predicate: #Predicate { $0.lessonID == lessonIDString })
-        )
+        let laRequest = CDFetchRequest(CDLessonAssignment.self)
+        laRequest.predicate = NSPredicate(format: "lessonID == %@", lessonIDString as CVarArg)
+        let allLAs = context.safeFetch(laRequest)
 
         if let existing = allLAs.first(where: {
             $0.isPresented && $0.studentIDs.contains(studentIDString)
@@ -60,11 +60,11 @@ extension ChecklistBatchActionExecutor {
     }
 
     static func addStudentToUndatedLesson(
-        student: Student,
+        student: CDStudent,
         studentIDString: String,
-        lesson: Lesson,
-        in allLAs: [LessonAssignment],
-        context: ModelContext
+        lesson: CDLesson,
+        in allLAs: [CDLessonAssignment],
+        context: NSManagedObjectContext
     ) {
         if let group = allLAs.first(where: {
             $0.isPresented && $0.presentedAt == nil
@@ -72,17 +72,20 @@ extension ChecklistBatchActionExecutor {
             if !group.studentIDs.contains(studentIDString) {
                 group.studentIDs.append(studentIDString)
                 GroupTrackService.autoEnrollInTrackIfNeeded(
-                    lesson: lesson, studentIDs: [studentIDString], modelContext: context
+                    lessonSubject: lesson.subject, lessonGroup: lesson.group,
+                    studentIDs: [studentIDString], context: context
                 )
             }
         } else {
+            guard let lessonID = lesson.id, let studentID = student.id else { return }
             PresentationFactory.insertPreviouslyPresented(
-                lessonID: lesson.id,
-                studentIDs: [student.id],
+                lessonID: lessonID,
+                studentIDs: [studentID],
                 context: context
             )
             GroupTrackService.autoEnrollInTrackIfNeeded(
-                lesson: lesson, studentIDs: [studentIDString], modelContext: context
+                lessonSubject: lesson.subject, lessonGroup: lesson.group,
+                studentIDs: [studentIDString], context: context
             )
         }
     }

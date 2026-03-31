@@ -2,7 +2,7 @@
 // Sidebar navigation for RootView - extracted for maintainability
 
 import SwiftUI
-import SwiftData
+import CoreData
 
 /// Sidebar with grouped sections (Source List style) for selecting navigation items.
 struct RootSidebar: View {

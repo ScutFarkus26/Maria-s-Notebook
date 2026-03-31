@@ -1,5 +1,5 @@
 import Foundation
-import SwiftData
+import CoreData
 
 // MARK: - AI Services
 
@@ -24,7 +24,7 @@ extension AppDependencies {
         if let service = _chatService {
             return service
         }
-        let service = ChatService(modelContext: modelContext, mcpClient: mcpClient)
+        let service = ChatService(modelContext: viewContext, mcpClient: mcpClient)
         _chatService = service
         return service
     }
@@ -34,7 +34,7 @@ extension AppDependencies {
             return service
         }
         let service = StudentAnalysisService(
-            modelContext: modelContext,
+            modelContext: viewContext,
             mcpClient: mcpClient
         )
         _studentAnalysisService = service
@@ -46,7 +46,7 @@ extension AppDependencies {
             return service
         }
         let service = LessonPlanningService(
-            modelContext: modelContext,
+            context: viewContext,
             mcpClient: mcpClient
         )
         _lessonPlanningService = service
@@ -55,7 +55,7 @@ extension AppDependencies {
 
     var databaseAnalysisService: DatabaseAnalysisService {
         if let service = _databaseAnalysisService { return service }
-        let service = DatabaseAnalysisService(modelContext: modelContext, mcpClient: mcpClient)
+        let service = DatabaseAnalysisService(modelContext: viewContext, mcpClient: mcpClient)
         _databaseAnalysisService = service
         return service
     }

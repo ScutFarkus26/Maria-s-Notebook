@@ -2,7 +2,7 @@
 // Reordering logic for LessonsRootView - extracted for maintainability
 
 import SwiftUI
-import SwiftData
+import CoreData
 import OSLog
 
 private let logger = Logger.lessons
@@ -68,7 +68,7 @@ extension LessonsRootView {
     // MARK: - Move Lessons Flat (for ungrouped individual positioning)
 
     @MainActor
-    private func moveLessonsFlat(from source: IndexSet, to destination: Int, in allLessons: [Lesson]) {
+    private func moveLessonsFlat(from source: IndexSet, to destination: Int, in allLessons: [CDLesson]) {
         guard canReorderInPlanMode else { return }
         guard let sourceIndex = source.first else { return }
         guard sourceIndex < allLessons.count else { return }
@@ -78,11 +78,11 @@ extension LessonsRootView {
 
         // Update sortIndex for all lessons based on their new position
         for (idx, lesson) in reordered.enumerated() {
-            lesson.sortIndex = idx
+            lesson.sortIndex = Int64(idx)
         }
 
         do {
-            try modelContext.save()
+            try viewContext.save()
         } catch {
             logger.error("Failed to save lesson reorder: \(error)")
         }
@@ -91,7 +91,7 @@ extension LessonsRootView {
     // MARK: - Move Lessons in Subject (legacy, for group-based reordering)
 
     @MainActor
-    func moveLessonsInSubject(from source: IndexSet, to destination: Int, in groupLessons: [Lesson]) {
+    func moveLessonsInSubject(from source: IndexSet, to destination: Int, in groupLessons: [CDLesson]) {
         guard canReorderInPlanMode else { return }
         guard let subject = selectedSubject, !subject.trimmed().isEmpty else { return }
         guard let sourceIndex = source.first else { return }
@@ -101,14 +101,14 @@ extension LessonsRootView {
         reorderedGroup.move(fromOffsets: source, toOffset: destination)
 
         for (idx, lesson) in reorderedGroup.enumerated() {
-            lesson.orderInGroup = idx
+            lesson.orderInGroup = Int64(idx)
         }
 
         // Use the persisted group order (which includes "Ungrouped" position)
         let ungroupedLabel = "Ungrouped"
         let displayGroups = reorderableGroups
 
-        var allLessonsInOrder: [Lesson] = []
+        var allLessonsInOrder: [CDLesson] = []
         for group in displayGroups {
             let lessonsInGroup = lessonsForSubject.filter { lesson in
                 let lessonGroupTrimmed = lesson.group.trimmed()
@@ -127,20 +127,20 @@ extension LessonsRootView {
         }
 
         for (idx, lesson) in allLessonsInOrder.enumerated() {
-            lesson.sortIndex = idx
+            lesson.sortIndex = Int64(idx)
         }
 
         do {
-            try modelContext.save()
+            try viewContext.save()
         } catch {
             logger.error("Failed to save lesson reorder: \(error)")
         }
     }
 
-    // MARK: - Move Single Lesson Up/Down in Group
+    // MARK: - Move Single CDLesson Up/Down in Group
 
     @MainActor
-    func moveLessonInGroup(lesson: Lesson, direction: Int, group: String, ungroupedLabel: String) {
+    func moveLessonInGroup(lesson: CDLesson, direction: Int, group: String, ungroupedLabel: String) {
         guard canReorderInPlanMode else { return }
 
         let groupLessons = lessonsForGroup(group, ungroupedLabel: ungroupedLabel)
@@ -165,7 +165,7 @@ extension LessonsRootView {
         let ungroupedLabel = "Ungrouped"
         let displayGroups = reorderableGroups
 
-        var allLessonsInOrder: [Lesson] = []
+        var allLessonsInOrder: [CDLesson] = []
         for group in displayGroups {
             let lessonsInGroup = lessonsForSubject.filter { lesson in
                 let lessonGroupTrimmed = lesson.group.trimmed()
@@ -184,20 +184,20 @@ extension LessonsRootView {
         }
 
         for (idx, lesson) in allLessonsInOrder.enumerated() {
-            lesson.sortIndex = idx
+            lesson.sortIndex = Int64(idx)
         }
 
         do {
-            try modelContext.save()
+            try viewContext.save()
         } catch {
             logger.error("Failed to save lesson reorder: \(error)")
         }
     }
 
-    // MARK: - Move Lesson to Different Group
+    // MARK: - Move CDLesson to Different Group
 
     @MainActor
-    func moveLessonToGroup(lesson: Lesson, newGroup: String) {
+    func moveLessonToGroup(lesson: CDLesson, newGroup: String) {
         let ungroupedLabel = "Ungrouped"
         let actualGroup = (newGroup == ungroupedLabel) ? "" : newGroup
 
@@ -211,14 +211,14 @@ extension LessonsRootView {
         rebuildSortIndexForSubject()
     }
 
-    // MARK: - Move Lesson to Different Subheading
+    // MARK: - Move CDLesson to Different Subheading
 
     @MainActor
-    func moveLessonToSubheading(lesson: Lesson, newSubheading: String) {
+    func moveLessonToSubheading(lesson: CDLesson, newSubheading: String) {
         lesson.subheading = newSubheading
 
         do {
-            try modelContext.save()
+            try viewContext.save()
         } catch {
             logger.error("Failed to save lesson subheading change: \(error)")
         }
@@ -226,30 +226,27 @@ extension LessonsRootView {
 
     // MARK: - Plan Presentation
 
-    func planPresentation(for lesson: Lesson, studentIDs: Set<UUID>) {
+    func planPresentation(for lesson: CDLesson, studentIDs: Set<UUID>) {
         guard !studentIDs.isEmpty else { return }
 
         // NOTE: SwiftData #Predicate doesn't support capturing local Array/Set variables,
         // so we fetch all and filter in memory
-        let allStudents: [Student]
+        let allStudents: [CDStudent]
         do {
-            allStudents = try modelContext.fetch(FetchDescriptor<Student>())
+            allStudents = try viewContext.fetch(NSFetchRequest<CDStudent>(entityName: "CDStudent"))
         } catch {
             logger.warning("Failed to fetch students: \(error)")
             allStudents = []
         }
-        let students = allStudents.filter { studentIDs.contains($0.id) }
+        let students = allStudents.filter { guard let sid = $0.id else { return false }; return studentIDs.contains(sid) }
 
-        let lessonIDString = lesson.id.uuidString
+        let lessonIDString = lesson.id?.uuidString ?? ""
         let draftRaw = LessonAssignmentState.draft.rawValue
-        let existingPredicate = #Predicate<LessonAssignment> { la in
-            la.lessonID == lessonIDString &&
-            la.stateRaw == draftRaw
-        }
-        let existingDescriptor = FetchDescriptor<LessonAssignment>(predicate: existingPredicate)
-        let existingAssignments: [LessonAssignment]
+        let existingPredicate = NSPredicate(format: "lessonID == %@ AND stateRaw == %@", lessonIDString as CVarArg, draftRaw as CVarArg)
+        let existingDescriptor = { let r = NSFetchRequest<CDLessonAssignment>(entityName: "CDLessonAssignment"); r.predicate = existingPredicate; return r }()
+        let existingAssignments: [CDLessonAssignment]
         do {
-            existingAssignments = try modelContext.fetch(existingDescriptor)
+            existingAssignments = try viewContext.fetch(existingDescriptor)
         } catch {
             logger.warning("Failed to fetch existing lesson assignments: \(error)")
             existingAssignments = []
@@ -260,17 +257,21 @@ extension LessonsRootView {
             return
         }
 
+        guard let lessonID = lesson.id else {
+            lessonToSchedule = nil
+            return
+        }
         let newAssignment = PresentationFactory.makeDraft(
-            lessonID: lesson.id,
-            studentIDs: Array(studentIDs)
+            lessonID: lessonID,
+            studentIDs: Array(studentIDs),
+            context: viewContext
         )
         PresentationFactory.attachRelationships(
             to: newAssignment,
             lesson: lesson,
             students: students
         )
-        modelContext.insert(newAssignment)
-        saveCoordinator.save(modelContext, reason: "Plan presentation")
+        saveCoordinator.save(viewContext, reason: "Plan presentation")
 
         lessonToSchedule = nil
     }

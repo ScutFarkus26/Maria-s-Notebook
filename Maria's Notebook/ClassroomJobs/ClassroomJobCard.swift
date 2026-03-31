@@ -2,13 +2,13 @@
 // Card displaying a single classroom job with assigned students.
 
 import SwiftUI
-import SwiftData
+import CoreData
 
 struct ClassroomJobCard: View {
-    let job: ClassroomJob
-    let assignments: [JobAssignment]
+    let job: CDClassroomJob
+    let assignments: [CDJobAssignment]
     let viewModel: ClassroomJobsViewModel
-    let modelContext: ModelContext
+    let viewContext: NSManagedObjectContext
 
     var body: some View {
         VStack(alignment: .leading, spacing: 8) {
@@ -53,7 +53,7 @@ struct ClassroomJobCard: View {
                         Label("Edit", systemImage: "pencil")
                     }
                     Button(role: .destructive) {
-                        viewModel.deleteJob(job, context: modelContext)
+                        viewModel.deleteJob(job, context: viewContext)
                     } label: {
                         Label("Delete", systemImage: "trash")
                     }
@@ -73,7 +73,7 @@ struct ClassroomJobCard: View {
                     .padding(.leading, 40)
             } else {
                 FlowLayout(spacing: 6) {
-                    ForEach(assignments) { assignment in
+                    ForEach(assignments, id: \.objectID) { assignment in
                         assignmentChip(assignment)
                     }
                 }
@@ -83,7 +83,7 @@ struct ClassroomJobCard: View {
         .cardStyle()
     }
 
-    private func assignmentChip(_ assignment: JobAssignment) -> some View {
+    private func assignmentChip(_ assignment: CDJobAssignment) -> some View {
         HStack(spacing: 4) {
             if let student = viewModel.student(for: assignment.studentID) {
                 Text("\(student.firstName.prefix(1))\(student.lastName.prefix(1))")
@@ -103,7 +103,7 @@ struct ClassroomJobCard: View {
             }
 
             Button {
-                viewModel.toggleAssignmentCompleted(assignment, context: modelContext)
+                viewModel.toggleAssignmentCompleted(assignment, context: viewContext)
             } label: {
                 Image(systemName: assignment.isCompleted ? "checkmark.circle.fill" : "circle")
                     .font(.caption)

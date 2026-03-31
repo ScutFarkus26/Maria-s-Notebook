@@ -1,99 +1,105 @@
 // TransitionPlannerViewModel.swift
 // ViewModel for the Transition & Bridging Planner.
 
-import SwiftData
+import CoreData
 import SwiftUI
 
 @Observable
 @MainActor
 final class TransitionPlannerViewModel {
-    var plans: [TransitionPlan] = []
-    var students: [Student] = []
+    var plans: [CDTransitionPlan] = []
+    var students: [CDStudent] = []
     var selectedStatusFilter: TransitionStatus?
     var showingNewPlanPicker = false
 
-    var filteredPlans: [TransitionPlan] {
+    var filteredPlans: [CDTransitionPlan] {
         guard let filter = selectedStatusFilter else { return plans }
         return plans.filter { $0.status == filter }
     }
 
-    func loadData(context: ModelContext) {
-        let planDescriptor = FetchDescriptor<TransitionPlan>(
-            sortBy: [SortDescriptor(\.createdAt, order: .reverse)]
-        )
-        plans = context.safeFetch(planDescriptor)
+    func loadData(context: NSManagedObjectContext) {
+        let planRequest = CDFetchRequest(CDTransitionPlan.self)
+        planRequest.sortDescriptors = [NSSortDescriptor(keyPath: \CDTransitionPlan.createdAt, ascending: false)]
+        plans = context.safeFetch(planRequest)
 
-        let studentDescriptor = FetchDescriptor<Student>(sortBy: Student.sortByName)
-        students = TestStudentsFilter.filterVisible(context.safeFetch(studentDescriptor).filter(\.isEnrolled))
+        let studentRequest = CDFetchRequest(CDStudent.self)
+        studentRequest.sortDescriptors = CDStudent.sortByName
+        students = TestStudentsFilter.filterVisible(context.safeFetch(studentRequest).filter(\.isEnrolled))
     }
 
-    func student(for plan: TransitionPlan) -> Student? {
+    func student(for plan: CDTransitionPlan) -> CDStudent? {
         guard let uuid = plan.studentUUID else { return nil }
         return students.first(where: { $0.id == uuid })
     }
 
-    func readinessPercentage(for plan: TransitionPlan) -> Double {
-        let items = plan.checklistItems ?? []
+    private func checklistItems(for plan: CDTransitionPlan) -> [CDTransitionChecklistItem] {
+        (plan.checklistItems?.allObjects as? [CDTransitionChecklistItem]) ?? []
+    }
+
+    func readinessPercentage(for plan: CDTransitionPlan) -> Double {
+        let items = checklistItems(for: plan)
         guard !items.isEmpty else { return 0 }
         let completed = items.filter(\.isCompleted).count
         return Double(completed) / Double(items.count)
     }
 
-    func completedCount(for plan: TransitionPlan) -> Int {
-        (plan.checklistItems ?? []).filter(\.isCompleted).count
+    func completedCount(for plan: CDTransitionPlan) -> Int {
+        checklistItems(for: plan).filter(\.isCompleted).count
     }
 
-    func totalCount(for plan: TransitionPlan) -> Int {
-        (plan.checklistItems ?? []).count
+    func totalCount(for plan: CDTransitionPlan) -> Int {
+        checklistItems(for: plan).count
     }
 
     // MARK: - CRUD
 
-    func createPlan(studentID: UUID, context: ModelContext) {
-        let plan = TransitionPlan(
-            studentID: studentID.uuidString,
-            fromLevelRaw: "Lower Elementary",
-            toLevelRaw: "Upper Elementary"
-        )
-        context.insert(plan)
+    func createPlan(studentID: UUID, context: NSManagedObjectContext) {
+        let plan = CDTransitionPlan(context: context)
+        plan.id = UUID()
+        plan.studentID = studentID.uuidString
+        plan.fromLevelRaw = "Lower Elementary"
+        plan.toLevelRaw = "Upper Elementary"
+        plan.createdAt = Date()
 
         // Pre-populate checklist
         for (index, template) in TransitionChecklistTemplates.lowerToUpper.enumerated() {
-            let item = TransitionChecklistItem(
-                transitionPlanID: plan.id.uuidString,
-                title: template.title,
-                category: template.category,
-                sortOrder: index
-            )
+            let item = CDTransitionChecklistItem(context: context)
+            item.id = UUID()
+            item.transitionPlanID = (plan.id ?? UUID()).uuidString
+            item.title = template.title
+            item.category = template.category
+            item.sortOrder = Int64(index)
             item.transitionPlan = plan
-            context.insert(item)
         }
 
         context.safeSave()
         loadData(context: context)
     }
 
-    func deletePlan(_ plan: TransitionPlan, context: ModelContext) {
+    func deletePlan(_ plan: CDTransitionPlan, context: NSManagedObjectContext) {
         context.delete(plan)
         context.safeSave()
         loadData(context: context)
     }
 
-    func toggleChecklistItem(_ item: TransitionChecklistItem, context: ModelContext) {
+    func toggleChecklistItem(_ item: CDTransitionChecklistItem, context: NSManagedObjectContext) {
         item.isCompleted.toggle()
         item.completedAt = item.isCompleted ? Date() : nil
         context.safeSave()
     }
 
-    func updateStatus(_ plan: TransitionPlan, to status: TransitionStatus, context: ModelContext) {
+    func updateStatus(_ plan: CDTransitionPlan, to status: TransitionStatus, context: NSManagedObjectContext) {
         plan.status = status
         plan.modifiedAt = Date()
         context.safeSave()
     }
 
     /// Students that don't already have a transition plan
-    var availableStudents: [Student] {
+    var availableStudents: [CDStudent] {
         let existingStudentIDs = Set(plans.compactMap(\.studentUUID))
-        return students.filter { !existingStudentIDs.contains($0.id) }
+        return students.filter { student in
+            guard let id = student.id else { return false }
+            return !existingStudentIDs.contains(id)
+        }
     }
 }

@@ -2,7 +2,6 @@
 import Foundation
 import CoreData
 import EventKit
-import SwiftData
 import OSLog
 
 // swiftlint:disable type_body_length
@@ -18,8 +17,7 @@ final class CalendarSyncService {
     private let eventStore = EKEventStore()
     var managedObjectContext: NSManagedObjectContext?
 
-    @available(*, deprecated, message: "Use managedObjectContext instead")
-    var modelContext: ModelContext?
+    // Deprecated ModelContext property removed - no longer needed with Core Data.
 
     /// The identifiers of calendars to sync from (supports multiple calendars)
     /// If empty, syncing is disabled
@@ -84,11 +82,7 @@ final class CalendarSyncService {
         }
     }
 
-    @available(*, deprecated, message: "Use init(context:) with NSManagedObjectContext")
-    convenience init(modelContext: ModelContext?) {
-        self.init(context: AppBootstrapping.getSharedCoreDataStack().viewContext)
-        self.modelContext = modelContext
-    }
+    // Deprecated ModelContext convenience init removed - no longer needed with Core Data.
 
     deinit {
         stopObservingChanges()
@@ -344,26 +338,27 @@ final class CalendarSyncService {
 
     @available(*, deprecated, message: "Use fetchAllCDCalendarEvents(context:)")
     private func fetchAllCalendarEvents() throws -> [CalendarEvent] {
-        guard let modelContext else {
+        guard let context = managedObjectContext else {
             return []
         }
-        let descriptor = FetchDescriptor<CalendarEvent>()
-        return try modelContext.fetch(descriptor)
+        let request = CDFetchRequest(CDCalendarEvent.self)
+        return try context.fetch(request)
     }
 
     @available(*, deprecated, message: "Use createCDCalendarEvent(from:calendarID:context:)")
     private func createCalendarEvent(from data: EventSyncData, calendarID: String) -> CalendarEvent {
-        CalendarEvent(
-            title: data.title,
-            startDate: data.startDate,
-            endDate: data.endDate,
-            location: data.location,
-            notes: data.notes,
-            isAllDay: data.isAllDay,
-            eventKitEventID: data.eventIdentifier,
-            eventKitCalendarID: calendarID,
-            lastSyncedAt: Date()
-        )
+        guard let context = managedObjectContext else { fatalError("managedObjectContext not set") }
+        let event = CalendarEvent(context: context)
+        event.title = data.title
+        event.startDate = data.startDate
+        event.endDate = data.endDate
+        event.location = data.location ?? ""
+        event.notes = data.notes ?? ""
+        event.isAllDay = data.isAllDay
+        event.eventKitEventID = data.eventIdentifier
+        event.eventKitCalendarID = calendarID
+        event.lastSyncedAt = Date()
+        return event
     }
 
     @available(*, deprecated, message: "Use updateCDCalendarEvent(_:from:)")

@@ -63,8 +63,13 @@ private struct ParticipantChipView: View {
 }
 
 #Preview {
-    WorkCard.compact(
-        work: WorkModel(status: .active, studentID: UUID().uuidString, lessonID: UUID().uuidString),
+    let stack = CoreDataStack.preview
+    let ctx = stack.viewContext
+    let work = WorkModel(context: ctx)
+    work.status = .active; work.studentID = UUID().uuidString; work.lessonID = UUID().uuidString
+
+    return WorkCard.compact(
+        work: work,
         title: "Practice Division",
         workType: .practice,
         participants: [
@@ -75,4 +80,5 @@ private struct ParticipantChipView: View {
         onToggle: { _, _ in }
     )
     .padding()
+    .previewEnvironment(using: stack)
 }

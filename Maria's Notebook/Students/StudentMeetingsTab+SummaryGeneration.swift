@@ -2,6 +2,7 @@
 // AI summary generation for meeting history
 
 import SwiftUI
+import CoreData
 
 extension StudentMeetingsTab {
 
@@ -11,18 +12,19 @@ extension StudentMeetingsTab {
         MeetingSummaryGenerator.isAIEnabled
     }
 
-    func summaryText(for item: StudentMeeting) -> String {
+    func summaryText(for item: CDStudentMeeting) -> String {
         MeetingSummaryGenerator.generateFallbackSummary(for: item)
     }
 
-    func generateSummary(for item: StudentMeeting) async {
-        generatingSummaries.insert(item.id)
+    func generateSummary(for item: CDStudentMeeting) async {
+        guard let itemID = item.id else { return }
+        generatingSummaries.insert(itemID)
 
-        await MeetingSummaryGenerator.generateSummary(for: item) { [item] text, isAI in
-            setSummary(text, for: item.id, isAIGenerated: isAI)
+        await MeetingSummaryGenerator.generateSummary(for: item) { text, isAI in
+            setSummary(text, for: itemID, isAIGenerated: isAI)
         }
 
-        generatingSummaries.remove(item.id)
+        generatingSummaries.remove(itemID)
     }
 
     @MainActor

@@ -3,7 +3,6 @@
 
 import Foundation
 import CoreData
-import SwiftData
 
 /// Centralizes persistence for CDSampleWorkEntity and CDSampleWorkStepEntity operations.
 /// Follows the WorkStepService pattern: model methods remain side-effect free,
@@ -16,11 +15,7 @@ struct SampleWorkService {
         self.context = context
     }
 
-    /// Deprecated init for callers still passing ModelContext.
-    @available(*, deprecated, message: "Pass NSManagedObjectContext instead of ModelContext")
-    init(context: ModelContext) {
-        self.context = AppBootstrapping.getSharedCoreDataStack().viewContext
-    }
+    // Deprecated ModelContext init removed - no longer needed with Core Data.
 
     // MARK: - SampleWork CRUD
 
@@ -106,77 +101,7 @@ struct SampleWorkService {
         context.delete(step)
     }
 
-    // MARK: - Deprecated SwiftData Bridge Overloads
-
-    @available(*, deprecated, message: "Pass CDLesson instead of Lesson")
-    @discardableResult
-    func createSampleWork(
-        for lesson: Lesson,
-        title: String,
-        workKind: WorkKind = .practiceLesson,
-        notes: String = ""
-    ) -> CDSampleWorkEntity {
-        let request = CDFetchRequest(CDLesson.self)
-        request.predicate = NSPredicate(format: "id == %@", lesson.id as CVarArg)
-        request.fetchLimit = 1
-        guard let cdLesson = context.safeFetchFirst(request) else {
-            fatalError("CDLesson not found for id \(lesson.id)")
-        }
-        return createSampleWork(for: cdLesson, title: title, workKind: workKind, notes: notes)
-    }
-
-    @available(*, deprecated, message: "Pass CDSampleWorkEntity instead of SampleWork")
-    func update(_ sampleWork: SampleWork, title: String, workKind: WorkKind, notes: String) {
-        guard let cd = cdSampleWork(for: sampleWork) else { return }
-        update(cd, title: title, workKind: workKind, notes: notes)
-    }
-
-    @available(*, deprecated, message: "Pass CDSampleWorkEntity instead of SampleWork")
-    func delete(_ sampleWork: SampleWork) {
-        guard let cd = cdSampleWork(for: sampleWork) else { return }
-        delete(cd)
-    }
-
-    @available(*, deprecated, message: "Pass CDSampleWorkStepEntity instead of SampleWorkStep")
-    func deleteStep(_ step: SampleWorkStep) {
-        guard let cd = cdSampleWorkStep(for: step) else { return }
-        deleteStep(cd)
-    }
-
-    @available(*, deprecated, message: "Pass CDSampleWorkStepEntity instead of SampleWorkStep")
-    func updateStep(_ step: SampleWorkStep, title: String, instructions: String) {
-        guard let cd = cdSampleWorkStep(for: step) else { return }
-        updateStep(cd, title: title, instructions: instructions)
-    }
-
-    @available(*, deprecated, message: "Pass CDSampleWorkEntity instead of SampleWork")
-    @discardableResult
-    func createStep(
-        for sampleWork: SampleWork,
-        title: String,
-        instructions: String = ""
-    ) -> CDSampleWorkStepEntity {
-        guard let cd = cdSampleWork(for: sampleWork) else {
-            fatalError("CDSampleWorkEntity not found for id \(sampleWork.id)")
-        }
-        return createStep(for: cd, title: title, instructions: instructions)
-    }
-
-    // MARK: - Private CD Lookup
-
-    private func cdSampleWork(for sw: SampleWork) -> CDSampleWorkEntity? {
-        let request = CDFetchRequest(CDSampleWorkEntity.self)
-        request.predicate = NSPredicate(format: "id == %@", sw.id as CVarArg)
-        request.fetchLimit = 1
-        return context.safeFetchFirst(request)
-    }
-
-    private func cdSampleWorkStep(for step: SampleWorkStep) -> CDSampleWorkStepEntity? {
-        let request = CDFetchRequest(CDSampleWorkStepEntity.self)
-        request.predicate = NSPredicate(format: "id == %@", step.id as CVarArg)
-        request.fetchLimit = 1
-        return context.safeFetchFirst(request)
-    }
+    // Deprecated SwiftData bridge overloads removed - typealiases now point to CD types directly.
 
     // MARK: - Instantiation
 

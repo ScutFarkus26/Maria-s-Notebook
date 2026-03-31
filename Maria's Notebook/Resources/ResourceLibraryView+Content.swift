@@ -1,18 +1,18 @@
 // ResourceLibraryView+Content.swift
-// Resource grid/list display and selectable card/row wrappers.
+// CDResource grid/list display and selectable card/row wrappers.
 
 import SwiftUI
 
 extension ResourceLibraryView {
 
-    // MARK: - Resource Content (Grid or List)
+    // MARK: - CDResource Content (Grid or List)
 
     @ViewBuilder
-    func resourceContent(_ resources: [Resource]) -> some View {
+    func resourceContent(_ resources: [CDResource]) -> some View {
         switch viewMode {
         case .grid:
             LazyVGrid(columns: gridColumns, spacing: 16) {
-                ForEach(resources) { resource in
+                ForEach(resources, id: \.objectID) { resource in
                     if isSelectMode {
                         selectableCard(resource: resource)
                     } else {
@@ -31,7 +31,7 @@ extension ResourceLibraryView {
             }
         case .list:
             VStack(spacing: 8) {
-                ForEach(resources) { resource in
+                ForEach(resources, id: \.objectID) { resource in
                     if isSelectMode {
                         selectableRow(resource: resource)
                     } else {
@@ -50,7 +50,7 @@ extension ResourceLibraryView {
     // MARK: - Context Menu
 
     @ViewBuilder
-    private func resourceRowContextMenu(for resource: Resource) -> some View {
+    private func resourceRowContextMenu(for resource: CDResource) -> some View {
         Button {
             selectedResource = resource
         } label: {
@@ -90,8 +90,8 @@ extension ResourceLibraryView {
 
     // MARK: - Selectable Views
 
-    func selectableCard(resource: Resource) -> some View {
-        let isSelected = selectedResourceIDs.contains(resource.id)
+    func selectableCard(resource: CDResource) -> some View {
+        let isSelected = resource.id.map { selectedResourceIDs.contains($0) } ?? false
         return ResourceCard(resource: resource) {
             toggleSelection(resource)
         } onDelete: {
@@ -109,8 +109,8 @@ extension ResourceLibraryView {
         )
     }
 
-    func selectableRow(resource: Resource) -> some View {
-        let isSelected = selectedResourceIDs.contains(resource.id)
+    func selectableRow(resource: CDResource) -> some View {
+        let isSelected = resource.id.map { selectedResourceIDs.contains($0) } ?? false
         return HStack(spacing: 8) {
             Image(systemName: isSelected ? "checkmark.circle.fill" : "circle")
                 .font(.title3)

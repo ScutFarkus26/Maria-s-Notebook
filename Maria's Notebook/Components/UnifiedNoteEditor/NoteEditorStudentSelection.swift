@@ -1,10 +1,10 @@
 // NoteEditorStudentSelection.swift
-// Student selection UI for UnifiedNoteEditor - extracted from NoteEditorSections.swift
+// CDStudent selection UI for UnifiedNoteEditor - extracted from NoteEditorSections.swift
 
 import SwiftUI
-import SwiftData
+import CoreData
 
-// MARK: - Student Selection Extension
+// MARK: - CDStudent Selection Extension
 
 extension UnifiedNoteEditor {
 
@@ -70,7 +70,7 @@ extension UnifiedNoteEditor {
         .accessibilityHidden(detectedStudentIDs.isEmpty)
     }
 
-    // MARK: - Student Selection Section
+    // MARK: - CDStudent Selection Section
 
     var studentSelectionSection: some View {
         VStack(alignment: .leading, spacing: AppTheme.Spacing.small) {

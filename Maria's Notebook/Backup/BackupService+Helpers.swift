@@ -1,5 +1,5 @@
 import Foundation
-import SwiftData
+import CoreData
 import OSLog
 
 // MARK: - Utility & Helper Methods
@@ -7,7 +7,7 @@ import OSLog
 extension BackupService {
     private static let logger = Logger.backup
 
-    // MARK: - Security-Scoped Resource Access
+    // MARK: - Security-Scoped CDResource Access
 
     func withSecurityScopedResource<T>(_ url: URL, operation: () throws -> T) rethrows -> T {
         let access = url.startAccessingSecurityScopedResource()
@@ -46,7 +46,7 @@ extension BackupService {
 
     // MARK: - Entity Fetch
 
-    func fetchOne<T: PersistentModel>(_ type: T.Type, id: UUID, using context: ModelContext) throws -> T? {
+    func fetchOne<T: NSManagedObject>(_ type: T.Type, id: UUID, using context: NSManagedObjectContext) throws -> T? {
         return try BackupFetchHelper.fetchOne(type, id: id, using: context)
     }
 
@@ -62,16 +62,25 @@ extension BackupService {
 
     // MARK: - Data Management
 
-    func deleteAll(modelContext: ModelContext) throws {
+    func deleteAll(viewContext: NSManagedObjectContext) throws {
         for type in BackupEntityRegistry.allTypes {
             do {
-                try modelContext.delete(model: type)
+                let entityName = String(describing: type).replacingOccurrences(of: "CD", with: "")
+                let fetchRequest = NSFetchRequest<NSFetchRequestResult>(entityName: entityName)
+                let deleteRequest = NSBatchDeleteRequest(fetchRequest: fetchRequest)
+                deleteRequest.resultType = .resultTypeObjectIDs
+                let result = try viewContext.execute(deleteRequest) as? NSBatchDeleteResult
+                if let objectIDs = result?.result as? [NSManagedObjectID] {
+                    NSManagedObjectContext.mergeChanges(
+                        fromRemoteContextSave: [NSDeletedObjectsKey: objectIDs],
+                        into: [viewContext]
+                    )
+                }
             } catch {
                 let desc = error.localizedDescription
                 Self.logger.warning("Failed to delete \(type, privacy: .public): \(desc, privacy: .public)")
             }
         }
-        try modelContext.save()
     }
 
     func deduplicatePayload(_ payload: BackupPayload) -> BackupPayload {

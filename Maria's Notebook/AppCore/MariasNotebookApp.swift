@@ -6,7 +6,6 @@
 //
 
 import SwiftUI
-import SwiftData
 import CoreData
 import OSLog
 import TipKit
@@ -52,13 +51,6 @@ struct MariasNotebookApp: App {
 
     // MARK: - Computed Properties
 
-    /// Legacy accessor — kept during transition while views still use @Query / .modelContainer.
-    /// Will be removed when all views are converted to @FetchRequest in Phase 4.
-    @MainActor
-    var sharedModelContainer: ModelContainer {
-        AppBootstrapping.getSharedModelContainer()
-    }
-    
     private var loadingMessage: String {
         switch bootstrapper.state {
         case .idle:
@@ -141,14 +133,12 @@ struct MariasNotebookApp: App {
                 // Only bootstrap if the store loaded successfully
                 if AppBootstrapping.initError == nil {
                     #if os(macOS)
-                    appDelegate.setModelContainer(sharedModelContainer)
+                    appDelegate.setCoreDataStack(coreDataStack)
                     #endif
                     await bootstrapper.bootstrap(coreDataStack: coreDataStack)
 
                     // Configure CloudKit sync status monitoring
-                    // NOTE: Still uses legacy ModelContainer during transition.
-                    // Will be converted to use CoreDataStack in Phase 3B.
-                    CloudKitSyncStatusService.shared.configure(with: sharedModelContainer)
+                    CloudKitSyncStatusService.shared.configure(with: coreDataStack)
 
                     // Register for remote notifications so CloudKit can push sync events.
                     // NSPersistentCloudKitContainer handles incoming notifications
@@ -173,7 +163,7 @@ struct MariasNotebookApp: App {
         .windowResizability(.automatic)
         .defaultSize(width: 800, height: 700)
         #endif
-        .modelContainer(sharedModelContainer)
+        // Legacy .modelContainer removed — using CoreDataStack
         .commands {
             // 1. STANDARD "NEW" ITEMS (File > New)
             // Consolidates all creation actions into the standard location
@@ -329,7 +319,10 @@ struct MariasNotebookApp: App {
                         .frame(minWidth: 400, minHeight: 300)
                     } else {
                         WorkDetailWindowHost(workID: id)
+                            .environment(\.managedObjectContext, coreDataStack.viewContext)
                             .environment(\.calendar, AppCalendar.shared)
+                            .environment(\.appRouter, appRouter)
+                            .environment(\.dependencies, dependencies)
                             .environment(saveCoordinator)
                             .environment(restoreCoordinator)
                     }
@@ -342,7 +335,7 @@ struct MariasNotebookApp: App {
         .windowStyle(.hiddenTitleBar)
         .windowResizability(.automatic)
         .defaultSize(width: 900, height: 700)
-        .modelContainer(sharedModelContainer)
+        // Legacy .modelContainer removed — using CoreDataStack
 
         // Student Detail Window
         WindowGroup("", id: "StudentDetailWindow", for: UUID.self) { $studentID in
@@ -357,7 +350,10 @@ struct MariasNotebookApp: App {
                         .frame(minWidth: 400, minHeight: 300)
                     } else {
                         StudentDetailWindowHost(studentID: id)
+                            .environment(\.managedObjectContext, coreDataStack.viewContext)
                             .environment(\.calendar, AppCalendar.shared)
+                            .environment(\.appRouter, appRouter)
+                            .environment(\.dependencies, dependencies)
                             .environment(saveCoordinator)
                             .environment(restoreCoordinator)
                     }
@@ -370,7 +366,7 @@ struct MariasNotebookApp: App {
         .windowStyle(.hiddenTitleBar)
         .windowResizability(.automatic)
         .defaultSize(width: 860, height: 640)
-        .modelContainer(sharedModelContainer)
+        // Legacy .modelContainer removed — using CoreDataStack
 
         // Keyboard Shortcuts Help Window
         WindowGroup("Keyboard Shortcuts", id: "KeyboardShortcutsWindow") {
@@ -393,7 +389,10 @@ struct MariasNotebookApp: App {
                         .frame(minWidth: 400, minHeight: 300)
                     } else {
                         LessonDetailWindowHost(lessonID: id)
+                            .environment(\.managedObjectContext, coreDataStack.viewContext)
                             .environment(\.calendar, AppCalendar.shared)
+                            .environment(\.appRouter, appRouter)
+                            .environment(\.dependencies, dependencies)
                             .environment(saveCoordinator)
                             .environment(restoreCoordinator)
                     }
@@ -406,7 +405,7 @@ struct MariasNotebookApp: App {
         .windowStyle(.hiddenTitleBar)
         .windowResizability(.automatic)
         .defaultSize(width: 720, height: 560)
-        .modelContainer(sharedModelContainer)
+        // Legacy .modelContainer removed — using CoreDataStack
         #endif
     }
 }

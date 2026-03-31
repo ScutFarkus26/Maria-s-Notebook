@@ -1,5 +1,5 @@
 import SwiftUI
-import SwiftData
+import CoreData
 
 #if ENABLE_FOUNDATION_MODELS && canImport(FoundationModels)
 import FoundationModels
@@ -54,7 +54,7 @@ enum ObservationsHelpers {
 #endif
 
 struct ObservationsView: View {
-    @Environment(\.modelContext) var modelContext
+    @Environment(\.managedObjectContext) var viewContext
 
     // Composer
     @State private var isShowingComposer = false
@@ -86,10 +86,10 @@ struct ObservationsView: View {
     @State var isSelecting: Bool = false
     @State var selectedItemIDs: Set<UUID> = []
 
-    @State var noteBeingEdited: Note?
+    @State var noteBeingEdited: CDNote?
 
     // Lookup cache for student names shown on rows
-    @State var studentsByID: [UUID: Student] = [:]
+    @State var studentsByID: [UUID: CDStudent] = [:]
 
     let pageSize: Int = 50
 
@@ -195,7 +195,7 @@ struct ObservationsView: View {
             Button {
                 isShowingComposer = true
             } label: {
-                Label("New Note", systemImage: "square.and.pencil")
+                Label("New CDNote", systemImage: "square.and.pencil")
             }
         }
         ToolbarItem(placement: .automatic) {

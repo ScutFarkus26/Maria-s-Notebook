@@ -2,6 +2,7 @@
 // Bottom bar component extracted from StudentDetailView
 
 import SwiftUI
+import CoreData
 
 struct StudentDetailBottomBar: View {
     let isEditing: Bool

@@ -60,9 +60,17 @@ struct WorkCardListContent: View {
 }
 
 #Preview {
-    List {
+    let stack = CoreDataStack.preview
+    let ctx = stack.viewContext
+
+    let w1 = WorkModel(context: ctx)
+    w1.status = .active; w1.studentID = UUID().uuidString; w1.lessonID = UUID().uuidString
+    let w2 = WorkModel(context: ctx)
+    w2.status = .complete; w2.studentID = UUID().uuidString; w2.lessonID = UUID().uuidString
+
+    return List {
         WorkCard.list(
-            work: WorkModel(status: .active, studentID: UUID().uuidString, lessonID: UUID().uuidString),
+            work: w1,
             title: "Long Division Practice",
             subtitle: "Math • Jan 15, 2025",
             badge: .openCount(3),
@@ -70,11 +78,12 @@ struct WorkCardListContent: View {
         )
 
         WorkCard.list(
-            work: WorkModel(status: .complete, studentID: UUID().uuidString, lessonID: UUID().uuidString),
+            work: w2,
             title: "Research Project",
             subtitle: "Science • Jan 10, 2025",
             badge: .status("complete"),
             onOpen: { _ in }
         )
     }
+    .previewEnvironment(using: stack)
 }

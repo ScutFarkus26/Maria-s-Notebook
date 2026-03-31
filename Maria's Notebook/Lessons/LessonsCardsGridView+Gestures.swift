@@ -1,4 +1,5 @@
 import SwiftUI
+import CoreData
 
 // MARK: - Gestures
 
@@ -14,7 +15,7 @@ extension LessonsCardsGridView {
     }
 
     // swiftlint:disable:next cyclomatic_complexity function_body_length
-    func longPressThenDrag(for lesson: Lesson) -> some Gesture {
+    func longPressThenDrag(for lesson: CDLesson) -> some Gesture {
         let press = LongPressGesture(minimumDuration: 0.25)
         let drag = DragGesture(minimumDistance: 1)
         return press.sequenced(before: drag)
@@ -25,11 +26,11 @@ extension LessonsCardsGridView {
                     draggingLessonID = lesson.id
                 case .second(true, let drag?):
                     if draggingLessonID == nil { draggingLessonID = lesson.id }
-                    let subsetIDs = lessons.map(\.id)
+                    let subsetIDs = lessons.compactMap(\.id)
                     let centers: [UUID: CGPoint] = subsetIDs.reduce(into: [:]) { dict, id in
                         if let rect = itemFrames[id] { dict[id] = CGPoint(x: rect.midX, y: rect.midY) }
                     }
-                    if let startCenter = centers[lesson.id] {
+                    if let lessonID = lesson.id, let startCenter = centers[lessonID] {
                         let translation = drag.translation
                         let targetID = nearestTargetID(
                             from: startCenter, translation: translation, centers: centers
@@ -50,7 +51,7 @@ extension LessonsCardsGridView {
                 guard isManualMode else { return }
                 guard let fromIndex = lessons.firstIndex(where: { $0.id == lesson.id }) else { return }
 
-                let subsetIDs = lessons.map(\.id)
+                let subsetIDs = lessons.compactMap(\.id)
                 let centers: [UUID: CGPoint] = subsetIDs.reduce(into: [:]) { dict, id in
                     if let rect = itemFrames[id] { dict[id] = CGPoint(x: rect.midX, y: rect.midY) }
                 }
@@ -61,7 +62,8 @@ extension LessonsCardsGridView {
                 } else {
                     var translation = CGSize.zero
                     if case .second(true, let drag?) = value { translation = drag.translation }
-                    if let startCenter = centers[lesson.id],
+                    if let lessonID = lesson.id,
+                       let startCenter = centers[lessonID],
                        let targetID = nearestTargetID(
                            from: startCenter, translation: translation, centers: centers
                        ),
@@ -87,19 +89,21 @@ extension LessonsCardsGridView {
 }
 
 #Preview {
-    LessonsCardsGridView(
-        lessons: [
-            Lesson(
-                name: "Decimal System", subject: "Math",
-                group: "Number Work", subheading: "Introduction to base-10",
-                writeUp: ""
-            ),
-            Lesson(
-                name: "Parts of Speech", subject: "Language",
-                group: "Grammar", subheading: "Nouns and Verbs",
-                writeUp: ""
-            )
-        ],
+    let ctx = CoreDataStack.preview.viewContext
+    let lesson1 = CDLesson(context: ctx)
+    lesson1.name = "Decimal System"
+    lesson1.subject = "Math"
+    lesson1.group = "Number Work"
+    lesson1.subheading = "Introduction to base-10"
+
+    let lesson2 = CDLesson(context: ctx)
+    lesson2.name = "Parts of Speech"
+    lesson2.subject = "Language"
+    lesson2.group = "Grammar"
+    lesson2.subheading = "Nouns and Verbs"
+
+    return LessonsCardsGridView(
+        lessons: [lesson1, lesson2],
         isManualMode: false,
         onTapLesson: { _ in },
         onReorder: nil,
@@ -109,4 +113,5 @@ extension LessonsCardsGridView {
         lastPresentedDates: nil,
         showIntroductionCards: true
     )
+    .previewEnvironment()
 }

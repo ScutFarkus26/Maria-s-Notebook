@@ -2,12 +2,12 @@
 // Quick creation sheet for new presentations
 
 import SwiftUI
-import SwiftData
+import CoreData
 
 // swiftlint:disable:next type_body_length
 struct QuickNewPresentationSheet: View {
     @Environment(\.dismiss) private var dismiss
-    @Environment(\.modelContext) private var modelContext
+    @Environment(\.managedObjectContext) private var viewContext
     @Environment(SaveCoordinator.self) private var saveCoordinator
 
     // Test student filtering
@@ -15,16 +15,16 @@ struct QuickNewPresentationSheet: View {
     @AppStorage(UserDefaultsKeys.generalTestStudentNames)
     private var testStudentNamesRaw: String = "Danny De Berry,Lil Dan D"
 
-    @Query(sort: [SortDescriptor(\Lesson.subject), SortDescriptor(\Lesson.sortIndex)])
-    private var allLessons: [Lesson]
+    @FetchRequest(sortDescriptors: [NSSortDescriptor(keyPath: \CDLesson.subject, ascending: true), NSSortDescriptor(keyPath: \CDLesson.sortIndex, ascending: true)])
+    private var allLessons: FetchedResults<CDLesson>
 
-    @Query(sort: Student.sortByName)
-    private var allStudentsRaw: [Student]
+    @FetchRequest(sortDescriptors: [NSSortDescriptor(keyPath: \CDStudent.lastName, ascending: true), NSSortDescriptor(keyPath: \CDStudent.firstName, ascending: true)])
+    private var allStudentsRaw: FetchedResults<CDStudent>
     // DEDUPLICATION: CloudKit sync can create duplicate records with the same ID.
     // Filter out test students when setting is disabled
-    private var allStudents: [Student] {
+    private var allStudents: [CDStudent] {
         TestStudentsFilter.filterVisible(
-            allStudentsRaw.uniqueByID.filter(\.isEnrolled),
+            Array(allStudentsRaw).uniqueByID.filter(\.isEnrolled),
             show: showTestStudents,
             namesRaw: testStudentNamesRaw
         )
@@ -41,23 +41,26 @@ struct QuickNewPresentationSheet: View {
     @State private var showingStudentPopover: Bool = false
     @FocusState private var lessonFieldFocused: Bool
 
-    private var filteredLessons: [Lesson] {
+    private var filteredLessons: [CDLesson] {
         let query = lessonSearchText.lowercased().trimmingCharacters(in: .whitespaces)
-        guard !query.isEmpty else { return allLessons }
-        return allLessons.filter {
+        guard !query.isEmpty else { return Array(allLessons) }
+        return Array(allLessons).filter {
             $0.name.lowercased().contains(query) ||
             $0.subject.lowercased().contains(query) ||
             $0.group.lowercased().contains(query)
         }
     }
 
-    private var selectedLesson: Lesson? {
+    private var selectedLesson: CDLesson? {
         guard let id = selectedLessonID else { return nil }
         return allLessons.first { $0.id == id }
     }
 
-    private var selectedStudents: [Student] {
-        allStudents.filter { selectedStudentIDs.contains($0.id) }
+    private var selectedStudents: [CDStudent] {
+        allStudents.filter { student in
+            guard let studentID = student.id else { return false }
+            return selectedStudentIDs.contains(studentID)
+        }
     }
 
     private var canSave: Bool {
@@ -130,7 +133,7 @@ struct QuickNewPresentationSheet: View {
                 .onSubmit {
                     // If user typed an exact lesson name, select it
                     let trimmed = lessonSearchText.trimmed()
-                    let isMatch: (Lesson) -> Bool = {
+                    let isMatch: (CDLesson) -> Bool = {
                         $0.name.caseInsensitiveCompare(trimmed) == .orderedSame
                     }
                     if let match = filteredLessons.first(where: isMatch) {
@@ -216,7 +219,7 @@ struct QuickNewPresentationSheet: View {
         #endif
     }
 
-    private func selectPresentationLesson(_ lesson: Lesson) {
+    private func selectPresentationLesson(_ lesson: CDLesson) {
         selectedLessonID = lesson.id
         lessonSearchText = lesson.name
         showingLessonPopover = false
@@ -232,7 +235,7 @@ struct QuickNewPresentationSheet: View {
     }
 
     @ViewBuilder
-    private func presentationStudentChip(for student: Student) -> some View {
+    private func presentationStudentChip(for student: CDStudent) -> some View {
         HStack(spacing: 4) {
             Text(StudentFormatter.displayName(for: student))
                 .font(AppTheme.ScaledFont.bodySemibold)
@@ -243,7 +246,7 @@ struct QuickNewPresentationSheet: View {
                 .clipShape(Capsule())
 
             Button {
-                removePresentationStudent(id: student.id)
+                if let studentID = student.id { removePresentationStudent(id: studentID) }
             } label: {
                 Image(systemName: "xmark.circle.fill")
                     .foregroundStyle(Color.accentColor)
@@ -263,7 +266,7 @@ struct QuickNewPresentationSheet: View {
                 if !selectedStudents.isEmpty {
                     ScrollView(.horizontal, showsIndicators: false) {
                         HStack(spacing: 8) {
-                            ForEach(selectedStudents) { student in
+                            ForEach(selectedStudents, id: \.id) { student in
                                 presentationStudentChip(for: student)
                             }
                         }
@@ -320,13 +323,12 @@ struct QuickNewPresentationSheet: View {
         let studentUUIDs = Array(selectedStudentIDs)
 
         // Create LessonAssignment in presented state (the unified presentation model)
-        let lessonAssignment = LessonAssignment(
-            state: .presented,
-            presentedAt: presentedAt,
-            lessonID: lessonID,
-            studentIDs: studentUUIDs,
-            lesson: selectedLesson
-        )
+        let lessonAssignment = CDLessonAssignment(context: viewContext)
+        lessonAssignment.state = .presented
+        lessonAssignment.presentedAt = presentedAt
+        lessonAssignment.lessonIDUUID = lessonID
+        lessonAssignment.studentIDs = studentUUIDs.map(\.uuidString)
+        lessonAssignment.lesson = selectedLesson
 
         // Snapshot lesson info for historical accuracy
         if let lesson = selectedLesson {
@@ -334,8 +336,7 @@ struct QuickNewPresentationSheet: View {
             lessonAssignment.lessonSubheadingSnapshot = lesson.subheading
         }
 
-        modelContext.insert(lessonAssignment)
-        saveCoordinator.save(modelContext, reason: "Quick New Presentation")
+        saveCoordinator.save(viewContext, reason: "Quick New Presentation")
         dismiss()
     }
 }

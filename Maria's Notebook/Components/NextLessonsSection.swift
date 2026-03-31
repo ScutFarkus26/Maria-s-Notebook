@@ -2,7 +2,7 @@ import SwiftUI
 
 struct NextLessonRow: View {
     let snapshot: LessonAssignmentSnapshot
-    let lesson: Lesson?
+    let lesson: CDLesson?
 
     var body: some View {
         HStack(spacing: 12) {
@@ -12,7 +12,7 @@ struct NextLessonRow: View {
                 .frame(width: 28)
 
             VStack(alignment: .leading, spacing: 2) {
-                Text(lesson?.name ?? "Lesson")
+                Text(lesson?.name ?? "CDLesson")
                     .font(AppTheme.ScaledFont.titleSmall)
                 if let subject = lesson?.subject, !subject.isEmpty {
                     Text(subject)
@@ -28,7 +28,7 @@ struct NextLessonRow: View {
 
 struct NextLessonsSection: View {
     let snapshots: [LessonAssignmentSnapshot]
-    let lessonsByID: [UUID: Lesson]
+    let lessonsByID: [UUID: CDLesson]
 
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {

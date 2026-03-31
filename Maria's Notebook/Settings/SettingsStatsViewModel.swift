@@ -1,5 +1,5 @@
 import Foundation
-import SwiftData
+import CoreData
 import SwiftUI
 
 /// ViewModel for efficiently loading and caching Settings statistics
@@ -87,7 +87,7 @@ class SettingsStatsViewModel {
     
     // Load all statistics efficiently
     // swiftlint:disable:next function_body_length
-    func loadCounts(context: ModelContext) {
+    func loadCounts(context: NSManagedObjectContext) {
         // Use cached data if recent
         if let lastLoad = lastLoadDate,
            Date().timeIntervalSince(lastLoad) < cacheDuration {
@@ -98,62 +98,62 @@ class SettingsStatsViewModel {
         
         Task {
             // Load counts serially on the MainActor.
-            // Parallel execution (async let) on a single ModelContext is not thread-safe
-            // and causes Sendable errors because ModelContext is confined to the actor that created it.
+            // Parallel execution (async let) on a single NSManagedObjectContext is not thread-safe
+            // and causes Sendable errors because NSManagedObjectContext is confined to the actor that created it.
             
             // Teaching
-            let students = loadCount(for: Student.self, context: context)
-            let lessons = loadCount(for: Lesson.self, context: context)
-            let workModels = loadCount(for: WorkModel.self, context: context)
-            let presentations = loadCount(for: LessonAssignment.self, context: context)
-            let notes = loadCount(for: Note.self, context: context)
-            let meetings = loadCount(for: StudentMeeting.self, context: context)
-            let noteTemplates = loadCount(for: NoteTemplate.self, context: context)
-            let meetingTemplates = loadCount(for: MeetingTemplate.self, context: context)
-            let practiceSessions = loadCount(for: PracticeSession.self, context: context)
+            let students = loadCount(for: CDStudent.self, context: context)
+            let lessons = loadCount(for: CDLesson.self, context: context)
+            let workModels = loadCount(for: CDWorkModel.self, context: context)
+            let presentations = loadCount(for: CDLessonAssignment.self, context: context)
+            let notes = loadCount(for: CDNote.self, context: context)
+            let meetings = loadCount(for: CDStudentMeeting.self, context: context)
+            let noteTemplates = loadCount(for: CDNoteTemplate.self, context: context)
+            let meetingTemplates = loadCount(for: CDMeetingTemplate.self, context: context)
+            let practiceSessions = loadCount(for: CDPracticeSession.self, context: context)
 
             // Planning
-            let todoItems = loadCount(for: TodoItem.self, context: context)
+            let todoItems = loadCount(for: CDTodoItem.self, context: context)
             let todoCompleted = loadFilteredCount(
-                for: TodoItem.self,
-                predicate: #Predicate<TodoItem> { $0.isCompleted },
+                for: CDTodoItem.self,
+                predicate: NSPredicate(format: "isCompleted == YES"),
                 context: context
             )
-            let reminders = loadCount(for: Reminder.self, context: context)
-            let tracks = loadCount(for: Track.self, context: context)
-            let trackEnrollments = loadCount(for: StudentTrackEnrollment.self, context: context)
-            let calendarEvents = loadCount(for: CalendarEvent.self, context: context)
-            let projects = loadCount(for: Project.self, context: context)
+            let reminders = loadCount(for: CDReminder.self, context: context)
+            let tracks = loadCount(for: CDTrackEntity.self, context: context)
+            let trackEnrollments = loadCount(for: CDStudentTrackEnrollmentEntity.self, context: context)
+            let calendarEvents = loadCount(for: CDCalendarEvent.self, context: context)
+            let projects = loadCount(for: CDProject.self, context: context)
 
             // Classroom
-            let attendanceRecords = loadCount(for: AttendanceRecord.self, context: context)
-            let supplies = loadCount(for: Supply.self, context: context)
-            let issues = loadCount(for: Issue.self, context: context)
+            let attendanceRecords = loadCount(for: CDAttendanceRecord.self, context: context)
+            let supplies = loadCount(for: CDSupply.self, context: context)
+            let issues = loadCount(for: CDIssue.self, context: context)
             let issuesResolved = loadFilteredCount(
-                for: Issue.self,
-                predicate: #Predicate<Issue> { $0.resolvedAt != nil },
+                for: CDIssue.self,
+                predicate: NSPredicate(format: "resolvedAt != nil"),
                 context: context
             )
-            let communityTopics = loadCount(for: CommunityTopic.self, context: context)
-            let procedures = loadCount(for: Procedure.self, context: context)
-            let nonSchoolDays = loadCount(for: NonSchoolDay.self, context: context)
+            let communityTopics = loadCount(for: CDCommunityTopicEntity.self, context: context)
+            let procedures = loadCount(for: CDProcedure.self, context: context)
+            let nonSchoolDays = loadCount(for: CDNonSchoolDay.self, context: context)
 
             // Storage & Templates
-            let documents = loadCount(for: Document.self, context: context)
+            let documents = loadCount(for: CDDocument.self, context: context)
             let lessonAttachments = loadCount(for: LessonAttachment.self, context: context)
             let communityAttachments = loadCount(for: CommunityAttachment.self, context: context)
-            let todoTemplates = loadCount(for: TodoTemplate.self, context: context)
+            let todoTemplates = loadCount(for: CDTodoTemplate.self, context: context)
             let developmentSnapshots = loadCount(for: DevelopmentSnapshot.self, context: context)
 
-            // Load filtered counts (using LessonAssignment as primary source)
+            // Load filtered counts (using CDLessonAssignment as primary source)
             let planned = loadFilteredCount(
-                for: LessonAssignment.self,
-                predicate: #Predicate<LessonAssignment> { $0.presentedAt == nil },
+                for: CDLessonAssignment.self,
+                predicate: NSPredicate(format: "presentedAt == nil"),
                 context: context
             )
             let given = loadFilteredCount(
-                for: LessonAssignment.self,
-                predicate: #Predicate<LessonAssignment> { $0.presentedAt != nil },
+                for: CDLessonAssignment.self,
+                predicate: NSPredicate(format: "presentedAt != nil"),
                 context: context
             )
             
@@ -201,26 +201,26 @@ class SettingsStatsViewModel {
     }
     
     /// Load count for a model type
-    /// Note: ModelContext access is assumed to be fast for counts, keeping this synchronous on MainActor is safe.
-    private func loadCount<T: PersistentModel>(
+    /// CDNote: NSManagedObjectContext access is assumed to be fast for counts, keeping this synchronous on MainActor is safe.
+    private func loadCount<T: NSManagedObject>(
         for type: T.Type,
-        context: ModelContext
+        context: NSManagedObjectContext
     ) -> Int {
-        // ModelContext must be accessed on MainActor
-        let descriptor = FetchDescriptor<T>()
-        // Note: SwiftData doesn't have direct count, so we fetch and count
+        // NSManagedObjectContext must be accessed on MainActor
+        let descriptor = T.fetchRequest() as! NSFetchRequest<T>
+        // CDNote: SwiftData doesn't have direct count, so we fetch and count
         // For large datasets, this could be optimized further with sampling
         return context.safeFetch(descriptor).count
     }
     
     /// Load count for a filtered model type
-    private func loadFilteredCount<T: PersistentModel>(
+    private func loadFilteredCount<T: NSManagedObject>(
         for type: T.Type,
-        predicate: Predicate<T>,
-        context: ModelContext
+        predicate: NSPredicate,
+        context: NSManagedObjectContext
     ) -> Int {
-        // ModelContext must be accessed on MainActor
-        let descriptor = FetchDescriptor<T>(predicate: predicate)
-        return context.safeFetch(descriptor).count
+        let request = T.fetchRequest()
+        request.predicate = predicate
+        return (try? context.count(for: request)) ?? 0
     }
 }

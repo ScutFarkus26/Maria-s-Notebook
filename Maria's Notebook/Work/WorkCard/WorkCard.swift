@@ -1,5 +1,5 @@
 import SwiftUI
-import SwiftData
+import CoreData
 
 /// Unified work display card supporting multiple display modes
 struct WorkCard: View {

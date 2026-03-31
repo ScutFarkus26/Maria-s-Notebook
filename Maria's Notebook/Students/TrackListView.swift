@@ -3,7 +3,7 @@
 
 import OSLog
 import SwiftUI
-import SwiftData
+import CoreData
 
 private struct GroupTrackRoute: Hashable {
     let subject: String
@@ -13,21 +13,16 @@ private struct GroupTrackRoute: Hashable {
 struct TrackListView: View {
     private static let logger = Logger.students
 
-    @Environment(\.modelContext) private var modelContext
+    @Environment(\.managedObjectContext) private var viewContext
     @State private var navigationPath = NavigationPath()
     
     // Query all lessons to count them per group
-    @Query(sort: [SortDescriptor(\Lesson.subject), SortDescriptor(\Lesson.group)]) 
-    private var allLessons: [Lesson]
+    @FetchRequest(sortDescriptors: [NSSortDescriptor(keyPath: \CDLesson.subject, ascending: true), NSSortDescriptor(keyPath: \CDLesson.group, ascending: true)])
+    private var allLessons: FetchedResults<CDLesson>
     
     // Get all group tracks
-    private var groupTracks: [GroupTrack] {
-        do {
-            return try GroupTrackService.getAllGroupTracks(modelContext: modelContext)
-        } catch {
-            Self.logger.warning("Failed to fetch group tracks: \(error)")
-            return []
-        }
+    private var groupTracks: [CDGroupTrack] {
+        viewContext.safeFetch(CDFetchRequest(CDGroupTrackEntity.self))
     }
     
     var body: some View {
@@ -45,7 +40,7 @@ struct TrackListView: View {
                             NavigationLink(
                                 value: GroupTrackRoute(subject: groupTrack.subject, group: groupTrack.group)
                             ) {
-                                GroupTrackRow(groupTrack: groupTrack, allLessons: allLessons)
+                                GroupTrackRow(groupTrack: groupTrack, allLessons: Array(allLessons))
                             }
                             .contextMenu {
                                 Button {
@@ -76,19 +71,19 @@ struct TrackListView: View {
         }
     }
 
-    private func toggleSequential(_ track: GroupTrack) {
+    private func toggleSequential(_ track: CDGroupTrack) {
         track.isSequential.toggle()
         do {
-            try modelContext.save()
+            try viewContext.save()
         } catch {
             Self.logger.warning("Failed to save sequential toggle: \(error)")
         }
     }
 
-    private func removeTrack(_ track: GroupTrack) {
-        modelContext.delete(track)
+    private func removeTrack(_ track: CDGroupTrack) {
+        viewContext.delete(track)
         do {
-            try modelContext.save()
+            try viewContext.save()
         } catch {
             Self.logger.warning("Failed to save track removal: \(error)")
         }
@@ -96,10 +91,10 @@ struct TrackListView: View {
 }
 
 private struct GroupTrackRow: View {
-    let groupTrack: GroupTrack
-    let allLessons: [Lesson]
+    let groupTrack: CDGroupTrack
+    let allLessons: [CDLesson]
     
-    private var lessons: [Lesson] {
+    private var lessons: [CDLesson] {
         GroupTrackService.getLessonsForTrack(track: groupTrack, allLessons: allLessons)
     }
     

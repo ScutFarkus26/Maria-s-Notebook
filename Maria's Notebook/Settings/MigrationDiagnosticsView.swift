@@ -6,11 +6,11 @@
 //
 
 import SwiftUI
-import SwiftData
+import CoreData
 
 #if DEBUG
 struct MigrationDiagnosticsView: View {
-    @Environment(\.modelContext) private var modelContext
+    @Environment(\.managedObjectContext) private var viewContext
 
     @State private var isRunning = false
     @State private var report: MigrationDiagnosticReport?
@@ -175,7 +175,7 @@ struct MigrationDiagnosticsView: View {
         fixResult = nil
 
         Task {
-            let service = MigrationDiagnosticService(context: modelContext)
+            let service = MigrationDiagnosticService(context: viewContext)
             let result = await service.runDiagnostics()
 
             await MainActor.run {
@@ -189,7 +189,7 @@ struct MigrationDiagnosticsView: View {
         isRunning = true
 
         Task {
-            let service = MigrationDiagnosticService(context: modelContext)
+            let service = MigrationDiagnosticService(context: viewContext)
             let result = await service.fixCommonIssues()
 
             // Re-run diagnostics after fix

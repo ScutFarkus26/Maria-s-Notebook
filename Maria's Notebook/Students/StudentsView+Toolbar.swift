@@ -1,4 +1,5 @@
 import SwiftUI
+import CoreData
 
 // MARK: - Toolbar Content
 
@@ -10,7 +11,7 @@ extension StudentsView {
         StudentModePicker(mode: $mode)
     }
 
-    // MARK: - Add Student Button (for ViewHeader)
+    // MARK: - Add CDStudent Button (for ViewHeader)
 
     var addStudentButton: some View {
         AddStudentButton(

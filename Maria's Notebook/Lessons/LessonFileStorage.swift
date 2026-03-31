@@ -1,6 +1,7 @@
 // swiftlint:disable file_length
 import Foundation
 import OSLog
+import CoreData
 
 // swiftlint:disable type_body_length
 public enum LessonFileStorage {
@@ -32,10 +33,10 @@ public enum LessonFileStorage {
         if let ubiquityURL = fm.url(forUbiquityContainerIdentifier: nil) {
             let lessonFilesURL = ubiquityURL
                 .appendingPathComponent("Documents", isDirectory: true)
-                .appendingPathComponent("Lesson Files", isDirectory: true)
+                .appendingPathComponent("CDLesson Files", isDirectory: true)
             
             logger.debug("Using iCloud container path: \(lessonFilesURL.path)")
-            logger.debug("Visible in Finder as: iCloud Drive/Maria's Notebook/Lesson Files")
+            logger.debug("Visible in Finder as: iCloud Drive/Maria's Notebook/CDLesson Files")
             try createDirectoryIfNeeded(at: lessonFilesURL)
             return lessonFilesURL
         }
@@ -47,7 +48,7 @@ public enum LessonFileStorage {
             in: .userDomainMask,
             appropriateFor: nil,
             create: true
-        ).appendingPathComponent("Lesson Files", isDirectory: true)
+        ).appendingPathComponent("CDLesson Files", isDirectory: true)
         try createDirectoryIfNeeded(at: documentsURL)
         return documentsURL
     }
@@ -156,7 +157,7 @@ public enum LessonFileStorage {
     
     /// Returns the organizational path for a lesson: Subject/Group
     /// Creates the directory structure if it doesn't exist.
-    static func organizationalDirectory(forLesson lesson: Lesson) throws -> URL {
+    static func organizationalDirectory(forLesson lesson: CDLesson) throws -> URL {
         logger.debug("Getting lesson files directory...")
         let baseDir = try lessonFilesDirectory()
         logger.debug("Base directory: \(baseDir.path)")
@@ -181,22 +182,22 @@ public enum LessonFileStorage {
     /// - Parameter lesson: The lesson to get attachments for
     /// - Parameter includeInherited: Whether to include group and subject-scoped attachments
     /// - Returns: Array of attachments, with lesson-specific first, then group, then subject
-    static func getAttachments(forLesson lesson: Lesson, includeInherited: Bool = true) -> [LessonAttachment] {
-        guard let allLessonAttachments = lesson.attachments else { return [] }
-        
+    static func getAttachments(forLesson lesson: CDLesson, includeInherited: Bool = true) -> [CDLessonAttachment] {
+        let allLessonAttachments = (lesson.attachments?.allObjects as? [CDLessonAttachment]) ?? []
+
         // Always include lesson-specific attachments
         var result = allLessonAttachments.filter { $0.scope == .lesson }
-        
+
         if includeInherited {
             // Add group-scoped attachments
             result.append(contentsOf: allLessonAttachments.filter { $0.scope == .group })
-            
+
             // Add subject-scoped attachments
             result.append(contentsOf: allLessonAttachments.filter { $0.scope == .subject })
         }
-        
+
         // Sort by attachment date, most recent first
-        return result.sorted { $0.attachedAt > $1.attachedAt }
+        return result.sorted { ($0.attachedAt ?? .distantPast) > ($1.attachedAt ?? .distantPast) }
     }
     
     // MARK: - Attachment Import
@@ -211,7 +212,7 @@ public enum LessonFileStorage {
     /// - Returns: A tuple containing the destination URL and relative path
     static func importAttachment(
         from sourceURL: URL,
-        forLesson lesson: Lesson,
+        forLesson lesson: CDLesson,
         scope: AttachmentScope = .lesson,
         customName: String? = nil
     ) throws -> (url: URL, relativePath: String) {
@@ -249,7 +250,7 @@ public enum LessonFileStorage {
         }
         
         // Add lesson UUID suffix for lesson-scoped attachments to ensure uniqueness
-        let uuidString = lesson.id.uuidString.replacingOccurrences(of: "-", with: "")
+        let uuidString = (lesson.id ?? UUID()).uuidString.replacingOccurrences(of: "-", with: "")
         let uuidSuffix = String(uuidString.suffix(8))
         
         let baseFilename = scope == .lesson
@@ -279,7 +280,7 @@ public enum LessonFileStorage {
 
     /// Renames a managed attachment file and returns updated file metadata.
     static func renameAttachment(
-        _ attachment: LessonAttachment,
+        _ attachment: CDLessonAttachment,
         to requestedFileName: String
     ) throws -> RenameAttachmentResult {
         let trimmedFileName = requestedFileName.trimmed()
@@ -337,9 +338,9 @@ public enum LessonFileStorage {
         keyword: String,
         subject: String? = nil,
         group: String? = nil
-    ) throws -> [LessonAttachment] {
+    ) throws -> [CDLessonAttachment] {
         // This is a placeholder for future implementation
-        // Would require access to ModelContext to query all attachments
+        // Would require access to NSManagedObjectContext to query all attachments
         // For now, return empty array
         return []
     }
@@ -362,7 +363,7 @@ public enum LessonFileStorage {
 
     private static func uniqueAttachmentURL(
         in directory: URL,
-        lesson: Lesson,
+        lesson: CDLesson,
         scope: AttachmentScope,
         name: AttachmentName,
         excluding currentURL: URL
@@ -379,7 +380,7 @@ public enum LessonFileStorage {
             scopePrefix = "[Subject] "
         }
 
-        let uuidString = lesson.id.uuidString.replacingOccurrences(of: "-", with: "")
+        let uuidString = (lesson.id ?? UUID()).uuidString.replacingOccurrences(of: "-", with: "")
         let uuidSuffix = String(uuidString.suffix(8))
 
         func candidateURL(counter: Int?) -> URL {

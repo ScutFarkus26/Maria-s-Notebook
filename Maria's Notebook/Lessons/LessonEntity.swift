@@ -1,7 +1,7 @@
 import Foundation
 import CoreData
 
-@objc(Lesson)
+@objc(CDLesson)
 public class CDLesson: NSManagedObject {
     // MARK: - Core Data Properties
     @NSManaged public var id: UUID?
@@ -93,7 +93,7 @@ extension CDLesson {
         set { defaultWorkKindRaw = newValue?.rawValue }
     }
 
-    /// Computed Great Lesson enum value
+    /// Computed Great CDLesson enum value
     var greatLesson: GreatLesson? {
         get { greatLessonRaw.flatMap { GreatLesson(rawValue: $0) } }
         set { greatLessonRaw = newValue?.rawValue }

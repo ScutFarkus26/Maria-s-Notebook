@@ -1,7 +1,7 @@
 // swiftlint:disable file_length
 import OSLog
-import SwiftData
 import SwiftUI
+import CoreData
 
 #if ENABLE_FOUNDATION_MODELS && canImport(FoundationModels)
 import FoundationModels
@@ -16,39 +16,39 @@ import FoundationModels
 struct StudentMeetingsTab: View {
     static let logger = Logger.students
 
-    let student: Student
+    let student: CDStudent
 
     // MARK: - Environment & Data
-    @Environment(\.modelContext) var modelContext
+    @Environment(\.managedObjectContext) var viewContext
 
     // Query all work models; we'll filter by studentID
-    @Query(sort: [SortDescriptor(\WorkModel.createdAt, order: .reverse)])
-    var allWorkModels: [WorkModel]
+    @FetchRequest(sortDescriptors: [NSSortDescriptor(keyPath: \CDWorkModel.createdAt, ascending: false)])
+    var allWorkModels: FetchedResults<CDWorkModel>
 
     // Query all lessons for lookup
-    @Query(sort: [SortDescriptor(\Lesson.name)])
-    var lessons: [Lesson]
+    @FetchRequest(sortDescriptors: [NSSortDescriptor(keyPath: \CDLesson.name, ascending: true)])
+    var lessons: FetchedResults<CDLesson>
 
     // Query all lesson assignments
-    @Query(sort: [SortDescriptor(\LessonAssignment.presentedAt, order: .reverse)])
-    var allLessonAssignments: [LessonAssignment]
+    @FetchRequest(sortDescriptors: [NSSortDescriptor(keyPath: \CDLessonAssignment.presentedAt, ascending: false)])
+    var allLessonAssignments: FetchedResults<CDLessonAssignment>
 
     // Query all meetings; we'll filter by studentID
-    @Query(sort: [SortDescriptor(\StudentMeeting.date, order: .reverse)])
-    private var meetingItemsRaw: [StudentMeeting]
+    @FetchRequest(sortDescriptors: [NSSortDescriptor(keyPath: \CDStudentMeeting.date, ascending: false)])
+    private var meetingItemsRaw: FetchedResults<CDStudentMeeting>
 
     // Query meeting templates to get active template for placeholders
-    @Query(sort: [SortDescriptor(\MeetingTemplate.sortOrder)])
-    var meetingTemplates: [MeetingTemplate]
+    @FetchRequest(sortDescriptors: [NSSortDescriptor(keyPath: \CDMeetingTemplate.sortOrder, ascending: true)])
+    var meetingTemplates: FetchedResults<CDMeetingTemplate>
 
     // CloudKit compatibility: Convert UUID to String for comparison
-    var meetingItems: [StudentMeeting] {
-        let studentIDString = student.id.uuidString
+    var meetingItems: [CDStudentMeeting] {
+        let studentIDString = student.id?.uuidString ?? ""
         return meetingItemsRaw.filter { $0.studentID == studentIDString }
     }
 
     // Get the active meeting template for placeholder prompts
-    private var activeTemplate: MeetingTemplate? {
+    private var activeTemplate: CDMeetingTemplate? {
         meetingTemplates.first { $0.isActive }
     }
 
@@ -83,7 +83,7 @@ struct StudentMeetingsTab: View {
     @State var generatingSummaries: Set<UUID> = []
 
     // Editing sheet state
-    @State var editingMeeting: StudentMeeting?
+    @State var editingMeeting: CDStudentMeeting?
     @State var editDate: Date = Date()
     @State var editCompleted: Bool = false
     @State var editReflection: String = ""
@@ -104,19 +104,20 @@ struct StudentMeetingsTab: View {
     // MARK: - Computed helpers for contracts and lessons (delegated to MeetingWorkSnapshotHelper)
 
     // Use uniquingKeysWith to handle CloudKit sync duplicates
-    var lessonsByID: [UUID: Lesson] { Dictionary(lessons.map { ($0.id, $0) }, uniquingKeysWith: { first, _ in first }) }
+    var lessonsByID: [UUID: CDLesson] { Dictionary(lessons.compactMap { l in l.id.map { ($0, l) } }, uniquingKeysWith: { first, _ in first }) }
 
     private var workStats: MeetingWorkSnapshotHelper.WorkStats {
-        MeetingWorkSnapshotHelper.computeWorkStats(
-            for: student.id,
-            allWorkModels: allWorkModels,
+        guard let studentID = student.id else { return MeetingWorkSnapshotHelper.WorkStats(open: [], overdue: [], recentCompleted: []) }
+        return MeetingWorkSnapshotHelper.computeWorkStats(
+            for: studentID,
+            allWorkModels: Array(allWorkModels),
             workOverdueDays: workOverdueDays
         )
     }
 
-    var openWorkModelsForStudent: [WorkModel] { workStats.open }
-    var overdueWorkModelsForStudent: [WorkModel] { workStats.overdue }
-    var recentCompletedWorkModelsForStudent: [WorkModel] { workStats.recentCompleted }
+    var openWorkModelsForStudent: [CDWorkModel] { workStats.open }
+    var overdueWorkModelsForStudent: [CDWorkModel] { workStats.overdue }
+    var recentCompletedWorkModelsForStudent: [CDWorkModel] { workStats.recentCompleted }
 
     var openWorkCountText: String {
         openWorkModelsForStudent.isEmpty ? "\u{2014}" : "\(openWorkModelsForStudent.count)"
@@ -135,11 +136,12 @@ struct StudentMeetingsTab: View {
         meetingItems.first?.date
     }
 
-    var lessonsSinceLastMeetingForStudent: [LessonAssignment] {
-        MeetingWorkSnapshotHelper.lessonsSinceLastMeeting(
-            for: student.id,
+    var lessonsSinceLastMeetingForStudent: [CDLessonAssignment] {
+        guard let studentID = student.id else { return [] }
+        return MeetingWorkSnapshotHelper.lessonsSinceLastMeeting(
+            for: studentID,
             lastMeetingDate: lastMeetingDate,
-            allLessonAssignments: allLessonAssignments
+            allLessonAssignments: Array(allLessonAssignments)
         )
     }
 
@@ -190,7 +192,7 @@ struct StudentMeetingsTab: View {
                         meeting.requests = editRequests
                         meeting.guideNotes = editGuideNotes
                         do {
-                            try modelContext.save()
+                            try viewContext.save()
                         } catch {
                             Self.logger.warning("Failed to save meeting edit: \(error)")
                         }
@@ -275,7 +277,7 @@ struct StudentMeetingsTab: View {
 
     // MARK: - Helpers for Work display
 
-    func workRowLine(_ work: WorkModel, showCompletedDate: Bool = false) -> some View {
+    func workRowLine(_ work: CDWorkModel, showCompletedDate: Bool = false) -> some View {
         HStack(spacing: 6) {
             BulletPointRow(text: workDisplayTitle(work))
             if showCompletedDate, let date = work.completedAt {
@@ -287,7 +289,7 @@ struct StudentMeetingsTab: View {
         }
     }
 
-    func workDisplayTitle(_ work: WorkModel) -> String {
+    func workDisplayTitle(_ work: CDWorkModel) -> String {
         lessonsByID[uuidString: work.lessonID]?.name ?? "Lesson"
     }
 
@@ -297,7 +299,7 @@ struct StudentMeetingsTab: View {
         let id: UUID
     }
 
-    func lessonRowLine(_ la: LessonAssignment) -> some View {
+    func lessonRowLine(_ la: CDLessonAssignment) -> some View {
         HStack(spacing: 6) {
             BulletPointRow(text: lessonDisplayName(la), icon: "book.fill", iconSize: 8)
             if let presentedAt = la.presentedAt {
@@ -313,7 +315,7 @@ struct StudentMeetingsTab: View {
         }
     }
 
-    private func lessonDisplayName(_ la: LessonAssignment) -> String {
+    private func lessonDisplayName(_ la: CDLessonAssignment) -> String {
         la.lesson?.name ?? lessonsByID[uuidString: la.lessonID]?.name ?? "Lesson"
     }
 
@@ -335,7 +337,8 @@ struct StudentMeetingsTab: View {
     }
 
     private func loadCurrentFromDefaults() {
-        let data = MeetingPersistenceService.loadCurrent(studentID: student.id)
+        guard let studentID = student.id else { return }
+        let data = MeetingPersistenceService.loadCurrent(studentID: studentID)
         isCompleted = data.isCompleted
         reflectionText = data.reflectionText
         focusText = data.focusText
@@ -345,7 +348,8 @@ struct StudentMeetingsTab: View {
     }
 
     private func saveCurrentToDefaults() {
-        MeetingPersistenceService.saveCurrent(studentID: student.id, data: currentMeetingData)
+        guard let studentID = student.id else { return }
+        MeetingPersistenceService.saveCurrent(studentID: studentID, data: currentMeetingData)
     }
 
     private func clearCurrent() {
@@ -355,37 +359,40 @@ struct StudentMeetingsTab: View {
         requestsText = ""
         guideNotesText = ""
         nextMeetingDate = nil
-        MeetingPersistenceService.clearCurrent(studentID: student.id)
+        guard let studentID = student.id else { return }
+        MeetingPersistenceService.clearCurrent(studentID: studentID)
     }
 
     private func migrateHistoryIfNeeded() {
+        guard let studentID = student.id else { return }
         MeetingPersistenceService.migrateHistoryIfNeeded(
-            studentID: student.id,
+            studentID: studentID,
             existingMeetings: meetingItems,
-            context: modelContext
+            context: viewContext
         )
     }
 
     private func saveCurrentToHistory() {
+        guard let studentID = student.id else { return }
         if MeetingPersistenceService.saveToHistory(
-            studentID: student.id,
+            studentID: studentID,
             data: currentMeetingData,
-            context: modelContext
+            context: viewContext
         ) {
             // Schedule next meeting if date was set
             if let date = nextMeetingDate {
                 MeetingScheduler.scheduleMeeting(
-                    studentID: student.id,
+                    studentID: studentID,
                     date: date,
-                    context: modelContext
+                    context: viewContext
                 )
             }
             clearCurrent()
         }
     }
 
-    func beginEdit(_ item: StudentMeeting) {
-        editDate = item.date
+    func beginEdit(_ item: CDStudentMeeting) {
+        editDate = item.date ?? Date()
         editCompleted = item.completed
         editReflection = item.reflection
         editFocus = item.focus
@@ -394,10 +401,10 @@ struct StudentMeetingsTab: View {
         editingMeeting = item
     }
 
-    func delete(_ item: StudentMeeting) {
-        modelContext.delete(item)
+    func delete(_ item: CDStudentMeeting) {
+        viewContext.delete(item)
         do {
-            try modelContext.save()
+            try viewContext.save()
         } catch {
             Self.logger.warning("Failed to save after deleting meeting: \(error)")
         }
@@ -424,14 +431,15 @@ struct StudentMeetingsTab: View {
 }
 
 #Preview {
-    let container = ModelContainer.preview
-    let context = container.mainContext
-    let student = Student(
-        firstName: "Alan", lastName: "Turing",
-        birthday: Date(timeIntervalSince1970: 0), level: .upper
-    )
-    context.insert(student)
+    let stack = CoreDataStack.preview
+    let ctx = stack.viewContext
+    let student = Student(context: ctx)
+    student.firstName = "Alan"
+    student.lastName = "Turing"
+    student.birthday = Date(timeIntervalSince1970: 0)
+    student.level = .upper
+
     return StudentMeetingsTab(student: student)
-        .previewEnvironment(using: container)
+        .previewEnvironment(using: stack)
         .padding()
 }

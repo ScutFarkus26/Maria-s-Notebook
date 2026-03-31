@@ -1,4 +1,5 @@
 import SwiftUI
+import CoreData
 
 struct WorkCheckInRow: View {
     let checkIn: WorkCheckIn
@@ -41,7 +42,7 @@ struct WorkCheckInRow: View {
             Menu {
                 ForEach(WorkCheckInStatus.allCases, id: \.self) { status in
                     Button {
-                        onSetStatus(checkIn.id, status)
+                        onSetStatus(checkIn.id ?? UUID(), status)
                     } label: {
                         Label(
                             status.menuActionLabel,
@@ -73,7 +74,7 @@ struct WorkCheckInRow: View {
     
     private var checkInHeader: some View {
         HStack(spacing: 6) {
-            Text(checkIn.date.formatted(date: .abbreviated, time: .omitted))
+            Text((checkIn.date ?? Date()).formatted(date: .abbreviated, time: .omitted))
                 .font(AppTheme.ScaledFont.bodySemibold)
             
             let purposeText = checkIn.purpose.trimmed()
@@ -86,10 +87,12 @@ struct WorkCheckInRow: View {
         }
     }
     
+    @ViewBuilder
     private var checkInNote: some View {
+        let notesList = (checkIn.notes?.allObjects as? [CDNote]) ?? []
         VStack(alignment: .leading, spacing: 4) {
-            if let notes = checkIn.notes, !notes.isEmpty {
-                ForEach(notes.sorted { $0.createdAt > $1.createdAt }, id: \.id) { note in
+            if !notesList.isEmpty {
+                ForEach(notesList.sorted { ($0.createdAt ?? .distantPast) > ($1.createdAt ?? .distantPast) }, id: \.id) { note in
                     HStack(alignment: .firstTextBaseline, spacing: 4) {
                         Text("Notes:")
                             .font(AppTheme.ScaledFont.captionSemibold)
@@ -121,7 +124,7 @@ struct WorkCheckInRow: View {
 
             ForEach(WorkCheckInStatus.allCases, id: \.self) { status in
                 Button {
-                    onSetStatus(checkIn.id, status)
+                    onSetStatus(checkIn.id ?? UUID(), status)
                 } label: {
                     Label(status.menuActionLabel, systemImage: status.iconName)
                 }

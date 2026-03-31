@@ -1,12 +1,12 @@
 import OSLog
 import SwiftUI
-import SwiftData
+import CoreData
 
 struct ProjectSessionDetailView: View {
     private static let logger = Logger.projects
     let session: ProjectSession
 
-    @Environment(\.modelContext) private var modelContext
+    @Environment(\.managedObjectContext) private var modelContext
     @Environment(SaveCoordinator.self) private var saveCoordinator
 
     // Test student filtering
@@ -14,21 +14,23 @@ struct ProjectSessionDetailView: View {
     @AppStorage("General.testStudentNames")
     private var testStudentNamesRaw: String = "Danny De Berry,Lil Dan D"
 
-    @Query(sort: [SortDescriptor(\Student.firstName), SortDescriptor(\Student.lastName)])
-    private var studentsRaw: [Student]
+    @FetchRequest(sortDescriptors: [
+        NSSortDescriptor(keyPath: \CDStudent.firstName, ascending: true),
+        NSSortDescriptor(keyPath: \CDStudent.lastName, ascending: true)
+    ]) private var studentsRaw: FetchedResults<CDStudent>
     // DEDUPLICATION: CloudKit sync can create duplicate records with the same ID.
     // Filter out test students when setting is disabled
     private var students: [Student] {
         TestStudentsFilter.filterVisible(
-            studentsRaw.uniqueByID.filter(\.isEnrolled),
+            Array(studentsRaw).uniqueByID.filter(\.isEnrolled),
             show: showTestStudents,
             namesRaw: testStudentNamesRaw
         )
     }
-    @Query(sort: [SortDescriptor(\Lesson.name)]) private var lessons: [Lesson]
+    @FetchRequest(sortDescriptors: [NSSortDescriptor(keyPath: \CDLesson.name, ascending: true)]) private var lessons: FetchedResults<CDLesson>
 
     // NEW: Query all work models to filter locally
-    @Query private var allWorkModels: [WorkModel]
+    @FetchRequest(sortDescriptors: []) private var allWorkModels: FetchedResults<CDWorkModel>
 
     @State var showLessonPickerForWork: WorkModel?
     @State var showSelectionSheetForStudent: String?
@@ -37,20 +39,20 @@ struct ProjectSessionDetailView: View {
     // Use uniquingKeysWith to handle CloudKit sync duplicates
     var studentsByID: [UUID: Student] {
         Dictionary(
-            students.map { ($0.id, $0) },
+            students.compactMap { s in s.id.map { ($0, s) } },
             uniquingKeysWith: { first, _ in first }
         )
     }
     var lessonsByID: [UUID: Lesson] {
         Dictionary(
-            lessons.map { ($0.id, $0) },
+            Array(lessons).compactMap { l in l.id.map { ($0, l) } },
             uniquingKeysWith: { first, _ in first }
         )
     }
 
     // Filter work models relevant to this session
     var sessionWorkModels: [WorkModel] {
-        let sid = session.id.uuidString
+        let sid = (session.id ?? UUID()).uuidString
         return allWorkModels.filter { work in
             let contextType = work.sourceContextType
             return (contextType == .projectSession || contextType == .bookClubSession) && work.sourceContextID == sid
@@ -110,7 +112,7 @@ struct ProjectSessionDetailView: View {
 
     /// Project member IDs for showing selection status
     var projectMemberIDs: [String] {
-        session.project?.memberStudentIDs ?? []
+        session.project?.memberStudentIDsArray ?? []
     }
 
     var body: some View {
@@ -133,16 +135,20 @@ struct ProjectSessionDetailView: View {
                                         session.agendaItems.indices.contains(index)
                                             ? session.agendaItems[index] : ""
                                     },
-                                    set: {
-                                        if session.agendaItems.indices.contains(index) {
-                                            session.agendaItems[index] = $0
+                                    set: { newValue in
+                                        var items = session.agendaItems
+                                        if items.indices.contains(index) {
+                                            items[index] = newValue
+                                            session.agendaItems = items
                                         }
                                     }
                                 ))
                                 .textFieldStyle(.roundedBorder)
                                 Button(role: .destructive) {
-                                    if session.agendaItems.indices.contains(index) {
-                                        session.agendaItems.remove(at: index)
+                                    var items = session.agendaItems
+                                    if items.indices.contains(index) {
+                                        items.remove(at: index)
+                                        session.agendaItems = items
                                         do {
                                             try modelContext.save()
                                         } catch {
@@ -157,7 +163,9 @@ struct ProjectSessionDetailView: View {
                             }
                         }
                         Button {
-                            session.agendaItems.append("")
+                            var items = session.agendaItems
+                            items.append("")
+                            session.agendaItems = items
                             do {
                                 try modelContext.save()
                             } catch {
@@ -203,7 +211,7 @@ struct ProjectSessionDetailView: View {
                 }
             }
         }
-        .navigationTitle(DateFormatters.mediumDate.string(from: session.meetingDate))
+        .navigationTitle(DateFormatters.mediumDate.string(from: session.meetingDate ?? Date()))
         .sheet(item: Binding(
             get: { showSelectionSheetForStudent.map { StudentIDWrapper(id: $0) } },
             set: { showSelectionSheetForStudent = $0?.id }
@@ -216,7 +224,7 @@ struct ProjectSessionDetailView: View {
             )
         }
         .sheet(item: Binding(
-            get: { showLessonPickerForWork.map { WorkIDWrapper(id: $0.id) } },
+            get: { showLessonPickerForWork.flatMap { w in w.id.map { WorkIDWrapper(id: $0) } } },
             set: { wrapper in showLessonPickerForWork = wrapper.flatMap { w in allWorkModels.first { $0.id == w.id } } }
         )) { wrapper in
             if let targetWork = allWorkModels.first(where: { $0.id == wrapper.id }) {
@@ -224,7 +232,7 @@ struct ProjectSessionDetailView: View {
                     viewModel: {
                         let initialIDs = Set([UUID(uuidString: targetWork.studentID)].compactMap { $0 })
                         let vm = LessonPickerViewModel(selectedStudentIDs: initialIDs)
-                        vm.configure(lessons: lessons, students: students)
+                        vm.configure(lessons: Array(lessons), students: students)
                         return vm
                     }()
                 ) { chosenID in

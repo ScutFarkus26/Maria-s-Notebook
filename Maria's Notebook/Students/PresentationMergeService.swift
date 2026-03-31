@@ -1,6 +1,6 @@
 import Foundation
 import OSLog
-import SwiftData
+import CoreData
 
 @MainActor
 enum PresentationMergeService {
@@ -9,7 +9,7 @@ enum PresentationMergeService {
     @discardableResult
     static func merge(
         sourceID: UUID, targetID: UUID,
-        context: ModelContext,
+        context: NSManagedObjectContext,
         toastService: ToastService = ToastService.shared
     ) -> Bool {
         guard sourceID != targetID else { return false }
@@ -49,8 +49,8 @@ enum PresentationMergeService {
         return true
     }
 
-    private static func fetchLessonAssignment(id: UUID, context: ModelContext) -> LessonAssignment? {
-        var desc = FetchDescriptor<LessonAssignment>(predicate: #Predicate { $0.id == id })
+    private static func fetchLessonAssignment(id: UUID, context: NSManagedObjectContext) -> CDLessonAssignment? {
+        var desc = { let r = NSFetchRequest<CDLessonAssignment>(entityName: "CDLessonAssignment"); r.predicate = NSPredicate(format: "id == %@", id as CVarArg); r.fetchLimit = 0; return r }()
         desc.fetchLimit = 1
         do {
             return try context.fetch(desc).first

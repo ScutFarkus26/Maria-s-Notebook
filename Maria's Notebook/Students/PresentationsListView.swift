@@ -1,6 +1,6 @@
 import OSLog
-import SwiftData
 import SwiftUI
+import CoreData
 #if DEBUG
 import Foundation
 #endif
@@ -22,7 +22,7 @@ enum CompletionFilter: String {
 
 struct PresentationsListView: View {
     @Environment(\.appRouter) private var appRouter
-    @Environment(\.modelContext) private var modelContext
+    @Environment(\.managedObjectContext) private var viewContext
     #if os(iOS)
     @Environment(\.horizontalSizeClass) var horizontalSizeClass
     #endif
@@ -33,13 +33,13 @@ struct PresentationsListView: View {
     private var testStudentNamesRaw: String = "Danny De Berry,Lil Dan D"
 
     // OPTIMIZATION: Use lightweight query for change detection only
-    @Query(sort: [SortDescriptor(\LessonAssignment.id)]) private var allLessonAssignments: [LessonAssignment]
-    @Query private var lessons: [Lesson]
-    @Query private var studentsRaw: [Student]
+    @FetchRequest(sortDescriptors: [NSSortDescriptor(keyPath: \CDLessonAssignment.id, ascending: true)]) private var allLessonAssignments: FetchedResults<CDLessonAssignment>
+    @FetchRequest(sortDescriptors: []) private var lessons: FetchedResults<CDLesson>
+    @FetchRequest(sortDescriptors: []) private var studentsRaw: FetchedResults<CDStudent>
     // DEDUPLICATION: CloudKit sync can create duplicate records with the same ID.
     // Filter out test students when setting is disabled
-    var students: [Student] {
-        TestStudentsFilter.filterVisible(studentsRaw.uniqueByID, show: showTestStudents, namesRaw: testStudentNamesRaw)
+    var students: [CDStudent] {
+        TestStudentsFilter.filterVisible(Array(studentsRaw).uniqueByID, show: showTestStudents, namesRaw: testStudentNamesRaw)
     }
 
     @State var selectedLessonID: UUID?
@@ -77,12 +77,12 @@ struct PresentationsListView: View {
     private let lessonsVM = LessonsViewModel()
 
     var subjects: [String] {
-        lessonsVM.subjects(from: lessons)
+        lessonsVM.subjects(from: Array(lessons))
     }
 
     // Use uniquingKeysWith to handle CloudKit sync duplicates
-    var lessonMap: [UUID: Lesson] {
-        Dictionary(lessons.map { ($0.id, $0) }, uniquingKeysWith: { first, _ in first })
+    var lessonMap: [UUID: CDLesson] {
+        Dictionary(lessons.compactMap { l in l.id.map { ($0, l) } }, uniquingKeysWith: { first, _ in first })
     }
 
     // MODERN: Computed properties with automatic dependency tracking
@@ -94,15 +94,15 @@ struct PresentationsListView: View {
         let subjectLessons = lessons.filter { lesson in
             lesson.subject.caseInsensitiveCompare(subject) == .orderedSame
         }
-        let ids = Set(subjectLessons.map(\.id))
+        let ids = Set(subjectLessons.compactMap(\.id))
         return ids.isEmpty ? nil : ids
     }
 
     /// Filtered lesson assignments based on completion filter and subject selection
     /// Automatically recomputes when filter, subject, or allLessonAssignments changes
-    var filteredAssignments: [LessonAssignment] {
+    var filteredAssignments: [CDLessonAssignment] {
         // Apply completion filter
-        let base: [LessonAssignment]
+        let base: [CDLessonAssignment]
         switch filter {
         case .all:
             // Exclude hidden undated (presented but no presentedAt)
@@ -128,7 +128,7 @@ struct PresentationsListView: View {
 
     /// Sorted lesson assignments based on current sort mode
     /// Automatically recomputes when sort or filteredAssignments changes
-    var sortedAssignments: [LessonAssignment] {
+    var sortedAssignments: [CDLessonAssignment] {
         #if DEBUG
         let startTime = Date()
         defer {
@@ -146,7 +146,7 @@ struct PresentationsListView: View {
             let upcoming = filteredAssignments.filter { !$0.isPresented }.sorted { lhs, rhs in
                 switch (lhs.scheduledFor, rhs.scheduledFor) {
                 case let (l?, r?): return l < r
-                case (nil, nil): return lhs.createdAt < rhs.createdAt
+                case (nil, nil): return (lhs.createdAt ?? .distantPast) < (rhs.createdAt ?? .distantPast)
                 case (nil, _?): return false
                 case (_?, nil): return true
                 }
@@ -158,12 +158,12 @@ struct PresentationsListView: View {
             }
             return upcoming + presented
         case .dateCreated:
-            return filteredAssignments.sorted { $0.createdAt > $1.createdAt }
+            return filteredAssignments.sorted { ($0.createdAt ?? .distantPast) > ($1.createdAt ?? .distantPast) }
         case .datePresented:
             return filteredAssignments.sorted { lhs, rhs in
                 switch (lhs.presentedAt, rhs.presentedAt) {
                 case let (l?, r?): return l > r
-                case (nil, nil): return lhs.createdAt > rhs.createdAt
+                case (nil, nil): return (lhs.createdAt ?? .distantPast) > (rhs.createdAt ?? .distantPast)
                 case (nil, _?): return false
                 case (_?, nil): return true
                 }
@@ -175,16 +175,16 @@ struct PresentationsListView: View {
     // These are only used for .upcomingThenPresented sort mode
 
     /// Hidden undated presentations - automatically updates when filteredAssignments changes
-    var hiddenUndated: [LessonAssignment] {
-        filteredAssignments.sorted { $0.createdAt > $1.createdAt }
+    var hiddenUndated: [CDLessonAssignment] {
+        filteredAssignments.sorted { ($0.createdAt ?? .distantPast) > ($1.createdAt ?? .distantPast) }
     }
 
     /// Upcoming presentations (not yet presented) - automatically updates
-    var defaultUpcoming: [LessonAssignment] {
+    var defaultUpcoming: [CDLessonAssignment] {
         filteredAssignments.filter { !$0.isPresented }.sorted { lhs, rhs in
             switch (lhs.scheduledFor, rhs.scheduledFor) {
             case let (l?, r?): return l < r
-            case (nil, nil): return lhs.createdAt < rhs.createdAt
+            case (nil, nil): return (lhs.createdAt ?? .distantPast) < (rhs.createdAt ?? .distantPast)
             case (nil, _?): return false
             case (_?, nil): return true
             }
@@ -192,7 +192,7 @@ struct PresentationsListView: View {
     }
 
     /// Presented assignments - automatically updates
-    var defaultPresented: [LessonAssignment] {
+    var defaultPresented: [CDLessonAssignment] {
         filteredAssignments.filter { $0.isPresented && $0.presentedAt != nil }.sorted { lhs, rhs in
             let l = lhs.presentedAt ?? .distantPast
             let r = rhs.presentedAt ?? .distantPast

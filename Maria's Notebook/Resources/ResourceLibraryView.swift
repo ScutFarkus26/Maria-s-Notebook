@@ -1,5 +1,5 @@
 // ResourceLibraryView.swift
-// Main view for the Resource Library feature.
+// Main view for the CDResource Library feature.
 // Displays resources organized by category with search, filter, and grid/list toggle.
 //
 // Extensions:
@@ -10,21 +10,21 @@
 // - ResourceLibraryView+Actions.swift   (delete, favorite, selection, bulk ops, drag-and-drop)
 
 import SwiftUI
-import SwiftData
+import CoreData
 import UniformTypeIdentifiers
 
-/// Main view for the Resource Library feature.
+/// Main view for the CDResource Library feature.
 /// Displays resources organized by category with search, filter, and grid/list toggle.
 struct ResourceLibraryView: View {
-    @Environment(\.modelContext) var modelContext
-    @Query(sort: \Resource.createdAt, order: .reverse) var allResources: [Resource]
+    @Environment(\.managedObjectContext) var viewContext
+    @FetchRequest(sortDescriptors: [NSSortDescriptor(keyPath: \CDResource.createdAt, ascending: false)]) var allResources: FetchedResults<CDResource>
 
     @State var searchText = ""
     @State var selectedCategory: ResourceCategory?
     @State var smartFilter: ResourceSmartFilter = .all
     @State var selectedTagFilter: String?
     @State var showingImportSheet = false
-    @State var selectedResource: Resource?
+    @State var selectedResource: CDResource?
     @State var viewMode: ResourceViewMode = .grid
 
     // Bulk selection
@@ -37,9 +37,9 @@ struct ResourceLibraryView: View {
     @State var bulkTags: [String] = []
 
     // Rename / change category
-    @State var resourceToRename: Resource?
+    @State var resourceToRename: CDResource?
     @State var renameText = ""
-    @State var resourceToRecategorize: Resource?
+    @State var resourceToRecategorize: CDResource?
 
     // Drag-and-drop
     @State var isDropTargeted = false
@@ -60,8 +60,8 @@ struct ResourceLibraryView: View {
 
     // MARK: - Filtered Data
 
-    var filteredResources: [Resource] {
-        var result: [Resource]
+    var filteredResources: [CDResource] {
+        var result: [CDResource]
 
         // Apply smart filter first
         switch smartFilter {
@@ -85,7 +85,7 @@ struct ResourceLibraryView: View {
         if let selectedTagFilter {
             let tagName = TagHelper.tagName(selectedTagFilter).lowercased()
             result = result.filter { resource in
-                resource.tags.contains { TagHelper.tagName($0).lowercased() == tagName }
+                resource.tagsArray.contains { TagHelper.tagName($0).lowercased() == tagName }
             }
         }
 
@@ -96,7 +96,7 @@ struct ResourceLibraryView: View {
                 $0.title.lowercased().contains(query) ||
                 $0.descriptionText.lowercased().contains(query) ||
                 $0.categoryRaw.lowercased().contains(query) ||
-                $0.tags.contains { $0.lowercased().contains(query) }
+                $0.tagsArray.contains { $0.lowercased().contains(query) }
             }
         }
 
@@ -108,7 +108,7 @@ struct ResourceLibraryView: View {
         var seen = Set<String>()
         var uniqueTags: [String] = []
         for resource in allResources {
-            for tag in resource.tags {
+            for tag in resource.tagsArray {
                 let name = TagHelper.tagName(tag).lowercased()
                 if !seen.contains(name) {
                     seen.insert(name)
@@ -127,7 +127,7 @@ struct ResourceLibraryView: View {
         min(allResources.filter { $0.lastViewedAt != nil }.count, 20)
     }
 
-    var groupedResources: [(category: ResourceCategory, resources: [Resource])] {
+    var groupedResources: [(category: ResourceCategory, resources: [CDResource])] {
         let grouped = Dictionary(grouping: filteredResources) { $0.category }
         return ResourceCategory.allCases.compactMap { category in
             guard let resources = grouped[category], !resources.isEmpty else { return nil }
@@ -143,8 +143,11 @@ struct ResourceLibraryView: View {
         }
     }
 
-    var selectedResources: [Resource] {
-        allResources.filter { selectedResourceIDs.contains($0.id) }
+    var selectedResources: [CDResource] {
+        allResources.filter { resource in
+            guard let resourceID = resource.id else { return false }
+            return selectedResourceIDs.contains(resourceID)
+        }
     }
 
     /// True if any filter beyond "All" is active
@@ -265,7 +268,7 @@ struct ResourceLibraryView: View {
                 if let resource = resourceToRename, !renameText.trimmingCharacters(in: .whitespaces).isEmpty {
                     resource.title = renameText.trimmingCharacters(in: .whitespaces)
                     resource.modifiedAt = Date()
-                    modelContext.safeSave()
+                    viewContext.safeSave()
                 }
                 resourceToRename = nil
             }

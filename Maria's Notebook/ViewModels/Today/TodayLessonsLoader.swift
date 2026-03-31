@@ -3,7 +3,7 @@
 // Encapsulates the lesson loading and filtering logic used by TodayViewModel.
 
 import Foundation
-import SwiftData
+import CoreData
 
 // MARK: - Today Lessons Loader
 
@@ -30,7 +30,7 @@ enum TodayLessonsLoader {
     static func fetchLessonsWithIDs(
         day: Date,
         nextDay: Date,
-        context: ModelContext
+        context: NSManagedObjectContext
     ) -> LessonsResult {
         let dayLessons = TodayDataFetcher.fetchLessons(day: day, nextDay: nextDay, context: context)
 

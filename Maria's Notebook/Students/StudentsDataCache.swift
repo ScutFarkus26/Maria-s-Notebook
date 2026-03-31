@@ -1,5 +1,5 @@
 import Foundation
-import SwiftData
+import CoreData
 
 /// Manages cached data for the students view, loading data on-demand
 /// based on the current mode and filters.
@@ -11,13 +11,13 @@ final class StudentsDataCache {
     // MARK: - Cached Data
 
     /// Today's attendance records
-    private(set) var attendanceRecords: [AttendanceRecord] = []
+    private(set) var attendanceRecords: [CDAttendanceRecord] = []
 
-    /// Lesson assignments (currently unused but retained for future use)
-    private(set) var lessonAssignments: [LessonAssignment] = []
+    /// CDLesson assignments (currently unused but retained for future use)
+    private(set) var lessonAssignments: [CDLessonAssignment] = []
 
     /// Lessons by ID (currently unused but retained for future use)
-    private(set) var lessons: [UUID: Lesson] = [:]
+    private(set) var lessons: [UUID: CDLesson] = [:]
 
     /// Days since last lesson presentation, keyed by student ID
     private(set) var daysSinceLastLesson: [UUID: Int] = [:]
@@ -33,16 +33,16 @@ final class StudentsDataCache {
     /// - Parameters:
     ///   - mode: The current student view mode
     ///   - students: The list of students to compute data for
-    ///   - modelContext: The model context for database queries
+    ///   - viewContext: The model context for database queries
     ///   - calendar: The calendar for date calculations
     func loadDataOnDemand(
         mode: StudentMode,
-        students: [Student],
-        modelContext: ModelContext,
+        students: [CDStudent],
+        viewContext: NSManagedObjectContext,
         calendar: Calendar
     ) async {
         // Load today's attendance records using the data loader
-        attendanceRecords = StudentsDataLoader.loadTodaysAttendance(context: modelContext)
+        attendanceRecords = StudentsDataLoader.loadTodaysAttendance(context: viewContext)
 
         daysSinceLastLesson = [:]
 

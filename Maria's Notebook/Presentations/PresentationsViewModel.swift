@@ -3,42 +3,42 @@
 // Preserves all existing functionality while improving responsiveness
 
 import Foundation
-import SwiftData
 import SwiftUI
+import CoreData
 
 @Observable
 @MainActor
 final class PresentationsViewModel {
     // MARK: - State
-    var readyLessons: [LessonAssignment] = []
-    var blockedLessons: [LessonAssignment] = []
-    var blockingWorkCache: [UUID: [UUID: WorkModel]] = [:]
+    var readyLessons: [CDLessonAssignment] = []
+    var blockedLessons: [CDLessonAssignment] = []
+    var blockingWorkCache: [UUID: [UUID: CDWorkModel]] = [:]
     var daysSinceLastLessonByStudent: [UUID: Int] = [:]
     var lastSubjectByStudent: [UUID: String] = [:]
     var openWorkCountByStudent: [UUID: Int] = [:]
 
     // Expose cached students for use in filteredSnapshot (avoids redundant fetching)
-    var cachedStudents: [Student] {
+    var cachedStudents: [CDStudent] {
         self.cachedStudentsStorage
     }
 
     // Expose cached lessons for inbox filtering (avoids redundant fetching)
-    var lessons: [Lesson] {
+    var lessons: [CDLesson] {
         self.cachedLessons
     }
 
     // MARK: - Dependencies
-    var modelContext: ModelContext?
+    var viewContext: NSManagedObjectContext?
     var calendar: Calendar = .current
 
     // MARK: - Cache State
     private var lastUpdateDate: Date?
-    private var cachedLessons: [Lesson] = []
-    private var cachedWorkModels: [WorkModel] = []
-    private var cachedLessonAssignments: [LessonAssignment] = []
-    private var cachedStudentsStorage: [Student] = []
+    private var cachedLessons: [CDLesson] = []
+    private var cachedWorkModels: [CDWorkModel] = []
+    private var cachedLessonAssignments: [CDLessonAssignment] = []
+    private var cachedStudentsStorage: [CDStudent] = []
 
-    // PERFORMANCE: Track pending update for cancellation
+    // PERFORMANCE: CDTrackEntity pending update for cancellation
     private var pendingUpdateTask: Task<Void, Never>?
 
     // PERFORMANCE: Use hash-based change detection
@@ -52,8 +52,8 @@ final class PresentationsViewModel {
 
     // MARK: - Change Detection Helpers
 
-    /// Computes a hash for LessonAssignment change detection
-    private func computeLessonAssignmentHash(_ assignments: [LessonAssignment]) -> Int {
+    /// Computes a hash for CDLessonAssignment change detection
+    private func computeLessonAssignmentHash(_ assignments: [CDLessonAssignment]) -> Int {
         var hasher = Hasher()
         for la in assignments {
             hasher.combine(la.id)
@@ -71,7 +71,7 @@ final class PresentationsViewModel {
     }
 
     /// Computes a hash for array of Identifiable items
-    private func computeIDHash<T: Identifiable>(_ items: [T]) -> Int where T.ID == UUID {
+    private func computeIDHash<T: Identifiable>(_ items: [T]) -> Int where T.ID == UUID? {
         var hasher = Hasher()
         for item in items {
             hasher.combine(item.id)
@@ -79,8 +79,8 @@ final class PresentationsViewModel {
         return hasher.finalize()
     }
 
-    /// Computes a hash for WorkModel change detection (includes status and presentation link)
-    private func computeWorkModelHash(_ workModels: [WorkModel]) -> Int {
+    /// Computes a hash for CDWorkModel change detection (includes status and presentation link)
+    private func computeWorkModelHash(_ workModels: [CDWorkModel]) -> Int {
         var hasher = Hasher()
         for w in workModels {
             hasher.combine(w.id)
@@ -96,7 +96,7 @@ final class PresentationsViewModel {
     // PERFORMANCE: Runs asynchronously in background to avoid blocking the main thread
     // swiftlint:disable:next function_parameter_count
     func update(
-        modelContext: ModelContext,
+        viewContext: NSManagedObjectContext,
         calendar: Calendar,
         inboxOrderRaw: String,
         missWindow: PresentationsMissWindow,
@@ -109,7 +109,7 @@ final class PresentationsViewModel {
         // Launch async update in background
         pendingUpdateTask = Task { @MainActor in
             await updateAsync(
-                modelContext: modelContext,
+                viewContext: viewContext,
                 calendar: calendar,
                 inboxOrderRaw: inboxOrderRaw,
                 missWindow: missWindow,
@@ -122,32 +122,31 @@ final class PresentationsViewModel {
     // Internal async implementation of update logic
     // swiftlint:disable:next function_parameter_count function_body_length
     private func updateAsync(
-        modelContext: ModelContext,
+        viewContext: NSManagedObjectContext,
         calendar: Calendar,
         inboxOrderRaw: String,
         missWindow: PresentationsMissWindow,
         showTestStudents: Bool,
         testStudentNamesRaw: String
     ) async {
-        self.modelContext = modelContext
+        self.viewContext = viewContext
         self.calendar = calendar
 
-        let lessonAssignments = fetchLessonAssignmentsData(from: modelContext)
+        let lessonAssignments = fetchLessonAssignmentsData(from: viewContext)
         await Task.yield()
         if Task.isCancelled { return }
 
-        let lessons = fetchLessonsData(from: modelContext)
+        let lessons = fetchLessonsData(from: viewContext)
         await Task.yield()
         if Task.isCancelled { return }
 
-        let students = fetchStudentsData(from: modelContext)
+        let students = fetchStudentsData(from: viewContext)
         await Task.yield()
         if Task.isCancelled { return }
 
-        let descriptor = FetchDescriptor<WorkModel>(
-            predicate: #Predicate<WorkModel> { $0.statusRaw != "complete" }
-        )
-        let workModels = modelContext.safeFetch(descriptor)
+        let workRequest = CDFetchRequest(CDWorkModel.self)
+        workRequest.predicate = NSPredicate(format: "statusRaw != %@", "complete")
+        let workModels = viewContext.safeFetch(workRequest)
         await Task.yield()
         if Task.isCancelled { return }
 
@@ -196,7 +195,7 @@ final class PresentationsViewModel {
         }
         self.openWorkCountByStudent = workCounts
 
-        let openWorkByPresentationID: [String: [WorkModel]] = workModels
+        let openWorkByPresentationID: [String: [CDWorkModel]] = workModels
             .filter { $0.presentationID != nil }
             .grouped { $0.presentationID ?? "" }
         rebuildBlockingCache(
@@ -224,46 +223,46 @@ final class PresentationsViewModel {
         self.blockedLessons = blocked
     }
 
-    private func fetchLessonAssignmentsData(from modelContext: ModelContext) -> [LessonAssignment] {
+    private func fetchLessonAssignmentsData(from viewContext: NSManagedObjectContext) -> [CDLessonAssignment] {
         #if DEBUG
         return PerformanceLogger.measure(
             screenName: "PresentationsViewModel - Fetch LessonAssignments",
-            operation: { modelContext.safeFetch(FetchDescriptor<LessonAssignment>()) }
+            operation: { viewContext.safeFetch(CDFetchRequest(CDLessonAssignment.self)) }
         )
         #else
-        return modelContext.safeFetch(FetchDescriptor<LessonAssignment>())
+        return viewContext.safeFetch(CDFetchRequest(CDLessonAssignment.self))
         #endif
     }
 
-    private func fetchLessonsData(from modelContext: ModelContext) -> [Lesson] {
+    private func fetchLessonsData(from viewContext: NSManagedObjectContext) -> [CDLesson] {
         #if DEBUG
         return PerformanceLogger.measure(
             screenName: "PresentationsViewModel - Fetch Lessons",
-            operation: { modelContext.safeFetch(FetchDescriptor<Lesson>()) }
+            operation: { viewContext.safeFetch(CDFetchRequest(CDLesson.self)) }
         )
         #else
-        return modelContext.safeFetch(FetchDescriptor<Lesson>())
+        return viewContext.safeFetch(CDFetchRequest(CDLesson.self))
         #endif
     }
 
-    private func fetchStudentsData(from modelContext: ModelContext) -> [Student] {
+    private func fetchStudentsData(from viewContext: NSManagedObjectContext) -> [CDStudent] {
         #if DEBUG
         return PerformanceLogger.measure(
             screenName: "PresentationsViewModel - Fetch Students",
-            operation: { modelContext.safeFetch(FetchDescriptor<Student>()) }
+            operation: { viewContext.safeFetch(CDFetchRequest(CDStudent.self)) }
         )
         #else
-        return modelContext.safeFetch(FetchDescriptor<Student>())
+        return viewContext.safeFetch(CDFetchRequest(CDStudent.self))
         #endif
     }
 
     private func partitionIntoReadyAndBlocked(
-        lessonAssignments: [LessonAssignment],
-        lessons: [Lesson],
-        workModels: [WorkModel],
+        lessonAssignments: [CDLessonAssignment],
+        lessons: [CDLesson],
+        workModels: [CDWorkModel],
         inboxOrderRaw: String,
         missWindow: PresentationsMissWindow
-    ) -> (ready: [LessonAssignment], blocked: [LessonAssignment]) {
+    ) -> (ready: [CDLessonAssignment], blocked: [CDLessonAssignment]) {
         let allUnscheduled = lessonAssignments.filter { $0.scheduledFor == nil && !$0.isGiven }
         let blockingResults = BlockingAlgorithmEngine.checkBlocking(
             forBatch: allUnscheduled,
@@ -271,10 +270,10 @@ final class PresentationsViewModel {
             allLessonAssignments: lessonAssignments,
             workModels: workModels
         )
-        var ready: [LessonAssignment] = []
-        var blocked: [LessonAssignment] = []
+        var ready: [CDLessonAssignment] = []
+        var blocked: [CDLessonAssignment] = []
         for la in allUnscheduled {
-            let result = blockingResults[la.id]
+            let result = la.id.flatMap { blockingResults[$0] }
                 ?? BlockingAlgorithmEngine.BlockingCheckResult(isBlocked: false, prereqOpenCount: 0)
             if result.isBlocked { blocked.append(la) } else { ready.append(la) }
         }
@@ -285,16 +284,16 @@ final class PresentationsViewModel {
                 (daysSinceLastLessonByStudent[sid] ?? Int.max) >= threshold
             }
         }
-        blocked.sort { $0.createdAt < $1.createdAt }
+        blocked.sort { ($0.createdAt ?? .distantPast) < ($1.createdAt ?? .distantPast) }
         return (ordered, blocked)
     }
 
     // MARK: - Private Helpers — Blocking Cache
 
     private func rebuildBlockingCache(
-        lessonAssignments: [LessonAssignment],
-        workModels: [WorkModel],
-        openWorkByPresentationID: [String: [WorkModel]]
+        lessonAssignments: [CDLessonAssignment],
+        workModels: [CDWorkModel],
+        openWorkByPresentationID: [String: [CDWorkModel]]
     ) {
         blockingWorkCache = BlockingCacheBuilder.buildCache(
             lessonAssignments: lessonAssignments,
@@ -309,13 +308,14 @@ final class PresentationsViewModel {
 // MARK: - Cache Query Helpers
 
 extension PresentationsViewModel {
-    /// Get blocking work for a specific LessonAssignment (from cache)
-    func getBlockingWork(_ la: LessonAssignment) -> [UUID: WorkModel] {
-        return blockingWorkCache[la.id] ?? [:]
+    /// Get blocking work for a specific CDLessonAssignment (from cache)
+    func getBlockingWork(_ la: CDLessonAssignment) -> [UUID: CDWorkModel] {
+        guard let laID = la.id else { return [:] }
+        return blockingWorkCache[laID] ?? [:]
     }
 
     /// Check if a lesson is blocked (from cache)
-    func isBlocked(_ la: LessonAssignment) -> Bool {
+    func isBlocked(_ la: CDLessonAssignment) -> Bool {
         return !getBlockingWork(la).isEmpty
     }
 

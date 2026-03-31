@@ -1,17 +1,17 @@
 import SwiftUI
-import SwiftData
+import CoreData
 
 struct OpenWorkGrid: View {
-    let works: [WorkModel]
-    let lessonsByID: [UUID: Lesson]
-    let studentsByID: [UUID: Student]
+    let works: [CDWorkModel]
+    let lessonsByID: [UUID: CDLesson]
+    let studentsByID: [UUID: CDStudent]
     let sortMode: WorkAgendaSortMode
 
-    let onOpen: (WorkModel) -> Void
-    let onMarkCompleted: (WorkModel) -> Void
-    let onScheduleToday: (WorkModel) -> Void
+    let onOpen: (CDWorkModel) -> Void
+    let onMarkCompleted: (CDWorkModel) -> Void
+    let onScheduleToday: (CDWorkModel) -> Void
 
-    @Environment(\.modelContext) private var modelContext
+    @Environment(\.managedObjectContext) private var viewContext
     @Environment(\.calendar) private var calendar
     
     @State private var cachedAgeSchoolDays: [UUID: Int] = [:]
@@ -34,7 +34,8 @@ struct OpenWorkGrid: View {
                     ForEach(groupedSections, id: \.key) { section in
                         Section(header: groupHeader(title: section.key, count: section.items.count)) {
                             ForEach(section.items, id: \.id) { item in
-                                let ageSchoolDays = cachedAgeSchoolDays[item.work.id] ?? 0
+                                let workID = item.work.id ?? UUID()
+                                let ageSchoolDays = cachedAgeSchoolDays[workID] ?? 0
                                 WorkCard.grid(
                                     work: item.work,
                                     lessonTitle: item.title,
@@ -72,24 +73,30 @@ struct OpenWorkGrid: View {
         
         // Find date range for all works
         let allDates = works.map { work in
-            WorkAgingPolicy.lastMeaningfulTouchDate(for: work, checkIns: work.checkIns, notes: work.unifiedNotes)
+            let checkIns = (work.checkIns?.allObjects as? [CDWorkCheckIn]) ?? []
+            let notes = (work.unifiedNotes?.allObjects as? [CDNote]) ?? []
+            return WorkAgingPolicy.lastMeaningfulTouchDate(for: work, checkIns: checkIns, notes: notes)
         }
         
         guard let minDate = allDates.min(), allDates.max() != nil else { return }
         
         // Preload school days cache for entire range
-        cache.preloadNonSchoolDays(from: minDate, to: today, using: modelContext, calendar: calendar)
+        cache.preloadNonSchoolDays(from: minDate, to: today, using: viewContext, calendar: calendar)
         
         // Compute all age values using cached data
         var result: [UUID: Int] = [:]
         for work in works {
+            let checkInsArray = (work.checkIns?.allObjects as? [CDWorkCheckIn]) ?? []
+            let notesArray = (work.unifiedNotes?.allObjects as? [CDNote]) ?? []
             let lastTouch = WorkAgingPolicy.lastMeaningfulTouchDate(
-                for: work, checkIns: work.checkIns, notes: work.unifiedNotes
+                for: work, checkIns: checkInsArray, notes: notesArray
             )
             let age = cache.schoolDaysSinceCreation(
-                createdAt: lastTouch, asOf: today, using: modelContext, calendar: calendar
+                createdAt: lastTouch, asOf: today, using: viewContext, calendar: calendar
             )
-            result[work.id] = age
+            if let workID = work.id {
+                result[workID] = age
+            }
         }
         
         cachedAgeSchoolDays = result
@@ -119,7 +126,7 @@ struct OpenWorkGrid: View {
     private struct WorkGridItem: Identifiable {
         let id = UUID()
         let workID: UUID
-        let work: WorkModel
+        let work: CDWorkModel
         let title: String
         let student: String
         let needsAttention: Bool
@@ -176,7 +183,7 @@ struct OpenWorkGrid: View {
             let meta = metadata(for: w)
             let attention = needsAttention(for: w)
             return WorkGridItem(
-                workID: w.id, work: w, title: title,
+                workID: w.id ?? UUID(), work: w, title: title,
                 student: student, needsAttention: attention, metadata: meta
             )
         }
@@ -199,17 +206,17 @@ struct OpenWorkGrid: View {
     // MARK: - Helpers
     private func lessonTitle(forLessonID lessonID: String) -> String {
         let name = lessonsByID[uuidString: lessonID]?.name ?? ""
-        return LessonFormatter.titleOrFallback(name, fallback: "Lesson \(String(lessonID.prefix(6)))")
+        return LessonFormatter.titleOrFallback(name, fallback: "CDLesson \(String(lessonID.prefix(6)))")
     }
 
-    private func studentName(for w: WorkModel) -> String {
+    private func studentName(for w: CDWorkModel) -> String {
         if let s = studentsByID[uuidString: w.studentID] {
             return StudentFormatter.displayName(for: s)
         }
-        return "Student"
+        return "CDStudent"
     }
 
-    private func metadata(for w: WorkModel) -> String {
+    private func metadata(for w: CDWorkModel) -> String {
         var parts: [String] = []
         parts.append((w.kind ?? .research).displayName)
         let age = ageDays(for: w)
@@ -217,14 +224,14 @@ struct OpenWorkGrid: View {
         return parts.joined(separator: " • ")
     }
 
-    private func ageDays(for w: WorkModel) -> Int {
-        let start = AppCalendar.startOfDay(w.createdAt)
+    private func ageDays(for w: CDWorkModel) -> Int {
+        let start = AppCalendar.startOfDay(w.createdAt ?? .distantPast)
         let now = AppCalendar.startOfDay(Date())
         let comps = AppCalendar.shared.dateComponents([.day], from: start, to: now)
         return comps.day ?? 0
     }
 
-    private func needsAttention(for w: WorkModel) -> Bool {
+    private func needsAttention(for w: CDWorkModel) -> Bool {
         // Needs attention if overdue by due date, or last note is 10+ days old.
         if let due = w.dueAt {
             let today = AppCalendar.startOfDay(Date())
@@ -234,13 +241,22 @@ struct OpenWorkGrid: View {
             return daysSince(lastNoteDate) >= 10
         }
         // Use cached age value instead of recalculating
-        let schoolDaysSinceCreated = cachedAgeSchoolDays[w.id] ?? 0
+        let schoolDaysSinceCreated: Int
+        if let wID = w.id {
+            schoolDaysSinceCreated = cachedAgeSchoolDays[wID] ?? 0
+        } else {
+            schoolDaysSinceCreated = 0
+        }
         return schoolDaysSinceCreated >= 10
     }
 
-    private func latestNoteDate(for w: WorkModel) -> Date? {
-        let notes = w.unifiedNotes ?? []
-        return notes.map { max($0.updatedAt, $0.createdAt) }.max()
+    private func latestNoteDate(for w: CDWorkModel) -> Date? {
+        let notes = (w.unifiedNotes?.allObjects as? [CDNote]) ?? []
+        return notes.compactMap { note -> Date? in
+            let updated = note.updatedAt ?? .distantPast
+            let created = note.createdAt ?? .distantPast
+            return max(updated, created)
+        }.max()
     }
 
     private func daysSince(_ date: Date) -> Int {
@@ -252,44 +268,14 @@ struct OpenWorkGrid: View {
 }
 
 #Preview {
-    let schema = AppSchema.schema
-    let configuration = ModelConfiguration(isStoredInMemoryOnly: true)
-    let container: ModelContainer = {
-        do {
-            return try ModelContainer(for: schema, configurations: configuration)
-        } catch {
-            fatalError("Failed to create preview container: \(error)")
-        }
-    }()
-    let ctx = container.mainContext
-    let s = Student(firstName: "Ada", lastName: "Lovelace", birthday: Date(), level: .upper)
-    let l = Lesson(name: "Long Division", subject: "Math", group: "Ops", subheading: "", writeUp: "")
-    let _ = { ctx.insert(s); ctx.insert(l) }() // swiftlint:disable:this redundant_discardable_let
-    let w1 = WorkModel(status: .active, studentID: s.id.uuidString, lessonID: l.id.uuidString)
-    let w2 = WorkModel(status: .review, studentID: s.id.uuidString, lessonID: l.id.uuidString)
-    let _ = { ctx.insert(w1); ctx.insert(w2) }() // swiftlint:disable:this redundant_discardable_let
-    
-    Group {
-        OpenWorkGrid(
-            works: [w1, w2],
-            lessonsByID: [l.id: l],
-            studentsByID: [s.id: s],
-            sortMode: .lesson,
-            onOpen: { _ in },
-            onMarkCompleted: { _ in },
-            onScheduleToday: { _ in }
-        )
-        .previewEnvironment(using: container)
-        
-        WorkCard.grid(
-            work: WorkModel(status: .active, studentID: UUID().uuidString, lessonID: UUID().uuidString),
-            lessonTitle: "Long Division",
-            studentDisplay: "Ada Lovelace",
-            needsAttention: true,
-            ageSchoolDays: 7,
-            onOpen: { _ in },
-            onMarkCompleted: { _ in },
-            onScheduleToday: { _ in }
-        )
-    }
+    OpenWorkGrid(
+        works: [],
+        lessonsByID: [:],
+        studentsByID: [:],
+        sortMode: .lesson,
+        onOpen: { _ in },
+        onMarkCompleted: { _ in },
+        onScheduleToday: { _ in }
+    )
+    .previewEnvironment()
 }

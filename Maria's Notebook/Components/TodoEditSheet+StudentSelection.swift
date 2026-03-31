@@ -1,8 +1,8 @@
 import SwiftUI
-import SwiftData
+import CoreData
 
 extension TodoEditSheet {
-    // MARK: - Student Section
+    // MARK: - CDStudent Section
     @ViewBuilder
     var studentSection: some View {
         VStack(alignment: .leading, spacing: 12) {
@@ -70,7 +70,7 @@ extension TodoEditSheet {
                     ForEach(selectedStudents) { student in
                         TodoStudentChip(student: student) {
                             _ = adaptiveWithAnimation(.spring(response: 0.25, dampingFraction: 0.85)) {
-                                selectedStudentIDs.remove(student.id.uuidString)
+                                if let id = student.id { selectedStudentIDs.remove(id.uuidString) }
                             }
                         }
                     }
@@ -82,13 +82,16 @@ extension TodoEditSheet {
 
     @ViewBuilder
     var availableStudentsList: some View {
-        let available = students.filter { !selectedStudentIDs.contains($0.id.uuidString) }
+        let available = students.filter { student in
+                guard let id = student.id else { return true }
+                return !selectedStudentIDs.contains(id.uuidString)
+            }
         if !available.isEmpty {
             VStack(spacing: 6) {
                 ForEach(available) { student in
                     Button {
                         adaptiveWithAnimation(Animation.spring(response: 0.25, dampingFraction: 0.85)) {
-                            _ = selectedStudentIDs.insert(student.id.uuidString)
+                            if let id = student.id { _ = selectedStudentIDs.insert(id.uuidString) }
                         }
                     } label: {
                         HStack {
@@ -132,7 +135,7 @@ extension TodoEditSheet {
                 // Add matched students to selection
                 for student in matchedStudents {
                     _ = adaptiveWithAnimation(.spring(response: 0.25, dampingFraction: 0.85)) {
-                        selectedStudentIDs.insert(student.id.uuidString)
+                        if let id = student.id { _ = selectedStudentIDs.insert(id.uuidString) }
                     }
                 }
             } catch {

@@ -1,5 +1,5 @@
 import Foundation
-import SwiftData
+import CoreData
 
 /// Validates backup data before restore to catch issues early
 /// Checks foreign key references, data constraints, and relationship integrity
@@ -16,12 +16,12 @@ public final class BackupValidationService {
     /// Validates a backup payload before attempting restore
     /// - Parameters:
     ///   - payload: The backup payload to validate
-    ///   - modelContext: Optional model context for cross-checking with existing data
+    ///   - viewContext: Optional model context for cross-checking with existing data
     ///   - mode: The restore mode (merge or replace)
     /// - Returns: Validation result with errors, warnings, and recommendations
     public func validate(
         payload: BackupPayload,
-        against modelContext: ModelContext?,
+        against viewContext: NSManagedObjectContext?,
         mode: BackupService.RestoreMode
     ) async throws -> ValidationResult {
 
@@ -51,7 +51,7 @@ public final class BackupValidationService {
         }
 
         // Phase 6: Cross-reference with existing data (if in merge mode)
-        if mode == .merge, let context = modelContext {
+        if mode == .merge, let context = viewContext {
             let conflicts = try await detectConflicts(payload, context: context)
             if !conflicts.isEmpty {
                 warnings.append(ValidationWarning(
@@ -62,7 +62,7 @@ public final class BackupValidationService {
         }
 
         // Phase 7: Generate entity type details
-        let entityTypeDetails = generateEntityTypeDetails(payload, mode: mode, context: modelContext)
+        let entityTypeDetails = generateEntityTypeDetails(payload, mode: mode, context: viewContext)
 
         // Phase 8: Generate recommendations
         recommendations.append(contentsOf: generateRecommendations(payload, errors: errors, warnings: warnings))
@@ -87,20 +87,20 @@ public final class BackupValidationService {
         for student in payload.students {
             if student.firstName.trimmed().isEmpty {
                 errors.append(ValidationError(
-                    entityType: "Student",
+                    entityType: "CDStudent",
                     entityID: student.id,
                     field: "firstName",
-                    message: "Student has empty first name",
+                    message: "CDStudent has empty first name",
                     severity: .error
                 ))
             }
 
             if student.birthday > Date() {
                 errors.append(ValidationError(
-                    entityType: "Student",
+                    entityType: "CDStudent",
                     entityID: student.id,
                     field: "birthday",
-                    message: "Student birthday is in the future",
+                    message: "CDStudent birthday is in the future",
                     severity: .error
                 ))
             }
@@ -108,10 +108,10 @@ public final class BackupValidationService {
 
         for lesson in payload.lessons where lesson.name.trimmed().isEmpty {
             errors.append(ValidationError(
-                entityType: "Lesson",
+                entityType: "CDLesson",
                 entityID: lesson.id,
                 field: "name",
-                message: "Lesson has empty name",
+                message: "CDLesson has empty name",
                 severity: .error
             ))
         }
@@ -128,7 +128,7 @@ public final class BackupValidationService {
         let validStatuses = ["present", "absent", "tardy", "excused"]
         for record in payload.attendance where !validStatuses.contains(record.status.lowercased()) {
             errors.append(ValidationError(
-                entityType: "AttendanceRecord",
+                entityType: "CDAttendanceRecord",
                 entityID: record.id,
                 field: "status",
                 message: "Invalid attendance status: '\(record.status)'",
@@ -140,7 +140,7 @@ public final class BackupValidationService {
         for student in payload.students {
             if student.level != .lower && student.level != .upper {
                 errors.append(ValidationError(
-                    entityType: "Student",
+                    entityType: "CDStudent",
                     entityID: student.id,
                     field: "level",
                     message: "Invalid student level",
@@ -162,7 +162,7 @@ public final class BackupValidationService {
         for student in payload.students {
             for nextLessonID in student.nextLessons where !lessonIDs.contains(nextLessonID) {
                 errors.append(ValidationError(
-                    entityType: "Student",
+                    entityType: "CDStudent",
                     entityID: student.id,
                     field: "nextLessons",
                     message: "References non-existent lesson in nextLessons: \(nextLessonID)",
@@ -176,7 +176,7 @@ public final class BackupValidationService {
         for session in payload.projectSessions {
             if let weekID = session.templateWeekID, !weekIDs.contains(weekID) {
                 errors.append(ValidationError(
-                    entityType: "ProjectSession",
+                    entityType: "CDProjectSession",
                     entityID: session.id,
                     field: "templateWeekID",
                     message: "References non-existent template week: \(weekID)",
@@ -220,15 +220,15 @@ public final class BackupValidationService {
 
     // MARK: - Conflict Detection
 
-    private func detectConflicts(_ payload: BackupPayload, context: ModelContext) async throws -> [UUID] {
+    private func detectConflicts(_ payload: BackupPayload, context: NSManagedObjectContext) async throws -> [UUID] {
         var conflicts: [UUID] = []
 
         // Check for ID conflicts with existing data
-        for student in payload.students where try entityExists(Student.self, id: student.id, in: context) {
+        for student in payload.students where try entityExists(CDStudent.self, id: student.id, in: context) {
             conflicts.append(student.id)
         }
 
-        for lesson in payload.lessons where try entityExists(Lesson.self, id: lesson.id, in: context) {
+        for lesson in payload.lessons where try entityExists(CDLesson.self, id: lesson.id, in: context) {
             conflicts.append(lesson.id)
         }
 
@@ -237,10 +237,9 @@ public final class BackupValidationService {
         return conflicts
     }
 
-    private func entityExists<T: PersistentModel>(_ type: T.Type, id: UUID, in context: ModelContext) throws -> Bool {
-        var descriptor = FetchDescriptor<T>(predicate: #Predicate { entity in
-            entity.persistentModelID.hashValue == id.hashValue
-        })
+    private func entityExists<T: NSManagedObject>(_ type: T.Type, id: UUID, in context: NSManagedObjectContext) throws -> Bool {
+        let descriptor = T.fetchRequest()
+        descriptor.predicate = NSPredicate(format: "id == %@", id as CVarArg)
         descriptor.fetchLimit = 1
         let results = try context.fetch(descriptor)
         return !results.isEmpty
@@ -251,27 +250,27 @@ public final class BackupValidationService {
     private func generateEntityTypeDetails(
         _ payload: BackupPayload,
         mode: BackupService.RestoreMode,
-        context: ModelContext?
+        context: NSManagedObjectContext?
     ) -> [String: EntityTypeValidation] {
         var details: [String: EntityTypeValidation] = [:]
 
         // Count entities from each collection in payload
         var entityCounts: [(String, Int)] = []
-        entityCounts.append(("Student", payload.students.count))
-        entityCounts.append(("Lesson", payload.lessons.count))
-        entityCounts.append(("LessonAssignment", payload.lessonAssignments.count))
-        entityCounts.append(("Note", payload.notes.count))
-        entityCounts.append(("NonSchoolDay", payload.nonSchoolDays.count))
-        entityCounts.append(("SchoolDayOverride", payload.schoolDayOverrides.count))
-        entityCounts.append(("StudentMeeting", payload.studentMeetings.count))
-        entityCounts.append(("CommunityTopic", payload.communityTopics.count))
+        entityCounts.append(("CDStudent", payload.students.count))
+        entityCounts.append(("CDLesson", payload.lessons.count))
+        entityCounts.append(("CDLessonAssignment", payload.lessonAssignments.count))
+        entityCounts.append(("CDNote", payload.notes.count))
+        entityCounts.append(("CDNonSchoolDay", payload.nonSchoolDays.count))
+        entityCounts.append(("CDSchoolDayOverride", payload.schoolDayOverrides.count))
+        entityCounts.append(("CDStudentMeeting", payload.studentMeetings.count))
+        entityCounts.append(("CDCommunityTopicEntity", payload.communityTopics.count))
         entityCounts.append(("ProposedSolution", payload.proposedSolutions.count))
         entityCounts.append(("CommunityAttachment", payload.communityAttachments.count))
-        entityCounts.append(("AttendanceRecord", payload.attendance.count))
-        entityCounts.append(("WorkCompletionRecord", payload.workCompletions.count))
-        entityCounts.append(("Project", payload.projects.count))
+        entityCounts.append(("CDAttendanceRecord", payload.attendance.count))
+        entityCounts.append(("CDWorkCompletionRecord", payload.workCompletions.count))
+        entityCounts.append(("CDProject", payload.projects.count))
         entityCounts.append(("ProjectAssignmentTemplate", payload.projectAssignmentTemplates.count))
-        entityCounts.append(("ProjectSession", payload.projectSessions.count))
+        entityCounts.append(("CDProjectSession", payload.projectSessions.count))
         entityCounts.append(("ProjectRole", payload.projectRoles.count))
         entityCounts.append(("ProjectTemplateWeek", payload.projectTemplateWeeks.count))
         entityCounts.append(("ProjectWeekRoleAssignment", payload.projectWeekRoleAssignments.count))

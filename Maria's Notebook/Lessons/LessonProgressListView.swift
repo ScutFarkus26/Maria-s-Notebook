@@ -1,14 +1,14 @@
 import SwiftUI
-import SwiftData
+import CoreData
 
 // List view showing progress for all lessons, allowing selection to view detailed progress
 // swiftlint:disable:next type_body_length
 struct LessonProgressListView: View {
-    @Environment(\.modelContext) private var modelContext
-    @Query(sort: [SortDescriptor(\Lesson.subject), SortDescriptor(\Lesson.group), SortDescriptor(\Lesson.orderInGroup)])
-    private var allLessons: [Lesson]
+    @Environment(\.managedObjectContext) private var viewContext
+    @FetchRequest(sortDescriptors: [NSSortDescriptor(keyPath: \CDLesson.subject, ascending: true), NSSortDescriptor(keyPath: \CDLesson.group, ascending: true), NSSortDescriptor(keyPath: \CDLesson.orderInGroup, ascending: true)])
+    private var allLessons: FetchedResults<CDLesson>
     
-    @State private var selectedLesson: Lesson?
+    @State private var selectedLesson: CDLesson?
     @State private var searchText = ""
     @State private var selectedSubject: String?
     @State private var lessonStats: [UUID: LessonStats] = [:]
@@ -20,14 +20,14 @@ struct LessonProgressListView: View {
             .sorted()
     }
     
-    private var filteredLessons: [Lesson] {
-        var lessons = allLessons
-        
+    private var filteredLessons: [CDLesson] {
+        var lessons = Array(allLessons)
+
         // Filter by subject
         if let selectedSubject {
             lessons = lessons.filter { $0.subject.trimmed() == selectedSubject }
         }
-        
+
         // Filter by search
         if !searchText.isEmpty {
             lessons = lessons.filter { lesson in
@@ -36,7 +36,7 @@ struct LessonProgressListView: View {
                 lesson.group.localizedCaseInsensitiveContains(searchText)
             }
         }
-        
+
         return lessons
     }
     
@@ -77,7 +77,7 @@ struct LessonProgressListView: View {
     private var headerSection: some View {
         HStack {
             VStack(alignment: .leading, spacing: 4) {
-                Text("Lesson Progress")
+                Text("CDLesson Progress")
                     .font(AppTheme.ScaledFont.titleLarge)
                 
                 Text("\(filteredLessons.count) \(filteredLessons.count == 1 ? "lesson" : "lessons")")
@@ -165,7 +165,7 @@ struct LessonProgressListView: View {
         .padding(.vertical, 12)
     }
     
-    // MARK: - Lesson List
+    // MARK: - CDLesson List
     
     private var lessonList: some View {
         ScrollView {
@@ -180,7 +180,7 @@ struct LessonProgressListView: View {
     
     @ViewBuilder
     // swiftlint:disable:next function_body_length
-    private func lessonRow(_ lesson: Lesson) -> some View {
+    private func lessonRow(_ lesson: CDLesson) -> some View {
         Button {
             selectedLesson = lesson
         } label: {
@@ -196,7 +196,7 @@ struct LessonProgressListView: View {
                         .foregroundStyle(.indigo)
                 }
                 
-                // Lesson info
+                // CDLesson info
                 VStack(alignment: .leading, spacing: 6) {
                     Text(lesson.name)
                         .font(AppTheme.ScaledFont.bodySemibold)
@@ -225,7 +225,7 @@ struct LessonProgressListView: View {
                 Spacer()
                 
                 // Stats preview
-                if let stats = lessonStats[lesson.id] {
+                if let id = lesson.id, let stats = lessonStats[id] {
                     statsPreview(stats)
                 }
                 
@@ -327,8 +327,9 @@ struct LessonProgressListView: View {
         var statsDict: [UUID: LessonStats] = [:]
         
         for lesson in allLessons {
-            let stats = lesson.getLessonStats(from: modelContext)
-            statsDict[lesson.id] = stats
+            guard let lessonID = lesson.id else { continue }
+            let stats = lesson.getLessonStats(from: viewContext)
+            statsDict[lessonID] = stats
         }
         
         await MainActor.run {
@@ -338,35 +339,7 @@ struct LessonProgressListView: View {
     }
 }
 
-#Preview("Lesson Progress List") {
-    let config = ModelConfiguration(isStoredInMemoryOnly: true)
-    let container: ModelContainer
-    do {
-        container = try ModelContainer(for: AppSchema.schema, configurations: config)
-    } catch {
-        fatalError("Preview ModelContainer failed: \(error)")
-    }
-    let context = container.mainContext
-
-    // Create sample lessons
-    let math1 = Lesson()
-    math1.name = "Long Division"
-    math1.subject = "Math"
-    math1.group = "Operations"
-    context.insert(math1)
-    
-    let math2 = Lesson()
-    math2.name = "Fractions"
-    math2.subject = "Math"
-    math2.group = "Numbers"
-    context.insert(math2)
-    
-    let lang1 = Lesson()
-    lang1.name = "Phonetic Analysis"
-    lang1.subject = "Language"
-    lang1.group = "Reading"
-    context.insert(lang1)
-    
-    return LessonProgressListView()
-        .modelContainer(container)
+#Preview("CDLesson Progress List") {
+    LessonProgressListView()
+        .previewEnvironment()
 }

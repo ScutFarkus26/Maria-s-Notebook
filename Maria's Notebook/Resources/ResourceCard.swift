@@ -2,7 +2,7 @@ import SwiftUI
 
 /// Grid card for displaying a resource with PDF thumbnail, title, and category badge.
 struct ResourceCard: View {
-    let resource: Resource
+    let resource: CDResource
     let onTap: () -> Void
     let onDelete: () -> Void
     var onRename: (() -> Void)?
@@ -41,13 +41,13 @@ struct ResourceCard: View {
             .lineLimit(1)
 
             // Tags (show first 2)
-            if !resource.tags.isEmpty {
+            if !resource.tagsArray.isEmpty {
                 FlowLayout(spacing: 4) {
-                    ForEach(resource.tags.prefix(2), id: \.self) { tag in
+                    ForEach(resource.tagsArray.prefix(2), id: \.self) { tag in
                         TagBadge(tag: tag, compact: true)
                     }
-                    if resource.tags.count > 2 {
-                        Text("+\(resource.tags.count - 2)")
+                    if resource.tagsArray.count > 2 {
+                        Text("+\(resource.tagsArray.count - 2)")
                             .font(.system(size: 10, weight: .medium))
                             .padding(.horizontal, 4)
                             .padding(.vertical, 2)

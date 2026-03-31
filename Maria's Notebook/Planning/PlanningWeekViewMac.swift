@@ -1,5 +1,5 @@
 import SwiftUI
-import SwiftData
+import CoreData
 import OSLog
 #if DEBUG
 import Foundation
@@ -12,7 +12,7 @@ struct PlanningWeekViewMac: View {
     private static let logger = Logger.planning
     @Environment(\.calendar) private var calendar
     @Environment(\.appRouter) private var appRouter
-    @Environment(\.modelContext) private var modelContext
+    @Environment(\.managedObjectContext) private var viewContext
 
     // Test student filtering
     @AppStorage(UserDefaultsKeys.generalShowTestStudents) private var showTestStudents: Bool = false
@@ -21,16 +21,16 @@ struct PlanningWeekViewMac: View {
 
     // Magic @Query - automatically updates when data changes
     // Migrated to LessonAssignment: fetch draft and unscheduled presentations
-    @Query(filter: #Predicate<LessonAssignment> { $0.scheduledFor == nil && $0.presentedAt == nil })
-    private var inboxLessons: [LessonAssignment]
+    @FetchRequest(sortDescriptors: [], predicate: NSPredicate(format: "scheduledFor == nil AND presentedAt == nil"))
+    private var inboxLessons: FetchedResults<CDLessonAssignment>
 
-    @Query private var lessons: [Lesson]
-    @Query private var studentsRaw: [Student]
+    @FetchRequest(sortDescriptors: []) private var lessons: FetchedResults<CDLesson>
+    @FetchRequest(sortDescriptors: []) private var studentsRaw: FetchedResults<CDStudent>
     // DEDUPLICATION: CloudKit sync can create duplicate records with the same ID.
     // Filter out test students when setting is disabled
-    private var students: [Student] {
+    private var students: [CDStudent] {
         TestStudentsFilter.filterVisible(
-            studentsRaw.uniqueByID.filter(\.isEnrolled),
+            Array(studentsRaw).uniqueByID.filter(\.isEnrolled),
             show: showTestStudents,
             namesRaw: testStudentNamesRaw
         )
@@ -42,8 +42,8 @@ struct PlanningWeekViewMac: View {
     
     var body: some View {
         PlanningWeekViewContent(
-            inboxLessons: inboxLessons,
-            lessons: lessons,
+            inboxLessons: Array(inboxLessons),
+            lessons: Array(lessons),
             students: students,
             inboxOrderRaw: $inboxOrderRaw,
             startDate: $startDate,
@@ -64,7 +64,7 @@ struct PlanningWeekViewMac: View {
             )
             #endif
             
-            DataMigrations.deduplicateDraftLessonAssignments(using: modelContext)
+            DataMigrations.deduplicateDraftLessonAssignments(using: viewContext)
             
             // Calculate initial start date
             await computeInitialStartDate()
@@ -72,7 +72,7 @@ struct PlanningWeekViewMac: View {
         }
         .onChange(of: appRouter.planningInboxRefreshTrigger) { _, _ in
             // Keep inbox and week grid in sync after external changes
-            DataMigrations.deduplicateDraftLessonAssignments(using: modelContext)
+            DataMigrations.deduplicateDraftLessonAssignments(using: viewContext)
             syncInboxOrderWithCurrentBase()
         }
     }
@@ -80,7 +80,7 @@ struct PlanningWeekViewMac: View {
     // MARK: - Helpers
     
     private func isNonSchoolDay(_ day: Date) async -> Bool {
-        await SchoolCalendar.isNonSchoolDay(day, using: modelContext)
+        await SchoolCalendar.isNonSchoolDay(day, using: viewContext)
     }
     
     private func firstSchoolDay(onOrAfter date: Date) async -> Date {
@@ -94,14 +94,13 @@ struct PlanningWeekViewMac: View {
     private func computeInitialStartDate() async {
         let today = calendar.startOfDay(for: Date())
         
-        // Fetch only future scheduled lessons to find the next one (using LessonAssignment)
-        var descriptor = FetchDescriptor<LessonAssignment>(
-            predicate: #Predicate { $0.scheduledFor != nil && $0.presentedAt == nil },
-            sortBy: [SortDescriptor(\.scheduledFor)]
-        )
+        // Fetch only future scheduled lessons to find the next one (using CDLessonAssignment)
+        var descriptor: NSFetchRequest<CDLessonAssignment> = NSFetchRequest(entityName: "CDLessonAssignment")
+        descriptor.predicate = NSPredicate(format: "scheduledFor != nil AND presentedAt == nil")
+        descriptor.sortDescriptors = [NSSortDescriptor(key: "scheduledFor", ascending: true)]
         descriptor.fetchLimit = 1
         
-        if let nextUp = modelContext.safeFetchFirst(descriptor),
+        if let nextUp = viewContext.safeFetchFirst(descriptor),
            let date = nextUp.scheduledFor {
             let start = calendar.startOfDay(for: date)
             let isNonSchool = await isNonSchoolDay(start)
@@ -116,12 +115,12 @@ struct PlanningWeekViewMac: View {
     
     @MainActor
     private func syncInboxOrderWithCurrentBase() {
-        let baseIDs = inboxLessons.map(\.id)
+        let baseIDs = inboxLessons.compactMap(\.id)
         var order = InboxOrderStore.parse(inboxOrderRaw).filter { baseIDs.contains($0) }
         let missing = inboxLessons
-            .filter { !order.contains($0.id) }
-            .sorted { $0.createdAt < $1.createdAt }
-            .map(\.id)
+            .filter { guard let id = $0.id else { return false }; return !order.contains(id) }
+            .sorted { ($0.createdAt ?? .distantPast) < ($1.createdAt ?? .distantPast) }
+            .compactMap(\.id)
         order.append(contentsOf: missing)
         inboxOrderRaw = InboxOrderStore.serialize(order)
     }

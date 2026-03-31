@@ -1,7 +1,8 @@
 import SwiftUI
+import CoreData
 
 struct StudentPillsSection: View {
-    let students: [Student]
+    let students: [CDStudent]
     let subjectColor: Color
     var onRemove: (UUID) -> Void
     var onOpenPicker: () -> Void
@@ -52,11 +53,11 @@ struct StudentPillsSection: View {
         }
     }
 
-    private func studentChip(for student: Student) -> some View {
+    private func studentChip(for student: CDStudent) -> some View {
         HStack(spacing: 6) {
             Text(StudentFormatter.displayName(for: student))
                 .font(AppTheme.ScaledFont.captionSemibold)
-            Button { onRemove(student.id) } label: {
+            Button { if let id = student.id { onRemove(id) } } label: {
                 Image(systemName: "xmark.circle.fill")
                     .font(.system(size: 12, weight: .semibold))
             }

@@ -4,6 +4,7 @@
 // Manila/folder-styled card for curriculum introductions.
 
 import SwiftUI
+import CoreData
 
 struct IntroductionCard: View {
     let introduction: CurriculumIntroduction

@@ -3,7 +3,6 @@
 
 import Foundation
 import CoreData
-import SwiftData
 
 extension LessonPlanningService {
 
@@ -115,28 +114,23 @@ extension LessonPlanningService {
 
     // MARK: - Data Fetching (Core Data)
 
-    func fetchAllLessons() -> [Lesson] {
-        // Planning logic uses SwiftData types; both contexts see the same SQLite store.
-        let modelContext = AppBootstrapping.getSharedModelContainer().mainContext
-        let descriptor = FetchDescriptor<Lesson>(
-            sortBy: [
-                SortDescriptor(\Lesson.subject),
-                SortDescriptor(\Lesson.group),
-                SortDescriptor(\Lesson.orderInGroup)
-            ]
-        )
-        return (try? modelContext.fetch(descriptor)) ?? []
+    func fetchAllLessons() -> [CDLesson] {
+        let request = CDFetchRequest(CDLesson.self)
+        request.sortDescriptors = [
+            NSSortDescriptor(key: "subject", ascending: true),
+            NSSortDescriptor(key: "group", ascending: true),
+            NSSortDescriptor(key: "orderInGroup", ascending: true)
+        ]
+        return managedObjectContext.safeFetch(request)
     }
 
-    func fetchAllStudents() -> [Student] {
-        let modelContext = AppBootstrapping.getSharedModelContainer().mainContext
-        let descriptor = FetchDescriptor<Student>(
-            sortBy: [SortDescriptor(\Student.lastName)]
-        )
-        return (try? modelContext.fetch(descriptor)) ?? []
+    func fetchAllStudents() -> [CDStudent] {
+        let request = CDFetchRequest(CDStudent.self)
+        request.sortDescriptors = [NSSortDescriptor(key: "lastName", ascending: true)]
+        return managedObjectContext.safeFetch(request)
     }
 
-    func fetchStudents(for mode: PlanningMode) -> [Student] {
+    func fetchStudents(for mode: PlanningMode) -> [CDStudent] {
         let allStudents = fetchAllStudents()
         switch mode {
         case .singleStudent(let id):
@@ -145,7 +139,7 @@ extension LessonPlanningService {
             return allStudents
         case .quickSuggest(let ids):
             let idSet = Set(ids)
-            return allStudents.filter { idSet.contains($0.id) }
+            return allStudents.filter { guard let sid = $0.id else { return false }; return idSet.contains(sid) }
         }
     }
 

@@ -1,5 +1,5 @@
 import SwiftUI
-import SwiftData
+import CoreData
 
 // Only import if the flag is enabled (see ENABLE_FOUNDATION_MODELS.md)
 #if ENABLE_FOUNDATION_MODELS && canImport(FoundationModels)
@@ -15,18 +15,18 @@ struct AppleIntelligenceSheet: View {
     @AppStorage(UserDefaultsKeys.generalTestStudentNames)
     private var testStudentNamesRaw: String = "Danny De Berry,Lil Dan D"
 
-    @Query private var studentsRaw: [Student]
+    @FetchRequest(sortDescriptors: []) private var studentsRaw: FetchedResults<CDStudent>
     // DEDUPLICATION: CloudKit sync can create duplicate records with the same ID.
     // Filter out test students when setting is disabled
-    private var students: [Student] {
+    private var students: [CDStudent] {
         TestStudentsFilter.filterVisible(
-            studentsRaw.uniqueByID.filter(\.isEnrolled),
+            Array(studentsRaw).uniqueByID.filter(\.isEnrolled),
             show: showTestStudents,
             namesRaw: testStudentNamesRaw
         )
     }
 
-    let notes: [Note]
+    let notes: [CDNote]
     
     // Editor State
     @State private var editorText: String = ""
@@ -42,7 +42,7 @@ struct AppleIntelligenceSheet: View {
     // UI State
     @State private var currentTemplate: PromptTemplate?
     
-    init(notes: [Note]) {
+    init(notes: [CDNote]) {
         self.notes = notes
     }
     
@@ -294,14 +294,14 @@ struct AppleIntelligenceSheet: View {
 
 // MARK: - Smart Formatter
 struct SmartNoteFormatter {
-    let students: [Student]
+    let students: [CDStudent]
     let anonymize: Bool
     
-    func generateContext(from notes: [Note]) -> String {
-        let sortedNotes = notes.sorted { $0.updatedAt < $1.updatedAt }
+    func generateContext(from notes: [CDNote]) -> String {
+        let sortedNotes = notes.sorted { ($0.updatedAt ?? .distantPast) < ($1.updatedAt ?? .distantPast) }
         let header = """
         [DATA EXPORT START]
-        Scope: \(sortedNotes.count) Note(s)
+        Scope: \(sortedNotes.count) CDNote(s)
         Timeline: \(dateRangeString(notes: sortedNotes))
         ----------------------------------------
         
@@ -310,11 +310,11 @@ struct SmartNoteFormatter {
         return header + body + "\n\n[DATA EXPORT END]"
     }
     
-    private func formatSingleNote(_ note: Note) -> String {
+    private func formatSingleNote(_ note: CDNote) -> String {
         let studentName = resolveStudentName(for: note.scope)
         let contextDetail = resolveContextDetail(for: note)
-        let dateStr = note.updatedAt.formatted(date: .abbreviated, time: .shortened)
-        let tagNames = note.tags.map { TagHelper.tagName($0) }.joined(separator: ", ")
+        let dateStr = (note.updatedAt ?? Date()).formatted(date: .abbreviated, time: .shortened)
+        let tagNames = ((note.tags as? [String]) ?? []).map { TagHelper.tagName($0) }.joined(separator: ", ")
         let tagLabel = tagNames.isEmpty ? "General" : tagNames
         
         return """
@@ -330,8 +330,8 @@ struct SmartNoteFormatter {
         switch scope {
         case .all: return "General / Class-wide"
         case .student(let id):
-            guard let student = students.first(where: { $0.id == id }) else { return "Unknown Student" }
-            return anonymize ? "Student \(student.firstName.prefix(1))" : "\(student.firstName) \(student.lastName)"
+            guard let student = students.first(where: { $0.id == id }) else { return "Unknown CDStudent" }
+            return anonymize ? "CDStudent \(student.firstName.prefix(1))" : "\(student.firstName) \(student.lastName)"
         case .students(let ids):
             if anonymize { return "Group of \(ids.count) Students" }
             let names = ids.compactMap { id in students.first(where: { $0.id == id })?.firstName }
@@ -339,18 +339,18 @@ struct SmartNoteFormatter {
         }
     }
     
-    private func resolveContextDetail(for note: Note) -> String {
-        if let lesson = note.lesson { return "Lesson: \(lesson.name)" }
+    private func resolveContextDetail(for note: CDNote) -> String {
+        if let lesson = note.lesson { return "CDLesson: \(lesson.name)" }
         if let work = note.work { return "Work: \(work.title)" }
         if let pres = note.lessonAssignment {
             let title = (pres.lessonTitleSnapshot ?? "").trimmed()
-            return title.isEmpty ? "Presentation" : "Presentation: \(title)"
+            return title.isEmpty ? "CDPresentation" : "CDPresentation: \(title)"
         }
         return "General Observation"
     }
     
-    private func dateRangeString(notes: [Note]) -> String {
-        guard let first = notes.first?.updatedAt, let last = notes.last?.updatedAt else { return "N/A" }
+    private func dateRangeString(notes: [CDNote]) -> String {
+        guard let first = notes.first?.updatedAt ?? notes.first?.createdAt, let last = notes.last?.updatedAt ?? notes.last?.createdAt else { return "N/A" }
         if Calendar.current.isDate(first, inSameDayAs: last) {
             return first.formatted(date: .abbreviated, time: .omitted)
         }

@@ -7,7 +7,6 @@
 
 import Foundation
 import CoreData
-import SwiftData
 
 /// Service that leverages MCP tools to analyze student data and provide actionable insights
 @MainActor
@@ -25,10 +24,7 @@ final class StudentAnalysisService {
         self.mcpClient = mcpClient
     }
 
-    @available(*, deprecated, message: "Pass NSManagedObjectContext instead of ModelContext")
-    convenience init(modelContext: ModelContext, mcpClient: MCPClientProtocol) {
-        self.init(modelContext: AppBootstrapping.getSharedCoreDataStack().viewContext, mcpClient: mcpClient)
-    }
+    // Deprecated ModelContext init removed - no longer needed with Core Data.
 
     // MARK: - Public API
 
@@ -320,61 +316,7 @@ final class StudentAnalysisService {
         )
     }
 
-    // MARK: - Deprecated SwiftData Bridges
-
-    @available(*, deprecated, message: "Pass CDStudent instead of Student")
-    func analyzeStudent(_ student: Student, lookbackDays: Int = 30) async throws -> DevelopmentSnapshot {
-        let request = CDFetchRequest(CDStudent.self)
-        request.predicate = NSPredicate(format: "id == %@", student.id as CVarArg)
-        request.fetchLimit = 1
-        guard let cdStudent = modelContext.safeFetch(request).first else {
-            throw NSError(domain: "StudentAnalysis", code: 1, userInfo: [NSLocalizedDescriptionKey: "Student not found"])
-        }
-        let cdSnapshot = try await analyzeStudent(cdStudent, lookbackDays: lookbackDays)
-        // Delete the CD entity (view will create SwiftData version via insert)
-        modelContext.delete(cdSnapshot)
-        // Return SwiftData DevelopmentSnapshot with same data
-        return DevelopmentSnapshot(
-            studentID: cdSnapshot.studentID,
-            generatedAt: cdSnapshot.generatedAt ?? Date(),
-            lookbackDays: Int(cdSnapshot.lookbackDays),
-            analysisVersion: cdSnapshot.analysisVersion,
-            overallProgress: cdSnapshot.overallProgress,
-            keyStrengths: cdSnapshot.keyStrengths,
-            areasForGrowth: cdSnapshot.areasForGrowth,
-            developmentalMilestones: cdSnapshot.developmentalMilestones,
-            observedPatterns: cdSnapshot.observedPatterns,
-            behavioralTrends: cdSnapshot.behavioralTrends,
-            socialEmotionalInsights: cdSnapshot.socialEmotionalInsights,
-            recommendedNextLessons: cdSnapshot.recommendedNextLessons,
-            suggestedPracticeFocus: cdSnapshot.suggestedPracticeFocus,
-            interventionSuggestions: cdSnapshot.interventionSuggestions,
-            totalNotesAnalyzed: Int(cdSnapshot.totalNotesAnalyzed),
-            practiceSessionsAnalyzed: Int(cdSnapshot.practiceSessionsAnalyzed),
-            workCompletionsAnalyzed: Int(cdSnapshot.workCompletionsAnalyzed),
-            averagePracticeQuality: cdSnapshot.averagePracticeQuality > 0 ? cdSnapshot.averagePracticeQuality : nil,
-            independenceLevel: cdSnapshot.independenceLevel > 0 ? cdSnapshot.independenceLevel : nil,
-            rawAnalysisJSON: cdSnapshot.rawAnalysisJSON
-        )
-    }
-
-    @available(*, deprecated, message: "Pass CDDevelopmentSnapshotEntity instead of DevelopmentSnapshot")
-    func generateParentSummary(snapshot: DevelopmentSnapshot) async throws -> String {
-        let request = CDFetchRequest(CDDevelopmentSnapshotEntity.self)
-        request.predicate = NSPredicate(format: "id == %@", snapshot.id as CVarArg)
-        request.fetchLimit = 1
-        if let cdSnapshot = modelContext.safeFetch(request).first {
-            return try await generateParentSummary(snapshot: cdSnapshot)
-        }
-        // Fallback: build a minimal CD entity from SwiftData data
-        let cdSnapshot = CDDevelopmentSnapshotEntity(context: modelContext)
-        cdSnapshot.keyStrengths = snapshot.keyStrengths
-        cdSnapshot.areasForGrowth = snapshot.areasForGrowth
-        cdSnapshot.overallProgress = snapshot.overallProgress
-        let result = try await generateParentSummary(snapshot: cdSnapshot)
-        modelContext.delete(cdSnapshot)
-        return result
-    }
+    // Deprecated SwiftData bridge overloads removed - typealiases now point to CD types directly.
 
     private func parseAnalysisResponse(json: String) throws -> MCPAnalysisResult {
         let data = Data(json.utf8)

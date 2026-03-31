@@ -1,5 +1,5 @@
 import SwiftUI
-import SwiftData
+import CoreData
 
 // MARK: - Display Mode Variants
 
@@ -16,7 +16,7 @@ extension PracticeSessionCard {
                     .foregroundStyle(session.isGroupSession ? .blue : .secondary)
 
                 // Date
-                Text(formatDate(session.date))
+                Text(formatDate(session.date ?? Date()))
                     .font(AppTheme.ScaledFont.captionSemibold)
                     .foregroundStyle(.primary)
 
@@ -68,13 +68,13 @@ extension PracticeSessionCard {
                 }
 
                 // Quality metrics (if available)
-                if session.practiceQuality != nil || session.independenceLevel != nil {
+                if session.practiceQualityValue != nil || session.independenceLevelValue != nil {
                     HStack(spacing: 12) {
-                        if let quality = session.practiceQuality {
+                        if let quality = session.practiceQualityValue {
                             qualityIndicator(level: quality, color: .blue, label: "Quality")
                         }
 
-                        if let independence = session.independenceLevel {
+                        if let independence = session.independenceLevelValue {
                             qualityIndicator(level: independence, color: .green, label: "Independence")
                         }
                     }
@@ -173,7 +173,7 @@ extension PracticeSessionCard {
                         .textCase(.uppercase)
 
                     HStack(spacing: 16) {
-                        if let quality = session.practiceQuality, let label = session.practiceQualityLabel {
+                        if let quality = session.practiceQualityValue, let label = session.practiceQualityLabel {
                             VStack(alignment: .leading, spacing: 4) {
                                 Text("Engagement")
                                     .font(AppTheme.ScaledFont.caption)
@@ -191,7 +191,7 @@ extension PracticeSessionCard {
                             }
                         }
 
-                        if let independence = session.independenceLevel, let label = session.independenceLevelLabel {
+                        if let independence = session.independenceLevelValue, let label = session.independenceLevelLabel {
                             VStack(alignment: .leading, spacing: 4) {
                                 Text("Independence")
                                     .font(AppTheme.ScaledFont.caption)
@@ -338,7 +338,7 @@ extension PracticeSessionCard {
                         .font(AppTheme.ScaledFont.calloutSemibold)
                 }
 
-                Text(formatDateLong(session.date))
+                Text(formatDateLong(session.date ?? Date()))
                     .font(AppTheme.ScaledFont.caption)
                     .foregroundStyle(.secondary)
             }
@@ -365,7 +365,7 @@ extension PracticeSessionCard {
 
             Spacer()
 
-            Text(formatDate(session.date))
+            Text(formatDate(session.date ?? Date()))
                 .font(AppTheme.ScaledFont.captionSemibold)
                 .foregroundStyle(.secondary)
         }

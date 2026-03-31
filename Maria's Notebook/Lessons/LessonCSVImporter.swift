@@ -1,7 +1,7 @@
 import Foundation
-import SwiftData
+import CoreData
 
-// A CSV importer for Lesson records that supports parse-first and commit-later workflows.
+// A CSV importer for CDLesson records that supports parse-first and commit-later workflows.
 enum LessonCSVImporter {
     // MARK: - Row DTO
     struct Row {
@@ -57,7 +57,7 @@ enum LessonCSVImporter {
     // MARK: - Public API
     /// Convenience one-shot import: parse then commit.
     static func importLessons(
-        from data: Data, existingLessons: [Lesson], into context: ModelContext
+        from data: Data, existingLessons: [CDLesson], into context: NSManagedObjectContext
     ) throws -> Summary {
         let parsed = try parse(data: data, existingLessons: existingLessons)
         let inserted = try commit(parsed: parsed, into: context, existingLessons: existingLessons)
@@ -70,7 +70,7 @@ enum LessonCSVImporter {
     }
 
     /// Parse CSV into rows and detect potential duplicates against existing lessons.
-    static func parse(data: Data, existingLessons: [Lesson]) throws -> Parsed {
+    static func parse(data: Data, existingLessons: [CDLesson]) throws -> Parsed {
         guard var text = String(data: data, encoding: .utf8) ?? String(data: data, encoding: .utf16) else {
             throw ImportError.encoding("Unsupported text encoding; please use UTF-8.")
         }
@@ -97,15 +97,16 @@ enum LessonCSVImporter {
         )
     }
 
-    /// Commit parsed rows by inserting new Lesson objects; updates existing lessons if duplicates found.
-    static func commit(parsed: Parsed, into context: ModelContext, existingLessons: [Lesson]) throws -> Int {
-        var byKey: [String: Lesson] = [:]
+    /// Commit parsed rows by inserting new CDLesson objects; updates existing lessons if duplicates found.
+    static func commit(parsed: Parsed, into context: NSManagedObjectContext, existingLessons: [CDLesson]) throws -> Int {
+        var byKey: [String: CDLesson] = [:]
         var maxOrderByGroup: [String: Int] = [:]
         for lesson in existingLessons {
             byKey[duplicateKey(for: lesson)] = lesson
             let groupKey = "\(lesson.subject)|\(lesson.group)"
-            if lesson.orderInGroup > (maxOrderByGroup[groupKey] ?? -1) {
-                maxOrderByGroup[groupKey] = lesson.orderInGroup
+            let orderInt = Int(lesson.orderInGroup)
+            if orderInt > (maxOrderByGroup[groupKey] ?? -1) {
+                maxOrderByGroup[groupKey] = orderInt
             }
         }
         var inserted = 0
@@ -119,14 +120,17 @@ enum LessonCSVImporter {
                 let order = nextInsertOrder(
                     groupKey: groupKey, explicit: r.orderInGroup, maxOrderByGroup: &maxOrderByGroup
                 )
-                let lesson = Lesson(
-                    name: r.name, subject: r.subject, group: r.group,
-                    subheading: r.subheading, writeUp: r.writeUp,
-                    materials: r.materials, purpose: r.purpose,
-                    ageRange: r.ageRange, teacherNotes: r.teacherNotes
-                )
-                lesson.orderInGroup = order
-                context.insert(lesson)
+                let lesson = CDLesson(context: context)
+                lesson.name = r.name
+                lesson.subject = r.subject
+                lesson.group = r.group
+                lesson.subheading = r.subheading
+                lesson.writeUp = r.writeUp
+                lesson.materials = r.materials
+                lesson.purpose = r.purpose
+                lesson.ageRange = r.ageRange
+                lesson.teacherNotes = r.teacherNotes
+                lesson.orderInGroup = Int64(order)
                 byKey[key] = lesson
                 inserted += 1
             }
@@ -202,7 +206,7 @@ extension LessonCSVImporter {
         return CSVParseResult(rows: rows, duplicates: potentialDupTitles.removingDuplicates(), warnings: warnings)
     }
 
-    private static func updateExistingLesson(_ existing: Lesson, with row: Row) -> Bool {
+    private static func updateExistingLesson(_ existing: CDLesson, with row: Row) -> Bool {
         var changed = false
         if !row.subheading.isEmpty && row.subheading != existing.subheading {
             existing.subheading = row.subheading; changed = true
@@ -210,8 +214,8 @@ extension LessonCSVImporter {
         if !row.writeUp.isEmpty && row.writeUp != existing.writeUp {
             existing.writeUp = row.writeUp; changed = true
         }
-        if let newOrder = row.orderInGroup, existing.orderInGroup != newOrder {
-            existing.orderInGroup = newOrder; changed = true
+        if let newOrder = row.orderInGroup, existing.orderInGroup != Int64(newOrder) {
+            existing.orderInGroup = Int64(newOrder); changed = true
         }
         if !row.materials.isEmpty && row.materials != existing.materials {
             existing.materials = row.materials; changed = true
@@ -328,7 +332,7 @@ extension LessonCSVImporter {
     }
 
     /// Compute duplicate key for a lesson.
-    static func duplicateKey(for lesson: Lesson) -> String {
+    static func duplicateKey(for lesson: CDLesson) -> String {
         duplicateKey(name: lesson.name, subject: lesson.subject, group: lesson.group)
     }
 }

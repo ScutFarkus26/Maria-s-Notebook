@@ -1,16 +1,16 @@
 import SwiftUI
-import SwiftData
+import CoreData
 
 // swiftlint:disable:next type_body_length
 struct TodoRow: View {
-    let todo: TodoItem
-    let students: [Student]
+    let todo: CDTodoItem
+    let students: [CDStudent]
     let onToggle: () -> Void
     let onDelete: () -> Void
     let onEdit: () -> Void
 
-    private var assignedStudents: [Student] {
-        students.filter { todo.studentIDs.contains($0.id.uuidString) }
+    private var assignedStudents: [CDStudent] {
+        students.filter { todo.studentIDsArray.contains($0.id?.uuidString ?? "") }
     }
 
     private func formatDueDate(_ date: Date) -> String {
@@ -59,7 +59,7 @@ struct TodoRow: View {
         }
     }
 
-    private func formatTodoAsText(_ todo: TodoItem) -> String {
+    private func formatTodoAsText(_ todo: CDTodoItem) -> String {
         var text = "\u{1F4CB} \(todo.title)\n"
 
         // Priority
@@ -80,14 +80,14 @@ struct TodoRow: View {
             text += "\u{1F465} Assigned to: \(names)\n"
         }
 
-        // Reminder
+        // CDReminder
         if let reminderDate = todo.reminderDate {
-            text += "\u{1F514} Reminder: \(DateFormatters.mediumDateTime.string(from: reminderDate))\n"
+            text += "\u{1F514} CDReminder: \(DateFormatters.mediumDateTime.string(from: reminderDate))\n"
         }
 
         // Time estimate
-        if let estimated = todo.estimatedMinutes, estimated > 0 {
-            text += "\u{23F1}\u{FE0F} Estimated time: \(formatTimeEstimate(estimated))\n"
+        if todo.estimatedMinutes > 0 {
+            text += "\u{23F1}\u{FE0F} Estimated time: \(formatTimeEstimate(Int(todo.estimatedMinutes)))\n"
         }
 
         // Mood
@@ -101,7 +101,7 @@ struct TodoRow: View {
         }
 
         // Subtasks
-        let shareSubs = todo.subtasks ?? []
+        let shareSubs = (todo.subtasks?.allObjects as? [CDTodoSubtaskEntity]) ?? []
         if !shareSubs.isEmpty {
             text += "\n\u{2705} Subtasks (\(shareSubs.filter(\.isCompleted).count)/\(shareSubs.count)):\n"
             for subtask in shareSubs.sorted(by: { $0.orderIndex < $1.orderIndex }) {

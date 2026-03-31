@@ -1,5 +1,4 @@
 import Foundation
-import SwiftData
 
 // MARK: - Blocking Cache Builder
 
@@ -9,8 +8,8 @@ enum BlockingCacheBuilder {
 
     // MARK: - Types
 
-    /// A cache mapping LessonAssignment IDs to their blocking work by student.
-    typealias BlockingCache = [UUID: [UUID: WorkModel]]
+    /// A cache mapping CDLessonAssignment IDs to their blocking work by student.
+    typealias BlockingCache = [UUID: [UUID: CDWorkModel]]
 
     // MARK: - Build Cache
 
@@ -21,12 +20,12 @@ enum BlockingCacheBuilder {
     ///   - lessons: All Lessons
     ///   - workModels: All WorkModels (preferably filtered to non-complete)
     ///   - openWorkByPresentationID: Map of open WorkModels by presentationID
-    /// - Returns: A BlockingCache mapping LessonAssignment IDs to blocking work
+    /// - Returns: A BlockingCache mapping CDLessonAssignment IDs to blocking work
     static func buildCache(
-        lessonAssignments: [LessonAssignment],
-        lessons: [Lesson],
-        workModels: [WorkModel],
-        openWorkByPresentationID: [String: [WorkModel]]
+        lessonAssignments: [CDLessonAssignment],
+        lessons: [CDLesson],
+        workModels: [CDWorkModel],
+        openWorkByPresentationID: [String: [CDWorkModel]]
     ) -> BlockingCache {
         var cache: BlockingCache = [:]
 
@@ -34,13 +33,14 @@ enum BlockingCacheBuilder {
         let unscheduled = lessonAssignments.filter { $0.scheduledFor == nil && !$0.isGiven }
 
         for la in unscheduled {
+            guard let laID = la.id else { continue }
             if let blocking = buildBlockingForUnscheduled(
                 la: la,
                 lessons: lessons,
                 workModels: workModels,
                 lessonAssignments: lessonAssignments
             ), !blocking.isEmpty {
-                cache[la.id] = blocking
+                cache[laID] = blocking
             }
         }
 
@@ -48,11 +48,12 @@ enum BlockingCacheBuilder {
         let presented = lessonAssignments.filter(\.isGiven)
 
         for la in presented {
+            guard let laID = la.id else { continue }
             if let blocking = buildBlockingForPresented(
                 la: la,
                 openWorkByPresentationID: openWorkByPresentationID
             ), !blocking.isEmpty {
-                cache[la.id] = blocking
+                cache[laID] = blocking
             }
         }
 
@@ -63,14 +64,14 @@ enum BlockingCacheBuilder {
 
     /// Build blocking dictionary for an unscheduled LessonAssignment.
     private static func buildBlockingForUnscheduled(
-        la: LessonAssignment,
-        lessons: [Lesson],
-        workModels: [WorkModel],
-        lessonAssignments: [LessonAssignment]
-    ) -> [UUID: WorkModel]? {
+        la: CDLessonAssignment,
+        lessons: [CDLesson],
+        workModels: [CDWorkModel],
+        lessonAssignments: [CDLessonAssignment]
+    ) -> [UUID: CDWorkModel]? {
         // Find the current lesson
         guard let currentLessonID = UUID(uuidString: la.lessonID),
-              let currentLesson = lessons.first(where: { $0.id == currentLessonID }) else {
+              let currentLesson = lessons.first(where: { $0.id != nil && $0.id == currentLessonID }) else {
             return nil
         }
 
@@ -82,17 +83,21 @@ enum BlockingCacheBuilder {
             return nil // No preceding lesson means no prerequisites
         }
 
-        // Find the LessonAssignment for the preceding lesson with the same student group
+        // Find the CDLessonAssignment for the preceding lesson with the same student group
         let studentIDs = Set(la.resolvedStudentIDs.map(\.uuidString))
 
+        guard let precedingLessonID = precedingLesson.id?.uuidString else {
+            return nil
+        }
+
         let precedingLessonAssignment = lessonAssignments.first { assignment in
-            guard assignment.lessonID == precedingLesson.id.uuidString,
+            guard assignment.lessonID == precedingLessonID,
                   assignment.state == .presented else { return false }
             let assignmentStudentIDs = Set(assignment.studentIDs)
             return assignmentStudentIDs == studentIDs
         }
 
-        guard let presentationID = precedingLessonAssignment?.id.uuidString else {
+        guard let presentationID = precedingLessonAssignment?.id?.uuidString else {
             return nil // No presentation for preceding lesson means no prerequisites
         }
 
@@ -103,10 +108,11 @@ enum BlockingCacheBuilder {
         }
 
         // Build blocking dictionary: map student IDs to their blocking work
-        var blocking: [UUID: WorkModel] = [:]
+        var blocking: [UUID: CDWorkModel] = [:]
 
         for work in prerequisiteWork {
-            if let participants = work.participants, !participants.isEmpty {
+            let participants = (work.participants?.allObjects as? [CDWorkParticipantEntity]) ?? []
+            if !participants.isEmpty {
                 for participant in participants {
                     guard let studentID = UUID(uuidString: participant.studentID),
                           la.resolvedStudentIDs.contains(studentID),
@@ -129,12 +135,10 @@ enum BlockingCacheBuilder {
 
     /// Build blocking dictionary for a presented LessonAssignment.
     private static func buildBlockingForPresented(
-        la: LessonAssignment,
-        openWorkByPresentationID: [String: [WorkModel]]
-    ) -> [UUID: WorkModel]? {
-        let presentationID = la.id.uuidString
-
-        guard !presentationID.isEmpty else {
+        la: CDLessonAssignment,
+        openWorkByPresentationID: [String: [CDWorkModel]]
+    ) -> [UUID: CDWorkModel]? {
+        guard let presentationID = la.id?.uuidString, !presentationID.isEmpty else {
             return nil
         }
 
@@ -144,7 +148,7 @@ enum BlockingCacheBuilder {
         }
 
         // Build blocking dictionary for all students with unresolved work
-        var blocking: [UUID: WorkModel] = [:]
+        var blocking: [UUID: CDWorkModel] = [:]
 
         for studentIDString in la.studentIDs {
             guard let studentID = UUID(uuidString: studentIDString) else { continue }

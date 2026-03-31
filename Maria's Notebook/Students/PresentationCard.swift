@@ -2,6 +2,7 @@
 // Presentation card component extracted from PresentationsListView
 
 import SwiftUI
+import CoreData
 #if os(macOS)
 import AppKit
 #else
@@ -10,8 +11,8 @@ import UIKit
 
 struct PresentationCard: View {
     let snapshot: LessonAssignmentSnapshot
-    let lesson: Lesson?
-    let students: [Student]
+    let lesson: CDLesson?
+    let students: [CDStudent]
 
     private var lessonName: String {
         (lesson?.name.isEmpty == false ? lesson?.name : nil) ?? "Lesson"

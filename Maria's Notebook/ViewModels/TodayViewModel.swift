@@ -12,7 +12,7 @@
 
 import Foundation
 import SwiftUI
-import SwiftData
+import CoreData
 
 /// View model for the Today screen.
 /// - Manages date selection and a level filter.
@@ -28,7 +28,7 @@ final class TodayViewModel {
 
     // MARK: - Dependencies
 
-    private let context: ModelContext
+    private let context: NSManagedObjectContext
     private var calendar: Calendar
     private let cacheManager = TodayCacheManager()
 
@@ -55,7 +55,7 @@ final class TodayViewModel {
 
     // MARK: - Outputs
 
-    var todaysLessons: [LessonAssignment] = []
+    var todaysLessons: [CDLessonAssignment] = []
 
     // WorkModel-based lists
     var overdueSchedule: [ScheduledWorkItem] = []
@@ -66,28 +66,28 @@ final class TodayViewModel {
     var agendaItems: [AgendaItem] = []
 
     // Completed work items
-    var completedWork: [WorkModel] = []
+    var completedWork: [CDWorkModel] = []
 
     // Reminders for today
-    var todaysReminders: [Reminder] = []
-    var overdueReminders: [Reminder] = []
-    var anytimeReminders: [Reminder] = []  // Reminders with no due date
+    var todaysReminders: [CDReminder] = []
+    var overdueReminders: [CDReminder] = []
+    var anytimeReminders: [CDReminder] = []  // Reminders with no due date
 
     // Calendar events for today
-    var todaysCalendarEvents: [CalendarEvent] = []
+    var todaysCalendarEvents: [CDCalendarEvent] = []
 
     // Scheduled meetings for today
-    var scheduledMeetings: [ScheduledMeeting] = []
+    var scheduledMeetings: [CDScheduledMeeting] = []
 
     // Completed meetings for today
-    var completedMeetings: [StudentMeeting] = []
+    var completedMeetings: [CDStudentMeeting] = []
 
     var attendanceSummary: AttendanceSummary = AttendanceSummary()
     var absentToday: [UUID] = []
     var leftEarlyToday: [UUID] = []
 
     // New Outputs for recent notes and their students
-    var recentNotes: [Note] = []
+    var recentNotes: [CDNote] = []
     var recentNoteStudentsByID: [UUID: Student] = [:]
 
     // MARK: - Cache Accessors (delegate to cacheManager)
@@ -149,7 +149,7 @@ final class TodayViewModel {
 
     // MARK: - Init
 
-    init(context: ModelContext, date: Date = Date(), calendar: Calendar = .current) {
+    init(context: NSManagedObjectContext, date: Date = Date(), calendar: Calendar = .current) {
         self.context = context
         self.calendar = calendar
         AppCalendar.adopt(timeZoneFrom: calendar)
@@ -246,12 +246,16 @@ final class TodayViewModel {
         
         // PERFORMANCE: Batch fetch all missing students in a single query instead of N queries
         if !missingStudentIDs.isEmpty {
-            var descriptor = FetchDescriptor<Student>()
-            descriptor.fetchLimit = 500 // Safety limit for student roster
-            let allStudents = context.safeFetch(descriptor).filter(\.isEnrolled)
-            let missingStudents = allStudents.filter { missingStudentIDs.contains($0.id) }
+            let studentRequest = CDFetchRequest(CDStudent.self)
+            studentRequest.fetchLimit = 500 // Safety limit for student roster
+            let allStudents = context.safeFetch(studentRequest).filter(\.isEnrolled)
+            let missingStudents = allStudents.filter { student in
+                guard let id = student.id else { return false }
+                return missingStudentIDs.contains(id)
+            }
             for student in missingStudents {
-                updatedRecentNoteStudents[student.id] = student
+                guard let id = student.id else { continue }
+                updatedRecentNoteStudents[id] = student
             }
         }
 

@@ -1,4 +1,5 @@
 import SwiftUI
+import CoreData
 
 struct PlanningSidebarView<Content: View>: View {
     let content: Content

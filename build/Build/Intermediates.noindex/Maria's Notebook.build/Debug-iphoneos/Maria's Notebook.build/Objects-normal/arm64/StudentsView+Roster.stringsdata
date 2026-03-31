@@ -1,0 +1,16 @@
+{
+  "source": "/Users/dannydeberry/Documents/Projects/MariasNotebook-Rewrite/Maria's Notebook/Students/StudentsView+Roster.swift",
+  "tables": {
+    "Localizable": [
+      {
+        "comment": "",
+        "key": "Students",
+        "location": {
+          "startingColumn": 38,
+          "startingLine": 39
+        }
+      }
+    ]
+  },
+  "version": 1
+}

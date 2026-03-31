@@ -1,16 +1,16 @@
 import SwiftUI
-import SwiftData
+import CoreData
 
 /// A consolidated, print-friendly view of open work items.
 /// Designed to conserve paper while maintaining readability.
 struct WorkPrintView: View {
-    let workItems: [WorkModel]
-    let students: [Student]
-    let lessons: [Lesson]
+    let workItems: [CDWorkModel]
+    let students: [CDStudent]
+    let lessons: [CDLesson]
     let filterDescription: String
     let sortDescription: String
 
-    @Environment(\.modelContext) private var modelContext
+    @Environment(\.managedObjectContext) private var viewContext
 
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {
@@ -98,12 +98,12 @@ struct PrintHeaderContent: View {
 /// A single student section with all their work items — renderable independently.
 struct PrintStudentSectionContent: View {
     let title: String
-    let works: [WorkModel]
-    let lessons: [Lesson]
+    let works: [CDWorkModel]
+    let lessons: [CDLesson]
 
     var body: some View {
         VStack(alignment: .leading, spacing: 8) {
-            // Student name header
+            // CDStudent name header
             Text(title)
                 .font(AppTheme.ScaledFont.bodySemibold)
                 .padding(.bottom, 4)
@@ -117,7 +117,7 @@ struct PrintStudentSectionContent: View {
 
     @ViewBuilder
     // swiftlint:disable:next function_body_length
-    private func printWorkItemRow(work: WorkModel, index: Int) -> some View {
+    private func printWorkItemRow(work: CDWorkModel, index: Int) -> some View {
         VStack(alignment: .leading, spacing: 4) {
             HStack(alignment: .top, spacing: 8) {
                 // Index number
@@ -127,7 +127,7 @@ struct PrintStudentSectionContent: View {
                     .frame(width: 20, alignment: .trailing)
 
                 VStack(alignment: .leading, spacing: 3) {
-                    // Lesson name
+                    // CDLesson name
                     if let lessonID = UUID(uuidString: work.lessonID),
                        let lesson = lessons.first(where: { $0.id == lessonID }) {
                         HStack(spacing: 6) {

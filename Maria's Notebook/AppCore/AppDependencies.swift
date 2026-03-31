@@ -1,6 +1,5 @@
 // swiftlint:disable file_length
 import Foundation
-import SwiftData
 import CoreData
 import SwiftUI
 import OSLog
@@ -56,26 +55,10 @@ final class AppDependencies {
     /// Convenience accessor for the view context.
     var viewContext: NSManagedObjectContext { coreDataStack.viewContext }
 
-    /// Legacy SwiftData ModelContext — kept during transition (Phases 3-4).
-    /// Services that haven't been converted yet still reference this.
-    /// Will be removed once all services use NSManagedObjectContext.
-    let modelContext: ModelContext
-
     // MARK: - Initialization
 
     init(coreDataStack: CoreDataStack) {
         self.coreDataStack = coreDataStack
-        // Create a legacy ModelContext for backward compatibility during the transition.
-        // Services will be migrated to use viewContext in Phase 3.
-        self.modelContext = AppBootstrapping.getSharedModelContainer().mainContext
-    }
-
-    /// Legacy initializer for backward compatibility during transition.
-    init(modelContext: ModelContext) {
-        self.modelContext = modelContext
-        // During legacy init, create a minimal in-memory CoreDataStack.
-        // This path is only used by tests and previews.
-        self.coreDataStack = (try? CoreDataStack(enableCloudKit: false, inMemory: true))!
     }
 
     // MARK: - Core Services
@@ -117,12 +100,12 @@ final class AppDependencies {
 
     /// WorkCheckInService - Protocol-based architecture
     var workCheckInService: any WorkCheckInServiceProtocol {
-        WorkCheckInServiceAdapter(context: modelContext)
+        WorkCheckInService(context: viewContext)
     }
 
     /// WorkStepService - Protocol-based architecture
     var workStepService: any WorkStepServiceProtocol {
-        WorkStepServiceAdapter(context: modelContext)
+        WorkStepService(context: viewContext)
     }
 
     // Track services
@@ -164,7 +147,7 @@ final class AppDependencies {
             return service
         }
         let service = ReminderSyncService.shared
-        service.modelContext = modelContext
+        service.managedObjectContext = viewContext
         _reminderSyncService = service
         return service
     }
@@ -347,7 +330,7 @@ final class AppDependencies {
             // Safely update the presentations view model in the background
             // If this fails, it will be loaded normally when the user navigates to Presentations
             presentationsViewModel.update(
-                modelContext: modelContext,
+                viewContext: viewContext,
                 calendar: calendar,
                 inboxOrderRaw: inboxOrderRaw,
                 missWindow: missWindow,

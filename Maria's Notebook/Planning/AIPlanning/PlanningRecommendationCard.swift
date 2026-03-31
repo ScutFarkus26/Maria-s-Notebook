@@ -1,4 +1,5 @@
 import SwiftUI
+import CoreData
 
 /// Card view displaying a single AI-generated lesson recommendation.
 /// Shows lesson name, subject tag, student names, confidence badge, and reasoning.
@@ -46,7 +47,7 @@ struct PlanningRecommendationCard: View {
                 confidenceBadge
             }
             
-            // Student names
+            // CDStudent names
             if !recommendation.studentNames.isEmpty {
                 HStack(spacing: 4) {
                     Image(systemName: "person.2.fill")

@@ -2,12 +2,12 @@
 // Create/edit form for classroom jobs.
 
 import SwiftUI
-import SwiftData
+import CoreData
 
 struct ClassroomJobEditorSheet: View {
-    let existingJob: ClassroomJob?
+    let existingJob: CDClassroomJob?
     let viewModel: ClassroomJobsViewModel
-    let modelContext: ModelContext
+    let viewContext: NSManagedObjectContext
 
     @Environment(\.dismiss) private var dismiss
 
@@ -112,7 +112,7 @@ struct ClassroomJobEditorSheet: View {
         jobDescription = job.jobDescription
         selectedIcon = job.icon
         selectedColor = job.colorRaw
-        maxStudents = job.maxStudents
+        maxStudents = Int(job.maxStudents)
     }
 
     private func save() {
@@ -124,9 +124,9 @@ struct ClassroomJobEditorSheet: View {
             maxStudents: maxStudents
         )
         if let job = existingJob {
-            viewModel.updateJob(job, with: fields, context: modelContext)
+            viewModel.updateJob(job, with: fields, context: viewContext)
         } else {
-            viewModel.createJob(fields, context: modelContext)
+            viewModel.createJob(fields, context: viewContext)
         }
     }
 

@@ -21,7 +21,7 @@ struct SupplyEditableDetailsSection: View {
                     Text("Name")
                         .font(.subheadline)
                         .foregroundStyle(.secondary)
-                    TextField("Supply name", text: $editName)
+                    TextField("CDSupply name", text: $editName)
                         .textFieldStyle(.roundedBorder)
                 }
 

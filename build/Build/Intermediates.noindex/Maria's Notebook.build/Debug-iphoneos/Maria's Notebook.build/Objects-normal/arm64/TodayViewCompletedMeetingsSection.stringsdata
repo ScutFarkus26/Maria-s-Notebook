@@ -1,0 +1,32 @@
+{
+  "source": "/Users/dannydeberry/Documents/Projects/MariasNotebook-Rewrite/Maria's Notebook/AppCore/TodayView/TodayViewCompletedMeetingsSection.swift",
+  "tables": {
+    "Localizable": [
+      {
+        "comment": "",
+        "key": "Completed meeting with %@",
+        "location": {
+          "startingColumn": 41,
+          "startingLine": 29
+        }
+      },
+      {
+        "comment": "",
+        "key": "Completed Meetings",
+        "location": {
+          "startingColumn": 18,
+          "startingLine": 42
+        }
+      },
+      {
+        "comment": "",
+        "key": "%lld",
+        "location": {
+          "startingColumn": 22,
+          "startingLine": 51
+        }
+      }
+    ]
+  },
+  "version": 1
+}

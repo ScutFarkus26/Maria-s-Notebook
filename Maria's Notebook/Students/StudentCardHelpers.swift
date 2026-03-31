@@ -2,6 +2,7 @@
 // Shared utilities for student card components
 
 import SwiftUI
+import CoreData
 #if canImport(AppKit)
 import AppKit
 #endif

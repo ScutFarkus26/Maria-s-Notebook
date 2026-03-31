@@ -2,7 +2,7 @@
 // Entity-type import logic for selective restore
 
 import Foundation
-import SwiftData
+import CoreData
 import OSLog
 
 extension SelectiveRestoreService {
@@ -22,28 +22,28 @@ extension SelectiveRestoreService {
     func importEntityType(
         _ type: RestorableEntityType,
         from payload: BackupPayload,
-        into modelContext: ModelContext,
+        into viewContext: NSManagedObjectContext,
         mode: BackupService.RestoreMode
     ) async throws -> ImportResult {
         switch type {
         case .students:
-            return try importStudentEntities(from: payload, into: modelContext)
+            return try importStudentEntities(from: payload, into: viewContext)
         case .lessons:
-            return try importLessonEntities(from: payload, into: modelContext)
+            return try importLessonEntities(from: payload, into: viewContext)
         case .notes:
-            return importNoteEntities(from: payload, into: modelContext)
+            return try importNoteEntities(from: payload, into: viewContext)
         case .calendar:
-            return importCalendarEntities(from: payload, into: modelContext)
+            return try importCalendarEntities(from: payload, into: viewContext)
         case .meetings:
-            return importMeetingEntities(from: payload, into: modelContext)
+            return try importMeetingEntities(from: payload, into: viewContext)
         case .community:
-            return importCommunityEntities(from: payload, into: modelContext)
+            return try importCommunityEntities(from: payload, into: viewContext)
         case .attendance:
-            return importAttendanceEntities(from: payload, into: modelContext)
+            return try importAttendanceEntities(from: payload, into: viewContext)
         case .workCompletions:
-            return importWorkCompletionEntities(from: payload, into: modelContext)
+            return try importWorkCompletionEntities(from: payload, into: viewContext)
         case .projects:
-            return try importProjectEntities(from: payload, into: modelContext)
+            return try importProjectEntities(from: payload, into: viewContext)
         }
     }
 
@@ -51,12 +51,12 @@ extension SelectiveRestoreService {
 
     private func importStudentEntities(
         from payload: BackupPayload,
-        into modelContext: ModelContext
+        into viewContext: NSManagedObjectContext
     ) throws -> ImportResult {
         // Use cached lookup - O(1) instead of O(n) per entity
         let result = BackupEntityImporter.importStudents(
             payload.students,
-            into: modelContext,
+            into: viewContext,
             existingCheck: { [studentsByID] id in studentsByID[id] }
         )
         // Update cache with newly imported students
@@ -72,20 +72,20 @@ extension SelectiveRestoreService {
 
     private func importLessonEntities(
         from payload: BackupPayload,
-        into modelContext: ModelContext
+        into viewContext: NSManagedObjectContext
     ) throws -> ImportResult {
         let existingLessonIDs = Set(lessonsByID.keys)
         BackupEntityImporter.importLessons(
             payload.lessons,
-            into: modelContext,
+            into: viewContext,
             existingCheck: { [lessonsByID] id in lessonsByID[id] }
         )
-        // Track imported count
+        // CDTrackEntity imported count
         let newLessons = payload.lessons.filter { !existingLessonIDs.contains($0.id) }
         // Refresh lesson cache for subsequent imports
         do {
-            let allLessons = try modelContext.fetch(FetchDescriptor<Lesson>())
-            lessonsByID = allLessons.toDictionary(by: \.id)
+            let allLessons = try viewContext.fetch(CDLesson.fetchRequest() as! NSFetchRequest<CDLesson>)
+            lessonsByID = Dictionary(uniqueKeysWithValues: allLessons.compactMap { l in l.id.map { ($0, l) } })
         } catch {
             Self.logger.warning("Failed to refresh lesson cache: \(error.localizedDescription, privacy: .public)")
         }
@@ -98,14 +98,12 @@ extension SelectiveRestoreService {
 
     private func importNoteEntities(
         from payload: BackupPayload,
-        into modelContext: ModelContext
-    ) -> ImportResult {
-        BackupEntityImporter.importNotes(
+        into viewContext: NSManagedObjectContext
+    ) throws -> ImportResult {
+        try BackupEntityImporter.importNotes(
             payload.notes,
-            into: modelContext,
-            existingCheck: { [self] id in
-                self.getCachedIDs("notes").contains(id) ? Note(body: "", scope: .all) : nil
-            },
+            into: viewContext,
+            existingCheck: cachedExistenceCheck(key: "notes", entityName: "Note", in: viewContext),
             lessonCheck: { [lessonsByID] id in lessonsByID[id] }
         )
         return ImportResult(imported: payload.notes.count, skipped: 0, warning: "")
@@ -113,21 +111,17 @@ extension SelectiveRestoreService {
 
     private func importCalendarEntities(
         from payload: BackupPayload,
-        into modelContext: ModelContext
-    ) -> ImportResult {
-        BackupEntityImporter.importNonSchoolDays(
+        into viewContext: NSManagedObjectContext
+    ) throws -> ImportResult {
+        try BackupEntityImporter.importNonSchoolDays(
             payload.nonSchoolDays,
-            into: modelContext,
-            existingCheck: { [self] id in
-                self.getCachedIDs("nonSchoolDays").contains(id) ? NonSchoolDay(date: Date()) : nil
-            }
+            into: viewContext,
+            existingCheck: cachedExistenceCheck(key: "nonSchoolDays", entityName: "NonSchoolDay", in: viewContext)
         )
-        BackupEntityImporter.importSchoolDayOverrides(
+        try BackupEntityImporter.importSchoolDayOverrides(
             payload.schoolDayOverrides,
-            into: modelContext,
-            existingCheck: { [self] id in
-                self.getCachedIDs("schoolDayOverrides").contains(id) ? SchoolDayOverride(date: Date()) : nil
-            }
+            into: viewContext,
+            existingCheck: cachedExistenceCheck(key: "schoolDayOverrides", entityName: "SchoolDayOverride", in: viewContext)
         )
         return ImportResult(
             imported: payload.nonSchoolDays.count + payload.schoolDayOverrides.count,
@@ -137,52 +131,43 @@ extension SelectiveRestoreService {
 
     private func importMeetingEntities(
         from payload: BackupPayload,
-        into modelContext: ModelContext
-    ) -> ImportResult {
-        BackupEntityImporter.importStudentMeetings(
+        into viewContext: NSManagedObjectContext
+    ) throws -> ImportResult {
+        try BackupEntityImporter.importStudentMeetings(
             payload.studentMeetings,
-            into: modelContext,
-            existingCheck: { [self] id in
-                self.getCachedIDs("studentMeetings").contains(id)
-                    ? StudentMeeting(studentID: UUID(), date: Date()) : nil
-            }
+            into: viewContext,
+            existingCheck: cachedExistenceCheck(key: "studentMeetings", entityName: "StudentMeeting", in: viewContext)
         )
         return ImportResult(imported: payload.studentMeetings.count, skipped: 0, warning: "")
     }
 
     private func importCommunityEntities(
         from payload: BackupPayload,
-        into modelContext: ModelContext
-    ) -> ImportResult {
-        BackupEntityImporter.importCommunityTopics(
+        into viewContext: NSManagedObjectContext
+    ) throws -> ImportResult {
+        try BackupEntityImporter.importCommunityTopics(
             payload.communityTopics,
-            into: modelContext,
+            into: viewContext,
             existingCheck: { [topicsByID] id in topicsByID[id] }
         )
         // Refresh topic cache for subsequent imports
         do {
-            let allTopics = try modelContext.fetch(FetchDescriptor<CommunityTopic>())
-            topicsByID = allTopics.toDictionary(by: \.id)
+            let allTopics = try viewContext.fetch(CDCommunityTopicEntity.fetchRequest() as! NSFetchRequest<CDCommunityTopicEntity>)
+            topicsByID = Dictionary(uniqueKeysWithValues: allTopics.compactMap { t in t.id.map { ($0, t) } })
         } catch {
             Self.logger.warning("Failed to refresh topic cache: \(error.localizedDescription, privacy: .public)")
         }
 
-        BackupEntityImporter.importProposedSolutions(
+        try BackupEntityImporter.importProposedSolutions(
             payload.proposedSolutions,
-            into: modelContext,
-            existingCheck: { [self] id in
-                self.getCachedIDs("proposedSolutions").contains(id)
-                    ? ProposedSolution(title: "", details: "", proposedBy: "", topic: nil) : nil
-            },
+            into: viewContext,
+            existingCheck: cachedExistenceCheck(key: "proposedSolutions", entityName: "ProposedSolution", in: viewContext),
             topicCheck: { [topicsByID] id in topicsByID[id] }
         )
-        BackupEntityImporter.importCommunityAttachments(
+        try BackupEntityImporter.importCommunityAttachments(
             payload.communityAttachments,
-            into: modelContext,
-            existingCheck: { [self] id in
-                self.getCachedIDs("communityAttachments").contains(id)
-                    ? CommunityAttachment(filename: "", kind: .file, data: nil, topic: nil) : nil
-            },
+            into: viewContext,
+            existingCheck: cachedExistenceCheck(key: "communityAttachments", entityName: "CommunityAttachment", in: viewContext),
             topicCheck: { [topicsByID] id in topicsByID[id] }
         )
         return ImportResult(
@@ -194,68 +179,57 @@ extension SelectiveRestoreService {
 
     private func importAttendanceEntities(
         from payload: BackupPayload,
-        into modelContext: ModelContext
-    ) -> ImportResult {
-        BackupEntityImporter.importAttendanceRecords(
+        into viewContext: NSManagedObjectContext
+    ) throws -> ImportResult {
+        try BackupEntityImporter.importAttendanceRecords(
             payload.attendance,
-            into: modelContext,
-            existingCheck: { [self] id in
-                self.getCachedIDs("attendanceRecords").contains(id)
-                    ? AttendanceRecord(studentID: UUID(), date: Date(), status: .unmarked) : nil
-            }
+            into: viewContext,
+            existingCheck: cachedExistenceCheck(key: "attendanceRecords", entityName: "AttendanceRecord", in: viewContext)
         )
         return ImportResult(imported: payload.attendance.count, skipped: 0, warning: "")
     }
 
     private func importWorkCompletionEntities(
         from payload: BackupPayload,
-        into modelContext: ModelContext
-    ) -> ImportResult {
-        BackupEntityImporter.importWorkCompletionRecords(
+        into viewContext: NSManagedObjectContext
+    ) throws -> ImportResult {
+        try BackupEntityImporter.importWorkCompletionRecords(
             payload.workCompletions,
-            into: modelContext,
-            existingCheck: { [self] id in
-                self.getCachedIDs("workCompletionRecords").contains(id)
-                    ? WorkCompletionRecord(workID: UUID(), studentID: UUID(), completedAt: Date()) : nil
-            }
+            into: viewContext,
+            existingCheck: cachedExistenceCheck(key: "workCompletionRecords", entityName: "WorkCompletionRecord", in: viewContext)
         )
         return ImportResult(imported: payload.workCompletions.count, skipped: 0, warning: "")
     }
 
     private func importProjectEntities(
         from payload: BackupPayload,
-        into modelContext: ModelContext
+        into viewContext: NSManagedObjectContext
     ) throws -> ImportResult {
-        BackupEntityImporter.importProjects(
+        try BackupEntityImporter.importProjects(
             payload.projects,
-            into: modelContext,
-            existingCheck: { [self] id in
-                getCachedIDs("projects").contains(id) ? Project(title: "", bookTitle: nil, memberStudentIDs: []) : nil
-            }
+            into: viewContext,
+            existingCheck: cachedExistenceCheck(key: "projects", entityName: "Project", in: viewContext)
         )
-        BackupEntityImporter.importProjectRoles(
+        try BackupEntityImporter.importProjectRoles(
             payload.projectRoles,
-            into: modelContext,
-            existingCheck: { [self] id in
-                getCachedIDs("projectRoles").contains(id)
-                    ? ProjectRole(projectID: UUID(), title: "", summary: "", instructions: "") : nil
-            }
+            into: viewContext,
+            existingCheck: cachedExistenceCheck(key: "projectRoles", entityName: "ProjectRole", in: viewContext)
         )
-        BackupEntityImporter.importProjectTemplateWeeks(
+        try BackupEntityImporter.importProjectTemplateWeeks(
             payload.projectTemplateWeeks,
-            into: modelContext,
+            into: viewContext,
             existingCheck: { [templateWeeksByID] id in templateWeeksByID[id] }
         )
         // Refresh template weeks cache for subsequent imports
         do {
-            let allWeeks = try modelContext.fetch(FetchDescriptor<ProjectTemplateWeek>())
-            templateWeeksByID = allWeeks.toDictionary(by: \.id)
+            let allWeeks = try viewContext.fetch(CDProjectTemplateWeek.fetchRequest() as! NSFetchRequest<CDProjectTemplateWeek>)
+            templateWeeksByID = Dictionary(uniqueKeysWithValues: allWeeks.compactMap { w in w.id.map { ($0, w) } })
         } catch {
             let desc = error.localizedDescription
             Self.logger.warning("Failed to refresh template weeks cache: \(desc, privacy: .public)")
         }
 
-        try importProjectDetailEntities(from: payload, into: modelContext)
+        try importProjectDetailEntities(from: payload, into: viewContext)
 
         let total = payload.projects.count + payload.projectAssignmentTemplates.count +
             payload.projectSessions.count + payload.projectRoles.count +
@@ -265,32 +239,23 @@ extension SelectiveRestoreService {
 
     private func importProjectDetailEntities(
         from payload: BackupPayload,
-        into modelContext: ModelContext
+        into viewContext: NSManagedObjectContext
     ) throws {
-        BackupEntityImporter.importProjectAssignmentTemplates(
+        try BackupEntityImporter.importProjectAssignmentTemplates(
             payload.projectAssignmentTemplates,
-            into: modelContext,
-            existingCheck: { [self] id in
-                getCachedIDs("projectAssignmentTemplates").contains(id)
-                    ? ProjectAssignmentTemplate(projectID: UUID(), title: "", instructions: "") : nil
-            }
+            into: viewContext,
+            existingCheck: cachedExistenceCheck(key: "projectAssignmentTemplates", entityName: "ProjectAssignmentTemplate", in: viewContext)
         )
-        BackupEntityImporter.importProjectWeekRoleAssignments(
+        try BackupEntityImporter.importProjectWeekRoleAssignments(
             payload.projectWeekRoleAssignments,
-            into: modelContext,
-            existingCheck: { [self] id in
-                getCachedIDs("projectWeekRoleAssignments").contains(id)
-                    ? ProjectWeekRoleAssignment(weekID: UUID(), studentID: "", roleID: UUID(), week: nil) : nil
-            },
+            into: viewContext,
+            existingCheck: cachedExistenceCheck(key: "projectWeekRoleAssignments", entityName: "ProjectWeekRoleAssignment", in: viewContext),
             weekCheck: { [templateWeeksByID] id in templateWeeksByID[id] }
         )
-        BackupEntityImporter.importProjectSessions(
+        try BackupEntityImporter.importProjectSessions(
             payload.projectSessions,
-            into: modelContext,
-            existingCheck: { [self] id in
-                getCachedIDs("projectSessions").contains(id)
-                    ? ProjectSession(projectID: UUID(), meetingDate: Date()) : nil
-            }
+            into: viewContext,
+            existingCheck: cachedExistenceCheck(key: "projectSessions", entityName: "ProjectSession", in: viewContext)
         )
     }
 }

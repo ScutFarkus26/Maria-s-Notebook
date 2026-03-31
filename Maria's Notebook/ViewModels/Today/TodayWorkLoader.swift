@@ -3,7 +3,7 @@
 // Encapsulates the work loading and schedule building logic used by TodayViewModel.
 
 import Foundation
-import SwiftData
+import CoreData
 
 // MARK: - Today Work Loader
 
@@ -52,7 +52,7 @@ enum TodayWorkLoader {
         referenceDate: Date,
         studentsByID: [UUID: Student],
         levelFilter: LevelFilter,
-        context: ModelContext
+        context: NSManagedObjectContext
     ) -> WorkLoadResult {
         guard let fetchResult = TodayDataFetcher.fetchWorkData(
             day: day,
@@ -64,7 +64,10 @@ enum TodayWorkLoader {
         }
 
         // Build work lookup
-        let workByID = fetchResult.workItems.toDictionary(by: \.id)
+        let workByID: [UUID: WorkModel] = fetchResult.workItems.reduce(into: [:]) { dict, work in
+            guard let id = work.id else { return }
+            dict[id] = work
+        }
 
         // Build schedule using TodayScheduleBuilder
         let schedule = TodayScheduleBuilder.buildSchedule(
@@ -74,7 +77,7 @@ enum TodayWorkLoader {
             studentsByID: studentsByID,
             levelFilter: levelFilter,
             referenceDate: referenceDate,
-            modelContext: context
+            context: context
         )
 
         return WorkLoadResult(
@@ -104,7 +107,7 @@ enum TodayWorkLoader {
     static func fetchCompletedWork(
         day: Date,
         nextDay: Date,
-        context: ModelContext
+        context: NSManagedObjectContext
     ) -> CompletedWorkResult {
         let workItems = TodayDataFetcher.fetchCompletedWork(day: day, nextDay: nextDay, context: context)
 

@@ -1,6 +1,5 @@
 import Foundation
 import CoreData
-import SwiftData
 import OSLog
 
 /// Orchestrates the chat flow: context assembly, API calls, and session management.
@@ -21,13 +20,7 @@ final class ChatService {
         self.contextAssembler = ChatContextAssembler(context: modelContext)
     }
 
-    /// Deprecated bridge: accepts a SwiftData ModelContext but uses the shared Core Data stack instead.
-    @available(*, deprecated, message: "Use init(modelContext: NSManagedObjectContext, mcpClient:) instead")
-    init(modelContext: ModelContext, mcpClient: MCPClientProtocol) {
-        self.modelContext = AppBootstrapping.getSharedCoreDataStack().viewContext
-        self.mcpClient = mcpClient
-        self.contextAssembler = ChatContextAssembler(context: self.modelContext)
-    }
+    // Deprecated ModelContext init removed - no longer needed with Core Data.
 
     // MARK: - Session Management
 

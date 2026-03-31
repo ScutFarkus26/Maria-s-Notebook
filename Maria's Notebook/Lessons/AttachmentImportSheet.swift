@@ -1,9 +1,10 @@
 import SwiftUI
+import CoreData
 import UniformTypeIdentifiers
 
 /// Sheet for selecting import options and picking a file
 struct AttachmentImportOptionsSheet: View {
-    let lesson: Lesson
+    let lesson: CDLesson
     @Binding var selectedScope: AttachmentScope
     @Binding var deleteOriginal: Bool
     let onFileSelected: (Result<[URL], Error>) -> Void
@@ -101,7 +102,7 @@ struct AttachmentImportOptionsSheet: View {
 struct ScopeOptionButton: View {
     let scope: AttachmentScope
     @Binding var selectedScope: AttachmentScope
-    let lesson: Lesson
+    let lesson: CDLesson
 
     private var isSelected: Bool {
         selectedScope == scope

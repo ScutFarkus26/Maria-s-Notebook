@@ -70,14 +70,14 @@ extension ResourceLibraryView {
 
     // MARK: - Per-Resource Category Picker
 
-    func categoryPickerSheet(for resource: Resource) -> some View {
+    func categoryPickerSheet(for resource: CDResource) -> some View {
         NavigationStack {
             List {
                 ForEach(ResourceCategory.allCases) { category in
                     Button {
                         resource.category = category
                         resource.modifiedAt = Date()
-                        modelContext.safeSave()
+                        viewContext.safeSave()
                         resourceToRecategorize = nil
                     } label: {
                         HStack {

@@ -1,7 +1,7 @@
 import Foundation
 import CoreData
 
-@objc(CalendarNote)
+@objc(CDCalendarNote)
 public class CDCalendarNote: NSManagedObject {
     // MARK: - Core Data Properties
     @NSManaged public var id: UUID?
@@ -15,7 +15,7 @@ public class CDCalendarNote: NSManagedObject {
     // MARK: - Convenience Initializer
     @discardableResult
     convenience init(context: NSManagedObjectContext) {
-        let entity = NSEntityDescription.entity(forEntityName: "CalendarNote", in: context)!
+        let entity = NSEntityDescription.entity(forEntityName: "CDCalendarNote", in: context)!
         self.init(entity: entity, insertInto: context)
         self.id = UUID()
         self.year = 2026

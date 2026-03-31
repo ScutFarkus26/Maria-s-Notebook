@@ -34,9 +34,9 @@ enum WorkCardWorkType {
         }
     }
 
-    /// Initialize from legacy WorkModel.WorkType (deprecated path)
+    /// Initialize from legacy LegacyWorkType (deprecated path)
     @available(*, deprecated, message: "Use init(from: WorkKind) instead")
-    init(from workType: WorkModel.WorkType) {
+    init(from workType: LegacyWorkType) {
         switch workType {
         case .research: self = .research
         case .followUp: self = .followUp

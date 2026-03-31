@@ -1,0 +1,72 @@
+{
+  "source": "/Users/dannydeberry/Documents/Projects/MariasNotebook-Rewrite/Maria's Notebook/Students/FindStudentsSheet.swift",
+  "tables": {
+    "Localizable": [
+      {
+        "comment": "",
+        "key": "Search students",
+        "location": {
+          "startingColumn": 52,
+          "startingLine": 85
+        }
+      },
+      {
+        "comment": "",
+        "key": "Find Students",
+        "location": {
+          "startingColumn": 30,
+          "startingLine": 86
+        }
+      },
+      {
+        "comment": "",
+        "key": "All students have already received this lesson.",
+        "location": {
+          "startingColumn": 43,
+          "startingLine": 54
+        }
+      },
+      {
+        "comment": "",
+        "key": "No Candidates",
+        "location": {
+          "startingColumn": 25,
+          "startingLine": 52
+        }
+      },
+      {
+        "comment": "",
+        "key": "Never Received",
+        "location": {
+          "startingColumn": 37,
+          "startingLine": 59
+        }
+      },
+      {
+        "comment": "",
+        "key": "Already Received (Still Scheduled)",
+        "location": {
+          "startingColumn": 37,
+          "startingLine": 67
+        }
+      },
+      {
+        "comment": "",
+        "key": "Cancel",
+        "location": {
+          "startingColumn": 28,
+          "startingLine": 90
+        }
+      },
+      {
+        "comment": "",
+        "key": "Add %lld",
+        "location": {
+          "startingColumn": 28,
+          "startingLine": 93
+        }
+      }
+    ]
+  },
+  "version": 1
+}

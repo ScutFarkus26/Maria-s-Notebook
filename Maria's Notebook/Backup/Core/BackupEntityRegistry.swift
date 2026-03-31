@@ -1,103 +1,103 @@
 import Foundation
-import SwiftData
+import CoreData
 
 /// Centralized registry of all entity types that need to be backed up and restored.
 /// This serves as the single source of truth to avoid hardcoding entity lists in multiple places.
 struct BackupEntityRegistry {
     /// All entity types that should be included in backups.
     /// This must stay in sync with AppSchema — every user-data model should appear here.
-    static let allTypes: [any PersistentModel.Type] = [
+    static let allTypes: [NSManagedObject.Type] = [
         // Core
-        Student.self,
-        Lesson.self,
+        CDStudent.self,
+        CDLesson.self,
         LessonAttachment.self,
-        LessonAssignment.self,
-        LessonPresentation.self,
-        Note.self,
-        NoteStudentLink.self,
+        CDLessonAssignment.self,
+        CDLessonPresentation.self,
+        CDNote.self,
+        CDNoteStudentLink.self,
         // Calendar
-        NonSchoolDay.self,
-        SchoolDayOverride.self,
+        CDNonSchoolDay.self,
+        CDSchoolDayOverride.self,
         // Meetings
-        StudentMeeting.self,
-        MeetingTemplate.self,
+        CDStudentMeeting.self,
+        CDMeetingTemplate.self,
         // Community
-        CommunityTopic.self,
+        CDCommunityTopicEntity.self,
         ProposedSolution.self,
         CommunityAttachment.self,
         // Attendance
-        AttendanceRecord.self,
+        CDAttendanceRecord.self,
         // Work tracking
-        WorkModel.self,
-        WorkCompletionRecord.self,
-        WorkCheckIn.self,
+        CDWorkModel.self,
+        CDWorkCompletionRecord.self,
+        CDWorkCheckIn.self,
         WorkParticipantEntity.self,
-        WorkStep.self,
-        SampleWork.self,
-        SampleWorkStep.self,
-        PracticeSession.self,
+        CDWorkStep.self,
+        CDSampleWork.self,
+        CDSampleWorkStep.self,
+        CDPracticeSession.self,
         // Projects
-        Project.self,
+        CDProject.self,
         ProjectAssignmentTemplate.self,
-        ProjectSession.self,
+        CDProjectSession.self,
         ProjectRole.self,
         ProjectTemplateWeek.self,
         ProjectWeekRoleAssignment.self,
         // Issues
-        Issue.self,
+        CDIssue.self,
         IssueAction.self,
         // Tracks
-        Track.self,
+        CDTrackEntity.self,
         TrackStep.self,
-        StudentTrackEnrollment.self,
-        GroupTrack.self,
+        CDStudentTrackEnrollmentEntity.self,
+        CDGroupTrack.self,
         // Templates
-        NoteTemplate.self,
+        CDNoteTemplate.self,
         // Reminders & Calendar events
-        Reminder.self,
-        CalendarEvent.self,
+        CDReminder.self,
+        CDCalendarEvent.self,
         // Documents (metadata only)
-        Document.self,
+        CDDocument.self,
         // Supplies
-        Supply.self,
+        CDSupply.self,
         SupplyTransaction.self,
         // Procedures
-        Procedure.self,
+        CDProcedure.self,
         // Schedules
-        Schedule.self,
-        ScheduleSlot.self,
+        CDSchedule.self,
+        CDScheduleSlot.self,
         // Development
         DevelopmentSnapshot.self,
         // Todos
-        TodoItem.self,
-        TodoSubtask.self,
-        TodoTemplate.self,
+        CDTodoItem.self,
+        CDTodoSubtask.self,
+        CDTodoTemplate.self,
         // Agenda
-        TodayAgendaOrder.self,
+        CDTodayAgendaOrder.self,
         // Planning recommendations
         PlanningRecommendation.self,
         // Resources
-        Resource.self,
+        CDResource.self,
         // Going Out
-        GoingOut.self,
+        CDGoingOut.self,
         GoingOutChecklistItem.self,
         // Classroom Jobs
-        ClassroomJob.self,
-        JobAssignment.self,
+        CDClassroomJob.self,
+        CDJobAssignment.self,
         // Transition Plans
-        TransitionPlan.self,
+        CDTransitionPlan.self,
         TransitionChecklistItem.self,
         // Calendar Notes
-        CalendarNote.self,
+        CDCalendarNote.self,
         // Scheduled Meetings
-        ScheduledMeeting.self,
+        CDScheduledMeeting.self,
         // Album UI State
         AlbumGroupOrder.self,
         AlbumGroupUIState.self
     ]
     
     /// Entity type names for progress reporting and error messages
-    static func entityName(for type: any PersistentModel.Type) -> String {
+    static func entityName(for type: NSManagedObject.Type) -> String {
         String(describing: type)
     }
 }

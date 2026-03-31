@@ -1,4 +1,5 @@
 import SwiftUI
+import CoreData
 
 struct ChipView: View {
     let label: String
@@ -8,7 +9,7 @@ struct ChipView: View {
     let hasHad: Bool
     let suppressIndicator: Bool
     let highlight: Bool
-    let blockingWork: WorkModel?
+    let blockingWork: CDWorkModel?
 
     var onTap: (() -> Void)?
 

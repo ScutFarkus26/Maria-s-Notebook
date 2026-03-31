@@ -1,16 +1,17 @@
 import SwiftUI
+import CoreData
 
 struct StudentFilterView: View {
     @Binding var selectedStudentIDs: Set<UUID>
-    let students: [Student]
-    let displayName: (Student) -> String
+    let students: [CDStudent]
+    let displayName: (CDStudent) -> String
     var onDismiss: () -> Void
     
     @State private var searchText = ""
     
-    private var filteredStudents: [Student] {
+    private var filteredStudents: [CDStudent] {
         let q = searchText.normalizedForComparison()
-        let base: [Student]
+        let base: [CDStudent]
         if q.isEmpty {
             base = students
         } else {
@@ -59,18 +60,19 @@ struct StudentFilterView: View {
             ScrollView {
                 VStack(alignment: .leading, spacing: 4) {
                     ForEach(filteredStudents, id: \.id) { s in
+                        let studentID = s.id ?? UUID()
                         Button {
-                            if selectedStudentIDs.contains(s.id) {
-                                selectedStudentIDs.remove(s.id)
+                            if selectedStudentIDs.contains(studentID) {
+                                selectedStudentIDs.remove(studentID)
                             } else {
-                                selectedStudentIDs.insert(s.id)
+                                selectedStudentIDs.insert(studentID)
                             }
                         } label: {
                             HStack(spacing: 8) {
-                                Image(systemName: selectedStudentIDs.contains(s.id)
+                                Image(systemName: selectedStudentIDs.contains(studentID)
                                     ? "checkmark.circle.fill" : "circle")
                                     .foregroundStyle(
-                                        selectedStudentIDs.contains(s.id)
+                                        selectedStudentIDs.contains(studentID)
                                             ? Color.accentColor : Color.secondary
                                     )
                                 Text(displayName(s))

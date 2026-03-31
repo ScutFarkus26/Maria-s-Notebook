@@ -1,18 +1,15 @@
 import SwiftUI
-import SwiftData
+import CoreData
 
 struct DaysSinceLastLessonView: View {
-    let student: Student
+    let student: CDStudent
 
-    @Environment(\.modelContext) private var modelContext
+    @Environment(\.managedObjectContext) private var viewContext
     @Environment(\.calendar) private var calendar
 
-    @Query(sort: [
-        SortDescriptor(\LessonAssignment.presentedAt, order: .reverse),
-        SortDescriptor(\LessonAssignment.createdAt, order: .reverse)
-    ]) private var allLessonAssignments: [LessonAssignment]
+    @FetchRequest(sortDescriptors: [NSSortDescriptor(keyPath: \CDLessonAssignment.presentedAt, ascending: false), NSSortDescriptor(keyPath: \CDLessonAssignment.createdAt, ascending: false)]) private var allLessonAssignments: FetchedResults<CDLessonAssignment>
 
-    @Query private var lessons: [Lesson]
+    @FetchRequest(sortDescriptors: []) private var lessons: FetchedResults<CDLesson>
 
     private var excludedLessonIDs: Set<UUID> {
         func norm(_ s: String) -> String { s.normalizedForComparison() }
@@ -20,12 +17,13 @@ struct DaysSinceLastLessonView: View {
             let s = norm(l.subject)
             let g = norm(l.group)
             return s == "parsha" || g == "parsha"
-        }.map(\.id)
+        }.compactMap(\.id)
         return Set(ids)
     }
 
     private var lastLessonDate: Date? {
-        let studentIDString = student.id.uuidString
+        guard let studentID = student.id else { return nil }
+        let studentIDString = studentID.uuidString
         let relevant = allLessonAssignments.filter { la in
             la.isPresented
                 && la.studentIDs.contains(studentIDString)
@@ -33,7 +31,7 @@ struct DaysSinceLastLessonView: View {
         }
         var latest: Date?
         for la in relevant {
-            let when = la.presentedAt ?? la.scheduledFor ?? la.createdAt
+            guard let when = la.presentedAt ?? la.scheduledFor ?? la.createdAt else { continue }
             if let cur = latest {
                 if when > cur { latest = when }
             } else {
@@ -46,14 +44,14 @@ struct DaysSinceLastLessonView: View {
     private var daysSince: Int? {
         guard let last = lastLessonDate else { return nil }
         return LessonAgeHelper.schoolDaysSinceCreation(
-            createdAt: last, asOf: Date(), using: modelContext, calendar: calendar
+            createdAt: last, asOf: Date(), using: viewContext, calendar: calendar
         )
     }
 
     var body: some View {
         InfoRowView(
             icon: "calendar.badge.clock",
-            title: "School Days Since Last Lesson",
+            title: "School Days Since Last CDLesson",
             value: daysSince.map { String($0) } ?? "—"
         )
     }

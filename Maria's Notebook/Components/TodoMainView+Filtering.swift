@@ -2,21 +2,21 @@
 // Elegant full-screen todo list view inspired by Things and Bear
 
 import SwiftUI
-import SwiftData
+import CoreData
 
 extension TodoMainView {
-    var filteredTodos: [TodoItem] {
-        var todos: [TodoItem]
+    var filteredTodos: [CDTodoItem] {
+        var todos: [CDTodoItem]
         if let folder = selectedFolder {
             // Show all todos that have any tag belonging to this folder
             let folderTags = Set(allUsedTags.filter {
                 TodoTagHelper.tagPathComponents($0).count > 1 && TodoTagHelper.rootTagName($0) == folder
             })
             todos = allTodos.filter { todo in
-                todo.tags.contains(where: { folderTags.contains($0) })
+                todo.tagsArray.contains(where: { folderTags.contains($0) })
             }
         } else if let tag = selectedTag {
-            todos = allTodos.filter { $0.tags.contains(tag) }
+            todos = allTodos.filter { $0.tagsArray.contains(tag) }
         } else {
             let filter = selectedFilter ?? .inbox
             todos = allTodos.filter { filter.matches($0) }
@@ -50,7 +50,7 @@ extension TodoMainView {
             case .title:
                 return lhs.title.localizedCaseInsensitiveCompare(rhs.title) == .orderedAscending
             case .created:
-                return lhs.createdAt > rhs.createdAt
+                return (lhs.createdAt ?? .distantPast) > (rhs.createdAt ?? .distantPast)
             }
         }
     }

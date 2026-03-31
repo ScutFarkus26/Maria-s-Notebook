@@ -3,17 +3,17 @@
 // Fetches Notes containing Montessori observation tags and displays frequency charts.
 
 import SwiftUI
-import SwiftData
+import CoreData
 import Charts
 
 struct ObservationPatternsDashboard: View {
-    @Environment(\.modelContext) private var modelContext
+    @Environment(\.managedObjectContext) private var viewContext
     @State private var viewModel = ObservationPatternsViewModel()
 
     var body: some View {
         content
             .navigationTitle("Observation Patterns")
-            .onAppear { viewModel.loadData(context: modelContext) }
+            .onAppear { viewModel.loadData(context: viewContext) }
     }
 
     @ViewBuilder
@@ -68,7 +68,7 @@ struct ObservationPatternsDashboard: View {
         return Button {
             withAnimation(.snappy(duration: 0.2)) {
                 viewModel.timeRange = range
-                viewModel.loadData(context: modelContext)
+                viewModel.loadData(context: viewContext)
             }
         } label: {
             Text(range.rawValue)
@@ -128,11 +128,11 @@ struct ObservationPatternsDashboard: View {
         .cardStyle()
     }
 
-    // MARK: - Student Breakdown
+    // MARK: - CDStudent Breakdown
 
     private var studentBreakdown: some View {
         VStack(alignment: .leading, spacing: 10) {
-            Text("By Student")
+            Text("By CDStudent")
                 .font(.subheadline)
                 .fontWeight(.semibold)
 
@@ -252,20 +252,20 @@ final class ObservationPatternsViewModel {
     private(set) var isLoading = false
     var timeRange: ObservationTimeRange = .month
 
-    func loadData(context: ModelContext) {
+    func loadData(context: NSManagedObjectContext) {
         isLoading = true
         defer { isLoading = false }
 
         let allObservationTags = MontessoriObservationTags.allTags + DevelopmentalCharacteristic.allTags
         let range = timeRange.dateRange(from: Date())
 
-        let descriptor = FetchDescriptor<Note>(
-            sortBy: [SortDescriptor(\Note.createdAt, order: .reverse)]
-        )
+        let descriptor = { let r = CDNote.fetchRequest() as! NSFetchRequest<CDNote>; r.sortDescriptors = [NSSortDescriptor(keyPath: \CDNote.createdAt, ascending: false)]; return r }()
         let observationNotes = context.safeFetch(descriptor).filter { note in
-            note.createdAt >= range.start && note.createdAt <= range.end
-            && note.tags.contains { !TagHelper.tagName($0).isEmpty }
-            && note.tags.contains { tag in
+            guard let createdAt = note.createdAt else { return false }
+            let tags = (note.tags as? [String]) ?? []
+            return createdAt >= range.start && createdAt <= range.end
+            && tags.contains { !TagHelper.tagName($0).isEmpty }
+            && tags.contains { tag in
                 let name = TagHelper.tagName(tag)
                 return allObservationTags.contains { TagHelper.tagName($0) == name }
             }
@@ -275,7 +275,7 @@ final class ObservationPatternsViewModel {
         tagCounts = computeTagCounts(from: observationNotes, allTags: allObservationTags)
 
         let students = TestStudentsFilter.filterVisible(
-            context.safeFetch(FetchDescriptor<Student>(sortBy: Student.sortByName)).filter(\.isEnrolled)
+            context.safeFetch({ let r = CDStudent.fetchRequest() as! NSFetchRequest<CDStudent>; r.sortDescriptors = CDStudent.sortByName; return r }()).filter(\.isEnrolled)
         )
         let observationMap = buildStudentObservationMap(from: observationNotes)
         let summaries = buildStudentSummaries(
@@ -289,10 +289,10 @@ final class ObservationPatternsViewModel {
 
     // MARK: - Private Helpers
 
-    private func computeTagCounts(from notes: [Note], allTags: [String]) -> [TagCount] {
+    private func computeTagCounts(from notes: [CDNote], allTags: [String]) -> [TagCount] {
         var tagCountMap: [String: Int] = [:]
         for note in notes {
-            for tag in note.tags {
+            for tag in (note.tags as? [String]) ?? [] {
                 let name = TagHelper.tagName(tag)
                 guard allTags.contains(where: { TagHelper.tagName($0) == name }) else { continue }
                 tagCountMap[tag, default: 0] += 1
@@ -306,8 +306,8 @@ final class ObservationPatternsViewModel {
             .sorted { $0.count > $1.count }
     }
 
-    private func buildStudentObservationMap(from notes: [Note]) -> [UUID: [Note]] {
-        var map: [UUID: [Note]] = [:]
+    private func buildStudentObservationMap(from notes: [CDNote]) -> [UUID: [CDNote]] {
+        var map: [UUID: [CDNote]] = [:]
         for note in notes {
             switch note.scope {
             case .all:
@@ -324,16 +324,17 @@ final class ObservationPatternsViewModel {
     }
 
     private func buildStudentSummaries(
-        map: [UUID: [Note]],
-        students: [Student],
+        map: [UUID: [CDNote]],
+        students: [CDStudent],
         allTags: [String]
     ) -> [StudentObservationSummary] {
         students.compactMap { student in
-            let notes = map[student.id] ?? []
+            guard let studentID = student.id else { return nil }
+            let notes = map[studentID] ?? []
             guard !notes.isEmpty else { return nil }
             var tagCounts: [String: Int] = [:]
             for note in notes {
-                for tag in note.tags {
+                for tag in (note.tags as? [String]) ?? [] {
                     let tagName = TagHelper.tagName(tag)
                     guard allTags.contains(where: { TagHelper.tagName($0) == tagName }) else { continue }
                     tagCounts[tag, default: 0] += 1
@@ -341,9 +342,9 @@ final class ObservationPatternsViewModel {
             }
             let topTags = tagCounts.sorted { $0.value > $1.value }.prefix(3).map(\.key)
             return StudentObservationSummary(
-                id: student.id,
-                name: "\(student.firstName) \(student.lastName)",
-                initials: "\(student.firstName.prefix(1))\(student.lastName.prefix(1))",
+                id: studentID,
+                name: "\(student.firstName ?? "") \(student.lastName ?? "")",
+                initials: "\((student.firstName ?? "").prefix(1))\((student.lastName ?? "").prefix(1))",
                 levelColor: AppColors.color(forLevel: student.level),
                 observationCount: notes.count,
                 topTags: topTags

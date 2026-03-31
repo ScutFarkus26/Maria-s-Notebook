@@ -1,5 +1,5 @@
 import SwiftUI
-import SwiftData
+import CoreData
 
 struct LessonImportPreviewView: View {
     let parsed: LessonCSVImporter.Parsed
@@ -286,7 +286,7 @@ private struct LessonRowView: View {
             materials: "", purpose: "", ageRange: "", teacherNotes: ""
         ),
         LessonCSVImporter.Row(
-            name: "Three Period Lesson and Layered Layout",
+            name: "Three Period CDLesson and Layered Layout",
             subject: "Math",
             group: "Wooden Hierarchal Materials", subheading: "",
             writeUp: "", orderInGroup: nil,

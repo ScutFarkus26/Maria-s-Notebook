@@ -1,0 +1,32 @@
+{
+  "source": "/Users/dannydeberry/Documents/Projects/MariasNotebook-Rewrite/Maria's Notebook/Components/Modifiers/CardBackgroundModifier.swift",
+  "tables": {
+    "Localizable": [
+      {
+        "comment": "",
+        "key": "Default Card",
+        "location": {
+          "startingColumn": 1,
+          "startingLine": 53
+        }
+      },
+      {
+        "comment": "",
+        "key": "Custom Color",
+        "location": {
+          "startingColumn": 1,
+          "startingLine": 53
+        }
+      },
+      {
+        "comment": "",
+        "key": "Small Corner Radius",
+        "location": {
+          "startingColumn": 1,
+          "startingLine": 53
+        }
+      }
+    ]
+  },
+  "version": 1
+}

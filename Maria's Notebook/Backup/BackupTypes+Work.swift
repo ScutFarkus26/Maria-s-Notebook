@@ -19,7 +19,7 @@ public struct WorkDTO: Codable, Sendable {
     public var participants: [WorkParticipantDTO]
 }
 
-/// Modern DTO that captures all WorkModel fields (format v11+).
+/// Modern DTO that captures all CDWorkModel fields (format v11+).
 public struct WorkModelDTO: Codable, Sendable {
     public var id: UUID
     public var title: String
@@ -73,7 +73,7 @@ public struct PlanningRecommendationDTO: Codable, Sendable {
     public var presentationID: String?
 }
 
-// MARK: - Resource DTO
+// MARK: - CDResource DTO
 
 public struct ResourceDTO: Codable, Sendable {
     public var id: UUID
@@ -89,10 +89,10 @@ public struct ResourceDTO: Codable, Sendable {
     public var linkedSubjects: String
     public var createdAt: Date
     public var modifiedAt: Date
-    // Note: fileBookmark and thumbnailData are @externalStorage and excluded from backups by design
+    // CDNote: fileBookmark and thumbnailData are @externalStorage and excluded from backups by design
 }
 
-// MARK: - NoteStudentLink DTO
+// MARK: - CDNoteStudentLink DTO
 
 public struct NoteStudentLinkDTO: Codable, Sendable {
     public var id: UUID

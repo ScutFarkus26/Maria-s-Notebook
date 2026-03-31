@@ -2,13 +2,13 @@
 // Extracted from SuppliesListView.swift to reduce type body length.
 
 import SwiftUI
-import SwiftData
+import CoreData
 
 struct QuickAdjustSheet: View {
-    @Environment(\.modelContext) private var modelContext
+    @Environment(\.managedObjectContext) private var viewContext
     @Environment(\.dismiss) private var dismiss
 
-    let supply: Supply
+    let supply: CDSupply
 
     @State private var adjustmentAmount: Int = 0
     @State private var adjustmentType: AdjustmentType = .add
@@ -91,9 +91,9 @@ struct QuickAdjustSheet: View {
     private var newTotal: Int {
         switch adjustmentType {
         case .add:
-            return supply.currentQuantity + adjustmentAmount
+            return Int(supply.currentQuantity) + adjustmentAmount
         case .remove:
-            return max(0, supply.currentQuantity - adjustmentAmount)
+            return max(0, Int(supply.currentQuantity) - adjustmentAmount)
         case .set:
             return adjustmentAmount
         }
@@ -104,20 +104,20 @@ struct QuickAdjustSheet: View {
 
         switch adjustmentType {
         case .add:
-            SupplyService.addStock(to: supply, amount: adjustmentAmount, reason: adjustmentReason, in: modelContext)
+            SupplyService.addStock(to: supply, amount: adjustmentAmount, reason: adjustmentReason, in: viewContext)
         case .remove:
             SupplyService.removeStock(
                 from: supply,
                 amount: adjustmentAmount,
                 reason: adjustmentReason,
-                in: modelContext
+                in: viewContext
             )
         case .set:
             SupplyService.updateQuantity(
                 for: supply,
                 newQuantity: adjustmentAmount,
                 reason: adjustmentReason,
-                in: modelContext
+                in: viewContext
             )
         }
     }

@@ -1,0 +1,56 @@
+{
+  "source": "/Users/dannydeberry/Documents/Projects/MariasNotebook-Rewrite/Maria's Notebook/Agenda/AgendaSlot.swift",
+  "tables": {
+    "Localizable": [
+      {
+        "comment": "",
+        "key": "No plans yet",
+        "location": {
+          "startingColumn": 26,
+          "startingLine": 65
+        }
+      },
+      {
+        "comment": "",
+        "key": "Quick Actions…",
+        "location": {
+          "startingColumn": 23,
+          "startingLine": 167
+        }
+      },
+      {
+        "comment": "",
+        "key": "Plan Next Lesson in Group",
+        "location": {
+          "startingColumn": 23,
+          "startingLine": 173
+        }
+      },
+      {
+        "comment": "",
+        "key": "Open Details",
+        "location": {
+          "startingColumn": 23,
+          "startingLine": 179
+        }
+      },
+      {
+        "comment": "",
+        "key": "Move Students…",
+        "location": {
+          "startingColumn": 23,
+          "startingLine": 185
+        }
+      },
+      {
+        "comment": "",
+        "key": "Move to Inbox",
+        "location": {
+          "startingColumn": 23,
+          "startingLine": 191
+        }
+      }
+    ]
+  },
+  "version": 1
+}

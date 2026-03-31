@@ -1,0 +1,64 @@
+{
+  "source": "/Users/dannydeberry/Documents/Projects/MariasNotebook-Rewrite/Maria's Notebook/ObservationMode/DevelopmentalTraitsView.swift",
+  "tables": {
+    "Localizable": [
+      {
+        "comment": "",
+        "key": "Developmental Traits",
+        "location": {
+          "startingColumn": 30,
+          "startingLine": 15
+        }
+      },
+      {
+        "comment": "",
+        "key": "%lld",
+        "location": {
+          "startingColumn": 18,
+          "startingLine": 97
+        }
+      },
+      {
+        "comment": "",
+        "key": " trait observations",
+        "location": {
+          "startingColumn": 18,
+          "startingLine": 100
+        }
+      },
+      {
+        "comment": "",
+        "key": "Characteristics",
+        "location": {
+          "startingColumn": 18,
+          "startingLine": 111
+        }
+      },
+      {
+        "comment": "",
+        "key": "Recent Observations",
+        "location": {
+          "startingColumn": 18,
+          "startingLine": 127
+        }
+      },
+      {
+        "comment": "",
+        "key": "No Developmental Observations",
+        "location": {
+          "startingColumn": 19,
+          "startingLine": 187
+        }
+      },
+      {
+        "comment": "",
+        "key": "Tag observations with developmental characteristics to track patterns over time.",
+        "location": {
+          "startingColumn": 18,
+          "startingLine": 189
+        }
+      }
+    ]
+  },
+  "version": 1
+}

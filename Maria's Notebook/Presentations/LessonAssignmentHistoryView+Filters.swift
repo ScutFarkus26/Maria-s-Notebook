@@ -6,7 +6,7 @@
 //
 
 import SwiftUI
-import SwiftData
+import CoreData
 
 extension LessonAssignmentHistoryView {
 
@@ -37,25 +37,27 @@ extension LessonAssignmentHistoryView {
 
     var filterBar: some View {
         HStack(spacing: 12) {
-            // Student Menu (multi-select)
+            // CDStudent Menu (multi-select)
             Menu {
                 Button("All Students") { selectedStudentIDs.removeAll() }
                 Divider()
-                ForEach(safeStudents) { student in
-                    Button(action: {
-                        if selectedStudentIDs.contains(student.id) {
-                            selectedStudentIDs.remove(student.id)
-                        } else {
-                            selectedStudentIDs.insert(student.id)
-                        }
-                    }, label: {
-                        HStack {
-                            if selectedStudentIDs.contains(student.id) {
-                                Image(systemName: "checkmark")
+                ForEach(safeStudents, id: \.objectID) { student in
+                    if let studentID = student.id {
+                        Button(action: {
+                            if selectedStudentIDs.contains(studentID) {
+                                selectedStudentIDs.remove(studentID)
+                            } else {
+                                selectedStudentIDs.insert(studentID)
                             }
-                            Text(displayName(for: student))
-                        }
-                    })
+                        }, label: {
+                            HStack {
+                                if selectedStudentIDs.contains(studentID) {
+                                    Image(systemName: "checkmark")
+                                }
+                                Text(displayName(for: student))
+                            }
+                        })
+                    }
                 }
             } label: {
                 HStack(spacing: 6) {

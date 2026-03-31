@@ -2,17 +2,17 @@
 // Meeting form pane for creating/editing weekly meeting notes
 
 import SwiftUI
-import SwiftData
+import CoreData
 
 // MARK: - Meeting Form Pane
 
 struct MeetingFormPane: View {
-    let student: Student
-    let meetings: [StudentMeeting]
-    let meetingTemplates: [MeetingTemplate]
+    let student: CDStudent
+    let meetings: [CDStudentMeeting]
+    let meetingTemplates: [CDMeetingTemplate]
     var onComplete: (() -> Void)?
 
-    @Environment(\.modelContext) private var modelContext
+    @Environment(\.managedObjectContext) private var viewContext
 
     // Form state
     @State private var isCompleted: Bool = false
@@ -24,7 +24,7 @@ struct MeetingFormPane: View {
     @State private var showingAddLessonSheet: Bool = false
 
     // Get the active meeting template for placeholder prompts
-    private var activeTemplate: MeetingTemplate? {
+    private var activeTemplate: CDMeetingTemplate? {
         meetingTemplates.first { $0.isActive }
     }
 
@@ -106,7 +106,7 @@ struct MeetingFormPane: View {
                     Button {
                         showingAddLessonSheet = true
                     } label: {
-                        Label("Add Lesson to Inbox", systemImage: "plus.circle")
+                        Label("Add CDLesson to Inbox", systemImage: "plus.circle")
                     }
                     .buttonStyle(.bordered)
 
@@ -191,7 +191,8 @@ struct MeetingFormPane: View {
     }
 
     private func loadCurrentFromDefaults() {
-        let data = MeetingPersistenceService.loadCurrent(studentID: student.id)
+        guard let studentID = student.id else { return }
+        let data = MeetingPersistenceService.loadCurrent(studentID: studentID)
         isCompleted = data.isCompleted
         reflectionText = data.reflectionText
         focusText = data.focusText
@@ -201,7 +202,8 @@ struct MeetingFormPane: View {
     }
 
     private func saveCurrentToDefaults() {
-        MeetingPersistenceService.saveCurrent(studentID: student.id, data: currentMeetingData)
+        guard let studentID = student.id else { return }
+        MeetingPersistenceService.saveCurrent(studentID: studentID, data: currentMeetingData)
     }
 
     private func clearForm() {
@@ -211,22 +213,25 @@ struct MeetingFormPane: View {
         requestsText = ""
         guideNotesText = ""
         nextMeetingDate = nil
-        MeetingPersistenceService.clearCurrent(studentID: student.id)
+        if let studentID = student.id {
+            MeetingPersistenceService.clearCurrent(studentID: studentID)
+        }
     }
 
     private func saveAndContinue() {
+        guard let studentID = student.id else { return }
         // Save to history
         if MeetingPersistenceService.saveToHistory(
-            studentID: student.id,
+            studentID: studentID,
             data: currentMeetingData,
-            context: modelContext
+            context: viewContext
         ) {
             // Schedule next meeting if date was set
             if let date = nextMeetingDate {
                 MeetingScheduler.scheduleMeeting(
-                    studentID: student.id,
+                    studentID: studentID,
                     date: date,
-                    context: modelContext
+                    context: viewContext
                 )
             }
             clearForm()

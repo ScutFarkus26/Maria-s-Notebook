@@ -1,6 +1,6 @@
 // swiftlint:disable file_length
 import SwiftUI
-import SwiftData
+import CoreData
 
 /// Represents a student assignment with optional time
 struct SlotAssignment: Identifiable, Equatable {
@@ -17,13 +17,13 @@ struct SlotAssignment: Identifiable, Equatable {
 // Sheet for creating or editing a schedule
 // swiftlint:disable:next type_body_length
 struct ScheduleEditorSheet: View {
-    let schedule: Schedule?
+    let schedule: CDSchedule?
 
     @Environment(\.dismiss) private var dismiss
-    @Environment(\.modelContext) private var modelContext
+    @Environment(\.managedObjectContext) private var viewContext
 
-    @Query(sort: \Student.firstName) private var studentsRaw: [Student]
-    private var students: [Student] { studentsRaw.filter(\.isEnrolled) }
+    @FetchRequest(sortDescriptors: [NSSortDescriptor(keyPath: \CDStudent.firstName, ascending: true)]) private var studentsRaw: FetchedResults<CDStudent>
+    private var students: [CDStudent] { studentsRaw.filter(\.isEnrolled) }
 
     // Form state
     @State private var name: String = ""
@@ -40,7 +40,7 @@ struct ScheduleEditorSheet: View {
         !name.trimmed().isEmpty
     }
 
-    init(schedule: Schedule?) {
+    init(schedule: CDSchedule?) {
         self.schedule = schedule
     }
 
@@ -49,7 +49,7 @@ struct ScheduleEditorSheet: View {
             ScrollView {
                 VStack(alignment: .leading, spacing: 20) {
                     // Header
-                    Text(isEditing ? "Edit Schedule" : "New Schedule")
+                    Text(isEditing ? "Edit CDSchedule" : "New CDSchedule")
                         .font(AppTheme.ScaledFont.titleXLarge)
 
                     // Basic Info Section
@@ -62,7 +62,7 @@ struct ScheduleEditorSheet: View {
 
                     Divider()
 
-                    // Weekly Schedule Section
+                    // Weekly CDSchedule Section
                     weeklyScheduleSection
                 }
                 .padding(24)
@@ -96,7 +96,7 @@ struct ScheduleEditorSheet: View {
 
     private var basicInfoSection: some View {
         VStack(alignment: .leading, spacing: 12) {
-            Text("Schedule Info")
+            Text("CDSchedule Info")
                 .font(.headline)
 
             VStack(alignment: .leading, spacing: 6) {
@@ -162,11 +162,11 @@ struct ScheduleEditorSheet: View {
         }
     }
 
-    // MARK: - Weekly Schedule Section
+    // MARK: - Weekly CDSchedule Section
 
     private var weeklyScheduleSection: some View {
         VStack(alignment: .leading, spacing: 16) {
-            Text("Weekly Schedule")
+            Text("Weekly CDSchedule")
                 .font(.headline)
 
             ForEach(Weekday.schoolDays, id: \.self) { weekday in
@@ -208,7 +208,7 @@ struct ScheduleEditorSheet: View {
             Menu {
                 ForEach(availableStudents(for: weekday)) { student in
                     Button {
-                        addStudent(student.id.uuidString, to: weekday)
+                        addStudent(student.id?.uuidString ?? "", to: weekday)
                     } label: {
                         Text(student.fullName)
                     }
@@ -219,7 +219,7 @@ struct ScheduleEditorSheet: View {
                         .foregroundStyle(.secondary)
                 }
             } label: {
-                Label("Add Student", systemImage: "plus")
+                Label("Add CDStudent", systemImage: "plus")
                     .font(.subheadline)
             }
             .buttonStyle(.bordered)
@@ -230,11 +230,11 @@ struct ScheduleEditorSheet: View {
 
     private func slotRow(assignment: SlotAssignment, weekday: Weekday) -> some View {
         HStack(spacing: 12) {
-            if let student = students.first(where: { $0.id.uuidString == assignment.studentID }) {
+            if let student = students.first(where: { $0.id?.uuidString == assignment.studentID }) {
                 Text(student.fullName)
                     .font(.subheadline)
             } else {
-                Text("Unknown Student")
+                Text("Unknown CDStudent")
                     .font(.subheadline)
                     .foregroundStyle(.secondary)
             }
@@ -299,9 +299,9 @@ struct ScheduleEditorSheet: View {
         )
     }
 
-    private func availableStudents(for weekday: Weekday) -> [Student] {
+    private func availableStudents(for weekday: Weekday) -> [CDStudent] {
         let assignedIDs = Set((assignments[weekday] ?? []).map(\.studentID))
-        return students.filter { !assignedIDs.contains($0.id.uuidString) }
+        return students.filter { !assignedIDs.contains($0.id?.uuidString ?? "") }
     }
 
     private func addStudent(_ studentID: String, to weekday: Weekday) {
@@ -371,30 +371,29 @@ struct ScheduleEditorSheet: View {
 
             // Remove old slots
             for slot in schedule.safeSlots {
-                modelContext.delete(slot)
+                viewContext.delete(slot)
             }
 
             // Create new slots
             createSlots(for: schedule)
         } else {
             // Create new schedule
-            let newSchedule = Schedule(
-                name: trimmedName,
-                notes: notes,
-                colorHex: colorHex,
-                icon: icon
-            )
-            modelContext.insert(newSchedule)
+            let newSchedule = CDSchedule(context: viewContext)
+            newSchedule.name = trimmedName
+            newSchedule.notes = notes
+            newSchedule.colorHex = colorHex
+            newSchedule.icon = icon
+            // CDSchedule(context:) already inserts into context
 
             // Create slots
             createSlots(for: newSchedule)
         }
 
-        modelContext.safeSave()
+        viewContext.safeSave()
         dismiss()
     }
 
-    private func createSlots(for schedule: Schedule) {
+    private func createSlots(for schedule: CDSchedule) {
         for (weekday, slotAssignments) in assignments {
             // Sort by time before saving
             let sorted = slotAssignments.sorted { lhs, rhs in
@@ -411,15 +410,13 @@ struct ScheduleEditorSheet: View {
                 return lhsTime < rhsTime
             }
             for (index, assignment) in sorted.enumerated() {
-                let slot = ScheduleSlot(
-                    scheduleID: schedule.id.uuidString,
-                    studentID: assignment.studentID,
-                    weekday: weekday,
-                    timeString: assignment.timeString.isEmpty ? nil : assignment.timeString,
-                    sortOrder: index
-                )
+                let slot = CDScheduleSlot(context: viewContext)
+                slot.scheduleID = schedule.id?.uuidString ?? ""
+                slot.studentID = assignment.studentID
+                slot.weekday = weekday
+                slot.timeString = assignment.timeString.isEmpty ? nil : assignment.timeString
+                slot.sortOrder = Int64(index)
                 slot.schedule = schedule
-                modelContext.insert(slot)
             }
         }
     }
@@ -468,7 +465,7 @@ struct ScheduleEditorSheet: View {
     }
 }
 
-#Preview("New Schedule") {
+#Preview("New CDSchedule") {
     ScheduleEditorSheet(schedule: nil)
         .previewEnvironment()
 }

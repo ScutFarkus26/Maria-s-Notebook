@@ -2,33 +2,36 @@
 // Shows historical job assignments grouped by week.
 
 import SwiftUI
-import SwiftData
+import CoreData
 
 struct ClassroomJobHistoryView: View {
-    @Environment(\.modelContext) private var modelContext
+    @Environment(\.managedObjectContext) private var viewContext
 
-    @Query(sort: [SortDescriptor(\JobAssignment.weekStartDate, order: .reverse)])
-    private var allAssignments: [JobAssignment]
+    @FetchRequest(sortDescriptors: [NSSortDescriptor(keyPath: \CDJobAssignment.weekStartDate, ascending: false)]) private var allAssignments: FetchedResults<CDJobAssignment>
 
-    @Query(sort: Student.sortByName)
-    private var allStudentsRaw: [Student]
+    @FetchRequest(sortDescriptors: CDStudent.sortByName)private var allStudentsRaw: FetchedResults<CDStudent>
 
-    private var allStudents: [Student] { allStudentsRaw.filter(\.isEnrolled) }
+    private var allStudents: [CDStudent] { allStudentsRaw.filter(\.isEnrolled) }
 
-    @Query(sort: [SortDescriptor(\ClassroomJob.sortOrder)])
-    private var allJobs: [ClassroomJob]
+    @FetchRequest(sortDescriptors: [NSSortDescriptor(keyPath: \CDClassroomJob.sortOrder, ascending: true)]) private var allJobs: FetchedResults<CDClassroomJob>
 
-    private var studentsByID: [UUID: Student] {
-        Dictionary(uniqueKeysWithValues: allStudents.map { ($0.id, $0) })
+    private var studentsByID: [UUID: CDStudent] {
+        Dictionary(uniqueKeysWithValues: allStudents.compactMap { student in
+            guard let id = student.id else { return nil }
+            return (id, student)
+        })
     }
 
-    private var jobsByID: [UUID: ClassroomJob] {
-        Dictionary(uniqueKeysWithValues: allJobs.map { ($0.id, $0) })
+    private var jobsByID: [UUID: CDClassroomJob] {
+        Dictionary(uniqueKeysWithValues: allJobs.compactMap { job in
+            guard let id = job.id else { return nil }
+            return (id, job)
+        })
     }
 
-    private var assignmentsByWeek: [(week: Date, assignments: [JobAssignment])] {
+    private var assignmentsByWeek: [(week: Date, assignments: [CDJobAssignment])] {
         let grouped = Dictionary(grouping: allAssignments) { assignment in
-            Calendar.current.startOfDay(for: assignment.weekStartDate)
+            Calendar.current.startOfDay(for: assignment.weekStartDate ?? Date.distantPast)
         }
         return grouped.sorted { $0.key > $1.key }
             .map { (week: $0.key, assignments: $0.value) }
@@ -45,7 +48,7 @@ struct ClassroomJobHistoryView: View {
             List {
                 ForEach(assignmentsByWeek, id: \.week) { weekGroup in
                     Section {
-                        ForEach(weekGroup.assignments) { assignment in
+                        ForEach(weekGroup.assignments, id: \.objectID) { assignment in
                             assignmentRow(assignment)
                         }
                     } header: {
@@ -62,7 +65,7 @@ struct ClassroomJobHistoryView: View {
         return "Week of \(date.formatted(fmt)) – \(end.formatted(fmt))"
     }
 
-    private func assignmentRow(_ assignment: JobAssignment) -> some View {
+    private func assignmentRow(_ assignment: CDJobAssignment) -> some View {
         HStack(spacing: 8) {
             if let jobUUID = UUID(uuidString: assignment.jobID),
                let job = jobsByID[jobUUID] {

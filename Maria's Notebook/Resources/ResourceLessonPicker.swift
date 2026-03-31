@@ -3,14 +3,14 @@ import SwiftUI
 /// Multi-select lesson picker grouped by subject.
 /// Shown as a NavigationLink destination inside import/edit sheets.
 struct ResourceLessonPicker: View {
-    let allLessons: [Lesson]
+    let allLessons: [CDLesson]
     @Binding var selectedLessonIDs: Set<UUID>
 
     @State private var searchText = ""
     @State private var expandedSubjects: Set<String> = []
 
-    private var groupedLessons: [(subject: String, lessons: [Lesson])] {
-        let filtered: [Lesson]
+    private var groupedLessons: [(subject: String, lessons: [CDLesson])] {
+        let filtered: [CDLesson]
         if searchText.isEmpty {
             filtered = allLessons
         } else {
@@ -64,9 +64,10 @@ struct ResourceLessonPicker: View {
                             }
                         )
                     ) {
-                        ForEach(group.lessons) { lesson in
+                        ForEach(group.lessons, id: \.objectID) { lesson in
                             Button {
-                                toggleLesson(lesson.id)
+                                guard let lessonID = lesson.id else { return }
+                                toggleLesson(lessonID)
                             } label: {
                                 HStack {
                                     Text(lesson.name)
@@ -74,7 +75,7 @@ struct ResourceLessonPicker: View {
                                         .foregroundStyle(.primary)
                                         .lineLimit(1)
                                     Spacer()
-                                    if selectedLessonIDs.contains(lesson.id) {
+                                    if let lessonID = lesson.id, selectedLessonIDs.contains(lessonID) {
                                         Image(systemName: "checkmark")
                                             .foregroundStyle(Color.accentColor)
                                             .font(.caption)

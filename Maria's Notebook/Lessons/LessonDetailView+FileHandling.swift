@@ -1,5 +1,6 @@
 import OSLog
 import SwiftUI
+import CoreData
 #if os(macOS)
 import AppKit
 #endif
@@ -62,9 +63,10 @@ extension LessonDetailView {
         guard let legacyURL = resolvePagesURL(), !LessonFileStorage.isManagedURL(legacyURL) else { return }
         Task(priority: .utility) {
             do {
+                guard let lessonID = lesson.id else { return }
                 let destURL = try LessonFileStorage.importFile(
                     from: legacyURL,
-                    forLessonWithID: lesson.id,
+                    forLessonWithID: lessonID,
                     lessonName: lesson.name
                 )
                 let bookmark = try LessonFileStorage.makeBookmark(for: destURL)
@@ -74,7 +76,7 @@ extension LessonDetailView {
                     lesson.pagesFileRelativePath = rel
                     resolvedPagesURL = destURL
                     previousManagedURL = destURL
-                    saveCoordinator.save(modelContext, reason: "Migrate lesson file to managed storage")
+                    saveCoordinator.save(viewContext, reason: "Migrate lesson file to managed storage")
                 }
             } catch {
                 await MainActor.run { importError = error.localizedDescription }

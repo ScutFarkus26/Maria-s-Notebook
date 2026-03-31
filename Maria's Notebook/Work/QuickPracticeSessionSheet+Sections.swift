@@ -2,7 +2,7 @@
 // Partner, behavior, notes, next steps, and bottom bar sections extracted from QuickPracticeSessionSheet
 
 import SwiftUI
-import SwiftData
+import CoreData
 import os
 
 extension QuickPracticeSessionSheet {
@@ -58,16 +58,17 @@ extension QuickPracticeSessionSheet {
     }
 
     func partnerRow(for student: Student) -> some View {
-        Button {
-            if selectedPartnerIDs.contains(student.id) {
-                selectedPartnerIDs.remove(student.id)
+        let studentID = student.id ?? UUID()
+        return Button {
+            if selectedPartnerIDs.contains(studentID) {
+                selectedPartnerIDs.remove(studentID)
             } else {
-                selectedPartnerIDs.insert(student.id)
+                selectedPartnerIDs.insert(studentID)
             }
         } label: {
             HStack {
-                Image(systemName: selectedPartnerIDs.contains(student.id) ? "checkmark.square.fill" : "square")
-                    .foregroundStyle(selectedPartnerIDs.contains(student.id) ? .blue : .secondary)
+                Image(systemName: selectedPartnerIDs.contains(studentID) ? "checkmark.square.fill" : "square")
+                    .foregroundStyle(selectedPartnerIDs.contains(studentID) ? .blue : .secondary)
                     .font(.system(size: 20))
 
                 Text(StudentFormatter.displayName(for: student))
@@ -80,7 +81,7 @@ extension QuickPracticeSessionSheet {
             .padding(.horizontal, 12)
             .background(
                 RoundedRectangle(cornerRadius: 8)
-                    .fill(selectedPartnerIDs.contains(student.id) ? Color.blue.opacity(UIConstants.OpacityConstants.light) : Color.clear)
+                    .fill(selectedPartnerIDs.contains(studentID) ? Color.blue.opacity(UIConstants.OpacityConstants.light) : Color.clear)
             )
         }
         .buttonStyle(.plain)
@@ -272,20 +273,18 @@ extension QuickPracticeSessionSheet {
         var studentIDs = [workItem.studentID]
         studentIDs.append(contentsOf: selectedPartnerIDs.map(\.uuidString))
 
-        // Create practice session (using SwiftData directly — views migrate to CD in Phase 4)
-        let session = PracticeSession(
-            date: sessionDate,
-            duration: hasDuration ? TimeInterval(durationMinutes * 60) : nil,
-            studentIDs: studentIDs,
-            workItemIDs: [workItem.id.uuidString],
-            sharedNotes: sessionNotes,
-            location: nil
-        )
-        modelContext.insert(session)
+        // Create practice session via Core Data
+        let session = CDPracticeSession(context: modelContext)
+        session.date = sessionDate
+        session.durationInterval = hasDuration ? TimeInterval(durationMinutes * 60) : nil
+        session.studentIDsArray = studentIDs
+        session.workItemIDsArray = [workItem.id?.uuidString ?? ""]
+        session.sharedNotes = sessionNotes
+        session.location = nil
 
         // Set quality metrics
-        session.practiceQuality = practiceQuality
-        session.independenceLevel = independenceLevel
+        session.practiceQualityValue = practiceQuality
+        session.independenceLevelValue = independenceLevel
 
         // Set behavior flags
         session.askedForHelp = askedForHelp
@@ -303,11 +302,7 @@ extension QuickPracticeSessionSheet {
         session.followUpActions = followUpActions
         session.materialsUsed = materialsUsed
 
-        do {
-            try modelContext.save()
-        } catch {
-            Self.logger.warning("Failed to save quick practice session: \(error)")
-        }
+        modelContext.safeSave()
 
         onSave?(session)
         dismiss()

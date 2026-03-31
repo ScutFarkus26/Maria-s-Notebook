@@ -1,11 +1,11 @@
 import SwiftUI
-import SwiftData
+import CoreData
 import os
 
 extension LessonDetailCard {
     var editForm: some View {
         VStack(spacing: 12) {
-            TextField("Lesson Name", text: $draftName)
+            TextField("CDLesson Name", text: $draftName)
                 .textFieldStyle(.roundedBorder)
             HStack {
                 TextField("Subject", text: $draftSubject)
@@ -37,11 +37,10 @@ extension LessonDetailCard {
 
             if draftLessonFormat == .story {
                 let storyRaw = LessonFormat.story.rawValue
-                let storyLessons: [Lesson] = {
-                    let descriptor = FetchDescriptor<Lesson>(
-                        predicate: #Predicate { $0.lessonFormatRaw == storyRaw }
-                    )
-                    return modelContext.safeFetch(descriptor).filter { $0.id != lesson.id }
+                let storyLessons: [CDLesson] = {
+                    let descriptor: NSFetchRequest<CDLesson> = NSFetchRequest(entityName: "CDLesson")
+        descriptor.predicate = NSPredicate(format: "lessonFormatRaw == %@", storyRaw as CVarArg)
+                    return viewContext.safeFetch(descriptor).filter { $0.id != lesson.id }
                 }()
                 Picker("Parent Story", selection: $draftParentStoryID) {
                     Text("None (Root Story)").tag(nil as UUID?)
@@ -94,7 +93,7 @@ extension LessonDetailCard {
                                 lesson.pagesFileRelativePath = nil
                                 resolvedPagesURL = nil
                                 previousManagedURL = nil
-                                saveCoordinator.save(modelContext, reason: "Clear Pages link")
+                                saveCoordinator.save(viewContext, reason: "Clear Pages link")
                             }
                         }
                         Button("Import\u{2026}") {
@@ -156,7 +155,7 @@ extension LessonDetailCard {
                     .overlay(RoundedRectangle(cornerRadius: 8).stroke(Color.primary.opacity(UIConstants.OpacityConstants.medium)))
 
                 // Structured sample works (with steps)
-                ForEach(lesson.sortedSampleWorks) { sw in
+                ForEach(lesson.orderedSampleWorks) { sw in
                     SampleWorkRow(sampleWork: sw)
                         .contentShape(Rectangle())
                         .onTapGesture {

@@ -1,12 +1,13 @@
 // StudentCardComponents.swift
-// Student card components extracted from StudentsCardsGridView
+// CDStudent card components extracted from StudentsCardsGridView
 
 import SwiftUI
+import CoreData
 
-// MARK: - Default Student Card
+// MARK: - Default CDStudent Card
 
 struct DefaultStudentCard: View {
-    let student: Student
+    let student: CDStudent
     var showAge: Bool = false
 
     private var levelColor: Color {
@@ -40,8 +41,8 @@ struct DefaultStudentCard: View {
                 HStack(spacing: 6) {
                     if showAge {
                         ViewThatFits(in: .horizontal) {
-                            ageBadge(text: AgeUtils.verboseQuarterAgeString(for: student.birthday))
-                            ageBadge(text: AgeUtils.conciseQuarterAgeString(for: student.birthday))
+                            ageBadge(text: AgeUtils.verboseQuarterAgeString(for: student.birthday ?? Date()))
+                            ageBadge(text: AgeUtils.conciseQuarterAgeString(for: student.birthday ?? Date()))
                         }
                         .transition(.opacity)
                     }
@@ -65,10 +66,10 @@ struct DefaultStudentCard: View {
     }
 }
 
-// MARK: - Age Student Card
+// MARK: - Age CDStudent Card
 
 struct AgeStudentCard: View {
-    let student: Student
+    let student: CDStudent
     @State private var bob = false
 
     private var levelColor: Color {
@@ -80,11 +81,11 @@ struct AgeStudentCard: View {
     }
 
     private var ageQuarter: (years: Int, months: Int) {
-        AgeUtils.quarterRoundedAgeComponents(birthday: student.birthday)
+        AgeUtils.quarterRoundedAgeComponents(birthday: student.birthday ?? Date())
     }
 
     private var ageVerboseLabel: String {
-        AgeUtils.quarterFractionAgeString(for: student.birthday)
+        AgeUtils.quarterFractionAgeString(for: student.birthday ?? Date())
     }
 
     private var sparklesOverlay: some View {

@@ -2,6 +2,7 @@
 // PDF thumbnail components extracted from StudentFilesTab
 
 import SwiftUI
+import CoreData
 @preconcurrency import PDFKit
 #if os(macOS)
 import AppKit

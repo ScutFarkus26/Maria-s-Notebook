@@ -4,9 +4,10 @@
 // Paper-styled lesson card with subtle shadows and content preview.
 
 import SwiftUI
+import CoreData
 
 struct PaperLessonCard: View {
-    let lesson: Lesson
+    let lesson: CDLesson
     let statusCount: Int?
     let lastPresentedDate: Date?
 
@@ -272,14 +273,16 @@ struct PaperLessonCard: View {
 // MARK: - Preview
 
 #Preview("Album Lesson") {
-    PaperLessonCard(
-        lesson: Lesson(
-            name: "Introduction to Decimal System",
-            subject: "Math",
-            group: "Number Work",
-            subheading: "Understanding base-10 and place value concepts",
-            writeUp: "This foundational presentation introduces students to the decimal system."
-        ),
+    let ctx = CoreDataStack.preview.viewContext
+    let lesson = CDLesson(context: ctx)
+    lesson.name = "Introduction to Decimal System"
+    lesson.subject = "Math"
+    lesson.group = "Number Work"
+    lesson.subheading = "Understanding base-10 and place value concepts"
+    lesson.writeUp = "This foundational presentation introduces students to the decimal system."
+
+    return PaperLessonCard(
+        lesson: lesson,
         statusCount: 5,
         lastPresentedDate: Date().addingTimeInterval(-86400 * 7)
     )
@@ -288,13 +291,13 @@ struct PaperLessonCard: View {
 }
 
 #Preview("Personal Lesson") {
-    let lesson = Lesson(
-        name: "Bird Observation Activity",
-        subject: "Science",
-        group: "Zoology",
-        subheading: "",
-        writeUp: "A custom observation activity for tracking local bird species in the school garden."
-    )
+    let ctx = CoreDataStack.preview.viewContext
+    let lesson = CDLesson(context: ctx)
+    lesson.name = "Bird Observation Activity"
+    lesson.subject = "Science"
+    lesson.group = "Zoology"
+    lesson.subheading = ""
+    lesson.writeUp = "A custom observation activity for tracking local bird species in the school garden."
     lesson.source = .personal
     lesson.personalKind = .observation
 
@@ -308,14 +311,13 @@ struct PaperLessonCard: View {
 }
 
 #Preview("Minimal Lesson") {
-    PaperLessonCard(
-        lesson: Lesson(
-            name: "Parts of Speech",
-            subject: "Language",
-            group: "",
-            subheading: "",
-            writeUp: ""
-        ),
+    let ctx = CoreDataStack.preview.viewContext
+    let lesson = CDLesson(context: ctx)
+    lesson.name = "Parts of Speech"
+    lesson.subject = "Language"
+
+    return PaperLessonCard(
+        lesson: lesson,
         statusCount: nil,
         lastPresentedDate: nil
     )
