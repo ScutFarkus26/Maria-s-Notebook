@@ -1,3 +1,4 @@
+import CoreData
 import SwiftData
 import Foundation
 import OSLog
@@ -5,7 +6,9 @@ import OSLog
 enum MigrationRunner {
     private static let logger = Logger.migration
 
-    static func runIfNeeded(context: ModelContext) async {
+    // MARK: - Core Data API (Primary)
+
+    @MainActor static func runIfNeeded(context: NSManagedObjectContext) async {
         // Remove duplicate records that may have been created by CloudKit sync conflicts.
         // This must run early before other migrations that depend on clean data.
         let deduplicationResults = DataMigrations.deduplicateAllModels(using: context)
@@ -35,10 +38,26 @@ enum MigrationRunner {
         // PHASE 6 COMPLETE: Legacy check-in migration finished and model removed
         // Backfill and cleanup migrations no longer needed as legacy model is deleted
 
-        // Seed built-in note templates
-        NoteTemplate.seedBuiltInTemplates(in: context)
+        // TODO: Convert NoteTemplate/MeetingTemplate seeding to Core Data in a future batch
+        // These still use SwiftData models and are called via the deprecated bridge below
+    }
 
-        // Seed built-in meeting templates
-        MeetingTemplate.seedBuiltInTemplates(in: context)
+    /// Seed templates that still require a ModelContext (SwiftData).
+    /// Call this alongside `runIfNeeded(context:)` until the template models are converted.
+    static func seedTemplatesIfNeeded(modelContext: ModelContext) {
+        NoteTemplate.seedBuiltInTemplates(in: modelContext)
+        MeetingTemplate.seedBuiltInTemplates(in: modelContext)
+    }
+
+    // MARK: - Deprecated SwiftData Bridge
+
+    @available(*, deprecated, message: "Use runIfNeeded(context:) with NSManagedObjectContext")
+    @MainActor static func runIfNeeded(context: ModelContext) async {
+        let cdContext = AppBootstrapping.getSharedCoreDataStack().viewContext
+        await runIfNeeded(context: cdContext)
+
+
+        // Seed templates via SwiftData (still needs ModelContext)
+        seedTemplatesIfNeeded(modelContext: context)
     }
 }

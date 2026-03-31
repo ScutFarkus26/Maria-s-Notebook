@@ -1,4 +1,5 @@
 import Foundation
+import CoreData
 import SwiftData
 import OSLog
 
@@ -7,7 +8,18 @@ import OSLog
 struct SessionWorkAssignmentService {
     private static let logger = Logger.work
 
-    let context: ModelContext
+    let context: NSManagedObjectContext
+
+    // MARK: - Core Data Init
+
+    init(context: NSManagedObjectContext) {
+        self.context = context
+    }
+
+    @available(*, deprecated, message: "Pass NSManagedObjectContext instead of ModelContext")
+    init(context: ModelContext) {
+        self.context = AppBootstrapping.getSharedCoreDataStack().viewContext
+    }
 
     // MARK: - Uniform Mode
 
@@ -19,30 +31,30 @@ struct SessionWorkAssignmentService {
         title: String,
         instructions: String,
         dueDate: Date?
-    ) throws -> WorkModel {
+    ) throws -> CDWorkModel {
         let lessonID = resolveGenericProjectLessonID()
 
-        let work = WorkModel(
-            id: UUID(),
-            title: title,
-            kind: .followUpAssignment,
-            createdAt: Date(),
-            status: .active,
-            assignedAt: Date(),
-            dueAt: dueDate,
-            studentID: memberStudentIDs.first ?? "",
-            lessonID: lessonID.uuidString,
-            sourceContextType: .projectSession,
-            sourceContextID: session.id.uuidString
-        )
+        let work = CDWorkModel(context: context)
+        work.id = UUID()
+        work.title = title
+        work.kind = .followUpAssignment
+        work.createdAt = Date()
+        work.status = .active
+        work.assignedAt = Date()
+        work.dueAt = dueDate
+        work.studentID = memberStudentIDs.first ?? ""
+        work.lessonID = lessonID.uuidString
+        work.sourceContextType = .projectSession
+        work.sourceContextID = session.id.uuidString
 
         // Create participants for all members
-        work.participants = memberStudentIDs.compactMap { idString in
-            guard let uuid = UUID(uuidString: idString) else { return nil }
-            return WorkParticipantEntity(studentID: uuid, work: work)
+        for idString in memberStudentIDs {
+            guard let uuid = UUID(uuidString: idString) else { continue }
+            let participant = CDWorkParticipantEntity(context: context)
+            participant.studentID = uuid.uuidString
+            participant.work = work
         }
 
-        context.insert(work)
         if !instructions.trimmed().isEmpty {
             work.setLegacyNoteText(instructions, in: context)
         }
@@ -58,27 +70,22 @@ struct SessionWorkAssignmentService {
         title: String,
         instructions: String,
         dueDate: Date?
-    ) throws -> WorkModel {
+    ) throws -> CDWorkModel {
         let lessonID = resolveGenericProjectLessonID()
 
-        let work = WorkModel(
-            id: UUID(),
-            title: title,
-            kind: .followUpAssignment,
-            createdAt: Date(),
-            status: .active,
-            assignedAt: Date(),
-            dueAt: dueDate,
-            studentID: "",  // Empty - offered to group
-            lessonID: lessonID.uuidString,
-            sourceContextType: .projectSession,
-            sourceContextID: session.id.uuidString
-        )
+        let work = CDWorkModel(context: context)
+        work.id = UUID()
+        work.title = title
+        work.kind = .followUpAssignment
+        work.createdAt = Date()
+        work.status = .active
+        work.assignedAt = Date()
+        work.dueAt = dueDate
+        work.studentID = ""  // Empty - offered to group
+        work.lessonID = lessonID.uuidString
+        work.sourceContextType = .projectSession
+        work.sourceContextID = session.id.uuidString
 
-        // Empty participants - no selections yet
-        work.participants = []
-
-        context.insert(work)
         if !instructions.trimmed().isEmpty {
             work.setLegacyNoteText(instructions, in: context)
         }
@@ -86,68 +93,70 @@ struct SessionWorkAssignmentService {
     }
 
     /// Records a student's selection for an offered work
-    func recordSelection(work: WorkModel, studentID: UUID) {
+    func recordSelection(work: CDWorkModel, studentID: UUID) {
         let idString = studentID.uuidString
 
         // Check if already selected
-        if (work.participants ?? []).contains(where: { $0.studentID == idString }) {
+        let participants = (work.participants as? Set<CDWorkParticipantEntity>) ?? []
+        if participants.contains(where: { $0.studentID == idString }) {
             return // Already selected
         }
 
-        let participant = WorkParticipantEntity(studentID: studentID, work: work)
-        work.participants = (work.participants ?? []) + [participant]
+        let participant = CDWorkParticipantEntity(context: context)
+        participant.studentID = idString
+        participant.work = work
 
         // Update studentID if this is the first selection
-        if work.studentID.isEmpty {
+        if (work.studentID ?? "").isEmpty {
             work.studentID = idString
         }
     }
 
     /// Removes a student's selection
-    func removeSelection(work: WorkModel, studentID: UUID) {
+    func removeSelection(work: CDWorkModel, studentID: UUID) {
         let idString = studentID.uuidString
 
         // Find and remove the participant
-        if let participants = work.participants,
-           let idx = participants.firstIndex(where: { $0.studentID == idString }) {
-            let participant = participants[idx]
-            work.participants?.remove(at: idx)
+        let participants = (work.participants as? Set<CDWorkParticipantEntity>) ?? []
+        if let participant = participants.first(where: { $0.studentID == idString }) {
             context.delete(participant)
         }
 
         // Update studentID if we removed the primary
         if work.studentID == idString {
-            work.studentID = (work.participants ?? []).first?.studentID ?? ""
+            let remaining = (work.participants as? Set<CDWorkParticipantEntity>) ?? []
+            work.studentID = remaining.first?.studentID ?? ""
         }
     }
 
     // MARK: - Queries
 
     /// Gets all works for a session
-    func worksForSession(_ session: ProjectSession) -> [WorkModel] {
+    func worksForSession(_ session: ProjectSession) -> [CDWorkModel] {
         let sessionID = session.id.uuidString
-        let descriptor = FetchDescriptor<WorkModel>(
-            predicate: #Predicate { $0.sourceContextID == sessionID }
-        )
-        return safeFetch(descriptor, context: "worksForSession")
+        let request = CDFetchRequest(CDWorkModel.self)
+        request.predicate = NSPredicate(format: "sourceContextID == %@", sessionID)
+        return context.safeFetch(request)
     }
 
     /// Gets offered (unselected) works for a session
-    func offeredWorksForSession(_ session: ProjectSession) -> [WorkModel] {
+    func offeredWorksForSession(_ session: ProjectSession) -> [CDWorkModel] {
         worksForSession(session).filter(\.isOffered)
     }
 
     /// Gets works selected by a specific student in a session
-    func worksSelectedByStudent(_ studentID: String, in session: ProjectSession) -> [WorkModel] {
+    func worksSelectedByStudent(_ studentID: String, in session: ProjectSession) -> [CDWorkModel] {
         worksForSession(session).filter { work in
-            (work.participants ?? []).contains { $0.studentID == studentID }
+            let participants = (work.participants as? Set<CDWorkParticipantEntity>) ?? []
+            return participants.contains { $0.studentID == studentID }
         }
     }
 
     /// Checks selection status for a student in a session
-    func selectionStatus(for studentID: String, in session: ProjectSession, works: [WorkModel]) -> SelectionStatus {
+    func selectionStatus(for studentID: String, in session: ProjectSession, works: [CDWorkModel]) -> SelectionStatus {
         let studentWorks = works.filter { work in
-            (work.participants ?? []).contains { $0.studentID == studentID }
+            let participants = (work.participants as? Set<CDWorkParticipantEntity>) ?? []
+            return participants.contains { $0.studentID == studentID }
         }
         let count = studentWorks.count
         let min = session.minSelections
@@ -162,29 +171,42 @@ struct SessionWorkAssignmentService {
         }
     }
 
+    // MARK: - Deprecated SwiftData Adapters
+
+    /// Records a student's selection for an offered work (SwiftData WorkModel)
+    @available(*, deprecated, message: "Use CDWorkModel overload")
+    func recordSelection(work: WorkModel, studentID: UUID) {
+        let request = CDFetchRequest(CDWorkModel.self)
+        request.predicate = NSPredicate(format: "id == %@", work.id as CVarArg)
+        guard let cdWork = context.safeFetch(request).first else { return }
+        recordSelection(work: cdWork, studentID: studentID)
+    }
+
+    /// Removes a student's selection (SwiftData WorkModel)
+    @available(*, deprecated, message: "Use CDWorkModel overload")
+    func removeSelection(work: WorkModel, studentID: UUID) {
+        let request = CDFetchRequest(CDWorkModel.self)
+        request.predicate = NSPredicate(format: "id == %@", work.id as CVarArg)
+        guard let cdWork = context.safeFetch(request).first else { return }
+        removeSelection(work: cdWork, studentID: studentID)
+    }
+
     // MARK: - Private Helpers
 
     private func resolveGenericProjectLessonID() -> UUID {
         let name = "Project Work"
-        let fetch = FetchDescriptor<Lesson>(predicate: #Predicate { $0.name == name })
-        let existing = safeFetch(fetch, context: "resolveGenericProjectLessonID")
-        if let first = existing.first {
-            return first.id
+        let request = CDFetchRequest(CDLesson.self)
+        request.predicate = NSPredicate(format: "name == %@", name)
+        let existing = context.safeFetch(request)
+        if let first = existing.first, let firstID = first.id {
+            return firstID
         }
-        let lesson = Lesson(name: name, subject: "Projects", group: "Project")
-        context.insert(lesson)
-        return lesson.id
-    }
-
-    // MARK: - Helper Methods
-
-    private func safeFetch<T>(_ descriptor: FetchDescriptor<T>, context: String = #function) -> [T] {
-        do {
-            return try self.context.fetch(descriptor)
-        } catch {
-            Self.logger.warning("Failed to fetch \(T.self, privacy: .public): \(error.localizedDescription)")
-            return []
-        }
+        let lesson = CDLesson(context: context)
+        lesson.id = UUID()
+        lesson.name = name
+        lesson.subject = "Projects"
+        lesson.group = "Project"
+        return lesson.id!
     }
 }
 

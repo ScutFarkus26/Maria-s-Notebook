@@ -3,6 +3,7 @@
 // swiftlint:disable file_length
 
 import Foundation
+import CoreData
 import SwiftData
 import SwiftUI
 import PDFKit
@@ -21,8 +22,37 @@ typealias PlatformColor = NSColor
 struct ReportGeneratorService {
     private static let logger = Logger.reports
 
-    // MARK: - Helper Methods
+    // MARK: - Core Data API (Primary)
 
+    /// Fetch flagged notes for a student within a date range (Core Data)
+    func fetchReportNotes(
+        for student: CDStudent,
+        dateRange: ClosedRange<Date>,
+        context: NSManagedObjectContext
+    ) -> [CDNote] {
+        let startDate = dateRange.lowerBound
+        let endDate = dateRange.upperBound
+
+        let request = CDFetchRequest(CDNote.self)
+        request.predicate = NSPredicate(
+            format: "includeInReport == YES AND createdAt >= %@ AND createdAt <= %@",
+            startDate as NSDate,
+            endDate as NSDate
+        )
+        request.sortDescriptors = [NSSortDescriptor(key: "createdAt", ascending: false)]
+
+        let allFlagged = context.safeFetch(request)
+
+        // Filter to notes visible to this student
+        guard let studentID = student.id else { return [] }
+        return allFlagged.filter { note in
+            note.scopeIsAll || note.searchIndexStudentID == studentID || note.scope.applies(to: studentID)
+        }
+    }
+
+    // MARK: - Deprecated SwiftData Helper
+
+    @available(*, deprecated, message: "Use Core Data overload")
     private func safeFetch<T>(
         _ descriptor: FetchDescriptor<T>,
         context: ModelContext,
@@ -98,8 +128,9 @@ struct ReportGeneratorService {
         }
     }
 
-    // MARK: - Fetch Notes
+    // MARK: - Fetch Notes (Deprecated SwiftData)
 
+    @available(*, deprecated, message: "Use Core Data overload with NSManagedObjectContext")
     func fetchReportNotes(
         for student: Student,
         dateRange: ClosedRange<Date>,

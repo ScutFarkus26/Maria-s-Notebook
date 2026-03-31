@@ -1,5 +1,6 @@
 // swiftlint:disable file_length
 import Foundation
+import CoreData
 import EventKit
 import SwiftData
 import OSLog
@@ -26,6 +27,9 @@ final class ReminderSyncService {
     static let shared = ReminderSyncService()
     
     let eventStore = EKEventStore()
+    var managedObjectContext: NSManagedObjectContext?
+
+    @available(*, deprecated, message: "Use managedObjectContext instead")
     var modelContext: ModelContext?
 
     /// The identifier of the Reminders list to sync from (more robust than name)
@@ -60,8 +64,8 @@ final class ReminderSyncService {
     private var isObserving = false
     private var pendingChangeTask: Task<Void, Never>?
 
-    init(modelContext: ModelContext? = nil) {
-        self.modelContext = modelContext
+    init(context: NSManagedObjectContext? = nil) {
+        self.managedObjectContext = context
         self.syncListIdentifier = UserDefaults.standard.string(forKey: "ReminderSync.syncListIdentifier")
         self.syncListName = UserDefaults.standard.string(forKey: "ReminderSync.syncListName")
         self.authorizationStatus = EKEventStore.authorizationStatus(for: .reminder)
@@ -73,6 +77,12 @@ final class ReminderSyncService {
         if syncListIdentifier != nil && hasFullAccess {
             startObservingChanges()
         }
+    }
+
+    @available(*, deprecated, message: "Use init(context:) with NSManagedObjectContext")
+    convenience init(modelContext: ModelContext?) {
+        self.init(context: AppBootstrapping.getSharedCoreDataStack().viewContext)
+        self.modelContext = modelContext
     }
 
     /// Migrate from legacy name-based storage to identifier-based storage
@@ -254,7 +264,7 @@ final class ReminderSyncService {
         // Only sync if we have a configured list (identifier or name) and access
         guard syncListIdentifier != nil || (syncListName.map { !$0.isEmpty } ?? false) else { return }
         guard hasFullAccess else { return }
-        guard modelContext != nil else { return }
+        guard managedObjectContext != nil else { return }
         
         // Debounce: Only sync if we haven't synced recently (within last 30 seconds)
         // This prevents excessive syncing during rapid iCloud background updates,
@@ -280,11 +290,11 @@ final class ReminderSyncService {
     var lastSyncError: String?
     var isSyncing: Bool = false
 
-    // MARK: - Two-Way Sync: Update EventKit from Local Changes
+    // MARK: - Two-Way Sync: Update EventKit from Local Changes (Core Data)
 
-    /// Update a reminder's completion status in EventKit
+    /// Update a reminder's completion status in EventKit (Core Data)
     /// Call this when the user toggles completion in the app
-    func updateReminderCompletionInEventKit(_ reminder: Reminder) async throws {
+    func updateReminderCompletionInEventKit(_ reminder: CDReminder) async throws {
         guard hasFullAccess else {
             throw ReminderSyncError.notAuthorized
         }
@@ -305,6 +315,27 @@ final class ReminderSyncService {
         ekReminder.completionDate = reminder.completedAt
 
         // Save to EventKit
+        try eventStore.save(ekReminder, commit: true)
+    }
+
+    // MARK: - Deprecated SwiftData Two-Way Sync
+
+    @available(*, deprecated, message: "Use Core Data overload with CDReminder")
+    func updateReminderCompletionInEventKit(_ reminder: Reminder) async throws {
+        guard hasFullAccess else {
+            throw ReminderSyncError.notAuthorized
+        }
+
+        guard let ekID = reminder.eventKitReminderID else {
+            return
+        }
+
+        guard let ekReminder = eventStore.calendarItem(withIdentifier: ekID) as? EKReminder else {
+            return
+        }
+
+        ekReminder.isCompleted = reminder.isCompleted
+        ekReminder.completionDate = reminder.completedAt
         try eventStore.save(ekReminder, commit: true)
     }
 }

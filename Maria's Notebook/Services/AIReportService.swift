@@ -1,4 +1,5 @@
 import Foundation
+import CoreData
 import SwiftData
 import OSLog
 
@@ -9,8 +10,9 @@ enum AIReportService {
     private static let logger = Logger.reports
 
     struct ReportData {
-        let student: Student
-        let notes: [Note]
+        let studentFirstName: String
+        let studentLastName: String
+        let notes: [NoteData]
         let attendanceRate: Double?
         let totalSchoolDays: Int
         let daysPresent: Int
@@ -18,6 +20,12 @@ enum AIReportService {
         let lessonCount: Int
         let dateRange: ClosedRange<Date>
         let style: ReportGeneratorService.ReportStyle
+
+        struct NoteData {
+            let body: String
+            let tags: [String]
+            let createdAt: Date
+        }
     }
 
     struct MasteryBreakdown {
@@ -60,7 +68,61 @@ enum AIReportService {
         }
     }
 
+    /// Gather all report data from the Core Data context for a student and date range.
+    static func gatherReportData(
+        student: CDStudent,
+        notes: [CDNote],
+        dateRange: ClosedRange<Date>,
+        style: ReportGeneratorService.ReportStyle,
+        context: NSManagedObjectContext
+    ) -> ReportData {
+        let studentID = student.id ?? UUID()
+
+        // Attendance
+        let (daysPresent, totalDays, rate) = fetchAttendanceStats(
+            studentID: studentID,
+            dateRange: dateRange,
+            context: context
+        )
+
+        // Mastery
+        let mastery = fetchMasteryBreakdown(
+            studentID: studentID,
+            dateRange: dateRange,
+            context: context
+        )
+
+        // Lesson count
+        let lessonCount = fetchLessonPresentationCount(
+            studentID: studentID,
+            dateRange: dateRange,
+            context: context
+        )
+
+        let noteData = notes.map { note in
+            ReportData.NoteData(
+                body: note.body ?? "",
+                tags: (note.tags as? [String]) ?? [],
+                createdAt: note.createdAt ?? Date()
+            )
+        }
+
+        return ReportData(
+            studentFirstName: student.firstName ?? "",
+            studentLastName: student.lastName ?? "",
+            notes: noteData,
+            attendanceRate: rate,
+            totalSchoolDays: totalDays,
+            daysPresent: daysPresent,
+            masteryBreakdown: mastery,
+            lessonCount: lessonCount,
+            dateRange: dateRange,
+            style: style
+        )
+    }
+
     /// Gather all report data from the model context for a student and date range.
+    @available(*, deprecated, message: "Use Core Data overload")
     static func gatherReportData(
         student: Student,
         notes: [Note],
@@ -69,29 +131,38 @@ enum AIReportService {
         context: ModelContext
     ) -> ReportData {
         // Attendance
-        let (daysPresent, totalDays, rate) = fetchAttendanceStats(
+        let (daysPresent, totalDays, rate) = fetchAttendanceStatsLegacy(
             studentID: student.id,
             dateRange: dateRange,
             context: context
         )
 
         // Mastery
-        let mastery = fetchMasteryBreakdown(
+        let mastery = fetchMasteryBreakdownLegacy(
             studentID: student.id,
             dateRange: dateRange,
             context: context
         )
 
         // Lesson count
-        let lessonCount = fetchLessonPresentationCount(
+        let lessonCount = fetchLessonPresentationCountLegacy(
             studentID: student.id,
             dateRange: dateRange,
             context: context
         )
 
+        let noteData = notes.map { note in
+            ReportData.NoteData(
+                body: note.body,
+                tags: note.tags,
+                createdAt: note.createdAt
+            )
+        }
+
         return ReportData(
-            student: student,
-            notes: notes,
+            studentFirstName: student.firstName,
+            studentLastName: student.lastName,
+            notes: noteData,
             attendanceRate: rate,
             totalSchoolDays: totalDays,
             daysPresent: daysPresent,
@@ -112,7 +183,7 @@ enum AIReportService {
         let endDate = dateFormatter.string(from: data.dateRange.upperBound)
 
         var prompt = """
-            Write a \(data.style.rawValue) for \(data.student.firstName) \(data.student.lastName) \
+            Write a \(data.style.rawValue) for \(data.studentFirstName) \(data.studentLastName) \
             covering the period \(startDate) to \(endDate).
 
             """
@@ -161,7 +232,81 @@ enum AIReportService {
         return prompt
     }
 
+    // MARK: - Core Data Fetch Helpers
+
     private static func fetchAttendanceStats(
+        studentID: UUID,
+        dateRange: ClosedRange<Date>,
+        context: NSManagedObjectContext
+    ) -> (daysPresent: Int, totalDays: Int, rate: Double?) {
+        let studentIDStr = studentID.uuidString
+        let request = CDFetchRequest(CDAttendanceRecord.self)
+        request.predicate = NSPredicate(
+            format: "studentID == %@ AND date >= %@ AND date <= %@",
+            studentIDStr,
+            dateRange.lowerBound as NSDate,
+            dateRange.upperBound as NSDate
+        )
+        let records = context.safeFetch(request)
+        guard !records.isEmpty else { return (0, 0, nil) }
+
+        let present = records.filter { $0.status == .present || $0.status == .tardy }.count
+        let total = records.count
+        let rate = total > 0 ? Double(present) / Double(total) : nil
+        return (present, total, rate)
+    }
+
+    private static func fetchMasteryBreakdown(
+        studentID: UUID,
+        dateRange: ClosedRange<Date>,
+        context: NSManagedObjectContext
+    ) -> MasteryBreakdown? {
+        let studentIDStr = studentID.uuidString
+        let request = CDFetchRequest(CDLessonPresentation.self)
+        request.predicate = NSPredicate(format: "studentID == %@", studentIDStr)
+        let presentations = context.safeFetch(request)
+
+        guard !presentations.isEmpty else { return nil }
+
+        var presented = 0, practicing = 0, ready = 0, proficient = 0
+        for p in presentations {
+            switch p.state {
+            case .presented: presented += 1
+            case .practicing: practicing += 1
+            case .readyForAssessment: ready += 1
+            case .proficient: proficient += 1
+            default: break
+            }
+        }
+
+        return MasteryBreakdown(
+            presented: presented,
+            practicing: practicing,
+            readyForAssessment: ready,
+            proficient: proficient
+        )
+    }
+
+    private static func fetchLessonPresentationCount(
+        studentID: UUID,
+        dateRange: ClosedRange<Date>,
+        context: NSManagedObjectContext
+    ) -> Int {
+        let studentIDStr = studentID.uuidString
+        let request = CDFetchRequest(CDLessonPresentation.self)
+        request.predicate = NSPredicate(
+            format: "studentID == %@ AND presentedAt >= %@ AND presentedAt <= %@",
+            studentIDStr,
+            dateRange.lowerBound as NSDate,
+            dateRange.upperBound as NSDate
+        )
+        return context.safeFetch(request).count
+    }
+
+    // MARK: - Deprecated SwiftData Fetch Helpers
+
+    @available(*, deprecated, message: "Use Core Data overload")
+    private static func fetchAttendanceStatsLegacy(
         studentID: UUID,
         dateRange: ClosedRange<Date>,
         context: ModelContext
@@ -186,7 +331,8 @@ enum AIReportService {
         return (present, total, rate)
     }
 
-    private static func fetchMasteryBreakdown(
+    @available(*, deprecated, message: "Use Core Data overload")
+    private static func fetchMasteryBreakdownLegacy(
         studentID: UUID,
         dateRange: ClosedRange<Date>,
         context: ModelContext
@@ -215,7 +361,8 @@ enum AIReportService {
         )
     }
 
-    private static func fetchLessonPresentationCount(
+    @available(*, deprecated, message: "Use Core Data overload")
+    private static func fetchLessonPresentationCountLegacy(
         studentID: UUID,
         dateRange: ClosedRange<Date>,
         context: ModelContext

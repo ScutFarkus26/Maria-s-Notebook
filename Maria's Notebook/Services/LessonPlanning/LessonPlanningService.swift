@@ -1,4 +1,5 @@
 import Foundation
+import CoreData
 import SwiftData
 import OSLog
 
@@ -14,16 +15,28 @@ import OSLog
 final class LessonPlanningService {
     static let logger = Logger.ai
 
-    let modelContext: ModelContext
+    let managedObjectContext: NSManagedObjectContext
     private let mcpClient: MCPClientProtocol
 
     /// Resolved AI settings read from UserDefaults at init time.
     private let config: AIConfigurationResolver
 
-    init(modelContext: ModelContext, mcpClient: MCPClientProtocol) {
-        self.modelContext = modelContext
+    init(context: NSManagedObjectContext, mcpClient: MCPClientProtocol) {
+        self.managedObjectContext = context
         self.mcpClient = mcpClient
         self.config = AIConfigurationResolver(for: .lessonPlanning)
+    }
+
+    @available(*, deprecated, message: "Use Core Data overload")
+    convenience init(modelContext: ModelContext, mcpClient: MCPClientProtocol) {
+        let coreDataContext = MainActor.assumeIsolated { AppBootstrapping.getSharedCoreDataStack().viewContext }
+        self.init(context: coreDataContext, mcpClient: mcpClient)
+    }
+
+    /// Bridging property for code still referencing modelContext.
+    @available(*, deprecated, message: "Use managedObjectContext")
+    var modelContext: ModelContext {
+        fatalError("modelContext is no longer available; use managedObjectContext instead")
     }
 
     // MARK: - Public API
@@ -40,11 +53,11 @@ final class LessonPlanningService {
         var session = PlanningSession(mode: .singleStudent(student.id), depth: depth)
 
         // Step 1: Local readiness assessment
-        let profile = StudentReadinessAssessor.assessReadiness(for: student, modelContext: modelContext)
+        let profile = StudentReadinessAssessor.assessReadiness(for: student, context: managedObjectContext)
         session.readinessProfiles = [profile]
 
         // Step 2: Curriculum data + gap analysis
-        let curriculum = CurriculumDataAssembler.assembleCurriculumMap(for: [student], modelContext: modelContext)
+        let curriculum = CurriculumDataAssembler.assembleCurriculumMap(for: [student], context: managedObjectContext)
         let curriculumSummary = CurriculumDataAssembler.compressedSummary(of: curriculum)
 
         let gapPrompt = PlanningPromptBuilder.buildGapAnalysisPrompt(
@@ -117,11 +130,11 @@ final class LessonPlanningService {
         let weekStart = weekStartDate ?? nextWeekStart()
 
         // Step 1: Assess readiness for all students
-        let profiles = StudentReadinessAssessor.assessReadiness(for: students, modelContext: modelContext)
+        let profiles = StudentReadinessAssessor.assessReadiness(for: students, context: managedObjectContext)
         session.readinessProfiles = profiles
 
         // Step 2: Curriculum map + gap analysis
-        let curriculum = CurriculumDataAssembler.assembleCurriculumMap(for: students, modelContext: modelContext)
+        let curriculum = CurriculumDataAssembler.assembleCurriculumMap(for: students, context: managedObjectContext)
         let curriculumSummary = CurriculumDataAssembler.compressedSummary(of: curriculum)
 
         let gapPrompt = PlanningPromptBuilder.buildGapAnalysisPrompt(
@@ -260,11 +273,10 @@ final class LessonPlanningService {
     func applyRecommendations(
         _ recommendations: [LessonRecommendation],
         scheduledDates: [UUID: Date] = [:]
-    ) throws -> [LessonAssignment] {
+    ) throws -> [CDLessonAssignment] {
         let allLessons = fetchAllLessons()
-        let allStudents = fetchAllStudents()
 
-        var created: [LessonAssignment] = []
+        var created: [CDLessonAssignment] = []
 
         for rec in recommendations {
             guard let lesson = allLessons.first(where: { $0.id == rec.lessonID }) else {
@@ -272,25 +284,18 @@ final class LessonPlanningService {
                 continue
             }
 
-            let studentUUIDs = rec.studentIDs
-            let relatedStudents = allStudents.filter { studentUUIDs.contains($0.id) }
-
+            // Use Core Data factory — auto-inserts into context
             let la = PresentationFactory.makeDraft(
                 lessonID: lesson.id,
-                studentIDs: studentUUIDs
-            )
-            PresentationFactory.attachRelationships(
-                to: la,
-                lesson: lesson,
-                students: relatedStudents
+                studentIDs: rec.studentIDs,
+                context: managedObjectContext
             )
 
             // Schedule if date provided
             if let date = scheduledDates[rec.id] {
-                la.schedule(for: date, using: Calendar.current)
+                la.scheduledFor = date
             }
 
-            modelContext.insert(la)
             created.append(la)
         }
 

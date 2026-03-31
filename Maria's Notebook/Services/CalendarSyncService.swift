@@ -1,5 +1,6 @@
 // swiftlint:disable file_length
 import Foundation
+import CoreData
 import EventKit
 import SwiftData
 import OSLog
@@ -15,6 +16,9 @@ final class CalendarSyncService {
     static let shared = CalendarSyncService()
 
     private let eventStore = EKEventStore()
+    var managedObjectContext: NSManagedObjectContext?
+
+    @available(*, deprecated, message: "Use managedObjectContext instead")
     var modelContext: ModelContext?
 
     /// The identifiers of calendars to sync from (supports multiple calendars)
@@ -47,8 +51,8 @@ final class CalendarSyncService {
     private var isObserving = false
     private var pendingChangeTask: Task<Void, Never>?
 
-    init(modelContext: ModelContext? = nil) {
-        self.modelContext = modelContext
+    init(context: NSManagedObjectContext? = nil) {
+        self.managedObjectContext = context
 
         // Load calendar identifiers (with migration from legacy single-calendar storage)
         if let identifiers = UserDefaults.standard.array(forKey: "CalendarSync.syncCalendarIdentifiers") as? [String] {
@@ -78,6 +82,12 @@ final class CalendarSyncService {
         if !syncCalendarIdentifiers.isEmpty && hasFullAccess {
             startObservingChanges()
         }
+    }
+
+    @available(*, deprecated, message: "Use init(context:) with NSManagedObjectContext")
+    convenience init(modelContext: ModelContext?) {
+        self.init(context: AppBootstrapping.getSharedCoreDataStack().viewContext)
+        self.modelContext = modelContext
     }
 
     deinit {
@@ -187,7 +197,7 @@ final class CalendarSyncService {
             throw CalendarSyncError.notAuthorized
         }
 
-        guard let modelContext else {
+        guard let context = managedObjectContext else {
             throw CalendarSyncError.modelContextUnavailable
         }
 
@@ -221,11 +231,11 @@ final class CalendarSyncService {
             )
         }
 
-        // Get existing events from our database
-        let existingEvents = try fetchAllCalendarEvents()
+        // Get existing events from our database (Core Data)
+        let existingEvents = fetchAllCDCalendarEvents(context: context)
         // Use uniquingKeysWith to handle potential duplicates from CloudKit sync
-        let existingByEKID = [String: CalendarEvent](
-            existingEvents.compactMap { event -> (String, CalendarEvent)? in
+        let existingByEKID = [String: CDCalendarEvent](
+            existingEvents.compactMap { event -> (String, CDCalendarEvent)? in
                 guard let ekID = event.eventKitEventID else { return nil }
                 return (ekID, event)
             },
@@ -238,15 +248,14 @@ final class CalendarSyncService {
         // Sync each event
         for data in syncData {
             if let existing = existingByEKID[data.eventIdentifier] {
-                updateCalendarEvent(existing, from: data)
+                updateCDCalendarEvent(existing, from: data)
             } else {
                 // Find which calendar this event belongs to
                 let calendarID = ekEvents
                     .first { $0.eventIdentifier == data.eventIdentifier }?
                     .calendar.calendarIdentifier
                     ?? targetCalendars.first?.calendarIdentifier ?? ""
-                let newEvent = createCalendarEvent(from: data, calendarID: calendarID)
-                modelContext.insert(newEvent)
+                _ = createCDCalendarEvent(from: data, calendarID: calendarID, context: context)
             }
         }
 
@@ -257,11 +266,11 @@ final class CalendarSyncService {
                let calendarID = existing.eventKitCalendarID,
                !currentEKIDs.contains(ekID),
                targetCalendarIDs.contains(calendarID) {
-                modelContext.delete(existing)
+                context.delete(existing)
             }
         }
 
-        try modelContext.save()
+        context.safeSave()
         lastSyncTime = Date()
     }
 
@@ -299,6 +308,41 @@ final class CalendarSyncService {
         return calendars.first { $0.calendarIdentifier == identifier }
     }
 
+    // MARK: - Core Data CRUD Helpers
+
+    private func fetchAllCDCalendarEvents(context: NSManagedObjectContext) -> [CDCalendarEvent] {
+        context.safeFetch(CDFetchRequest(CDCalendarEvent.self))
+    }
+
+    private func createCDCalendarEvent(
+        from data: EventSyncData, calendarID: String, context: NSManagedObjectContext
+    ) -> CDCalendarEvent {
+        let event = CDCalendarEvent(context: context)
+        event.title = data.title
+        event.startDate = data.startDate
+        event.endDate = data.endDate
+        event.location = data.location
+        event.notes = data.notes
+        event.isAllDay = data.isAllDay
+        event.eventKitEventID = data.eventIdentifier
+        event.eventKitCalendarID = calendarID
+        event.lastSyncedAt = Date()
+        return event
+    }
+
+    private func updateCDCalendarEvent(_ event: CDCalendarEvent, from data: EventSyncData) {
+        event.title = data.title
+        event.startDate = data.startDate
+        event.endDate = data.endDate
+        event.location = data.location
+        event.notes = data.notes
+        event.isAllDay = data.isAllDay
+        event.lastSyncedAt = Date()
+    }
+
+    // MARK: - Deprecated SwiftData CRUD Helpers
+
+    @available(*, deprecated, message: "Use fetchAllCDCalendarEvents(context:)")
     private func fetchAllCalendarEvents() throws -> [CalendarEvent] {
         guard let modelContext else {
             return []
@@ -307,6 +351,7 @@ final class CalendarSyncService {
         return try modelContext.fetch(descriptor)
     }
 
+    @available(*, deprecated, message: "Use createCDCalendarEvent(from:calendarID:context:)")
     private func createCalendarEvent(from data: EventSyncData, calendarID: String) -> CalendarEvent {
         CalendarEvent(
             title: data.title,
@@ -321,6 +366,7 @@ final class CalendarSyncService {
         )
     }
 
+    @available(*, deprecated, message: "Use updateCDCalendarEvent(_:from:)")
     private func updateCalendarEvent(_ event: CalendarEvent, from data: EventSyncData) {
         event.title = data.title
         event.startDate = data.startDate
@@ -376,7 +422,7 @@ final class CalendarSyncService {
     private func handleEventStoreChanged() async {
         guard !syncCalendarIdentifiers.isEmpty else { return }
         guard hasFullAccess else { return }
-        guard modelContext != nil else { return }
+        guard managedObjectContext != nil else { return }
 
         // Debounce: Only sync if we haven't synced recently (within last 30 seconds)
         if let lastSync = lastSyncTime, Date().timeIntervalSince(lastSync) < 30.0 {

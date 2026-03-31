@@ -1,4 +1,5 @@
 import Foundation
+import CoreData
 import OSLog
 import EventKit
 import SwiftData
@@ -46,8 +47,8 @@ extension ReminderSyncService {
             throw ReminderSyncError.notAuthorized
         }
 
-        // Check if modelContext is available
-        guard let modelContext else {
+        // Check if managedObjectContext is available
+        guard let context = managedObjectContext else {
             throw ReminderSyncError.modelContextUnavailable
         }
 
@@ -71,10 +72,10 @@ extension ReminderSyncService {
         }
 
         // Get all existing reminders from our database that were synced from this calendar
-        let existingReminders = try fetchAllReminders()
+        let existingReminders = fetchAllCDReminders(context: context)
         // Use uniquingKeysWith to handle potential duplicates from CloudKit sync
-        let existingByEKID = [String: Reminder](
-            existingReminders.compactMap { rem -> (String, Reminder)? in
+        let existingByEKID = [String: CDReminder](
+            existingReminders.compactMap { rem -> (String, CDReminder)? in
                 guard let ekID = rem.eventKitReminderID else { return nil }
                 return (ekID, rem)
             },
@@ -86,12 +87,12 @@ extension ReminderSyncService {
         for data in syncData {
             if let existing = existingByEKID[data.calendarItemIdentifier] {
                 // Update existing reminder (handles re-uncompleted reminders too)
-                updateReminder(existing, from: data)
+                updateCDReminder(existing, from: data)
                 syncedCount += 1
             } else {
                 // Create new reminder
-                let newReminder = createReminder(from: data, calendarID: targetCalendar.calendarIdentifier)
-                modelContext.insert(newReminder)
+                let newReminder = createCDReminder(from: data, calendarID: targetCalendar.calendarIdentifier, context: context)
+                _ = newReminder // already inserted via init(context:)
                 syncedCount += 1
             }
         }
@@ -103,11 +104,11 @@ extension ReminderSyncService {
                !currentEKIDs.contains(ekID),
                existing.eventKitCalendarID == targetCalendar.calendarIdentifier {
                 // Reminder was deleted in EventKit - remove from local database
-                modelContext.delete(existing)
+                context.delete(existing)
             }
         }
 
-        try modelContext.save()
+        context.safeSave()
 
         // Update last sync time after successful sync
         lastSyncTime = Date()
@@ -172,8 +173,40 @@ extension ReminderSyncService {
         return ekRemindersData
     }
 
-    // MARK: - CRUD Helpers
+    // MARK: - Core Data CRUD Helpers
 
+    func fetchAllCDReminders(context: NSManagedObjectContext) -> [CDReminder] {
+        context.safeFetch(CDFetchRequest(CDReminder.self))
+    }
+
+    func createCDReminder(from data: ReminderSyncData, calendarID: String, context: NSManagedObjectContext) -> CDReminder {
+        let reminder = CDReminder(context: context)
+        reminder.title = data.title
+        reminder.notes = data.notes
+        reminder.dueDate = data.dueDateComponents?.date
+        reminder.isCompleted = data.isCompleted
+        reminder.completedAt = data.completionDate
+        reminder.createdAt = data.creationDate ?? Date()
+        reminder.updatedAt = data.lastModifiedDate ?? Date()
+        reminder.eventKitReminderID = data.calendarItemIdentifier
+        reminder.eventKitCalendarID = calendarID
+        reminder.lastSyncedAt = Date()
+        return reminder
+    }
+
+    func updateCDReminder(_ reminder: CDReminder, from data: ReminderSyncData) {
+        reminder.title = data.title
+        reminder.notes = data.notes
+        reminder.dueDate = data.dueDateComponents?.date
+        reminder.isCompleted = data.isCompleted
+        reminder.completedAt = data.completionDate
+        reminder.updatedAt = data.lastModifiedDate ?? Date()
+        reminder.lastSyncedAt = Date()
+    }
+
+    // MARK: - Deprecated SwiftData CRUD Helpers
+
+    @available(*, deprecated, message: "Use fetchAllCDReminders(context:)")
     func fetchAllReminders() throws -> [Reminder] {
         guard let modelContext else {
             return []
@@ -182,6 +215,7 @@ extension ReminderSyncService {
         return try modelContext.fetch(descriptor)
     }
 
+    @available(*, deprecated, message: "Use createCDReminder(from:calendarID:context:)")
     func createReminder(from data: ReminderSyncData, calendarID: String) -> Reminder {
         Reminder(
             title: data.title,
@@ -197,6 +231,7 @@ extension ReminderSyncService {
         )
     }
 
+    @available(*, deprecated, message: "Use updateCDReminder(_:from:)")
     func updateReminder(_ reminder: Reminder, from data: ReminderSyncData) {
         reminder.title = data.title
         reminder.notes = data.notes

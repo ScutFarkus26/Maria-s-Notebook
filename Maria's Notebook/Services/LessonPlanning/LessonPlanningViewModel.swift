@@ -1,4 +1,5 @@
 import Foundation
+import CoreData
 import SwiftData
 import OSLog
 
@@ -9,9 +10,9 @@ import OSLog
 @MainActor
 final class LessonPlanningViewModel {
     private static let logger = Logger.ai
-    
+
     // MARK: - State
-    
+
     var messages: [PlanningMessage] = []
     var recommendations: [LessonRecommendation] = []
     var weekPlan: WeekPlan?
@@ -19,12 +20,12 @@ final class LessonPlanningViewModel {
     var currentStep: PipelineStep = .idle
     var selectedDepth: PlanningDepth = .standard
     var errorMessage: String?
-    
+
     let mode: PlanningMode
-    
+
     private(set) var currentSession: PlanningSession?
     private var planningService: LessonPlanningService?
-    private var modelContext: ModelContext?
+    private var managedObjectContext: NSManagedObjectContext?
     
     // MARK: - Computed
     
@@ -72,16 +73,23 @@ final class LessonPlanningViewModel {
     }
     
     /// Configure with dependencies (called from view's onAppear)
+    func configure(context: NSManagedObjectContext, mcpClient: MCPClientProtocol) {
+        self.managedObjectContext = context
+        self.planningService = LessonPlanningService(context: context, mcpClient: mcpClient)
+    }
+
+    /// Configure with dependencies (called from view's onAppear)
+    @available(*, deprecated, message: "Use Core Data overload")
     func configure(modelContext: ModelContext, mcpClient: MCPClientProtocol) {
-        self.modelContext = modelContext
-        self.planningService = LessonPlanningService(modelContext: modelContext, mcpClient: mcpClient)
+        let coreDataContext = MainActor.assumeIsolated { AppBootstrapping.getSharedCoreDataStack().viewContext }
+        self.configure(context: coreDataContext, mcpClient: mcpClient)
     }
     
     // MARK: - Actions
     
     /// Starts the planning pipeline.
     func startPlanning() {
-        guard let service = planningService, let context = modelContext else {
+        guard let service = planningService, let context = managedObjectContext else {
             errorMessage = "Service not configured"
             return
         }
@@ -147,28 +155,28 @@ final class LessonPlanningViewModel {
     func acceptRecommendation(_ id: UUID) {
         guard let index = recommendations.firstIndex(where: { $0.id == id }) else { return }
         recommendations[index].decision = .accepted
-        
-        if let session = currentSession, let context = modelContext {
+
+        if let session = currentSession, let context = managedObjectContext {
             PlanningFeedbackTracker.recordDecision(
                 recommendation: recommendations[index],
                 decision: .accepted,
                 session: session,
-                modelContext: context
+                context: context
             )
         }
     }
-    
+
     /// Rejects a recommendation.
     func rejectRecommendation(_ id: UUID) {
         guard let index = recommendations.firstIndex(where: { $0.id == id }) else { return }
         recommendations[index].decision = .rejected
-        
-        if let session = currentSession, let context = modelContext {
+
+        if let session = currentSession, let context = managedObjectContext {
             PlanningFeedbackTracker.recordDecision(
                 recommendation: recommendations[index],
                 decision: .rejected,
                 session: session,
-                modelContext: context
+                context: context
             )
         }
     }
@@ -224,7 +232,7 @@ final class LessonPlanningViewModel {
     
     // MARK: - Private Pipeline Methods
     
-    private func planForStudent(_ studentID: UUID, service: LessonPlanningService, context: ModelContext) async throws {
+    private func planForStudent(_ studentID: UUID, service: LessonPlanningService, context: NSManagedObjectContext) async throws {
         let students = fetchStudents(context: context)
         guard let student = students.first(where: { $0.id == studentID }) else {
             throw PlanningError.studentNotFound
@@ -246,7 +254,7 @@ final class LessonPlanningViewModel {
         self.currentStep = .presentingPlan
     }
     
-    private func planForClass(service: LessonPlanningService, context: ModelContext) async throws {
+    private func planForClass(service: LessonPlanningService, context: NSManagedObjectContext) async throws {
         let students = fetchStudents(context: context)
         guard !students.isEmpty else {
             throw PlanningError.noStudents
@@ -272,7 +280,7 @@ final class LessonPlanningViewModel {
     private func quickSuggest(
         _ studentIDs: [UUID],
         service: LessonPlanningService,
-        context: ModelContext
+        context: NSManagedObjectContext
     ) async throws {
         let students = fetchStudents(context: context)
         let filtered = students.filter { studentIDs.contains($0.id) }
@@ -307,9 +315,10 @@ final class LessonPlanningViewModel {
         self.currentStep = .presentingPlan
     }
     
-    private func fetchStudents(context: ModelContext) -> [Student] {
+    private func fetchStudents(context: NSManagedObjectContext) -> [Student] {
+        let modelContext = AppBootstrapping.getSharedModelContainer().mainContext
         let descriptor = FetchDescriptor<Student>(sortBy: [SortDescriptor(\Student.lastName)])
-        let all = (try? context.fetch(descriptor)) ?? []
+        let all = (try? modelContext.fetch(descriptor)) ?? []
         return TestStudentsFilter.filterVisible(all.filter(\.isEnrolled))
     }
 }

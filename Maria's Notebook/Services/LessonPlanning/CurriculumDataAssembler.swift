@@ -1,4 +1,5 @@
 import Foundation
+import CoreData
 import SwiftData
 import OSLog
 
@@ -8,15 +9,95 @@ import OSLog
 @MainActor
 struct CurriculumDataAssembler {
     private static let logger = Logger.ai
-    
-    // MARK: - Public API
-    
-    // Assembles a curriculum map for the given students.
-    // - Parameters:
-    //   - students: The students to include in the map
-    //   - modelContext: The SwiftData model context for fetching data
-    // - Returns: A `CurriculumMap` with per-student lesson statuses
+
+    // MARK: - Public API (Core Data)
+
+    /// Assembles a curriculum map for the given students.
+    /// - Parameters:
+    ///   - students: The students to include in the map
+    ///   - context: The Core Data managed object context for fetching data
+    /// - Returns: A `CurriculumMap` with per-student lesson statuses
     // swiftlint:disable:next function_body_length
+    static func assembleCurriculumMap(
+        for students: [Student],
+        context: NSManagedObjectContext
+    ) -> CurriculumMap {
+        // Planning logic uses SwiftData types; both contexts see the same SQLite store.
+        let modelContext = AppBootstrapping.getSharedModelContainer().mainContext
+        let allLessons = fetchAllLessons(modelContext: modelContext)
+        let allPresentations = fetchAllPresentations(modelContext: modelContext)
+        let allWork = fetchActiveWork(modelContext: modelContext)
+
+        let studentIDs = Set(students.map { $0.id.uuidString })
+        let studentNameMap = Dictionary(uniqueKeysWithValues: students.map { ($0.id.uuidString, $0.fullName) })
+
+        // Group lessons by subject → group
+        let lessonsBySubject = Dictionary(grouping: allLessons) { $0.subject.trimmed() }
+
+        var subjectMaps: [CurriculumMap.SubjectMap] = []
+
+        for (subject, subjectLessons) in lessonsBySubject.sorted(by: { $0.key < $1.key }) {
+            let lessonsByGroup = Dictionary(grouping: subjectLessons) { $0.group.trimmed() }
+
+            var groupMaps: [CurriculumMap.GroupMap] = []
+
+            for (group, groupLessons) in lessonsByGroup.sorted(by: { $0.key < $1.key }) {
+                let sortedLessons = groupLessons.sorted { $0.orderInGroup < $1.orderInGroup }
+
+                var lessonPositions: [CurriculumMap.LessonPosition] = []
+                var completedCount = 0
+
+                for lesson in sortedLessons {
+                    var studentStatuses: [CurriculumMap.PresentationStatus] = []
+
+                    for studentIDString in studentIDs {
+                        let proficiency = determineProficiency(
+                            lessonID: lesson.id,
+                            studentID: studentIDString,
+                            presentations: allPresentations,
+                            work: allWork
+                        )
+
+                        let name = studentNameMap[studentIDString] ?? "Unknown"
+                        studentStatuses.append(.init(
+                            studentID: UUID(uuidString: studentIDString) ?? UUID(),
+                            studentName: name,
+                            proficiency: proficiency
+                        ))
+                    }
+
+                    // Count as completed if all students have been presented or beyond
+                    let allPresented = studentStatuses.allSatisfy { $0.proficiency != .notPresented }
+                    if allPresented && !studentStatuses.isEmpty {
+                        completedCount += 1
+                    }
+
+                    lessonPositions.append(.init(
+                        lessonID: lesson.id,
+                        lessonName: lesson.name,
+                        orderInGroup: lesson.orderInGroup,
+                        studentStatuses: studentStatuses
+                    ))
+                }
+
+                groupMaps.append(.init(
+                    group: group,
+                    lessons: lessonPositions,
+                    completedCount: completedCount,
+                    totalCount: sortedLessons.count
+                ))
+            }
+
+            subjectMaps.append(.init(subject: subject, groups: groupMaps))
+        }
+
+        return CurriculumMap(subjects: subjectMaps)
+    }
+
+    // MARK: - Public API (SwiftData — Deprecated)
+
+    // swiftlint:disable:next function_body_length
+    @available(*, deprecated, message: "Use Core Data overload")
     static func assembleCurriculumMap(
         for students: [Student],
         modelContext: ModelContext
@@ -154,8 +235,10 @@ struct CurriculumDataAssembler {
         return result
     }
     
-    // MARK: - Private Helpers
-    
+    // MARK: - SwiftData Fetching
+    // Note: These use SwiftData types because the planning logic (CurriculumMap, LessonPosition, etc.)
+    // operates on SwiftData models. Will be converted to Core Data types in Phase 4.
+
     private static func fetchAllLessons(modelContext: ModelContext) -> [Lesson] {
         let descriptor = FetchDescriptor<Lesson>(
             sortBy: [
@@ -166,12 +249,12 @@ struct CurriculumDataAssembler {
         )
         return (try? modelContext.fetch(descriptor)) ?? []
     }
-    
+
     private static func fetchAllPresentations(modelContext: ModelContext) -> [LessonAssignment] {
         let descriptor = FetchDescriptor<LessonAssignment>()
         return (try? modelContext.fetch(descriptor)) ?? []
     }
-    
+
     private static func fetchActiveWork(modelContext: ModelContext) -> [WorkModel] {
         let descriptor = FetchDescriptor<WorkModel>(
             predicate: #Predicate<WorkModel> { work in

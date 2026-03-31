@@ -1,4 +1,5 @@
 import Foundation
+import CoreData
 import SwiftData
 import OSLog
 
@@ -8,24 +9,24 @@ import OSLog
 @MainActor
 struct StudentReadinessAssessor {
     private static let logger = Logger.ai
-    
-    // MARK: - Public API
-    
+
+    // MARK: - Public API (Core Data)
+
     /// Assesses readiness for a set of students.
     /// - Parameters:
     ///   - students: Students to assess
-    ///   - modelContext: SwiftData model context for querying data
+    ///   - context: The Core Data managed object context for querying data
     /// - Returns: Array of readiness profiles, one per student
     static func assessReadiness(
         for students: [Student],
-        modelContext: ModelContext
+        context: NSManagedObjectContext
     ) -> [StudentReadinessProfile] {
-        let allLessons = fetchAllLessons(modelContext: modelContext)
-        let allPresentations = fetchPresentations(modelContext: modelContext)
-        let allWork = fetchAllWork(modelContext: modelContext)
-        let recentSessions = fetchRecentPracticeSessions(modelContext: modelContext, daysBefore: 30)
-        let recentNotes = fetchRecentNotes(modelContext: modelContext, daysBefore: 30)
-        
+        let allLessons = fetchAllLessons(context: context)
+        let allPresentations = fetchPresentations(context: context)
+        let allWork = fetchAllWork(context: context)
+        let recentSessions = fetchRecentPracticeSessions(context: context, daysBefore: 30)
+        let recentNotes = fetchRecentNotes(context: context, daysBefore: 30)
+
         return students.map { student in
             buildProfile(
                 for: student,
@@ -37,8 +38,57 @@ struct StudentReadinessAssessor {
             )
         }
     }
-    
+
     /// Assesses readiness for a single student.
+    static func assessReadiness(
+        for student: Student,
+        context: NSManagedObjectContext
+    ) -> StudentReadinessProfile {
+        guard let profile = assessReadiness(for: [student], context: context).first else {
+            logger.error("assessReadiness returned empty array for single student \(student.id)")
+            return StudentReadinessProfile(
+                studentID: student.id,
+                studentName: student.firstName,
+                level: "",
+                subjectReadiness: [],
+                practiceQualityAvg: nil,
+                independenceAvg: nil,
+                daysSinceLastPresentation: nil,
+                activeWorkCount: 0,
+                behavioralFlags: []
+            )
+        }
+        return profile
+    }
+
+    // MARK: - Public API (SwiftData — Deprecated)
+
+    /// Assesses readiness for a set of students.
+    
+    static func assessReadiness(
+        for students: [Student],
+        modelContext: ModelContext
+    ) -> [StudentReadinessProfile] {
+        let allLessons = fetchAllLessons(modelContext: modelContext)
+        let allPresentations = fetchPresentations(modelContext: modelContext)
+        let allWork = fetchAllWork(modelContext: modelContext)
+        let recentSessions = fetchRecentPracticeSessions(modelContext: modelContext, daysBefore: 30)
+        let recentNotes = fetchRecentNotes(modelContext: modelContext, daysBefore: 30)
+
+        return students.map { student in
+            buildProfile(
+                for: student,
+                allLessons: allLessons,
+                allPresentations: allPresentations,
+                allWork: allWork,
+                recentSessions: recentSessions,
+                recentNotes: recentNotes
+            )
+        }
+    }
+
+    /// Assesses readiness for a single student.
+    
     static func assessReadiness(
         for student: Student,
         modelContext: ModelContext
@@ -268,7 +318,38 @@ extension StudentReadinessAssessor {
     }
 }
 
-// MARK: - Data Fetching
+// MARK: - Core Data Fetching
+// These methods delegate to SwiftData since the readiness logic operates on SwiftData types.
+// Both contexts share the same SQLite store. Full conversion happens in Phase 4.
+
+extension StudentReadinessAssessor {
+    private static func fetchAllLessons(context: NSManagedObjectContext) -> [Lesson] {
+        let modelContext = AppBootstrapping.getSharedModelContainer().mainContext
+        return fetchAllLessons(modelContext: modelContext)
+    }
+
+    private static func fetchPresentations(context: NSManagedObjectContext) -> [LessonAssignment] {
+        let modelContext = AppBootstrapping.getSharedModelContainer().mainContext
+        return fetchPresentations(modelContext: modelContext)
+    }
+
+    private static func fetchAllWork(context: NSManagedObjectContext) -> [WorkModel] {
+        let modelContext = AppBootstrapping.getSharedModelContainer().mainContext
+        return fetchAllWork(modelContext: modelContext)
+    }
+
+    private static func fetchRecentPracticeSessions(context: NSManagedObjectContext, daysBefore: Int) -> [PracticeSession] {
+        let modelContext = AppBootstrapping.getSharedModelContainer().mainContext
+        return fetchRecentPracticeSessions(modelContext: modelContext, daysBefore: daysBefore)
+    }
+
+    private static func fetchRecentNotes(context: NSManagedObjectContext, daysBefore: Int) -> [Note] {
+        let modelContext = AppBootstrapping.getSharedModelContainer().mainContext
+        return fetchRecentNotes(modelContext: modelContext, daysBefore: daysBefore)
+    }
+}
+
+// MARK: - SwiftData Fetching
 
 extension StudentReadinessAssessor {
     private static func fetchAllLessons(modelContext: ModelContext) -> [Lesson] {
@@ -282,16 +363,19 @@ extension StudentReadinessAssessor {
         return (try? modelContext.fetch(descriptor)) ?? []
     }
 
+    
     private static func fetchPresentations(modelContext: ModelContext) -> [LessonAssignment] {
         let descriptor = FetchDescriptor<LessonAssignment>()
         return (try? modelContext.fetch(descriptor)) ?? []
     }
 
+    
     private static func fetchAllWork(modelContext: ModelContext) -> [WorkModel] {
         let descriptor = FetchDescriptor<WorkModel>()
         return (try? modelContext.fetch(descriptor)) ?? []
     }
 
+    
     private static func fetchRecentPracticeSessions(modelContext: ModelContext, daysBefore: Int) -> [PracticeSession] {
         let cutoff = Calendar.current.date(byAdding: .day, value: -daysBefore, to: Date()) ?? Date()
         let descriptor = FetchDescriptor<PracticeSession>(
@@ -303,6 +387,7 @@ extension StudentReadinessAssessor {
         return (try? modelContext.fetch(descriptor)) ?? []
     }
 
+    
     private static func fetchRecentNotes(modelContext: ModelContext, daysBefore: Int) -> [Note] {
         let cutoff = Calendar.current.date(byAdding: .day, value: -daysBefore, to: Date()) ?? Date()
         let descriptor = FetchDescriptor<Note>(

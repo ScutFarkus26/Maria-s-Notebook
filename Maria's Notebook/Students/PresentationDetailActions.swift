@@ -100,7 +100,7 @@ final class PresentationDetailActions {
         #if DEBUG
         switch result {
         case .success(let presentation):
-            Self.logger.info("Successfully created next lesson (ID: \(presentation.id, privacy: .public))")
+            Self.logger.info("Successfully created next lesson (ID: \(presentation.id?.uuidString ?? "nil", privacy: .public))")
         case .alreadyExists:
             Self.logger.warning("Next lesson already exists in inbox")
         case .noNextLesson:

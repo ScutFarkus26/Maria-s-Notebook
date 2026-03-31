@@ -2,6 +2,7 @@
 // Plan building, context helpers, and data fetching for LessonPlanningService.
 
 import Foundation
+import CoreData
 import SwiftData
 
 extension LessonPlanningService {
@@ -112,9 +113,11 @@ extension LessonPlanningService {
         return parts.isEmpty ? nil : parts.joined(separator: ". ")
     }
 
-    // MARK: - Data Fetching
+    // MARK: - Data Fetching (Core Data)
 
     func fetchAllLessons() -> [Lesson] {
+        // Planning logic uses SwiftData types; both contexts see the same SQLite store.
+        let modelContext = AppBootstrapping.getSharedModelContainer().mainContext
         let descriptor = FetchDescriptor<Lesson>(
             sortBy: [
                 SortDescriptor(\Lesson.subject),
@@ -126,7 +129,10 @@ extension LessonPlanningService {
     }
 
     func fetchAllStudents() -> [Student] {
-        let descriptor = FetchDescriptor<Student>(sortBy: [SortDescriptor(\Student.lastName)])
+        let modelContext = AppBootstrapping.getSharedModelContainer().mainContext
+        let descriptor = FetchDescriptor<Student>(
+            sortBy: [SortDescriptor(\Student.lastName)]
+        )
         return (try? modelContext.fetch(descriptor)) ?? []
     }
 

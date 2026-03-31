@@ -8,6 +8,7 @@
 //
 
 import Foundation
+import CoreData
 import SwiftData
 
 /// Service for finding and creating the next lesson in a subject/group sequence.
@@ -18,7 +19,7 @@ struct PlanNextLessonService {
     // MARK: - Result Type
 
     enum PlanResult {
-        case success(LessonAssignment)
+        case success(CDLessonAssignment)
         case alreadyExists
         case noNextLesson
         case noCurrentLesson
@@ -61,11 +62,6 @@ struct PlanNextLessonService {
     /// Checks if a LessonAssignment already exists for the given lesson and students.
     /// Uses consistent criteria: same lesson ID, same students, and not yet given (presentedAt == nil)
     /// AND not yet scheduled (scheduledFor == nil) - i.e., would be in the inbox.
-    /// - Parameters:
-    ///   - lessonID: The lesson ID to check
-    ///   - studentIDs: The set of student IDs to check
-    ///   - existingLessonAssignments: All LessonAssignments to search through
-    /// - Returns: true if a matching unscheduled, unpresented LessonAssignment exists
     static func existsInInbox(
         lessonID: UUID,
         studentIDs: Set<UUID>,
@@ -81,11 +77,6 @@ struct PlanNextLessonService {
 
     /// Checks if a LessonAssignment already exists that hasn't been given yet.
     /// This is a less strict check - the lesson may be scheduled but not yet presented.
-    /// - Parameters:
-    ///   - lessonID: The lesson ID to check
-    ///   - studentIDs: The set of student IDs to check
-    ///   - existingLessonAssignments: All LessonAssignments to search through
-    /// - Returns: true if a matching unpresented LessonAssignment exists (scheduled or not)
     static func existsActive(
         lessonID: UUID,
         studentIDs: Set<UUID>,
@@ -98,24 +89,17 @@ struct PlanNextLessonService {
         }
     }
 
-    // MARK: - Plan Next Lesson (Main Entry Point)
+    // MARK: - Core Data Plan Next Lesson
 
     /// Plans the next lesson in the sequence for the given LessonAssignment.
     /// This is the main entry point that should be used by all UI components.
-    /// - Parameters:
-    ///   - lessonAssignment: The current LessonAssignment to plan the next lesson after
-    ///   - allLessons: All available lessons
-    ///   - allStudents: All available students
-    ///   - existingLessonAssignments: All existing LessonAssignments for duplicate checking
-    ///   - context: The ModelContext for inserting the new LessonAssignment
-    /// - Returns: A PlanResult indicating success or the reason for failure
     @discardableResult
     static func planNextLesson(
         for lessonAssignment: LessonAssignment,
         allLessons: [Lesson],
         allStudents: [Student],
         existingLessonAssignments: [LessonAssignment],
-        context: ModelContext
+        context: NSManagedObjectContext
     ) -> PlanResult {
         // Get the current lesson
         guard let lessonIDUUID = lessonAssignment.lessonIDUUID,
@@ -139,31 +123,17 @@ struct PlanNextLessonService {
             return .alreadyExists
         }
 
-        // Create the new LessonAssignment
-        let newLessonAssignment = PresentationFactory.makeDraft(
+        // Create the new CDLessonAssignment (auto-inserted by Core Data init)
+        let newAssignment = PresentationFactory.makeDraft(
             lessonID: nextLesson.id,
-            studentIDs: Array(studentIDs)
+            studentIDs: Array(studentIDs),
+            context: context
         )
-        let relatedStudents = allStudents.filter { studentIDs.contains($0.id) }
-        PresentationFactory.attachRelationships(
-            to: newLessonAssignment,
-            lesson: nextLesson,
-            students: relatedStudents
-        )
-        context.insert(newLessonAssignment)
-        return .success(newLessonAssignment)
+        return .success(newAssignment)
     }
 
     /// Plans the next lesson when you already know what the next lesson is.
     /// Used when the caller has already determined the next lesson (e.g., from UI state).
-    /// - Parameters:
-    ///   - nextLesson: The lesson to create a LessonAssignment for
-    ///   - studentIDs: The students to include
-    ///   - allStudents: All available students (for relationship attachment)
-    ///   - allLessons: All available lessons (for relationship attachment)
-    ///   - existingLessonAssignments: All existing LessonAssignments for duplicate checking
-    ///   - context: The ModelContext for inserting the new LessonAssignment
-    /// - Returns: A PlanResult indicating success or the reason for failure
     @discardableResult
     // swiftlint:disable:next function_parameter_count
     static func planLesson(
@@ -172,7 +142,7 @@ struct PlanNextLessonService {
         allStudents: [Student],
         allLessons: [Lesson],
         existingLessonAssignments: [LessonAssignment],
-        context: ModelContext
+        context: NSManagedObjectContext
     ) -> PlanResult {
         guard !studentIDs.isEmpty else {
             return .noStudents
@@ -183,18 +153,53 @@ struct PlanNextLessonService {
             return .alreadyExists
         }
 
-        // Create the new LessonAssignment
-        let newLessonAssignment = PresentationFactory.makeDraft(
+        // Create the new CDLessonAssignment (auto-inserted by Core Data init)
+        let newAssignment = PresentationFactory.makeDraft(
             lessonID: nextLesson.id,
-            studentIDs: Array(studentIDs)
+            studentIDs: Array(studentIDs),
+            context: context
         )
-        let relatedStudents = allStudents.filter { studentIDs.contains($0.id) }
-        PresentationFactory.attachRelationships(
-            to: newLessonAssignment,
-            lesson: allLessons.first(where: { $0.id == nextLesson.id }),
-            students: relatedStudents
+        return .success(newAssignment)
+    }
+
+    // MARK: - Deprecated SwiftData Overloads
+
+    @available(*, deprecated, message: "Use Core Data overload")
+    @discardableResult
+    static func planNextLesson(
+        for lessonAssignment: LessonAssignment,
+        allLessons: [Lesson],
+        allStudents: [Student],
+        existingLessonAssignments: [LessonAssignment],
+        context: ModelContext
+    ) -> PlanResult {
+        planNextLesson(
+            for: lessonAssignment,
+            allLessons: allLessons,
+            allStudents: allStudents,
+            existingLessonAssignments: existingLessonAssignments,
+            context: AppBootstrapping.getSharedCoreDataStack().viewContext
         )
-        context.insert(newLessonAssignment)
-        return .success(newLessonAssignment)
+    }
+
+    @available(*, deprecated, message: "Use Core Data overload")
+    @discardableResult
+    // swiftlint:disable:next function_parameter_count
+    static func planLesson(
+        _ nextLesson: Lesson,
+        forStudents studentIDs: Set<UUID>,
+        allStudents: [Student],
+        allLessons: [Lesson],
+        existingLessonAssignments: [LessonAssignment],
+        context: ModelContext
+    ) -> PlanResult {
+        planLesson(
+            nextLesson,
+            forStudents: studentIDs,
+            allStudents: allStudents,
+            allLessons: allLessons,
+            existingLessonAssignments: existingLessonAssignments,
+            context: AppBootstrapping.getSharedCoreDataStack().viewContext
+        )
     }
 }

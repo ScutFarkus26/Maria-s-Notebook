@@ -4,6 +4,7 @@
 // per-student records joined with Lesson subject/group metadata.
 
 import Foundation
+import CoreData
 import SwiftData
 
 enum LessonAnalyticsService {
@@ -20,7 +21,7 @@ enum LessonAnalyticsService {
         let presentedAt: Date
     }
 
-    // MARK: - Data Fetching
+    // MARK: - Core Data Data Fetching
 
     /// Fetches all presented LessonAssignments in a date range and explodes them
     /// into per-student PresentedRecords joined with Lesson subject/group.
@@ -28,12 +29,66 @@ enum LessonAnalyticsService {
     /// Because `studentIDs` is JSON-encoded (CloudKit compatibility), we must fetch
     /// all assignments then filter in-memory — same pattern as ProgressDashboardViewModel.
     static func fetchPresentedRecords(
+        context: NSManagedObjectContext,
+        from startDate: Date,
+        to endDate: Date
+    ) -> [PresentedRecord] {
+        // Filter by state AND date range in the predicate
+        let request = CDFetchRequest(CDLessonAssignment.self)
+        let presentedState = LessonAssignmentState.presented.rawValue
+        request.predicate = NSPredicate(
+            format: "stateRaw == %@ AND presentedAt != nil AND presentedAt >= %@ AND presentedAt < %@",
+            presentedState, startDate as NSDate, endDate as NSDate
+        )
+        let presented: [CDLessonAssignment] = context.safeFetch(request)
+
+        // Fetch only lessons referenced by the filtered assignments
+        let neededLessonIDs = Set(presented.compactMap(\.lessonID))
+        let allLessons: [CDLesson]
+        if neededLessonIDs.isEmpty {
+            allLessons = []
+        } else {
+            let lessonRequest = CDFetchRequest(CDLesson.self)
+            lessonRequest.predicate = NSPredicate(format: "id IN %@", neededLessonIDs)
+            allLessons = context.safeFetch(lessonRequest)
+        }
+        let lessonsByID: [String: CDLesson] = Dictionary(
+            uniqueKeysWithValues: allLessons.compactMap { lesson in
+                guard let id = lesson.id?.uuidString else { return nil }
+                return (id, lesson)
+            }
+        )
+
+        // Explode: one record per (assignment x studentID)
+        var records: [PresentedRecord] = []
+        for la in presented {
+            let lessonIDStr = la.lessonID
+            guard let lesson = lessonsByID[lessonIDStr],
+                  let presentedAt = la.presentedAt,
+                  let assignmentID = la.id,
+                  let lessonID = lesson.id else { continue }
+            for studentIDStr in la.studentIDs {
+                records.append(PresentedRecord(
+                    assignmentID: assignmentID,
+                    studentID: studentIDStr,
+                    lessonID: lessonID,
+                    subject: lesson.subject.trimmed(),
+                    group: lesson.group.trimmed(),
+                    presentedAt: presentedAt
+                ))
+            }
+        }
+        return records
+    }
+
+    // MARK: - Deprecated SwiftData Data Fetching
+
+    @available(*, deprecated, message: "Use Core Data overload")
+    static func fetchPresentedRecords(
         context: ModelContext,
         from startDate: Date,
         to endDate: Date
     ) -> [PresentedRecord] {
-        // PERF: Filter by state AND date range in the predicate to avoid loading entire history.
-        // Previously loaded ALL presented assignments then filtered by date in memory.
         let presentedState = LessonAssignmentState.presented.rawValue
         let presented: [LessonAssignment] = context.safeFetch(
             FetchDescriptor<LessonAssignment>(
@@ -46,14 +101,11 @@ enum LessonAnalyticsService {
             )
         )
 
-        // PERF: Fetch only lessons referenced by the filtered assignments.
-        // Previously loaded ALL lessons for join.
         let neededLessonIDs = Set(presented.map(\.lessonID))
         let allLessons: [Lesson]
         if neededLessonIDs.isEmpty {
             allLessons = []
         } else {
-            // SwiftData #Predicate can't capture local Set, so fetch all and filter
             allLessons = context.safeFetch(FetchDescriptor<Lesson>())
                 .filter { neededLessonIDs.contains($0.id.uuidString) }
         }
@@ -61,7 +113,6 @@ enum LessonAnalyticsService {
             uniqueKeysWithValues: allLessons.map { ($0.id.uuidString, $0) }
         )
 
-        // Explode: one record per (assignment × studentID)
         var records: [PresentedRecord] = []
         for la in presented {
             guard let lesson = lessonsByID[la.lessonID],
@@ -100,7 +151,7 @@ enum LessonAnalyticsService {
         AppCalendar.shared.date(byAdding: .weekOfYear, value: offset, to: Date()) ?? Date()
     }
 
-    /// Formats a school week range as "Mar 9 – Mar 13, 2026" (Mon–Fri).
+    /// Formats a school week range as "Mar 9 - Mar 13, 2026" (Mon-Fri).
     static func weekLabel(for date: Date) -> String {
         let (monday, _) = schoolWeekRange(for: date)
         let friday = AppCalendar.shared.date(byAdding: .day, value: 4, to: monday)!

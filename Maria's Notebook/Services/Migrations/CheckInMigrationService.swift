@@ -1,4 +1,5 @@
 import Foundation
+import CoreData
 import SwiftData
 import OSLog
 
@@ -8,7 +9,7 @@ import OSLog
 /// Part of the "Strangler Fig" migration pattern to consolidate check-in systems.
 ///
 /// Migration Phases:
-/// - Phase 1: Backfill all legacy check-ins → WorkCheckIns (scheduled status) [COMPLETE]
+/// - Phase 1: Backfill all legacy check-ins -> WorkCheckIns (scheduled status) [COMPLETE]
 /// - Phase 2-5: Gradual transition of write/read paths [COMPLETE]
 /// - Phase 6: Complete removal of legacy model [COMPLETE]
 ///
@@ -32,17 +33,17 @@ enum CheckInMigrationService {
         case followUp
         case studentRequest
         case other
-        
+
         var id: String { rawValue }
     }
-    
+
     // MARK: - Reason Mapping
 
     /// Maps legacy check-in reason enum to WorkCheckIn purpose string.
     /// This preserves the semantic meaning during migration.
     static func mapReasonToPurpose(_ reason: CheckInReason?) -> String {
         guard let reason else { return "Other" }
-        
+
         switch reason {
         case .progressCheck:
             return "Progress Check"
@@ -58,7 +59,7 @@ enum CheckInMigrationService {
             return "Other"
         }
     }
-    
+
     // MARK: - Backfill Migration (Phase 1) - COMPLETED
 
     // PHASE 6 NOTE: This method has been disabled because legacy check-in model has been removed.
@@ -66,7 +67,7 @@ enum CheckInMigrationService {
     // This code is preserved for historical reference only.
     /*
     @MainActor
-    static func backfillWorkCheckInsFromLegacyCheckIns(using context: ModelContext) {
+    static func backfillWorkCheckInsFromLegacyCheckIns(using context: NSManagedObjectContext) {
         // Migration already complete - legacy model removed in Phase 6
         logger.info("Backfill already completed - legacy model removed")
     }
@@ -78,7 +79,7 @@ enum CheckInMigrationService {
     // All migration phases are complete. This code is preserved for historical reference only.
     /*
     @MainActor
-    static func deleteAllLegacyCheckIns(using context: ModelContext) {
+    static func deleteAllLegacyCheckIns(using context: NSManagedObjectContext) {
         // Migration already complete - legacy model removed in Phase 6
         logger.info("Cleanup already completed - legacy model removed")
     }
