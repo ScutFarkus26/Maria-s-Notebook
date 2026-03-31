@@ -434,9 +434,10 @@ final class StudentDetailViewModel {
             return existing
         }
 
-        let repository = WorkRepository(context: modelContext)
+        let cdContext = AppBootstrapping.getSharedCoreDataStack().viewContext
+        let repository = WorkRepository(context: cdContext)
         do {
-            return try repository.createWork(
+            let cdWork = try repository.createWork(
                 studentID: student.id,
                 lessonID: lesson.id,
                 title: nil,
@@ -444,6 +445,12 @@ final class StudentDetailViewModel {
                 presentationID: lessonAssignment?.id,
                 scheduledDate: nil
             )
+            cdContext.safeSave()
+            // Re-fetch as SwiftData WorkModel (both contexts share the same SQLite store)
+            let workID = cdWork.id ?? UUID()
+            var refetch = FetchDescriptor<WorkModel>(predicate: #Predicate { $0.id == workID })
+            refetch.fetchLimit = 1
+            return try? modelContext.fetch(refetch).first
         } catch {
             return nil
         }

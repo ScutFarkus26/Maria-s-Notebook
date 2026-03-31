@@ -17,13 +17,13 @@ final class WorksPlanningViewModel {
     // Dependencies
     private let calendar: Calendar
     private let isNonSchoolDay: (Date) -> Bool
-    private let checkInServiceFactory: (ModelContext) -> WorkCheckInService
+    private let checkInServiceFactory: (ModelContext) -> WorkCheckInServiceProtocol
 
     init(
         startDate: Date,
         calendar: Calendar,
         isNonSchoolDay: @escaping (Date) -> Bool,
-        checkInService: @escaping (ModelContext) -> WorkCheckInService
+        checkInService: @escaping (ModelContext) -> WorkCheckInServiceProtocol
     ) {
         self.startDate = startDate
         self.calendar = calendar
@@ -96,7 +96,7 @@ final class WorksPlanningViewModel {
     func markCompleted(_ ci: WorkCheckIn, context: ModelContext, saveCoordinator: SaveCoordinator) {
         let svc = checkInServiceFactory(context)
         do {
-            try svc.markCompleted(ci)
+            try svc.markCompleted(ci, note: nil, at: Date())
             saveCoordinator.save(context, reason: "Mark check-in completed")
         } catch {
             errorMessage = "Failed to mark as completed. Please try again."

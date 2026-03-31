@@ -73,7 +73,7 @@ struct WorkStepRow: View {
     }
 
     private func toggleCompletion() {
-        let service = WorkStepService(context: modelContext)
+        let service = WorkStepServiceAdapter(context: modelContext)
         do {
             try service.toggleCompletion(step)
         } catch {

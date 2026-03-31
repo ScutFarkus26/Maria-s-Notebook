@@ -285,7 +285,7 @@ struct SampleWorkEditorSheet: View {
                 } else {
                     let newStep = service.createStep(for: existing, title: draft.title.trimmed(),
                                                      instructions: draft.instructions)
-                    newStep.orderIndex = index
+                    newStep.orderIndex = Int64(index)
                 }
             }
         } else {
@@ -295,7 +295,7 @@ struct SampleWorkEditorSheet: View {
             for (index, draft) in draftSteps.enumerated() {
                 let step = service.createStep(for: sw, title: draft.title.trimmed(),
                                                instructions: draft.instructions)
-                step.orderIndex = index
+                step.orderIndex = Int64(index)
             }
         }
 

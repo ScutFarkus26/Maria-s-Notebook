@@ -234,13 +234,10 @@ enum ChecklistBatchActionExecutor {
             )
         }
 
-        if let work = findOrCreateWork(
+        findOrCreateWorkAndMarkComplete(
             student: student, lesson: lesson,
             prefetchedWorkModels: prefetchedWorkModels, context: context
-        ) {
-            work.status = .complete
-            work.completedAt = AppCalendar.startOfDay(Date())
-        }
+        )
 
         upsertLessonPresentation(
             studentID: studentIDString, lessonID: lessonIDString,
@@ -321,27 +318,27 @@ enum ChecklistBatchActionExecutor {
         }
     }
 
-    private static func findOrCreateWork(
+    private static func findOrCreateWorkAndMarkComplete(
         student: Student, lesson: Lesson,
         prefetchedWorkModels: [WorkModel],
         context: ModelContext
-    ) -> WorkModel? {
+    ) {
         let sid = student.id
         let lidString = lesson.id.uuidString
 
         // Filter from pre-fetched data instead of re-fetching all WorkModels
-        let existingWork = prefetchedWorkModels.first { work in
+        if let existingWork = prefetchedWorkModels.first(where: { work in
             guard work.lessonID == lidString else { return false }
             return (work.participants ?? []).contains { $0.studentID == sid.uuidString }
+        }) {
+            existingWork.status = .complete
+            existingWork.completedAt = AppCalendar.startOfDay(Date())
+            return
         }
 
-        if let existing = existingWork {
-            return existing
-        }
-
-        let repository = WorkRepository(context: context)
+        let repository = WorkRepository(modelContext: context)
         do {
-            return try repository.createWork(
+            let work = try repository.createWork(
                 studentID: sid,
                 lessonID: lesson.id,
                 title: nil,
@@ -349,9 +346,10 @@ enum ChecklistBatchActionExecutor {
                 presentationID: nil,
                 scheduledDate: nil
             )
+            work.status = .complete
+            work.completedAt = AppCalendar.startOfDay(Date())
         } catch {
             logger.warning("Failed to create work: \(error)")
-            return nil
         }
     }
 

@@ -1,5 +1,6 @@
 import Foundation
 import SwiftData
+import CoreData
 
 extension WorkModel {
     /// Mark this work as completed for multiple students at once.
@@ -12,8 +13,8 @@ extension WorkModel {
         note: String = "",
         at date: Date = Date(),
         in context: ModelContext
-    ) throws -> [WorkCompletionRecord] {
-        var results: [WorkCompletionRecord] = []
+    ) throws -> [CDWorkCompletionRecord] {
+        var results: [CDWorkCompletionRecord] = []
         for id in studentIDs {
             // 1. Create WorkCompletionRecord (new system - preserves history)
             let rec = try WorkCompletionService.markCompleted(

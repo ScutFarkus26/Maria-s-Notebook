@@ -272,15 +272,16 @@ extension QuickPracticeSessionSheet {
         var studentIDs = [workItem.studentID]
         studentIDs.append(contentsOf: selectedPartnerIDs.map(\.uuidString))
 
-        // Create practice session
-        let session = repository.create(
+        // Create practice session (using SwiftData directly — views migrate to CD in Phase 4)
+        let session = PracticeSession(
             date: sessionDate,
             duration: hasDuration ? TimeInterval(durationMinutes * 60) : nil,
-            studentIDs: studentIDs.map { UUID(uuidString: $0)! },
-            workItemIDs: [UUID(uuidString: workItem.id.uuidString)!],
+            studentIDs: studentIDs,
+            workItemIDs: [workItem.id.uuidString],
             sharedNotes: sessionNotes,
             location: nil
         )
+        modelContext.insert(session)
 
         // Set quality metrics
         session.practiceQuality = practiceQuality

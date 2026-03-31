@@ -1,4 +1,5 @@
 import Foundation
+import CoreData
 import SwiftData
 
 // MARK: - Aging Types
@@ -74,36 +75,75 @@ enum WorkAgingPolicy {
     /// This is the authoritative version for business rules.
     nonisolated static func daysSinceLastTouch(
         for work: WorkModel,
-        modelContext: ModelContext,
+        using context: NSManagedObjectContext,
         checkIns: [WorkCheckIn]? = nil,
         notes: [Note]? = nil
     ) -> Int {
         let last = lastMeaningfulTouchDate(for: work, checkIns: checkIns, notes: notes)
         let today = AppCalendar.startOfDay(Date())
-        return SchoolDayChecker.schoolDaysBetween(start: last, end: today, using: modelContext)
+        return SchoolDayChecker.schoolDaysBetween(start: last, end: today, using: context)
     }
-    
+
+    @available(*, deprecated, message: "Pass NSManagedObjectContext instead of ModelContext")
+    nonisolated static func daysSinceLastTouch(
+        for work: WorkModel,
+        modelContext: ModelContext,
+        checkIns: [WorkCheckIn]? = nil,
+        notes: [Note]? = nil
+    ) -> Int {
+        let cdContext = MainActor.assumeIsolated {
+            AppBootstrapping.getSharedCoreDataStack().viewContext
+        }
+        return daysSinceLastTouch(for: work, using: cdContext, checkIns: checkIns, notes: notes)
+    }
+
     /// Maps day difference to an AgingBucket using school days.
+    nonisolated static func agingBucket(
+        for work: WorkModel,
+        using context: NSManagedObjectContext,
+        checkIns: [WorkCheckIn]? = nil,
+        notes: [Note]? = nil
+    ) -> AgingBucket {
+        let days = daysSinceLastTouch(for: work, using: context, checkIns: checkIns, notes: notes)
+        if days >= AgingPolicy.staleDays { return .stale }
+        if days >= AgingPolicy.agingDays { return .aging }
+        return .fresh
+    }
+
+    @available(*, deprecated, message: "Pass NSManagedObjectContext instead of ModelContext")
     nonisolated static func agingBucket(
         for work: WorkModel,
         modelContext: ModelContext,
         checkIns: [WorkCheckIn]? = nil,
         notes: [Note]? = nil
     ) -> AgingBucket {
-        let days = daysSinceLastTouch(for: work, modelContext: modelContext, checkIns: checkIns, notes: notes)
-        if days >= AgingPolicy.staleDays { return .stale }
-        if days >= AgingPolicy.agingDays { return .aging }
-        return .fresh
+        let cdContext = MainActor.assumeIsolated {
+            AppBootstrapping.getSharedCoreDataStack().viewContext
+        }
+        return agingBucket(for: work, using: cdContext, checkIns: checkIns, notes: notes)
     }
-    
+
     /// Convenience predicate for stale status using school days.
+    nonisolated static func isStale(
+        _ work: WorkModel,
+        using context: NSManagedObjectContext,
+        checkIns: [WorkCheckIn]? = nil,
+        notes: [Note]? = nil
+    ) -> Bool {
+        agingBucket(for: work, using: context, checkIns: checkIns, notes: notes) == .stale
+    }
+
+    @available(*, deprecated, message: "Pass NSManagedObjectContext instead of ModelContext")
     nonisolated static func isStale(
         _ work: WorkModel,
         modelContext: ModelContext,
         checkIns: [WorkCheckIn]? = nil,
         notes: [Note]? = nil
     ) -> Bool {
-        agingBucket(for: work, modelContext: modelContext, checkIns: checkIns, notes: notes) == .stale
+        let cdContext = MainActor.assumeIsolated {
+            AppBootstrapping.getSharedCoreDataStack().viewContext
+        }
+        return isStale(work, using: cdContext, checkIns: checkIns, notes: notes)
     }
     
     /// Intent-aware overdue check.

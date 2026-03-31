@@ -113,15 +113,15 @@ extension LifecycleService {
                     continue
                 }
 
-                let repository = WorkRepository(context: modelContext)
+                let repository = WorkRepository(modelContext: modelContext)
                 do {
                     let workModel = try repository.createWork(
                         studentID: studentUUID,
                         lessonID: lessonUUID,
                         title: nil,
-                        kind: .practiceLesson,
+                        kind: WorkKind.practiceLesson,
                         presentationID: la.id,
-                        scheduledDate: nil
+                        scheduledDate: nil as Date?
                     )
 
                     // Link WorkModel to Track if lesson belongs to a track
@@ -142,7 +142,6 @@ extension LifecycleService {
                         }
                     }
 
-                    workForPresentation.append(workModel)
                     createdCount += 1
                 } catch {
                     logger.warning(

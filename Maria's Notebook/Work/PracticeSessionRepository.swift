@@ -1,43 +1,27 @@
 import Foundation
 import OSLog
+import CoreData
 import SwiftData
 
-/// Repository for managing PracticeSession CRUD operations
+/// Repository for managing CDPracticeSession CRUD operations
 struct PracticeSessionRepository {
     private static let logger = Logger.work
 
-    let modelContext: ModelContext
+    let context: NSManagedObjectContext
 
-    // MARK: - Helper Methods
-
-    private func safeFetch<T>(_ descriptor: FetchDescriptor<T>, context: String = #function) -> [T] {
-        do {
-            return try modelContext.fetch(descriptor)
-        } catch {
-            Self.logger.warning("\(context): Failed to fetch \(T.self): \(error)")
-            return []
-        }
+    init(context: NSManagedObjectContext) {
+        self.context = context
     }
 
-    private func safeFetchFirst<T>(_ descriptor: FetchDescriptor<T>, context: String = #function) -> T? {
-        do {
-            return try modelContext.fetch(descriptor).first
-        } catch {
-            Self.logger.warning("\(context): Failed to fetch \(T.self): \(error)")
-            return nil
-        }
-    }
-
-    private func safeSave(context: String = #function) {
-        do {
-            try modelContext.save()
-        } catch {
-            Self.logger.warning("\(context): Failed to save: \(error)")
-        }
+    /// Deprecated init for callers still passing ModelContext.
+    @available(*, deprecated, message: "Pass NSManagedObjectContext instead of ModelContext")
+    @MainActor
+    init(modelContext: ModelContext) {
+        self.context = AppBootstrapping.getSharedCoreDataStack().viewContext
     }
 
     // MARK: - Create
-    
+
     /// Creates and saves a new practice session
     @discardableResult
     func create(
@@ -47,105 +31,108 @@ struct PracticeSessionRepository {
         workItemIDs: [UUID],
         sharedNotes: String = "",
         location: String? = nil
-    ) -> PracticeSession {
-        let session = PracticeSession(
-            date: date,
-            duration: duration,
-            studentIDs: studentIDs.map(\.uuidString),
-            workItemIDs: workItemIDs.map(\.uuidString),
-            sharedNotes: sharedNotes,
-            location: location
-        )
-        modelContext.insert(session)
-        safeSave()
+    ) -> CDPracticeSession {
+        let session = CDPracticeSession(context: context)
+        session.date = date
+        session.duration = duration ?? 0
+        session.studentIDs = studentIDs.map(\.uuidString) as NSArray
+        session.workItemIDs = workItemIDs.map(\.uuidString) as NSArray
+        session.sharedNotes = sharedNotes
+        session.location = location
+        context.safeSave()
         return session
     }
-    
+
     // MARK: - Read
-    
+
     /// Fetches all practice sessions
-    func fetchAll() -> [PracticeSession] {
-        let descriptor = FetchDescriptor<PracticeSession>(
-            sortBy: [SortDescriptor(\.date, order: .reverse)]
-        )
-        return safeFetch(descriptor)
+    func fetchAll() -> [CDPracticeSession] {
+        let request = CDFetchRequest(CDPracticeSession.self)
+        request.sortDescriptors = [NSSortDescriptor(key: "date", ascending: false)]
+        return context.safeFetch(request)
     }
-    
+
     /// Fetches practice sessions for a specific student
-    func fetch(forStudentID studentID: UUID) -> [PracticeSession] {
+    func fetch(forStudentID studentID: UUID) -> [CDPracticeSession] {
         let idString = studentID.uuidString
-        let descriptor = FetchDescriptor<PracticeSession>(
-            sortBy: [SortDescriptor(\.date, order: .reverse)]
-        )
-        let allSessions = safeFetch(descriptor)
-        return allSessions.filter { $0.studentIDs.contains(idString) }
+        let allSessions = fetchAll()
+        return allSessions.filter { session in
+            let ids = (session.studentIDs as? [String]) ?? []
+            return ids.contains(idString)
+        }
     }
-    
+
     /// Fetches practice sessions for a specific work item
-    func fetch(forWorkItemID workItemID: UUID) -> [PracticeSession] {
+    func fetch(forWorkItemID workItemID: UUID) -> [CDPracticeSession] {
         let idString = workItemID.uuidString
-        let descriptor = FetchDescriptor<PracticeSession>(
-            sortBy: [SortDescriptor(\.date, order: .reverse)]
-        )
-        let allSessions = safeFetch(descriptor)
-        return allSessions.filter { $0.workItemIDs.contains(idString) }
+        let allSessions = fetchAll()
+        return allSessions.filter { session in
+            let ids = (session.workItemIDs as? [String]) ?? []
+            return ids.contains(idString)
+        }
     }
-    
+
     /// Fetches practice sessions within a date range
-    func fetch(from startDate: Date, to endDate: Date) -> [PracticeSession] {
-        let descriptor = FetchDescriptor<PracticeSession>(
-            predicate: #Predicate<PracticeSession> { session in
-                session.date >= startDate && session.date <= endDate
-            },
-            sortBy: [SortDescriptor(\.date, order: .reverse)]
+    func fetch(from startDate: Date, to endDate: Date) -> [CDPracticeSession] {
+        let request = CDFetchRequest(CDPracticeSession.self)
+        request.predicate = NSPredicate(
+            format: "date >= %@ AND date <= %@",
+            startDate as NSDate, endDate as NSDate
         )
-        return safeFetch(descriptor)
+        request.sortDescriptors = [NSSortDescriptor(key: "date", ascending: false)]
+        return context.safeFetch(request)
     }
-    
+
     /// Fetches group practice sessions (2+ students)
-    func fetchGroupSessions() -> [PracticeSession] {
+    func fetchGroupSessions() -> [CDPracticeSession] {
         let allSessions = fetchAll()
-        return allSessions.filter(\.isGroupSession)
+        return allSessions.filter { session in
+            let ids = (session.studentIDs as? [String]) ?? []
+            return ids.count >= 2
+        }
     }
-    
+
     /// Fetches solo practice sessions (1 student)
-    func fetchSoloSessions() -> [PracticeSession] {
+    func fetchSoloSessions() -> [CDPracticeSession] {
         let allSessions = fetchAll()
-        return allSessions.filter(\.isSoloSession)
+        return allSessions.filter { session in
+            let ids = (session.studentIDs as? [String]) ?? []
+            return ids.count == 1
+        }
     }
-    
+
     /// Fetches practice partnerships for a student (who they practiced with most)
     func fetchPartnerships(forStudentID studentID: UUID) -> [(partnerID: UUID, sessionCount: Int)] {
         let sessions = fetch(forStudentID: studentID)
         var partnerCounts: [UUID: Int] = [:]
-        
-        for session in sessions where session.isGroupSession {
-            for partnerIDString in session.studentIDs where partnerIDString != studentID.uuidString {
+
+        for session in sessions {
+            let ids = (session.studentIDs as? [String]) ?? []
+            guard ids.count >= 2 else { continue }
+            for partnerIDString in ids where partnerIDString != studentID.uuidString {
                 if let partnerID = UUID(uuidString: partnerIDString) {
                     partnerCounts[partnerID, default: 0] += 1
                 }
             }
         }
-        
+
         return partnerCounts.map { ($0.key, $0.value) }
-            .sorted { $0.1 > $1.1 } // Sort by session count descending
+            .sorted { $0.1 > $1.1 }
     }
-    
+
     /// Fetches a specific practice session by ID
-    func fetch(byID id: UUID) -> PracticeSession? {
-        let descriptor = FetchDescriptor<PracticeSession>(
-            predicate: #Predicate<PracticeSession> { session in
-                session.id == id
-            }
-        )
-        return safeFetchFirst(descriptor)
+    func fetch(byID id: UUID) -> CDPracticeSession? {
+        let request = CDFetchRequest(CDPracticeSession.self)
+        request.predicate = NSPredicate(format: "id == %@", id as CVarArg)
+        request.fetchLimit = 1
+        return context.safeFetchFirst(request)
     }
-    
+
     // MARK: - Update
-    
+
     /// Updates an existing practice session
     func update(
-        _ session: PracticeSession,
+        _ session: CDPracticeSession,
         date: Date? = nil,
         duration: TimeInterval? = nil,
         studentIDs: [UUID]? = nil,
@@ -160,10 +147,10 @@ struct PracticeSessionRepository {
             session.duration = duration
         }
         if let studentIDs {
-            session.studentIDs = studentIDs.map(\.uuidString)
+            session.studentIDs = studentIDs.map(\.uuidString) as NSArray
         }
         if let workItemIDs {
-            session.workItemIDs = workItemIDs.map(\.uuidString)
+            session.workItemIDs = workItemIDs.map(\.uuidString) as NSArray
         }
         if let sharedNotes {
             session.sharedNotes = sharedNotes
@@ -171,39 +158,44 @@ struct PracticeSessionRepository {
         if let location {
             session.location = location
         }
-        safeSave()
+        context.safeSave()
     }
-    
+
     // MARK: - Delete
-    
+
     /// Deletes a practice session
-    func delete(_ session: PracticeSession) {
-        modelContext.delete(session)
-        safeSave()
+    func delete(_ session: CDPracticeSession) {
+        context.delete(session)
+        context.safeSave()
     }
-    
+
     /// Deletes all practice sessions for a specific student
     func deleteAll(forStudentID studentID: UUID) {
         let sessions = fetch(forStudentID: studentID)
         for session in sessions {
-            modelContext.delete(session)
+            context.delete(session)
         }
-        safeSave()
+        context.safeSave()
     }
-    
+
     // MARK: - Statistics
-    
+
     /// Returns practice session statistics for a student
     func statistics(forStudentID studentID: UUID) -> PracticeStatistics {
         let sessions = fetch(forStudentID: studentID)
-        let groupSessions = sessions.filter(\.isGroupSession)
-        let soloSessions = sessions.filter(\.isSoloSession)
-        
-        let totalDuration = sessions.compactMap(\.duration).reduce(0, +)
-        let averageDuration = sessions.compactMap(\.duration).isEmpty
-            ? 0
-            : totalDuration / Double(sessions.compactMap(\.duration).count)
-        
+        let groupSessions = sessions.filter { session in
+            let ids = (session.studentIDs as? [String]) ?? []
+            return ids.count >= 2
+        }
+        let soloSessions = sessions.filter { session in
+            let ids = (session.studentIDs as? [String]) ?? []
+            return ids.count == 1
+        }
+
+        let durations = sessions.map(\.duration).filter { $0 > 0 }
+        let totalDuration = durations.reduce(0, +)
+        let averageDuration = durations.isEmpty ? 0 : totalDuration / Double(durations.count)
+
         return PracticeStatistics(
             totalSessions: sessions.count,
             groupSessions: groupSessions.count,
@@ -223,17 +215,17 @@ struct PracticeStatistics {
     let soloSessions: Int
     let totalDuration: TimeInterval
     let averageDuration: TimeInterval
-    
+
     var groupPercentage: Double {
         guard totalSessions > 0 else { return 0 }
         return Double(groupSessions) / Double(totalSessions) * 100
     }
-    
+
     var soloPercentage: Double {
         guard totalSessions > 0 else { return 0 }
         return Double(soloSessions) / Double(totalSessions) * 100
     }
-    
+
     var totalDurationFormatted: String {
         let hours = Int(totalDuration / 3600)
         let minutes = Int((totalDuration.truncatingRemainder(dividingBy: 3600)) / 60)
@@ -243,7 +235,7 @@ struct PracticeStatistics {
             return "\(minutes)m"
         }
     }
-    
+
     var averageDurationFormatted: String {
         let minutes = Int(averageDuration / 60)
         return "\(minutes) min"

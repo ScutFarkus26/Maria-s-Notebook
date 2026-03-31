@@ -62,7 +62,7 @@ struct WorkStepEditorSheet: View {
     }
 
     private func save() {
-        let service = WorkStepService(context: modelContext)
+        let service = WorkStepServiceAdapter(context: modelContext)
 
         do {
             if let step = existingStep {
@@ -80,7 +80,7 @@ struct WorkStepEditorSheet: View {
 
     private func deleteStep() {
         guard let step = existingStep else { return }
-        let service = WorkStepService(context: modelContext)
+        let service = WorkStepServiceAdapter(context: modelContext)
         do {
             try service.delete(step, from: work)
         } catch {

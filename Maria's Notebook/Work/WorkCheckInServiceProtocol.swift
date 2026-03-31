@@ -8,6 +8,7 @@
 
 import Foundation
 import SwiftData
+import CoreData
 
 // MARK: - Protocol Definition
 
@@ -90,54 +91,88 @@ protocol WorkCheckInServiceProtocol {
 // MARK: - Adapter Implementation
 
 /// Adapter that wraps the existing WorkCheckInService struct
-/// Provides protocol-based interface for dependency injection and testing
+/// Provides protocol-based interface for dependency injection and testing.
+/// Bridges SwiftData types to Core Data internally during the transition.
 @MainActor
 final class WorkCheckInServiceAdapter: WorkCheckInServiceProtocol {
     let context: ModelContext
-    private let legacyService: WorkCheckInService
-    
+    private let cdService: WorkCheckInService
+    private let cdContext: NSManagedObjectContext
+
     init(context: ModelContext) {
         self.context = context
-        self.legacyService = WorkCheckInService(context: context)
+        self.cdContext = AppBootstrapping.getSharedCoreDataStack().viewContext
+        self.cdService = WorkCheckInService(context: cdContext)
     }
-    
+
+    // MARK: - CD Lookup Helpers
+
+    private func cdWork(for work: WorkModel) -> CDWorkModel? {
+        let request = CDFetchRequest(CDWorkModel.self)
+        request.predicate = NSPredicate(format: "id == %@", work.id as CVarArg)
+        request.fetchLimit = 1
+        return cdContext.safeFetchFirst(request)
+    }
+
+    private func cdCheckIn(for checkIn: WorkCheckIn) -> CDWorkCheckIn? {
+        let request = CDFetchRequest(CDWorkCheckIn.self)
+        request.predicate = NSPredicate(format: "id == %@", checkIn.id as CVarArg)
+        request.fetchLimit = 1
+        return cdContext.safeFetchFirst(request)
+    }
+
     // MARK: - Creation
-    
+
     @discardableResult
     func createCheckIn(for work: WorkModel,
                        date: Date = Date(),
                        status: WorkCheckInStatus = .scheduled,
                        purpose: String = "",
                        note: String = "") throws -> WorkCheckIn {
-        try legacyService.createCheckIn(for: work, date: date, status: status, purpose: purpose, note: note)
+        guard let cdW = cdWork(for: work) else {
+            throw NSError(domain: "WorkCheckInServiceAdapter", code: 1, userInfo: [NSLocalizedDescriptionKey: "CDWorkModel not found"])
+        }
+        let cdCI = try cdService.createCheckIn(for: cdW, date: date, status: status, purpose: purpose, note: note)
+        // Return a SwiftData WorkCheckIn for protocol conformance
+        let swiftDataCI = WorkCheckIn(workID: work.id, date: date, status: status, purpose: purpose, work: work)
+        swiftDataCI.id = cdCI.id ?? UUID()
+        context.insert(swiftDataCI)
+        return swiftDataCI
     }
-    
+
     // MARK: - Updates
-    
+
     func markCompleted(_ checkIn: WorkCheckIn, note: String? = nil, at date: Date = Date()) throws {
-        try legacyService.markCompleted(checkIn, note: note, at: date)
+        guard let cdCI = cdCheckIn(for: checkIn) else { return }
+        try cdService.markCompleted(cdCI, note: note, at: date)
     }
-    
+
     func reschedule(_ checkIn: WorkCheckIn, to date: Date, note: String? = nil) throws {
-        try legacyService.reschedule(checkIn, to: date, note: note)
+        guard let cdCI = cdCheckIn(for: checkIn) else { return }
+        try cdService.reschedule(cdCI, to: date, note: note)
     }
-    
+
     func skip(_ checkIn: WorkCheckIn, note: String? = nil, at date: Date = Date()) throws {
-        try legacyService.skip(checkIn, note: note, at: date)
+        guard let cdCI = cdCheckIn(for: checkIn) else { return }
+        try cdService.skip(cdCI, note: note, at: date)
     }
-    
+
     func updateNote(_ checkIn: WorkCheckIn, to note: String?) throws {
-        try legacyService.updateNote(checkIn, to: note)
+        guard let cdCI = cdCheckIn(for: checkIn) else { return }
+        try cdService.updateNote(cdCI, to: note)
     }
-    
+
     func update(_ checkIn: WorkCheckIn, date: Date, status: WorkCheckInStatus, purpose: String, note: String) throws {
-        try legacyService.update(checkIn, date: date, status: status, purpose: purpose, note: note)
+        guard let cdCI = cdCheckIn(for: checkIn) else { return }
+        try cdService.update(cdCI, date: date, status: status, purpose: purpose, note: note)
     }
-    
+
     // MARK: - Deletion
-    
+
     func delete(_ checkIn: WorkCheckIn, from work: WorkModel? = nil) throws {
-        try legacyService.delete(checkIn, from: work)
+        guard let cdCI = cdCheckIn(for: checkIn) else { return }
+        let cdW = work.flatMap { cdWork(for: $0) }
+        try cdService.delete(cdCI, from: cdW)
     }
 }
 

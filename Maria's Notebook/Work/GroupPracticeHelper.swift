@@ -1,14 +1,15 @@
 import SwiftUI
 import SwiftData
+import CoreData
 
 /// Helper to identify and facilitate group practice opportunities
 struct GroupPracticeHelper {
-    let modelContext: ModelContext
-    
+    let modelContext: NSManagedObjectContext
+
     /// Finds students who have work from the same lesson
-    func findGroupPracticeOpportunities(for work: WorkModel, in allWork: [WorkModel]) -> [WorkModel] {
+    func findGroupPracticeOpportunities(for work: CDWorkModel, in allWork: [CDWorkModel]) -> [CDWorkModel] {
         guard !work.lessonID.isEmpty else { return [] }
-        
+
         return allWork.filter { otherWork in
             otherWork.id != work.id &&
             otherWork.lessonID == work.lessonID &&
@@ -16,9 +17,9 @@ struct GroupPracticeHelper {
             !otherWork.studentID.isEmpty
         }
     }
-    
+
     /// Checks if there are practice partners available for this work
-    func hasGroupPracticeOpportunity(for work: WorkModel, in allWork: [WorkModel]) -> Bool {
+    func hasGroupPracticeOpportunity(for work: CDWorkModel, in allWork: [CDWorkModel]) -> Bool {
         !findGroupPracticeOpportunities(for: work, in: allWork).isEmpty
     }
 }
@@ -27,7 +28,7 @@ struct GroupPracticeHelper {
 struct GroupPracticeBadge: View {
     let partnerCount: Int
     var action: (() -> Void)?
-    
+
     var body: some View {
         Button(action: { action?() }, label: {
             HStack(spacing: 4) {
@@ -51,8 +52,8 @@ struct GroupPracticeBadge: View {
 
 /// Quick action button to start group practice
 struct QuickGroupPracticeButton: View {
-    let work: WorkModel
-    let availablePartners: [WorkModel]
+    let work: CDWorkModel
+    let availablePartners: [CDWorkModel]
     @Binding var showPracticeSessionSheet: Bool
 
     var body: some View {
@@ -85,14 +86,14 @@ struct QuickGroupPracticeButton: View {
 extension View {
     /// Adds a group practice badge overlay if partners are available
     func groupPracticeBadge(
-        for work: WorkModel,
-        in allWork: [WorkModel],
-        modelContext: ModelContext,
+        for work: CDWorkModel,
+        in allWork: [CDWorkModel],
+        context: NSManagedObjectContext,
         action: @escaping () -> Void
     ) -> some View {
-        let helper = GroupPracticeHelper(modelContext: modelContext)
+        let helper = GroupPracticeHelper(modelContext: context)
         let partners = helper.findGroupPracticeOpportunities(for: work, in: allWork)
-        
+
         return self.overlay(alignment: .topTrailing) {
             if !partners.isEmpty {
                 GroupPracticeBadge(partnerCount: partners.count, action: action)
@@ -107,9 +108,9 @@ extension View {
 #Preview("Group Practice Badge") {
     VStack(spacing: 20) {
         GroupPracticeBadge(partnerCount: 2)
-        
+
         GroupPracticeBadge(partnerCount: 1)
-        
+
         GroupPracticeBadge(partnerCount: 5)
     }
     .padding()

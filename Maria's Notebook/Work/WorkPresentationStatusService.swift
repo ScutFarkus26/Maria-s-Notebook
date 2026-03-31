@@ -1,7 +1,8 @@
 import Foundation
 import OSLog
-import SwiftData
+import CoreData
 import SwiftUI
+import SwiftData
 
 /// Service to determine the presentation status of the next presentation for a work item
 struct WorkPresentationStatusService {
@@ -13,7 +14,7 @@ struct WorkPresentationStatusService {
         case inInbox(students: [String])
         case withOtherStudents(students: [String])
         case notFound
-        
+
         var displayText: String {
             switch self {
             case .scheduled(let date):
@@ -34,7 +35,7 @@ struct WorkPresentationStatusService {
                 return "No upcoming presentation"
             }
         }
-        
+
         var iconName: String {
             switch self {
             case .scheduled:
@@ -47,7 +48,7 @@ struct WorkPresentationStatusService {
                 return "questionmark.circle"
             }
         }
-        
+
         var color: Color {
             switch self {
             case .scheduled:
@@ -61,76 +62,84 @@ struct WorkPresentationStatusService {
             }
         }
     }
-    
+
     /// Finds the next presentation status for a work item
-    /// - Parameters:
-    ///   - work: The work item to check
-    ///   - modelContext: SwiftData model context
-    /// - Returns: The presentation status
-    static func findNextPresentationStatus(for work: WorkModel, modelContext: ModelContext) -> PresentationStatus {
-        // Validate that we have valid IDs
+    static func findNextPresentationStatus(for work: CDWorkModel, context: NSManagedObjectContext) -> PresentationStatus {
         guard UUID(uuidString: work.lessonID) != nil,
               UUID(uuidString: work.studentID) != nil else {
             return .notFound
         }
-        
-        // First, check for scheduled presentations (LessonAssignment with state = scheduled)
+
+        // First, check for scheduled presentations (CDLessonAssignment with state = scheduled)
         let lessonIDString = work.lessonID
-        let scheduledDescriptor = FetchDescriptor<LessonAssignment>(
-            predicate: #Predicate<LessonAssignment> { assignment in
-                assignment.lessonID == lessonIDString &&
-                assignment.stateRaw == "scheduled"
-            },
-            sortBy: [SortDescriptor(\.scheduledFor, order: .forward)]
+        let scheduledRequest = CDFetchRequest(CDLessonAssignment.self)
+        scheduledRequest.predicate = NSPredicate(
+            format: "lessonID == %@ AND stateRaw == %@",
+            lessonIDString, "scheduled"
         )
-        
+        scheduledRequest.sortDescriptors = [NSSortDescriptor(key: "scheduledFor", ascending: true)]
+
         do {
-            let scheduledAssignments = try modelContext.fetch(scheduledDescriptor)
-            // Filter to only unpresented assignments with this student
+            let scheduledAssignments = try context.fetch(scheduledRequest)
             let relevantScheduled = scheduledAssignments.filter { assignment in
                 assignment.presentedAt == nil &&
-                assignment.studentIDs.contains(work.studentID)
+                (assignment.studentIDs as? [String] ?? []).contains(work.studentID)
             }
-            
+
             if let nextScheduled = relevantScheduled.first,
                let scheduledDate = nextScheduled.scheduledFor {
                 return .scheduled(date: scheduledDate)
             }
         } catch {
-            logger.warning("Failed to fetch scheduled LessonAssignment: \(error)")
+            logger.warning("Failed to fetch scheduled CDLessonAssignment: \(error)")
         }
 
-        // Next, check for draft presentations (LessonAssignment with state = draft, not scheduled)
-        let draftDescriptor = FetchDescriptor<LessonAssignment>(
-            predicate: #Predicate<LessonAssignment> { assignment in
-                assignment.lessonID == lessonIDString &&
-                assignment.stateRaw == "draft"
-            }
+        // Next, check for draft presentations
+        let draftRequest = CDFetchRequest(CDLessonAssignment.self)
+        draftRequest.predicate = NSPredicate(
+            format: "lessonID == %@ AND stateRaw == %@",
+            lessonIDString, "draft"
         )
-        
+
         do {
-            let draftAssignments = try modelContext.fetch(draftDescriptor)
-            // Filter to only unpresented, unscheduled assignments with this student
+            let draftAssignments = try context.fetch(draftRequest)
             let relevantDrafts = draftAssignments.filter { assignment in
                 assignment.scheduledFor == nil &&
                 assignment.presentedAt == nil &&
-                assignment.studentIDs.contains(work.studentID)
+                (assignment.studentIDs as? [String] ?? []).contains(work.studentID)
             }
-            
+
             if let inboxAssignment = relevantDrafts.first {
-                let otherStudents = inboxAssignment.studentIDs.filter { $0 != work.studentID }
-                
+                let studentIDsArray = (inboxAssignment.studentIDs as? [String]) ?? []
+                let otherStudents = studentIDsArray.filter { $0 != work.studentID }
+
                 if otherStudents.isEmpty {
                     return .inInbox(students: [work.studentID])
                 } else {
-                    return .inInbox(students: inboxAssignment.studentIDs)
+                    return .inInbox(students: studentIDsArray)
                 }
             }
         } catch {
-            logger.warning("Failed to fetch draft LessonAssignment: \(error)")
+            logger.warning("Failed to fetch draft CDLessonAssignment: \(error)")
         }
 
         return .notFound
+    }
+}
+
+// MARK: - Deprecated SwiftData Bridge
+
+extension WorkPresentationStatusService {
+    /// Deprecated overload for views still using SwiftData WorkModel + ModelContext.
+    @available(*, deprecated, message: "Use findNextPresentationStatus(for:context:) with CDWorkModel")
+    @MainActor
+    static func findNextPresentationStatus(for work: WorkModel, modelContext: ModelContext) -> PresentationStatus {
+        let cdContext = AppBootstrapping.getSharedCoreDataStack().viewContext
+        let request = CDFetchRequest(CDWorkModel.self)
+        request.predicate = NSPredicate(format: "id == %@", work.id as CVarArg)
+        request.fetchLimit = 1
+        guard let cdWork = cdContext.safeFetchFirst(request) else { return .notFound }
+        return findNextPresentationStatus(for: cdWork, context: cdContext)
     }
 }
 

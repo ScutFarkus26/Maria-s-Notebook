@@ -14,7 +14,7 @@ extension QuickNewWorkItemSheet {
               !selectedStudentIDs.isEmpty else { return }
         isSaving = true
 
-        let repository = WorkRepository(context: modelContext)
+        let repository = WorkRepository(modelContext: modelContext)
 
         do {
             var createdWorkID: UUID?
@@ -35,12 +35,12 @@ extension QuickNewWorkItemSheet {
                 }
 
                 // Create check-in if scheduled
-                if hasCheckIn {
+                if hasCheckIn, let workID = work.id {
                     let normalized = AppCalendar.startOfDay(checkInDate)
 
                     // Create WorkCheckIn for scheduled check-ins
                     let checkIn = WorkCheckIn(
-                        workID: work.id,
+                        workID: workID,
                         date: normalized,
                         status: .scheduled,
                         purpose: CheckInMigrationService.mapReasonToPurpose(checkInReason)

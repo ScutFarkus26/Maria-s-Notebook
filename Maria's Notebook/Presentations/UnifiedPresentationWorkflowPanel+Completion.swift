@@ -50,7 +50,8 @@ extension UnifiedPresentationWorkflowPanel {
         )
 
         // 2. Create work items
-        let repository = WorkRepository(context: modelContext)
+        let cdContext = AppBootstrapping.getSharedCoreDataStack().viewContext
+        let repository = WorkRepository(context: cdContext)
 
         for (studentID, drafts) in workDrafts {
             for draft in drafts where !draft.title.isEmpty {
@@ -78,7 +79,7 @@ extension UnifiedPresentationWorkflowPanel {
                         }
                     }
                     if !allNotes.isEmpty {
-                        work.setLegacyNoteText(allNotes, in: modelContext)
+                        work.setLegacyNoteText(allNotes, in: cdContext)
                     }
 
                     // Set completion outcome if status is complete

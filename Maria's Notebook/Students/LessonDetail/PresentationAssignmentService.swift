@@ -57,14 +57,22 @@ enum PresentationAssignmentService {
             // Get user-entered assignment name
             let trimmed = entry.text.trimmed()
 
-            let work: WorkModel
             if let existing = existingWork {
-                work = existing
+                // Update notes if provided (unified notes)
+                if !trimmed.isEmpty {
+                    Task { @MainActor in
+                        existing.setLegacyNoteText(trimmed, in: modelContext)
+                    }
+                }
+                // Schedule check-in if provided
+                if let sched = entry.schedule {
+                    scheduleCheckIn(for: existing, schedule: sched, modelContext: modelContext)
+                }
             } else {
-                // Create new WorkModel
-                let repository = WorkRepository(context: modelContext)
+                // Create new WorkModel via Core Data repository
+                let repository = WorkRepository(modelContext: modelContext)
                 do {
-                    work = try repository.createWork(
+                    let cdWork = try repository.createWork(
                         studentID: studentUUID,
                         lessonID: lessonID,
                         title: trimmed,
@@ -72,29 +80,52 @@ enum PresentationAssignmentService {
                         presentationID: nil,
                         scheduledDate: nil
                     )
+                    // Update notes if provided (unified notes)
+                    if !trimmed.isEmpty {
+                        cdWork.setLegacyNoteText(trimmed, in: repository.context)
+                    }
+                    // Schedule check-in if provided
+                    if let sched = entry.schedule {
+                        scheduleCheckIn(for: cdWork, schedule: sched, context: repository.context)
+                    }
                 } catch {
                     logger.warning("Failed to create work: \(error)")
                     continue
                 }
-            }
-
-            // Update notes if provided (unified notes)
-            if !trimmed.isEmpty {
-                Task { @MainActor in
-                    work.setLegacyNoteText(trimmed, in: modelContext)
-                }
-            }
-
-            // Schedule check-in if provided
-            if let sched = entry.schedule {
-                scheduleCheckIn(for: work, schedule: sched, modelContext: modelContext)
             }
         }
     }
 
     // MARK: - Private Helpers
 
+    /// Schedules a check-in for a CD work item.
+    private static func scheduleCheckIn(
+        for work: CDWorkModel,
+        schedule: PostPresentationAssignmentsSheet.Schedule,
+        context: NSManagedObjectContext
+    ) {
+        let normalized = AppCalendar.startOfDay(schedule.date)
+        let checkInKind = PostPresentationAssignmentsSheet.ScheduleKind.checkIn
+
+        // Check if check-in already exists
+        let existingCheckIns = (work.checkIns?.allObjects as? [CDWorkCheckIn]) ?? []
+        let hasCheckIn = existingCheckIns.contains { checkIn in
+            AppCalendar.startOfDay(checkIn.date ?? Date()) == normalized && checkIn.statusRaw == WorkCheckInStatus.scheduled.rawValue
+        }
+
+        if !hasCheckIn {
+            let purpose: String = (schedule.kind == checkInKind) ? "Progress check" : "Due date"
+            let checkIn = CDWorkCheckIn(context: context)
+            checkIn.workID = work.id?.uuidString ?? ""
+            checkIn.date = normalized
+            checkIn.statusRaw = WorkCheckInStatus.scheduled.rawValue
+            checkIn.purpose = purpose
+            checkIn.work = work
+        }
+    }
+
     /// Schedules a check-in for a work item.
+    @available(*, deprecated, message: "Use scheduleCheckIn(for:schedule:context:) with CDWorkModel")
     private static func scheduleCheckIn(
         for work: WorkModel,
         schedule: PostPresentationAssignmentsSheet.Schedule,

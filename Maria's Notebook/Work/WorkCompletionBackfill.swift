@@ -1,16 +1,15 @@
 import Foundation
-import SwiftData
+import CoreData
 
 /// Utilities to migrate or mirror legacy completion flags (e.g., on participants)
-/// into durable, historical `WorkCompletionRecord` entries.
+/// into durable, historical `CDWorkCompletionRecord` entries.
 enum WorkCompletionBackfill {
     /// Iterate through participants and ensure a corresponding
-    /// `WorkCompletionRecord` exists for each participant that has `completedAt`.
+    /// `CDWorkCompletionRecord` exists for each participant that has `completedAt`.
     /// The operation is idempotent and safe to call multiple times.
-    static func backfill(for workID: UUID, participants: [WorkParticipantEntity], in context: ModelContext) throws {
+    static func backfill(for workID: UUID, participants: [CDWorkParticipantEntity], in context: NSManagedObjectContext) throws {
         for p in participants {
             guard let completed = p.completedAt else { continue }
-            // CloudKit compatibility: Convert String studentID to UUID for the call
             guard let studentUUID = UUID(uuidString: p.studentID) else { continue }
             try ensureLatestRecord(
                 for: workID, studentID: studentUUID,
@@ -26,22 +25,23 @@ enum WorkCompletionBackfill {
     static func ensureLatestRecord(
         for workID: UUID, studentID: UUID,
         completedAt: Date, note: String = "",
-        in context: ModelContext
-    ) throws -> WorkCompletionRecord {
-        // CloudKit compatibility: Convert UUIDs to strings for comparison
+        in context: NSManagedObjectContext
+    ) throws -> CDWorkCompletionRecord {
         let workIDString = workID.uuidString
         let studentIDString = studentID.uuidString
-        var descriptor = FetchDescriptor<WorkCompletionRecord>(
-            predicate: #Predicate { rec in
-                rec.workID == workIDString && rec.studentID == studentIDString && rec.completedAt == completedAt
-            }
+        let request = CDFetchRequest(CDWorkCompletionRecord.self)
+        request.predicate = NSPredicate(
+            format: "workID == %@ AND studentID == %@ AND completedAt == %@",
+            workIDString, studentIDString, completedAt as NSDate
         )
-        descriptor.fetchLimit = 1
-        if let existing = try context.fetch(descriptor).first {
+        request.fetchLimit = 1
+        if let existing = try context.fetch(request).first {
             return existing
         }
-        let record = WorkCompletionRecord(workID: workID, studentID: studentID, completedAt: completedAt)
-        context.insert(record)
+        let record = CDWorkCompletionRecord(context: context)
+        record.workID = workIDString
+        record.studentID = studentIDString
+        record.completedAt = completedAt
         if !note.trimmed().isEmpty {
             record.setLegacyNoteText(note, in: context)
         }

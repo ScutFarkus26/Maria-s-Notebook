@@ -1,25 +1,23 @@
 import Foundation
+import CoreData
 import SwiftData
 
 // MARK: - Attendance Lookup Helpers
 
-extension ModelContext {
+extension NSManagedObjectContext {
+
     /// Returns the attendance status for a student on a specific date, if a record exists.
     /// The date is normalized to start-of-day for matching.
     func attendanceStatus(for studentID: UUID, on date: Date) -> AttendanceStatus? {
         let day = date.normalizedDay()
-        // CloudKit compatibility: Convert UUID to String for comparison
         let studentIDString = studentID.uuidString
-        var descriptor = FetchDescriptor<AttendanceRecord>(
-            predicate: #Predicate { $0.studentID == studentIDString && $0.date == day }
+        let request = CDFetchRequest(CDAttendanceRecord.self)
+        request.predicate = NSPredicate(
+            format: "studentID == %@ AND date == %@",
+            studentIDString, day as NSDate
         )
-        descriptor.fetchLimit = 1
-        do {
-            let recs: [AttendanceRecord] = try fetch(descriptor)
-            return recs.first?.status
-        } catch {
-            return nil
-        }
+        request.fetchLimit = 1
+        return safeFetchFirst(request)?.status
     }
 
     /// Returns a dictionary of attendance statuses keyed by student ID for the given date.
@@ -28,24 +26,35 @@ extension ModelContext {
     func attendanceStatuses(for studentIDs: [UUID], on date: Date) -> [UUID: AttendanceStatus] {
         guard !studentIDs.isEmpty else { return [:] }
         let day = date.normalizedDay()
-        // CloudKit compatibility: Convert UUIDs to Strings for comparison
         let requestedStrings = Set(studentIDs.uuidStrings)
-        let descriptor = FetchDescriptor<AttendanceRecord>(
-            predicate: #Predicate { $0.date == day }
-        )
-        do {
-            let recs: [AttendanceRecord] = try fetch(descriptor)
-            // Build dictionary safely, handling potential duplicates by keeping the first occurrence
-            var result: [UUID: AttendanceStatus] = [:]
-            for rec in recs {
-                guard requestedStrings.contains(rec.studentID),
-                      let studentIDUUID = UUID(uuidString: rec.studentID),
-                      result[studentIDUUID] == nil else { continue }
-                result[studentIDUUID] = rec.status
-            }
-            return result
-        } catch {
-            return [:]
+        let request = CDFetchRequest(CDAttendanceRecord.self)
+        request.predicate = NSPredicate(format: "date == %@", day as NSDate)
+        let recs = safeFetch(request)
+        var result: [UUID: AttendanceStatus] = [:]
+        for rec in recs {
+            guard requestedStrings.contains(rec.studentID),
+                  let studentIDUUID = UUID(uuidString: rec.studentID),
+                  result[studentIDUUID] == nil else { continue }
+            result[studentIDUUID] = rec.status
         }
+        return result
+    }
+}
+
+// MARK: - Deprecated SwiftData Bridge
+
+extension ModelContext {
+    @available(*, deprecated, message: "Use NSManagedObjectContext.attendanceStatus instead")
+    @MainActor
+    func attendanceStatus(for studentID: UUID, on date: Date) -> AttendanceStatus? {
+        let cdContext = AppBootstrapping.getSharedCoreDataStack().viewContext
+        return cdContext.attendanceStatus(for: studentID, on: date)
+    }
+
+    @available(*, deprecated, message: "Use NSManagedObjectContext.attendanceStatuses instead")
+    @MainActor
+    func attendanceStatuses(for studentIDs: [UUID], on date: Date) -> [UUID: AttendanceStatus] {
+        let cdContext = AppBootstrapping.getSharedCoreDataStack().viewContext
+        return cdContext.attendanceStatuses(for: studentIDs, on: date)
     }
 }

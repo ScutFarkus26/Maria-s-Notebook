@@ -1,68 +1,62 @@
 import Foundation
 import OSLog
+import CoreData
 import SwiftData
 
 @MainActor
 struct WorkRepository {
     private static let logger = Logger.work
 
-    let context: ModelContext
+    let context: NSManagedObjectContext
 
-    // MARK: - Helper Methods
-
-    private func safeFetch<T>(_ descriptor: FetchDescriptor<T>, context: String = #function) -> [T] {
-        do {
-            return try self.context.fetch(descriptor)
-        } catch {
-            Self.logger.warning("\(context): Failed to fetch \(T.self): \(error)")
-            return []
-        }
+    init(context: NSManagedObjectContext) {
+        self.context = context
     }
 
-    private func safeFetchFirst<T>(_ descriptor: FetchDescriptor<T>, context: String = #function) -> T? {
-        do {
-            return try self.context.fetch(descriptor).first
-        } catch {
-            Self.logger.warning("\(context): Failed to fetch \(T.self): \(error)")
-            return nil
-        }
+    // MARK: - Deprecated SwiftData Bridge
+
+    /// Deprecated init for callers still passing ModelContext (VMs/services not yet converted).
+    /// Uses the shared CoreDataStack's viewContext. Both contexts hit the same SQLite store.
+    @available(*, deprecated, message: "Pass NSManagedObjectContext instead of ModelContext")
+    init(modelContext: ModelContext) {
+        self.context = AppBootstrapping.getSharedCoreDataStack().viewContext
     }
 
     // MARK: - Track Linking Helper
 
     /// Links a work item to its associated track and step if the lesson belongs to a track
-    private func linkWorkToTrack(_ work: WorkModel, lessonID: UUID) {
-        var descriptor = FetchDescriptor<Lesson>(
-            predicate: #Predicate { $0.id == lessonID }
-        )
-        descriptor.fetchLimit = 1
-        guard let lesson = safeFetchFirst(descriptor) else { return }
+    private func linkWorkToTrack(_ work: CDWorkModel, lessonID: UUID) {
+        let request = CDFetchRequest(CDLesson.self)
+        request.predicate = NSPredicate(format: "id == %@", lessonID as CVarArg)
+        request.fetchLimit = 1
+        guard let lesson = context.safeFetchFirst(request) else { return }
 
         let subject = lesson.subject.trimmed()
         let group = lesson.group.trimmed()
 
         guard !subject.isEmpty, !group.isEmpty,
-              GroupTrackService.isTrack(subject: subject, group: group, modelContext: context) else { return }
+              GroupTrackService.isTrack(subject: subject, group: group, context: context) else { return }
 
-        let track: Track
+        let track: CDTrackEntity
         do {
             track = try GroupTrackService.getOrCreateTrack(
                 subject: subject,
                 group: group,
-                modelContext: context
+                context: context
             )
         } catch {
             Self.logger.warning("Failed to get or create track: \(error)")
             return
         }
 
-        work.trackID = track.id.uuidString
+        work.trackID = track.id?.uuidString
 
-        let allSteps = safeFetch(FetchDescriptor<TrackStep>())
-        if let step = allSteps.first(where: {
+        let stepRequest = CDFetchRequest(CDTrackStepEntity.self)
+        let steps = context.safeFetch(stepRequest)
+        if let step = steps.first(where: {
             $0.track?.id == track.id && $0.lessonTemplateID == lessonID
         }) {
-            work.trackStepID = step.id.uuidString
+            work.trackStepID = step.id?.uuidString
         }
     }
 
@@ -73,12 +67,9 @@ struct WorkRepository {
         }
 
         let lessonIDString = lessonID.uuidString
-        let descriptor = FetchDescriptor<LessonAssignment>(
-            predicate: #Predicate { la in
-                la.lessonID == lessonIDString
-            }
-        )
-        return safeFetch(descriptor)
+        let request = CDFetchRequest(CDLessonAssignment.self)
+        request.predicate = NSPredicate(format: "lessonID == %@", lessonIDString)
+        return context.safeFetch(request)
             .first(where: { $0.studentIDs.contains(studentID.uuidString) })?
             .id
     }
@@ -86,27 +77,28 @@ struct WorkRepository {
     // MARK: - Fetch
 
     /// Fetch WorkModel by ID
-    func fetchWorkModel(id: UUID) -> WorkModel? {
-        var descriptor = FetchDescriptor<WorkModel>(predicate: #Predicate { $0.id == id })
-        descriptor.fetchLimit = 1
-        return safeFetchFirst(descriptor)
+    func fetchWorkModel(id: UUID) -> CDWorkModel? {
+        let request = CDFetchRequest(CDWorkModel.self)
+        request.predicate = NSPredicate(format: "id == %@", id as CVarArg)
+        request.fetchLimit = 1
+        return context.safeFetchFirst(request)
     }
 
     /// Fetch multiple WorkModel entities
     /// - Parameters:
     ///   - predicate: Optional predicate to filter work items. If nil, fetches all.
-    ///   - sortBy: Optional sort descriptors. Defaults to sorting by createdAt descending.
-    /// - Returns: Array of WorkModel entities matching the criteria
+    ///   - sortDescriptors: Optional sort descriptors. Defaults to sorting by createdAt descending.
+    /// - Returns: Array of CDWorkModel entities matching the criteria
     func fetchWorkModels(
-        predicate: Predicate<WorkModel>? = nil,
-        sortBy: [SortDescriptor<WorkModel>] = [SortDescriptor(\.createdAt, order: .reverse)]
-    ) -> [WorkModel] {
-        var descriptor = FetchDescriptor<WorkModel>()
+        predicate: NSPredicate? = nil,
+        sortDescriptors: [NSSortDescriptor] = [NSSortDescriptor(key: "createdAt", ascending: false)]
+    ) -> [CDWorkModel] {
+        let request = CDFetchRequest(CDWorkModel.self)
         if let predicate {
-            descriptor.predicate = predicate
+            request.predicate = predicate
         }
-        descriptor.sortBy = sortBy
-        return safeFetch(descriptor)
+        request.sortDescriptors = sortDescriptors
+        return context.safeFetch(request)
     }
 
     // MARK: - Create
@@ -121,7 +113,7 @@ struct WorkRepository {
         presentationID: UUID? = nil,
         scheduledDate: Date? = nil,
         sampleWorkID: UUID? = nil
-    ) throws -> WorkModel {
+    ) throws -> CDWorkModel {
         // Use WorkKind directly (new system), with smart defaults
         let workKind = kind ?? (presentationID != nil ? .practiceLesson : .followUpAssignment)
         let studentLessonID = resolvePresentationID(
@@ -129,21 +121,18 @@ struct WorkRepository {
             presentationID: presentationID
         )
 
-        let work = WorkModel(
-            id: UUID(),
-            title: title ?? "",
-            kind: workKind,
-            studentLessonID: studentLessonID,
-            createdAt: Date(),
-            completedAt: nil,
-            participants: [],
-            status: .active,
-            assignedAt: Date(),
-            lastTouchedAt: nil,
-            dueAt: scheduledDate,
-            completionOutcome: nil,
-            legacyContractID: nil
-        )
+        let work = CDWorkModel(context: context)
+        work.title = title ?? ""
+        work.kind = workKind
+        work.studentLessonID = studentLessonID
+        work.createdAt = Date()
+        work.completedAt = nil
+        work.status = .active
+        work.assignedAt = Date()
+        work.lastTouchedAt = nil
+        work.dueAt = scheduledDate
+        work.completionOutcome = nil
+        work.legacyContractID = nil
 
         // Populate identity fields for UI resolution
         work.studentID = studentID.uuidString
@@ -152,35 +141,34 @@ struct WorkRepository {
         work.legacyStudentLessonID = studentLessonID?.uuidString
 
         // Create participant
-        let participant = WorkParticipantEntity(studentID: studentID, completedAt: nil, work: work)
-        work.participants = [participant]
+        let participant = CDWorkParticipantEntity(context: context)
+        participant.studentID = studentID.uuidString
+        participant.completedAt = nil
+        participant.work = work
 
         // Link to track if applicable
         linkWorkToTrack(work, lessonID: lessonID)
 
-        context.insert(work)
-
         // If a sample work template was specified, copy its steps into the new work
         if let swID = sampleWorkID {
-            var swDescriptor = FetchDescriptor<SampleWork>(
-                predicate: #Predicate { $0.id == swID }
-            )
-            swDescriptor.fetchLimit = 1
-            if let sampleWork = safeFetchFirst(swDescriptor) {
+            let swRequest = CDFetchRequest(CDSampleWorkEntity.self)
+            swRequest.predicate = NSPredicate(format: "id == %@", swID as CVarArg)
+            swRequest.fetchLimit = 1
+            if let sampleWork = context.safeFetchFirst(swRequest) {
                 let stepService = WorkStepService(context: context)
                 let swService = SampleWorkService(context: context)
                 try swService.instantiate(sampleWork: sampleWork, into: work, stepService: stepService)
             }
         }
 
-        try context.save()
+        context.safeSave()
         return work
     }
 
     // MARK: - Update
 
     /// Mark a WorkModel as completed
-    func markWorkCompleted(id: UUID, outcome: CompletionOutcome? = nil, note: String? = nil) throws {
+    func markWorkCompleted(id: UUID, outcome: CompletionOutcome? = nil, note: String? = nil) {
         guard let work = fetchWorkModel(id: id) else { return }
         work.status = .complete
         work.completedAt = AppCalendar.startOfDay(Date())
@@ -190,23 +178,23 @@ struct WorkRepository {
         if let note, !note.isEmpty {
             work.setLegacyNoteText(note, in: context)
         }
-        try context.save()
+        context.safeSave()
         HapticService.shared.notification(.success)
     }
 
     /// Update a WorkModel's status
-    func updateWorkStatus(id: UUID, status: WorkStatus) throws {
+    func updateWorkStatus(id: UUID, status: WorkStatus) {
         guard let work = fetchWorkModel(id: id) else { return }
         work.status = status
-        try context.save()
+        context.safeSave()
     }
 
     // MARK: - Delete
 
-    func deleteWork(id: UUID) throws {
+    func deleteWork(id: UUID) {
         guard let work = fetchWorkModel(id: id) else { return }
         context.delete(work)
-        try context.save()
+        context.safeSave()
     }
 
     // MARK: - Completion Toggle
@@ -215,7 +203,7 @@ struct WorkRepository {
     /// Uses WorkCompletionService for proper historical tracking
     func toggleCompletion(workID: UUID, studentID: UUID) throws {
         guard let work = fetchWorkModel(id: workID) else { return }
-        
+
         if work.isStudentCompleted(studentID) {
             // Un-complete: Remove from participant (historical records preserved)
             if let participant = work.participant(for: studentID) {
@@ -229,7 +217,7 @@ struct WorkRepository {
                 participant.completedAt = Date()
             }
         }
-        
-        try context.save()
+
+        context.safeSave()
     }
 }

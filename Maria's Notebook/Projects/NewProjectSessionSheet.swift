@@ -373,7 +373,7 @@ struct NewProjectSessionSheet: View {
         // Create WorkModel
         guard let studentUUID = UUID(uuidString: studentID) else { return }
         
-        let repository = WorkRepository(context: modelContext)
+        let repository = WorkRepository(context: managedObjectContext)
         do {
             let workModel = try repository.createWork(
                 studentID: studentUUID,
@@ -383,25 +383,21 @@ struct NewProjectSessionSheet: View {
                 presentationID: nil,
                 scheduledDate: scheduledDate
             )
-            
+
             // Store session context in notes (WorkModel doesn't have sourceContextType/ID)
             if !instructions.isEmpty {
-                Task { @MainActor in
-                    workModel.setLegacyNoteText(instructions, in: modelContext)
-                }
+                workModel.setLegacyNoteText(instructions, in: managedObjectContext)
             }
-            
+
             // Create a WorkCheckIn for scheduled work check-ins
-            let checkIn = WorkCheckIn(
-                workID: workModel.id,
+            let checkInService = WorkCheckInService(context: managedObjectContext)
+            try checkInService.createCheckIn(
+                for: workModel,
                 date: scheduledDate,
                 status: .scheduled,
                 purpose: "Due Date",
-                work: workModel
+                note: ""
             )
-            modelContext.insert(checkIn)
-            if workModel.checkIns == nil { workModel.checkIns = [] }
-            workModel.checkIns = (workModel.checkIns ?? []) + [checkIn]
         } catch {
             Self.logger.warning("Failed to create WorkModel for project session: \(error)")
         }

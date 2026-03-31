@@ -161,8 +161,8 @@ extension CDLesson {
     }
 
     /// Sample works sorted by orderIndex
-    var sortedSampleWorks: [SampleWork] {
-        ((sampleWorks?.allObjects as? [SampleWork]) ?? []).sorted { $0.orderIndex < $1.orderIndex }
+    var orderedSampleWorks: [CDSampleWorkEntity] {
+        ((sampleWorks?.allObjects as? [CDSampleWorkEntity]) ?? []).sorted { $0.orderIndex < $1.orderIndex }
     }
 }
 

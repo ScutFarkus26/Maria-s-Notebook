@@ -82,11 +82,17 @@ enum DataMigrations {
 
     /// Backfill WorkCompletionRecord entries from existing WorkParticipantEntity.completedAt data.
     static func backfillWorkCompletionRecords(using context: ModelContext) {
-        RelationshipBackfillService.backfillWorkCompletionRecords(using: context)
+        nonisolated(unsafe) let ctx = context
+        MainActor.assumeIsolated {
+            RelationshipBackfillService.backfillWorkCompletionRecords(using: ctx)
+        }
     }
 
     /// Migrate WorkModel.workTypeRaw to WorkModel.kindRaw format.
     static func migrateWorkTypeToKind(using context: ModelContext) {
-        RelationshipBackfillService.migrateWorkTypeToKind(using: context)
+        nonisolated(unsafe) let ctx = context
+        MainActor.assumeIsolated {
+            RelationshipBackfillService.migrateWorkTypeToKind(using: ctx)
+        }
     }
 }

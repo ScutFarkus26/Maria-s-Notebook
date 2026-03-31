@@ -317,7 +317,7 @@ final class LessonPickerViewModel {
                 }
 
                 if !exists {
-                    let repository = WorkRepository(context: context)
+                    let repository = WorkRepository(modelContext: context)
                     do {
                         _ = try repository.createWork(
                             studentID: studentID,
@@ -353,7 +353,8 @@ final class LessonPickerViewModel {
                 if !exists {
                     guard let studentUUID = UUID(uuidString: sid),
                           let lessonUUID = UUID(uuidString: lidString) else { continue }
-                    let repository = WorkRepository(context: context)
+                    let cdContext = AppBootstrapping.getSharedCoreDataStack().viewContext
+                    let repository = WorkRepository(context: cdContext)
                     do {
                         let workModel = try repository.createWork(
                             studentID: studentUUID,
@@ -363,7 +364,7 @@ final class LessonPickerViewModel {
                             presentationID: nil,
                             scheduledDate: nil
                         )
-                        workModel.setLegacyNoteText(trimmedFollowUp, in: context)
+                        workModel.setLegacyNoteText(trimmedFollowUp, in: cdContext)
                     } catch {
                         // swiftlint:disable:next line_length
                         Self.logger.warning("Failed to create follow-up work for student \(sid, privacy: .public): \(error)")

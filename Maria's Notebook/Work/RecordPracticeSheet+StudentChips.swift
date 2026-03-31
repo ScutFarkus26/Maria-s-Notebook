@@ -218,20 +218,20 @@ extension RecordPracticeSheet {
 
     @MainActor
     func saveSession() {
-        let repository = PracticeSessionRepository(modelContext: modelContext)
-
         let workItemIDs: [UUID] = selectedStudentIDs.compactMap { studentID in
             openPracticeWork.first { $0.studentID == studentID.uuidString }?.id
         }
 
-        let session = repository.create(
+        // Create practice session (using SwiftData directly — views migrate to CD in Phase 4)
+        let session = PracticeSession(
             date: sessionDate,
             duration: hasDuration ? TimeInterval(durationMinutes * 60) : nil,
-            studentIDs: Array(selectedStudentIDs),
-            workItemIDs: workItemIDs,
+            studentIDs: Array(selectedStudentIDs).map(\.uuidString),
+            workItemIDs: workItemIDs.map(\.uuidString),
             sharedNotes: sessionNotes,
             location: nil
         )
+        modelContext.insert(session)
 
         session.practiceQuality = practiceQuality
         session.independenceLevel = independenceLevel

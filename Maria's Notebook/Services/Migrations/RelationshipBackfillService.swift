@@ -1,4 +1,5 @@
 import Foundation
+import CoreData
 import SwiftData
 import OSLog
 
@@ -15,24 +16,24 @@ enum RelationshipBackfillService {
     /// Backfill WorkCompletionRecord entries from WorkParticipantEntity.completedAt data.
     /// This ensures all historical completion data is preserved in the WorkCompletionRecord system.
     /// Safe to run multiple times (idempotent - won't create duplicates).
-    static func backfillWorkCompletionRecords(using context: ModelContext) {
+    @MainActor
+    static func backfillWorkCompletionRecords(using context: NSManagedObjectContext) {
         let flagKey = "Backfill.workCompletionRecords.v1"
         MigrationFlag.runIfNeeded(key: flagKey) {
-            let descriptor = FetchDescriptor<WorkModel>()
-            let allWork = context.safeFetch(descriptor)
+            let allWork = context.safeFetch(CDFetchRequest(CDWorkModel.self))
 
             var totalBackfilled = 0
             var totalSkipped = 0
 
             for work in allWork {
-                guard let participants = work.participants, !participants.isEmpty else {
-                    continue
-                }
+                let participants = (work.participants?.allObjects as? [CDWorkParticipantEntity]) ?? []
+                guard !participants.isEmpty else { continue }
+                let workID = work.id ?? UUID()
 
                 do {
-                    let beforeCount = try WorkCompletionService.records(for: work.id, in: context).count
-                    try WorkCompletionBackfill.backfill(for: work.id, participants: participants, in: context)
-                    let afterCount = try WorkCompletionService.records(for: work.id, in: context).count
+                    let beforeCount = try WorkCompletionService.records(for: workID, in: context).count
+                    try WorkCompletionBackfill.backfill(for: workID, participants: participants, in: context)
+                    let afterCount = try WorkCompletionService.records(for: workID, in: context).count
 
                     let created = afterCount - beforeCount
                     if created > 0 {
@@ -41,7 +42,7 @@ enum RelationshipBackfillService {
                         totalSkipped += participants.count
                     }
                 } catch {
-                    logger.error("Error backfilling work \(work.id, privacy: .public): \(error.localizedDescription)")
+                    logger.error("Error backfilling work \(workID, privacy: .public): \(error.localizedDescription)")
                 }
             }
 
@@ -55,11 +56,11 @@ enum RelationshipBackfillService {
     /// Migrate WorkModel.workTypeRaw to WorkModel.kindRaw format.
     /// This consolidates the dual type systems into a single WorkKind enum.
     /// Safe to run multiple times (idempotent).
-    static func migrateWorkTypeToKind(using context: ModelContext) {
+    @MainActor
+    static func migrateWorkTypeToKind(using context: NSManagedObjectContext) {
         let flagKey = "Migration.workTypeToKind.v1"
         MigrationFlag.runIfNeeded(key: flagKey) {
-            let descriptor = FetchDescriptor<WorkModel>()
-            let allWork = context.safeFetch(descriptor)
+            let allWork = context.safeFetch(CDFetchRequest(CDWorkModel.self))
 
             var migrated = 0
 
@@ -73,7 +74,7 @@ enum RelationshipBackfillService {
                 default: .research
                 }
 
-                work.kind = workKind
+                work.kindRaw = workKind.rawValue
                 migrated += 1
             }
 
@@ -85,4 +86,19 @@ enum RelationshipBackfillService {
         }
     }
 
+    // MARK: - Deprecated SwiftData Bridge
+
+    @available(*, deprecated, message: "Pass NSManagedObjectContext instead of ModelContext")
+    @MainActor
+    static func backfillWorkCompletionRecords(using modelContext: ModelContext) {
+        let cdContext = AppBootstrapping.getSharedCoreDataStack().viewContext
+        backfillWorkCompletionRecords(using: cdContext)
+    }
+
+    @available(*, deprecated, message: "Pass NSManagedObjectContext instead of ModelContext")
+    @MainActor
+    static func migrateWorkTypeToKind(using modelContext: ModelContext) {
+        let cdContext = AppBootstrapping.getSharedCoreDataStack().viewContext
+        migrateWorkTypeToKind(using: cdContext)
+    }
 }

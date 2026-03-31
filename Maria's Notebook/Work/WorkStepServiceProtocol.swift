@@ -8,6 +8,7 @@
 
 import Foundation
 import SwiftData
+import CoreData
 
 // MARK: - Protocol Definition
 
@@ -15,118 +16,112 @@ import SwiftData
 /// Defines the interface for creating, updating, and deleting work steps
 protocol WorkStepServiceProtocol {
     var context: ModelContext { get }
-    
+
     // MARK: - Creation
-    
+
     /// Create and insert a new step for the given work
-    /// - Parameters:
-    ///   - work: The work item to create a step for
-    ///   - title: The step title
-    ///   - instructions: Step instructions (optional)
-    ///   - notes: Additional notes (optional)
-    /// - Returns: The newly created WorkStep with auto-incremented orderIndex
-    /// - Throws: SwiftData persistence errors
     @discardableResult
     func createStep(for work: WorkModel, title: String, instructions: String, notes: String) throws -> WorkStep
-    
+
     // MARK: - Updates
-    
-    /// Update step content
-    /// - Parameters:
-    ///   - step: The step to update
-    ///   - title: New title
-    ///   - instructions: New instructions
-    ///   - notes: New notes
-    /// - Throws: SwiftData persistence errors
+
     func update(_ step: WorkStep, title: String, instructions: String, notes: String) throws
-    
-    /// Mark step as completed
-    /// - Parameters:
-    ///   - step: The step to mark as completed
-    ///   - date: The completion date (default: now)
-    /// - Throws: SwiftData persistence errors
     func markCompleted(_ step: WorkStep, at date: Date) throws
-    
-    /// Mark step as incomplete
-    /// - Parameter step: The step to mark as incomplete
-    /// - Throws: SwiftData persistence errors
     func markIncomplete(_ step: WorkStep) throws
-    
-    /// Toggle step completion status
-    /// - Parameters:
-    ///   - step: The step to toggle
-    ///   - date: The completion date if marking complete (default: now)
-    /// - Throws: SwiftData persistence errors
     func toggleCompletion(_ step: WorkStep, at date: Date) throws
-    
-    /// Reorder steps after drag operation
-    /// Updates orderIndex values based on array position
-    /// - Parameter steps: The steps in their new order
-    /// - Throws: SwiftData persistence errors
     func reorderSteps(_ steps: [WorkStep]) throws
-    
+
     // MARK: - Deletion
-    
-    /// Delete a step
-    /// - Parameters:
-    ///   - step: The step to delete
-    ///   - work: Optional work item to update relationships
-    /// - Throws: SwiftData persistence errors
+
     func delete(_ step: WorkStep, from work: WorkModel?) throws
 }
 
 // MARK: - Adapter Implementation
 
-/// Adapter that wraps the existing WorkStepService struct
-/// Provides protocol-based interface for dependency injection and testing
+/// Adapter that wraps the existing WorkStepService struct.
+/// Bridges SwiftData types to Core Data internally during the transition.
 final class WorkStepServiceAdapter: WorkStepServiceProtocol {
     let context: ModelContext
-    private let legacyService: WorkStepService
-    
+    private let cdService: WorkStepService
+    private let cdContext: NSManagedObjectContext
+
+    @MainActor
     init(context: ModelContext) {
         self.context = context
-        self.legacyService = WorkStepService(context: context)
+        self.cdContext = AppBootstrapping.getSharedCoreDataStack().viewContext
+        self.cdService = WorkStepService(context: cdContext)
     }
-    
+
+    // MARK: - CD Lookup Helpers
+
+    private func cdWork(for work: WorkModel) -> CDWorkModel? {
+        let request = CDFetchRequest(CDWorkModel.self)
+        request.predicate = NSPredicate(format: "id == %@", work.id as CVarArg)
+        request.fetchLimit = 1
+        return cdContext.safeFetchFirst(request)
+    }
+
+    private func cdStep(for step: WorkStep) -> CDWorkStep? {
+        let request = CDFetchRequest(CDWorkStep.self)
+        request.predicate = NSPredicate(format: "id == %@", step.id as CVarArg)
+        request.fetchLimit = 1
+        return cdContext.safeFetchFirst(request)
+    }
+
     // MARK: - Creation
-    
+
     @discardableResult
     func createStep(
         for work: WorkModel, title: String,
         instructions: String = "", notes: String = ""
     ) throws -> WorkStep {
-        try legacyService.createStep(
-            for: work, title: title,
-            instructions: instructions, notes: notes
+        guard let cdW = cdWork(for: work) else {
+            throw NSError(domain: "WorkStepServiceAdapter", code: 1, userInfo: [NSLocalizedDescriptionKey: "CDWorkModel not found"])
+        }
+        let cdStep = try cdService.createStep(for: cdW, title: title, instructions: instructions, notes: notes)
+        // Return SwiftData WorkStep for protocol conformance
+        let swiftDataStep = WorkStep(
+            work: work, orderIndex: Int(cdStep.orderIndex),
+            title: title, instructions: instructions, notes: notes
         )
+        swiftDataStep.id = cdStep.id ?? UUID()
+        context.insert(swiftDataStep)
+        return swiftDataStep
     }
-    
+
     // MARK: - Updates
-    
+
     func update(_ step: WorkStep, title: String, instructions: String, notes: String) throws {
-        try legacyService.update(step, title: title, instructions: instructions, notes: notes)
+        guard let cdS = cdStep(for: step) else { return }
+        try cdService.update(cdS, title: title, instructions: instructions, notes: notes)
     }
-    
+
     func markCompleted(_ step: WorkStep, at date: Date = Date()) throws {
-        try legacyService.markCompleted(step, at: date)
+        guard let cdS = cdStep(for: step) else { return }
+        try cdService.markCompleted(cdS, at: date)
     }
-    
+
     func markIncomplete(_ step: WorkStep) throws {
-        try legacyService.markIncomplete(step)
+        guard let cdS = cdStep(for: step) else { return }
+        try cdService.markIncomplete(cdS)
     }
-    
+
     func toggleCompletion(_ step: WorkStep, at date: Date = Date()) throws {
-        try legacyService.toggleCompletion(step, at: date)
+        guard let cdS = cdStep(for: step) else { return }
+        try cdService.toggleCompletion(cdS, at: date)
     }
-    
+
     func reorderSteps(_ steps: [WorkStep]) throws {
-        try legacyService.reorderSteps(steps)
+        let cdSteps = steps.compactMap { cdStep(for: $0) }
+        try cdService.reorderSteps(cdSteps)
     }
-    
+
     // MARK: - Deletion
-    
+
     func delete(_ step: WorkStep, from work: WorkModel? = nil) throws {
-        try legacyService.delete(step, from: work)
+        guard let cdS = cdStep(for: step) else { return }
+        let cdW = work.flatMap { cdWork(for: $0) }
+        try cdService.delete(cdS, from: cdW)
     }
 }
 
@@ -134,18 +129,17 @@ final class WorkStepServiceAdapter: WorkStepServiceProtocol {
 
 #if DEBUG
 /// Mock implementation for testing
-/// Provides in-memory implementation without actual persistence
 final class MockWorkStepService: WorkStepServiceProtocol {
     let context: ModelContext
     var createdSteps: [WorkStep] = []
     var deletedStepIDs: [UUID] = []
     var completedStepIDs: [UUID] = []
     var reorderedSteps: [[WorkStep]] = []
-    
+
     init(context: ModelContext) {
         self.context = context
     }
-    
+
     @discardableResult
     func createStep(
         for work: WorkModel, title: String,
@@ -159,22 +153,22 @@ final class MockWorkStepService: WorkStepServiceProtocol {
         createdSteps.append(step)
         return step
     }
-    
+
     func update(_ step: WorkStep, title: String, instructions: String, notes: String) throws {
         step.title = title
         step.instructions = instructions
         step.notes = notes
     }
-    
+
     func markCompleted(_ step: WorkStep, at date: Date = Date()) throws {
         completedStepIDs.append(step.id)
         step.completedAt = date
     }
-    
+
     func markIncomplete(_ step: WorkStep) throws {
         step.completedAt = nil
     }
-    
+
     func toggleCompletion(_ step: WorkStep, at date: Date = Date()) throws {
         if step.completedAt != nil {
             step.completedAt = nil
@@ -183,14 +177,14 @@ final class MockWorkStepService: WorkStepServiceProtocol {
             completedStepIDs.append(step.id)
         }
     }
-    
+
     func reorderSteps(_ steps: [WorkStep]) throws {
         reorderedSteps.append(steps)
         for (index, step) in steps.enumerated() {
             step.orderIndex = index
         }
     }
-    
+
     func delete(_ step: WorkStep, from work: WorkModel? = nil) throws {
         deletedStepIDs.append(step.id)
     }

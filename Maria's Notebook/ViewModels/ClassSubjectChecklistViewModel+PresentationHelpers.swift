@@ -10,39 +10,40 @@ extension ClassSubjectChecklistViewModel {
 
     // MARK: - Work Model Helpers
 
-    func findOrCreateWork(student: Student, lesson: Lesson, context: ModelContext) -> WorkModel? {
+    /// Finds existing work or creates new one, and marks it complete.
+    func findOrCreateWorkAndMarkComplete(student: Student, lesson: Lesson, context: ModelContext) {
         let sid = student.id
         let lid = lesson.id
         let lidString = lid.uuidString
 
         // PERF: Filter by lessonID in predicate to avoid loading all non-complete work.
-        // Previously fetched ALL non-complete WorkModels then filtered in memory.
         let workDescriptor = FetchDescriptor<WorkModel>(
             predicate: #Predicate<WorkModel> { $0.statusRaw != "complete" && $0.lessonID == lidString }
         )
         let matchingWorkModels = context.safeFetch(workDescriptor)
 
-        let existingWork = matchingWorkModels.first { work in
+        if let existingWork = matchingWorkModels.first(where: { work in
             (work.participants ?? []).contains { $0.studentID == sid.uuidString }
+        }) {
+            existingWork.status = .complete
+            existingWork.completedAt = AppCalendar.startOfDay(Date())
+            return
         }
 
-        if let existing = existingWork {
-            return existing
-        }
-
-        let repository = WorkRepository(context: context)
+        let repository = WorkRepository(modelContext: context)
         do {
-            return try repository.createWork(
+            let work = try repository.createWork(
                 studentID: sid,
                 lessonID: lid,
-                title: nil,
-                kind: nil,
-                presentationID: nil,
-                scheduledDate: nil
+                title: nil as String?,
+                kind: nil as WorkKind?,
+                presentationID: nil as UUID?,
+                scheduledDate: nil as Date?
             )
+            work.status = .complete
+            work.completedAt = AppCalendar.startOfDay(Date())
         } catch {
             Self.logger.warning("Failed to create work for student \(sid): \(error)")
-            return nil
         }
     }
 

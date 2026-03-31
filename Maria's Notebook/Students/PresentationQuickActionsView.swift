@@ -210,7 +210,7 @@ struct PresentationQuickActionsView: View {
                                     // Create WorkModel
                                     guard let studentUUID = UUID(uuidString: sid),
                                           let lessonUUID = UUID(uuidString: lidString) else { continue }
-                                    let repository = WorkRepository(context: modelContext)
+                                    let repository = WorkRepository(context: managedObjectContext)
                                     do {
                                         let workModel = try repository.createWork(
                                             studentID: studentUUID,
@@ -220,7 +220,7 @@ struct PresentationQuickActionsView: View {
                                             presentationID: nil,
                                             scheduledDate: nil
                                         )
-                                        workModel.setLegacyNoteText(trimmed, in: modelContext)
+                                        workModel.setLegacyNoteText(trimmed, in: managedObjectContext)
                                     } catch {
                                         logger.warning("Failed to create follow-up work: \(error)")
                                     }
@@ -361,7 +361,7 @@ struct PresentationQuickActionsView: View {
                 // Create WorkModel
                 guard let studentUUID = UUID(uuidString: sid),
                       let lessonUUID = UUID(uuidString: lidString) else { continue }
-                let repository = WorkRepository(context: modelContext)
+                let repository = WorkRepository(context: managedObjectContext)
                 do {
                     _ = try repository.createWork(
                         studentID: studentUUID,

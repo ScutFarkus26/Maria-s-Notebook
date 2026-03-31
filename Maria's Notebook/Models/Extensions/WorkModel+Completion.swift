@@ -1,16 +1,17 @@
 import Foundation
 import SwiftData
+import CoreData
 
 // WorkCompletionService is @MainActor, so we must isolate these convenience methods to MainActor as well.
 @MainActor
 extension WorkModel {
     /// Returns all completion records for this work (optionally filtered by student).
-    func completionRecords(for studentID: UUID? = nil, in context: ModelContext) throws -> [WorkCompletionRecord] {
+    func completionRecords(for studentID: UUID? = nil, in context: ModelContext) throws -> [CDWorkCompletionRecord] {
         try WorkCompletionService.records(for: self.id, studentID: studentID, in: context)
     }
 
     /// Returns the latest completion record for a given student.
-    func latestCompletion(for studentID: UUID, in context: ModelContext) throws -> WorkCompletionRecord? {
+    func latestCompletion(for studentID: UUID, in context: ModelContext) throws -> CDWorkCompletionRecord? {
         try WorkCompletionService.latest(for: self.id, studentID: studentID, in: context)
     }
 
@@ -26,7 +27,7 @@ extension WorkModel {
         note: String = "",
         at date: Date = Date(),
         in context: ModelContext
-    ) throws -> WorkCompletionRecord {
+    ) throws -> CDWorkCompletionRecord {
         try WorkCompletionService.markCompleted(
             workID: self.id,
             studentID: studentID,
@@ -43,7 +44,7 @@ extension WorkModel {
         note: String = "",
         at date: Date = Date(),
         in context: ModelContext
-    ) throws -> WorkCompletionRecord {
+    ) throws -> CDWorkCompletionRecord {
         try markCompleted(by: student.id, note: note, at: date, in: context)
     }
 }

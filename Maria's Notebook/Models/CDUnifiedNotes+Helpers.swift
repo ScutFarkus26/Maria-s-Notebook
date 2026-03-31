@@ -114,6 +114,132 @@ extension CDReminder {
     }
 }
 
+extension CDWorkModel {
+    var latestUnifiedNoteText: String {
+        let allNotes = (unifiedNotes?.allObjects as? [CDNote]) ?? []
+        return CDNote.latestBody(in: allNotes)
+    }
+
+    @discardableResult
+    func setLegacyNoteText(_ text: String?, in context: NSManagedObjectContext) -> Bool {
+        return CDNote.upsertLegacyFieldNote(
+            text: text,
+            scope: .all,
+            existingNotes: unifiedNotes,
+            context: context
+        ) { note in
+            note.work = self
+        }
+    }
+}
+
+extension CDWorkCheckIn {
+    var latestUnifiedNoteText: String {
+        let allNotes = (notes?.allObjects as? [CDNote]) ?? []
+        return CDNote.latestBody(in: allNotes)
+    }
+
+    @discardableResult
+    func setLegacyNoteText(_ text: String?, in context: NSManagedObjectContext) -> Bool {
+        let scope: NoteScope
+        if let work {
+            let parts = (work.participants?.allObjects as? [CDWorkParticipantEntity]) ?? []
+            let studentUUIDs = parts.compactMap { UUID(uuidString: $0.studentID) }
+            if studentUUIDs.count == 1, let only = studentUUIDs.first {
+                scope = .student(only)
+            } else if studentUUIDs.count > 1 {
+                scope = .students(studentUUIDs)
+            } else if let studentUUID = UUID(uuidString: work.studentID) {
+                scope = .student(studentUUID)
+            } else {
+                scope = .all
+            }
+        } else {
+            scope = .all
+        }
+
+        return CDNote.upsertLegacyFieldNote(
+            text: text,
+            scope: scope,
+            existingNotes: notes,
+            context: context
+        ) { note in
+            note.workCheckIn = self
+        }
+    }
+}
+
+extension CDWorkCompletionRecord {
+    var latestUnifiedNoteText: String {
+        let allNotes = (notes?.allObjects as? [CDNote]) ?? []
+        return CDNote.latestBody(in: allNotes)
+    }
+
+    @discardableResult
+    func setLegacyNoteText(_ text: String?, in context: NSManagedObjectContext) -> Bool {
+        let scope: NoteScope
+        if let studentUUID = UUID(uuidString: studentID) {
+            scope = .student(studentUUID)
+        } else {
+            scope = .all
+        }
+
+        return CDNote.upsertLegacyFieldNote(
+            text: text,
+            scope: scope,
+            existingNotes: notes,
+            context: context
+        ) { note in
+            note.workCompletionRecord = self
+        }
+    }
+}
+
+extension CDStudentTrackEnrollmentEntity {
+    var latestUnifiedNoteText: String {
+        let allNotes = (richNotes?.allObjects as? [CDNote]) ?? []
+        return CDNote.latestBody(in: allNotes)
+    }
+
+    @discardableResult
+    func setLegacyNoteText(_ text: String?, in context: NSManagedObjectContext) -> Bool {
+        let scope: NoteScope
+        if let studentUUID = UUID(uuidString: studentID) {
+            scope = .student(studentUUID)
+        } else {
+            scope = .all
+        }
+
+        return CDNote.upsertLegacyFieldNote(
+            text: text,
+            scope: scope,
+            existingNotes: richNotes,
+            context: context
+        ) { note in
+            note.studentTrackEnrollment = self
+        }
+    }
+}
+
+extension CDSchoolDayOverride {
+    var latestUnifiedNoteText: String {
+        let allNotes = (notes?.allObjects as? [CDNote]) ?? []
+        return CDNote.latestBody(in: allNotes)
+    }
+
+    @discardableResult
+    func setLegacyNoteText(_ text: String?, in context: NSManagedObjectContext) -> Bool {
+        return CDNote.upsertLegacyFieldNote(
+            text: text,
+            scope: .all,
+            existingNotes: notes,
+            context: context
+        ) { note in
+            note.schoolDayOverride = self
+        }
+    }
+}
+
 // MARK: - Helper
 
 extension CDNote {

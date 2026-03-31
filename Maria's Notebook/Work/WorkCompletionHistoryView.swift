@@ -93,15 +93,7 @@ struct WorkCompletionHistoryView: View {
         errorMessage = nil
         defer { isLoading = false }
         do {
-            // Prefer using the service if available.
-            do {
-                self.records = try WorkCompletionService.records(for: workID, studentID: studentID, in: modelContext)
-                return
-            } catch {
-                Self.logger.warning("Service fetch failed, falling back to direct fetch: \(error)")
-            }
-            // Fallback direct fetch.
-            // CloudKit compatibility: Convert UUIDs to strings for comparison
+            // Fetch via SwiftData (service layer uses Core Data types now; views will migrate in Phase 4)
             let workIDString = workID.uuidString
             let predicate: Predicate<WorkCompletionRecord>
             if let studentID {

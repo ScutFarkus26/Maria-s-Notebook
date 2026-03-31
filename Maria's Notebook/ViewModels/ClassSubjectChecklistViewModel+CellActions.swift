@@ -85,10 +85,7 @@ extension ClassSubjectChecklistViewModel {
             )
         }
 
-        if let work = findOrCreateWork(student: student, lesson: lesson, context: context) {
-            work.status = .complete
-            work.completedAt = AppCalendar.startOfDay(Date())
-        }
+        findOrCreateWorkAndMarkComplete(student: student, lesson: lesson, context: context)
 
         upsertLessonPresentation(
             studentID: studentIDString, lessonID: lessonIDString,

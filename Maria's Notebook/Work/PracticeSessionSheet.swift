@@ -45,7 +45,7 @@ struct PracticeSessionSheet: View {
     @State private var relatedLesson: Lesson?
     
     private var repository: PracticeSessionRepository {
-        PracticeSessionRepository(modelContext: modelContext)
+        PracticeSessionRepository(modelContext: modelContext) // swiftlint:disable:this deprecated
     }
     
     // Co-learner student IDs (students who had the lesson together)
@@ -262,15 +262,16 @@ struct PracticeSessionSheet: View {
     
     @MainActor
     private func saveSession() {
-        // Create practice session
-        let session = repository.create(
+        // Create practice session (using SwiftData directly — views migrate to CD in Phase 4)
+        let session = PracticeSession(
             date: selectedDate,
             duration: hasDuration ? duration : nil,
-            studentIDs: Array(selectedStudentIDs),
-            workItemIDs: Array(selectedWorkItemIDs),
+            studentIDs: Array(selectedStudentIDs).map(\.uuidString),
+            workItemIDs: Array(selectedWorkItemIDs).map(\.uuidString),
             sharedNotes: sharedNotes,
             location: hasLocation ? location : nil
         )
+        modelContext.insert(session)
 
         // Set quality metrics
         session.practiceQuality = practiceQuality
