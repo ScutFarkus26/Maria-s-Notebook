@@ -14,6 +14,7 @@ enum UserDefaultsKeys {
     static let cloudKitLastSuccessfulSyncDate = "CloudKitSync.lastSuccessfulSyncDate"
     static let cloudKitLastSyncError = "CloudKitSync.lastSyncError"
     static let cloudKitErrorLog = "cloudKitErrorLog"
+    static let persistentHistoryLastToken = "PersistentHistory.lastToken"
 
     // MARK: - Planning
     static let planningRootViewMode = "PlanningRootView.mode"

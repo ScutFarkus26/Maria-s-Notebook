@@ -106,6 +106,11 @@ final class AppBootstrapper {
         Task.detached(priority: .utility) { [coreDataStack] in
             try? await Task.sleep(for: .seconds(3))
             await AppBootstrapper.runPostLaunchMigrations(coreDataStack: coreDataStack)
+
+            // Purge persistent history before last processed token
+            if let processor = await MainActor.run(body: { coreDataStack.historyProcessor }) {
+                await processor.purgeOldHistory()
+            }
         }
     }
 

@@ -21,6 +21,9 @@ final class CoreDataStack {
     /// Whether CloudKit sync is active (vs local-only fallback).
     private(set) var isCloudKitActive: Bool = false
 
+    /// Persistent history processor for serialized remote change handling.
+    private(set) var historyProcessor: PersistentHistoryProcessor?
+
     // MARK: - Store Configurations
 
     /// Configuration name for the private (per-teacher) store.
@@ -213,6 +216,9 @@ final class CoreDataStack {
         // Configure view context
         configureViewContext()
 
+        // Create persistent history processor
+        historyProcessor = PersistentHistoryProcessor(container: container)
+
         // Listen for remote changes
         NotificationCenter.default.addObserver(
             self,
@@ -233,6 +239,8 @@ final class CoreDataStack {
         ctx.automaticallyMergesChangesFromParent = true
         // Last-writer-wins: remote property values override local on conflict
         ctx.mergePolicy = NSMergePolicy.mergeByPropertyObjectTrump
+        // Tag transactions so the history processor can filter out our own writes
+        ctx.transactionAuthor = PersistentHistoryProcessor.transactionAuthor
         // Disable autosave — we use explicit saves via SaveCoordinator
         // (Mirrors the existing SwiftData behavior where autosave was disabled)
     }
@@ -243,6 +251,7 @@ final class CoreDataStack {
     func newBackgroundContext() -> NSManagedObjectContext {
         let ctx = container.newBackgroundContext()
         ctx.mergePolicy = NSMergePolicy.mergeByPropertyObjectTrump
+        ctx.transactionAuthor = PersistentHistoryProcessor.transactionAuthor
         return ctx
     }
 
@@ -284,10 +293,10 @@ final class CoreDataStack {
     // MARK: - Remote Change Handling
 
     @objc private func handleRemoteChange(_ notification: Notification) {
-        Self.logger.debug("Remote store change received")
-        // NSPersistentCloudKitContainer + automaticallyMergesChangesFromParent handles
-        // merging remote changes into the view context automatically.
-        // Phase 6 will add persistent history processing and dedup here.
+        guard let processor = historyProcessor else { return }
+        Task {
+            await processor.processRemoteChanges()
+        }
     }
 
     // MARK: - Store Description Builders
