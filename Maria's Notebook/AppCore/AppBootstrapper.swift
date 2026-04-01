@@ -50,9 +50,27 @@ final class AppBootstrapper {
             Self.logger.info("Bootstrap: No lesson file migration needed")
         }
         
-        // 2. Critical Data Repairs
-        // (Completed and removed)
-        
+        // 2. SwiftData → Core Data Migration (one-time, if legacy store detected)
+        if SwiftDataMigrationService.needsMigration() {
+            Self.logger.info("Bootstrap: SwiftData store detected — starting migration")
+            let migrationStart = Date()
+            let result = await SwiftDataMigrationService.performMigration(
+                coreDataStack: coreDataStack,
+                progress: { progress in
+                    Self.logger.info("Migration: \(progress.phase) (\(Int(progress.fraction * 100))%) — \(progress.detail)")
+                }
+            )
+            let migElapsed = Self.formatSeconds(Date().timeIntervalSince(migrationStart))
+            switch result {
+            case .completed(let count):
+                Self.logger.info("Bootstrap: SwiftData migration completed in \(migElapsed) (\(count) entities)")
+            case .notNeeded, .alreadyMigrated:
+                Self.logger.info("Bootstrap: SwiftData migration not needed")
+            case .failed(let reason):
+                Self.logger.error("Bootstrap: SwiftData migration failed: \(reason)")
+            }
+        }
+
         // 3. Schema & Data Normalization (quick, safe checks)
         let migrationStart = Date()
         DataMigrations.migrateAttendanceRecordStudentIDToStringIfNeeded(using: context)
