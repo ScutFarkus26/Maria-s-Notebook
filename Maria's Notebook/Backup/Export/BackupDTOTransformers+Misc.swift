@@ -791,4 +791,21 @@ extension BackupDTOTransformers {
     static func toDTOs(_ states: [AlbumGroupUIState]) -> [AlbumGroupUIStateDTO] {
         states.map { toDTO($0) }
     }
+
+    // MARK: - CDClassroomMembership
+
+    static func toDTO(_ membership: CDClassroomMembership) -> ClassroomMembershipDTO {
+        ClassroomMembershipDTO(
+            id: membership.id ?? UUID(),
+            classroomZoneID: membership.classroomZoneID,
+            roleRaw: membership.roleRaw,
+            ownerIdentity: membership.ownerIdentity,
+            joinedAt: membership.joinedAt ?? Date(),
+            modifiedAt: membership.modifiedAt ?? Date()
+        )
+    }
+
+    static func toDTOs(_ memberships: [CDClassroomMembership]) -> [ClassroomMembershipDTO] {
+        memberships.map { toDTO($0) }
+    }
 }

@@ -243,6 +243,13 @@ extension BackupService {
             AlbumGroupOrder.self, using: viewContext) { BackupDTOTransformers.toDTOs($0) }
         payload.albumGroupUIStates = fetchAndTransformInBatches(
             AlbumGroupUIState.self, using: viewContext) { BackupDTOTransformers.toDTOs($0) }
+
+        progress(
+            BackupProgress.progress(for: .collecting, subProgress: 0.95),
+            "Collecting classroom memberships\u{2026}"
+        )
+        payload.classroomMemberships = fetchAndTransformInBatches(
+            CDClassroomMembership.self, using: viewContext) { BackupDTOTransformers.toDTOs($0) }
     }
 
     // MARK: - Encode & Write
@@ -390,7 +397,8 @@ extension BackupService {
             "CDCalendarNote": payload.calendarNotes?.count ?? 0,
             "CDScheduledMeeting": payload.scheduledMeetings?.count ?? 0,
             "AlbumGroupOrder": payload.albumGroupOrders?.count ?? 0,
-            "AlbumGroupUIState": payload.albumGroupUIStates?.count ?? 0
+            "AlbumGroupUIState": payload.albumGroupUIStates?.count ?? 0,
+            "CDClassroomMembership": payload.classroomMemberships?.count ?? 0
         ]
     }
 

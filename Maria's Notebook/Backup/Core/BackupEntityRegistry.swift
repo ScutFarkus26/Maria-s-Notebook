@@ -93,7 +93,9 @@ struct BackupEntityRegistry {
         CDScheduledMeeting.self,
         // Album UI State
         AlbumGroupOrder.self,
-        AlbumGroupUIState.self
+        AlbumGroupUIState.self,
+        // Classroom Membership (format v13+)
+        CDClassroomMembership.self
     ]
     
     /// Entity type names for progress reporting and error messages

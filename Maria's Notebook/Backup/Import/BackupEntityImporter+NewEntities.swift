@@ -275,4 +275,27 @@ extension BackupEntityImporter {
             return state
         })
     }
+
+    // MARK: - CDClassroomMembership (format v13+)
+
+    static func importClassroomMemberships(
+        _ dtos: [ClassroomMembershipDTO],
+        into viewContext: NSManagedObjectContext,
+        existingCheck: EntityExistsCheck<CDClassroomMembership>
+    ) rethrows {
+        try importSimpleEntities(
+            dtos, into: viewContext,
+            existingCheck: existingCheck,
+            idExtractor: { $0.id },
+            entityBuilder: { dto in
+            let membership = CDClassroomMembership(context: viewContext)
+            membership.id = dto.id
+            membership.classroomZoneID = dto.classroomZoneID
+            membership.roleRaw = dto.roleRaw
+            membership.ownerIdentity = dto.ownerIdentity
+            membership.joinedAt = dto.joinedAt
+            membership.modifiedAt = dto.modifiedAt
+            return membership
+        })
+    }
 }

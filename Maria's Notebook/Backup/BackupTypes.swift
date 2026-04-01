@@ -4,6 +4,7 @@ import Foundation
 public enum BackupFile: Sendable {
     /// Marked as nonisolated to allow access from Sendable contexts (e.g., FileDocument static properties)
     nonisolated public static let fileExtension = "mtbbackup"
+    /// Format version 13: Adds CDClassroomMembership backup coverage
     /// Format version 12: Adds CDGoingOut, CDClassroomJob, CDTransitionPlan, CDCalendarNote,
     /// CDScheduledMeeting, AlbumGroupOrder, AlbumGroupUIState backup coverage
     /// Format version 11: Adds CDWorkModel/PlanningRecommendation/CDResource/CDNoteStudentLink;
@@ -13,7 +14,7 @@ public enum BackupFile: Sendable {
     /// Format version 7: Removes legacy WorkPlanItem backup compatibility
     /// Format version 6: Adds compression support (LZFSE)
     /// Format version 5: Enforces checksum validation with deterministic JSON encoding (.sortedKeys)
-    nonisolated public static let formatVersion = 12
+    nonisolated public static let formatVersion = 13
     /// Minimum format version that enforces checksum validation
     nonisolated public static let checksumEnforcedVersion = 5
     /// Format version that introduced compression (backups < this version are uncompressed)
@@ -210,6 +211,7 @@ public struct BackupPayload: Codable, Sendable {
         case transitionPlans, transitionChecklistItems
         case calendarNotes, scheduledMeetings
         case albumGroupOrders, albumGroupUIStates
+        case classroomMemberships
         case preferences
     }
 
@@ -325,6 +327,9 @@ public struct BackupPayload: Codable, Sendable {
     // Album Group state (format v12+)
     public var albumGroupOrders: [AlbumGroupOrderDTO]?
     public var albumGroupUIStates: [AlbumGroupUIStateDTO]?
+
+    // Classroom Membership (format v13+)
+    public var classroomMemberships: [ClassroomMembershipDTO]?
 
     // Lightweight app/user metadata (preferences) as typed dictionary
     public var preferences: PreferencesDTO

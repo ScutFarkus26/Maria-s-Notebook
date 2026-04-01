@@ -284,3 +284,14 @@ public struct AlbumGroupUIStateDTO: Codable, Sendable {
     public var groupName: String
     public var isCollapsed: Bool
 }
+
+// MARK: - Classroom Membership DTO (format v13+)
+
+public struct ClassroomMembershipDTO: Codable, Sendable {
+    public var id: UUID
+    public var classroomZoneID: String
+    public var roleRaw: String
+    public var ownerIdentity: String
+    public var joinedAt: Date
+    public var modifiedAt: Date
+}

@@ -713,6 +713,15 @@ extension BackupService {
                 existingCheck: { try fetchOne(AlbumGroupUIState.self, id: $0, using: viewContext) }
             )
         }
+
+        // v13+ entities
+        if let memberships = payload.classroomMemberships {
+            try BackupEntityImporter.importClassroomMemberships(
+                memberships,
+                into: viewContext,
+                existingCheck: { try fetchOne(CDClassroomMembership.self, id: $0, using: viewContext) }
+            )
+        }
     }
 
     private func repairDenormalizedFields(viewContext: NSManagedObjectContext) throws {
