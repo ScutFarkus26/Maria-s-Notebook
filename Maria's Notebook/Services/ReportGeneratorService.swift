@@ -553,13 +553,11 @@ extension ReportGeneratorService {
             for note in categoryNotes {
                 // swiftlint:disable line_length
                 let noteDateAttrs: [NSAttributedString.Key: Any] = [.font: NSFont.systemFont(ofSize: 10), .foregroundColor: NSColor.secondaryLabelColor]
-                // createdAt is optional in Core Data; fall back to current date if nil
-                result.append(NSAttributedString(string: "\(DateFormatters.shortDateTime.string(from: note.createdAt ?? Date()))\n", attributes: noteDateAttrs))
+                result.append(NSAttributedString(string: "\(DateFormatters.shortDateTime.string(from: note.createdAt))\n", attributes: noteDateAttrs))
                 let bodyAttrs: [NSAttributedString.Key: Any] = [.font: NSFont.systemFont(ofSize: 11), .foregroundColor: NSColor.labelColor]
                 result.append(NSAttributedString(string: "\(note.body)\n", attributes: bodyAttrs))
                 let tagAttrs: [NSAttributedString.Key: Any] = [.font: NSFont.systemFont(ofSize: 9), .foregroundColor: NSColor.systemBlue]
-                // Use tagsArray for typed [String] access to the transformable NSObject? property
-                let tagLabel = note.tagsArray.map { TagHelper.tagName($0) }.joined(separator: ", ")
+                let tagLabel = note.tags.map { TagHelper.tagName($0) }.joined(separator: ", ")
                 result.append(NSAttributedString(string: "[\(tagLabel.isEmpty ? "General" : tagLabel)]\n\n", attributes: tagAttrs))
                 // swiftlint:enable line_length
             }
