@@ -68,6 +68,9 @@ enum PerformanceLogger {
         }
 
         logger.info("\(message)")
+        #if DEBUG
+        print(message)
+        #endif
     }
 
     /// Logs a screen's query results after @Query properties have loaded.
@@ -81,6 +84,9 @@ enum PerformanceLogger {
         }
 
         logger.info("\(message)")
+        #if DEBUG
+        print(message)
+        #endif
     }
 
     /// Starts monitoring the main RunLoop for hangs/stutters.

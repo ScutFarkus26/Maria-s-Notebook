@@ -1,5 +1,4 @@
 import Foundation
-import OSLog
 
 // MARK: - Sync Event Logger
 
@@ -7,7 +6,6 @@ import OSLog
 /// Events are stored in UserDefaults as JSON, capped at 50 entries.
 @Observable @MainActor
 final class SyncEventLogger {
-    private static let logger = Logger.sync
     static let shared = SyncEventLogger()
 
     struct SyncEvent: Codable, Identifiable, Sendable {
@@ -50,20 +48,15 @@ final class SyncEventLogger {
     // MARK: - Persistence
 
     private func loadEvents() {
-        guard let data = UserDefaults.standard.data(forKey: storageKey) else { return }
-        do {
-            events = try JSONDecoder().decode([SyncEvent].self, from: data)
-        } catch {
-            Self.logger.warning("Failed to decode sync events: \(error.localizedDescription)")
+        guard let data = UserDefaults.standard.data(forKey: storageKey),
+              let decoded = try? JSONDecoder().decode([SyncEvent].self, from: data) else {
+            return
         }
+        events = decoded
     }
 
     private func saveEvents() {
-        do {
-            let data = try JSONEncoder().encode(events)
-            UserDefaults.standard.set(data, forKey: storageKey)
-        } catch {
-            Self.logger.warning("Failed to encode sync events: \(error.localizedDescription)")
-        }
+        guard let data = try? JSONEncoder().encode(events) else { return }
+        UserDefaults.standard.set(data, forKey: storageKey)
     }
 }

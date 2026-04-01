@@ -11,7 +11,7 @@ struct SettingsView: View {
     @Environment(\.horizontalSizeClass) var horizontalSizeClass
     @Environment(\.dynamicTypeSize) private var dynamicTypeSize
     @State private var searchText = ""
-    @AppStorage(UserDefaultsKeys.settingsSelectedCategory) private var selectedCategoryRaw: String = ""
+    @AppStorage("settings_selectedCategory") private var selectedCategoryRaw: String = ""
 
     var isCompact: Bool {
         #if os(iOS)

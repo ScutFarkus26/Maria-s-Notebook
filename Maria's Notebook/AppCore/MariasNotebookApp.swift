@@ -21,7 +21,7 @@ struct MariasNotebookApp: App {
 
     // MARK: - State Objects
 
-    @AppStorage(UserDefaultsKeys.hasCompletedOnboarding) private var hasCompletedOnboarding = false
+    @AppStorage("hasCompletedOnboarding") private var hasCompletedOnboarding = false
     @State private var bootstrapper = AppBootstrapper.shared
     @State private var appRouter = AppRouter.shared
     @State private var databaseErrorCoordinator = DatabaseErrorCoordinator.shared

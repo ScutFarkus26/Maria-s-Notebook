@@ -5,7 +5,7 @@ import SwiftUI
 /// A dismissible banner showing recently added settings features.
 /// Dismissed per app version — shows again when the app updates.
 struct WhatsNewBanner: View {
-    @AppStorage(UserDefaultsKeys.whatsNewDismissedVersion) private var dismissedVersion = ""
+    @AppStorage("WhatsNew.dismissedVersion") private var dismissedVersion = ""
 
     private var currentVersion: String {
         Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String ?? "1.0"
