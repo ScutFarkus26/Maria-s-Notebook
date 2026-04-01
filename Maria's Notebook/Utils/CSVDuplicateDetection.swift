@@ -1,7 +1,7 @@
 import Foundation
 
 /// Shared duplicate detection utilities for CSV importers.
-/// Consolidates common duplicate detection patterns used across Student and Lesson importers.
+/// Consolidates common duplicate detection patterns used across CDStudent and CDLesson importers.
 enum CSVDuplicateDetection {
     /// Detects if a key exists in the provided sets.
     /// - Parameters:

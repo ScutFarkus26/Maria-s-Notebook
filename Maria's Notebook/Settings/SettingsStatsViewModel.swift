@@ -140,10 +140,10 @@ class SettingsStatsViewModel {
 
             // Storage & Templates
             let documents = loadCount(for: CDDocument.self, context: context)
-            let lessonAttachments = loadCount(for: LessonAttachment.self, context: context)
-            let communityAttachments = loadCount(for: CommunityAttachment.self, context: context)
+            let lessonAttachments = loadCount(for: CDLessonAttachment.self, context: context)
+            let communityAttachments = loadCount(for: CDCommunityAttachmentEntity.self, context: context)
             let todoTemplates = loadCount(for: CDTodoTemplate.self, context: context)
-            let developmentSnapshots = loadCount(for: DevelopmentSnapshot.self, context: context)
+            let developmentSnapshots = loadCount(for: CDDevelopmentSnapshotEntity.self, context: context)
 
             // Load filtered counts (using CDLessonAssignment as primary source)
             let planned = loadFilteredCount(

@@ -18,7 +18,7 @@ struct CurriculumDataAssembler {
     /// - Returns: A `CurriculumMap` with per-student lesson statuses
     // swiftlint:disable:next function_body_length
     static func assembleCurriculumMap(
-        for students: [Student],
+        for students: [CDStudent],
         context: NSManagedObjectContext
     ) -> CurriculumMap {
         let allLessons = fetchAllLessons(context: context)

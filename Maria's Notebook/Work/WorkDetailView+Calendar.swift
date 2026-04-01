@@ -106,7 +106,7 @@ extension WorkDetailView {
     }
 
     @ViewBuilder
-    func checkInRow(_ item: WorkCheckIn) -> some View {
+    func checkInRow(_ item: CDWorkCheckIn) -> some View {
         WorkCheckInRow(
             checkIn: item,
             onEditNote: { _ in
@@ -127,7 +127,7 @@ extension WorkDetailView {
         guard let work = viewModel.work else { return }
         let note = viewModel.newPlanNote.trimmed().isEmpty ? nil : viewModel.newPlanNote.trimmed()
 
-        // PHASE 6: Create WorkCheckIn only (WorkPlanItem removed)
+        // PHASE 6: Create CDWorkCheckIn only (WorkPlanItem removed)
         let checkIn = CDWorkCheckIn(context: modelContext)
         checkIn.workID = work.id?.uuidString ?? ""
         checkIn.date = viewModel.newPlanDate
@@ -145,7 +145,7 @@ extension WorkDetailView {
         viewModel.newPlanNote = ""
     }
 
-    func deleteCheckIn(_ item: WorkCheckIn) {
+    func deleteCheckIn(_ item: CDWorkCheckIn) {
         modelContext.delete(item)
         saveCoordinator.save(modelContext, reason: "Deleting check-in")
     }

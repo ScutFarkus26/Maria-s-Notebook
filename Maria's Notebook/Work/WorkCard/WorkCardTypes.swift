@@ -34,17 +34,6 @@ enum WorkCardWorkType {
         }
     }
 
-    /// Initialize from legacy LegacyWorkType (deprecated path)
-    @available(*, deprecated, message: "Use init(from: WorkKind) instead")
-    init(from workType: LegacyWorkType) {
-        switch workType {
-        case .research: self = .research
-        case .followUp: self = .followUp
-        case .practice: self = .practice
-        case .report: self = .report
-        }
-    }
-
     /// Convert to WorkKind for consistent styling
     private var asWorkKind: WorkKind {
         switch self {

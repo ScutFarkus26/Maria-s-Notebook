@@ -38,18 +38,18 @@ extension BackupEntityImporter {
         })
     }
 
-    // MARK: - GoingOutChecklistItem
+    // MARK: - CDGoingOutChecklistItem
 
     static func importGoingOutChecklistItems(
         _ dtos: [GoingOutChecklistItemDTO],
         into viewContext: NSManagedObjectContext,
-        existingCheck: EntityExistsCheck<GoingOutChecklistItem>,
+        existingCheck: EntityExistsCheck<CDGoingOutChecklistItem>,
         goingOutCheck: EntityExistsCheck<CDGoingOut>
     ) rethrows {
         for dto in dtos {
             if shouldSkipExisting(id: dto.id, existingCheck: existingCheck) { continue }
             guard let goingOutUUID = UUID(uuidString: dto.goingOutID) else { continue }
-            let item = GoingOutChecklistItem(context: viewContext)
+            let item = CDGoingOutChecklistItem(context: viewContext)
             item.id = dto.id
             item.goingOutID = goingOutUUID.uuidString
             item.title = dto.title
@@ -156,17 +156,17 @@ extension BackupEntityImporter {
         })
     }
 
-    // MARK: - TransitionChecklistItem
+    // MARK: - CDTransitionChecklistItem
 
     static func importTransitionChecklistItems(
         _ dtos: [TransitionChecklistItemDTO],
         into viewContext: NSManagedObjectContext,
-        existingCheck: EntityExistsCheck<TransitionChecklistItem>,
+        existingCheck: EntityExistsCheck<CDTransitionChecklistItem>,
         planCheck: EntityExistsCheck<CDTransitionPlan>
     ) rethrows {
         for dto in dtos {
             if shouldSkipExisting(id: dto.id, existingCheck: existingCheck) { continue }
-            let item = TransitionChecklistItem(context: viewContext)
+            let item = CDTransitionChecklistItem(context: viewContext)
             item.id = dto.id
             item.transitionPlanID = dto.transitionPlanID
             item.title = dto.title
@@ -235,45 +235,26 @@ extension BackupEntityImporter {
     }
 
     // MARK: - AlbumGroupOrder
+    // No-op: AlbumGroupOrder has no entity in the .xcdatamodeld (legacy SwiftData stub).
+    // DTOs are decoded from old backups but silently dropped during import.
 
     static func importAlbumGroupOrders(
         _ dtos: [AlbumGroupOrderDTO],
         into viewContext: NSManagedObjectContext,
         existingCheck: EntityExistsCheck<AlbumGroupOrder>
     ) rethrows {
-        try importSimpleEntities(
-            dtos, into: viewContext,
-            existingCheck: existingCheck,
-            idExtractor: { $0.id },
-            entityBuilder: { dto in
-            let order = AlbumGroupOrder(context: viewContext)
-            order.id = dto.id
-            order.scopeKey = dto.scopeKey
-            order.groupName = dto.groupName
-            order.sortIndex = Int64(dto.sortIndex)
-            return order
-        })
+        // Intentionally empty — entity does not exist in Core Data model
     }
 
     // MARK: - AlbumGroupUIState
+    // No-op: AlbumGroupUIState has no entity in the .xcdatamodeld (legacy SwiftData stub).
 
     static func importAlbumGroupUIStates(
         _ dtos: [AlbumGroupUIStateDTO],
         into viewContext: NSManagedObjectContext,
         existingCheck: EntityExistsCheck<AlbumGroupUIState>
     ) rethrows {
-        try importSimpleEntities(
-            dtos, into: viewContext,
-            existingCheck: existingCheck,
-            idExtractor: { $0.id },
-            entityBuilder: { dto in
-            let state = AlbumGroupUIState(context: viewContext)
-            state.id = dto.id
-            state.scopeKey = dto.scopeKey
-            state.groupName = dto.groupName
-            state.isCollapsed = dto.isCollapsed
-            return state
-        })
+        // Intentionally empty — entity does not exist in Core Data model
     }
 
     // MARK: - CDClassroomMembership (format v13+)

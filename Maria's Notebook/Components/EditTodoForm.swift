@@ -23,7 +23,7 @@ struct EditTodoForm: View {
                     .font(AppTheme.ScaledFont.body)
             }
 
-            Section("CDSchedule") {
+            Section("Schedule") {
                 HStack {
                     Text("When")
                     Spacer()

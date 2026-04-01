@@ -58,7 +58,7 @@ struct CommunityMeetingsView: View {
             return "\(title)\n\(details)"
         }.joined(separator: "\n")
 
-        let notesText = ((t.unifiedNotes?.allObjects as? [CDNote]) ?? []).map { note in
+        let notesText = t.unifiedNotes.map { note in
             let speaker = note.reporterName ?? ""
             let content = note.body
             return "\(speaker)\n\(content)"

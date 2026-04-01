@@ -108,7 +108,7 @@ struct WorkCardGridContent: View {
 
             #if os(macOS)
             Button {
-                openWorkInNewWindow(config.work.id)
+                if let id = config.work.id { openWorkInNewWindow(id) }
             } label: {
                 Label("Open in New Window", systemImage: "uiwindow.split.2x1")
             }
@@ -175,7 +175,7 @@ struct WorkCardGridContent: View {
 #Preview {
     let stack = CoreDataStack.preview
     let ctx = stack.viewContext
-    let work = WorkModel(context: ctx)
+    let work = CDWorkModel(context: ctx)
     work.status = .active; work.studentID = UUID().uuidString; work.lessonID = UUID().uuidString
 
     return WorkCard.grid(

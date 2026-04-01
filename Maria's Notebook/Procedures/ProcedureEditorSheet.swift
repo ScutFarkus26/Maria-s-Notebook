@@ -3,7 +3,7 @@ import CoreData
 
 /// Sheet for adding or editing a procedure
 struct ProcedureEditorSheet: View {
-    let procedure: Procedure?
+    let procedure: CDProcedure?
 
     @Environment(\.managedObjectContext) private var viewContext
     @Environment(\.dismiss) private var dismiss
@@ -22,7 +22,7 @@ struct ProcedureEditorSheet: View {
         !title.trimmed().isEmpty
     }
 
-    init(procedure: Procedure?) {
+    init(procedure: CDProcedure?) {
         self.procedure = procedure
         if let procedure {
             _title = State(initialValue: procedure.title)
@@ -38,7 +38,7 @@ struct ProcedureEditorSheet: View {
             ScrollView {
                 VStack(alignment: .leading, spacing: AppTheme.Spacing.large) {
                     // Header
-                    Text(isEditing ? "Edit Procedure" : "New Procedure")
+                    Text(isEditing ? "Edit CDProcedure" : "New CDProcedure")
                         .font(AppTheme.ScaledFont.titleXLarge)
 
                     // Basic Info Section
@@ -63,7 +63,7 @@ struct ProcedureEditorSheet: View {
             HStack {
                 Button("Cancel") { dismiss() }
                 Spacer()
-                Button(isEditing ? "Save Changes" : "Add Procedure") { save() }
+                Button(isEditing ? "Save Changes" : "Add CDProcedure") { save() }
                     .buttonStyle(.borderedProminent)
                     .disabled(!isValid)
             }
@@ -359,15 +359,15 @@ struct IconPickerSheet: View {
     }
 }
 
-#Preview("New Procedure") {
+#Preview("New CDProcedure") {
     ProcedureEditorSheet(procedure: nil)
         .previewEnvironment()
 }
 
-#Preview("Edit Procedure") {
+#Preview("Edit CDProcedure") {
     let stack = CoreDataStack.preview
     let ctx = stack.viewContext
-    let procedure = Procedure(context: ctx)
+    let procedure = CDProcedure(context: ctx)
     procedure.title = "Morning Arrival"
     procedure.summary = "Steps for welcoming students"
     procedure.content = "## Overview\n\nThis procedure outlines..."

@@ -86,7 +86,7 @@ struct LinkedLessonSection: View {
                     } else {
                         ForEach(filtered, id: \.id) { snap in
                             let lesson = lessonsByID[snap.lessonID]
-                            let name = lesson?.name ?? "CDLesson"
+                            let name = lesson?.name ?? "Lesson"
                             let snapDate = snap.scheduledFor ?? snap.presentedAt ?? snap.createdAt
                             let date = createdDateOnlyFormatter.string(from: snapDate)
                             Button {

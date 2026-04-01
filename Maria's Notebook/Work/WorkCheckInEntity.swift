@@ -6,7 +6,7 @@ import SwiftUI
 
 // MARK: - Core Data Entity
 
-@objc(WorkCheckIn)
+@objc(CDWorkCheckIn)
 public class CDWorkCheckIn: NSManagedObject {
     // MARK: - Core Data Properties
     @NSManaged public var id: UUID?

@@ -217,7 +217,7 @@ public enum LessonFileStorage {
         customName: String? = nil
     ) throws -> (url: URL, relativePath: String) {
         logger.debug("Starting importAttachment for: \(sourceURL.lastPathComponent)")
-        logger.debug("Lesson: \(lesson.name), Scope: \(scope.rawValue)")
+        logger.debug("CDLesson: \(lesson.name), Scope: \(scope.rawValue)")
         
         let fm = FileManager.default
         

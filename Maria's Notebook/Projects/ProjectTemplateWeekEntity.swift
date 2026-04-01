@@ -1,7 +1,7 @@
 import Foundation
 import CoreData
 
-@objc(ProjectTemplateWeek)
+@objc(CDProjectTemplateWeek)
 public class CDProjectTemplateWeek: NSManagedObject {
     // MARK: - Core Data Properties
     @NSManaged public var id: UUID?

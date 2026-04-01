@@ -2,10 +2,21 @@ import Foundation
 import CoreData
 import OSLog
 
-/// Creates a typed NSFetchRequest using the @objc class name as the entity name.
-/// All CD entities use @objc(EntityName) which maps to the Core Data entity name.
+/// Creates a typed NSFetchRequest using the Core Data entity name resolved
+/// from the managed object model's representedClassName mapping.
+///
+/// - Important: The entity's `representedClassName` in the `.xcdatamodel` must
+///   match the `@objc(...)` name on the Swift class, or `entity()` will fail.
 func CDFetchRequest<T: NSManagedObject>(_ type: T.Type = T.self) -> NSFetchRequest<T> {
-    NSFetchRequest<T>(entityName: NSStringFromClass(type))
+    let entity = type.entity()
+    guard let name = entity.name, !name.isEmpty else {
+        fatalError(
+            "CDFetchRequest: Could not resolve entity name for \(T.self). "
+            + "Check that representedClassName in the .xcdatamodel matches "
+            + "the @objc(...) annotation on the NSManagedObject subclass."
+        )
+    }
+    return NSFetchRequest<T>(entityName: name)
 }
 
 extension NSManagedObjectContext {

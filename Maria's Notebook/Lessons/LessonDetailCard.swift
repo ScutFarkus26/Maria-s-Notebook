@@ -37,7 +37,7 @@ struct LessonDetailCard: View {
     @State var draftLessonFormat: LessonFormat = .standard
     @State var draftParentStoryID: UUID?
     @State var showingSampleWorkEditor = false
-    @State var editingSampleWork: SampleWork?
+    @State var editingSampleWork: CDSampleWorkEntity?
 
     @State var showingPagesImporter = false
     @State var resolvedPagesURL: URL?

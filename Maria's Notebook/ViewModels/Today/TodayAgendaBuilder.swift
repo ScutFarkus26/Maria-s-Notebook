@@ -15,8 +15,8 @@ enum TodayAgendaBuilder {
     // Work items with group/flexible check-in styles are merged into grouped rows.
     // swiftlint:disable:next function_parameter_count
     static func buildAgenda(
-        lessons: [LessonAssignment],
-        meetings: [ScheduledMeeting],
+        lessons: [CDLessonAssignment],
+        meetings: [CDScheduledMeeting],
         overdueSchedule: [ScheduledWorkItem],
         todaysSchedule: [ScheduledWorkItem],
         staleFollowUps: [FollowUpWorkItem],
@@ -138,7 +138,7 @@ enum TodayAgendaBuilder {
 
         // Delete existing entries for this day
         do {
-            let request = CDFetchRequest(TodayAgendaOrder.self)
+            let request = CDFetchRequest(CDTodayAgendaOrder.self)
             request.predicate = NSPredicate(format: "day == %@", dayStart as NSDate)
             request.fetchLimit = 200
             let existing = try context.fetch(request)
@@ -151,7 +151,7 @@ enum TodayAgendaBuilder {
 
         // Write new entries
         for (index, item) in items.enumerated() {
-            let entry = TodayAgendaOrder(context: context)
+            let entry = CDTodayAgendaOrder(context: context)
             entry.day = dayStart
             entry.itemType = item.itemType
             entry.itemID = item.id
@@ -171,7 +171,7 @@ enum TodayAgendaBuilder {
             Calendar.current.date(byAdding: .day, value: -30, to: Date()) ?? Date()
         )
         do {
-            let request = CDFetchRequest(TodayAgendaOrder.self)
+            let request = CDFetchRequest(CDTodayAgendaOrder.self)
             request.predicate = NSPredicate(format: "day < %@", cutoff as NSDate)
             request.fetchLimit = 1000
             let old = try context.fetch(request)
@@ -187,12 +187,12 @@ enum TodayAgendaBuilder {
 
     // MARK: - Private
 
-    private static func fetchSavedOrder(for day: Date, context: NSManagedObjectContext) -> [TodayAgendaOrder] {
+    private static func fetchSavedOrder(for day: Date, context: NSManagedObjectContext) -> [CDTodayAgendaOrder] {
         let dayStart = AppCalendar.startOfDay(day)
         do {
-            let request = CDFetchRequest(TodayAgendaOrder.self)
+            let request = CDFetchRequest(CDTodayAgendaOrder.self)
             request.predicate = NSPredicate(format: "day == %@", dayStart as NSDate)
-            request.sortDescriptors = [NSSortDescriptor(keyPath: \TodayAgendaOrder.position, ascending: true)]
+            request.sortDescriptors = [NSSortDescriptor(keyPath: \CDTodayAgendaOrder.position, ascending: true)]
             request.fetchLimit = 200
             return try context.fetch(request)
         } catch {

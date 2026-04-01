@@ -26,7 +26,7 @@ extension ClassSubjectChecklistViewModel {
         return cachedDuplicateFirstNameKeys
     }
 
-    func displayName(for student: Student) -> String {
+    func displayName(for student: CDStudent) -> String {
         let firstTrimmed = student.firstName.trimmed()
         let key = normalizedFirstName(student.firstName)
         if duplicateFirstNameKeys.contains(key) {

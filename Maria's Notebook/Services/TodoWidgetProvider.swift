@@ -19,7 +19,7 @@ import CoreData
  * 2. ADD THIS CODE TO THE WIDGET TARGET:
  *    - Copy all the code from this file to the new TodoWidget.swift file
  *    - Make sure the widget target has access to:
- *      - TodoItem.swift (add to widget target membership)
+ *      - CDTodoItemEntity.swift (add to widget target membership)
  *      - AppSchema.swift (add to widget target membership)
  *      - All related model files
  * 
@@ -34,7 +34,7 @@ import CoreData
  * 4. UPDATE MODEL CONTAINER:
  *    - Modify ModelContainer initialization to use app group:
  *      let container = try ModelContainer(
- *          for: TodoItem.self,
+ *          for: CDTodoItemEntity.self,
  *          configurations: ModelConfiguration(
  *              url: FileManager.default
  *                  .containerURL(forSecurityApplicationGroupIdentifier: "group.com.marianotebook.shared")!

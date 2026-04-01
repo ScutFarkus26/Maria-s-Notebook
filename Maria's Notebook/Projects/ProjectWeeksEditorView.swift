@@ -3,7 +3,7 @@ import SwiftUI
 import CoreData
 
 struct ProjectWeeksEditorView: View {
-    let club: Project
+    let club: CDProject
     let showHeader: Bool
 
     @Environment(\.managedObjectContext) private var modelContext
@@ -12,9 +12,9 @@ struct ProjectWeeksEditorView: View {
     // Performance: Use filtered query instead of loading all weeks
     @FetchRequest private var weeks: FetchedResults<CDProjectTemplateWeek>
 
-    @State private var editingWeek: ProjectTemplateWeek?
+    @State private var editingWeek: CDProjectTemplateWeek?
 
-    init(club: Project, showHeader: Bool = true) {
+    init(club: CDProject, showHeader: Bool = true) {
         self.club = club
         self.showHeader = showHeader
         // Filter weeks by projectID at query level
@@ -85,7 +85,7 @@ struct ProjectWeeksEditorView: View {
         editingWeek = w
     }
 
-    private func delete(_ week: ProjectTemplateWeek) {
+    private func delete(_ week: CDProjectTemplateWeek) {
         // Use the week's relationship to get its role assignments
         let assignments = (week.roleAssignments?.allObjects as? [CDProjectWeekRoleAssignment]) ?? []
         for a in assignments { modelContext.delete(a) }
@@ -100,17 +100,17 @@ struct InlineLessonPickerSheet: View {
     @Environment(\.dismiss) private var dismiss
     @State private var search: String = ""
 
-    let lessons: [Lesson]
+    let lessons: [CDLesson]
     var onChosen: (UUID?) -> Void
 
-    init(lessons: [Lesson], onChosen: @escaping (UUID?) -> Void) {
+    init(lessons: [CDLesson], onChosen: @escaping (UUID?) -> Void) {
         self.lessons = lessons
         self.onChosen = onChosen
     }
 
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
-            Text("Choose Lesson")
+            Text("Choose CDLesson")
                 .font(.title3).fontWeight(.semibold)
             TextField("Search…", text: $search)
                 .textFieldStyle(.roundedBorder)
@@ -122,7 +122,7 @@ struct InlineLessonPickerSheet: View {
                     } label: {
                         HStack {
                             VStack(alignment: .leading, spacing: 2) {
-                                Text(lesson.name.isEmpty ? "Untitled Lesson" : lesson.name)
+                                Text(lesson.name.isEmpty ? "Untitled CDLesson" : lesson.name)
                                 let subtitle: String = {
                                     switch (lesson.subject.isEmpty, lesson.group.isEmpty) {
                                     case (false, false): return "\(lesson.subject) • \(lesson.group)"
@@ -158,7 +158,7 @@ struct InlineLessonPickerSheet: View {
     #endif
     }
 
-    private var filteredLessons: [Lesson] {
+    private var filteredLessons: [CDLesson] {
         let q = search.trimmed()
         if q.isEmpty { return lessons }
         return lessons.filter { l in

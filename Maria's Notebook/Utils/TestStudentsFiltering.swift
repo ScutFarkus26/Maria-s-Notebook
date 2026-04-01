@@ -20,10 +20,10 @@ enum TestStudentsFiltering {
     ///   - testStudentNames: Comma/semicolon-separated list of test student names
     /// - Returns: Filtered array of visible students
     static func filterVisible(
-        students: [Student],
+        students: [CDStudent],
         showTestStudents: Bool,
         testStudentNames: String
-    ) -> [Student] {
+    ) -> [CDStudent] {
         guard !showTestStudents else { return students }
         
         let hiddenNames = normalizedHiddenNames(from: testStudentNames)
@@ -43,7 +43,7 @@ enum TestStudentsFiltering {
     static func buildTestStudentFilter(
         showTestStudents: Bool,
         testStudentNames: String
-    ) -> (Student) -> Bool {
+    ) -> (CDStudent) -> Bool {
         guard !showTestStudents else { return { _ in true } }
         
         let hiddenNames = normalizedHiddenNames(from: testStudentNames)

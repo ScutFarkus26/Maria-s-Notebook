@@ -87,7 +87,7 @@ public final class BackupValidationService {
         for student in payload.students {
             if student.firstName.trimmed().isEmpty {
                 errors.append(ValidationError(
-                    entityType: "CDStudent",
+                    entityType: "Student",
                     entityID: student.id,
                     field: "firstName",
                     message: "CDStudent has empty first name",
@@ -97,7 +97,7 @@ public final class BackupValidationService {
 
             if student.birthday > Date() {
                 errors.append(ValidationError(
-                    entityType: "CDStudent",
+                    entityType: "Student",
                     entityID: student.id,
                     field: "birthday",
                     message: "CDStudent birthday is in the future",
@@ -108,7 +108,7 @@ public final class BackupValidationService {
 
         for lesson in payload.lessons where lesson.name.trimmed().isEmpty {
             errors.append(ValidationError(
-                entityType: "CDLesson",
+                entityType: "Lesson",
                 entityID: lesson.id,
                 field: "name",
                 message: "CDLesson has empty name",
@@ -128,7 +128,7 @@ public final class BackupValidationService {
         let validStatuses = ["present", "absent", "tardy", "excused"]
         for record in payload.attendance where !validStatuses.contains(record.status.lowercased()) {
             errors.append(ValidationError(
-                entityType: "CDAttendanceRecord",
+                entityType: "AttendanceRecord",
                 entityID: record.id,
                 field: "status",
                 message: "Invalid attendance status: '\(record.status)'",
@@ -140,7 +140,7 @@ public final class BackupValidationService {
         for student in payload.students {
             if student.level != .lower && student.level != .upper {
                 errors.append(ValidationError(
-                    entityType: "CDStudent",
+                    entityType: "Student",
                     entityID: student.id,
                     field: "level",
                     message: "Invalid student level",
@@ -162,7 +162,7 @@ public final class BackupValidationService {
         for student in payload.students {
             for nextLessonID in student.nextLessons where !lessonIDs.contains(nextLessonID) {
                 errors.append(ValidationError(
-                    entityType: "CDStudent",
+                    entityType: "Student",
                     entityID: student.id,
                     field: "nextLessons",
                     message: "References non-existent lesson in nextLessons: \(nextLessonID)",
@@ -176,7 +176,7 @@ public final class BackupValidationService {
         for session in payload.projectSessions {
             if let weekID = session.templateWeekID, !weekIDs.contains(weekID) {
                 errors.append(ValidationError(
-                    entityType: "CDProjectSession",
+                    entityType: "ProjectSession",
                     entityID: session.id,
                     field: "templateWeekID",
                     message: "References non-existent template week: \(weekID)",
@@ -256,21 +256,21 @@ public final class BackupValidationService {
 
         // Count entities from each collection in payload
         var entityCounts: [(String, Int)] = []
-        entityCounts.append(("CDStudent", payload.students.count))
-        entityCounts.append(("CDLesson", payload.lessons.count))
-        entityCounts.append(("CDLessonAssignment", payload.lessonAssignments.count))
-        entityCounts.append(("CDNote", payload.notes.count))
-        entityCounts.append(("CDNonSchoolDay", payload.nonSchoolDays.count))
-        entityCounts.append(("CDSchoolDayOverride", payload.schoolDayOverrides.count))
-        entityCounts.append(("CDStudentMeeting", payload.studentMeetings.count))
-        entityCounts.append(("CDCommunityTopicEntity", payload.communityTopics.count))
+        entityCounts.append(("Student", payload.students.count))
+        entityCounts.append(("Lesson", payload.lessons.count))
+        entityCounts.append(("LessonAssignment", payload.lessonAssignments.count))
+        entityCounts.append(("Note", payload.notes.count))
+        entityCounts.append(("NonSchoolDay", payload.nonSchoolDays.count))
+        entityCounts.append(("SchoolDayOverride", payload.schoolDayOverrides.count))
+        entityCounts.append(("StudentMeeting", payload.studentMeetings.count))
+        entityCounts.append(("CommunityTopic", payload.communityTopics.count))
         entityCounts.append(("ProposedSolution", payload.proposedSolutions.count))
         entityCounts.append(("CommunityAttachment", payload.communityAttachments.count))
-        entityCounts.append(("CDAttendanceRecord", payload.attendance.count))
-        entityCounts.append(("CDWorkCompletionRecord", payload.workCompletions.count))
-        entityCounts.append(("CDProject", payload.projects.count))
+        entityCounts.append(("AttendanceRecord", payload.attendance.count))
+        entityCounts.append(("WorkCompletionRecord", payload.workCompletions.count))
+        entityCounts.append(("Project", payload.projects.count))
         entityCounts.append(("ProjectAssignmentTemplate", payload.projectAssignmentTemplates.count))
-        entityCounts.append(("CDProjectSession", payload.projectSessions.count))
+        entityCounts.append(("ProjectSession", payload.projectSessions.count))
         entityCounts.append(("ProjectRole", payload.projectRoles.count))
         entityCounts.append(("ProjectTemplateWeek", payload.projectTemplateWeeks.count))
         entityCounts.append(("ProjectWeekRoleAssignment", payload.projectWeekRoleAssignments.count))

@@ -65,7 +65,7 @@ enum UIConstants {
         static let small = CGSize(width: 420, height: 480)
         /// Compact sheets for minimal dialogs
         static let compact = CGSize(width: 400, height: 400)
-        /// Note editor sheets
+        /// CDNote editor sheets
         static let note = CGSize(width: 480, height: 560)
     }
     

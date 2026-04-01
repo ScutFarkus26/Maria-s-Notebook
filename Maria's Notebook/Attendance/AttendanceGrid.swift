@@ -2,11 +2,11 @@ import SwiftUI
 import CoreData
 
 struct AttendanceGrid: View {
-    let students: [Student]
-    let recordsByStudentID: [String: AttendanceRecord]
-    let onCycleStatus: (Student) -> Void
-    let onUpdateNote: (Student, String?) -> Void
-    let onUpdateAbsenceReason: (Student, AbsenceReason) -> Void
+    let students: [CDStudent]
+    let recordsByStudentID: [String: CDAttendanceRecord]
+    let onCycleStatus: (CDStudent) -> Void
+    let onUpdateNote: (CDStudent, String?) -> Void
+    let onUpdateAbsenceReason: (CDStudent, AbsenceReason) -> Void
 
     @Environment(\.horizontalSizeClass) private var hSizeClass
 

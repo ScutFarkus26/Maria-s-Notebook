@@ -50,7 +50,7 @@ public struct WorkModelDTO: Codable, Sendable {
     public var checkInStyleRaw: String?
 }
 
-// MARK: - PlanningRecommendation DTO
+// MARK: - CDPlanningRecommendation DTO
 
 public struct PlanningRecommendationDTO: Codable, Sendable {
     public var id: UUID

@@ -19,7 +19,7 @@ struct NoStudentsEmptyState: View {
             Button {
                 onAddStudent()
             } label: {
-                Label("Add Student", systemImage: "plus.circle.fill")
+                Label("Add CDStudent", systemImage: "plus.circle.fill")
             }
             .buttonStyle(.borderedProminent)
         }
@@ -32,7 +32,7 @@ struct NoStudentsEmptyState: View {
 struct SelectStudentEmptyState: View {
     var body: some View {
         ContentUnavailableView {
-            Label("Select a Student", systemImage: "person.circle")
+            Label("Select a CDStudent", systemImage: "person.circle")
         } description: {
             Text("Choose a student from the list to view their details.")
         }
@@ -173,7 +173,7 @@ struct AddStudentButton: View {
         Button {
             onAddStudent()
         } label: {
-            Label("Add Student", systemImage: "plus.circle.fill")
+            Label("Add CDStudent", systemImage: "plus.circle.fill")
         }
         .keyboardShortcut("n", modifiers: [.command])
         .contextMenu {

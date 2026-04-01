@@ -3,7 +3,7 @@ import CoreData
 
 /// Display card for a practice session
 struct PracticeSessionCard: View {
-    let session: PracticeSession
+    let session: CDPracticeSession
     let displayMode: DisplayMode
     var onTap: (() -> Void)?
 
@@ -18,13 +18,13 @@ struct PracticeSessionCard: View {
         case expanded   // Full details
     }
     
-    var students: [Student] {
+    var students: [CDStudent] {
         allStudents.filter { student in
             session.studentIDsArray.contains(student.id?.uuidString ?? "")
         }.sorted { $0.firstName < $1.firstName }
     }
 
-    var workItems: [WorkModel] {
+    var workItems: [CDWorkModel] {
         allWork.filter { work in
             session.workItemIDsArray.contains(work.id?.uuidString ?? "")
         }
@@ -62,27 +62,27 @@ struct PracticeSessionCard: View {
     let stack = CoreDataStack.preview
     let ctx = stack.viewContext
 
-    let mary = Student(context: ctx)
+    let mary = CDStudent(context: ctx)
     mary.firstName = "Mary"; mary.lastName = "Smith"; mary.birthday = Date(); mary.level = .lower
-    let danny = Student(context: ctx)
+    let danny = CDStudent(context: ctx)
     danny.firstName = "Danny"; danny.lastName = "Jones"; danny.birthday = Date(); danny.level = .lower
 
-    let lesson = Lesson(context: ctx)
+    let lesson = CDLesson(context: ctx)
     lesson.name = "Long Division"
 
-    let work1 = WorkModel(context: ctx)
+    let work1 = CDWorkModel(context: ctx)
     work1.title = "Practice Long Division"; work1.studentID = danny.id?.uuidString ?? ""; work1.lessonID = lesson.id?.uuidString ?? ""
-    let work2 = WorkModel(context: ctx)
+    let work2 = CDWorkModel(context: ctx)
     work2.title = "Practice Long Division"; work2.studentID = mary.id?.uuidString ?? ""; work2.lessonID = lesson.id?.uuidString ?? ""
 
-    let groupSession = PracticeSession(context: ctx)
+    let groupSession = CDPracticeSession(context: ctx)
     groupSession.date = Date(); groupSession.duration = 1800
     groupSession.studentIDsArray = [danny.id?.uuidString ?? "", mary.id?.uuidString ?? ""]
     groupSession.workItemIDsArray = [work1.id?.uuidString ?? "", work2.id?.uuidString ?? ""]
     groupSession.sharedNotes = "Both students struggled with remainders but showed improvement by the end."
     groupSession.location = "Small table"
 
-    let soloSession = PracticeSession(context: ctx)
+    let soloSession = CDPracticeSession(context: ctx)
     soloSession.date = Date().addingTimeInterval(-86400); soloSession.duration = 900
     soloSession.studentIDsArray = [danny.id?.uuidString ?? ""]
     soloSession.workItemIDsArray = [work1.id?.uuidString ?? ""]

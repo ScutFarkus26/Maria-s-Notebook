@@ -12,7 +12,7 @@ extension TodoEditSheet {
     @ViewBuilder
     var dueDateSection: some View {
         VStack(alignment: .leading, spacing: 12) {
-            Text("CDSchedule")
+            Text("Schedule")
                 .font(AppTheme.ScaledFont.captionSemibold)
                 .foregroundStyle(.secondary)
                 .textCase(.uppercase)

@@ -2,9 +2,9 @@ import Foundation
 import CoreData
 import SwiftUI
 
-/// WorkStep model representing a single step in a Report-type WorkModel.
+/// CDWorkStep model representing a single step in a Report-type CDWorkModel.
 /// Steps are ordered by orderIndex to ensure deterministic progression.
-@objc(WorkStep)
+@objc(CDWorkStep)
 public class CDWorkStep: NSManagedObject {
     // MARK: - Core Data Properties
     @NSManaged public var id: UUID?

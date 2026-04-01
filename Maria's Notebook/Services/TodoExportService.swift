@@ -23,7 +23,7 @@ class TodoExportService {
     
     // MARK: - Text Export
     
-    static func exportAsText(todos: [TodoItem]) -> String {
+    static func exportAsText(todos: [CDTodoItemEntity]) -> String {
         var output = "TODO LIST EXPORT\n"
         output += "===============\n"
         output += "Exported: \(Date().formatted(date: .long, time: .shortened))\n"
@@ -76,7 +76,7 @@ class TodoExportService {
     
     // MARK: - CSV Export
     
-    static func exportAsCSV(todos: [TodoItem]) -> String {
+    static func exportAsCSV(todos: [CDTodoItemEntity]) -> String {
         var output = "Title,Status,Priority,Tags,Scheduled Date," +
             "Deadline,Created,Notes,Mood,Subtasks Completed,Subtasks Total\n"
         
@@ -118,7 +118,7 @@ class TodoExportService {
     // MARK: - Markdown Export
     
     // swiftlint:disable:next cyclomatic_complexity
-    static func exportAsMarkdown(todos: [TodoItem]) -> String {
+    static func exportAsMarkdown(todos: [CDTodoItemEntity]) -> String {
         var output = "# Todo List Export\n\n"
         output += "*Exported: \(Date().formatted(date: .long, time: .shortened))*\n\n"
         output += "**Total tasks:** \(todos.count)\n\n"
@@ -177,7 +177,7 @@ class TodoExportService {
     
     // MARK: - JSON Export
     
-    static func exportAsJSON(todos: [TodoItem]) -> String? {
+    static func exportAsJSON(todos: [CDTodoItemEntity]) -> String? {
         let encoder = JSONEncoder()
         encoder.dateEncodingStrategy = .iso8601
         encoder.outputFormatting = [.prettyPrinted, .sortedKeys]

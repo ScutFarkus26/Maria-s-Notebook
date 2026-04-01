@@ -49,7 +49,7 @@ struct TagHelper {
         ("Follow-up", TagColor.gray),
         ("Student", TagColor.green),
         ("Administrative", TagColor.orange),
-        ("Lesson Planning", TagColor.blue),
+        ("CDLesson Planning", TagColor.blue),
         ("Grading", TagColor.orange),
         ("Communication", TagColor.green),
         ("Professional Development", TagColor.pink)
@@ -126,7 +126,7 @@ struct TagHelper {
         return synced
     }
 
-    // MARK: - Note Category Migration Helpers
+    // MARK: - CDNote Category Migration Helpers
 
     /// Maps old NoteCategory raw values to TagColor for migration
     static func colorForNoteCategory(_ categoryRaw: String) -> TagColor {

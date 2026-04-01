@@ -24,6 +24,9 @@ final class CoreDataStack {
     /// Persistent history processor for serialized remote change handling.
     private(set) var historyProcessor: PersistentHistoryProcessor?
 
+    /// Token for the remote change notification observer.
+    private var remoteChangeObserver: (any NSObjectProtocol)?
+
     // MARK: - Store Configurations
 
     /// Configuration name for the private (per-teacher) store.
@@ -138,6 +141,11 @@ final class CoreDataStack {
         storeDirectory().appendingPathComponent("shared.sqlite")
     }
 
+    /// Unified store URL for local-only mode (single store, all entities).
+    static func unifiedStoreURL() -> URL {
+        storeDirectory().appendingPathComponent("unified.sqlite")
+    }
+
     // MARK: - Initialization
 
     /// Creates the Core Data stack.
@@ -151,55 +159,73 @@ final class CoreDataStack {
 
         let modelName = "MariasNotebook"
         guard let modelURL = Bundle.main.url(forResource: modelName, withExtension: "momd"),
-              let model = NSManagedObjectModel(contentsOf: modelURL) else {
+              let cachedModel = NSManagedObjectModel(contentsOf: modelURL) else {
             throw CoreDataStackError.modelNotFound(modelName)
         }
+        // Copy the model so mutations (like assignEntitiesToConfigurations) don't
+        // pollute the cached instance. NSManagedObjectModel(contentsOf:) can return
+        // a cached object, and calling setEntities on it would affect subsequent inits.
+        let model = cachedModel.copy() as! NSManagedObjectModel  // swiftlint:disable:this force_cast
 
         // Validate that all entities in our routing tables exist in the model
         Self.validateEntityRouting(model: model)
 
+        // Assign entities to configurations BEFORE creating the container.
+        // NSPersistentCloudKitContainer's init creates an NSPersistentStoreCoordinator,
+        // which makes the model immutable — so all setEntities calls must happen first.
+        if enableCloudKit && !inMemory {
+            Self.assignEntitiesToConfigurations(model: model)
+        }
+
         container = NSPersistentCloudKitContainer(name: modelName, managedObjectModel: model)
 
-        // Build store descriptions
-        let privateDesc: NSPersistentStoreDescription
-        let sharedDesc: NSPersistentStoreDescription
+        if enableCloudKit && !inMemory {
+            // CloudKit mode: two stores (private + shared) for separate CloudKit databases.
 
-        if inMemory {
-            privateDesc = Self.makeInMemoryDescription(configuration: Self.privateConfiguration)
-            sharedDesc = Self.makeInMemoryDescription(configuration: Self.sharedConfiguration)
-        } else {
-            privateDesc = Self.makeStoreDescription(
+            let privateDesc = Self.makeStoreDescription(
                 url: Self.privateStoreURL(),
                 configuration: Self.privateConfiguration
             )
-            sharedDesc = Self.makeStoreDescription(
+            let sharedDesc = Self.makeStoreDescription(
                 url: Self.sharedStoreURL(),
                 configuration: Self.sharedConfiguration
             )
-        }
 
-        // Assign entities to configurations
-        Self.assignEntitiesToConfigurations(model: model)
-
-        // Enable history tracking and remote change notifications on both stores
-        Self.enableHistoryTracking(privateDesc)
-        Self.enableHistoryTracking(sharedDesc)
-
-        if enableCloudKit && !inMemory {
+            Self.enableHistoryTracking(privateDesc)
+            Self.enableHistoryTracking(sharedDesc)
             Self.configureCloudKit(privateDescription: privateDesc, sharedDescription: sharedDesc)
             isCloudKitActive = true
-        }
 
-        container.persistentStoreDescriptions = [privateDesc, sharedDesc]
+            container.persistentStoreDescriptions = [privateDesc, sharedDesc]
+        } else {
+            // Local-only mode: single unified store with ALL entities.
+            // This avoids the "Multiple NSEntityDescriptions" problem that occurs when
+            // entities are split across two configurations — Core Data's +entity lookup
+            // can't disambiguate, causing @FetchRequest crashes.
+            let desc: NSPersistentStoreDescription
+            if inMemory {
+                let url = URL(fileURLWithPath: "/dev/null/unified")
+                desc = NSPersistentStoreDescription(url: url)
+                desc.type = NSInMemoryStoreType
+            } else {
+                desc = Self.makeStoreDescription(
+                    url: Self.unifiedStoreURL(),
+                    configuration: nil
+                )
+            }
+            Self.enableHistoryTracking(desc)
+
+            container.persistentStoreDescriptions = [desc]
+        }
 
         // Load stores synchronously
         var loadErrors: [Error] = []
         container.loadPersistentStores { description, error in
             if let error {
-                Self.logger.error("Failed to load store '\(description.configuration ?? "?")': \(error)")
+                Self.logger.error("Failed to load store '\(description.configuration ?? "default")': \(error)")
                 loadErrors.append(error)
             } else {
-                Self.logger.info("Loaded store: \(description.configuration ?? "?")")
+                Self.logger.info("Loaded store: \(description.configuration ?? "default")")
             }
         }
 
@@ -219,13 +245,18 @@ final class CoreDataStack {
         // Create persistent history processor
         historyProcessor = PersistentHistoryProcessor(container: container)
 
-        // Listen for remote changes
-        NotificationCenter.default.addObserver(
-            self,
-            selector: #selector(handleRemoteChange(_:)),
-            name: .NSPersistentStoreRemoteChange,
-            object: container.persistentStoreCoordinator
-        )
+        // Listen for remote changes (must dispatch to main queue since this class is @MainActor
+        // but NSPersistentStoreRemoteChange fires on a background queue)
+        remoteChangeObserver = NotificationCenter.default.addObserver(
+            forName: .NSPersistentStoreRemoteChange,
+            object: container.persistentStoreCoordinator,
+            queue: .main
+        ) { [weak self] _ in
+            guard let self else { return }
+            Task { @MainActor in
+                self.handleRemoteChangeNotification()
+            }
+        }
 
         let elapsed = String(format: "%.3f", Date().timeIntervalSince(start))
         Self.logger.info("CoreDataStack initialized in \(elapsed)s")
@@ -292,7 +323,7 @@ final class CoreDataStack {
 
     // MARK: - Remote Change Handling
 
-    @objc private func handleRemoteChange(_ notification: Notification) {
+    private func handleRemoteChangeNotification() {
         guard let processor = historyProcessor else { return }
         Task {
             await processor.processRemoteChanges()
@@ -303,10 +334,12 @@ final class CoreDataStack {
 
     private static func makeStoreDescription(
         url: URL,
-        configuration: String
+        configuration: String?
     ) -> NSPersistentStoreDescription {
         let desc = NSPersistentStoreDescription(url: url)
-        desc.configuration = configuration
+        if let configuration {
+            desc.configuration = configuration
+        }
         desc.setOption(true as NSNumber, forKey: NSMigratePersistentStoresAutomaticallyOption)
         desc.setOption(true as NSNumber, forKey: NSInferMappingModelAutomaticallyOption)
         return desc
@@ -315,7 +348,10 @@ final class CoreDataStack {
     private static func makeInMemoryDescription(
         configuration: String
     ) -> NSPersistentStoreDescription {
-        let desc = NSPersistentStoreDescription()
+        // Each in-memory store needs a unique URL, otherwise Core Data rejects
+        // the second store with "Can't add the same store twice".
+        let url = URL(fileURLWithPath: "/dev/null").appendingPathComponent(configuration)
+        let desc = NSPersistentStoreDescription(url: url)
         desc.type = NSInMemoryStoreType
         desc.configuration = configuration
         return desc
@@ -387,7 +423,7 @@ final class CoreDataStack {
     /// Deletes both Core Data store files and their WAL/SHM companions.
     static func resetStores() throws {
         let fm = FileManager.default
-        for url in [privateStoreURL(), sharedStoreURL()] {
+        for url in [privateStoreURL(), sharedStoreURL(), unifiedStoreURL()] {
             guard fm.fileExists(atPath: url.path) else { continue }
             try fm.removeItem(at: url)
             // Also remove WAL and SHM files

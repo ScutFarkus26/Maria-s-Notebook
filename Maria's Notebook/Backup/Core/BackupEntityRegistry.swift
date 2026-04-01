@@ -10,7 +10,7 @@ struct BackupEntityRegistry {
         // Core
         CDStudent.self,
         CDLesson.self,
-        LessonAttachment.self,
+        CDLessonAttachment.self,
         CDLessonAssignment.self,
         CDLessonPresentation.self,
         CDNote.self,
@@ -23,32 +23,32 @@ struct BackupEntityRegistry {
         CDMeetingTemplate.self,
         // Community
         CDCommunityTopicEntity.self,
-        ProposedSolution.self,
-        CommunityAttachment.self,
+        CDProposedSolutionEntity.self,
+        CDCommunityAttachmentEntity.self,
         // Attendance
         CDAttendanceRecord.self,
         // Work tracking
         CDWorkModel.self,
         CDWorkCompletionRecord.self,
         CDWorkCheckIn.self,
-        WorkParticipantEntity.self,
+        CDWorkParticipantEntity.self,
         CDWorkStep.self,
         CDSampleWork.self,
         CDSampleWorkStep.self,
         CDPracticeSession.self,
         // Projects
         CDProject.self,
-        ProjectAssignmentTemplate.self,
+        CDProjectAssignmentTemplate.self,
         CDProjectSession.self,
-        ProjectRole.self,
-        ProjectTemplateWeek.self,
-        ProjectWeekRoleAssignment.self,
+        CDProjectRole.self,
+        CDProjectTemplateWeek.self,
+        CDProjectWeekRoleAssignment.self,
         // Issues
         CDIssue.self,
-        IssueAction.self,
+        CDIssueAction.self,
         // Tracks
         CDTrackEntity.self,
-        TrackStep.self,
+        CDTrackStepEntity.self,
         CDStudentTrackEnrollmentEntity.self,
         CDGroupTrack.self,
         // Templates
@@ -60,14 +60,14 @@ struct BackupEntityRegistry {
         CDDocument.self,
         // Supplies
         CDSupply.self,
-        SupplyTransaction.self,
+        CDSupplyTransaction.self,
         // Procedures
         CDProcedure.self,
         // Schedules
         CDSchedule.self,
         CDScheduleSlot.self,
         // Development
-        DevelopmentSnapshot.self,
+        CDDevelopmentSnapshotEntity.self,
         // Todos
         CDTodoItem.self,
         CDTodoSubtask.self,
@@ -75,25 +75,26 @@ struct BackupEntityRegistry {
         // Agenda
         CDTodayAgendaOrder.self,
         // Planning recommendations
-        PlanningRecommendation.self,
+        CDPlanningRecommendation.self,
         // Resources
         CDResource.self,
         // Going Out
         CDGoingOut.self,
-        GoingOutChecklistItem.self,
+        CDGoingOutChecklistItem.self,
         // Classroom Jobs
         CDClassroomJob.self,
         CDJobAssignment.self,
         // Transition Plans
         CDTransitionPlan.self,
-        TransitionChecklistItem.self,
+        CDTransitionChecklistItem.self,
         // Calendar Notes
         CDCalendarNote.self,
         // Scheduled Meetings
         CDScheduledMeeting.self,
-        // Album UI State
-        AlbumGroupOrder.self,
-        AlbumGroupUIState.self,
+        // Album UI State — AlbumGroupOrder & AlbumGroupUIState are legacy SwiftData stubs
+        // with no entity in the .xcdatamodeld. They are handled as DTO-only during import/export
+        // but must NOT appear here, because iterating allTypes and calling fetchRequest() on them
+        // produces entity name '' and throws an unrecoverable ObjC NSException.
         // Classroom Membership (format v13+)
         CDClassroomMembership.self
     ]

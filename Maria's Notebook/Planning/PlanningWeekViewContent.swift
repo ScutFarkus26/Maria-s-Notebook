@@ -60,7 +60,7 @@ struct PlanningWeekViewContent: View {
         let weekEnd = calendar.date(byAdding: .day, value: 1, to: AppCalendar.startOfDay(lastDay)) ?? weekStart
         let presentedRaw = LessonAssignmentState.presented.rawValue
 
-        let descriptor: NSFetchRequest<CDLessonAssignment> = NSFetchRequest(entityName: "CDLessonAssignment")
+        let descriptor: NSFetchRequest<CDLessonAssignment> = NSFetchRequest(entityName: "LessonAssignment")
         descriptor.predicate = NSPredicate(
             format: "stateRaw != %@ AND ((scheduledForDay >= %@ AND scheduledForDay < %@) OR (scheduledFor >= %@ AND scheduledFor < %@))",
             presentedRaw, weekStart as CVarArg, weekEnd as CVarArg, weekStart as CVarArg, weekEnd as CVarArg
@@ -229,7 +229,7 @@ struct PlanningWeekViewContent: View {
 
         // 1) Explicit non-school day wins
         do {
-            var nsDescriptor = { let r = NSFetchRequest<CDNonSchoolDay>(entityName: "CDNonSchoolDay"); r.predicate = NSPredicate(format: "date == %@", day as CVarArg); r.fetchLimit = 0; return r }()
+            var nsDescriptor = { let r = NSFetchRequest<CDNonSchoolDay>(entityName: "NonSchoolDay"); r.predicate = NSPredicate(format: "date == %@", day as CVarArg); r.fetchLimit = 0; return r }()
             nsDescriptor.fetchLimit = 1
             let nonSchoolDays: [CDNonSchoolDay] = try viewContext.fetch(nsDescriptor)
             if !nonSchoolDays.isEmpty { return true }
@@ -244,7 +244,7 @@ struct PlanningWeekViewContent: View {
 
         // 3) Weekend override makes it a school day
         do {
-            var ovDescriptor = { let r = NSFetchRequest<CDSchoolDayOverride>(entityName: "CDSchoolDayOverride"); r.predicate = NSPredicate(format: "date == %@", day as CVarArg); r.fetchLimit = 0; return r }()
+            var ovDescriptor = { let r = NSFetchRequest<CDSchoolDayOverride>(entityName: "SchoolDayOverride"); r.predicate = NSPredicate(format: "date == %@", day as CVarArg); r.fetchLimit = 0; return r }()
             ovDescriptor.fetchLimit = 1
             let overrides: [CDSchoolDayOverride] = try viewContext.fetch(ovDescriptor)
             if !overrides.isEmpty { return false }
@@ -278,7 +278,7 @@ struct PlanningWeekViewContent: View {
         let today = calendar.startOfDay(for: Date())
         let scheduledRaw = LessonAssignmentState.scheduled.rawValue
 
-        var descriptor: NSFetchRequest<CDLessonAssignment> = NSFetchRequest(entityName: "CDLessonAssignment")
+        var descriptor: NSFetchRequest<CDLessonAssignment> = NSFetchRequest(entityName: "LessonAssignment")
         descriptor.predicate = NSPredicate(format: "stateRaw == %@", scheduledRaw as CVarArg)
         descriptor.sortDescriptors = [NSSortDescriptor(key: "scheduledForDay", ascending: true)]
         descriptor.fetchLimit = 1

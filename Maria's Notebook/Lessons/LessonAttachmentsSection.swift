@@ -137,7 +137,7 @@ struct LessonAttachmentsSection: View {
                 VStack(alignment: .leading, spacing: 16) {
                     if !lessonAttachments.isEmpty {
                         attachmentGroup(
-                            title: "This Lesson", attachments: lessonAttachments
+                            title: "This CDLesson", attachments: lessonAttachments
                         )
                     }
 

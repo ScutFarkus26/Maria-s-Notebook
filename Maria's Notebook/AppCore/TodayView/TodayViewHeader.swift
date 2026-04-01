@@ -172,7 +172,7 @@ extension TodayView {
         .background(Capsule().strokeBorder(color.opacity(0.20), lineWidth: 1))
     }
 
-    // MARK: - Student Pill
+    // MARK: - CDStudent Pill
 
     @ViewBuilder
     func studentPill(_ name: String, color: Color) -> some View {

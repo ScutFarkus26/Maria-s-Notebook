@@ -72,7 +72,7 @@ struct ScopedNotesSection: View {
             if let student = studentsByID[id] {
                 return displayName(for: student)
             } else {
-                return "CDStudent"
+                return "Student"
             }
         case let .students(ids):
             return "\(ids.count) students"

@@ -230,7 +230,7 @@ struct CommandBarSheet: View {
                 if let lesson = command.rawLessonName {
                     entityRow(
                         icon: "book.fill",
-                        label: "CDLesson",
+                        label: "Lesson",
                         values: [lesson],
                         color: .orange
                     )

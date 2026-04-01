@@ -12,7 +12,7 @@ extension LessonDetailCard {
     @ViewBuilder
     var headerBar: some View {
         HStack(alignment: .firstTextBaseline) {
-            Text(isEditing ? "Edit Lesson" : "CDLesson Details")
+            Text(isEditing ? "Edit CDLesson" : "CDLesson Details")
                 .font(AppTheme.ScaledFont.titleSmall)
             Spacer()
             Button {
@@ -30,7 +30,7 @@ extension LessonDetailCard {
     @ViewBuilder
     var titleAndBadges: some View {
         VStack(spacing: 8) {
-            Text(lesson.name.isEmpty ? "Untitled Lesson" : lesson.name)
+            Text(lesson.name.isEmpty ? "Untitled CDLesson" : lesson.name)
                 .font(AppTheme.ScaledFont.titleLarge)
                 .frame(maxWidth: .infinity)
                 .multilineTextAlignment(.center)
@@ -130,7 +130,7 @@ extension LessonDetailCard {
                 Button {
                     onGiveLesson?(lesson)
                 } label: {
-                    Label("Give Lesson", systemImage: "person.crop.circle.badge.checkmark")
+                    Label("Give CDLesson", systemImage: "person.crop.circle.badge.checkmark")
                 }
                 .buttonStyle(.borderedProminent)
                 .tint(.green)

@@ -2,7 +2,7 @@
 //  ReminderRepository.swift
 //  Maria's Notebook
 //
-//  Repository for Reminder entity CRUD operations.
+//  Repository for CDReminder entity CRUD operations.
 //
 
 import Foundation
@@ -25,7 +25,7 @@ struct ReminderRepository: SavingRepository {
 
     // MARK: - Fetch
 
-    /// Fetch a Reminder by ID
+    /// Fetch a CDReminder by ID
     func fetchReminder(id: UUID) -> CDReminder? {
         let request = CDFetchRequest(CDReminder.self)
         request.predicate = NSPredicate(format: "id == %@", id as CVarArg)
@@ -67,7 +67,7 @@ struct ReminderRepository: SavingRepository {
 
     // MARK: - Create
 
-    /// Create a new Reminder
+    /// Create a new CDReminder
     @discardableResult
     func createReminder(
         title: String,
@@ -91,7 +91,7 @@ struct ReminderRepository: SavingRepository {
 
     // MARK: - Update
 
-    /// Update an existing Reminder's properties
+    /// Update an existing CDReminder's properties
     @discardableResult
     func updateReminder(
         id: UUID,
@@ -134,7 +134,7 @@ struct ReminderRepository: SavingRepository {
 
     // MARK: - Delete
 
-    /// Delete a Reminder by ID
+    /// Delete a CDReminder by ID
     func deleteReminder(id: UUID) throws {
         guard let reminder = fetchReminder(id: id) else { return }
         context.delete(reminder)

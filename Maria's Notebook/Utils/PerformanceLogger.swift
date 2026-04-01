@@ -91,7 +91,7 @@ enum PerformanceLogger {
 
     /// Starts monitoring the main RunLoop for hangs/stutters.
     ///
-    /// Note: Custom CFRunLoopObserver-based stutter detection was removed because it caused
+    /// CDNote: Custom CFRunLoopObserver-based stutter detection was removed because it caused
     /// `_os_unfair_lock_recursive_abort` crashes when logging from within the run loop callback.
     ///
     /// For stutter detection, use Xcode's built-in tools instead:

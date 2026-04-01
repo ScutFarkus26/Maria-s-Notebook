@@ -138,7 +138,7 @@ struct WorkAgendaCalendarPane: View {
 
     // MARK: - Data Fetching Helpers
     
-    private func fetchWork(id: UUID) -> WorkModel? {
+    private func fetchWork(id: UUID) -> CDWorkModel? {
         let request = CDFetchRequest(CDWorkModel.self)
         request.predicate = NSPredicate(format: "id == %@", id as CVarArg)
         return modelContext.safeFetchFirst(request)
@@ -193,7 +193,7 @@ struct WorkAgendaCalendarPane: View {
         let normalized = AppCalendar.startOfDay(date)
         let noteOrNil = note.isEmpty ? nil : note
         
-        // PHASE 6: Create WorkCheckIn only (WorkPlanItem removed)
+        // PHASE 6: Create CDWorkCheckIn only (WorkPlanItem removed)
         let checkIn = CDWorkCheckIn(context: modelContext)
         checkIn.workID = workID.uuidString
         checkIn.date = normalized
@@ -206,7 +206,7 @@ struct WorkAgendaCalendarPane: View {
         if let work = fetchWork(id: workID) {
             work.dueAt = normalized
         }
-        saveCoordinator.save(modelContext, reason: "Create WorkCheckIn")
+        saveCoordinator.save(modelContext, reason: "Create CDWorkCheckIn")
     }
 
     private func rescheduleCheckIn(id: UUID, to day: Date) {
@@ -220,7 +220,7 @@ struct WorkAgendaCalendarPane: View {
         if let work = fetchWork(id: workID) {
             work.dueAt = normalized
         }
-        saveCoordinator.save(modelContext, reason: "Reschedule WorkCheckIn")
+        saveCoordinator.save(modelContext, reason: "Reschedule CDWorkCheckIn")
     }
     
     private func rescheduleLessonAssignment(id: UUID, to day: Date) {
@@ -236,7 +236,7 @@ struct WorkAgendaCalendarPane: View {
         }
         la.modifiedAt = Date()
 
-        saveCoordinator.save(modelContext, reason: "Reschedule LessonAssignment from Work view")
+        saveCoordinator.save(modelContext, reason: "Reschedule CDLessonAssignment from Work view")
     }
 
 }
@@ -317,8 +317,8 @@ struct GroupedCheckInDetailSheet: View {
         #endif
     }
 
-    private func studentRow(checkIn: WorkCheckIn, studentName: String) -> some View {
-        let work: WorkModel? = checkIn.workID.asUUID.flatMap { id in
+    private func studentRow(checkIn: CDWorkCheckIn, studentName: String) -> some View {
+        let work: CDWorkModel? = checkIn.workID.asUUID.flatMap { id in
             let request = CDFetchRequest(CDWorkModel.self)
             request.predicate = NSPredicate(format: "id == %@", id as CVarArg)
             return modelContext.safeFetchFirst(request)
@@ -335,7 +335,7 @@ struct GroupedCheckInDetailSheet: View {
 
 }
 
-// MARK: - Check-In Student Row
+// MARK: - Check-In CDStudent Row
 
 /// A single student row inside GroupedCheckInDetailSheet.
 /// Owns its own note state so the text field is editable and saves back to the check-in.
@@ -344,15 +344,15 @@ private struct CheckInStudentRow: View {
 
     @Environment(\.managedObjectContext) private var modelContext
 
-    let checkIn: WorkCheckIn
-    let work: WorkModel?
+    let checkIn: CDWorkCheckIn
+    let work: CDWorkModel?
     let studentName: String
     let onOpen: () -> Void
 
     @State private var noteText: String
     @State private var saveTask: Task<Void, Never>?
 
-    init(checkIn: WorkCheckIn, work: WorkModel?, studentName: String, onOpen: @escaping () -> Void) {
+    init(checkIn: CDWorkCheckIn, work: CDWorkModel?, studentName: String, onOpen: @escaping () -> Void) {
         self.checkIn = checkIn
         self.work = work
         self.studentName = studentName
@@ -380,7 +380,7 @@ private struct CheckInStudentRow: View {
             }
 
             // Inline note field
-            TextField("Note about this student…", text: $noteText, axis: .vertical)
+            TextField("CDNote about this student…", text: $noteText, axis: .vertical)
                 .font(AppTheme.ScaledFont.caption)
                 .lineLimit(2...4)
                 .textFieldStyle(.roundedBorder)
@@ -408,7 +408,7 @@ private struct CheckInStudentRow: View {
     }
 
     @ViewBuilder
-    private func statusDots(for work: WorkModel) -> some View {
+    private func statusDots(for work: CDWorkModel) -> some View {
         HStack(spacing: 3) {
             ForEach(1...5, id: \.self) { i in
                 Circle()
@@ -418,7 +418,7 @@ private struct CheckInStudentRow: View {
         }
     }
 
-    private func dotCount(for work: WorkModel) -> Int {
+    private func dotCount(for work: CDWorkModel) -> Int {
         switch work.status {
         case .active: return 2
         case .review: return 4
@@ -426,7 +426,7 @@ private struct CheckInStudentRow: View {
         }
     }
 
-    private func dotColor(for work: WorkModel) -> Color {
+    private func dotColor(for work: CDWorkModel) -> Color {
         switch work.status {
         case .active: return .orange
         case .review: return .green

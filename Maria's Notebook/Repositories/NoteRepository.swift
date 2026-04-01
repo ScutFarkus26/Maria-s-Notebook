@@ -2,7 +2,7 @@
 //  NoteRepository.swift
 //  Maria's Notebook
 //
-//  Repository for Note entity CRUD operations.
+//  Repository for CDNote entity CRUD operations.
 //
 
 import Foundation
@@ -25,7 +25,7 @@ struct NoteRepository: SavingRepository {
 
     // MARK: - Fetch
 
-    /// Fetch a Note by ID
+    /// Fetch a CDNote by ID
     func fetchNote(id: UUID) -> CDNote? {
         let request = CDFetchRequest(CDNote.self)
         request.predicate = NSPredicate(format: "id == %@", id as CVarArg)
@@ -69,7 +69,7 @@ struct NoteRepository: SavingRepository {
 
     // MARK: - Create
 
-    /// Create a new Note
+    /// Create a new CDNote
     @discardableResult
     func createNote(
         body: String,
@@ -109,7 +109,7 @@ struct NoteRepository: SavingRepository {
 
     // MARK: - Update
 
-    /// Update an existing Note's properties
+    /// Update an existing CDNote's properties
     @discardableResult
     func updateNote(
         id: UUID,
@@ -138,7 +138,7 @@ struct NoteRepository: SavingRepository {
 
     // MARK: - Delete
 
-    /// Delete a Note by ID
+    /// Delete a CDNote by ID
     func deleteNote(id: UUID) throws {
         guard let note = fetchNote(id: id) else { return }
         note.deleteAssociatedImage()

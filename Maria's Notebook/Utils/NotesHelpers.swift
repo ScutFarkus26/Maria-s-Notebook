@@ -3,20 +3,20 @@ import Foundation
 
 #if DEBUG
 /// Temporary fallback to satisfy compilation in helpers. Do NOT rely on this.
-/// Option A: Pass `[Student]` explicitly into NotesHelpers functions instead of using `studentsAll`.
+/// Option A: Pass `[CDStudent]` explicitly into NotesHelpers functions instead of using `studentsAll`.
 /// If you see this assertion, update the caller to pass `students` explicitly.
 #endif
-private var studentsAll: [Student] {
+private var studentsAll: [CDStudent] {
     #if DEBUG
     assertionFailure(
-        "NotesHelpers: 'studentsAll' is unavailable. Pass [Student] explicitly into the helper (Option A)."
+        "NotesHelpers: 'studentsAll' is unavailable. Pass [CDStudent] explicitly into the helper (Option A)."
     )
     #endif
     return []
 }
 
-// MARK: - Note helpers
-extension Note {
+// MARK: - CDNote helpers
+extension CDNote {
     @MainActor
     /// Returns true if this note applies to the given student based on its scope.
     /// `.all` applies to any student attached to the parent (enforced by caller).
@@ -36,7 +36,7 @@ extension Note {
 
 // MARK: - Sorting rule
 @MainActor
-private func notesSortedNewestFirst(_ notes: [Note]) -> [Note] {
+private func notesSortedNewestFirst(_ notes: [CDNote]) -> [CDNote] {
     notes.sorted { lhs, rhs in
         let lhsUpdated = lhs.updatedAt ?? .distantPast
         let rhsUpdated = rhs.updatedAt ?? .distantPast
@@ -45,13 +45,13 @@ private func notesSortedNewestFirst(_ notes: [Note]) -> [Note] {
     }
 }
 
-// MARK: - Lesson filtering
-extension Lesson {
+// MARK: - CDLesson filtering
+extension CDLesson {
     @MainActor
     /// Notes visible to a specific student: includes `.all` and any note scoped to that student.
     /// Sorted newest first (updatedAt, then createdAt).
-    func notesVisible(to studentID: UUID) -> [Note] {
-        let allNotes = (notes?.allObjects as? [CDNote]) ?? []
+    func notesVisible(to studentID: UUID) -> [CDNote] {
+        let allNotes = notes
         let filtered = allNotes.filter { note in
             switch note.scope {
             case .all:

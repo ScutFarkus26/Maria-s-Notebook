@@ -1,11 +1,11 @@
 import SwiftUI
 import CoreData
 
-/// A reusable pill component for displaying WorkCheckIn entries in calendars
+/// A reusable pill component for displaying CDWorkCheckIn entries in calendars
 struct WorkCheckInPill: View {
     @Environment(\.managedObjectContext) private var modelContext
     
-    let checkIn: WorkCheckIn
+    let checkIn: CDWorkCheckIn
     var isDulled: Bool = false
     var onTap: (() -> Void)?
     
@@ -61,7 +61,7 @@ struct WorkCheckInPill: View {
                 if !name.isEmpty { return name }
             }
         }
-        return "Lesson \(String(work.lessonID.prefix(6)))"
+        return "CDLesson \(String(work.lessonID.prefix(6)))"
     }
     
     private var studentName: String {
@@ -92,7 +92,7 @@ struct WorkCheckInPill: View {
         }
     }
     
-    private func fetchWork(id: UUID) -> WorkModel? {
+    private func fetchWork(id: UUID) -> CDWorkModel? {
         let request = CDFetchRequest(CDWorkModel.self)
         request.predicate = NSPredicate(format: "id == %@", id as CVarArg)
         return modelContext.safeFetchFirst(request)

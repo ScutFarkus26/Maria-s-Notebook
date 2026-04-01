@@ -6,7 +6,7 @@ import SwiftUI
 // MARK: - Todo Today Row
 
 struct TodoTodayRow: View {
-    let todo: TodoItem
+    let todo: CDTodoItemEntity
     var onToggle: () -> Void
     var onTap: () -> Void
 
@@ -151,7 +151,7 @@ struct TodoTodayRow: View {
 // MARK: - Calendar Event List Row
 
 struct CalendarEventListRow: View {
-    let event: CalendarEvent
+    let event: CDCalendarEvent
 
     private var timeString: String {
         if event.isAllDay {

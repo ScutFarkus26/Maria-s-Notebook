@@ -26,14 +26,14 @@ struct PlanNextLessonService {
         case noStudents
     }
 
-    // MARK: - Find Next Lesson
+    // MARK: - Find Next CDLesson
 
     /// Finds the next lesson in the same subject/group sequence.
     /// - Parameters:
     ///   - current: The current lesson to find the successor for
     ///   - allLessons: All available lessons to search through
     /// - Returns: The next lesson in the sequence, or nil if none exists
-    static func findNextLesson(after current: Lesson, in allLessons: [Lesson]) -> Lesson? {
+    static func findNextLesson(after current: CDLesson, in allLessons: [CDLesson]) -> CDLesson? {
         let currentSubject = current.subject.trimmed()
         let currentGroup = current.group.trimmed()
 
@@ -58,13 +58,13 @@ struct PlanNextLessonService {
 
     // MARK: - Check for Existing
 
-    /// Checks if a LessonAssignment already exists for the given lesson and students.
+    /// Checks if a CDLessonAssignment already exists for the given lesson and students.
     /// Uses consistent criteria: same lesson ID, same students, and not yet given (presentedAt == nil)
     /// AND not yet scheduled (scheduledFor == nil) - i.e., would be in the inbox.
     static func existsInInbox(
         lessonID: UUID,
         studentIDs: Set<UUID>,
-        in existingLessonAssignments: [LessonAssignment]
+        in existingLessonAssignments: [CDLessonAssignment]
     ) -> Bool {
         existingLessonAssignments.contains { la in
             la.lessonIDUUID == lessonID &&
@@ -74,12 +74,12 @@ struct PlanNextLessonService {
         }
     }
 
-    /// Checks if a LessonAssignment already exists that hasn't been given yet.
+    /// Checks if a CDLessonAssignment already exists that hasn't been given yet.
     /// This is a less strict check - the lesson may be scheduled but not yet presented.
     static func existsActive(
         lessonID: UUID,
         studentIDs: Set<UUID>,
-        in existingLessonAssignments: [LessonAssignment]
+        in existingLessonAssignments: [CDLessonAssignment]
     ) -> Bool {
         existingLessonAssignments.contains { la in
             la.lessonIDUUID == lessonID &&
@@ -88,16 +88,16 @@ struct PlanNextLessonService {
         }
     }
 
-    // MARK: - Core Data Plan Next Lesson
+    // MARK: - Core Data Plan Next CDLesson
 
-    /// Plans the next lesson in the sequence for the given LessonAssignment.
+    /// Plans the next lesson in the sequence for the given CDLessonAssignment.
     /// This is the main entry point that should be used by all UI components.
     @discardableResult
     static func planNextLesson(
-        for lessonAssignment: LessonAssignment,
-        allLessons: [Lesson],
-        allStudents: [Student],
-        existingLessonAssignments: [LessonAssignment],
+        for lessonAssignment: CDLessonAssignment,
+        allLessons: [CDLesson],
+        allStudents: [CDStudent],
+        existingLessonAssignments: [CDLessonAssignment],
         context: NSManagedObjectContext
     ) -> PlanResult {
         // Get the current lesson
@@ -138,11 +138,11 @@ struct PlanNextLessonService {
     @discardableResult
     // swiftlint:disable:next function_parameter_count
     static func planLesson(
-        _ nextLesson: Lesson,
+        _ nextLesson: CDLesson,
         forStudents studentIDs: Set<UUID>,
-        allStudents: [Student],
-        allLessons: [Lesson],
-        existingLessonAssignments: [LessonAssignment],
+        allStudents: [CDStudent],
+        allLessons: [CDLesson],
+        existingLessonAssignments: [CDLessonAssignment],
         context: NSManagedObjectContext
     ) -> PlanResult {
         guard !studentIDs.isEmpty else {

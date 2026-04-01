@@ -20,19 +20,6 @@ enum PresentationAbsentHelper {
         })
     }
 
-    // MARK: - Deprecated SwiftData Bridge
-
-    @available(*, deprecated, message: "Pass NSManagedObjectContext instead of NSManagedObjectContext")
-    @MainActor
-    static func computeAbsentStudentIDs(
-        selectedStudentIDs: Set<UUID>,
-        scheduledDay: Date,
-        viewContext: NSManagedObjectContext
-    ) -> Set<UUID> {
-        let cdContext = AppBootstrapping.getSharedCoreDataStack().viewContext
-        return computeAbsentStudentIDs(selectedStudentIDs: selectedStudentIDs, scheduledDay: scheduledDay, context: cdContext)
-    }
-
     // MARK: - Can Move Absent Students
 
     /// Determines if moving absent students is available.

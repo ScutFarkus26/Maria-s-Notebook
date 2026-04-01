@@ -62,7 +62,7 @@ enum BlockingCacheBuilder {
 
     // MARK: - Private Helpers
 
-    /// Build blocking dictionary for an unscheduled LessonAssignment.
+    /// Build blocking dictionary for an unscheduled CDLessonAssignment.
     private static func buildBlockingForUnscheduled(
         la: CDLessonAssignment,
         lessons: [CDLesson],
@@ -133,7 +133,7 @@ enum BlockingCacheBuilder {
         return blocking.isEmpty ? nil : blocking
     }
 
-    /// Build blocking dictionary for a presented LessonAssignment.
+    /// Build blocking dictionary for a presented CDLessonAssignment.
     private static func buildBlockingForPresented(
         la: CDLessonAssignment,
         openWorkByPresentationID: [String: [CDWorkModel]]

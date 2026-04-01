@@ -4,7 +4,7 @@ import CoreData
 /// A historical record indicating that a student completed a piece of work
 /// at a specific point in time. Multiple records for the same (workID, studentID)
 /// pair preserve the full completion history.
-@objc(WorkCompletionRecord)
+@objc(CDWorkCompletionRecord)
 public class CDWorkCompletionRecord: NSManagedObject {
     // MARK: - Core Data Properties
     @NSManaged public var id: UUID?

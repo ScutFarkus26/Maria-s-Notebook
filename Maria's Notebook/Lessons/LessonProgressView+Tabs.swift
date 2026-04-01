@@ -189,7 +189,7 @@ extension LessonProgressView {
     }
 
     @ViewBuilder
-    func practiceSessionRow(_ session: PracticeSession) -> some View {
+    func practiceSessionRow(_ session: CDPracticeSession) -> some View {
         VStack(alignment: .leading, spacing: AppTheme.Spacing.small + 2) {
             HStack(spacing: AppTheme.Spacing.compact) {
                 ZStack {

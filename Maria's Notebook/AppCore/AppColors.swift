@@ -1,7 +1,7 @@
 import SwiftUI
 
 struct AppColors {
-    static func color(forLevel level: Student.Level) -> Color {
+    static func color(forLevel level: CDStudent.Level) -> Color {
         switch level {
         case .upper: return .pink
         case .lower: return .blue

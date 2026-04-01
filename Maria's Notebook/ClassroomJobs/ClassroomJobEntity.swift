@@ -36,7 +36,7 @@ public class CDClassroomJob: NSManagedObject {
     // MARK: - Convenience Initializer
     @discardableResult
     convenience init(context: NSManagedObjectContext) {
-        let entity = NSEntityDescription.entity(forEntityName: "CDClassroomJob", in: context)!
+        let entity = NSEntityDescription.entity(forEntityName: "ClassroomJob", in: context)!
         self.init(entity: entity, insertInto: context)
         self.id = UUID()
         self.createdAt = Date()

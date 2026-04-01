@@ -101,13 +101,13 @@ extension TodayView {
         }
     }
 
-    /// Resolves student name from a WorkModel
+    /// Resolves student name from a CDWorkModel
     func resolveStudentName(for work: CDWorkModel) -> String {
         guard let uuid = UUID(uuidString: work.studentID) else { return "Student" }
         return displayNameForID(uuid)
     }
 
-    /// Resolves display name from a WorkModel — prefers the work's own title, falls back to lesson name
+    /// Resolves display name from a CDWorkModel — prefers the work's own title, falls back to lesson name
     func resolveLessonName(for work: CDWorkModel) -> String {
         let title = work.title.trimmed()
         if !title.isEmpty { return title }
@@ -187,7 +187,7 @@ extension TodayView {
         }
     }
 
-    // MARK: - Reminder Actions
+    // MARK: - CDReminder Actions
 
     /// Toggles the completion status of a reminder
     func toggleReminder(_ reminder: CDReminder) {
@@ -238,7 +238,7 @@ extension TodayView {
     func updateFilteredQueries() {
         let (dayStart, dayEnd) = AppCalendar.dayRange(for: viewModel.date)
 
-        // Fetch filtered LessonAssignment IDs
+        // Fetch filtered CDLessonAssignment IDs
         do {
             let fetchRequest: NSFetchRequest<CDLessonAssignment> = CDLessonAssignment.fetchRequest() as! NSFetchRequest<CDLessonAssignment>
             fetchRequest.predicate = NSPredicate(format: "scheduledForDay >= %@ AND scheduledForDay < %@", dayStart as NSDate, dayEnd as NSDate)
@@ -249,8 +249,8 @@ extension TodayView {
             filteredPresentationIDs = []
         }
 
-        // Fetch filtered WorkCheckIn IDs (scheduled status only)
-        // Uses WorkCheckIn for scheduled work check-ins
+        // Fetch filtered CDWorkCheckIn IDs (scheduled status only)
+        // Uses CDWorkCheckIn for scheduled work check-ins
         do {
             let scheduledStatus = WorkCheckInStatus.scheduled.rawValue
             let fetchRequest: NSFetchRequest<CDWorkCheckIn> = CDWorkCheckIn.fetchRequest() as! NSFetchRequest<CDWorkCheckIn>

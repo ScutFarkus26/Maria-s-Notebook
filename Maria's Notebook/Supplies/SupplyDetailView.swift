@@ -20,7 +20,7 @@ struct SupplyDetailView: View {
     @State private var showingOrderSheet = false
     @State private var showingReceiveSheet = false
 
-    private var transactions: [SupplyTransaction] {
+    private var transactions: [CDSupplyTransaction] {
         SupplyService.fetchRecentTransactions(for: supply, limit: 20)
     }
 

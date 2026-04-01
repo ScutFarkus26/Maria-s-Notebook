@@ -14,7 +14,7 @@ extension WorkDetailView {
         VStack(spacing: 20) {
             // Hero section with student avatar and work kind badge
             VStack(spacing: 14) {
-                // Student avatar circle
+                // CDStudent avatar circle
                 ZStack {
                     Circle()
                         .fill(
@@ -32,11 +32,11 @@ extension WorkDetailView {
                         .foregroundStyle(.white)
                 }
 
-                // Student name
+                // CDStudent name
                 Text(studentName())
                     .font(AppTheme.ScaledFont.titleLarge)
 
-                // Lesson info pill
+                // CDLesson info pill
                 Label(lessonTitle(), systemImage: "book.closed.fill")
                     .font(AppTheme.ScaledFont.captionSemibold)
                     .foregroundStyle(.secondary)
@@ -219,7 +219,7 @@ extension WorkDetailView {
     }
 
     @ViewBuilder
-    func noteRow(_ note: Note) -> some View {
+    func noteRow(_ note: CDNote) -> some View {
         NoteRowView(note: note, onEdit: { viewModel.noteBeingEdited = note }, onDelete: { deleteNote(note) })
     }
 
@@ -275,7 +275,7 @@ extension WorkDetailView {
         saveCoordinator.save(modelContext, reason: "Unlocking next lesson")
     }
 
-    func deleteNote(_ note: Note) {
+    func deleteNote(_ note: CDNote) {
         modelContext.delete(note)
         saveCoordinator.save(modelContext, reason: "Deleting note")
 

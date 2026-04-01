@@ -57,7 +57,7 @@ struct TrackListView: View {
                                 Button(role: .destructive) {
                                     removeTrack(groupTrack)
                                 } label: {
-                                    Label("Remove Track", systemImage: "trash")
+                                    Label("Remove CDTrackEntity", systemImage: "trash")
                                 }
                             }
                         }

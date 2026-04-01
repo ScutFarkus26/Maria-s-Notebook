@@ -73,7 +73,7 @@ struct GreatLessonTagEditor: View {
                     .buttonStyle(.plain)
                 }
             }
-            .navigationTitle("Great Lesson")
+            .navigationTitle("Great CDLesson")
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {
                     Button("Cancel") { dismiss() }

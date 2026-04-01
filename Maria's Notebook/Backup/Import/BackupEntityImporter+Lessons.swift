@@ -186,12 +186,12 @@ extension BackupEntityImporter {
     static func importLessonAttachments(
         _ dtos: [LessonAttachmentDTO],
         into viewContext: NSManagedObjectContext,
-        existingCheck: EntityExistsCheck<LessonAttachment>,
+        existingCheck: EntityExistsCheck<CDLessonAttachment>,
         lessonCheck: EntityExistsCheck<CDLesson>
     ) rethrows {
         for dto in dtos {
             if shouldSkipExisting(id: dto.id, existingCheck: existingCheck) { continue }
-            let attachment = LessonAttachment(context: viewContext)
+            let attachment = CDLessonAttachment(context: viewContext)
             attachment.id = dto.id
             attachment.fileName = dto.fileName
             attachment.fileRelativePath = dto.fileRelativePath

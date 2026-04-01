@@ -373,7 +373,7 @@ struct FollowUpInboxEngine {
         }
     }
 
-    // MARK: - Rule 1: Lesson Follow-Up
+    // MARK: - Rule 1: CDLesson Follow-Up
 
     private static func computeLessonFollowUpItems(
         ctx: ComputeContext, lessonAssignments: [CDLessonAssignment]
@@ -497,7 +497,7 @@ struct FollowUpInboxEngine {
         return results
     }
 
-    // MARK: - Student-Scoped Computation
+    // MARK: - CDStudent-Scoped Computation
 
     /// Compute items scoped to a specific student.
     /// This is used by the student checklist tab to get work items for that student.

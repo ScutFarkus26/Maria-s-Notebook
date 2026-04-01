@@ -3,7 +3,7 @@ import SwiftUI
 // MARK: - History Section
 
 struct SupplyHistorySection: View {
-    let transactions: [SupplyTransaction]
+    let transactions: [CDSupplyTransaction]
 
     var body: some View {
         VStack(alignment: .leading, spacing: 16) {
@@ -33,7 +33,7 @@ struct SupplyHistorySection: View {
         }
     }
 
-    private func transactionRow(_ transaction: SupplyTransaction) -> some View {
+    private func transactionRow(_ transaction: CDSupplyTransaction) -> some View {
         HStack(spacing: 12) {
             ZStack {
                 Circle()

@@ -117,8 +117,8 @@ struct ReportGeneratorService {
     /// Enhanced PDF generation with optional AI narrative, attendance, and mastery data.
     // swiftlint:disable:next function_body_length
     func generatePDF(
-        student: Student,
-        notes: [Note],
+        student: CDStudent,
+        notes: [CDNote],
         style: ReportStyle,
         dateRange: ClosedRange<Date>,
         aiNarrative: String? = nil,
@@ -191,7 +191,7 @@ struct ReportGeneratorService {
             }
 
             // Notes content
-            let groupedNotes: [(String, [Note])]
+            let groupedNotes: [(String, [CDNote])]
             if style.groupsByCategory {
                 groupedNotes = groupNotesByCategory(notes)
             } else {
@@ -287,7 +287,7 @@ extension ReportGeneratorService {
     #if canImport(UIKit)
     // swiftlint:disable:next function_parameter_count
     private func drawHeader(
-        student: Student,
+        student: CDStudent,
         style: ReportStyle,
         dateRange: ClosedRange<Date>,
         pageWidth: CGFloat,
@@ -331,7 +331,7 @@ extension ReportGeneratorService {
     }
 
     private func drawNote(
-        note: Note,
+        note: CDNote,
         margin: CGFloat,
         contentWidth: CGFloat,
         currentY: CGFloat
@@ -348,7 +348,7 @@ extension ReportGeneratorService {
         dateString.draw(at: CGPoint(x: margin, y: y))
         y += 14
 
-        // Note body
+        // CDNote body
         let bodyAttrs: [NSAttributedString.Key: Any] = [
             .font: PlatformFont.systemFont(ofSize: 11),
             .foregroundColor: PlatformColor.label
@@ -502,8 +502,8 @@ extension ReportGeneratorService {
 extension ReportGeneratorService {
     #if canImport(AppKit)
     private func buildReportText(
-        student: Student,
-        notes: [Note],
+        student: CDStudent,
+        notes: [CDNote],
         style: ReportStyle,
         dateRange: ClosedRange<Date>,
         aiNarrative: String?,
@@ -542,8 +542,8 @@ extension ReportGeneratorService {
         return result
     }
 
-    private func appendGroupedNotesText(to result: NSMutableAttributedString, notes: [Note], style: ReportStyle) {
-        let groupedNotes: [(String, [Note])] = style.groupsByCategory ? groupNotesByCategory(notes) : [("Notes", notes)]
+    private func appendGroupedNotesText(to result: NSMutableAttributedString, notes: [CDNote], style: ReportStyle) {
+        let groupedNotes: [(String, [CDNote])] = style.groupsByCategory ? groupNotesByCategory(notes) : [("Notes", notes)]
         for (categoryName, categoryNotes) in groupedNotes {
             if style.groupsByCategory && !categoryNotes.isEmpty {
                 // swiftlint:disable:next line_length
@@ -553,11 +553,11 @@ extension ReportGeneratorService {
             for note in categoryNotes {
                 // swiftlint:disable line_length
                 let noteDateAttrs: [NSAttributedString.Key: Any] = [.font: NSFont.systemFont(ofSize: 10), .foregroundColor: NSColor.secondaryLabelColor]
-                result.append(NSAttributedString(string: "\(DateFormatters.shortDateTime.string(from: note.createdAt))\n", attributes: noteDateAttrs))
+                result.append(NSAttributedString(string: "\(DateFormatters.shortDateTime.string(from: note.createdAt ?? Date()))\n", attributes: noteDateAttrs))
                 let bodyAttrs: [NSAttributedString.Key: Any] = [.font: NSFont.systemFont(ofSize: 11), .foregroundColor: NSColor.labelColor]
                 result.append(NSAttributedString(string: "\(note.body)\n", attributes: bodyAttrs))
                 let tagAttrs: [NSAttributedString.Key: Any] = [.font: NSFont.systemFont(ofSize: 9), .foregroundColor: NSColor.systemBlue]
-                let tagLabel = note.tags.map { TagHelper.tagName($0) }.joined(separator: ", ")
+                let tagLabel = note.tagsArray.map { TagHelper.tagName($0) }.joined(separator: ", ")
                 result.append(NSAttributedString(string: "[\(tagLabel.isEmpty ? "General" : tagLabel)]\n\n", attributes: tagAttrs))
                 // swiftlint:enable line_length
             }
@@ -669,9 +669,9 @@ extension ReportGeneratorService {
 // MARK: - Common Helpers
 
 extension ReportGeneratorService {
-    private func groupNotesByCategory(_ notes: [Note]) -> [(String, [Note])] {
+    private func groupNotesByCategory(_ notes: [CDNote]) -> [(String, [CDNote])] {
         // Group notes by their first tag (or "General" if untagged)
-        var grouped: [String: [Note]] = [:]
+        var grouped: [String: [CDNote]] = [:]
         for note in notes {
             if let firstTag = (note.tags as? [String])?.first {
                 let tagName = TagHelper.tagName(firstTag)

@@ -233,7 +233,7 @@ extension LessonsRootView {
         // so we fetch all and filter in memory
         let allStudents: [CDStudent]
         do {
-            allStudents = try viewContext.fetch(NSFetchRequest<CDStudent>(entityName: "CDStudent"))
+            allStudents = try viewContext.fetch(NSFetchRequest<CDStudent>(entityName: "Student"))
         } catch {
             logger.warning("Failed to fetch students: \(error)")
             allStudents = []
@@ -243,7 +243,7 @@ extension LessonsRootView {
         let lessonIDString = lesson.id?.uuidString ?? ""
         let draftRaw = LessonAssignmentState.draft.rawValue
         let existingPredicate = NSPredicate(format: "lessonID == %@ AND stateRaw == %@", lessonIDString as CVarArg, draftRaw as CVarArg)
-        let existingDescriptor = { let r = NSFetchRequest<CDLessonAssignment>(entityName: "CDLessonAssignment"); r.predicate = existingPredicate; return r }()
+        let existingDescriptor = { let r = NSFetchRequest<CDLessonAssignment>(entityName: "LessonAssignment"); r.predicate = existingPredicate; return r }()
         let existingAssignments: [CDLessonAssignment]
         do {
             existingAssignments = try viewContext.fetch(existingDescriptor)
@@ -262,14 +262,9 @@ extension LessonsRootView {
             return
         }
         let newAssignment = PresentationFactory.makeDraft(
-            lessonID: lessonID,
-            studentIDs: Array(studentIDs),
-            context: viewContext
-        )
-        PresentationFactory.attachRelationships(
-            to: newAssignment,
             lesson: lesson,
-            students: students
+            students: students,
+            context: viewContext
         )
         saveCoordinator.save(viewContext, reason: "Plan presentation")
 

@@ -35,7 +35,7 @@ enum SFSymbol {
     }
     
     // MARK: - Documents & Files
-    enum Document {
+    enum CDDocument {
         static let doc = "doc"
         static let docFill = "doc.fill"
         static let docText = "doc.text"

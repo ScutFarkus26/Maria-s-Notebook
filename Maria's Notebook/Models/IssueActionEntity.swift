@@ -1,7 +1,7 @@
 import Foundation
 import CoreData
 
-@objc(IssueAction)
+@objc(CDIssueAction)
 public class CDIssueAction: NSManagedObject {
     // MARK: - Core Data Properties
     @NSManaged public var id: UUID?

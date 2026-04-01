@@ -4,7 +4,7 @@ import CoreData
 
 struct ProjectSessionDetailView: View {
     private static let logger = Logger.projects
-    let session: ProjectSession
+    let session: CDProjectSession
 
     @Environment(\.managedObjectContext) private var modelContext
     @Environment(SaveCoordinator.self) private var saveCoordinator
@@ -20,7 +20,7 @@ struct ProjectSessionDetailView: View {
     ]) private var studentsRaw: FetchedResults<CDStudent>
     // DEDUPLICATION: CloudKit sync can create duplicate records with the same ID.
     // Filter out test students when setting is disabled
-    private var students: [Student] {
+    private var students: [CDStudent] {
         TestStudentsFilter.filterVisible(
             Array(studentsRaw).uniqueByID.filter(\.isEnrolled),
             show: showTestStudents,
@@ -32,18 +32,18 @@ struct ProjectSessionDetailView: View {
     // NEW: Query all work models to filter locally
     @FetchRequest(sortDescriptors: []) private var allWorkModels: FetchedResults<CDWorkModel>
 
-    @State var showLessonPickerForWork: WorkModel?
+    @State var showLessonPickerForWork: CDWorkModel?
     @State var showSelectionSheetForStudent: String?
     @State var showAddWorkSheet: Bool = false
 
     // Use uniquingKeysWith to handle CloudKit sync duplicates
-    var studentsByID: [UUID: Student] {
+    var studentsByID: [UUID: CDStudent] {
         Dictionary(
             students.compactMap { s in s.id.map { ($0, s) } },
             uniquingKeysWith: { first, _ in first }
         )
     }
-    var lessonsByID: [UUID: Lesson] {
+    var lessonsByID: [UUID: CDLesson] {
         Dictionary(
             Array(lessons).compactMap { l in l.id.map { ($0, l) } },
             uniquingKeysWith: { first, _ in first }
@@ -51,7 +51,7 @@ struct ProjectSessionDetailView: View {
     }
 
     // Filter work models relevant to this session
-    var sessionWorkModels: [WorkModel] {
+    var sessionWorkModels: [CDWorkModel] {
         let sid = (session.id ?? UUID()).uuidString
         return allWorkModels.filter { work in
             let contextType = work.sourceContextType
@@ -64,13 +64,13 @@ struct ProjectSessionDetailView: View {
     }
 
     /// Works grouped by student (for uniform mode or assigned works in choice mode)
-    var groupedByStudent: [(id: String, items: [WorkModel])] {
+    var groupedByStudent: [(id: String, items: [CDWorkModel])] {
         // For choice mode, only include works that have participants
         let items = session.assignmentMode == .choice
             ? sessionWorkModels.filter { !$0.isOffered }
             : sessionWorkModels
 
-        var buckets: [String: [WorkModel]] = [:]
+        var buckets: [String: [CDWorkModel]] = [:]
         var order: [String] = []
 
         for work in items {
@@ -106,11 +106,11 @@ struct ProjectSessionDetailView: View {
     }
 
     /// Offered works (no participants yet) for choice mode
-    var offeredWorks: [WorkModel] {
+    var offeredWorks: [CDWorkModel] {
         sessionWorkModels.filter(\.isOffered)
     }
 
-    /// Project member IDs for showing selection status
+    /// CDProject member IDs for showing selection status
     var projectMemberIDs: [String] {
         session.project?.memberStudentIDsArray ?? []
     }
@@ -194,7 +194,7 @@ struct ProjectSessionDetailView: View {
                 if session.assignmentMode == .choice {
                     Section {
                         HStack {
-                            Label("Student Choice", systemImage: "hand.tap")
+                            Label("CDStudent Choice", systemImage: "hand.tap")
                             Spacer()
                             let totalCount = offeredWorks.count + sessionWorkModels.filter { !$0.isOffered }.count
                             Text("Pick \(session.minSelections) of \(totalCount)")
@@ -237,7 +237,7 @@ struct ProjectSessionDetailView: View {
                     }()
                 ) { chosenID in
                     if chosenID != nil {
-                        // WorkModel is writable but editing is disabled for now
+                        // CDWorkModel is writable but editing is disabled for now
                     }
                 }
             }

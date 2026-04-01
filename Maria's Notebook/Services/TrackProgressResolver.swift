@@ -4,17 +4,17 @@ import Foundation
 /// All operations work on passed-in arrays.
 struct TrackProgressResolver {
     /// Returns the total number of steps in the track.
-    static func totalSteps(track: Track) -> Int {
+    static func totalSteps(track: CDTrackEntity) -> Int {
         let steps = ((track.steps?.allObjects as? [CDTrackStepEntity]) ?? []).sorted { $0.orderIndex < $1.orderIndex }
         return steps.count
     }
     
     /// Returns the count of mastered steps for a given student.
-    /// A step is mastered if there exists a LessonPresentation where:
+    /// A step is mastered if there exists a CDLessonPresentation where:
     /// - studentID matches
     /// - (masteredAt != nil OR state == .proficient)
     /// - (trackStepID matches step.id OR lessonID matches step.lessonTemplateID)
-    static func proficientCount(track: Track, studentID: String, lessonPresentations: [LessonPresentation]) -> Int {
+    static func proficientCount(track: CDTrackEntity, studentID: String, lessonPresentations: [CDLessonPresentation]) -> Int {
         let steps = ((track.steps?.allObjects as? [CDTrackStepEntity]) ?? []).sorted { $0.orderIndex < $1.orderIndex }
         
         return steps.filter { step in
@@ -23,7 +23,7 @@ struct TrackProgressResolver {
     }
     
     /// Returns the first unmastered step in the track, or nil if all steps are mastered.
-    static func currentStep(track: Track, studentID: String, lessonPresentations: [LessonPresentation]) -> TrackStep? {
+    static func currentStep(track: CDTrackEntity, studentID: String, lessonPresentations: [CDLessonPresentation]) -> CDTrackStepEntity? {
         let steps = ((track.steps?.allObjects as? [CDTrackStepEntity]) ?? []).sorted { $0.orderIndex < $1.orderIndex }
         
         return steps.first { step in
@@ -33,7 +33,7 @@ struct TrackProgressResolver {
     
     /// Helper function to determine if a step is mastered.
     private static func isStepProficient(
-        step: TrackStep, studentID: String, lessonPresentations: [LessonPresentation]
+        step: CDTrackStepEntity, studentID: String, lessonPresentations: [CDLessonPresentation]
     ) -> Bool {
         return lessonPresentations.contains { lp in
             // Check student ID matches

@@ -3,7 +3,7 @@ import CoreData
 
 /// Represents a collaborative practice session where one or more students work together
 /// on their assigned work items.
-@objc(PracticeSession)
+@objc(CDPracticeSession)
 public class CDPracticeSession: NSManagedObject {
     // MARK: - Core Data Properties
     @NSManaged public var id: UUID?

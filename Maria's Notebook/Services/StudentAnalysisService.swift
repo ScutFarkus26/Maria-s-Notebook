@@ -217,7 +217,7 @@ final class StudentAnalysisService {
         let prompt = """
         You are an experienced Montessori guide analyzing a student's recent development.
 
-        Student: \(student.fullName) (Age: \(student.birthday?.age ?? 0), Level: \(student.level.rawValue))
+        CDStudent: \(student.fullName) (Age: \(student.birthday?.age ?? 0), Level: \(student.level.rawValue))
         Analysis Period: \(studentData.dateRange.lowerBound.formatted(date: .abbreviated, time: .omitted)) to \
         \(studentData.dateRange.upperBound.formatted(date: .abbreviated, time: .omitted))
 

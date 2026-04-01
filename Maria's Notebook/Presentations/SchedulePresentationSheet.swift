@@ -46,7 +46,7 @@ struct SchedulePresentationSheet: View {
                 VStack(alignment: .leading, spacing: 8) {
                     Text("Plan Presentation")
                         .font(.headline)
-                    Text(lesson.name.isEmpty ? "Untitled Lesson" : lesson.name)
+                    Text(lesson.name.isEmpty ? "Untitled CDLesson" : lesson.name)
                         .font(.subheadline)
                         .foregroundStyle(.secondary)
                     Text("This will add the presentation to your inbox")

@@ -6,7 +6,7 @@ struct WorkStepRow: View {
     private static let logger = Logger.work
 
     @Environment(\.managedObjectContext) private var modelContext
-    @ObservedObject var step: WorkStep
+    @ObservedObject var step: CDWorkStep
     var onEdit: () -> Void
 
     var body: some View {

@@ -43,9 +43,9 @@ enum LessonFormatter {
     /// Returns a fallback title if the name is empty.
     /// - Parameters:
     ///   - name: The lesson name
-    ///   - fallback: The fallback title (default: "Untitled Lesson")
+    ///   - fallback: The fallback title (default: "Untitled CDLesson")
     /// - Returns: The name if not empty, otherwise the fallback
-    nonisolated static func titleOrFallback(_ name: String, fallback: String = "Untitled Lesson") -> String {
+    nonisolated static func titleOrFallback(_ name: String, fallback: String = "Untitled CDLesson") -> String {
         StringFallbacks.trimmedValueOrFallback(name, fallback: fallback)
     }
 }

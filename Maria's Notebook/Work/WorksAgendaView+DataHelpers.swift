@@ -42,7 +42,7 @@ extension WorksAgendaView {
         // Load only needed lessons
         // Use uniquingKeysWith to handle CloudKit sync duplicates
         if !neededLessonIDs.isEmpty {
-            let all: [Lesson] = viewContext.safeFetch(NSFetchRequest<CDLesson>(entityName: "Lesson"))
+            let all: [CDLesson] = viewContext.safeFetch(NSFetchRequest<CDLesson>(entityName: "Lesson"))
             let filtered = all.filter { neededLessonIDs.contains($0.id ?? UUID()) }
             lessonsByIDCache = Dictionary(filtered.compactMap { guard let id = $0.id else { return nil }; return (id, $0) }, uniquingKeysWith: { first, _ in first })
         } else {
@@ -51,7 +51,7 @@ extension WorksAgendaView {
 
         // Use uniquingKeysWith to handle CloudKit sync duplicates
         if !neededStudentIDs.isEmpty {
-            let all: [Student] = viewContext.safeFetch(NSFetchRequest<CDStudent>(entityName: "Student"))
+            let all: [CDStudent] = viewContext.safeFetch(NSFetchRequest<CDStudent>(entityName: "Student"))
             let filtered = all.filter { neededStudentIDs.contains($0.id ?? UUID()) }
             // DEDUPLICATION: CloudKit sync can create duplicate records with the same ID.
             let visible = TestStudentsFilter.filterVisible(
@@ -66,7 +66,7 @@ extension WorksAgendaView {
 
     // MARK: - Data Helpers
 
-    func openWorksFiltered() -> [WorkModel] {
+    func openWorksFiltered() -> [CDWorkModel] {
         // Filter open work in memory (anything NOT .complete)
         var works = Array(openWork)
 
@@ -96,11 +96,11 @@ extension WorksAgendaView {
 
     func lessonTitle(forLessonID lessonID: String) -> String {
         let name = lessonsByID[uuidString: lessonID]?.name ?? ""
-        return LessonFormatter.titleOrFallback(name, fallback: "Lesson \(String(lessonID.prefix(6)))")
+        return LessonFormatter.titleOrFallback(name, fallback: "CDLesson \(String(lessonID.prefix(6)))")
     }
 
     #if os(macOS)
-    func makePrintItems(from works: [WorkModel]) -> [WorkPDFRenderer.PrintItem] {
+    func makePrintItems(from works: [CDWorkModel]) -> [WorkPDFRenderer.PrintItem] {
         works.map { w in
             let title = lessonTitle(forLessonID: w.lessonID)
             let student = (UUID(uuidString: w.studentID))
@@ -119,7 +119,7 @@ extension WorksAgendaView {
     }
     #endif
 
-    func statusLabel(for w: WorkModel) -> String {
+    func statusLabel(for w: CDWorkModel) -> String {
         switch w.status {
         case .active: return "Practice"
         case .review: return "Follow-Up"
@@ -127,13 +127,13 @@ extension WorksAgendaView {
         }
     }
 
-    func ageDays(for w: WorkModel) -> Int {
+    func ageDays(for w: CDWorkModel) -> Int {
         let start = AppCalendar.startOfDay(w.createdAt ?? Date())
         let end = AppCalendar.startOfDay(Date())
         return AppCalendar.shared.dateComponents([.day], from: start, to: end).day ?? 0
     }
 
-    func needsAttention(for w: WorkModel) -> Bool {
+    func needsAttention(for w: CDWorkModel) -> Bool {
         if let due = w.dueAt,
            AppCalendar.startOfDay(due) < AppCalendar.startOfDay(Date()) {
             return true

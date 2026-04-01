@@ -38,18 +38,18 @@ struct WorksLogView: View {
     // Pagination state
     @State private var pagination = PaginationState(pageSize: 50)
 
-    private var lessonsByID: [UUID: Lesson] {
+    private var lessonsByID: [UUID: CDLesson] {
         // Use uniquingKeysWith to handle CloudKit sync duplicates
         Dictionary(lessons.compactMap { l in l.id.map { ($0, l) } }, uniquingKeysWith: { first, _ in first })
     }
 
-    private var lessonAssignmentsByID: [UUID: LessonAssignment] {
+    private var lessonAssignmentsByID: [UUID: CDLessonAssignment] {
         // Use uniquingKeysWith to handle CloudKit sync duplicates
         Dictionary(lessonAssignments.compactMap { la in la.id.map { ($0, la) } }, uniquingKeysWith: { first, _ in first })
     }
 
     /// Filtered works based on current filter selections
-    private var filteredWorks: [WorkModel] {
+    private var filteredWorks: [CDWorkModel] {
         allWorks.filter { work in
             // Kind filter
             if let kind = selectedKind, work.kind != kind { return false }
@@ -57,7 +57,7 @@ struct WorksLogView: View {
             // Status filter
             if !selectedStatuses.isEmpty && !selectedStatuses.contains(work.status) { return false }
 
-            // Student filter (check participants)
+            // CDStudent filter (check participants)
             if !selectedStudentIDs.isEmpty {
                 let workStudentIDs = Set((work.participants as? Set<CDWorkParticipantEntity> ?? []).compactMap {
                     UUID(uuidString: $0.studentID)
@@ -78,24 +78,24 @@ struct WorksLogView: View {
     }
 
     /// Paginated works for display
-    private var displayedWorks: [WorkModel] {
+    private var displayedWorks: [CDWorkModel] {
         filteredWorks.paginated(using: pagination)
     }
 
-    private func linkedLessonAssignment(for work: WorkModel) -> LessonAssignment? {
+    private func linkedLessonAssignment(for work: CDWorkModel) -> CDLessonAssignment? {
         guard let idString = work.presentationID,
               let id = UUID(uuidString: idString) else { return nil }
         return lessonAssignmentsByID[id]
     }
 
-    private func linkedLesson(for work: WorkModel) -> Lesson? {
+    private func linkedLesson(for work: CDWorkModel) -> CDLesson? {
         guard let la = linkedLessonAssignment(for: work) else { return nil }
         // CloudKit compatibility: Convert String lessonID to UUID for lookup
         guard let lessonIDUUID = la.lessonIDUUID else { return nil }
         return lessonsByID[lessonIDUUID]
     }
 
-    private func workTitle(_ work: WorkModel) -> String {
+    private func workTitle(_ work: CDWorkModel) -> String {
         let title = work.title.trimmed()
         if !title.isEmpty { return title }
         let kindLabel = (work.kind ?? .research).shortLabel
@@ -103,7 +103,7 @@ struct WorksLogView: View {
         return kindLabel
     }
 
-    private func workSubtitle(_ work: WorkModel) -> String {
+    private func workSubtitle(_ work: CDWorkModel) -> String {
         let date: Date = {
             if let la = linkedLessonAssignment(for: work) {
                 return la.presentedAt ?? la.scheduledFor ?? la.createdAt ?? Date()
@@ -119,7 +119,7 @@ struct WorksLogView: View {
     }
 
     @ViewBuilder
-    private func workDetailSheetContent(for work: WorkModel) -> some View {
+    private func workDetailSheetContent(for work: CDWorkModel) -> some View {
         WorkDetailView(workID: work.id ?? UUID(), onDone: {
             selectedWork = nil
         })
@@ -159,7 +159,7 @@ struct WorksLogView: View {
         }
     }
 
-    private func displayName(for student: Student) -> String {
+    private func displayName(for student: CDStudent) -> String {
         let first = student.firstName.trimmed()
         let last = student.lastName.trimmed()
         let li = last.first.map { String($0).uppercased() } ?? ""
@@ -170,7 +170,7 @@ struct WorksLogView: View {
 
     private var filterBar: some View {
         HStack(spacing: 12) {
-            // Student Menu
+            // CDStudent Menu
             Menu {
                 Button("All Students") { selectedStudentIDs.removeAll() }
                 Divider()

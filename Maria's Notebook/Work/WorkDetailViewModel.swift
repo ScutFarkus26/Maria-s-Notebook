@@ -28,7 +28,7 @@ final class WorkDetailViewModel {
     var showPlannedBanner = false
     var showDeleteAlert = false
     var showAddStepSheet = false
-    var stepBeingEdited: WorkStep?
+    var stepBeingEdited: CDWorkStep?
     var showPracticeSessionSheet = false
     var showUnlockNextLessonAlert = false
     var nextLessonToUnlock: CDLesson?
@@ -190,7 +190,7 @@ final class WorkDetailViewModel {
             return
         }
 
-        // Find LessonAssignment for next lesson
+        // Find CDLessonAssignment for next lesson
         let nextLessonAssignment = relatedLessonAssignments.first { la in
             la.lessonIDUUID == nextLesson.id &&
             la.studentUUIDs.contains(studentID)
@@ -263,7 +263,7 @@ final class WorkDetailViewModel {
     }
     
     func lessonTitle() -> String {
-        relatedLesson?.name ?? "Unknown Lesson"
+        relatedLesson?.name ?? "Unknown CDLesson"
     }
     
     func categoryColor(_ category: String) -> Color {

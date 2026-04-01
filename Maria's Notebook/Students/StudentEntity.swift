@@ -17,9 +17,6 @@ public class CDStudent: NSManagedObject {
     @NSManaged public var dateWithdrawn: Date?
     @NSManaged public var modifiedAt: Date?
 
-    // MARK: - Relationships
-    @NSManaged public var documents: NSSet?
-
     // MARK: - Convenience Initializer
     @discardableResult
     convenience init(context: NSManagedObjectContext) {
@@ -71,20 +68,13 @@ extension CDStudent {
         get { nextLessonsArray.compactMap { UUID(uuidString: $0) } }
         set { nextLessonsArray = newValue.map(\.uuidString) }
     }
+
+    /// Cross-store inverse: fetches Documents whose studentID matches this student.
+    var documents: [CDDocument] {
+        guard let id, let ctx = managedObjectContext else { return [] }
+        let req = CDFetchRequest(CDDocument.self)
+        req.predicate = NSPredicate(format: "studentID == %@", id.uuidString)
+        return (try? ctx.fetch(req)) ?? []
+    }
 }
 
-// MARK: - Generated Accessors for To-Many Relationships
-
-extension CDStudent {
-    @objc(addDocumentsObject:)
-    @NSManaged public func addToDocuments(_ value: CDDocument)
-
-    @objc(removeDocumentsObject:)
-    @NSManaged public func removeFromDocuments(_ value: CDDocument)
-
-    @objc(addDocuments:)
-    @NSManaged public func addToDocuments(_ values: NSSet)
-
-    @objc(removeDocuments:)
-    @NSManaged public func removeFromDocuments(_ values: NSSet)
-}

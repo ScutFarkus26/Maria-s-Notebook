@@ -3,7 +3,7 @@
 
 import Foundation
 
-// MARK: - Lesson Data (lightweight struct for off-main-thread use)
+// MARK: - CDLesson Data (lightweight struct for off-main-thread use)
 
 struct LessonData: Sendable {
     let id: UUID
@@ -144,7 +144,7 @@ actor LocalCommandParser {
         return (nil, 0.0)
     }
 
-    // MARK: - Lesson Matching
+    // MARK: - CDLesson Matching
 
     private struct LessonMatchCandidate {
         let id: UUID

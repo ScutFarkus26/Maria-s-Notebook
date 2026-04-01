@@ -17,7 +17,7 @@ enum TodayWorkLoader {
         let overdueSchedule: [ScheduledWorkItem]
         let todaysSchedule: [ScheduledWorkItem]
         let staleFollowUps: [FollowUpWorkItem]
-        let workByID: [UUID: WorkModel]
+        let workByID: [UUID: CDWorkModel]
         let neededStudentIDs: Set<UUID>
         let neededLessonIDs: Set<UUID>
     }
@@ -50,7 +50,7 @@ enum TodayWorkLoader {
         day: Date,
         nextDay: Date,
         referenceDate: Date,
-        studentsByID: [UUID: Student],
+        studentsByID: [UUID: CDStudent],
         levelFilter: LevelFilter,
         context: NSManagedObjectContext
     ) -> WorkLoadResult {
@@ -64,7 +64,7 @@ enum TodayWorkLoader {
         }
 
         // Build work lookup
-        let workByID: [UUID: WorkModel] = fetchResult.workItems.reduce(into: [:]) { dict, work in
+        let workByID: [UUID: CDWorkModel] = fetchResult.workItems.reduce(into: [:]) { dict, work in
             guard let id = work.id else { return }
             dict[id] = work
         }
@@ -94,7 +94,7 @@ enum TodayWorkLoader {
 
     /// Result of loading completed work.
     struct CompletedWorkResult {
-        let completedWork: [WorkModel]
+        let completedWork: [CDWorkModel]
         let neededStudentIDs: Set<UUID>
     }
 

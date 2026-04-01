@@ -226,7 +226,7 @@ struct WorkDetailView: View {
                 .alert("Delete?", isPresented: $viewModel.showDeleteAlert) {
                     Button("Delete", role: .destructive) { deleteWork() }
                 }
-                .alert("Unlock Next Lesson?", isPresented: $viewModel.showUnlockNextLessonAlert) {
+                .alert("Unlock Next CDLesson?", isPresented: $viewModel.showUnlockNextLessonAlert) {
                     Button("Unlock") {
                         unlockNextLesson()
                     }

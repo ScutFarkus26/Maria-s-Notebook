@@ -129,12 +129,12 @@ extension TodayView {
         openLessonPlan(at: url)
     }
 
-    private func primaryLessonAttachment(for lesson: CDLesson) -> LessonAttachment? {
+    private func primaryLessonAttachment(for lesson: CDLesson) -> CDLessonAttachment? {
         guard let primaryID = lesson.primaryAttachmentIDUUID else { return nil }
         return LessonFileStorage.getAttachments(forLesson: lesson).first(where: { $0.id == primaryID })
     }
 
-    private func openLessonAttachment(_ attachment: LessonAttachment) {
+    private func openLessonAttachment(_ attachment: CDLessonAttachment) {
         if !attachment.fileRelativePath.isEmpty {
             do {
                 let url = try LessonFileStorage.resolve(relativePath: attachment.fileRelativePath)

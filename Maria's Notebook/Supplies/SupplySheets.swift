@@ -14,7 +14,7 @@ struct MarkAsOrderedSheet: View {
             Form {
                 Section {
                     HStack {
-                        Text("CDSupply")
+                        Text("Supply")
                         Spacer()
                         Text(supply.name)
                             .foregroundStyle(.secondary)
@@ -79,7 +79,7 @@ struct MarkAsReceivedSheet: View {
             Form {
                 Section {
                     HStack {
-                        Text("CDSupply")
+                        Text("Supply")
                         Spacer()
                         Text(supply.name)
                             .foregroundStyle(.secondary)

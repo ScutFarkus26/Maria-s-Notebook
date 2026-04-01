@@ -5,92 +5,13 @@ import Testing
 #endif
 
 #if canImport(Testing)
+
+// MARK: - Restore Preview Tests
+
 @available(macOS 14, iOS 17, *)
 @Suite("Restore Preview tests") final class RestorePreviewTests {
-    struct TestPayload: Codable {
-        var account: AccountDTO
-        var attachment: AttachmentDTO
-        var calendar: CalendarDTO
-        var calendarEvent: CalendarEventDTO
-        var contact: ContactDTO
-        var folder: FolderDTO
-        var mailMessage: MailMessageDTO
-        var tag: TagDTO
-        var task: TaskDTO
-        var taskList: TaskListDTO
-        var trashEntry: TrashEntryDTO
-        var vaultEntry: VaultEntryDTO
-        var vaultFolder: VaultFolderDTO
-    }
 
-    // Minimal DTOs with minimal valid fields
-    struct AccountDTO: Codable, Equatable, Identifiable {
-        var id: UUID
-        var email: String
-    }
-    struct AttachmentDTO: Codable, Equatable, Identifiable {
-        var id: UUID
-        var fileName: String
-    }
-    struct CalendarDTO: Codable, Equatable, Identifiable {
-        var id: UUID
-        var title: String
-    }
-    struct CalendarEventDTO: Codable, Equatable, Identifiable {
-        var id: UUID
-        var title: String
-    }
-    struct ContactDTO: Codable, Equatable, Identifiable {
-        var id: UUID
-        var name: String
-    }
-    struct FolderDTO: Codable, Equatable, Identifiable {
-        var id: UUID
-        var name: String
-    }
-    struct MailMessageDTO: Codable, Equatable, Identifiable {
-        var id: UUID
-        var subject: String
-    }
-    struct TagDTO: Codable, Equatable, Identifiable {
-        var id: UUID
-        var name: String
-    }
-    struct TaskDTO: Codable, Equatable, Identifiable {
-        var id: UUID
-        var title: String
-    }
-    struct TaskListDTO: Codable, Equatable, Identifiable {
-        var id: UUID
-        var name: String
-    }
-    struct TrashEntryDTO: Codable, Equatable, Identifiable {
-        var id: UUID
-        var reason: String
-    }
-    struct VaultEntryDTO: Codable, Equatable, Identifiable {
-        var id: UUID
-        var secret: String
-    }
-    struct VaultFolderDTO: Codable, Equatable, Identifiable {
-        var id: UUID
-        var label: String
-    }
-
-    struct RestoreManifest: Codable {
-        var version: Int
-        var date: Date
-        var checksum: String
-    }
-
-    struct RestoreEnvelope: Codable {
-        var manifest: RestoreManifest
-        var payload: TestPayload
-    }
-
-    enum MergeMode {
-        case merge, replace
-    }
+    // MARK: - Helpers
 
     struct PreviewStats {
         var inserts: Int
@@ -98,200 +19,577 @@ import Testing
         var skips: Int
     }
 
-    // Stubbed store interface for test
+    enum MergeMode {
+        case merge, replace
+    }
+
     final class Store {
         private var data = [String: Set<UUID>]()
 
-        func clear() {
-            data.removeAll()
+        func clear() { data.removeAll() }
+
+        func seed(entityName: String, ids: [UUID]) {
+            data[entityName] = Set(ids)
         }
 
-        func seed<Entity: Equatable & Identifiable>(type: Entity.Type, ids: [UUID]) {
-            let key = String(describing: type)
-            data[key] = Set(ids)
-        }
-
-        func count<Entity>(for type: Entity.Type) -> Int {
-            let key = String(describing: type)
-            return data[key]?.count ?? 0
-        }
-
-        func previewImport(payload: TestPayload, mode: MergeMode) -> [String: PreviewStats] {
+        func previewImport(entities: [String: Set<UUID>], mode: MergeMode) -> [String: PreviewStats] {
             var result: [String: PreviewStats] = [:]
-
-            func calcStats(entityName: String, payloadIds: Set<UUID>) -> PreviewStats {
-                let storeIds = data[entityName] ?? []
+            for (name, payloadIds) in entities {
+                let storeIds = data[name] ?? []
                 switch mode {
                 case .merge:
-                    let inserts = payloadIds.subtracting(storeIds).count
-                    let deletes = 0
-                    let skips = payloadIds.intersection(storeIds).count
-                    return PreviewStats(inserts: inserts, deletes: deletes, skips: skips)
+                    result[name] = PreviewStats(
+                        inserts: payloadIds.subtracting(storeIds).count,
+                        deletes: 0,
+                        skips: payloadIds.intersection(storeIds).count
+                    )
                 case .replace:
-                    let deletes = storeIds.subtracting(payloadIds).count
-                    let inserts = payloadIds.subtracting(storeIds).count
-                    let skips = payloadIds.intersection(storeIds).count
-                    return PreviewStats(inserts: inserts, deletes: deletes, skips: skips)
+                    result[name] = PreviewStats(
+                        inserts: payloadIds.subtracting(storeIds).count,
+                        deletes: storeIds.subtracting(payloadIds).count,
+                        skips: payloadIds.intersection(storeIds).count
+                    )
                 }
             }
-
-            result["Account"] = calcStats(entityName: "AccountDTO", payloadIds: [payload.account.id])
-            result["Attachment"] = calcStats(entityName: "AttachmentDTO", payloadIds: [payload.attachment.id])
-            result["Calendar"] = calcStats(entityName: "CalendarDTO", payloadIds: [payload.calendar.id])
-            result["CDCalendarEvent"] = calcStats(entityName: "CalendarEventDTO", payloadIds: [payload.calendarEvent.id])
-            result["Contact"] = calcStats(entityName: "ContactDTO", payloadIds: [payload.contact.id])
-            result["Folder"] = calcStats(entityName: "FolderDTO", payloadIds: [payload.folder.id])
-            result["MailMessage"] = calcStats(entityName: "MailMessageDTO", payloadIds: [payload.mailMessage.id])
-            result["Tag"] = calcStats(entityName: "TagDTO", payloadIds: [payload.tag.id])
-            result["Task"] = calcStats(entityName: "TaskDTO", payloadIds: [payload.task.id])
-            result["TaskList"] = calcStats(entityName: "TaskListDTO", payloadIds: [payload.taskList.id])
-            result["TrashEntry"] = calcStats(entityName: "TrashEntryDTO", payloadIds: [payload.trashEntry.id])
-            result["VaultEntry"] = calcStats(entityName: "VaultEntryDTO", payloadIds: [payload.vaultEntry.id])
-            result["VaultFolder"] = calcStats(entityName: "VaultFolderDTO", payloadIds: [payload.vaultFolder.id])
-
             return result
         }
 
-        func importBackup(payload: TestPayload, mode: MergeMode) {
-            func updateStore(entityName: String, ids: Set<UUID>) {
+        func importEntities(_ entities: [String: Set<UUID>], mode: MergeMode) {
+            for (name, ids) in entities {
                 switch mode {
                 case .merge:
-                    let oldIds = data[entityName] ?? []
-                    data[entityName] = oldIds.union(ids)
+                    data[name] = (data[name] ?? []).union(ids)
                 case .replace:
-                    data[entityName] = ids
+                    data[name] = ids
                 }
             }
-            updateStore(entityName: "AccountDTO", ids: [payload.account.id])
-            updateStore(entityName: "AttachmentDTO", ids: [payload.attachment.id])
-            updateStore(entityName: "CalendarDTO", ids: [payload.calendar.id])
-            updateStore(entityName: "CalendarEventDTO", ids: [payload.calendarEvent.id])
-            updateStore(entityName: "ContactDTO", ids: [payload.contact.id])
-            updateStore(entityName: "FolderDTO", ids: [payload.folder.id])
-            updateStore(entityName: "MailMessageDTO", ids: [payload.mailMessage.id])
-            updateStore(entityName: "TagDTO", ids: [payload.tag.id])
-            updateStore(entityName: "TaskDTO", ids: [payload.task.id])
-            updateStore(entityName: "TaskListDTO", ids: [payload.taskList.id])
-            updateStore(entityName: "TrashEntryDTO", ids: [payload.trashEntry.id])
-            updateStore(entityName: "VaultEntryDTO", ids: [payload.vaultEntry.id])
-            updateStore(entityName: "VaultFolderDTO", ids: [payload.vaultFolder.id])
         }
     }
 
-    func makeMinimalPayload() -> TestPayload {
-        TestPayload(
-            account: AccountDTO(id: UUID(), email: "a@b.com"),
-            attachment: AttachmentDTO(id: UUID(), fileName: "file.txt"),
-            calendar: CalendarDTO(id: UUID(), title: "cal"),
-            calendarEvent: CalendarEventDTO(id: UUID(), title: "event"),
-            contact: ContactDTO(id: UUID(), name: "contact"),
-            folder: FolderDTO(id: UUID(), name: "folder"),
-            mailMessage: MailMessageDTO(id: UUID(), subject: "subject"),
-            tag: TagDTO(id: UUID(), name: "tag"),
-            task: TaskDTO(id: UUID(), title: "task"),
-            taskList: TaskListDTO(id: UUID(), name: "list"),
-            trashEntry: TrashEntryDTO(id: UUID(), reason: "reason"),
-            vaultEntry: VaultEntryDTO(id: UUID(), secret: "secret"),
-            vaultFolder: VaultFolderDTO(id: UUID(), label: "label")
+    // Build a minimal BackupPayload with one student and one lesson
+    func makeMinimalPayload() -> BackupPayload {
+        let studentID = UUID()
+        let lessonID = UUID()
+        return BackupPayload(
+            items: [],
+            students: [
+                StudentDTO(
+                    id: studentID, firstName: "Ada", lastName: "Lovelace",
+                    birthday: Date(timeIntervalSince1970: 0), dateStarted: nil,
+                    level: .upper, nextLessons: [], manualOrder: 0
+                )
+            ],
+            lessons: [
+                LessonDTO(
+                    id: lessonID, name: "Binomial Cube", subject: "Sensorial",
+                    group: "Visual Sense", orderInGroup: 1, subheading: "",
+                    writeUp: ""
+                )
+            ],
+            lessonAssignments: [],
+            notes: [
+                NoteDTO(
+                    id: UUID(), createdAt: Date(), updatedAt: Date(),
+                    body: "Observation note", isPinned: false, scope: "{}"
+                )
+            ],
+            nonSchoolDays: [],
+            schoolDayOverrides: [],
+            studentMeetings: [],
+            communityTopics: [],
+            proposedSolutions: [],
+            communityAttachments: [],
+            attendance: [],
+            workCompletions: [],
+            projects: [],
+            projectAssignmentTemplates: [],
+            projectSessions: [],
+            projectRoles: [],
+            projectTemplateWeeks: [],
+            projectWeekRoleAssignments: [],
+            preferences: PreferencesDTO(values: [:])
         )
     }
 
-    func makeManifest(payload: TestPayload) -> RestoreManifest {
-        let encoder = JSONEncoder()
-        encoder.dateEncodingStrategy = .iso8601
-        // Encoding should always succeed for valid payloads, but handle gracefully
-        guard let data = try? encoder.encode(payload) else {
-            // Return manifest with empty checksum if encoding fails (test will fail appropriately)
-            return RestoreManifest(version: 1, date: Date(), checksum: "")
-        }
-        let digest = SHA256.hash(data: data)
-        let checksum = digest.compactMap { String(format: "%02x", $0) }.joined()
-        return RestoreManifest(version: 1, date: Date(), checksum: checksum)
+    func entityMap(from payload: BackupPayload) -> [String: Set<UUID>] {
+        var map: [String: Set<UUID>] = [:]
+        map["Student"] = Set(payload.students.map(\.id))
+        map["Lesson"] = Set(payload.lessons.map(\.id))
+        map["Note"] = Set(payload.notes.map(\.id))
+        return map
     }
 
-    func writeEnvelopeToDisk(envelope: RestoreEnvelope) throws -> URL {
-        let encoder = JSONEncoder()
-        encoder.dateEncodingStrategy = .iso8601
-        let data = try encoder.encode(envelope)
-        let tmp = FileManager.default.temporaryDirectory
-        let fileURL = tmp.appendingPathComponent("restore-envelope-\(UUID().uuidString).json")
-        try data.write(to: fileURL)
-        return fileURL
-    }
+    // MARK: - Preview Tests
 
-    @Test("preview and import with merge mode on empty store")
-    func testPreviewAndImportMergeMode() throws {
+    @Test("merge mode on empty store inserts all entities")
+    func testMergeModeEmptyStore() {
         let store = Store()
-        store.clear()
+        let payload = makeMinimalPayload()
+        let entities = entityMap(from: payload)
+
+        let preview = store.previewImport(entities: entities, mode: .merge)
+
+        #expect(preview["Student"]?.inserts == 1)
+        #expect(preview["Student"]?.deletes == 0)
+        #expect(preview["Lesson"]?.inserts == 1)
+        #expect(preview["Note"]?.inserts == 1)
+    }
+
+    @Test("merge mode after import skips duplicate entities")
+    func testMergeModeSkipsDuplicates() {
+        let store = Store()
+        let payload = makeMinimalPayload()
+        let entities = entityMap(from: payload)
+
+        store.importEntities(entities, mode: .merge)
+        let preview = store.previewImport(entities: entities, mode: .merge)
+
+        #expect(preview["Student"]?.inserts == 0)
+        #expect(preview["Student"]?.skips == 1)
+        #expect(preview["Lesson"]?.skips == 1)
+    }
+
+    @Test("replace mode deletes existing and inserts new entities")
+    func testReplaceModeDeletesAndInserts() {
+        let store = Store()
+        store.seed(entityName: "Student", ids: [UUID()])
+        store.seed(entityName: "Lesson", ids: [UUID()])
 
         let payload = makeMinimalPayload()
-        let manifest = makeManifest(payload: payload)
-        let envelope = RestoreEnvelope(manifest: manifest, payload: payload)
-        _ = try writeEnvelopeToDisk(envelope: envelope)
+        let entities = entityMap(from: payload)
 
-        // Preview import in merge mode on empty store: expect inserts = 1 each, deletes = 0
-        let preview1 = store.previewImport(payload: payload, mode: .merge)
-        for (entity, stats) in preview1 {
-            #expect(stats.inserts) == 1
-            #expect(stats.deletes) == 0
-        }
+        let preview = store.previewImport(entities: entities, mode: .replace)
 
-        // Perform import merge mode
-        store.importBackup(payload: payload, mode: .merge)
+        #expect(preview["Student"]?.deletes == 1)
+        #expect(preview["Student"]?.inserts == 1)
+        #expect(preview["Lesson"]?.deletes == 1)
+        #expect(preview["Lesson"]?.inserts == 1)
+    }
+}
 
-        // Preview import second time in merge mode: expect inserts = 0, skips = 1
-        let preview2 = store.previewImport(payload: payload, mode: .merge)
-        for (entity, stats) in preview2 {
-            #expect(stats.inserts) == 0
-            #expect(stats.skips) == 1
+// MARK: - Payload Round-Trip Tests
+
+@available(macOS 14, iOS 17, *)
+@Suite("Payload round-trip tests") final class PayloadRoundTripTests {
+
+    func makeTestPayload() -> BackupPayload {
+        let studentID = UUID()
+        let lessonID = UUID()
+        let noteID = UUID()
+
+        return BackupPayload(
+            items: [],
+            students: [
+                StudentDTO(
+                    id: studentID, firstName: "Maria", lastName: "Montessori",
+                    birthday: Date(timeIntervalSince1970: -2_524_608_000),
+                    dateStarted: Date(timeIntervalSince1970: 1_704_067_200),
+                    level: .lower, nextLessons: [lessonID], manualOrder: 1
+                )
+            ],
+            lessons: [
+                LessonDTO(
+                    id: lessonID, name: "Pink Tower", subject: "Sensorial",
+                    group: "Visual Sense", orderInGroup: 1, subheading: "Extension 1",
+                    writeUp: "The child builds a tower from largest to smallest cube.",
+                    materials: "10 pink cubes", purpose: "Visual discrimination of size"
+                )
+            ],
+            lessonAssignments: [],
+            notes: [
+                NoteDTO(
+                    id: noteID, createdAt: Date(), updatedAt: Date(),
+                    body: "Student showed great concentration", isPinned: true,
+                    scope: "{\"student\":\"" + studentID.uuidString + "\"}"
+                )
+            ],
+            nonSchoolDays: [],
+            schoolDayOverrides: [],
+            studentMeetings: [],
+            communityTopics: [],
+            proposedSolutions: [],
+            communityAttachments: [],
+            attendance: [],
+            workCompletions: [],
+            projects: [],
+            projectAssignmentTemplates: [],
+            projectSessions: [],
+            projectRoles: [],
+            projectTemplateWeeks: [],
+            projectWeekRoleAssignments: [],
+            preferences: PreferencesDTO(values: [
+                "schoolName": .string("Casa dei Bambini"),
+                "showWeekends": .bool(false),
+                "maxStudents": .int(30)
+            ])
+        )
+    }
+
+    @Test("payload survives JSON encode → decode round-trip")
+    func testPayloadRoundTrip() throws {
+        let original = makeTestPayload()
+
+        let encoder = JSONEncoder()
+        encoder.dateEncodingStrategy = .iso8601
+        encoder.outputFormatting = .sortedKeys
+        let data = try encoder.encode(original)
+
+        let decoder = JSONDecoder()
+        decoder.dateDecodingStrategy = .iso8601
+        let decoded = try decoder.decode(BackupPayload.self, from: data)
+
+        #expect(decoded.students.count == original.students.count)
+        #expect(decoded.students.first?.id == original.students.first?.id)
+        #expect(decoded.students.first?.firstName == "Maria")
+        #expect(decoded.students.first?.level == .lower)
+
+        #expect(decoded.lessons.count == original.lessons.count)
+        #expect(decoded.lessons.first?.name == "Pink Tower")
+        #expect(decoded.lessons.first?.materials == "10 pink cubes")
+
+        #expect(decoded.notes.count == original.notes.count)
+        #expect(decoded.notes.first?.isPinned == true)
+
+        #expect(decoded.preferences.values["schoolName"] == .string("Casa dei Bambini"))
+        #expect(decoded.preferences.values["showWeekends"] == .bool(false))
+        #expect(decoded.preferences.values["maxStudents"] == .int(30))
+    }
+
+    @Test("checksum is stable across encode cycles (deterministic JSON)")
+    func testDeterministicChecksum() throws {
+        let payload = makeTestPayload()
+        let encoder = JSONEncoder()
+        encoder.dateEncodingStrategy = .iso8601
+        encoder.outputFormatting = .sortedKeys
+
+        let data1 = try encoder.encode(payload)
+        let data2 = try encoder.encode(payload)
+
+        let hash1 = SHA256.hash(data: data1).compactMap { String(format: "%02x", $0) }.joined()
+        let hash2 = SHA256.hash(data: data2).compactMap { String(format: "%02x", $0) }.joined()
+
+        #expect(hash1 == hash2)
+    }
+
+    @Test("envelope round-trip preserves metadata and payload")
+    func testEnvelopeRoundTrip() throws {
+        let payload = makeTestPayload()
+
+        let encoder = JSONEncoder()
+        encoder.dateEncodingStrategy = .iso8601
+        encoder.outputFormatting = .sortedKeys
+        let payloadData = try encoder.encode(payload)
+        let sha = SHA256.hash(data: payloadData).compactMap { String(format: "%02x", $0) }.joined()
+
+        let envelope = BackupEnvelope(
+            formatVersion: BackupFile.formatVersion,
+            createdAt: Date(),
+            appBuild: "100",
+            appVersion: "2.0.0",
+            device: "iPhone 15",
+            manifest: BackupManifest(
+                entityCounts: [
+                    "Student": payload.students.count,
+                    "Lesson": payload.lessons.count,
+                    "Note": payload.notes.count
+                ],
+                sha256: sha
+            ),
+            payload: payload
+        )
+
+        let envelopeData = try encoder.encode(envelope)
+
+        let decoder = JSONDecoder()
+        decoder.dateDecodingStrategy = .iso8601
+        let decoded = try decoder.decode(BackupEnvelope.self, from: envelopeData)
+
+        #expect(decoded.formatVersion == BackupFile.formatVersion)
+        #expect(decoded.appVersion == "2.0.0")
+        #expect(decoded.manifest.sha256 == sha)
+        #expect(decoded.manifest.entityCounts["Student"] == 1)
+        #expect(decoded.payload?.students.first?.firstName == "Maria")
+    }
+
+    @Test("older format payloads decode with nil optional arrays")
+    func testOlderFormatDecodes() throws {
+        // Simulate a v5 payload — only core fields, no optional arrays
+        let payload = makeTestPayload()
+        let encoder = JSONEncoder()
+        encoder.dateEncodingStrategy = .iso8601
+        encoder.outputFormatting = .sortedKeys
+        let data = try encoder.encode(payload)
+
+        // Verify optional v8+ fields are nil when not present
+        let decoder = JSONDecoder()
+        decoder.dateDecodingStrategy = .iso8601
+        let decoded = try decoder.decode(BackupPayload.self, from: data)
+
+        #expect(decoded.workModels == nil)
+        #expect(decoded.workCheckIns == nil)
+        #expect(decoded.tracks == nil)
+        #expect(decoded.goingOuts == nil)
+        #expect(decoded.classroomMemberships == nil)
+        #expect(decoded.planningRecommendations == nil)
+        #expect(decoded.resources == nil)
+
+        // Core fields should still be present
+        #expect(decoded.students.count == 1)
+        #expect(decoded.lessons.count == 1)
+    }
+}
+
+// MARK: - Version Compatibility Tests
+
+@available(macOS 14, iOS 17, *)
+@Suite("Backup version compatibility tests") final class VersionCompatibilityTests {
+
+    @Test("current version is compatible")
+    func testCurrentVersionCompatible() {
+        let result = BackupMigrationManifest.isCompatible(version: BackupFile.formatVersion)
+        #expect(result.isCompatible)
+    }
+
+    @Test("minimum supported version is compatible")
+    func testMinimumVersionCompatible() {
+        let result = BackupMigrationManifest.isCompatible(version: 5)
+        #expect(result.isCompatible)
+    }
+
+    @Test("all versions v5 through v13 are compatible")
+    func testAllSupportedVersionsCompatible() {
+        for version in 5...BackupFile.formatVersion {
+            let result = BackupMigrationManifest.isCompatible(version: version)
+            #expect(result.isCompatible, "Version \(version) should be compatible")
         }
     }
 
-    @Test("replace mode deletes current and inserts payload counts")
-    func testReplaceModeDeletesAndInserts() throws {
-        let store = Store()
-        store.clear()
+    @Test("version below minimum is invalid")
+    func testOldVersionInvalid() {
+        let result = BackupMigrationManifest.isCompatible(version: 4)
+        #expect(!result.isCompatible)
+    }
 
-        // Seed store with one id per entity
-        let existingUUIDs = (0..<1).map { _ in UUID() }
-        store.seed(type: AccountDTO.self, ids: existingUUIDs)
-        store.seed(type: AttachmentDTO.self, ids: existingUUIDs)
-        store.seed(type: CalendarDTO.self, ids: existingUUIDs)
-        store.seed(type: CalendarEventDTO.self, ids: existingUUIDs)
-        store.seed(type: ContactDTO.self, ids: existingUUIDs)
-        store.seed(type: FolderDTO.self, ids: existingUUIDs)
-        store.seed(type: MailMessageDTO.self, ids: existingUUIDs)
-        store.seed(type: TagDTO.self, ids: existingUUIDs)
-        store.seed(type: TaskDTO.self, ids: existingUUIDs)
-        store.seed(type: TaskListDTO.self, ids: existingUUIDs)
-        store.seed(type: TrashEntryDTO.self, ids: existingUUIDs)
-        store.seed(type: VaultEntryDTO.self, ids: existingUUIDs)
-        store.seed(type: VaultFolderDTO.self, ids: existingUUIDs)
+    @Test("future version is detected")
+    func testFutureVersionDetected() {
+        let future = BackupFile.formatVersion + 1
+        let result = BackupMigrationManifest.isCompatible(version: future)
+        if case .futureVersion(let v) = result {
+            #expect(v == future)
+        } else {
+            #expect(Bool(false), "Expected futureVersion case")
+        }
+    }
 
-        // Create payload with different UUIDs (new)
-        func newUUID() -> UUID { UUID() }
-        let payload = TestPayload(
-            account: AccountDTO(id: newUUID(), email: "new@b.com"),
-            attachment: AttachmentDTO(id: newUUID(), fileName: "newfile.txt"),
-            calendar: CalendarDTO(id: newUUID(), title: "newcal"),
-            calendarEvent: CalendarEventDTO(id: newUUID(), title: "newevent"),
-            contact: ContactDTO(id: newUUID(), name: "newcontact"),
-            folder: FolderDTO(id: newUUID(), name: "newfolder"),
-            mailMessage: MailMessageDTO(id: newUUID(), subject: "newsubject"),
-            tag: TagDTO(id: newUUID(), name: "newtag"),
-            task: TaskDTO(id: newUUID(), title: "newtask"),
-            taskList: TaskListDTO(id: newUUID(), name: "newlist"),
-            trashEntry: TrashEntryDTO(id: newUUID(), reason: "newreason"),
-            vaultEntry: VaultEntryDTO(id: newUUID(), secret: "newsecret"),
-            vaultFolder: VaultFolderDTO(id: newUUID(), label: "newlabel")
-        )
+    @Test("version history covers all documented versions")
+    func testVersionHistoryCompleteness() {
+        let documented = Set(BackupMigrationManifest.versionHistory.map(\.version))
+        // Must include minimum and current
+        #expect(documented.contains(BackupMigrationManifest.minimumSupportedVersion))
+        #expect(documented.contains(BackupFile.formatVersion))
+    }
 
-        // Preview import in replace mode: deletes = 1, inserts = 1 each entity
-        let preview = store.previewImport(payload: payload, mode: .replace)
-        for (entity, stats) in preview {
-            #expect(stats.deletes) == 1
-            #expect(stats.inserts) == 1
+    @Test("migration service reports compatibleWithMigration for older versions")
+    func testMigrationServiceCompatibility() async {
+        let service = await BackupMigrationService()
+        let result = await service.isCompatible(backupVersion: 5)
+        #expect(result.canRestore)
+
+        let currentResult = await service.isCompatible(backupVersion: BackupFile.formatVersion)
+        if case .fullyCompatible = currentResult {
+            // expected
+        } else {
+            #expect(Bool(false), "Current version should be fullyCompatible")
         }
     }
 }
+
+// MARK: - Envelope Codec Tests
+
+@available(macOS 14, iOS 17, *)
+@Suite("Envelope codec tests") final class EnvelopeCodecTests {
+
+    @Test("inline payload envelope (v5 style) can be decoded")
+    func testInlinePayloadDecode() throws {
+        let payload = BackupPayload(
+            items: [],
+            students: [
+                StudentDTO(
+                    id: UUID(), firstName: "Test", lastName: "Student",
+                    birthday: Date(), dateStarted: nil,
+                    level: .lower, nextLessons: [], manualOrder: 0
+                )
+            ],
+            lessons: [],
+            lessonAssignments: [],
+            notes: [],
+            nonSchoolDays: [],
+            schoolDayOverrides: [],
+            studentMeetings: [],
+            communityTopics: [],
+            proposedSolutions: [],
+            communityAttachments: [],
+            attendance: [],
+            workCompletions: [],
+            projects: [],
+            projectAssignmentTemplates: [],
+            projectSessions: [],
+            projectRoles: [],
+            projectTemplateWeeks: [],
+            projectWeekRoleAssignments: [],
+            preferences: PreferencesDTO(values: [:])
+        )
+
+        // Build a v5-style envelope with inline payload (no compression)
+        let envelope = BackupEnvelope(
+            formatVersion: 5,
+            createdAt: Date(),
+            appBuild: "50",
+            appVersion: "1.0.0",
+            device: "iPad",
+            manifest: BackupManifest(
+                entityCounts: ["Student": 1],
+                sha256: ""
+            ),
+            payload: payload
+        )
+
+        let encoder = JSONEncoder()
+        encoder.dateEncodingStrategy = .iso8601
+        encoder.outputFormatting = .sortedKeys
+        let data = try encoder.encode(envelope)
+
+        let decoder = JSONDecoder()
+        decoder.dateDecodingStrategy = .iso8601
+        let decoded = try decoder.decode(BackupEnvelope.self, from: data)
+
+        #expect(decoded.formatVersion == 5)
+        #expect(decoded.payload != nil)
+        #expect(decoded.payload?.students.count == 1)
+        #expect(decoded.compressedPayload == nil)
+        #expect(decoded.encryptedPayload == nil)
+    }
+
+    @Test("manifest checksum matches payload data")
+    func testManifestChecksumMatches() throws {
+        let payload = BackupPayload(
+            items: [],
+            students: [
+                StudentDTO(
+                    id: UUID(), firstName: "Check", lastName: "Sum",
+                    birthday: Date(), dateStarted: nil,
+                    level: .upper, nextLessons: [], manualOrder: 0
+                )
+            ],
+            lessons: [],
+            lessonAssignments: [],
+            notes: [],
+            nonSchoolDays: [],
+            schoolDayOverrides: [],
+            studentMeetings: [],
+            communityTopics: [],
+            proposedSolutions: [],
+            communityAttachments: [],
+            attendance: [],
+            workCompletions: [],
+            projects: [],
+            projectAssignmentTemplates: [],
+            projectSessions: [],
+            projectRoles: [],
+            projectTemplateWeeks: [],
+            projectWeekRoleAssignments: [],
+            preferences: PreferencesDTO(values: [:])
+        )
+
+        let encoder = JSONEncoder()
+        encoder.dateEncodingStrategy = .iso8601
+        encoder.outputFormatting = .sortedKeys
+        let payloadData = try encoder.encode(payload)
+        let expectedSHA = SHA256.hash(data: payloadData)
+            .compactMap { String(format: "%02x", $0) }.joined()
+
+        let manifest = BackupManifest(
+            entityCounts: ["Student": 1],
+            sha256: expectedSHA
+        )
+
+        // Re-encode and verify the checksum still matches
+        let payloadData2 = try encoder.encode(payload)
+        let actualSHA = SHA256.hash(data: payloadData2)
+            .compactMap { String(format: "%02x", $0) }.joined()
+
+        #expect(manifest.sha256 == actualSHA)
+    }
+
+    @Test("file writes to disk and reads back identically")
+    func testDiskRoundTrip() throws {
+        let payload = BackupPayload(
+            items: [],
+            students: [
+                StudentDTO(
+                    id: UUID(), firstName: "Disk", lastName: "Test",
+                    birthday: Date(), dateStarted: nil,
+                    level: .lower, nextLessons: [], manualOrder: 0
+                )
+            ],
+            lessons: [],
+            lessonAssignments: [],
+            notes: [],
+            nonSchoolDays: [],
+            schoolDayOverrides: [],
+            studentMeetings: [],
+            communityTopics: [],
+            proposedSolutions: [],
+            communityAttachments: [],
+            attendance: [],
+            workCompletions: [],
+            projects: [],
+            projectAssignmentTemplates: [],
+            projectSessions: [],
+            projectRoles: [],
+            projectTemplateWeeks: [],
+            projectWeekRoleAssignments: [],
+            preferences: PreferencesDTO(values: ["key": .string("value")])
+        )
+
+        let encoder = JSONEncoder()
+        encoder.dateEncodingStrategy = .iso8601
+        encoder.outputFormatting = .sortedKeys
+        let payloadData = try encoder.encode(payload)
+        let sha = SHA256.hash(data: payloadData)
+            .compactMap { String(format: "%02x", $0) }.joined()
+
+        let envelope = BackupEnvelope(
+            formatVersion: BackupFile.formatVersion,
+            createdAt: Date(),
+            appBuild: "100",
+            appVersion: "2.0.0",
+            device: "Test",
+            manifest: BackupManifest(
+                entityCounts: ["Student": 1],
+                sha256: sha
+            ),
+            payload: payload
+        )
+
+        let envelopeData = try encoder.encode(envelope)
+
+        // Write to temp file
+        let tmpDir = FileManager.default.temporaryDirectory
+        let fileURL = tmpDir.appendingPathComponent("test-backup-\(UUID().uuidString).json")
+        try envelopeData.write(to: fileURL)
+        defer { try? FileManager.default.removeItem(at: fileURL) }
+
+        // Read back
+        let readData = try Data(contentsOf: fileURL)
+        let decoder = JSONDecoder()
+        decoder.dateDecodingStrategy = .iso8601
+        let readEnvelope = try decoder.decode(BackupEnvelope.self, from: readData)
+
+        #expect(readEnvelope.manifest.sha256 == sha)
+        #expect(readEnvelope.payload?.students.first?.firstName == "Disk")
+        #expect(readEnvelope.payload?.preferences.values["key"] == .string("value"))
+    }
+}
+
 #endif

@@ -94,9 +94,9 @@ final class CommandBarViewModel {
             let lessonID = command.lessonID ?? UUID()
             let draft = PresentationFactory.makeDraft(
                 lessonID: lessonID,
-                studentIDs: command.studentIDs
+                studentIDs: command.studentIDs,
+                context: modelContext
             )
-            modelContext.insert(draft)
             do {
                 try modelContext.save()
             } catch {
@@ -133,7 +133,7 @@ final class CommandBarViewModel {
     static let exampleCommands = [
         "I gave the binomial cube to Sarah",
         "Assign stamp game work to James",
-        "Note: Marco was really focused on the continent maps today",
+        "CDNote: Marco was really focused on the continent maps today",
         "Remind me to call Lily's parents tomorrow"
     ]
 }

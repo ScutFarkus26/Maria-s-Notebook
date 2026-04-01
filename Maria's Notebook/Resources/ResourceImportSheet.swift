@@ -132,7 +132,7 @@ struct ResourceImportSheet: View {
                     }
                 }
             }
-            .navigationTitle("Add Resource")
+            .navigationTitle("Add CDResource")
             .inlineNavigationTitle()
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {

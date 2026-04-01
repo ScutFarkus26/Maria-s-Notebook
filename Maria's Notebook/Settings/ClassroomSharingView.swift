@@ -186,6 +186,12 @@ struct ClassroomSharingView: View {
                 VStack(spacing: 8) {
                     if svc.canManageSharing() {
                         leadGuideActions
+                        NavigationLink {
+                            AssistantPermissionsView()
+                        } label: {
+                            Label("Assistant Permissions", systemImage: "lock.shield")
+                                .frame(maxWidth: .infinity, alignment: .leading)
+                        }
                     } else {
                         assistantActions
                     }

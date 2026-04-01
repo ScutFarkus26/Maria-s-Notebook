@@ -7,7 +7,7 @@ import OSLog
 enum BatchOperationService {
     private static let logger = Logger.app(category: "BatchOperations")
 
-    // MARK: - Batch Note Operations
+    // MARK: - Batch CDNote Operations
 
     /// Add a tag to all notes within a date range.
     @discardableResult
@@ -108,7 +108,7 @@ enum BatchOperationService {
         return count
     }
 
-    // MARK: - Batch Lesson Assignment Operations
+    // MARK: - Batch CDLesson Assignment Operations
 
     /// Create draft lesson assignments for multiple student-lesson pairs.
     @discardableResult

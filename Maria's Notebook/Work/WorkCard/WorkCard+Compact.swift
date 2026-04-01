@@ -65,7 +65,7 @@ private struct ParticipantChipView: View {
 #Preview {
     let stack = CoreDataStack.preview
     let ctx = stack.viewContext
-    let work = WorkModel(context: ctx)
+    let work = CDWorkModel(context: ctx)
     work.status = .active; work.studentID = UUID().uuidString; work.lessonID = UUID().uuidString
 
     return WorkCard.compact(

@@ -167,11 +167,11 @@ public final class StreamingBackupWriter {
         let communityTopics: [CDCommunityTopicEntity] = try await streamFetchRaw(CDCommunityTopicEntity.self, from: viewContext)
         collector.payload.communityTopics = BackupDTOTransformers.toDTOs(communityTopics)
 
-        let proposedSolutions: [ProposedSolution] = try await streamFetchRaw(ProposedSolution.self, from: viewContext)
+        let proposedSolutions: [CDProposedSolutionEntity] = try await streamFetchRaw(CDProposedSolutionEntity.self, from: viewContext)
         collector.payload.proposedSolutions = BackupDTOTransformers.toDTOs(proposedSolutions)
 
-        let communityAttachments: [CommunityAttachment] = try await streamFetchRaw(
-            CommunityAttachment.self, from: viewContext
+        let communityAttachments: [CDCommunityAttachmentEntity] = try await streamFetchRaw(
+            CDCommunityAttachmentEntity.self, from: viewContext
         )
         collector.payload.communityAttachments = BackupDTOTransformers.toDTOs(communityAttachments)
 
@@ -186,22 +186,22 @@ public final class StreamingBackupWriter {
         let projects: [CDProject] = try await streamFetchRaw(CDProject.self, from: viewContext)
         collector.payload.projects = BackupDTOTransformers.toDTOs(projects)
 
-        let projectTemplates: [ProjectAssignmentTemplate] = try await streamFetchRaw(
-            ProjectAssignmentTemplate.self, from: viewContext
+        let projectTemplates: [CDProjectAssignmentTemplate] = try await streamFetchRaw(
+            CDProjectAssignmentTemplate.self, from: viewContext
         )
         collector.payload.projectAssignmentTemplates = BackupDTOTransformers.toDTOs(projectTemplates)
 
         let projectSessions: [CDProjectSession] = try await streamFetchRaw(CDProjectSession.self, from: viewContext)
         collector.payload.projectSessions = BackupDTOTransformers.toDTOs(projectSessions)
 
-        let projectRoles: [ProjectRole] = try await streamFetchRaw(ProjectRole.self, from: viewContext)
+        let projectRoles: [CDProjectRole] = try await streamFetchRaw(CDProjectRole.self, from: viewContext)
         collector.payload.projectRoles = BackupDTOTransformers.toDTOs(projectRoles)
 
-        let projectWeeks: [ProjectTemplateWeek] = try await streamFetchRaw(ProjectTemplateWeek.self, from: viewContext)
+        let projectWeeks: [CDProjectTemplateWeek] = try await streamFetchRaw(CDProjectTemplateWeek.self, from: viewContext)
         collector.payload.projectTemplateWeeks = BackupDTOTransformers.toDTOs(projectWeeks)
 
-        let projectWeekAssignments: [ProjectWeekRoleAssignment] = try await streamFetchRaw(
-            ProjectWeekRoleAssignment.self, from: viewContext
+        let projectWeekAssignments: [CDProjectWeekRoleAssignment] = try await streamFetchRaw(
+            CDProjectWeekRoleAssignment.self, from: viewContext
         )
         collector.payload.projectWeekRoleAssignments = BackupDTOTransformers.toDTOs(projectWeekAssignments)
     }
@@ -222,8 +222,8 @@ public final class StreamingBackupWriter {
         let workSteps: [CDWorkStep] = try await streamFetchRaw(CDWorkStep.self, from: viewContext)
         collector.payload.workSteps = BackupDTOTransformers.toDTOs(workSteps)
 
-        let workParticipants: [WorkParticipantEntity] = try await streamFetchRaw(
-            WorkParticipantEntity.self, from: viewContext
+        let workParticipants: [CDWorkParticipantEntity] = try await streamFetchRaw(
+            CDWorkParticipantEntity.self, from: viewContext
         )
         collector.payload.workParticipants = BackupDTOTransformers.toDTOs(workParticipants)
 
@@ -232,7 +232,7 @@ public final class StreamingBackupWriter {
 
         progress(0.44, "Processing lesson extras\u{2026}", collector.processedEntities, nil)
 
-        let lessonAttachments: [LessonAttachment] = try await streamFetchRaw(LessonAttachment.self, from: viewContext)
+        let lessonAttachments: [CDLessonAttachment] = try await streamFetchRaw(CDLessonAttachment.self, from: viewContext)
         collector.payload.lessonAttachments = BackupDTOTransformers.toDTOs(lessonAttachments)
 
         let lessonPresentations: [CDLessonPresentation] = try await streamFetchRaw(
@@ -273,7 +273,7 @@ public final class StreamingBackupWriter {
         let tracks: [CDTrackEntity] = try await streamFetchRaw(CDTrackEntity.self, from: viewContext)
         collector.payload.tracks = BackupDTOTransformers.toDTOs(tracks)
 
-        let trackSteps: [TrackStep] = try await streamFetchRaw(TrackStep.self, from: viewContext)
+        let trackSteps: [CDTrackStepEntity] = try await streamFetchRaw(CDTrackStepEntity.self, from: viewContext)
         collector.payload.trackSteps = BackupDTOTransformers.toDTOs(trackSteps)
 
         let enrollments: [CDStudentTrackEnrollmentEntity] = try await streamFetchRaw(
@@ -292,8 +292,8 @@ public final class StreamingBackupWriter {
         let supplies: [CDSupply] = try await streamFetchRaw(CDSupply.self, from: viewContext)
         collector.payload.supplies = BackupDTOTransformers.toDTOs(supplies)
 
-        let supplyTransactions: [SupplyTransaction] = try await streamFetchRaw(
-            SupplyTransaction.self, from: viewContext
+        let supplyTransactions: [CDSupplyTransaction] = try await streamFetchRaw(
+            CDSupplyTransaction.self, from: viewContext
         )
         collector.payload.supplyTransactions = BackupDTOTransformers.toDTOs(supplyTransactions)
 
@@ -313,7 +313,7 @@ public final class StreamingBackupWriter {
         let issues: [CDIssue] = try await streamFetchRaw(CDIssue.self, from: viewContext)
         collector.payload.issues = BackupDTOTransformers.toDTOs(issues)
 
-        let issueActions: [IssueAction] = try await streamFetchRaw(IssueAction.self, from: viewContext)
+        let issueActions: [CDIssueAction] = try await streamFetchRaw(CDIssueAction.self, from: viewContext)
         collector.payload.issueActions = BackupDTOTransformers.toDTOs(issueActions)
 
         try await streamSnapshotAndTodoDTOs(into: collector, from: viewContext, progress: progress)
@@ -326,7 +326,7 @@ public final class StreamingBackupWriter {
     ) async throws {
         progress(0.57, "Processing snapshots & todos\u{2026}", collector.processedEntities, nil)
 
-        let snapshots: [DevelopmentSnapshot] = try await streamFetchRaw(DevelopmentSnapshot.self, from: viewContext)
+        let snapshots: [CDDevelopmentSnapshotEntity] = try await streamFetchRaw(CDDevelopmentSnapshotEntity.self, from: viewContext)
         collector.payload.developmentSnapshots = BackupDTOTransformers.toDTOs(snapshots)
 
         let todoItems: [CDTodoItem] = try await streamFetchRaw(CDTodoItem.self, from: viewContext)
@@ -343,8 +343,8 @@ public final class StreamingBackupWriter {
 
         progress(0.58, "Processing recommendations & resources\u{2026}", collector.processedEntities, nil)
 
-        let recommendations: [PlanningRecommendation] = try await streamFetchRaw(
-            PlanningRecommendation.self, from: viewContext
+        let recommendations: [CDPlanningRecommendation] = try await streamFetchRaw(
+            CDPlanningRecommendation.self, from: viewContext
         )
         collector.payload.planningRecommendations = BackupDTOTransformers.toDTOs(recommendations)
 

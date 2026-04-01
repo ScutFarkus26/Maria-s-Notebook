@@ -58,7 +58,7 @@ struct MeetingsLogView: View {
     // Filtered meetings
     private var filteredMeetings: [CDStudentMeeting] {
         allMeetings.filter { meeting in
-            // Student filter
+            // CDStudent filter
             if !selectedStudentIDs.isEmpty {
                 guard let studentID = meeting.studentIDUUID else { return false }
                 if !selectedStudentIDs.contains(studentID) { return false }
@@ -150,7 +150,7 @@ struct MeetingsLogView: View {
 
     private var filterBar: some View {
         HStack(spacing: 12) {
-            // Student Menu (multi-select)
+            // CDStudent Menu (multi-select)
             Menu {
                 Button("All Students") { selectedStudentIDs.removeAll() }
                 Divider()
@@ -257,7 +257,7 @@ struct MeetingsLogView: View {
                 ContentUnavailableView(
                     "No Meetings",
                     systemImage: "person.2.circle",
-                    description: Text("Student meetings will appear here.")
+                    description: Text("CDStudent meetings will appear here.")
                 )
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
             } else {
@@ -296,12 +296,12 @@ struct MeetingsLogView: View {
                 .padding(.top, 2)
 
             VStack(alignment: .leading, spacing: 4) {
-                // Student name
+                // CDStudent name
                 if let studentID = meeting.studentIDUUID, let student = studentsByID[studentID] {
                     Text(displayName(for: student))
                         .font(AppTheme.ScaledFont.bodySemibold)
                 } else {
-                    Text("Unknown Student")
+                    Text("Unknown CDStudent")
                         .font(AppTheme.ScaledFont.bodySemibold)
                         .foregroundStyle(.secondary)
                 }
@@ -358,7 +358,7 @@ struct MeetingsLogView: View {
                 Button {
                     openStudentInNewWindow(studentID)
                 } label: {
-                    Label("View Student", systemImage: "person.text.rectangle")
+                    Label("View CDStudent", systemImage: "person.text.rectangle")
                 }
                 #endif
             }

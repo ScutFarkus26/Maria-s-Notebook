@@ -178,10 +178,10 @@ struct MariasNotebookApp: App {
                 Divider()
                 #endif
                 
-                Button("New Lesson") { appRouter.requestNewLesson() }
+                Button("New CDLesson") { appRouter.requestNewLesson() }
                     .keyboardShortcut("n", modifiers: [.command])
                 
-                Button("New Student") { appRouter.requestNewStudent() }
+                Button("New CDStudent") { appRouter.requestNewStudent() }
                     .keyboardShortcut("n", modifiers: [.command, .shift])
                 
                 Button("New Work…") { appRouter.requestNewWork() }
@@ -313,10 +313,10 @@ struct MariasNotebookApp: App {
         WindowGroup("", id: "WorkDetailWindow", for: UUID.self) { $workID in
             if let id = workID {
                 Group {
-                    if restoreCoordinator.isRestoring {
+                    if bootstrapper.state != .ready || restoreCoordinator.isRestoring {
                         VStack(spacing: 20) {
                             ProgressView().controlSize(.large)
-                            Text("Restoring data…")
+                            Text(restoreCoordinator.isRestoring ? "Restoring data…" : "Loading…")
                                 .foregroundStyle(.secondary)
                         }
                         .frame(minWidth: 400, minHeight: 300)
@@ -340,14 +340,14 @@ struct MariasNotebookApp: App {
         .defaultSize(width: 900, height: 700)
         // Legacy .modelContainer removed — using CoreDataStack
 
-        // Student Detail Window
+        // CDStudent Detail Window
         WindowGroup("", id: "StudentDetailWindow", for: UUID.self) { $studentID in
             if let id = studentID {
                 Group {
-                    if restoreCoordinator.isRestoring {
+                    if bootstrapper.state != .ready || restoreCoordinator.isRestoring {
                         VStack(spacing: 20) {
                             ProgressView().controlSize(.large)
-                            Text("Restoring data…")
+                            Text(restoreCoordinator.isRestoring ? "Restoring data…" : "Loading…")
                                 .foregroundStyle(.secondary)
                         }
                         .frame(minWidth: 400, minHeight: 300)
@@ -379,14 +379,14 @@ struct MariasNotebookApp: App {
         .windowResizability(.automatic)
         .defaultSize(width: 480, height: 600)
 
-        // Lesson Detail Window
+        // CDLesson Detail Window
         WindowGroup("", id: "LessonDetailWindow", for: UUID.self) { $lessonID in
             if let id = lessonID {
                 Group {
-                    if restoreCoordinator.isRestoring {
+                    if bootstrapper.state != .ready || restoreCoordinator.isRestoring {
                         VStack(spacing: 20) {
                             ProgressView().controlSize(.large)
-                            Text("Restoring data…")
+                            Text(restoreCoordinator.isRestoring ? "Restoring data…" : "Loading…")
                                 .foregroundStyle(.secondary)
                         }
                         .frame(minWidth: 400, minHeight: 300)

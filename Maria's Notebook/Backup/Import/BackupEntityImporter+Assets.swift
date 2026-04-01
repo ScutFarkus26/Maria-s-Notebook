@@ -68,12 +68,12 @@ extension BackupEntityImporter {
     static func importSupplyTransactions(
         _ dtos: [SupplyTransactionDTO],
         into viewContext: NSManagedObjectContext,
-        existingCheck: EntityExistsCheck<SupplyTransaction>,
+        existingCheck: EntityExistsCheck<CDSupplyTransaction>,
         supplyCheck: EntityExistsCheck<CDSupply>
     ) rethrows {
         for dto in dtos {
             if shouldSkipExisting(id: dto.id, existingCheck: existingCheck) { continue }
-            let t = SupplyTransaction(context: viewContext)
+            let t = CDSupplyTransaction(context: viewContext)
             t.id = dto.id
             t.supplyID = dto.supplyID
             t.date = dto.date

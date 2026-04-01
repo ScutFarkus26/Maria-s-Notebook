@@ -65,9 +65,9 @@ extension BackupDTOTransformers {
         )
     }
 
-    // MARK: - WorkParticipantEntity
+    // MARK: - CDWorkParticipantEntity
 
-    static func toDTO(_ participant: WorkParticipantEntity) -> WorkParticipantEntityDTO {
+    static func toDTO(_ participant: CDWorkParticipantEntity) -> WorkParticipantEntityDTO {
         WorkParticipantEntityDTO(
             id: participant.id ?? UUID(),
             studentID: participant.studentID,
@@ -118,7 +118,7 @@ extension BackupDTOTransformers {
         steps.map { toDTO($0) }
     }
 
-    static func toDTOs(_ participants: [WorkParticipantEntity]) -> [WorkParticipantEntityDTO] {
+    static func toDTOs(_ participants: [CDWorkParticipantEntity]) -> [WorkParticipantEntityDTO] {
         participants.map { toDTO($0) }
     }
 

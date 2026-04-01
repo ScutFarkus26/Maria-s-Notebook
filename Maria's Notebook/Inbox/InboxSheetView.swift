@@ -305,7 +305,7 @@ private struct InboxRow: View {
         }
         .onDrag {
           let provider = NSItemProvider(object: NSString(string: slID.uuidString))
-          provider.suggestedName = sl.lesson?.name ?? "CDLesson"
+          provider.suggestedName = sl.lesson?.name ?? "Lesson"
           return provider
         }
         .contextMenu {

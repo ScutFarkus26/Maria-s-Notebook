@@ -22,7 +22,7 @@ struct SessionWorkAssignmentService {
     /// Creates a work item assigned to all project members (uniform mode)
     @discardableResult
     func createUniformWork(
-        session: ProjectSession,
+        session: CDProjectSession,
         memberStudentIDs: [String],
         title: String,
         instructions: String,
@@ -62,7 +62,7 @@ struct SessionWorkAssignmentService {
     /// Creates an offered work (no participants yet) for choice mode
     @discardableResult
     func createOfferedWork(
-        session: ProjectSession,
+        session: CDProjectSession,
         title: String,
         instructions: String,
         dueDate: Date?
@@ -128,7 +128,7 @@ struct SessionWorkAssignmentService {
     // MARK: - Queries
 
     /// Gets all works for a session
-    func worksForSession(_ session: ProjectSession) -> [CDWorkModel] {
+    func worksForSession(_ session: CDProjectSession) -> [CDWorkModel] {
         let sessionID = session.id?.uuidString ?? ""
         let request = CDFetchRequest(CDWorkModel.self)
         request.predicate = NSPredicate(format: "sourceContextID == %@", sessionID)
@@ -136,12 +136,12 @@ struct SessionWorkAssignmentService {
     }
 
     /// Gets offered (unselected) works for a session
-    func offeredWorksForSession(_ session: ProjectSession) -> [CDWorkModel] {
+    func offeredWorksForSession(_ session: CDProjectSession) -> [CDWorkModel] {
         worksForSession(session).filter(\.isOffered)
     }
 
     /// Gets works selected by a specific student in a session
-    func worksSelectedByStudent(_ studentID: String, in session: ProjectSession) -> [CDWorkModel] {
+    func worksSelectedByStudent(_ studentID: String, in session: CDProjectSession) -> [CDWorkModel] {
         worksForSession(session).filter { work in
             let participants = (work.participants as? Set<CDWorkParticipantEntity>) ?? []
             return participants.contains { $0.studentID == studentID }
@@ -149,7 +149,7 @@ struct SessionWorkAssignmentService {
     }
 
     /// Checks selection status for a student in a session
-    func selectionStatus(for studentID: String, in session: ProjectSession, works: [CDWorkModel]) -> SelectionStatus {
+    func selectionStatus(for studentID: String, in session: CDProjectSession, works: [CDWorkModel]) -> SelectionStatus {
         let studentWorks = works.filter { work in
             let participants = (work.participants as? Set<CDWorkParticipantEntity>) ?? []
             return participants.contains { $0.studentID == studentID }
@@ -174,7 +174,7 @@ struct SessionWorkAssignmentService {
     // MARK: - Private Helpers
 
     private func resolveGenericProjectLessonID() -> UUID {
-        let name = "Project Work"
+        let name = "CDProject Work"
         let request = CDFetchRequest(CDLesson.self)
         request.predicate = NSPredicate(format: "name == %@", name)
         let existing = context.safeFetch(request)

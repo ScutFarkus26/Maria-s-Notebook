@@ -1,5 +1,5 @@
 // RecordPracticeSheet.swift
-// Lesson-first practice recording sheet, launched from the pie menu.
+// CDLesson-first practice recording sheet, launched from the pie menu.
 // Flow: pick a lesson → see students with open practice work as chips → record observation.
 
 import OSLog
@@ -17,11 +17,11 @@ struct RecordPracticeSheet: View {
     @FetchRequest(sortDescriptors: []) var allLessons: FetchedResults<CDLesson>
     @FetchRequest(sortDescriptors: []) private var allWork: FetchedResults<CDWorkModel>
 
-    // Lesson selection
+    // CDLesson selection
     @State var lessonPickerVM = LessonPickerViewModel()
     @State private var lessonSearchFocused = true
 
-    // Student selection
+    // CDStudent selection
     @State var selectedStudentIDs: Set<UUID> = []
     @State var manuallyAddedStudentIDs: Set<UUID> = []
     @State var studentSearchText: String = ""
@@ -55,13 +55,13 @@ struct RecordPracticeSheet: View {
 
     // MARK: - Computed
 
-    private var selectedLesson: Lesson? {
+    private var selectedLesson: CDLesson? {
         guard let lessonID = lessonPickerVM.selectedLessonID else { return nil }
         return allLessons.first { $0.id == lessonID }
     }
 
     /// Open practice work items for the selected lesson
-    var openPracticeWork: [WorkModel] {
+    var openPracticeWork: [CDWorkModel] {
         guard let lessonID = lessonPickerVM.selectedLessonID else { return [] }
         let lessonIDString = lessonID.uuidString
         return allWork.filter { work in
@@ -72,7 +72,7 @@ struct RecordPracticeSheet: View {
     }
 
     /// Students who have open practice work for the selected lesson
-    var studentsWithOpenWork: [(student: Student, workItem: WorkModel)] {
+    var studentsWithOpenWork: [(student: CDStudent, workItem: CDWorkModel)] {
         openPracticeWork.compactMap { work in
             guard let studentID = UUID(uuidString: work.studentID),
                   let student = allStudents.first(where: { $0.id == studentID }) else {
@@ -89,7 +89,7 @@ struct RecordPracticeSheet: View {
     }
 
     /// All chip-visible students: those with open work + manually added
-    var chipStudents: [Student] {
+    var chipStudents: [CDStudent] {
         let ids = practiceStudentIDs.union(manuallyAddedStudentIDs)
         return allStudents
             .filter { guard let sid = $0.id else { return false }; return ids.contains(sid) }
@@ -97,7 +97,7 @@ struct RecordPracticeSheet: View {
     }
 
     /// Students matching the search query (excluding those already shown as chips)
-    var searchResults: [Student] {
+    var searchResults: [CDStudent] {
         guard !studentSearchText.isEmpty else { return [] }
         let chipIDs = Set(chipStudents.compactMap(\.id))
         let query = studentSearchText.lowercased()
@@ -173,7 +173,7 @@ struct RecordPracticeSheet: View {
         }
     }
 
-    // MARK: - Lesson Section
+    // MARK: - CDLesson Section
 
     private var lessonSection: some View {
         LessonPickerSection(

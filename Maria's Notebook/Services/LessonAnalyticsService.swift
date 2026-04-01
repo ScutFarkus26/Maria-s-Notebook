@@ -1,7 +1,7 @@
 // LessonAnalyticsService.swift
 // Shared query and grouping logic for lesson frequency and curriculum balance features.
 // Fetches presented LessonAssignments, explodes multi-student assignments into individual
-// per-student records joined with Lesson subject/group metadata.
+// per-student records joined with CDLesson subject/group metadata.
 
 import Foundation
 import CoreData
@@ -23,7 +23,7 @@ enum LessonAnalyticsService {
     // MARK: - Core Data Data Fetching
 
     /// Fetches all presented LessonAssignments in a date range and explodes them
-    /// into per-student PresentedRecords joined with Lesson subject/group.
+    /// into per-student PresentedRecords joined with CDLesson subject/group.
     ///
     /// Because `studentIDs` is JSON-encoded (CloudKit compatibility), we must fetch
     /// all assignments then filter in-memory — same pattern as ProgressDashboardViewModel.

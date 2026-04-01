@@ -9,7 +9,7 @@ import ObjectiveC
 #endif
 
 /// Preference keys for Attendance Email feature.
-/// - Note: Values are stored in UserDefaults via @AppStorage.
+/// - CDNote: Values are stored in UserDefaults via @AppStorage.
 public enum AttendanceEmailPrefs {
     public static let enabledKey = "AttendanceEmail.enabled"
     public static let toKey = "AttendanceEmail.to"
@@ -89,7 +89,7 @@ public enum AttendanceEmail {
     /// - Parameter string: A raw recipients string,
     ///   e.g., "a@example.com, b@example.com".
     /// - Returns: An array of non-empty email strings.
-    /// - Note: Multi-recipient support is implemented and used in
+    /// - CDNote: Multi-recipient support is implemented and used in
     ///   all composer/send flows.
     public static func parseRecipients(from string: String?) -> [String] {
         guard let string, !string.trimmed().isEmpty else { return [] }
@@ -121,7 +121,7 @@ public enum AttendanceEmail {
     }
 
     /// Builds a mailto: URL with the provided recipients, subject, and body.
-    /// - Note: Useful as a fallback when `isAvailable` is false.
+    /// - CDNote: Useful as a fallback when `isAvailable` is false.
     public static func makeMailtoURL(to recipients: [String], subject: String, body: String) -> URL? {
         var components = URLComponents()
         components.scheme = "mailto"
@@ -214,7 +214,7 @@ public enum AttendanceEmail {
 
     /// Attempts to open a mailto: URL using current preferences.
     /// Returns true if the URL was opened successfully.
-    /// - Note: Use this as a fallback when
+    /// - CDNote: Use this as a fallback when
     ///   NSSharingService(.composeEmail) is unavailable.
     public static func openMailtoFallbackForCurrentPrefs(
         present: [String],
@@ -282,7 +282,7 @@ public enum AttendanceEmail {
 // MARK: - Settings View
 
 /// Settings form for configuring Attendance Email behavior.
-/// - Note: The "Preferred 'From' Address" applies to iOS only;
+/// - CDNote: The "Preferred 'From' Address" applies to iOS only;
 ///   macOS always uses the default Mail account.
 public struct AttendanceEmailSettingsView: View {
     @SyncedAppStorage(AttendanceEmailPrefs.enabledKey) private var enabled: Bool = true
@@ -317,7 +317,7 @@ public struct AttendanceEmailSettingsView: View {
                     .foregroundStyle(.secondary)
                     .help("macOS uses your default Mail account; this setting applies to iOS only.")
                 #endif
-                Text("Note: iOS uses the preferred address when possible. macOS uses your default Mail account.")
+                Text("CDNote: iOS uses the preferred address when possible. macOS uses your default Mail account.")
                     .font(.footnote)
                     .foregroundStyle(.secondary)
             }
@@ -397,7 +397,7 @@ public struct MailComposerView: UIViewControllerRepresentable {
 // MARK: - macOS Mail Sender Helper
 
 /// Helper for composing email via the system Mail service on macOS.
-/// - Note: Uses NSSharingService(.composeEmail). Completion
+/// - CDNote: Uses NSSharingService(.composeEmail). Completion
 ///   reflects success/failure callbacks provided by the service.
 #if os(macOS)
 @MainActor

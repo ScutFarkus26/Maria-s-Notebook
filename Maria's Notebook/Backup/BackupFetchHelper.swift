@@ -57,13 +57,13 @@ struct BackupFetchHelper {
             descriptor.fetchLimit = 1
             return try context.fetch(descriptor).first as? T
         }
-        if type == ProposedSolution.self {
-            var descriptor = { let r = ProposedSolution.fetchRequest() as! NSFetchRequest<ProposedSolution>; r.predicate = NSPredicate(format: "id == %@", id as CVarArg); return r }()
+        if type == CDProposedSolutionEntity.self {
+            var descriptor = { let r = CDProposedSolutionEntity.fetchRequest() as! NSFetchRequest<CDProposedSolutionEntity>; r.predicate = NSPredicate(format: "id == %@", id as CVarArg); return r }()
             descriptor.fetchLimit = 1
             return try context.fetch(descriptor).first as? T
         }
-        if type == CommunityAttachment.self {
-            var descriptor = { let r = CommunityAttachment.fetchRequest() as! NSFetchRequest<CommunityAttachment>; r.predicate = NSPredicate(format: "id == %@", id as CVarArg); return r }()
+        if type == CDCommunityAttachmentEntity.self {
+            var descriptor = { let r = CDCommunityAttachmentEntity.fetchRequest() as! NSFetchRequest<CDCommunityAttachmentEntity>; r.predicate = NSPredicate(format: "id == %@", id as CVarArg); return r }()
             descriptor.fetchLimit = 1
             return try context.fetch(descriptor).first as? T
         }
@@ -82,8 +82,8 @@ struct BackupFetchHelper {
             descriptor.fetchLimit = 1
             return try context.fetch(descriptor).first as? T
         }
-        if type == ProjectAssignmentTemplate.self {
-            var descriptor = { let r = ProjectAssignmentTemplate.fetchRequest() as! NSFetchRequest<ProjectAssignmentTemplate>; r.predicate = NSPredicate(format: "id == %@", id as CVarArg); return r }()
+        if type == CDProjectAssignmentTemplate.self {
+            var descriptor = { let r = CDProjectAssignmentTemplate.fetchRequest() as! NSFetchRequest<CDProjectAssignmentTemplate>; r.predicate = NSPredicate(format: "id == %@", id as CVarArg); return r }()
             descriptor.fetchLimit = 1
             return try context.fetch(descriptor).first as? T
         }
@@ -92,18 +92,18 @@ struct BackupFetchHelper {
             descriptor.fetchLimit = 1
             return try context.fetch(descriptor).first as? T
         }
-        if type == ProjectRole.self {
-            var descriptor = { let r = ProjectRole.fetchRequest() as! NSFetchRequest<ProjectRole>; r.predicate = NSPredicate(format: "id == %@", id as CVarArg); return r }()
+        if type == CDProjectRole.self {
+            var descriptor = { let r = CDProjectRole.fetchRequest() as! NSFetchRequest<CDProjectRole>; r.predicate = NSPredicate(format: "id == %@", id as CVarArg); return r }()
             descriptor.fetchLimit = 1
             return try context.fetch(descriptor).first as? T
         }
-        if type == ProjectTemplateWeek.self {
-            var descriptor = { let r = ProjectTemplateWeek.fetchRequest() as! NSFetchRequest<ProjectTemplateWeek>; r.predicate = NSPredicate(format: "id == %@", id as CVarArg); return r }()
+        if type == CDProjectTemplateWeek.self {
+            var descriptor = { let r = CDProjectTemplateWeek.fetchRequest() as! NSFetchRequest<CDProjectTemplateWeek>; r.predicate = NSPredicate(format: "id == %@", id as CVarArg); return r }()
             descriptor.fetchLimit = 1
             return try context.fetch(descriptor).first as? T
         }
-        if type == ProjectWeekRoleAssignment.self {
-            var descriptor = { let r = ProjectWeekRoleAssignment.fetchRequest() as! NSFetchRequest<ProjectWeekRoleAssignment>; r.predicate = NSPredicate(format: "id == %@", id as CVarArg); return r }()
+        if type == CDProjectWeekRoleAssignment.self {
+            var descriptor = { let r = CDProjectWeekRoleAssignment.fetchRequest() as! NSFetchRequest<CDProjectWeekRoleAssignment>; r.predicate = NSPredicate(format: "id == %@", id as CVarArg); return r }()
             descriptor.fetchLimit = 1
             return try context.fetch(descriptor).first as? T
         }

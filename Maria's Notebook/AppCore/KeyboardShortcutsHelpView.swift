@@ -23,8 +23,8 @@ struct KeyboardShortcutsHelpView: View {
                 ])
 
                 shortcutSection("Create", shortcuts: [
-                    ShortcutItem(keys: "\u{2318}N", description: "New Lesson"),
-                    ShortcutItem(keys: "\u{21E7}\u{2318}N", description: "New Student"),
+                    ShortcutItem(keys: "\u{2318}N", description: "New CDLesson"),
+                    ShortcutItem(keys: "\u{21E7}\u{2318}N", description: "New CDStudent"),
                     ShortcutItem(keys: "\u{2325}\u{2318}N", description: "New Work")
                 ])
 

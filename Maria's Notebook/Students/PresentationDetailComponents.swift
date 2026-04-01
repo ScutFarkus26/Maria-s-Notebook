@@ -72,7 +72,7 @@ struct MoveStudentsSheet: View {
         VStack(spacing: 0) {
             // Header
             HStack {
-                Text("Move Students to New Lesson")
+                Text("Move Students to New CDLesson")
                     .font(AppTheme.ScaledFont.titleSmall)
                     .frame(maxWidth: .infinity, alignment: .leading)
             }
@@ -120,7 +120,7 @@ struct MoveStudentsSheet: View {
                         onMove()
                     } label: {
                         Label(
-                            "Move \(studentsToMove.count) Student\(studentsToMove.count == 1 ? "" : "s")",
+                            "Move \(studentsToMove.count) CDStudent\(studentsToMove.count == 1 ? "" : "s")",
                             systemImage: "arrow.right.circle.fill"
                         )
                     }

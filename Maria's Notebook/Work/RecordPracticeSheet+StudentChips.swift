@@ -1,11 +1,11 @@
 // RecordPracticeSheet+StudentChips.swift
-// Student selection, date/duration, bottom bar, and save logic.
+// CDStudent selection, date/duration, bottom bar, and save logic.
 
 import OSLog
 import SwiftUI
 import CoreData
 
-// MARK: - Student Chips Section
+// MARK: - CDStudent Chips Section
 
 extension RecordPracticeSheet {
     var studentChipsSection: some View {
@@ -84,7 +84,7 @@ extension RecordPracticeSheet {
         }
     }
 
-    func studentChip(for student: Student) -> some View {
+    func studentChip(for student: CDStudent) -> some View {
         let studentID = student.id ?? UUID()
         let isSelected = selectedStudentIDs.contains(studentID)
         let hasOpenWork = practiceStudentIDs.contains(studentID)
@@ -132,7 +132,7 @@ extension RecordPracticeSheet {
     var durationSection: some View {
         VStack(alignment: .leading, spacing: 12) {
             Toggle(isOn: $hasDuration) {
-                Text("Track Duration")
+                Text("CDTrackEntity Duration")
                     .font(AppTheme.ScaledFont.calloutSemibold)
             }
 

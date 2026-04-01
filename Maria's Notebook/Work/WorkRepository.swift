@@ -14,7 +14,7 @@ struct WorkRepository {
 
     // Deprecated ModelContext init removed - no longer needed with Core Data.
 
-    // MARK: - Track Linking Helper
+    // MARK: - CDTrackEntity Linking Helper
 
     /// Links a work item to its associated track and step if the lesson belongs to a track
     private func linkWorkToTrack(_ work: CDWorkModel, lessonID: UUID) {
@@ -68,7 +68,7 @@ struct WorkRepository {
 
     // MARK: - Fetch
 
-    /// Fetch WorkModel by ID
+    /// Fetch CDWorkModel by ID
     func fetchWorkModel(id: UUID) -> CDWorkModel? {
         let request = CDFetchRequest(CDWorkModel.self)
         request.predicate = NSPredicate(format: "id == %@", id as CVarArg)
@@ -76,7 +76,7 @@ struct WorkRepository {
         return context.safeFetchFirst(request)
     }
 
-    /// Fetch multiple WorkModel entities
+    /// Fetch multiple CDWorkModel entities
     /// - Parameters:
     ///   - predicate: Optional predicate to filter work items. If nil, fetches all.
     ///   - sortDescriptors: Optional sort descriptors. Defaults to sorting by createdAt descending.
@@ -95,7 +95,7 @@ struct WorkRepository {
 
     // MARK: - Create
 
-    /// Create a new WorkModel for a single student
+    /// Create a new CDWorkModel for a single student
     @discardableResult
     func createWork(
         studentID: UUID,
@@ -159,7 +159,7 @@ struct WorkRepository {
 
     // MARK: - Update
 
-    /// Mark a WorkModel as completed
+    /// Mark a CDWorkModel as completed
     func markWorkCompleted(id: UUID, outcome: CompletionOutcome? = nil, note: String? = nil) {
         guard let work = fetchWorkModel(id: id) else { return }
         work.status = .complete
@@ -174,7 +174,7 @@ struct WorkRepository {
         HapticService.shared.notification(.success)
     }
 
-    /// Update a WorkModel's status
+    /// Update a CDWorkModel's status
     func updateWorkStatus(id: UUID, status: WorkStatus) {
         guard let work = fetchWorkModel(id: id) else { return }
         work.status = status
@@ -191,7 +191,7 @@ struct WorkRepository {
 
     // MARK: - Completion Toggle
 
-    /// Toggle completion for a student on a WorkModel
+    /// Toggle completion for a student on a CDWorkModel
     /// Uses WorkCompletionService for proper historical tracking
     func toggleCompletion(workID: UUID, studentID: UUID) throws {
         guard let work = fetchWorkModel(id: workID) else { return }

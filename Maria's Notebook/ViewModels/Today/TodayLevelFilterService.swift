@@ -9,7 +9,7 @@ import Foundation
 /// Service for filtering data by student level.
 enum TodayLevelFilterService {
 
-    // MARK: - Lesson Filtering
+    // MARK: - CDLesson Filtering
 
     /// Filters lessons based on level filter and student visibility.
     /// - Parameters:
@@ -18,10 +18,10 @@ enum TodayLevelFilterService {
     ///   - levelFilter: The level filter to apply
     /// - Returns: Filtered lessons matching the criteria
     static func filterLessons(
-        _ lessons: [LessonAssignment],
-        studentsByID: [UUID: Student],
+        _ lessons: [CDLessonAssignment],
+        studentsByID: [UUID: CDStudent],
         levelFilter: LevelFilter
-    ) -> [LessonAssignment] {
+    ) -> [CDLessonAssignment] {
         guard levelFilter != .all else {
             // For "all" filter, just ensure students are visible (cached)
             return lessons.filter { sl in
@@ -56,10 +56,10 @@ enum TodayLevelFilterService {
     ///   - levelFilter: The level filter to apply
     /// - Returns: Filtered work items matching the criteria
     static func filterWork(
-        _ workItems: [WorkModel],
-        studentsByID: [UUID: Student],
+        _ workItems: [CDWorkModel],
+        studentsByID: [UUID: CDStudent],
         levelFilter: LevelFilter
-    ) -> [WorkModel] {
+    ) -> [CDWorkModel] {
         workItems.filter { work in
             guard let uuid = UUID(uuidString: work.studentID),
                   let student = studentsByID[uuid] else { return false }

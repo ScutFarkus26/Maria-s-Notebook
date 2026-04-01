@@ -5,7 +5,7 @@ import SwiftUI
 import CoreData
 
 struct DocumentCard: View {
-    let document: Document
+    let document: CDDocument
     let onOpen: (URL) -> Void
     let onDelete: () -> Void
     let onRename: () -> Void
@@ -66,7 +66,7 @@ struct DocumentCard: View {
             .replacingOccurrences(of: "/", with: "-")
             .replacingOccurrences(of: ":", with: "-")
             .replacingOccurrences(of: "\n", with: " ")
-        let filename = sanitizedTitle.isEmpty ? "Document.pdf" : "\(sanitizedTitle).pdf"
+        let filename = sanitizedTitle.isEmpty ? "CDDocument.pdf" : "\(sanitizedTitle).pdf"
         let tempURL = tempDir.appendingPathComponent(filename)
 
         do {

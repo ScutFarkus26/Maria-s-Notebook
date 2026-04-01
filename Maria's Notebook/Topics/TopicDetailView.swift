@@ -214,13 +214,13 @@ private struct ResolutionSection: View {
 }
 
 private struct ProposedSolutionsSection: View {
-    let solutions: [ProposedSolution]
+    let solutions: [CDProposedSolutionEntity]
     @Binding var newSolutionTitle: String
     @Binding var newSolutionDetails: String
     @Binding var newSolutionProposedBy: String
 
-    var onToggleAdopted: (ProposedSolution) -> Void
-    var onDelete: (ProposedSolution) -> Void
+    var onToggleAdopted: (CDProposedSolutionEntity) -> Void
+    var onDelete: (CDProposedSolutionEntity) -> Void
     var onAdd: () -> Void
 
     var body: some View {
@@ -285,9 +285,9 @@ private struct ProposedSolutionsSection: View {
 }
 
 private struct AttachmentsSection: View {
-    let attachments: [CommunityAttachment]
+    let attachments: [CDCommunityAttachmentEntity]
     @Binding var showingImagePicker: Bool
-    var onDelete: (CommunityAttachment) -> Void
+    var onDelete: (CDCommunityAttachmentEntity) -> Void
 
     var body: some View {
         GroupBox("Attachments") {
@@ -373,7 +373,7 @@ private struct MeetingNotesSection: View {
 
                 HStack {
                     Spacer()
-                    Button("Add Note", action: onAdd)
+                    Button("Add CDNote", action: onAdd)
                         .buttonStyle(.bordered)
                         .disabled(newNoteContent.trimmed().isEmpty)
                 }

@@ -5,17 +5,17 @@ import Foundation
 
 // MARK: - Schedule Item Types
 
-/// Data structure for a scheduled check-in (WorkCheckIn with .scheduled status).
-/// Uses WorkCheckIn for scheduled work check-ins.
+/// Data structure for a scheduled check-in (CDWorkCheckIn with .scheduled status).
+/// Uses CDWorkCheckIn for scheduled work check-ins.
 struct ScheduledWorkItem: Identifiable {
-    let work: WorkModel
-    let checkIn: WorkCheckIn
+    let work: CDWorkModel
+    let checkIn: CDWorkCheckIn
     var id: UUID { checkIn.id ?? UUID() }
 }
 
-/// Data structure for a stale follow-up (implicit WorkModel aging).
+/// Data structure for a stale follow-up (implicit CDWorkModel aging).
 struct FollowUpWorkItem: Identifiable {
-    let work: WorkModel
+    let work: CDWorkModel
     let daysSinceTouch: Int
     var id: UUID { work.id ?? UUID() }
 }
@@ -36,8 +36,8 @@ enum AgendaItemType: String, Codable, Sendable {
 /// Represents either a lesson or a work item (scheduled check-in or follow-up).
 /// Grouped variants merge multiple students' work from the same lesson into one row.
 enum AgendaItem: Identifiable {
-    case lesson(LessonAssignment)
-    case meeting(ScheduledMeeting)
+    case lesson(CDLessonAssignment)
+    case meeting(CDScheduledMeeting)
     case scheduledWork(ScheduledWorkItem)
     case followUp(FollowUpWorkItem)
     case groupedScheduledWork([ScheduledWorkItem])
@@ -86,7 +86,7 @@ enum LevelFilter: String, CaseIterable, Identifiable, Sendable {
 
     var id: String { rawValue }
 
-    func matches(_ level: Student.Level) -> Bool {
+    func matches(_ level: CDStudent.Level) -> Bool {
         switch self {
         case .all: return true
         case .lower: return level == .lower

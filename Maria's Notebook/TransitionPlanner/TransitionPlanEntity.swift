@@ -16,12 +16,11 @@ public class CDTransitionPlan: NSManagedObject {
 
     // MARK: - Relationships
     @NSManaged public var checklistItems: NSSet?
-    @NSManaged public var observationNotes: NSSet?
 
     // MARK: - Convenience Initializer
     @discardableResult
     convenience init(context: NSManagedObjectContext) {
-        let entity = NSEntityDescription.entity(forEntityName: "CDTransitionPlan", in: context)!
+        let entity = NSEntityDescription.entity(forEntityName: "TransitionPlan", in: context)!
         self.init(entity: entity, insertInto: context)
         self.id = UUID()
         self.createdAt = Date()
@@ -51,6 +50,14 @@ extension CDTransitionPlan {
         get { TransitionStatus(rawValue: statusRaw) ?? .notStarted }
         set { statusRaw = newValue.rawValue }
     }
+
+    /// Cross-store inverse: fetches Notes whose transitionPlanID matches this plan.
+    var observationNotes: [CDNote] {
+        guard let id, let ctx = managedObjectContext else { return [] }
+        let req = CDFetchRequest(CDNote.self)
+        req.predicate = NSPredicate(format: "transitionPlanID == %@", id.uuidString)
+        return (try? ctx.fetch(req)) ?? []
+    }
 }
 
 // MARK: - Generated Accessors for To-Many Relationships
@@ -68,15 +75,4 @@ extension CDTransitionPlan {
     @objc(removeChecklistItems:)
     @NSManaged public func removeFromChecklistItems(_ values: NSSet)
 
-    @objc(addObservationNotesObject:)
-    @NSManaged public func addToObservationNotes(_ value: CDNote)
-
-    @objc(removeObservationNotesObject:)
-    @NSManaged public func removeFromObservationNotes(_ value: CDNote)
-
-    @objc(addObservationNotes:)
-    @NSManaged public func addToObservationNotes(_ values: NSSet)
-
-    @objc(removeObservationNotes:)
-    @NSManaged public func removeFromObservationNotes(_ values: NSSet)
 }

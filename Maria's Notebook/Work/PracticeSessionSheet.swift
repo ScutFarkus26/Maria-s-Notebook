@@ -6,15 +6,15 @@ import CoreData
 struct PracticeSessionSheet: View {
     private static let logger = Logger.work
 
-    let initialWorkItem: WorkModel
-    var onSave: ((PracticeSession) -> Void)?
+    let initialWorkItem: CDWorkModel
+    var onSave: ((CDPracticeSession) -> Void)?
 
     @Environment(\.dismiss) private var dismiss
     @Environment(\.managedObjectContext) private var viewContext
 
     @FetchRequest(sortDescriptors: [NSSortDescriptor(keyPath: \CDStudent.firstName, ascending: true)])
     private var allStudentsRaw: FetchedResults<CDStudent>
-    private var allStudents: [Student] { Array(allStudentsRaw).filter(\.isEnrolled) }
+    private var allStudents: [CDStudent] { Array(allStudentsRaw).filter(\.isEnrolled) }
     @FetchRequest(sortDescriptors: [NSSortDescriptor(keyPath: \CDWorkModel.createdAt, ascending: false)])
     private var allWork: FetchedResults<CDWorkModel>
     @FetchRequest(sortDescriptors: [NSSortDescriptor(keyPath: \CDLessonAssignment.presentedAt, ascending: false)])
@@ -41,12 +41,12 @@ struct PracticeSessionSheet: View {
     @State var individualNotes: [UUID: String] = [:]
     @State var individualUnderstandingLevels: [UUID: Int] = [:]
 
-    // Student selection sheet
+    // CDStudent selection sheet
     @State var showStudentSelector: Bool = false
     
     // Presentation and lesson context
     @State private var relatedPresentation: Presentation?
-    @State private var relatedLesson: Lesson?
+    @State private var relatedLesson: CDLesson?
     
     private var repository: PracticeSessionRepository {
         PracticeSessionRepository(context: viewContext) // swiftlint:disable:this deprecated
@@ -82,13 +82,13 @@ struct PracticeSessionSheet: View {
         return StudentCategorizer.sort(categorized)
     }
 
-    var selectedStudents: [Student] {
+    var selectedStudents: [CDStudent] {
         allStudents
             .filter { guard let id = $0.id else { return false }; return selectedStudentIDs.contains(id) }
             .sorted { $0.firstName < $1.firstName }
     }
 
-    var selectedWorkItems: [WorkModel] {
+    var selectedWorkItems: [CDWorkModel] {
         Array(allWork)
             .filter { guard let id = $0.id else { return false }; return selectedWorkItemIDs.contains(id) }
             .sorted { $0.title < $1.title }
@@ -108,7 +108,7 @@ struct PracticeSessionSheet: View {
                         
                         Divider()
                         
-                        // Presentation & Lesson context
+                        // Presentation & CDLesson context
                         presentationContextSection
                         
                         Divider()
@@ -242,7 +242,7 @@ struct PracticeSessionSheet: View {
         relatedLesson = initialWorkItem.fetchLesson(from: viewContext)
     }
     
-    func toggleStudent(_ student: Student) {
+    func toggleStudent(_ student: CDStudent) {
         guard let studentID = student.id else { return }
         if selectedStudentIDs.contains(studentID) {
             selectedStudentIDs.remove(studentID)
@@ -259,7 +259,7 @@ struct PracticeSessionSheet: View {
         }
     }
     
-    private func findWorkForStudent(_ student: Student) -> WorkModel? {
+    private func findWorkForStudent(_ student: CDStudent) -> CDWorkModel? {
         let studentIDString = student.id?.uuidString ?? ""
         return allWork.first { work in
             work.studentID == studentIDString &&
@@ -271,7 +271,7 @@ struct PracticeSessionSheet: View {
     @MainActor
     private func saveSession() {
         // Create practice session
-        let session = PracticeSession(context: viewContext)
+        let session = CDPracticeSession(context: viewContext)
         session.date = selectedDate
         session.durationInterval = hasDuration ? duration : nil
         session.studentIDsArray = Array(selectedStudentIDs).map(\.uuidString)
@@ -304,12 +304,12 @@ struct PracticeSessionSheet: View {
                 fullNoteBody = noteText
             }
 
-            let note = Note(context: viewContext)
+            let note = CDNote(context: viewContext)
             note.body = fullNoteBody
             note.scope = .student(studentID)
             note.tagsArray = [TagHelper.tagFromNoteCategory("academic")]
             note.practiceSession = session
-            // Student links managed by Core Data relationships
+            // CDStudent links managed by Core Data relationships
         }
 
         do {
@@ -329,23 +329,23 @@ struct PracticeSessionSheet: View {
     let stack = CoreDataStack.preview
     let ctx = stack.viewContext
 
-    let mary = Student(context: ctx)
+    let mary = CDStudent(context: ctx)
     mary.firstName = "Mary"; mary.lastName = "Smith"; mary.birthday = Date(); mary.level = .lower
-    let danny = Student(context: ctx)
+    let danny = CDStudent(context: ctx)
     danny.firstName = "Danny"; danny.lastName = "Jones"; danny.birthday = Date(); danny.level = .lower
-    let jane = Student(context: ctx)
+    let jane = CDStudent(context: ctx)
     jane.firstName = "Jane"; jane.lastName = "Doe"; jane.birthday = Date(); jane.level = .lower
 
-    let lesson = Lesson(context: ctx)
+    let lesson = CDLesson(context: ctx)
     lesson.name = "Long Division"; lesson.subject = "Math"; lesson.group = "Operations"
 
-    let work1 = WorkModel(context: ctx)
+    let work1 = CDWorkModel(context: ctx)
     work1.title = "Practice Long Division"; work1.kind = .practiceLesson
     work1.studentID = danny.id?.uuidString ?? ""; work1.lessonID = lesson.id?.uuidString ?? ""
-    let work2 = WorkModel(context: ctx)
+    let work2 = CDWorkModel(context: ctx)
     work2.title = "Practice Long Division"; work2.kind = .practiceLesson
     work2.studentID = mary.id?.uuidString ?? ""; work2.lessonID = lesson.id?.uuidString ?? ""
-    let work3 = WorkModel(context: ctx)
+    let work3 = CDWorkModel(context: ctx)
     work3.title = "Practice Long Division"; work3.kind = .practiceLesson
     work3.studentID = jane.id?.uuidString ?? ""; work3.lessonID = lesson.id?.uuidString ?? ""
 

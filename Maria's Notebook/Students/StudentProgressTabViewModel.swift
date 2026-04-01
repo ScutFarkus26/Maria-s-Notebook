@@ -43,40 +43,40 @@ final class StudentProgressTabViewModel {
         let studentIDString = student.id?.uuidString ?? ""
 
         // Fetch all needed data
-        let enrollmentDescriptor: NSFetchRequest<CDStudentTrackEnrollmentEntity> = NSFetchRequest(entityName: "CDStudentTrackEnrollmentEntity")
+        let enrollmentDescriptor: NSFetchRequest<CDStudentTrackEnrollmentEntity> = NSFetchRequest(entityName: "StudentTrackEnrollment")
         enrollmentDescriptor.sortDescriptors = [NSSortDescriptor(key: "createdAt", ascending: false)]
         let allEnrollments = context.safeFetch(enrollmentDescriptor)
 
-        let trackDescriptor: NSFetchRequest<CDTrackEntity> = NSFetchRequest(entityName: "CDTrackEntity")
+        let trackDescriptor: NSFetchRequest<CDTrackEntity> = NSFetchRequest(entityName: "Track")
         trackDescriptor.sortDescriptors = [NSSortDescriptor(key: "title", ascending: true)]
         let allTracks = context.safeFetch(trackDescriptor)
 
-        let projectDescriptor: NSFetchRequest<CDProject> = NSFetchRequest(entityName: "CDProject")
+        let projectDescriptor: NSFetchRequest<CDProject> = NSFetchRequest(entityName: "Project")
         projectDescriptor.sortDescriptors = [NSSortDescriptor(key: "createdAt", ascending: false)]
         let allProjects = context.safeFetch(projectDescriptor)
 
         // Fetch LessonAssignments (unified model)
-        let assignmentDescriptor: NSFetchRequest<CDLessonAssignment> = NSFetchRequest(entityName: "CDLessonAssignment")
+        let assignmentDescriptor: NSFetchRequest<CDLessonAssignment> = NSFetchRequest(entityName: "LessonAssignment")
         assignmentDescriptor.sortDescriptors = [NSSortDescriptor(key: "presentedAt", ascending: false)]
         allLessonAssignments = context.safeFetch(assignmentDescriptor)
 
-        let workDescriptor: NSFetchRequest<CDWorkModel> = NSFetchRequest(entityName: "CDWorkModel")
+        let workDescriptor: NSFetchRequest<CDWorkModel> = NSFetchRequest(entityName: "WorkModel")
         workDescriptor.sortDescriptors = [NSSortDescriptor(key: "createdAt", ascending: false)]
         allWorkModels = context.safeFetch(workDescriptor)
 
-        let noteDescriptor: NSFetchRequest<CDNote> = NSFetchRequest(entityName: "CDNote")
+        let noteDescriptor: NSFetchRequest<CDNote> = NSFetchRequest(entityName: "Note")
         noteDescriptor.sortDescriptors = [NSSortDescriptor(key: "updatedAt", ascending: false)]
         allNotes = context.safeFetch(noteDescriptor)
 
-        let stepDescriptor: NSFetchRequest<CDTrackStep> = NSFetchRequest(entityName: "CDTrackStep")
+        let stepDescriptor: NSFetchRequest<CDTrackStep> = NSFetchRequest(entityName: "TrackStep")
         stepDescriptor.sortDescriptors = [NSSortDescriptor(key: "orderIndex", ascending: true)]
         allTrackSteps = context.safeFetch(stepDescriptor)
 
-        let lessonDescriptor: NSFetchRequest<CDLesson> = NSFetchRequest(entityName: "CDLesson")
+        let lessonDescriptor: NSFetchRequest<CDLesson> = NSFetchRequest(entityName: "Lesson")
         lessonDescriptor.sortDescriptors = [NSSortDescriptor(key: "name", ascending: true)]
         allLessons = context.safeFetch(lessonDescriptor)
 
-        let lpDescriptor = NSFetchRequest<CDLessonPresentation>(entityName: "CDLessonPresentation")
+        let lpDescriptor = NSFetchRequest<CDLessonPresentation>(entityName: "LessonPresentation")
         allLessonPresentations = context.safeFetch(lpDescriptor)
 
         // Compute filtered results

@@ -10,23 +10,23 @@ enum BackupSizeEstimator {
     private static let logger = Logger.backup
     /// Average bytes per entity type (empirically determined)
     static let averageBytesPerEntity: [String: Int] = [
-        "CDStudent": 600,
-        "CDLesson": 2500,
+        "Student": 600,
+        "Lesson": 2500,
         "LegacyPresentation": 300,
         // WorkPlanItem removed in Phase 6 - migrated to CDWorkCheckIn
-        "CDNote": 300,
-        "CDNonSchoolDay": 200,
-        "CDSchoolDayOverride": 200,
-        "CDStudentMeeting": 1200,
+        "Note": 300,
+        "NonSchoolDay": 200,
+        "SchoolDayOverride": 200,
+        "StudentMeeting": 1200,
         // CDPresentation removed - using CDLessonAssignment instead
-        "CDCommunityTopicEntity": 1500,
+        "CommunityTopic": 1500,
         "ProposedSolution": BatchingConstants.estimatedBytesPerEntity,
         "CommunityAttachment": 600,
-        "CDAttendanceRecord": 300,
-        "CDWorkCompletionRecord": 400,
-        "CDProject": 2000,
+        "AttendanceRecord": 300,
+        "WorkCompletionRecord": 400,
+        "Project": 2000,
         "ProjectAssignmentTemplate": 2500,
-        "CDProjectSession": 1500,
+        "ProjectSession": 1500,
         "ProjectRole": 1200,
         "ProjectTemplateWeek": 1800,
         "ProjectWeekRoleAssignment": 300
@@ -57,26 +57,26 @@ enum BackupSizeEstimator {
     static func countEntities(viewContext: NSManagedObjectContext) -> [String: Int] {
         var counts: [String: Int] = [:]
 
-        counts["CDStudent"] = safeFetchCount(CDStudent.self, using: viewContext)
-        counts["CDLesson"] = safeFetchCount(CDLesson.self, using: viewContext)
+        counts["Student"] = safeFetchCount(CDStudent.self, using: viewContext)
+        counts["Lesson"] = safeFetchCount(CDLesson.self, using: viewContext)
         // LegacyPresentation removed — fully migrated to CDLessonAssignment
         // WorkPlanItem removed in Phase 6 - migrated to CDWorkCheckIn
-        counts["CDNote"] = safeFetchCount(CDNote.self, using: viewContext)
-        counts["CDNonSchoolDay"] = safeFetchCount(CDNonSchoolDay.self, using: viewContext)
-        counts["CDSchoolDayOverride"] = safeFetchCount(CDSchoolDayOverride.self, using: viewContext)
-        counts["CDStudentMeeting"] = safeFetchCount(CDStudentMeeting.self, using: viewContext)
+        counts["Note"] = safeFetchCount(CDNote.self, using: viewContext)
+        counts["NonSchoolDay"] = safeFetchCount(CDNonSchoolDay.self, using: viewContext)
+        counts["SchoolDayOverride"] = safeFetchCount(CDSchoolDayOverride.self, using: viewContext)
+        counts["StudentMeeting"] = safeFetchCount(CDStudentMeeting.self, using: viewContext)
         // CDPresentation removed - using CDLessonAssignment instead
-        counts["CDCommunityTopicEntity"] = safeFetchCount(CDCommunityTopicEntity.self, using: viewContext)
-        counts["ProposedSolution"] = safeFetchCount(ProposedSolution.self, using: viewContext)
-        counts["CommunityAttachment"] = safeFetchCount(CommunityAttachment.self, using: viewContext)
-        counts["CDAttendanceRecord"] = safeFetchCount(CDAttendanceRecord.self, using: viewContext)
-        counts["CDWorkCompletionRecord"] = safeFetchCount(CDWorkCompletionRecord.self, using: viewContext)
-        counts["CDProject"] = safeFetchCount(CDProject.self, using: viewContext)
-        counts["ProjectAssignmentTemplate"] = safeFetchCount(ProjectAssignmentTemplate.self, using: viewContext)
-        counts["CDProjectSession"] = safeFetchCount(CDProjectSession.self, using: viewContext)
-        counts["ProjectRole"] = safeFetchCount(ProjectRole.self, using: viewContext)
-        counts["ProjectTemplateWeek"] = safeFetchCount(ProjectTemplateWeek.self, using: viewContext)
-        counts["ProjectWeekRoleAssignment"] = safeFetchCount(ProjectWeekRoleAssignment.self, using: viewContext)
+        counts["CommunityTopic"] = safeFetchCount(CDCommunityTopicEntity.self, using: viewContext)
+        counts["ProposedSolution"] = safeFetchCount(CDProposedSolutionEntity.self, using: viewContext)
+        counts["CommunityAttachment"] = safeFetchCount(CDCommunityAttachmentEntity.self, using: viewContext)
+        counts["AttendanceRecord"] = safeFetchCount(CDAttendanceRecord.self, using: viewContext)
+        counts["WorkCompletionRecord"] = safeFetchCount(CDWorkCompletionRecord.self, using: viewContext)
+        counts["Project"] = safeFetchCount(CDProject.self, using: viewContext)
+        counts["ProjectAssignmentTemplate"] = safeFetchCount(CDProjectAssignmentTemplate.self, using: viewContext)
+        counts["ProjectSession"] = safeFetchCount(CDProjectSession.self, using: viewContext)
+        counts["ProjectRole"] = safeFetchCount(CDProjectRole.self, using: viewContext)
+        counts["ProjectTemplateWeek"] = safeFetchCount(CDProjectTemplateWeek.self, using: viewContext)
+        counts["ProjectWeekRoleAssignment"] = safeFetchCount(CDProjectWeekRoleAssignment.self, using: viewContext)
 
         return counts
     }
@@ -191,6 +191,13 @@ enum BackupSizeEstimator {
     // MARK: - Private Helpers
 
     private static func safeFetchCount<T: NSManagedObject>(_ type: T.Type, using context: NSManagedObjectContext) -> Int {
+        // Guard: skip types whose entity doesn't exist in the Core Data model.
+        // T.fetchRequest() produces entity name '' for unregistered types, which throws
+        // an unrecoverable ObjC NSException that Swift catch cannot intercept.
+        let model = context.persistentStoreCoordinator?.managedObjectModel
+        guard model?.entitiesByName.values.contains(where: { $0.managedObjectClassName == NSStringFromClass(T.self) }) == true else {
+            return 0
+        }
         let descriptor = T.fetchRequest() as! NSFetchRequest<T>
         do {
             return try context.count(for: descriptor)

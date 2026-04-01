@@ -2,7 +2,7 @@ import OSLog
 import SwiftUI
 import CoreData
 
-// MARK: - Project Lesson Picker Sheet
+// MARK: - CDProject CDLesson Picker Sheet
 
 /// A minimal wrapper that reuses LessonPickerViewModel to choose a single lesson
 struct ProjectLessonPickerSheet: View {
@@ -22,7 +22,7 @@ struct ProjectLessonPickerSheet: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
-            Text("Choose Lesson")
+            Text("Choose CDLesson")
                 .font(.title3).fontWeight(.semibold)
             TextField("Search…", text: $search)
                 .textFieldStyle(.roundedBorder)
@@ -68,7 +68,7 @@ struct ProjectLessonPickerSheet: View {
 // MARK: - Add Work Offer Sheet
 
 struct AddWorkOfferSheet: View {
-    let session: ProjectSession
+    let session: CDProjectSession
 
     private static let logger = Logger.projects
 
@@ -80,7 +80,7 @@ struct AddWorkOfferSheet: View {
     @State private var instructions: String = ""
     @State private var dueDate: Date
 
-    init(session: ProjectSession) {
+    init(session: CDProjectSession) {
         self.session = session
         _dueDate = State(initialValue: session.meetingDate ?? Date())
     }

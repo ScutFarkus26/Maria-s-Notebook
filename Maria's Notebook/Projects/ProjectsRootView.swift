@@ -12,7 +12,7 @@ struct ProjectsRootView: View {
 
     // MARK: - Data
     @FetchRequest(sortDescriptors: [NSSortDescriptor(keyPath: \CDProject.createdAt, ascending: false)]) private var clubsRaw: FetchedResults<CDProject>
-    private var clubs: [Project] { Array(clubsRaw).uniqueByID }
+    private var clubs: [CDProject] { Array(clubsRaw).uniqueByID }
     
     // OPTIMIZATION: Removed unfiltered queries - deletion logic uses targeted FetchDescriptor
     // when needed, avoiding loading all records into memory upfront
@@ -23,7 +23,7 @@ struct ProjectsRootView: View {
     @State private var searchText: String = ""
     
     // Deletion State
-    @State private var clubToDelete: Project?
+    @State private var clubToDelete: CDProject?
     @State private var showDeleteAlert: Bool = false
 
     private var selectedClubID: Binding<UUID?> {
@@ -34,11 +34,11 @@ struct ProjectsRootView: View {
         }
     }
 
-    private var selectedClub: Project? {
+    private var selectedClub: CDProject? {
         clubs.first { $0.id?.uuidString == selectedClubIDString }
     }
 
-    private var filteredClubs: [Project] {
+    private var filteredClubs: [CDProject] {
         if searchText.isEmpty { return clubs }
         return clubs.filter { $0.title.localizedCaseInsensitiveContains(searchText) }
     }
@@ -50,7 +50,7 @@ struct ProjectsRootView: View {
                 Button {
                     showNewSheet = true
                 } label: {
-                    Label("Add Project", systemImage: "plus")
+                    Label("Add CDProject", systemImage: "plus")
                 }
                 .buttonStyle(.borderedProminent)
             }
@@ -71,7 +71,7 @@ struct ProjectsRootView: View {
         .sheet(isPresented: $showNewSheet) {
             ProjectEditorSheet(club: nil)
         }
-        .alert("Delete Project?", isPresented: $showDeleteAlert, presenting: clubToDelete) { club in
+        .alert("Delete CDProject?", isPresented: $showDeleteAlert, presenting: clubToDelete) { club in
             Button("Delete", role: .destructive) {
                 deleteClub(club)
             }
@@ -133,7 +133,7 @@ struct ProjectsRootView: View {
                 Button {
                     showNewSheet = true
                 } label: {
-                    Label("Add Project", systemImage: "plus")
+                    Label("Add CDProject", systemImage: "plus")
                 }
             }
         }
@@ -157,12 +157,12 @@ struct ProjectsRootView: View {
 
     // MARK: - Helpers
 
-    private func lastSessionDate(for club: Project) -> Date? {
+    private func lastSessionDate(for club: CDProject) -> Date? {
         ((club.sessions?.allObjects as? [CDProjectSession]) ?? []).compactMap(\.meetingDate).max()
     }
 
     // swiftlint:disable:next cyclomatic_complexity function_body_length
-    private func deleteClub(_ club: Project) {
+    private func deleteClub(_ club: CDProject) {
         // OPTIMIZATION: Use targeted filtering instead of loading all records upfront
         // SwiftData predicates can't compare captured UUID values, so we fetch and filter
         // This is still more efficient than the original which loaded everything into @Query properties
@@ -172,7 +172,7 @@ struct ProjectsRootView: View {
         // Delete sessions and their related work contracts
         // Fetch all sessions (can't use predicate with captured UUID), then filter
         let clubIDString = clubID.uuidString
-        let allSessions: [ProjectSession]
+        let allSessions: [CDProjectSession]
         do {
             allSessions = try modelContext.fetch(CDFetchRequest(CDProjectSession.self))
         } catch {
@@ -183,7 +183,7 @@ struct ProjectsRootView: View {
 
         // Fetch work models only for these sessions
         let sessionIDs = Set(sessions.compactMap { $0.id?.uuidString })
-        let allWorkModels: [WorkModel]
+        let allWorkModels: [CDWorkModel]
         do {
             allWorkModels = try modelContext.fetch(CDFetchRequest(CDWorkModel.self))
         } catch {
@@ -203,7 +203,7 @@ struct ProjectsRootView: View {
         }
 
         // Delete templates associated with this club
-        let allTemplates: [ProjectAssignmentTemplate]
+        let allTemplates: [CDProjectAssignmentTemplate]
         do {
             allTemplates = try modelContext.fetch(CDFetchRequest(CDProjectAssignmentTemplate.self))
         } catch {
@@ -214,7 +214,7 @@ struct ProjectsRootView: View {
         for t in templates { modelContext.delete(t) }
 
         // Delete roles for this club
-        let allRoles: [ProjectRole]
+        let allRoles: [CDProjectRole]
         do {
             allRoles = try modelContext.fetch(CDFetchRequest(CDProjectRole.self))
         } catch {
@@ -225,7 +225,7 @@ struct ProjectsRootView: View {
         for r in roles { modelContext.delete(r) }
 
         // Delete template weeks and their related data
-        let allWeeks: [ProjectTemplateWeek]
+        let allWeeks: [CDProjectTemplateWeek]
         do {
             allWeeks = try modelContext.fetch(CDFetchRequest(CDProjectTemplateWeek.self))
         } catch {
@@ -235,7 +235,7 @@ struct ProjectsRootView: View {
         let weeks = allWeeks.filter { $0.projectID == clubIDString }
         for w in weeks {
             // Role assignments for the week
-            let allAssigns: [ProjectWeekRoleAssignment]
+            let allAssigns: [CDProjectWeekRoleAssignment]
             do {
                 allAssigns = try modelContext.fetch(CDFetchRequest(CDProjectWeekRoleAssignment.self))
             } catch {
@@ -258,7 +258,7 @@ struct ProjectsRootView: View {
             selectedClubIDString = ""
         }
         
-        saveCoordinator.save(modelContext, reason: "Delete Project")
+        saveCoordinator.save(modelContext, reason: "Delete CDProject")
     }
 }
 
@@ -268,7 +268,7 @@ struct ProjectsRootView: View {
 /// Shows the project's icon (colored circle with project icon), title, and member count.
 /// Design matches SubjectListRow/StudentListRow for visual consistency across the app.
 struct ProjectSidebarRow: View {
-    let club: Project
+    let club: CDProject
     let isSelected: Bool
     let lastSessionDate: Date?
 

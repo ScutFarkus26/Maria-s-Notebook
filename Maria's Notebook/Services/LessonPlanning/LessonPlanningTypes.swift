@@ -116,7 +116,7 @@ struct PlanningMessage: Identifiable, Codable {
     }
 }
 
-// MARK: - Lesson Recommendation
+// MARK: - CDLesson Recommendation
 
 /// A single AI-generated lesson recommendation.
 struct LessonRecommendation: Identifiable, Codable {
@@ -204,7 +204,7 @@ struct WeekPlan: Codable {
     }
 }
 
-// MARK: - Student Readiness Profile
+// MARK: - CDStudent Readiness Profile
 
 /// Locally-computed profile summarizing a student's readiness for new lessons.
 struct StudentReadinessProfile: Identifiable, Codable {

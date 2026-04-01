@@ -11,8 +11,8 @@ import UIKit
 
 // swiftlint:disable:next type_body_length
 struct AttendanceCard: View {
-    let student: Student
-    let record: AttendanceRecord?
+    let student: CDStudent
+    let record: CDAttendanceRecord?
     let isEditing: Bool
     let onTap: () -> Void
     let onEditNote: (String?) -> Void
@@ -20,7 +20,7 @@ struct AttendanceCard: View {
 
     @Environment(\.horizontalSizeClass) private var hSizeClass
     @State private var showingNoteEditor = false
-    @State private var noteToEdit: Note?
+    @State private var noteToEdit: CDNote?
 
     private var status: AttendanceStatus { record?.status ?? .unmarked }
     private var absenceReason: AbsenceReason { record?.absenceReason ?? .none }
@@ -38,9 +38,9 @@ struct AttendanceCard: View {
     }
 
     // Helper to resolve the most relevant note content from unified notes
-    private var resolvedNote: (text: String, object: Note?) {
+    private var resolvedNote: (text: String, object: CDNote?) {
         guard let record else { return ("", nil) }
-        let note = Note.latestNote(in: (record.notes?.allObjects as? [CDNote]) ?? [])
+        let note = CDNote.latestNote(in: (record.notes?.allObjects as? [CDNote]) ?? [])
         return (note?.body ?? "", note)
     }
 
@@ -74,7 +74,7 @@ struct AttendanceCard: View {
                     Image(systemName: "square.and.pencil")
                         .imageScale(.medium)
                         .foregroundStyle(.secondary)
-                        .accessibilityLabel("Add Note")
+                        .accessibilityLabel("Add CDNote")
                 }
                 .buttonStyle(.plain)
             }
@@ -294,7 +294,7 @@ struct AttendanceCard: View {
                     noteToEdit = resolvedNote.object
                     showingNoteEditor = true
                 } label: {
-                    Label("Note…", systemImage: "square.and.pencil")
+                    Label("CDNote…", systemImage: "square.and.pencil")
                 }
 
                 // Absence reason options (only show when status is absent)
@@ -333,7 +333,7 @@ struct AttendanceCard: View {
                     context: .attendance(record),
                     initialNote: noteToEdit,
                     onSave: { _ in
-                        // Note is automatically saved via relationship
+                        // CDNote is automatically saved via relationship
                         showingNoteEditor = false
                     },
                     onCancel: {

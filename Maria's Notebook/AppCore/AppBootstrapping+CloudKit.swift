@@ -29,7 +29,7 @@ extension AppBootstrapping {
             return stack
         }
 
-        // CloudKit preference
+        // CloudKit preference (defaults to enabled)
         let cloudKitPreference = UserDefaults.standard.object(
             forKey: UserDefaultsKeys.enableCloudKitSync
         ) as? Bool ?? true

@@ -153,9 +153,9 @@ extension BackupDTOTransformers {
         TrackDTO(id: t.id ?? UUID(), title: t.title, createdAt: t.createdAt ?? Date())
     }
 
-    // MARK: - TrackStep
+    // MARK: - CDTrackStepEntity
 
-    static func toDTO(_ s: TrackStep) -> TrackStepDTO {
+    static func toDTO(_ s: CDTrackStepEntity) -> TrackStepDTO {
         TrackStepDTO(
             id: s.id ?? UUID(),
             trackID: s.track?.id,
@@ -221,9 +221,9 @@ extension BackupDTOTransformers {
         )
     }
 
-    // MARK: - SupplyTransaction
+    // MARK: - CDSupplyTransaction
 
-    static func toDTO(_ t: SupplyTransaction) -> SupplyTransactionDTO {
+    static func toDTO(_ t: CDSupplyTransaction) -> SupplyTransactionDTO {
         SupplyTransactionDTO(
             id: t.id ?? UUID(),
             supplyID: t.supplyID,
@@ -299,9 +299,9 @@ extension BackupDTOTransformers {
         )
     }
 
-    // MARK: - IssueAction
+    // MARK: - CDIssueAction
 
-    static func toDTO(_ a: IssueAction) -> IssueActionDTO {
+    static func toDTO(_ a: CDIssueAction) -> IssueActionDTO {
         IssueActionDTO(
             id: a.id ?? UUID(),
             createdAt: a.createdAt ?? Date(),
@@ -319,9 +319,9 @@ extension BackupDTOTransformers {
         )
     }
 
-    // MARK: - DevelopmentSnapshot
+    // MARK: - CDDevelopmentSnapshotEntity
 
-    static func toDTO(_ s: DevelopmentSnapshot) -> DevelopmentSnapshotDTO {
+    static func toDTO(_ s: CDDevelopmentSnapshotEntity) -> DevelopmentSnapshotDTO {
         DevelopmentSnapshotDTO(
             id: s.id ?? UUID(),
             studentID: s.studentID,
@@ -475,7 +475,7 @@ extension BackupDTOTransformers {
         tracks.map { toDTO($0) }
     }
 
-    static func toDTOs(_ steps: [TrackStep]) -> [TrackStepDTO] {
+    static func toDTOs(_ steps: [CDTrackStepEntity]) -> [TrackStepDTO] {
         steps.map { toDTO($0) }
     }
 
@@ -495,7 +495,7 @@ extension BackupDTOTransformers {
         supplies.map { toDTO($0) }
     }
 
-    static func toDTOs(_ transactions: [SupplyTransaction]) -> [SupplyTransactionDTO] {
+    static func toDTOs(_ transactions: [CDSupplyTransaction]) -> [SupplyTransactionDTO] {
         transactions.map { toDTO($0) }
     }
 
@@ -515,11 +515,11 @@ extension BackupDTOTransformers {
         issues.map { toDTO($0) }
     }
 
-    static func toDTOs(_ actions: [IssueAction]) -> [IssueActionDTO] {
+    static func toDTOs(_ actions: [CDIssueAction]) -> [IssueActionDTO] {
         actions.map { toDTO($0) }
     }
 
-    static func toDTOs(_ snapshots: [DevelopmentSnapshot]) -> [DevelopmentSnapshotDTO] {
+    static func toDTOs(_ snapshots: [CDDevelopmentSnapshotEntity]) -> [DevelopmentSnapshotDTO] {
         snapshots.map { toDTO($0) }
     }
 
@@ -539,9 +539,9 @@ extension BackupDTOTransformers {
         orders.map { toDTO($0) }
     }
 
-    // MARK: - PlanningRecommendation
+    // MARK: - CDPlanningRecommendation
 
-    static func toDTO(_ r: PlanningRecommendation) -> PlanningRecommendationDTO {
+    static func toDTO(_ r: CDPlanningRecommendation) -> PlanningRecommendationDTO {
         PlanningRecommendationDTO(
             id: r.id ?? UUID(),
             createdAt: r.createdAt ?? Date(),
@@ -564,7 +564,7 @@ extension BackupDTOTransformers {
         )
     }
 
-    static func toDTOs(_ recommendations: [PlanningRecommendation]) -> [PlanningRecommendationDTO] {
+    static func toDTOs(_ recommendations: [CDPlanningRecommendation]) -> [PlanningRecommendationDTO] {
         recommendations.map { toDTO($0) }
     }
 
@@ -632,9 +632,9 @@ extension BackupDTOTransformers {
         goingOuts.map { toDTO($0) }
     }
 
-    // MARK: - GoingOutChecklistItem
+    // MARK: - CDGoingOutChecklistItem
 
-    static func toDTO(_ item: GoingOutChecklistItem) -> GoingOutChecklistItemDTO {
+    static func toDTO(_ item: CDGoingOutChecklistItem) -> GoingOutChecklistItemDTO {
         GoingOutChecklistItemDTO(
             id: item.id ?? UUID(),
             createdAt: item.createdAt ?? Date(),
@@ -646,7 +646,7 @@ extension BackupDTOTransformers {
         )
     }
 
-    static func toDTOs(_ items: [GoingOutChecklistItem]) -> [GoingOutChecklistItemDTO] {
+    static func toDTOs(_ items: [CDGoingOutChecklistItem]) -> [GoingOutChecklistItemDTO] {
         items.map { toDTO($0) }
     }
 
@@ -709,9 +709,9 @@ extension BackupDTOTransformers {
         plans.map { toDTO($0) }
     }
 
-    // MARK: - TransitionChecklistItem
+    // MARK: - CDTransitionChecklistItem
 
-    static func toDTO(_ item: TransitionChecklistItem) -> TransitionChecklistItemDTO {
+    static func toDTO(_ item: CDTransitionChecklistItem) -> TransitionChecklistItemDTO {
         TransitionChecklistItemDTO(
             id: item.id ?? UUID(),
             createdAt: item.createdAt ?? Date(),
@@ -725,7 +725,7 @@ extension BackupDTOTransformers {
         )
     }
 
-    static func toDTOs(_ items: [TransitionChecklistItem]) -> [TransitionChecklistItemDTO] {
+    static func toDTOs(_ items: [CDTransitionChecklistItem]) -> [TransitionChecklistItemDTO] {
         items.map { toDTO($0) }
     }
 

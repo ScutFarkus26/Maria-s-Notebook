@@ -119,7 +119,7 @@ struct IssueDetailSheet: View {
                     }
                 }
             }
-            .navigationTitle(isEditing ? "Edit Issue" : "New Issue")
+            .navigationTitle(isEditing ? "Edit CDIssue" : "New CDIssue")
             .inlineNavigationTitle()
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {
@@ -424,14 +424,14 @@ struct IssueActionSheet: View {
     }
 }
 
-#Preview("Issue List") {
+#Preview("CDIssue List") {
     NavigationStack {
         IssuesListView()
     }
     .previewEnvironment()
 }
 
-#Preview("New Issue") {
+#Preview("New CDIssue") {
     IssueDetailSheet(issue: nil)
         .previewEnvironment()
 }

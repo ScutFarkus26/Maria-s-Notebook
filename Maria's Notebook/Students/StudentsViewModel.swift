@@ -24,7 +24,7 @@ final class StudentsViewModel {
         showTestStudents: Bool = true,
         testStudentNames: String = ""
     ) -> [CDStudent] {
-        // Note: level and presentNow filtering are done in-memory;
+        // CDNote: level and presentNow filtering are done in-memory;
         // levelRaw is private and Core Data NSPredicate can't capture local Set variables.
         let descriptor = CDFetchRequest(CDStudent.self)
         descriptor.sortDescriptors = buildStudentSortDescriptors(for: sortOrder)
@@ -196,7 +196,7 @@ final class StudentsViewModel {
         // Load today's attendance records for roster view
         let today = calendar.startOfDay(for: Date())
         let tomorrow = calendar.date(byAdding: .day, value: 1, to: today) ?? today
-        let descriptor: NSFetchRequest<CDAttendanceRecord> = NSFetchRequest(entityName: "CDAttendanceRecord")
+        let descriptor: NSFetchRequest<CDAttendanceRecord> = NSFetchRequest(entityName: "AttendanceRecord")
         descriptor.predicate = NSPredicate(format: "date >= %@ AND date < %@", today as CVarArg, tomorrow as CVarArg)
         cachedAttendanceRecords = viewContext.safeFetch(descriptor)
         lastLoadTimestamp = Date()
@@ -294,7 +294,7 @@ extension StudentsViewModel {
             let oneYearAgo = calendar.date(byAdding: .year, value: -1, to: Date())
                 ?? Date().addingTimeInterval(-365 * 24 * 3600)
 
-            let descriptor: NSFetchRequest<CDLessonAssignment> = NSFetchRequest(entityName: "CDLessonAssignment")
+            let descriptor: NSFetchRequest<CDLessonAssignment> = NSFetchRequest(entityName: "LessonAssignment")
             descriptor.predicate = NSPredicate(format: "createdAt >= %@", oneYearAgo as CVarArg)
             descriptor.sortDescriptors = [
                 NSSortDescriptor(keyPath: \CDLessonAssignment.presentedAt, ascending: false),
@@ -304,7 +304,7 @@ extension StudentsViewModel {
             self.allLessonAssignments = viewContext.safeFetch(descriptor)
 
             // Fetch lessons to exclude (parsha lessons) - cache this as Set for O(1) lookup
-            let lessonsDescriptor = NSFetchRequest<CDLesson>(entityName: "CDLesson")
+            let lessonsDescriptor = NSFetchRequest<CDLesson>(entityName: "Lesson")
             let allLessons = viewContext.safeFetch(lessonsDescriptor)
             func norm(_ s: String) -> String { s.normalizedForComparison() }
             let ids = allLessons.filter { l in

@@ -39,8 +39,8 @@ struct WorksAgendaView: View {
     @State var studentChangeToken: Int = 0
 
     // Lazy-loaded caches (only populated when needed)
-    @State var lessonsByIDCache: [UUID: Lesson] = [:]
-    @State var studentsByIDCache: [UUID: Student] = [:]
+    @State var lessonsByIDCache: [UUID: CDLesson] = [:]
+    @State var studentsByIDCache: [UUID: CDStudent] = [:]
 
     @AppStorage(UserDefaultsKeys.generalShowTestStudents) var showTestStudents: Bool = false
     @AppStorage(UserDefaultsKeys.generalTestStudentNames)
@@ -60,8 +60,8 @@ struct WorksAgendaView: View {
     struct SelectionToken: Identifiable, Equatable { let id: UUID; let workID: UUID }
 
     // MEMORY OPTIMIZATION: Load lessons and students on-demand based on contracts
-    var lessonsByID: [UUID: Lesson] { lessonsByIDCache }
-    var studentsByID: [UUID: Student] { studentsByIDCache }
+    var lessonsByID: [UUID: CDLesson] { lessonsByIDCache }
+    var studentsByID: [UUID: CDStudent] { studentsByIDCache }
 
     /// Combined trigger for data reload — changes when any relevant data changes
     private var dataReloadTrigger: Int {
@@ -260,11 +260,11 @@ struct WorksAgendaView: View {
     let stack = CoreDataStack.preview
     let ctx = stack.viewContext
 
-    let s = Student(context: ctx)
+    let s = CDStudent(context: ctx)
     s.firstName = "Ada"; s.lastName = "Lovelace"; s.birthday = Date(); s.level = .upper
-    let l = Lesson(context: ctx)
+    let l = CDLesson(context: ctx)
     l.name = "Long Division"; l.subject = "Math"; l.group = "Ops"
-    let w = WorkModel(context: ctx)
+    let w = CDWorkModel(context: ctx)
     w.status = .active; w.studentID = s.id?.uuidString ?? ""; w.lessonID = l.id?.uuidString ?? ""
 
     return WorksAgendaView()

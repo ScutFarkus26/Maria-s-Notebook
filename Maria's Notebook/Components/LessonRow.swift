@@ -95,7 +95,7 @@ struct LessonRow: View {
                 if let onOpenInNewWindow {
                     onOpenInNewWindow()
                 } else {
-                    openLessonInNewWindow(lesson.id)
+                    if let id = lesson.id { openLessonInNewWindow(id) }
                 }
             } label: {
                 Label("Open in New Window", systemImage: "uiwindow.split.2x1")

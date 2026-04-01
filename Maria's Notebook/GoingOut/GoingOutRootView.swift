@@ -9,7 +9,7 @@ struct GoingOutRootView: View {
     @Environment(\.managedObjectContext) private var modelContext
     @State private var viewModel = GoingOutViewModel()
     @State private var showingNewSheet = false
-    @State private var selectedGoingOut: GoingOut?
+    @State private var selectedGoingOut: CDGoingOut?
 
     // Change detection
     @FetchRequest(sortDescriptors: [NSSortDescriptor(keyPath: \CDGoingOut.createdAt, ascending: false)])
@@ -167,7 +167,7 @@ struct GoingOutRootView: View {
         ContentUnavailableView {
             Label("No Going-Outs", systemImage: "figure.walk")
         } description: {
-            Text("Student-initiated excursions will appear here. Tap + to create one.")
+            Text("CDStudent-initiated excursions will appear here. Tap + to create one.")
         }
     }
 }

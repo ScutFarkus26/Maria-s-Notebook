@@ -14,13 +14,13 @@ struct MainToolbar: ToolbarContent {
                 Button {
                     appRouter.requestNewLesson()
                 } label: {
-                    Label("New Lesson", systemImage: "book.badge.plus")
+                    Label("New CDLesson", systemImage: "book.badge.plus")
                 }
 
                 Button {
                     appRouter.requestNewStudent()
                 } label: {
-                    Label("New Student", systemImage: "person.badge.plus")
+                    Label("New CDStudent", systemImage: "person.badge.plus")
                 }
 
                 Button {

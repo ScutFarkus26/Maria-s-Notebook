@@ -258,7 +258,7 @@ struct LessonProgressSection: View {
                         Button {
                             planNextLessonInGroup()
                         } label: {
-                            Label("Plan Next Lesson", systemImage: "calendar.badge.plus")
+                            Label("Plan Next CDLesson", systemImage: "calendar.badge.plus")
                                 .font(AppTheme.ScaledFont.callout)
                         }
                         .buttonStyle(.borderedProminent)
@@ -297,7 +297,7 @@ struct LessonProgressSection: View {
     // swiftlint:disable:next function_body_length
     private func addPracticeIfNeeded() {
         let hasPracticeWork: Bool = {
-            let descriptor = NSFetchRequest<CDWorkModel>(entityName: "CDWorkModel")
+            let descriptor = NSFetchRequest<CDWorkModel>(entityName: "WorkModel")
             let works: [CDWorkModel]
             do {
                 works = try viewContext.fetch(descriptor)

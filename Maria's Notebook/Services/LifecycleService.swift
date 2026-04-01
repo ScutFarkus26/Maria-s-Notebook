@@ -26,7 +26,7 @@ struct LifecycleService {
         }
     }
 
-    /// Cleans orphaned student IDs from a LessonAssignment by removing IDs that no longer exist in the database.
+    /// Cleans orphaned student IDs from a CDLessonAssignment by removing IDs that no longer exist in the database.
     /// This ensures referential integrity when using manual ID management instead of Core Data relationships.
     static func cleanOrphanedStudentIDs(
         for lessonAssignment: CDLessonAssignment,
@@ -57,9 +57,9 @@ struct LifecycleService {
         return try context.fetch(request)
     }
 
-    // MARK: - LessonPresentation Helpers
+    // MARK: - CDLessonPresentation Helpers
 
-    /// Upsert LessonPresentation idempotently by (presentationID, studentID).
+    /// Upsert CDLessonPresentation idempotently by (presentationID, studentID).
     /// If exists: updates lastObservedAt. If not exists: creates new with state .presented.
     static func upsertLessonPresentation(
         presentationID: String,
@@ -78,7 +78,7 @@ struct LifecycleService {
             // Update lastObservedAt to track when this presentation was last seen
             existing.lastObservedAt = presentedAt
         } else {
-            // Create new LessonPresentation with initial state .presented
+            // Create new CDLessonPresentation with initial state .presented
             let lessonPresentation = CDLessonPresentation(context: context)
             lessonPresentation.studentID = studentID
             lessonPresentation.lessonID = lessonID
@@ -89,8 +89,8 @@ struct LifecycleService {
         }
     }
 
-    /// Upsert LessonPresentation by (lessonID, studentID) when no presentationID exists.
-    /// Used for syncing progress from LessonAssignment records that may not have a Presentation yet.
+    /// Upsert CDLessonPresentation by (lessonID, studentID) when no presentationID exists.
+    /// Used for syncing progress from CDLessonAssignment records that may not have a Presentation yet.
     static func upsertLessonPresentationByLessonAndStudent(
         lessonID: String,
         studentID: String,
@@ -110,7 +110,7 @@ struct LifecycleService {
             }
             existing.lastObservedAt = presentedAt
         } else {
-            // Create new LessonPresentation with initial state .presented (no presentationID yet)
+            // Create new CDLessonPresentation with initial state .presented (no presentationID yet)
             let lessonPresentation = CDLessonPresentation(context: context)
             lessonPresentation.studentID = studentID
             lessonPresentation.lessonID = lessonID

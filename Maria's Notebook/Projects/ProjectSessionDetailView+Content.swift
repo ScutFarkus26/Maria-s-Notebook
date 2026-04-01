@@ -22,8 +22,8 @@ extension ProjectSessionDetailView {
             }
         }
 
-        // Student selection status
-        Section("Student Selections") {
+        // CDStudent selection status
+        Section("CDStudent Selections") {
             ForEach(projectMemberIDs.sorted { studentName(for: $0) < studentName(for: $1) }, id: \.self) { studentID in
                 studentSelectionRow(studentID: studentID)
             }
@@ -31,7 +31,7 @@ extension ProjectSessionDetailView {
     }
 
     @ViewBuilder
-    func offeredWorkRow(_ work: WorkModel) -> some View {
+    func offeredWorkRow(_ work: CDWorkModel) -> some View {
         VStack(alignment: .leading, spacing: 6) {
             HStack {
                 Text(work.title.isEmpty ? "Untitled" : work.title)
@@ -130,7 +130,7 @@ extension ProjectSessionDetailView {
 
     @ViewBuilder
     // swiftlint:disable:next function_body_length
-    func workRow(_ work: WorkModel) -> some View {
+    func workRow(_ work: CDWorkModel) -> some View {
         VStack(alignment: .leading, spacing: 8) {
             HStack(alignment: .firstTextBaseline) {
                 // Title (Role) - Display only
@@ -168,7 +168,7 @@ extension ProjectSessionDetailView {
                 }
             }
 
-            // Linked Lesson display
+            // Linked CDLesson display
             HStack(spacing: 8) {
                 if let l = lessonsByID[uuidString: work.lessonID] {
                     Text("Linked: \(l.name)")
@@ -183,7 +183,7 @@ extension ProjectSessionDetailView {
                 Button {
                     showLessonPickerForWork = work
                 } label: {
-                    Label("Change Lesson", systemImage: "book")
+                    Label("Change CDLesson", systemImage: "book")
                 }
                 .buttonStyle(.borderless)
                 .font(.caption)

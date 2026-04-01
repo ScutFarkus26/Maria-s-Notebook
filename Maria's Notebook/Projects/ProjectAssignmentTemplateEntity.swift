@@ -1,7 +1,7 @@
 import Foundation
 import CoreData
 
-@objc(ProjectAssignmentTemplate)
+@objc(CDProjectAssignmentTemplate)
 public class CDProjectAssignmentTemplate: NSManagedObject {
     // MARK: - Core Data Properties
     @NSManaged public var id: UUID?

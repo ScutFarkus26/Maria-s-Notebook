@@ -6,7 +6,7 @@ import CoreData
 extension StudentNotesViewModel {
 
     func fetchNote(id: UUID) -> CDNote? {
-        let d: NSFetchRequest<CDNote> = NSFetchRequest(entityName: "CDNote")
+        let d: NSFetchRequest<CDNote> = NSFetchRequest(entityName: "Note")
         d.predicate = NSPredicate(format: "id == %@", id as CVarArg)
         return viewContext.safeFetchFirst(d)
     }

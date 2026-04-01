@@ -3,14 +3,14 @@ import CoreData
 
 /// Detail view for viewing a procedure
 struct ProcedureDetailView: View {
-    let procedure: Procedure
-    var onEdit: ((Procedure) -> Void)?
+    let procedure: CDProcedure
+    var onEdit: ((CDProcedure) -> Void)?
 
     @Environment(\.managedObjectContext) private var viewContext
     @Environment(\.dismiss) private var dismiss
     @State private var showingDeleteConfirmation = false
 
-    private var relatedProcedures: [Procedure] {
+    private var relatedProcedures: [CDProcedure] {
         ProcedureService.fetchRelatedProcedures(for: procedure, in: viewContext)
     }
 
@@ -73,7 +73,7 @@ struct ProcedureDetailView: View {
                 }
             }
             .confirmationDialog(
-                "Delete Procedure",
+                "Delete CDProcedure",
                 isPresented: $showingDeleteConfirmation,
                 titleVisibility: .visible
             ) {
@@ -260,7 +260,7 @@ struct ProcedureDetailView: View {
 #Preview {
     let stack = CoreDataStack.preview
     let ctx = stack.viewContext
-    let procedure = Procedure(context: ctx)
+    let procedure = CDProcedure(context: ctx)
     procedure.title = "Morning Arrival"
     procedure.summary = "Steps for welcoming students and starting the day"
     procedure.content = """

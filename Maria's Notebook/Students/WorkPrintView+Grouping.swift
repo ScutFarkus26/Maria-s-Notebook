@@ -29,9 +29,9 @@ extension WorkPrintView {
             if let student {
                 title = student.fullName
             } else if studentIDString.trimmed().isEmpty {
-                title = "Unassigned Student"
+                title = "Unassigned CDStudent"
             } else {
-                title = "Unknown Student"
+                title = "Unknown CDStudent"
             }
 
             let sorted = works.sorted { work1, work2 in

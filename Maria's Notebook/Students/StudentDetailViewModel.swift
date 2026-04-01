@@ -28,7 +28,7 @@ final class StudentDetailViewModel {
     private(set) var nextLessonsForStudent: [LessonAssignmentSnapshot] = []
     /// Lessons that have been presented to this student
     private(set) var presentedLessonIDs: Set<UUID> = []
-    /// Lessons that this student has mastered (based on LessonPresentation.state == .proficient)
+    /// Lessons that this student has mastered (based on CDLessonPresentation.state == .proficient)
     private(set) var proficientLessonIDs: Set<UUID> = []
     private(set) var plannedLessonIDs: Set<UUID> = []
 
@@ -53,7 +53,7 @@ final class StudentDetailViewModel {
     // MARK: - Data Loading
     /// Load lessons and lesson assignments from the database using NSFetchRequest.
     func loadData(viewContext: NSManagedObjectContext) {
-        let laDescriptor: NSFetchRequest<CDLessonAssignment> = NSFetchRequest(entityName: "CDLessonAssignment")
+        let laDescriptor: NSFetchRequest<CDLessonAssignment> = NSFetchRequest(entityName: "LessonAssignment")
         laDescriptor.sortDescriptors = [
                 NSSortDescriptor(keyPath: \CDLessonAssignment.scheduledFor, ascending: true),
                 NSSortDescriptor(keyPath: \CDLessonAssignment.createdAt, ascending: true)
@@ -65,7 +65,7 @@ final class StudentDetailViewModel {
         let neededLessonIDs = Set(filteredLAs.map(\.resolvedLessonID))
         let fetchedLessons: [CDLesson]
         if !neededLessonIDs.isEmpty {
-            let descriptor = NSFetchRequest<CDLesson>(entityName: "CDLesson")
+            let descriptor = NSFetchRequest<CDLesson>(entityName: "Lesson")
             descriptor.fetchLimit = 1000
             let allLessons = viewContext.safeFetch(descriptor)
             fetchedLessons = allLessons.filter { $0.id != nil && neededLessonIDs.contains($0.id!) }
@@ -84,9 +84,9 @@ final class StudentDetailViewModel {
     private func loadProficientLessonIDs(viewContext: NSManagedObjectContext) {
         let studentIDString = student.id?.uuidString ?? ""
         // PERFORMANCE: Use predicate to filter at database level instead of loading all records
-        // Note: Must use stateRaw (stored property) not state (computed property) in predicates
+        // CDNote: Must use stateRaw (stored property) not state (computed property) in predicates
         let proficientStateRaw = LessonPresentationState.proficient.rawValue
-        let descriptor: NSFetchRequest<CDLessonPresentation> = NSFetchRequest(entityName: "CDLessonPresentation")
+        let descriptor: NSFetchRequest<CDLessonPresentation> = NSFetchRequest(entityName: "LessonPresentation")
         descriptor.predicate = NSPredicate(format: "studentID == %@ AND stateRaw == %@", studentIDString, proficientStateRaw)
         let proficientPresentations = safeFetch(descriptor, context: viewContext)
 
@@ -230,7 +230,7 @@ final class StudentDetailViewModel {
            let existing = latestLessonAssignment(for: lessonID, studentID: studentID) {
             return existing
         }
-        let created = PresentationFactory.insertDraft(
+        let created = PresentationFactory.makeDraft(
             lessonID: lesson.id ?? UUID(),
             studentIDs: [student.id ?? UUID()],
             context: viewContext
@@ -284,11 +284,11 @@ final class StudentDetailViewModel {
             let la = PresentationFactory.makePresented(
                 lessonID: lessonID,
                 studentIDs: [studentID],
-                presentedAt: presentedDate
+                presentedAt: presentedDate,
+                context: viewContext
             )
             la.lesson = lesson
             la.syncSnapshotsFromRelationships()
-            viewContext.insert(la)
             if saveCoordinator.save(viewContext, reason: "Recording presentation") {
                 showToast("Presentation recorded")
             }
@@ -310,7 +310,7 @@ final class StudentDetailViewModel {
         let completeStatusRaw = WorkStatus.complete.rawValue
 
         let predicate = NSPredicate(format: "studentID == %@ AND statusRaw != %@", sid, completeStatusRaw)
-        let descriptor: NSFetchRequest<CDWorkModel> = NSFetchRequest(entityName: "CDWorkModel")
+        let descriptor: NSFetchRequest<CDWorkModel> = NSFetchRequest(entityName: "WorkModel")
         descriptor.predicate = predicate
         descriptor.sortDescriptors = [NSSortDescriptor(keyPath: \CDWorkModel.createdAt, ascending: false)]
         descriptor.fetchLimit = 500 // Reasonable limit for incomplete work per student
@@ -339,12 +339,14 @@ final class StudentDetailViewModel {
             newLA = PresentationFactory.makePresented(
                 lessonID: lessonID,
                 studentIDs: [studentID],
-                presentedAt: AppCalendar.startOfDay(Date())
+                presentedAt: AppCalendar.startOfDay(Date()),
+                context: viewContext
             )
         } else {
             newLA = PresentationFactory.makeDraft(
                 lessonID: lessonID,
-                studentIDs: [studentID]
+                studentIDs: [studentID],
+                context: viewContext
             )
         }
         newLA.lesson = lesson
@@ -381,10 +383,8 @@ final class StudentDetailViewModel {
             return existing
         }
 
-        let newLA = PresentationFactory.makeDraft(lessonID: lessonID, studentIDs: [studentID])
+        let newLA = PresentationFactory.makeDraft(lessonID: lessonID, studentIDs: [studentID], context: viewContext)
         newLA.lesson = lesson
-        // students stored as studentIDs array, already set by PresentationFactory
-        viewContext.insert(newLA)
         saveCoordinator.save(viewContext, reason: "Creating lesson assignment")
 
         return newLA
@@ -401,10 +401,10 @@ final class StudentDetailViewModel {
         let newLA = PresentationFactory.makePresented(
             lessonID: lessonID,
             studentIDs: [studentID],
-            presentedAt: presentedDate
+            presentedAt: presentedDate,
+            context: viewContext
         )
         newLA.lesson = lesson
-        // students stored as studentIDs array, already set by PresentationFactory
         newLA.syncSnapshotsFromRelationships()
         viewContext.insert(newLA)
         saveCoordinator.save(viewContext, reason: "Logging presentation")
@@ -426,7 +426,7 @@ final class StudentDetailViewModel {
         let activeRaw = WorkStatus.active.rawValue
         let reviewRaw = WorkStatus.review.rawValue
 
-        let descriptor: NSFetchRequest<CDWorkModel> = NSFetchRequest(entityName: "CDWorkModel")
+        let descriptor: NSFetchRequest<CDWorkModel> = NSFetchRequest(entityName: "WorkModel")
         descriptor.predicate = NSPredicate(format: "presentationID == %@ AND (statusRaw == %@ OR statusRaw == %@)", presentationIDString ?? "", activeRaw, reviewRaw)
         let limitedDescriptor = descriptor
         limitedDescriptor.fetchLimit = 1
@@ -451,7 +451,7 @@ final class StudentDetailViewModel {
             cdContext.safeSave()
             // Re-fetch as SwiftData CDWorkModel (both contexts share the same SQLite store)
             let workID = cdWork.id ?? UUID()
-            var refetch = { let r = NSFetchRequest<CDWorkModel>(entityName: "CDWorkModel"); r.predicate = NSPredicate(format: "id == %@", workID as CVarArg); r.fetchLimit = 0; return r }()
+            var refetch = { let r = NSFetchRequest<CDWorkModel>(entityName: "WorkModel"); r.predicate = NSPredicate(format: "id == %@", workID as CVarArg); r.fetchLimit = 0; return r }()
             refetch.fetchLimit = 1
             return try? viewContext.fetch(refetch).first
         } catch {
@@ -461,7 +461,7 @@ final class StudentDetailViewModel {
 
     /// Fetch a CDWorkModel by ID
     func fetchWork(by id: UUID, viewContext: NSManagedObjectContext) -> CDWorkModel? {
-        var descriptor = { let r = NSFetchRequest<CDWorkModel>(entityName: "CDWorkModel"); r.predicate = NSPredicate(format: "id == %@", id as CVarArg); r.fetchLimit = 0; return r }()
+        var descriptor = { let r = NSFetchRequest<CDWorkModel>(entityName: "WorkModel"); r.predicate = NSPredicate(format: "id == %@", id as CVarArg); r.fetchLimit = 0; return r }()
         descriptor.fetchLimit = 1
         return safeFetch(descriptor, context: viewContext).first
     }

@@ -224,7 +224,7 @@ struct AttendanceTardyReport: View {
 
 private struct TardyRow: Identifiable {
     let id: UUID = UUID()
-    let student: Student
+    let student: CDStudent
     let tardyCount: Int
 }
 

@@ -1,7 +1,7 @@
 import SwiftUI
 
 struct WorkCheckInNoteEditor: View {
-    // Decoupled from WorkCheckIn model so it works with Drafts too
+    // Decoupled from CDWorkCheckIn model so it works with Drafts too
     let date: Date
     let purpose: String
     
@@ -11,7 +11,7 @@ struct WorkCheckInNoteEditor: View {
     
     var body: some View {
         VStack(alignment: .leading, spacing: 16) {
-            Text("Add Note")
+            Text("Add CDNote")
                 .font(AppTheme.ScaledFont.titleSmall)
             
             checkInInfo

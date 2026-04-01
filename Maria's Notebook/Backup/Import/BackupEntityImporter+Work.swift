@@ -138,13 +138,13 @@ extension BackupEntityImporter {
     static func importWorkParticipants(
         _ dtos: [WorkParticipantEntityDTO],
         into viewContext: NSManagedObjectContext,
-        existingCheck: EntityExistsCheck<WorkParticipantEntity>,
+        existingCheck: EntityExistsCheck<CDWorkParticipantEntity>,
         workCheck: EntityExistsCheck<CDWorkModel>
     ) rethrows {
         for dto in dtos {
             if shouldSkipExisting(id: dto.id, existingCheck: existingCheck) { continue }
             guard UUID(uuidString: dto.studentID) != nil else { continue }
-            let participant = WorkParticipantEntity(context: viewContext)
+            let participant = CDWorkParticipantEntity(context: viewContext)
             participant.id = dto.id
             participant.studentID = dto.studentID
             participant.completedAt = dto.completedAt

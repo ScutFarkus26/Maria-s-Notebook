@@ -11,7 +11,7 @@ import CoreData
 
 // MARK: - Protocol Definition
 
-/// Protocol for WorkCheckIn operations
+/// Protocol for CDWorkCheckIn operations
 /// Defines the interface for creating, updating, and deleting work check-ins
 protocol WorkCheckInServiceProtocol {
     var context: NSManagedObjectContext { get }

@@ -1,7 +1,7 @@
 import Foundation
 import CoreData
 
-@objc(TransitionChecklistItem)
+@objc(CDTransitionChecklistItem)
 public class CDTransitionChecklistItem: NSManagedObject {
     // MARK: - Core Data Properties
     @NSManaged public var id: UUID?

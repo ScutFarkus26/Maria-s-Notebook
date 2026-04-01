@@ -30,8 +30,6 @@ public class CDLesson: NSManagedObject {
     @NSManaged public var primaryAttachmentID: String?
 
     // MARK: - Relationships
-    @NSManaged public var notes: NSSet?
-    @NSManaged public var lessonAssignments: NSSet?
     @NSManaged public var attachments: NSSet?
     @NSManaged public var sampleWorks: NSSet?
 
@@ -160,6 +158,22 @@ extension CDLesson {
         }
     }
 
+    /// Cross-store inverse: fetches Notes whose lessonID matches this lesson.
+    var notes: [CDNote] {
+        guard let id, let ctx = managedObjectContext else { return [] }
+        let req = CDFetchRequest(CDNote.self)
+        req.predicate = NSPredicate(format: "lessonID == %@", id.uuidString)
+        return (try? ctx.fetch(req)) ?? []
+    }
+
+    /// Cross-store inverse: fetches LessonAssignments whose lessonID matches this lesson.
+    var lessonAssignments: [CDLessonAssignment] {
+        guard let id, let ctx = managedObjectContext else { return [] }
+        let req = CDFetchRequest(CDLessonAssignment.self)
+        req.predicate = NSPredicate(format: "lessonID == %@", id.uuidString)
+        return (try? ctx.fetch(req)) ?? []
+    }
+
     /// Sample works sorted by orderIndex
     var orderedSampleWorks: [CDSampleWorkEntity] {
         ((sampleWorks?.allObjects as? [CDSampleWorkEntity]) ?? []).sorted { $0.orderIndex < $1.orderIndex }
@@ -169,30 +183,6 @@ extension CDLesson {
 // MARK: - Generated Accessors for To-Many Relationships
 
 extension CDLesson {
-    @objc(addNotesObject:)
-    @NSManaged public func addToNotes(_ value: CDNote)
-
-    @objc(removeNotesObject:)
-    @NSManaged public func removeFromNotes(_ value: CDNote)
-
-    @objc(addNotes:)
-    @NSManaged public func addToNotes(_ values: NSSet)
-
-    @objc(removeNotes:)
-    @NSManaged public func removeFromNotes(_ values: NSSet)
-
-    @objc(addLessonAssignmentsObject:)
-    @NSManaged public func addToLessonAssignments(_ value: CDLessonAssignment)
-
-    @objc(removeLessonAssignmentsObject:)
-    @NSManaged public func removeFromLessonAssignments(_ value: CDLessonAssignment)
-
-    @objc(addLessonAssignments:)
-    @NSManaged public func addToLessonAssignments(_ values: NSSet)
-
-    @objc(removeLessonAssignments:)
-    @NSManaged public func removeFromLessonAssignments(_ values: NSSet)
-
     @objc(addAttachmentsObject:)
     @NSManaged public func addToAttachments(_ value: CDLessonAttachment)
 

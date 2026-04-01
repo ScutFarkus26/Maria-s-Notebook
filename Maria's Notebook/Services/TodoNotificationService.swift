@@ -40,7 +40,7 @@ class TodoNotificationService {
 
         // Create notification content
         let content = UNMutableNotificationContent()
-        content.title = "Todo Reminder"
+        content.title = "Todo CDReminder"
         content.body = todo.title
         content.sound = .default
 

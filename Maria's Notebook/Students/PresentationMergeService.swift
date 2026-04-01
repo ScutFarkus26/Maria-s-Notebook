@@ -50,12 +50,12 @@ enum PresentationMergeService {
     }
 
     private static func fetchLessonAssignment(id: UUID, context: NSManagedObjectContext) -> CDLessonAssignment? {
-        var desc = { let r = NSFetchRequest<CDLessonAssignment>(entityName: "CDLessonAssignment"); r.predicate = NSPredicate(format: "id == %@", id as CVarArg); r.fetchLimit = 0; return r }()
+        var desc = { let r = NSFetchRequest<CDLessonAssignment>(entityName: "LessonAssignment"); r.predicate = NSPredicate(format: "id == %@", id as CVarArg); r.fetchLimit = 0; return r }()
         desc.fetchLimit = 1
         do {
             return try context.fetch(desc).first
         } catch {
-            logger.warning("Failed to fetch LessonAssignment: \(error)")
+            logger.warning("Failed to fetch CDLessonAssignment: \(error)")
             return nil
         }
     }

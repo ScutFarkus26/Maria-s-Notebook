@@ -14,7 +14,7 @@ import CoreData
 ///
 /// - Parameters:
 ///   - viewModel: The `LessonPickerViewModel` driving the selection and search.
-///   - resolvedLesson: An optional resolved `Lesson` to display when the selection matches.
+///   - resolvedLesson: An optional resolved `CDLesson` to display when the selection matches.
 ///   - isFocused: Binding used by the underlying picker to control first-responder focus.
 @MainActor
 struct LessonPickerSection: View {

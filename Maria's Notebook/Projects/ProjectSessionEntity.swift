@@ -3,7 +3,7 @@ import CoreData
 
 /// Describes how work is assigned in a project session
 
-@objc(ProjectSession)
+@objc(CDProjectSession)
 public class CDProjectSession: NSManagedObject {
     // MARK: - Core Data Properties
     @NSManaged public var id: UUID?

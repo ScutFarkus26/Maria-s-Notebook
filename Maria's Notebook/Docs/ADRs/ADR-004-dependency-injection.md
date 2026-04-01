@@ -50,10 +50,10 @@ Centralize all dependencies in `AppDependencies` with **lazy initialization**.
 @Observable
 @MainActor
 final class AppDependencies {
-    let modelContext: ModelContext
+    let viewContext: NSManagedObjectContext
 
-    init(modelContext: ModelContext) {
-        self.modelContext = modelContext
+    init(viewContext: NSManagedObjectContext) {
+        self.viewContext = viewContext
     }
 
     // Lazy initialization pattern for each service
@@ -62,7 +62,7 @@ final class AppDependencies {
         if let repo = _studentRepository {
             return repo
         }
-        let repo = StudentRepository(context: modelContext)
+        let repo = StudentRepository(context: viewContext)
         _studentRepository = repo
         return repo
     }
@@ -80,9 +80,9 @@ struct MariasNotebookApp: App {
     @State private var dependencies: AppDependencies
 
     init() {
-        let container = AppBootstrapping.getSharedModelContainer()
+        let coreDataStack = CoreDataStack.shared
         _dependencies = State(wrappedValue: AppDependencies(
-            modelContext: container.mainContext
+            viewContext: coreDataStack.viewContext
         ))
     }
 
@@ -124,7 +124,7 @@ struct FeatureView: View {
 ```swift
 func testFeature() {
     let testContext = createTestContext()
-    let dependencies = AppDependencies(modelContext: testContext)
+    let dependencies = AppDependencies(viewContext: testContext)
     let viewModel = FeatureViewModel(dependencies: dependencies)
     // Test with real or mock dependencies
 }
@@ -279,7 +279,7 @@ var incrementalBackupService: IncrementalBackupService {
 ### Pattern 4: Container of Related Services
 ```swift
 struct RepositoryContainer {
-    let context: ModelContext
+    let context: NSManagedObjectContext
     let saveCoordinator: SaveCoordinator?
 
     var students: StudentRepository {
@@ -295,7 +295,7 @@ struct RepositoryContainer {
 private var _repositories: RepositoryContainer?
 var repositories: RepositoryContainer {
     if let container = _repositories { return container }
-    let container = RepositoryContainer(context: modelContext, saveCoordinator: nil)
+    let container = RepositoryContainer(context: viewContext, saveCoordinator: nil)
     _repositories = container
     return container
 }
@@ -341,9 +341,9 @@ var useNewDependencyInjection: Bool {
 
 // Usage in services
 if FeatureFlags.shared.useProtocolBasedServices {
-    return WorkCheckInServiceAdapter(context: modelContext)
+    return WorkCheckInServiceAdapter(context: viewContext)
 } else {
-    return WorkCheckInServiceAdapter(context: modelContext)
+    return WorkCheckInServiceAdapter(context: viewContext)
 }
 ```
 
@@ -362,7 +362,7 @@ func preloadPresentationsData(
         try? await Task.sleep(for: .seconds(1))  // Wait for DB init
 
         presentationsViewModel.update(
-            modelContext: modelContext,
+            viewContext: viewContext,
             calendar: calendar,
             inboxOrderRaw: inboxOrderRaw,
             missWindow: missWindow,
@@ -379,15 +379,19 @@ func preloadPresentationsData(
 extension AppDependencies {
     /// Create dependencies with in-memory storage for testing
     static func makeTest() throws -> AppDependencies {
-        let schema = Schema([Student.self, Lesson.self, WorkModel.self])
-        let config = ModelConfiguration(schema: schema, isStoredInMemoryOnly: true)
-        let container = try ModelContainer(for: schema, configurations: [config])
-        return AppDependencies(modelContext: container.mainContext)
+        let description = NSPersistentStoreDescription()
+        description.type = NSInMemoryStoreType
+        let container = NSPersistentContainer(name: "MariasNotebook")
+        container.persistentStoreDescriptions = [description]
+        container.loadPersistentStores { _, error in
+            if let error { fatalError("Test store failed: \(error)") }
+        }
+        return AppDependencies(viewContext: container.viewContext)
     }
 
-    /// Create with specific ModelContext for testing
-    static func makeTest(context: ModelContext) -> AppDependencies {
-        return AppDependencies(modelContext: context)
+    /// Create with specific NSManagedObjectContext for testing
+    static func makeTest(context: NSManagedObjectContext) -> AppDependencies {
+        return AppDependencies(viewContext: context)
     }
 }
 ```

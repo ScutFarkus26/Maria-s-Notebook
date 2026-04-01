@@ -262,7 +262,7 @@ extension ResourceLibraryView {
             Button {
                 showingImportSheet = true
             } label: {
-                Label("Add First Resource", systemImage: SFSymbol.Action.plus)
+                Label("Add First CDResource", systemImage: SFSymbol.Action.plus)
             }
             .buttonStyle(.borderedProminent)
         }

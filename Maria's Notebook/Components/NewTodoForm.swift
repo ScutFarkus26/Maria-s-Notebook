@@ -91,7 +91,7 @@ struct NewTodoForm: View {
             }
 
             // CDSchedule
-            Section("CDSchedule") {
+            Section("Schedule") {
                 HStack {
                     Text("When")
                     Spacer()

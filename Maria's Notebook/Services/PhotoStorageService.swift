@@ -25,7 +25,7 @@ public enum PhotoStorageService {
             in: .userDomainMask,
             appropriateFor: nil,
             create: true
-        ).appendingPathComponent("Note Photos", isDirectory: true)
+        ).appendingPathComponent("CDNote Photos", isDirectory: true)
         
         try createDirectoryIfNeeded(at: documentsURL)
         return documentsURL
@@ -34,7 +34,7 @@ public enum PhotoStorageService {
     /// Saves a platform image to the photos directory and returns the filename.
     /// The filename is generated using a UUID to ensure uniqueness.
     /// - Parameter image: The platform image (UIImage/NSImage) to save
-    /// - Returns: The filename (not the full path) that can be stored in the Note model
+    /// - Returns: The filename (not the full path) that can be stored in the CDNote model
     /// - Throws: An error if the image cannot be saved
     #if os(macOS)
     public static func saveImage(_ image: NSImage) throws -> String {

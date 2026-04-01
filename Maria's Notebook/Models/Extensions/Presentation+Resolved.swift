@@ -25,7 +25,7 @@ extension Presentation: DenormalizedSchedulable {
 extension Presentation {
     /// Display title - prefer snapshot for historical accuracy, fall back to lesson relationship.
     var displayTitle: String {
-        lessonTitleSnapshot ?? lesson?.name ?? "Unknown Lesson"
+        lessonTitleSnapshot ?? lesson?.name ?? "Unknown CDLesson"
     }
 
     /// Display subheading - prefer snapshot for historical accuracy, fall back to lesson relationship.
@@ -90,7 +90,7 @@ extension Presentation {
     }
 }
 
-// MARK: - Track Integration
+// MARK: - CDTrackEntity Integration
 
 extension Presentation {
     /// Whether this presentation is part of a track.
@@ -98,12 +98,12 @@ extension Presentation {
         trackID.map { !$0.isEmpty } ?? false
     }
 
-    /// Track ID as UUID, if valid.
+    /// CDTrackEntity ID as UUID, if valid.
     var trackIDUUID: UUID? {
         trackID.flatMap { UUID(uuidString: $0) }
     }
 
-    /// Track step ID as UUID, if valid.
+    /// CDTrackEntity step ID as UUID, if valid.
     var trackStepIDUUID: UUID? {
         trackStepID.flatMap { UUID(uuidString: $0) }
     }

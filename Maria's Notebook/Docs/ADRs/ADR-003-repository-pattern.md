@@ -3,18 +3,19 @@
 **Status:** ✅ Accepted (Pragmatic Approach)
 **Date:** 2026-01 (Adopted), 2026-02 (Documented)
 **Deciders:** Development Team
-**Tags:** `architecture`, `data-access`, `testing`, `swiftdata`
+**Tags:** `architecture`, `data-access`, `testing`, `core-data`
 
 ## Context
 
-SwiftData provides `@Query` for direct data access in views, but this creates tight coupling and testing challenges for complex business logic.
+Core Data provides `@FetchRequest` for direct data access in views, but this creates tight coupling and testing challenges for complex business logic.
 
 ### The Problem
 
-**Direct @Query in Views:**
+**Direct @FetchRequest in Views:**
 ```swift
 struct StudentListView: View {
-    @Query(sort: \Student.lastName) var students: [Student]
+    @FetchRequest(sortDescriptors: [NSSortDescriptor(keyPath: \CDStudent.lastName, ascending: true)])
+    var students: FetchedResults<CDStudent>
 
     var body: some View {
         List(students) { student in
@@ -26,14 +27,14 @@ struct StudentListView: View {
 
 **Issues:**
 - ❌ Views directly coupled to data layer
-- ❌ Hard to test (requires ModelContext)
+- ❌ Hard to test (requires NSManagedObjectContext)
 - ❌ Business logic mixed with UI
 - ❌ Can't mock data for previews
 - ❌ Complex queries clutter view code
 
 ## Decision
 
-Use **Repository Pattern** for complex data access, but **keep @Query for simple cases**.
+Use **Repository Pattern** for complex data access, but **keep @FetchRequest for simple cases**.
 
 ### Pragmatic Approach (Phase 3 Guidelines)
 
@@ -44,7 +45,7 @@ Use **Repository Pattern** for complex data access, but **keep @Query for simple
 4. ✅ Code that needs testing
 5. ✅ Validation and business rules
 
-**Keep @Query For:**
+**Keep @FetchRequest For:**
 1. ✅ Simple list views (basic display)
 2. ✅ Single entity fetch by ID
 3. ✅ No business logic involved
@@ -55,20 +56,19 @@ Use **Repository Pattern** for complex data access, but **keep @Query for simple
 ```swift
 @MainActor
 struct StudentRepository: SavingRepository {
-    typealias Model = Student
+    typealias Model = CDStudent
 
-    let context: ModelContext
+    let context: NSManagedObjectContext
     let saveCoordinator: SaveCoordinator?
 
     // MARK: - Fetch
 
-    func fetchStudent(id: UUID) throws -> Student {
-        var descriptor = FetchDescriptor<Student>(
-            predicate: #Predicate { $0.id == id }
-        )
-        descriptor.fetchLimit = 1
+    func fetchStudent(id: UUID) throws -> CDStudent {
+        let request = NSFetchRequest<CDStudent>(entityName: "CDStudent")
+        request.predicate = NSPredicate(format: "id == %@", id as CVarArg)
+        request.fetchLimit = 1
 
-        guard let student = try context.fetch(descriptor).first else {
+        guard let student = try context.fetch(request).first else {
             throw StudentError.notFound(id: id)
         }
 
@@ -76,19 +76,17 @@ struct StudentRepository: SavingRepository {
     }
 
     func fetchStudents(
-        predicate: Predicate<Student>? = nil,
-        sortBy: [SortDescriptor<Student>] = [
-            SortDescriptor(\.lastName),
-            SortDescriptor(\.firstName)
+        predicate: NSPredicate? = nil,
+        sortDescriptors: [NSSortDescriptor] = [
+            NSSortDescriptor(keyPath: \CDStudent.lastName, ascending: true),
+            NSSortDescriptor(keyPath: \CDStudent.firstName, ascending: true)
         ]
-    ) throws -> [Student] {
-        var descriptor = FetchDescriptor<Student>()
-        if let predicate = predicate {
-            descriptor.predicate = predicate
-        }
-        descriptor.sortBy = sortBy
+    ) throws -> [CDStudent] {
+        let request = NSFetchRequest<CDStudent>(entityName: "CDStudent")
+        request.predicate = predicate
+        request.sortDescriptors = sortDescriptors
 
-        return try context.fetch(descriptor)
+        return try context.fetch(request)
     }
 
     // MARK: - Create
@@ -98,7 +96,7 @@ struct StudentRepository: SavingRepository {
         firstName: String,
         lastName: String,
         birthday: Date
-    ) throws -> Student {
+    ) throws -> CDStudent {
         // Validation
         guard !firstName.isEmpty else {
             throw StudentError.missingRequiredField(field: "First Name")
@@ -110,8 +108,10 @@ struct StudentRepository: SavingRepository {
         }
 
         // Create & save
-        let student = Student(firstName: firstName, lastName: lastName, birthday: birthday)
-        context.insert(student)
+        let student = CDStudent(context: context)
+        student.firstName = firstName
+        student.lastName = lastName
+        student.birthday = birthday
         try context.save()
 
         return student
@@ -144,7 +144,7 @@ struct StudentRepository: SavingRepository {
 ✅ **Testable Data Access**
 ```swift
 func testDeleteStudentWithLessons() throws {
-    let repository = StudentRepository(context: testContext)
+    let repository = StudentRepository(context: testManagedObjectContext)
     let student = try repository.createStudent(...)
     let _ = createTestLesson(for: student)
 
@@ -196,7 +196,7 @@ struct MockStudentRepository: StudentRepositoryProtocol {
 
 ❌ **Learning Curve**
 - Team must understand pattern
-- When to use repository vs @Query
+- When to use repository vs @FetchRequest
 
 ### Neutral
 
@@ -231,7 +231,7 @@ struct MockStudentRepository: StudentRepositoryProtocol {
 - ⚠️ `AttendanceViewModel` (partial migration)
 - ❌ Many ViewModels still pending
 
-### Views Still Using @Query
+### Views Still Using @FetchRequest
 
 **Acceptable (Simple Lists):**
 - `StudentListView` - Basic student list
@@ -249,14 +249,14 @@ struct MockStudentRepository: StudentRepositoryProtocol {
 ```swift
 @MainActor
 struct EntityRepository: SavingRepository {
-    typealias Model = Entity
+    typealias Model = CDEntity
 
-    let context: ModelContext
+    let context: NSManagedObjectContext
     let saveCoordinator: SaveCoordinator?
 
-    func fetch(id: UUID) throws -> Entity
-    func fetchAll() throws -> [Entity]
-    func create(...) throws -> Entity
+    func fetch(id: UUID) throws -> CDEntity
+    func fetchAll() throws -> [CDEntity]
+    func create(...) throws -> CDEntity
     func update(id: UUID, ...) throws
     func delete(id: UUID) throws
 }
@@ -287,7 +287,7 @@ class FeatureViewModel {
 ```swift
 // In AppDependencies
 struct RepositoryContainer {
-    let context: ModelContext
+    let context: NSManagedObjectContext
     let saveCoordinator: SaveCoordinator?
 
     var students: StudentRepository {
@@ -310,7 +310,7 @@ let repository = dependencies.repositories.students
 protocol SavingRepository {
     associatedtype Model
 
-    var context: ModelContext { get }
+    var context: NSManagedObjectContext { get }
     var saveCoordinator: SaveCoordinator? { get }
 }
 
@@ -342,7 +342,7 @@ Benefits:
 - ✅ Needs testing
 - ✅ Used by ViewModels
 
-**NO - Use @Query:**
+**NO - Use @FetchRequest:**
 - ✅ Simple display-only list
 - ✅ Single entity fetch
 - ✅ No validation needed
@@ -363,7 +363,7 @@ Benefits:
 
 ## Alternatives Considered
 
-### 1. Always Use @Query
+### 1. Always Use @FetchRequest
 **Rejected:** Hard to test, business logic in views, tight coupling.
 
 ### 2. Always Use Repositories
@@ -374,12 +374,12 @@ Benefits:
 
 ### 4. Generic Repository<T>
 ```swift
-struct Repository<T: PersistentModel> {
+struct Repository<T: NSManagedObject> {
     func fetch(id: UUID) -> T?
     func fetchAll() -> [T]
 }
 ```
-**Rejected:** Loses type-specific logic; awkward with SwiftData's Predicate system.
+**Rejected:** Loses type-specific logic; awkward with Core Data's NSPredicate system.
 
 ## Related Decisions
 

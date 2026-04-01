@@ -6,9 +6,9 @@ import os
 
 extension DataCleanupService {
 
-    // MARK: - Orphaned Student ID Cleanup
+    // MARK: - Orphaned CDStudent ID Cleanup
 
-    /// Cleans orphaned student IDs from LessonAssignment records.
+    /// Cleans orphaned student IDs from CDLessonAssignment records.
     /// Removes student IDs that no longer exist in the database to maintain referential integrity
     /// when using manual ID management instead of Core Data relationships.
     /// Safe to call repeatedly - it's idempotent and only removes non-existent IDs.
@@ -46,7 +46,7 @@ extension DataCleanupService {
         }
     }
 
-    /// Cleans orphaned student IDs from WorkModel records.
+    /// Cleans orphaned student IDs from CDWorkModel records.
     /// Removes student IDs that no longer exist in the database to maintain referential integrity
     /// when using manual ID management instead of Core Data relationships.
     /// Safe to call repeatedly - it's idempotent and only removes non-existent IDs.

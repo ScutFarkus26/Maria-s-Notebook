@@ -334,44 +334,6 @@ final class CalendarSyncService {
         event.lastSyncedAt = Date()
     }
 
-    // MARK: - Deprecated SwiftData CRUD Helpers
-
-    @available(*, deprecated, message: "Use fetchAllCDCalendarEvents(context:)")
-    private func fetchAllCalendarEvents() throws -> [CalendarEvent] {
-        guard let context = managedObjectContext else {
-            return []
-        }
-        let request = CDFetchRequest(CDCalendarEvent.self)
-        return try context.fetch(request)
-    }
-
-    @available(*, deprecated, message: "Use createCDCalendarEvent(from:calendarID:context:)")
-    private func createCalendarEvent(from data: EventSyncData, calendarID: String) -> CalendarEvent {
-        guard let context = managedObjectContext else { fatalError("managedObjectContext not set") }
-        let event = CalendarEvent(context: context)
-        event.title = data.title
-        event.startDate = data.startDate
-        event.endDate = data.endDate
-        event.location = data.location ?? ""
-        event.notes = data.notes ?? ""
-        event.isAllDay = data.isAllDay
-        event.eventKitEventID = data.eventIdentifier
-        event.eventKitCalendarID = calendarID
-        event.lastSyncedAt = Date()
-        return event
-    }
-
-    @available(*, deprecated, message: "Use updateCDCalendarEvent(_:from:)")
-    private func updateCalendarEvent(_ event: CalendarEvent, from data: EventSyncData) {
-        event.title = data.title
-        event.startDate = data.startDate
-        event.endDate = data.endDate
-        event.location = data.location
-        event.notes = data.notes
-        event.isAllDay = data.isAllDay
-        event.lastSyncedAt = Date()
-    }
-
     // MARK: - Automatic Syncing
 
     private func startObservingChanges() {

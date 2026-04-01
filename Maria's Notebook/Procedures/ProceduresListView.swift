@@ -12,10 +12,10 @@ struct ProceduresListView: View {
     @State private var searchText = ""
     @State private var selectedCategory: ProcedureCategory?
     @State private var showingAddSheet = false
-    @State private var selectedProcedure: Procedure?
-    @State private var procedureToEdit: Procedure?
+    @State private var selectedProcedure: CDProcedure?
+    @State private var procedureToEdit: CDProcedure?
 
-    private var filteredProcedures: [Procedure] {
+    private var filteredProcedures: [CDProcedure] {
         ProcedureService.fetchProcedures(
             in: viewContext,
             category: selectedCategory,
@@ -23,7 +23,7 @@ struct ProceduresListView: View {
         )
     }
 
-    private var groupedProcedures: [(category: ProcedureCategory, procedures: [Procedure])] {
+    private var groupedProcedures: [(category: ProcedureCategory, procedures: [CDProcedure])] {
         ProcedureService.fetchProceduresGroupedByCategory(
             in: viewContext,
             searchText: searchText
@@ -62,7 +62,7 @@ struct ProceduresListView: View {
                     Button {
                         showingAddSheet = true
                     } label: {
-                        Label("Add Procedure", systemImage: "plus")
+                        Label("Add CDProcedure", systemImage: "plus")
                     }
                     .buttonStyle(.borderedProminent)
                     .controlSize(.small)
@@ -179,7 +179,7 @@ struct ProceduresListView: View {
 
     // MARK: - Procedures List
 
-    private func proceduresList(_ items: [Procedure]) -> some View {
+    private func proceduresList(_ items: [CDProcedure]) -> some View {
         VStack(spacing: 8) {
             ForEach(items) { procedure in
                 ProcedureRow(procedure: procedure)
@@ -223,7 +223,7 @@ struct ProceduresListView: View {
             Text("No Procedures Yet")
                 .font(.title2.weight(.semibold))
 
-            Text("Document your classroom routines, safety procedures, and special schedules.")
+            Text("CDDocument your classroom routines, safety procedures, and special schedules.")
                 .font(.subheadline)
                 .foregroundStyle(.secondary)
                 .multilineTextAlignment(.center)
@@ -232,7 +232,7 @@ struct ProceduresListView: View {
             Button {
                 showingAddSheet = true
             } label: {
-                Label("Add First Procedure", systemImage: "plus")
+                Label("Add First CDProcedure", systemImage: "plus")
             }
             .buttonStyle(.borderedProminent)
         }

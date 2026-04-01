@@ -8,8 +8,8 @@ struct GoingOutEditorSheet: View {
     @Environment(\.dismiss) private var dismiss
     @Environment(\.managedObjectContext) private var modelContext
 
-    let existingGoingOut: GoingOut?
-    let onSave: (GoingOut) -> Void
+    let existingGoingOut: CDGoingOut?
+    let onSave: (CDGoingOut) -> Void
 
     @State private var title: String = ""
     @State private var purpose: String = ""
@@ -25,7 +25,7 @@ struct GoingOutEditorSheet: View {
         TestStudentsFilter.filterVisible(Array(allStudents).filter(\.isEnrolled))
     }
 
-    init(existingGoingOut: GoingOut? = nil, onSave: @escaping (GoingOut) -> Void) {
+    init(existingGoingOut: CDGoingOut? = nil, onSave: @escaping (CDGoingOut) -> Void) {
         self.existingGoingOut = existingGoingOut
         self.onSave = onSave
     }
@@ -112,7 +112,7 @@ struct GoingOutEditorSheet: View {
     }
 
     private func save() {
-        let goingOut: GoingOut
+        let goingOut: CDGoingOut
         if let existing = existingGoingOut {
             goingOut = existing
             goingOut.title = title

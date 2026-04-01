@@ -1,7 +1,7 @@
 import Foundation
 import CoreData
 
-@objc(Document)
+@objc(CDDocument)
 public class CDDocument: NSManagedObject {
     // MARK: - Core Data Properties
     @NSManaged public var id: UUID?
@@ -10,8 +10,8 @@ public class CDDocument: NSManagedObject {
     @NSManaged public var uploadDate: Date?
     @NSManaged public var pdfData: Data?
 
-    // MARK: - Relationships
-    @NSManaged public var student: CDStudent?
+    // MARK: - Cross-Store Foreign Key
+    @NSManaged public var studentID: String?
 
     // MARK: - Convenience Initializer
     @discardableResult
@@ -23,5 +23,20 @@ public class CDDocument: NSManagedObject {
         self.category = ""
         self.uploadDate = Date()
         self.pdfData = nil
+    }
+}
+
+// MARK: - Cross-Store Relationship Accessor
+
+extension CDDocument {
+    var student: CDStudent? {
+        get {
+            guard let studentID, let ctx = managedObjectContext else { return nil }
+            let req = CDFetchRequest(CDStudent.self)
+            req.predicate = NSPredicate(format: "id == %@", studentID)
+            req.fetchLimit = 1
+            return ctx.safeFetchFirst(req)
+        }
+        set { studentID = newValue?.id?.uuidString }
     }
 }

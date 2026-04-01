@@ -8,7 +8,7 @@ extension LessonDetailView {
         VStack(alignment: .leading, spacing: AppTheme.Spacing.medium) {
             infoRow(
                 icon: SFSymbol.Education.bookClosed, title: "Name",
-                value: lesson.name.isEmpty ? "Untitled Lesson" : lesson.name
+                value: lesson.name.isEmpty ? "Untitled CDLesson" : lesson.name
             )
             infoRow(
                 icon: SFSymbol.Education.graduationcap, title: "Subject",
@@ -85,7 +85,7 @@ extension LessonDetailView {
             // Write Up (Presentation Notes)
             VStack(alignment: .leading, spacing: AppTheme.Spacing.verySmall) {
                 HStack(spacing: AppTheme.Spacing.small + 2) {
-                    Image(systemName: SFSymbol.Document.docText)
+                    Image(systemName: SFSymbol.CDDocument.docText)
                         .foregroundStyle(.secondary)
                         .frame(width: 20)
                     Text("Presentation Notes")

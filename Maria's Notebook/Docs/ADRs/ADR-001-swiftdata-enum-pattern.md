@@ -3,7 +3,9 @@
 **Status:** ✅ Accepted
 **Date:** 2025-11 (Discovery), 2026-02 (Documented)
 **Deciders:** Development Team
-**Tags:** `swiftdata`, `predicate`, `enum`, `breaking-constraint`
+**Tags:** `core-data`, `predicate`, `enum`, `breaking-constraint`
+
+**Note:** This ADR was written during the SwiftData era. The app has since migrated to Core Data, but the raw value pattern remains identical — the same `*Raw` storage + computed enum accessor pattern is used on all NSManagedObject subclasses.
 
 ## Context
 
@@ -44,13 +46,13 @@ This pattern fails because:
 
 ### Impact Scope
 
-- **40+ enum properties** across 21+ SwiftData models
-- **6+ Predicate queries** depend on enum filtering
+- **40+ enum properties** across 60 Core Data entities
+- **NSPredicate queries** depend on enum filtering
 - **Critical models affected:** WorkModel, Student, LessonAssignment, AttendanceRecord
 
 ## Decision
 
-Use the **manual raw value pattern** for all enum properties in SwiftData models:
+Use the **manual raw value pattern** for all enum properties in Core Data models:
 
 ```swift
 @Model
@@ -73,7 +75,7 @@ class WorkModel {
 
 ### Standard Pattern (3-Line Rule)
 
-Every enum in a SwiftData model must use this exact pattern:
+Every enum in a Core Data model must use this exact pattern:
 
 ```swift
 // 1. Raw value storage (use enum's rawValue type)
@@ -149,7 +151,7 @@ class WorkModel {
 
 ### Enum Requirements
 
-Enums used in SwiftData models must:
+Enums used in Core Data models must:
 - Conform to `RawRepresentable` (usually via `String` or `Int` raw values)
 - Provide a default case for fallback in getter
 - Use stable raw values (don't change existing values)
@@ -190,8 +192,8 @@ func testEnumRawValuePattern() {
 
 As of 2026-02-13:
 - **40+ enum properties** use this pattern
-- **21+ SwiftData models** contain enums
-- **6+ Predicate queries** filter by enum values
+- **60 Core Data entities** contain enums
+- **NSPredicate queries** filter by enum values
 - **Zero Predicate failures** since pattern adopted
 
 ## Related Decisions
@@ -201,7 +203,7 @@ As of 2026-02-13:
 
 ## References
 
-- [Swift Forums: SwiftData Predicate Limitations](https://forums.swift.org/c/development/swiftdata)
+- This pattern predates the Core Data migration but remains the standard
 - [WWDC23: What's New in SwiftData](https://developer.apple.com/wwdc23/)
 - Internal: `WorkModel.swift:15-20` (canonical example)
 - Internal: `ADR-001-swiftdata-enum-pattern.md` (this document)

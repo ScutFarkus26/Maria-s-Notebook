@@ -13,7 +13,7 @@ public enum SessionAssignmentMode: String, Codable, CaseIterable, Hashable, Iden
     public var displayName: String {
         switch self {
         case .uniform: return "Uniform"
-        case .choice: return "Student Choice"
+        case .choice: return "CDStudent Choice"
         }
     }
 

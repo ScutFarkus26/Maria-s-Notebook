@@ -18,7 +18,7 @@ enum AppTheme {
 
     // MARK: - Dynamic Type Scaled Fonts
     // These fonts automatically scale with the user's preferred text size
-    // Note: All properties marked nonisolated to allow access from Sendable closures (e.g., PhotosPicker)
+    // CDNote: All properties marked nonisolated to allow access from Sendable closures (e.g., PhotosPicker)
     enum ScaledFont {
         /// Extra large title (32pt base) - scales with .largeTitle
         /// Uses .heavy weight for strong visual anchoring at display sizes (#10)

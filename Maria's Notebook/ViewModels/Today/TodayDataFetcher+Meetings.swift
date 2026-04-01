@@ -9,7 +9,7 @@ extension TodayDataFetcher {
 
     /// Result of fetching scheduled meetings.
     struct ScheduledMeetingsFetchResult {
-        let meetings: [ScheduledMeeting]
+        let meetings: [CDScheduledMeeting]
         let neededStudentIDs: Set<UUID>
     }
 
@@ -19,12 +19,12 @@ extension TodayDataFetcher {
         nextDay: Date,
         context: NSManagedObjectContext
     ) -> ScheduledMeetingsFetchResult {
-        let request = CDFetchRequest(ScheduledMeeting.self)
+        let request = CDFetchRequest(CDScheduledMeeting.self)
         request.predicate = NSPredicate(
             format: "date >= %@ AND date < %@",
             day as NSDate, nextDay as NSDate
         )
-        request.sortDescriptors = [NSSortDescriptor(keyPath: \ScheduledMeeting.createdAt, ascending: true)]
+        request.sortDescriptors = [NSSortDescriptor(keyPath: \CDScheduledMeeting.createdAt, ascending: true)]
         let meetings = context.safeFetch(request)
         let studentIDs = Set(meetings.compactMap(\.studentIDUUID))
         return ScheduledMeetingsFetchResult(meetings: meetings, neededStudentIDs: studentIDs)
@@ -33,22 +33,22 @@ extension TodayDataFetcher {
     // MARK: - Completed Meetings Fetching
 
     struct CompletedMeetingsFetchResult {
-        let meetings: [StudentMeeting]
+        let meetings: [CDStudentMeeting]
         let neededStudentIDs: Set<UUID>
     }
 
-    /// Fetches completed meetings (StudentMeeting with completed == true) for a specific day.
+    /// Fetches completed meetings (CDStudentMeeting with completed == true) for a specific day.
     static func fetchCompletedMeetings(
         day: Date,
         nextDay: Date,
         context: NSManagedObjectContext
     ) -> CompletedMeetingsFetchResult {
-        let request = CDFetchRequest(StudentMeeting.self)
+        let request = CDFetchRequest(CDStudentMeeting.self)
         request.predicate = NSPredicate(
             format: "completed == YES AND date >= %@ AND date < %@",
             day as NSDate, nextDay as NSDate
         )
-        request.sortDescriptors = [NSSortDescriptor(keyPath: \StudentMeeting.date, ascending: true)]
+        request.sortDescriptors = [NSSortDescriptor(keyPath: \CDStudentMeeting.date, ascending: true)]
         let meetings = context.safeFetch(request)
         let studentIDs = Set(meetings.compactMap(\.studentIDUUID))
         return CompletedMeetingsFetchResult(meetings: meetings, neededStudentIDs: studentIDs)

@@ -76,12 +76,12 @@ enum StudentsFilterService {
         calendar: Calendar
     ) -> [UUID: Int] {
         // Fetch all CDLessonPresentation records
-        let descriptor: NSFetchRequest<CDLessonPresentation> = NSFetchRequest(entityName: "CDLessonPresentation")
+        let descriptor: NSFetchRequest<CDLessonPresentation> = NSFetchRequest(entityName: "LessonPresentation")
         descriptor.sortDescriptors = [NSSortDescriptor(keyPath: \CDLessonPresentation.presentedAt, ascending: false)]
         let presentations = viewContext.safeFetch(descriptor)
 
         // Fetch lessons to exclude (parsha lessons)
-        let lessonsDescriptor = NSFetchRequest<CDLesson>(entityName: "CDLesson")
+        let lessonsDescriptor = NSFetchRequest<CDLesson>(entityName: "Lesson")
         let allLessons = viewContext.safeFetch(lessonsDescriptor)
         let excludedLessonIDs: Set<String> = {
             func norm(_ s: String) -> String { s.normalizedForComparison() }

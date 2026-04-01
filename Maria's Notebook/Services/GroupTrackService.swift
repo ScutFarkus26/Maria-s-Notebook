@@ -33,7 +33,7 @@ struct GroupTrackService {
         }
     }
 
-    /// Get GroupTrack for subject and group (Core Data)
+    /// Get CDGroupTrackEntity for subject and group (Core Data)
     static func cdGetGroupTrack(
         subject: String,
         group: String,
@@ -48,7 +48,7 @@ struct GroupTrackService {
         })
     }
 
-    /// Get or create a GroupTrack (Core Data)
+    /// Get or create a CDGroupTrackEntity (Core Data)
     static func cdGetOrCreateGroupTrack(
         subject: String,
         group: String,
@@ -71,7 +71,7 @@ struct GroupTrackService {
         return newTrack
     }
 
-    /// Find or create a Track object (Core Data)
+    /// Find or create a CDTrackEntity object (Core Data)
     static func getOrCreateTrack(
         subject: String,
         group: String,
@@ -101,7 +101,7 @@ struct GroupTrackService {
         return newTrack
     }
 
-    /// Get Track object for a subject/group combination (Core Data)
+    /// Get CDTrackEntity object for a subject/group combination (Core Data)
     static func cdGetTrack(
         subject: String,
         group: String,

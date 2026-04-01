@@ -2,7 +2,7 @@ import SwiftUI
 import CoreData
 
 struct ProjectRolesEditorView: View {
-    let club: Project
+    let club: CDProject
 
     @Environment(\.managedObjectContext) private var modelContext
     @Environment(SaveCoordinator.self) private var saveCoordinator
@@ -12,9 +12,9 @@ struct ProjectRolesEditorView: View {
     @FetchRequest private var roles: FetchedResults<CDProjectRole>
 
     @State private var showEditor: Bool = false
-    @State private var editingRole: ProjectRole?
+    @State private var editingRole: CDProjectRole?
 
-    init(club: Project) {
+    init(club: CDProject) {
         self.club = club
         // Performance: Filter roles by projectID at query level
         let projectIDString = (club.id ?? UUID()).uuidString
@@ -105,7 +105,7 @@ struct ProjectRolesEditorView: View {
         }
     }
 
-    private func delete(_ role: ProjectRole) {
+    private func delete(_ role: CDProjectRole) {
         modelContext.delete(role)
         saveCoordinator.save(modelContext, reason: "Delete project role")
     }
@@ -119,8 +119,8 @@ struct ProjectRolesEditorView: View {
 }
 
 private struct ProjectRoleEditorSheet: View {
-    let club: Project
-    let role: ProjectRole?
+    let club: CDProject
+    let role: CDProjectRole?
     let onDone: () -> Void
 
     @Environment(\.dismiss) private var dismiss
@@ -131,7 +131,7 @@ private struct ProjectRoleEditorSheet: View {
     @State private var summary: String = ""
     @State private var instructions: String = ""
 
-    init(club: Project, role: ProjectRole?, onDone: @escaping () -> Void) {
+    init(club: CDProject, role: CDProjectRole?, onDone: @escaping () -> Void) {
         self.club = club
         self.role = role
         self.onDone = onDone

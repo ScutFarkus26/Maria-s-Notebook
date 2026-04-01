@@ -4,20 +4,11 @@ import Foundation
 ///
 /// Determines which Core Data entities each role can read/write.
 /// Lead guides have full access; assistants can read everything
-/// but only write to a limited set of entities.
+/// but only write to categories enabled via SharingPreferences.
 ///
-/// Note: These permissions gate UI actions (edit buttons, save operations).
+/// These permissions gate UI actions (edit buttons, save operations).
 /// The actual store routing (private vs shared) is handled by CoreDataStack.
 enum ClassroomPermissions {
-
-    /// Entity names that assistants are allowed to write/delete.
-    /// Lead guides can write to all entities.
-    private static let assistantWritableEntities: Set<String> = [
-        "AttendanceRecord",
-        "Note",
-        "NoteStudentLink",
-        "WorkCheckIn"
-    ]
 
     /// Whether the given role can write (create/update) the named entity.
     static func canWrite(
@@ -28,7 +19,9 @@ enum ClassroomPermissions {
         case .leadGuide:
             return true
         case .assistant:
-            return assistantWritableEntities.contains(entityName)
+            let enabledCategories = SharingPreferences.assistantWritableCategories()
+            let writableEntities = enabledCategories.flatMap(\.entityNames)
+            return writableEntities.contains(entityName)
         }
     }
 
@@ -41,9 +34,9 @@ enum ClassroomPermissions {
     }
 
     /// Entity names the assistant role is allowed to write.
-    /// Lead guides can write all entities (use `canWrite` to check).
     static func assistantWritableEntityNames() -> Set<String> {
-        assistantWritableEntities
+        let enabledCategories = SharingPreferences.assistantWritableCategories()
+        return Set(enabledCategories.flatMap(\.entityNames))
     }
 
     /// Whether the given role can manage sharing (invite/remove participants).

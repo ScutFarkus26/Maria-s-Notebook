@@ -11,7 +11,7 @@ class TodoLocationService: NSObject, CLLocationManagerDelegate {
     static let shared = TodoLocationService()
     
     private let locationManager = CLLocationManager()
-    private var monitoredTodos: [String: TodoItem] = [:] // todoID -> TodoItem
+    private var monitoredTodos: [String: CDTodoItemEntity] = [:] // todoID -> CDTodoItemEntity
     private var activeLocationRequests: [UUID: (manager: CLLocationManager, delegate: LocationDelegate)] = [:]
     
     private override init() {
@@ -31,7 +31,7 @@ class TodoLocationService: NSObject, CLLocationManagerDelegate {
     }
     
     /// Set up geofence for a todo item
-    func setupGeofence(for todo: TodoItem) {
+    func setupGeofence(for todo: CDTodoItemEntity) {
         guard todo.hasLocationReminder,
               let todoID = todo.id?.uuidString else {
             return
@@ -55,7 +55,7 @@ class TodoLocationService: NSObject, CLLocationManagerDelegate {
     }
     
     /// Remove geofence for a todo item
-    func removeGeofence(for todo: TodoItem) {
+    func removeGeofence(for todo: CDTodoItemEntity) {
         guard let todoID = todo.id?.uuidString else { return }
         let identifier = "todo-\(todoID)"
 

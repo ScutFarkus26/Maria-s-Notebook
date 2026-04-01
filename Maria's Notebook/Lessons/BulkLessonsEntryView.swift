@@ -217,7 +217,7 @@ public struct BulkLessonsEntryView: View {
                     Button {
                         commit()
                     } label: {
-                        Label("Add \(validCount) Lesson\(validCount == 1 ? "" : "s")", systemImage: "plus.circle.fill")
+                        Label("Add \(validCount) CDLesson\(validCount == 1 ? "" : "s")", systemImage: "plus.circle.fill")
                     }
                     .buttonStyle(.borderedProminent)
                     .disabled(validCount == 0)

@@ -5,20 +5,20 @@ import Foundation
 @MainActor
 struct GroupTrackProgressResolver {
     /// Returns the total number of lessons in the group track.
-    static func totalLessons(track: GroupTrack, lessons: [Lesson]) -> Int {
+    static func totalLessons(track: CDGroupTrackEntity, lessons: [CDLesson]) -> Int {
         return GroupTrackService.getLessonsForTrack(track: track, allLessons: lessons).count
     }
     
     /// Returns the count of mastered lessons for a given student in a group track.
-    /// A lesson is mastered if there exists a LessonPresentation where:
+    /// A lesson is mastered if there exists a CDLessonPresentation where:
     /// - studentID matches
     /// - (masteredAt != nil OR state == .proficient)
     /// - lessonID matches the lesson's ID
     static func proficientCount(
-        track: GroupTrack,
+        track: CDGroupTrackEntity,
         studentID: String,
-        lessons: [Lesson],
-        lessonPresentations: [LessonPresentation]
+        lessons: [CDLesson],
+        lessonPresentations: [CDLessonPresentation]
     ) -> Int {
         let trackLessons = GroupTrackService.getLessonsForTrack(track: track, allLessons: lessons)
         
@@ -30,11 +30,11 @@ struct GroupTrackProgressResolver {
     /// Returns the first unmastered lesson in the track (for sequential tracks),
     /// or nil if all are mastered or track is unordered.
     static func currentLesson(
-        track: GroupTrack,
+        track: CDGroupTrackEntity,
         studentID: String,
-        lessons: [Lesson],
-        lessonPresentations: [LessonPresentation]
-    ) -> Lesson? {
+        lessons: [CDLesson],
+        lessonPresentations: [CDLessonPresentation]
+    ) -> CDLesson? {
         guard track.isSequential else { return nil } // No "current" lesson for unordered tracks
         
         let trackLessons = GroupTrackService.getLessonsForTrack(track: track, allLessons: lessons)
@@ -46,8 +46,8 @@ struct GroupTrackProgressResolver {
     
     /// Helper function to determine if a lesson is mastered.
     private static func isLessonProficient(
-        lesson: Lesson, studentID: String,
-        lessonPresentations: [LessonPresentation]
+        lesson: CDLesson, studentID: String,
+        lessonPresentations: [CDLessonPresentation]
     ) -> Bool {
         let lessonIDStr = lesson.id?.uuidString ?? ""
         return lessonPresentations.contains { lp in

@@ -7,9 +7,6 @@ public class CDSchoolDayOverride: NSManagedObject {
     @NSManaged public var id: UUID?
     @NSManaged public var date: Date?
 
-    // MARK: - Relationships
-    @NSManaged public var notes: NSSet?
-
     // MARK: - Convenience Initializer
     @discardableResult
     convenience init(context: NSManagedObjectContext) {
@@ -20,18 +17,15 @@ public class CDSchoolDayOverride: NSManagedObject {
     }
 }
 
-// MARK: - Generated Accessors for To-Many Relationships
+// MARK: - Cross-Store Inverse
 
 extension CDSchoolDayOverride {
-    @objc(addNotesObject:)
-    @NSManaged public func addToNotes(_ value: CDNote)
-
-    @objc(removeNotesObject:)
-    @NSManaged public func removeFromNotes(_ value: CDNote)
-
-    @objc(addNotes:)
-    @NSManaged public func addToNotes(_ values: NSSet)
-
-    @objc(removeNotes:)
-    @NSManaged public func removeFromNotes(_ values: NSSet)
+    /// Cross-store inverse: fetches Notes whose schoolDayOverrideID matches this override.
+    var notes: [CDNote] {
+        guard let id, let ctx = managedObjectContext else { return [] }
+        let req = CDFetchRequest(CDNote.self)
+        req.predicate = NSPredicate(format: "schoolDayOverrideID == %@", id.uuidString)
+        return (try? ctx.fetch(req)) ?? []
+    }
 }
+

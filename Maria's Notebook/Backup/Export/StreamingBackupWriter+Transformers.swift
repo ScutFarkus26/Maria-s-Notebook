@@ -25,9 +25,9 @@ extension StreamingBackupWriter {
             return BackupDTOTransformers.toDTOs(meetings)
         case let topics as [CDCommunityTopicEntity]:
             return BackupDTOTransformers.toDTOs(topics)
-        case let solutions as [ProposedSolution]:
+        case let solutions as [CDProposedSolutionEntity]:
             return BackupDTOTransformers.toDTOs(solutions)
-        case let attachments as [CommunityAttachment]:
+        case let attachments as [CDCommunityAttachmentEntity]:
             return BackupDTOTransformers.toDTOs(attachments)
         case let records as [CDAttendanceRecord]:
             return BackupDTOTransformers.toDTOs(records)
@@ -35,15 +35,15 @@ extension StreamingBackupWriter {
             return BackupDTOTransformers.toDTOs(completionRecords)
         case let projects as [CDProject]:
             return BackupDTOTransformers.toDTOs(projects)
-        case let templates as [ProjectAssignmentTemplate]:
+        case let templates as [CDProjectAssignmentTemplate]:
             return BackupDTOTransformers.toDTOs(templates)
         case let sessions as [CDProjectSession]:
             return BackupDTOTransformers.toDTOs(sessions)
-        case let roles as [ProjectRole]:
+        case let roles as [CDProjectRole]:
             return BackupDTOTransformers.toDTOs(roles)
-        case let weeks as [ProjectTemplateWeek]:
+        case let weeks as [CDProjectTemplateWeek]:
             return BackupDTOTransformers.toDTOs(weeks)
-        case let roleAssignments as [ProjectWeekRoleAssignment]:
+        case let roleAssignments as [CDProjectWeekRoleAssignment]:
             return BackupDTOTransformers.toDTOs(roleAssignments)
         case let works as [CDWorkModel]:
             return BackupDTOTransformers.toDTOs(works)
@@ -51,11 +51,11 @@ extension StreamingBackupWriter {
             return BackupDTOTransformers.toDTOs(checkIns)
         case let steps as [CDWorkStep]:
             return BackupDTOTransformers.toDTOs(steps)
-        case let participants as [WorkParticipantEntity]:
+        case let participants as [CDWorkParticipantEntity]:
             return BackupDTOTransformers.toDTOs(participants)
         case let sessions as [CDPracticeSession]:
             return BackupDTOTransformers.toDTOs(sessions)
-        case let attachments as [LessonAttachment]:
+        case let attachments as [CDLessonAttachment]:
             return BackupDTOTransformers.toDTOs(attachments)
         case let presentations as [CDLessonPresentation]:
             return BackupDTOTransformers.toDTOs(presentations)
@@ -73,7 +73,7 @@ extension StreamingBackupWriter {
             return BackupDTOTransformers.toDTOs(events)
         case let tracks as [CDTrackEntity]:
             return BackupDTOTransformers.toDTOs(tracks)
-        case let steps as [TrackStep]:
+        case let steps as [CDTrackStepEntity]:
             return BackupDTOTransformers.toDTOs(steps)
         case let enrollments as [CDStudentTrackEnrollmentEntity]:
             return BackupDTOTransformers.toDTOs(enrollments)
@@ -83,7 +83,7 @@ extension StreamingBackupWriter {
             return BackupDTOTransformers.toDTOs(documents)
         case let supplies as [CDSupply]:
             return BackupDTOTransformers.toDTOs(supplies)
-        case let transactions as [SupplyTransaction]:
+        case let transactions as [CDSupplyTransaction]:
             return BackupDTOTransformers.toDTOs(transactions)
         case let procedures as [CDProcedure]:
             return BackupDTOTransformers.toDTOs(procedures)
@@ -93,9 +93,9 @@ extension StreamingBackupWriter {
             return BackupDTOTransformers.toDTOs(slots)
         case let issues as [CDIssue]:
             return BackupDTOTransformers.toDTOs(issues)
-        case let actions as [IssueAction]:
+        case let actions as [CDIssueAction]:
             return BackupDTOTransformers.toDTOs(actions)
-        case let snapshots as [DevelopmentSnapshot]:
+        case let snapshots as [CDDevelopmentSnapshotEntity]:
             return BackupDTOTransformers.toDTOs(snapshots)
         case let items as [CDTodoItem]:
             return BackupDTOTransformers.toDTOs(items)
@@ -105,7 +105,7 @@ extension StreamingBackupWriter {
             return BackupDTOTransformers.toDTOs(templates)
         case let orders as [CDTodayAgendaOrder]:
             return BackupDTOTransformers.toDTOs(orders)
-        case let recommendations as [PlanningRecommendation]:
+        case let recommendations as [CDPlanningRecommendation]:
             return BackupDTOTransformers.toDTOs(recommendations)
         case let resources as [CDResource]:
             return BackupDTOTransformers.toDTOs(resources)

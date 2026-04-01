@@ -90,11 +90,11 @@ final class WorksPlanningViewModel {
                 }
             }
         } catch {
-            Self.logger.warning("Failed to fetch WorkModel: \(error)")
+            Self.logger.warning("Failed to fetch CDWorkModel: \(error)")
         }
     }
 
-    func markCompleted(_ ci: WorkCheckIn, context: NSManagedObjectContext, saveCoordinator: SaveCoordinator) {
+    func markCompleted(_ ci: CDWorkCheckIn, context: NSManagedObjectContext, saveCoordinator: SaveCoordinator) {
         let svc = checkInServiceFactory(context)
         do {
             try svc.markCompleted(ci, note: nil, at: Date())

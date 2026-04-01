@@ -3,7 +3,7 @@ import CoreData
 
 /// A row displaying a procedure item
 struct ProcedureRow: View {
-    let procedure: Procedure
+    let procedure: CDProcedure
 
     var body: some View {
         HStack(spacing: 12) {
@@ -58,7 +58,7 @@ struct ProcedureRow: View {
 
 /// A compact row for procedure lists without card styling
 struct ProcedureCompactRow: View {
-    let procedure: Procedure
+    let procedure: CDProcedure
 
     var body: some View {
         HStack(spacing: 10) {
@@ -91,20 +91,20 @@ struct ProcedureCompactRow: View {
     let stack = CoreDataStack.preview
     let ctx = stack.viewContext
 
-    let p1 = Procedure(context: ctx)
+    let p1 = CDProcedure(context: ctx)
     p1.title = "Morning Arrival"
     p1.summary = "Steps for welcoming students and starting the day"
     p1.content = "## Overview\nThis procedure outlines..."
     p1.category = .dailyRoutines
     p1.icon = "sunrise"
 
-    let p2 = Procedure(context: ctx)
+    let p2 = CDProcedure(context: ctx)
     p2.title = "Fire Drill"
     p2.summary = "Emergency evacuation procedure"
     p2.content = "## Steps\n1. Alert students..."
     p2.category = .safety
 
-    let p3 = Procedure(context: ctx)
+    let p3 = CDProcedure(context: ctx)
     p3.title = "Friday Schedule"
     p3.summary = "Modified schedule for end-of-week activities"
     p3.content = "## Friday Routine\n..."

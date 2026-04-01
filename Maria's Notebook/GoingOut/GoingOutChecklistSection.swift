@@ -5,7 +5,7 @@ import SwiftUI
 import CoreData
 
 struct GoingOutChecklistSection: View {
-    @ObservedObject var goingOut: GoingOut
+    @ObservedObject var goingOut: CDGoingOut
     @Environment(\.managedObjectContext) private var modelContext
     @State private var newItemTitle: String = ""
 
@@ -37,7 +37,7 @@ struct GoingOutChecklistSection: View {
         }
     }
 
-    private func checklistRow(_ item: GoingOutChecklistItem) -> some View {
+    private func checklistRow(_ item: CDGoingOutChecklistItem) -> some View {
         HStack(spacing: 8) {
             Button {
                 item.isCompleted.toggle()
@@ -87,7 +87,7 @@ struct GoingOutChecklistSection: View {
         newItemTitle = ""
     }
 
-    private func deleteItem(_ item: GoingOutChecklistItem) {
+    private func deleteItem(_ item: CDGoingOutChecklistItem) {
         modelContext.delete(item)
         modelContext.safeSave()
     }

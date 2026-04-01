@@ -14,7 +14,7 @@ struct WorkCardPillContent: View {
         WorkCardWorkKind(from: config.item.work.kind)
     }
 
-    private var lesson: Lesson? {
+    private var lesson: CDLesson? {
         guard let lid = UUID(uuidString: config.item.work.lessonID) else { return nil }
         let request = CDFetchRequest(CDLesson.self)
         request.predicate = NSPredicate(format: "id == %@", lid as CVarArg)
@@ -99,7 +99,7 @@ struct WorkCardPillContent: View {
     }
 }
 
-/// Student chip for pill mode
+/// CDStudent chip for pill mode
 private struct StudentChipView: View {
     let label: String
     let isAbsent: Bool

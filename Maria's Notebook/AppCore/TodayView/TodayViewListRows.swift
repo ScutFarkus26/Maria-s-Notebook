@@ -20,7 +20,7 @@ extension ButtonStyle where Self == SubtleRowButtonStyle {
 // MARK: - List Row Components
 
 struct ReminderListRow: View {
-    let reminder: Reminder
+    let reminder: CDReminder
     var onToggle: () -> Void
 
     private var accessibilityLabelText: String {
@@ -100,7 +100,7 @@ struct LessonListRow: View {
     var onTrailingAccessoryTap: (() -> Void)?
 
     private var accessibilityLabelText: String {
-        var label = "Lesson: \(lessonName)"
+        var label = "CDLesson: \(lessonName)"
         if !studentNames.trimmed().isEmpty {
             label += ", for \(studentNames)"
         }
@@ -231,7 +231,7 @@ struct FollowUpWorkListRow: View {
 struct CompletionListRow: View {
     let studentName: String
     let lessonName: String
-    let work: WorkModel
+    let work: CDWorkModel
 
     private var hasNotes: Bool {
         !work.latestUnifiedNoteText.isEmpty

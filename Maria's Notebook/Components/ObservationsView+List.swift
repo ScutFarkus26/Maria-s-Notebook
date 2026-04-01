@@ -133,14 +133,14 @@ extension ObservationsView {
     func contextText(for note: CDNote) -> String? {
         if let lesson = note.lesson { return "CDLesson: \(lesson.name)" }
         if let work = note.work { return "Work: \(work.title)" }
-        if note.lessonAssignment != nil { return "CDPresentation" }
+        if note.lessonAssignment != nil { return "Presentation" }
         if note.attendanceRecord != nil { return "Attendance" }
         if note.workCheckIn != nil { return "Check-In" }
         if note.workCompletionRecord != nil { return "Completion" }
         if note.studentMeeting != nil { return "Meeting" }
         if note.projectSession != nil { return "Session" }
         if let communityTopic = note.communityTopic { return "Topic: \(communityTopic.title)" }
-        if note.reminder != nil { return "CDReminder" }
+        if note.reminder != nil { return "Reminder" }
         if note.schoolDayOverride != nil { return "Override" }
         return nil
     }

@@ -1,5 +1,5 @@
 // WorksInboxOrderStore.swift
-// Provides utilities to parse, serialize, and order unscheduled WorkModel instances
+// Provides utilities to parse, serialize, and order unscheduled CDWorkModel instances
 // based on a stored comma-separated UUID string.
 
 import Foundation
@@ -18,7 +18,7 @@ enum WorksInboxOrderStore {
 
     /// Orders the provided unscheduled works according to a stored order. Any works
     /// missing from the stored order are appended in creation-date order.
-    static func orderedUnscheduled(from base: [WorkModel], orderRaw: String) -> [WorkModel] {
+    static func orderedUnscheduled(from base: [CDWorkModel], orderRaw: String) -> [CDWorkModel] {
         let parsed = parse(orderRaw)
         var order = parsed.filter { id in base.contains(where: { $0.id == id }) }
 

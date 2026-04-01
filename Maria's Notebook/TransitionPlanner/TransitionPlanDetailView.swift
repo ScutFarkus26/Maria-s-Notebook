@@ -232,7 +232,7 @@ struct TransitionPlanDetailView: View {
                     HStack(spacing: 4) {
                         Image(systemName: "plus")
                             .font(.caption2)
-                        Text("Add Note")
+                        Text("Add CDNote")
                             .font(.caption)
                     }
                     .foregroundStyle(Color.accentColor)
@@ -240,7 +240,7 @@ struct TransitionPlanDetailView: View {
                 .buttonStyle(.plain)
             }
 
-            let linkedNotes = (plan.observationNotes?.allObjects as? [CDNote]) ?? []
+            let linkedNotes = plan.observationNotes
             if linkedNotes.isEmpty {
                 Text("No observation notes yet")
                     .font(.caption)

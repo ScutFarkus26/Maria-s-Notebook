@@ -31,22 +31,22 @@ Lesson
 Provides convenience methods for traversing relationships:
 
 ```swift
-// WorkModel extensions
-work.fetchPresentation(from: context) -> Presentation?
-work.fetchLesson(from: context) -> Lesson?
-work.fetchStudent(from: context) -> Student?
-work.fetchPracticeSessions(from: context) -> [PracticeSession]
+// CDWorkModel extensions
+work.fetchPresentation(from: context) -> CDLessonPresentation?
+work.fetchLesson(from: context) -> CDLesson?
+work.fetchStudent(from: context) -> CDStudent?
+work.fetchPracticeSessions(from: context) -> [CDPracticeSession]
 
-// Presentation extensions
-presentation.fetchRelatedWork(from: context) -> [WorkModel]
-presentation.fetchStudents(from: context) -> [Student]
-presentation.fetchRelatedPracticeSessions(from: context) -> [PracticeSession]
+// CDLessonPresentation extensions
+presentation.fetchRelatedWork(from: context) -> [CDWorkModel]
+presentation.fetchStudents(from: context) -> [CDStudent]
+presentation.fetchRelatedPracticeSessions(from: context) -> [CDPracticeSession]
 presentation.workCompletionStats(from: context) -> (completed: Int, total: Int)
 
-// Lesson extensions
-lesson.fetchAllPresentations(from: context) -> [LessonAssignment]
-lesson.fetchAllWork(from: context) -> [WorkModel]
-lesson.fetchAllPracticeSessions(from: context) -> [PracticeSession]
+// CDLesson extensions
+lesson.fetchAllPresentations(from: context) -> [CDLessonAssignment]
+lesson.fetchAllWork(from: context) -> [CDWorkModel]
+lesson.fetchAllPracticeSessions(from: context) -> [CDPracticeSession]
 lesson.getLessonStats(from: context) -> LessonStats
 ```
 
@@ -63,7 +63,7 @@ lesson.getLessonStats(from: context) -> LessonStats
 
 **Added State**:
 ```swift
-@State private var relatedPresentation: Presentation? = nil
+@State private var relatedPresentation: CDLessonPresentation? = nil
 ```
 
 **Benefits**:
@@ -100,8 +100,8 @@ lesson.getLessonStats(from: context) -> LessonStats
 
 **Added State**:
 ```swift
-@State private var relatedPresentation: Presentation? = nil
-@State private var relatedLesson: Lesson? = nil
+@State private var relatedPresentation: CDLessonPresentation? = nil
+@State private var relatedLesson: CDLesson? = nil
 ```
 
 **Benefits**:
@@ -124,7 +124,7 @@ lesson.getLessonStats(from: context) -> LessonStats
 
 **Usage**:
 ```swift
-LessonJourneyTimeline(lesson: lesson, modelContext: context)
+LessonJourneyTimeline(lesson: lesson, context: context)
     .frame(height: 350)
 ```
 
@@ -195,9 +195,9 @@ LessonProgressView(lesson: lesson) {
 ```swift
 // Generate work from presentation flags
 FollowUpWorkService.generateWorkFromPresentation(
-    presentation, 
+    presentation,
     context: context
-) -> [WorkModel]
+) -> [CDWorkModel]
 
 // Analyze what follow-up is needed
 FollowUpWorkService.analyzePresentation(presentation) -> PresentationFollowUp
@@ -205,7 +205,7 @@ FollowUpWorkService.analyzePresentation(presentation) -> PresentationFollowUp
 // Find presentations needing follow-up
 FollowUpWorkService.findPresentationsNeedingFollowUp(
     in: context
-) -> [Presentation]
+) -> [CDLessonPresentation]
 
 // Get suggestions without creating work
 FollowUpWorkService.suggestWork(
@@ -216,8 +216,8 @@ FollowUpWorkService.suggestWork(
 
 **Convenience Extensions**:
 ```swift
-// On Presentation
-presentation.generateFollowUpWork(in: context) -> [WorkModel]
+// On CDLessonPresentation
+presentation.generateFollowUpWork(in: context) -> [CDWorkModel]
 presentation.analyzeFollowUp() -> PresentationFollowUp
 presentation.getSuggestedWork(from: context) -> [WorkSuggestion]
 ```
@@ -320,12 +320,12 @@ Potential additions to consider:
 3. **UI Tests**: Test timeline and progress view rendering
 4. **Performance Tests**: Test query performance with large datasets
 
-## Migration Notes
+## Persistence Layer
 
-No database migration required - all enhancements work with existing data model. The integration uses existing fields:
-- `WorkModel.presentationID` (already exists)
-- `WorkModel.lessonID` (already exists)
-- `Presentation.needsPractice`, `needsAnotherPresentation`, `followUpWork` (already exist)
+This integration works with the Core Data persistence layer (`NSPersistentCloudKitContainer`). All entity classes use the `CD` prefix (e.g., `CDWorkModel`, `CDLessonPresentation`, `CDLesson`). Key fields used by this integration:
+- `CDWorkModel.presentationID`
+- `CDWorkModel.lessonID`
+- `CDLessonPresentation.needsPractice`, `needsAnotherPresentation`, `followUpWork`
 
 ## Version History
 

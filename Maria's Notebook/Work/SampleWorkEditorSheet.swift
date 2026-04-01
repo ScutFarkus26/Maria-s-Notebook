@@ -2,7 +2,7 @@ import SwiftUI
 import CoreData
 import OSLog
 
-// Sheet for adding or editing a SampleWork and its template steps.
+// Sheet for adding or editing a CDSampleWorkEntity and its template steps.
 // swiftlint:disable:next type_body_length
 struct SampleWorkEditorSheet: View {
     private static let logger = Logger.lessons
@@ -10,8 +10,8 @@ struct SampleWorkEditorSheet: View {
     @Environment(\.dismiss) private var dismiss
     @Environment(\.managedObjectContext) private var modelContext
 
-    let lesson: Lesson
-    var existingSampleWork: SampleWork?
+    let lesson: CDLesson
+    var existingSampleWork: CDSampleWorkEntity?
     var onSave: () -> Void
 
     @State private var title: String = ""

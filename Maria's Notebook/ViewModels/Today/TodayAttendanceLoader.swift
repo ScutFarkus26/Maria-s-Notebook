@@ -28,8 +28,8 @@ enum TodayAttendanceLoader {
     ///   - levelFilter: Current level filter
     /// - Returns: Processed attendance result with summary and ID lists
     static func processAttendance(
-        records: [AttendanceRecord],
-        studentsByID: [UUID: Student],
+        records: [CDAttendanceRecord],
+        studentsByID: [UUID: CDStudent],
         levelFilter: LevelFilter
     ) -> AttendanceResult {
         var present = 0

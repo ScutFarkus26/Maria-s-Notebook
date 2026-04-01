@@ -154,7 +154,7 @@ struct BackupRestoreSettingsView: View {
         CompactCard {
             VStack(alignment: .leading, spacing: AppTheme.Spacing.small) {
                 HStack {
-                    Label("Storage", systemImage: SFSymbol.Document.folderFill)
+                    Label("Storage", systemImage: SFSymbol.CDDocument.folderFill)
                         .font(.subheadline.weight(.bold))
                         .foregroundStyle(.pink)
                     Spacer()
@@ -178,7 +178,7 @@ struct BackupRestoreSettingsView: View {
     private var folderMenu: some View {
         Menu {
             Button { chooseDefaultFolder() } label: {
-                Label("Choose Folder...", systemImage: SFSymbol.Document.folderBadgePlus)
+                Label("Choose Folder...", systemImage: SFSymbol.CDDocument.folderBadgePlus)
             }
             if !defaultFolderName.isEmpty {
                 Button { openDefaultFolder() } label: {

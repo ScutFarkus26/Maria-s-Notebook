@@ -14,7 +14,7 @@ struct PracticeStats {
 }
 
 struct PracticeStatsCalculator {
-    static func calculate(from sessions: [PracticeSession]) -> PracticeStats {
+    static func calculate(from sessions: [CDPracticeSession]) -> PracticeStats {
         var stats = PracticeStats()
         
         stats.totalSessions = sessions.count
@@ -28,7 +28,7 @@ struct PracticeStatsCalculator {
         return stats
     }
     
-    private static func formatDuration(from sessions: [PracticeSession]) -> String? {
+    private static func formatDuration(from sessions: [CDPracticeSession]) -> String? {
         let totalSeconds = sessions.compactMap(\.durationInterval).reduce(0, +)
         guard totalSeconds > 0 else { return nil }
         
@@ -46,7 +46,7 @@ struct PracticeStatsCalculator {
         return Double(values.reduce(0, +)) / Double(values.count)
     }
     
-    private static func extractTopBehaviors(from sessions: [PracticeSession], limit: Int) -> [String] {
+    private static func extractTopBehaviors(from sessions: [CDPracticeSession], limit: Int) -> [String] {
         var behaviorCounts: [String: Int] = [:]
         for session in sessions {
             for behavior in session.activeBehaviors {
@@ -64,7 +64,7 @@ struct PracticeStatsCalculator {
 // MARK: - Work Check-In Row (Phase 6: renamed from WorkPlanItemRow)
 
 struct WorkPlanItemRow: View {
-    let item: WorkCheckIn
+    let item: CDWorkCheckIn
     let onDelete: () -> Void
     
     var body: some View {
@@ -151,7 +151,7 @@ private struct DeleteButton: View {
     }
 }
 
-// MARK: - Note Tags Display
+// MARK: - CDNote Tags Display
 
 private struct NoteTagsRow: View {
     let tags: [String]
@@ -167,10 +167,10 @@ private struct NoteTagsRow: View {
     }
 }
 
-// MARK: - Note Row View
+// MARK: - CDNote Row View
 
 struct NoteRowView: View {
-    let note: Note
+    let note: CDNote
     let onEdit: () -> Void
     let onDelete: () -> Void
 

@@ -188,7 +188,7 @@ struct ObservationHeatmapView: View {
         var mostRecentDate: Date?
         let studentIDString = student.id?.uuidString ?? ""
 
-        // 1) Student-scoped notes
+        // 1) CDStudent-scoped notes
         if let sid = student.id, let studentNotes = lookups.studentScopedNotesByStudentID[sid] {
             for note in studentNotes {
                 let noteDate = max(note.updatedAt ?? .distantPast, note.createdAt ?? .distantPast)
@@ -235,7 +235,7 @@ struct ObservationHeatmapView: View {
         var mostRecentDate: Date?
         let studentIDString = student.id?.uuidString ?? ""
 
-        // 1) Student-scoped notes
+        // 1) CDStudent-scoped notes
         mostRecentDate = findMostRecentStudentScopedNoteDate(for: student)
 
         // 2) CDLessonAssignment notes

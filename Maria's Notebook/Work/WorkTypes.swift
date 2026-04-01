@@ -82,7 +82,7 @@ public enum ScheduledReason: String, Codable, CaseIterable, Hashable, Identifiab
         case .due: return "Due"
         case .followUp: return "Follow Up"
         case .assessment: return "Assessment"
-        case .studentRequest: return "Student Request"
+        case .studentRequest: return "CDStudent Request"
         case .other: return "Other"
         }
     }
@@ -101,7 +101,7 @@ public enum WorkSourceContextType: String, Codable, CaseIterable, Hashable, Iden
 
     public var displayName: String {
         switch self {
-        case .projectSession: return "Project Session"
+        case .projectSession: return "CDProject Session"
         case .bookClubSession: return "Book Club Session"
         case .presentation: return "Presentation"
         case .lesson: return "Lesson"
@@ -188,25 +188,6 @@ public extension WorkKind {
         }
     }
 
-}
-
-// MARK: - WorkKind to WorkType Conversion (Internal)
-
-extension WorkKind {
-    /// Convert to legacy LegacyWorkType for backward compatibility
-    /// - Note: Marked nonisolated to allow access from WorkModel initializer
-    /// - Note: Intentionally uses deprecated LegacyWorkType for backward compatibility during migration
-    @available(*, deprecated, message: "Uses deprecated LegacyWorkType for backward compatibility")
-    nonisolated var asWorkType: LegacyWorkType {
-        // Intentional use of deprecated LegacyWorkType enum for backward compatibility
-        // This property exists to support gradual migration from WorkType to WorkKind
-        switch self {
-        case .practiceLesson: return .practice
-        case .followUpAssignment: return .followUp
-        case .research: return .research
-        case .report: return .report
-        }
-    }
 }
 
 // MARK: - WorkStatus Styling

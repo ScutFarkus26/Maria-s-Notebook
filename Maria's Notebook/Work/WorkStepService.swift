@@ -1,10 +1,10 @@
 // WorkStepService.swift
-// Small persistence service for WorkStep operations to keep model methods side-effect free.
+// Small persistence service for CDWorkStep operations to keep model methods side-effect free.
 
 import Foundation
 import CoreData
 
-/// A small service that centralizes persistence for WorkStep operations.
+/// A small service that centralizes persistence for CDWorkStep operations.
 ///
 /// This service ensures that model methods remain free of side-effects
 /// (no implicit saves), while callers can perform explicit, transactional

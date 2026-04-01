@@ -2,14 +2,13 @@ import Foundation
 import CoreData
 import os
 
-// MARK: - Note Repair
+// MARK: - Note & Data Integrity Repairs
 
 extension DataCleanupService {
 
     // MARK: - Note Cleanup
 
     /// Repair scope for notes that were incorrectly set to .all due to UI bugs.
-    /// Specifically targets Attendance, WorkCompletion, and StudentMeeting notes.
     static func repairScopeForContextualNotes(using context: NSManagedObjectContext) async {
         let flagKey = "Repair.noteScopes.v1"
         MigrationFlag.runIfNeeded(key: flagKey) {
@@ -46,22 +45,18 @@ extension DataCleanupService {
     }
 
     /// Clean up orphaned note images that are no longer referenced by any Note.
-    /// This should be run after note deletions to reclaim disk space.
     static func cleanupOrphanedNoteImages(using context: NSManagedObjectContext) {
         do {
             let photosDir = try PhotoStorageService.photosDirectory()
             let fm = FileManager.default
 
-            // Get all files in the Note Photos directory
             let files = try fm.contentsOfDirectory(at: photosDir, includingPropertiesForKeys: nil)
             let imageFilenames = Set(files.map(\.lastPathComponent))
 
-            // Get all image paths referenced by notes
             let notesFetch = CDFetchRequest(CDNote.self)
             let notes = context.safeFetch(notesFetch)
             let referencedPaths = Set(notes.compactMap(\.imagePath))
 
-            // Find orphaned files
             let orphanedFiles = imageFilenames.subtracting(referencedPaths)
 
             for filename in orphanedFiles {
@@ -79,7 +74,6 @@ extension DataCleanupService {
     }
 
     /// Create NoteStudentLink records for existing notes with multi-student scope.
-    /// This enables efficient database-level queries instead of in-memory filtering.
     static func createNoteStudentLinksForExistingNotes(using context: NSManagedObjectContext) {
         let fetch = CDFetchRequest(CDNote.self)
         fetch.predicate = NSPredicate(format: "scopeIsAll == NO AND searchIndexStudentID == nil")
@@ -88,12 +82,8 @@ extension DataCleanupService {
         var createdCount = 0
 
         for note in notes {
-            // Skip if links already exist
             guard (note.studentLinks?.count ?? 0) == 0 else { continue }
-
-            // Sync the student links based on current scope
             note.syncStudentLinks(in: context)
-
             if (note.studentLinks?.count ?? 0) > 0 {
                 createdCount += 1
             }
@@ -106,10 +96,7 @@ extension DataCleanupService {
 
     // MARK: - Note Search Index Backfill
 
-    // TODO: Remove this migration after a few releases — all notes will have been backfilled by then.
     /// Backfills scopeIsAll and searchIndexStudentID for notes that predate the search index.
-    /// After this runs, the scope getter no longer needs to self-heal these fields on read.
-    /// Guarded by MigrationFlag so it only runs once.
     static func backfillNoteSearchIndex(using context: NSManagedObjectContext) {
         let flagKey = "Backfill.noteSearchIndex.v1"
         MigrationFlag.runIfNeeded(key: flagKey) {
@@ -150,9 +137,6 @@ extension DataCleanupService {
     // MARK: - Denormalized Field Repair
 
     /// Repairs denormalized scheduledForDay fields to match scheduledFor.
-    /// This ensures data integrity when scheduledForDay gets out of sync with scheduledFor
-    /// (e.g., during bulk imports or when didSet doesn't fire during initialization).
-    /// Safe to call repeatedly - it's idempotent and only fixes mismatched records.
     static func repairDenormalizedScheduledForDay(using context: NSManagedObjectContext) async {
         let fetch = CDFetchRequest(CDLessonAssignment.self)
         let assignments = context.safeFetch(fetch)

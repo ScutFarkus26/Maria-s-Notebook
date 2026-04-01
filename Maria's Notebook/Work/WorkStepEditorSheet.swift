@@ -8,8 +8,8 @@ struct WorkStepEditorSheet: View {
     @Environment(\.dismiss) private var dismiss
     @Environment(\.managedObjectContext) private var modelContext
 
-    let work: WorkModel
-    var existingStep: WorkStep?
+    let work: CDWorkModel
+    var existingStep: CDWorkStep?
     var onSave: () -> Void
 
     @State private var title: String = ""

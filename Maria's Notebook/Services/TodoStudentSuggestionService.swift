@@ -19,7 +19,7 @@ final class TodoStudentSuggestionService {
     ///   - text: The todo title and notes combined
     ///   - availableStudents: List of students to help guide name recognition
     /// - Returns: Array of extracted student names
-    static func extractStudentNames(from text: String, availableStudents: [Student]) async throws -> [String] {
+    static func extractStudentNames(from text: String, availableStudents: [CDStudent]) async throws -> [String] {
         guard !text.trimmed().isEmpty else {
             return []
         }
@@ -56,13 +56,13 @@ final class TodoStudentSuggestionService {
         }
     }
     
-    /// Match extracted names to actual Student objects
+    /// Match extracted names to actual CDStudent objects
     /// - Parameters:
     ///   - extractedNames: Names extracted from text
     ///   - students: Available students to match against
-    /// - Returns: Array of matching Student objects
-    static func matchStudents(extractedNames: [String], from students: [Student]) -> [Student] {
-        var matches: [Student] = []
+    /// - Returns: Array of matching CDStudent objects
+    static func matchStudents(extractedNames: [String], from students: [CDStudent]) -> [CDStudent] {
+        var matches: [CDStudent] = []
         
         for name in extractedNames {
             let lowercasedName = name.lowercased()

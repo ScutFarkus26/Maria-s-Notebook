@@ -219,7 +219,7 @@ extension TodoEditSheet {
     var reminderSection: some View {
         VStack(alignment: .leading, spacing: 12) {
             HStack {
-                Text("CDReminder")
+                Text("Reminder")
                     .font(AppTheme.ScaledFont.captionSemibold)
                     .foregroundStyle(.secondary)
                     .textCase(.uppercase)

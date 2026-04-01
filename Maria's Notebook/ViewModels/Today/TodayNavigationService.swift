@@ -79,7 +79,7 @@ enum TodayNavigationService {
         return cache.isNonSchoolDay(date)
     }
 
-    // MARK: - Lesson Navigation
+    // MARK: - CDLesson Navigation
 
     /// Finds the next day (after the given date) that has lessons scheduled.
     /// Only considers school days and respects the given level filter.
@@ -152,7 +152,7 @@ enum TodayNavigationService {
     ) -> Bool {
         let (day, nextDay) = AppCalendar.dayRange(for: date)
         do {
-            let request = CDFetchRequest(LessonAssignment.self)
+            let request = CDFetchRequest(CDLessonAssignment.self)
             request.predicate = NSPredicate(
                 format: "scheduledForDay >= %@ AND scheduledForDay < %@",
                 day as NSDate, nextDay as NSDate
@@ -176,7 +176,7 @@ enum TodayNavigationService {
             // NOTE: Core Data NSPredicate doesn't efficiently support IN queries with large UUID sets,
             // so we fetch all and filter in memory
             if !neededStudentIDs.isEmpty {
-                let studentRequest = CDFetchRequest(Student.self)
+                let studentRequest = CDFetchRequest(CDStudent.self)
                 studentRequest.fetchLimit = 500 // Safety limit for student roster
                 let allStudents = try context.fetch(studentRequest).filter(\.isEnrolled)
                 let filtered = allStudents.filter { student in
@@ -186,7 +186,7 @@ enum TodayNavigationService {
                 // DEDUPLICATION: CloudKit sync can create duplicate records with the same ID.
                 let visibleStudents = TestStudentsFilter.filterVisible(filtered).uniqueByID
                 let studentsByID = Dictionary(
-                    visibleStudents.compactMap { student -> (UUID, Student)? in
+                    visibleStudents.compactMap { student -> (UUID, CDStudent)? in
                         guard let studentID = student.id else { return nil }
                         return (studentID, student)
                     },
@@ -207,10 +207,10 @@ enum TodayNavigationService {
 
     /// Filters lessons by level using the provided student lookup.
     private static func filterLessonsByLevel(
-        _ lessons: [LessonAssignment],
-        studentsByID: [UUID: Student],
+        _ lessons: [CDLessonAssignment],
+        studentsByID: [UUID: CDStudent],
         levelFilter: LevelFilter
-    ) -> [LessonAssignment] {
+    ) -> [CDLessonAssignment] {
         guard levelFilter != .all else {
             return lessons.filter { sl in
                 let ids = sl.resolvedStudentIDs

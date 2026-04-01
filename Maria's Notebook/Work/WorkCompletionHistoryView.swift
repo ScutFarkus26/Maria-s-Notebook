@@ -12,7 +12,7 @@ struct WorkCompletionHistoryView: View {
 
     @Environment(\.managedObjectContext) private var modelContext
 
-    @State private var records: [WorkCompletionRecord] = []
+    @State private var records: [CDWorkCompletionRecord] = []
     @State private var isLoading: Bool = false
     @State private var errorMessage: String?
 
@@ -110,7 +110,7 @@ struct WorkCompletionHistoryView: View {
         do {
             self.records = try modelContext.fetch(request)
         } catch {
-            Self.logger.warning("Failed to fetch WorkCompletionRecord: \(error)")
+            Self.logger.warning("Failed to fetch CDWorkCompletionRecord: \(error)")
             self.records = []
         }
     }
@@ -120,11 +120,11 @@ struct WorkCompletionHistoryView: View {
         deleteRecords(recordsToDelete)
     }
 
-    private func delete(record: WorkCompletionRecord) {
+    private func delete(record: CDWorkCompletionRecord) {
         deleteRecords([record])
     }
 
-    private func deleteRecords(_ recordsToDelete: [WorkCompletionRecord]) {
+    private func deleteRecords(_ recordsToDelete: [CDWorkCompletionRecord]) {
         for record in recordsToDelete {
             modelContext.delete(record)
         }

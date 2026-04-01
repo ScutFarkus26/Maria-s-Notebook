@@ -11,9 +11,6 @@ public class CDStudentTrackEnrollmentEntity: NSManagedObject {
     @NSManaged public var startedAt: Date?
     @NSManaged public var isActive: Bool
 
-    // MARK: - Relationships
-    @NSManaged public var richNotes: NSSet?
-
     // MARK: - Convenience Init
     @discardableResult
     convenience init(context: NSManagedObjectContext) {
@@ -28,17 +25,15 @@ public class CDStudentTrackEnrollmentEntity: NSManagedObject {
     }
 }
 
-// MARK: - Generated Accessors for richNotes
+// MARK: - Cross-Store Inverse
+
 extension CDStudentTrackEnrollmentEntity {
-    @objc(addRichNotesObject:)
-    @NSManaged public func addToRichNotes(_ value: NSManagedObject)
-
-    @objc(removeRichNotesObject:)
-    @NSManaged public func removeFromRichNotes(_ value: NSManagedObject)
-
-    @objc(addRichNotes:)
-    @NSManaged public func addToRichNotes(_ values: NSSet)
-
-    @objc(removeRichNotes:)
-    @NSManaged public func removeFromRichNotes(_ values: NSSet)
+    /// Cross-store inverse: fetches Notes whose studentTrackEnrollmentID matches this enrollment.
+    var richNotes: [CDNote] {
+        guard let id, let ctx = managedObjectContext else { return [] }
+        let req = CDFetchRequest(CDNote.self)
+        req.predicate = NSPredicate(format: "studentTrackEnrollmentID == %@", id.uuidString)
+        return (try? ctx.fetch(req)) ?? []
+    }
 }
+

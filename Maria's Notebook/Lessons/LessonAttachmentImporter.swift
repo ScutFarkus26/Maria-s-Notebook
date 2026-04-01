@@ -16,7 +16,7 @@ struct LessonAttachmentImporter {
         let fileName = fileURL.deletingPathExtension().lastPathComponent
         let searchTerms = extractSearchTerms(from: fileName)
         
-        let descriptor: NSFetchRequest<CDLesson> = NSFetchRequest(entityName: "CDLesson")
+        let descriptor: NSFetchRequest<CDLesson> = NSFetchRequest(entityName: "Lesson")
         descriptor.sortDescriptors = [NSSortDescriptor(key: "sortIndex", ascending: true)]
         
         let allLessons: [CDLesson]
@@ -101,7 +101,7 @@ struct LessonAttachmentImporter {
     
     /// Gets recently viewed or modified lessons (placeholder for actual implementation)
     func getRecentLessons(limit: Int = 5) -> [CDLesson] {
-        let descriptor: NSFetchRequest<CDLesson> = NSFetchRequest(entityName: "CDLesson")
+        let descriptor: NSFetchRequest<CDLesson> = NSFetchRequest(entityName: "Lesson")
         descriptor.sortDescriptors = [NSSortDescriptor(key: "sortIndex", ascending: false)]
         
         let lessons: [CDLesson]
@@ -272,7 +272,7 @@ struct LessonAttachmentImportSheet: View {
         }
         
         // Load all lessons
-        let descriptor: NSFetchRequest<CDLesson> = NSFetchRequest(entityName: "CDLesson")
+        let descriptor: NSFetchRequest<CDLesson> = NSFetchRequest(entityName: "Lesson")
         descriptor.sortDescriptors = [
                 NSSortDescriptor(key: "subject", ascending: true),
                 NSSortDescriptor(key: "group", ascending: true),

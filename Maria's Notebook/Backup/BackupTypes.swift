@@ -7,7 +7,7 @@ public enum BackupFile: Sendable {
     /// Format version 13: Adds CDClassroomMembership backup coverage
     /// Format version 12: Adds CDGoingOut, CDClassroomJob, CDTransitionPlan, CDCalendarNote,
     /// CDScheduledMeeting, AlbumGroupOrder, AlbumGroupUIState backup coverage
-    /// Format version 11: Adds CDWorkModel/PlanningRecommendation/CDResource/CDNoteStudentLink;
+    /// Format version 11: Adds CDWorkModel/CDPlanningRecommendation/CDResource/CDNoteStudentLink;
     /// removes LegacyPresentation backward compatibility
     /// Format version 10: Adds CDSampleWork/CDSampleWorkStep, CDWorkStep completionOutcome, CDPracticeSession workStepID
     /// Format version 8: Adds backup coverage for all entity types (Work, CDTrackEntity, CDSupply, Todo, etc.)

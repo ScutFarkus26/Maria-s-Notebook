@@ -23,22 +23,22 @@ struct RepositoryContainer {
 
     // MARK: - Core Repositories
 
-    /// Repository for Student entities
+    /// Repository for CDStudent entities
     var students: StudentRepository {
         StudentRepository(context: context, saveCoordinator: saveCoordinator)
     }
 
-    /// Repository for Lesson entities
+    /// Repository for CDLesson entities
     var lessons: LessonRepository {
         LessonRepository(context: context, saveCoordinator: saveCoordinator)
     }
 
-    /// Repository for Presentation/LessonAssignment entities
+    /// Repository for Presentation/CDLessonAssignment entities
     var presentations: PresentationRepository {
         PresentationRepository(context: context, saveCoordinator: saveCoordinator)
     }
 
-    /// Repository for Note entities
+    /// Repository for CDNote entities
     var notes: NoteRepository {
         NoteRepository(context: context, saveCoordinator: saveCoordinator)
     }
@@ -50,31 +50,31 @@ struct RepositoryContainer {
 
     // MARK: - Attendance & Documents
 
-    /// Repository for AttendanceRecord entities
+    /// Repository for CDAttendanceRecord entities
     var attendance: AttendanceRepository {
         AttendanceRepository(context: context, saveCoordinator: saveCoordinator)
     }
 
-    /// Repository for Document entities
+    /// Repository for CDDocument entities
     var documents: DocumentRepository {
         DocumentRepository(context: context, saveCoordinator: saveCoordinator)
     }
 
     // MARK: - Meetings & Reminders
 
-    /// Repository for StudentMeeting entities
+    /// Repository for CDStudentMeeting entities
     var meetings: MeetingRepository {
         MeetingRepository(context: context, saveCoordinator: saveCoordinator)
     }
 
-    /// Repository for Reminder entities
+    /// Repository for CDReminder entities
     var reminders: ReminderRepository {
         ReminderRepository(context: context, saveCoordinator: saveCoordinator)
     }
 
     // MARK: - Projects
 
-    /// Repository for Project, ProjectSession, and ProjectAssignmentTemplate entities
+    /// Repository for CDProject, CDProjectSession, and CDProjectAssignmentTemplate entities
     var projects: ProjectRepository {
         ProjectRepository(context: context, saveCoordinator: saveCoordinator)
     }

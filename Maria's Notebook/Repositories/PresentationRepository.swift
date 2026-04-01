@@ -2,7 +2,7 @@
 //  PresentationRepository.swift
 //  Maria's Notebook
 //
-//  Repository for LessonAssignment (Presentation) CRUD operations.
+//  Repository for CDLessonAssignment (Presentation) CRUD operations.
 //
 
 import Foundation
@@ -25,7 +25,7 @@ struct PresentationRepository: SavingRepository {
 
     // MARK: - Fetch
 
-    /// Fetch a LessonAssignment by ID
+    /// Fetch a CDLessonAssignment by ID
     func fetchLessonAssignment(id: UUID) -> CDLessonAssignment? {
         let request = CDFetchRequest(CDLessonAssignment.self)
         request.predicate = NSPredicate(format: "id == %@", id as CVarArg)
@@ -68,7 +68,7 @@ struct PresentationRepository: SavingRepository {
 
     // MARK: - Create (using PresentationFactory)
 
-    /// Create a draft LessonAssignment
+    /// Create a draft CDLessonAssignment
     @discardableResult
     func createDraft(
         lessonID: UUID,
@@ -77,7 +77,7 @@ struct PresentationRepository: SavingRepository {
         PresentationFactory.makeDraft(lessonID: lessonID, studentIDs: studentIDs, context: context)
     }
 
-    /// Create a draft LessonAssignment with relationship objects
+    /// Create a draft CDLessonAssignment with relationship objects
     @discardableResult
     func createDraft(
         lesson: CDLesson,
@@ -86,7 +86,7 @@ struct PresentationRepository: SavingRepository {
         PresentationFactory.makeDraft(lesson: lesson, students: students, context: context)
     }
 
-    /// Create a scheduled LessonAssignment
+    /// Create a scheduled CDLessonAssignment
     @discardableResult
     func createScheduled(
         lessonID: UUID,
@@ -96,7 +96,7 @@ struct PresentationRepository: SavingRepository {
         PresentationFactory.makeScheduled(lessonID: lessonID, studentIDs: studentIDs, scheduledFor: scheduledFor, context: context)
     }
 
-    /// Create a scheduled LessonAssignment with relationship objects
+    /// Create a scheduled CDLessonAssignment with relationship objects
     @discardableResult
     func createScheduled(
         lesson: CDLesson,
@@ -106,7 +106,7 @@ struct PresentationRepository: SavingRepository {
         PresentationFactory.makeScheduled(lesson: lesson, students: students, scheduledFor: scheduledFor, context: context)
     }
 
-    /// Create a presented LessonAssignment
+    /// Create a presented CDLessonAssignment
     @discardableResult
     func createPresented(
         lessonID: UUID,
@@ -116,7 +116,7 @@ struct PresentationRepository: SavingRepository {
         PresentationFactory.makePresented(lessonID: lessonID, studentIDs: studentIDs, presentedAt: presentedAt, context: context)
     }
 
-    /// Create a presented LessonAssignment with relationship objects
+    /// Create a presented CDLessonAssignment with relationship objects
     @discardableResult
     func createPresented(
         lesson: CDLesson,
@@ -128,7 +128,7 @@ struct PresentationRepository: SavingRepository {
 
     // MARK: - Update
 
-    /// Schedule a LessonAssignment
+    /// Schedule a CDLessonAssignment
     @discardableResult
     func schedule(id: UUID, for date: Date, using calendar: Calendar = AppCalendar.shared) -> Bool {
         guard let la = fetchLessonAssignment(id: id) else { return false }
@@ -136,7 +136,7 @@ struct PresentationRepository: SavingRepository {
         return true
     }
 
-    /// Unschedule a LessonAssignment (move back to draft)
+    /// Unschedule a CDLessonAssignment (move back to draft)
     @discardableResult
     func unschedule(id: UUID) -> Bool {
         guard let la = fetchLessonAssignment(id: id) else { return false }
@@ -144,7 +144,7 @@ struct PresentationRepository: SavingRepository {
         return true
     }
 
-    /// Mark a LessonAssignment as presented
+    /// Mark a CDLessonAssignment as presented
     @discardableResult
     func markPresented(id: UUID, presentedAt: Date = Date()) -> Bool {
         guard let la = fetchLessonAssignment(id: id) else { return false }
@@ -152,7 +152,7 @@ struct PresentationRepository: SavingRepository {
         return true
     }
 
-    /// Update notes for a LessonAssignment
+    /// Update notes for a CDLessonAssignment
     @discardableResult
     func updateNotes(id: UUID, notes: String) -> Bool {
         guard let la = fetchLessonAssignment(id: id) else { return false }
@@ -181,7 +181,7 @@ struct PresentationRepository: SavingRepository {
 
     // MARK: - Delete
 
-    /// Delete a LessonAssignment by ID
+    /// Delete a CDLessonAssignment by ID
     func deleteLessonAssignment(id: UUID) throws {
         guard let la = fetchLessonAssignment(id: id) else { return }
         context.delete(la)

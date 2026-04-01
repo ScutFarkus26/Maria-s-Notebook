@@ -152,7 +152,7 @@ struct DatabaseErrorView: View {
 }
 
 #if os(macOS)
-/// Document wrapper for diagnostics export
+/// CDDocument wrapper for diagnostics export
 private struct DiagnosticsDocument: FileDocument {
     static var readableContentTypes: [UTType] { [.plainText] }
     

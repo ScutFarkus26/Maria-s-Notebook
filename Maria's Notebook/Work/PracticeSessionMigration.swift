@@ -2,7 +2,7 @@ import Foundation
 import OSLog
 import CoreData
 
-/// Service for migrating existing WorkCheckIn entries to PracticeSession records
+/// Service for migrating existing CDWorkCheckIn entries to CDPracticeSession records
 struct PracticeSessionMigration {
     private static let logger = Logger.work
 

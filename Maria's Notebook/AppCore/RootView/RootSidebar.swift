@@ -36,7 +36,7 @@ extension RootSidebar {
                     Button {
                         appRouter.requestNewStudent()
                     } label: {
-                        Label("New Student", systemImage: "person.badge.plus")
+                        Label("New CDStudent", systemImage: "person.badge.plus")
                     }
 
                     Button {
@@ -66,7 +66,7 @@ extension RootSidebar {
                     Button {
                         appRouter.requestNewLesson()
                     } label: {
-                        Label("New Lesson", systemImage: SFSymbol.Action.plusCircle)
+                        Label("New CDLesson", systemImage: SFSymbol.Action.plusCircle)
                     }
 
                     Button {
@@ -89,9 +89,9 @@ extension RootSidebar {
                     }
                 }
 
-                sidebarRow(.needsLesson, title: "Needs Lesson", systemImage: "clock.badge.exclamationmark")
+                sidebarRow(.needsLesson, title: "Needs CDLesson", systemImage: "clock.badge.exclamationmark")
 
-                sidebarRow(.planningProjects, title: "Projects", systemImage: SFSymbol.Document.folder)
+                sidebarRow(.planningProjects, title: "Projects", systemImage: SFSymbol.CDDocument.folder)
             }
 
             Section("Progress") {
@@ -99,7 +99,7 @@ extension RootSidebar {
 
                 sidebarRow(.progressDashboard, title: "Progress Dashboard", systemImage: "person.text.rectangle")
 
-                sidebarRow(.lessonFrequency, title: "Lesson Frequency", systemImage: SFSymbol.Chart.chartBar)
+                sidebarRow(.lessonFrequency, title: "CDLesson Frequency", systemImage: SFSymbol.Chart.chartBar)
 
                 sidebarRow(.curriculumBalance, title: "Curriculum Balance", systemImage: SFSymbol.Chart.chartPie)
 
@@ -111,7 +111,7 @@ extension RootSidebar {
 
                 sidebarRow(.supplies, title: "Supplies", systemImage: "shippingbox")
 
-                sidebarRow(.procedures, title: "Procedures", systemImage: SFSymbol.Document.docText)
+                sidebarRow(.procedures, title: "Procedures", systemImage: SFSymbol.CDDocument.docText)
 
                 sidebarRow(.schedules, title: "Schedules", systemImage: "clock.badge.checkmark")
 
@@ -195,7 +195,7 @@ extension RootSidebar {
                     Label("Attendance", systemImage: "checklist")
                 }
                 .buttonStyle(.plain)
-                .accessibilityHint("Track daily student attendance")
+                .accessibilityHint("CDTrackEntity daily student attendance")
             }
 
             Section("Curriculum") {
@@ -224,13 +224,13 @@ extension RootSidebar {
                 .accessibilityHint("View and manage student work")
 
                 Button { selection = .needsLesson } label: {
-                    Label("Needs Lesson", systemImage: "clock.badge.exclamationmark")
+                    Label("Needs CDLesson", systemImage: "clock.badge.exclamationmark")
                 }
                 .buttonStyle(.plain)
                 .accessibilityHint("See which students need a lesson based on days since last presentation")
 
                 Button { selection = .planningProjects } label: {
-                    Label("Projects", systemImage: SFSymbol.Document.folder)
+                    Label("Projects", systemImage: SFSymbol.CDDocument.folder)
                 }
                 .buttonStyle(.plain)
                 .accessibilityHint("Manage student projects")
@@ -250,7 +250,7 @@ extension RootSidebar {
                 .accessibilityHint("View per-student progress across all subjects")
 
                 Button { selection = .lessonFrequency } label: {
-                    Label("Lesson Frequency", systemImage: SFSymbol.Chart.chartBar)
+                    Label("CDLesson Frequency", systemImage: SFSymbol.Chart.chartBar)
                 }
                 .buttonStyle(.plain)
                 .accessibilityHint("View weekly lesson frequency per student")
@@ -279,10 +279,10 @@ extension RootSidebar {
                     Label("Supplies", systemImage: "shippingbox")
                 }
                 .buttonStyle(.plain)
-                .accessibilityHint("Track classroom supplies and inventory")
+                .accessibilityHint("CDTrackEntity classroom supplies and inventory")
 
                 Button { selection = .procedures } label: {
-                    Label("Procedures", systemImage: SFSymbol.Document.docText)
+                    Label("Procedures", systemImage: SFSymbol.CDDocument.docText)
                 }
                 .buttonStyle(.plain)
                 .accessibilityHint("View classroom procedures and routines")
@@ -303,7 +303,7 @@ extension RootSidebar {
                     Label("Issues", systemImage: "exclamationmark.triangle")
                 }
                 .buttonStyle(.plain)
-                .accessibilityHint("Track and resolve classroom issues")
+                .accessibilityHint("CDTrackEntity and resolve classroom issues")
             }
 
             Section("Tools") {

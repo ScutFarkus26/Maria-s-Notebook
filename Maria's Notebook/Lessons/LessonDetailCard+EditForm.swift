@@ -38,7 +38,7 @@ extension LessonDetailCard {
             if draftLessonFormat == .story {
                 let storyRaw = LessonFormat.story.rawValue
                 let storyLessons: [CDLesson] = {
-                    let descriptor: NSFetchRequest<CDLesson> = NSFetchRequest(entityName: "CDLesson")
+                    let descriptor: NSFetchRequest<CDLesson> = NSFetchRequest(entityName: "Lesson")
         descriptor.predicate = NSPredicate(format: "lessonFormatRaw == %@", storyRaw as CVarArg)
                     return viewContext.safeFetch(descriptor).filter { $0.id != lesson.id }
                 }()

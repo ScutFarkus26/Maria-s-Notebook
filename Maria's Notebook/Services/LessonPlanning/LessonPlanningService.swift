@@ -36,7 +36,7 @@ final class LessonPlanningService {
     /// Suggests next lessons for a single student.
     /// Uses quick depth: local readiness + gap analysis only.
     func suggestNextLessons(
-        for student: Student,
+        for student: CDStudent,
         depth: PlanningDepth = .quick,
         subjectFilter: String? = nil,
         preferences: String? = nil
@@ -116,7 +116,7 @@ final class LessonPlanningService {
     // Generates a weekly plan for the whole class.
     // swiftlint:disable:next function_body_length
     func generateWeekPlan(
-        students: [Student],
+        students: [CDStudent],
         weekStartDate: Date? = nil,
         preferences: String? = nil
     ) async throws -> (weekPlan: WeekPlan?, session: PlanningSession) {
@@ -264,7 +264,7 @@ final class LessonPlanningService {
         return newRecs
     }
 
-    /// Creates LessonAssignment drafts from accepted recommendations.
+    /// Creates CDLessonAssignment drafts from accepted recommendations.
     func applyRecommendations(
         _ recommendations: [LessonRecommendation],
         scheduledDates: [UUID: Date] = [:]
@@ -276,7 +276,7 @@ final class LessonPlanningService {
         for rec in recommendations {
             guard let lesson = allLessons.first(where: { $0.id == rec.lessonID }),
                   let lessonID = lesson.id else {
-                Self.logger.warning("Lesson not found for recommendation: \(rec.lessonName)")
+                Self.logger.warning("CDLesson not found for recommendation: \(rec.lessonName)")
                 continue
             }
 

@@ -105,7 +105,7 @@ struct LessonJourneyTimeline: View {
             let students = presentation.fetchStudents(from: viewContext)
             if !students.isEmpty {
                 VStack(alignment: .leading, spacing: 4) {
-                    Text("\(students.count) \(students.count == 1 ? "CDStudent" : "Students")")
+                    Text("\(students.count) \(students.count == 1 ? "Student" : "Students")")
                         .font(AppTheme.ScaledFont.captionSmallSemibold)
                         .foregroundStyle(.secondary)
 

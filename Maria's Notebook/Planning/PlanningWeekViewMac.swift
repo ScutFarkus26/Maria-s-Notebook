@@ -20,7 +20,7 @@ struct PlanningWeekViewMac: View {
     private var testStudentNamesRaw: String = "Danny De Berry,Lil Dan D"
 
     // Magic @Query - automatically updates when data changes
-    // Migrated to LessonAssignment: fetch draft and unscheduled presentations
+    // Migrated to CDLessonAssignment: fetch draft and unscheduled presentations
     @FetchRequest(sortDescriptors: [], predicate: NSPredicate(format: "scheduledFor == nil AND presentedAt == nil"))
     private var inboxLessons: FetchedResults<CDLessonAssignment>
 
@@ -95,7 +95,7 @@ struct PlanningWeekViewMac: View {
         let today = calendar.startOfDay(for: Date())
         
         // Fetch only future scheduled lessons to find the next one (using CDLessonAssignment)
-        var descriptor: NSFetchRequest<CDLessonAssignment> = NSFetchRequest(entityName: "CDLessonAssignment")
+        var descriptor: NSFetchRequest<CDLessonAssignment> = NSFetchRequest(entityName: "LessonAssignment")
         descriptor.predicate = NSPredicate(format: "scheduledFor != nil AND presentedAt == nil")
         descriptor.sortDescriptors = [NSSortDescriptor(key: "scheduledFor", ascending: true)]
         descriptor.fetchLimit = 1

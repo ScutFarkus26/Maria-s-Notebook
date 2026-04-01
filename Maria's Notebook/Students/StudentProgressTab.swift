@@ -268,8 +268,8 @@ struct StudentProgressTab: View {
                 if let lesson = progress.currentLesson, progress.totalSteps > 0 {
                     Divider().padding(.vertical, AppTheme.Spacing.xsmall)
                     NextItemBanner(
-                        iconName: "book.fill", label: "Next Lesson",
-                        title: lesson.name.isEmpty ? "Untitled Lesson" : lesson.name,
+                        iconName: "book.fill", label: "Next CDLesson",
+                        title: lesson.name.isEmpty ? "Untitled CDLesson" : lesson.name,
                         subtitle: nil, color: trackColor
                     )
                 } else if progress.isComplete && progress.totalSteps > 0 {
@@ -420,25 +420,25 @@ private struct TrackFilteredListSheet: View {
 
         // Fetch data on-demand
         let allLessonAssignments: [CDLessonAssignment] = {
-            let r: NSFetchRequest<CDLessonAssignment> = NSFetchRequest(entityName: "CDLessonAssignment")
+            let r: NSFetchRequest<CDLessonAssignment> = NSFetchRequest(entityName: "LessonAssignment")
             r.sortDescriptors = [NSSortDescriptor(key: "presentedAt", ascending: false)]
             return viewContext.safeFetch(r)
         }()
 
         let allWorkModels: [CDWorkModel] = {
-            let r: NSFetchRequest<CDWorkModel> = NSFetchRequest(entityName: "CDWorkModel")
+            let r: NSFetchRequest<CDWorkModel> = NSFetchRequest(entityName: "WorkModel")
             r.sortDescriptors = [NSSortDescriptor(key: "createdAt", ascending: false)]
             return viewContext.safeFetch(r)
         }()
 
         let allNotes: [CDNote] = {
-            let r: NSFetchRequest<CDNote> = NSFetchRequest(entityName: "CDNote")
+            let r: NSFetchRequest<CDNote> = NSFetchRequest(entityName: "Note")
             r.sortDescriptors = [NSSortDescriptor(key: "updatedAt", ascending: false)]
             return viewContext.safeFetch(r)
         }()
 
         let allLessons: [CDLesson] = {
-            let r: NSFetchRequest<CDLesson> = NSFetchRequest(entityName: "CDLesson")
+            let r: NSFetchRequest<CDLesson> = NSFetchRequest(entityName: "Lesson")
             r.sortDescriptors = [NSSortDescriptor(key: "name", ascending: true)]
             return viewContext.safeFetch(r)
         }()

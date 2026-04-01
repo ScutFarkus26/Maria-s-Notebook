@@ -38,7 +38,7 @@ struct PlanningFeedbackTracker {
         Self.logger.info("Recorded \(decision.rawValue) decision for \(recommendation.lessonName)")
     }
 
-    /// Links an accepted recommendation to its created LessonAssignment.
+    /// Links an accepted recommendation to its created CDLessonAssignment.
     static func linkToPresentation(
         recommendationID: UUID,
         presentationID: UUID,
@@ -48,7 +48,7 @@ struct PlanningFeedbackTracker {
         request.predicate = NSPredicate(format: "id == %@", recommendationID as CVarArg)
 
         guard let record = context.safeFetch(request).first else {
-            Self.logger.warning("PlanningRecommendation not found for linking: \(recommendationID)")
+            Self.logger.warning("CDPlanningRecommendation not found for linking: \(recommendationID)")
             return
         }
 
@@ -85,7 +85,7 @@ struct PlanningFeedbackTracker {
 
     // Deprecated SwiftData methods removed - use Core Data overloads.
 
-    private static func buildCalibrationSummary(from records: [PlanningRecommendation]) -> String? {
+    private static func buildCalibrationSummary(from records: [CDPlanningRecommendation]) -> String? {
         // Aggregate decision patterns
         var acceptedSubjects: [String: Int] = [:]
         var rejectedSubjects: [String: Int] = [:]

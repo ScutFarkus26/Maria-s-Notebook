@@ -22,7 +22,7 @@ extension PresentationDetailViewModel {
         do {
             allLessonPresentations = try viewContext.fetch(NSFetchRequest<CDLessonPresentation>(entityName: "LessonPresentation"))
         } catch {
-            Self.logger.warning("Failed to fetch LessonPresentation: \(error)")
+            Self.logger.warning("Failed to fetch CDLessonPresentation: \(error)")
             return .presented
         }
         let matching = allLessonPresentations.filter { lp in

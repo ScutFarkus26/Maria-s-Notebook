@@ -231,8 +231,8 @@ public final class SelectiveExportService {
         } else {
             includedStudents = allStudents
         }
-        includedCounts["CDStudent"] = includedStudents.count
-        excludedCounts["CDStudent"] = allStudents.count - includedStudents.count
+        includedCounts["Student"] = includedStudents.count
+        excludedCounts["Student"] = allStudents.count - includedStudents.count
 
         // Filter lessons (include all if related entities enabled, or specific filter)
         let includedLessons: [CDLesson]
@@ -241,8 +241,8 @@ public final class SelectiveExportService {
         } else {
             includedLessons = []
         }
-        includedCounts["CDLesson"] = includedLessons.count
-        excludedCounts["CDLesson"] = allLessons.count - includedLessons.count
+        includedCounts["Lesson"] = includedLessons.count
+        excludedCounts["Lesson"] = allLessons.count - includedLessons.count
 
         // Filter notes
         let includedNotes: [CDNote]
@@ -255,8 +255,8 @@ public final class SelectiveExportService {
         } else {
             includedNotes = []
         }
-        includedCounts["CDNote"] = includedNotes.count
-        excludedCounts["CDNote"] = allNotes.count - includedNotes.count
+        includedCounts["Note"] = includedNotes.count
+        excludedCounts["Note"] = allNotes.count - includedNotes.count
 
         // Filter projects
         let includedProjects: [CDProject]
@@ -267,8 +267,8 @@ public final class SelectiveExportService {
         } else {
             includedProjects = []
         }
-        includedCounts["CDProject"] = includedProjects.count
-        excludedCounts["CDProject"] = allProjects.count - includedProjects.count
+        includedCounts["Project"] = includedProjects.count
+        excludedCounts["Project"] = allProjects.count - includedProjects.count
 
         // Estimate size
         let estimatedSize = backupService.estimateBackupSizeFromCounts(includedCounts)
@@ -393,33 +393,33 @@ public final class SelectiveExportService {
         progress(0.1, "Collecting students…")
         payload.students = shouldInclude(.students)
             ? collectStudents(viewContext: viewContext, filter: filter) : []
-        counts["CDStudent"] = payload.students.count
+        counts["Student"] = payload.students.count
 
         progress(0.2, "Collecting lessons…")
         payload.lessons = shouldInclude(.lessons)
             ? collectLessons(viewContext: viewContext) : []
-        counts["CDLesson"] = payload.lessons.count
+        counts["Lesson"] = payload.lessons.count
 
         progress(0.5, "Collecting other entities…")
         payload.notes = shouldInclude(.notes)
             ? collectNotes(viewContext: viewContext, filter: filter) : []
-        counts["CDNote"] = payload.notes.count
+        counts["Note"] = payload.notes.count
 
         payload.nonSchoolDays = shouldInclude(.calendar)
             ? collectNonSchoolDays(viewContext: viewContext, filter: filter) : []
-        counts["CDNonSchoolDay"] = payload.nonSchoolDays.count
+        counts["NonSchoolDay"] = payload.nonSchoolDays.count
 
         payload.schoolDayOverrides = shouldInclude(.calendar)
             ? collectSchoolDayOverrides(viewContext: viewContext, filter: filter) : []
-        counts["CDSchoolDayOverride"] = payload.schoolDayOverrides.count
+        counts["SchoolDayOverride"] = payload.schoolDayOverrides.count
 
         payload.attendance = shouldInclude(.attendance)
             ? collectAttendance(viewContext: viewContext, filter: filter) : []
-        counts["CDAttendanceRecord"] = payload.attendance.count
+        counts["AttendanceRecord"] = payload.attendance.count
 
         payload.workCompletions = shouldInclude(.workCompletions)
             ? collectWorkCompletions(viewContext: viewContext, filter: filter) : []
-        counts["CDWorkCompletionRecord"] = payload.workCompletions.count
+        counts["WorkCompletionRecord"] = payload.workCompletions.count
     }
 
     // swiftlint:disable:next function_parameter_count
@@ -434,7 +434,7 @@ public final class SelectiveExportService {
         progress(0.7, "Collecting projects…")
         payload.projects = shouldInclude(.projects)
             ? collectProjects(viewContext: viewContext, filter: filter) : []
-        counts["CDProject"] = payload.projects.count
+        counts["Project"] = payload.projects.count
 
         payload.projectAssignmentTemplates = shouldInclude(.projects)
             ? collectProjectTemplates(viewContext: viewContext, filter: filter) : []
@@ -442,7 +442,7 @@ public final class SelectiveExportService {
 
         payload.projectSessions = shouldInclude(.projects)
             ? collectProjectSessions(viewContext: viewContext, filter: filter) : []
-        counts["CDProjectSession"] = payload.projectSessions.count
+        counts["ProjectSession"] = payload.projectSessions.count
 
         payload.projectRoles = shouldInclude(.projects)
             ? collectProjectRoles(viewContext: viewContext, filter: filter) : []
@@ -527,7 +527,7 @@ extension SelectiveExportService {
         viewContext: NSManagedObjectContext, filter: ExportFilter
     ) -> [ProjectAssignmentTemplateDTO] {
         let all = safeFetch(
-            ProjectAssignmentTemplate.fetchRequest() as! NSFetchRequest<ProjectAssignmentTemplate>,
+            CDProjectAssignmentTemplate.fetchRequest() as! NSFetchRequest<CDProjectAssignmentTemplate>,
             context: viewContext
         )
         let filtered = BackupServiceHelpers.filterByProjects(
@@ -549,7 +549,7 @@ extension SelectiveExportService {
     }
 
     private func collectProjectRoles(viewContext: NSManagedObjectContext, filter: ExportFilter) -> [ProjectRoleDTO] {
-        let all = safeFetch(ProjectRole.fetchRequest() as! NSFetchRequest<ProjectRole>, context: viewContext)
+        let all = safeFetch(CDProjectRole.fetchRequest() as! NSFetchRequest<CDProjectRole>, context: viewContext)
         let filtered = BackupServiceHelpers.filterByProjects(
             all, projectIDs: filter.projectIDs
         ) { UUID(uuidString: $0.projectID) }
@@ -560,7 +560,7 @@ extension SelectiveExportService {
         viewContext: NSManagedObjectContext, filter: ExportFilter
     ) -> [ProjectTemplateWeekDTO] {
         let all = safeFetch(
-            ProjectTemplateWeek.fetchRequest() as! NSFetchRequest<ProjectTemplateWeek>,
+            CDProjectTemplateWeek.fetchRequest() as! NSFetchRequest<CDProjectTemplateWeek>,
             context: viewContext
         )
         let filtered = BackupServiceHelpers.filterByProjects(
@@ -572,10 +572,10 @@ extension SelectiveExportService {
     private func collectProjectWeekAssignments(
         viewContext: NSManagedObjectContext, filter: ExportFilter
     ) -> [ProjectWeekRoleAssignmentDTO] {
-        let all = safeFetch(ProjectWeekRoleAssignment.fetchRequest() as! NSFetchRequest<ProjectWeekRoleAssignment>, context: viewContext)
+        let all = safeFetch(CDProjectWeekRoleAssignment.fetchRequest() as! NSFetchRequest<CDProjectWeekRoleAssignment>, context: viewContext)
 
         if let projectIDs = filter.projectIDs {
-            let weeks = safeFetch(ProjectTemplateWeek.fetchRequest() as! NSFetchRequest<ProjectTemplateWeek>, context: viewContext)
+            let weeks = safeFetch(CDProjectTemplateWeek.fetchRequest() as! NSFetchRequest<CDProjectTemplateWeek>, context: viewContext)
             let includedWeekIDs = Set(weeks.filter { w in
                 guard let pid = UUID(uuidString: w.projectID) else { return false }
                 return projectIDs.contains(pid)

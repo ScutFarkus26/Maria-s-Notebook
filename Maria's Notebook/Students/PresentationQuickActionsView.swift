@@ -130,16 +130,17 @@ struct PresentationQuickActionsView: View {
                                 && !la.isPresented
                         }
                         if !exists {
-                            let newLA = PresentationFactory.makeDraft(
-                                lessonID: nextID,
-                                studentIDs: lessonAssignment.resolvedStudentIDs
-                            )
-                            PresentationFactory.attachRelationships(
-                                to: newLA,
-                                lesson: lessons.first(where: { $0.id == nextID }),
-                                students: studentsAll.filter { $0.id.map { sameStudents.contains($0) } ?? false }
-                            )
-                            viewContext.insert(newLA)
+                            let nextLesson = lessons.first(where: { $0.id == nextID })
+                            let nextStudents = studentsAll.filter { $0.id.map { sameStudents.contains($0) } ?? false }
+                            if let nextLesson {
+                                _ = PresentationFactory.makeDraft(
+                                    lesson: nextLesson, students: nextStudents, context: viewContext
+                                )
+                            } else {
+                                _ = PresentationFactory.makeDraft(
+                                    lessonID: nextID, studentIDs: lessonAssignment.resolvedStudentIDs, context: viewContext
+                                )
+                            }
                             saveCoordinator.save(viewContext, reason: "Planning next lesson")
                         }
                         didPlanNext = true
@@ -199,7 +200,7 @@ struct PresentationQuickActionsView: View {
                                 let activeRaw = WorkStatus.active.rawValue
                                 let reviewRaw = WorkStatus.review.rawValue
                                 let followRaw = WorkKind.followUpAssignment.rawValue
-                                let fetch: NSFetchRequest<CDWorkModel> = NSFetchRequest(entityName: "CDWorkModel")
+                                let fetch: NSFetchRequest<CDWorkModel> = NSFetchRequest(entityName: "WorkModel")
                                 fetch.predicate = NSPredicate(format: "studentID == %@ AND lessonID == %@ AND (statusRaw == %@ OR statusRaw == %@) AND kindRaw == %@", sid, lidString, activeRaw, reviewRaw, followRaw)
                                 let exists = viewContext.safeFetchFirst(fetch) != nil
                                 if !exists {
@@ -285,16 +286,17 @@ struct PresentationQuickActionsView: View {
                         la.resolvedLessonID == nextID && Set(la.resolvedStudentIDs) == sameStudents && !la.isPresented
                     }
                     if !exists {
-                        let newLA = PresentationFactory.makeDraft(
-                            lessonID: nextID,
-                            studentIDs: Array(sameStudents)
-                        )
-                        PresentationFactory.attachRelationships(
-                            to: newLA,
-                            lesson: lessons.first(where: { $0.id == nextID }),
-                            students: studentsAll.filter { $0.id.map { sameStudents.contains($0) } ?? false }
-                        )
-                        viewContext.insert(newLA)
+                        let nextLesson = lessons.first(where: { $0.id == nextID })
+                        let nextStudents = studentsAll.filter { $0.id.map { sameStudents.contains($0) } ?? false }
+                        if let nextLesson {
+                            _ = PresentationFactory.makeDraft(
+                                lesson: nextLesson, students: nextStudents, context: viewContext
+                            )
+                        } else {
+                            _ = PresentationFactory.makeDraft(
+                                lessonID: nextID, studentIDs: Array(sameStudents), context: viewContext
+                            )
+                        }
                         saveCoordinator.save(viewContext, reason: "Auto-creating next lesson")
                         appRouter.refreshPlanningInbox()
                     }
@@ -318,17 +320,18 @@ struct PresentationQuickActionsView: View {
                 la.resolvedLessonID == currentLessonID && Set(la.resolvedStudentIDs) == sameStudents && !la.isPresented
             }
             if !exists {
-                let newLA = PresentationFactory.makeDraft(
-                    lessonID: currentLessonID,
-                    studentIDs: lessonAssignment.resolvedStudentIDs
-                )
-                PresentationFactory.attachRelationships(
-                    to: newLA,
-                    lesson: UUID(uuidString: lessonAssignment.lessonID)
-                        .flatMap { lid in lessons.first(where: { $0.id == lid }) },
-                    students: studentsAll.filter { s in s.id.map { lessonAssignment.resolvedStudentIDs.contains($0) } ?? false }
-                )
-                viewContext.insert(newLA)
+                let currentLesson = UUID(uuidString: lessonAssignment.lessonID)
+                    .flatMap { lid in lessons.first(where: { $0.id == lid }) }
+                let currentStudents = studentsAll.filter { s in s.id.map { lessonAssignment.resolvedStudentIDs.contains($0) } ?? false }
+                if let currentLesson {
+                    _ = PresentationFactory.makeDraft(
+                        lesson: currentLesson, students: currentStudents, context: viewContext
+                    )
+                } else {
+                    _ = PresentationFactory.makeDraft(
+                        lessonID: currentLessonID, studentIDs: lessonAssignment.resolvedStudentIDs, context: viewContext
+                    )
+                }
             }
         }
 
@@ -347,7 +350,7 @@ struct PresentationQuickActionsView: View {
             let activeRaw = WorkStatus.active.rawValue
             let reviewRaw = WorkStatus.review.rawValue
             let practiceRaw = WorkKind.practiceLesson.rawValue
-            let fetch: NSFetchRequest<CDWorkModel> = NSFetchRequest(entityName: "CDWorkModel")
+            let fetch: NSFetchRequest<CDWorkModel> = NSFetchRequest(entityName: "WorkModel")
             fetch.predicate = NSPredicate(format: "studentID == %@ AND lessonID == %@ AND (statusRaw == %@ OR statusRaw == %@) AND kindRaw == %@", sid, lidString, activeRaw, reviewRaw, practiceRaw)
             let exists = viewContext.safeFetchFirst(fetch) != nil
             if !exists {

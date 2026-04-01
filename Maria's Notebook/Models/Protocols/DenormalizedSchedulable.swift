@@ -2,7 +2,7 @@ import Foundation
 
 /// Protocol for SwiftData models that maintain denormalized scheduling and student grouping fields.
 ///
-/// `LessonAssignment` stores denormalized copies of scheduling dates
+/// `CDLessonAssignment` stores denormalized copies of scheduling dates
 /// and student group keys for efficient predicate filtering. This protocol provides shared
 /// default implementations so the synchronization logic lives in one place.
 ///
@@ -19,7 +19,7 @@ protocol DenormalizedSchedulable: AnyObject {
     var scheduledFor: Date? { get set }
     var scheduledForDay: Date? { get set }
 
-    // MARK: - Student Grouping (stored properties)
+    // MARK: - CDStudent Grouping (stored properties)
 
     var studentGroupKeyPersisted: String { get set }
 
@@ -30,7 +30,7 @@ protocol DenormalizedSchedulable: AnyObject {
 
     // MARK: - Resolved Data (computed)
 
-    /// Student UUIDs resolved from relationships (preferred) or stored string IDs (fallback).
+    /// CDStudent UUIDs resolved from relationships (preferred) or stored string IDs (fallback).
     var resolvedStudentIDs: [UUID] { get }
 
     // MARK: - Bridge Properties (expose relationship data for defaults)
@@ -38,7 +38,7 @@ protocol DenormalizedSchedulable: AnyObject {
     /// The lesson relationship's UUID, if the relationship is loaded.
     var lessonRelationshipID: UUID? { get }
 
-    /// Student IDs from the relationship array, as CloudKit-compatible strings.
+    /// CDStudent IDs from the relationship array, as CloudKit-compatible strings.
     var studentRelationshipIDStrings: [String] { get }
 }
 
@@ -72,7 +72,7 @@ extension DenormalizedSchedulable {
         updateDenormalizedKeys()
     }
 
-    /// Lesson UUID resolved from relationship (preferred) or stored string ID (fallback).
+    /// CDLesson UUID resolved from relationship (preferred) or stored string ID (fallback).
     var resolvedLessonID: UUID {
         lessonRelationshipID ?? (UUID(uuidString: lessonID) ?? UUID())
     }

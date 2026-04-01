@@ -228,17 +228,17 @@ protocol StepProtocol {
 }
 
 // Extend CDLesson to conform to StepProtocol
-extension Lesson: StepProtocol {
+extension CDLesson: StepProtocol {
     var stepID: String { id?.uuidString ?? "" }
 }
 
 // Extend CDWorkStep to conform to StepProtocol
-extension WorkStep: StepProtocol {
+extension CDWorkStep: StepProtocol {
     var stepID: String { id?.uuidString ?? "" }
 }
 
 // Extend CDTrackStep to conform to StepProtocol
-extension TrackStep: StepProtocol {
+extension CDTrackStepEntity: StepProtocol {
     var stepID: String { id?.uuidString ?? "" }
 }
 

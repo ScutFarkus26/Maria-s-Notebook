@@ -258,12 +258,12 @@ extension BackupEntityImporter {
     static func importIssueActions(
         _ dtos: [IssueActionDTO],
         into viewContext: NSManagedObjectContext,
-        existingCheck: EntityExistsCheck<IssueAction>,
+        existingCheck: EntityExistsCheck<CDIssueAction>,
         issueCheck: EntityExistsCheck<CDIssue>
     ) rethrows {
         for dto in dtos {
             if shouldSkipExisting(id: dto.id, existingCheck: existingCheck) { continue }
-            let a = IssueAction(context: viewContext)
+            let a = CDIssueAction(context: viewContext)
             a.id = dto.id
             a.actionTypeRaw = (IssueActionType(rawValue: dto.actionTypeRaw) ?? .note).rawValue
             a.actionDescription = dto.actionDescription
@@ -296,14 +296,14 @@ extension BackupEntityImporter {
     static func importDevelopmentSnapshots(
         _ dtos: [DevelopmentSnapshotDTO],
         into viewContext: NSManagedObjectContext,
-        existingCheck: EntityExistsCheck<DevelopmentSnapshot>
+        existingCheck: EntityExistsCheck<CDDevelopmentSnapshotEntity>
     ) rethrows {
         try importSimpleEntities(
             dtos, into: viewContext,
             existingCheck: existingCheck,
             idExtractor: { $0.id },
             entityBuilder: { dto in
-            let s = DevelopmentSnapshot(context: viewContext)
+            let s = CDDevelopmentSnapshotEntity(context: viewContext)
             s.id = dto.id
             s.studentID = dto.studentID
             s.generatedAt = dto.generatedAt
@@ -333,12 +333,12 @@ extension BackupEntityImporter {
         })
     }
 
-    // MARK: - PlanningRecommendation
+    // MARK: - CDPlanningRecommendation
 
     static func importPlanningRecommendations(
         _ dtos: [PlanningRecommendationDTO],
         into viewContext: NSManagedObjectContext,
-        existingCheck: EntityExistsCheck<PlanningRecommendation>
+        existingCheck: EntityExistsCheck<CDPlanningRecommendation>
     ) rethrows {
         for dto in dtos {
             if shouldSkipExisting(id: dto.id, existingCheck: existingCheck) { continue }
@@ -348,7 +348,7 @@ extension BackupEntityImporter {
             // Decode student IDs from the blob
             let studentIDs = CloudKitStringArrayStorage.decode(from: dto.studentIDsData)
                 .compactMap { UUID(uuidString: $0) }
-            let rec = PlanningRecommendation(context: viewContext)
+            let rec = CDPlanningRecommendation(context: viewContext)
             rec.id = dto.id
             rec.lessonID = lessonUUID.uuidString
             rec.studentIDs = studentIDs.map(\.uuidString)

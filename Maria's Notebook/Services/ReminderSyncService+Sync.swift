@@ -102,7 +102,7 @@ extension ReminderSyncService {
             if let ekID = existing.eventKitReminderID,
                !currentEKIDs.contains(ekID),
                existing.eventKitCalendarID == targetCalendar.calendarIdentifier {
-                // Reminder was deleted in EventKit - remove from local database
+                // CDReminder was deleted in EventKit - remove from local database
                 context.delete(existing)
             }
         }

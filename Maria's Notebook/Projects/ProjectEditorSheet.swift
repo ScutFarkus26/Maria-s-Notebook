@@ -2,7 +2,7 @@ import SwiftUI
 import CoreData
 
 struct ProjectEditorSheet: View {
-    let club: Project?
+    let club: CDProject?
 
     @Environment(\.dismiss) private var dismiss
     @Environment(\.managedObjectContext) private var modelContext
@@ -16,7 +16,7 @@ struct ProjectEditorSheet: View {
     @FetchRequest(sortDescriptors: CDStudent.sortByName) private var studentsRaw: FetchedResults<CDStudent>
     // DEDUPLICATION: CloudKit sync can create duplicate records with the same ID.
     // Filter out test students when setting is disabled
-    private var students: [Student] {
+    private var students: [CDStudent] {
         TestStudentsFilter.filterVisible(
             Array(studentsRaw).uniqueByID.filter(\.isEnrolled),
             show: showTestStudents,
@@ -36,7 +36,7 @@ struct ProjectEditorSheet: View {
     }
     @State private var sharedTemplates: [TemplateDraft] = []
 
-    init(club: Project?) {
+    init(club: CDProject?) {
         self.club = club
         _title = State(initialValue: club?.title ?? "")
         _bookTitle = State(initialValue: club?.bookTitle ?? "")
@@ -59,7 +59,7 @@ struct ProjectEditorSheet: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 16) {
-            Text(club == nil ? "New Project" : "Edit Project")
+            Text(club == nil ? "New CDProject" : "Edit CDProject")
                 .font(.title2).fontWeight(.semibold)
 
             Group {
@@ -105,7 +105,7 @@ struct ProjectEditorSheet: View {
                             TextField("Title", text: $tpl.title)
                             TextField("Instructions", text: $tpl.instructions, axis: .vertical)
                             TextField(
-                                "Default Linked Lesson ID (optional)",
+                                "Default Linked CDLesson ID (optional)",
                                 text: Binding(
                                     get: { tpl.defaultLinkedLessonID ?? "" },
                                     set: { tpl.defaultLinkedLessonID = $0.isEmpty ? nil : $0 }
@@ -192,7 +192,7 @@ struct ProjectEditorSheet: View {
             }
         }
 
-        saveCoordinator.save(modelContext, reason: "Save Project")
+        saveCoordinator.save(modelContext, reason: "Save CDProject")
         dismiss()
     }
 }

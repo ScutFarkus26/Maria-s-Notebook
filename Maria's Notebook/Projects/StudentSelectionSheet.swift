@@ -3,10 +3,10 @@ import CoreData
 
 /// Sheet for recording a student's work selections in choice mode
 struct StudentSelectionSheet: View {
-    let session: ProjectSession
+    let session: CDProjectSession
     let studentID: String
     let studentName: String
-    let offeredWorks: [WorkModel]
+    let offeredWorks: [CDWorkModel]
 
     @Environment(\.dismiss) private var dismiss
     @Environment(\.managedObjectContext) private var modelContext
@@ -14,7 +14,7 @@ struct StudentSelectionSheet: View {
 
     @State private var selectedWorkIDs: Set<UUID> = []
 
-    init(session: ProjectSession, studentID: String, studentName: String, offeredWorks: [WorkModel]) {
+    init(session: CDProjectSession, studentID: String, studentName: String, offeredWorks: [CDWorkModel]) {
         self.session = session
         self.studentID = studentID
         self.studentName = studentName
@@ -98,7 +98,7 @@ struct StudentSelectionSheet: View {
     // MARK: - Work Row
 
     @ViewBuilder
-    private func workSelectionRow(_ work: WorkModel) -> some View {
+    private func workSelectionRow(_ work: CDWorkModel) -> some View {
         let workID = work.id ?? UUID()
         let isSelected = selectedWorkIDs.contains(workID)
         let canToggle = isSelected || canSelectMore
@@ -162,7 +162,7 @@ struct StudentSelectionSheet: View {
         selectedWorkIDs.count >= Int(session.minSelections)
     }
 
-    private func toggleSelection(_ work: WorkModel) {
+    private func toggleSelection(_ work: CDWorkModel) {
         guard let workID = work.id else { return }
         if selectedWorkIDs.contains(workID) {
             selectedWorkIDs.remove(workID)
@@ -197,7 +197,7 @@ struct StudentSelectionSheet: View {
             }
         }
 
-        saveCoordinator.save(modelContext, reason: "Update Student Selections")
+        saveCoordinator.save(modelContext, reason: "Update CDStudent Selections")
         dismiss()
     }
 }

@@ -2,7 +2,7 @@
 //  DocumentRepository.swift
 //  Maria's Notebook
 //
-//  Repository for Document entity CRUD operations.
+//  Repository for CDDocument entity CRUD operations.
 //
 
 import Foundation
@@ -25,7 +25,7 @@ struct DocumentRepository: SavingRepository {
 
     // MARK: - Fetch
 
-    /// Fetch a Document by ID
+    /// Fetch a CDDocument by ID
     func fetchDocument(id: UUID) -> CDDocument? {
         let request = CDFetchRequest(CDDocument.self)
         request.predicate = NSPredicate(format: "id == %@", id as CVarArg)
@@ -45,7 +45,7 @@ struct DocumentRepository: SavingRepository {
 
     /// Fetch documents for a specific student
     func fetchDocuments(forStudent student: CDStudent) -> [CDDocument] {
-        let docs = (student.documents?.allObjects as? [CDDocument]) ?? []
+        let docs = student.documents
         return docs.sorted { ($0.uploadDate ?? .distantPast) > ($1.uploadDate ?? .distantPast) }
     }
 
@@ -56,7 +56,7 @@ struct DocumentRepository: SavingRepository {
 
     // MARK: - Create
 
-    /// Create a new Document
+    /// Create a new CDDocument
     @discardableResult
     func createDocument(
         title: String,
@@ -75,7 +75,7 @@ struct DocumentRepository: SavingRepository {
 
     // MARK: - Update
 
-    /// Update an existing Document's properties
+    /// Update an existing CDDocument's properties
     @discardableResult
     func updateDocument(
         id: UUID,
@@ -94,7 +94,7 @@ struct DocumentRepository: SavingRepository {
 
     // MARK: - Delete
 
-    /// Delete a Document by ID
+    /// Delete a CDDocument by ID
     func deleteDocument(id: UUID) throws {
         guard let document = fetchDocument(id: id) else { return }
         context.delete(document)

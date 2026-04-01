@@ -41,7 +41,7 @@ struct AddLessonView: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 20) {
-            Text("Add Lesson")
+            Text("Add CDLesson")
                 .font(AppTheme.ScaledFont.titleLarge)
 
             HStack {
@@ -80,7 +80,7 @@ struct AddLessonView: View {
                     if lessonFormat == .story {
                         let storyRaw = LessonFormat.story.rawValue
                         let storyLessons: [CDLesson] = {
-                            let descriptor: NSFetchRequest<CDLesson> = NSFetchRequest(entityName: "CDLesson")
+                            let descriptor: NSFetchRequest<CDLesson> = NSFetchRequest(entityName: "Lesson")
         descriptor.predicate = NSPredicate(format: "lessonFormatRaw == %@", storyRaw as CVarArg)
                             return viewContext.safeFetch(descriptor)
                         }()

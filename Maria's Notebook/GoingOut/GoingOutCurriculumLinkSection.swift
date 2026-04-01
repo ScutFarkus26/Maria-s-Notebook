@@ -5,7 +5,7 @@ import SwiftUI
 import CoreData
 
 struct GoingOutCurriculumLinkSection: View {
-    @ObservedObject var goingOut: GoingOut
+    @ObservedObject var goingOut: CDGoingOut
     @Environment(\.managedObjectContext) private var modelContext
     @State private var showingLessonPicker = false
 
@@ -86,7 +86,7 @@ struct GoingOutCurriculumLinkSection: View {
         }
     }
 
-    // MARK: - Lesson Picker
+    // MARK: - CDLesson Picker
 
     private var lessonPickerSheet: some View {
         NavigationStack {
@@ -127,7 +127,7 @@ struct GoingOutCurriculumLinkSection: View {
     }
 }
 
-// MARK: - Lesson Picker List
+// MARK: - CDLesson Picker List
 
 private struct LessonPickerList: View {
     let selectedIDs: Set<UUID>

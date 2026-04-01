@@ -251,9 +251,9 @@ struct StudentMeetingsTab: View {
                         .foregroundStyle(.secondary)
                 }
 
-                textArea(title: "Student reflection", text: $reflectionText, placeholder: reflectionPlaceholder)
+                textArea(title: "CDStudent reflection", text: $reflectionText, placeholder: reflectionPlaceholder)
                 textArea(title: "Focus for this week", text: $focusText, placeholder: focusPlaceholder)
-                textArea(title: "Lesson requests", text: $requestsText, placeholder: requestsPlaceholder)
+                textArea(title: "CDLesson requests", text: $requestsText, placeholder: requestsPlaceholder)
                 textArea(title: "Guide notes (private)", text: $guideNotesText, placeholder: guideNotesPlaceholder)
 
                 OptionalDatePicker(
@@ -433,7 +433,7 @@ struct StudentMeetingsTab: View {
 #Preview {
     let stack = CoreDataStack.preview
     let ctx = stack.viewContext
-    let student = Student(context: ctx)
+    let student = CDStudent(context: ctx)
     student.firstName = "Alan"
     student.lastName = "Turing"
     student.birthday = Date(timeIntervalSince1970: 0)

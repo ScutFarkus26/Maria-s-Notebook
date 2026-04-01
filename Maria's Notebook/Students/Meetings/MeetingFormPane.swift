@@ -81,9 +81,9 @@ struct MeetingFormPane: View {
                 }
 
                 // Form fields
-                meetingField(title: "Student Reflection", text: $reflectionText, placeholder: reflectionPlaceholder)
+                meetingField(title: "CDStudent Reflection", text: $reflectionText, placeholder: reflectionPlaceholder)
                 meetingField(title: "Focus for This Week", text: $focusText, placeholder: focusPlaceholder)
-                meetingField(title: "Lesson Requests", text: $requestsText, placeholder: requestsPlaceholder)
+                meetingField(title: "CDLesson Requests", text: $requestsText, placeholder: requestsPlaceholder)
                 meetingField(title: "Guide Notes (private)", text: $guideNotesText, placeholder: guideNotesPlaceholder)
 
                 // Schedule Next Meeting

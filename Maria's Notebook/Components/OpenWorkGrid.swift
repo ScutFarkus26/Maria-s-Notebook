@@ -213,7 +213,7 @@ struct OpenWorkGrid: View {
         if let s = studentsByID[uuidString: w.studentID] {
             return StudentFormatter.displayName(for: s)
         }
-        return "CDStudent"
+        return "Student"
     }
 
     private func metadata(for w: CDWorkModel) -> String {

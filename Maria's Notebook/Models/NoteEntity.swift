@@ -6,7 +6,7 @@ import OSLog
 
 // MARK: - Core Data Entity
 
-@objc(Note)
+@objc(CDNote)
 public class CDNote: NSManagedObject {
     private static let logger = Logger.database
 
@@ -27,8 +27,15 @@ public class CDNote: NSManagedObject {
     @NSManaged public var searchIndexStudentID: UUID?
     @NSManaged public var scopeIsAll: Bool
 
-    // MARK: - Relationships
-    @NSManaged public var lesson: CDLesson?
+    // MARK: - Cross-Store Foreign Keys (string IDs for Shared entities)
+    @NSManaged public var lessonID: String?
+    @NSManaged public var communityTopicID: String?
+    @NSManaged public var schoolDayOverrideID: String?
+    @NSManaged public var studentTrackEnrollmentID: String?
+    @NSManaged public var goingOutID: String?
+    @NSManaged public var transitionPlanID: String?
+
+    // MARK: - Same-Store Relationships (Private → Private)
     @NSManaged public var work: CDWorkModel?
     @NSManaged public var lessonAssignment: CDLessonAssignment?
     @NSManaged public var attendanceRecord: CDAttendanceRecord?
@@ -36,14 +43,9 @@ public class CDNote: NSManagedObject {
     @NSManaged public var workCompletionRecord: CDWorkCompletionRecord?
     @NSManaged public var studentMeeting: CDStudentMeeting?
     @NSManaged public var projectSession: CDProjectSession?
-    @NSManaged public var communityTopic: CDCommunityTopicEntity?
     @NSManaged public var reminder: CDReminder?
-    @NSManaged public var schoolDayOverride: CDSchoolDayOverride?
-    @NSManaged public var studentTrackEnrollment: CDStudentTrackEnrollmentEntity?
     @NSManaged public var practiceSession: CDPracticeSession?
     @NSManaged public var issue: CDIssue?
-    @NSManaged public var goingOut: CDGoingOut?
-    @NSManaged public var transitionPlan: CDTransitionPlan?
     @NSManaged public var studentLinks: NSSet?
 
     // MARK: - Convenience Initializer
@@ -119,7 +121,7 @@ extension CDNote {
 
     // Helper to identify which context this note belongs to
     var attachedTo: String {
-        if lesson != nil { return "lesson" }
+        if lessonID != nil { return "lesson" }
         if work != nil { return "work" }
         if lessonAssignment != nil { return "presentation" }
         if attendanceRecord != nil { return "attendance" }
@@ -127,14 +129,14 @@ extension CDNote {
         if workCompletionRecord != nil { return "workCompletion" }
         if studentMeeting != nil { return "studentMeeting" }
         if projectSession != nil { return "projectSession" }
-        if communityTopic != nil { return "communityTopic" }
+        if communityTopicID != nil { return "communityTopic" }
         if reminder != nil { return "reminder" }
-        if schoolDayOverride != nil { return "schoolDayOverride" }
-        if studentTrackEnrollment != nil { return "studentTrackEnrollment" }
+        if schoolDayOverrideID != nil { return "schoolDayOverride" }
+        if studentTrackEnrollmentID != nil { return "studentTrackEnrollment" }
         if practiceSession != nil { return "practiceSession" }
         if issue != nil { return "issue" }
-        if goingOut != nil { return "goingOut" }
-        if transitionPlan != nil { return "transitionPlan" }
+        if goingOutID != nil { return "goingOut" }
+        if transitionPlanID != nil { return "transitionPlan" }
         return "general"
     }
 
@@ -153,7 +155,7 @@ extension CDNote {
     // MARK: - Image Management
 
     /// Deletes the associated image file from disk if one exists.
-    /// Call this before deleting the Note to prevent orphaned images.
+    /// Call this before deleting the CDNote to prevent orphaned images.
     func deleteAssociatedImage() {
         guard let imagePath, !imagePath.isEmpty else { return }
         do {
@@ -161,6 +163,76 @@ extension CDNote {
         } catch {
             Self.logger.warning("Failed to delete associated image: \(error.localizedDescription)")
         }
+    }
+}
+
+// MARK: - Cross-Store Relationship Accessors (fetch via FK)
+
+extension CDNote {
+    var lesson: CDLesson? {
+        get {
+            guard let lessonID, let ctx = managedObjectContext else { return nil }
+            let req = CDFetchRequest(CDLesson.self)
+            req.predicate = NSPredicate(format: "id == %@", lessonID)
+            req.fetchLimit = 1
+            return ctx.safeFetchFirst(req)
+        }
+        set { lessonID = newValue?.id?.uuidString }
+    }
+
+    var communityTopic: CDCommunityTopicEntity? {
+        get {
+            guard let communityTopicID, let ctx = managedObjectContext else { return nil }
+            let req = CDFetchRequest(CDCommunityTopicEntity.self)
+            req.predicate = NSPredicate(format: "id == %@", communityTopicID)
+            req.fetchLimit = 1
+            return ctx.safeFetchFirst(req)
+        }
+        set { communityTopicID = newValue?.id?.uuidString }
+    }
+
+    var schoolDayOverride: CDSchoolDayOverride? {
+        get {
+            guard let schoolDayOverrideID, let ctx = managedObjectContext else { return nil }
+            let req = CDFetchRequest(CDSchoolDayOverride.self)
+            req.predicate = NSPredicate(format: "id == %@", schoolDayOverrideID)
+            req.fetchLimit = 1
+            return ctx.safeFetchFirst(req)
+        }
+        set { schoolDayOverrideID = newValue?.id?.uuidString }
+    }
+
+    var studentTrackEnrollment: CDStudentTrackEnrollmentEntity? {
+        get {
+            guard let studentTrackEnrollmentID, let ctx = managedObjectContext else { return nil }
+            let req = CDFetchRequest(CDStudentTrackEnrollmentEntity.self)
+            req.predicate = NSPredicate(format: "id == %@", studentTrackEnrollmentID)
+            req.fetchLimit = 1
+            return ctx.safeFetchFirst(req)
+        }
+        set { studentTrackEnrollmentID = newValue?.id?.uuidString }
+    }
+
+    var goingOut: CDGoingOut? {
+        get {
+            guard let goingOutID, let ctx = managedObjectContext else { return nil }
+            let req = CDFetchRequest(CDGoingOut.self)
+            req.predicate = NSPredicate(format: "id == %@", goingOutID)
+            req.fetchLimit = 1
+            return ctx.safeFetchFirst(req)
+        }
+        set { goingOutID = newValue?.id?.uuidString }
+    }
+
+    var transitionPlan: CDTransitionPlan? {
+        get {
+            guard let transitionPlanID, let ctx = managedObjectContext else { return nil }
+            let req = CDFetchRequest(CDTransitionPlan.self)
+            req.predicate = NSPredicate(format: "id == %@", transitionPlanID)
+            req.fetchLimit = 1
+            return ctx.safeFetchFirst(req)
+        }
+        set { transitionPlanID = newValue?.id?.uuidString }
     }
 }
 

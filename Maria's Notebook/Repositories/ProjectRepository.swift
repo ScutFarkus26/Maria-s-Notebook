@@ -2,7 +2,7 @@
 //  ProjectRepository.swift
 //  Maria's Notebook
 //
-//  Repository for Project, ProjectSession, and ProjectAssignmentTemplate CRUD operations.
+//  Repository for CDProject, CDProjectSession, and CDProjectAssignmentTemplate CRUD operations.
 //
 
 import Foundation
@@ -25,7 +25,7 @@ struct ProjectRepository: SavingRepository {
 
     // MARK: - Fetch Projects
 
-    /// Fetch a Project by ID
+    /// Fetch a CDProject by ID
     func fetchProject(id: UUID) -> CDProject? {
         let request = CDFetchRequest(CDProject.self)
         request.predicate = NSPredicate(format: "id == %@", id as CVarArg)
@@ -48,9 +48,9 @@ struct ProjectRepository: SavingRepository {
         fetchProjects(predicate: NSPredicate(format: "isActive == YES"))
     }
 
-    // MARK: - Create Project
+    // MARK: - Create CDProject
 
-    /// Create a new Project
+    /// Create a new CDProject
     @discardableResult
     func createProject(
         title: String,
@@ -66,9 +66,9 @@ struct ProjectRepository: SavingRepository {
         return project
     }
 
-    // MARK: - Update Project
+    // MARK: - Update CDProject
 
-    /// Update an existing Project's properties
+    /// Update an existing CDProject's properties
     @discardableResult
     func updateProject(
         id: UUID,
@@ -87,9 +87,9 @@ struct ProjectRepository: SavingRepository {
         return true
     }
 
-    // MARK: - Delete Project
+    // MARK: - Delete CDProject
 
-    /// Delete a Project by ID
+    /// Delete a CDProject by ID
     func deleteProject(id: UUID) throws {
         guard let project = fetchProject(id: id) else { return }
         context.delete(project)
@@ -98,7 +98,7 @@ struct ProjectRepository: SavingRepository {
 
     // MARK: - Fetch Sessions
 
-    /// Fetch a ProjectSession by ID
+    /// Fetch a CDProjectSession by ID
     func fetchSession(id: UUID) -> CDProjectSession? {
         let request = CDFetchRequest(CDProjectSession.self)
         request.predicate = NSPredicate(format: "id == %@", id as CVarArg)
@@ -115,7 +115,7 @@ struct ProjectRepository: SavingRepository {
 
     // MARK: - Create Session
 
-    /// Create a new ProjectSession
+    /// Create a new CDProjectSession
     @discardableResult
     func createSession(
         projectID: UUID,
@@ -137,7 +137,7 @@ struct ProjectRepository: SavingRepository {
 
     // MARK: - Update Session
 
-    /// Update an existing ProjectSession's properties
+    /// Update an existing CDProjectSession's properties
     @discardableResult
     func updateSession(
         id: UUID,
@@ -158,7 +158,7 @@ struct ProjectRepository: SavingRepository {
 
     // MARK: - Delete Session
 
-    /// Delete a ProjectSession by ID
+    /// Delete a CDProjectSession by ID
     func deleteSession(id: UUID) throws {
         guard let session = fetchSession(id: id) else { return }
         context.delete(session)
@@ -167,7 +167,7 @@ struct ProjectRepository: SavingRepository {
 
     // MARK: - Fetch Templates
 
-    /// Fetch a ProjectAssignmentTemplate by ID
+    /// Fetch a CDProjectAssignmentTemplate by ID
     func fetchTemplate(id: UUID) -> CDProjectAssignmentTemplate? {
         let request = CDFetchRequest(CDProjectAssignmentTemplate.self)
         request.predicate = NSPredicate(format: "id == %@", id as CVarArg)
@@ -184,7 +184,7 @@ struct ProjectRepository: SavingRepository {
 
     // MARK: - Create Template
 
-    /// Create a new ProjectAssignmentTemplate
+    /// Create a new CDProjectAssignmentTemplate
     @discardableResult
     func createTemplate(
         projectID: UUID,
@@ -204,7 +204,7 @@ struct ProjectRepository: SavingRepository {
 
     // MARK: - Delete Template
 
-    /// Delete a ProjectAssignmentTemplate by ID
+    /// Delete a CDProjectAssignmentTemplate by ID
     func deleteTemplate(id: UUID) throws {
         guard let template = fetchTemplate(id: id) else { return }
         context.delete(template)

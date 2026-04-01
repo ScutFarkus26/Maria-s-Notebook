@@ -38,7 +38,7 @@ final class LessonPlanningViewModel {
     
     var modeTitle: String {
         switch mode {
-        case .singleStudent: return "Student Plan"
+        case .singleStudent: return "CDStudent Plan"
         case .wholeClass: return "Class Plan"
         case .quickSuggest: return "Quick Suggest"
         }
@@ -180,7 +180,7 @@ final class LessonPlanningViewModel {
         }
     }
     
-    /// Applies all accepted recommendations by creating LessonAssignment drafts.
+    /// Applies all accepted recommendations by creating CDLessonAssignment drafts.
     func applyPlan() {
         guard let service = planningService else { return }
         
@@ -334,7 +334,7 @@ enum PlanningError: Error, LocalizedError {
     
     var errorDescription: String? {
         switch self {
-        case .studentNotFound: return "Student not found"
+        case .studentNotFound: return "CDStudent not found"
         case .noStudents: return "No students available for planning"
         case .serviceNotConfigured: return "Planning service not configured"
         }

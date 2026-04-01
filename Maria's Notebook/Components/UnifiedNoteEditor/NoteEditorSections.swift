@@ -112,7 +112,7 @@ extension UnifiedNoteEditor {
     var noteBodySection: some View {
         VStack(alignment: .leading, spacing: AppTheme.Spacing.small) {
             HStack {
-                Text("CDNote")
+                Text("Note")
                     .font(AppTheme.ScaledFont.caption.weight(.semibold))
                     .foregroundStyle(.secondary)
                 Spacer()

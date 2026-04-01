@@ -24,7 +24,7 @@ struct PracticePartnershipsView: View {
         PracticeSessionRepository(context: viewContext)
     }
     
-    private var studentSessions: [PracticeSession] {
+    private var studentSessions: [CDPracticeSession] {
         let sessions = allSessions.filter { $0.includes(studentID: studentID) }
         
         switch selectedFilter {
@@ -37,7 +37,7 @@ struct PracticePartnershipsView: View {
         }
     }
     
-    private var partnerships: [(partner: Student, sessionCount: Int)] {
+    private var partnerships: [(partner: CDStudent, sessionCount: Int)] {
         let partnerData = repository.fetchPartnerships(forStudentID: studentID)
         return partnerData.compactMap { (partnerID, count) in
             guard let partner = allStudents.first(where: { $0.id == partnerID }) else { return nil }
@@ -283,7 +283,7 @@ struct PracticePartnershipsSummaryCard: View {
         PracticeSessionRepository(context: viewContext)
     }
     
-    private var recentSessions: [PracticeSession] {
+    private var recentSessions: [CDPracticeSession] {
         Array(allSessions
             .filter { $0.includes(studentID: studentID) }
             .sorted { ($0.date ?? .distantPast) > ($1.date ?? .distantPast) }
@@ -294,7 +294,7 @@ struct PracticePartnershipsSummaryCard: View {
         repository.statistics(forStudentID: studentID)
     }
     
-    private var topPartners: [(partner: Student, sessionCount: Int)] {
+    private var topPartners: [(partner: CDStudent, sessionCount: Int)] {
         let partnerData = repository.fetchPartnerships(forStudentID: studentID)
         return Array(partnerData.compactMap { (partnerID, count) in
             guard let partner = allStudents.first(where: { $0.id == partnerID }) else { return nil }
@@ -424,18 +424,18 @@ struct PracticePartnershipsSummaryCard: View {
     let ctx = stack.viewContext
 
     // Create sample students
-    let danny = Student(context: ctx)
+    let danny = CDStudent(context: ctx)
     danny.firstName = "Danny"; danny.lastName = "Jones"; danny.birthday = Date(); danny.level = .lower
-    let mary = Student(context: ctx)
+    let mary = CDStudent(context: ctx)
     mary.firstName = "Mary"; mary.lastName = "Smith"; mary.birthday = Date(); mary.level = .lower
 
     // Create sample work
-    let work1 = WorkModel(context: ctx)
+    let work1 = CDWorkModel(context: ctx)
     work1.title = "Long Division"; work1.studentID = danny.id?.uuidString ?? ""; work1.lessonID = UUID().uuidString
 
     // Create sample sessions
     for i in 0..<5 {
-        let session = PracticeSession(context: ctx)
+        let session = CDPracticeSession(context: ctx)
         session.date = Date().addingTimeInterval(Double(-i * 86400))
         session.duration = 1800
         session.studentIDsArray = i % 2 == 0 ? [danny.id?.uuidString ?? "", mary.id?.uuidString ?? ""] : [danny.id?.uuidString ?? ""]

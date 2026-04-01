@@ -30,7 +30,14 @@ The backup system provides comprehensive data protection with streaming export, 
 |---------|----------|
 | < 5 | Legacy format, checksum bypass allowed via setting |
 | 5 | Deterministic JSON encoding, enforced checksum validation |
-| 6 | LZFSE compression support, current version |
+| 6 | LZFSE compression support |
+| 7 | Expanded entity coverage |
+| 8 | Project entities support |
+| 9 | Going Out & Transition Planner entities |
+| 10 | Community & Classroom Jobs entities |
+| 11 | Resource & Supply transaction entities |
+| 12 | Calendar notes & school day overrides |
+| 13 | Core Data migration — full 60-entity coverage, current version |
 
 ---
 
@@ -90,7 +97,6 @@ When adding a new entity type to backups:
 
 ## Not Implemented
 
-- **Generic fetchOne** — SwiftData `#Predicate` requires compile-time types
 - **Incremental backups** — requires modification timestamp tracking
 - **Format migration system** — explicit v5→v6→v7 migration paths
 - **Telemetry dashboard** — framework exists but not integrated

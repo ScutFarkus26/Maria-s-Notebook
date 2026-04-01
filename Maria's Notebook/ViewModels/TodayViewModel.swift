@@ -7,7 +7,7 @@
 // - TodayScheduleBuilder: Schedule construction from work data
 // - TodayNavigationService: School day navigation
 // - TodayAttendanceLoader: Attendance processing
-// - TodayCacheManager: Student/lesson/work caching
+// - TodayCacheManager: CDStudent/lesson/work caching
 // - TodayTypes: Shared type definitions
 
 import Foundation
@@ -57,7 +57,7 @@ final class TodayViewModel {
 
     var todaysLessons: [CDLessonAssignment] = []
 
-    // WorkModel-based lists
+    // CDWorkModel-based lists
     var overdueSchedule: [ScheduledWorkItem] = []
     var todaysSchedule: [ScheduledWorkItem] = []
     var staleFollowUps: [FollowUpWorkItem] = []
@@ -88,22 +88,22 @@ final class TodayViewModel {
 
     // New Outputs for recent notes and their students
     var recentNotes: [CDNote] = []
-    var recentNoteStudentsByID: [UUID: Student] = [:]
+    var recentNoteStudentsByID: [UUID: CDStudent] = [:]
 
     // MARK: - Cache Accessors (delegate to cacheManager)
 
     /// Students lookup dictionary (read-only access to cache)
-    var studentsByID: [UUID: Student] {
+    var studentsByID: [UUID: CDStudent] {
         cacheManager.studentsByID
     }
 
     /// Lessons lookup dictionary (read-only access to cache)
-    var lessonsByID: [UUID: Lesson] {
+    var lessonsByID: [UUID: CDLesson] {
         cacheManager.lessonsByID
     }
 
     /// Work lookup dictionary (read-only access to cache)
-    var workByID: [UUID: WorkModel] {
+    var workByID: [UUID: CDWorkModel] {
         cacheManager.workByID
     }
 

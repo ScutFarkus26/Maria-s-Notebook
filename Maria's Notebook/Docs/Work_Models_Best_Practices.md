@@ -22,7 +22,7 @@ let records = try work.completionRecords(for: studentID, in: context)
 **For Work Type:**
 ```swift
 // Use WorkKind enum (unified system)
-let work = WorkModel(kind: .practiceLesson, ...)
+let work = CDWorkModel(kind: .practiceLesson, ...)
 work.kind = .followUpAssignment
 
 // Access colors and icons
@@ -67,7 +67,7 @@ if work.isStudentCompleted(studentID) {
 
 ## Model Descriptions
 
-### WorkModel
+### CDWorkModel
 The core work assignment model.
 
 **Key Fields:**
@@ -83,8 +83,8 @@ The core work assignment model.
 **Relationships:**
 - `participants: [WorkParticipantEntity]` - Students assigned to this work
 - `checkIns: [WorkCheckIn]` - Scheduled check-ins
-- `steps: [WorkStep]` - For report-type work
-- `unifiedNotes: [Note]` - Associated notes
+- `steps: [CDWorkStep]` - For report-type work
+- `unifiedNotes: [CDNote]` - Associated notes
 
 **Best Practices:**
 - Always set `kind` when creating new work
@@ -134,8 +134,8 @@ Describes the lifecycle status of work.
 Historical record of work completion events.
 
 **Key Fields:**
-- `workID: String` - Reference to WorkModel
-- `studentID: String` - Reference to Student
+- `workID: String` - Reference to CDWorkModel
+- `studentID: String` - Reference to CDStudent
 - `completedAt: Date` - When completed
 - `note: String` - Completion notes
 
@@ -159,7 +159,7 @@ Links students to work assignments.
 **Key Fields:**
 - `studentID: String` - Which student
 - `completedAt: Date?` - Legacy completion date (kept in sync with WorkCompletionRecord)
-- `work: WorkModel?` - Back-reference to work
+- `work: CDWorkModel?` - Back-reference to work
 
 **Best Practices:**
 - Don't directly set `completedAt` - use WorkCompletionService instead
@@ -170,7 +170,7 @@ Links students to work assignments.
 Scheduled check-in for work progress tracking.
 
 **Key Fields:**
-- `workID: String` - Reference to WorkModel
+- `workID: String` - Reference to CDWorkModel
 - `date: Date` - Check-in date
 - `status: WorkCheckInStatus` - scheduled, completed, or skipped
 - `purpose: String` - Why this check-in exists
@@ -191,7 +191,7 @@ checkIn.reschedule(to: newDate, in: context)
 checkIn.skip(note: "Student absent", in: context)
 ```
 
-### WorkStep
+### CDWorkStep
 Individual steps for report-type work.
 
 **Key Fields:**
@@ -273,14 +273,19 @@ let checkIn = work.scheduleCheckIn(
 
 ```swift
 // Create a report-type work
-let work = WorkModel(kind: .report, ...)
-context.insert(work)
+let work = CDWorkModel(context: context)
+work.kindRaw = WorkKind.report.rawValue
 
 // Add steps
-let step1 = WorkStep(title: "Research", instructions: "Find 3 sources", work: work)
-let step2 = WorkStep(title: "Outline", instructions: "Create outline", work: work)
-context.insert(step1)
-context.insert(step2)
+let step1 = CDWorkStep(context: context)
+step1.title = "Research"
+step1.instructions = "Find 3 sources"
+step1.work = work
+
+let step2 = CDWorkStep(context: context)
+step2.title = "Outline"
+step2.instructions = "Create outline"
+step2.work = work
 
 // Check progress
 let (completed, total) = work.stepProgress
@@ -292,60 +297,27 @@ try WorkStepService.markCompleted(step: step1, in: context)
 
 ---
 
-## Data Migration Notes
+## Current Data State
 
-### Completion System (Phases 1-2)
-✅ **Completed** - All work completions now write to both systems:
-- WorkCompletionRecord (new, preferred)
-- WorkParticipantEntity.completedAt (legacy, synced)
+All historical data migrations are complete. The current state:
 
-**Result:** No risk of data loss, full backwards compatibility
-
-### WorkType → WorkKind (Phase 3)
-✅ **Completed** - WorkType is deprecated:
-- Migration converts all `workTypeRaw` → `kindRaw`
-- `workType` property now reads from `kind`
-- New code should use `kind` directly
-
-**Result:** Single type system, better naming, no breaking changes
-
-### Legacy Check-In System → WorkCheckIn (Phases 0-6)
-✅ **MIGRATION COMPLETE** - Successfully consolidated to single WorkCheckIn system
-
-- ✅ **Phase 0 Complete:** Migration infrastructure and tests ready
-- ✅ **Phase 1 Complete:** All existing check-ins backfilled to WorkCheckIns
-- ✅ **Phase 2 Complete:** Dual-write system active (ensured data sync)
-- ✅ **Phase 3 Complete:** Migrated Today View to read from WorkCheckIn
-- ✅ **Phase 4 Complete:** Migrated Work Detail & Calendar views
-- ✅ **Phase 5 Complete:** Removed from backup system
-- ✅ **Phase 6 Complete:** Legacy model removed from schema
-
-**Final State:**
-- Single unified WorkCheckIn system
-- WorkCheckIn provides status tracking (scheduled, completed, skipped)
-- Legacy model completely removed from codebase
-- All check-in data successfully migrated with zero data loss
-
-**Usage:**
-- Use WorkCheckIn for all check-in functionality
-- Create with `.scheduled` status for future check-ins
-- Update status to `.completed` or `.skipped` as needed
+- **Completion system**: `WorkCompletionRecord` is the primary source of truth. `WorkParticipantEntity.completedAt` is kept in sync for backwards compatibility.
+- **Work types**: `WorkKind` is the canonical type system. Legacy `workType` property reads from `kind`.
+- **Check-ins**: Single unified `WorkCheckIn` system with status tracking (scheduled, completed, skipped). Legacy check-in model has been fully removed.
+- **Persistence**: Core Data with `NSPersistentCloudKitContainer` (two-store architecture: private + shared).
 
 ---
 
 ## Performance Tips
 
 ### Indexed Queries
-WorkModel has compound indexes for common queries:
+CDWorkModel has compound indexes for common queries:
 
 ```swift
 // Efficiently fetch active work for a student
-let descriptor = FetchDescriptor<WorkModel>(
-    predicate: #Predicate { work in
-        work.studentID == studentIDString && 
-        work.statusRaw == "active"
-    }
-)
+let fetchRequest: NSFetchRequest<CDWorkModel> = CDWorkModel.fetchRequest()
+fetchRequest.predicate = NSPredicate(format: "studentID == %@ AND statusRaw == %@", studentIDString, "active")
+let results = try context.fetch(fetchRequest)
 // Uses index: [studentID, statusRaw]
 ```
 
@@ -366,9 +338,9 @@ for id in studentIDs {
 For UI displaying work with participants:
 
 ```swift
-var descriptor = FetchDescriptor<WorkModel>(...)
-descriptor.relationshipKeyPathsForPrefetching = [\.participants, \.checkIns]
-let works = try context.fetch(descriptor)
+let fetchRequest: NSFetchRequest<CDWorkModel> = CDWorkModel.fetchRequest()
+fetchRequest.relationshipKeyPathsForPrefetching = ["participants", "checkIns"]
+let works = try context.fetch(fetchRequest)
 // Participants and checkIns are already loaded
 ```
 
@@ -380,7 +352,7 @@ let works = try context.fetch(descriptor)
 ```swift
 @Test("Work creation sets correct defaults")
 func workCreation() {
-    let work = WorkModel(kind: .practiceLesson)
+    let work = CDWorkModel(kind: .practiceLesson)
     #expect(work.status == .active)
     #expect(work.kind == .practiceLesson)
     #expect(work.isActive == true)
@@ -388,10 +360,9 @@ func workCreation() {
 
 @Test("Completion creates record and updates participant")
 func completion() throws {
-    let work = WorkModel(kind: .practiceLesson)
-    let student = Student()
+    let work = CDWorkModel(kind: .practiceLesson)
+    let student = CDStudent(context: context)
     context.insert(work)
-    context.insert(student)
     
     // Mark complete
     try WorkCompletionService.markCompleted(
@@ -412,7 +383,7 @@ func completion() throws {
 @Test("Work completion persists across context saves")
 func persistence() async throws {
     // Create and complete work
-    let work = WorkModel(kind: .practiceLesson)
+    let work = CDWorkModel(kind: .practiceLesson)
     context.insert(work)
     try WorkCompletionService.markCompleted(
         workID: work.id,
@@ -422,11 +393,10 @@ func persistence() async throws {
     try context.save()
     
     // Fetch in new context
-    let newContext = ModelContext(modelContainer)
-    let descriptor = FetchDescriptor<WorkModel>(
-        predicate: #Predicate { $0.id == work.id }
-    )
-    let fetched = try newContext.fetch(descriptor).first!
+    let newContext = coreDataStack.newBackgroundContext()
+    let fetchRequest: NSFetchRequest<CDWorkModel> = CDWorkModel.fetchRequest()
+    fetchRequest.predicate = NSPredicate(format: "id == %@", work.id as CVarArg)
+    let fetched = try newContext.fetch(fetchRequest).first!
     
     // Verify completion persisted
     #expect(fetched.isStudentCompleted(student.id))
@@ -442,15 +412,15 @@ func persistence() async throws {
 2. Use `WorkCompletionService` for completions (not `markStudent`)
 3. Both completion systems stay in sync automatically
 4. WorkCheckIn offers richer tracking than WorkPlanItem
-5. All migrations run automatically on app startup
-6. Deprecation warnings guide you to current best practices
+5. All entity classes use the `CD` prefix (e.g., `CDWorkModel`, `CDStudent`)
+6. Use `NSFetchRequest` + `NSPredicate` for queries (not `FetchDescriptor` / `#Predicate`)
 
 **When in Doubt:**
 - Check deprecation warnings - they point to the right API
 - Use the service layers (WorkCompletionService, WorkStepService, etc.)
 - Prefer computed properties over direct field access
-- Let migrations handle data conversion automatically
+- Use Core Data patterns (`NSFetchRequest`, `NSManagedObjectContext`) not SwiftData
 
 ---
 
-*Last Updated: 2026-02-14 (After Phase 3 completion)*
+*Last Updated: 2026-04-01 (Updated for Core Data migration)*

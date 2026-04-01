@@ -14,7 +14,7 @@ enum TodayLessonsLoader {
 
     /// Result of loading lessons for a day.
     struct LessonsResult {
-        let lessons: [LessonAssignment]
+        let lessons: [CDLessonAssignment]
         let neededStudentIDs: Set<UUID>
         let neededLessonIDs: Set<UUID>
     }

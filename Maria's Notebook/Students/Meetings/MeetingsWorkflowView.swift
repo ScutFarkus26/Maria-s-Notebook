@@ -234,7 +234,7 @@ struct MeetingsWorkflowView: View {
                 .font(.system(size: 64))
                 .foregroundStyle(.tertiary)
 
-            Text("Select a Student")
+            Text("Select a CDStudent")
                 .font(.title2.weight(.medium))
 
             Text("Choose a student from the queue to start their weekly meeting.")

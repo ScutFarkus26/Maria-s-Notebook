@@ -1,5 +1,5 @@
 // ClassSubjectChecklistViewModel+PresentationHelpers.swift
-// WorkModel find-or-create and LessonPresentation upsert/delete helpers
+// CDWorkModel find-or-create and CDLessonPresentation upsert/delete helpers
 // for ClassSubjectChecklistViewModel.
 
 import Foundation
@@ -45,7 +45,7 @@ extension ClassSubjectChecklistViewModel {
         }
     }
 
-    // MARK: - LessonPresentation Helpers
+    // MARK: - CDLessonPresentation Helpers
 
     func upsertLessonPresentation(
         studentID: String, lessonID: String,

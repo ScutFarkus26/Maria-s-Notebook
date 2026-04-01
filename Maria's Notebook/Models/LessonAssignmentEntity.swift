@@ -1,7 +1,7 @@
 import Foundation
 import CoreData
 
-@objc(LessonAssignment)
+@objc(CDLessonAssignment)
 public class CDLessonAssignment: NSManagedObject {
     // MARK: - Core Data Properties
     @NSManaged public var id: UUID?
@@ -27,7 +27,6 @@ public class CDLessonAssignment: NSManagedObject {
     @NSManaged public var migratedFromPresentationID: String?
 
     // MARK: - Relationships
-    @NSManaged public var lesson: CDLesson?
     @NSManaged public var unifiedNotes: NSSet?
 
     // MARK: - Convenience Initializer
@@ -72,7 +71,7 @@ extension CDLessonAssignment {
         set { stateRaw = newValue.rawValue }
     }
 
-    /// Student IDs as string array. Uses JSON encoding via CloudKitStringArrayStorage.
+    /// CDStudent IDs as string array. Uses JSON encoding via CloudKitStringArrayStorage.
     var studentIDs: [String] {
         get { CloudKitStringArrayStorage.decode(from: _studentIDsData) }
         set { _studentIDsData = CloudKitStringArrayStorage.encode(newValue) }
@@ -84,7 +83,7 @@ extension CDLessonAssignment {
         set { lessonID = newValue?.uuidString ?? "" }
     }
 
-    /// Student IDs as UUIDs.
+    /// CDStudent IDs as UUIDs.
     var studentUUIDs: [UUID] {
         studentIDs.compactMap { UUID(uuidString: $0) }
     }
@@ -100,6 +99,18 @@ extension CDLessonAssignment {
 
     /// Whether this presentation has been given.
     var isGiven: Bool { state == .presented }
+
+    /// Cross-store relationship accessor (fetch via FK).
+    var lesson: CDLesson? {
+        get {
+            guard !lessonID.isEmpty, let ctx = managedObjectContext else { return nil }
+            let req = CDFetchRequest(CDLesson.self)
+            req.predicate = NSPredicate(format: "id == %@", lessonID)
+            req.fetchLimit = 1
+            return ctx.safeFetchFirst(req)
+        }
+        set { lessonID = newValue?.id?.uuidString ?? "" }
+    }
 }
 
 // MARK: - State Transitions

@@ -1,7 +1,7 @@
 import SwiftUI
 import CoreData
 
-// MARK: - Student Selector UI
+// MARK: - CDStudent Selector UI
 
 extension PracticeSessionSheet {
 

@@ -1,7 +1,7 @@
 import Foundation
 import CoreData
 
-@objc(TodayAgendaOrder)
+@objc(CDTodayAgendaOrder)
 public class CDTodayAgendaOrder: NSManagedObject {
     // MARK: - Core Data Properties
     @NSManaged public var id: UUID?

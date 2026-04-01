@@ -17,7 +17,6 @@ public class CDCommunityTopicEntity: NSManagedObject {
 
     // MARK: - Relationships
     @NSManaged public var proposedSolutions: NSSet?
-    @NSManaged public var unifiedNotes: NSSet?
     @NSManaged public var attachments: NSSet?
 
     // MARK: - Convenience Init
@@ -69,6 +68,14 @@ extension CDCommunityTopicEntity {
     }
 
     var isResolved: Bool { addressedDate != nil }
+
+    /// Cross-store inverse: fetches Notes whose communityTopicID matches this topic.
+    var unifiedNotes: [CDNote] {
+        guard let id, let ctx = managedObjectContext else { return [] }
+        let req = CDFetchRequest(CDNote.self)
+        req.predicate = NSPredicate(format: "communityTopicID == %@", id.uuidString)
+        return (try? ctx.fetch(req)) ?? []
+    }
 }
 
 // MARK: - Generated Accessors for proposedSolutions
@@ -84,21 +91,6 @@ extension CDCommunityTopicEntity {
 
     @objc(removeProposedSolutions:)
     @NSManaged public func removeFromProposedSolutions(_ values: NSSet)
-}
-
-// MARK: - Generated Accessors for unifiedNotes
-extension CDCommunityTopicEntity {
-    @objc(addUnifiedNotesObject:)
-    @NSManaged public func addToUnifiedNotes(_ value: NSManagedObject)
-
-    @objc(removeUnifiedNotesObject:)
-    @NSManaged public func removeFromUnifiedNotes(_ value: NSManagedObject)
-
-    @objc(addUnifiedNotes:)
-    @NSManaged public func addToUnifiedNotes(_ values: NSSet)
-
-    @objc(removeUnifiedNotes:)
-    @NSManaged public func removeFromUnifiedNotes(_ values: NSSet)
 }
 
 // MARK: - Generated Accessors for attachments

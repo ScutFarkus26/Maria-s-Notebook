@@ -7,7 +7,7 @@ import os
 extension DataCleanupService {
 
     // swiftlint:disable cyclomatic_complexity
-    /// Deduplicate draft LessonAssignment records that refer to the same lesson and identical student set.
+    /// Deduplicate draft CDLessonAssignment records that refer to the same lesson and identical student set.
     /// Keeps the earliest `createdAt` as canonical, merges flags, and deletes the rest.
     static func deduplicateDraftLessonAssignments(using context: NSManagedObjectContext) {
         let draftRaw = LessonAssignmentState.draft.rawValue
@@ -184,15 +184,11 @@ extension DataCleanupService {
             canonical.nextLessons = merged as NSObject
         }
 
-        // Merge documents relationship (NSSet)
-        var existingDocIDs = Set((canonical.documents as? Set<CDDocument>)?.compactMap(\.id) ?? [])
-        mergeNSSetRelationship(
-            from: duplicate.documents,
-            addTo: canonical,
-            relationshipKey: "documents",
-            existingIDs: &existingDocIDs,
-            setter: { (doc: CDDocument) in doc.student = canonical }
-        )
+        // Re-point duplicate's documents to canonical student via FK
+        let existingDocIDs = Set(canonical.documents.compactMap(\.id))
+        for doc in duplicate.documents where doc.id == nil || !existingDocIDs.contains(doc.id!) {
+            doc.student = canonical
+        }
     }
 
     private static func mergeLesson(canonical: CDLesson, duplicate: CDLesson) {
@@ -210,23 +206,21 @@ extension DataCleanupService {
         if canonical.personalKindRaw == nil { canonical.personalKindRaw = duplicate.personalKindRaw }
         if canonical.defaultWorkKindRaw == nil { canonical.defaultWorkKindRaw = duplicate.defaultWorkKindRaw }
 
-        var existingNoteIDs = Set((canonical.notes as? Set<CDNote>)?.compactMap(\.id) ?? [])
-        mergeNSSetRelationship(
-            from: duplicate.notes,
-            addTo: canonical,
-            relationshipKey: "notes",
-            existingIDs: &existingNoteIDs,
-            setter: { (note: CDNote) in note.lesson = canonical }
-        )
+        // Re-point duplicate lesson's notes to canonical via FK
+        if let dupID = duplicate.id?.uuidString, let ctx = canonical.managedObjectContext {
+            let noteReq = CDFetchRequest(CDNote.self)
+            noteReq.predicate = NSPredicate(format: "lessonID == %@", dupID)
+            for note in (try? ctx.fetch(noteReq)) ?? [] {
+                note.lesson = canonical
+            }
 
-        var existingLAIDs = Set((canonical.lessonAssignments as? Set<CDLessonAssignment>)?.compactMap(\.id) ?? [])
-        mergeNSSetRelationship(
-            from: duplicate.lessonAssignments,
-            addTo: canonical,
-            relationshipKey: "lessonAssignments",
-            existingIDs: &existingLAIDs,
-            setter: { (la: CDLessonAssignment) in la.lesson = canonical }
-        )
+            // Re-point duplicate lesson's assignments to canonical via FK
+            let laReq = CDFetchRequest(CDLessonAssignment.self)
+            laReq.predicate = NSPredicate(format: "lessonID == %@", dupID)
+            for la in (try? ctx.fetch(laReq)) ?? [] {
+                la.lesson = canonical
+            }
+        }
     }
 
     private static func mergeLessonPresentation(canonical: CDLessonPresentation, duplicate: CDLessonPresentation) {
@@ -357,7 +351,7 @@ extension DataCleanupService {
         results["WorkParticipantEntity"] = deduplicate(CDWorkParticipantEntity.self, using: context)
         results["WorkStep"] = deduplicate(CDWorkStep.self, using: context)
 
-        // Project models
+        // CDProject models
         results["Project"] = deduplicate(CDProject.self, using: context)
         results["ProjectRole"] = deduplicate(CDProjectRole.self, using: context)
         results["ProjectSession"] = deduplicate(CDProjectSession.self, using: context)
@@ -365,7 +359,7 @@ extension DataCleanupService {
         results["ProjectTemplateWeek"] = deduplicate(CDProjectTemplateWeek.self, using: context)
         results["ProjectWeekRoleAssignment"] = deduplicate(CDProjectWeekRoleAssignment.self, using: context)
 
-        // Track models
+        // CDTrackEntity models
         results["Track"] = deduplicate(CDTrackEntity.self, using: context)
         results["TrackStep"] = deduplicate(CDTrackStepEntity.self, using: context)
         results["GroupTrack"] = deduplicate(CDGroupTrackEntity.self, using: context)

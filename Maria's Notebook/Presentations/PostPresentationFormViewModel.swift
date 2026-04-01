@@ -239,18 +239,23 @@ final class PostPresentationFormViewModel {
             } else {
                 guard let nextLessonID = nextLesson.id else { return }
                 // Create new scheduled assignment
-                let la = PresentationFactory.makeScheduled(
-                    lessonID: nextLessonID,
-                    studentIDs: Array(studentIDs),
-                    scheduledFor: nextLessonScheduleDate
-                )
                 let relatedStudents = allStudents.filter { guard let id = $0.id else { return false }; return studentIDs.contains(id) }
-                PresentationFactory.attachRelationships(
-                    to: la,
-                    lesson: allLessons.first(where: { $0.id != nil && $0.id == nextLessonID }),
-                    students: relatedStudents
-                )
-                viewContext.insert(la)
+                let nextLessonObj = allLessons.first(where: { $0.id != nil && $0.id == nextLessonID })
+                if let nextLessonObj {
+                    _ = PresentationFactory.makeScheduled(
+                        lesson: nextLessonObj,
+                        students: relatedStudents,
+                        scheduledFor: nextLessonScheduleDate,
+                        context: viewContext
+                    )
+                } else {
+                    _ = PresentationFactory.makeScheduled(
+                        lessonID: nextLessonID,
+                        studentIDs: Array(studentIDs),
+                        scheduledFor: nextLessonScheduleDate,
+                        context: viewContext
+                    )
+                }
             }
         }
     }

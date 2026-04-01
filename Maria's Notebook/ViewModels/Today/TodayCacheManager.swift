@@ -10,9 +10,9 @@ final class TodayCacheManager {
 
     // MARK: - Cached Data
 
-    private(set) var studentsByID: [UUID: Student] = [:]
-    private(set) var lessonsByID: [UUID: Lesson] = [:]
-    private(set) var workByID: [UUID: WorkModel] = [:]
+    private(set) var studentsByID: [UUID: CDStudent] = [:]
+    private(set) var lessonsByID: [UUID: CDLesson] = [:]
+    private(set) var workByID: [UUID: CDWorkModel] = [:]
 
     // MARK: - Duplicate Names Cache
 
@@ -38,13 +38,13 @@ final class TodayCacheManager {
     // MARK: - Update Methods
 
     /// Updates the students cache with new values.
-    func updateStudents(_ students: [UUID: Student]) {
+    func updateStudents(_ students: [UUID: CDStudent]) {
         studentsByID = students
         cachedDuplicateFirstNames = nil
     }
 
     /// Merges additional students into the cache.
-    func mergeStudents(_ students: [Student]) {
+    func mergeStudents(_ students: [CDStudent]) {
         for student in students {
             if let studentID = student.id {
                 studentsByID[studentID] = student
@@ -54,12 +54,12 @@ final class TodayCacheManager {
     }
 
     /// Updates the lessons cache with new values.
-    func updateLessons(_ lessons: [UUID: Lesson]) {
+    func updateLessons(_ lessons: [UUID: CDLesson]) {
         lessonsByID = lessons
     }
 
     /// Merges additional lessons into the cache.
-    func mergeLessons(_ lessons: [Lesson]) {
+    func mergeLessons(_ lessons: [CDLesson]) {
         for lesson in lessons {
             if let lessonID = lesson.id {
                 lessonsByID[lessonID] = lesson
@@ -68,7 +68,7 @@ final class TodayCacheManager {
     }
 
     /// Updates the work cache with new values.
-    func updateWork(_ work: [UUID: WorkModel]) {
+    func updateWork(_ work: [UUID: CDWorkModel]) {
         workByID = work
     }
 
@@ -103,7 +103,7 @@ final class TodayCacheManager {
 
         // PERFORMANCE: Fetch all students once and filter in memory
         // Core Data NSPredicate doesn't efficiently support IN queries with large UUID sets
-        let request = CDFetchRequest(Student.self)
+        let request = CDFetchRequest(CDStudent.self)
         request.fetchLimit = 500 // Safety limit for student roster
         let allStudents = context.safeFetch(request).filter(\.isEnrolled)
 
@@ -132,7 +132,7 @@ final class TodayCacheManager {
 
         // PERFORMANCE: Fetch all lessons once and filter in memory
         // Core Data NSPredicate doesn't efficiently support IN queries with large UUID sets
-        let request = CDFetchRequest(Lesson.self)
+        let request = CDFetchRequest(CDLesson.self)
         request.fetchLimit = 1000 // Safety limit for lesson library
         let allLessons = context.safeFetch(request)
 

@@ -15,7 +15,7 @@ final class AppBootstrapping {
 
     // MARK: - Shared Instance
 
-    /// Track initialization errors to show in the UI
+    /// CDTrackEntity initialization errors to show in the UI
     @MainActor
     static var initError: Error?
 
@@ -90,7 +90,7 @@ final class AppBootstrapping {
         DatabaseInitializationService.storeFileURL()
     }
 
-    /// Attempts to migrate AttendanceRecord.studentID from UUID to String.
+    /// Attempts to migrate CDAttendanceRecord.studentID from UUID to String.
     /// Returns true if migration was successful or not needed.
     @discardableResult
     static func attemptAttendanceRecordMigrationIfNeeded() -> Bool {
@@ -129,7 +129,7 @@ final class AppBootstrapping {
         // This attempts to prevent errors about /private/var/db/DetachedSignatures
         // which occurs when SQLite tries to access a system directory that doesn't exist.
         // 
-        // Note: These errors are harmless and may still appear if SQLite initializes before
+        // CDNote: These errors are harmless and may still appear if SQLite initializes before
         // this code runs or doesn't respect the environment variable. However, setting it
         // early in app initialization provides the best chance of suppression.
         // 

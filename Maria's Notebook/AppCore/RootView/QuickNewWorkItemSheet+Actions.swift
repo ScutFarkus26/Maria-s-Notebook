@@ -37,12 +37,12 @@ extension QuickNewWorkItemSheet {
                 if hasCheckIn, let workID = work.id {
                     let normalized = AppCalendar.startOfDay(checkInDate)
 
-                    // Create WorkCheckIn for scheduled check-ins
+                    // Create CDWorkCheckIn for scheduled check-ins
                     let checkIn = CDWorkCheckIn(context: viewContext)
                     checkIn.workID = workID.uuidString
                     checkIn.date = normalized
                     checkIn.status = WorkCheckInStatus.scheduled
-                    checkIn.purpose = CheckInMigrationService.mapReasonToPurpose(checkInReason)
+                    checkIn.purpose = checkInReason.purpose
                 }
 
                 // Keep reference to first created work for "Create & Open"
@@ -64,7 +64,7 @@ extension QuickNewWorkItemSheet {
 
     // MARK: - Check-In Reason Helpers
 
-    func legacyReasonIcon(_ reason: CheckInMigrationService.CheckInReason) -> String {
+    func legacyReasonIcon(_ reason: CheckInReason) -> String {
         switch reason {
         case .progressCheck: return "checkmark.circle"
         case .dueDate: return "calendar.badge.exclamationmark"
@@ -75,13 +75,13 @@ extension QuickNewWorkItemSheet {
         }
     }
 
-    func legacyReasonLabel(_ reason: CheckInMigrationService.CheckInReason) -> String {
+    func legacyReasonLabel(_ reason: CheckInReason) -> String {
         switch reason {
         case .progressCheck: return "Progress Check"
         case .dueDate: return "Due Date"
         case .assessment: return "Assessment"
         case .followUp: return "Follow Up"
-        case .studentRequest: return "Student Request"
+        case .studentRequest: return "CDStudent Request"
         case .other: return "Other"
         }
     }

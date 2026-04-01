@@ -60,10 +60,18 @@ extension BackupService {
             } else {
                 return decryptedBytes
             }
+        } else if envelope.payload != nil {
+            // Pre-compression format (v5): payload is inline in the envelope.
+            // Re-encode to bytes so the checksum validation path stays uniform.
+            let encoder = JSONEncoder()
+            encoder.dateEncodingStrategy = .iso8601
+            encoder.outputFormatting = .sortedKeys
+            progress(0.15, "Reading inline payload\u{2026}")
+            return try encoder.encode(envelope.payload)
         } else {
             throw NSError(domain: "BackupService", code: 1101, userInfo: [
                 NSLocalizedDescriptionKey: "Backup file missing payload. "
-                    + "This may be an older backup format that is no longer supported."
+                    + "The file may be corrupted or in an unrecognized format."
             ])
         }
     }

@@ -1,11 +1,11 @@
 // QuickNewWorkItemSheet+Sections.swift
-// Lesson, student, and details section builders for QuickNewWorkItemSheet.
+// CDLesson, student, and details section builders for QuickNewWorkItemSheet.
 
 import SwiftUI
 
 extension QuickNewWorkItemSheet {
 
-    // MARK: - Lesson Section
+    // MARK: - CDLesson Section
 
     @ViewBuilder
     // swiftlint:disable:next function_body_length
@@ -26,7 +26,7 @@ extension QuickNewWorkItemSheet {
                 .onSubmit {
                     // If user typed an exact lesson name, select it
                     let trimmed = lessonSearchText.trimmed()
-                    let isMatch: (Lesson) -> Bool = {
+                    let isMatch: (CDLesson) -> Bool = {
                         $0.name.caseInsensitiveCompare(trimmed) == .orderedSame
                     }
                     if let match = filteredLessons.first(where: isMatch) {
@@ -143,7 +143,7 @@ extension QuickNewWorkItemSheet {
         #endif
     }
 
-    func selectLesson(_ lesson: Lesson) {
+    func selectLesson(_ lesson: CDLesson) {
         selectedLessonID = lesson.id
         lessonSearchText = lesson.name
         showingLessonPopover = false
@@ -156,7 +156,7 @@ extension QuickNewWorkItemSheet {
         }
     }
 
-    // MARK: - Student Section
+    // MARK: - CDStudent Section
 
     func removeStudent(id: UUID) {
         _ = adaptiveWithAnimation(.spring(response: 0.25, dampingFraction: 0.85)) {
@@ -165,7 +165,7 @@ extension QuickNewWorkItemSheet {
     }
 
     @ViewBuilder
-    func studentChip(for student: Student) -> some View {
+    func studentChip(for student: CDStudent) -> some View {
         HStack(spacing: 4) {
             Text(StudentFormatter.displayName(for: student))
                 .font(AppTheme.ScaledFont.bodySemibold)
@@ -292,7 +292,7 @@ extension QuickNewWorkItemSheet {
                         .datePickerStyle(.compact)
 
                     Menu {
-                        ForEach(CheckInMigrationService.CheckInReason.allCases) { reason in
+                        ForEach(CheckInReason.allCases) { reason in
                             Button {
                                 checkInReason = reason
                             } label: {

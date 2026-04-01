@@ -2,10 +2,10 @@ import SwiftUI
 import CoreData
 
 struct WorkCheckInRow: View {
-    let checkIn: WorkCheckIn
-    let onEditNote: (WorkCheckIn) -> Void
+    let checkIn: CDWorkCheckIn
+    let onEditNote: (CDWorkCheckIn) -> Void
     let onSetStatus: (UUID, WorkCheckInStatus) -> Void
-    let onDelete: (WorkCheckIn) -> Void
+    let onDelete: (CDWorkCheckIn) -> Void
     
     var body: some View {
         HStack(alignment: .top, spacing: 10) {
@@ -33,7 +33,7 @@ struct WorkCheckInRow: View {
             Button {
                 onEditNote(checkIn)
             } label: {
-                Label("Add/Edit Note", systemImage: "note.text")
+                Label("Add/Edit CDNote", systemImage: "note.text")
             }
 
             Divider()
@@ -117,7 +117,7 @@ struct WorkCheckInRow: View {
             Button {
                 onEditNote(checkIn)
             } label: {
-                Label("Add/Edit Note", systemImage: "note.text")
+                Label("Add/Edit CDNote", systemImage: "note.text")
             }
 
             Divider()

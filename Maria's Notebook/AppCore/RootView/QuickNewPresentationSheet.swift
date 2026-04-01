@@ -75,12 +75,12 @@ struct QuickNewPresentationSheet: View {
                     Text("Record Presentation")
                         .font(AppTheme.ScaledFont.titleXLarge)
 
-                    // Lesson Section
+                    // CDLesson Section
                     presentationLessonSection()
 
                     Divider()
 
-                    // Student Section
+                    // CDStudent Section
                     presentationStudentSection()
 
                     Divider()
@@ -112,7 +112,7 @@ struct QuickNewPresentationSheet: View {
         #endif
     }
 
-    // MARK: - Lesson Section
+    // MARK: - CDLesson Section
 
     @ViewBuilder
     // swiftlint:disable:next function_body_length
@@ -226,7 +226,7 @@ struct QuickNewPresentationSheet: View {
         lessonFieldFocused = false
     }
 
-    // MARK: - Student Section
+    // MARK: - CDStudent Section
 
     private func removePresentationStudent(id: UUID) {
         _ = adaptiveWithAnimation(.spring(response: 0.25, dampingFraction: 0.85)) {
@@ -322,7 +322,7 @@ struct QuickNewPresentationSheet: View {
 
         let studentUUIDs = Array(selectedStudentIDs)
 
-        // Create LessonAssignment in presented state (the unified presentation model)
+        // Create CDLessonAssignment in presented state (the unified presentation model)
         let lessonAssignment = CDLessonAssignment(context: viewContext)
         lessonAssignment.state = .presented
         lessonAssignment.presentedAt = presentedAt

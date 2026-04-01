@@ -6,7 +6,7 @@ import os
 
 extension LifecycleService {
 
-    /// Synchronizes student progress by updating LessonPresentation records from LessonAssignment and WorkModel data.
+    /// Synchronizes student progress by updating CDLessonPresentation records from CDLessonAssignment and CDWorkModel data.
     /// This ensures all presented/completed lessons are properly tracked in the progress system.
     /// - Parameters:
     ///   - context: The NSManagedObjectContext to operate on
@@ -58,7 +58,7 @@ extension LifecycleService {
 
     // MARK: - Phase Helpers
 
-    /// Creates GroupTrack records for all unique subject/group combinations found in lessons.
+    /// Creates CDGroupTrackEntity records for all unique subject/group combinations found in lessons.
     private static func createGroupTracks(from allLessons: [CDLesson], context: NSManagedObjectContext) throws {
         var uniqueSubjectGroups: Set<String> = []
         for lesson in allLessons {
@@ -79,14 +79,14 @@ extension LifecycleService {
                     )
                 } catch {
                     // swiftlint:disable:next line_length
-                    logger.warning("Failed to create/get GroupTrack for \(subject, privacy: .public)/\(group, privacy: .public): \(error.localizedDescription)")
+                    logger.warning("Failed to create/get CDGroupTrackEntity for \(subject, privacy: .public)/\(group, privacy: .public): \(error.localizedDescription)")
                 }
             }
         }
         try context.save()
     }
 
-    /// Syncs LessonPresentation records for a single LessonAssignment, including track enrollment.
+    /// Syncs CDLessonPresentation records for a single CDLessonAssignment, including track enrollment.
     /// Returns the number of presentation records updated.
     private static func syncPresentationsForAssignment(
         _ la: CDLessonAssignment,
@@ -116,7 +116,7 @@ extension LifecycleService {
 
         guard lesson != nil else {
             // swiftlint:disable:next line_length
-            logger.warning("Skipping LessonAssignment \(la.id?.uuidString ?? "nil", privacy: .public): lesson not found for lessonID \(la.lessonID, privacy: .public)")
+            logger.warning("Skipping CDLessonAssignment \(la.id?.uuidString ?? "nil", privacy: .public): lesson not found for lessonID \(la.lessonID, privacy: .public)")
             return 0
         }
 
@@ -154,7 +154,7 @@ extension LifecycleService {
             return la.studentIDs.count
         } catch {
             // swiftlint:disable:next line_length
-            logger.warning("Failed to process LessonAssignment \(la.id?.uuidString ?? "nil", privacy: .public): \(error.localizedDescription)")
+            logger.warning("Failed to process CDLessonAssignment \(la.id?.uuidString ?? "nil", privacy: .public): \(error.localizedDescription)")
             for studentIDStr in la.studentIDs {
                 try upsertLessonPresentationByLessonAndStudent(
                     lessonID: la.lessonID, studentID: studentIDStr, presentedAt: presentedAt, context: context
@@ -177,7 +177,7 @@ extension LifecycleService {
             _ = try GroupTrackService.getOrCreateTrack(subject: subject, group: group, context: context)
         } catch {
             // swiftlint:disable:next line_length
-            logger.warning("Failed to create/get GroupTrack for \(subject, privacy: .public)/\(group, privacy: .public): \(error.localizedDescription)")
+            logger.warning("Failed to create/get CDGroupTrackEntity for \(subject, privacy: .public)/\(group, privacy: .public): \(error.localizedDescription)")
         }
 
         GroupTrackService.autoEnrollInTrackIfNeeded(
@@ -195,7 +195,7 @@ extension LifecycleService {
         }
     }
 
-    /// Checks WorkModel completion status and updates proficiency on matching LessonPresentation records.
+    /// Checks CDWorkModel completion status and updates proficiency on matching CDLessonPresentation records.
     /// Returns the number of newly proficient records.
     private static func updateCompletionFromWorkModels(
         _ allWorkModels: [CDWorkModel],
@@ -246,7 +246,7 @@ extension LifecycleService {
         return proficientCount
     }
 
-    /// Marks a single LessonPresentation as proficient if not already. Returns 1 if updated, 0 otherwise.
+    /// Marks a single CDLessonPresentation as proficient if not already. Returns 1 if updated, 0 otherwise.
     private static func markProficientIfNeeded(
         lessonID: String, studentID: String, achievedAt: Date,
         in presentations: [CDLessonPresentation]

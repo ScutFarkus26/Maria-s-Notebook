@@ -2,7 +2,7 @@ import Foundation
 import CoreData
 import OSLog
 
-// MARK: - Core Transformers (CDStudent, CDLesson, CDNote, LessonAttachment, CDLessonPresentation)
+// MARK: - Core Transformers (CDStudent, CDLesson, CDNote, CDLessonAttachment, CDLessonPresentation)
 
 extension BackupDTOTransformers {
 
@@ -106,9 +106,9 @@ extension BackupDTOTransformers {
         )
     }
 
-    // MARK: - LessonAttachment
+    // MARK: - CDLessonAttachment
 
-    static func toDTO(_ attachment: LessonAttachment) -> LessonAttachmentDTO {
+    static func toDTO(_ attachment: CDLessonAttachment) -> LessonAttachmentDTO {
         LessonAttachmentDTO(
             id: attachment.id ?? UUID(),
             fileName: attachment.fileName,
@@ -163,7 +163,7 @@ extension BackupDTOTransformers {
         sampleWorkSteps.map { toDTO($0) }
     }
 
-    static func toDTOs(_ attachments: [LessonAttachment]) -> [LessonAttachmentDTO] {
+    static func toDTOs(_ attachments: [CDLessonAttachment]) -> [LessonAttachmentDTO] {
         attachments.map { toDTO($0) }
     }
 

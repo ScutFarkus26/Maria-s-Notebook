@@ -85,7 +85,7 @@ extension BackupDiffService {
             }
         }
 
-        return EntityDiff(entityType: "CDStudent", added: added, removed: removed, modified: modified)
+        return EntityDiff(entityType: "Student", added: added, removed: removed, modified: modified)
     }
 
     // swiftlint:disable:next function_body_length
@@ -155,7 +155,7 @@ extension BackupDiffService {
             }
         }
 
-        return EntityDiff(entityType: "CDLesson", added: added, removed: removed, modified: modified)
+        return EntityDiff(entityType: "Lesson", added: added, removed: removed, modified: modified)
     }
 
     func analyzeNoteDiff(
@@ -213,7 +213,7 @@ extension BackupDiffService {
             }
         }
 
-        return EntityDiff(entityType: "CDNote", added: added, removed: removed, modified: modified)
+        return EntityDiff(entityType: "Note", added: added, removed: removed, modified: modified)
     }
 
     func analyzeCalendarDiff(
@@ -318,7 +318,7 @@ extension BackupDiffService {
                 )
             }
 
-        return EntityDiff(entityType: "CDProject", added: added, removed: removed, modified: [])
+        return EntityDiff(entityType: "Project", added: added, removed: removed, modified: [])
     }
 
     func analyzeAttendanceDiff(

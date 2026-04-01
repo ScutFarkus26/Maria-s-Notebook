@@ -368,7 +368,7 @@ extension UnifiedPresentationWorkflowPanel {
 
                     // Completion note
                     WorkflowTextField(
-                        label: "Completion Note",
+                        label: "Completion CDNote",
                         text: Binding(
                             get: { draft.completionNote },
                             set: { newValue in

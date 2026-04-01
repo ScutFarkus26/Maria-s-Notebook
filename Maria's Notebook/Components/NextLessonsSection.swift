@@ -12,7 +12,7 @@ struct NextLessonRow: View {
                 .frame(width: 28)
 
             VStack(alignment: .leading, spacing: 2) {
-                Text(lesson?.name ?? "CDLesson")
+                Text(lesson?.name ?? "Lesson")
                     .font(AppTheme.ScaledFont.titleSmall)
                 if let subject = lesson?.subject, !subject.isEmpty {
                     Text(subject)

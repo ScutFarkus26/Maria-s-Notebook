@@ -37,7 +37,7 @@ enum WorkScheduleDateLogic {
     /// Compute schedule dates from a collection of check-ins.
     /// - Parameter items: All check-ins relevant to a single work item.
     /// - Returns: Normalized primary and optional secondary dates.
-    static func compute(forCheckIns items: [WorkCheckIn]) -> WorkScheduleDates {
+    static func compute(forCheckIns items: [CDWorkCheckIn]) -> WorkScheduleDates {
         // Consider only check-in and due items based on purpose
         let normalized: [(kind: WorkScheduleDateKind, date: Date)] = items.compactMap { item in
             guard let date = item.date else { return nil }

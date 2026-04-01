@@ -1,10 +1,10 @@
 import Foundation
 import CoreData
 
-extension WorkModel {
+extension CDWorkModel {
     /// Mark this work as completed for multiple students at once.
     /// Each student receives an individual historical record.
-    /// Updates both WorkCompletionRecord (new system) and participant.completedAt (legacy system).
+    /// Updates both CDWorkCompletionRecord (new system) and participant.completedAt (legacy system).
     @MainActor
     @discardableResult
     func markCompleted(
@@ -15,7 +15,7 @@ extension WorkModel {
     ) throws -> [CDWorkCompletionRecord] {
         var results: [CDWorkCompletionRecord] = []
         for id in studentIDs {
-            // 1. Create WorkCompletionRecord (new system - preserves history)
+            // 1. Create CDWorkCompletionRecord (new system - preserves history)
             let rec = try WorkCompletionService.markCompleted(
                 workID: self.id ?? UUID(),
                 studentID: id,

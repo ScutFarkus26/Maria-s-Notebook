@@ -9,12 +9,12 @@ import OSLog
 ///
 /// Transformers are organized into domain-specific extensions:
 /// - `BackupDTOTransformers+Core.swift` — CDStudent, CDLesson, CDNote,
-///   LessonAttachment, CDLessonPresentation, CDSampleWork, CDSampleWorkStep
+///   CDLessonAttachment, CDLessonPresentation, CDSampleWork, CDSampleWorkStep
 /// - `BackupDTOTransformers+Work.swift` — CDWorkCheckIn, CDWorkStep,
 ///   WorkParticipant, CDPracticeSession
 /// - `BackupDTOTransformers+Projects.swift` — CDProject, CDProjectSession,
-///   ProjectRole, ProjectTemplateWeek, ProjectWeekRoleAssignment,
-///   CDCommunityTopicEntity, ProposedSolution, CommunityAttachment
+///   CDProjectRole, CDProjectTemplateWeek, CDProjectWeekRoleAssignment,
+///   CDCommunityTopicEntity, CDProposedSolutionEntity, CDCommunityAttachmentEntity
 /// - `BackupDTOTransformers+Misc.swift` — Calendar, Todo, CDTrackEntity,
 ///   CDSupply, CDSchedule, CDIssue, CDProcedure, CDDocument, and remaining types
 enum BackupDTOTransformers {

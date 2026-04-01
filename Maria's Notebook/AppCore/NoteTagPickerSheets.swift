@@ -1,7 +1,7 @@
 import SwiftUI
 import CoreData
 
-// MARK: - Note Tag Picker Sheet
+// MARK: - CDNote Tag Picker Sheet
 
 struct NoteTagPickerSheet: View {
     @Binding var selectedTags: [String]

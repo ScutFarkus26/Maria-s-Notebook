@@ -7,8 +7,8 @@ import CoreData
 struct QuickPracticeSessionSheet: View {
     static let logger = Logger.work
 
-    let workItem: WorkModel
-    var onSave: ((PracticeSession) -> Void)?
+    let workItem: CDWorkModel
+    var onSave: ((CDPracticeSession) -> Void)?
 
     @Environment(\.dismiss) var dismiss
     @Environment(\.managedObjectContext) var modelContext
@@ -53,19 +53,19 @@ struct QuickPracticeSessionSheet: View {
         PracticeSessionRepository(context: modelContext)
     }
 
-    private var studentForWork: Student? {
+    private var studentForWork: CDStudent? {
         guard let studentID = UUID(uuidString: workItem.studentID) else { return nil }
         return allStudents.first { $0.id == studentID }
     }
 
     // Co-learners for this work item (suggested partners)
-    var suggestedPartners: [Student] {
+    var suggestedPartners: [CDStudent] {
         guard let lessonUUID = UUID(uuidString: workItem.lessonID),
               let studentUUID = UUID(uuidString: workItem.studentID) else {
             return []
         }
 
-        // Find co-learners from LessonAssignment
+        // Find co-learners from CDLessonAssignment
         let lessonAssignment = allLessonAssignments.first { la in
             la.lessonIDUUID == lessonUUID &&
             la.studentUUIDs.contains(studentUUID)
@@ -170,7 +170,7 @@ struct QuickPracticeSessionSheet: View {
     private var durationSection: some View {
         VStack(alignment: .leading, spacing: 12) {
             Toggle(isOn: $hasDuration) {
-                Text("Track Duration")
+                Text("CDTrackEntity Duration")
                     .font(AppTheme.ScaledFont.calloutSemibold)
             }
 

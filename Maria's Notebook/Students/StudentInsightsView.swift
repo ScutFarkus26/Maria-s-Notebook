@@ -17,7 +17,7 @@ struct StudentInsightsView: View {
 
     let student: CDStudent
 
-    @State var snapshots: [DevelopmentSnapshot] = []
+    @State var snapshots: [CDDevelopmentSnapshotEntity] = []
     @State var isGenerating = false
     @State var errorMessage: String?
     @State var selectedLookbackDays = 30
@@ -53,7 +53,7 @@ struct StudentInsightsView: View {
             }
             .padding()
         }
-        .navigationTitle("Student Insights")
+        .navigationTitle("CDStudent Insights")
         .task {
             await loadSnapshots()
         }
@@ -71,7 +71,7 @@ struct StudentInsightsView: View {
 
     func loadSnapshots() async {
         let studentIDString = student.id?.uuidString ?? ""
-        let descriptor: NSFetchRequest<DevelopmentSnapshot> = NSFetchRequest(entityName: "DevelopmentSnapshot")
+        let descriptor: NSFetchRequest<CDDevelopmentSnapshotEntity> = NSFetchRequest(entityName: "DevelopmentSnapshot")
         descriptor.predicate = NSPredicate(format: "studentID == %@", studentIDString as CVarArg)
         descriptor.sortDescriptors = [NSSortDescriptor(key: "generatedAt", ascending: false)]
 
@@ -113,7 +113,7 @@ struct StudentInsightsView: View {
         }
     }
 
-    func markAsReviewed(_ snapshot: DevelopmentSnapshot) {
+    func markAsReviewed(_ snapshot: CDDevelopmentSnapshotEntity) {
         snapshot.isReviewed = true
         do {
             try viewContext.save()
@@ -122,7 +122,7 @@ struct StudentInsightsView: View {
         }
     }
 
-    func generateParentSummary(_ snapshot: DevelopmentSnapshot) {
+    func generateParentSummary(_ snapshot: CDDevelopmentSnapshotEntity) {
         Task {
             do {
                 parentSummary = try await dependencies.studentAnalysisService.generateParentSummary(snapshot: snapshot)
@@ -140,13 +140,13 @@ struct StudentInsightsView: View {
     let stack = CoreDataStack.preview
     let ctx = stack.viewContext
 
-    let student = Student(context: ctx)
+    let student = CDStudent(context: ctx)
     student.firstName = "Emma"
     student.lastName = "Johnson"
     student.birthday = Calendar.current.date(byAdding: .year, value: -4, to: Date())!
     student.level = .lower
 
-    let snapshot = DevelopmentSnapshot(context: ctx)
+    let snapshot = CDDevelopmentSnapshotEntity(context: ctx)
     snapshot.studentID = student.id?.uuidString ?? ""
     snapshot.generatedAt = Date()
     snapshot.lookbackDays = 30

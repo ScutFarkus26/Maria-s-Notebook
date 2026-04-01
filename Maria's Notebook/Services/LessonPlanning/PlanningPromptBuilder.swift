@@ -12,7 +12,7 @@ struct PlanningPromptBuilder {
     
     /// Builds the gap analysis prompt that identifies candidate lessons and ranks them.
     /// - Parameters:
-    ///   - profiles: Student readiness profiles (from Step 1)
+    ///   - profiles: CDStudent readiness profiles (from Step 1)
     ///   - curriculum: Compressed curriculum summary
     ///   - preferences: Optional teacher preferences (e.g., "focus on math", "skip sensorial")
     /// - Returns: Prompt string for the gap analysis API call
@@ -76,7 +76,7 @@ struct PlanningPromptBuilder {
     /// Builds the plan synthesis prompt that schedules candidates into days.
     /// - Parameters:
     ///   - candidateJSON: JSON string of recommendations from Step 2
-    ///   - students: Student names for context
+    ///   - students: CDStudent names for context
     ///   - weekStart: Start date of the planning week
     /// - Returns: Prompt string for the plan synthesis API call
     static func buildPlanSynthesisPrompt(

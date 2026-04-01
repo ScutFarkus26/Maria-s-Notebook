@@ -5,7 +5,7 @@ import SwiftUI
 import CoreData
 
 struct GoingOutDetailView: View {
-    @ObservedObject var goingOut: GoingOut
+    @ObservedObject var goingOut: CDGoingOut
     @Environment(\.managedObjectContext) private var modelContext
     @State private var showingEditor = false
     @State private var showingNoteEditor = false
@@ -258,7 +258,7 @@ struct GoingOutDetailView: View {
                     HStack(spacing: 4) {
                         Image(systemName: "plus")
                             .font(.caption2)
-                        Text("Add Note")
+                        Text("Add CDNote")
                             .font(.caption)
                     }
                     .foregroundStyle(Color.accentColor)
@@ -266,7 +266,7 @@ struct GoingOutDetailView: View {
                 .buttonStyle(.plain)
             }
 
-            let linkedNotes = (goingOut.observationNotes?.allObjects as? [CDNote]) ?? []
+            let linkedNotes = goingOut.observationNotes
             if linkedNotes.isEmpty {
                 Text("No observation notes yet")
                     .font(.caption)
@@ -297,7 +297,7 @@ struct GoingOutDetailView: View {
     }
 }
 
-// MARK: - Student Chips
+// MARK: - CDStudent Chips
 
 private struct StudentChipsView: View {
     let studentIDs: [UUID]

@@ -8,9 +8,9 @@ struct WorkAgendaDayColumn: View {
     let day: Date
     let availableHeight: CGFloat
     let showPresentations: Bool
-    let onPillTap: (WorkCheckIn) -> Void
+    let onPillTap: (CDWorkCheckIn) -> Void
     let onGroupTap: ((CheckInGroup) -> Void)?
-    let onLessonAssignmentSelect: ((LessonAssignment) -> Void)?
+    let onLessonAssignmentSelect: ((CDLessonAssignment) -> Void)?
 
     // Fetch work check-ins for this day (scheduled status only)
     @FetchRequest private var allCheckIns: FetchedResults<CDWorkCheckIn>
@@ -22,9 +22,9 @@ struct WorkAgendaDayColumn: View {
         day: Date,
         availableHeight: CGFloat,
         showPresentations: Bool = true,
-        onPillTap: @escaping (WorkCheckIn) -> Void,
+        onPillTap: @escaping (CDWorkCheckIn) -> Void,
         onGroupTap: ((CheckInGroup) -> Void)? = nil,
-        onLessonAssignmentSelect: ((LessonAssignment) -> Void)? = nil
+        onLessonAssignmentSelect: ((CDLessonAssignment) -> Void)? = nil
     ) {
         self.day = day
         self.availableHeight = availableHeight
@@ -48,7 +48,7 @@ struct WorkAgendaDayColumn: View {
         )
     }
 
-    private var lessonAssignmentsForDay: [LessonAssignment] {
+    private var lessonAssignmentsForDay: [CDLessonAssignment] {
         let (start, end) = AppCalendar.dayRange(for: day)
         return allLessonAssignments.filter { la in
             guard let scheduledDate = la.scheduledFor else { return false }
@@ -62,19 +62,19 @@ struct WorkAgendaDayColumn: View {
     struct CheckInGroup: Identifiable {
         let id: UUID
         /// All check-ins in this group (same lesson + purpose)
-        let checkIns: [WorkCheckIn]
+        let checkIns: [CDWorkCheckIn]
         let lessonTitle: String
         let studentNames: [String]
         let purpose: String
         let sortDate: Date
 
         /// Representative check-in (first) for actions like drag/tap
-        var primary: WorkCheckIn { checkIns[0] }
+        var primary: CDWorkCheckIn { checkIns[0] }
         var isGrouped: Bool { checkIns.count > 1 }
     }
 
     /// Resolves lesson title for a work's lessonID
-    private func resolvedLessonTitle(for work: WorkModel) -> String {
+    private func resolvedLessonTitle(for work: CDWorkModel) -> String {
         if let lessonID = work.lessonID.asUUID {
             let request = CDFetchRequest(CDLesson.self)
             request.predicate = NSPredicate(format: "id == %@", lessonID as CVarArg)
@@ -83,11 +83,11 @@ struct WorkAgendaDayColumn: View {
                 if !name.isEmpty { return name }
             }
         }
-        return "Lesson \(String(work.lessonID.prefix(6)))"
+        return "CDLesson \(String(work.lessonID.prefix(6)))"
     }
 
     /// Resolves display name for a work's studentID
-    private func resolvedStudentName(for work: WorkModel) -> String {
+    private func resolvedStudentName(for work: CDWorkModel) -> String {
         if let studentID = work.studentID.asUUID {
             let request = CDFetchRequest(CDStudent.self)
             request.predicate = NSPredicate(format: "id == %@", studentID as CVarArg)
@@ -103,8 +103,8 @@ struct WorkAgendaDayColumn: View {
     private var groupedCheckIns: [CheckInGroup] {
         // Resolve work for each check-in, skip any that can't be resolved
         struct Resolved {
-            let checkIn: WorkCheckIn
-            let work: WorkModel
+            let checkIn: CDWorkCheckIn
+            let work: CDWorkModel
             let lessonTitle: String
             let studentName: String
             let groupKey: String  // lessonID + purpose
@@ -182,7 +182,7 @@ struct WorkAgendaDayColumn: View {
 
     private enum CalendarItem: Identifiable {
         case checkInGroup(CheckInGroup)
-        case lessonAssignment(LessonAssignment)
+        case lessonAssignment(CDLessonAssignment)
 
         var id: UUID {
             switch self {
@@ -308,7 +308,7 @@ struct GroupedWorkCheckInPill: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 4) {
             HStack(alignment: .firstTextBaseline, spacing: 6) {
-                // Student count badge
+                // CDStudent count badge
                 Text("\(group.checkIns.count)")
                     .font(AppTheme.ScaledFont.captionSemibold)
                     .foregroundStyle(.white)

@@ -3,7 +3,7 @@ import CoreData
 
 // WorkCompletionService is @MainActor, so we must isolate these convenience methods to MainActor as well.
 @MainActor
-extension WorkModel {
+extension CDWorkModel {
     /// Returns all completion records for this work (optionally filtered by student).
     func completionRecords(for studentID: UUID? = nil, in context: NSManagedObjectContext) throws -> [CDWorkCompletionRecord] {
         try WorkCompletionService.records(for: self.id ?? UUID(), studentID: studentID, in: context)
@@ -36,10 +36,10 @@ extension WorkModel {
         )
     }
 
-    /// Convenience overload using a `Student` instance.
+    /// Convenience overload using a `CDStudent` instance.
     @discardableResult
     func markCompleted(
-        by student: Student,
+        by student: CDStudent,
         note: String = "",
         at date: Date = Date(),
         in context: NSManagedObjectContext

@@ -35,7 +35,7 @@ struct DocumentImportSheet: View {
     var body: some View {
         NavigationStack {
             Form {
-                Section("Document Details") {
+                Section("CDDocument Details") {
                     TextField("Title", text: $title)
                     
                     Picker("Category", selection: $category) {
@@ -45,7 +45,7 @@ struct DocumentImportSheet: View {
                     }
                 }
             }
-            .navigationTitle("Import Document")
+            .navigationTitle("Import CDDocument")
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {
                     Button("Cancel") {
@@ -85,7 +85,7 @@ struct DocumentImportSheet: View {
 #Preview {
     let stack = CoreDataStack.preview
     let ctx = stack.viewContext
-    let student = Student(context: ctx)
+    let student = CDStudent(context: ctx)
     student.firstName = "Alan"
     student.lastName = "Turing"
     student.birthday = Date(timeIntervalSince1970: 0)

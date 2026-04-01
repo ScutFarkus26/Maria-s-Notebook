@@ -9,7 +9,7 @@ enum PredicateHelpers {
         NSPredicate(format: "id == %@", workID as CVarArg)
     }
 
-    /// Creates a predicate for matching a student ID in a LessonAssignment.
+    /// Creates a predicate for matching a student ID in a CDLessonAssignment.
     static func studentID(_ studentID: UUID) -> NSPredicate {
         let idString = studentID.uuidString
         return NSPredicate(format: "studentIDs CONTAINS %@", idString)
@@ -20,7 +20,7 @@ enum PredicateHelpers {
         NSPredicate(format: "id IN %@", workIDs as CVarArg)
     }
 
-    /// Creates a predicate for matching a lesson ID in a LessonAssignment.
+    /// Creates a predicate for matching a lesson ID in a CDLessonAssignment.
     static func lessonID(_ lessonID: UUID) -> NSPredicate {
         let idString = lessonID.uuidString
         return NSPredicate(format: "lessonID == %@", idString)

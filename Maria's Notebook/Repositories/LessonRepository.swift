@@ -2,7 +2,7 @@
 //  LessonRepository.swift
 //  Maria's Notebook
 //
-//  Repository for Lesson entity CRUD operations.
+//  Repository for CDLesson entity CRUD operations.
 //
 
 import Foundation
@@ -25,7 +25,7 @@ struct LessonRepository: SavingRepository {
 
     // MARK: - Fetch
 
-    /// Fetch a Lesson by ID
+    /// Fetch a CDLesson by ID
     func fetchLesson(id: UUID) -> CDLesson? {
         let request = CDFetchRequest(CDLesson.self)
         request.predicate = NSPredicate(format: "id == %@", id as CVarArg)
@@ -70,7 +70,7 @@ struct LessonRepository: SavingRepository {
 
     // MARK: - Create
 
-    /// Create a new Lesson
+    /// Create a new CDLesson
     @discardableResult
     func createLesson(
         name: String,
@@ -156,7 +156,7 @@ struct LessonRepository: SavingRepository {
 
     // MARK: - Delete
 
-    /// Delete a Lesson by ID
+    /// Delete a CDLesson by ID
     func deleteLesson(id: UUID) throws {
         guard let lesson = fetchLesson(id: id) else { return }
         context.delete(lesson)

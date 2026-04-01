@@ -63,7 +63,7 @@ struct PlanningWeekViewiOS: View {
         #endif
         
         // Fetch unscheduled inbox lessons (migrated to CDLessonAssignment)
-        let inboxDescriptor: NSFetchRequest<CDLessonAssignment> = NSFetchRequest(entityName: "CDLessonAssignment")
+        let inboxDescriptor: NSFetchRequest<CDLessonAssignment> = NSFetchRequest(entityName: "LessonAssignment")
         inboxDescriptor.predicate = NSPredicate(format: "scheduledFor == nil AND presentedAt == nil")
         inboxDescriptor.sortDescriptors = [NSSortDescriptor(key: "createdAt", ascending: true)]
         do {
@@ -74,7 +74,7 @@ struct PlanningWeekViewiOS: View {
         }
 
         // Fetch all lessons (needed for lookups and relationships)
-        let lessonsDescriptor: NSFetchRequest<CDLesson> = NSFetchRequest(entityName: "CDLesson")
+        let lessonsDescriptor: NSFetchRequest<CDLesson> = NSFetchRequest(entityName: "Lesson")
         lessonsDescriptor.sortDescriptors = [NSSortDescriptor(key: "name", ascending: true)]
         do {
             lessons = try viewContext.fetch(lessonsDescriptor)
@@ -84,7 +84,7 @@ struct PlanningWeekViewiOS: View {
         }
 
         // Fetch all students (needed for relationships)
-        let studentsDescriptor: NSFetchRequest<CDStudent> = NSFetchRequest(entityName: "CDStudent")
+        let studentsDescriptor: NSFetchRequest<CDStudent> = NSFetchRequest(entityName: "Student")
         studentsDescriptor.sortDescriptors = [
                 NSSortDescriptor(key: "lastName", ascending: true),
                 NSSortDescriptor(key: "firstName", ascending: true)
@@ -135,7 +135,7 @@ struct PlanningWeekViewiOS: View {
 
         // 1) Explicit non-school day wins
         do {
-            var nsDescriptor = { let r = NSFetchRequest<CDNonSchoolDay>(entityName: "CDNonSchoolDay"); r.predicate = NSPredicate(format: "date == %@", day as CVarArg); r.fetchLimit = 0; return r }()
+            var nsDescriptor = { let r = NSFetchRequest<CDNonSchoolDay>(entityName: "NonSchoolDay"); r.predicate = NSPredicate(format: "date == %@", day as CVarArg); r.fetchLimit = 0; return r }()
             nsDescriptor.fetchLimit = 1
             let nonSchoolDays: [CDNonSchoolDay] = try viewContext.fetch(nsDescriptor)
             if !nonSchoolDays.isEmpty { return true }
@@ -150,7 +150,7 @@ struct PlanningWeekViewiOS: View {
 
         // 3) Weekend override makes it a school day
         do {
-            var ovDescriptor = { let r = NSFetchRequest<CDSchoolDayOverride>(entityName: "CDSchoolDayOverride"); r.predicate = NSPredicate(format: "date == %@", day as CVarArg); r.fetchLimit = 0; return r }()
+            var ovDescriptor = { let r = NSFetchRequest<CDSchoolDayOverride>(entityName: "SchoolDayOverride"); r.predicate = NSPredicate(format: "date == %@", day as CVarArg); r.fetchLimit = 0; return r }()
             ovDescriptor.fetchLimit = 1
             let overrides: [CDSchoolDayOverride] = try viewContext.fetch(ovDescriptor)
             if !overrides.isEmpty { return false }
@@ -172,7 +172,7 @@ struct PlanningWeekViewiOS: View {
         let today = calendar.startOfDay(for: Date())
         
         // Fetch only future scheduled lessons to find the next one (using CDLessonAssignment)
-        var descriptor: NSFetchRequest<CDLessonAssignment> = NSFetchRequest(entityName: "CDLessonAssignment")
+        var descriptor: NSFetchRequest<CDLessonAssignment> = NSFetchRequest(entityName: "LessonAssignment")
         descriptor.predicate = NSPredicate(format: "scheduledFor != nil AND presentedAt == nil")
         descriptor.sortDescriptors = [NSSortDescriptor(key: "scheduledFor", ascending: true)]
         descriptor.fetchLimit = 1

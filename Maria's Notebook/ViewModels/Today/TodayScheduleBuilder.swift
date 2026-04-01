@@ -31,10 +31,10 @@ enum TodayScheduleBuilder {
     // - Returns: A ScheduleResult containing overdue, today, and stale items
     // swiftlint:disable:next function_parameter_count
     static func buildSchedule(
-        workItems: [WorkModel],
-        checkInsByWork: [UUID: [WorkCheckIn]],
-        notesByWork: [UUID: [Note]],
-        studentsByID: [UUID: Student],
+        workItems: [CDWorkModel],
+        checkInsByWork: [UUID: [CDWorkCheckIn]],
+        notesByWork: [UUID: [CDNote]],
+        studentsByID: [UUID: CDStudent],
         levelFilter: LevelFilter,
         referenceDate: Date,
         context: NSManagedObjectContext

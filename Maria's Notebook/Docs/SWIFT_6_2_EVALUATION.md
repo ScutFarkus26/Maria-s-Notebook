@@ -47,7 +47,7 @@ These patterns currently run off the main actor and must be explicitly opted out
 3. **File I/O operations**
    - `LessonFileStorage.migrateToICloudDrive()`
    - `BackupService.verifyExport()`
-   - `SwiftDataMigrationService.performMigration()` (already async)
+   - `MigrationRunner.runIfNeeded()` (already async)
 
 4. **CloudKit operations**
    - `ClassroomSharingService` share/accept operations
@@ -107,7 +107,7 @@ When ready to enable module-level @MainActor:
 
 ### 4. Verify Background Work
 - [ ] `NSManagedObjectContext.perform { }` blocks work correctly
-- [ ] Batch save operations in `SwiftDataMigrationService` work off main thread
+- [ ] Batch save operations in `MigrationRunner` work off main thread
 - [ ] History processing in `PersistentHistoryProcessor` remains nonisolated
 
 ### 5. Test

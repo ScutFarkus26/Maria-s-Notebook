@@ -21,7 +21,7 @@ struct LessonRelationshipsSection: View {
             ForEach(resolvedLessons) { lesson in
                 HStack(spacing: AppTheme.Spacing.small) {
                     Text("•").font(AppTheme.ScaledFont.body)
-                    Text(lesson.name.isEmpty ? "Untitled Lesson" : lesson.name)
+                    Text(lesson.name.isEmpty ? "Untitled CDLesson" : lesson.name)
                         .font(AppTheme.ScaledFont.body)
                     if !lesson.subject.isEmpty {
                         Text("(\(lesson.subject))")
@@ -41,7 +41,7 @@ struct LessonRelationshipsSection: View {
 
     private var resolvedLessons: [CDLesson] {
         lessonIDs.compactMap { id in
-            var descriptor = { let r = NSFetchRequest<CDLesson>(entityName: "CDLesson"); r.predicate = NSPredicate(format: "id == %@", id as CVarArg); r.fetchLimit = 0; return r }()
+            var descriptor = { let r = NSFetchRequest<CDLesson>(entityName: "Lesson"); r.predicate = NSPredicate(format: "id == %@", id as CVarArg); r.fetchLimit = 0; return r }()
             descriptor.fetchLimit = 1
             return viewContext.safeFetchFirst(descriptor)
         }

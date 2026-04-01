@@ -8,7 +8,7 @@ import SwiftUI
 
 // MARK: - Core Data Entity
 
-@objc(AttendanceRecord)
+@objc(CDAttendanceRecord)
 public class CDAttendanceRecord: NSManagedObject {
     // MARK: - Core Data Properties
     @NSManaged public var id: UUID?

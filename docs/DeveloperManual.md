@@ -1,9 +1,9 @@
 # Maria's Notebook — Developer Technical Reference Manual
 
 **Version:** March 2026
-**Platform:** iOS 17+ / macOS 14+
-**Framework:** SwiftUI + SwiftData
-**Language:** Swift 5.9+
+**Platform:** iOS 26+ / macOS 26+
+**Framework:** SwiftUI + Core Data
+**Language:** Swift 6.0+
 
 ---
 
@@ -11,7 +11,7 @@
 
 ## What the App Is
 
-Maria's Notebook is a Montessori teacher's all-in-one classroom management app. It tracks students, lessons, presentations, student work, attendance, observations, scheduling, curriculum progression, and more. It runs natively on iOS and macOS using SwiftUI, with SwiftData for persistence and optional CloudKit for iCloud sync.
+Maria's Notebook is a Montessori teacher's all-in-one classroom management app. It tracks students, lessons, presentations, student work, attendance, observations, scheduling, curriculum progression, and more. It runs natively on iOS and macOS using SwiftUI, with Core Data (NSPersistentCloudKitContainer) for persistence and optional CloudKit for iCloud sync.
 
 ## High-Level Module Map
 
@@ -66,7 +66,7 @@ The app follows a layered MVVM architecture with a service layer:
 
 ```
 SwiftUI View
-    |  Binds to (via @Observable or @Query)
+    |  Binds to (via @Observable or @FetchRequest)
     v
 ViewModel (@Observable, @MainActor)
     |  Calls methods on
@@ -77,7 +77,7 @@ Service (business logic, @MainActor)
 Repository (type-safe CRUD, uses SaveCoordinator)
     |  Reads/writes via
     v
-SwiftData ModelContext
+NSManagedObjectContext
     |  Syncs via (optional)
     v
 CloudKit (iCloud)
@@ -85,10 +85,10 @@ CloudKit (iCloud)
 
 **When to use each layer:**
 
-- **View with @Query**: Simple list screens where the data maps directly to what's displayed. No transformation needed.
+- **View with @FetchRequest**: Simple list screens where the data maps directly to what's displayed. No transformation needed.
 - **View with ViewModel**: Screens that combine multiple data sources, compute derived state, or need complex filtering/sorting. Examples: TodayView, GiveLessonViewModel.
 - **Service**: Reusable business logic called from multiple ViewModels or other services. Examples: LifecycleService (work state transitions), FollowUpInboxEngine (inbox categorization).
-- **Repository**: Type-safe CRUD operations for a single model. Wraps SwiftData queries with error handling and SaveCoordinator integration.
+- **Repository**: Type-safe CRUD operations for a single entity. Wraps Core Data queries with error handling and SaveCoordinator integration.
 
 ---
 
@@ -116,7 +116,7 @@ The body provides:
 
 - A `WindowGroup` with the main content
 - On macOS, additional `Window` groups for detail views (Work, Student, Lesson windows opened via `openWindow`)
-- The `ModelContainer` is injected as an environment object
+- The Core Data stack (`NSPersistentCloudKitContainer`) is injected as an environment object
 - `SaveCoordinator`, `RestoreCoordinator`, `ErrorCoordinator`, `AppRouter`, and `AppDependencies` are injected into the environment
 
 ### Async Bootstrap (`.task` modifier)
@@ -124,7 +124,7 @@ The body provides:
 After the UI appears (showing a splash screen), the `.task` block runs:
 
 ```
-AppBootstrapper.bootstrap(modelContainer:)
+AppBootstrapper.bootstrap(coreDataStack:)
     |
     +-- State: .initializingContainer
     |   +-- Set up AppCalendar with correct timezone
@@ -386,16 +386,16 @@ dependencies.dataQueryService      // Complex queries
 
 ## CloudKit Compatibility Rules
 
-Every model in the app must follow these rules for CloudKit sync compatibility:
+Every entity in the app must follow these rules for CloudKit sync compatibility:
 
 ### Rule 1: String UUIDs, Not UUID Type
 
 ```swift
-// CORRECT
-@Attribute var studentID: String = ""
+// CORRECT — String attribute in Core Data model
+@NSManaged public var studentID: String
 
 // WRONG - CloudKit can't handle UUID type reliably
-@Attribute var studentID: UUID = UUID()
+@NSManaged public var studentID: UUID
 ```
 
 All foreign key references use `String` to store UUID values. Convert with `UUID(uuidString: studentID)` when needed.
@@ -404,57 +404,59 @@ All foreign key references use `String` to store UUID values. Convert with `UUID
 
 ```swift
 // CORRECT
-@Attribute var statusRaw: String = WorkStatus.active.rawValue
+@NSManaged public var statusRaw: String
 var status: WorkStatus {
     get { WorkStatus(rawValue: statusRaw) ?? .active }
     set { statusRaw = newValue.rawValue }
 }
 
 // WRONG - CloudKit can't handle enums directly
-@Attribute var status: WorkStatus = .active
+// (no enum attribute type in Core Data model editor)
 ```
 
 The pattern is: store a `*Raw: String` property, provide a computed property for type-safe access.
 
-### Rule 3: No @Attribute(.unique)
+### Rule 3: No Unique Constraints
 
-CloudKit creates duplicate records during merge conflicts. The `@Attribute(.unique)` constraint would crash. Instead, the app uses a deduplication service that runs periodically to clean up duplicates.
+CloudKit creates duplicate records during merge conflicts. Unique constraints would crash. Instead, the app uses a deduplication service that runs periodically to clean up duplicates.
 
 ### Rule 4: External Storage for Large Data
 
+In the Core Data model editor, enable "Allows External Storage" for Binary Data attributes.
+
 ```swift
-@Attribute(.externalStorage) var pagesFileBookmark: Data?
+@NSManaged public var pagesFileBookmark: Data?
 ```
 
 Data larger than ~100KB should use external storage to avoid bloating the SQLite database.
 
-### Rule 5: String Foreign Keys, Not @Relationship
+### Rule 5: String Foreign Keys, Not Core Data Relationships
 
 ```swift
 // CORRECT - resilient to sync ordering
-@Attribute var studentID: String = ""
+@NSManaged public var studentID: String
 
 // RISKY - can orphan if student syncs after work item
-@Relationship var student: Student?
+// @NSManaged public var student: CDStudent?  (relationship)
 ```
 
 Relationships are resolved at query time, not enforced at the schema level. This prevents orphaning when CloudKit syncs records in unpredictable order.
 
 ### Rule 6: modifiedAt for Conflict Resolution
 
-Every model includes:
+Every entity includes:
 
 ```swift
-@Attribute var modifiedAt: Date = Date()
+@NSManaged public var modifiedAt: Date
 ```
 
 This timestamp is used for last-writer-wins conflict resolution during CloudKit sync.
 
-## Core Models
+## Core Entities (60 Core Data entities)
 
-### Student
+### CDStudent
 
-**File:** `Students/StudentModel.swift`
+**File:** `Students/StudentEntity.swift`
 
 | Field | Type | Purpose |
 |-------|------|---------|
@@ -471,11 +473,11 @@ This timestamp is used for last-writer-wins conflict resolution during CloudKit 
 
 **Indexes:** `[levelRaw, manualOrder, modifiedAt, enrollmentStatusRaw]`
 
-**Inverse Relationships:** `documents: [Document]?`
+**Inverse Relationships:** `documents: [CDDocument]?`
 
-### Lesson
+### CDLesson
 
-**File:** `Lessons/LessonModel.swift`
+**File:** `Lessons/LessonEntity.swift`
 
 | Field | Type | Purpose |
 |-------|------|---------|
@@ -502,7 +504,7 @@ This timestamp is used for last-writer-wins conflict resolution during CloudKit 
 
 **Indexes:** `[subject, sortIndex], [name]`
 
-### LessonAssignment (Presentation)
+### CDLessonAssignment (Presentation)
 
 **File:** `Models/Presentation.swift`
 
@@ -541,9 +543,9 @@ Once a presentation reaches `presented`, the `lessonTitleSnapshot` and `lessonSu
 
 **Indexes:** `[stateRaw], [scheduledForDay], [presentedAt], [lessonID]`
 
-### WorkModel
+### CDWorkModel
 
-**File:** `Work/WorkModel.swift`
+**File:** `Work/WorkModelEntity.swift`
 
 | Field | Type | Purpose |
 |-------|------|---------|
@@ -565,10 +567,10 @@ Once a presentation reaches `presented`, the `lessonTitleSnapshot` and `lessonSu
 | `sourceContextID` | `String?` | Origin ID |
 
 **Relationships:**
-- `participants: [WorkParticipantEntity]` — individual student progress in group work
-- `checkIns: [WorkCheckIn]` — progress check-in records
-- `steps: [WorkStep]` — step-by-step breakdown
-- `unifiedNotes: [Note]` — attached observations
+- `participants: [CDWorkParticipant]` — individual student progress in group work
+- `checkIns: [CDWorkCheckIn]` — progress check-in records
+- `steps: [CDWorkStep]` — step-by-step breakdown
+- `unifiedNotes: [CDNote]` — attached observations
 
 **Compound Indexes:** `[studentID, statusRaw], [statusRaw, dueAt], [presentationID], [completedAt]`
 
@@ -583,9 +585,9 @@ active ──> review ──> complete
        (skip review)
 ```
 
-### Note
+### CDNote
 
-**File:** `Models/Note.swift`
+**File:** `Models/NoteEntity.swift`
 
 | Field | Type | Purpose |
 |-------|------|---------|
@@ -616,68 +618,68 @@ enum NoteScope: Codable {
 }
 ```
 
-Multi-student notes use a junction table (`NoteStudentLink`) to enable efficient per-student queries.
+Multi-student notes use a junction table (`CDNoteStudentLink`) to enable efficient per-student queries.
 
 **Indexes:** `[createdAt], [searchIndexStudentID], [scopeIsAll]`
 
 ### Model Relationship Map
 
 ```
-Student ←── studentID ──── LessonAssignment ───── lessonID ──→ Lesson
-   |                            |                                |
-   |                       presentationID                        |
-   |                            |                                |
-   +←── studentID ──── WorkModel ───── lessonID ────────────────+
+CDStudent ←── studentID ──── CDLessonAssignment ───── lessonID ──→ CDLesson
+   |                              |                                   |
+   |                         presentationID                           |
+   |                              |                                   |
+   +←── studentID ──── CDWorkModel ───── lessonID ───────────────────+
    |                       |
-   |                  participants → WorkParticipantEntity
-   |                  checkIns    → WorkCheckIn
-   |                  steps       → WorkStep
-   |                  notes       → Note
+   |                  participants → CDWorkParticipant
+   |                  checkIns    → CDWorkCheckIn
+   |                  steps       → CDWorkStep
+   |                  notes       → CDNote
    |
-   +←── scope ──────── Note
+   +←── scope ──────── CDNote
    |
-   +←── studentID ──── PracticeSession ── lessonID ──→ Lesson
+   +←── studentID ──── CDPracticeSession ── lessonID ──→ CDLesson
    |
-   +←── studentID ──── AttendanceRecord
+   +←── studentID ──── CDAttendanceRecord
    |
-   +←── studentID ──── StudentMeeting
+   +←── studentID ──── CDStudentMeeting
    |
-   +←── enrollment ─── StudentTrackEnrollment ── trackID ──→ Track
-                                                               |
-                                                          steps → TrackStep
+   +←── enrollment ─── CDStudentTrackEnrollment ── trackID ──→ CDTrack
+                                                                  |
+                                                             steps → CDTrackStep
 ```
 
-### Other Models (Quick Reference)
+### Other Entities (Quick Reference)
 
-| Model | Purpose |
-|-------|---------|
-| `PracticeSession` | Records practice with quality, duration, method |
-| `AttendanceRecord` | Daily present/tardy/absent per student |
-| `TodoItem` | Teacher tasks with subtasks, due dates, tags |
-| `TodoSubtask` | Checklist items within a todo |
-| `Reminder` | EventKit-synced reminders |
-| `Schedule` / `ScheduleSlot` | Weekly schedule templates |
-| `CalendarEvent` | Calendar integration events |
-| `NonSchoolDay` / `SchoolDayOverride` | Calendar exceptions |
-| `StudentMeeting` | One-on-one meetings with outcomes |
-| `MeetingTemplate` | Reusable meeting structures |
-| `Project` / `ProjectSession` | Project-based learning |
-| `Track` / `TrackStep` | Curriculum progression paths |
-| `GroupTrack` | Group variations of tracks |
-| `StudentTrackEnrollment` | Student enrollment in tracks |
-| `Supply` / `SupplyTransaction` | Classroom inventory |
-| `CommunityTopic` / `ProposedSolution` | Community discussions |
-| `Document` | Learning resources |
-| `Issue` / `IssueAction` | Issue tracking |
-| `Procedure` | Standard procedures |
-| `NoteTemplate` | Reusable observation templates |
-| `LessonAttachment` | Files attached to lessons |
-| `LessonPresentation` | Per-student mastery tracking |
-| `AlbumGroupOrder` / `AlbumGroupUIState` | UI state persistence |
-| `TodayAgendaOrder` | Custom agenda ordering |
-| `DevelopmentSnapshot` | Progress snapshots |
-| `PlanningRecommendation` | AI recommendations |
-| `WorkCompletionRecord` | Historical completion tracking |
+| Entity | Purpose |
+|--------|---------|
+| `CDPracticeSession` | Records practice with quality, duration, method |
+| `CDAttendanceRecord` | Daily present/tardy/absent per student |
+| `CDTodoItem` | Teacher tasks with subtasks, due dates, tags |
+| `CDTodoSubtask` | Checklist items within a todo |
+| `CDReminder` | EventKit-synced reminders |
+| `CDSchedule` / `CDScheduleSlot` | Weekly schedule templates |
+| `CDCalendarEvent` | Calendar integration events |
+| `CDNonSchoolDay` / `CDSchoolDayOverride` | Calendar exceptions |
+| `CDStudentMeeting` | One-on-one meetings with outcomes |
+| `CDMeetingTemplate` | Reusable meeting structures |
+| `CDProject` / `CDProjectSession` | Project-based learning |
+| `CDTrack` / `CDTrackStep` | Curriculum progression paths |
+| `CDGroupTrack` | Group variations of tracks |
+| `CDStudentTrackEnrollment` | Student enrollment in tracks |
+| `CDSupply` / `CDSupplyTransaction` | Classroom inventory |
+| `CDCommunityTopic` / `CDProposedSolution` | Community discussions |
+| `CDDocument` | Learning resources |
+| `CDIssue` / `CDIssueAction` | Issue tracking |
+| `CDProcedure` | Standard procedures |
+| `CDNoteTemplate` | Reusable observation templates |
+| `CDLessonAttachment` | Files attached to lessons |
+| `CDLessonPresentation` | Per-student mastery tracking |
+| `CDAlbumGroupOrder` / `CDAlbumGroupUIState` | UI state persistence |
+| `CDTodayAgendaOrder` | Custom agenda ordering |
+| `CDDevelopmentSnapshot` | Progress snapshots |
+| `CDPlanningRecommendation` | AI recommendations |
+| `CDWorkCompletionRecord` | Historical completion tracking |
 
 ---
 
@@ -691,7 +693,7 @@ A factory struct that creates type-safe repositories:
 
 ```swift
 @MainActor struct RepositoryContainer {
-    let context: ModelContext
+    let context: NSManagedObjectContext
     let saveCoordinator: SaveCoordinator?
 
     var students: StudentRepository { ... }
@@ -715,8 +717,8 @@ Repositories conform to `SavingRepository`:
 
 ```swift
 protocol SavingRepository {
-    associatedtype Model: PersistentModel
-    var context: ModelContext { get }
+    associatedtype Entity: NSManagedObject
+    var context: NSManagedObjectContext { get }
     var saveCoordinator: SaveCoordinator? { get }
 }
 ```
@@ -728,11 +730,11 @@ Using `StudentRepository` as an example:
 ```swift
 struct StudentRepository: SavingRepository {
     // Fetch
-    func fetchStudent(id: UUID) -> Student?
-    func fetchStudents(predicate:, sortBy:) -> [Student]
+    func fetchStudent(id: UUID) -> CDStudent?
+    func fetchStudents(predicate:, sortBy:) -> [CDStudent]
 
     // Create
-    func createStudent(firstName:, lastName:, ...) -> Student
+    func createStudent(firstName:, lastName:, ...) -> CDStudent
 
     // Update
     func updateStudent(id:, firstName:, ...) -> Bool
@@ -749,8 +751,8 @@ struct StudentRepository: SavingRepository {
 
 ```swift
 // Story format support
-func fetchRootStories() -> [Lesson]
-func fetchChildStories(parentID: String) -> [Lesson]
+func fetchRootStories() -> [CDLesson]
+func fetchChildStories(parentID: String) -> [CDLesson]
 ```
 
 ## SaveCoordinator
@@ -845,10 +847,10 @@ Categorizes pending work and follow-ups into an actionable inbox.
 
 ```swift
 struct ComputeContext {
-    let lessonsByID: [UUID: Lesson]
-    let studentsByID: [UUID: Student]
-    let openWorkModels: [WorkModel]
-    let checkInsByWorkID: [UUID: [WorkCheckIn]]
+    let lessonsByID: [UUID: CDLesson]
+    let studentsByID: [UUID: CDStudent]
+    let openWorkModels: [CDWorkModel]
+    let checkInsByWorkID: [UUID: [CDWorkCheckIn]]
     let nonSchoolDaysSet: Set<Date>
 }
 ```
@@ -893,7 +895,7 @@ Orchestrates AI chat sessions with classroom context.
 
 ### ReminderSyncService (macOS)
 
-**Purpose:** Two-way sync between the app's `Reminder` model and macOS Reminders (EventKit).
+**Purpose:** Two-way sync between the app's `CDReminder` entity and macOS Reminders (EventKit).
 
 - Creates/updates/deletes reminders in both directions
 - Respects EventKit permissions
@@ -1086,7 +1088,7 @@ The largest module. Manages the complete lifecycle of student work items.
 
 ### Work Check-Ins
 
-`WorkCheckIn` records periodic progress notes. Check-in style can be:
+`CDWorkCheckIn` records periodic progress notes. Check-in style can be:
 
 - **Individual** — per-student in group work
 - **Group** — single check-in for all participants
@@ -1094,11 +1096,11 @@ The largest module. Manages the complete lifecycle of student work items.
 
 ### Multi-Student Work
 
-`WorkParticipantEntity` tracks individual student progress within a group work item. Each participant can have their own completion state.
+`CDWorkParticipant` tracks individual student progress within a group work item. Each participant can have their own completion state.
 
 ### Practice Sessions
 
-`PracticeSession` records practice with:
+`CDPracticeSession` records practice with:
 - Quality metric (rating)
 - Duration
 - Method (independent, partnered, etc.)
@@ -1129,7 +1131,7 @@ draft → presented (skip scheduling, direct recording)
 
 ### Mastery Tracking
 
-`LessonPresentation` tracks per-student mastery:
+`CDLessonPresentation` tracks per-student mastery:
 
 ```
 presented → practicing → readyForAssessment → proficient
@@ -1176,7 +1178,7 @@ Quick actions: reschedule, mark complete, open detail, assign work.
 
 ## Notes Module
 
-**Across:** `Models/Note.swift`, `Components/ObservationsView.swift`, `Components/NotesSection.swift`
+**Across:** `Models/NoteEntity.swift`, `Components/ObservationsView.swift`, `Components/NotesSection.swift`
 
 Universal observation system. Notes can be:
 
@@ -1188,12 +1190,12 @@ Universal observation system. Notes can be:
 
 ## Todos Module
 
-**Across:** `Models/TodoItem.swift`, various views
+**Across:** `Models/TodoItemEntity.swift`, various views
 
 Teacher task management with:
 
 - **Smart parsing** (`TodoSmartParserService`) — natural language input
-- **Subtasks** (`TodoSubtask`) — checklist within a todo
+- **Subtasks** (`CDTodoSubtask`) — checklist within a todo
 - **Tags** — categorization
 - **Due dates** — with overdue tracking
 - **Notifications** (`TodoNotificationService`) — local notifications
@@ -1253,19 +1255,19 @@ Additional AI services:
 
 ## Safe Fetch Pattern
 
-**File:** `Utils/ModelContext+SafeFetch.swift`
+**File:** `Utils/NSManagedObjectContext+SafeFetch.swift`
 
 The most important utility in the app. Every database query should use these:
 
 ```swift
 // Returns empty array on error (never throws)
-context.safeFetch(descriptor) -> [T]
+context.safeFetch(request) -> [T]
 
 // Returns nil on error or not found
-context.safeFetchFirst(descriptor) -> T?
+context.safeFetchFirst(request) -> T?
 
 // Throws but deduplicates automatically (CloudKit fix)
-context.fetchUnique(descriptor) -> [T]
+context.fetchUnique(request) -> [T]
 ```
 
 `fetchUnique` uses the `.uniqueByID` collection extension to handle CloudKit-created duplicates.
@@ -1276,7 +1278,7 @@ context.fetchUnique(descriptor) -> [T]
 
 ```swift
 // Create lookup dictionary from identifiable array
-[Student].dictionaryByID() -> [UUID: Student]
+[CDStudent].dictionaryByID() -> [UUID: CDStudent]
 
 // More readable emptiness check
 array.isNotEmpty -> Bool
@@ -1307,8 +1309,8 @@ array.partitioned(by: predicate) -> (matching: [T], rest: [T])
 |------|---------|
 | `Array+SafeAccess.swift` | Bounds-checked array access |
 | `Dictionary+InsertIfAbsent.swift` | Conditional dictionary insertion |
-| `ModelContext+SafeSave.swift` | Safe save with error handling |
-| `PredicateHelpers.swift` | Common predicate builders |
+| `NSManagedObjectContext+SafeSave.swift` | Safe save with error handling |
+| `PredicateHelpers.swift` | Common NSPredicate builders |
 | `ValidationHelpers.swift` | Input validation |
 | `CSVUtils.swift` | CSV parsing and generation |
 | `AgeUtils.swift` | Age calculation from birthday |
@@ -1325,33 +1327,46 @@ array.partitioned(by: predicate) -> (matching: [T], rest: [T])
 
 # Part 10: How-To Reference
 
-## Adding a New Model
+## Adding a New Entity
 
-1. **Create the model file** in the appropriate feature directory or `Models/`:
+1. **Add the entity in the Core Data model editor** (`MariasNotebook.xcdatamodeld`) with attributes.
+
+2. **Create the NSManagedObject subclass** in the appropriate feature directory or `Models/`:
 
 ```swift
-@Model final class MyNewModel {
-    @Attribute var id: UUID = UUID()
-    @Attribute var name: String = ""
-    @Attribute var statusRaw: String = "active"  // Raw enum
-    @Attribute var studentID: String = ""          // String UUID
-    @Attribute var modifiedAt: Date = Date()       // CloudKit conflict resolution
+public class CDMyNewEntity: NSManagedObject {
+    @NSManaged public var id: UUID
+    @NSManaged public var name: String
+    @NSManaged public var statusRaw: String
+    @NSManaged public var studentID: String
+    @NSManaged public var modifiedAt: Date
 
     // Computed enum access
     var status: MyStatus {
         get { MyStatus(rawValue: statusRaw) ?? .active }
         set { statusRaw = newValue.rawValue }
     }
+
+    // Core Data creation pattern
+    static func create(in context: NSManagedObjectContext) -> CDMyNewEntity {
+        let entity = CDMyNewEntity(context: context)
+        entity.id = UUID()
+        entity.name = ""
+        entity.statusRaw = "active"
+        entity.studentID = ""
+        entity.modifiedAt = Date()
+        return entity
+    }
 }
 ```
 
-2. **Follow CloudKit rules**: string UUIDs, raw enums, no `@Attribute(.unique)`, `modifiedAt` timestamp.
+2. **Follow CloudKit rules**: string UUIDs, raw enums, no unique constraints, `modifiedAt` timestamp.
 
-3. **Add indexes** for frequently queried fields.
+3. **Add indexes** for frequently queried fields in the model editor.
 
-4. **Register in the app schema** — add to the model list in the schema configuration.
+4. **Register in the Core Data model** — add the entity to `MariasNotebook.xcdatamodeld`.
 
-5. **Run migrations** if modifying an existing model's schema.
+5. **Add a lightweight migration** if modifying an existing entity's schema.
 
 ## Creating a Repository
 
@@ -1359,23 +1374,21 @@ array.partitioned(by: predicate) -> (matching: [T], rest: [T])
 
 ```swift
 @MainActor struct MyNewRepository: SavingRepository {
-    typealias Model = MyNewModel
-    let context: ModelContext
+    typealias Entity = CDMyNewEntity
+    let context: NSManagedObjectContext
     let saveCoordinator: SaveCoordinator?
 
-    func fetchAll() -> [MyNewModel] {
-        let descriptor = FetchDescriptor<MyNewModel>(
-            sortBy: [SortDescriptor(\.name)]
-        )
-        return context.safeFetch(descriptor)
+    func fetchAll() -> [CDMyNewEntity] {
+        let request: NSFetchRequest<CDMyNewEntity> = CDMyNewEntity.fetchRequest()
+        request.sortDescriptors = [NSSortDescriptor(keyPath: \CDMyNewEntity.name, ascending: true)]
+        return context.safeFetch(request)
     }
 
-    func fetch(id: UUID) -> MyNewModel? {
-        var descriptor = FetchDescriptor<MyNewModel>(
-            predicate: #Predicate { $0.id == id }
-        )
-        descriptor.fetchLimit = 1
-        return context.safeFetchFirst(descriptor)
+    func fetch(id: UUID) -> CDMyNewEntity? {
+        let request: NSFetchRequest<CDMyNewEntity> = CDMyNewEntity.fetchRequest()
+        request.predicate = NSPredicate(format: "id == %@", id as CVarArg)
+        request.fetchLimit = 1
+        return context.safeFetchFirst(request)
     }
 
     func save(reason: String? = nil) -> Bool {
@@ -1401,7 +1414,7 @@ var myNew: MyNewRepository {
 
 ```swift
 @MainActor struct MyNewService {
-    let context: ModelContext
+    let context: NSManagedObjectContext
 
     func doSomething(...) -> Result {
         // Business logic here
@@ -1417,7 +1430,7 @@ var myNew: MyNewRepository {
 private var _myNewService: MyNewService?
 var myNewService: MyNewService {
     if _myNewService == nil {
-        _myNewService = MyNewService(context: modelContext)
+        _myNewService = MyNewService(context: viewContext)
     }
     return _myNewService!
 }
@@ -1437,18 +1450,18 @@ let result = dependencies.myNewService.doSomething(...)
 
 ```swift
 @Observable @MainActor final class MyScreenViewModel {
-    private let context: ModelContext
+    private let context: NSManagedObjectContext
 
     // Outputs
-    private(set) var items: [MyModel] = []
+    private(set) var items: [CDMyEntity] = []
 
-    init(context: ModelContext) {
+    init(context: NSManagedObjectContext) {
         self.context = context
     }
 
     func reload() {
-        let descriptor = FetchDescriptor<MyModel>()
-        items = context.safeFetch(descriptor)
+        let request: NSFetchRequest<CDMyEntity> = CDMyEntity.fetchRequest()
+        items = context.safeFetch(request)
     }
 }
 ```
@@ -1457,7 +1470,7 @@ let result = dependencies.myNewService.doSomething(...)
 
 ```swift
 struct MyScreenView: View {
-    @Environment(\.modelContext) private var context
+    @Environment(\.managedObjectContext) private var context
     @Environment(\.dependencies) private var dependencies
     @State private var viewModel: MyScreenViewModel?
 
@@ -1473,11 +1486,12 @@ struct MyScreenView: View {
 }
 ```
 
-3. **For simple lists**, skip the ViewModel and use `@Query`:
+3. **For simple lists**, skip the ViewModel and use `@FetchRequest`:
 
 ```swift
 struct SimpleListView: View {
-    @Query(sort: \MyModel.name) private var items: [MyModel]
+    @FetchRequest(sortDescriptors: [NSSortDescriptor(keyPath: \CDMyEntity.name, ascending: true)])
+    private var items: FetchedResults<CDMyEntity>
 
     var body: some View {
         List(items) { item in ... }
@@ -1516,10 +1530,10 @@ When modifying any model or adding new features:
 
 - [ ] UUIDs stored as `String`, not `UUID`
 - [ ] Enums stored as `*Raw: String` with computed property
-- [ ] No `@Attribute(.unique)` constraints
+- [ ] No unique constraints in the Core Data model
 - [ ] `modifiedAt: Date` field present
-- [ ] Foreign keys are `String`, not `@Relationship`
-- [ ] Large data uses `@Attribute(.externalStorage)`
+- [ ] Foreign keys are `String`, not Core Data relationships
+- [ ] Large data uses "Allows External Storage" in the model editor
 - [ ] Arrays use JSON encoding (e.g., `CloudKitStringArrayStorage`)
 - [ ] Deduplication handled gracefully (use `fetchUnique` or `uniqueByID`)
 
@@ -1533,7 +1547,7 @@ When modifying any model or adding new features:
 - **Default:** Enabled (can be toggled in Settings)
 - **Auto-disabled:** During XCTest runs
 - **Sync strategy:** Automatic with `modifiedAt` last-writer-wins
-- **Deduplication:** Periodic cleanup via `deduplicateAllModels()`
+- **Deduplication:** Periodic cleanup via `deduplicateAllEntities()`
 - **Health monitoring:** `CloudKitSyncStatusService` provides real-time status
 
 ## EventKit Permissions (macOS)
@@ -1571,11 +1585,11 @@ When modifying any model or adding new features:
 
 | Requirement | Value |
 |-------------|-------|
-| Xcode | 15.0+ |
-| Swift | 5.9+ |
-| iOS | 17.0+ |
-| macOS | 14.0+ |
-| Frameworks | SwiftUI, SwiftData, CloudKit (optional), EventKit (macOS) |
+| Xcode | 16.0+ |
+| Swift | 6.0+ |
+| iOS | 26.0+ |
+| macOS | 26.0+ |
+| Frameworks | SwiftUI, Core Data (NSPersistentCloudKitContainer), CloudKit (optional), EventKit (macOS) |
 
 ## Code Standards
 
@@ -1605,24 +1619,24 @@ Maria's Notebook/
 |       +-- RootDetailContent.swift      Content routing
 |
 +-- Models/
-|   +-- Note.swift                       Universal observation
-|   +-- Presentation.swift               Lesson scheduling
-|   +-- Supply.swift                     Classroom inventory
-|   +-- (other shared models)
+|   +-- NoteEntity.swift                 Universal observation (CDNote)
+|   +-- Presentation.swift               Lesson scheduling (CDLessonAssignment)
+|   +-- SupplyEntity.swift               Classroom inventory (CDSupply)
+|   +-- (other shared entity files)
 |
 +-- Students/
-|   +-- StudentModel.swift               Student data model
+|   +-- StudentEntity.swift              Student entity (CDStudent)
 |   +-- StudentsListView.swift           Roster view
 |   +-- StudentDetailView.swift          Detail tabs
 |   +-- Meetings/                        One-on-one meetings
 |
 +-- Lessons/
-|   +-- LessonModel.swift               Lesson data model
+|   +-- LessonEntity.swift              Lesson entity (CDLesson)
 |   +-- LessonsListView.swift           Library view
 |   +-- LessonDetailView.swift          Detail view
 |
 +-- Work/
-|   +-- WorkModel.swift                  Work data model
+|   +-- WorkModelEntity.swift            Work entity (CDWorkModel)
 |   +-- (74 files for lifecycle, check-ins, practice, PDF, etc.)
 |
 +-- Presentations/                       Scheduling and recording
@@ -1665,9 +1679,9 @@ Maria's Notebook/
 
 | Term | Meaning |
 |------|---------|
-| **Presentation** | The act of presenting a Montessori lesson to a student. Represented by `LessonAssignment`. |
+| **Presentation** | The act of presenting a Montessori lesson to a student. Represented by `CDLessonAssignment`. |
 | **Follow-up** | Work or re-presentation needed after an initial presentation. |
-| **Check-in** | A progress note on an active work item (`WorkCheckIn`). |
+| **Check-in** | A progress note on an active work item (`CDWorkCheckIn`). |
 | **Track** | A curriculum progression path — a sequence of steps a student moves through. |
 | **Great Lesson** | One of the five Montessori "cosmic education" stories that frame the curriculum. |
 | **Album** | A Montessori teacher's collection of lesson plans, organized by subject. |

@@ -91,7 +91,7 @@ enum AIReportService {
             context: context
         )
 
-        // Lesson count
+        // CDLesson count
         let lessonCount = fetchLessonPresentationCount(
             studentID: studentID,
             dateRange: dateRange,

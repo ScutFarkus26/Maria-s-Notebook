@@ -238,7 +238,7 @@ struct DataManagementGrid: View {
         CompactGridCard {
             VStack(alignment: .leading, spacing: AppTheme.Spacing.sm) {
                 HStack {
-                    Label("Storage", systemImage: SFSymbol.Document.folderFill)
+                    Label("Storage", systemImage: SFSymbol.CDDocument.folderFill)
                         .font(.subheadline.weight(.bold))
                         .foregroundStyle(.purple)
                     Spacer()
@@ -281,7 +281,7 @@ struct DataManagementGrid: View {
     private var folderMenu: some View {
         Menu {
             Button { showingFolderImporter = true } label: {
-                Label("Choose Folder…", systemImage: SFSymbol.Document.folderBadgePlus)
+                Label("Choose Folder…", systemImage: SFSymbol.CDDocument.folderBadgePlus)
             }
             if !viewModel.defaultFolderName.isEmpty {
                 Button { openFolder() } label: {

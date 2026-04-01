@@ -23,7 +23,7 @@ public class CDResource: NSManagedObject {
     // MARK: - Convenience Initializer
     @discardableResult
     convenience init(context: NSManagedObjectContext) {
-        let entity = NSEntityDescription.entity(forEntityName: "CDResource", in: context)!
+        let entity = NSEntityDescription.entity(forEntityName: "Resource", in: context)!
         self.init(entity: entity, insertInto: context)
         self.id = UUID()
         self.title = ""

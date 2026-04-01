@@ -113,7 +113,7 @@ class ClassSubjectChecklistViewModel {
         cachedLessonsByGroup.removeAll()
     }
 
-    func state(for student: Student, lesson: Lesson) -> StudentChecklistRowState? {
+    func state(for student: CDStudent, lesson: CDLesson) -> StudentChecklistRowState? {
         guard let sid = student.id, let lid = lesson.id else { return nil }
         return matrixStates[sid]?[lid]
     }
@@ -132,7 +132,7 @@ class ClassSubjectChecklistViewModel {
         Set(selectedCells.map(\.studentID))
     }
 
-    func toggleSelection(student: Student, lesson: Lesson) {
+    func toggleSelection(student: CDStudent, lesson: CDLesson) {
         guard let sid = student.id, let lid = lesson.id else { return }
         let id = CellIdentifier(studentID: sid, lessonID: lid)
         if selectedCells.contains(id) {
@@ -146,7 +146,7 @@ class ClassSubjectChecklistViewModel {
         selectedCells.removeAll()
     }
 
-    func isSelected(student: Student, lesson: Lesson) -> Bool {
+    func isSelected(student: CDStudent, lesson: CDLesson) -> Bool {
         guard let sid = student.id, let lid = lesson.id else { return false }
         return selectedCells.contains(CellIdentifier(studentID: sid, lessonID: lid))
     }

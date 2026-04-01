@@ -1,7 +1,7 @@
 import Foundation
 import CoreData
 
-@objc(WorkModel)
+@objc(CDWorkModel)
 public class CDWorkModel: NSManagedObject {
     // MARK: - Core Data Properties
     @NSManaged public var id: UUID?

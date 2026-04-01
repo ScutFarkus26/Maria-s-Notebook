@@ -1,7 +1,7 @@
 import Foundation
 import CoreData
 
-@objc(GoingOut)
+@objc(CDGoingOut)
 public class CDGoingOut: NSManagedObject {
     // MARK: - Core Data Properties
     @NSManaged public var id: UUID?
@@ -22,7 +22,6 @@ public class CDGoingOut: NSManagedObject {
 
     // MARK: - Relationships
     @NSManaged public var checklistItems: NSSet?
-    @NSManaged public var observationNotes: NSSet?
 
     // MARK: - Convenience Initializer
     @discardableResult
@@ -92,6 +91,14 @@ extension CDGoingOut {
         ((checklistItems as? Set<CDGoingOutChecklistItem>).map(Array.init) ?? [])
             .sorted { $0.sortOrder < $1.sortOrder }
     }
+
+    /// Cross-store inverse: fetches Notes whose goingOutID matches this going out.
+    var observationNotes: [CDNote] {
+        guard let id, let ctx = managedObjectContext else { return [] }
+        let req = CDFetchRequest(CDNote.self)
+        req.predicate = NSPredicate(format: "goingOutID == %@", id.uuidString)
+        return (try? ctx.fetch(req)) ?? []
+    }
 }
 
 // MARK: - Generated Accessors for To-Many Relationships
@@ -109,15 +116,4 @@ extension CDGoingOut {
     @objc(removeChecklistItems:)
     @NSManaged public func removeFromChecklistItems(_ values: NSSet)
 
-    @objc(addObservationNotesObject:)
-    @NSManaged public func addToObservationNotes(_ value: CDNote)
-
-    @objc(removeObservationNotesObject:)
-    @NSManaged public func removeFromObservationNotes(_ value: CDNote)
-
-    @objc(addObservationNotes:)
-    @NSManaged public func addToObservationNotes(_ values: NSSet)
-
-    @objc(removeObservationNotes:)
-    @NSManaged public func removeFromObservationNotes(_ values: NSSet)
 }

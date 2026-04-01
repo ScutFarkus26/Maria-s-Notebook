@@ -73,7 +73,7 @@ struct LessonDetailView: View {
     @State private var showDeleteAlert = false
     @State private var showingGreatLessonTagEditor = false
     @State var showingSampleWorkEditor = false
-    @State var editingSampleWork: SampleWork?
+    @State var editingSampleWork: CDSampleWorkEntity?
 
     @State var showingPagesImporter = false
     @State var resolvedPagesURL: URL?
@@ -151,7 +151,7 @@ struct LessonDetailView: View {
         .sheet(isPresented: $showingGreatLessonTagEditor) {
             NavigationStack {
                 GreatLessonTagEditor(lesson: lesson)
-                    .navigationTitle("Tag Great Lesson")
+                    .navigationTitle("Tag Great CDLesson")
                     .toolbar {
                         ToolbarItem(placement: .confirmationAction) {
                             Button("Done") { showingGreatLessonTagEditor = false }
@@ -237,7 +237,7 @@ struct LessonDetailView: View {
 extension LessonDetailView {
     var headerContent: some View {
         VStack(spacing: AppTheme.Spacing.compact) {
-            Text(lesson.name.isEmpty ? "Untitled Lesson" : lesson.name)
+            Text(lesson.name.isEmpty ? "Untitled CDLesson" : lesson.name)
                 .font(AppTheme.ScaledFont.titleXLarge)
                 .frame(maxWidth: .infinity)
             HStack(spacing: AppTheme.Spacing.small) {
@@ -271,7 +271,7 @@ extension LessonDetailView {
                 HStack(spacing: 4) {
                     Image(systemName: "globe.americas")
                         .font(.caption2)
-                    Text(lesson.greatLesson != nil ? "Change Great Lesson" : "Tag Great Lesson")
+                    Text(lesson.greatLesson != nil ? "Change Great CDLesson" : "Tag Great CDLesson")
                         .font(.caption)
                 }
                 .foregroundStyle(Color.accentColor)

@@ -210,7 +210,7 @@ final class ReminderSyncService {
         guard syncListIdentifier != nil || syncListName != nil else { return }
         
         // Observe EventKit store changes
-        // Note: EKEventStoreChangedNotification is posted when reminders/events change
+        // CDNote: EKEventStoreChangedNotification is posted when reminders/events change
         changeObserver = NotificationCenter.default.addObserver(
             forName: .EKEventStoreChanged,
             object: eventStore,
@@ -300,7 +300,7 @@ final class ReminderSyncService {
 
         // Fetch the EKReminder by identifier
         guard let ekReminder = eventStore.calendarItem(withIdentifier: ekID) as? EKReminder else {
-            // Reminder no longer exists in EventKit
+            // CDReminder no longer exists in EventKit
             return
         }
 

@@ -11,7 +11,7 @@ import CoreData
 
 // MARK: - Protocol Definition
 
-/// Protocol for WorkStep operations
+/// Protocol for CDWorkStep operations
 /// Defines the interface for creating, updating, and deleting work steps
 protocol WorkStepServiceProtocol {
     var context: NSManagedObjectContext { get }

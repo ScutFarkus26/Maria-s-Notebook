@@ -44,7 +44,7 @@ public final class SyncedPreferencesStore {
         "AttendanceEmail.to",
         "AttendanceEmail.from",
         
-        // Lesson Age Settings
+        // CDLesson Age Settings
         "LessonAge.warningDays",
         "LessonAge.overdueDays",
         "LessonAge.freshColorHex",
@@ -190,7 +190,7 @@ public final class SyncedPreferencesStore {
                 kvStore.removeObject(forKey: key)
             }
             
-            // Track this key for batched sync
+            // CDTrackEntity this key for batched sync
             pendingSyncKeys.insert(key)
             
             // Schedule a debounced sync (1.5 seconds - balances responsiveness with energy efficiency)

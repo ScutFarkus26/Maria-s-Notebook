@@ -236,4 +236,4 @@ struct PrintFooterContent: View {
 }
 
 // MARK: - Extensions
-// Note: WorkKind and WorkStatus displayName properties are defined in WorkTypes.swift
+// CDNote: WorkKind and WorkStatus displayName properties are defined in WorkTypes.swift

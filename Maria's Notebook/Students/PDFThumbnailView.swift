@@ -69,7 +69,7 @@ struct PDFPageViewRepresentable: NSViewRepresentable {
         pdfView.displayMode = .singlePage
         pdfView.displayDirection = .vertical
         pdfView.backgroundColor = .clear
-        // Document assignment is deferred to updateNSView to avoid layout recursion
+        // CDDocument assignment is deferred to updateNSView to avoid layout recursion
         return pdfView
     }
 

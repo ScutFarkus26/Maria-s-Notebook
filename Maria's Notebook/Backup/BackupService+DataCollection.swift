@@ -85,9 +85,9 @@ extension BackupService {
         payload.communityTopics = fetchAndTransformInBatches(
             CDCommunityTopicEntity.self, using: viewContext) { BackupServiceHelpers.toDTOs($0) }
         payload.proposedSolutions = fetchAndTransformInBatches(
-            ProposedSolution.self, using: viewContext) { BackupServiceHelpers.toDTOs($0) }
+            CDProposedSolutionEntity.self, using: viewContext) { BackupServiceHelpers.toDTOs($0) }
         payload.communityAttachments = fetchAndTransformInBatches(
-            CommunityAttachment.self, using: viewContext) { BackupServiceHelpers.toDTOs($0) }
+            CDCommunityAttachmentEntity.self, using: viewContext) { BackupServiceHelpers.toDTOs($0) }
 
         progress(
             BackupProgress.progress(for: .collecting, subProgress: 0.36),
@@ -102,15 +102,15 @@ extension BackupService {
         payload.projects = fetchAndTransformInBatches(
             CDProject.self, using: viewContext) { BackupServiceHelpers.toDTOs($0) }
         payload.projectAssignmentTemplates = fetchAndTransformInBatches(
-            ProjectAssignmentTemplate.self, using: viewContext) { BackupServiceHelpers.toDTOs($0) }
+            CDProjectAssignmentTemplate.self, using: viewContext) { BackupServiceHelpers.toDTOs($0) }
         payload.projectSessions = fetchAndTransformInBatches(
             CDProjectSession.self, using: viewContext) { BackupServiceHelpers.toDTOs($0) }
         payload.projectRoles = fetchAndTransformInBatches(
-            ProjectRole.self, using: viewContext) { BackupServiceHelpers.toDTOs($0) }
+            CDProjectRole.self, using: viewContext) { BackupServiceHelpers.toDTOs($0) }
         payload.projectTemplateWeeks = fetchAndTransformInBatches(
-            ProjectTemplateWeek.self, using: viewContext) { BackupServiceHelpers.toDTOs($0) }
+            CDProjectTemplateWeek.self, using: viewContext) { BackupServiceHelpers.toDTOs($0) }
         payload.projectWeekRoleAssignments = fetchAndTransformInBatches(
-            ProjectWeekRoleAssignment.self, using: viewContext) { BackupServiceHelpers.toDTOs($0) }
+            CDProjectWeekRoleAssignment.self, using: viewContext) { BackupServiceHelpers.toDTOs($0) }
     }
 
     private func collectWorkTrackingDTOs(
@@ -126,13 +126,13 @@ extension BackupService {
         payload.workSteps = fetchAndTransformInBatches(
             CDWorkStep.self, using: viewContext) { BackupDTOTransformers.toDTOs($0) }
         payload.workParticipants = fetchAndTransformInBatches(
-            WorkParticipantEntity.self, using: viewContext) { BackupDTOTransformers.toDTOs($0) }
+            CDWorkParticipantEntity.self, using: viewContext) { BackupDTOTransformers.toDTOs($0) }
         payload.practiceSessions = fetchAndTransformInBatches(
             CDPracticeSession.self, using: viewContext) { BackupDTOTransformers.toDTOs($0) }
 
         progress(BackupProgress.progress(for: .collecting, subProgress: 0.50), "Collecting lesson extras\u{2026}")
         payload.lessonAttachments = fetchAndTransformInBatches(
-            LessonAttachment.self, using: viewContext) { BackupDTOTransformers.toDTOs($0) }
+            CDLessonAttachment.self, using: viewContext) { BackupDTOTransformers.toDTOs($0) }
         payload.lessonPresentations = fetchAndTransformInBatches(
             CDLessonPresentation.self, using: viewContext) { BackupDTOTransformers.toDTOs($0) }
         payload.sampleWorks = fetchAndTransformInBatches(
@@ -158,7 +158,7 @@ extension BackupService {
         payload.tracks = fetchAndTransformInBatches(
             CDTrackEntity.self, using: viewContext) { BackupDTOTransformers.toDTOs($0) }
         payload.trackSteps = fetchAndTransformInBatches(
-            TrackStep.self, using: viewContext) { BackupDTOTransformers.toDTOs($0) }
+            CDTrackStepEntity.self, using: viewContext) { BackupDTOTransformers.toDTOs($0) }
         payload.studentTrackEnrollments = fetchAndTransformInBatches(
             CDStudentTrackEnrollmentEntity.self, using: viewContext) { BackupDTOTransformers.toDTOs($0) }
         payload.groupTracks = fetchAndTransformInBatches(
@@ -179,7 +179,7 @@ extension BackupService {
         payload.supplies = fetchAndTransformInBatches(
             CDSupply.self, using: viewContext) { BackupDTOTransformers.toDTOs($0) }
         payload.supplyTransactions = fetchAndTransformInBatches(
-            SupplyTransaction.self, using: viewContext) { BackupDTOTransformers.toDTOs($0) }
+            CDSupplyTransaction.self, using: viewContext) { BackupDTOTransformers.toDTOs($0) }
         payload.procedures = fetchAndTransformInBatches(
             CDProcedure.self, using: viewContext) { BackupDTOTransformers.toDTOs($0) }
         payload.schedules = fetchAndTransformInBatches(
@@ -189,11 +189,11 @@ extension BackupService {
         payload.issues = fetchAndTransformInBatches(
             CDIssue.self, using: viewContext) { BackupDTOTransformers.toDTOs($0) }
         payload.issueActions = fetchAndTransformInBatches(
-            IssueAction.self, using: viewContext) { BackupDTOTransformers.toDTOs($0) }
+            CDIssueAction.self, using: viewContext) { BackupDTOTransformers.toDTOs($0) }
 
         progress(BackupProgress.progress(for: .collecting, subProgress: 0.75), "Collecting snapshots & todos\u{2026}")
         payload.developmentSnapshots = fetchAndTransformInBatches(
-            DevelopmentSnapshot.self, using: viewContext) { BackupDTOTransformers.toDTOs($0) }
+            CDDevelopmentSnapshotEntity.self, using: viewContext) { BackupDTOTransformers.toDTOs($0) }
         payload.todoItems = fetchAndTransformInBatches(
             CDTodoItem.self, using: viewContext) { BackupDTOTransformers.toDTOs($0) }
         payload.todoSubtasks = fetchAndTransformInBatches(
@@ -208,7 +208,7 @@ extension BackupService {
             "Collecting recommendations & resources\u{2026}"
         )
         payload.planningRecommendations = fetchAndTransformInBatches(
-            PlanningRecommendation.self, using: viewContext) { BackupDTOTransformers.toDTOs($0) }
+            CDPlanningRecommendation.self, using: viewContext) { BackupDTOTransformers.toDTOs($0) }
         payload.resources = fetchAndTransformInBatches(
             CDResource.self, using: viewContext) { BackupDTOTransformers.toDTOs($0) }
         payload.noteStudentLinks = fetchAndTransformInBatches(
@@ -221,7 +221,7 @@ extension BackupService {
         payload.goingOuts = fetchAndTransformInBatches(
             CDGoingOut.self, using: viewContext) { BackupDTOTransformers.toDTOs($0) }
         payload.goingOutChecklistItems = fetchAndTransformInBatches(
-            GoingOutChecklistItem.self, using: viewContext) { BackupDTOTransformers.toDTOs($0) }
+            CDGoingOutChecklistItem.self, using: viewContext) { BackupDTOTransformers.toDTOs($0) }
         payload.classroomJobs = fetchAndTransformInBatches(
             CDClassroomJob.self, using: viewContext) { BackupDTOTransformers.toDTOs($0) }
         payload.jobAssignments = fetchAndTransformInBatches(
@@ -229,7 +229,7 @@ extension BackupService {
         payload.transitionPlans = fetchAndTransformInBatches(
             CDTransitionPlan.self, using: viewContext) { BackupDTOTransformers.toDTOs($0) }
         payload.transitionChecklistItems = fetchAndTransformInBatches(
-            TransitionChecklistItem.self, using: viewContext) { BackupDTOTransformers.toDTOs($0) }
+            CDTransitionChecklistItem.self, using: viewContext) { BackupDTOTransformers.toDTOs($0) }
 
         progress(
             BackupProgress.progress(for: .collecting, subProgress: 0.90),
@@ -332,21 +332,21 @@ extension BackupService {
 
     private func buildCoreEntityCounts(from payload: BackupPayload) -> [String: Int] {
         [
-            "CDStudent": payload.students.count,
-            "CDLesson": payload.lessons.count,
-            "CDLessonAssignment": payload.lessonAssignments.count,
-            "CDNote": payload.notes.count,
-            "CDNonSchoolDay": payload.nonSchoolDays.count,
-            "CDSchoolDayOverride": payload.schoolDayOverrides.count,
-            "CDStudentMeeting": payload.studentMeetings.count,
-            "CDCommunityTopicEntity": payload.communityTopics.count,
+            "Student": payload.students.count,
+            "Lesson": payload.lessons.count,
+            "LessonAssignment": payload.lessonAssignments.count,
+            "Note": payload.notes.count,
+            "NonSchoolDay": payload.nonSchoolDays.count,
+            "SchoolDayOverride": payload.schoolDayOverrides.count,
+            "StudentMeeting": payload.studentMeetings.count,
+            "CommunityTopic": payload.communityTopics.count,
             "ProposedSolution": payload.proposedSolutions.count,
             "CommunityAttachment": payload.communityAttachments.count,
-            "CDAttendanceRecord": payload.attendance.count,
-            "CDWorkCompletionRecord": payload.workCompletions.count,
-            "CDProject": payload.projects.count,
+            "AttendanceRecord": payload.attendance.count,
+            "WorkCompletionRecord": payload.workCompletions.count,
+            "Project": payload.projects.count,
             "ProjectAssignmentTemplate": payload.projectAssignmentTemplates.count,
-            "CDProjectSession": payload.projectSessions.count,
+            "ProjectSession": payload.projectSessions.count,
             "ProjectRole": payload.projectRoles.count,
             "ProjectTemplateWeek": payload.projectTemplateWeeks.count,
             "ProjectWeekRoleAssignment": payload.projectWeekRoleAssignments.count
@@ -355,50 +355,50 @@ extension BackupService {
 
     private func buildExtendedEntityCounts(from payload: BackupPayload) -> [String: Int] {
         [
-            "CDWorkModel": payload.workModels?.count ?? 0,
-            "CDWorkCheckIn": payload.workCheckIns?.count ?? 0,
-            "CDWorkStep": payload.workSteps?.count ?? 0,
+            "WorkModel": payload.workModels?.count ?? 0,
+            "WorkCheckIn": payload.workCheckIns?.count ?? 0,
+            "WorkStep": payload.workSteps?.count ?? 0,
             "WorkParticipantEntity": payload.workParticipants?.count ?? 0,
-            "CDPracticeSession": payload.practiceSessions?.count ?? 0,
+            "PracticeSession": payload.practiceSessions?.count ?? 0,
             "LessonAttachment": payload.lessonAttachments?.count ?? 0,
-            "CDLessonPresentation": payload.lessonPresentations?.count ?? 0,
-            "CDSampleWork": payload.sampleWorks?.count ?? 0,
-            "CDSampleWorkStep": payload.sampleWorkSteps?.count ?? 0,
-            "CDNoteTemplate": payload.noteTemplates?.count ?? 0,
-            "CDMeetingTemplate": payload.meetingTemplates?.count ?? 0,
-            "CDReminder": payload.reminders?.count ?? 0,
-            "CDCalendarEvent": payload.calendarEvents?.count ?? 0,
-            "CDTrackEntity": payload.tracks?.count ?? 0,
+            "LessonPresentation": payload.lessonPresentations?.count ?? 0,
+            "SampleWork": payload.sampleWorks?.count ?? 0,
+            "SampleWorkStep": payload.sampleWorkSteps?.count ?? 0,
+            "NoteTemplate": payload.noteTemplates?.count ?? 0,
+            "MeetingTemplate": payload.meetingTemplates?.count ?? 0,
+            "Reminder": payload.reminders?.count ?? 0,
+            "CalendarEvent": payload.calendarEvents?.count ?? 0,
+            "Track": payload.tracks?.count ?? 0,
             "TrackStep": payload.trackSteps?.count ?? 0,
-            "CDStudentTrackEnrollmentEntity": payload.studentTrackEnrollments?.count ?? 0,
-            "CDGroupTrack": payload.groupTracks?.count ?? 0,
-            "CDDocument": payload.documents?.count ?? 0,
-            "CDSupply": payload.supplies?.count ?? 0,
+            "StudentTrackEnrollment": payload.studentTrackEnrollments?.count ?? 0,
+            "GroupTrack": payload.groupTracks?.count ?? 0,
+            "Document": payload.documents?.count ?? 0,
+            "Supply": payload.supplies?.count ?? 0,
             "SupplyTransaction": payload.supplyTransactions?.count ?? 0,
-            "CDProcedure": payload.procedures?.count ?? 0,
-            "CDSchedule": payload.schedules?.count ?? 0,
-            "CDScheduleSlot": payload.scheduleSlots?.count ?? 0,
-            "CDIssue": payload.issues?.count ?? 0,
+            "Procedure": payload.procedures?.count ?? 0,
+            "Schedule": payload.schedules?.count ?? 0,
+            "ScheduleSlot": payload.scheduleSlots?.count ?? 0,
+            "Issue": payload.issues?.count ?? 0,
             "IssueAction": payload.issueActions?.count ?? 0,
             "DevelopmentSnapshot": payload.developmentSnapshots?.count ?? 0,
-            "CDTodoItem": payload.todoItems?.count ?? 0,
-            "CDTodoSubtask": payload.todoSubtasks?.count ?? 0,
-            "CDTodoTemplate": payload.todoTemplates?.count ?? 0,
-            "CDTodayAgendaOrder": payload.todayAgendaOrders?.count ?? 0,
+            "TodoItem": payload.todoItems?.count ?? 0,
+            "TodoSubtask": payload.todoSubtasks?.count ?? 0,
+            "TodoTemplate": payload.todoTemplates?.count ?? 0,
+            "TodayAgendaOrder": payload.todayAgendaOrders?.count ?? 0,
             "PlanningRecommendation": payload.planningRecommendations?.count ?? 0,
-            "CDResource": payload.resources?.count ?? 0,
-            "CDNoteStudentLink": payload.noteStudentLinks?.count ?? 0,
-            "CDGoingOut": payload.goingOuts?.count ?? 0,
+            "Resource": payload.resources?.count ?? 0,
+            "NoteStudentLink": payload.noteStudentLinks?.count ?? 0,
+            "GoingOut": payload.goingOuts?.count ?? 0,
             "GoingOutChecklistItem": payload.goingOutChecklistItems?.count ?? 0,
-            "CDClassroomJob": payload.classroomJobs?.count ?? 0,
-            "CDJobAssignment": payload.jobAssignments?.count ?? 0,
-            "CDTransitionPlan": payload.transitionPlans?.count ?? 0,
+            "ClassroomJob": payload.classroomJobs?.count ?? 0,
+            "JobAssignment": payload.jobAssignments?.count ?? 0,
+            "TransitionPlan": payload.transitionPlans?.count ?? 0,
             "TransitionChecklistItem": payload.transitionChecklistItems?.count ?? 0,
-            "CDCalendarNote": payload.calendarNotes?.count ?? 0,
-            "CDScheduledMeeting": payload.scheduledMeetings?.count ?? 0,
+            "CalendarNote": payload.calendarNotes?.count ?? 0,
+            "ScheduledMeeting": payload.scheduledMeetings?.count ?? 0,
             "AlbumGroupOrder": payload.albumGroupOrders?.count ?? 0,
             "AlbumGroupUIState": payload.albumGroupUIStates?.count ?? 0,
-            "CDClassroomMembership": payload.classroomMemberships?.count ?? 0
+            "ClassroomMembership": payload.classroomMemberships?.count ?? 0
         ]
     }
 
@@ -452,6 +452,28 @@ extension BackupService {
         batchSize: Int = 1000,
         transform: ([T]) -> [DTO]
     ) -> [DTO] {
+        // Guard: ensure the entity is registered in the context's model before fetching.
+        // Without this, T.fetchRequest() throws an unrecoverable ObjC NSException
+        // when the persistent stores haven't fully loaded (e.g. during pre-migration backup).
+        let typeName = String(describing: T.self)
+        guard context.persistentStoreCoordinator != nil else {
+            Self.logger.warning(
+                "Skipping fetch for \(typeName, privacy: .public) — no persistent store coordinator"
+            )
+            return []
+        }
+
+        // Guard: ensure the entity actually exists in the Core Data model.
+        // Stub classes (e.g. AlbumGroupOrder) have no entity in the .xcdatamodeld,
+        // so T.fetchRequest() would produce entity name '' and throw an ObjC exception.
+        let model = context.persistentStoreCoordinator?.managedObjectModel
+        if model?.entitiesByName.values.first(where: { $0.managedObjectClassName == NSStringFromClass(T.self) }) == nil {
+            Self.logger.info(
+                "Skipping fetch for \(typeName, privacy: .public) — no entity in model"
+            )
+            return []
+        }
+
         var allDTOs: [DTO] = []
         var offset = 0
 

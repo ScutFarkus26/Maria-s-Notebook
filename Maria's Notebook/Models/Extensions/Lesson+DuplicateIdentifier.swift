@@ -1,7 +1,7 @@
 import Foundation
 import CoreData
 
-extension Lesson {
+extension CDLesson {
     /// A computed property that returns a normalized identifier string
     /// used to detect duplicates in imports and elsewhere.
     var duplicateIdentifier: String {

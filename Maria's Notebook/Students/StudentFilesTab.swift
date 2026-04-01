@@ -24,7 +24,7 @@ struct StudentFilesTab: View {
 
     @State private var showFileImporter = false
     @State var selectedImportData: ImportDataWrapper?
-    @State var documentToRename: Document?
+    @State var documentToRename: CDDocument?
     @State var showRenameAlert = false
     @State var renameTitleText = ""
     @State private var previewURL: URL?
@@ -38,7 +38,7 @@ struct StudentFilesTab: View {
     }
 
     private var allDocuments: [CDDocument] {
-        (student.documents?.allObjects as? [CDDocument]) ?? []
+        student.documents
     }
 
     private var documents: [CDDocument] {
@@ -85,7 +85,7 @@ struct StudentFilesTab: View {
                                 Button {
                                     filterCategory = nil
                                 } label: {
-                                    Label("All", systemImage: SFSymbol.Document.folder)
+                                    Label("All", systemImage: SFSymbol.CDDocument.folder)
                                     if filterCategory == nil {
                                         Image(systemName: "checkmark")
                                     }

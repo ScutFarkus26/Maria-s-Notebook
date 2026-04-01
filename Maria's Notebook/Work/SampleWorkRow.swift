@@ -1,8 +1,8 @@
 import SwiftUI
 
-/// Read-only display of a single SampleWork within a lesson detail view.
+/// Read-only display of a single CDSampleWorkEntity within a lesson detail view.
 struct SampleWorkRow: View {
-    let sampleWork: SampleWork
+    let sampleWork: CDSampleWorkEntity
 
     var body: some View {
         VStack(alignment: .leading, spacing: 4) {

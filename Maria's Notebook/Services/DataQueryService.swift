@@ -204,7 +204,7 @@ final class DataQueryService {
     }
 
     /// Fetch lesson assignments for a specific student.
-    /// Note: studentIDs is stored as JSON and is transient, so we fetch all and filter in memory.
+    /// CDNote: studentIDs is stored as JSON and is transient, so we fetch all and filter in memory.
     func fetchLessonAssignments(for studentID: UUID) -> [CDLessonAssignment] {
         let studentIDString = studentID.uuidString
         let allAssignments = context.safeFetch(CDFetchRequest(CDLessonAssignment.self))

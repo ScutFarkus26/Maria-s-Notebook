@@ -2,7 +2,7 @@
 //  StudentRepository.swift
 //  Maria's Notebook
 //
-//  Repository for Student entity CRUD operations.
+//  Repository for CDStudent entity CRUD operations.
 //
 
 import Foundation
@@ -25,7 +25,7 @@ struct StudentRepository: SavingRepository {
 
     // MARK: - Fetch
 
-    /// Fetch a Student by ID
+    /// Fetch a CDStudent by ID
     func fetchStudent(id: UUID) -> CDStudent? {
         let request = CDFetchRequest(CDStudent.self)
         request.predicate = NSPredicate(format: "id == %@", id as CVarArg)
@@ -48,7 +48,7 @@ struct StudentRepository: SavingRepository {
 
     // MARK: - Create
 
-    /// Create a new Student and insert into context
+    /// Create a new CDStudent and insert into context
     @discardableResult
     func createStudent(
         firstName: String,
@@ -70,7 +70,7 @@ struct StudentRepository: SavingRepository {
 
     // MARK: - Update
 
-    /// Update an existing Student's properties
+    /// Update an existing CDStudent's properties
     @discardableResult
     func updateStudent(
         id: UUID,
@@ -117,7 +117,7 @@ struct StudentRepository: SavingRepository {
 
     // MARK: - Delete
 
-    /// Delete a Student by ID
+    /// Delete a CDStudent by ID
     func deleteStudent(id: UUID) throws {
         guard let student = fetchStudent(id: id) else { return }
         context.delete(student)

@@ -146,7 +146,7 @@ struct QuickNoteSheet: View {
 
                     // CDLesson
                     VStack(alignment: .leading, spacing: 4) {
-                        Label("CDLesson", systemImage: SFSymbol.Education.book)
+                        Label("Lesson", systemImage: SFSymbol.Education.book)
                             .font(.caption).foregroundStyle(.secondary)
 
                         if let lesson = selectedLesson {
@@ -185,7 +185,7 @@ struct QuickNoteSheet: View {
                     .controlSize(.small)
                     
                     Toggle(isOn: $viewModel.includeInReport) {
-                        Label("Flag for Report", systemImage: SFSymbol.CDDocument.docText)
+                        Label("Flag for Report", systemImage: "doc.text")
                     }
                     .toggleStyle(.switch)
                     .controlSize(.small)

@@ -119,7 +119,7 @@ struct MeetingTemplateManagementView: View {
             })
         }
         .onAppear {
-            // TODO: seedBuiltInTemplates needs Core Data implementation
+            BuiltInTemplateSeeder.seedIfNeeded(context: viewContext)
         }
     }
 

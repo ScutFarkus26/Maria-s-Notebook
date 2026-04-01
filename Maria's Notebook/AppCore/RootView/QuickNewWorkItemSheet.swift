@@ -67,7 +67,7 @@ struct QuickNewWorkItemSheet: View {
     // Check-in states
     @State var hasCheckIn: Bool = false
     @State var checkInDate: Date = Date()
-    @State var checkInReason: CheckInMigrationService.CheckInReason = .progressCheck
+    @State var checkInReason: CheckInReason = .progressCheck
     @State var checkInStyle: CheckInStyle = .flexible
 
     // Popover states
@@ -109,12 +109,12 @@ struct QuickNewWorkItemSheet: View {
                     Text("New Work")
                         .font(AppTheme.ScaledFont.titleXLarge)
 
-                    // Lesson Section
+                    // CDLesson Section
                     lessonSection()
 
                     Divider()
 
-                    // Student Section
+                    // CDStudent Section
                     studentSection()
 
                     Divider()

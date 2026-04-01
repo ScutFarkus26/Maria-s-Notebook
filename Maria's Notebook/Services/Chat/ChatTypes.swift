@@ -42,7 +42,7 @@ struct ChatSession: Codable {
     var snapshotBuiltAt: Date?
     var mentionedStudentIDs: Set<UUID>
 
-    /// Student names available for dynamic suggested questions.
+    /// CDStudent names available for dynamic suggested questions.
     var studentNames: [String]
 
     init(id: UUID = UUID()) {

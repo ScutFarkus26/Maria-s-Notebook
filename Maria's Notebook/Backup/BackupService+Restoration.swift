@@ -238,14 +238,14 @@ extension BackupService {
         try BackupEntityImporter.importProposedSolutions(
             payload.proposedSolutions,
             into: viewContext,
-            existingCheck: { try fetchOne(ProposedSolution.self, id: $0, using: viewContext) },
+            existingCheck: { try fetchOne(CDProposedSolutionEntity.self, id: $0, using: viewContext) },
             topicCheck: { try fetchOne(CDCommunityTopicEntity.self, id: $0, using: viewContext) }
         )
 
         try BackupEntityImporter.importCommunityAttachments(
             payload.communityAttachments,
             into: viewContext,
-            existingCheck: { try fetchOne(CommunityAttachment.self, id: $0, using: viewContext) },
+            existingCheck: { try fetchOne(CDCommunityAttachmentEntity.self, id: $0, using: viewContext) },
             topicCheck: { try fetchOne(CDCommunityTopicEntity.self, id: $0, using: viewContext) }
         )
 
@@ -275,26 +275,26 @@ extension BackupService {
         try BackupEntityImporter.importProjectRoles(
             payload.projectRoles,
             into: viewContext,
-            existingCheck: { try fetchOne(ProjectRole.self, id: $0, using: viewContext) }
+            existingCheck: { try fetchOne(CDProjectRole.self, id: $0, using: viewContext) }
         )
 
         try BackupEntityImporter.importProjectTemplateWeeks(
             payload.projectTemplateWeeks,
             into: viewContext,
-            existingCheck: { try fetchOne(ProjectTemplateWeek.self, id: $0, using: viewContext) }
+            existingCheck: { try fetchOne(CDProjectTemplateWeek.self, id: $0, using: viewContext) }
         )
 
         try BackupEntityImporter.importProjectAssignmentTemplates(
             payload.projectAssignmentTemplates,
             into: viewContext,
-            existingCheck: { try fetchOne(ProjectAssignmentTemplate.self, id: $0, using: viewContext) }
+            existingCheck: { try fetchOne(CDProjectAssignmentTemplate.self, id: $0, using: viewContext) }
         )
 
         try BackupEntityImporter.importProjectWeekRoleAssignments(
             payload.projectWeekRoleAssignments,
             into: viewContext,
-            existingCheck: { try fetchOne(ProjectWeekRoleAssignment.self, id: $0, using: viewContext) },
-            weekCheck: { try fetchOne(ProjectTemplateWeek.self, id: $0, using: viewContext) }
+            existingCheck: { try fetchOne(CDProjectWeekRoleAssignment.self, id: $0, using: viewContext) },
+            weekCheck: { try fetchOne(CDProjectTemplateWeek.self, id: $0, using: viewContext) }
         )
 
         try BackupEntityImporter.importProjectSessions(
@@ -339,7 +339,7 @@ extension BackupService {
             try BackupEntityImporter.importWorkParticipants(
                 workParticipants,
                 into: viewContext,
-                existingCheck: { try fetchOne(WorkParticipantEntity.self, id: $0, using: viewContext) },
+                existingCheck: { try fetchOne(CDWorkParticipantEntity.self, id: $0, using: viewContext) },
                 workCheck: { try fetchOne(CDWorkModel.self, id: $0, using: viewContext) }
             )
         }
@@ -361,7 +361,7 @@ extension BackupService {
             try BackupEntityImporter.importLessonAttachments(
                 lessonAttachments,
                 into: viewContext,
-                existingCheck: { try fetchOne(LessonAttachment.self, id: $0, using: viewContext) },
+                existingCheck: { try fetchOne(CDLessonAttachment.self, id: $0, using: viewContext) },
                 lessonCheck: { try fetchOne(CDLesson.self, id: $0, using: viewContext) }
             )
         }
@@ -446,7 +446,7 @@ extension BackupService {
             try BackupEntityImporter.importTrackSteps(
                 trackSteps,
                 into: viewContext,
-                existingCheck: { try fetchOne(TrackStep.self, id: $0, using: viewContext) },
+                existingCheck: { try fetchOne(CDTrackStepEntity.self, id: $0, using: viewContext) },
                 trackCheck: { try fetchOne(CDTrackEntity.self, id: $0, using: viewContext) }
             )
         }
@@ -493,7 +493,7 @@ extension BackupService {
             try BackupEntityImporter.importSupplyTransactions(
                 supplyTransactions,
                 into: viewContext,
-                existingCheck: { try fetchOne(SupplyTransaction.self, id: $0, using: viewContext) },
+                existingCheck: { try fetchOne(CDSupplyTransaction.self, id: $0, using: viewContext) },
                 supplyCheck: { try fetchOne(CDSupply.self, id: $0, using: viewContext) }
             )
         }
@@ -545,7 +545,7 @@ extension BackupService {
             try BackupEntityImporter.importIssueActions(
                 issueActions,
                 into: viewContext,
-                existingCheck: { try fetchOne(IssueAction.self, id: $0, using: viewContext) },
+                existingCheck: { try fetchOne(CDIssueAction.self, id: $0, using: viewContext) },
                 issueCheck: { try fetchOne(CDIssue.self, id: $0, using: viewContext) }
             )
         }
@@ -559,7 +559,7 @@ extension BackupService {
             try BackupEntityImporter.importDevelopmentSnapshots(
                 snapshots,
                 into: viewContext,
-                existingCheck: { try fetchOne(DevelopmentSnapshot.self, id: $0, using: viewContext) }
+                existingCheck: { try fetchOne(CDDevelopmentSnapshotEntity.self, id: $0, using: viewContext) }
             )
         }
 
@@ -605,7 +605,7 @@ extension BackupService {
             try BackupEntityImporter.importPlanningRecommendations(
                 recommendations,
                 into: viewContext,
-                existingCheck: { try fetchOne(PlanningRecommendation.self, id: $0, using: viewContext) }
+                existingCheck: { try fetchOne(CDPlanningRecommendation.self, id: $0, using: viewContext) }
             )
         }
 
@@ -643,7 +643,7 @@ extension BackupService {
             try BackupEntityImporter.importGoingOutChecklistItems(
                 goingOutItems,
                 into: viewContext,
-                existingCheck: { try fetchOne(GoingOutChecklistItem.self, id: $0, using: viewContext) },
+                existingCheck: { try fetchOne(CDGoingOutChecklistItem.self, id: $0, using: viewContext) },
                 goingOutCheck: { try fetchOne(CDGoingOut.self, id: $0, using: viewContext) }
             )
         }
@@ -677,7 +677,7 @@ extension BackupService {
             try BackupEntityImporter.importTransitionChecklistItems(
                 transitionItems,
                 into: viewContext,
-                existingCheck: { try fetchOne(TransitionChecklistItem.self, id: $0, using: viewContext) },
+                existingCheck: { try fetchOne(CDTransitionChecklistItem.self, id: $0, using: viewContext) },
                 planCheck: { try fetchOne(CDTransitionPlan.self, id: $0, using: viewContext) }
             )
         }

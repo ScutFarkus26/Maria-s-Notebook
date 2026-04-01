@@ -6,8 +6,8 @@ import os
 
 extension LifecycleService {
 
-    /// Record a LessonAssignment as presented and upsert LessonPresentation records,
-    /// but do NOT auto-create WorkModel items. Use this when work creation is handled separately
+    /// Record a CDLessonAssignment as presented and upsert CDLessonPresentation records,
+    /// but do NOT auto-create CDWorkModel items. Use this when work creation is handled separately
     /// (e.g., via the unified workflow panel or explicit user action).
     static func recordPresentation(
         from lessonAssignment: CDLessonAssignment,
@@ -58,7 +58,7 @@ extension LifecycleService {
             }
         }
 
-        // Upsert LessonPresentation records per student (for individual progress tracking)
+        // Upsert CDLessonPresentation records per student (for individual progress tracking)
         let assignmentIDStr = lessonAssignment.id?.uuidString ?? ""
         for sid in studentIDStrs {
             try upsertLessonPresentation(
@@ -73,8 +73,8 @@ extension LifecycleService {
         return lessonAssignment
     }
 
-    // Record a LessonAssignment as presented and create per-student WorkModel items.
-    // Idempotent by (presentationID, studentID) on WorkModel.
+    // Record a CDLessonAssignment as presented and create per-student CDWorkModel items.
+    // Idempotent by (presentationID, studentID) on CDWorkModel.
     //
     // Only use this when work items should be explicitly created (e.g., GiveLessonViewModel with needsPractice,
     // or the syncAllStudentProgress migration path).
@@ -98,7 +98,7 @@ extension LifecycleService {
         var createdCount = 0
         var skippedCount = 0
         for sid in studentIDStrs {
-            // Check for existing WorkModel first
+            // Check for existing CDWorkModel first
             if let existing = try fetchWorkModel(
                 presentationID: la.id?.uuidString ?? "",
                 studentID: sid, context: modelContext
@@ -106,7 +106,7 @@ extension LifecycleService {
                 workForPresentation.append(existing)
                 skippedCount += 1
             } else {
-                // Create new WorkModel
+                // Create new CDWorkModel
                 guard let studentUUID = UUID(uuidString: sid),
                       let lessonUUID = UUID(uuidString: lessonIDStr) else {
                     continue
@@ -123,7 +123,7 @@ extension LifecycleService {
                         scheduledDate: nil as Date?
                     )
 
-                    // Link WorkModel to Track if lesson belongs to a track
+                    // Link CDWorkModel to CDTrackEntity if lesson belongs to a track
                     if let lesson = la.lesson {
                         let subject = lesson.subject.trimmed()
                         let group = lesson.group.trimmed()
@@ -145,7 +145,7 @@ extension LifecycleService {
                 } catch {
                     logger.warning(
                         // swiftlint:disable:next line_length
-                        "Failed to create WorkModel for LessonAssignment \(la.id?.uuidString ?? "nil", privacy: .public), student \(sid, privacy: .public): \(error.localizedDescription)"
+                        "Failed to create CDWorkModel for CDLessonAssignment \(la.id?.uuidString ?? "nil", privacy: .public), student \(sid, privacy: .public): \(error.localizedDescription)"
                     )
                 }
             }

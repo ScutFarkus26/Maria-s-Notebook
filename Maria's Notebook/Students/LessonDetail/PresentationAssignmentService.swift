@@ -32,7 +32,7 @@ enum PresentationAssignmentService {
             // Fetch all WorkModels and filter in memory (no predicates)
             let allWorkModels: [CDWorkModel]
             do {
-                allWorkModels = try viewContext.fetch(NSFetchRequest<CDWorkModel>(entityName: "CDWorkModel"))
+                allWorkModels = try viewContext.fetch(NSFetchRequest<CDWorkModel>(entityName: "WorkModel"))
             } catch {
                 logger.warning("Failed to fetch WorkModels: \(error)")
                 allWorkModels = []

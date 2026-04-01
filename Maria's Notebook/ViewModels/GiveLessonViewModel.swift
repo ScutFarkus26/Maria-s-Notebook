@@ -198,7 +198,7 @@ final class LessonPickerViewModel {
         
         var title: String {
             switch self {
-            case .missingLesson: return "Choose a Lesson"
+            case .missingLesson: return "Choose a CDLesson"
             case .persistFailed: return "Save Failed"
             }
         }
@@ -275,7 +275,7 @@ final class LessonPickerViewModel {
 
         // CDLessonAssignment is already inserted into context by PresentationFactory.makeDraft
 
-        // WorkModel flow
+        // CDWorkModel flow
         // If marking as given and practice is requested, explode per-student practice work via LifecycleService
         if mode == .given && needsPractice {
             let presentedDate = AppCalendar.startOfDay(givenAt ?? Date())

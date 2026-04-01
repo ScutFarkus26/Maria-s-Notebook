@@ -57,7 +57,7 @@ extension QuickPracticeSessionSheet {
         }
     }
 
-    func partnerRow(for student: Student) -> some View {
+    func partnerRow(for student: CDStudent) -> some View {
         let studentID = student.id ?? UUID()
         return Button {
             if selectedPartnerIDs.contains(studentID) {

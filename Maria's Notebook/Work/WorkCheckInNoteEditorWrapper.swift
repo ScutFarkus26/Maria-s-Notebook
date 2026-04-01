@@ -1,14 +1,14 @@
 import SwiftUI
 import CoreData
 
-/// Wrapper view that provides note editing for WorkCheckIn using UnifiedNoteEditor
+/// Wrapper view that provides note editing for CDWorkCheckIn using UnifiedNoteEditor
 struct WorkCheckInNoteEditorWrapper: View {
-    let checkIn: WorkCheckIn
+    let checkIn: CDWorkCheckIn
     @Environment(\.dismiss) private var dismiss
     @Environment(\.managedObjectContext) private var viewContext
     
     // Find existing note or create new one
-    private var existingNote: Note? {
+    private var existingNote: CDNote? {
         ((checkIn.notes?.allObjects as? [CDNote]) ?? []).first
     }
     
@@ -17,7 +17,7 @@ struct WorkCheckInNoteEditorWrapper: View {
             context: .workCheckIn(checkIn),
             initialNote: existingNote,
             onSave: { _ in
-                // Note is automatically saved via relationship
+                // CDNote is automatically saved via relationship
                 dismiss()
             },
             onCancel: {

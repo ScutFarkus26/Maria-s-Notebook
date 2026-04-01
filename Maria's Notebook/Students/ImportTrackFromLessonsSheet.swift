@@ -86,11 +86,11 @@ struct ImportTrackFromLessonsSheet: View {
                     }
                 }
                 
-                Section("Track Title") {
+                Section("CDTrackEntity Title") {
                     TextField("Title", text: $trackTitle)
                 }
             }
-            .navigationTitle("Import Track from Lessons")
+            .navigationTitle("Import CDTrackEntity from Lessons")
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {
                     Button("Cancel") {

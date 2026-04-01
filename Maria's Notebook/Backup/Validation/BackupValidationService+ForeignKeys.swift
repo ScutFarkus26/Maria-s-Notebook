@@ -37,13 +37,13 @@ extension BackupValidationService {
             if let lessonUUID = UUID(uuidString: assignment.lessonID) {
                 if !lessonIDs.contains(lessonUUID) {
                     errors.append(ValidationError(
-                        entityType: "CDLessonAssignment", entityID: assignment.id, field: "lessonID",
+                        entityType: "LessonAssignment", entityID: assignment.id, field: "lessonID",
                         message: "References non-existent lesson: \(assignment.lessonID)", severity: .critical
                     ))
                 }
             } else {
                 errors.append(ValidationError(
-                    entityType: "CDLessonAssignment", entityID: assignment.id, field: "lessonID",
+                    entityType: "LessonAssignment", entityID: assignment.id, field: "lessonID",
                     message: "Invalid lesson ID format: \(assignment.lessonID)", severity: .critical
                 ))
             }
@@ -51,7 +51,7 @@ extension BackupValidationService {
                 if let studentUUID = UUID(uuidString: studentIDString) {
                     if !studentIDs.contains(studentUUID) {
                         errors.append(ValidationError(
-                            entityType: "CDLessonAssignment", entityID: assignment.id, field: "studentIDs",
+                            entityType: "LessonAssignment", entityID: assignment.id, field: "studentIDs",
                             message: "References non-existent student: \(studentIDString)", severity: .critical
                         ))
                     }
@@ -68,7 +68,7 @@ extension BackupValidationService {
         var errors: [ValidationError] = []
         for record in payload.attendance where !studentIDs.contains(record.studentID) {
             errors.append(ValidationError(
-                entityType: "CDAttendanceRecord", entityID: record.id, field: "studentID",
+                entityType: "AttendanceRecord", entityID: record.id, field: "studentID",
                 message: "References non-existent student: \(record.studentID)", severity: .critical
             ))
         }
@@ -111,7 +111,7 @@ extension BackupValidationService {
             for memberIDString in project.memberStudentIDs {
                 if let memberUUID = UUID(uuidString: memberIDString), !studentIDs.contains(memberUUID) {
                     errors.append(ValidationError(
-                        entityType: "CDProject", entityID: project.id, field: "memberStudentIDs",
+                        entityType: "Project", entityID: project.id, field: "memberStudentIDs",
                         message: "References non-existent student: \(memberIDString)", severity: .error
                     ))
                 }

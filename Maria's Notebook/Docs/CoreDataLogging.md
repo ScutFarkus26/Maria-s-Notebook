@@ -17,7 +17,7 @@ When running the app in Debug mode from Xcode, you may see verbose logging from 
 
 1. **Xcode Debug Diagnostics**: Xcode enables verbose Core Data/SQLite logging by default in Debug builds
 2. **System-Level Logging**: Core Data and SQLite emit these logs at the system level, not from app code
-3. **SwiftData Internals**: SwiftData uses Core Data internally, which generates these diagnostic messages
+3. **Core Data Internals**: Core Data emits these diagnostic messages during normal operation
 
 ## Can These Logs Be Disabled?
 
@@ -38,7 +38,7 @@ You may also see harmless CoreData+CloudKit messages during initialization:
 - "store was removed from coordinator"
 - "file:///dev/null" references
 
-These occur during SwiftData's CloudKit initialization and are expected. They do not affect functionality.
+These occur during Core Data's CloudKit initialization and are expected. They do not affect functionality.
 
 ## Detached Signature Errors
 

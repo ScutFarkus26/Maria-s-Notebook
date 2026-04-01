@@ -126,14 +126,14 @@ extension IncrementalBackupService {
             Self.logger.warning("Failed to fetch CDNote: \(error.localizedDescription, privacy: .public)")
             allNotes = []
         }
-        totalCounts["CDNote"] = allNotes.count
+        totalCounts["Note"] = allNotes.count
         let notes: [CDNote]
         if let sinceDate {
             notes = allNotes.filter { ($0.updatedAt ?? .distantPast) >= sinceDate }
         } else {
             notes = allNotes
         }
-        changedCounts["CDNote"] = notes.count
+        changedCounts["Note"] = notes.count
         return notes
     }
 

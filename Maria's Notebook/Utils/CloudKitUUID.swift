@@ -30,7 +30,7 @@ import CoreData
 /// let uuid = work.studentID  // Already a UUID!
 /// ```
 ///
-/// - Note: Invalid strings automatically generate a new UUID (safe default)
+/// - CDNote: Invalid strings automatically generate a new UUID (safe default)
 /// - Important: SwiftData persists the underlying String for CloudKit compatibility
 @propertyWrapper
 struct CloudKitUUID: Codable, Hashable, Sendable {

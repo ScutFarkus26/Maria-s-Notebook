@@ -24,15 +24,6 @@ struct UnlockNextLessonService {
         case noCurrentLesson
         case error(String)
 
-        /// Legacy bridge for callers still expecting SwiftData LessonAssignment
-        @available(*, deprecated, message: "Use Core Data CDLessonAssignment result")
-        var legacyAssignment: LessonAssignment? {
-            if case .success(let cd) = self {
-                // Callers can access the CD object; SwiftData will see it after save
-                return nil // Phase 4 callers should use CDLessonAssignment directly
-            }
-            return nil
-        }
     }
 
     // MARK: - Core Data Unlock Logic
@@ -50,7 +41,7 @@ struct UnlockNextLessonService {
         after currentLessonID: UUID,
         for studentIDs: Set<UUID>,
         context: NSManagedObjectContext,
-        lessons: [Lesson],
+        lessons: [CDLesson],
         cdAssignments: [CDLessonAssignment]
     ) -> UnlockResult {
         // Find the current lesson
@@ -101,7 +92,7 @@ struct UnlockNextLessonService {
         after currentLessonID: UUID,
         for studentID: UUID,
         context: NSManagedObjectContext,
-        lessons: [Lesson],
+        lessons: [CDLesson],
         cdAssignments: [CDLessonAssignment]
     ) -> UnlockResult {
         unlockNextLesson(
@@ -120,7 +111,7 @@ struct UnlockNextLessonService {
     /// Gets the name of the next lesson (for UI display)
     static func getNextLessonName(
         after currentLessonID: UUID,
-        lessons: [Lesson]
+        lessons: [CDLesson]
     ) -> String? {
         guard let currentLesson = lessons.first(where: { $0.id == currentLessonID }),
               let nextLesson = PlanNextLessonService.findNextLesson(after: currentLesson, in: lessons) else {

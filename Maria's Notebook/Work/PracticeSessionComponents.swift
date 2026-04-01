@@ -41,7 +41,7 @@ struct RatingLevelSelector: View {
     }
 }
 
-// MARK: - Student Understanding Selector
+// MARK: - CDStudent Understanding Selector
 
 struct StudentUnderstandingSelector: View {
     @Binding var level: Int
@@ -175,10 +175,10 @@ struct OptionalFieldToggle<Content: View>: View {
     }
 }
 
-// MARK: - Selected Student Row
+// MARK: - Selected CDStudent Row
 
 struct SelectedStudentRow: View {
-    let student: Student
+    let student: CDStudent
     let workTitle: String?
     let showRemoveButton: Bool
     let onRemove: () -> Void
@@ -219,7 +219,7 @@ struct SelectedStudentRow: View {
     }
 }
 
-// MARK: - Student Selector Search Bar
+// MARK: - CDStudent Selector Search Bar
 
 struct StudentSelectorSearchBar: View {
     @Binding var searchText: String
@@ -250,10 +250,10 @@ struct StudentSelectorSearchBar: View {
     }
 }
 
-// MARK: - Lesson Context Card
+// MARK: - CDLesson Context Card
 
 struct LessonContextCard: View {
-    let lesson: Lesson
+    let lesson: CDLesson
     let presentation: Presentation?
 
     var body: some View {
@@ -262,13 +262,13 @@ struct LessonContextCard: View {
                 Image(systemName: "book.closed.fill")
                     .foregroundStyle(.indigo)
                     .font(.system(size: 16))
-                Text("Lesson Context")
+                Text("CDLesson Context")
                     .font(AppTheme.ScaledFont.calloutSemibold)
                     .foregroundStyle(.primary)
             }
 
             VStack(alignment: .leading, spacing: 8) {
-                // Lesson info
+                // CDLesson info
                 HStack(spacing: 8) {
                     VStack(alignment: .leading, spacing: 3) {
                         Text(lesson.name)

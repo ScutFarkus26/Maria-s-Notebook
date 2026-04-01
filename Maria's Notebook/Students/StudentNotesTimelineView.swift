@@ -404,7 +404,7 @@ struct StudentNotesTimelineList: View {
                 Button {
                     noteBeingEdited = note
                 } label: {
-                    Label("Edit Note", systemImage: "pencil")
+                    Label("Edit CDNote", systemImage: "pencil")
                 }
 
                 Button {
@@ -419,7 +419,7 @@ struct StudentNotesTimelineList: View {
                 Button(role: .destructive) {
                     viewModel.delete(item: item)
                 } label: {
-                    Label("Delete Note", systemImage: "trash")
+                    Label("Delete CDNote", systemImage: "trash")
                 }
             }
         }

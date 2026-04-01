@@ -14,7 +14,7 @@ struct MarkdownExporter {
         let issue = t.issueDescription.trimmed()
         if !issue.isEmpty {
             m += """
-            **Issue**
+            **CDIssue**
             
             \(issue)
             
@@ -47,7 +47,7 @@ struct MarkdownExporter {
             
             """
         }
-        let meetingNotes = (t.unifiedNotes?.allObjects as? [CDNote]) ?? []
+        let meetingNotes = t.unifiedNotes
         if !meetingNotes.isEmpty {
             m += "## Meeting Notes\n\n"
             let notes = meetingNotes.sorted { ($0.createdAt ?? .distantPast) < ($1.createdAt ?? .distantPast) }

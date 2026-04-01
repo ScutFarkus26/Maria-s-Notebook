@@ -1,8 +1,8 @@
 import Foundation
 import CoreData
 
-// MARK: - CDProject Transformers (CDProject, CDProjectSession, ProjectRole, ProjectTemplateWeek,
-//         ProjectWeekRoleAssignment, CDCommunityTopicEntity, ProposedSolution, CommunityAttachment)
+// MARK: - CDProject Transformers (CDProject, CDProjectSession, CDProjectRole, CDProjectTemplateWeek,
+//         CDProjectWeekRoleAssignment, CDCommunityTopicEntity, CDProposedSolutionEntity, CDCommunityAttachmentEntity)
 
 extension BackupDTOTransformers {
 
@@ -18,9 +18,9 @@ extension BackupDTOTransformers {
         )
     }
 
-    // MARK: - ProjectAssignmentTemplate
+    // MARK: - CDProjectAssignmentTemplate
 
-    static func toDTO(_ template: ProjectAssignmentTemplate) -> ProjectAssignmentTemplateDTO? {
+    static func toDTO(_ template: CDProjectAssignmentTemplate) -> ProjectAssignmentTemplateDTO? {
         guard let projectIDUUID = UUID(uuidString: template.projectID) else { return nil }
         return ProjectAssignmentTemplateDTO(
             id: template.id ?? UUID(),
@@ -49,9 +49,9 @@ extension BackupDTOTransformers {
         )
     }
 
-    // MARK: - ProjectRole
+    // MARK: - CDProjectRole
 
-    static func toDTO(_ role: ProjectRole) -> ProjectRoleDTO? {
+    static func toDTO(_ role: CDProjectRole) -> ProjectRoleDTO? {
         guard let projectIDUUID = UUID(uuidString: role.projectID) else { return nil }
         return ProjectRoleDTO(
             id: role.id ?? UUID(),
@@ -63,9 +63,9 @@ extension BackupDTOTransformers {
         )
     }
 
-    // MARK: - ProjectTemplateWeek
+    // MARK: - CDProjectTemplateWeek
 
-    static func toDTO(_ week: ProjectTemplateWeek) -> ProjectTemplateWeekDTO? {
+    static func toDTO(_ week: CDProjectTemplateWeek) -> ProjectTemplateWeekDTO? {
         guard let projectIDUUID = UUID(uuidString: week.projectID) else { return nil }
         return ProjectTemplateWeekDTO(
             id: week.id ?? UUID(),
@@ -79,9 +79,9 @@ extension BackupDTOTransformers {
         )
     }
 
-    // MARK: - ProjectWeekRoleAssignment
+    // MARK: - CDProjectWeekRoleAssignment
 
-    static func toDTO(_ assignment: ProjectWeekRoleAssignment) -> ProjectWeekRoleAssignmentDTO? {
+    static func toDTO(_ assignment: CDProjectWeekRoleAssignment) -> ProjectWeekRoleAssignmentDTO? {
         guard let weekIDUUID = UUID(uuidString: assignment.weekID),
               let roleIDUUID = UUID(uuidString: assignment.roleID) else { return nil }
         return ProjectWeekRoleAssignmentDTO(
@@ -108,9 +108,9 @@ extension BackupDTOTransformers {
         )
     }
 
-    // MARK: - ProposedSolution
+    // MARK: - CDProposedSolutionEntity
 
-    static func toDTO(_ solution: ProposedSolution) -> ProposedSolutionDTO {
+    static func toDTO(_ solution: CDProposedSolutionEntity) -> ProposedSolutionDTO {
         ProposedSolutionDTO(
             id: solution.id ?? UUID(),
             topicID: solution.topic?.id,
@@ -122,9 +122,9 @@ extension BackupDTOTransformers {
         )
     }
 
-    // MARK: - CommunityAttachment
+    // MARK: - CDCommunityAttachmentEntity
 
-    static func toDTO(_ attachment: CommunityAttachment) -> CommunityAttachmentDTO {
+    static func toDTO(_ attachment: CDCommunityAttachmentEntity) -> CommunityAttachmentDTO {
         CommunityAttachmentDTO(
             id: attachment.id ?? UUID(),
             topicID: attachment.topic?.id,
@@ -140,7 +140,7 @@ extension BackupDTOTransformers {
         projects.map { toDTO($0) }
     }
 
-    static func toDTOs(_ templates: [ProjectAssignmentTemplate]) -> [ProjectAssignmentTemplateDTO] {
+    static func toDTOs(_ templates: [CDProjectAssignmentTemplate]) -> [ProjectAssignmentTemplateDTO] {
         templates.compactMap { toDTO($0) }
     }
 
@@ -148,15 +148,15 @@ extension BackupDTOTransformers {
         sessions.compactMap { toDTO($0) }
     }
 
-    static func toDTOs(_ roles: [ProjectRole]) -> [ProjectRoleDTO] {
+    static func toDTOs(_ roles: [CDProjectRole]) -> [ProjectRoleDTO] {
         roles.compactMap { toDTO($0) }
     }
 
-    static func toDTOs(_ weeks: [ProjectTemplateWeek]) -> [ProjectTemplateWeekDTO] {
+    static func toDTOs(_ weeks: [CDProjectTemplateWeek]) -> [ProjectTemplateWeekDTO] {
         weeks.compactMap { toDTO($0) }
     }
 
-    static func toDTOs(_ assignments: [ProjectWeekRoleAssignment]) -> [ProjectWeekRoleAssignmentDTO] {
+    static func toDTOs(_ assignments: [CDProjectWeekRoleAssignment]) -> [ProjectWeekRoleAssignmentDTO] {
         assignments.compactMap { toDTO($0) }
     }
 
@@ -164,11 +164,11 @@ extension BackupDTOTransformers {
         topics.map { toDTO($0) }
     }
 
-    static func toDTOs(_ solutions: [ProposedSolution]) -> [ProposedSolutionDTO] {
+    static func toDTOs(_ solutions: [CDProposedSolutionEntity]) -> [ProposedSolutionDTO] {
         solutions.map { toDTO($0) }
     }
 
-    static func toDTOs(_ attachments: [CommunityAttachment]) -> [CommunityAttachmentDTO] {
+    static func toDTOs(_ attachments: [CDCommunityAttachmentEntity]) -> [CommunityAttachmentDTO] {
         attachments.map { toDTO($0) }
     }
 }

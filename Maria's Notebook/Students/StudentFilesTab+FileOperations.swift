@@ -36,7 +36,7 @@ extension StudentFilesTab {
         }
     }
 
-    func deleteDocument(_ document: Document) {
+    func deleteDocument(_ document: CDDocument) {
         guard let documentID = document.id else { return }
         do {
             try repository.deleteDocument(id: documentID)
@@ -45,7 +45,7 @@ extension StudentFilesTab {
         }
     }
 
-    func renameDocument(_ document: Document) {
+    func renameDocument(_ document: CDDocument) {
         documentToRename = document
         renameTitleText = document.title
         showRenameAlert = true
@@ -54,11 +54,11 @@ extension StudentFilesTab {
     var renameSheet: some View {
         NavigationStack {
             Form {
-                Section("Document Title") {
+                Section("CDDocument Title") {
                     TextField("Title", text: $renameTitleText)
                 }
             }
-            .navigationTitle("Rename Document")
+            .navigationTitle("Rename CDDocument")
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {
                     Button("Cancel") {

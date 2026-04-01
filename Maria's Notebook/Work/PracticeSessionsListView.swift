@@ -26,7 +26,7 @@ struct PracticeSessionsListView: View {
         case thisWeek = "This Week"
     }
     
-    private var filteredSessions: [PracticeSession] {
+    private var filteredSessions: [CDPracticeSession] {
         var sessions = Array(allSessions)
 
         // Apply filter type
@@ -63,7 +63,7 @@ struct PracticeSessionsListView: View {
         return sessions
     }
 
-    private var sessionsByDate: [(date: Date, sessions: [PracticeSession])] {
+    private var sessionsByDate: [(date: Date, sessions: [CDPracticeSession])] {
         let grouped = Dictionary(grouping: filteredSessions) { session in
             AppCalendar.startOfDay(session.date ?? Date.distantPast)
         }
@@ -212,7 +212,7 @@ struct PracticeSessionsListView: View {
                 .padding(.horizontal)
             }
             
-            // Student filter
+            // CDStudent filter
             if !allStudents.isEmpty {
                 ScrollView(.horizontal, showsIndicators: false) {
                     HStack(spacing: 8) {
@@ -275,7 +275,7 @@ struct PracticeSessionsListView: View {
         .buttonStyle(.plain)
     }
     
-    private func studentChip(_ student: Student) -> some View {
+    private func studentChip(_ student: CDStudent) -> some View {
         Button {
             if selectedStudent == student.id {
                 selectedStudent = nil
@@ -378,17 +378,17 @@ struct PracticeSessionsListView: View {
     let stack = CoreDataStack.preview
     let ctx = stack.viewContext
 
-    let danny = Student(context: ctx)
+    let danny = CDStudent(context: ctx)
     danny.firstName = "Danny"; danny.lastName = "Jones"; danny.birthday = Date(); danny.level = .lower
-    let mary = Student(context: ctx)
+    let mary = CDStudent(context: ctx)
     mary.firstName = "Mary"; mary.lastName = "Smith"; mary.birthday = Date(); mary.level = .lower
 
-    let work1 = WorkModel(context: ctx)
+    let work1 = CDWorkModel(context: ctx)
     work1.title = "Long Division"; work1.studentID = danny.id?.uuidString ?? ""; work1.lessonID = UUID().uuidString
 
     for i in 0..<10 {
         let isGroup = i % 3 == 0
-        let session = PracticeSession(context: ctx)
+        let session = CDPracticeSession(context: ctx)
         session.date = Date().addingTimeInterval(Double(-i * 86400))
         session.duration = Double((15 + i * 5) * 60)
         session.studentIDsArray = isGroup ? [danny.id?.uuidString ?? "", mary.id?.uuidString ?? ""] : [danny.id?.uuidString ?? ""]

@@ -6,7 +6,7 @@ import CoreData
 // swiftlint:disable:next type_body_length
 struct NewProjectSessionSheet: View {
     private static let logger = Logger.projects
-    let club: Project
+    let club: CDProject
 
     @Environment(\.dismiss) private var dismiss
     @Environment(\.managedObjectContext) private var managedObjectContext
@@ -43,7 +43,7 @@ struct NewProjectSessionSheet: View {
     @FetchRequest private var roles: FetchedResults<CDProjectRole>
     @FetchRequest(sortDescriptors: []) private var allLessonAssignments: FetchedResults<CDLessonAssignment>
 
-    init(club: Project) {
+    init(club: CDProject) {
         self.club = club
         // Performance: Filter template weeks by projectID at query level
         let projectIDString = (club.id ?? UUID()).uuidString
@@ -206,7 +206,7 @@ struct NewProjectSessionSheet: View {
     }
 
     /// Applies template week configuration to the current session settings
-    private func applyTemplateConfig(_ week: ProjectTemplateWeek) {
+    private func applyTemplateConfig(_ week: CDProjectTemplateWeek) {
         chapterOrPages = week.readingRange
         assignmentMode = week.assignmentMode
         minSelections = week.minSelections > 0 ? Int(week.minSelections) : 1
@@ -217,7 +217,7 @@ struct NewProjectSessionSheet: View {
         }
     }
 
-    private func fetchRole(_ id: UUID) -> ProjectRole? {
+    private func fetchRole(_ id: UUID) -> CDProjectRole? {
         return roles.first { $0.id == id }
     }
 
@@ -297,15 +297,15 @@ struct NewProjectSessionSheet: View {
             createUniformWorks(session: session, scheduledDay: scheduledDay)
         }
 
-        saveCoordinator.save(managedObjectContext, reason: "Create Project Session")
+        saveCoordinator.save(managedObjectContext, reason: "Create CDProject Session")
         dismiss()
     }
 
     /// Creates uniform works using existing template/generic logic
-    private func createUniformWorks(session: ProjectSession, scheduledDay: Date) {
+    private func createUniformWorks(session: CDProjectSession, scheduledDay: Date) {
         let lessonUUID = resolveGenericProjectLessonID(context: managedObjectContext)
         let sharedTemplates = ((club.sharedTemplates as? Set<CDProjectAssignmentTemplate>) ?? []).filter(\.isShared)
-        let templateWeek: ProjectTemplateWeek? = (useTemplateWeek && selectedTemplateWeekID != nil)
+        let templateWeek: CDProjectTemplateWeek? = (useTemplateWeek && selectedTemplateWeekID != nil)
             ? templateWeeks.first(where: { $0.id == selectedTemplateWeekID! })
             : nil
 
@@ -365,7 +365,7 @@ struct NewProjectSessionSheet: View {
         title: String,
         instructions: String
     ) {
-        // Create WorkModel
+        // Create CDWorkModel
         guard let studentUUID = UUID(uuidString: studentID) else { return }
         
         let repository = WorkRepository(context: managedObjectContext)
@@ -379,12 +379,12 @@ struct NewProjectSessionSheet: View {
                 scheduledDate: scheduledDate
             )
 
-            // Store session context in notes (WorkModel doesn't have sourceContextType/ID)
+            // Store session context in notes (CDWorkModel doesn't have sourceContextType/ID)
             if !instructions.isEmpty {
                 workModel.setLegacyNoteText(instructions, in: managedObjectContext)
             }
 
-            // Create a WorkCheckIn for scheduled work check-ins
+            // Create a CDWorkCheckIn for scheduled work check-ins
             let checkInService = WorkCheckInService(context: managedObjectContext)
             try checkInService.createCheckIn(
                 for: workModel,
@@ -394,12 +394,12 @@ struct NewProjectSessionSheet: View {
                 note: ""
             )
         } catch {
-            Self.logger.warning("Failed to create WorkModel for project session: \(error)")
+            Self.logger.warning("Failed to create CDWorkModel for project session: \(error)")
         }
     }
 
     private func resolveGenericProjectLessonID(context: NSManagedObjectContext) -> UUID {
-        let name = "Project Work"
+        let name = "CDProject Work"
         let request = CDFetchRequest(CDLesson.self)
         request.predicate = NSPredicate(format: "name == %@", name)
         request.fetchLimit = 1

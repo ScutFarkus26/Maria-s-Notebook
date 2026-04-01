@@ -39,7 +39,7 @@ struct PresentationsDayColumn: View {
         return preloadedWorkItems.filter { ($0.date ?? .distantPast) >= start && ($0.date ?? .distantPast) < end }
     }
     
-    /// Note: Cannot conform to Sendable because SwiftData models are not Sendable
+    /// CDNote: Cannot conform to Sendable because SwiftData models are not Sendable
     enum CalendarItem: Identifiable {
         case lessonAssignment(CDLessonAssignment)
         case workCheckIn(CDWorkCheckIn) // Phase 6: renamed from workPlanItem
@@ -372,7 +372,7 @@ private struct PresentationsDayColumnDropDelegate: DropDelegate {
         let normalized = AppCalendar.startOfDay(day)
         item.date = normalized
         
-        // Also update the associated WorkModel's dueAt
+        // Also update the associated CDWorkModel's dueAt
         if let workID = UUID(uuidString: item.workID) {
             let workDescriptor = { let r = NSFetchRequest<CDWorkModel>(entityName: "WorkModel"); r.predicate = NSPredicate(format: "id == %@", workID as CVarArg); r.fetchLimit = 1; return r }()
             do {

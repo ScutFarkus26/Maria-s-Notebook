@@ -17,7 +17,7 @@ struct StudentReadinessAssessor {
     ///   - context: The Core Data managed object context for querying data
     /// - Returns: Array of readiness profiles, one per student
     static func assessReadiness(
-        for students: [Student],
+        for students: [CDStudent],
         context: NSManagedObjectContext
     ) -> [StudentReadinessProfile] {
         let allLessons = fetchAllLessons(context: context)
@@ -40,7 +40,7 @@ struct StudentReadinessAssessor {
 
     /// Assesses readiness for a single student.
     static func assessReadiness(
-        for student: Student,
+        for student: CDStudent,
         context: NSManagedObjectContext
     ) -> StudentReadinessProfile {
         guard let profile = assessReadiness(for: [student], context: context).first else {
@@ -66,12 +66,12 @@ struct StudentReadinessAssessor {
 
     // swiftlint:disable:next function_parameter_count
     private static func buildProfile(
-        for student: Student,
-        allLessons: [Lesson],
-        allPresentations: [LessonAssignment],
-        allWork: [WorkModel],
-        recentSessions: [PracticeSession],
-        recentNotes: [Note]
+        for student: CDStudent,
+        allLessons: [CDLesson],
+        allPresentations: [CDLessonAssignment],
+        allWork: [CDWorkModel],
+        recentSessions: [CDPracticeSession],
+        recentNotes: [CDNote]
     ) -> StudentReadinessProfile {
         let studentIDStr = student.id?.uuidString ?? ""
         let studentPresentations = allPresentations.filter { $0.studentIDs.contains(studentIDStr) }
@@ -102,7 +102,7 @@ struct StudentReadinessAssessor {
     }
 
     private static func computePracticeMetrics(
-        sessions: [PracticeSession]
+        sessions: [CDPracticeSession]
     ) -> (practiceQualityAvg: Double?, independenceAvg: Double?) {
         let practiceQualities = sessions.compactMap(\.practiceQuality)
         let practiceQualityAvg = practiceQualities.isEmpty
@@ -116,7 +116,7 @@ struct StudentReadinessAssessor {
     }
 
     private static func computeBehavioralFlags(
-        sessions: [PracticeSession], studentNotes: [Note]
+        sessions: [CDPracticeSession], studentNotes: [CDNote]
     ) -> [String] {
         var flags: [String] = []
         let recent = sessions.prefix(10)
@@ -135,7 +135,7 @@ struct StudentReadinessAssessor {
         return flags
     }
 
-    private static func computeDaysSinceLastPresentation(_ presentations: [LessonAssignment]) -> Int? {
+    private static func computeDaysSinceLastPresentation(_ presentations: [CDLessonAssignment]) -> Int? {
         guard let lastDate = presentations.compactMap({ $0.presentedAt }).max() else { return nil }
         return Calendar.current.dateComponents([.day], from: lastDate, to: Date()).day
     }
@@ -143,10 +143,10 @@ struct StudentReadinessAssessor {
     // MARK: - Subject Readiness Computation
 
     private static func computeSubjectReadiness(
-        student: Student,
-        allLessons: [Lesson],
-        presentations: [LessonAssignment],
-        work: [WorkModel]
+        student: CDStudent,
+        allLessons: [CDLesson],
+        presentations: [CDLessonAssignment],
+        work: [CDWorkModel]
     ) -> [SubjectReadiness] {
         let lessonsBySubjectGroup = Dictionary(grouping: allLessons) {
             SubjectGroupKey(subject: $0.subject.trimmed(), group: $0.group.trimmed())
@@ -175,7 +175,7 @@ struct StudentReadinessAssessor {
     }
 
     private static func scanLessonGroupProgress(
-        sorted: [Lesson], presentations: [LessonAssignment], work: [WorkModel]
+        sorted: [CDLesson], presentations: [CDLessonAssignment], work: [CDWorkModel]
     ) -> LessonGroupProgress {
         var progress = LessonGroupProgress()
         for lesson in sorted {
@@ -198,7 +198,7 @@ struct StudentReadinessAssessor {
         return progress
     }
 
-    private static func determineProficiency(activeWork: [WorkModel], completedWork: [WorkModel]) -> ProficiencySignal {
+    private static func determineProficiency(activeWork: [CDWorkModel], completedWork: [CDWorkModel]) -> ProficiencySignal {
         if let latest = completedWork.max(by: {
             ($0.completedAt ?? .distantPast) < ($1.completedAt ?? .distantPast)
         }) {
@@ -273,7 +273,7 @@ extension StudentReadinessAssessor {
 // MARK: - Core Data Fetching
 
 extension StudentReadinessAssessor {
-    private static func fetchAllLessons(context: NSManagedObjectContext) -> [Lesson] {
+    private static func fetchAllLessons(context: NSManagedObjectContext) -> [CDLesson] {
         let request = CDFetchRequest(CDLesson.self)
         request.sortDescriptors = [
             NSSortDescriptor(key: "subject", ascending: true),
@@ -283,17 +283,17 @@ extension StudentReadinessAssessor {
         return context.safeFetch(request)
     }
 
-    private static func fetchPresentations(context: NSManagedObjectContext) -> [LessonAssignment] {
+    private static func fetchPresentations(context: NSManagedObjectContext) -> [CDLessonAssignment] {
         let request = CDFetchRequest(CDLessonAssignment.self)
         return context.safeFetch(request)
     }
 
-    private static func fetchAllWork(context: NSManagedObjectContext) -> [WorkModel] {
+    private static func fetchAllWork(context: NSManagedObjectContext) -> [CDWorkModel] {
         let request = CDFetchRequest(CDWorkModel.self)
         return context.safeFetch(request)
     }
 
-    private static func fetchRecentPracticeSessions(context: NSManagedObjectContext, daysBefore: Int) -> [PracticeSession] {
+    private static func fetchRecentPracticeSessions(context: NSManagedObjectContext, daysBefore: Int) -> [CDPracticeSession] {
         let cutoff = Calendar.current.date(byAdding: .day, value: -daysBefore, to: Date()) ?? Date()
         let request = CDFetchRequest(CDPracticeSession.self)
         request.predicate = NSPredicate(format: "date >= %@", cutoff as NSDate)
@@ -301,7 +301,7 @@ extension StudentReadinessAssessor {
         return context.safeFetch(request)
     }
 
-    private static func fetchRecentNotes(context: NSManagedObjectContext, daysBefore: Int) -> [Note] {
+    private static func fetchRecentNotes(context: NSManagedObjectContext, daysBefore: Int) -> [CDNote] {
         let cutoff = Calendar.current.date(byAdding: .day, value: -daysBefore, to: Date()) ?? Date()
         let request = CDFetchRequest(CDNote.self)
         request.predicate = NSPredicate(format: "createdAt >= %@", cutoff as NSDate)
@@ -320,8 +320,8 @@ private struct SubjectGroupKey: Hashable {
 }
 
 private struct LessonGroupProgress {
-    var currentLesson: Lesson?
-    var nextLesson: Lesson?
+    var currentLesson: CDLesson?
+    var nextLesson: CDLesson?
     var proficiency: ProficiencySignal = .notPresented
     var activeWorkInGroup: Int = 0
     var completedInGroup: Int = 0

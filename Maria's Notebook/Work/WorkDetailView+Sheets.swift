@@ -31,7 +31,7 @@ extension View {
 // MARK: - Helpers
 
 private struct NextLessonResolver {
-    static func resolveNextLesson(from currentID: UUID, lessons: [Lesson]) -> Lesson? {
+    static func resolveNextLesson(from currentID: UUID, lessons: [CDLesson]) -> CDLesson? {
         guard let current = lessons.first(where: { $0.id == currentID }) else { return nil }
         let candidates = lessons.filter { $0.subject == current.subject && $0.group == current.group }
             .sorted { $0.orderInGroup < $1.orderInGroup }
@@ -43,7 +43,7 @@ private struct NextLessonResolver {
 }
 
 struct WorkModelScheduleNextLessonSheet: View {
-    let work: WorkModel
+    let work: CDWorkModel
     var onCreated: () -> Void
     @Environment(\.dismiss) var dismiss
     var body: some View {

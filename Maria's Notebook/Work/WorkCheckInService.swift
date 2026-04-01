@@ -1,11 +1,11 @@
 // WorkCheckInService.swift
-// Small persistence service for WorkCheckIn operations to keep model methods side-effect free.
+// Small persistence service for CDWorkCheckIn operations to keep model methods side-effect free.
 // Behavior-preserving cleanup: comments and MARKs only.
 
 import Foundation
 import CoreData
 
-/// A small service that centralizes persistence for WorkCheckIn operations.
+/// A small service that centralizes persistence for CDWorkCheckIn operations.
 ///
 /// This service ensures that model methods remain free of side-effects
 /// (no implicit saves), while callers can perform explicit, transactional

@@ -6,11 +6,11 @@ import Foundation
 /// A callback that takes no parameters and returns nothing.
 typealias VoidCallback = () -> Void
 
-/// A callback that receives a Student.
-typealias StudentCallback = (Student) -> Void
+/// A callback that receives a CDStudent.
+typealias StudentCallback = (CDStudent) -> Void
 
-/// A callback that receives a Lesson.
-typealias LessonCallback = (Lesson) -> Void
+/// A callback that receives a CDLesson.
+typealias LessonCallback = (CDLesson) -> Void
 
 /// A callback that receives a UUID.
 typealias UUIDCallback = (UUID) -> Void

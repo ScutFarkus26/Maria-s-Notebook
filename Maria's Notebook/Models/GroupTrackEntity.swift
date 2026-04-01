@@ -1,7 +1,7 @@
 import Foundation
 import CoreData
 
-@objc(GroupTrack)
+@objc(CDGroupTrackEntity)
 public class CDGroupTrackEntity: NSManagedObject {
     // MARK: - Attributes
     @NSManaged public var id: UUID?

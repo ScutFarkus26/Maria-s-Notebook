@@ -18,13 +18,13 @@ enum StudentsDataLoader {
         let tomorrow = cal.date(byAdding: .day, value: 1, to: today) ?? today
 
         do {
-            let descriptor: NSFetchRequest<CDAttendanceRecord> = NSFetchRequest(entityName: "CDAttendanceRecord")
+            let descriptor: NSFetchRequest<CDAttendanceRecord> = NSFetchRequest(entityName: "AttendanceRecord")
         descriptor.predicate = NSPredicate(format: "date >= %@ AND date < %@", today as CVarArg, tomorrow as CVarArg)
         descriptor.sortDescriptors = [NSSortDescriptor(key: "date", ascending: true)]
             return try context.fetch(descriptor)
         } catch {
             // Fallback: Fetch all and filter in memory
-            let all = context.safeFetch(NSFetchRequest<CDAttendanceRecord>(entityName: "CDAttendanceRecord"))
+            let all = context.safeFetch(NSFetchRequest<CDAttendanceRecord>(entityName: "AttendanceRecord"))
             return all.filter { guard let d = $0.date else { return false }; return cal.isDate(d, inSameDayAs: today) }
         }
     }
@@ -36,7 +36,7 @@ enum StudentsDataLoader {
     /// - Parameter context: Model context for fetching
     /// - Returns: Array of all lesson assignments
     static func loadLessonAssignments(context: NSManagedObjectContext) -> [CDLessonAssignment] {
-        context.safeFetch(NSFetchRequest<CDLessonAssignment>(entityName: "CDLessonAssignment"))
+        context.safeFetch(NSFetchRequest<CDLessonAssignment>(entityName: "LessonAssignment"))
     }
 
     // MARK: - Load Lessons
@@ -46,7 +46,7 @@ enum StudentsDataLoader {
     /// - Parameter context: Model context for fetching
     /// - Returns: Dictionary mapping lesson ID to CDLesson
     static func loadLessons(context: NSManagedObjectContext) -> [UUID: CDLesson] {
-        let all = context.safeFetch(NSFetchRequest<CDLesson>(entityName: "CDLesson"))
+        let all = context.safeFetch(NSFetchRequest<CDLesson>(entityName: "Lesson"))
         return Dictionary(all.compactMap { guard let id = $0.id else { return nil }; return (id, $0) }, uniquingKeysWith: { first, _ in first })
     }
 }

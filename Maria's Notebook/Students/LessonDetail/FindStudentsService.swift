@@ -22,9 +22,9 @@ enum FindStudentsService {
 
     /// Finds students who are candidates for a presentation.
     ///
-    /// - "Never Received": students with no presented `LessonAssignment` for this lesson
+    /// - "Never Received": students with no presented `CDLessonAssignment` for this lesson
     /// - "Redundantly Scheduled": students who have a presented record AND also have a
-    ///   non-presented (draft/scheduled) `LessonAssignment` for this lesson
+    ///   non-presented (draft/scheduled) `CDLessonAssignment` for this lesson
     ///
     /// Both lists are sorted by minimum birthday distance to any existing student.
     static func findCandidates(

@@ -25,24 +25,24 @@ struct WorkCard: View {
     }
 
     struct GridConfig {
-        let work: WorkModel
+        let work: CDWorkModel
         let lessonTitle: String
         let studentDisplay: String
         let needsAttention: Bool
         let ageSchoolDays: Int
-        let onOpen: (WorkModel) -> Void
-        let onMarkCompleted: (WorkModel) -> Void
-        let onScheduleToday: (WorkModel) -> Void
+        let onOpen: (CDWorkModel) -> Void
+        let onMarkCompleted: (CDWorkModel) -> Void
+        let onScheduleToday: (CDWorkModel) -> Void
 
         init(
-            work: WorkModel,
+            work: CDWorkModel,
             lessonTitle: String,
             studentDisplay: String,
             needsAttention: Bool = false,
             ageSchoolDays: Int = 0,
-            onOpen: @escaping (WorkModel) -> Void,
-            onMarkCompleted: @escaping (WorkModel) -> Void = { _ in },
-            onScheduleToday: @escaping (WorkModel) -> Void = { _ in }
+            onOpen: @escaping (CDWorkModel) -> Void,
+            onMarkCompleted: @escaping (CDWorkModel) -> Void = { _ in },
+            onScheduleToday: @escaping (CDWorkModel) -> Void = { _ in }
         ) {
             self.work = work
             self.lessonTitle = lessonTitle
@@ -56,18 +56,18 @@ struct WorkCard: View {
     }
 
     struct ListConfig {
-        let work: WorkModel
+        let work: CDWorkModel
         let title: String
         let subtitle: String
         let badge: WorkCardBadge?
-        let onOpen: (WorkModel) -> Void
+        let onOpen: (CDWorkModel) -> Void
 
         init(
-            work: WorkModel,
+            work: CDWorkModel,
             title: String,
             subtitle: String,
             badge: WorkCardBadge? = nil,
-            onOpen: @escaping (WorkModel) -> Void
+            onOpen: @escaping (CDWorkModel) -> Void
         ) {
             self.work = work
             self.title = title
@@ -94,18 +94,18 @@ struct WorkCard: View {
     }
 
     struct CompactConfig {
-        let work: WorkModel
+        let work: CDWorkModel
         let title: String
         let workType: WorkCardWorkType
         let participants: [WorkCardParticipant]
-        let onToggle: (WorkModel, UUID) -> Void
+        let onToggle: (CDWorkModel, UUID) -> Void
 
         init(
-            work: WorkModel,
+            work: CDWorkModel,
             title: String,
             workType: WorkCardWorkType,
             participants: [WorkCardParticipant],
-            onToggle: @escaping (WorkModel, UUID) -> Void
+            onToggle: @escaping (CDWorkModel, UUID) -> Void
         ) {
             self.work = work
             self.title = title
@@ -142,14 +142,14 @@ struct WorkCard: View {
 extension WorkCard {
     /// Grid mode - replaces WorkCardView
     static func grid(
-        work: WorkModel,
+        work: CDWorkModel,
         lessonTitle: String,
         studentDisplay: String,
         needsAttention: Bool = false,
         ageSchoolDays: Int = 0,
-        onOpen: @escaping (WorkModel) -> Void,
-        onMarkCompleted: @escaping (WorkModel) -> Void = { _ in },
-        onScheduleToday: @escaping (WorkModel) -> Void = { _ in }
+        onOpen: @escaping (CDWorkModel) -> Void,
+        onMarkCompleted: @escaping (CDWorkModel) -> Void = { _ in },
+        onScheduleToday: @escaping (CDWorkModel) -> Void = { _ in }
     ) -> WorkCard {
         WorkCard(config: .grid(GridConfig(
             work: work,
@@ -165,11 +165,11 @@ extension WorkCard {
 
     /// List mode - replaces inline rows in OpenWorkListView/WorksLogView
     static func list(
-        work: WorkModel,
+        work: CDWorkModel,
         title: String,
         subtitle: String,
         badge: WorkCardBadge? = nil,
-        onOpen: @escaping (WorkModel) -> Void
+        onOpen: @escaping (CDWorkModel) -> Void
     ) -> WorkCard {
         WorkCard(config: .list(ListConfig(
             work: work,
@@ -195,11 +195,11 @@ extension WorkCard {
 
     /// Compact mode - replaces LinkedWorkSection items
     static func compact(
-        work: WorkModel,
+        work: CDWorkModel,
         title: String,
         workType: WorkCardWorkType,
         participants: [WorkCardParticipant],
-        onToggle: @escaping (WorkModel, UUID) -> Void
+        onToggle: @escaping (CDWorkModel, UUID) -> Void
     ) -> WorkCard {
         WorkCard(config: .compact(CompactConfig(
             work: work,

@@ -24,7 +24,7 @@ enum LessonsPresentationHistoryProvider {
 
         // Query all presented LessonAssignments
         let presentedState = LessonAssignmentState.presented.rawValue
-        let descriptor: NSFetchRequest<CDLessonAssignment> = NSFetchRequest(entityName: "CDLessonAssignment")
+        let descriptor: NSFetchRequest<CDLessonAssignment> = NSFetchRequest(entityName: "LessonAssignment")
         descriptor.predicate = NSPredicate(format: "stateRaw == %@", presentedState as CVarArg)
         descriptor.sortDescriptors = [NSSortDescriptor(key: "presentedAt", ascending: false)]
 

@@ -103,7 +103,7 @@ extension ResourceLibraryView {
     @MainActor
     func importDroppedPDF(from tempURL: URL) {
         let stem = tempURL.deletingPathExtension().lastPathComponent
-        let title = stem.isEmpty ? "Imported Resource" : stem
+        let title = stem.isEmpty ? "Imported CDResource" : stem
 
         do {
             let resourceID = UUID()

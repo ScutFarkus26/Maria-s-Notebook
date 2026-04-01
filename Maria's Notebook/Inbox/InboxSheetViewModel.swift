@@ -272,9 +272,20 @@ extension InboxSheetViewModel {
         let studentObj = safeFetchFirst(
             studentFetch, viewContext: viewContext, context: "findOrCreateInboxLA-student"
         )
-        let new = PresentationFactory.makeDraft(lessonID: lessonID, studentIDs: [studentID])
-        PresentationFactory.attachRelationships(to: new, lesson: lessonObj, students: studentObj.map { [$0] } ?? [])
-        viewContext.insert(new)
+        let new: CDLessonAssignment
+        if let lessonObj {
+            new = PresentationFactory.makeDraft(
+                lesson: lessonObj,
+                students: studentObj.map { [$0] } ?? [],
+                context: viewContext
+            )
+        } else {
+            new = PresentationFactory.makeDraft(
+                lessonID: lessonID,
+                studentIDs: [studentID],
+                context: viewContext
+            )
+        }
         return new
     }
 

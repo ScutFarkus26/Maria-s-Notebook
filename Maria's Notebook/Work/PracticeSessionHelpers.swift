@@ -1,7 +1,7 @@
 import SwiftUI
 import CoreData
 
-// MARK: - Student Category Types
+// MARK: - CDStudent Category Types
 
 enum StudentCategory: Int, Comparable {
     case withInitialStudent = 1    // Students who had lesson with initial student
@@ -25,32 +25,32 @@ enum StudentCategory: Int, Comparable {
         case .pastPractice:
             return "Practiced Before"
         case .neverReceived:
-            return "Never Received Lesson"
+            return "Never Received CDLesson"
         }
     }
 }
 
 struct CategorizedStudent: Identifiable {
-    let student: Student
+    let student: CDStudent
     let category: StudentCategory
-    let work: WorkModel?
+    let work: CDWorkModel?
     let daysSinceCompletion: Int?
     let lastPracticeDate: Date?
 
     var id: UUID { student.id ?? UUID() }
 }
 
-// MARK: - Student Categorization Helper
+// MARK: - CDStudent Categorization Helper
 
 struct StudentCategorizer {
-    let initialWorkItem: WorkModel
-    let allWork: [WorkModel]
-    let allLessonAssignments: [LessonAssignment]
-    let allPracticeSessions: [PracticeSession]
+    let initialWorkItem: CDWorkModel
+    let allWork: [CDWorkModel]
+    let allLessonAssignments: [CDLessonAssignment]
+    let allPracticeSessions: [CDPracticeSession]
     let coLearnerIDs: Set<UUID>
 
     // swiftlint:disable:next function_body_length
-    func categorize(_ student: Student) -> CategorizedStudent {
+    func categorize(_ student: CDStudent) -> CategorizedStudent {
         let lessonID = initialWorkItem.lessonID
         let studentIDString = student.id?.uuidString ?? ""
 
@@ -153,9 +153,9 @@ struct StudentCategorizer {
 
     /// Get co-learner IDs from the initial lesson assignment
     static func getCoLearnerIDs<C: Collection>(
-        for workItem: WorkModel,
+        for workItem: CDWorkModel,
         allLessonAssignments: C
-    ) -> Set<UUID> where C.Element == LessonAssignment {
+    ) -> Set<UUID> where C.Element == CDLessonAssignment {
         guard let lessonUUID = UUID(uuidString: workItem.lessonID),
               let studentUUID = UUID(uuidString: workItem.studentID) else {
             return []
@@ -207,7 +207,7 @@ struct StudentCategorizer {
     }
 }
 
-// MARK: - Student Category Row Component
+// MARK: - CDStudent Category Row Component
 
 struct StudentCategoryRow: View {
     let categorizedStudent: CategorizedStudent
@@ -262,7 +262,7 @@ struct StudentCategoryRow: View {
 struct StudentCategorySection: View {
     let category: StudentCategory
     let students: [CategorizedStudent]
-    let onStudentTap: (Student) -> Void
+    let onStudentTap: (CDStudent) -> Void
 
     var body: some View {
         if !students.isEmpty {

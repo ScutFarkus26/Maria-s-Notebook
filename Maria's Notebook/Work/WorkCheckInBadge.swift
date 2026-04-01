@@ -1,7 +1,7 @@
 import SwiftUI
 import CoreData
 
-// MARK: - WorkModel Check-in Counts
+// MARK: - CDWorkModel Check-in Counts
 
 struct CheckInCounts {
     let completed: Int
@@ -9,7 +9,7 @@ struct CheckInCounts {
     let upcoming: Int
 }
 
-extension WorkModel {
+extension CDWorkModel {
     func checkInCounts() -> CheckInCounts {
         let list = (participants?.allObjects as? [CDWorkParticipantEntity]) ?? []
         let total = list.count
@@ -26,7 +26,7 @@ extension WorkModel {
 /// Shows completed vs total (e.g., 2/5) and, if any are remaining, an
 /// upcoming badge indicating how many check-ins are left.
 struct WorkCheckInSummary: View {
-    let work: WorkModel
+    let work: CDWorkModel
 
     private var counts: CheckInCounts {
         work.checkInCounts()

@@ -4,7 +4,7 @@
 import SwiftUI
 
 struct GoingOutSidebarRow: View {
-    let goingOut: GoingOut
+    let goingOut: CDGoingOut
 
     var body: some View {
         HStack(spacing: 10) {

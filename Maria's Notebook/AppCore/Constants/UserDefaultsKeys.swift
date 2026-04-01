@@ -58,7 +58,7 @@ enum UserDefaultsKeys {
     static let attendanceEmailFrom = "AttendanceEmail.from"
     // Dynamic keys: "Attendance.locked.<yyyy-MM-dd>"
     
-    // MARK: - Lesson Age
+    // MARK: - CDLesson Age
     static let lessonAgeWarningDays = "LessonAge.warningDays"
     static let lessonAgeOverdueDays = "LessonAge.overdueDays"
     static let lessonAgeFreshColorHex = "LessonAge.freshColorHex"
@@ -76,7 +76,7 @@ enum UserDefaultsKeys {
     static let generalShowTestStudents = "General.showTestStudents"
     static let generalTestStudentNames = "General.testStudentNames"
     
-    // MARK: - Reminder Sync
+    // MARK: - CDReminder Sync
     static let reminderSyncSyncListName = "ReminderSync.syncListName"
     
     // MARK: - Debug
@@ -95,7 +95,7 @@ enum UserDefaultsKeys {
     static let ollamaBaseURL = "AI.ollamaBaseURL"
     static let ollamaModelName = "AI.ollamaModelName"
 
-    // MARK: - Lesson Planning
+    // MARK: - CDLesson Planning
     static let lessonPlanningModel = "LessonPlanning.model"
     static let lessonPlanningTimeout = "LessonPlanning.timeout"
     static let lessonPlanningSystemPrompt = "LessonPlanning.systemPrompt"
@@ -109,7 +109,7 @@ enum UserDefaultsKeys {
     static let planningRecentWindowDays = "Planning.recentWindowDays"
     static let presentationsCalendarShowWork = "PresentationsCalendar.showWork"
 
-    // MARK: - Quick Note Button
+    // MARK: - Quick CDNote Button
     static let quickNoteButtonOffsetX = "QuickNoteButton.offsetX"
     static let quickNoteButtonOffsetY = "QuickNoteButton.offsetY"
 

@@ -1,7 +1,7 @@
 import Foundation
 import CoreData
 
-@objc(Supply)
+@objc(CDSupply)
 public class CDSupply: NSManagedObject {
     // MARK: - Core Data Properties
     @NSManaged public var id: UUID?

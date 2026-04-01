@@ -31,56 +31,13 @@ final class AppBootstrapper {
         state = .migrating
 
         let context = coreDataStack.viewContext
-        
+
         let startTime = Date()
         Self.logger.info("Bootstrap: Starting startup checks...")
-        
-        // 1. Calendar Setup
-        let calendarStart = Date()
-        AppCalendar.adopt(timeZoneFrom: Calendar.current)
-        let calElapsed = Self.formatSeconds(Date().timeIntervalSince(calendarStart))
-        Self.logger.info("Bootstrap: Calendar setup completed in \(calElapsed)")
-        
-        // 1.5. Migrate lesson files to iCloud Drive (if needed)
-        let filesMigrationStart = Date()
-        if let migratedCount = LessonFileStorage.migrateToICloudDrive() {
-            let filesElapsed = Self.formatSeconds(Date().timeIntervalSince(filesMigrationStart))
-            Self.logger.info("Bootstrap: Migrated \(migratedCount) files in \(filesElapsed)")
-        } else {
-            Self.logger.info("Bootstrap: No lesson file migration needed")
-        }
-        
-        // 2. SwiftData → Core Data Migration (one-time, if legacy store detected)
-        if SwiftDataMigrationService.needsMigration() {
-            Self.logger.info("Bootstrap: SwiftData store detected — starting migration")
-            let migrationStart = Date()
-            let result = await SwiftDataMigrationService.performMigration(
-                coreDataStack: coreDataStack,
-                progress: { progress in
-                    Self.logger.info("Migration: \(progress.phase) (\(Int(progress.fraction * 100))%) — \(progress.detail)")
-                }
-            )
-            let migElapsed = Self.formatSeconds(Date().timeIntervalSince(migrationStart))
-            switch result {
-            case .completed(let count):
-                Self.logger.info("Bootstrap: SwiftData migration completed in \(migElapsed) (\(count) entities)")
-            case .notNeeded, .alreadyMigrated:
-                Self.logger.info("Bootstrap: SwiftData migration not needed")
-            case .failed(let reason):
-                Self.logger.error("Bootstrap: SwiftData migration failed: \(reason)")
-            }
-        }
 
-        // 3. Schema & Data Normalization (quick, safe checks)
-        let migrationStart = Date()
-        DataMigrations.migrateAttendanceRecordStudentIDToStringIfNeeded(using: context)
-        
-        // 3.6.5. GroupTrack default behavior migration
-        DataMigrations.migrateGroupTracksToDefaultBehaviorIfNeeded(using: context)
-        let migElapsed = Self.formatSeconds(Date().timeIntervalSince(migrationStart))
-        Self.logger.info("Bootstrap: Quick migrations completed in \(migElapsed)")
+        performEarlySetup(context: context)
 
-        // 4. Initialize Reminder Sync Service (macOS only)
+        // 4. Initialize CDReminder Sync Service (macOS only)
         #if os(macOS)
         let reminderStart = Date()
         ReminderSyncService.shared.managedObjectContext = context
@@ -100,7 +57,7 @@ final class AppBootstrapper {
             }
         }
         let remElapsed = Self.formatSeconds(Date().timeIntervalSince(reminderStart))
-        Self.logger.info("Bootstrap: Reminder setup completed in \(remElapsed)")
+        Self.logger.info("Bootstrap: CDReminder setup completed in \(remElapsed)")
         #endif
         
         // 5. Signal UI (allow first render; heavy migrations continue in background)
@@ -132,6 +89,26 @@ final class AppBootstrapper {
         }
     }
 
+    private func performEarlySetup(context: NSManagedObjectContext) {
+        // 1. Calendar Setup
+        let calendarStart = Date()
+        AppCalendar.adopt(timeZoneFrom: Calendar.current)
+        let calElapsed = Self.formatSeconds(Date().timeIntervalSince(calendarStart))
+        Self.logger.info("Bootstrap: Calendar setup completed in \(calElapsed)")
+
+        // 1.5. Migrate lesson files to iCloud Drive (if needed)
+        let filesMigrationStart = Date()
+        if let migratedCount = LessonFileStorage.migrateToICloudDrive() {
+            let filesElapsed = Self.formatSeconds(Date().timeIntervalSince(filesMigrationStart))
+            Self.logger.info("Bootstrap: Migrated \(migratedCount) files in \(filesElapsed)")
+        } else {
+            Self.logger.info("Bootstrap: No lesson file migration needed")
+        }
+
+        // 2. Seed built-in templates (first launch or after restore)
+        BuiltInTemplateSeeder.seedIfNeeded(context: context)
+    }
+
     private static func runPostLaunchMigrations(coreDataStack: CoreDataStack) async {
         let backgroundContext = await coreDataStack.newBackgroundContext()
         
@@ -141,7 +118,7 @@ final class AppBootstrapper {
         await backgroundContext.perform {
             // 3.7.5. Repair incorrectly scoped notes
             let scopeRepairStart = Date()
-            // Note: repairScopeForContextualNotes is async+MainActor, call on main
+            // CDNote: repairScopeForContextualNotes is async+MainActor, call on main
             logger.info("Post-launch: note scope repair starting")
         }
 
@@ -159,7 +136,8 @@ final class AppBootstrapper {
             let integrityStart = Date()
             await DataMigrations.repairDenormalizedScheduledForDay(using: await coreDataStack.viewContext)
             await DataMigrations.cleanOrphanedStudentIDs(using: await coreDataStack.viewContext)
-            logger.info("Post-launch: integrity repairs completed in \(formatSeconds(Date().timeIntervalSince(integrityStart)))")
+            let intElapsed = formatSeconds(Date().timeIntervalSince(integrityStart))
+            logger.info("Post-launch: integrity repairs completed in \(intElapsed)")
         }
 
         await MigrationRunner.runIfNeeded(context: await coreDataStack.viewContext)

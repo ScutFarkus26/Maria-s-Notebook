@@ -2,7 +2,7 @@ import SwiftUI
 import CoreData
 
 struct ProjectDetailView: View {
-    let club: Project
+    let club: CDProject
 
     @Environment(\.managedObjectContext) private var modelContext
     @Environment(SaveCoordinator.self) private var saveCoordinator
@@ -16,7 +16,7 @@ struct ProjectDetailView: View {
     @FetchRequest(sortDescriptors: CDStudent.sortByName) private var studentsRaw: FetchedResults<CDStudent>
     // DEDUPLICATION: CloudKit sync can create duplicate records with the same ID.
     // Filter out test students when setting is disabled
-    private var students: [Student] {
+    private var students: [CDStudent] {
         TestStudentsFilter.filterVisible(
             Array(studentsRaw).uniqueByID.filter(\.isEnrolled),
             show: showTestStudents,
@@ -31,7 +31,7 @@ struct ProjectDetailView: View {
     @State private var showEditClub: Bool = false
     @State private var showManageRoles: Bool = false
 
-    init(club: Project) {
+    init(club: CDProject) {
         self.club = club
         // Performance: Filter roles by projectID at query level
         let projectIDString = (club.id ?? UUID()).uuidString
@@ -42,9 +42,9 @@ struct ProjectDetailView: View {
     }
 
     // Use uniquingKeysWith to handle CloudKit sync duplicates
-    private var studentsByID: [UUID: Student] {
+    private var studentsByID: [UUID: CDStudent] {
         Dictionary(
-            students.compactMap { s -> (UUID, Student)? in guard let id = s.id else { return nil }; return (id, s) },
+            students.compactMap { s -> (UUID, CDStudent)? in guard let id = s.id else { return nil }; return (id, s) },
             uniquingKeysWith: { first, _ in first }
         )
     }
@@ -225,10 +225,10 @@ struct ProjectDetailView: View {
 
 // Helper view to show session details + work count
 private struct SessionRow: View {
-    let session: ProjectSession
+    let session: CDProjectSession
     @FetchRequest private var workModels: FetchedResults<CDWorkModel>
 
-    init(session: ProjectSession) {
+    init(session: CDProjectSession) {
         self.session = session
         let sid = session.id?.uuidString ?? ""
         _workModels = FetchRequest(

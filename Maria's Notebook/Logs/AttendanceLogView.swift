@@ -101,7 +101,7 @@ struct AttendanceLogView: View {
                 if date < bounds.start || date >= bounds.end { return false }
             }
 
-            // Student filter
+            // CDStudent filter
             if !selectedStudentIDs.isEmpty {
                 guard let studentID = record.studentIDUUID else { return false }
                 if !selectedStudentIDs.contains(studentID) { return false }
@@ -239,7 +239,7 @@ struct AttendanceLogView: View {
 
     private var filterBar: some View {
         HStack(spacing: 12) {
-            // Student Menu (multi-select)
+            // CDStudent Menu (multi-select)
             Menu {
                 Button("All Students") { selectedStudentIDs.removeAll() }
                 Divider()
@@ -413,12 +413,12 @@ struct AttendanceLogView: View {
                 .frame(width: 12, height: 12)
 
             VStack(alignment: .leading, spacing: 2) {
-                // Student name
+                // CDStudent name
                 if let studentID = record.studentIDUUID, let student = studentsByID[studentID] {
                     Text(displayName(for: student))
                         .font(AppTheme.ScaledFont.bodySemibold)
                 } else {
-                    Text("Unknown Student")
+                    Text("Unknown CDStudent")
                         .font(AppTheme.ScaledFont.bodySemibold)
                         .foregroundStyle(.secondary)
                 }
@@ -444,7 +444,7 @@ struct AttendanceLogView: View {
 
             Spacer()
 
-            // Note indicator
+            // CDNote indicator
             if !record.latestUnifiedNoteText.isEmpty {
                 Image(systemName: "note.text")
                     .foregroundStyle(.secondary)
@@ -477,7 +477,7 @@ struct AttendanceLogView: View {
                 Button {
                     openStudentInNewWindow(studentID)
                 } label: {
-                    Label("View Student", systemImage: "person.text.rectangle")
+                    Label("View CDStudent", systemImage: "person.text.rectangle")
                 }
                 #endif
             }

@@ -197,8 +197,7 @@ extension CDWorkCompletionRecord {
 
 extension CDStudentTrackEnrollmentEntity {
     var latestUnifiedNoteText: String {
-        let allNotes = (richNotes?.allObjects as? [CDNote]) ?? []
-        return CDNote.latestBody(in: allNotes)
+        CDNote.latestBody(in: richNotes)
     }
 
     @discardableResult
@@ -213,7 +212,7 @@ extension CDStudentTrackEnrollmentEntity {
         return CDNote.upsertLegacyFieldNote(
             text: text,
             scope: scope,
-            existingNotes: richNotes,
+            existingNotes: NSSet(array: richNotes),
             context: context
         ) { note in
             note.studentTrackEnrollment = self
@@ -223,8 +222,7 @@ extension CDStudentTrackEnrollmentEntity {
 
 extension CDSchoolDayOverride {
     var latestUnifiedNoteText: String {
-        let allNotes = (notes?.allObjects as? [CDNote]) ?? []
-        return CDNote.latestBody(in: allNotes)
+        CDNote.latestBody(in: notes)
     }
 
     @discardableResult
@@ -232,7 +230,7 @@ extension CDSchoolDayOverride {
         return CDNote.upsertLegacyFieldNote(
             text: text,
             scope: .all,
-            existingNotes: notes,
+            existingNotes: NSSet(array: notes),
             context: context
         ) { note in
             note.schoolDayOverride = self

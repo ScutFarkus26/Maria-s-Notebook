@@ -45,7 +45,7 @@ final class StudentSubjectProgressionViewModel {
 
         totalCount = groupLessons.count
 
-        // Student's presentations and work in this group
+        // CDStudent's presentations and work in this group
         let studentPresentations = fetchedPresentations.filter { $0.studentIDs.contains(studentIDStr) }
         let studentWork = fetchedWork.filter { $0.studentID == studentIDStr }
         let studentCheckIns = fetchedCheckIns.filter { ci in
@@ -189,7 +189,7 @@ final class StudentSubjectProgressionViewModel {
     // MARK: - Fetching
 
     private func fetchAllLessons(context: NSManagedObjectContext) -> [CDLesson] {
-        let descriptor: NSFetchRequest<CDLesson> = NSFetchRequest(entityName: "CDLesson")
+        let descriptor: NSFetchRequest<CDLesson> = NSFetchRequest(entityName: "Lesson")
         descriptor.sortDescriptors = [
                 NSSortDescriptor(keyPath: \CDLesson.subject, ascending: true),
                 NSSortDescriptor(keyPath: \CDLesson.group, ascending: true),
@@ -199,17 +199,17 @@ final class StudentSubjectProgressionViewModel {
     }
 
     private func fetchPresentations(context: NSManagedObjectContext) -> [CDLessonAssignment] {
-        let descriptor = NSFetchRequest<CDLessonAssignment>(entityName: "CDLessonAssignment")
+        let descriptor = NSFetchRequest<CDLessonAssignment>(entityName: "LessonAssignment")
         return context.safeFetch(descriptor)
     }
 
     private func fetchAllWork(context: NSManagedObjectContext) -> [CDWorkModel] {
-        let descriptor = NSFetchRequest<CDWorkModel>(entityName: "CDWorkModel")
+        let descriptor = NSFetchRequest<CDWorkModel>(entityName: "WorkModel")
         return context.safeFetch(descriptor)
     }
 
     private func fetchCheckIns(context: NSManagedObjectContext) -> [CDWorkCheckIn] {
-        let descriptor = NSFetchRequest<CDWorkCheckIn>(entityName: "CDWorkCheckIn")
+        let descriptor = NSFetchRequest<CDWorkCheckIn>(entityName: "WorkCheckIn")
         return context.safeFetch(descriptor)
     }
 }

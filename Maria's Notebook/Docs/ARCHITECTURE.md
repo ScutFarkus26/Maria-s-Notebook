@@ -5,8 +5,8 @@
 Maria's Notebook follows a modular MVVM architecture with services:
 
 - **SwiftUI** for the view layer
-- **SwiftData** for persistence (51 @Model classes)
-- **MVVM** pattern for complex views (24 ViewModels)
+- **Core Data** for persistence (60 NSManagedObject subclasses)
+- **MVVM** pattern for complex views (40+ ViewModels)
 - **Service-oriented** backend (70+ services)
 - **Repository pattern** for data access (13 repositories)
 
@@ -15,7 +15,7 @@ Maria's Notebook follows a modular MVVM architecture with services:
 ```
 App Launch
     ├─► MariasNotebookApp.init()
-    │       └─► Configure SwiftData container
+    │       └─► Configure Core Data stack (NSPersistentCloudKitContainer)
     │       └─► Initialize CloudKit (if enabled)
     ├─► AppBootstrapper.bootstrap()
     │       └─► Run data migrations
@@ -58,31 +58,35 @@ appRouter.navigate(to: .openAttendance)
 
 ## Data Layer
 
-### SwiftData Patterns
+### Core Data Patterns
 
 ```swift
-// Direct query (simple views)
-@Query private var students: [Student]
+// Direct fetch request (simple views)
+@FetchRequest(sortDescriptors: [NSSortDescriptor(keyPath: \CDStudent.lastName, ascending: true)])
+private var students: FetchedResults<CDStudent>
 
-// Filtered query
-@Query(filter: #Predicate<WorkModel> { $0.statusRaw == "active" })
-private var activeWork: [WorkModel]
+// Filtered fetch request
+@FetchRequest(
+    sortDescriptors: [NSSortDescriptor(keyPath: \CDWorkModel.createdAt, ascending: false)],
+    predicate: NSPredicate(format: "statusRaw == %@", "active")
+)
+private var activeWork: FetchedResults<CDWorkModel>
 
 // ViewModel (complex views)
-@StateObject private var viewModel = TodayViewModel()
+@State private var viewModel = TodayViewModel()
 ```
 
 **CloudKit compatibility rules:**
 - Enums stored as raw strings (`statusRaw` pattern — see [ADR-001](ADRs/ADR-001-swiftdata-enum-pattern.md))
 - Foreign keys as `String`, not `UUID`
 - Optional relationship arrays
-- No `@Attribute(.unique)` (incompatible with CloudKit)
+- No unique constraints (incompatible with CloudKit)
 
 See [DATA_MODELS.md](DATA_MODELS.md) for full model reference.
 
 ### Repository Pattern
 
-Repositories for complex data access; `@Query` for simple cases. See [ADR-003](ADRs/ADR-003-repository-pattern.md).
+Repositories for complex data access; `@FetchRequest` for simple cases. See [ADR-003](ADRs/ADR-003-repository-pattern.md).
 
 ### Dependency Injection
 
@@ -126,7 +130,8 @@ StudentDetailSheetModifiers.swift # Sheet presentations
 ### Error Handling
 
 ```swift
-SaveCoordinator.save(context: modelContext)
+// Using safeSave extension on NSManagedObjectContext
+context.safeSave()
 // In view body:
 .saveErrorAlert()
 ```
@@ -137,7 +142,7 @@ SaveCoordinator.save(context: modelContext)
 
 **Use ViewModel when:** Complex business logic, performance optimization needed, multiple data sources, testability required, reusable logic.
 
-**Keep `@State` in view when:** Simple UI state (toggles, selections), direct `@Query` with no logic, simple forms.
+**Keep `@State` in view when:** Simple UI state (toggles, selections), direct `@FetchRequest` with no logic, simple forms.
 
 ### Required Patterns
 
@@ -212,13 +217,13 @@ for (index, item) in items.enumerated() {
 
 | Target | Issue | Approach |
 |--------|-------|----------|
-| `PresentationsListView` | Unfiltered `@Query` | Repository with student-scoped fetch |
+| `PresentationsListView` | Unfiltered `@FetchRequest` | Repository with student-scoped fetch |
 | `PlanningWeekView` | Loads all lessons | Date range filter |
 | Heavy view body computations | Filtering in `body` | Move to ViewModel with caching |
 
 ### Anti-Patterns to Avoid
 
-- Unfiltered `@Query` in frequently-accessed views
+- Unfiltered `@FetchRequest` in frequently-accessed views
 - O(n) `items.first { $0.id == targetID }` in row rendering (use dictionary)
 - Computation in view `body` (cache in ViewModel)
 - Blocking main thread with synchronous operations
@@ -230,7 +235,7 @@ for (index, item) in items.enumerated() {
 - Inject dependencies via constructor
 - Use `private(set)` for ViewModel published properties
 - Use `safeFetch`/`safeSave` extensions for data operations
-- Use `SaveCoordinator` for consistent save error handling
+- Use `safeSave` extensions for consistent save error handling
 - Follow CloudKit compatibility patterns for all models
 - Split large views into smaller component files
 

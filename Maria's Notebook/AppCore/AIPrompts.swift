@@ -121,7 +121,7 @@ struct AIPrompts {
         return "Classify this note:\n\(noteText)"
     }
     
-    // MARK: - Quick Note Processing
+    // MARK: - Quick CDNote Processing
     
     /// Creates a prompt for processing quick note text with a custom instruction
     static func processQuickNote(instruction: String, text: String) -> String {

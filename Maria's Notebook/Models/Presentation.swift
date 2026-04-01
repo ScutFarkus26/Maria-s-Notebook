@@ -2,7 +2,7 @@ import Foundation
 
 // MARK: - Snapshot
 
-/// Immutable value-type snapshot of a LessonAssignment for use in SwiftUI and async contexts.
+/// Immutable value-type snapshot of a CDLessonAssignment for use in SwiftUI and async contexts.
 struct LessonAssignmentSnapshot: Identifiable, Sendable {
     let id: UUID
     let lessonID: UUID

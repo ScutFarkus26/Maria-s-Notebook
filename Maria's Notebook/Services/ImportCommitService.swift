@@ -17,7 +17,7 @@ public enum ImportCommitService {
     @MainActor
     static func commitLessons(
         parsed: LessonCSVImporter.Parsed, into context: NSManagedObjectContext,
-        existingLessons: [Lesson]
+        existingLessons: [CDLesson]
     ) throws -> ImportCommitResult {
         let inserted = try LessonCSVImporter.commit(
             parsed: parsed, into: context, existingLessons: existingLessons
@@ -39,7 +39,7 @@ public enum ImportCommitService {
     @MainActor
     static func commitStudents(
         parsed: StudentCSVImporter.Parsed, into context: NSManagedObjectContext,
-        existingStudents: [Student]
+        existingStudents: [CDStudent]
     ) throws -> ImportCommitResult {
         let summary = try StudentCSVImporter.commit(
             parsed: parsed, into: context, existingStudents: existingStudents

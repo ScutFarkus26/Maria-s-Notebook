@@ -3,7 +3,7 @@
 //  LessonAssignmentDetailSheet.swift
 //  Maria's Notebook
 //
-//  Detail view for a presented LessonAssignment.
+//  Detail view for a presented CDLessonAssignment.
 //  Phase 5 migration: This sheet reads from CDLessonAssignment instead of Presentation.
 //
 

@@ -11,7 +11,7 @@ import OSLog
 /// 3. Persist the last processed token to UserDefaults
 /// 4. Purge history older than our last processed token (safe for CloudKit)
 ///
-/// Note: The view context has `automaticallyMergesChangesFromParent = true`,
+/// CDNote: The view context has `automaticallyMergesChangesFromParent = true`,
 /// which handles merging remote changes automatically. This processor only
 /// inspects history to detect inserts for deduplication — it does NOT call
 /// `mergeChanges(fromContextDidSave:)` (that would be redundant).

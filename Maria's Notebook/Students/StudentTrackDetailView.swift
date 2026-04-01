@@ -90,13 +90,13 @@ struct StudentTrackDetailView: View {
         let studentID = enrollment.studentID
 
         // Fetch the student
-        let allStudents = viewContext.safeFetch(NSFetchRequest<CDStudent>(entityName: "CDStudent"))
+        let allStudents = viewContext.safeFetch(NSFetchRequest<CDStudent>(entityName: "Student"))
         student = allStudents.first { $0.cloudKitKey == studentID }
 
         // Fetch lessons for this subject/group
         let allLessons: [CDLesson]
         do {
-            allLessons = try viewContext.fetch(NSFetchRequest<CDLesson>(entityName: "CDLesson"))
+            allLessons = try viewContext.fetch(NSFetchRequest<CDLesson>(entityName: "Lesson"))
         } catch {
             Self.logger.warning("Failed to fetch Lessons: \(error)")
             allLessons = []
@@ -112,7 +112,7 @@ struct StudentTrackDetailView: View {
         let lessonIDStrings = Set(trackLessons.compactMap { $0.id?.uuidString })
         let allPresentations: [CDLessonPresentation]
         do {
-            allPresentations = try viewContext.fetch(NSFetchRequest<CDLessonPresentation>(entityName: "CDLessonPresentation"))
+            allPresentations = try viewContext.fetch(NSFetchRequest<CDLessonPresentation>(entityName: "LessonPresentation"))
         } catch {
             Self.logger.warning("Failed to fetch LessonPresentations: \(error)")
             allPresentations = []
@@ -345,16 +345,16 @@ struct StudentTrackDetailView: View {
     let stack = CoreDataStack.preview
     let ctx = stack.viewContext
 
-    let track = Track(context: ctx)
+    let track = CDTrackEntity(context: ctx)
     track.title = "Math — Fundamentals"
 
-    let student = Student(context: ctx)
+    let student = CDStudent(context: ctx)
     student.firstName = "Alan"
     student.lastName = "Turing"
     student.birthday = Date()
     student.level = .upper
 
-    let enrollment = StudentTrackEnrollment(context: ctx)
+    let enrollment = CDStudentTrackEnrollmentEntity(context: ctx)
     enrollment.studentID = student.id?.uuidString ?? ""
     enrollment.trackID = track.id?.uuidString ?? ""
     enrollment.startedAt = Date()

@@ -23,7 +23,7 @@ final class NetworkMonitoring {
     }
     
     deinit {
-        // Note: Cannot call stopNetworkMonitoring() from deinit since it's MainActor-isolated
+        // CDNote: Cannot call stopNetworkMonitoring() from deinit since it's MainActor-isolated
         // The NWPathMonitor will be cleaned up when the object is deallocated
     }
     

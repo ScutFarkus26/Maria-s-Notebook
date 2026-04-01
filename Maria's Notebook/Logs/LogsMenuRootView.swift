@@ -89,7 +89,7 @@ struct LogsMenuRootView: View {
     private var logsContent: some View {
         switch mode {
         case .presentations:
-            // LessonAssignment history view for presentation logs
+            // CDLessonAssignment history view for presentation logs
             LessonAssignmentHistoryView()
         case .works:
             WorksLogView()

@@ -21,7 +21,7 @@ struct GroupTrackSettingsSheet: View {
         NavigationStack {
             Form {
                 Section {
-                    Toggle("Use as Track", isOn: $isTrack)
+                    Toggle("Use as CDTrackEntity", isOn: $isTrack)
                     
                     if isTrack {
                         Picker("CDTrackEntity Type", selection: $isSequential) {
@@ -107,7 +107,7 @@ struct GroupTrackSettingsSheet: View {
                 track.isSequential = isSequential
                 track.isExplicitlyDisabled = false // Explicitly enabled
             } else {
-                // User unchecked "Use as Track" - explicitly disable
+                // User unchecked "Use as CDTrackEntity" - explicitly disable
                 let track = try GroupTrackService.cdGetOrCreateGroupTrack(
                     subject: subject,
                     group: group,

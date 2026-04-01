@@ -60,7 +60,7 @@ enum ResourceFileStorage {
         let sourceExt = sourceURL.pathExtension
         let extWithDot = sourceExt.isEmpty ? ".pdf" : "." + sourceExt
 
-        let baseName = sanitizeFilenameComponent(title, fallback: "CDResource")
+        let baseName = sanitizeFilenameComponent(title, fallback: "Resource")
         let uuidString = resourceID.uuidString.replacingOccurrences(of: "-", with: "")
         let uuidSuffix = String(uuidString.suffix(8))
 

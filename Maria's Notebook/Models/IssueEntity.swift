@@ -1,7 +1,7 @@
 import Foundation
 import CoreData
 
-@objc(Issue)
+@objc(CDIssue)
 public class CDIssue: NSManagedObject {
     // MARK: - Core Data Properties
     @NSManaged public var id: UUID?
@@ -67,7 +67,7 @@ extension CDIssue {
         set { statusRaw = newValue.rawValue }
     }
 
-    /// Student IDs decoded from binary data
+    /// CDStudent IDs decoded from binary data
     var studentIDs: [String] {
         get { CloudKitStringArrayStorage.decode(from: _studentIDsData) }
         set {

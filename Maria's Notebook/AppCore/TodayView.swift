@@ -457,7 +457,7 @@ struct TodayView: View {
                 try await syncService.syncReminders()
             } catch {
                 #if DEBUG
-                Logger.sync.error("Reminder sync failed: \(error.localizedDescription)")
+                Logger.sync.error("CDReminder sync failed: \(error.localizedDescription)")
                 #endif
             }
         }

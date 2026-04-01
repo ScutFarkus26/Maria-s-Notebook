@@ -70,7 +70,7 @@ public enum PrintUtils {
         let sanitized = jobTitle.replacingOccurrences(of: "/", with: "-")
             .replacingOccurrences(of: ":", with: "-")
             .replacingOccurrences(of: "\n", with: " ")
-        let filename = sanitized.isEmpty ? "Document.pdf" : "\(sanitized).pdf"
+        let filename = sanitized.isEmpty ? "CDDocument.pdf" : "\(sanitized).pdf"
         let url = URL(fileURLWithPath: NSTemporaryDirectory()).appendingPathComponent(filename)
 
         guard let consumer = CGDataConsumer(url: url as CFURL),

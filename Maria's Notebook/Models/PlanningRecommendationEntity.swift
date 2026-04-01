@@ -1,7 +1,7 @@
 import Foundation
 import CoreData
 
-@objc(PlanningRecommendation)
+@objc(CDPlanningRecommendation)
 public class CDPlanningRecommendation: NSManagedObject {
     // MARK: - Core Data Properties
     @NSManaged public var id: UUID?
@@ -60,7 +60,7 @@ extension CDPlanningRecommendation {
 // MARK: - Computed Properties
 
 extension CDPlanningRecommendation {
-    /// Student IDs decoded from binary data
+    /// CDStudent IDs decoded from binary data
     var studentIDs: [String] {
         get { CloudKitStringArrayStorage.decode(from: _studentIDsData) }
         set { _studentIDsData = CloudKitStringArrayStorage.encode(newValue) }

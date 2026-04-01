@@ -1,11 +1,11 @@
 # Data Models
 
-This document describes the SwiftData models used in Maria's Notebook.
+This document describes the Core Data models used in Maria's Notebook.
 
 ## Overview
 
-All models use SwiftData's `@Model` macro and follow CloudKit compatibility patterns:
-- UUID primary keys with `@Attribute(.unique)`
+All models are NSManagedObject subclasses (with `CD` prefix) defined in `MariasNotebook.xcdatamodeld` and follow CloudKit compatibility patterns:
+- UUID primary keys (no unique constraints — CloudKit incompatible)
 - Enum properties stored as raw strings
 - Foreign keys stored as `String` (not UUID)
 - Relationship arrays marked as optional
@@ -52,7 +52,7 @@ All models use SwiftData's `@Model` macro and follow CloudKit compatibility patt
 
 The primary entity representing a student in the classroom.
 
-**Location:** `Students/StudentModel.swift`
+**Location:** `Students/StudentEntity.swift` (class `CDStudent`)
 
 | Field | Type | Description |
 |-------|------|-------------|
@@ -81,7 +81,7 @@ The primary entity representing a student in the classroom.
 
 Curriculum lessons organized by subject and group.
 
-**Location:** `Lessons/LessonModel.swift`
+**Location:** `Lessons/LessonEntity.swift` (class `CDLesson`)
 
 | Field | Type | Description |
 |-------|------|-------------|
@@ -114,7 +114,7 @@ Curriculum lessons organized by subject and group.
 
 Links students to lessons with scheduling and presentation tracking.
 
-**Location:** `Models/Presentation.swift`
+**Location:** `Models/LessonAssignmentEntity.swift` (class `CDLessonAssignment`)
 
 | Field | Type | Description |
 |-------|------|-------------|
@@ -149,7 +149,7 @@ Links students to lessons with scheduling and presentation tracking.
 
 Tracks student work items through their lifecycle.
 
-**Location:** `Work/WorkModel.swift`
+**Location:** `Work/WorkModelEntity.swift` (class `CDWorkModel`)
 
 | Field | Type | Description |
 |-------|------|-------------|
@@ -197,7 +197,7 @@ Tracks student work items through their lifecycle.
 
 Universal note entity that can attach to multiple contexts.
 
-**Location:** `Models/Note.swift`
+**Location:** `Models/NoteEntity.swift` (class `CDNote`)
 
 | Field | Type | Description |
 |-------|------|-------------|
@@ -237,7 +237,7 @@ Universal note entity that can attach to multiple contexts.
 
 Daily attendance tracking per student.
 
-**Location:** `Attendance/AttendanceModels.swift`
+**Location:** `Attendance/AttendanceRecordEntity.swift` (class `CDAttendanceRecord`)
 
 | Field | Type | Description |
 |-------|------|-------------|
@@ -263,10 +263,9 @@ Daily attendance tracking per student.
 
 Unified model for lesson scheduling and presentation history.
 
-**Location:** `Models/Presentation.swift`
+**Location:** `Models/LessonPresentationEntity.swift` (class `CDLessonPresentation`)
 
-**Note:** The SwiftData entity class is named `LessonAssignment` for database compatibility.
-Use the `Presentation` typealias in code for cleaner semantics.
+**Note:** The Core Data entity is named `LessonPresentation`. The `Presentation` typealias is available in code for cleaner semantics.
 
 **Lifecycle:** `draft` → `scheduled` → `presented`
 
@@ -307,7 +306,7 @@ Use the `Presentation` typealias in code for cleaner semantics.
 
 Classroom project with sessions and templates.
 
-**Location:** `Projects/ProjectModels.swift`
+**Location:** `Projects/ProjectEntity.swift` (class `CDProject`)
 
 | Field | Type | Description |
 |-------|------|-------------|
@@ -329,7 +328,7 @@ Classroom project with sessions and templates.
 
 Individual session within a project.
 
-**Location:** `Projects/ProjectModels.swift`
+**Location:** `Projects/ProjectSessionEntity.swift` (class `CDProjectSession`)
 
 | Field | Type | Description |
 |-------|------|-------------|
@@ -354,7 +353,7 @@ Individual session within a project.
 
 Tracks individual student participation in a work item.
 
-**Location:** `Work/WorkParticipantEntity.swift`
+**Location:** `Work/WorkParticipantEntityCD.swift` (class `CDWorkParticipant`)
 
 | Field | Type | Description |
 |-------|------|-------------|
@@ -368,7 +367,7 @@ Tracks individual student participation in a work item.
 
 Check-in record for work items.
 
-**Location:** `Work/WorkCheckIn.swift`
+**Location:** `Work/WorkCheckInEntity.swift` (class `CDWorkCheckIn`)
 
 | Field | Type | Description |
 |-------|------|-------------|
@@ -385,7 +384,7 @@ Check-in record for work items.
 
 Individual step within a work item.
 
-**Location:** `Work/WorkStep.swift`
+**Location:** `Work/WorkStepEntity.swift` (class `CDWorkStep`)
 
 | Field | Type | Description |
 |-------|------|-------------|
@@ -400,7 +399,7 @@ Individual step within a work item.
 
 Records student completion of a work item.
 
-**Location:** `Work/WorkCompletionRecord.swift`
+**Location:** `Work/WorkCompletionRecordEntity.swift` (class `CDWorkCompletionRecord`)
 
 | Field | Type | Description |
 |-------|------|-------------|
@@ -416,7 +415,7 @@ Records student completion of a work item.
 
 File attachments for students.
 
-**Location:** `Models/Document.swift`
+**Location:** `Models/DocumentEntity.swift` (class `CDDocument`)
 
 | Field | Type | Description |
 |-------|------|-------------|
@@ -464,10 +463,10 @@ File attachments for students.
 All foreign keys use `String` instead of `UUID`:
 
 ```swift
-// Storage
-var studentID: String = ""
+// Storage (NSManagedObject property)
+@NSManaged var studentID: String
 
-// Computed accessor for convenience
+// Computed accessor
 var studentIDUUID: UUID? {
     get { UUID(uuidString: studentID) }
     set { studentID = newValue?.uuidString ?? "" }
@@ -479,8 +478,8 @@ var studentIDUUID: UUID? {
 Enums are stored as raw strings:
 
 ```swift
-// Storage
-private var statusRaw: String = "active"
+// Storage (Core Data attribute)
+@NSManaged var statusRaw: String
 
 // Computed accessor
 var status: WorkStatus {
@@ -489,28 +488,32 @@ var status: WorkStatus {
 }
 ```
 
-### Optional Relationships
+### Relationships
 
-All relationship arrays are optional:
+Relationships are configured in `MariasNotebook.xcdatamodeld`. In code, they are accessed via `NSSet`:
 
 ```swift
-@Relationship(deleteRule: .cascade, inverse: \Note.work)
-var notes: [Note]? = []
+// Core Data relationship (configured in xcdatamodeld with cascade delete rule)
+@NSManaged var notes: NSSet?
+
+// Typed accessor
+var notesArray: [CDNote] {
+    (notes as? Set<CDNote>)?.sorted { ($0.createdAt ?? .distantPast) < ($1.createdAt ?? .distantPast) } ?? []
+}
 ```
 
 ### External Storage
 
-Large data uses external storage:
+Large data uses external storage (configured via "Allows External Storage" in xcdatamodeld):
 
 ```swift
-@Attribute(.externalStorage)
-var pagesFileBookmark: Data? = nil
+@NSManaged var pagesFileBookmark: Data?
 ```
 
 ---
 
 ## Migration Notes
 
-See [LegacyCleanupNotes.md](../LegacyCleanupNotes.md) for migration history from `WorkContract` to `WorkModel`.
+The migration from SwiftData to Core Data (`NSManagedObject` subclasses with `NSPersistentCloudKitContainer`) is complete. All entities are now defined in `MariasNotebook.xcdatamodeld` with `CD`-prefixed classes.
 
-Migration functions are located in `Services/DataMigrations.swift`.
+Data migration functions are located in `Services/DataMigrations.swift`.

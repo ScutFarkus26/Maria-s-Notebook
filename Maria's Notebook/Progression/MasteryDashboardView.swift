@@ -7,7 +7,7 @@ struct MasteryDashboardView: View {
     let track: CDTrackEntity
     @Environment(\.managedObjectContext) private var viewContext
     @State private var studentRows: [MasteryStudentRow] = []
-    @State private var steps: [TrackStep] = []
+    @State private var steps: [CDTrackStepEntity] = []
     @State private var isLoading = true
 
     private let cellSize: CGFloat = 36
@@ -28,7 +28,7 @@ struct MasteryDashboardView: View {
                 .padding()
             }
         }
-        .navigationTitle("Mastery: \(track.title.isEmpty ? "CDTrackEntity" : track.title)")
+        .navigationTitle("Mastery: \(track.title.isEmpty ? "Track" : track.title)")
         .inlineNavigationTitle()
         .onAppear { loadData() }
     }
@@ -72,7 +72,7 @@ struct MasteryDashboardView: View {
             VStack(alignment: .leading, spacing: 2) {
                 // Header row with step names
                 HStack(spacing: 2) {
-                    Text("CDStudent")
+                    Text("Student")
                         .font(.caption.bold())
                         .frame(width: nameColumnWidth, alignment: .leading)
                     ForEach(steps) { step in
@@ -107,7 +107,7 @@ struct MasteryDashboardView: View {
         }
     }
 
-    private func stepName(for step: TrackStep) -> String {
+    private func stepName(for step: CDTrackStepEntity) -> String {
         guard let lessonID = step.lessonTemplateID else {
             return "Step \(step.orderIndex + 1)"
         }

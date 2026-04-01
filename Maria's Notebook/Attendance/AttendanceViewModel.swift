@@ -9,7 +9,7 @@ final class AttendanceViewModel {
     private static let logger = Logger.attendance
     var selectedDate: Date
     // CloudKit compatibility: Use String keys since studentID is now String
-    var recordsByStudentID: [String: AttendanceRecord] = [:]
+    var recordsByStudentID: [String: CDAttendanceRecord] = [:]
 
     enum SortKey: String, CaseIterable { case firstName, lastName }
     var sortKey: SortKey = .lastName
@@ -45,7 +45,7 @@ final class AttendanceViewModel {
             let allowed = Set(students.compactMap { $0.id?.uuidString })
             let filtered = records.filter { allowed.contains($0.studentID) }
             // Build dictionary safely, handling potential duplicates by keeping the first occurrence
-            var recordsByStudentID: [String: AttendanceRecord] = [:]
+            var recordsByStudentID: [String: CDAttendanceRecord] = [:]
             for record in filtered {
                 recordsByStudentID.insertIfAbsent(record, forKey: record.studentID)
             }
@@ -56,7 +56,7 @@ final class AttendanceViewModel {
     }
 
     // MARK: - Actions
-    func cycleStatus(for student: Student, modelContext: NSManagedObjectContext) {
+    func cycleStatus(for student: CDStudent, modelContext: NSManagedObjectContext) {
         // CloudKit compatibility: Convert UUID to String for lookup
         let studentIDString = student.cloudKitKey
         guard let rec = recordsByStudentID[studentIDString] else { return }
@@ -68,7 +68,7 @@ final class AttendanceViewModel {
         }
     }
 
-    func updateNote(for student: Student, note: String?, modelContext: NSManagedObjectContext) {
+    func updateNote(for student: CDStudent, note: String?, modelContext: NSManagedObjectContext) {
         // CloudKit compatibility: Convert UUID to String for lookup
         let studentIDString = student.cloudKitKey
         guard let rec = recordsByStudentID[studentIDString] else { return }
@@ -78,7 +78,7 @@ final class AttendanceViewModel {
         }
     }
 
-    func updateAbsenceReason(for student: Student, reason: AbsenceReason, modelContext: NSManagedObjectContext) {
+    func updateAbsenceReason(for student: CDStudent, reason: AbsenceReason, modelContext: NSManagedObjectContext) {
         // CloudKit compatibility: Convert UUID to String for lookup
         let studentIDString = student.cloudKitKey
         guard let rec = recordsByStudentID[studentIDString] else { return }

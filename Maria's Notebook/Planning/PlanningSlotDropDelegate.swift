@@ -78,7 +78,7 @@ struct PlanningSlotDropDelegate: DropDelegate {
         handlePlainIDPayload(payload: payload, location: location)
     }
 
-    // MARK: - Student-to-slot drops
+    // MARK: - CDStudent-to-slot drops
 
     @MainActor
     private func handleStudentToSlotPayload(payload: String, location: CGPoint) {
@@ -185,9 +185,9 @@ struct PlanningSlotDropDelegate: DropDelegate {
             return existing
         }
 
-        let new = PresentationFactory.makeDraft(lessonID: lessonID, studentIDs: [studentID])
+        let new = PresentationFactory.makeDraft(lessonID: lessonID, studentIDs: [studentID], context: viewContext)
 
-        let lessonFetch = NSFetchRequest<CDLesson>(entityName: "CDLesson")
+        let lessonFetch = NSFetchRequest<CDLesson>(entityName: "Lesson")
         lessonFetch.predicate = NSPredicate(format: "id == %@", lessonID as CVarArg)
         lessonFetch.fetchLimit = 1
         do {

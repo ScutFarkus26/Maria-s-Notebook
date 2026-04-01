@@ -313,7 +313,7 @@ extension LessonsViewModel {
         do {
             assignments = try context.fetch(descriptor)
         } catch {
-            Self.logger.warning("Failed to fetch LessonAssignment: \(error)")
+            Self.logger.warning("Failed to fetch CDLessonAssignment: \(error)")
             return [:]
         }
 

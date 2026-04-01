@@ -188,7 +188,7 @@ struct AgendaSlot: View {
             Button {
                 onMoveToInbox(la)
             } label: {
-                Label("Move to Inbox", systemImage: SFSymbol.Document.tray)
+                Label("Move to Inbox", systemImage: SFSymbol.CDDocument.tray)
             }
         }
         .background(

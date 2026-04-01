@@ -55,7 +55,7 @@ struct FollowUpWorkService {
             }
         }
 
-        // Note: needsAnotherPresentation doesn't create work items
+        // CDNote: needsAnotherPresentation doesn't create work items
         // It's a flag for the teacher to re-present the lesson
 
         return workItems

@@ -2,7 +2,7 @@
 //  MeetingRepository.swift
 //  Maria's Notebook
 //
-//  Repository for StudentMeeting entity CRUD operations.
+//  Repository for CDStudentMeeting entity CRUD operations.
 //
 
 import Foundation
@@ -25,7 +25,7 @@ struct MeetingRepository: SavingRepository {
 
     // MARK: - Fetch
 
-    /// Fetch a StudentMeeting by ID
+    /// Fetch a CDStudentMeeting by ID
     func fetchMeeting(id: UUID) -> CDStudentMeeting? {
         let request = CDFetchRequest(CDStudentMeeting.self)
         request.predicate = NSPredicate(format: "id == %@", id as CVarArg)
@@ -63,7 +63,7 @@ struct MeetingRepository: SavingRepository {
 
     // MARK: - Create
 
-    /// Create a new StudentMeeting
+    /// Create a new CDStudentMeeting
     @discardableResult
     func createMeeting(
         studentID: UUID,
@@ -87,7 +87,7 @@ struct MeetingRepository: SavingRepository {
 
     // MARK: - Update
 
-    /// Update an existing StudentMeeting's properties
+    /// Update an existing CDStudentMeeting's properties
     @discardableResult
     func updateMeeting(
         id: UUID,
@@ -120,7 +120,7 @@ struct MeetingRepository: SavingRepository {
 
     // MARK: - Delete
 
-    /// Delete a StudentMeeting by ID
+    /// Delete a CDStudentMeeting by ID
     func deleteMeeting(id: UUID) throws {
         guard let meeting = fetchMeeting(id: id) else { return }
         context.delete(meeting)

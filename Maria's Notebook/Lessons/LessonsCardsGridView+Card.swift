@@ -64,7 +64,7 @@ extension LessonsCardsGridView {
             Button {
                 onGiveLesson?(lesson)
             } label: {
-                Label("Give Lesson", systemImage: "person.crop.circle.badge.checkmark")
+                Label("Give CDLesson", systemImage: "person.crop.circle.badge.checkmark")
             }
         }
 #endif

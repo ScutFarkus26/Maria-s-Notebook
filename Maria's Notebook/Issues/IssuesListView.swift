@@ -106,7 +106,7 @@ struct IssuesListView: View {
                 Button {
                     showingNewIssueSheet = true
                 } label: {
-                    Label("New Issue", systemImage: "plus")
+                    Label("New CDIssue", systemImage: "plus")
                 }
             }
         }

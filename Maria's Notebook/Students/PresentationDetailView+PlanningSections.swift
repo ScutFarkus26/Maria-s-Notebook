@@ -200,7 +200,7 @@ extension PresentationDetailContentView {
         PresentationAbsentHelper.computeAbsentStudentIDs(
             selectedStudentIDs: vm.selectedStudentIDs,
             scheduledDay: scheduledAttendanceDay,
-            viewContext: viewContext
+            context: viewContext
         )
     }
 

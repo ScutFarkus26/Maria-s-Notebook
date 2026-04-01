@@ -150,7 +150,7 @@ enum BlockingAlgorithmEngine {
 
     /// Check if a CDLessonAssignment is blocked by incomplete prerequisite work from the preceding lesson.
     ///
-    /// Note: For checking multiple LessonAssignments, use `checkBlocking(forBatch:)` instead for better performance.
+    /// CDNote: For checking multiple LessonAssignments, use `checkBlocking(forBatch:)` instead for better performance.
     ///
     /// - Parameters:
     ///   - la: The CDLessonAssignment to check

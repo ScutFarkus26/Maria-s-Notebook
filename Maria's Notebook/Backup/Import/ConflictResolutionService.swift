@@ -167,22 +167,22 @@ public final class ConflictResolutionService {
 
         for conflict in conflicts where conflict.resolution == .useBackup {
             switch conflict.entityType {
-            case "CDStudent":
+            case "Student":
                 if let dto = payload.students.first(where: { $0.id == conflict.entityID }) {
                     try updateStudent(dto, in: viewContext)
                     updatedCount += 1
                 }
-            case "CDLesson":
+            case "Lesson":
                 if let dto = payload.lessons.first(where: { $0.id == conflict.entityID }) {
                     try updateLesson(dto, in: viewContext)
                     updatedCount += 1
                 }
-            case "CDNote":
+            case "Note":
                 if let dto = payload.notes.first(where: { $0.id == conflict.entityID }) {
                     try updateNote(dto, in: viewContext)
                     updatedCount += 1
                 }
-            case "CDProject":
+            case "Project":
                 if let dto = payload.projects.first(where: { $0.id == conflict.entityID }) {
                     try updateProject(dto, in: viewContext)
                     updatedCount += 1
@@ -222,7 +222,7 @@ public final class ConflictResolutionService {
 
             conflicts.append(Conflict(
                 id: UUID(),
-                entityType: "CDStudent",
+                entityType: "Student",
                 entityID: dto.id,
                 localUpdatedAt: nil, // CDStudent doesn't have updatedAt
                 backupUpdatedAt: dto.updatedAt,
@@ -256,7 +256,7 @@ public final class ConflictResolutionService {
 
             conflicts.append(Conflict(
                 id: UUID(),
-                entityType: "CDLesson",
+                entityType: "Lesson",
                 entityID: dto.id,
                 localUpdatedAt: nil, // CDLesson doesn't have updatedAt
                 backupUpdatedAt: dto.updatedAt,
@@ -293,7 +293,7 @@ public final class ConflictResolutionService {
 
             conflicts.append(Conflict(
                 id: UUID(),
-                entityType: "CDNote",
+                entityType: "Note",
                 entityID: dto.id,
                 localUpdatedAt: existing.updatedAt,
                 backupUpdatedAt: dto.updatedAt,
@@ -327,7 +327,7 @@ public final class ConflictResolutionService {
 
             conflicts.append(Conflict(
                 id: UUID(),
-                entityType: "CDProject",
+                entityType: "Project",
                 entityID: dto.id,
                 localUpdatedAt: nil,
                 backupUpdatedAt: nil,

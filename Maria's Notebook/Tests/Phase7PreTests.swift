@@ -19,15 +19,16 @@ final class Phase7PreTests {
 
     // MARK: - Entity Registry Baseline
 
-    @Test("BackupEntityRegistry contains exactly 57 entity types")
+    @Test("BackupEntityRegistry contains exactly 55 entity types")
     func backupEntityRegistryCountMatches() {
-        #expect(BackupEntityRegistry.allTypes.count == 57)
+        // 57 → 55: AlbumGroupOrder & AlbumGroupUIState removed (no entity in .xcdatamodeld)
+        #expect(BackupEntityRegistry.allTypes.count == 55)
     }
 
     @Test("ClassroomMembership is NOT yet in BackupEntityRegistry")
     func classroomMembershipNotInRegistry() {
         let typeNames = BackupEntityRegistry.allTypes.map { String(describing: $0) }
-        #expect(!typeNames.contains("CDClassroomMembership"))
+        #expect(!typeNames.contains("ClassroomMembership"))
     }
 
     // MARK: - Entity Coverage Cross-Checks
@@ -40,20 +41,20 @@ final class Phase7PreTests {
 
         // Shared entities that should be in backup (excluding ClassroomMembership which isn't added yet)
         let expectedSharedTypes: [String] = [
-            "CDStudent", "CDLesson", "LessonAttachment", "CDLessonAssignment",
-            "CDLessonPresentation", "CDNonSchoolDay", "CDSchoolDayOverride",
-            "CDStudentMeeting", "CDMeetingTemplate",
-            "CDCommunityTopicEntity", "ProposedSolution", "CommunityAttachment",
-            "CDSampleWork", "CDSampleWorkStep",
-            "CDTrackEntity", "TrackStep", "CDStudentTrackEnrollmentEntity", "CDGroupTrack",
-            "CDNoteTemplate", "CDProcedure",
-            "CDSchedule", "CDScheduleSlot",
-            "CDResource",
-            "CDGoingOut", "GoingOutChecklistItem",
-            "CDClassroomJob", "CDJobAssignment",
-            "CDTransitionPlan", "TransitionChecklistItem",
-            "CDScheduledMeeting",
-            "AlbumGroupOrder", "AlbumGroupUIState"
+            "Student", "Lesson", "LessonAttachment", "LessonAssignment",
+            "LessonPresentation", "NonSchoolDay", "SchoolDayOverride",
+            "StudentMeeting", "MeetingTemplate",
+            "CommunityTopic", "ProposedSolution", "CommunityAttachment",
+            "SampleWork", "SampleWorkStep",
+            "Track", "TrackStep", "StudentTrackEnrollment", "GroupTrack",
+            "NoteTemplate", "Procedure",
+            "Schedule", "ScheduleSlot",
+            "Resource",
+            "GoingOut", "GoingOutChecklistItem",
+            "ClassroomJob", "JobAssignment",
+            "TransitionPlan", "TransitionChecklistItem",
+            "ScheduledMeeting"
+            // AlbumGroupOrder & AlbumGroupUIState removed — no entity in .xcdatamodeld
         ]
 
         for typeName in expectedSharedTypes {
@@ -68,21 +69,21 @@ final class Phase7PreTests {
         })
 
         let expectedPrivateTypes: [String] = [
-            "CDNote", "CDNoteStudentLink",
-            "CDAttendanceRecord",
-            "CDWorkModel", "CDWorkCompletionRecord", "CDWorkCheckIn",
-            "WorkParticipantEntity", "CDWorkStep", "CDPracticeSession",
-            "CDProject", "ProjectAssignmentTemplate", "CDProjectSession",
+            "Note", "NoteStudentLink",
+            "AttendanceRecord",
+            "WorkModel", "WorkCompletionRecord", "WorkCheckIn",
+            "WorkParticipantEntity", "WorkStep", "PracticeSession",
+            "Project", "ProjectAssignmentTemplate", "ProjectSession",
             "ProjectRole", "ProjectTemplateWeek", "ProjectWeekRoleAssignment",
-            "CDIssue", "IssueAction",
-            "CDReminder", "CDCalendarEvent",
-            "CDDocument",
-            "CDSupply", "SupplyTransaction",
+            "Issue", "IssueAction",
+            "Reminder", "CalendarEvent",
+            "Document",
+            "Supply", "SupplyTransaction",
             "DevelopmentSnapshot",
-            "CDTodoItem", "CDTodoSubtask", "CDTodoTemplate",
-            "CDTodayAgendaOrder",
+            "TodoItem", "TodoSubtask", "TodoTemplate",
+            "TodayAgendaOrder",
             "PlanningRecommendation",
-            "CDCalendarNote"
+            "CalendarNote"
         ]
 
         for typeName in expectedPrivateTypes {

@@ -2,7 +2,9 @@ import Foundation
 import CoreData
 
 /// Handles migration between backup format versions.
-/// Current policy: only format version 6 is supported.
+/// Supports importing backups from v5 (minimum checksummed version) through the current version.
+/// Because newer payload fields are optional arrays that decode as nil from older backups,
+/// no payload transformation is needed — only the envelope's formatVersion stamp is updated.
 @MainActor
 public final class BackupMigrationService {
 
@@ -35,7 +37,8 @@ public final class BackupMigrationService {
     // MARK: - Migration
 
     /// Migrates a backup file to the latest format version.
-    /// Current policy does not support upgrading legacy versions.
+    /// For v5+, newer optional payload arrays decode as nil so no payload rewrite is needed —
+    /// only the envelope formatVersion is stamped to the target.
     public func migrate(
         backupAt url: URL,
         to targetVersion: Int? = nil,
@@ -48,23 +51,50 @@ public final class BackupMigrationService {
         let data = try Data(contentsOf: url)
         let decoder = JSONDecoder()
         decoder.dateDecodingStrategy = .iso8601
-        let envelope = try decoder.decode(BackupEnvelope.self, from: data)
+        var envelope = try decoder.decode(BackupEnvelope.self, from: data)
 
         let originalVersion = envelope.formatVersion
         let target = targetVersion ?? BackupFile.formatVersion
+        let minSupported = BackupMigrationManifest.minimumSupportedVersion
 
-        guard originalVersion == target else {
+        // Already at target
+        if originalVersion == target {
+            return MigrationResult(
+                originalVersion: originalVersion,
+                targetVersion: target,
+                migrationsApplied: [],
+                warnings: ["Backup is already at version \(target)"],
+                success: true
+            )
+        }
+
+        // Too old — below minimum supported version
+        guard originalVersion >= minSupported else {
             throw NSError(
                 domain: "BackupMigrationService",
                 code: 1,
                 userInfo: [
                     NSLocalizedDescriptionKey:
-                        "No migration path from version \(originalVersion) to \(target). "
-                        + "Only format version \(BackupFile.formatVersion) is supported."
+                        "Backup format v\(originalVersion) is too old. "
+                        + "Minimum supported version is v\(minSupported)."
                 ]
             )
         }
 
+        // Future version — app needs updating
+        guard originalVersion <= target else {
+            throw NSError(
+                domain: "BackupMigrationService",
+                code: 2,
+                userInfo: [
+                    NSLocalizedDescriptionKey:
+                        "Backup was created with a newer app version (v\(originalVersion)). "
+                        + "Please update the app to restore this backup."
+                ]
+            )
+        }
+
+        // Create a safety copy before modifying
         if createBackup {
             let backupURL = url.deletingPathExtension()
                 .appendingPathExtension("v\(originalVersion).backup")
@@ -72,11 +102,43 @@ public final class BackupMigrationService {
             try data.write(to: backupURL)
         }
 
+        // Apply registered migrations in order
+        var applied: [String] = []
+        var warnings: [String] = []
+        var currentVersion = originalVersion
+
+        while currentVersion < target {
+            if let migration = registeredMigrations.first(where: {
+                $0.fromVersion == currentVersion
+            }) {
+                envelope = try migration.migrator(envelope)
+                applied.append(migration.description)
+                currentVersion = migration.toVersion
+            } else {
+                // No explicit migration registered — stamp the version forward.
+                // This is safe because newer payload fields are optional and decode as nil.
+                let skippedTo = target
+                warnings.append(
+                    "No explicit migration from v\(currentVersion) to v\(skippedTo); "
+                    + "optional payload fields will be nil for entity types introduced after v\(currentVersion)."
+                )
+                envelope.formatVersion = skippedTo
+                currentVersion = skippedTo
+            }
+        }
+
+        // Write migrated envelope back
+        let encoder = JSONEncoder()
+        encoder.dateEncodingStrategy = .iso8601
+        encoder.outputFormatting = [.sortedKeys]
+        let migratedData = try encoder.encode(envelope)
+        try migratedData.write(to: url)
+
         return MigrationResult(
             originalVersion: originalVersion,
             targetVersion: target,
-            migrationsApplied: [],
-            warnings: ["Backup is already at version \(target)"],
+            migrationsApplied: applied,
+            warnings: warnings,
             success: true
         )
     }
@@ -94,30 +156,54 @@ public final class BackupMigrationService {
 
         let originalVersion = envelope.formatVersion
         let target = targetVersion ?? BackupFile.formatVersion
+        let minSupported = BackupMigrationManifest.minimumSupportedVersion
 
-        guard originalVersion == target else {
+        guard originalVersion >= minSupported else {
             throw NSError(
                 domain: "BackupMigrationService",
                 code: 1,
                 userInfo: [
                     NSLocalizedDescriptionKey:
-                        "No migration path from version \(originalVersion) to \(target). "
-                        + "Only format version \(BackupFile.formatVersion) is supported."
+                        "Backup format v\(originalVersion) is too old. "
+                        + "Minimum supported version is v\(minSupported)."
                 ]
             )
+        }
+
+        // Build preview steps from version history
+        var steps: [MigrationPreviewStep] = []
+        let history = BackupMigrationManifest.versionHistory
+            .filter { $0.version > originalVersion && $0.version <= target }
+            .sorted { $0.version < $1.version }
+
+        for info in history {
+            let prevVersion = steps.last?.toVersion ?? originalVersion
+            steps.append(MigrationPreviewStep(
+                fromVersion: prevVersion,
+                toVersion: info.version,
+                description: info.description,
+                isDestructive: info.hasBreakingChanges
+            ))
         }
 
         return MigrationPreview(
             originalVersion: originalVersion,
             targetVersion: target,
-            steps: [],
-            requiresBackup: false
+            steps: steps,
+            requiresBackup: steps.contains { $0.isDestructive }
         )
     }
 
     // MARK: - Built-in Migrations
 
     private func registerBuiltInMigrations() {
+        // No explicit payload transformations are needed between v5 and v13 because:
+        // 1. All new fields since v8 are optional arrays that decode as nil from older JSON
+        // 2. Compression (v6) is handled at the envelope level, not the payload level
+        // 3. Removed fields (WorkPlanItem in v7, LegacyPresentation in v11) are simply ignored
+        //
+        // If a future version requires actual payload transformation (e.g., renaming a field
+        // or changing a type), register a MigrationPath here with the appropriate migrator closure.
         registeredMigrations = []
     }
 
@@ -132,29 +218,32 @@ public final class BackupMigrationService {
     /// Checks if a backup version is compatible with current app version.
     public func isCompatible(backupVersion: Int) -> BackupCompatibility {
         let currentVersion = BackupFile.formatVersion
+        let minSupported = BackupMigrationManifest.minimumSupportedVersion
 
         if backupVersion == currentVersion {
             return .fullyCompatible
         }
 
-        return .incompatible(reason: "Only backup format version \(currentVersion) is supported")
+        if backupVersion >= minSupported && backupVersion < currentVersion {
+            return .compatibleWithMigration
+        }
+
+        if backupVersion > currentVersion {
+            return .incompatible(
+                reason: "Backup was created with a newer app version (v\(backupVersion)). Update the app."
+            )
+        }
+
+        return .incompatible(
+            reason: "Backup format v\(backupVersion) is too old. "
+                + "Minimum supported version is v\(minSupported)."
+        )
     }
 
     /// Gets information about a specific format version.
-    public func versionInfo(for version: Int) -> FormatVersionInfo? {
-        formatVersions.first { $0.version == version }
+    public func versionInfo(for version: Int) -> BackupMigrationManifest.FormatVersionInfo? {
+        BackupMigrationManifest.versionHistory.first { $0.version == version }
     }
-
-    // MARK: - Version Information
-
-    private let formatVersions: [FormatVersionInfo] = [
-        FormatVersionInfo(
-            version: 6,
-            releaseDate: "2025-06-01",
-            features: ["LZFSE compression", "Encrypted compression", "Backward compatible"],
-            deprecationDate: nil
-        )
-    ]
 }
 
 // MARK: - Supporting Types
@@ -171,17 +260,6 @@ public enum BackupCompatibility {
         case .incompatible:
             return false
         }
-    }
-}
-
-public struct FormatVersionInfo {
-    public let version: Int
-    public let releaseDate: String
-    public let features: [String]
-    public let deprecationDate: String?
-
-    public var isDeprecated: Bool {
-        deprecationDate != nil
     }
 }
 

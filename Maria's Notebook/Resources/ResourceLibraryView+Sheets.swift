@@ -68,7 +68,7 @@ extension ResourceLibraryView {
         #endif
     }
 
-    // MARK: - Per-Resource Category Picker
+    // MARK: - Per-CDResource Category Picker
 
     func categoryPickerSheet(for resource: CDResource) -> some View {
         NavigationStack {

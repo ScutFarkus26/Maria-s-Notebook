@@ -93,7 +93,7 @@ final class AppDependencies {
     // MARK: - Data Services
 
     // Work-related services
-    // Note: WorkCompletionService is an enum with static methods,
+    // CDNote: WorkCompletionService is an enum with static methods,
     // access directly (e.g., WorkCompletionService.someMethod())
 
     // MARK: - Protocol-Based Services
@@ -108,7 +108,7 @@ final class AppDependencies {
         WorkStepService(context: viewContext)
     }
 
-    // Track services
+    // CDTrackEntity services
     private var _groupTrackService: GroupTrackService?
     var groupTrackService: GroupTrackService {
         if let service = _groupTrackService {
@@ -396,14 +396,11 @@ final class AppDependencies {
 // MARK: - Environment Key
 
 struct AppDependenciesKey: @preconcurrency EnvironmentKey {
+    // Use the real, already-initialized stack from AppBootstrapping if available.
+    // This prevents a second in-memory stack from being created during window restoration.
     @MainActor static let defaultValue: AppDependencies = {
-        // This should never be used in production - only for previews
-        do {
-            let stack = try CoreDataStack(enableCloudKit: false, inMemory: true)
-            return AppDependencies(coreDataStack: stack)
-        } catch {
-            fatalError("Failed to create preview Core Data stack: \(error.localizedDescription)")
-        }
+        let stack = AppBootstrapping.getSharedCoreDataStack()
+        return AppDependencies(coreDataStack: stack)
     }()
 }
 

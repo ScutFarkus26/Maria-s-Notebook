@@ -66,7 +66,7 @@ struct PaperLessonCard: View {
         VStack(alignment: .leading, spacing: 8) {
             // Header row: Name + Personal badge
             HStack(alignment: .top, spacing: 8) {
-                Text(lesson.name.isEmpty ? "Untitled Lesson" : lesson.name)
+                Text(lesson.name.isEmpty ? "Untitled CDLesson" : lesson.name)
                     .font(AppTheme.ScaledFont.titleSmall)
                     .lineLimit(3)
                     .multilineTextAlignment(.leading)
@@ -272,7 +272,7 @@ struct PaperLessonCard: View {
 
 // MARK: - Preview
 
-#Preview("Album Lesson") {
+#Preview("Album CDLesson") {
     let ctx = CoreDataStack.preview.viewContext
     let lesson = CDLesson(context: ctx)
     lesson.name = "Introduction to Decimal System"
@@ -290,7 +290,7 @@ struct PaperLessonCard: View {
     .padding()
 }
 
-#Preview("Personal Lesson") {
+#Preview("Personal CDLesson") {
     let ctx = CoreDataStack.preview.viewContext
     let lesson = CDLesson(context: ctx)
     lesson.name = "Bird Observation Activity"
@@ -310,7 +310,7 @@ struct PaperLessonCard: View {
     .padding()
 }
 
-#Preview("Minimal Lesson") {
+#Preview("Minimal CDLesson") {
     let ctx = CoreDataStack.preview.viewContext
     let lesson = CDLesson(context: ctx)
     lesson.name = "Parts of Speech"

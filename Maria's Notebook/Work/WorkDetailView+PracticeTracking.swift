@@ -132,7 +132,7 @@ extension WorkDetailView {
     }
 
     @ViewBuilder
-    func practiceSessionDetailSheet(session: PracticeSession) -> some View {
+    func practiceSessionDetailSheet(session: CDPracticeSession) -> some View {
         NavigationStack {
             ScrollView {
                 VStack(alignment: .leading, spacing: AppTheme.Spacing.large) {

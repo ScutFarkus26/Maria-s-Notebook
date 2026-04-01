@@ -16,7 +16,7 @@ struct ParsedTeacherCommand {
     @Guide(description: "The intent: recordPresentation (gave/showed a lesson), assignWork (assign practice/follow-up), addNote (observation about a student), or addTodo (reminder/task for the teacher)")
     var intent: String
 
-    @Guide(description: "Student names mentioned in the command, matching the provided student list")
+    @Guide(description: "CDStudent names mentioned in the command, matching the provided student list")
     var studentNames: [String]
 
     @Guide(description: "The lesson name mentioned, matching the provided lesson list, or empty if none")

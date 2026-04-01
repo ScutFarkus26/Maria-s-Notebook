@@ -27,7 +27,7 @@ struct PresentationNotesSectionUnified: View {
     private var workNotesForThisPresentation: [CDNote] {
         do {
             // Fetch all Notes to avoid SwiftData predicate limitations
-            let allNotes = try viewContext.fetch(NSFetchRequest<CDNote>(entityName: "CDNote"))
+            let allNotes = try viewContext.fetch(NSFetchRequest<CDNote>(entityName: "Note"))
 
             // Convert studentIDs (String array) to UUID set for comparison
             let presentationStudentIDs = Set(lessonAssignment.studentIDs.compactMap { UUID(uuidString: $0) })
@@ -187,7 +187,7 @@ struct PresentationNotesSectionUnified: View {
             Button {
                 noteBeingEdited = note
             } label: {
-                Label("Edit Note", systemImage: "pencil")
+                Label("Edit CDNote", systemImage: "pencil")
             }
         }
     }

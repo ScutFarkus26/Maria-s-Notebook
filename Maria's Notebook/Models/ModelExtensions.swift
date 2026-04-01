@@ -23,7 +23,7 @@ extension NSManagedObjectContext {
     }
 }
 
-// MARK: - WorkModel Extensions
+// MARK: - CDWorkModel Extensions
 
 extension CDWorkModel {
     /// Fetches the presentation that spawned this work item
@@ -97,7 +97,7 @@ extension CDWorkModel {
     }
 }
 
-// MARK: - Presentation (LessonAssignment) Extensions
+// MARK: - Presentation (CDLessonAssignment) Extensions
 
 extension CDLessonAssignment {
     /// Fetches all work items spawned from this presentation
@@ -175,7 +175,7 @@ extension CDLessonAssignment {
     }
 }
 
-// MARK: - Lesson Extensions
+// MARK: - CDLesson Extensions
 
 extension CDLesson {
     /// Fetches all presentations (lesson assignments) of this lesson
@@ -257,7 +257,7 @@ extension CDLesson {
     }
 }
 
-// MARK: - PracticeSession Extensions
+// MARK: - CDPracticeSession Extensions
 
 extension CDPracticeSession {
     /// Fetches all students who participated in this session

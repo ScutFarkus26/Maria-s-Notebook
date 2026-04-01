@@ -2,7 +2,7 @@
 //  AttendanceRepository.swift
 //  Maria's Notebook
 //
-//  Repository for AttendanceRecord entity CRUD operations.
+//  Repository for CDAttendanceRecord entity CRUD operations.
 //  Wraps the existing AttendanceStore and follows the repository pattern.
 //
 
@@ -28,7 +28,7 @@ struct AttendanceRepository: SavingRepository {
 
     // MARK: - Fetch
 
-    /// Fetch an AttendanceRecord by ID
+    /// Fetch an CDAttendanceRecord by ID
     func fetchRecord(id: UUID) -> CDAttendanceRecord? {
         let request = CDFetchRequest(CDAttendanceRecord.self)
         request.predicate = NSPredicate(format: "id == %@", id as CVarArg)
@@ -72,7 +72,7 @@ struct AttendanceRepository: SavingRepository {
         }
     }
 
-    /// Create a new AttendanceRecord
+    /// Create a new CDAttendanceRecord
     @discardableResult
     func createRecord(
         studentID: UUID,
@@ -139,7 +139,7 @@ struct AttendanceRepository: SavingRepository {
 
     // MARK: - Delete
 
-    /// Delete an AttendanceRecord by ID
+    /// Delete an CDAttendanceRecord by ID
     func deleteRecord(id: UUID) throws {
         guard let record = fetchRecord(id: id) else { return }
         context.delete(record)

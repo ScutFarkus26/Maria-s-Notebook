@@ -143,7 +143,7 @@ struct StudentListRow: View {
 #Preview {
     let stack = CoreDataStack.preview
     let ctx = stack.viewContext
-    let student = Student(context: ctx)
+    let student = CDStudent(context: ctx)
     student.firstName = "John"
     student.lastName = "Doe"
     student.birthday = Date()

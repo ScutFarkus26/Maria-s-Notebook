@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="UTF-8" standalone="yes"?>
 <model type="com.apple.IDECoreDataModeler.DataModel" documentVersion="1.0" lastSavedToolsVersion="23507" systemVersion="24F74" minimumToolsVersion="Automatic" sourceLanguage="Swift" usedWithCloudKit="YES" usedWithSwiftData="NO" userDefinedModelVersionIdentifier="">
     <!-- ==================== Student ==================== -->
-    <entity name="Student" representedClassName="Student" syncable="YES">
+    <entity name="Student" representedClassName="CDStudent" syncable="YES">
         <attribute name="id" optional="YES" attributeType="UUID" usesScalarValueType="NO"/>
         <attribute name="firstName" attributeType="String" defaultValueString=""/>
         <attribute name="lastName" attributeType="String" defaultValueString=""/>
@@ -14,10 +14,9 @@
         <attribute name="enrollmentStatusRaw" attributeType="String" defaultValueString="enrolled"/>
         <attribute name="dateWithdrawn" optional="YES" attributeType="Date" usesScalarValueType="NO"/>
         <attribute name="modifiedAt" optional="YES" attributeType="Date" usesScalarValueType="NO"/>
-        <relationship name="documents" optional="YES" toMany="YES" deletionRule="Cascade" destinationEntity="Document" inverseName="student" inverseEntity="Document"/>
     </entity>
     <!-- ==================== Lesson ==================== -->
-    <entity name="Lesson" representedClassName="Lesson" syncable="YES">
+    <entity name="Lesson" representedClassName="CDLesson" syncable="YES">
         <attribute name="id" optional="YES" attributeType="UUID" usesScalarValueType="NO"/>
         <attribute name="name" attributeType="String" defaultValueString=""/>
         <attribute name="subject" attributeType="String" defaultValueString=""/>
@@ -42,13 +41,11 @@
         <attribute name="pagesFileBookmark" optional="YES" attributeType="Binary" allowsExternalBinaryDataStorage="YES"/>
         <attribute name="pagesFileRelativePath" optional="YES" attributeType="String"/>
         <attribute name="primaryAttachmentID" optional="YES" attributeType="String"/>
-        <relationship name="notes" optional="YES" toMany="YES" deletionRule="Cascade" destinationEntity="Note" inverseName="lesson" inverseEntity="Note"/>
-        <relationship name="lessonAssignments" optional="YES" toMany="YES" deletionRule="Cascade" destinationEntity="LessonAssignment" inverseName="lesson" inverseEntity="LessonAssignment"/>
         <relationship name="attachments" optional="YES" toMany="YES" deletionRule="Cascade" destinationEntity="LessonAttachment" inverseName="lesson" inverseEntity="LessonAttachment"/>
         <relationship name="sampleWorks" optional="YES" toMany="YES" deletionRule="Cascade" destinationEntity="SampleWork" inverseName="lesson" inverseEntity="SampleWork"/>
     </entity>
     <!-- ==================== LessonAttachment ==================== -->
-    <entity name="LessonAttachment" representedClassName="LessonAttachment" syncable="YES">
+    <entity name="LessonAttachment" representedClassName="CDLessonAttachment" syncable="YES">
         <attribute name="id" optional="YES" attributeType="UUID" usesScalarValueType="NO"/>
         <attribute name="fileName" attributeType="String" defaultValueString=""/>
         <attribute name="fileBookmark" optional="YES" attributeType="Binary" allowsExternalBinaryDataStorage="YES"/>
@@ -62,7 +59,7 @@
         <relationship name="lesson" optional="YES" maxCount="1" deletionRule="Nullify" destinationEntity="Lesson" inverseName="attachments" inverseEntity="Lesson"/>
     </entity>
     <!-- ==================== Note ==================== -->
-    <entity name="Note" representedClassName="Note" syncable="YES">
+    <entity name="Note" representedClassName="CDNote" syncable="YES">
         <attribute name="id" optional="YES" attributeType="UUID" usesScalarValueType="NO"/>
         <attribute name="createdAt" optional="YES" attributeType="Date" usesScalarValueType="NO"/>
         <attribute name="updatedAt" optional="YES" attributeType="Date" usesScalarValueType="NO"/>
@@ -78,7 +75,12 @@
         <attribute name="scopeBlob" optional="YES" attributeType="Binary"/>
         <attribute name="searchIndexStudentID" optional="YES" attributeType="UUID" usesScalarValueType="NO"/>
         <attribute name="scopeIsAll" attributeType="Boolean" defaultValueString="NO" usesScalarValueType="YES"/>
-        <relationship name="lesson" optional="YES" maxCount="1" deletionRule="Nullify" destinationEntity="Lesson" inverseName="notes" inverseEntity="Lesson"/>
+        <attribute name="lessonID" optional="YES" attributeType="String"/>
+        <attribute name="communityTopicID" optional="YES" attributeType="String"/>
+        <attribute name="schoolDayOverrideID" optional="YES" attributeType="String"/>
+        <attribute name="studentTrackEnrollmentID" optional="YES" attributeType="String"/>
+        <attribute name="goingOutID" optional="YES" attributeType="String"/>
+        <attribute name="transitionPlanID" optional="YES" attributeType="String"/>
         <relationship name="work" optional="YES" maxCount="1" deletionRule="Nullify" destinationEntity="WorkModel" inverseName="unifiedNotes" inverseEntity="WorkModel"/>
         <relationship name="lessonAssignment" optional="YES" maxCount="1" deletionRule="Nullify" destinationEntity="LessonAssignment" inverseName="unifiedNotes" inverseEntity="LessonAssignment"/>
         <relationship name="attendanceRecord" optional="YES" maxCount="1" deletionRule="Nullify" destinationEntity="AttendanceRecord" inverseName="notes" inverseEntity="AttendanceRecord"/>
@@ -86,14 +88,9 @@
         <relationship name="workCompletionRecord" optional="YES" maxCount="1" deletionRule="Nullify" destinationEntity="WorkCompletionRecord" inverseName="notes" inverseEntity="WorkCompletionRecord"/>
         <relationship name="studentMeeting" optional="YES" maxCount="1" deletionRule="Nullify" destinationEntity="StudentMeeting" inverseName="notes" inverseEntity="StudentMeeting"/>
         <relationship name="projectSession" optional="YES" maxCount="1" deletionRule="Nullify" destinationEntity="ProjectSession" inverseName="noteItems" inverseEntity="ProjectSession"/>
-        <relationship name="communityTopic" optional="YES" maxCount="1" deletionRule="Nullify" destinationEntity="CommunityTopic" inverseName="unifiedNotes" inverseEntity="CommunityTopic"/>
         <relationship name="reminder" optional="YES" maxCount="1" deletionRule="Nullify" destinationEntity="Reminder" inverseName="noteItems" inverseEntity="Reminder"/>
-        <relationship name="schoolDayOverride" optional="YES" maxCount="1" deletionRule="Nullify" destinationEntity="SchoolDayOverride" inverseName="notes" inverseEntity="SchoolDayOverride"/>
-        <relationship name="studentTrackEnrollment" optional="YES" maxCount="1" deletionRule="Nullify" destinationEntity="StudentTrackEnrollment" inverseName="richNotes" inverseEntity="StudentTrackEnrollment"/>
         <relationship name="practiceSession" optional="YES" maxCount="1" deletionRule="Nullify" destinationEntity="PracticeSession" inverseName="notes" inverseEntity="PracticeSession"/>
         <relationship name="issue" optional="YES" maxCount="1" deletionRule="Nullify" destinationEntity="Issue" inverseName="notes" inverseEntity="Issue"/>
-        <relationship name="goingOut" optional="YES" maxCount="1" deletionRule="Nullify" destinationEntity="GoingOut" inverseName="observationNotes" inverseEntity="GoingOut"/>
-        <relationship name="transitionPlan" optional="YES" maxCount="1" deletionRule="Nullify" destinationEntity="TransitionPlan" inverseName="observationNotes" inverseEntity="TransitionPlan"/>
         <relationship name="studentLinks" optional="YES" toMany="YES" deletionRule="Cascade" destinationEntity="NoteStudentLink" inverseName="note" inverseEntity="NoteStudentLink"/>
     </entity>
     <!-- ==================== NoteStudentLink ==================== -->
@@ -104,7 +101,7 @@
         <relationship name="note" optional="YES" maxCount="1" deletionRule="Nullify" destinationEntity="Note" inverseName="studentLinks" inverseEntity="Note"/>
     </entity>
     <!-- ==================== NoteTemplate ==================== -->
-    <entity name="NoteTemplate" representedClassName="NoteTemplate" syncable="YES">
+    <entity name="NoteTemplate" representedClassName="NoteTemplateEntity" syncable="YES">
         <attribute name="id" optional="YES" attributeType="UUID" usesScalarValueType="NO"/>
         <attribute name="createdAt" optional="YES" attributeType="Date" usesScalarValueType="NO"/>
         <attribute name="title" attributeType="String" defaultValueString=""/>
@@ -115,7 +112,7 @@
         <attribute name="isBuiltIn" attributeType="Boolean" defaultValueString="NO" usesScalarValueType="YES"/>
     </entity>
     <!-- ==================== MeetingTemplate ==================== -->
-    <entity name="MeetingTemplate" representedClassName="MeetingTemplate" syncable="YES">
+    <entity name="MeetingTemplate" representedClassName="MeetingTemplateEntity" syncable="YES">
         <attribute name="id" optional="YES" attributeType="UUID" usesScalarValueType="NO"/>
         <attribute name="createdAt" optional="YES" attributeType="Date" usesScalarValueType="NO"/>
         <attribute name="name" attributeType="String" defaultValueString=""/>
@@ -128,7 +125,7 @@
         <attribute name="isBuiltIn" attributeType="Boolean" defaultValueString="NO" usesScalarValueType="YES"/>
     </entity>
     <!-- ==================== LessonPresentation ==================== -->
-    <entity name="LessonPresentation" representedClassName="LessonPresentation" syncable="YES">
+    <entity name="LessonPresentation" representedClassName="CDLessonPresentation" syncable="YES">
         <attribute name="id" optional="YES" attributeType="UUID" usesScalarValueType="NO"/>
         <attribute name="createdAt" optional="YES" attributeType="Date" usesScalarValueType="NO"/>
         <attribute name="studentID" attributeType="String" defaultValueString=""/>
@@ -143,7 +140,7 @@
         <attribute name="notes" optional="YES" attributeType="String"/>
     </entity>
     <!-- ==================== LessonAssignment (Presentation) ==================== -->
-    <entity name="LessonAssignment" representedClassName="LessonAssignment" syncable="YES">
+    <entity name="LessonAssignment" representedClassName="CDLessonAssignment" syncable="YES">
         <attribute name="id" optional="YES" attributeType="UUID" usesScalarValueType="NO"/>
         <attribute name="createdAt" optional="YES" attributeType="Date" usesScalarValueType="NO"/>
         <attribute name="modifiedAt" optional="YES" attributeType="Date" usesScalarValueType="NO"/>
@@ -165,11 +162,10 @@
         <attribute name="trackStepID" optional="YES" attributeType="String"/>
         <attribute name="migratedFromStudentLessonID" optional="YES" attributeType="String"/>
         <attribute name="migratedFromPresentationID" optional="YES" attributeType="String"/>
-        <relationship name="lesson" optional="YES" maxCount="1" deletionRule="Nullify" destinationEntity="Lesson" inverseName="lessonAssignments" inverseEntity="Lesson"/>
         <relationship name="unifiedNotes" optional="YES" toMany="YES" deletionRule="Cascade" destinationEntity="Note" inverseName="lessonAssignment" inverseEntity="Note"/>
     </entity>
     <!-- ==================== CalendarEvent ==================== -->
-    <entity name="CalendarEvent" representedClassName="CalendarEvent" syncable="YES">
+    <entity name="CalendarEvent" representedClassName="CDCalendarEvent" syncable="YES">
         <attribute name="id" optional="YES" attributeType="UUID" usesScalarValueType="NO"/>
         <attribute name="title" attributeType="String" defaultValueString=""/>
         <attribute name="startDate" optional="YES" attributeType="Date" usesScalarValueType="NO"/>
@@ -182,7 +178,7 @@
         <attribute name="lastSyncedAt" optional="YES" attributeType="Date" usesScalarValueType="NO"/>
     </entity>
     <!-- ==================== CommunityTopic ==================== -->
-    <entity name="CommunityTopic" representedClassName="CommunityTopic" syncable="YES">
+    <entity name="CommunityTopic" representedClassName="CommunityTopicEntity" syncable="YES">
         <attribute name="id" optional="YES" attributeType="UUID" usesScalarValueType="NO"/>
         <attribute name="title" attributeType="String" defaultValueString=""/>
         <attribute name="issueDescription" attributeType="String" defaultValueString=""/>
@@ -192,11 +188,10 @@
         <attribute name="broughtBy" attributeType="String" defaultValueString=""/>
         <attribute name="_tagsData" optional="YES" attributeType="Binary" allowsExternalBinaryDataStorage="YES"/>
         <relationship name="proposedSolutions" optional="YES" toMany="YES" deletionRule="Cascade" destinationEntity="ProposedSolution" inverseName="topic" inverseEntity="ProposedSolution"/>
-        <relationship name="unifiedNotes" optional="YES" toMany="YES" deletionRule="Cascade" destinationEntity="Note" inverseName="communityTopic" inverseEntity="Note"/>
         <relationship name="attachments" optional="YES" toMany="YES" deletionRule="Cascade" destinationEntity="CommunityAttachment" inverseName="topic" inverseEntity="CommunityAttachment"/>
     </entity>
     <!-- ==================== ProposedSolution ==================== -->
-    <entity name="ProposedSolution" representedClassName="ProposedSolution" syncable="YES">
+    <entity name="ProposedSolution" representedClassName="ProposedSolutionEntity" syncable="YES">
         <attribute name="id" optional="YES" attributeType="UUID" usesScalarValueType="NO"/>
         <attribute name="title" attributeType="String" defaultValueString=""/>
         <attribute name="details" attributeType="String" defaultValueString=""/>
@@ -206,7 +201,7 @@
         <relationship name="topic" optional="YES" maxCount="1" deletionRule="Nullify" destinationEntity="CommunityTopic" inverseName="proposedSolutions" inverseEntity="CommunityTopic"/>
     </entity>
     <!-- ==================== CommunityAttachment ==================== -->
-    <entity name="CommunityAttachment" representedClassName="CommunityAttachment" syncable="YES">
+    <entity name="CommunityAttachment" representedClassName="CommunityAttachmentEntity" syncable="YES">
         <attribute name="id" optional="YES" attributeType="UUID" usesScalarValueType="NO"/>
         <attribute name="filename" attributeType="String" defaultValueString=""/>
         <attribute name="kindRaw" attributeType="String" defaultValueString="file"/>
@@ -215,7 +210,7 @@
         <relationship name="topic" optional="YES" maxCount="1" deletionRule="Nullify" destinationEntity="CommunityTopic" inverseName="attachments" inverseEntity="CommunityTopic"/>
     </entity>
     <!-- ==================== DevelopmentSnapshot ==================== -->
-    <entity name="DevelopmentSnapshot" representedClassName="DevelopmentSnapshot" syncable="YES">
+    <entity name="DevelopmentSnapshot" representedClassName="DevelopmentSnapshotEntity" syncable="YES">
         <attribute name="id" optional="YES" attributeType="UUID" usesScalarValueType="NO"/>
         <attribute name="studentID" attributeType="String" defaultValueString=""/>
         <attribute name="generatedAt" optional="YES" attributeType="Date" usesScalarValueType="NO"/>
@@ -243,16 +238,16 @@
         <attribute name="sharedAt" optional="YES" attributeType="Date" usesScalarValueType="NO"/>
     </entity>
     <!-- ==================== Document ==================== -->
-    <entity name="Document" representedClassName="Document" syncable="YES">
+    <entity name="Document" representedClassName="CDDocument" syncable="YES">
         <attribute name="id" optional="YES" attributeType="UUID" usesScalarValueType="NO"/>
         <attribute name="title" attributeType="String" defaultValueString=""/>
         <attribute name="category" attributeType="String" defaultValueString=""/>
         <attribute name="uploadDate" optional="YES" attributeType="Date" usesScalarValueType="NO"/>
         <attribute name="pdfData" optional="YES" attributeType="Binary" allowsExternalBinaryDataStorage="YES"/>
-        <relationship name="student" optional="YES" maxCount="1" deletionRule="Nullify" destinationEntity="Student" inverseName="documents" inverseEntity="Student"/>
+        <attribute name="studentID" optional="YES" attributeType="String"/>
     </entity>
     <!-- ==================== GroupTrack ==================== -->
-    <entity name="GroupTrack" representedClassName="GroupTrack" syncable="YES">
+    <entity name="GroupTrack" representedClassName="CDGroupTrackEntity" syncable="YES">
         <attribute name="id" optional="YES" attributeType="UUID" usesScalarValueType="NO"/>
         <attribute name="subject" attributeType="String" defaultValueString=""/>
         <attribute name="group" attributeType="String" defaultValueString=""/>
@@ -261,7 +256,7 @@
         <attribute name="createdAt" optional="YES" attributeType="Date" usesScalarValueType="NO"/>
     </entity>
     <!-- ==================== Issue ==================== -->
-    <entity name="Issue" representedClassName="Issue" syncable="YES">
+    <entity name="Issue" representedClassName="CDIssue" syncable="YES">
         <attribute name="id" optional="YES" attributeType="UUID" usesScalarValueType="NO"/>
         <attribute name="createdAt" optional="YES" attributeType="Date" usesScalarValueType="NO"/>
         <attribute name="updatedAt" optional="YES" attributeType="Date" usesScalarValueType="NO"/>
@@ -279,7 +274,7 @@
         <relationship name="notes" optional="YES" toMany="YES" deletionRule="Cascade" destinationEntity="Note" inverseName="issue" inverseEntity="Note"/>
     </entity>
     <!-- ==================== IssueAction ==================== -->
-    <entity name="IssueAction" representedClassName="IssueAction" syncable="YES">
+    <entity name="IssueAction" representedClassName="CDIssueAction" syncable="YES">
         <attribute name="id" optional="YES" attributeType="UUID" usesScalarValueType="NO"/>
         <attribute name="createdAt" optional="YES" attributeType="Date" usesScalarValueType="NO"/>
         <attribute name="updatedAt" optional="YES" attributeType="Date" usesScalarValueType="NO"/>
@@ -302,7 +297,7 @@
         <attribute name="reason" optional="YES" attributeType="String"/>
     </entity>
     <!-- ==================== PlanningRecommendation ==================== -->
-    <entity name="PlanningRecommendation" representedClassName="PlanningRecommendation" syncable="YES">
+    <entity name="PlanningRecommendation" representedClassName="CDPlanningRecommendation" syncable="YES">
         <attribute name="id" optional="YES" attributeType="UUID" usesScalarValueType="NO"/>
         <attribute name="createdAt" optional="YES" attributeType="Date" usesScalarValueType="NO"/>
         <attribute name="modifiedAt" optional="YES" attributeType="Date" usesScalarValueType="NO"/>
@@ -323,7 +318,7 @@
         <attribute name="presentationID" optional="YES" attributeType="String"/>
     </entity>
     <!-- ==================== Procedure ==================== -->
-    <entity name="Procedure" representedClassName="Procedure" syncable="YES">
+    <entity name="Procedure" representedClassName="CDProcedure" syncable="YES">
         <attribute name="id" optional="YES" attributeType="UUID" usesScalarValueType="NO"/>
         <attribute name="title" attributeType="String" defaultValueString=""/>
         <attribute name="summary" attributeType="String" defaultValueString=""/>
@@ -335,7 +330,7 @@
         <attribute name="modifiedAt" optional="YES" attributeType="Date" usesScalarValueType="NO"/>
     </entity>
     <!-- ==================== Reminder ==================== -->
-    <entity name="Reminder" representedClassName="Reminder" syncable="YES">
+    <entity name="Reminder" representedClassName="CDReminder" syncable="YES">
         <attribute name="id" optional="YES" attributeType="UUID" usesScalarValueType="NO"/>
         <attribute name="title" attributeType="String" defaultValueString=""/>
         <attribute name="notes" optional="YES" attributeType="String"/>
@@ -377,20 +372,18 @@
     <entity name="SchoolDayOverride" representedClassName="SchoolDayOverride" syncable="YES">
         <attribute name="id" optional="YES" attributeType="UUID" usesScalarValueType="NO"/>
         <attribute name="date" optional="YES" attributeType="Date" usesScalarValueType="NO"/>
-        <relationship name="notes" optional="YES" toMany="YES" deletionRule="Cascade" destinationEntity="Note" inverseName="schoolDayOverride" inverseEntity="Note"/>
     </entity>
     <!-- ==================== StudentTrackEnrollment ==================== -->
-    <entity name="StudentTrackEnrollment" representedClassName="StudentTrackEnrollment" syncable="YES">
+    <entity name="StudentTrackEnrollment" representedClassName="StudentTrackEnrollmentEntity" syncable="YES">
         <attribute name="id" optional="YES" attributeType="UUID" usesScalarValueType="NO"/>
         <attribute name="createdAt" optional="YES" attributeType="Date" usesScalarValueType="NO"/>
         <attribute name="studentID" attributeType="String" defaultValueString=""/>
         <attribute name="trackID" attributeType="String" defaultValueString=""/>
         <attribute name="startedAt" optional="YES" attributeType="Date" usesScalarValueType="NO"/>
         <attribute name="isActive" attributeType="Boolean" defaultValueString="YES" usesScalarValueType="YES"/>
-        <relationship name="richNotes" optional="YES" toMany="YES" deletionRule="Cascade" destinationEntity="Note" inverseName="studentTrackEnrollment" inverseEntity="Note"/>
     </entity>
     <!-- ==================== Supply ==================== -->
-    <entity name="Supply" representedClassName="Supply" syncable="YES">
+    <entity name="Supply" representedClassName="CDSupply" syncable="YES">
         <attribute name="id" optional="YES" attributeType="UUID" usesScalarValueType="NO"/>
         <attribute name="name" attributeType="String" defaultValueString=""/>
         <attribute name="categoryRaw" attributeType="String" defaultValueString="Other"/>
@@ -408,7 +401,7 @@
         <relationship name="transactions" optional="YES" toMany="YES" deletionRule="Cascade" destinationEntity="SupplyTransaction" inverseName="supply" inverseEntity="SupplyTransaction"/>
     </entity>
     <!-- ==================== SupplyTransaction ==================== -->
-    <entity name="SupplyTransaction" representedClassName="SupplyTransaction" syncable="YES">
+    <entity name="SupplyTransaction" representedClassName="CDSupplyTransaction" syncable="YES">
         <attribute name="id" optional="YES" attributeType="UUID" usesScalarValueType="NO"/>
         <attribute name="supplyID" attributeType="String" defaultValueString=""/>
         <attribute name="date" optional="YES" attributeType="Date" usesScalarValueType="NO"/>
@@ -417,7 +410,7 @@
         <relationship name="supply" optional="YES" maxCount="1" deletionRule="Nullify" destinationEntity="Supply" inverseName="transactions" inverseEntity="Supply"/>
     </entity>
     <!-- ==================== TodayAgendaOrder ==================== -->
-    <entity name="TodayAgendaOrder" representedClassName="TodayAgendaOrder" syncable="YES">
+    <entity name="TodayAgendaOrder" representedClassName="CDTodayAgendaOrder" syncable="YES">
         <attribute name="id" optional="YES" attributeType="UUID" usesScalarValueType="NO"/>
         <attribute name="day" optional="YES" attributeType="Date" usesScalarValueType="NO"/>
         <attribute name="itemTypeRaw" attributeType="String" defaultValueString=""/>
@@ -425,7 +418,7 @@
         <attribute name="position" attributeType="Integer 64" defaultValueString="0" usesScalarValueType="YES"/>
     </entity>
     <!-- ==================== TodoItem ==================== -->
-    <entity name="TodoItem" representedClassName="TodoItem" syncable="YES">
+    <entity name="TodoItem" representedClassName="TodoItemEntity" syncable="YES">
         <attribute name="id" optional="YES" attributeType="UUID" usesScalarValueType="NO"/>
         <attribute name="title" attributeType="String" defaultValueString=""/>
         <attribute name="notes" attributeType="String" defaultValueString=""/>
@@ -459,7 +452,7 @@
         <relationship name="subtasks" optional="YES" toMany="YES" deletionRule="Cascade" destinationEntity="TodoSubtask" inverseName="todo" inverseEntity="TodoSubtask"/>
     </entity>
     <!-- ==================== TodoSubtask ==================== -->
-    <entity name="TodoSubtask" representedClassName="TodoSubtask" syncable="YES">
+    <entity name="TodoSubtask" representedClassName="TodoSubtaskEntity" syncable="YES">
         <attribute name="id" optional="YES" attributeType="UUID" usesScalarValueType="NO"/>
         <attribute name="title" attributeType="String" defaultValueString=""/>
         <attribute name="isCompleted" attributeType="Boolean" defaultValueString="NO" usesScalarValueType="YES"/>
@@ -469,7 +462,7 @@
         <relationship name="todo" optional="YES" maxCount="1" deletionRule="Nullify" destinationEntity="TodoItem" inverseName="subtasks" inverseEntity="TodoItem"/>
     </entity>
     <!-- ==================== TodoTemplate ==================== -->
-    <entity name="TodoTemplate" representedClassName="TodoTemplate" syncable="YES">
+    <entity name="TodoTemplate" representedClassName="TodoTemplateEntity" syncable="YES">
         <attribute name="id" optional="YES" attributeType="UUID" usesScalarValueType="NO"/>
         <attribute name="name" attributeType="String" defaultValueString=""/>
         <attribute name="title" attributeType="String" defaultValueString=""/>
@@ -482,14 +475,14 @@
         <attribute name="useCount" attributeType="Integer 64" defaultValueString="0" usesScalarValueType="YES"/>
     </entity>
     <!-- ==================== Track ==================== -->
-    <entity name="Track" representedClassName="Track" syncable="YES">
+    <entity name="Track" representedClassName="TrackEntity" syncable="YES">
         <attribute name="id" optional="YES" attributeType="UUID" usesScalarValueType="NO"/>
         <attribute name="title" attributeType="String" defaultValueString=""/>
         <attribute name="createdAt" optional="YES" attributeType="Date" usesScalarValueType="NO"/>
         <relationship name="steps" optional="YES" toMany="YES" deletionRule="Cascade" destinationEntity="TrackStep" inverseName="track" inverseEntity="TrackStep"/>
     </entity>
     <!-- ==================== TrackStep ==================== -->
-    <entity name="TrackStep" representedClassName="TrackStep" syncable="YES">
+    <entity name="TrackStep" representedClassName="TrackStepEntity" syncable="YES">
         <attribute name="id" optional="YES" attributeType="UUID" usesScalarValueType="NO"/>
         <attribute name="orderIndex" attributeType="Integer 64" defaultValueString="0" usesScalarValueType="YES"/>
         <attribute name="lessonTemplateID" optional="YES" attributeType="UUID" usesScalarValueType="NO"/>
@@ -497,7 +490,7 @@
         <relationship name="track" optional="YES" maxCount="1" deletionRule="Nullify" destinationEntity="Track" inverseName="steps" inverseEntity="Track"/>
     </entity>
     <!-- ==================== WorkModel ==================== -->
-    <entity name="WorkModel" representedClassName="WorkModel" syncable="YES">
+    <entity name="WorkModel" representedClassName="CDWorkModel" syncable="YES">
         <attribute name="id" optional="YES" attributeType="UUID" usesScalarValueType="NO"/>
         <attribute name="title" attributeType="String" defaultValueString=""/>
         <attribute name="workTypeRaw" attributeType="String" defaultValueString="Research"/>
@@ -529,7 +522,7 @@
         <relationship name="unifiedNotes" optional="YES" toMany="YES" deletionRule="Cascade" destinationEntity="Note" inverseName="work" inverseEntity="Note"/>
     </entity>
     <!-- ==================== WorkStep ==================== -->
-    <entity name="WorkStep" representedClassName="WorkStep" syncable="YES">
+    <entity name="WorkStep" representedClassName="CDWorkStep" syncable="YES">
         <attribute name="id" optional="YES" attributeType="UUID" usesScalarValueType="NO"/>
         <attribute name="orderIndex" attributeType="Integer 64" defaultValueString="0" usesScalarValueType="YES"/>
         <attribute name="title" attributeType="String" defaultValueString=""/>
@@ -541,7 +534,7 @@
         <relationship name="work" optional="YES" maxCount="1" deletionRule="Nullify" destinationEntity="WorkModel" inverseName="steps" inverseEntity="WorkModel"/>
     </entity>
     <!-- ==================== WorkCheckIn ==================== -->
-    <entity name="WorkCheckIn" representedClassName="WorkCheckIn" syncable="YES">
+    <entity name="WorkCheckIn" representedClassName="CDWorkCheckIn" syncable="YES">
         <attribute name="id" optional="YES" attributeType="UUID" usesScalarValueType="NO"/>
         <attribute name="workID" attributeType="String" defaultValueString=""/>
         <attribute name="date" optional="YES" attributeType="Date" usesScalarValueType="NO"/>
@@ -551,14 +544,14 @@
         <relationship name="notes" optional="YES" toMany="YES" deletionRule="Cascade" destinationEntity="Note" inverseName="workCheckIn" inverseEntity="Note"/>
     </entity>
     <!-- ==================== WorkParticipantEntity ==================== -->
-    <entity name="WorkParticipantEntity" representedClassName="WorkParticipantEntity" syncable="YES">
+    <entity name="WorkParticipantEntity" representedClassName="CDWorkParticipantEntity" syncable="YES">
         <attribute name="id" optional="YES" attributeType="UUID" usesScalarValueType="NO"/>
         <attribute name="studentID" attributeType="String" defaultValueString=""/>
         <attribute name="completedAt" optional="YES" attributeType="Date" usesScalarValueType="NO"/>
         <relationship name="work" optional="YES" maxCount="1" deletionRule="Nullify" destinationEntity="WorkModel" inverseName="participants" inverseEntity="WorkModel"/>
     </entity>
     <!-- ==================== WorkCompletionRecord ==================== -->
-    <entity name="WorkCompletionRecord" representedClassName="WorkCompletionRecord" syncable="YES">
+    <entity name="WorkCompletionRecord" representedClassName="CDWorkCompletionRecord" syncable="YES">
         <attribute name="id" optional="YES" attributeType="UUID" usesScalarValueType="NO"/>
         <attribute name="workID" attributeType="String" defaultValueString=""/>
         <attribute name="studentID" attributeType="String" defaultValueString=""/>
@@ -566,7 +559,7 @@
         <relationship name="notes" optional="YES" toMany="YES" deletionRule="Cascade" destinationEntity="Note" inverseName="workCompletionRecord" inverseEntity="Note"/>
     </entity>
     <!-- ==================== PracticeSession ==================== -->
-    <entity name="PracticeSession" representedClassName="PracticeSession" syncable="YES">
+    <entity name="PracticeSession" representedClassName="CDPracticeSession" syncable="YES">
         <attribute name="id" optional="YES" attributeType="UUID" usesScalarValueType="NO"/>
         <attribute name="createdAt" optional="YES" attributeType="Date" usesScalarValueType="NO"/>
         <attribute name="date" optional="YES" attributeType="Date" usesScalarValueType="NO"/>
@@ -591,7 +584,7 @@
         <relationship name="notes" optional="YES" toMany="YES" deletionRule="Cascade" destinationEntity="Note" inverseName="practiceSession" inverseEntity="Note"/>
     </entity>
     <!-- ==================== SampleWork ==================== -->
-    <entity name="SampleWork" representedClassName="SampleWork" syncable="YES">
+    <entity name="SampleWork" representedClassName="SampleWorkEntity" syncable="YES">
         <attribute name="id" optional="YES" attributeType="UUID" usesScalarValueType="NO"/>
         <attribute name="title" attributeType="String" defaultValueString=""/>
         <attribute name="workKindRaw" attributeType="String" defaultValueString="practiceLesson"/>
@@ -602,7 +595,7 @@
         <relationship name="steps" optional="YES" toMany="YES" deletionRule="Cascade" destinationEntity="SampleWorkStep" inverseName="sampleWork" inverseEntity="SampleWorkStep"/>
     </entity>
     <!-- ==================== SampleWorkStep ==================== -->
-    <entity name="SampleWorkStep" representedClassName="SampleWorkStep" syncable="YES">
+    <entity name="SampleWorkStep" representedClassName="SampleWorkStepEntity" syncable="YES">
         <attribute name="id" optional="YES" attributeType="UUID" usesScalarValueType="NO"/>
         <attribute name="title" attributeType="String" defaultValueString=""/>
         <attribute name="orderIndex" attributeType="Integer 64" defaultValueString="0" usesScalarValueType="YES"/>
@@ -611,7 +604,7 @@
         <relationship name="sampleWork" optional="YES" maxCount="1" deletionRule="Nullify" destinationEntity="SampleWork" inverseName="steps" inverseEntity="SampleWork"/>
     </entity>
     <!-- ==================== AttendanceRecord ==================== -->
-    <entity name="AttendanceRecord" representedClassName="AttendanceRecord" syncable="YES">
+    <entity name="AttendanceRecord" representedClassName="CDAttendanceRecord" syncable="YES">
         <attribute name="id" optional="YES" attributeType="UUID" usesScalarValueType="NO"/>
         <attribute name="studentID" attributeType="String" defaultValueString=""/>
         <attribute name="date" optional="YES" attributeType="Date" usesScalarValueType="NO"/>
@@ -620,7 +613,7 @@
         <relationship name="notes" optional="YES" toMany="YES" deletionRule="Cascade" destinationEntity="Note" inverseName="attendanceRecord" inverseEntity="Note"/>
     </entity>
     <!-- ==================== GoingOut ==================== -->
-    <entity name="GoingOut" representedClassName="GoingOut" syncable="YES">
+    <entity name="GoingOut" representedClassName="CDGoingOut" syncable="YES">
         <attribute name="id" optional="YES" attributeType="UUID" usesScalarValueType="NO"/>
         <attribute name="createdAt" optional="YES" attributeType="Date" usesScalarValueType="NO"/>
         <attribute name="modifiedAt" optional="YES" attributeType="Date" usesScalarValueType="NO"/>
@@ -637,10 +630,9 @@
         <attribute name="followUpWork" attributeType="String" defaultValueString=""/>
         <attribute name="supervisorName" attributeType="String" defaultValueString=""/>
         <relationship name="checklistItems" optional="YES" toMany="YES" deletionRule="Cascade" destinationEntity="GoingOutChecklistItem" inverseName="goingOut" inverseEntity="GoingOutChecklistItem"/>
-        <relationship name="observationNotes" optional="YES" toMany="YES" deletionRule="Cascade" destinationEntity="Note" inverseName="goingOut" inverseEntity="Note"/>
     </entity>
     <!-- ==================== GoingOutChecklistItem ==================== -->
-    <entity name="GoingOutChecklistItem" representedClassName="GoingOutChecklistItem" syncable="YES">
+    <entity name="GoingOutChecklistItem" representedClassName="CDGoingOutChecklistItem" syncable="YES">
         <attribute name="id" optional="YES" attributeType="UUID" usesScalarValueType="NO"/>
         <attribute name="createdAt" optional="YES" attributeType="Date" usesScalarValueType="NO"/>
         <attribute name="goingOutID" attributeType="String" defaultValueString=""/>
@@ -651,7 +643,7 @@
         <relationship name="goingOut" optional="YES" maxCount="1" deletionRule="Nullify" destinationEntity="GoingOut" inverseName="checklistItems" inverseEntity="GoingOut"/>
     </entity>
     <!-- ==================== ClassroomJob ==================== -->
-    <entity name="ClassroomJob" representedClassName="ClassroomJob" syncable="YES">
+    <entity name="ClassroomJob" representedClassName="CDClassroomJob" syncable="YES">
         <attribute name="id" optional="YES" attributeType="UUID" usesScalarValueType="NO"/>
         <attribute name="createdAt" optional="YES" attributeType="Date" usesScalarValueType="NO"/>
         <attribute name="modifiedAt" optional="YES" attributeType="Date" usesScalarValueType="NO"/>
@@ -665,7 +657,7 @@
         <relationship name="assignments" optional="YES" toMany="YES" deletionRule="Cascade" destinationEntity="JobAssignment" inverseName="job" inverseEntity="JobAssignment"/>
     </entity>
     <!-- ==================== JobAssignment ==================== -->
-    <entity name="JobAssignment" representedClassName="JobAssignment" syncable="YES">
+    <entity name="JobAssignment" representedClassName="CDJobAssignment" syncable="YES">
         <attribute name="id" optional="YES" attributeType="UUID" usesScalarValueType="NO"/>
         <attribute name="createdAt" optional="YES" attributeType="Date" usesScalarValueType="NO"/>
         <attribute name="modifiedAt" optional="YES" attributeType="Date" usesScalarValueType="NO"/>
@@ -676,7 +668,7 @@
         <relationship name="job" optional="YES" maxCount="1" deletionRule="Nullify" destinationEntity="ClassroomJob" inverseName="assignments" inverseEntity="ClassroomJob"/>
     </entity>
     <!-- ==================== TransitionPlan ==================== -->
-    <entity name="TransitionPlan" representedClassName="TransitionPlan" syncable="YES">
+    <entity name="TransitionPlan" representedClassName="CDTransitionPlan" syncable="YES">
         <attribute name="id" optional="YES" attributeType="UUID" usesScalarValueType="NO"/>
         <attribute name="createdAt" optional="YES" attributeType="Date" usesScalarValueType="NO"/>
         <attribute name="modifiedAt" optional="YES" attributeType="Date" usesScalarValueType="NO"/>
@@ -687,10 +679,9 @@
         <attribute name="targetDate" optional="YES" attributeType="Date" usesScalarValueType="NO"/>
         <attribute name="notes" attributeType="String" defaultValueString=""/>
         <relationship name="checklistItems" optional="YES" toMany="YES" deletionRule="Cascade" destinationEntity="TransitionChecklistItem" inverseName="transitionPlan" inverseEntity="TransitionChecklistItem"/>
-        <relationship name="observationNotes" optional="YES" toMany="YES" deletionRule="Nullify" destinationEntity="Note" inverseName="transitionPlan" inverseEntity="Note"/>
     </entity>
     <!-- ==================== TransitionChecklistItem ==================== -->
-    <entity name="TransitionChecklistItem" representedClassName="TransitionChecklistItem" syncable="YES">
+    <entity name="TransitionChecklistItem" representedClassName="CDTransitionChecklistItem" syncable="YES">
         <attribute name="id" optional="YES" attributeType="UUID" usesScalarValueType="NO"/>
         <attribute name="createdAt" optional="YES" attributeType="Date" usesScalarValueType="NO"/>
         <attribute name="transitionPlanID" attributeType="String" defaultValueString=""/>
@@ -703,7 +694,7 @@
         <relationship name="transitionPlan" optional="YES" maxCount="1" deletionRule="Nullify" destinationEntity="TransitionPlan" inverseName="checklistItems" inverseEntity="TransitionPlan"/>
     </entity>
     <!-- ==================== Project ==================== -->
-    <entity name="Project" representedClassName="Project" syncable="YES">
+    <entity name="Project" representedClassName="CDProject" syncable="YES">
         <attribute name="id" optional="YES" attributeType="UUID" usesScalarValueType="NO"/>
         <attribute name="createdAt" optional="YES" attributeType="Date" usesScalarValueType="NO"/>
         <attribute name="modifiedAt" optional="YES" attributeType="Date" usesScalarValueType="NO"/>
@@ -715,7 +706,7 @@
         <relationship name="sessions" optional="YES" toMany="YES" deletionRule="Nullify" destinationEntity="ProjectSession" inverseName="project" inverseEntity="ProjectSession"/>
     </entity>
     <!-- ==================== ProjectAssignmentTemplate ==================== -->
-    <entity name="ProjectAssignmentTemplate" representedClassName="ProjectAssignmentTemplate" syncable="YES">
+    <entity name="ProjectAssignmentTemplate" representedClassName="CDProjectAssignmentTemplate" syncable="YES">
         <attribute name="id" optional="YES" attributeType="UUID" usesScalarValueType="NO"/>
         <attribute name="createdAt" optional="YES" attributeType="Date" usesScalarValueType="NO"/>
         <attribute name="projectID" attributeType="String" defaultValueString=""/>
@@ -726,7 +717,7 @@
         <relationship name="project" optional="YES" maxCount="1" deletionRule="Nullify" destinationEntity="Project" inverseName="sharedTemplates" inverseEntity="Project"/>
     </entity>
     <!-- ==================== ProjectSession ==================== -->
-    <entity name="ProjectSession" representedClassName="ProjectSession" syncable="YES">
+    <entity name="ProjectSession" representedClassName="CDProjectSession" syncable="YES">
         <attribute name="id" optional="YES" attributeType="UUID" usesScalarValueType="NO"/>
         <attribute name="createdAt" optional="YES" attributeType="Date" usesScalarValueType="NO"/>
         <attribute name="projectID" attributeType="String" defaultValueString=""/>
@@ -741,7 +732,7 @@
         <relationship name="noteItems" optional="YES" toMany="YES" deletionRule="Cascade" destinationEntity="Note" inverseName="projectSession" inverseEntity="Note"/>
     </entity>
     <!-- ==================== ProjectRole ==================== -->
-    <entity name="ProjectRole" representedClassName="ProjectRole" syncable="YES">
+    <entity name="ProjectRole" representedClassName="CDProjectRole" syncable="YES">
         <attribute name="id" optional="YES" attributeType="UUID" usesScalarValueType="NO"/>
         <attribute name="createdAt" optional="YES" attributeType="Date" usesScalarValueType="NO"/>
         <attribute name="projectID" attributeType="String" defaultValueString=""/>
@@ -750,7 +741,7 @@
         <attribute name="instructions" attributeType="String" defaultValueString=""/>
     </entity>
     <!-- ==================== ProjectTemplateWeek ==================== -->
-    <entity name="ProjectTemplateWeek" representedClassName="ProjectTemplateWeek" syncable="YES">
+    <entity name="ProjectTemplateWeek" representedClassName="CDProjectTemplateWeek" syncable="YES">
         <attribute name="id" optional="YES" attributeType="UUID" usesScalarValueType="NO"/>
         <attribute name="createdAt" optional="YES" attributeType="Date" usesScalarValueType="NO"/>
         <attribute name="projectID" attributeType="String" defaultValueString=""/>
@@ -766,7 +757,7 @@
         <relationship name="roleAssignments" optional="YES" toMany="YES" deletionRule="Nullify" destinationEntity="ProjectWeekRoleAssignment" inverseName="week" inverseEntity="ProjectWeekRoleAssignment"/>
     </entity>
     <!-- ==================== ProjectWeekRoleAssignment ==================== -->
-    <entity name="ProjectWeekRoleAssignment" representedClassName="ProjectWeekRoleAssignment" syncable="YES">
+    <entity name="ProjectWeekRoleAssignment" representedClassName="CDProjectWeekRoleAssignment" syncable="YES">
         <attribute name="id" optional="YES" attributeType="UUID" usesScalarValueType="NO"/>
         <attribute name="createdAt" optional="YES" attributeType="Date" usesScalarValueType="NO"/>
         <attribute name="weekID" attributeType="String" defaultValueString=""/>
@@ -775,7 +766,7 @@
         <relationship name="week" optional="YES" maxCount="1" deletionRule="Nullify" destinationEntity="ProjectTemplateWeek" inverseName="roleAssignments" inverseEntity="ProjectTemplateWeek"/>
     </entity>
     <!-- ==================== Resource ==================== -->
-    <entity name="Resource" representedClassName="Resource" syncable="YES">
+    <entity name="Resource" representedClassName="CDResource" syncable="YES">
         <attribute name="id" optional="YES" attributeType="UUID" usesScalarValueType="NO"/>
         <attribute name="title" attributeType="String" defaultValueString=""/>
         <attribute name="descriptionText" attributeType="String" defaultValueString=""/>
@@ -793,7 +784,7 @@
         <attribute name="modifiedAt" optional="YES" attributeType="Date" usesScalarValueType="NO"/>
     </entity>
     <!-- ==================== StudentMeeting ==================== -->
-    <entity name="StudentMeeting" representedClassName="StudentMeeting" syncable="YES">
+    <entity name="StudentMeeting" representedClassName="CDStudentMeeting" syncable="YES">
         <attribute name="id" optional="YES" attributeType="UUID" usesScalarValueType="NO"/>
         <attribute name="studentID" attributeType="String" defaultValueString=""/>
         <attribute name="date" optional="YES" attributeType="Date" usesScalarValueType="NO"/>
@@ -805,14 +796,14 @@
         <relationship name="notes" optional="YES" toMany="YES" deletionRule="Cascade" destinationEntity="Note" inverseName="studentMeeting" inverseEntity="Note"/>
     </entity>
     <!-- ==================== ScheduledMeeting ==================== -->
-    <entity name="ScheduledMeeting" representedClassName="ScheduledMeeting" syncable="YES">
+    <entity name="ScheduledMeeting" representedClassName="CDScheduledMeeting" syncable="YES">
         <attribute name="id" optional="YES" attributeType="UUID" usesScalarValueType="NO"/>
         <attribute name="studentID" attributeType="String" defaultValueString=""/>
         <attribute name="date" optional="YES" attributeType="Date" usesScalarValueType="NO"/>
         <attribute name="createdAt" optional="YES" attributeType="Date" usesScalarValueType="NO"/>
     </entity>
     <!-- ==================== CalendarNote ==================== -->
-    <entity name="CalendarNote" representedClassName="CalendarNote" syncable="YES">
+    <entity name="CalendarNote" representedClassName="CDCalendarNote" syncable="YES">
         <attribute name="id" optional="YES" attributeType="UUID" usesScalarValueType="NO"/>
         <attribute name="year" attributeType="Integer 64" defaultValueString="2026" usesScalarValueType="YES"/>
         <attribute name="month" attributeType="Integer 64" defaultValueString="1" usesScalarValueType="YES"/>

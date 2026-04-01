@@ -12,20 +12,20 @@ When you launch the app with CloudKit enabled, you should see these log messages
 
 **✅ CloudKit is Active:**
 ```
-SwiftData: Creating CloudKit-enabled container...
-SwiftData: CloudKit configuration:
+CoreData: Creating CloudKit-enabled container...
+CoreData: CloudKit configuration:
   - Container ID: iCloud.DanielSDeBerry.MariasNoteBook
   - Store URL: /path/to/store
   - Database: Private
-SwiftData: ✅ CloudKit container created successfully!
-SwiftData: CloudKit sync is now active. Changes will sync across devices.
-SwiftData: ✅ Using CloudKit-enabled storage.
+CoreData: ✅ CloudKit container created successfully!
+CoreData: CloudKit sync is now active. Changes will sync across devices.
+CoreData: ✅ Using CloudKit-enabled storage.
 ```
 
 **❌ CloudKit is Disabled:**
 ```
-SwiftData: Creating local storage container (CloudKit disabled - set 'EnableCloudKitSync' UserDefaults flag to enable)...
-SwiftData: Using local storage.
+CoreData: Creating local storage container (CloudKit disabled - set 'EnableCloudKitSync' UserDefaults flag to enable)...
+CoreData: Using local storage.
 ```
 
 ### 2. Check the Settings UI
@@ -92,7 +92,7 @@ For developers, you can verify CloudKit activity in the CloudKit Console:
 
 **Check sync status programmatically:**
 - CloudKit sync happens automatically in the background
-- SwiftData doesn't expose direct sync status APIs
+- Core Data + CloudKit sync status can be monitored via NSPersistentCloudKitContainer event notifications
 - Monitor console logs for sync activity
 - Changes typically sync within seconds to minutes
 
@@ -121,8 +121,8 @@ For developers, you can verify CloudKit activity in the CloudKit Console:
 
 2. **Check Mac Console Logs:**
    - Launch Mac app from Xcode
-   - Look for: `SwiftData: ✅ CloudKit container created successfully!`
-   - If you see `SwiftData: Using local storage`, CloudKit is disabled on Mac
+   - Look for: `CoreData: ✅ CloudKit container created successfully!`
+   - If you see `CoreData: Using local storage`, CloudKit is disabled on Mac
 
 3. **Verify Mac iCloud Settings:**
    - System Settings → Apple ID → iCloud
@@ -140,7 +140,7 @@ For developers, you can verify CloudKit activity in the CloudKit Console:
    - Restart the app (it will re-sync from iCloud)
 
 6. **Verify Mac OS Version:**
-   - CloudKit with SwiftData requires macOS 14.0 (Sonoma) or later
+   - Core Data + CloudKit requires macOS 26.0 or later
    - Check: Apple menu → About This Mac
 
 ---

@@ -8,7 +8,7 @@ extension LessonPlanningService {
 
     // MARK: - Response Parsing
 
-    func parseRecommendations(from jsonString: String, students: [Student]) -> [LessonRecommendation] {
+    func parseRecommendations(from jsonString: String, students: [CDStudent]) -> [LessonRecommendation] {
         guard let data = jsonString.data(using: .utf8) else { return [] }
 
         do {
@@ -56,7 +56,7 @@ extension LessonPlanningService {
         }
     }
 
-    func parseGroupings(from jsonString: String, students: [Student]) -> [GroupingSuggestion] {
+    func parseGroupings(from jsonString: String, students: [CDStudent]) -> [GroupingSuggestion] {
         guard let data = jsonString.data(using: .utf8) else { return [] }
 
         do {

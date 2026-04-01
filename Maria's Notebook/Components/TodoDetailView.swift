@@ -71,7 +71,7 @@ struct TodoDetailView: View {
 
                 // Due Date & Recurrence
                 if todo.dueDate != nil || todo.scheduledDate != nil || todo.isSomeday || todo.recurrence != .none {
-                    detailSection("CDSchedule", icon: "calendar") {
+                    detailSection("Schedule", icon: "calendar") {
                         VStack(alignment: .leading, spacing: 10) {
                             if let scheduled = todo.scheduledDate {
                                 metadataRow(
@@ -195,7 +195,7 @@ struct TodoDetailView: View {
 
                 // CDReminder
                 if let reminderDate = todo.reminderDate {
-                    detailSection("CDReminder", icon: "bell.fill") {
+                    detailSection("Reminder", icon: "bell.fill") {
                         metadataRow(
                             icon: "bell", label: "Alert at",
                             value: formatDate(reminderDate), valueColor: .yellow

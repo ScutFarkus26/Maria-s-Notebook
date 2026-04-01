@@ -142,7 +142,7 @@ struct ResourceDetailView: View {
             .sheet(isPresented: $isEditing) {
                 editSheet
             }
-            .confirmationDialog("Delete Resource?", isPresented: $showDeleteConfirmation, titleVisibility: .visible) {
+            .confirmationDialog("Delete CDResource?", isPresented: $showDeleteConfirmation, titleVisibility: .visible) {
                 Button("Delete", role: .destructive) {
                     deleteResource()
                 }
@@ -391,7 +391,7 @@ struct ResourceDetailView: View {
                     }
                 }
             }
-            .navigationTitle("Edit Resource")
+            .navigationTitle("Edit CDResource")
             .inlineNavigationTitle()
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {
@@ -476,7 +476,7 @@ struct ResourceDetailView: View {
             // On iOS, create a temporary copy and use UIApplication to open
             if let pdfData = try? Data(contentsOf: url) {
                 let tempURL = FileManager.default.temporaryDirectory
-                    .appendingPathComponent(resource.title.isEmpty ? "Resource.pdf" : "\(resource.title).pdf")
+                    .appendingPathComponent(resource.title.isEmpty ? "CDResource.pdf" : "\(resource.title).pdf")
                 try? pdfData.write(to: tempURL)
                 UIApplication.shared.open(tempURL)
             }

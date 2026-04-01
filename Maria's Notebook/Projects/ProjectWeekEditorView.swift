@@ -4,8 +4,8 @@ import CoreData
 // swiftlint:disable:next type_body_length
 struct ProjectWeekEditorView: View, Identifiable {
     var id: UUID { week.id ?? UUID() }
-    let club: Project
-    let week: ProjectTemplateWeek
+    let club: CDProject
+    let week: CDProjectTemplateWeek
     var onDone: () -> Void
 
     @Environment(\.managedObjectContext) private var modelContext
@@ -21,7 +21,7 @@ struct ProjectWeekEditorView: View, Identifiable {
     @FetchRequest(sortDescriptors: CDStudent.sortByName) private var studentsRaw: FetchedResults<CDStudent>
     // DEDUPLICATION: CloudKit sync can create duplicate records with the same ID.
     // Filter out test students when setting is disabled
-    private var students: [Student] {
+    private var students: [CDStudent] {
         TestStudentsFilter.filterVisible(
             Array(studentsRaw).uniqueByID.filter(\.isEnrolled),
             show: showTestStudents,
@@ -46,9 +46,9 @@ struct ProjectWeekEditorView: View, Identifiable {
     @State var offeredWorks: [TemplateOfferedWork]
 
     @State private var pickingLessonForWeek: Bool = false
-    @State private var viewingLesson: Lesson?
+    @State private var viewingLesson: CDLesson?
 
-    init(club: Project, week: ProjectTemplateWeek, onDone: @escaping () -> Void) {
+    init(club: CDProject, week: CDProjectTemplateWeek, onDone: @escaping () -> Void) {
         self.club = club
         self.week = week
         self.onDone = onDone
@@ -68,7 +68,7 @@ struct ProjectWeekEditorView: View, Identifiable {
         )
     }
 
-    private var clubMembers: [Student] {
+    private var clubMembers: [CDStudent] {
         let ids = Set(club.memberStudentIDsArray.compactMap(UUID.init))
         return students
             .filter { guard let sid = $0.id else { return false }; return ids.contains(sid) }
@@ -87,14 +87,14 @@ struct ProjectWeekEditorView: View, Identifiable {
     }
 
     // Use uniquingKeysWith to handle CloudKit sync duplicates
-    private var lessonsByID: [UUID: Lesson] {
+    private var lessonsByID: [UUID: CDLesson] {
         Dictionary(
-            allLessons.compactMap { l -> (UUID, Lesson)? in guard let id = l.id else { return nil }; return (id, l) },
+            allLessons.compactMap { l -> (UUID, CDLesson)? in guard let id = l.id else { return nil }; return (id, l) },
             uniquingKeysWith: { first, _ in first }
         )
     }
 
-    private var linkedLessons: [Lesson] {
+    private var linkedLessons: [CDLesson] {
         linkedLessonIDs.compactMap { UUID(uuidString: $0) }.compactMap { lessonsByID[$0] }
     }
 

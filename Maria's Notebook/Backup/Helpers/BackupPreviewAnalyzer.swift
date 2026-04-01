@@ -73,7 +73,12 @@ enum BackupPreviewAnalyzer {
         viewContext: NSManagedObjectContext,
         assign: (_ key: String, _ ins: Int, _ sk: Int, _ del: Int) -> Void
     ) {
+        let model = viewContext.persistentStoreCoordinator?.managedObjectModel
         func count<T: NSManagedObject>(_ type: T.Type) -> Int {
+            // Skip types whose entity doesn't exist in the Core Data model (e.g. legacy stubs)
+            guard model?.entitiesByName.values.contains(where: { $0.managedObjectClassName == NSStringFromClass(T.self) }) == true else {
+                return 0
+            }
             do {
                 return try viewContext.fetch(T.fetchRequest() as! NSFetchRequest<T>).count
             } catch {
@@ -82,50 +87,50 @@ enum BackupPreviewAnalyzer {
             }
         }
 
-        assign("CDStudent", payload.students.count, 0, count(CDStudent.self))
-        assign("CDLesson", payload.lessons.count, 0, count(CDLesson.self))
-        assign("CDLessonAssignment", payload.lessonAssignments.count, 0, count(CDLessonAssignment.self))
-        assign("CDNote", payload.notes.count, 0, count(CDNote.self))
-        assign("CDNonSchoolDay", payload.nonSchoolDays.count, 0, count(CDNonSchoolDay.self))
-        assign("CDSchoolDayOverride", payload.schoolDayOverrides.count, 0, count(CDSchoolDayOverride.self))
-        assign("CDStudentMeeting", payload.studentMeetings.count, 0, count(CDStudentMeeting.self))
-        assign("CDCommunityTopicEntity", payload.communityTopics.count, 0, count(CDCommunityTopicEntity.self))
-        assign("ProposedSolution", payload.proposedSolutions.count, 0, count(ProposedSolution.self))
-        assign("CommunityAttachment", payload.communityAttachments.count, 0, count(CommunityAttachment.self))
-        assign("CDAttendanceRecord", payload.attendance.count, 0, count(CDAttendanceRecord.self))
-        assign("CDWorkModel", payload.workModels?.count ?? 0, 0, count(CDWorkModel.self))
-        assign("CDWorkCompletionRecord", payload.workCompletions.count, 0, count(CDWorkCompletionRecord.self))
-        assign("CDProject", payload.projects.count, 0, count(CDProject.self))
+        assign("Student", payload.students.count, 0, count(CDStudent.self))
+        assign("Lesson", payload.lessons.count, 0, count(CDLesson.self))
+        assign("LessonAssignment", payload.lessonAssignments.count, 0, count(CDLessonAssignment.self))
+        assign("Note", payload.notes.count, 0, count(CDNote.self))
+        assign("NonSchoolDay", payload.nonSchoolDays.count, 0, count(CDNonSchoolDay.self))
+        assign("SchoolDayOverride", payload.schoolDayOverrides.count, 0, count(CDSchoolDayOverride.self))
+        assign("StudentMeeting", payload.studentMeetings.count, 0, count(CDStudentMeeting.self))
+        assign("CommunityTopic", payload.communityTopics.count, 0, count(CDCommunityTopicEntity.self))
+        assign("ProposedSolution", payload.proposedSolutions.count, 0, count(CDProposedSolutionEntity.self))
+        assign("CommunityAttachment", payload.communityAttachments.count, 0, count(CDCommunityAttachmentEntity.self))
+        assign("AttendanceRecord", payload.attendance.count, 0, count(CDAttendanceRecord.self))
+        assign("WorkModel", payload.workModels?.count ?? 0, 0, count(CDWorkModel.self))
+        assign("WorkCompletionRecord", payload.workCompletions.count, 0, count(CDWorkCompletionRecord.self))
+        assign("Project", payload.projects.count, 0, count(CDProject.self))
         assign(
             "ProjectAssignmentTemplate",
             payload.projectAssignmentTemplates.count, 0,
-            count(ProjectAssignmentTemplate.self)
+            count(CDProjectAssignmentTemplate.self)
         )
-        assign("CDProjectSession", payload.projectSessions.count, 0, count(CDProjectSession.self))
-        assign("ProjectRole", payload.projectRoles.count, 0, count(ProjectRole.self))
+        assign("ProjectSession", payload.projectSessions.count, 0, count(CDProjectSession.self))
+        assign("ProjectRole", payload.projectRoles.count, 0, count(CDProjectRole.self))
         assign(
             "ProjectTemplateWeek",
             payload.projectTemplateWeeks.count, 0,
-            count(ProjectTemplateWeek.self)
+            count(CDProjectTemplateWeek.self)
         )
         assign(
             "ProjectWeekRoleAssignment",
             payload.projectWeekRoleAssignments.count, 0,
-            count(ProjectWeekRoleAssignment.self)
+            count(CDProjectWeekRoleAssignment.self)
         )
         // Format v12+ entities
-        assign("CDGoingOut", payload.goingOuts?.count ?? 0, 0, count(CDGoingOut.self))
-        assign("GoingOutChecklistItem", payload.goingOutChecklistItems?.count ?? 0, 0, count(GoingOutChecklistItem.self))
-        assign("CDClassroomJob", payload.classroomJobs?.count ?? 0, 0, count(CDClassroomJob.self))
-        assign("CDJobAssignment", payload.jobAssignments?.count ?? 0, 0, count(CDJobAssignment.self))
-        assign("CDTransitionPlan", payload.transitionPlans?.count ?? 0, 0, count(CDTransitionPlan.self))
+        assign("GoingOut", payload.goingOuts?.count ?? 0, 0, count(CDGoingOut.self))
+        assign("GoingOutChecklistItem", payload.goingOutChecklistItems?.count ?? 0, 0, count(CDGoingOutChecklistItem.self))
+        assign("ClassroomJob", payload.classroomJobs?.count ?? 0, 0, count(CDClassroomJob.self))
+        assign("JobAssignment", payload.jobAssignments?.count ?? 0, 0, count(CDJobAssignment.self))
+        assign("TransitionPlan", payload.transitionPlans?.count ?? 0, 0, count(CDTransitionPlan.self))
         assign(
             "TransitionChecklistItem",
             payload.transitionChecklistItems?.count ?? 0, 0,
-            count(TransitionChecklistItem.self)
+            count(CDTransitionChecklistItem.self)
         )
-        assign("CDCalendarNote", payload.calendarNotes?.count ?? 0, 0, count(CDCalendarNote.self))
-        assign("CDScheduledMeeting", payload.scheduledMeetings?.count ?? 0, 0, count(CDScheduledMeeting.self))
+        assign("CalendarNote", payload.calendarNotes?.count ?? 0, 0, count(CDCalendarNote.self))
+        assign("ScheduledMeeting", payload.scheduledMeetings?.count ?? 0, 0, count(CDScheduledMeeting.self))
         assign("AlbumGroupOrder", payload.albumGroupOrders?.count ?? 0, 0, count(AlbumGroupOrder.self))
         assign("AlbumGroupUIState", payload.albumGroupUIStates?.count ?? 0, 0, count(AlbumGroupUIState.self))
     }
@@ -146,7 +151,7 @@ enum BackupPreviewAnalyzer {
             context: viewContext,
             exists: { entityExists(CDStudent.self, $0.id) }
         )
-        assign("CDStudent", studentCounts.insert, studentCounts.skip, 0)
+        assign("Student", studentCounts.insert, studentCounts.skip, 0)
 
         // Lessons
         let lessonCounts = BackupCountHelpers.countInsertAndSkip(
@@ -155,7 +160,7 @@ enum BackupPreviewAnalyzer {
             context: viewContext,
             exists: { entityExists(CDLesson.self, $0.id) }
         )
-        assign("CDLesson", lessonCounts.insert, lessonCounts.skip, 0)
+        assign("Lesson", lessonCounts.insert, lessonCounts.skip, 0)
 
         // Build lesson lookup sets for presentation/assignment analysis
         let lessonsInStore: Set<UUID>
@@ -210,7 +215,7 @@ enum BackupPreviewAnalyzer {
                 acc.ins += 1
             }
         }
-        assign("CDLessonAssignment", analysis.ins, analysis.sk, 0)
+        assign("LessonAssignment", analysis.ins, analysis.sk, 0)
         if analysis.missingLesson > 0 {
             warnings.append(
                 "\(analysis.missingLesson) CDLessonAssignment records "
@@ -231,12 +236,12 @@ enum BackupPreviewAnalyzer {
         }
 
         // WorkPlanItem removed in Phase 6 - migrated to CDWorkCheckIn
-        assignCounts("CDNote", items: payload.notes, type: CDNote.self) { $0.id }
-        assignCounts("CDNonSchoolDay", items: payload.nonSchoolDays, type: CDNonSchoolDay.self) { $0.id }
-        assignCounts("CDSchoolDayOverride", items: payload.schoolDayOverrides, type: CDSchoolDayOverride.self) { $0.id }
-        assignCounts("CDStudentMeeting", items: payload.studentMeetings, type: CDStudentMeeting.self) { $0.id }
-        assignCounts("CDCommunityTopicEntity", items: payload.communityTopics, type: CDCommunityTopicEntity.self) { $0.id }
-        assignCounts("ProposedSolution", items: payload.proposedSolutions, type: ProposedSolution.self) { $0.id }
+        assignCounts("Note", items: payload.notes, type: CDNote.self) { $0.id }
+        assignCounts("NonSchoolDay", items: payload.nonSchoolDays, type: CDNonSchoolDay.self) { $0.id }
+        assignCounts("SchoolDayOverride", items: payload.schoolDayOverrides, type: CDSchoolDayOverride.self) { $0.id }
+        assignCounts("StudentMeeting", items: payload.studentMeetings, type: CDStudentMeeting.self) { $0.id }
+        assignCounts("CommunityTopic", items: payload.communityTopics, type: CDCommunityTopicEntity.self) { $0.id }
+        assignCounts("ProposedSolution", items: payload.proposedSolutions, type: CDProposedSolutionEntity.self) { $0.id }
     }
 
     private static func analyzeFilteredEntityMerge(
@@ -254,36 +259,36 @@ enum BackupPreviewAnalyzer {
             return (new.count, existing.count)
         }
 
-        let attachmentCounts = countFiltered(payload.communityAttachments, type: CommunityAttachment.self) { $0.id }
+        let attachmentCounts = countFiltered(payload.communityAttachments, type: CDCommunityAttachmentEntity.self) { $0.id }
         assign("CommunityAttachment", attachmentCounts.ins, attachmentCounts.sk, 0)
 
         let attendanceCounts = countFiltered(payload.attendance, type: CDAttendanceRecord.self) { $0.id }
-        assign("CDAttendanceRecord", attendanceCounts.ins, attendanceCounts.sk, 0)
+        assign("AttendanceRecord", attendanceCounts.ins, attendanceCounts.sk, 0)
 
         let completionCounts = countFiltered(payload.workCompletions, type: CDWorkCompletionRecord.self) { $0.id }
-        assign("CDWorkCompletionRecord", completionCounts.ins, completionCounts.sk, 0)
+        assign("WorkCompletionRecord", completionCounts.ins, completionCounts.sk, 0)
 
         let projectCounts = countFiltered(payload.projects, type: CDProject.self) { $0.id }
-        assign("CDProject", projectCounts.ins, projectCounts.sk, 0)
+        assign("Project", projectCounts.ins, projectCounts.sk, 0)
 
         let templateCounts = countFiltered(
             payload.projectAssignmentTemplates,
-            type: ProjectAssignmentTemplate.self
+            type: CDProjectAssignmentTemplate.self
         ) { $0.id }
         assign("ProjectAssignmentTemplate", templateCounts.ins, templateCounts.sk, 0)
 
         let sessionCounts = countFiltered(payload.projectSessions, type: CDProjectSession.self) { $0.id }
-        assign("CDProjectSession", sessionCounts.ins, sessionCounts.sk, 0)
+        assign("ProjectSession", sessionCounts.ins, sessionCounts.sk, 0)
 
-        let roleCounts = countFiltered(payload.projectRoles, type: ProjectRole.self) { $0.id }
+        let roleCounts = countFiltered(payload.projectRoles, type: CDProjectRole.self) { $0.id }
         assign("ProjectRole", roleCounts.ins, roleCounts.sk, 0)
 
-        let weekCounts = countFiltered(payload.projectTemplateWeeks, type: ProjectTemplateWeek.self) { $0.id }
+        let weekCounts = countFiltered(payload.projectTemplateWeeks, type: CDProjectTemplateWeek.self) { $0.id }
         assign("ProjectTemplateWeek", weekCounts.ins, weekCounts.sk, 0)
 
         let assignmentCounts = countFiltered(
             payload.projectWeekRoleAssignments,
-            type: ProjectWeekRoleAssignment.self
+            type: CDProjectWeekRoleAssignment.self
         ) { $0.id }
         assign("ProjectWeekRoleAssignment", assignmentCounts.ins, assignmentCounts.sk, 0)
     }

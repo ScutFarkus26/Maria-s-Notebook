@@ -20,7 +20,7 @@ extension PracticeSessionCard {
                     .font(AppTheme.ScaledFont.captionSemibold)
                     .foregroundStyle(.primary)
 
-                // Student names
+                // CDStudent names
                 Text(studentNames)
                     .font(AppTheme.ScaledFont.caption)
                     .foregroundStyle(.secondary)

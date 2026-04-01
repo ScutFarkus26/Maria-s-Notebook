@@ -1,5 +1,5 @@
 // SampleWorkService.swift
-// Persistence service for SampleWork and SampleWorkStep CRUD operations.
+// Persistence service for CDSampleWorkEntity and SampleWorkStep CRUD operations.
 
 import Foundation
 import CoreData
@@ -17,7 +17,7 @@ struct SampleWorkService {
 
     // Deprecated ModelContext init removed - no longer needed with Core Data.
 
-    // MARK: - SampleWork CRUD
+    // MARK: - CDSampleWorkEntity CRUD
 
     /// Create and insert a new sample work for the given lesson.
     /// - Returns: The newly created CDSampleWorkEntity with auto-incremented orderIndex.

@@ -28,7 +28,7 @@ extension WorksAgendaView {
 
     // MARK: - Actions
 
-    func openDetail(_ w: WorkModel) {
+    func openDetail(_ w: CDWorkModel) {
         // Force save before opening
         do {
             try viewContext.save()
@@ -43,13 +43,13 @@ extension WorksAgendaView {
         }
     }
 
-    func markCompleted(_ w: WorkModel) {
+    func markCompleted(_ w: CDWorkModel) {
         w.status = .complete
         saveCoordinator.save(viewContext, reason: "Mark work completed")
         HapticService.shared.notification(.success)
     }
 
-    func scheduleToday(_ w: WorkModel) {
+    func scheduleToday(_ w: CDWorkModel) {
         let today = AppCalendar.startOfDay(Date())
         let workIDString = w.id?.uuidString ?? ""
         let request: NSFetchRequest<CDWorkCheckIn> = NSFetchRequest(entityName: "WorkCheckIn")
@@ -67,7 +67,7 @@ extension WorksAgendaView {
                 item.purpose = "progressCheck"
             }
         } catch {
-            Self.logger.warning("Failed to fetch WorkCheckIn: \(error)")
+            Self.logger.warning("Failed to fetch CDWorkCheckIn: \(error)")
             let item = CDWorkCheckIn(context: viewContext)
             item.workID = workIDString
             item.date = today

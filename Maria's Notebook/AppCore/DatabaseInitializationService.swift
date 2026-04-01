@@ -87,7 +87,7 @@ enum DatabaseInitializationService {
 
     // MARK: - Migration
 
-    /// Attempts to migrate AttendanceRecord.studentID from UUID to String.
+    /// Attempts to migrate CDAttendanceRecord.studentID from UUID to String.
     /// Returns true if migration was successful or not needed.
     @discardableResult
     static func attemptAttendanceRecordMigrationIfNeeded() -> Bool {
@@ -109,7 +109,7 @@ enum DatabaseInitializationService {
     // MARK: - SQLite Configuration
 
     /// Configures SQLite to suppress detached signature logging errors.
-    /// Note: WAL checkpoint optimization is handled by disabling autosave and batching saves in SaveCoordinator.
+    /// CDNote: WAL checkpoint optimization is handled by disabling autosave and batching saves in SaveCoordinator.
     static func configureSQLiteToSuppressDetachedSignatureErrors(for container: NSPersistentContainer) {
         _ = container
         // WAL checkpoint contention is primarily managed by:

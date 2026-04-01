@@ -63,9 +63,12 @@ extension BackupService {
     // MARK: - Data Management
 
     func deleteAll(viewContext: NSManagedObjectContext) throws {
+        let model = viewContext.persistentStoreCoordinator?.managedObjectModel
         for type in BackupEntityRegistry.allTypes {
             do {
                 let entityName = String(describing: type).replacingOccurrences(of: "CD", with: "")
+                // Skip types whose entity doesn't exist in the model
+                guard model?.entitiesByName[entityName] != nil else { continue }
                 let fetchRequest = NSFetchRequest<NSFetchRequestResult>(entityName: entityName)
                 let deleteRequest = NSBatchDeleteRequest(fetchRequest: fetchRequest)
                 deleteRequest.resultType = .resultTypeObjectIDs
