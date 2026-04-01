@@ -5,6 +5,7 @@ import Foundation
 enum SettingsCategory: String, CaseIterable, Identifiable, Hashable {
     case general
     case dataSync
+    case classroom
     case backup
     case templates
     case communication
@@ -18,6 +19,7 @@ enum SettingsCategory: String, CaseIterable, Identifiable, Hashable {
         switch self {
         case .general: return "School calendar, display & colors"
         case .dataSync: return "iCloud, Reminders, Calendar"
+        case .classroom: return "Sharing, roles & members"
         case .backup: return "Export, restore & auto-backup"
         case .templates: return "CDNote & meeting templates"
         case .communication: return "Attendance email settings"
@@ -31,6 +33,7 @@ enum SettingsCategory: String, CaseIterable, Identifiable, Hashable {
         switch self {
         case .general: return "General"
         case .dataSync: return "Data & Sync"
+        case .classroom: return "Classroom"
         case .backup: return "Backup"
         case .templates: return "Templates"
         case .communication: return "Communication"
@@ -44,6 +47,7 @@ enum SettingsCategory: String, CaseIterable, Identifiable, Hashable {
         switch self {
         case .general: return "gear"
         case .dataSync: return "arrow.triangle.2.circlepath"
+        case .classroom: return "person.2.badge.gearshape.fill"
         case .backup: return "externaldrive.fill"
         case .templates: return "doc.on.doc.fill"
         case .communication: return "envelope.fill"
@@ -57,6 +61,7 @@ enum SettingsCategory: String, CaseIterable, Identifiable, Hashable {
         switch self {
         case .general: return "general school calendar display colors lesson age work age"
         case .dataSync: return "data sync icloud reminders calendar"
+        case .classroom: return "classroom sharing invite assistant guide role members"
         case .backup: return "backup restore data management export import"
         case .templates: return "templates note meeting"
         case .communication: return "communication attendance email"
@@ -82,6 +87,11 @@ enum SettingsCategory: String, CaseIterable, Identifiable, Hashable {
                 "iCloud", "CloudKit", "Sync Now", "Last Synced", "Enable iCloud Backup",
                 "Reminders", "CDReminder List", "Request Access", "Sync Reminders",
                 "Calendar", "Calendar Events", "Refresh Calendars"
+            ]
+        case .classroom:
+            return [
+                "Share Classroom", "Participants", "Your Role",
+                "Leave Classroom", "Invite Assistant"
             ]
         case .backup:
             return [

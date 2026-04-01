@@ -266,6 +266,19 @@ final class AppDependencies {
         return service
     }
 
+    private var _classroomSharingService: ClassroomSharingService?
+    var classroomSharingService: ClassroomSharingService {
+        if let service = _classroomSharingService {
+            return service
+        }
+        let service = ClassroomSharingService(
+            container: coreDataStack.container,
+            context: viewContext
+        )
+        _classroomSharingService = service
+        return service
+    }
+
     // MARK: - Router & Coordinators
 
     private var _appRouter: AppRouter?

@@ -43,6 +43,21 @@ enum CoreDataTestHelpers {
         return note
     }
 
+    /// Inserts a CDClassroomMembership with the given role and zone ID.
+    @discardableResult
+    static func seedClassroomMembership(
+        in context: NSManagedObjectContext,
+        role: CDClassroomMembership.ClassroomRole = .leadGuide,
+        zoneID: String = "test-zone",
+        ownerIdentity: String = "test-owner"
+    ) -> CDClassroomMembership {
+        let membership = CDClassroomMembership(context: context)
+        membership.classroomZoneID = zoneID
+        membership.role = role
+        membership.ownerIdentity = ownerIdentity
+        return membership
+    }
+
     /// Saves the context, returning true on success.
     @discardableResult
     static func save(_ context: NSManagedObjectContext) -> Bool {

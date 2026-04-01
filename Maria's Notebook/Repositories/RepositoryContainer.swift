@@ -79,6 +79,13 @@ struct RepositoryContainer {
         ProjectRepository(context: context, saveCoordinator: saveCoordinator)
     }
 
+    // MARK: - Classroom
+
+    /// Repository for ClassroomMembership entities
+    var classrooms: ClassroomRepository {
+        ClassroomRepository(context: context, saveCoordinator: saveCoordinator)
+    }
+
     // MARK: - Convenience Save
 
     /// Save changes using the save coordinator if available

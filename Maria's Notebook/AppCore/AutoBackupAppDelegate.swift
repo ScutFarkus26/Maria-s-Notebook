@@ -1,6 +1,7 @@
 #if os(macOS)
 import AppKit
 import CoreData
+import CloudKit
 import SwiftUI
 
 /// AppDelegate to handle automatic backups on app termination
@@ -15,6 +16,13 @@ final class AutoBackupAppDelegate: NSObject, NSApplicationDelegate {
         self.autoBackupManager = AutoBackupManager(backupService: BackupService())
     }
     
+    func application(_ application: NSApplication, userDidAcceptCloudKitShareWith metadata: CKShare.Metadata) {
+        NotificationCenter.default.post(
+            name: .didAcceptCloudKitShare,
+            object: metadata
+        )
+    }
+
     func applicationWillTerminate(_ notification: Notification) {
         // Perform automatic backup before app quits
         guard let coreDataStack,

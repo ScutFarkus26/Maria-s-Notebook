@@ -21,6 +21,8 @@ extension SettingsView {
             generalSection
         case .dataSync:
             dataSyncSection
+        case .classroom:
+            classroomSection
         case .backup:
             backupManagementSection
         case .templates:
@@ -201,6 +203,11 @@ extension SettingsView {
                     .frame(maxWidth: .infinity)
             }
         }
+    }
+
+    // 2b. Classroom Sharing
+    var classroomSection: some View {
+        ClassroomSharingView()
     }
 
     // 3. Backup & Data Management

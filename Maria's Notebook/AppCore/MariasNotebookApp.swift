@@ -7,6 +7,7 @@
 
 import SwiftUI
 import CoreData
+import CloudKit
 import OSLog
 import TipKit
 #if os(macOS)
@@ -30,6 +31,8 @@ struct MariasNotebookApp: App {
 
     #if os(macOS)
     @NSApplicationDelegateAdaptor private var appDelegate: AutoBackupAppDelegate
+    #elseif os(iOS)
+    @UIApplicationDelegateAdaptor private var appDelegate: ShareAcceptanceAppDelegate
     #endif
 
     // MARK: - Core Data Stack

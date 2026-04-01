@@ -246,6 +246,41 @@ final class CoreDataStack {
         return ctx
     }
 
+    // MARK: - Store Accessors
+
+    /// The NSPersistentStore for the shared (classroom-level) configuration.
+    var sharedPersistentStore: NSPersistentStore? {
+        container.persistentStoreCoordinator.persistentStores.first { store in
+            store.configurationName == Self.sharedConfiguration
+        }
+    }
+
+    /// The NSPersistentStore for the private (per-teacher) configuration.
+    var privatePersistentStore: NSPersistentStore? {
+        container.persistentStoreCoordinator.persistentStores.first { store in
+            store.configurationName == Self.privateConfiguration
+        }
+    }
+
+    // MARK: - CloudKit Sharing
+
+    /// Fetches all CKShares in the shared store.
+    func fetchSharesInSharedStore() throws -> [CKShare] {
+        guard let store = sharedPersistentStore else { return [] }
+        return try container.fetchShares(in: store)
+    }
+
+    /// Accepts a share invitation, routing data to the shared store.
+    func acceptShareInvitation(_ metadata: CKShare.Metadata) async throws {
+        guard let store = sharedPersistentStore else {
+            throw CoreDataStackError.storeLoadFailed(
+                NSError(domain: "CoreDataStack", code: -1,
+                        userInfo: [NSLocalizedDescriptionKey: "Shared store not found"])
+            )
+        }
+        try await container.acceptShareInvitations(from: [metadata], into: store)
+    }
+
     // MARK: - Remote Change Handling
 
     @objc private func handleRemoteChange(_ notification: Notification) {
