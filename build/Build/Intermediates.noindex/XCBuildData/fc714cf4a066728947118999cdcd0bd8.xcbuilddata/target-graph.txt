@@ -1,2 +1,0 @@
-Target dependency graph (1 target)
-Target 'Maria's Notebook' in project 'Maria's Notebook' (no dependencies)
