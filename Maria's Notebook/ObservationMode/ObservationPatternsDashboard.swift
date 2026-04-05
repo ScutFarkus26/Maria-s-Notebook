@@ -343,8 +343,8 @@ final class ObservationPatternsViewModel {
             let topTags = tagCounts.sorted { $0.value > $1.value }.prefix(3).map(\.key)
             return StudentObservationSummary(
                 id: studentID,
-                name: "\(student.firstName ?? "") \(student.lastName ?? "")",
-                initials: "\((student.firstName ?? "").prefix(1))\((student.lastName ?? "").prefix(1))",
+                name: "\(student.firstName) \(student.lastName)",
+                initials: "\(student.firstName.prefix(1))\(student.lastName.prefix(1))",
                 levelColor: AppColors.color(forLevel: student.level),
                 observationCount: notes.count,
                 topTags: topTags

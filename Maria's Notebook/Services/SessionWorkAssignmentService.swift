@@ -103,7 +103,7 @@ struct SessionWorkAssignmentService {
         participant.work = work
 
         // Update studentID if this is the first selection
-        if (work.studentID ?? "").isEmpty {
+        if work.studentID.isEmpty {
             work.studentID = idString
         }
     }

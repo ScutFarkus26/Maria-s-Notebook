@@ -140,7 +140,7 @@ final class SearchIndexService {
         let students = context.safeFetch(request)
         for student in students {
             guard let studentID = student.id else { continue }
-            let text = "\(student.firstName ?? "") \(student.lastName ?? "") \(student.nickname ?? "")"
+            let text = "\(student.firstName) \(student.lastName) \(student.nickname ?? "")"
             let result = SearchResult(
                 id: studentID,
                 entityType: .student,
@@ -156,12 +156,12 @@ final class SearchIndexService {
         let lessons = context.safeFetch(request)
         for lesson in lessons {
             guard let lessonID = lesson.id else { continue }
-            let text = "\(lesson.name ?? "") \(lesson.subject ?? "") \(lesson.group ?? "") \(lesson.subheading ?? "")"
+            let text = "\(lesson.name) \(lesson.subject) \(lesson.group) \(lesson.subheading)"
             let result = SearchResult(
                 id: lessonID,
                 entityType: .lesson,
-                title: lesson.name ?? "",
-                snippet: lesson.subject ?? ""
+                title: lesson.name,
+                snippet: lesson.subject
             )
             indexResult(result, text: text)
         }
@@ -173,7 +173,7 @@ final class SearchIndexService {
         for note in notes {
             guard let noteID = note.id else { continue }
             let tags = (note.tags as? [String]) ?? []
-            let body = note.body ?? ""
+            let body = note.body
             let text = "\(body) \(tags.joined(separator: " "))"
             let result = SearchResult(
                 id: noteID,
@@ -190,12 +190,12 @@ final class SearchIndexService {
         let todos = context.safeFetch(request)
         for todo in todos {
             guard let todoID = todo.id else { continue }
-            let text = "\(todo.title ?? "") \(todo.notes ?? "")"
+            let text = "\(todo.title) \(todo.notes)"
             let result = SearchResult(
                 id: todoID,
                 entityType: .todo,
-                title: todo.title ?? "",
-                snippet: todo.notes ?? ""
+                title: todo.title,
+                snippet: todo.notes
             )
             indexResult(result, text: text)
         }
@@ -206,11 +206,11 @@ final class SearchIndexService {
         let items = context.safeFetch(request)
         for work in items {
             guard let workID = work.id else { continue }
-            let text = "\(work.title ?? "")"
+            let text = "\(work.title)"
             let result = SearchResult(
                 id: workID,
                 entityType: .work,
-                title: work.title ?? "",
+                title: work.title,
                 snippet: work.status.rawValue
             )
             indexResult(result, text: text)

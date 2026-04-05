@@ -82,7 +82,7 @@ struct WorkPresentationStatusService {
             let scheduledAssignments = try context.fetch(scheduledRequest)
             let relevantScheduled = scheduledAssignments.filter { assignment in
                 assignment.presentedAt == nil &&
-                (assignment.studentIDs as? [String] ?? []).contains(work.studentID)
+                assignment.studentIDs.contains(work.studentID)
             }
 
             if let nextScheduled = relevantScheduled.first,
@@ -105,11 +105,11 @@ struct WorkPresentationStatusService {
             let relevantDrafts = draftAssignments.filter { assignment in
                 assignment.scheduledFor == nil &&
                 assignment.presentedAt == nil &&
-                (assignment.studentIDs as? [String] ?? []).contains(work.studentID)
+                assignment.studentIDs.contains(work.studentID)
             }
 
             if let inboxAssignment = relevantDrafts.first {
-                let studentIDsArray = (inboxAssignment.studentIDs as? [String]) ?? []
+                let studentIDsArray = inboxAssignment.studentIDs
                 let otherStudents = studentIDsArray.filter { $0 != work.studentID }
 
                 if otherStudents.isEmpty {

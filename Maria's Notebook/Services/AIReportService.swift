@@ -100,15 +100,15 @@ enum AIReportService {
 
         let noteData = notes.map { note in
             ReportData.NoteData(
-                body: note.body ?? "",
+                body: note.body,
                 tags: (note.tags as? [String]) ?? [],
                 createdAt: note.createdAt ?? Date()
             )
         }
 
         return ReportData(
-            studentFirstName: student.firstName ?? "",
-            studentLastName: student.lastName ?? "",
+            studentFirstName: student.firstName,
+            studentLastName: student.lastName,
             notes: noteData,
             attendanceRate: rate,
             totalSchoolDays: totalDays,

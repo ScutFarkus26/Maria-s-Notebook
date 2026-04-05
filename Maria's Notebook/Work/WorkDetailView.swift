@@ -235,7 +235,7 @@ struct WorkDetailView: View {
                     if let nextLesson = viewModel.nextLessonToUnlock {
                         let studentName = viewModel.relatedStudent?.firstName
                             ?? "this student"
-                        Text("Ready to unlock \(nextLesson.name ?? "Unknown") for \(studentName)?")
+                        Text("Ready to unlock \(nextLesson.name) for \(studentName)?")
                     }
                 }
                 .sheet(isPresented: $viewModel.showAddStepSheet) {

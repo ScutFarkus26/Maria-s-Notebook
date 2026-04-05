@@ -29,9 +29,9 @@ enum ProcedureService {
         if !searchText.isEmpty {
             let searchLower = searchText.lowercased()
             filtered = filtered.filter {
-                ($0.title ?? "").lowercased().contains(searchLower) ||
-                ($0.summary ?? "").lowercased().contains(searchLower) ||
-                ($0.content ?? "").lowercased().contains(searchLower)
+                $0.title.lowercased().contains(searchLower) ||
+                $0.summary.lowercased().contains(searchLower) ||
+                $0.content.lowercased().contains(searchLower)
             }
         }
 
@@ -147,7 +147,7 @@ enum ProcedureService {
     /// Fetches related procedures for a given procedure
     @MainActor
     static func fetchRelatedProcedures(for procedure: CDProcedure, in context: NSManagedObjectContext) -> [CDProcedure] {
-        let relatedIDs = procedure.relatedProcedureIDs ?? []
+        let relatedIDs = procedure.relatedProcedureIDs
         guard !relatedIDs.isEmpty else { return [] }
 
         let request = CDFetchRequest(CDProcedure.self)

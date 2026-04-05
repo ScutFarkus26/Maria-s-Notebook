@@ -95,7 +95,7 @@ final class DevelopmentalTraitsViewModel {
             return TraitObservation(
                 id: note.id ?? UUID(),
                 date: note.createdAt ?? Date(),
-                bodyPreview: String((note.body ?? "").prefix(100)),
+                bodyPreview: String(note.body.prefix(100)),
                 traits: traits
             )
         }

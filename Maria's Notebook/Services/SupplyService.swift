@@ -29,9 +29,9 @@ enum SupplyService {
         if !searchText.isEmpty {
             let searchLower = searchText.lowercased()
             filtered = filtered.filter {
-                ($0.name ?? "").lowercased().contains(searchLower) ||
-                ($0.location ?? "").lowercased().contains(searchLower) ||
-                ($0.notes ?? "").lowercased().contains(searchLower)
+                $0.name.lowercased().contains(searchLower) ||
+                $0.location.lowercased().contains(searchLower) ||
+                $0.notes.lowercased().contains(searchLower)
             }
         }
 
