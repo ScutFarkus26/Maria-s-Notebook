@@ -169,7 +169,7 @@ enum ChecklistBatchActionExecutor {
                 }
             } else {
                 guard let lessonID = lesson.id, let studentID = student.id else { return }
-                PresentationFactory.makeDraft(
+                _ = PresentationFactory.makeDraft(
                     lessonID: lessonID,
                     studentIDs: [studentID],
                     context: context
@@ -313,7 +313,7 @@ enum ChecklistBatchActionExecutor {
             }
         } else {
             guard let lessonID = lesson.id, let studentID = student.id else { return }
-            PresentationFactory.makePresented(
+            _ = PresentationFactory.makePresented(
                 lessonID: lessonID,
                 studentIDs: [studentID],
                 context: context

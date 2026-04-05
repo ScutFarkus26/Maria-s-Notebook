@@ -237,17 +237,14 @@ final class LessonPickerViewModel {
 
         // Either reuse existing or create a new one
         let la: CDLessonAssignment
-        let isNew: Bool
         if let match = existingMatch {
             la = match
-            isNew = false
         } else {
             la = PresentationFactory.makeDraft(
                 lessonID: finalLesson.id ?? UUID(),
                 studentIDs: selectedIDs,
                 context: context
             )
-            isNew = true
         }
 
         // Apply current state

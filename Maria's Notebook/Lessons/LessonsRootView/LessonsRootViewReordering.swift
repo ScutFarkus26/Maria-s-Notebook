@@ -257,11 +257,11 @@ extension LessonsRootView {
             return
         }
 
-        guard let lessonID = lesson.id else {
+        guard lesson.id != nil else {
             lessonToSchedule = nil
             return
         }
-        let newAssignment = PresentationFactory.makeDraft(
+        _ = PresentationFactory.makeDraft(
             lesson: lesson,
             students: students,
             context: viewContext

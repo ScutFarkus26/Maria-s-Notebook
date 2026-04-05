@@ -114,7 +114,7 @@ extension LifecycleService {
 
                 let repository = WorkRepository(context: modelContext)
                 do {
-                    let workModel = try repository.createWork(
+                    _ = try repository.createWork(
                         studentID: studentUUID,
                         lessonID: lessonUUID,
                         title: nil,

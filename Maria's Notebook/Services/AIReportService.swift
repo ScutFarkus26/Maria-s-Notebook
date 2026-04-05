@@ -222,7 +222,6 @@ enum AIReportService {
             case .practicing: practicing += 1
             case .readyForAssessment: ready += 1
             case .proficient: proficient += 1
-            default: break
             }
         }
 

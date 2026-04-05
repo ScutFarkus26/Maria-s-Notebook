@@ -57,7 +57,7 @@ extension ClassSubjectChecklistViewModel {
             }
         } else {
             guard let lessonID = lesson.id, let studentID = student.id else { return }
-            PresentationFactory.makeDraft(
+            _ = PresentationFactory.makeDraft(
                 lessonID: lessonID,
                 studentIDs: [studentID],
                 context: context
@@ -153,7 +153,7 @@ extension ClassSubjectChecklistViewModel {
             }
         } else {
             guard let lessonUUID = lesson.id, let studentUUID = student.id else { return }
-            PresentationFactory.makePresented(
+            _ = PresentationFactory.makePresented(
                 lessonID: lessonUUID,
                 studentIDs: [studentUUID],
                 context: context
@@ -214,7 +214,7 @@ extension ClassSubjectChecklistViewModel {
             }
         } else {
             guard let lessonUUID = lesson.id, let studentUUID = student.id else { return }
-            PresentationFactory.makePreviouslyPresented(
+            _ = PresentationFactory.makePreviouslyPresented(
                 lessonID: lessonUUID,
                 studentIDs: [studentUUID],
                 context: context

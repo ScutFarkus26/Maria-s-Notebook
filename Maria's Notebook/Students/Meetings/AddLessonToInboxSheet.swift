@@ -225,7 +225,7 @@ struct AddLessonToInboxSheet: View {
         
         // Create a draft CDLessonAssignment (inbox item)
         guard let studentID = student.id else { return }
-        let draft = PresentationFactory.makeDraft(lessonID: lessonID, studentIDs: [studentID], context: viewContext)
+        _ = PresentationFactory.makeDraft(lessonID: lessonID, studentIDs: [studentID], context: viewContext)
         saveCoordinator.save(viewContext, reason: "Add CDLesson to Inbox from Meeting")
         dismiss()
     }

@@ -78,7 +78,7 @@ extension ChecklistBatchActionExecutor {
             }
         } else {
             guard let lessonID = lesson.id, let studentID = student.id else { return }
-            PresentationFactory.makePreviouslyPresented(
+            _ = PresentationFactory.makePreviouslyPresented(
                 lessonID: lessonID,
                 studentIDs: [studentID],
                 context: context

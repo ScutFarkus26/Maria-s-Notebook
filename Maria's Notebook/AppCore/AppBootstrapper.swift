@@ -117,7 +117,6 @@ final class AppBootstrapper {
 
         await backgroundContext.perform {
             // 3.7.5. Repair incorrectly scoped notes
-            let scopeRepairStart = Date()
             // CDNote: repairScopeForContextualNotes is async+MainActor, call on main
             logger.info("Post-launch: note scope repair starting")
         }
@@ -127,7 +126,7 @@ final class AppBootstrapper {
         let dedupStart = Date()
         await MainActor.run {
             // 3.8. Deduplication (CloudKit sync can create duplicates during merge conflicts)
-            DataMigrations.deduplicateAllModels(using: coreDataStack.viewContext)
+            _ = DataMigrations.deduplicateAllModels(using: coreDataStack.viewContext)
         }
         logger.info("Post-launch: deduplication completed in \(formatSeconds(Date().timeIntervalSince(dedupStart)))")
 
