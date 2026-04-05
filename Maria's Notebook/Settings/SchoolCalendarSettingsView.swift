@@ -161,8 +161,7 @@ struct SchoolCalendarSettingsView: View {
         let cal = calendar
         var d = cal.startOfDay(for: monthInterval.start)
         while d < monthInterval.end {
-            var descriptor = { let r = CDNonSchoolDay.fetchRequest() as! NSFetchRequest<CDNonSchoolDay>; r.predicate = NSPredicate(format: "date == %@", d as CVarArg); return r }()
-            descriptor.fetchLimit = 1
+            let descriptor = { let r = CDNonSchoolDay.fetchRequest() as! NSFetchRequest<CDNonSchoolDay>; r.predicate = NSPredicate(format: "date == %@", d as CVarArg); r.fetchLimit = 1; return r }()
             do {
                 let arr = try viewContext.fetch(descriptor)
                 if let existing = arr.first {
@@ -191,8 +190,7 @@ struct SchoolCalendarSettingsView: View {
             let weekday = cal.component(.weekday, from: d)
             if weekday != 1 && weekday != 7 { // 1=Sun, 7=Sat
                 // ensure weekdays are not marked as non-school
-                var descriptor = { let r = CDNonSchoolDay.fetchRequest() as! NSFetchRequest<CDNonSchoolDay>; r.predicate = NSPredicate(format: "date == %@", d as CVarArg); return r }()
-                descriptor.fetchLimit = 1
+                let descriptor = { let r = CDNonSchoolDay.fetchRequest() as! NSFetchRequest<CDNonSchoolDay>; r.predicate = NSPredicate(format: "date == %@", d as CVarArg); r.fetchLimit = 1; return r }()
                 let items: [CDNonSchoolDay]
                 do {
                     items = try viewContext.fetch(descriptor)

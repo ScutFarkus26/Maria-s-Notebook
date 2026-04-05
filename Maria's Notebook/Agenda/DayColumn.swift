@@ -54,8 +54,7 @@ struct DayColumn: View {
 
         // 1) Explicit non-school day wins
         do {
-            var nsDescriptor = { let r = CDNonSchoolDay.fetchRequest() as! NSFetchRequest<CDNonSchoolDay>; r.predicate = NSPredicate(format: "date == %@", day as CVarArg); return r }()
-            nsDescriptor.fetchLimit = 1
+            let nsDescriptor = { let r = CDNonSchoolDay.fetchRequest() as! NSFetchRequest<CDNonSchoolDay>; r.predicate = NSPredicate(format: "date == %@", day as CVarArg); r.fetchLimit = 1; return r }()
             let nonSchoolDays: [CDNonSchoolDay] = try viewContext.fetch(nsDescriptor)
             if !nonSchoolDays.isEmpty { return true }
         } catch {
@@ -69,8 +68,7 @@ struct DayColumn: View {
 
         // 3) Weekend override makes it a school day
         do {
-            var ovDescriptor = { let r = CDSchoolDayOverride.fetchRequest() as! NSFetchRequest<CDSchoolDayOverride>; r.predicate = NSPredicate(format: "date == %@", day as CVarArg); return r }()
-            ovDescriptor.fetchLimit = 1
+            let ovDescriptor = { let r = CDSchoolDayOverride.fetchRequest() as! NSFetchRequest<CDSchoolDayOverride>; r.predicate = NSPredicate(format: "date == %@", day as CVarArg); r.fetchLimit = 1; return r }()
             let overrides: [CDSchoolDayOverride] = try viewContext.fetch(ovDescriptor)
             if !overrides.isEmpty { return false }
         } catch {

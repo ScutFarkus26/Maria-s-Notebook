@@ -71,7 +71,7 @@ extension LessonAssignmentDetailSheet {
         // Load unified CDNote objects from relationship
         // Refresh the assignment object to get updated relationships
         guard let targetID = assignment.id else { return }
-        var descriptor: NSFetchRequest<CDLessonAssignment> = NSFetchRequest(entityName: "LessonAssignment")
+        let descriptor: NSFetchRequest<CDLessonAssignment> = NSFetchRequest(entityName: "LessonAssignment")
         descriptor.predicate = NSPredicate(format: "id == %@", targetID as CVarArg)
         descriptor.fetchLimit = 1
         do {

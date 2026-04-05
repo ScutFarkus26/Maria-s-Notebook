@@ -264,10 +264,8 @@ extension InboxSheetViewModel {
         }) {
             return existing
         }
-        var lessonFetch = { let r = CDLesson.fetchRequest() as! NSFetchRequest<CDLesson>; r.predicate = NSPredicate(format: "id == %@", lessonID as CVarArg); return r }()
-        lessonFetch.fetchLimit = 1
-        var studentFetch = { let r = CDStudent.fetchRequest() as! NSFetchRequest<CDStudent>; r.predicate = NSPredicate(format: "id == %@", studentID as CVarArg); return r }()
-        studentFetch.fetchLimit = 1
+        let lessonFetch = { let r = CDLesson.fetchRequest() as! NSFetchRequest<CDLesson>; r.predicate = NSPredicate(format: "id == %@", lessonID as CVarArg); r.fetchLimit = 1; return r }()
+        let studentFetch = { let r = CDStudent.fetchRequest() as! NSFetchRequest<CDStudent>; r.predicate = NSPredicate(format: "id == %@", studentID as CVarArg); r.fetchLimit = 1; return r }()
         let lessonObj = safeFetchFirst(lessonFetch, viewContext: viewContext, context: "findOrCreateInboxLA-lesson")
         let studentObj = safeFetchFirst(
             studentFetch, viewContext: viewContext, context: "findOrCreateInboxLA-student"

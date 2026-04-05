@@ -92,8 +92,7 @@ struct LessonAgeHelper {
 
         // 1) Explicit non-school day wins
         do {
-            var nsDescriptor = { let r = NSFetchRequest<CDNonSchoolDay>(entityName: "NonSchoolDay"); r.predicate = NSPredicate(format: "date == %@", day as CVarArg); r.fetchLimit = 0; return r }()
-            nsDescriptor.fetchLimit = 1
+            let nsDescriptor = { let r = NSFetchRequest<CDNonSchoolDay>(entityName: "NonSchoolDay"); r.predicate = NSPredicate(format: "date == %@", day as CVarArg); r.fetchLimit = 1; return r }()
             let nonSchoolDays: [CDNonSchoolDay] = try context.fetch(nsDescriptor)
             if !nonSchoolDays.isEmpty { return true }
         } catch {
@@ -107,8 +106,7 @@ struct LessonAgeHelper {
 
         // 3) Weekend override makes it a school day
         do {
-            var ovDescriptor = { let r = NSFetchRequest<CDSchoolDayOverride>(entityName: "SchoolDayOverride"); r.predicate = NSPredicate(format: "date == %@", day as CVarArg); r.fetchLimit = 0; return r }()
-            ovDescriptor.fetchLimit = 1
+            let ovDescriptor = { let r = NSFetchRequest<CDSchoolDayOverride>(entityName: "SchoolDayOverride"); r.predicate = NSPredicate(format: "date == %@", day as CVarArg); r.fetchLimit = 1; return r }()
             let overrides: [CDSchoolDayOverride] = try context.fetch(ovDescriptor)
             if !overrides.isEmpty { return false }
         } catch {

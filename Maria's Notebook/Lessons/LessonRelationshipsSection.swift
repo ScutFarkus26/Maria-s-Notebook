@@ -41,8 +41,7 @@ struct LessonRelationshipsSection: View {
 
     private var resolvedLessons: [CDLesson] {
         lessonIDs.compactMap { id in
-            var descriptor = { let r = NSFetchRequest<CDLesson>(entityName: "Lesson"); r.predicate = NSPredicate(format: "id == %@", id as CVarArg); r.fetchLimit = 0; return r }()
-            descriptor.fetchLimit = 1
+            let descriptor = { let r = NSFetchRequest<CDLesson>(entityName: "Lesson"); r.predicate = NSPredicate(format: "id == %@", id as CVarArg); r.fetchLimit = 1; return r }()
             return viewContext.safeFetchFirst(descriptor)
         }
     }

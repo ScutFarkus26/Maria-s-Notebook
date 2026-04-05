@@ -451,8 +451,7 @@ final class StudentDetailViewModel {
             cdContext.safeSave()
             // Re-fetch as SwiftData CDWorkModel (both contexts share the same SQLite store)
             let workID = cdWork.id ?? UUID()
-            var refetch = { let r = NSFetchRequest<CDWorkModel>(entityName: "WorkModel"); r.predicate = NSPredicate(format: "id == %@", workID as CVarArg); r.fetchLimit = 0; return r }()
-            refetch.fetchLimit = 1
+            let refetch = { let r = NSFetchRequest<CDWorkModel>(entityName: "WorkModel"); r.predicate = NSPredicate(format: "id == %@", workID as CVarArg); r.fetchLimit = 1; return r }()
             return try? viewContext.fetch(refetch).first
         } catch {
             return nil
@@ -461,8 +460,7 @@ final class StudentDetailViewModel {
 
     /// Fetch a CDWorkModel by ID
     func fetchWork(by id: UUID, viewContext: NSManagedObjectContext) -> CDWorkModel? {
-        var descriptor = { let r = NSFetchRequest<CDWorkModel>(entityName: "WorkModel"); r.predicate = NSPredicate(format: "id == %@", id as CVarArg); r.fetchLimit = 0; return r }()
-        descriptor.fetchLimit = 1
+        let descriptor = { let r = NSFetchRequest<CDWorkModel>(entityName: "WorkModel"); r.predicate = NSPredicate(format: "id == %@", id as CVarArg); r.fetchLimit = 1; return r }()
         return safeFetch(descriptor, context: viewContext).first
     }
 }

@@ -15,7 +15,7 @@ extension LessonAssignmentHistoryView {
 
     func loadAssignments(limit: Int? = nil) {
         let presentedState = LessonAssignmentState.presented.rawValue
-        var descriptor: NSFetchRequest<CDLessonAssignment> = NSFetchRequest(entityName: "LessonAssignment")
+        let descriptor: NSFetchRequest<CDLessonAssignment> = NSFetchRequest(entityName: "LessonAssignment")
         descriptor.predicate = NSPredicate(format: "stateRaw == %@", presentedState as CVarArg)
         descriptor.sortDescriptors = [
                 NSSortDescriptor(keyPath: \CDLessonAssignment.presentedAt, ascending: false),
@@ -37,7 +37,7 @@ extension LessonAssignmentHistoryView {
         guard !hasLoadedMore else { return }
         let currentCount = loadedAssignments.count
         let presentedState = LessonAssignmentState.presented.rawValue
-        var descriptor: NSFetchRequest<CDLessonAssignment> = NSFetchRequest(entityName: "LessonAssignment")
+        let descriptor: NSFetchRequest<CDLessonAssignment> = NSFetchRequest(entityName: "LessonAssignment")
         descriptor.predicate = NSPredicate(format: "stateRaw == %@", presentedState as CVarArg)
         descriptor.sortDescriptors = [
                 NSSortDescriptor(keyPath: \CDLessonAssignment.presentedAt, ascending: false),

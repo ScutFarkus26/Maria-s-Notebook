@@ -126,7 +126,7 @@ struct MeetingTemplateManagementView: View {
     // MARK: - Actions
 
     private func activateTemplate(_ template: CDMeetingTemplate) {
-        _ = adaptiveWithAnimation {
+        adaptiveWithAnimation {
             if let templateID = template.id { repository.setActiveTemplate(id: templateID) }
         }
     }

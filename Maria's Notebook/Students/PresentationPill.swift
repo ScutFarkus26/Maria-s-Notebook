@@ -124,8 +124,7 @@ struct PresentationPill: View {
 
     /// Helper to check if a specific date has a non-school day entry.
     private func hasNonSchoolDay(for day: Date) -> Bool {
-        var descriptor = { let r = NSFetchRequest<CDNonSchoolDay>(entityName: "NonSchoolDay"); r.predicate = NSPredicate(format: "date == %@", day as CVarArg); r.fetchLimit = 0; return r }()
-        descriptor.fetchLimit = 1
+        let descriptor = { let r = NSFetchRequest<CDNonSchoolDay>(entityName: "NonSchoolDay"); r.predicate = NSPredicate(format: "date == %@", day as CVarArg); r.fetchLimit = 1; return r }()
         do {
             return try !viewContext.fetch(descriptor).isEmpty
         } catch {
@@ -136,8 +135,7 @@ struct PresentationPill: View {
 
     /// Helper to check if a specific date has a school day override entry.
     private func hasSchoolDayOverride(for day: Date) -> Bool {
-        var descriptor = { let r = NSFetchRequest<CDSchoolDayOverride>(entityName: "SchoolDayOverride"); r.predicate = NSPredicate(format: "date == %@", day as CVarArg); r.fetchLimit = 0; return r }()
-        descriptor.fetchLimit = 1
+        let descriptor = { let r = NSFetchRequest<CDSchoolDayOverride>(entityName: "SchoolDayOverride"); r.predicate = NSPredicate(format: "date == %@", day as CVarArg); r.fetchLimit = 1; return r }()
         do {
             return try !viewContext.fetch(descriptor).isEmpty
         } catch {
@@ -462,8 +460,7 @@ struct PresentationPill: View {
 
     /// Helper to fetch a CDLessonAssignment by ID.
     private func fetchLessonAssignment(by id: UUID) -> CDLessonAssignment? {
-        var descriptor = { let r = NSFetchRequest<CDLessonAssignment>(entityName: "LessonAssignment"); r.predicate = NSPredicate(format: "id == %@", id as CVarArg); r.fetchLimit = 0; return r }()
-        descriptor.fetchLimit = 1
+        let descriptor = { let r = NSFetchRequest<CDLessonAssignment>(entityName: "LessonAssignment"); r.predicate = NSPredicate(format: "id == %@", id as CVarArg); r.fetchLimit = 1; return r }()
         do {
             return try viewContext.fetch(descriptor).first
         } catch {

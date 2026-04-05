@@ -105,13 +105,13 @@ struct EntityFetcherRegistry {
     }
 
     private func fetchStudent(id: UUID, context: NSManagedObjectContext) -> CDStudent? {
-        var descriptor = { let r = CDStudent.fetchRequest() as! NSFetchRequest<CDStudent>; r.predicate = NSPredicate(format: "id == %@", id as CVarArg); return r }()
+        let descriptor = { let r = CDStudent.fetchRequest() as! NSFetchRequest<CDStudent>; r.predicate = NSPredicate(format: "id == %@", id as CVarArg); return r }()
         descriptor.fetchLimit = 1
         return safeFetchFirst(descriptor, context: context, entityName: "Student")
     }
 
     private func fetchLesson(id: UUID, context: NSManagedObjectContext) -> CDLesson? {
-        var descriptor = { let r = CDLesson.fetchRequest() as! NSFetchRequest<CDLesson>; r.predicate = NSPredicate(format: "id == %@", id as CVarArg); return r }()
+        let descriptor = { let r = CDLesson.fetchRequest() as! NSFetchRequest<CDLesson>; r.predicate = NSPredicate(format: "id == %@", id as CVarArg); return r }()
         descriptor.fetchLimit = 1
         return safeFetchFirst(descriptor, context: context, entityName: "Lesson")
     }
@@ -119,7 +119,7 @@ struct EntityFetcherRegistry {
     // fetchLegacyPresentation removed — model fully migrated to CDLessonAssignment
 
     private func fetchWorkModel(id: UUID, context: NSManagedObjectContext) -> CDWorkModel? {
-        var descriptor = { let r = CDWorkModel.fetchRequest() as! NSFetchRequest<CDWorkModel>; r.predicate = NSPredicate(format: "id == %@", id as CVarArg); return r }()
+        let descriptor = { let r = CDWorkModel.fetchRequest() as! NSFetchRequest<CDWorkModel>; r.predicate = NSPredicate(format: "id == %@", id as CVarArg); return r }()
         descriptor.fetchLimit = 1
         return safeFetchFirst(descriptor, context: context, entityName: "WorkModel")
     }
@@ -127,25 +127,25 @@ struct EntityFetcherRegistry {
     // WorkPlanItem removed in Phase 6 - migrated to CDWorkCheckIn
 
     private func fetchNote(id: UUID, context: NSManagedObjectContext) -> CDNote? {
-        var descriptor = { let r = CDNote.fetchRequest() as! NSFetchRequest<CDNote>; r.predicate = NSPredicate(format: "id == %@", id as CVarArg); return r }()
+        let descriptor = { let r = CDNote.fetchRequest() as! NSFetchRequest<CDNote>; r.predicate = NSPredicate(format: "id == %@", id as CVarArg); return r }()
         descriptor.fetchLimit = 1
         return safeFetchFirst(descriptor, context: context, entityName: "Note")
     }
 
     private func fetchNonSchoolDay(id: UUID, context: NSManagedObjectContext) -> CDNonSchoolDay? {
-        var descriptor = { let r = CDNonSchoolDay.fetchRequest() as! NSFetchRequest<CDNonSchoolDay>; r.predicate = NSPredicate(format: "id == %@", id as CVarArg); return r }()
+        let descriptor = { let r = CDNonSchoolDay.fetchRequest() as! NSFetchRequest<CDNonSchoolDay>; r.predicate = NSPredicate(format: "id == %@", id as CVarArg); return r }()
         descriptor.fetchLimit = 1
         return safeFetchFirst(descriptor, context: context, entityName: "NonSchoolDay")
     }
 
     private func fetchSchoolDayOverride(id: UUID, context: NSManagedObjectContext) -> CDSchoolDayOverride? {
-        var descriptor = { let r = CDSchoolDayOverride.fetchRequest() as! NSFetchRequest<CDSchoolDayOverride>; r.predicate = NSPredicate(format: "id == %@", id as CVarArg); return r }()
+        let descriptor = { let r = CDSchoolDayOverride.fetchRequest() as! NSFetchRequest<CDSchoolDayOverride>; r.predicate = NSPredicate(format: "id == %@", id as CVarArg); return r }()
         descriptor.fetchLimit = 1
         return safeFetchFirst(descriptor, context: context, entityName: "SchoolDayOverride")
     }
 
     private func fetchStudentMeeting(id: UUID, context: NSManagedObjectContext) -> CDStudentMeeting? {
-        var descriptor = { let r = CDStudentMeeting.fetchRequest() as! NSFetchRequest<CDStudentMeeting>; r.predicate = NSPredicate(format: "id == %@", id as CVarArg); return r }()
+        let descriptor = { let r = CDStudentMeeting.fetchRequest() as! NSFetchRequest<CDStudentMeeting>; r.predicate = NSPredicate(format: "id == %@", id as CVarArg); return r }()
         descriptor.fetchLimit = 1
         return safeFetchFirst(descriptor, context: context, entityName: "StudentMeeting")
     }
@@ -153,67 +153,67 @@ struct EntityFetcherRegistry {
     // Removed: fetchPresentation - model no longer exists (use CDLessonAssignment instead)
 
     private func fetchCommunityTopic(id: UUID, context: NSManagedObjectContext) -> CDCommunityTopicEntity? {
-        var descriptor = { let r = CDCommunityTopicEntity.fetchRequest() as! NSFetchRequest<CDCommunityTopicEntity>; r.predicate = NSPredicate(format: "id == %@", id as CVarArg); return r }()
+        let descriptor = { let r = CDCommunityTopicEntity.fetchRequest() as! NSFetchRequest<CDCommunityTopicEntity>; r.predicate = NSPredicate(format: "id == %@", id as CVarArg); return r }()
         descriptor.fetchLimit = 1
         return safeFetchFirst(descriptor, context: context, entityName: "CommunityTopic")
     }
 
     private func fetchProposedSolution(id: UUID, context: NSManagedObjectContext) -> CDProposedSolutionEntity? {
-        var descriptor = { let r = CDProposedSolutionEntity.fetchRequest() as! NSFetchRequest<CDProposedSolutionEntity>; r.predicate = NSPredicate(format: "id == %@", id as CVarArg); return r }()
+        let descriptor = { let r = CDProposedSolutionEntity.fetchRequest() as! NSFetchRequest<CDProposedSolutionEntity>; r.predicate = NSPredicate(format: "id == %@", id as CVarArg); return r }()
         descriptor.fetchLimit = 1
         return safeFetchFirst(descriptor, context: context, entityName: "ProposedSolution")
     }
 
     private func fetchCommunityAttachment(id: UUID, context: NSManagedObjectContext) -> CDCommunityAttachmentEntity? {
-        var descriptor = { let r = CDCommunityAttachmentEntity.fetchRequest() as! NSFetchRequest<CDCommunityAttachmentEntity>; r.predicate = NSPredicate(format: "id == %@", id as CVarArg); return r }()
+        let descriptor = { let r = CDCommunityAttachmentEntity.fetchRequest() as! NSFetchRequest<CDCommunityAttachmentEntity>; r.predicate = NSPredicate(format: "id == %@", id as CVarArg); return r }()
         descriptor.fetchLimit = 1
         return safeFetchFirst(descriptor, context: context, entityName: "CommunityAttachment")
     }
 
     private func fetchAttendanceRecord(id: UUID, context: NSManagedObjectContext) -> CDAttendanceRecord? {
-        var descriptor = { let r = CDAttendanceRecord.fetchRequest() as! NSFetchRequest<CDAttendanceRecord>; r.predicate = NSPredicate(format: "id == %@", id as CVarArg); return r }()
+        let descriptor = { let r = CDAttendanceRecord.fetchRequest() as! NSFetchRequest<CDAttendanceRecord>; r.predicate = NSPredicate(format: "id == %@", id as CVarArg); return r }()
         descriptor.fetchLimit = 1
         return safeFetchFirst(descriptor, context: context, entityName: "AttendanceRecord")
     }
 
     private func fetchWorkCompletionRecord(id: UUID, context: NSManagedObjectContext) -> CDWorkCompletionRecord? {
-        var descriptor = { let r = CDWorkCompletionRecord.fetchRequest() as! NSFetchRequest<CDWorkCompletionRecord>; r.predicate = NSPredicate(format: "id == %@", id as CVarArg); return r }()
+        let descriptor = { let r = CDWorkCompletionRecord.fetchRequest() as! NSFetchRequest<CDWorkCompletionRecord>; r.predicate = NSPredicate(format: "id == %@", id as CVarArg); return r }()
         descriptor.fetchLimit = 1
         return safeFetchFirst(descriptor, context: context, entityName: "WorkCompletionRecord")
     }
 
     private func fetchProject(id: UUID, context: NSManagedObjectContext) -> CDProject? {
-        var descriptor = { let r = CDProject.fetchRequest() as! NSFetchRequest<CDProject>; r.predicate = NSPredicate(format: "id == %@", id as CVarArg); return r }()
+        let descriptor = { let r = CDProject.fetchRequest() as! NSFetchRequest<CDProject>; r.predicate = NSPredicate(format: "id == %@", id as CVarArg); return r }()
         descriptor.fetchLimit = 1
         return safeFetchFirst(descriptor, context: context, entityName: "Project")
     }
 
     private func fetchProjectAssignmentTemplate(id: UUID, context: NSManagedObjectContext) -> CDProjectAssignmentTemplate? {
-        var descriptor = { let r = CDProjectAssignmentTemplate.fetchRequest() as! NSFetchRequest<CDProjectAssignmentTemplate>; r.predicate = NSPredicate(format: "id == %@", id as CVarArg); return r }()
+        let descriptor = { let r = CDProjectAssignmentTemplate.fetchRequest() as! NSFetchRequest<CDProjectAssignmentTemplate>; r.predicate = NSPredicate(format: "id == %@", id as CVarArg); return r }()
         descriptor.fetchLimit = 1
         return safeFetchFirst(descriptor, context: context, entityName: "ProjectAssignmentTemplate")
     }
 
     private func fetchProjectSession(id: UUID, context: NSManagedObjectContext) -> CDProjectSession? {
-        var descriptor = { let r = CDProjectSession.fetchRequest() as! NSFetchRequest<CDProjectSession>; r.predicate = NSPredicate(format: "id == %@", id as CVarArg); return r }()
+        let descriptor = { let r = CDProjectSession.fetchRequest() as! NSFetchRequest<CDProjectSession>; r.predicate = NSPredicate(format: "id == %@", id as CVarArg); return r }()
         descriptor.fetchLimit = 1
         return safeFetchFirst(descriptor, context: context, entityName: "ProjectSession")
     }
 
     private func fetchProjectRole(id: UUID, context: NSManagedObjectContext) -> CDProjectRole? {
-        var descriptor = { let r = CDProjectRole.fetchRequest() as! NSFetchRequest<CDProjectRole>; r.predicate = NSPredicate(format: "id == %@", id as CVarArg); return r }()
+        let descriptor = { let r = CDProjectRole.fetchRequest() as! NSFetchRequest<CDProjectRole>; r.predicate = NSPredicate(format: "id == %@", id as CVarArg); return r }()
         descriptor.fetchLimit = 1
         return safeFetchFirst(descriptor, context: context, entityName: "ProjectRole")
     }
 
     private func fetchProjectTemplateWeek(id: UUID, context: NSManagedObjectContext) -> CDProjectTemplateWeek? {
-        var descriptor = { let r = CDProjectTemplateWeek.fetchRequest() as! NSFetchRequest<CDProjectTemplateWeek>; r.predicate = NSPredicate(format: "id == %@", id as CVarArg); return r }()
+        let descriptor = { let r = CDProjectTemplateWeek.fetchRequest() as! NSFetchRequest<CDProjectTemplateWeek>; r.predicate = NSPredicate(format: "id == %@", id as CVarArg); return r }()
         descriptor.fetchLimit = 1
         return safeFetchFirst(descriptor, context: context, entityName: "ProjectTemplateWeek")
     }
 
     private func fetchProjectWeekRoleAssignment(id: UUID, context: NSManagedObjectContext) -> CDProjectWeekRoleAssignment? {
-        var descriptor = { let r = CDProjectWeekRoleAssignment.fetchRequest() as! NSFetchRequest<CDProjectWeekRoleAssignment>; r.predicate = NSPredicate(format: "id == %@", id as CVarArg); return r }()
+        let descriptor = { let r = CDProjectWeekRoleAssignment.fetchRequest() as! NSFetchRequest<CDProjectWeekRoleAssignment>; r.predicate = NSPredicate(format: "id == %@", id as CVarArg); return r }()
         descriptor.fetchLimit = 1
         return safeFetchFirst(descriptor, context: context, entityName: "ProjectWeekRoleAssignment")
     }
@@ -240,7 +240,7 @@ struct BatchEntityFetcher {
         while true {
             // Use autoreleasepool to release intermediate memory during batch processing
             let batch: [T]? = autoreleasepool {
-                var descriptor = T.fetchRequest() as! NSFetchRequest<T>
+                let descriptor = T.fetchRequest() as! NSFetchRequest<T>
                 descriptor.fetchOffset = offset
                 descriptor.fetchLimit = batchSize
                 do {
@@ -282,7 +282,7 @@ struct BatchEntityFetcher {
         while consecutiveErrors < maxConsecutiveErrors {
             // Use autoreleasepool to release intermediate memory during batch processing
             let result: Result<[T], Error> = autoreleasepool {
-                var descriptor = T.fetchRequest() as! NSFetchRequest<T>
+                let descriptor = T.fetchRequest() as! NSFetchRequest<T>
                 descriptor.fetchOffset = offset
                 descriptor.fetchLimit = batchSize
 

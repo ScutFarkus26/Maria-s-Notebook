@@ -209,7 +209,7 @@ public final class ConflictResolutionService {
 
         for dto in dtos {
             let dtoID = dto.id
-            var descriptor = { let r = CDStudent.fetchRequest() as! NSFetchRequest<CDStudent>; r.predicate = NSPredicate(format: "id == %@", dtoID as CVarArg); return r }()
+            let descriptor = { let r = CDStudent.fetchRequest() as! NSFetchRequest<CDStudent>; r.predicate = NSPredicate(format: "id == %@", dtoID as CVarArg); return r }()
             descriptor.fetchLimit = 1
             let existing: CDStudent?
             do {
@@ -243,7 +243,7 @@ public final class ConflictResolutionService {
 
         for dto in dtos {
             let dtoID = dto.id
-            var descriptor = { let r = CDLesson.fetchRequest() as! NSFetchRequest<CDLesson>; r.predicate = NSPredicate(format: "id == %@", dtoID as CVarArg); return r }()
+            let descriptor = { let r = CDLesson.fetchRequest() as! NSFetchRequest<CDLesson>; r.predicate = NSPredicate(format: "id == %@", dtoID as CVarArg); return r }()
             descriptor.fetchLimit = 1
             let existing: CDLesson?
             do {
@@ -277,7 +277,7 @@ public final class ConflictResolutionService {
 
         for dto in dtos {
             let dtoID = dto.id
-            var descriptor = { let r = CDNote.fetchRequest() as! NSFetchRequest<CDNote>; r.predicate = NSPredicate(format: "id == %@", dtoID as CVarArg); return r }()
+            let descriptor = { let r = CDNote.fetchRequest() as! NSFetchRequest<CDNote>; r.predicate = NSPredicate(format: "id == %@", dtoID as CVarArg); return r }()
             descriptor.fetchLimit = 1
             let existing: CDNote?
             do {
@@ -314,7 +314,7 @@ public final class ConflictResolutionService {
 
         for dto in dtos {
             let dtoID = dto.id
-            var descriptor = { let r = CDProject.fetchRequest() as! NSFetchRequest<CDProject>; r.predicate = NSPredicate(format: "id == %@", dtoID as CVarArg); return r }()
+            let descriptor = { let r = CDProject.fetchRequest() as! NSFetchRequest<CDProject>; r.predicate = NSPredicate(format: "id == %@", dtoID as CVarArg); return r }()
             descriptor.fetchLimit = 1
             let existing: CDProject?
             do {
@@ -344,7 +344,7 @@ public final class ConflictResolutionService {
 
     private func updateStudent(_ dto: StudentDTO, in viewContext: NSManagedObjectContext) throws {
         let dtoID = dto.id
-        var descriptor = { let r = CDStudent.fetchRequest() as! NSFetchRequest<CDStudent>; r.predicate = NSPredicate(format: "id == %@", dtoID as CVarArg); return r }()
+        let descriptor = { let r = CDStudent.fetchRequest() as! NSFetchRequest<CDStudent>; r.predicate = NSPredicate(format: "id == %@", dtoID as CVarArg); return r }()
         descriptor.fetchLimit = 1
         let student: CDStudent?
         do {
@@ -366,8 +366,7 @@ public final class ConflictResolutionService {
 
     private func updateLesson(_ dto: LessonDTO, in viewContext: NSManagedObjectContext) throws {
         let dtoID = dto.id
-        var descriptor = { let r = CDLesson.fetchRequest() as! NSFetchRequest<CDLesson>; r.predicate = NSPredicate(format: "id == %@", dtoID as CVarArg); return r }()
-        descriptor.fetchLimit = 1
+        let descriptor = { let r = CDLesson.fetchRequest() as! NSFetchRequest<CDLesson>; r.predicate = NSPredicate(format: "id == %@", dtoID as CVarArg); r.fetchLimit = 1; return r }()
         let lesson: CDLesson?
         do {
             lesson = try viewContext.fetch(descriptor).first
@@ -390,8 +389,7 @@ public final class ConflictResolutionService {
 
     private func updateNote(_ dto: NoteDTO, in viewContext: NSManagedObjectContext) throws {
         let dtoID = dto.id
-        var descriptor = { let r = CDNote.fetchRequest() as! NSFetchRequest<CDNote>; r.predicate = NSPredicate(format: "id == %@", dtoID as CVarArg); return r }()
-        descriptor.fetchLimit = 1
+        let descriptor = { let r = CDNote.fetchRequest() as! NSFetchRequest<CDNote>; r.predicate = NSPredicate(format: "id == %@", dtoID as CVarArg); r.fetchLimit = 1; return r }()
         let note: CDNote?
         do {
             note = try viewContext.fetch(descriptor).first
@@ -416,8 +414,7 @@ public final class ConflictResolutionService {
 
     private func updateProject(_ dto: ProjectDTO, in viewContext: NSManagedObjectContext) throws {
         let dtoID = dto.id
-        var descriptor = { let r = CDProject.fetchRequest() as! NSFetchRequest<CDProject>; r.predicate = NSPredicate(format: "id == %@", dtoID as CVarArg); return r }()
-        descriptor.fetchLimit = 1
+        let descriptor = { let r = CDProject.fetchRequest() as! NSFetchRequest<CDProject>; r.predicate = NSPredicate(format: "id == %@", dtoID as CVarArg); r.fetchLimit = 1; return r }()
         let project: CDProject?
         do {
             project = try viewContext.fetch(descriptor).first

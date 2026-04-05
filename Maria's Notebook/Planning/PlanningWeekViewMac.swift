@@ -95,7 +95,7 @@ struct PlanningWeekViewMac: View {
         let today = calendar.startOfDay(for: Date())
         
         // Fetch only future scheduled lessons to find the next one (using CDLessonAssignment)
-        var descriptor: NSFetchRequest<CDLessonAssignment> = NSFetchRequest(entityName: "LessonAssignment")
+        let descriptor: NSFetchRequest<CDLessonAssignment> = NSFetchRequest(entityName: "LessonAssignment")
         descriptor.predicate = NSPredicate(format: "scheduledFor != nil AND presentedAt == nil")
         descriptor.sortDescriptors = [NSSortDescriptor(key: "scheduledFor", ascending: true)]
         descriptor.fetchLimit = 1

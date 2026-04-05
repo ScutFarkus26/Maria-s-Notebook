@@ -418,7 +418,7 @@ extension BackupService {
         while true {
             // Use autoreleasepool to release each batch's memory after processing
             let batch: [T]? = autoreleasepool {
-                var descriptor = T.fetchRequest() as! NSFetchRequest<T>
+                let descriptor = T.fetchRequest() as! NSFetchRequest<T>
                 descriptor.fetchOffset = offset
                 descriptor.fetchLimit = batchSize
                 do {
@@ -480,7 +480,7 @@ extension BackupService {
         while true {
             // Fetch, transform, and release in one autoreleasepool
             let dtos: [DTO]? = autoreleasepool {
-                var descriptor = T.fetchRequest() as! NSFetchRequest<T>
+                let descriptor = T.fetchRequest() as! NSFetchRequest<T>
                 descriptor.fetchOffset = offset
                 descriptor.fetchLimit = batchSize
 

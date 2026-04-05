@@ -30,7 +30,7 @@ extension LessonsViewModel {
             formatFilter: formatFilter,
             selectedSubject: selectedSubject, selectedGroup: selectedGroup, searchText: searchText
         )
-        var descriptor = NSFetchRequest<CDLesson>(entityName: "Lesson")
+        let descriptor = NSFetchRequest<CDLesson>(entityName: "Lesson")
         if let predicate { descriptor.predicate = predicate }
         descriptor.sortDescriptors = lessonSortDescriptors(selectedGroup: selectedGroup, selectedSubject: selectedSubject)
 
@@ -106,7 +106,7 @@ extension LessonsViewModel {
         let scopedPredicate = buildSourceAndKindPredicate(
             sourceFilter: sourceFilter, personalKindFilter: personalKindFilter
         )
-        var scopedDescriptor = NSFetchRequest<CDLesson>(entityName: "Lesson")
+        let scopedDescriptor = NSFetchRequest<CDLesson>(entityName: "Lesson")
         if let scopedPredicate { scopedDescriptor.predicate = scopedPredicate }
         return viewContext.safeFetch(scopedDescriptor)
     }

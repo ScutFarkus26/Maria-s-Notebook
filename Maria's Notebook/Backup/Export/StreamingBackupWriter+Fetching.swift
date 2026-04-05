@@ -90,7 +90,7 @@ extension StreamingBackupWriter {
         while true {
             // Modern approach: Use FetchDescriptor batch configuration
             // SwiftData handles memory management internally
-            var descriptor = T.fetchRequest() as! NSFetchRequest<T>
+            let descriptor = T.fetchRequest() as! NSFetchRequest<T>
             descriptor.fetchOffset = offset
             descriptor.fetchLimit = configuration.batchSize
 
@@ -128,7 +128,7 @@ extension StreamingBackupWriter {
 
         while true {
             // Modern approach: Use FetchDescriptor batch configuration
-            var descriptor = T.fetchRequest() as! NSFetchRequest<T>
+            let descriptor = T.fetchRequest() as! NSFetchRequest<T>
             descriptor.fetchOffset = offset
             descriptor.fetchLimit = configuration.batchSize
 

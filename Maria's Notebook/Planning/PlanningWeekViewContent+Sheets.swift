@@ -114,8 +114,7 @@ extension PlanningWeekViewContent {
             return found
         }
         // Fallback to SwiftData fetch (PlanningWeekViewContent works with SwiftData CDLessonAssignment)
-        var fetch = { let r = NSFetchRequest<CDLessonAssignment>(entityName: "LessonAssignment"); r.predicate = NSPredicate(format: "id == %@", id as CVarArg); r.fetchLimit = 0; return r }()
-        fetch.fetchLimit = 1
+        let fetch = { let r = NSFetchRequest<CDLessonAssignment>(entityName: "LessonAssignment"); r.predicate = NSPredicate(format: "id == %@", id as CVarArg); r.fetchLimit = 1; return r }()
         return try? viewContext.fetch(fetch).first
     }
 }

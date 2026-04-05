@@ -46,10 +46,8 @@ struct PillDropDelegate: DropDelegate {
                     let sourceID = decoded.sourceID
                     let lessonID = decoded.lessonID
                     let studentID = decoded.studentID
-                    var srcDesc = { let r = NSFetchRequest<CDLessonAssignment>(entityName: "LessonAssignment"); r.predicate = NSPredicate(format: "id == %@", sourceID as CVarArg); r.fetchLimit = 0; return r }()
-                    srcDesc.fetchLimit = 1
-                    var tgtDesc = { let r = NSFetchRequest<CDLessonAssignment>(entityName: "LessonAssignment"); r.predicate = NSPredicate(format: "id == %@", targetID as CVarArg); r.fetchLimit = 0; return r }()
-                    tgtDesc.fetchLimit = 1
+                    let srcDesc = { let r = NSFetchRequest<CDLessonAssignment>(entityName: "LessonAssignment"); r.predicate = NSPredicate(format: "id == %@", sourceID as CVarArg); r.fetchLimit = 1; return r }()
+                    let tgtDesc = { let r = NSFetchRequest<CDLessonAssignment>(entityName: "LessonAssignment"); r.predicate = NSPredicate(format: "id == %@", targetID as CVarArg); r.fetchLimit = 1; return r }()
                     let src: CDLessonAssignment?
                     let tgt: CDLessonAssignment?
                     do {
@@ -115,8 +113,7 @@ struct PillDropDelegate: DropDelegate {
                         setMergeHighlight(false)
                         return
                     }
-                    var srcDesc = { let r = NSFetchRequest<CDLessonAssignment>(entityName: "LessonAssignment"); r.predicate = NSPredicate(format: "id == %@", sourceID as CVarArg); r.fetchLimit = 0; return r }()
-                    srcDesc.fetchLimit = 1
+                    let srcDesc = { let r = NSFetchRequest<CDLessonAssignment>(entityName: "LessonAssignment"); r.predicate = NSPredicate(format: "id == %@", sourceID as CVarArg); r.fetchLimit = 1; return r }()
                     let source: CDLessonAssignment?
                     do {
                         source = try viewContext.fetch(srcDesc).first

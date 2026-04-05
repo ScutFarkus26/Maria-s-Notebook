@@ -253,8 +253,7 @@ final class PresentationDetailViewModel {
 
         // Perform deletion asynchronously
         Task { @MainActor in
-            var desc = { let r = NSFetchRequest<CDLessonAssignment>(entityName: "LessonAssignment"); r.predicate = NSPredicate(format: "id == %@", id as CVarArg); r.fetchLimit = 0; return r }()
-            desc.fetchLimit = 1
+            let desc = { let r = NSFetchRequest<CDLessonAssignment>(entityName: "LessonAssignment"); r.predicate = NSPredicate(format: "id == %@", id as CVarArg); r.fetchLimit = 1; return r }()
             do {
                 if let toDelete = try ctx.fetch(desc).first {
                     _ = toDelete.studentIDs

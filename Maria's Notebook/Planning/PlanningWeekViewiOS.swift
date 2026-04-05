@@ -135,8 +135,7 @@ struct PlanningWeekViewiOS: View {
 
         // 1) Explicit non-school day wins
         do {
-            var nsDescriptor = { let r = NSFetchRequest<CDNonSchoolDay>(entityName: "NonSchoolDay"); r.predicate = NSPredicate(format: "date == %@", day as CVarArg); r.fetchLimit = 0; return r }()
-            nsDescriptor.fetchLimit = 1
+            let nsDescriptor = { let r = NSFetchRequest<CDNonSchoolDay>(entityName: "NonSchoolDay"); r.predicate = NSPredicate(format: "date == %@", day as CVarArg); r.fetchLimit = 1; return r }()
             let nonSchoolDays: [CDNonSchoolDay] = try viewContext.fetch(nsDescriptor)
             if !nonSchoolDays.isEmpty { return true }
         } catch {
@@ -150,8 +149,7 @@ struct PlanningWeekViewiOS: View {
 
         // 3) Weekend override makes it a school day
         do {
-            var ovDescriptor = { let r = NSFetchRequest<CDSchoolDayOverride>(entityName: "SchoolDayOverride"); r.predicate = NSPredicate(format: "date == %@", day as CVarArg); r.fetchLimit = 0; return r }()
-            ovDescriptor.fetchLimit = 1
+            let ovDescriptor = { let r = NSFetchRequest<CDSchoolDayOverride>(entityName: "SchoolDayOverride"); r.predicate = NSPredicate(format: "date == %@", day as CVarArg); r.fetchLimit = 1; return r }()
             let overrides: [CDSchoolDayOverride] = try viewContext.fetch(ovDescriptor)
             if !overrides.isEmpty { return false }
         } catch {
@@ -172,7 +170,7 @@ struct PlanningWeekViewiOS: View {
         let today = calendar.startOfDay(for: Date())
         
         // Fetch only future scheduled lessons to find the next one (using CDLessonAssignment)
-        var descriptor: NSFetchRequest<CDLessonAssignment> = NSFetchRequest(entityName: "LessonAssignment")
+        let descriptor: NSFetchRequest<CDLessonAssignment> = NSFetchRequest(entityName: "LessonAssignment")
         descriptor.predicate = NSPredicate(format: "scheduledFor != nil AND presentedAt == nil")
         descriptor.sortDescriptors = [NSSortDescriptor(key: "scheduledFor", ascending: true)]
         descriptor.fetchLimit = 1
