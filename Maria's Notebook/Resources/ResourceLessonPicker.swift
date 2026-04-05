@@ -1,4 +1,5 @@
 import SwiftUI
+import CoreData
 
 /// Multi-select lesson picker grouped by subject.
 /// Shown as a NavigationLink destination inside import/edit sheets.

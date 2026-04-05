@@ -1,5 +1,5 @@
 import Foundation
-import CoreData
+@preconcurrency import CoreData
 import OSLog
 
 /// Processes persistent history transactions from CloudKit remote changes.

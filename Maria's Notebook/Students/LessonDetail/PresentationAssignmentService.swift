@@ -66,7 +66,7 @@ enum PresentationAssignmentService {
                 }
                 // Schedule check-in if provided
                 if let sched = entry.schedule {
-                    scheduleCheckIn(for: existing, schedule: sched, viewContext: viewContext)
+                    scheduleCheckIn(for: existing, schedule: sched, context: viewContext)
                 }
             } else {
                 // Create new CDWorkModel via Core Data repository

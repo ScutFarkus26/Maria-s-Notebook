@@ -1,5 +1,6 @@
 import SwiftUI
 import Foundation
+import CoreData
 
 struct ScopedNotesSection: View {
     let title: String

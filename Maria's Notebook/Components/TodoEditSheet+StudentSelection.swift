@@ -69,7 +69,7 @@ extension TodoEditSheet {
                 HStack(spacing: 8) {
                     ForEach(selectedStudents) { student in
                         TodoStudentChip(student: student) {
-                            _ = adaptiveWithAnimation(.spring(response: 0.25, dampingFraction: 0.85)) {
+                            adaptiveWithAnimation(.spring(response: 0.25, dampingFraction: 0.85)) {
                                 if let id = student.id { selectedStudentIDs.remove(id.uuidString) }
                             }
                         }
@@ -134,7 +134,7 @@ extension TodoEditSheet {
 
                 // Add matched students to selection
                 for student in matchedStudents {
-                    _ = adaptiveWithAnimation(.spring(response: 0.25, dampingFraction: 0.85)) {
+                    adaptiveWithAnimation(.spring(response: 0.25, dampingFraction: 0.85)) {
                         if let id = student.id { _ = selectedStudentIDs.insert(id.uuidString) }
                     }
                 }

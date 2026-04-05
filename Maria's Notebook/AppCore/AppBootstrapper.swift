@@ -115,10 +115,11 @@ final class AppBootstrapper {
         let start = Date()
         logger.info("Post-launch migrations started")
 
+        let log = logger
         await backgroundContext.perform {
             // 3.7.5. Repair incorrectly scoped notes
             // CDNote: repairScopeForContextualNotes is async+MainActor, call on main
-            logger.info("Post-launch: note scope repair starting")
+            log.info("Post-launch: note scope repair starting")
         }
 
         await DataMigrations.repairScopeForContextualNotes(using: coreDataStack.viewContext)

@@ -165,7 +165,7 @@ extension PracticeSessionCard {
             }
 
             // Quality metrics
-            if session.practiceQuality != nil || session.independenceLevel != nil {
+            if session.practiceQualityValue != nil || session.independenceLevelValue != nil {
                 VStack(alignment: .leading, spacing: 8) {
                     Text("Quality Metrics")
                         .font(AppTheme.ScaledFont.captionSemibold)

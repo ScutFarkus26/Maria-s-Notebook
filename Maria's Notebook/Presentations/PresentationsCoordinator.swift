@@ -30,15 +30,15 @@ final class PresentationsCoordinator {
         var id: String {
             switch self {
             case .lessonAssignmentDetail(let la):
-                return "lessonAssignDetail-\(la.id)"
+                return "lessonAssignDetail-\(la.id?.uuidString ?? "nil")"
             case .schedulePresentationFor(let lesson):
-                return "schedulePres-\(lesson.id)"
+                return "schedulePres-\(lesson.id?.uuidString ?? "nil")"
             case .postPresentation(let la):
-                return "postPres-\(la.id)"
+                return "postPres-\(la.id?.uuidString ?? "nil")"
             case .unifiedWorkflow(let la):
-                return "workflow-\(la.id)"
+                return "workflow-\(la.id?.uuidString ?? "nil")"
             case .lessonAssignmentHistory(let lesson):
-                return "lessonAssignHistory-\(lesson.id)"
+                return "lessonAssignHistory-\(lesson.id?.uuidString ?? "nil")"
             }
         }
     }

@@ -162,7 +162,7 @@ extension UnifiedPresentationWorkflowPanel {
     @ViewBuilder
     func studentWorkSection(for student: CDStudent) -> some View {
         let studentID = student.id ?? UUID()
-        return VStack(alignment: .leading, spacing: 12) {
+        VStack(alignment: .leading, spacing: 12) {
             // CDStudent header with context indicators
             HStack {
                 VStack(alignment: .leading, spacing: 4) {

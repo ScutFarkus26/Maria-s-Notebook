@@ -2,6 +2,7 @@
 // CDResource grid/list display and selectable card/row wrappers.
 
 import SwiftUI
+import CoreData
 
 extension ResourceLibraryView {
 

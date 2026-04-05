@@ -209,7 +209,7 @@ extension UnifiedPresentationWorkflowPanel {
     @ViewBuilder
     func studentExpandedContent(for student: CDStudent) -> some View {
         let studentID = student.id ?? UUID()
-        return VStack(spacing: 12) {
+        VStack(spacing: 12) {
             // Understanding level picker
             VStack(alignment: .leading, spacing: 6) {
                 Text("Understanding")
