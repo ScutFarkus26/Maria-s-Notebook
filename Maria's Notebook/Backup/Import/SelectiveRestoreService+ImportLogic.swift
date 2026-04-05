@@ -145,7 +145,7 @@ extension SelectiveRestoreService {
         from payload: BackupPayload,
         into viewContext: NSManagedObjectContext
     ) throws -> ImportResult {
-        try BackupEntityImporter.importCommunityTopics(
+        BackupEntityImporter.importCommunityTopics(
             payload.communityTopics,
             into: viewContext,
             existingCheck: { [topicsByID] id in topicsByID[id] }
@@ -215,7 +215,7 @@ extension SelectiveRestoreService {
             into: viewContext,
             existingCheck: cachedExistenceCheck(key: "projectRoles", entityName: "ProjectRole", in: viewContext)
         )
-        try BackupEntityImporter.importProjectTemplateWeeks(
+        BackupEntityImporter.importProjectTemplateWeeks(
             payload.projectTemplateWeeks,
             into: viewContext,
             existingCheck: { [templateWeeksByID] id in templateWeeksByID[id] }

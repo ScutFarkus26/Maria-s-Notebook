@@ -24,7 +24,7 @@ final class DeduplicationCoordinator {
         debounceTask = Task { [weak self] in
             try? await Task.sleep(for: .seconds(5))
             guard !Task.isCancelled else { return }
-            await self?.runDeduplication()
+            self?.runDeduplication()
         }
     }
 

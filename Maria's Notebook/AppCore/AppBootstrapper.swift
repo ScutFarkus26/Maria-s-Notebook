@@ -110,7 +110,7 @@ final class AppBootstrapper {
     }
 
     private static func runPostLaunchMigrations(coreDataStack: CoreDataStack) async {
-        let backgroundContext = await coreDataStack.newBackgroundContext()
+        let backgroundContext = coreDataStack.newBackgroundContext()
         
         let start = Date()
         logger.info("Post-launch migrations started")
@@ -122,7 +122,7 @@ final class AppBootstrapper {
             logger.info("Post-launch: note scope repair starting")
         }
 
-        await DataMigrations.repairScopeForContextualNotes(using: await coreDataStack.viewContext)
+        await DataMigrations.repairScopeForContextualNotes(using: coreDataStack.viewContext)
 
         let dedupStart = Date()
         await MainActor.run {
@@ -134,13 +134,13 @@ final class AppBootstrapper {
         // 3.9. Data Integrity Repairs (Run on ~10% of launches to reduce startup impact)
         if Int.random(in: 1...10) == 1 {
             let integrityStart = Date()
-            await DataMigrations.repairDenormalizedScheduledForDay(using: await coreDataStack.viewContext)
-            await DataMigrations.cleanOrphanedStudentIDs(using: await coreDataStack.viewContext)
+            await DataMigrations.repairDenormalizedScheduledForDay(using: coreDataStack.viewContext)
+            await DataMigrations.cleanOrphanedStudentIDs(using: coreDataStack.viewContext)
             let intElapsed = formatSeconds(Date().timeIntervalSince(integrityStart))
             logger.info("Post-launch: integrity repairs completed in \(intElapsed)")
         }
 
-        await MigrationRunner.runIfNeeded(context: await coreDataStack.viewContext)
+        await MigrationRunner.runIfNeeded(context: coreDataStack.viewContext)
 
         // Save all migration changes in one batch to minimize store coordinator changes
         await MainActor.run {

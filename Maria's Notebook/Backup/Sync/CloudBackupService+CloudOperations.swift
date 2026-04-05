@@ -148,9 +148,11 @@ extension CloudBackupService {
                     options: [.withoutChanges],
                     error: &coordinatorError
                 ) { url in
-                    self.handleCoordinatedRead(
-                        url: url, backup: backup, tracker: tracker, continuation: continuation
-                    )
+                    Task { @MainActor in
+                        self.handleCoordinatedRead(
+                            url: url, backup: backup, tracker: tracker, continuation: continuation
+                        )
+                    }
                 }
 
                 if let error = coordinatorError {
