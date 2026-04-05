@@ -17,7 +17,7 @@ struct LessonFrequencyView: View {
 
     var body: some View {
         content
-            .navigationTitle("CDLesson Frequency")
+            .navigationTitle("Lesson Frequency")
             .searchable(text: $viewModel.searchText, prompt: "Search students")
             .onAppear { viewModel.loadData(context: viewContext) }
             .onChange(of: assignmentChangeToken) { _, _ in

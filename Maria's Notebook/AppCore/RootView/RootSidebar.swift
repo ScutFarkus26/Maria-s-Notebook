@@ -89,7 +89,7 @@ extension RootSidebar {
                     }
                 }
 
-                sidebarRow(.needsLesson, title: "Needs CDLesson", systemImage: "clock.badge.exclamationmark")
+                sidebarRow(.needsLesson, title: "Needs Lesson", systemImage: "clock.badge.exclamationmark")
 
                 sidebarRow(.planningProjects, title: "Projects", systemImage: SFSymbol.CDDocument.folder)
             }
@@ -99,7 +99,7 @@ extension RootSidebar {
 
                 sidebarRow(.progressDashboard, title: "Progress Dashboard", systemImage: "person.text.rectangle")
 
-                sidebarRow(.lessonFrequency, title: "CDLesson Frequency", systemImage: SFSymbol.Chart.chartBar)
+                sidebarRow(.lessonFrequency, title: "Lesson Frequency", systemImage: SFSymbol.Chart.chartBar)
 
                 sidebarRow(.curriculumBalance, title: "Curriculum Balance", systemImage: SFSymbol.Chart.chartPie)
 
@@ -224,7 +224,7 @@ extension RootSidebar {
                 .accessibilityHint("View and manage student work")
 
                 Button { selection = .needsLesson } label: {
-                    Label("Needs CDLesson", systemImage: "clock.badge.exclamationmark")
+                    Label("Needs Lesson", systemImage: "clock.badge.exclamationmark")
                 }
                 .buttonStyle(.plain)
                 .accessibilityHint("See which students need a lesson based on days since last presentation")
@@ -250,7 +250,7 @@ extension RootSidebar {
                 .accessibilityHint("View per-student progress across all subjects")
 
                 Button { selection = .lessonFrequency } label: {
-                    Label("CDLesson Frequency", systemImage: SFSymbol.Chart.chartBar)
+                    Label("Lesson Frequency", systemImage: SFSymbol.Chart.chartBar)
                 }
                 .buttonStyle(.plain)
                 .accessibilityHint("View weekly lesson frequency per student")

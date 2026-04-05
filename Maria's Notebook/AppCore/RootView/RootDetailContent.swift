@@ -209,7 +209,7 @@ Tab(value: RootView.NavigationItem.meetings) {
 Tab(value: RootView.NavigationItem.needsLesson) {
                 RootDetailContent(selectedNavItem: .needsLesson)
             } label: {
-                Label("Needs CDLesson", systemImage: "clock.badge.exclamationmark")
+                Label("Needs Lesson", systemImage: "clock.badge.exclamationmark")
             }
             Tab(value: RootView.NavigationItem.planningProjects) {
                 RootDetailContent(selectedNavItem: .planningProjects)
@@ -234,7 +234,7 @@ Tab(value: RootView.NavigationItem.needsLesson) {
             Tab(value: RootView.NavigationItem.lessonFrequency) {
                 RootDetailContent(selectedNavItem: .lessonFrequency)
             } label: {
-                Label("CDLesson Frequency", systemImage: SFSymbol.Chart.chartBar)
+                Label("Lesson Frequency", systemImage: SFSymbol.Chart.chartBar)
             }
             Tab(value: RootView.NavigationItem.curriculumBalance) {
                 RootDetailContent(selectedNavItem: .curriculumBalance)
