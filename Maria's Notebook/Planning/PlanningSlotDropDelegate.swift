@@ -110,6 +110,17 @@ struct PlanningSlotDropDelegate: DropDelegate {
 
         removeStudentFromSource(srcID: srcID, studentID: studentID)
         saveContext("student move")
+
+        // Auto-populate year plan entries for the newly scheduled presentation
+        if targetLA.state == .scheduled {
+            Task {
+                await SequenceAutoPopulateService.autoPopulateSequence(
+                    for: targetLA,
+                    scheduledDate: targetLA.scheduledFor ?? baseDateProvider(),
+                    context: viewContext
+                )
+            }
+        }
     }
 
     // MARK: - Plain UUID (reorder / merge) drops

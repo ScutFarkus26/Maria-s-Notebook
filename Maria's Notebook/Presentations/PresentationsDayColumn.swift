@@ -293,8 +293,8 @@ private struct PresentationsDayColumnDropDelegate: DropDelegate {
         switch payload {
         case .presentation(let id):
             applyPresentationDrop(id: id, locationY: locationY)
-        case .workCheckIn, .work:
-            // Work items and check-ins are not supported in presentations view
+        case .workCheckIn, .work, .yearPlanEntry:
+            // Work items, check-ins, and year plan entries are not supported in presentations view
             break
         }
     }
@@ -349,6 +349,18 @@ private struct PresentationsDayColumnDropDelegate: DropDelegate {
                 }
             }
             try viewContext.save()
+
+            // Auto-populate year plan entries for the dropped presentation's sequence
+            if let droppedItem = allLessonAssignments.first(where: { $0.id == id }),
+               droppedItem.state == .scheduled {
+                Task {
+                    await SequenceAutoPopulateService.autoPopulateSequence(
+                        for: droppedItem,
+                        scheduledDate: droppedItem.scheduledFor ?? day,
+                        context: viewContext
+                    )
+                }
+            }
         } catch {
             Self.logger.warning("Presentations schedule save failed: \(error)")
         }

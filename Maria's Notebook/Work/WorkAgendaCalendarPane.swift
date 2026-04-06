@@ -175,6 +175,8 @@ struct WorkAgendaCalendarPane: View {
                         workID: id, to: normalizedDay,
                         reason: "Sync work dueDate on drop (prompt pending)"
                     )
+                case .yearPlanEntry:
+                    break
                 }
             }
         }

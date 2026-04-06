@@ -63,6 +63,9 @@ struct StudentYearPlanTab: View {
                     isNonSchool: isNonSchool,
                     items: viewModel.items(for: cellID),
                     lessonsByID: viewModel.lessonsByID,
+                    onDrop: { entryID, targetCellID in
+                        handleEntryDrop(entryID: entryID, targetCellID: targetCellID)
+                    },
                     popoverCellID: $popoverCellID
                 )
                 .popover(isPresented: popoverBinding(for: cellID)) {
@@ -76,8 +79,12 @@ struct StudentYearPlanTab: View {
                             popoverCellID = nil
                         },
                         onReschedule: { entry, newDate in
-                            viewModel.rescheduleEntry(entry, to: newDate, context: viewContext)
-                            viewModel.load(studentID: student.id, context: viewContext)
+                            guard let studentID = student.id else { return }
+                            Task {
+                                await viewModel.rescheduleWithCascade(
+                                    entry, to: newDate, studentID: studentID, context: viewContext
+                                )
+                            }
                             popoverCellID = nil
                         }
                     )
@@ -102,6 +109,24 @@ struct StudentYearPlanTab: View {
                 if !isPresented { popoverCellID = nil }
             }
         )
+    }
+
+    private func handleEntryDrop(entryID: UUID, targetCellID: CellID) {
+        guard let entry = viewModel.entry(byID: entryID),
+              entry.isPlanned,
+              let studentID = student.id else { return }
+
+        var comps = DateComponents()
+        comps.year = targetCellID.year
+        comps.month = targetCellID.month
+        comps.day = targetCellID.day
+        guard let targetDate = AppCalendar.shared.date(from: comps) else { return }
+
+        Task {
+            await viewModel.rescheduleWithCascade(
+                entry, to: targetDate, studentID: studentID, context: viewContext
+            )
+        }
     }
 
     private func loadNonSchoolDays() async {

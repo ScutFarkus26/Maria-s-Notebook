@@ -183,6 +183,17 @@ final class PresentationDetailViewModel {
             originalNotes = notes
             notesDirty = false
 
+            // Auto-populate year plan entries when scheduling
+            if lessonAssignment.state == .scheduled {
+                Task {
+                    await SequenceAutoPopulateService.autoPopulateSequence(
+                        for: lessonAssignment,
+                        scheduledDate: lessonAssignment.scheduledFor ?? Date(),
+                        context: viewContext
+                    )
+                }
+            }
+
             // Notify system
             PresentationDetailUtilities.notifyInboxRefresh()
 

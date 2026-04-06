@@ -2,16 +2,20 @@ import Foundation
 import UniformTypeIdentifiers
 
 /// Unified drag payload for all calendar drag operations:
-/// presentations (CDLessonAssignment), work check-ins (CDWorkCheckIn), and work items (CDWorkModel).
-/// Used across PresentationsCalendarStrip, WorkAgendaCalendarPane, and planning views.
+/// presentations (CDLessonAssignment), work check-ins (CDWorkCheckIn),
+/// work items (CDWorkModel), and year plan entries (CDYearPlanEntry).
+/// Used across PresentationsCalendarStrip, WorkAgendaCalendarPane, planning views,
+/// and the student Year Plan calendar.
 public enum UnifiedCalendarDragPayload: Equatable {
     case presentation(UUID)
     case workCheckIn(UUID)
     case work(UUID)
+    case yearPlanEntry(UUID)
 
     public var id: UUID {
         switch self {
-        case .presentation(let id), .workCheckIn(let id), .work(let id): return id
+        case .presentation(let id), .workCheckIn(let id), .work(let id), .yearPlanEntry(let id):
+            return id
         }
     }
 
@@ -20,6 +24,7 @@ public enum UnifiedCalendarDragPayload: Equatable {
         case .presentation: return "presentation"
         case .workCheckIn: return "workCheckIn"
         case .work: return "work"
+        case .yearPlanEntry: return "yearPlanEntry"
         }
     }
 
@@ -28,6 +33,7 @@ public enum UnifiedCalendarDragPayload: Equatable {
         case .presentation(let id): return "PRESENTATION:\(id.uuidString)"
         case .workCheckIn(let id): return "WORKCHECKIN:\(id.uuidString)"
         case .work(let id): return "WORK:\(id.uuidString)"
+        case .yearPlanEntry(let id): return "YEARPLAN:\(id.uuidString)"
         }
     }
 
@@ -45,6 +51,8 @@ public enum UnifiedCalendarDragPayload: Equatable {
             return .workCheckIn(id)
         } else if trimmed.hasPrefix("WORK:"), let id = UUID(uuidString: String(trimmed.dropFirst(5))) {
             return .work(id)
+        } else if trimmed.hasPrefix("YEARPLAN:"), let id = UUID(uuidString: String(trimmed.dropFirst(9))) {
+            return .yearPlanEntry(id)
         } else if let id = UUID(uuidString: trimmed) {
             // Backwards compatibility: plain UUID is treated as a presentation
             return .presentation(id)

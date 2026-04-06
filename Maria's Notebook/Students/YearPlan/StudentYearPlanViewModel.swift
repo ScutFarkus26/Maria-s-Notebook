@@ -106,6 +106,46 @@ final class StudentYearPlanViewModel {
         context.safeSave()
     }
 
+    /// Reschedules an entry and cascades the shift to all subsequent planned entries
+    /// in the same sequence, maintaining spacing.
+    func rescheduleWithCascade(
+        _ entry: CDYearPlanEntry,
+        to newDate: Date,
+        studentID: UUID,
+        context: NSManagedObjectContext
+    ) async {
+        let newDateNormalized = AppCalendar.startOfDay(newDate)
+        entry.plannedDate = newDateNormalized
+        entry.modifiedAt = Date()
+
+        // Find all planned entries in the same sequence after this one
+        let subsequent = entries
+            .filter {
+                $0.sequenceGroupKey == entry.sequenceGroupKey &&
+                $0.studentID == entry.studentID &&
+                $0.orderInSequence > entry.orderInSequence &&
+                $0.isPlanned
+            }
+            .sorted { $0.orderInSequence < $1.orderInSequence }
+
+        var currentDate = newDateNormalized
+        for next in subsequent {
+            for _ in 0..<max(1, next.spacingSchoolDays) {
+                currentDate = await SchoolCalendar.nextSchoolDay(after: currentDate, using: context)
+            }
+            next.plannedDate = currentDate
+            next.modifiedAt = Date()
+        }
+
+        context.safeSave()
+        load(studentID: studentID, context: context)
+    }
+
+    /// Finds a CDYearPlanEntry by ID from the loaded entries.
+    func entry(byID id: UUID) -> CDYearPlanEntry? {
+        entries.first { $0.id == id }
+    }
+
     /// Readjust all future planned entries in all sequences for this student.
     func readjust(studentID: UUID, context: NSManagedObjectContext) async {
         let today = AppCalendar.startOfDay(Date())

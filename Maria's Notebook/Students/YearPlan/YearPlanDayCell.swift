@@ -6,8 +6,10 @@ struct YearPlanDayCell: View {
     let isNonSchool: Bool
     let items: [YearPlanCalendarItem]
     let lessonsByID: [String: CDLesson]
+    let onDrop: ((UUID, CellID) -> Void)?
 
     @Binding var popoverCellID: CellID?
+    @State private var isDropTargeted = false
 
     var body: some View {
         HStack(spacing: 4) {
@@ -24,10 +26,20 @@ struct YearPlanDayCell: View {
         .padding(.horizontal, 10)
         .padding(.vertical, 1)
         .contentShape(Rectangle())
+        .background(isDropTargeted ? Color.accentColor.opacity(UIConstants.OpacityConstants.accent) : Color.clear)
         .onTapGesture {
             if !items.isEmpty {
                 popoverCellID = cellID
             }
+        }
+        .dropDestination(for: String.self) { strings, _ in
+            guard let str = strings.first,
+                  let payload = UnifiedCalendarDragPayload.parse(str),
+                  case .yearPlanEntry(let entryID) = payload else { return false }
+            onDrop?(entryID, cellID)
+            return true
+        } isTargeted: { targeted in
+            isDropTargeted = targeted
         }
     }
 
@@ -68,7 +80,17 @@ struct YearPlanDayCell: View {
     private var itemPills: some View {
         HStack(spacing: 3) {
             ForEach(items.prefix(3)) { item in
-                YearPlanPill(item: item, lesson: lessonsByID[item.lessonID])
+                let pill = YearPlanPill(item: item, lesson: lessonsByID[item.lessonID])
+                if item.isEditable {
+                    pill.draggable(
+                        UnifiedCalendarDragPayload.yearPlanEntry(item.id).stringRepresentation
+                    ) {
+                        YearPlanPill(item: item, lesson: lessonsByID[item.lessonID])
+                            .opacity(UIConstants.OpacityConstants.almostOpaque)
+                    }
+                } else {
+                    pill
+                }
             }
             if items.count > 3 {
                 Text("+\(items.count - 3)")
@@ -81,7 +103,7 @@ struct YearPlanDayCell: View {
 
 // MARK: - Year Plan Pill
 
-private struct YearPlanPill: View {
+struct YearPlanPill: View {
     let item: YearPlanCalendarItem
     let lesson: CDLesson?
 
