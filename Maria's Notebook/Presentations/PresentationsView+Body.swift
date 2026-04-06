@@ -24,6 +24,7 @@ extension PresentationsView {
                         PresentationsInboxView(
                             readyLessons: readyLessons,
                             blockedLessons: blockedLessons,
+                            blockingResults: viewModel.blockingResults,
                             getBlockingWork: getBlockingWork,
                             filteredSnapshot: filteredSnapshot,
                             missWindow: missWindow,
@@ -68,6 +69,7 @@ extension PresentationsView {
                             PresentationsInboxView(
                                 readyLessons: readyLessons,
                                 blockedLessons: blockedLessons,
+                                blockingResults: viewModel.blockingResults,
                                 getBlockingWork: getBlockingWork,
                                 filteredSnapshot: filteredSnapshot,
                                 missWindow: missWindow,

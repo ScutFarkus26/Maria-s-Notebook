@@ -172,7 +172,7 @@ struct LessonsRootView: View {
         #if os(macOS)
         .onKeyPress(.escape) {
             if isJiggling {
-                _ = adaptiveWithAnimation(.spring(response: 0.3, dampingFraction: 0.8)) {
+                adaptiveWithAnimation(.spring(response: 0.3, dampingFraction: 0.8)) {
                     isJiggling = false
                 }
                 return .handled

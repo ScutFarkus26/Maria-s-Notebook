@@ -103,7 +103,9 @@ final class CoreDataStack {
         "IssueAction",
         "DevelopmentSnapshot",
         "PlanningRecommendation",
-        "Document"
+        "Document",
+        "YearPlanEntry",
+        "LessonGroupSettings"
     ]
 
     // MARK: - Store URLs

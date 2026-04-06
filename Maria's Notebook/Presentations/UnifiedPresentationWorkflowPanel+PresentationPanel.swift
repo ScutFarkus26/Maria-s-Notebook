@@ -29,6 +29,12 @@ extension UnifiedPresentationWorkflowPanel {
 
             ScrollView {
                 VStack(spacing: 20) {
+                    // Progression rules banner
+                    if let rules = presentationViewModel.resolvedRules,
+                       rules.requiresPractice || rules.requiresTeacherConfirmation {
+                        progressionRulesBanner(rules)
+                    }
+
                     // Status Section
                     presentationStatusSection
 
@@ -222,6 +228,21 @@ extension UnifiedPresentationWorkflowPanel {
                 ))
             }
 
+            // Proficiency confirmation (when required by progression rules)
+            if presentationViewModel.requiresConfirmation {
+                HStack {
+                    Label("Ready for next lesson", systemImage: "checkmark.seal")
+                        .font(AppTheme.ScaledFont.captionSemibold)
+                        .foregroundStyle(.secondary)
+                    Spacer()
+                    Toggle("", isOn: Binding(
+                        get: { presentationViewModel.confirmedStudentIDs.contains(studentID) },
+                        set: { _ in presentationViewModel.toggleConfirmation(for: studentID) }
+                    ))
+                    .labelsHidden()
+                }
+            }
+
             // Observation
             VStack(alignment: .leading, spacing: 6) {
                 Text("Observation")
@@ -242,6 +263,35 @@ extension UnifiedPresentationWorkflowPanel {
                 .fill(Color.primary.opacity(UIConstants.OpacityConstants.whisper))
         )
         .padding(.top, -4)
+    }
+
+    // MARK: - Progression Rules Banner
+
+    @ViewBuilder
+    func progressionRulesBanner(_ rules: LessonProgressionRules.ResolvedRules) -> some View {
+        VStack(alignment: .leading, spacing: 8) {
+            Label("Progression Rules", systemImage: "arrow.right.circle.fill")
+                .font(AppTheme.ScaledFont.captionSemibold)
+                .foregroundStyle(.orange)
+
+            if rules.requiresPractice {
+                Label("Follow-up practice required", systemImage: "pencil.and.list.clipboard")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+            }
+            if rules.requiresTeacherConfirmation {
+                Label("Teacher confirmation required before next lesson", systemImage: "checkmark.seal")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+            }
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .padding(12)
+        .background(
+            RoundedRectangle(cornerRadius: 10, style: .continuous)
+                .fill(Color.orange.opacity(UIConstants.OpacityConstants.accent))
+        )
+        .padding(.horizontal, 16)
     }
 
     // MARK: - Helpers

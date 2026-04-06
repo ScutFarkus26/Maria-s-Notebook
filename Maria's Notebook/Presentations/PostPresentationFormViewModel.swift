@@ -43,6 +43,11 @@ final class PostPresentationFormViewModel {
     var expandedStudentIDs: Set<UUID> = []
     var studentsToUnlock: Set<UUID> = []
 
+    // Progression rules (resolved for the lesson being presented)
+    var resolvedRules: LessonProgressionRules.ResolvedRules?
+    /// Per-student proficiency confirmation (studentID -> confirmed)
+    var confirmedStudentIDs: Set<UUID> = []
+
     // Next lesson state
     var nextLessonAction: NextLessonAction = .inbox
     var nextLessonScheduleDate: Date = AppCalendar.startOfDay(Date().addingTimeInterval(24 * 60 * 60))
@@ -144,6 +149,31 @@ final class PostPresentationFormViewModel {
     }
 
     // MARK: - Next CDLesson
+
+    /// Resolves progression rules for the lesson being presented.
+    func resolveProgressionRules(lessonID: UUID, lessons: [CDLesson], context: NSManagedObjectContext) {
+        guard let lesson = lessons.first(where: { $0.id == lessonID }) else { return }
+        resolvedRules = LessonProgressionRules.resolve(for: lesson, context: context)
+    }
+
+    /// Whether the lesson requires follow-up practice per progression rules.
+    var requiresPractice: Bool {
+        resolvedRules?.requiresPractice ?? false
+    }
+
+    /// Whether the lesson requires teacher confirmation per progression rules.
+    var requiresConfirmation: Bool {
+        resolvedRules?.requiresTeacherConfirmation ?? false
+    }
+
+    /// Toggle proficiency confirmation for a student.
+    func toggleConfirmation(for studentID: UUID) {
+        if confirmedStudentIDs.contains(studentID) {
+            confirmedStudentIDs.remove(studentID)
+        } else {
+            confirmedStudentIDs.insert(studentID)
+        }
+    }
 
     /// Looks up the next lesson in the sequence and checks for existing assignments.
     func resolveNextLesson(

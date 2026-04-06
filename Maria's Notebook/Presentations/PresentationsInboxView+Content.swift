@@ -3,8 +3,64 @@
 
 import SwiftUI
 import CoreData
+import OSLog
 
 extension PresentationsInboxView {
+    // MARK: - On Deck Card with Readiness
+
+    @ViewBuilder
+    func onDeckCard(_ la: CDLessonAssignment, blockingWork: [UUID: CDWorkModel]) -> some View {
+        let result = la.id.flatMap { blockingResults[$0] }
+        let readyCount = result?.readyStudentIDs.count ?? 0
+        let totalCount = la.resolvedStudentIDs.count
+        let hasPartialReadiness = readyCount > 0 && readyCount < totalCount
+
+        VStack(alignment: .leading, spacing: AppTheme.Spacing.verySmall) {
+            inboxRow(la, blockingWork: blockingWork)
+
+            // Readiness badge
+            if totalCount > 1, let result {
+                HStack(spacing: AppTheme.Spacing.verySmall) {
+                    Text("\(readyCount) of \(totalCount) ready")
+                        .font(.caption2.weight(.semibold))
+                        .foregroundStyle(hasPartialReadiness ? .orange : .secondary)
+
+                    Spacer()
+
+                    if hasPartialReadiness {
+                        Button {
+                            splitReadyToInbox(la, result: result)
+                        } label: {
+                            Text("Move Ready")
+                                .font(.caption2.weight(.medium))
+                        }
+                        .buttonStyle(.bordered)
+                        .controlSize(.mini)
+                    }
+                }
+                .padding(.horizontal, AppTheme.Spacing.verySmall)
+            }
+        }
+    }
+
+    private func splitReadyToInbox(_ la: CDLessonAssignment, result: BlockingAlgorithmEngine.BlockingCheckResult) {
+        let readyIDs = result.readyStudentIDs
+        guard !readyIDs.isEmpty else { return }
+
+        guard let ctx = la.managedObjectContext else { return }
+        PresentationSplitService.splitReadyStudents(
+            from: la,
+            readyStudentIDs: readyIDs,
+            asDraft: true,
+            context: ctx
+        )
+        do {
+            try ctx.save()
+        } catch {
+            Logger.presentations.error("Failed to save after split: \(error)")
+        }
+    }
+
     // MARK: - Content Views
 
     @ViewBuilder
@@ -24,7 +80,7 @@ extension PresentationsInboxView {
                             ScrollView(.horizontal, showsIndicators: false) {
                                 LazyHStack(spacing: AppTheme.Spacing.small) {
                                     ForEach(filteredAndSortedBlockedLessons, id: \.id) { la in
-                                        inboxRow(la, blockingWork: getBlockingWork(la))
+                                        onDeckCard(la, blockingWork: getBlockingWork(la))
                                     }
                                 }
                                 .padding(.horizontal, AppTheme.Spacing.compact)

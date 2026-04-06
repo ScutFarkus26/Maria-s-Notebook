@@ -47,6 +47,7 @@ struct StudentDetailView: View {
     private var tabUsesUnscrolledLayout: Bool {
         selectedTab == .progress || selectedTab == .developmentalTraits
             || selectedTab == .history || selectedTab == .files
+            || selectedTab == .yearPlan
     }
 
     @ViewBuilder
@@ -86,6 +87,9 @@ struct StudentDetailView: View {
                 .padding(.top, 36)
         case .files:
             StudentFilesTab(student: student)
+                .padding(.top, 36)
+        case .yearPlan:
+            StudentYearPlanTab(student: student)
                 .padding(.top, 36)
         }
     }

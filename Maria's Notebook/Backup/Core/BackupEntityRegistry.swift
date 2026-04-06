@@ -96,7 +96,10 @@ struct BackupEntityRegistry {
         // but must NOT appear here, because iterating allTypes and calling fetchRequest() on them
         // produces entity name '' and throws an unrecoverable ObjC NSException.
         // Classroom Membership (format v13+)
-        CDClassroomMembership.self
+        CDClassroomMembership.self,
+        // Year Plan + Progression
+        CDYearPlanEntry.self,
+        CDLessonGroupSettings.self
     ]
     
     /// Entity type names for progress reporting and error messages

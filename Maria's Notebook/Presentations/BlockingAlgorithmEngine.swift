@@ -1,9 +1,11 @@
 import Foundation
+import CoreData
 
 // MARK: - Blocking Algorithm Engine
 
 /// Engine for calculating prerequisite blocking logic for lessons.
-/// Determines which lessons are blocked by incomplete work from preceding lessons in a sequence.
+/// Determines which lessons are blocked by incomplete work or missing teacher confirmation
+/// from preceding lessons in a sequence, with per-student readiness tracking.
 enum BlockingAlgorithmEngine {
 
     // MARK: - Types
@@ -12,19 +14,52 @@ enum BlockingAlgorithmEngine {
     struct BlockingCheckResult: Sendable {
         let isBlocked: Bool
         let prereqOpenCount: Int
+        /// Per-student readiness breakdown. Empty when no preceding lesson exists.
+        let perStudentReadiness: [UUID: StudentReadiness]
+
+        /// Students who are ready to proceed.
+        var readyStudentIDs: [UUID] {
+            perStudentReadiness.filter(\.value.isReady).map(\.key)
+        }
+
+        /// Students who are not yet ready.
+        var blockedStudentIDs: [UUID] {
+            perStudentReadiness.filter { !$0.value.isReady }.map(\.key)
+        }
     }
-    
+
+    /// Per-student readiness status for a specific lesson assignment.
+    struct StudentReadiness: Sendable {
+        let studentID: UUID
+        let isReady: Bool
+        /// Whether all required work is complete (gate 1).
+        let workComplete: Bool
+        /// Whether the teacher has confirmed proficiency (gate 2).
+        let teacherConfirmed: Bool
+        /// Whether practice/work is required by progression rules.
+        let workRequired: Bool
+        /// Whether teacher confirmation is required by progression rules.
+        let confirmationRequired: Bool
+    }
+
     /// Pre-computed lookup structures for efficient batch processing.
     private struct BlockingContext {
         let lessonsByID: [UUID: CDLesson]
         let precedingLessonCache: [UUID: CDLesson]
-        let lessonAssignmentsByKey: [String: CDLessonAssignment]
+        /// Presented assignments keyed by lessonID (normalized UUID string).
+        let presentedAssignmentsByLessonID: [String: [CDLessonAssignment]]
         let workByPresentationID: [String: [CDWorkModel]]
-        
+        let managedObjectContext: NSManagedObjectContext?
+
         init(lessons: [CDLesson], lessonAssignments: [CDLessonAssignment], workModels: [CDWorkModel]) {
             // Build lesson lookup
-            self.lessonsByID = Dictionary(uniqueKeysWithValues: lessons.compactMap { guard let id = $0.id else { return nil }; return (id, $0) })
-            
+            self.lessonsByID = Dictionary(
+                uniqueKeysWithValues: lessons.compactMap { lesson in
+                    guard let id = lesson.id else { return nil }
+                    return (id, lesson)
+                }
+            )
+
             // Pre-compute preceding lessons for all lessons
             var precedingCache: [UUID: CDLesson] = [:]
             for lesson in lessons {
@@ -35,30 +70,26 @@ enum BlockingAlgorithmEngine {
                 }
             }
             self.precedingLessonCache = precedingCache
-            
-            // Build lesson assignment lookup by composite key (lessonID + sorted student IDs)
-            // Normalize through UUID to ensure consistent casing (e.g. CloudKit sync)
-            var assignmentLookup: [String: CDLessonAssignment] = [:]
+
+            // Group presented assignments by lessonID for flexible student matching
+            var byLessonID: [String: [CDLessonAssignment]] = [:]
             for assignment in lessonAssignments where assignment.state == .presented {
-                let normalizedIDs = assignment.studentIDs
-                    .compactMap { UUID(uuidString: $0) }
-                    .map(\.uuidString)
-                    .sorted()
-                    .joined(separator: ",")
                 let normalizedLessonID = UUID(uuidString: assignment.lessonID)?.uuidString
                     ?? assignment.lessonID
-                let key = "\(normalizedLessonID)|\(normalizedIDs)"
-                assignmentLookup[key] = assignment
+                byLessonID[normalizedLessonID, default: []].append(assignment)
             }
-            self.lessonAssignmentsByKey = assignmentLookup
-            
+            self.presentedAssignmentsByLessonID = byLessonID
+
             // Group work by presentation ID for O(1) lookup
             self.workByPresentationID = Dictionary(grouping: workModels, by: { $0.presentationID ?? "" })
+
+            // Capture a context for progression rule lookups
+            self.managedObjectContext = lessons.first?.managedObjectContext
         }
     }
 
     // MARK: - Batch Blocking Check
-    
+
     /// Efficiently check blocking status for multiple LessonAssignments at once.
     /// This method pre-computes lookup structures to avoid redundant work.
     ///
@@ -68,6 +99,7 @@ enum BlockingAlgorithmEngine {
     ///   - allLessonAssignments: All LessonAssignments (for presented lookup)
     ///   - workModels: All WorkModels (preferably filtered to non-complete)
     /// - Returns: Dictionary mapping CDLessonAssignment ID to BlockingCheckResult
+    @MainActor
     static func checkBlocking(
         forBatch lessonAssignments: [CDLessonAssignment],
         lessons: [CDLesson],
@@ -93,64 +125,129 @@ enum BlockingAlgorithmEngine {
     }
 
     /// Internal batch-optimized blocking check using pre-computed context.
+    @MainActor
     private static func checkBlocking(for la: CDLessonAssignment, context: BlockingContext) -> BlockingCheckResult {
         // Check for manual unlock override
         if la.manuallyUnblocked {
-            return BlockingCheckResult(isBlocked: false, prereqOpenCount: 0)
+            return BlockingCheckResult(isBlocked: false, prereqOpenCount: 0, perStudentReadiness: [:])
         }
 
         // Find the current lesson using pre-computed lookup
         guard let currentLessonID = UUID(uuidString: la.lessonID),
               let currentLesson = context.lessonsByID[currentLessonID] else {
-            return BlockingCheckResult(isBlocked: false, prereqOpenCount: 0)
+            return BlockingCheckResult(isBlocked: false, prereqOpenCount: 0, perStudentReadiness: [:])
         }
 
         // Find the preceding lesson using pre-computed cache
         guard let currentLessonIDUnwrapped = currentLesson.id,
               let precedingLesson = context.precedingLessonCache[currentLessonIDUnwrapped] else {
             // No preceding lesson means no prerequisites to check
-            return BlockingCheckResult(isBlocked: false, prereqOpenCount: 0)
+            return BlockingCheckResult(isBlocked: false, prereqOpenCount: 0, perStudentReadiness: [:])
         }
 
-        // Build lookup key for lesson assignment
-        let sortedStudentIDs = la.resolvedStudentIDs.map(\.uuidString).sorted().joined(separator: ",")
+        // Resolve progression rules for the preceding lesson
+        let rules: LessonProgressionRules.ResolvedRules
+        if let ctx = context.managedObjectContext {
+            rules = LessonProgressionRules.resolve(for: precedingLesson, context: ctx)
+        } else {
+            // Fallback: both gates on
+            rules = LessonProgressionRules.ResolvedRules(
+                requiresPractice: true,
+                requiresTeacherConfirmation: true,
+                source: .builtInDefault
+            )
+        }
+
+        // If neither gate is required, not blocked
+        if !rules.requiresPractice && !rules.requiresTeacherConfirmation {
+            let allReady = Dictionary(
+                uniqueKeysWithValues: la.resolvedStudentIDs.map { sid in
+                    (sid, StudentReadiness(
+                        studentID: sid,
+                        isReady: true,
+                        workComplete: true,
+                        teacherConfirmed: true,
+                        workRequired: false,
+                        confirmationRequired: false
+                    ))
+                }
+            )
+            return BlockingCheckResult(isBlocked: false, prereqOpenCount: 0, perStudentReadiness: allReady)
+        }
+
+        // Find presented assignments for the preceding lesson
         let precedingLessonIDStr = precedingLesson.id?.uuidString ?? ""
-        let assignmentKey = "\(precedingLessonIDStr)|\(sortedStudentIDs)"
+        let precedingAssignments = context.presentedAssignmentsByLessonID[precedingLessonIDStr] ?? []
 
-        // Find the CDLessonAssignment using pre-computed lookup
-        guard let precedingLessonAssignment = context.lessonAssignmentsByKey[assignmentKey] else {
-            // No presentation for preceding lesson means no prerequisites
-            return BlockingCheckResult(isBlocked: false, prereqOpenCount: 0)
-        }
+        // Build per-student readiness
+        var perStudentReadiness: [UUID: StudentReadiness] = [:]
+        var totalPrereqOpen = 0
 
-        let presentationID = precedingLessonAssignment.id?.uuidString ?? ""
-
-        // Find CDWorkModel records using pre-computed grouping
-        guard let prerequisiteWork = context.workByPresentationID[presentationID] else {
-            return BlockingCheckResult(isBlocked: false, prereqOpenCount: 0)
-        }
-
-        // Check if ANY prerequisite work is incomplete for any required student
-        var prereqOpenCount = 0
-        var isBlocked = false
-
-        for work in prerequisiteWork {
-            let workIsComplete = isWorkComplete(work: work, requiredStudentIDs: la.resolvedStudentIDs)
-
-            if !workIsComplete {
-                prereqOpenCount += 1
-                isBlocked = true
+        for studentID in la.resolvedStudentIDs {
+            // Find the presented assignment that includes this student
+            let studentAssignment = precedingAssignments.first { assignment in
+                assignment.resolvedStudentIDs.contains(studentID)
             }
+
+            // Gate 1: Work completion
+            var workComplete = true
+            if rules.requiresPractice, let assignment = studentAssignment {
+                let presentationID = assignment.id?.uuidString ?? ""
+                let prerequisiteWork = context.workByPresentationID[presentationID] ?? []
+
+                if prerequisiteWork.isEmpty {
+                    // No work assigned yet — if practice is required, student isn't ready
+                    workComplete = !assignment.needsPractice
+                } else {
+                    for work in prerequisiteWork {
+                        if !isWorkCompleteForStudent(work: work, studentID: studentID) {
+                            workComplete = false
+                            totalPrereqOpen += 1
+                        }
+                    }
+                }
+            } else if rules.requiresPractice && studentAssignment == nil {
+                // Preceding lesson hasn't been presented to this student
+                workComplete = false
+            }
+
+            // Gate 2: Teacher confirmation
+            var teacherConfirmed = true
+            if rules.requiresTeacherConfirmation {
+                if let assignment = studentAssignment {
+                    teacherConfirmed = assignment.isStudentConfirmed(studentID)
+                } else {
+                    // Preceding lesson hasn't been presented
+                    teacherConfirmed = false
+                }
+            }
+
+            let isReady = workComplete && teacherConfirmed
+
+            perStudentReadiness[studentID] = StudentReadiness(
+                studentID: studentID,
+                isReady: isReady,
+                workComplete: workComplete,
+                teacherConfirmed: teacherConfirmed,
+                workRequired: rules.requiresPractice,
+                confirmationRequired: rules.requiresTeacherConfirmation
+            )
         }
 
-        return BlockingCheckResult(isBlocked: isBlocked, prereqOpenCount: prereqOpenCount)
+        let isBlocked = perStudentReadiness.values.contains { !$0.isReady }
+
+        return BlockingCheckResult(
+            isBlocked: isBlocked,
+            prereqOpenCount: totalPrereqOpen,
+            perStudentReadiness: perStudentReadiness
+        )
     }
 
     // MARK: - Single Item Blocking Check (Convenience)
 
     /// Check if a CDLessonAssignment is blocked by incomplete prerequisite work from the preceding lesson.
     ///
-    /// CDNote: For checking multiple LessonAssignments, use `checkBlocking(forBatch:)` instead for better performance.
+    /// Note: For checking multiple LessonAssignments, use `checkBlocking(forBatch:)` instead for better performance.
     ///
     /// - Parameters:
     ///   - la: The CDLessonAssignment to check
@@ -158,6 +255,7 @@ enum BlockingAlgorithmEngine {
     ///   - allLessonAssignments: All LessonAssignments (for presented lookup)
     ///   - workModels: All WorkModels (preferably filtered to non-complete)
     /// - Returns: A BlockingCheckResult indicating if blocked and how many prerequisites are open
+    @MainActor
     static func checkBlocking(
         for la: CDLessonAssignment,
         lessons: [CDLesson],
@@ -184,7 +282,7 @@ enum BlockingAlgorithmEngine {
     static func findPrecedingLesson(currentLesson: CDLesson, lessons: [CDLesson]) -> CDLesson? {
         return computePrecedingLesson(currentLesson: currentLesson, lessons: lessons)
     }
-    
+
     /// Internal implementation of preceding lesson computation.
     /// Separated to allow reuse in context initialization without recursion.
     private static func computePrecedingLesson(currentLesson: CDLesson, lessons: [CDLesson]) -> CDLesson? {
@@ -223,7 +321,7 @@ enum BlockingAlgorithmEngine {
         if work.statusRaw == "complete" {
             return true
         }
-        
+
         let participantsArray = (work.participants?.allObjects as? [CDWorkParticipantEntity]) ?? []
         guard !participantsArray.isEmpty else {
             return false
@@ -231,8 +329,26 @@ enum BlockingAlgorithmEngine {
 
         let requiredStudentIDStrings = Set(requiredStudentIDs.map(\.uuidString))
         let relevantParticipants = participantsArray.filter { requiredStudentIDStrings.contains($0.studentID) }
-        
+
         return !relevantParticipants.isEmpty && relevantParticipants.allSatisfy { $0.completedAt != nil }
     }
 
+    /// Check if work is complete for a single student.
+    private static func isWorkCompleteForStudent(work: CDWorkModel, studentID: UUID) -> Bool {
+        if work.statusRaw == "complete" {
+            return true
+        }
+
+        let participantsArray = (work.participants?.allObjects as? [CDWorkParticipantEntity]) ?? []
+        guard !participantsArray.isEmpty else {
+            return false
+        }
+
+        let studentIDStr = studentID.uuidString
+        guard let participant = participantsArray.first(where: { $0.studentID == studentIDStr }) else {
+            return false
+        }
+
+        return participant.completedAt != nil
+    }
 }

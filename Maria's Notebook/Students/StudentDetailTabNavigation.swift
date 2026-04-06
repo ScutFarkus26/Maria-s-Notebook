@@ -5,7 +5,7 @@ import SwiftUI
 import CoreData
 
 enum StudentDetailTab: String {
-    case overview, meetings, notes, progress, developmentalTraits, history, files
+    case overview, meetings, notes, progress, developmentalTraits, history, files, yearPlan
 }
 
 struct StudentDetailTabNavigation: View {
@@ -77,6 +77,9 @@ struct StudentDetailTabNavigation: View {
         PillButton(title: "Files", isSelected: selectedTab == .files) {
             selectedTab = .files
         }
+        PillButton(title: "Year Plan", isSelected: selectedTab == .yearPlan) {
+            selectedTab = .yearPlan
+        }
     }
 
     // MARK: - Compact Tab Buttons (iPhone) - Icons with short labels
@@ -131,6 +134,13 @@ struct StudentDetailTabNavigation: View {
             isSelected: selectedTab == .files
         ) {
             selectedTab = .files
+        }
+        CompactPillButton(
+            title: "Year Plan",
+            systemImage: "calendar.badge.clock",
+            isSelected: selectedTab == .yearPlan
+        ) {
+            selectedTab = .yearPlan
         }
     }
     #endif

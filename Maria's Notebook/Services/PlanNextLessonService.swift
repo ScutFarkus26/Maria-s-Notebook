@@ -130,6 +130,12 @@ struct PlanNextLessonService {
             studentIDs: Array(studentIDs),
             context: context
         )
+
+        // Auto-promote from Year Plan if a matching entry exists
+        YearPlanPromotionService.autoPromoteIfPlanExists(
+            assignment: newAssignment, context: context
+        )
+
         return .success(newAssignment)
     }
 
@@ -162,6 +168,12 @@ struct PlanNextLessonService {
             studentIDs: Array(studentIDs),
             context: context
         )
+
+        // Auto-promote from Year Plan if a matching entry exists
+        YearPlanPromotionService.autoPromoteIfPlanExists(
+            assignment: newAssignment, context: context
+        )
+
         return .success(newAssignment)
     }
 

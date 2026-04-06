@@ -25,6 +25,7 @@ public class CDLessonAssignment: NSManagedObject {
     @NSManaged public var trackStepID: String?
     @NSManaged public var migratedFromStudentLessonID: String?
     @NSManaged public var migratedFromPresentationID: String?
+    @NSManaged public var _confirmedStudentIDsData: Data?
 
     // MARK: - Relationships
     @NSManaged public var unifiedNotes: NSSet?
@@ -55,6 +56,7 @@ public class CDLessonAssignment: NSManagedObject {
         self.trackStepID = nil
         self.migratedFromStudentLessonID = nil
         self.migratedFromPresentationID = nil
+        self._confirmedStudentIDsData = nil
     }
 }
 
@@ -75,6 +77,36 @@ extension CDLessonAssignment {
     var studentIDs: [String] {
         get { CloudKitStringArrayStorage.decode(from: _studentIDsData) }
         set { _studentIDsData = CloudKitStringArrayStorage.encode(newValue) }
+    }
+
+    /// Student IDs that the teacher has confirmed as proficient for this lesson.
+    var confirmedStudentIDs: [String] {
+        get { CloudKitStringArrayStorage.decode(from: _confirmedStudentIDsData) }
+        set { _confirmedStudentIDsData = CloudKitStringArrayStorage.encode(newValue) }
+    }
+
+    /// Whether a specific student has been confirmed as proficient for this lesson.
+    func isStudentConfirmed(_ studentID: UUID) -> Bool {
+        confirmedStudentIDs.contains(studentID.uuidString)
+    }
+
+    /// Mark a student as confirmed proficient for this lesson.
+    func confirmStudent(_ studentID: UUID) {
+        var ids = confirmedStudentIDs
+        let idStr = studentID.uuidString
+        if !ids.contains(idStr) {
+            ids.append(idStr)
+            confirmedStudentIDs = ids
+            modifiedAt = Date()
+        }
+    }
+
+    /// Remove proficiency confirmation for a student.
+    func unconfirmStudent(_ studentID: UUID) {
+        var ids = confirmedStudentIDs
+        ids.removeAll { $0 == studentID.uuidString }
+        confirmedStudentIDs = ids
+        modifiedAt = Date()
     }
 
     /// Convenience accessor for lessonID as UUID.

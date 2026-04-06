@@ -41,6 +41,8 @@
         <attribute name="pagesFileBookmark" optional="YES" attributeType="Binary" allowsExternalBinaryDataStorage="YES"/>
         <attribute name="pagesFileRelativePath" optional="YES" attributeType="String"/>
         <attribute name="primaryAttachmentID" optional="YES" attributeType="String"/>
+        <attribute name="requiresPracticeOverride" attributeType="String" defaultValueString="inherit"/>
+        <attribute name="requiresConfirmationOverride" attributeType="String" defaultValueString="inherit"/>
         <relationship name="attachments" optional="YES" toMany="YES" deletionRule="Cascade" destinationEntity="LessonAttachment" inverseName="lesson" inverseEntity="LessonAttachment"/>
         <relationship name="sampleWorks" optional="YES" toMany="YES" deletionRule="Cascade" destinationEntity="SampleWork" inverseName="lesson" inverseEntity="SampleWork"/>
     </entity>
@@ -162,6 +164,7 @@
         <attribute name="trackStepID" optional="YES" attributeType="String"/>
         <attribute name="migratedFromStudentLessonID" optional="YES" attributeType="String"/>
         <attribute name="migratedFromPresentationID" optional="YES" attributeType="String"/>
+        <attribute name="_confirmedStudentIDsData" optional="YES" attributeType="Binary"/>
         <relationship name="unifiedNotes" optional="YES" toMany="YES" deletionRule="Cascade" destinationEntity="Note" inverseName="lessonAssignment" inverseEntity="Note"/>
     </entity>
     <!-- ==================== CalendarEvent ==================== -->
@@ -819,6 +822,30 @@
         <attribute name="roleRaw" attributeType="String" defaultValueString="leadGuide"/>
         <attribute name="ownerIdentity" attributeType="String" defaultValueString=""/>
         <attribute name="joinedAt" optional="YES" attributeType="Date" usesScalarValueType="NO"/>
+        <attribute name="modifiedAt" optional="YES" attributeType="Date" usesScalarValueType="NO"/>
+    </entity>
+    <!-- ==================== YearPlanEntry ==================== -->
+    <entity name="YearPlanEntry" representedClassName="CDYearPlanEntry" syncable="YES">
+        <attribute name="id" optional="YES" attributeType="UUID" usesScalarValueType="NO"/>
+        <attribute name="studentID" attributeType="String" defaultValueString=""/>
+        <attribute name="lessonID" attributeType="String" defaultValueString=""/>
+        <attribute name="plannedDate" optional="YES" attributeType="Date" usesScalarValueType="NO"/>
+        <attribute name="spacingSchoolDays" attributeType="Integer 64" defaultValueString="3" usesScalarValueType="YES"/>
+        <attribute name="sequenceGroupKey" attributeType="String" defaultValueString=""/>
+        <attribute name="orderInSequence" attributeType="Integer 64" defaultValueString="0" usesScalarValueType="YES"/>
+        <attribute name="statusRaw" attributeType="String" defaultValueString="planned"/>
+        <attribute name="promotedAssignmentID" optional="YES" attributeType="String"/>
+        <attribute name="createdAt" optional="YES" attributeType="Date" usesScalarValueType="NO"/>
+        <attribute name="modifiedAt" optional="YES" attributeType="Date" usesScalarValueType="NO"/>
+    </entity>
+    <!-- ==================== LessonGroupSettings ==================== -->
+    <entity name="LessonGroupSettings" representedClassName="CDLessonGroupSettings" syncable="YES">
+        <attribute name="id" optional="YES" attributeType="UUID" usesScalarValueType="NO"/>
+        <attribute name="subject" attributeType="String" defaultValueString=""/>
+        <attribute name="group" attributeType="String" defaultValueString=""/>
+        <attribute name="requiresPractice" attributeType="Boolean" defaultValueString="YES" usesScalarValueType="YES"/>
+        <attribute name="requiresTeacherConfirmation" attributeType="Boolean" defaultValueString="YES" usesScalarValueType="YES"/>
+        <attribute name="createdAt" optional="YES" attributeType="Date" usesScalarValueType="NO"/>
         <attribute name="modifiedAt" optional="YES" attributeType="Date" usesScalarValueType="NO"/>
     </entity>
 </model>

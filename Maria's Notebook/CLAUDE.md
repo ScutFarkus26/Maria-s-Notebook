@@ -130,11 +130,21 @@ NSPersistentCloudKitContainer (CoreDataStack.swift)
 - Use `NSFetchRequest` + `NSPredicate` for queries (NOT `@Query` / `#Predicate`)
 - Use `@FetchRequest` in views for reactive data binding
 
+## Auto-Research
+
+At the start of each conversation, before writing or modifying any code, search the web for Apple's current documentation on the frameworks relevant to the task (Swift, SwiftUI, Core Data, CloudKit, Combine, Foundation, etc.). Focus on:
+- **API currency:** Identify any APIs this project uses that Apple has deprecated or replaced. When a newer API exists, use it — but respect the project's deployment target (iOS 26.0+ / macOS 26.0+).
+- **Correct signatures and types:** Verify method signatures, parameter types, return types, and property wrappers against current docs. Do not guess or rely on training data — confirm from the source.
+- **Apple-recommended patterns:** Follow Apple's documented patterns for concurrency (`async/await`, `@Sendable`, actors), data flow (`@Observable`, `@Environment`, `@FetchRequest`), and lifecycle (`@main`, scene phases, background tasks).
+- **Warning elimination:** Treat every compiler warning as a bug. If Apple's docs show a warning-free way to accomplish something, use that approach. Pay special attention to: strict concurrency warnings, deprecated API usage, implicit `self` captures, unused variables/results, and `Sendable` conformance.
+
 ## Standards
 
+- **Zero warnings policy:** All code must compile with zero warnings. Before proposing a change, consider whether it could introduce deprecation warnings, concurrency warnings, or type-safety warnings — and avoid them proactively.
 - All code must pass SwiftLint (see `.swiftlint.yml`). A hook runs it automatically after edits.
-- Follow Swift 6.0 strict concurrency rules.
+- Follow Swift 6.0 strict concurrency rules — no shortcuts, no `@unchecked Sendable` unless absolutely necessary and documented.
 - Follow Apple Core Data + CloudKit conventions.
+- Use platform-appropriate APIs for the deployment target. Do not use availability checks (`if #available`) for APIs that are baseline at iOS 26.0+.
 
 ## CloudKit Notes
 

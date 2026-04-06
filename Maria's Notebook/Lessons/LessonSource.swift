@@ -53,3 +53,18 @@ enum PersonalLessonKind: String, Codable, CaseIterable, Identifiable, Sendable {
 
     var badgeLabel: String { label }
 }
+
+enum ProgressionOverride: String, Codable, CaseIterable, Identifiable, Sendable {
+    case inherit
+    case yes
+    case no
+    var id: String { rawValue }
+
+    var label: String {
+        switch self {
+        case .inherit: return "From Group"
+        case .yes: return "Yes"
+        case .no: return "No"
+        }
+    }
+}

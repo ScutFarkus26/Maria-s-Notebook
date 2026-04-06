@@ -16,6 +16,8 @@ struct GroupTrackSettingsSheet: View {
     
     @State private var isTrack: Bool = false
     @State private var isSequential: Bool = true
+    @State private var requiresPractice: Bool = true
+    @State private var requiresConfirmation: Bool = true
     
     var body: some View {
         NavigationStack {
@@ -46,6 +48,25 @@ struct GroupTrackSettingsSheet: View {
                     if isTrack {
                         Text("Students can be enrolled in this track to track their progress through these lessons.")
                     }
+                }
+
+                Section {
+                    Toggle("Requires Follow-Up Practice", isOn: $requiresPractice)
+                    Toggle("Requires Teacher Confirmation", isOn: $requiresConfirmation)
+
+                    if !requiresPractice && !requiresConfirmation {
+                        Text("The next lesson in this group will unlock immediately after presentation.")
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                    } else {
+                        Text("Individual lessons can override these settings.")
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                    }
+                } header: {
+                    Text("Progression Rules")
+                } footer: {
+                    Text("Controls what students must complete before advancing to the next lesson in this group.")
                 }
             }
             .navigationTitle("CDTrackEntity Settings")
@@ -93,6 +114,16 @@ struct GroupTrackSettingsSheet: View {
             isTrack = true
             isSequential = true
         }
+
+        // Load progression rules
+        if let gs = CDLessonGroupSettings.find(
+            subject: subject,
+            group: group,
+            context: viewContext
+        ) {
+            requiresPractice = gs.requiresPractice
+            requiresConfirmation = gs.requiresTeacherConfirmation
+        }
     }
     
     private func saveSettings() {
@@ -115,7 +146,19 @@ struct GroupTrackSettingsSheet: View {
                 )
                 track.isExplicitlyDisabled = true
             }
-            
+
+            // Save progression rules
+            let gs = CDLessonGroupSettings.find(
+                subject: subject,
+                group: group,
+                context: viewContext
+            ) ?? CDLessonGroupSettings(context: viewContext)
+            gs.subject = subject
+            gs.group = group
+            gs.requiresPractice = requiresPractice
+            gs.requiresTeacherConfirmation = requiresConfirmation
+            gs.modifiedAt = Date()
+
             try viewContext.save()
             dismiss()
         } catch {

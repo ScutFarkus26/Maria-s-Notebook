@@ -28,6 +28,8 @@ public class CDLesson: NSManagedObject {
     @NSManaged public var pagesFileBookmark: Data?
     @NSManaged public var pagesFileRelativePath: String?
     @NSManaged public var primaryAttachmentID: String?
+    @NSManaged public var requiresPracticeOverride: String
+    @NSManaged public var requiresConfirmationOverride: String
 
     // MARK: - Relationships
     @NSManaged public var attachments: NSSet?
@@ -62,6 +64,8 @@ public class CDLesson: NSManagedObject {
         self.pagesFileBookmark = nil
         self.pagesFileRelativePath = nil
         self.primaryAttachmentID = nil
+        self.requiresPracticeOverride = "inherit"
+        self.requiresConfirmationOverride = "inherit"
     }
 }
 
@@ -172,6 +176,18 @@ extension CDLesson {
         let req = CDFetchRequest(CDLessonAssignment.self)
         req.predicate = NSPredicate(format: "lessonID == %@", id.uuidString)
         return (try? ctx.fetch(req)) ?? []
+    }
+
+    /// Progression rule override for requiring practice.
+    var practiceOverride: ProgressionOverride {
+        get { ProgressionOverride(rawValue: requiresPracticeOverride) ?? .inherit }
+        set { requiresPracticeOverride = newValue.rawValue }
+    }
+
+    /// Progression rule override for requiring teacher confirmation.
+    var confirmationOverride: ProgressionOverride {
+        get { ProgressionOverride(rawValue: requiresConfirmationOverride) ?? .inherit }
+        set { requiresConfirmationOverride = newValue.rawValue }
     }
 
     /// Sample works sorted by orderIndex

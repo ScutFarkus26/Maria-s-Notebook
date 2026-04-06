@@ -50,6 +50,26 @@ extension LessonDetailCard {
                 }
             }
 
+            // Progression rule overrides
+            VStack(alignment: .leading, spacing: 6) {
+                Text("Progression Rules")
+                    .font(AppTheme.ScaledFont.calloutSemibold)
+                    .foregroundStyle(.secondary)
+                Picker("Requires Practice", selection: $draftPracticeOverride) {
+                    ForEach(ProgressionOverride.allCases) { o in
+                        Text(o.label).tag(o)
+                    }
+                }
+                Picker("Requires Confirmation", selection: $draftConfirmationOverride) {
+                    ForEach(ProgressionOverride.allCases) { o in
+                        Text(o.label).tag(o)
+                    }
+                }
+                Text("\"From Group\" uses the group's default setting.")
+                    .font(AppTheme.ScaledFont.caption)
+                    .foregroundStyle(.tertiary)
+            }
+
             TextField("Age Range (e.g., 6+, 3-6)", text: $draftAgeRange)
                 .textFieldStyle(.roundedBorder)
 

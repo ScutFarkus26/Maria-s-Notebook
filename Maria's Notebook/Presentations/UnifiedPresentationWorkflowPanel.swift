@@ -72,6 +72,11 @@ struct UnifiedPresentationWorkflowPanel: View {
         }
         .onAppear {
             let studentIDs = Set(students.compactMap(\.id))
+            presentationViewModel.resolveProgressionRules(
+                lessonID: lessonID,
+                lessons: Array(lessons),
+                context: viewContext
+            )
             presentationViewModel.resolveNextLesson(
                 lessonID: lessonID,
                 studentIDs: studentIDs,

@@ -12,6 +12,8 @@ final class PresentationsViewModel {
     // MARK: - State
     var readyLessons: [CDLessonAssignment] = []
     var blockedLessons: [CDLessonAssignment] = []
+    /// Per-assignment blocking results with per-student readiness.
+    var blockingResults: [UUID: BlockingAlgorithmEngine.BlockingCheckResult] = [:]
     var blockingWorkCache: [UUID: [UUID: CDWorkModel]] = [:]
     var daysSinceLastLessonByStudent: [UUID: Int] = [:]
     var lastSubjectByStudent: [UUID: String] = [:]
@@ -212,7 +214,7 @@ final class PresentationsViewModel {
         await Task.yield()
         if Task.isCancelled { return }
 
-        let (ready, blocked) = partitionIntoReadyAndBlocked(
+        let (ready, blocked, blockingResultsMap) = partitionIntoReadyAndBlocked(
             lessonAssignments: lessonAssignments,
             lessons: lessons,
             workModels: workModels,
@@ -221,6 +223,7 @@ final class PresentationsViewModel {
         )
         self.readyLessons = ready
         self.blockedLessons = blocked
+        self.blockingResults = blockingResultsMap
     }
 
     private func fetchLessonAssignmentsData(from viewContext: NSManagedObjectContext) -> [CDLessonAssignment] {
@@ -262,7 +265,7 @@ final class PresentationsViewModel {
         workModels: [CDWorkModel],
         inboxOrderRaw: String,
         missWindow: PresentationsMissWindow
-    ) -> (ready: [CDLessonAssignment], blocked: [CDLessonAssignment]) {
+    ) -> (ready: [CDLessonAssignment], blocked: [CDLessonAssignment], blockingResultsMap: [UUID: BlockingAlgorithmEngine.BlockingCheckResult]) {
         let allUnscheduled = lessonAssignments.filter { $0.scheduledFor == nil && !$0.isGiven }
         let blockingResults = BlockingAlgorithmEngine.checkBlocking(
             forBatch: allUnscheduled,
@@ -274,7 +277,7 @@ final class PresentationsViewModel {
         var blocked: [CDLessonAssignment] = []
         for la in allUnscheduled {
             let result = la.id.flatMap { blockingResults[$0] }
-                ?? BlockingAlgorithmEngine.BlockingCheckResult(isBlocked: false, prereqOpenCount: 0)
+                ?? BlockingAlgorithmEngine.BlockingCheckResult(isBlocked: false, prereqOpenCount: 0, perStudentReadiness: [:])
             if result.isBlocked { blocked.append(la) } else { ready.append(la) }
         }
         var ordered = InboxOrderStore.orderedUnscheduled(from: ready, orderRaw: inboxOrderRaw)
@@ -285,7 +288,7 @@ final class PresentationsViewModel {
             }
         }
         blocked.sort { ($0.createdAt ?? .distantPast) < ($1.createdAt ?? .distantPast) }
-        return (ordered, blocked)
+        return (ordered, blocked, blockingResults)
     }
 
     // MARK: - Private Helpers — Blocking Cache

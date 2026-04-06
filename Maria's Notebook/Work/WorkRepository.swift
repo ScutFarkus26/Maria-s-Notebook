@@ -172,6 +172,18 @@ struct WorkRepository {
         }
         context.safeSave()
         HapticService.shared.notification(.success)
+
+        // Check if completing this work unlocks the next lesson
+        if let lessonID = UUID(uuidString: work.lessonID) {
+            let participantIDs = (work.participants?.allObjects as? [CDWorkParticipantEntity])?.compactMap {
+                UUID(uuidString: $0.studentID)
+            } ?? []
+            for studentID in participantIDs {
+                ReadinessAutoUnlockService.checkAndUnlock(
+                    afterWorkOn: lessonID, studentID: studentID, context: context
+                )
+            }
+        }
     }
 
     /// Update a CDWorkModel's status
@@ -207,6 +219,13 @@ struct WorkRepository {
             // Also update participant for backwards compatibility
             if let participant = work.participant(for: studentID) {
                 participant.completedAt = Date()
+            }
+
+            // Check if completing this work unlocks the next lesson
+            if let lessonID = UUID(uuidString: work.lessonID) {
+                ReadinessAutoUnlockService.checkAndUnlock(
+                    afterWorkOn: lessonID, studentID: studentID, context: context
+                )
             }
         }
 

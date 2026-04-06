@@ -10,6 +10,8 @@ struct PresentationsInboxView: View {
     private static let logger = Logger.presentations
     let readyLessons: [CDLessonAssignment]
     let blockedLessons: [CDLessonAssignment]
+    /// Per-assignment blocking results with per-student readiness.
+    let blockingResults: [UUID: BlockingAlgorithmEngine.BlockingCheckResult]
     let getBlockingWork: (CDLessonAssignment) -> [UUID: CDWorkModel]
     let filteredSnapshot: (CDLessonAssignment) -> LessonAssignmentSnapshot
     let missWindow: PresentationsMissWindow

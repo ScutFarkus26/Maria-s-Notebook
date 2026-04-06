@@ -70,6 +70,8 @@ struct LessonDetailView: View {
     @State var draftTeacherNotes: String = ""
     @State var draftLessonFormat: LessonFormat = .standard
     @State var draftParentStoryID: UUID?
+    @State var draftPracticeOverride: ProgressionOverride = .inherit
+    @State var draftConfirmationOverride: ProgressionOverride = .inherit
     @State private var showDeleteAlert = false
     @State private var showingGreatLessonTagEditor = false
     @State var showingSampleWorkEditor = false
@@ -308,6 +310,8 @@ extension LessonDetailView {
                         updated.teacherNotes = draftTeacherNotes
                         updated.lessonFormat = draftLessonFormat
                         updated.parentStoryUUID = draftLessonFormat == .story ? draftParentStoryID : nil
+                        updated.practiceOverride = draftPracticeOverride
+                        updated.confirmationOverride = draftConfirmationOverride
                         onSave(updated)
                         isEditing = false
                     }
@@ -350,6 +354,8 @@ extension LessonDetailView {
         draftTeacherNotes = lesson.teacherNotes
         draftLessonFormat = lesson.lessonFormat
         draftParentStoryID = lesson.parentStoryUUID
+        draftPracticeOverride = lesson.practiceOverride
+        draftConfirmationOverride = lesson.confirmationOverride
     }
 }
 

@@ -36,6 +36,8 @@ struct LessonDetailCard: View {
     @State var draftTeacherNotes: String = ""
     @State var draftLessonFormat: LessonFormat = .standard
     @State var draftParentStoryID: UUID?
+    @State var draftPracticeOverride: ProgressionOverride = .inherit
+    @State var draftConfirmationOverride: ProgressionOverride = .inherit
     @State var showingSampleWorkEditor = false
     @State var editingSampleWork: CDSampleWorkEntity?
 
@@ -141,6 +143,8 @@ struct LessonDetailCard: View {
         draftTeacherNotes = lesson.teacherNotes
         draftLessonFormat = lesson.lessonFormat
         draftParentStoryID = lesson.parentStoryUUID
+        draftPracticeOverride = lesson.practiceOverride
+        draftConfirmationOverride = lesson.confirmationOverride
     }
 
     private func handleFileImporterResult(_ result: Result<URL, Error>) {

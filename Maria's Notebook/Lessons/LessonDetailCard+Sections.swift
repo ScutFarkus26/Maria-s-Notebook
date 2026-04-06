@@ -118,6 +118,8 @@ extension LessonDetailCard {
                     updated.teacherNotes = draftTeacherNotes
                     updated.lessonFormat = draftLessonFormat
                     updated.parentStoryUUID = draftLessonFormat == .story ? draftParentStoryID : nil
+                    updated.practiceOverride = draftPracticeOverride
+                    updated.confirmationOverride = draftConfirmationOverride
                     onSave(updated)
                     isEditing = false
                 } label: {
