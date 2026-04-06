@@ -13,9 +13,8 @@ struct StudentsContentRenderer {
     let onTapStudent: ((CDStudent) -> Void)?
     let selectedStudentID: Binding<UUID?>?
 
-    #if os(iOS)
+    /// nil on macOS; on iOS, determines whether taps open a sheet (compact) or update the detail pane (regular).
     let horizontalSizeClass: UserInterfaceSizeClass?
-    #endif
 
     /// Render content with empty state check
     @ViewBuilder
@@ -64,18 +63,17 @@ struct StudentsContentRenderer {
                         daysSinceLastLesson: student.id.flatMap { daysSinceLastLesson[$0] }
                     )
                     .tag(student.id)
-                    #if os(iOS)
                     .onTapGesture {
                         handleTap(student)
                     }
-                    #endif
                 }
                 .onMove(perform: onMove)
             }
         }
     }
 
-    #if os(iOS)
+    /// Routes taps by platform: compact (iPhone) opens a sheet via onTapStudent;
+    /// regular/nil (iPad, macOS) updates the selectedStudentID binding for the detail pane.
     private func handleTap(_ student: CDStudent) {
         if horizontalSizeClass == .compact, let onTap = onTapStudent {
             onTap(student)
@@ -83,5 +81,4 @@ struct StudentsContentRenderer {
             binding.wrappedValue = student.id
         }
     }
-    #endif
 }

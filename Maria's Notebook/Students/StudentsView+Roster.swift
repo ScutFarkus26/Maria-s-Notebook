@@ -60,6 +60,11 @@ extension StudentsView {
 
     var rosterGridContent: some View {
         #if os(iOS)
+        let sizeClass = horizontalSizeClass
+        #else
+        let sizeClass: UserInterfaceSizeClass? = nil
+        #endif
+
         let renderer = StudentsContentRenderer(
             students: filteredStudents,
             effectiveSortOrder: effectiveSortOrder,
@@ -71,22 +76,8 @@ extension StudentsView {
                 selectedStudentForSheet = student
             },
             selectedStudentID: nil,
-            horizontalSizeClass: horizontalSizeClass
+            horizontalSizeClass: sizeClass
         )
-        #else
-        let renderer = StudentsContentRenderer(
-            students: filteredStudents,
-            effectiveSortOrder: effectiveSortOrder,
-            daysSinceLastLesson: daysSinceLastLessonByStudent,
-            isParsing: $isParsing,
-            parsingTask: $parsingTask,
-            onAddStudent: { showingAddStudent = true },
-            onTapStudent: { student in
-                selectedStudentForSheet = student
-            },
-            selectedStudentID: nil
-        )
-        #endif
 
         return renderer.gridView
             #if DEBUG
@@ -109,6 +100,11 @@ extension StudentsView {
 
     var rosterListContent: some View {
         #if os(iOS)
+        let sizeClass = horizontalSizeClass
+        #else
+        let sizeClass: UserInterfaceSizeClass? = nil
+        #endif
+
         let renderer = StudentsContentRenderer(
             students: filteredStudents,
             effectiveSortOrder: effectiveSortOrder,
@@ -120,22 +116,8 @@ extension StudentsView {
                 selectedStudentForSheet = student
             },
             selectedStudentID: $selectedStudentID,
-            horizontalSizeClass: horizontalSizeClass
+            horizontalSizeClass: sizeClass
         )
-        #else
-        let renderer = StudentsContentRenderer(
-            students: filteredStudents,
-            effectiveSortOrder: effectiveSortOrder,
-            daysSinceLastLesson: daysSinceLastLessonByStudent,
-            isParsing: $isParsing,
-            parsingTask: $parsingTask,
-            onAddStudent: { showingAddStudent = true },
-            onTapStudent: { student in
-                selectedStudentForSheet = student
-            },
-            selectedStudentID: $selectedStudentID
-        )
-        #endif
 
         return renderer.listView { source, destination in
             handleManualReorder(from: source, to: destination)
