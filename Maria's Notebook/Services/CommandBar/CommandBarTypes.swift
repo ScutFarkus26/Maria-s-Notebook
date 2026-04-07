@@ -69,6 +69,24 @@ enum CommandParseResult: Sendable {
     case failed(reason: String)
 }
 
+// MARK: - Quick Note Parameters
+
+/// Identifiable wrapper for QuickNote sheet presentation via .sheet(item:).
+/// Using item-based presentation forces SwiftUI to create a fresh view identity
+/// each time, ensuring @State is properly initialized with the provided values.
+struct QuickNoteParams: Identifiable {
+    let id = UUID()
+    let studentIDs: Set<UUID>
+    let bodyText: String
+    let tags: [String]
+
+    init(studentIDs: Set<UUID> = [], bodyText: String = "", tags: [String] = []) {
+        self.studentIDs = studentIDs
+        self.bodyText = bodyText
+        self.tags = tags
+    }
+}
+
 // MARK: - Command Action
 
 /// The action to execute after a successful parse, used to route to the correct sheet

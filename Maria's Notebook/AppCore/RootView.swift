@@ -34,7 +34,7 @@ struct RootView: View {
     #if !os(macOS)
     private let quickNoteTip = QuickNoteTip()
     #endif
-    @State private var isShowingQuickNote = false
+    @State private var quickNoteParams: QuickNoteParams?
     @State private var isShowingCommandBar = false
     @State private var isShowingSearch = false
     @State private var newPresentationDraftID: UUID?
@@ -45,9 +45,6 @@ struct RootView: View {
     @State private var selectedNavItem: NavigationItem = .today
 
     // Command bar pre-population state
-    @State private var commandBarNoteStudentIDs: Set<UUID> = []
-    @State private var commandBarNoteText: String = ""
-    @State private var commandBarNoteInferredTags: [String] = []
     @State private var commandBarWorkLessonID: UUID?
     @State private var commandBarWorkStudentIDs: Set<UUID> = []
     @State private var commandBarTodoTitle: String = ""
@@ -146,21 +143,16 @@ struct RootView: View {
                     isShowingNewTodo = true
                 },
                 onNewNote: {
-                    isShowingQuickNote = true
+                    quickNoteParams = QuickNoteParams()
                 }
             )
         }
-        .sheet(isPresented: $isShowingQuickNote) {
+        .sheet(item: $quickNoteParams) { params in
             QuickNoteSheet(
-                initialStudentIDs: commandBarNoteStudentIDs,
-                initialBodyText: commandBarNoteText,
-                initialTags: commandBarNoteInferredTags
+                initialStudentIDs: params.studentIDs,
+                initialBodyText: params.bodyText,
+                initialTags: params.tags
             )
-            .onDisappear {
-                commandBarNoteStudentIDs = []
-                commandBarNoteText = ""
-                commandBarNoteInferredTags = []
-            }
         }
         .sheet(isPresented: $isShowingCommandBar) {
             CommandBarSheet(
@@ -176,10 +168,11 @@ struct RootView: View {
                 },
                 onNote: { studentIDs, bodyText, inferredTags in
                     isShowingCommandBar = false
-                    commandBarNoteStudentIDs = studentIDs
-                    commandBarNoteText = bodyText
-                    commandBarNoteInferredTags = inferredTags
-                    isShowingQuickNote = true
+                    quickNoteParams = QuickNoteParams(
+                        studentIDs: studentIDs,
+                        bodyText: bodyText,
+                        tags: inferredTags
+                    )
                 },
                 onTodo: { titleText in
                     isShowingCommandBar = false
