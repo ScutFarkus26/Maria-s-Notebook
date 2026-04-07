@@ -76,7 +76,7 @@ struct ProgressionLessonRow: View {
                     Button {
                         action()
                     } label: {
-                        Label("CDSchedule CDLesson", systemImage: SFSymbol.Time.calendar)
+                        Label("Schedule Lesson", systemImage: SFSymbol.Time.calendar)
                             .font(.caption)
                     }
                     .buttonStyle(.bordered)

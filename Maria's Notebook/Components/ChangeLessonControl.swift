@@ -10,7 +10,7 @@ struct ChangeLessonControl: View {
                     showLessonPicker = true
                 }
             } label: {
-                Label("Change CDLesson…", systemImage: "pencil")
+                Label("Change Lesson…", systemImage: "pencil")
                     .font(AppTheme.ScaledFont.caption)
             }
             .buttonStyle(.plain)

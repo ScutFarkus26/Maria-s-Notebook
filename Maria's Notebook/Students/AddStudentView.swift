@@ -21,7 +21,7 @@ struct AddStudentView: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 20) {
 
-            Text("Add CDStudent")
+            Text("Add Student")
                 .font(AppTheme.ScaledFont.titleLarge)
 
             Form {

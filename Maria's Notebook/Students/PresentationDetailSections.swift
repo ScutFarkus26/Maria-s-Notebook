@@ -184,7 +184,7 @@ struct PresentationNextLessonSection: View {
                             .foregroundStyle(.secondary)
                             .frame(width: 20)
                         
-                        Text("Next CDLesson in Group")
+                        Text("Next Lesson in Group")
                             .font(AppTheme.ScaledFont.calloutSemibold)
                             .foregroundStyle(.secondary)
                     }
@@ -196,7 +196,7 @@ struct PresentationNextLessonSection: View {
                         Button {
                             onPlanNext()
                         } label: {
-                            Label("Plan Next CDLesson in Group", systemImage: "calendar.badge.plus")
+                            Label("Plan Next Lesson in Group", systemImage: "calendar.badge.plus")
                         }
                         .buttonStyle(.borderedProminent)
                         .disabled(!canPlanNext)

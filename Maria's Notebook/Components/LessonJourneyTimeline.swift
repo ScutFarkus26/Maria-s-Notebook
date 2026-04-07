@@ -263,7 +263,7 @@ struct LessonJourneyTimeline: View {
 
 // MARK: - Preview
 
-#Preview("CDLesson Journey Timeline") {
+#Preview("Lesson Journey Timeline") {
     let stack = CoreDataStack.preview
     let context = stack.viewContext
     let lesson = CDLesson(context: context)
@@ -271,7 +271,7 @@ struct LessonJourneyTimeline: View {
 
     return ScrollView {
         VStack(spacing: 20) {
-            Text("CDLesson Journey")
+            Text("Lesson Journey")
                 .font(AppTheme.ScaledFont.titleLarge)
 
             LessonJourneyTimeline(lesson: lesson, viewContext: context)

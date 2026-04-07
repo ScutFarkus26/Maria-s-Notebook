@@ -170,7 +170,7 @@ struct AgendaSlot: View {
             Button {
                 onPlanNext(la)
             } label: {
-                Label("Plan Next CDLesson in Group", systemImage: SFSymbol.Time.calendarBadgePlus)
+                Label("Plan Next Lesson in Group", systemImage: SFSymbol.Time.calendarBadgePlus)
             }
 
             Button {

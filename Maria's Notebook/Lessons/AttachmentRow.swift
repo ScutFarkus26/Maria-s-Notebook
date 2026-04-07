@@ -59,7 +59,7 @@ struct AttachmentRow: View {
                             .font(.system(size: 12))
                     }
                     .buttonStyle(.borderless)
-                    .help(isPrimary ? "Clear Primary CDLesson File" : "Set as Primary CDLesson File")
+                    .help(isPrimary ? "Clear Primary Lesson File" : "Set as Primary Lesson File")
 
                     Button(action: { openAttachment() }, label: {
                         Image(systemName: "eye")

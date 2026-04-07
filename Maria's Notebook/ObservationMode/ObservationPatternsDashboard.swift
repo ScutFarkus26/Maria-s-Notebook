@@ -136,7 +136,7 @@ struct ObservationPatternsDashboard: View {
 
     private var studentBreakdown: some View {
         VStack(alignment: .leading, spacing: 10) {
-            Text("By CDStudent")
+            Text("By Student")
                 .font(.subheadline)
                 .fontWeight(.semibold)
 

@@ -41,7 +41,7 @@ struct AddLessonView: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 20) {
-            Text("Add CDLesson")
+            Text("Add Lesson")
                 .font(AppTheme.ScaledFont.titleLarge)
 
             HStack {
@@ -56,7 +56,7 @@ struct AddLessonView: View {
 
             Form {
                 Section("Basics") {
-                    TextField("CDLesson Name", text: $name)
+                    TextField("Lesson Name", text: $name)
                     TextField("Subject", text: $subject)
                     TextField("Group", text: $group)
                     TextField("Subheading", text: $subheading)

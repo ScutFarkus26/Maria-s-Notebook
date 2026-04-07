@@ -258,7 +258,7 @@ struct GoingOutDetailView: View {
                     HStack(spacing: 4) {
                         Image(systemName: "plus")
                             .font(.caption2)
-                        Text("Add CDNote")
+                        Text("Add Note")
                             .font(.caption)
                     }
                     .foregroundStyle(Color.accentColor)

@@ -5,7 +5,7 @@ import os
 extension LessonDetailCard {
     var editForm: some View {
         VStack(spacing: 12) {
-            TextField("CDLesson Name", text: $draftName)
+            TextField("Lesson Name", text: $draftName)
                 .textFieldStyle(.roundedBorder)
             HStack {
                 TextField("Subject", text: $draftSubject)

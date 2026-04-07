@@ -250,7 +250,7 @@ private struct LessonStepRow: View {
             }
 
             VStack(alignment: .leading, spacing: 4) {
-                Text(lesson.name.isEmpty ? "Untitled CDLesson" : lesson.name)
+                Text(lesson.name.isEmpty ? "Untitled Lesson" : lesson.name)
                     .font(.body)
                     .foregroundStyle(progressState == .proficient ? .secondary : .primary)
                     .strikethrough(progressState == .proficient, color: .secondary.opacity(UIConstants.OpacityConstants.half))

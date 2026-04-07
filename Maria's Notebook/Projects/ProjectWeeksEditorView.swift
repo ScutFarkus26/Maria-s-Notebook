@@ -110,7 +110,7 @@ struct InlineLessonPickerSheet: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
-            Text("Choose CDLesson")
+            Text("Choose Lesson")
                 .font(.title3).fontWeight(.semibold)
             TextField("Search…", text: $search)
                 .textFieldStyle(.roundedBorder)
@@ -122,7 +122,7 @@ struct InlineLessonPickerSheet: View {
                     } label: {
                         HStack {
                             VStack(alignment: .leading, spacing: 2) {
-                                Text(lesson.name.isEmpty ? "Untitled CDLesson" : lesson.name)
+                                Text(lesson.name.isEmpty ? "Untitled Lesson" : lesson.name)
                                 let subtitle: String = {
                                     switch (lesson.subject.isEmpty, lesson.group.isEmpty) {
                                     case (false, false): return "\(lesson.subject) • \(lesson.group)"

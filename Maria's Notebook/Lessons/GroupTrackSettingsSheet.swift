@@ -23,10 +23,10 @@ struct GroupTrackSettingsSheet: View {
         NavigationStack {
             Form {
                 Section {
-                    Toggle("Use as CDTrackEntity", isOn: $isTrack)
+                    Toggle("Use as Track", isOn: $isTrack)
                     
                     if isTrack {
-                        Picker("CDTrackEntity Type", selection: $isSequential) {
+                        Picker("Track Type", selection: $isSequential) {
                             Text("Sequential (order matters)").tag(true)
                             Text("Group (no order)").tag(false)
                         }
@@ -69,7 +69,7 @@ struct GroupTrackSettingsSheet: View {
                     Text("Controls what students must complete before advancing to the next lesson in this group.")
                 }
             }
-            .navigationTitle("CDTrackEntity Settings")
+            .navigationTitle("Track Settings")
             .inlineNavigationTitle()
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {

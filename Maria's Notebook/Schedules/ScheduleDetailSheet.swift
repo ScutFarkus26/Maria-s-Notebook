@@ -171,7 +171,7 @@ struct ScheduleDetailSheet: View {
                 Image(systemName: "person.crop.circle.badge.questionmark")
                     .foregroundStyle(.secondary)
 
-                Text("Unknown CDStudent")
+                Text("Unknown Student")
                     .font(.subheadline)
                     .foregroundStyle(.secondary)
                     .italic()

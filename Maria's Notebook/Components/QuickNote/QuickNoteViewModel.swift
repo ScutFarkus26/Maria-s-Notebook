@@ -277,7 +277,7 @@ class QuickNoteViewModel {
         newNote.lesson = lesson
         newNote.studentTrackEnrollment = studentTrackEnrollment
         newNote.imagePath = attachedImagePath
-        ToastService.shared.show("CDNote saved", type: .success, duration: 1.5)
+        ToastService.shared.show("Note saved", type: .success, duration: 1.5)
     }
 
     func loadPhoto(_ item: PhotosPickerItem?) {

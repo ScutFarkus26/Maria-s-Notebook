@@ -113,7 +113,7 @@ struct TransitionPlannerRootView: View {
                     .buttonStyle(.plain)
                 }
             }
-            .navigationTitle("Select CDStudent")
+            .navigationTitle("Select Student")
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {
                     Button("Cancel") { viewModel.showingNewPlanPicker = false }

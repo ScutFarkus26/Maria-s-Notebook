@@ -81,7 +81,7 @@ extension QuickNewWorkItemSheet {
         case .dueDate: return "Due Date"
         case .assessment: return "Assessment"
         case .followUp: return "Follow Up"
-        case .studentRequest: return "CDStudent Request"
+        case .studentRequest: return "Student Request"
         case .other: return "Other"
         }
     }

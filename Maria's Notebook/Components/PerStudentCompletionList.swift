@@ -36,7 +36,7 @@ struct PerStudentCompletionList: View {
 
     private var header: some View {
         VStack(alignment: .leading, spacing: 4) {
-            Text("Per-CDStudent Completion")
+            Text("Per-Student Completion")
                 .font(.subheadline).bold()
             Text("Mark completions for each student and view their history.")
                 .font(.footnote)

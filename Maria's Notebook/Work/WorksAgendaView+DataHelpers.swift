@@ -96,7 +96,7 @@ extension WorksAgendaView {
 
     func lessonTitle(forLessonID lessonID: String) -> String {
         let name = lessonsByID[uuidString: lessonID]?.name ?? ""
-        return LessonFormatter.titleOrFallback(name, fallback: "CDLesson \(String(lessonID.prefix(6)))")
+        return LessonFormatter.titleOrFallback(name, fallback: "Lesson \(String(lessonID.prefix(6)))")
     }
 
     #if os(macOS)

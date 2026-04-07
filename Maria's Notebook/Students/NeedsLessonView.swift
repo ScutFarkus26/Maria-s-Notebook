@@ -64,7 +64,7 @@ struct NeedsLessonView: View {
             gridContent
             #endif
         }
-        .navigationTitle("Needs CDLesson")
+        .navigationTitle("Needs Lesson")
         .inlineNavigationTitle()
         .task { reloadData() }
         .onChange(of: lessonAssignmentsForChange.count) { _, _ in

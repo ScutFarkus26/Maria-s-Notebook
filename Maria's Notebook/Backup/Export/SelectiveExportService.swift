@@ -67,9 +67,9 @@ public final class SelectiveExportService {
 
         public var description: String {
             switch self {
-            case .students: return "CDStudent records and profiles"
-            case .lessons: return "CDLesson definitions and materials"
-            case .presentations: return "CDLesson presentation records"
+            case .students: return "Student records and profiles"
+            case .lessons: return "Lesson definitions and materials"
+            case .presentations: return "Lesson presentation records"
             case .notes: return "Notes attached to various entities"
             case .calendar: return "Non-school days and overrides"
             case .attendance: return "Attendance records"

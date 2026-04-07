@@ -178,10 +178,10 @@ struct MariasNotebookApp: App {
                 Divider()
                 #endif
                 
-                Button("New CDLesson") { appRouter.requestNewLesson() }
+                Button("New Lesson") { appRouter.requestNewLesson() }
                     .keyboardShortcut("n", modifiers: [.command])
                 
-                Button("New CDStudent") { appRouter.requestNewStudent() }
+                Button("New Student") { appRouter.requestNewStudent() }
                     .keyboardShortcut("n", modifiers: [.command, .shift])
                 
                 Button("New Work…") { appRouter.requestNewWork() }

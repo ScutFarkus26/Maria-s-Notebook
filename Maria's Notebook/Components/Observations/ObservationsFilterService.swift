@@ -9,7 +9,7 @@ enum ObservationsFilterService {
 
     enum ScopeFilter: String, CaseIterable, Identifiable {
         case all = "All"
-        case studentSpecific = "CDStudent-specific"
+        case studentSpecific = "Student-specific"
         case allStudents = "All students"
 
         var id: String { rawValue }

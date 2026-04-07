@@ -286,7 +286,7 @@ private struct LessonRowView: View {
             materials: "", purpose: "", ageRange: "", teacherNotes: ""
         ),
         LessonCSVImporter.Row(
-            name: "Three Period CDLesson and Layered Layout",
+            name: "Three Period Lesson and Layered Layout",
             subject: "Math",
             group: "Wooden Hierarchal Materials", subheading: "",
             writeUp: "", orderInGroup: nil,

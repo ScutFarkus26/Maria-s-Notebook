@@ -7,7 +7,7 @@ import os
 extension LessonDetailView {
     var editForm: some View {
         VStack(spacing: AppTheme.Spacing.compact + 2) {
-            TextField("CDLesson Name", text: $draftName)
+            TextField("Lesson Name", text: $draftName)
                 .textFieldStyle(.roundedBorder)
             HStack(alignment: .top) {
                 ComboBoxField(title: "Subject", text: $draftSubject, options: existingSubjects)

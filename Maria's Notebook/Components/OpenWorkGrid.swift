@@ -206,7 +206,7 @@ struct OpenWorkGrid: View {
     // MARK: - Helpers
     private func lessonTitle(forLessonID lessonID: String) -> String {
         let name = lessonsByID[uuidString: lessonID]?.name ?? ""
-        return LessonFormatter.titleOrFallback(name, fallback: "CDLesson \(String(lessonID.prefix(6)))")
+        return LessonFormatter.titleOrFallback(name, fallback: "Lesson \(String(lessonID.prefix(6)))")
     }
 
     private func studentName(for w: CDWorkModel) -> String {

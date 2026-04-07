@@ -23,7 +23,7 @@ extension ProjectSessionDetailView {
         }
 
         // CDStudent selection status
-        Section("CDStudent Selections") {
+        Section("Student Selections") {
             ForEach(projectMemberIDs.sorted { studentName(for: $0) < studentName(for: $1) }, id: \.self) { studentID in
                 studentSelectionRow(studentID: studentID)
             }
@@ -183,7 +183,7 @@ extension ProjectSessionDetailView {
                 Button {
                     showLessonPickerForWork = work
                 } label: {
-                    Label("Change CDLesson", systemImage: "book")
+                    Label("Change Lesson", systemImage: "book")
                 }
                 .buttonStyle(.borderless)
                 .font(.caption)

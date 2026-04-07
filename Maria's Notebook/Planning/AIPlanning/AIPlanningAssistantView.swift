@@ -302,7 +302,7 @@ struct AIPlanningAssistantView: View {
             let count = vm.acceptedRecommendations.count
             let suffix = count == 1 ? "" : "s"
             Label(
-                "Apply \(count) CDLesson\(suffix)",
+                "Apply \(count) Lesson\(suffix)",
                 systemImage: "checkmark.circle"
             )
         })

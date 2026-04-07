@@ -310,7 +310,7 @@ private struct InboxRow: View {
         }
         .contextMenu {
           Button { onQuickActions(slID) } label: { Label("Quick Actions…", systemImage: "bolt") }
-          Button { onPlanNext(sl) } label: { Label("Plan Next CDLesson in Group", systemImage: "calendar.badge.plus") }
+          Button { onPlanNext(sl) } label: { Label("Plan Next Lesson in Group", systemImage: "calendar.badge.plus") }
           Button { onOpenDetails(slID) } label: { Label("Open Details", systemImage: "info.circle") }
         }
     }

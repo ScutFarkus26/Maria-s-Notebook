@@ -56,7 +56,7 @@ struct ScheduledMeetingSessionSheet: View {
                 .inlineNavigationTitle()
             } else {
                 ContentUnavailableView(
-                    "CDStudent Not Found",
+                    "Student Not Found",
                     systemImage: "person.crop.circle.badge.questionmark"
                 )
             }

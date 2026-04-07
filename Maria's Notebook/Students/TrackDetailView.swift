@@ -114,7 +114,7 @@ private struct StepRow: View {
             
             if let lesson {
                 VStack(alignment: .leading, spacing: 4) {
-                    Text(lesson.name.isEmpty ? "Untitled CDLesson" : lesson.name)
+                    Text(lesson.name.isEmpty ? "Untitled Lesson" : lesson.name)
                         .font(.body)
                     
                     if !lesson.subject.isEmpty || !lesson.group.isEmpty {
@@ -124,7 +124,7 @@ private struct StepRow: View {
                     }
                 }
             } else {
-                Text("Unknown CDLesson")
+                Text("Unknown Lesson")
                     .foregroundStyle(.secondary)
                     .font(.caption)
             }
@@ -167,7 +167,7 @@ private struct LessonPickerSheet: View {
                             dismiss()
                         } label: {
                             VStack(alignment: .leading, spacing: 4) {
-                                Text(lesson.name.isEmpty ? "Untitled CDLesson" : lesson.name)
+                                Text(lesson.name.isEmpty ? "Untitled Lesson" : lesson.name)
                                     .font(.body)
                                     .foregroundStyle(.primary)
                                 
@@ -183,7 +183,7 @@ private struct LessonPickerSheet: View {
                 }
                 .listStyle(.plain)
             }
-            .navigationTitle("Select CDLesson")
+            .navigationTitle("Select Lesson")
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {
                     Button("Cancel") {

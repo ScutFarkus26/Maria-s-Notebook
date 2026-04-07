@@ -135,7 +135,7 @@ final class CommandBarViewModel {
     static let exampleCommands = [
         "I gave the binomial cube to Sarah",
         "Assign stamp game work to James",
-        "CDNote: Marco was really focused on the continent maps today",
+        "Note: Marco was really focused on the continent maps today",
         "Remind me to call Lily's parents tomorrow"
     ]
 }

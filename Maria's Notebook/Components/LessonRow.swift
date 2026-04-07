@@ -47,7 +47,7 @@ struct LessonRow: View {
     var body: some View {
         HStack(spacing: 10) {
             VStack(alignment: .leading, spacing: 3) {
-                Text(lesson.name.isEmpty ? "Untitled CDLesson" : lesson.name)
+                Text(lesson.name.isEmpty ? "Untitled Lesson" : lesson.name)
                     .font(.system(.body, design: .rounded).weight(.semibold))
                     .lineLimit(secondaryTextStyle == .subjectAndGroup ? 1 : nil)
                 
@@ -133,7 +133,7 @@ struct LessonRow: View {
     }
 
     private func copyLessonName() {
-        let name = lesson.name.isEmpty ? "Untitled CDLesson" : lesson.name
+        let name = lesson.name.isEmpty ? "Untitled Lesson" : lesson.name
         #if os(macOS)
         NSPasteboard.general.clearContents()
         NSPasteboard.general.setString(name, forType: .string)

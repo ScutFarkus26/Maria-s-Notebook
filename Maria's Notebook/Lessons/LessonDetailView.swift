@@ -86,7 +86,7 @@ struct LessonDetailView: View {
         VStack(spacing: 0) {
             // Header
             HStack {
-                Text("CDLesson Info")
+                Text("Lesson Info")
                     .font(AppTheme.ScaledFont.titleSmall)
                 Spacer()
             }
@@ -112,7 +112,7 @@ struct LessonDetailView: View {
 
                         // Journey Timeline
                         VStack(alignment: .leading, spacing: AppTheme.Spacing.compact) {
-                            Text("CDLesson Journey")
+                            Text("Lesson Journey")
                                 .font(AppTheme.ScaledFont.titleSmall)
 
                             LessonJourneyTimeline(lesson: lesson, viewContext: viewContext)
@@ -129,7 +129,7 @@ struct LessonDetailView: View {
         .safeAreaInset(edge: .bottom) {
             bottomBar
         }
-        .alert("Delete CDLesson?", isPresented: $showDeleteAlert) {
+        .alert("Delete Lesson?", isPresented: $showDeleteAlert) {
             Button("Delete", role: .destructive) {
                 if let url = resolveLessonFileURL() {
                     do {
@@ -153,7 +153,7 @@ struct LessonDetailView: View {
         .sheet(isPresented: $showingGreatLessonTagEditor) {
             NavigationStack {
                 GreatLessonTagEditor(lesson: lesson)
-                    .navigationTitle("Tag Great CDLesson")
+                    .navigationTitle("Tag Great Lesson")
                     .toolbar {
                         ToolbarItem(placement: .confirmationAction) {
                             Button("Done") { showingGreatLessonTagEditor = false }
@@ -239,7 +239,7 @@ struct LessonDetailView: View {
 extension LessonDetailView {
     var headerContent: some View {
         VStack(spacing: AppTheme.Spacing.compact) {
-            Text(lesson.name.isEmpty ? "Untitled CDLesson" : lesson.name)
+            Text(lesson.name.isEmpty ? "Untitled Lesson" : lesson.name)
                 .font(AppTheme.ScaledFont.titleXLarge)
                 .frame(maxWidth: .infinity)
             HStack(spacing: AppTheme.Spacing.small) {
@@ -273,7 +273,7 @@ extension LessonDetailView {
                 HStack(spacing: 4) {
                     Image(systemName: "globe.americas")
                         .font(.caption2)
-                    Text(lesson.greatLesson != nil ? "Change Great CDLesson" : "Tag Great CDLesson")
+                    Text(lesson.greatLesson != nil ? "Change Great Lesson" : "Tag Great Lesson")
                         .font(.caption)
                 }
                 .foregroundStyle(Color.accentColor)

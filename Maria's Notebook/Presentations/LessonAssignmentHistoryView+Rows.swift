@@ -126,7 +126,7 @@ extension LessonAssignmentHistoryView {
                 Button {
                     openLessonInNewWindow(lessonID)
                 } label: {
-                    Label("View CDLesson", systemImage: SFSymbol.Education.book)
+                    Label("View Lesson", systemImage: SFSymbol.Education.book)
                 }
                 #endif
             }

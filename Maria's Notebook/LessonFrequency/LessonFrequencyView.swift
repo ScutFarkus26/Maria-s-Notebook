@@ -188,7 +188,7 @@ struct LessonFrequencyView: View {
 
     private var emptyState: some View {
         ContentUnavailableView {
-            Label("No CDLesson Data", systemImage: SFSymbol.Chart.chartBar)
+            Label("No Lesson Data", systemImage: SFSymbol.Chart.chartBar)
         } description: {
             Text("Present lessons to students to see weekly frequency data here.")
         }

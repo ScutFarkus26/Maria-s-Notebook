@@ -61,7 +61,7 @@ struct WorkCheckInPill: View {
                 if !name.isEmpty { return name }
             }
         }
-        return "CDLesson \(String(work.lessonID.prefix(6)))"
+        return "Lesson \(String(work.lessonID.prefix(6)))"
     }
     
     private var studentName: String {

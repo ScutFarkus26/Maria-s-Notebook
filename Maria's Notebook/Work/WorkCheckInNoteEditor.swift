@@ -11,7 +11,7 @@ struct WorkCheckInNoteEditor: View {
     
     var body: some View {
         VStack(alignment: .leading, spacing: 16) {
-            Text("Add CDNote")
+            Text("Add Note")
                 .font(AppTheme.ScaledFont.titleSmall)
             
             checkInInfo

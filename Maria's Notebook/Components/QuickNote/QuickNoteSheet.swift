@@ -95,7 +95,7 @@ struct QuickNoteSheet: View {
         VStack(spacing: 0) {
             // Header
             ZStack {
-                Text("New CDNote")
+                Text("New Note")
                     .font(.system(.headline, design: .rounded))
                     .foregroundStyle(.secondary)
                 
@@ -259,7 +259,7 @@ struct QuickNoteSheet: View {
                     // Toolbar
                     HStack {
                         Button { viewModel.isShowingStudentPicker = true } label: {
-                            Label("Add CDStudent", systemImage: "person.badge.plus")
+                            Label("Add Student", systemImage: "person.badge.plus")
                         }
                         .buttonStyle(.plain)
                         .popover(isPresented: $viewModel.isShowingStudentPicker) {
@@ -382,7 +382,7 @@ struct QuickNoteSheet: View {
 
                 iOSAccessoryBar(students: students)
             }
-            .navigationTitle("Quick CDNote")
+            .navigationTitle("Quick Note")
             .inlineNavigationTitle()
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) { Button("Cancel") { dismiss() } }

@@ -317,7 +317,7 @@ public struct AttendanceEmailSettingsView: View {
                     .foregroundStyle(.secondary)
                     .help("macOS uses your default Mail account; this setting applies to iOS only.")
                 #endif
-                Text("CDNote: iOS uses the preferred address when possible. macOS uses your default Mail account.")
+                Text("Note: iOS uses the preferred address when possible. macOS uses your default Mail account.")
                     .font(.footnote)
                     .foregroundStyle(.secondary)
             }

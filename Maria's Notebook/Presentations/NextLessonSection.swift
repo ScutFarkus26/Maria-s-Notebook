@@ -9,7 +9,7 @@ struct NextLessonSection: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {
             ExpandableSectionButton(
-                title: "Next CDLesson",
+                title: "Next Lesson",
                 isExpanded: viewModel.isNextLessonSectionExpanded,
                 action: {
                     adaptiveWithAnimation(.easeInOut(duration: 0.15)) {

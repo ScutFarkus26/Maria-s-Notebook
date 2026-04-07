@@ -100,7 +100,7 @@ struct LessonListRow: View {
     var onTrailingAccessoryTap: (() -> Void)?
 
     private var accessibilityLabelText: String {
-        var label = "CDLesson: \(lessonName)"
+        var label = "Lesson: \(lessonName)"
         if !studentNames.trimmed().isEmpty {
             label += ", for \(studentNames)"
         }

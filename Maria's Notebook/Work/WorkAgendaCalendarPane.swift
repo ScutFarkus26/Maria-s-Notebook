@@ -382,7 +382,7 @@ private struct CheckInStudentRow: View {
             }
 
             // Inline note field
-            TextField("CDNote about this student…", text: $noteText, axis: .vertical)
+            TextField("Note about this student…", text: $noteText, axis: .vertical)
                 .font(AppTheme.ScaledFont.caption)
                 .lineLimit(2...4)
                 .textFieldStyle(.roundedBorder)

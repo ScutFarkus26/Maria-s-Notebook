@@ -166,7 +166,7 @@ struct QuickNoteAIMenuButton: View {
                 if let onExpandNote {
                     Button(action: onExpandNote) {
                         Label {
-                            Text("Expand CDNote")
+                            Text("Expand Note")
                         } icon: {
                             Image(systemName: "arrow.up.left.and.arrow.down.right")
                         }
@@ -367,7 +367,7 @@ struct QuickNoteLessonPicker: View {
                     } label: {
                         HStack {
                             VStack(alignment: .leading, spacing: 2) {
-                                Text(lesson.name.isEmpty ? "Untitled CDLesson" : lesson.name)
+                                Text(lesson.name.isEmpty ? "Untitled Lesson" : lesson.name)
                                     .foregroundStyle(.primary)
                                 let subtitle = [lesson.subject, lesson.group]
                                     .filter { !$0.isEmpty }

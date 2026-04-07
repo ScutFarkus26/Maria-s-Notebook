@@ -74,7 +74,7 @@ struct AttendanceCard: View {
                     Image(systemName: "square.and.pencil")
                         .imageScale(.medium)
                         .foregroundStyle(.secondary)
-                        .accessibilityLabel("Add CDNote")
+                        .accessibilityLabel("Add Note")
                 }
                 .buttonStyle(.plain)
             }
@@ -294,7 +294,7 @@ struct AttendanceCard: View {
                     noteToEdit = resolvedNote.object
                     showingNoteEditor = true
                 } label: {
-                    Label("CDNote…", systemImage: "square.and.pencil")
+                    Label("Note…", systemImage: "square.and.pencil")
                 }
 
                 // Absence reason options (only show when status is absent)

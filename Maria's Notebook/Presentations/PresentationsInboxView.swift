@@ -261,7 +261,7 @@ extension PresentationsInboxView {
             let name = lesson.name.trimmed()
             if !name.isEmpty { return name }
         }
-        return "CDLesson \(String(la.lessonID.prefix(6)))"
+        return "Lesson \(String(la.lessonID.prefix(6)))"
     }
 
     func studentNames(for la: CDLessonAssignment, using lookupCache: [UUID: CDStudent]) -> String {

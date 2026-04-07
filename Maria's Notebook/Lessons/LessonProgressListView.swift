@@ -77,7 +77,7 @@ struct LessonProgressListView: View {
     private var headerSection: some View {
         HStack {
             VStack(alignment: .leading, spacing: 4) {
-                Text("CDLesson Progress")
+                Text("Lesson Progress")
                     .font(AppTheme.ScaledFont.titleLarge)
                 
                 Text("\(filteredLessons.count) \(filteredLessons.count == 1 ? "lesson" : "lessons")")

@@ -186,7 +186,7 @@ struct DropZone: View {
         .contextMenu {
             Button { onQuickActions(la) } label: { Label("Quick Actions…", systemImage: "bolt") }
             Button { onPlanNext(la) } label: {
-                Label("Plan Next CDLesson in Group", systemImage: SFSymbol.Time.calendarBadgePlus)
+                Label("Plan Next Lesson in Group", systemImage: SFSymbol.Time.calendarBadgePlus)
             }
             Button { onSelectLesson(la) } label: { Label("Open Details", systemImage: SFSymbol.Status.infoCircle) }
         }

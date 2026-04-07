@@ -36,7 +36,7 @@ extension RootSidebar {
                     Button {
                         appRouter.requestNewStudent()
                     } label: {
-                        Label("New CDStudent", systemImage: "person.badge.plus")
+                        Label("New Student", systemImage: "person.badge.plus")
                     }
 
                     Button {
@@ -66,7 +66,7 @@ extension RootSidebar {
                     Button {
                         appRouter.requestNewLesson()
                     } label: {
-                        Label("New CDLesson", systemImage: SFSymbol.Action.plusCircle)
+                        Label("New Lesson", systemImage: SFSymbol.Action.plusCircle)
                     }
 
                     Button {
@@ -195,7 +195,7 @@ extension RootSidebar {
                     Label("Attendance", systemImage: "checklist")
                 }
                 .buttonStyle(.plain)
-                .accessibilityHint("CDTrackEntity daily student attendance")
+                .accessibilityHint("Track daily student attendance")
             }
 
             Section("Curriculum") {
@@ -279,7 +279,7 @@ extension RootSidebar {
                     Label("Supplies", systemImage: "shippingbox")
                 }
                 .buttonStyle(.plain)
-                .accessibilityHint("CDTrackEntity classroom supplies and inventory")
+                .accessibilityHint("Track classroom supplies and inventory")
 
                 Button { selection = .procedures } label: {
                     Label("Procedures", systemImage: SFSymbol.CDDocument.docText)
@@ -303,7 +303,7 @@ extension RootSidebar {
                     Label("Issues", systemImage: "exclamationmark.triangle")
                 }
                 .buttonStyle(.plain)
-                .accessibilityHint("CDTrackEntity and resolve classroom issues")
+                .accessibilityHint("Track and resolve classroom issues")
             }
 
             Section("Tools") {

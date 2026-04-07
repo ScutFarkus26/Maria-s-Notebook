@@ -183,7 +183,7 @@ extension UnifiedPresentationWorkflowPanel {
     var studentEntriesSection: some View {
         VStack(alignment: .leading, spacing: 12) {
             HStack {
-                WorkflowSectionHeader(title: "CDStudent Status & Notes", icon: "person.2.fill")
+                WorkflowSectionHeader(title: "Student Status & Notes", icon: "person.2.fill")
 
                 Spacer()
 
@@ -274,7 +274,7 @@ extension UnifiedPresentationWorkflowPanel {
                     .font(AppTheme.ScaledFont.captionSemibold)
                     .foregroundStyle(.secondary)
 
-                TextField("CDNote about this student...", text: Binding(
+                TextField("Note about this student...", text: Binding(
                     get: { presentationViewModel.entries[studentID]?.observation ?? "" },
                     set: { presentationViewModel.entries[studentID]?.observation = $0 }
                 ), axis: .vertical)

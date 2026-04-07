@@ -217,7 +217,7 @@ public struct BulkLessonsEntryView: View {
                     Button {
                         commit()
                     } label: {
-                        Label("Add \(validCount) CDLesson\(validCount == 1 ? "" : "s")", systemImage: "plus.circle.fill")
+                        Label("Add \(validCount) Lesson\(validCount == 1 ? "" : "s")", systemImage: "plus.circle.fill")
                     }
                     .buttonStyle(.borderedProminent)
                     .disabled(validCount == 0)
@@ -279,7 +279,7 @@ public struct BulkLessonsEntryView: View {
             .buttonStyle(.plain)
             .frame(width: selectionColumnWidth)
 
-            TextField("CDLesson Name", text: row.name)
+            TextField("Lesson Name", text: row.name)
                 .textFieldStyle(.roundedBorder)
                 .frame(width: widths[0], alignment: .leading)
             TextField("Subject", text: row.subject)

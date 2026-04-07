@@ -110,7 +110,7 @@ struct PresentationQuickActionsView: View {
                     }
                 }
 
-                Section(header: Text("Next CDLesson in Group")) {
+                Section(header: Text("Next Lesson in Group")) {
                     if let next = nextLessonInGroup {
                         Text(next.name)
                             .fontWeight(.medium)
@@ -118,7 +118,7 @@ struct PresentationQuickActionsView: View {
                         Text("No next lesson available")
                             .foregroundStyle(.secondary)
                     }
-                    Button("Plan Next CDLesson in Group") {
+                    Button("Plan Next Lesson in Group") {
                         guard let next = nextLessonInGroup else { return }
                         // Do not create or plan lessons for zero students
                         guard !lessonAssignment.resolvedStudentIDs.isEmpty else { return }

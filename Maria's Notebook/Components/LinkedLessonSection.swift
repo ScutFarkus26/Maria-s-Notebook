@@ -13,7 +13,7 @@ struct LinkedLessonSection: View {
     
     var body: some View {
         VStack(alignment: .leading, spacing: 10) {
-            WorkSectionHeader(icon: "link", title: "Linked CDLesson")
+            WorkSectionHeader(icon: "link", title: "Linked Lesson")
                 .contentShape(Rectangle())
                 .onTapGesture { showingLinkPicker = true }
             
@@ -21,7 +21,7 @@ struct LinkedLessonSection: View {
                let snapshot = presentationSnapshotsByID[selectedID] {
                 
                 let lesson = lessonsByID[snapshot.lessonID]
-                let lessonName = lesson?.name ?? "Unknown CDLesson"
+                let lessonName = lesson?.name ?? "Unknown Lesson"
                 let date = snapshot.scheduledFor ?? snapshot.presentedAt ?? snapshot.createdAt
                 let formattedDate = createdDateOnlyFormatter.string(from: date)
                 
@@ -44,7 +44,7 @@ struct LinkedLessonSection: View {
                         Button {
                             onOpenBaseLesson()
                         } label: {
-                            Text("Base CDLesson")
+                            Text("Base Lesson")
                                 .frame(minWidth: 0)
                         }
                         .buttonStyle(.bordered)
@@ -59,7 +59,7 @@ struct LinkedLessonSection: View {
                     Button {
                         showingLinkPicker = true
                     } label: {
-                        Label("Link CDLesson…", systemImage: "link.badge.plus")
+                        Label("Link Lesson…", systemImage: "link.badge.plus")
                     }
                     .buttonStyle(.borderedProminent)
                 }
@@ -110,7 +110,7 @@ struct LinkedLessonSection: View {
                         }
                     }
                 }
-                .navigationTitle("Link to CDLesson")
+                .navigationTitle("Link to Lesson")
                 .toolbar {
                     ToolbarItem(placement: .cancellationAction) {
                         Button("Cancel") { showingLinkPicker = false }

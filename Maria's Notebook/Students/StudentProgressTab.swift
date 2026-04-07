@@ -268,8 +268,8 @@ struct StudentProgressTab: View {
                 if let lesson = progress.currentLesson, progress.totalSteps > 0 {
                     Divider().padding(.vertical, AppTheme.Spacing.xsmall)
                     NextItemBanner(
-                        iconName: "book.fill", label: "Next CDLesson",
-                        title: lesson.name.isEmpty ? "Untitled CDLesson" : lesson.name,
+                        iconName: "book.fill", label: "Next Lesson",
+                        title: lesson.name.isEmpty ? "Untitled Lesson" : lesson.name,
                         subtitle: nil, color: trackColor
                     )
                 } else if progress.isComplete && progress.totalSteps > 0 {

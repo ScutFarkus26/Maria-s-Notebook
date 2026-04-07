@@ -397,7 +397,7 @@ struct UnifiedPostPresentationSheet: View {
     private var studentEntriesSection: some View {
         VStack(alignment: .leading, spacing: AppTheme.Spacing.compact) {
             HStack {
-                Label("CDStudent Status & Notes", systemImage: "person.2.fill")
+                Label("Student Status & Notes", systemImage: "person.2.fill")
                     .font(AppTheme.ScaledFont.calloutSemibold)
                     .foregroundStyle(.secondary)
 

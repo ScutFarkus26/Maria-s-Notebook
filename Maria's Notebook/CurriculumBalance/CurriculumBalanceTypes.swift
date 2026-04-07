@@ -36,7 +36,7 @@ enum AnalyticsTimeRange: String, CaseIterable, Identifiable {
 /// View scope: classroom-wide vs per-student drill-down.
 enum AnalyticsScope: String, CaseIterable, Identifiable {
     case classroom = "Classroom"
-    case perStudent = "Per CDStudent"
+    case perStudent = "Per Student"
 
     var id: String { rawValue }
 }

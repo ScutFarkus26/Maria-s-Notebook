@@ -83,7 +83,7 @@ struct WorkAgendaDayColumn: View {
                 if !name.isEmpty { return name }
             }
         }
-        return "CDLesson \(String(work.lessonID.prefix(6)))"
+        return "Lesson \(String(work.lessonID.prefix(6)))"
     }
 
     /// Resolves display name for a work's studentID

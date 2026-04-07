@@ -210,7 +210,7 @@ struct ScheduleCard: View {
                             Text(student.fullName)
                                 .font(.subheadline)
                         } else {
-                            Text("Unknown CDStudent")
+                            Text("Unknown Student")
                                 .font(.subheadline)
                                 .foregroundStyle(.secondary)
                                 .italic()

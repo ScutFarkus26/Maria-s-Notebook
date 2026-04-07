@@ -17,7 +17,7 @@ struct LessonDetailWindowHost: View {
             })
             .frame(minWidth: 500, minHeight: 400)
         } else {
-            ContentUnavailableView("CDLesson Not Found", systemImage: "book.closed")
+            ContentUnavailableView("Lesson Not Found", systemImage: "book.closed")
                 .frame(minWidth: 400, minHeight: 300)
         }
     }

@@ -81,9 +81,9 @@ struct MeetingFormPane: View {
                 }
 
                 // Form fields
-                meetingField(title: "CDStudent Reflection", text: $reflectionText, placeholder: reflectionPlaceholder)
+                meetingField(title: "Student Reflection", text: $reflectionText, placeholder: reflectionPlaceholder)
                 meetingField(title: "Focus for This Week", text: $focusText, placeholder: focusPlaceholder)
-                meetingField(title: "CDLesson Requests", text: $requestsText, placeholder: requestsPlaceholder)
+                meetingField(title: "Lesson Requests", text: $requestsText, placeholder: requestsPlaceholder)
                 meetingField(title: "Guide Notes (private)", text: $guideNotesText, placeholder: guideNotesPlaceholder)
 
                 // Schedule Next Meeting
@@ -106,7 +106,7 @@ struct MeetingFormPane: View {
                     Button {
                         showingAddLessonSheet = true
                     } label: {
-                        Label("Add CDLesson to Inbox", systemImage: "plus.circle")
+                        Label("Add Lesson to Inbox", systemImage: "plus.circle")
                     }
                     .buttonStyle(.bordered)
 

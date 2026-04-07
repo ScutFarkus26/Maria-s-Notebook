@@ -16,7 +16,7 @@ extension LessonProgressView {
 
                 // Journey timeline
                 VStack(alignment: .leading, spacing: AppTheme.Spacing.compact) {
-                    Text("CDLesson Journey")
+                    Text("Lesson Journey")
                         .font(AppTheme.ScaledFont.titleSmall)
 
                     LessonJourneyTimeline(lesson: lesson, viewContext: viewContext)

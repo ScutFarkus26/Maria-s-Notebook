@@ -46,7 +46,7 @@ enum PersonalLessonKind: String, Codable, CaseIterable, Identifiable, Sendable {
         case .personal: return "Personal"
         case .observation: return "Observation"
         case .adaptation: return "Adaptation"
-        case .studentRequested: return "CDStudent Request"
+        case .studentRequested: return "Student Request"
         case .external: return "External"
         }
     }

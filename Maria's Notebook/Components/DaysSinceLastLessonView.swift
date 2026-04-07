@@ -51,7 +51,7 @@ struct DaysSinceLastLessonView: View {
     var body: some View {
         InfoRowView(
             icon: "calendar.badge.clock",
-            title: "School Days Since Last CDLesson",
+            title: "School Days Since Last Lesson",
             value: daysSince.map { String($0) } ?? "—"
         )
     }

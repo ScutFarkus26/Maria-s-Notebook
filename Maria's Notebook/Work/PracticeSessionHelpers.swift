@@ -25,7 +25,7 @@ enum StudentCategory: Int, Comparable {
         case .pastPractice:
             return "Practiced Before"
         case .neverReceived:
-            return "Never Received CDLesson"
+            return "Never Received Lesson"
         }
     }
 }

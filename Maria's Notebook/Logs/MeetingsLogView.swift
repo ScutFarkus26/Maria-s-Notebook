@@ -257,7 +257,7 @@ struct MeetingsLogView: View {
                 ContentUnavailableView(
                     "No Meetings",
                     systemImage: "person.2.circle",
-                    description: Text("CDStudent meetings will appear here.")
+                    description: Text("Student meetings will appear here.")
                 )
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
             } else {
@@ -301,7 +301,7 @@ struct MeetingsLogView: View {
                     Text(displayName(for: student))
                         .font(AppTheme.ScaledFont.bodySemibold)
                 } else {
-                    Text("Unknown CDStudent")
+                    Text("Unknown Student")
                         .font(AppTheme.ScaledFont.bodySemibold)
                         .foregroundStyle(.secondary)
                 }
@@ -358,7 +358,7 @@ struct MeetingsLogView: View {
                 Button {
                     openStudentInNewWindow(studentID)
                 } label: {
-                    Label("View CDStudent", systemImage: "person.text.rectangle")
+                    Label("View Student", systemImage: "person.text.rectangle")
                 }
                 #endif
             }

@@ -185,7 +185,7 @@ struct TrackFilteredListView: View, Identifiable {
 
             if let lessonID = UUID(uuidString: assignment.lessonID),
                let lesson = lessonsByID[lessonID] {
-                Text(lesson.name.isEmpty ? "Untitled CDLesson" : lesson.name)
+                Text(lesson.name.isEmpty ? "Untitled Lesson" : lesson.name)
                     .font(.body)
                     .foregroundStyle(.primary)
             } else if let titleSnapshot = assignment.lessonTitleSnapshot, !titleSnapshot.isEmpty {

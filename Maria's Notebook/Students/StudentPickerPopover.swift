@@ -119,7 +119,7 @@ struct StudentPickerPopover: View {
             Divider()
 
             HStack {
-                Button("New CDStudent…") {
+                Button("New Student…") {
                     showingAddStudent = true
                 }
 

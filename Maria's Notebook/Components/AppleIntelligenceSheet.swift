@@ -330,8 +330,8 @@ struct SmartNoteFormatter {
         switch scope {
         case .all: return "General / Class-wide"
         case .student(let id):
-            guard let student = students.first(where: { $0.id == id }) else { return "Unknown CDStudent" }
-            return anonymize ? "CDStudent \(student.firstName.prefix(1))" : "\(student.firstName) \(student.lastName)"
+            guard let student = students.first(where: { $0.id == id }) else { return "Unknown Student" }
+            return anonymize ? "Student \(student.firstName.prefix(1))" : "\(student.firstName) \(student.lastName)"
         case .students(let ids):
             if anonymize { return "Group of \(ids.count) Students" }
             let names = ids.compactMap { id in students.first(where: { $0.id == id })?.firstName }
@@ -340,7 +340,7 @@ struct SmartNoteFormatter {
     }
     
     private func resolveContextDetail(for note: CDNote) -> String {
-        if let lesson = note.lesson { return "CDLesson: \(lesson.name)" }
+        if let lesson = note.lesson { return "Lesson: \(lesson.name)" }
         if let work = note.work { return "Work: \(work.title)" }
         if let pres = note.lessonAssignment {
             let title = (pres.lessonTitleSnapshot ?? "").trimmed()

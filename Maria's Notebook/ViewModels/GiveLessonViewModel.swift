@@ -198,7 +198,7 @@ final class LessonPickerViewModel {
         
         var title: String {
             switch self {
-            case .missingLesson: return "Choose a CDLesson"
+            case .missingLesson: return "Choose a Lesson"
             case .persistFailed: return "Save Failed"
             }
         }

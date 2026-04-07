@@ -21,20 +21,20 @@ extension UnifiedNoteEditor {
 
     var contextTitle: String {
         switch context {
-        case .general: return "Quick CDNote"
-        case .lesson: return "CDLesson CDNote"
-        case .work: return "Work CDNote"
-        case .presentation: return "CDPresentation CDNote"
-        case .attendance: return "Attendance CDNote"
-        case .workCheckIn: return "Check-In CDNote"
-        case .workCompletion: return "Completion CDNote"
-        case .studentMeeting: return "Meeting CDNote"
-        case .projectSession: return "Session CDNote"
-        case .communityTopic: return "Topic CDNote"
-        case .reminder: return "CDReminder CDNote"
-        case .schoolDayOverride: return "Override CDNote"
-        case .goingOut: return "Going-Out CDNote"
-        case .transitionPlan: return "Transition CDNote"
+        case .general: return "Quick Note"
+        case .lesson: return "Lesson Note"
+        case .work: return "Work Note"
+        case .presentation: return "Presentation Note"
+        case .attendance: return "Attendance Note"
+        case .workCheckIn: return "Check-In Note"
+        case .workCompletion: return "Completion Note"
+        case .studentMeeting: return "Meeting Note"
+        case .projectSession: return "Session Note"
+        case .communityTopic: return "Topic Note"
+        case .reminder: return "Reminder Note"
+        case .schoolDayOverride: return "Override Note"
+        case .goingOut: return "Going-Out Note"
+        case .transitionPlan: return "Transition Note"
         }
     }
 

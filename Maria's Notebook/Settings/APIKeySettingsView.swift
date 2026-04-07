@@ -246,7 +246,7 @@ struct APIKeyInformationSheet: View {
                         
                         Text(
                             "Your API key is stored securely on your device."
-                            + " CDStudent data is sent directly to Anthropic's secure servers"
+                            + " Student data is sent directly to Anthropic's secure servers"
                             + " for analysis and is not stored by Anthropic or any third parties."
                         )
                             .font(.body)

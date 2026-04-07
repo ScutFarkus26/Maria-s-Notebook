@@ -153,7 +153,7 @@ struct StudentDetailView: View {
 
     private var headerRow: some View {
         HStack {
-            Text("CDStudent Info")
+            Text("Student Info")
                 .font(AppTheme.ScaledFont.titleSmall)
                 .frame(maxWidth: .infinity, alignment: .leading)
             
@@ -210,7 +210,7 @@ struct StudentDetailView: View {
         .overlay(alignment: .top) {
             StudentDetailToastOverlay(message: vm.toastMessage)
         }
-        .alert("Delete CDStudent?", isPresented: $showDeleteAlert) {
+        .alert("Delete Student?", isPresented: $showDeleteAlert) {
             Button("Delete", role: .destructive) {
                 do {
                     guard let studentID = student.id else { return }

@@ -49,7 +49,7 @@ struct TagHelper {
         ("Follow-up", TagColor.gray),
         ("Student", TagColor.green),
         ("Administrative", TagColor.orange),
-        ("CDLesson Planning", TagColor.blue),
+        ("Lesson Planning", TagColor.blue),
         ("Grading", TagColor.orange),
         ("Communication", TagColor.green),
         ("Professional Development", TagColor.pink)

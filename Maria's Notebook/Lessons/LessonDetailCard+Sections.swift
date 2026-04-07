@@ -12,7 +12,7 @@ extension LessonDetailCard {
     @ViewBuilder
     var headerBar: some View {
         HStack(alignment: .firstTextBaseline) {
-            Text(isEditing ? "Edit CDLesson" : "CDLesson Details")
+            Text(isEditing ? "Edit Lesson" : "Lesson Details")
                 .font(AppTheme.ScaledFont.titleSmall)
             Spacer()
             Button {

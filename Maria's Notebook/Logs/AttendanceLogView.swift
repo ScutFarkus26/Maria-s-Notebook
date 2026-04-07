@@ -418,7 +418,7 @@ struct AttendanceLogView: View {
                     Text(displayName(for: student))
                         .font(AppTheme.ScaledFont.bodySemibold)
                 } else {
-                    Text("Unknown CDStudent")
+                    Text("Unknown Student")
                         .font(AppTheme.ScaledFont.bodySemibold)
                         .foregroundStyle(.secondary)
                 }
@@ -477,7 +477,7 @@ struct AttendanceLogView: View {
                 Button {
                     openStudentInNewWindow(studentID)
                 } label: {
-                    Label("View CDStudent", systemImage: "person.text.rectangle")
+                    Label("View Student", systemImage: "person.text.rectangle")
                 }
                 #endif
             }

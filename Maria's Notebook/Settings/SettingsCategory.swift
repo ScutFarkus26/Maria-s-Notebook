@@ -21,7 +21,7 @@ enum SettingsCategory: String, CaseIterable, Identifiable, Hashable {
         case .dataSync: return "iCloud, Reminders, Calendar"
         case .classroom: return "Sharing, roles & members"
         case .backup: return "Export, restore & auto-backup"
-        case .templates: return "CDNote & meeting templates"
+        case .templates: return "Note & meeting templates"
         case .communication: return "Attendance email settings"
         case .aiFeatures: return "Claude, Ollama & Apple AI"
         case .database: return "Record counts & statistics"
@@ -78,14 +78,14 @@ enum SettingsCategory: String, CaseIterable, Identifiable, Hashable {
         case .general:
             return [
                 "School Calendar", "Non-School Days", "Clear Month", "Keep Weekends Only",
-                "Display & Colors", "CDLesson Age Indicators", "Warning Days", "Overdue Days",
+                "Display & Colors", "Lesson Age Indicators", "Warning Days", "Overdue Days",
                 "Fresh Color", "Warning Color", "Overdue Color",
                 "Work Age Indicators"
             ]
         case .dataSync:
             return [
                 "iCloud", "CloudKit", "Sync Now", "Last Synced", "Enable iCloud Backup",
-                "Reminders", "CDReminder List", "Request Access", "Sync Reminders",
+                "Reminders", "Reminder List", "Request Access", "Sync Reminders",
                 "Calendar", "Calendar Events", "Refresh Calendars"
             ]
         case .classroom:
@@ -100,7 +100,7 @@ enum SettingsCategory: String, CaseIterable, Identifiable, Hashable {
             ]
         case .templates:
             return [
-                "CDNote Templates", "Meeting Templates", "Manage Templates"
+                "Note Templates", "Meeting Templates", "Manage Templates"
             ]
         case .communication:
             return [
@@ -108,11 +108,11 @@ enum SettingsCategory: String, CaseIterable, Identifiable, Hashable {
             ]
         case .aiFeatures:
             return [
-                "AI Models", "Chat Model", "CDLesson Planning Model", "Background Tasks Model",
+                "AI Models", "Chat Model", "Lesson Planning Model", "Background Tasks Model",
                 "Apple Intelligence", "On-Device", "Ollama", "Server URL", "Model",
                 "Install Models", "Pull Model", "Claude API Key", "Anthropic",
                 "Configure API Key", "Sonnet", "Haiku", "Test Connection",
-                "CDLesson Planning Assistant", "Depth", "System Prompt", "Temperature", "Timeout",
+                "Lesson Planning Assistant", "Depth", "System Prompt", "Temperature", "Timeout",
                 "API Usage", "Estimated Cost"
             ]
         case .database:
@@ -121,11 +121,11 @@ enum SettingsCategory: String, CaseIterable, Identifiable, Hashable {
                 "Work Items", "Presentations", "Observations", "Meetings", "Practice",
                 "To-Do Items", "Reminders", "Tracks", "Calendar Events", "Projects",
                 "Attendance", "Supplies", "Issues", "Community", "Procedures",
-                "Documents", "CDLesson Files", "Templates", "Dev Snapshots"
+                "Documents", "Lesson Files", "Templates", "Dev Snapshots"
             ]
         case .advanced:
             return [
-                "Test Students", "Show Test Students", "Test CDStudent Names"
+                "Test Students", "Show Test Students", "Test Student Names"
             ]
         }
     }

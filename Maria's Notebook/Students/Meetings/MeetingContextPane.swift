@@ -29,7 +29,7 @@ struct MeetingContextPane: View {
                         adaptiveWithAnimation { isContextCollapsed.toggle() }
                     } label: {
                         HStack {
-                            Text("CDStudent Context")
+                            Text("Student Context")
                                 .font(.headline)
                             Spacer()
                             Image(systemName: isContextCollapsed ? "chevron.down" : "chevron.up")

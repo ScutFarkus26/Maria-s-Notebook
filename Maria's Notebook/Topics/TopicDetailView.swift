@@ -373,7 +373,7 @@ private struct MeetingNotesSection: View {
 
                 HStack {
                     Spacer()
-                    Button("Add CDNote", action: onAdd)
+                    Button("Add Note", action: onAdd)
                         .buttonStyle(.bordered)
                         .disabled(newNoteContent.trimmed().isEmpty)
                 }

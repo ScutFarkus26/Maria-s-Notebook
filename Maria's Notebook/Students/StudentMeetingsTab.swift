@@ -251,9 +251,9 @@ struct StudentMeetingsTab: View {
                         .foregroundStyle(.secondary)
                 }
 
-                textArea(title: "CDStudent reflection", text: $reflectionText, placeholder: reflectionPlaceholder)
+                textArea(title: "Student reflection", text: $reflectionText, placeholder: reflectionPlaceholder)
                 textArea(title: "Focus for this week", text: $focusText, placeholder: focusPlaceholder)
-                textArea(title: "CDLesson requests", text: $requestsText, placeholder: requestsPlaceholder)
+                textArea(title: "Lesson requests", text: $requestsText, placeholder: requestsPlaceholder)
                 textArea(title: "Guide notes (private)", text: $guideNotesText, placeholder: guideNotesPlaceholder)
 
                 OptionalDatePicker(

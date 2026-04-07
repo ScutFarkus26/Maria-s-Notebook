@@ -90,7 +90,7 @@ public final class BackupValidationService {
                     entityType: "Student",
                     entityID: student.id,
                     field: "firstName",
-                    message: "CDStudent has empty first name",
+                    message: "Student has empty first name",
                     severity: .error
                 ))
             }
@@ -100,7 +100,7 @@ public final class BackupValidationService {
                     entityType: "Student",
                     entityID: student.id,
                     field: "birthday",
-                    message: "CDStudent birthday is in the future",
+                    message: "Student birthday is in the future",
                     severity: .error
                 ))
             }
@@ -111,7 +111,7 @@ public final class BackupValidationService {
                 entityType: "Lesson",
                 entityID: lesson.id,
                 field: "name",
-                message: "CDLesson has empty name",
+                message: "Lesson has empty name",
                 severity: .error
             ))
         }

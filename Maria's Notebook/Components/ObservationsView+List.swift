@@ -113,7 +113,7 @@ extension ObservationsView {
             Button {
                 editItem(item)
             } label: {
-                Label("Edit CDNote", systemImage: "pencil")
+                Label("Edit Note", systemImage: "pencil")
             }
         }
     }
@@ -131,7 +131,7 @@ extension ObservationsView {
 
     // swiftlint:disable:next cyclomatic_complexity
     func contextText(for note: CDNote) -> String? {
-        if let lesson = note.lesson { return "CDLesson: \(lesson.name)" }
+        if let lesson = note.lesson { return "Lesson: \(lesson.name)" }
         if let work = note.work { return "Work: \(work.title)" }
         if note.lessonAssignment != nil { return "Presentation" }
         if note.attendanceRecord != nil { return "Attendance" }

@@ -262,7 +262,7 @@ struct LessonContextCard: View {
                 Image(systemName: "book.closed.fill")
                     .foregroundStyle(.indigo)
                     .font(.system(size: 16))
-                Text("CDLesson Context")
+                Text("Lesson Context")
                     .font(AppTheme.ScaledFont.calloutSemibold)
                     .foregroundStyle(.primary)
             }

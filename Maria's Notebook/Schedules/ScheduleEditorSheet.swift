@@ -219,7 +219,7 @@ struct ScheduleEditorSheet: View {
                         .foregroundStyle(.secondary)
                 }
             } label: {
-                Label("Add CDStudent", systemImage: "plus")
+                Label("Add Student", systemImage: "plus")
                     .font(.subheadline)
             }
             .buttonStyle(.bordered)
@@ -234,7 +234,7 @@ struct ScheduleEditorSheet: View {
                 Text(student.fullName)
                     .font(.subheadline)
             } else {
-                Text("Unknown CDStudent")
+                Text("Unknown Student")
                     .font(.subheadline)
                     .foregroundStyle(.secondary)
             }

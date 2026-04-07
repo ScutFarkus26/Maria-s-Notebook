@@ -69,7 +69,7 @@ struct PresentationPill: View {
             return name
         }
         // Fallback: show lesson ID prefix for debugging
-        return "CDLesson \(snapshot.lessonID.uuidString.prefix(6))"
+        return "Lesson \(snapshot.lessonID.uuidString.prefix(6))"
     }
 
     private var subjectColor: Color {

@@ -37,7 +37,7 @@ extension LessonsRootView {
                     Button {
                         showingAddLesson = true
                     } label: {
-                        Label("New CDLesson", systemImage: "plus.circle")
+                        Label("New Lesson", systemImage: "plus.circle")
                     }
 
                     Button {

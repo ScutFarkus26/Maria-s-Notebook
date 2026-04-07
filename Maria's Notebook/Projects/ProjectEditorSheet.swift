@@ -105,7 +105,7 @@ struct ProjectEditorSheet: View {
                             TextField("Title", text: $tpl.title)
                             TextField("Instructions", text: $tpl.instructions, axis: .vertical)
                             TextField(
-                                "Default Linked CDLesson ID (optional)",
+                                "Default Linked Lesson ID (optional)",
                                 text: Binding(
                                     get: { tpl.defaultLinkedLessonID ?? "" },
                                     set: { tpl.defaultLinkedLessonID = $0.isEmpty ? nil : $0 }

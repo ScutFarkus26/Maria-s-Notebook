@@ -53,7 +53,7 @@ struct StudentInsightsView: View {
             }
             .padding()
         }
-        .navigationTitle("CDStudent Insights")
+        .navigationTitle("Student Insights")
         .task {
             await loadSnapshots()
         }

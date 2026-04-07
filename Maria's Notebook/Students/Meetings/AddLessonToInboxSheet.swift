@@ -46,7 +46,7 @@ struct AddLessonToInboxSheet: View {
                 VStack(alignment: .leading, spacing: 20) {
                     // Header
                     VStack(alignment: .leading, spacing: 8) {
-                        Text("Add CDLesson to Inbox")
+                        Text("Add Lesson to Inbox")
                             .font(AppTheme.ScaledFont.titleXLarge)
                         
                         HStack(spacing: 6) {
@@ -226,7 +226,7 @@ struct AddLessonToInboxSheet: View {
         // Create a draft CDLessonAssignment (inbox item)
         guard let studentID = student.id else { return }
         _ = PresentationFactory.makeDraft(lessonID: lessonID, studentIDs: [studentID], context: viewContext)
-        saveCoordinator.save(viewContext, reason: "Add CDLesson to Inbox from Meeting")
+        saveCoordinator.save(viewContext, reason: "Add Lesson to Inbox from Meeting")
         dismiss()
     }
 }

@@ -134,7 +134,7 @@ struct PresentationStudentRow: View {
                 .font(AppTheme.ScaledFont.captionSemibold)
                 .foregroundStyle(.secondary)
 
-            TextField("CDNote about this student...", text: $entry.observation, axis: .vertical)
+            TextField("Note about this student...", text: $entry.observation, axis: .vertical)
                 .textFieldStyle(.roundedBorder)
                 .lineLimit(2...4)
         }
@@ -237,7 +237,7 @@ struct PresentationStudentRow: View {
         if let nextLesson {
             VStack(alignment: .leading, spacing: 8) {
                 HStack {
-                    Text("Next CDLesson")
+                    Text("Next Lesson")
                         .font(AppTheme.ScaledFont.captionSemibold)
                         .foregroundStyle(.secondary)
                     Spacer()
@@ -257,7 +257,7 @@ struct PresentationStudentRow: View {
                             .font(AppTheme.ScaledFont.captionSmall)
                             .foregroundStyle(.primary)
 
-                        Text(isUnlockSelected ? "Will be unlocked when you click Done" : "CDLesson will remain blocked")
+                        Text(isUnlockSelected ? "Will be unlocked when you click Done" : "Lesson will remain blocked")
                             .font(AppTheme.ScaledFont.captionSmall)
                             .foregroundStyle(isUnlockSelected ? .green : .secondary)
                     }

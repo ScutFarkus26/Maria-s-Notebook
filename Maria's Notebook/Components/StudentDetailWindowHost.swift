@@ -15,7 +15,7 @@ struct StudentDetailWindowHost: View {
             StudentDetailView(student: student)
                 .frame(minWidth: 500, minHeight: 400)
         } else {
-            ContentUnavailableView("CDStudent Not Found", systemImage: "person.slash")
+            ContentUnavailableView("Student Not Found", systemImage: "person.slash")
                 .frame(minWidth: 400, minHeight: 300)
         }
     }

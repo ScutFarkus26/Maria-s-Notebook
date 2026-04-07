@@ -162,7 +162,7 @@ struct StudentTrackDetailView: View {
             }
 
             VStack(spacing: 4) {
-                Text("CDTrackEntity Completed!")
+                Text("Track Completed!")
                     .font(.title2)
                     .fontWeight(.bold)
                     .foregroundStyle(.primary)

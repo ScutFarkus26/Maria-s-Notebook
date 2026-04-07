@@ -73,7 +73,7 @@ extension SettingsView {
                 content: {
                 VStack(spacing: 12) {
                     VStack(alignment: .leading, spacing: 8) {
-                        Text("CDLesson Age Indicators")
+                        Text("Lesson Age Indicators")
                             .font(.caption.weight(.semibold))
                             .foregroundStyle(.secondary)
                         LessonAgeSettingsView()
@@ -218,7 +218,7 @@ extension SettingsView {
     // 4. Templates
     var templatesSection: some View {
         VStack(spacing: 12) {
-            SettingsGroup(title: "CDNote Templates", systemImage: "note.text.badge.plus") {
+            SettingsGroup(title: "Note Templates", systemImage: "note.text.badge.plus") {
                 VStack(spacing: 8) {
                     HStack {
                         VStack(alignment: .leading, spacing: 2) {
@@ -348,7 +348,7 @@ extension SettingsView {
                 }
             }
 
-            SettingsGroup(title: "CDLesson Planning Assistant", systemImage: "list.clipboard", collapsible: true) {
+            SettingsGroup(title: "Lesson Planning Assistant", systemImage: "list.clipboard", collapsible: true) {
                 LessonPlanningSettingsView()
                     .frame(maxWidth: .infinity)
             }
@@ -500,7 +500,7 @@ extension SettingsView {
                             subtitle: "Files", systemImage: "doc.fill"
                         )
                         StatCard(
-                            title: "CDLesson Files",
+                            title: "Lesson Files",
                             value: "\(statsViewModel.lessonAttachmentsCount)",
                             subtitle: "Attachments",
                             systemImage: "paperclip"
@@ -512,7 +512,7 @@ extension SettingsView {
                             systemImage: "paperclip.badge.ellipsis"
                         )
                         StatCard(
-                            title: "CDNote Templates",
+                            title: "Note Templates",
                             value: "\(statsViewModel.noteTemplatesCount)",
                             subtitle: nil,
                             systemImage: "note.text.badge.plus"

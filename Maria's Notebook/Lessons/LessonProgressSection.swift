@@ -72,7 +72,7 @@ struct LessonProgressSection: View {
             Image(systemName: "checkmark.seal")
                 .foregroundStyle(.secondary)
                 .font(.system(size: 16))
-            Text("CDLesson Progress")
+            Text("Lesson Progress")
                 .font(AppTheme.ScaledFont.calloutSemibold)
                 .foregroundStyle(.secondary)
         }
@@ -258,7 +258,7 @@ struct LessonProgressSection: View {
                         Button {
                             planNextLessonInGroup()
                         } label: {
-                            Label("Plan Next CDLesson", systemImage: "calendar.badge.plus")
+                            Label("Plan Next Lesson", systemImage: "calendar.badge.plus")
                                 .font(AppTheme.ScaledFont.callout)
                         }
                         .buttonStyle(.borderedProminent)

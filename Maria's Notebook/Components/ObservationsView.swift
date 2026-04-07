@@ -195,7 +195,7 @@ struct ObservationsView: View {
             Button {
                 isShowingComposer = true
             } label: {
-                Label("New CDNote", systemImage: "square.and.pencil")
+                Label("New Note", systemImage: "square.and.pencil")
             }
         }
         ToolbarItem(placement: .automatic) {

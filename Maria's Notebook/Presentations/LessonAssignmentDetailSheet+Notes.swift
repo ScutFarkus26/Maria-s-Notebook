@@ -59,7 +59,7 @@ extension LessonAssignmentDetailSheet {
             Button {
                 noteBeingEdited = note
             } label: {
-                Label("Edit CDNote", systemImage: SFSymbol.Education.pencil)
+                Label("Edit Note", systemImage: SFSymbol.Education.pencil)
             }
         }
     }

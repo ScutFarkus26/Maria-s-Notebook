@@ -194,7 +194,7 @@ struct ProjectSessionDetailView: View {
                 if session.assignmentMode == .choice {
                     Section {
                         HStack {
-                            Label("CDStudent Choice", systemImage: "hand.tap")
+                            Label("Student Choice", systemImage: "hand.tap")
                             Spacer()
                             let totalCount = offeredWorks.count + sessionWorkModels.filter { !$0.isOffered }.count
                             Text("Pick \(session.minSelections) of \(totalCount)")

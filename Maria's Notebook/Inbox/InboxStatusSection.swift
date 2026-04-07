@@ -77,8 +77,8 @@ struct InboxStatusSection: View {
             )
 
             OptionalDatePicker(
-                toggleLabel: "CDSchedule CDLesson",
-                dateLabel: "CDSchedule For",
+                toggleLabel: "Schedule Lesson",
+                dateLabel: "Schedule For",
                 date: $scheduledFor,
                 displayedComponents: [.date, .hourAndMinute],
                 defaultHour: 9

@@ -187,7 +187,7 @@ struct PresentationNotesSectionUnified: View {
             Button {
                 noteBeingEdited = note
             } label: {
-                Label("Edit CDNote", systemImage: "pencil")
+                Label("Edit Note", systemImage: "pencil")
             }
         }
     }

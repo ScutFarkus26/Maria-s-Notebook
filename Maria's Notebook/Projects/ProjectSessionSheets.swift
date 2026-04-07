@@ -22,7 +22,7 @@ struct ProjectLessonPickerSheet: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
-            Text("Choose CDLesson")
+            Text("Choose Lesson")
                 .font(.title3).fontWeight(.semibold)
             TextField("Search…", text: $search)
                 .textFieldStyle(.roundedBorder)

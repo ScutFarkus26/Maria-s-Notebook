@@ -11,7 +11,7 @@ public enum RestorableEntityType: String, CaseIterable, Identifiable, Sendable {
     case lessons = "Lessons"
     case notes = "Notes"
     case calendar = "Calendar (Non-School Days & Overrides)"
-    case meetings = "CDStudent Meetings"
+    case meetings = "Student Meetings"
     case community = "Community Topics & Solutions"
     case attendance = "Attendance Records"
     case workCompletions = "Work Completion Records"

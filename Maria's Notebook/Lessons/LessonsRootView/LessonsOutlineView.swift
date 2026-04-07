@@ -185,7 +185,7 @@ struct LessonsOutlineView: View {
         let isSelected = selectedLessonID == lesson.id
         let lessonSeed = (lessonsByGroup[group] ?? [])
             .firstIndex(where: { $0.id == lesson.id }) ?? 0
-        let displayName = lesson.name.isEmpty ? "Untitled CDLesson" : lesson.name
+        let displayName = lesson.name.isEmpty ? "Untitled Lesson" : lesson.name
 
         HStack(spacing: 8) {
             VStack(alignment: .leading, spacing: 2) {

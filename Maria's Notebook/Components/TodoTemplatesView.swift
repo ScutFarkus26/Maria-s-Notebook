@@ -273,7 +273,7 @@ private struct TodoTemplateEditSheet: View {
         NavigationStack {
             Form {
                 Section("Template Name") {
-                    TextField("e.g., Weekly CDLesson Plan", text: $name)
+                    TextField("e.g., Weekly Lesson Plan", text: $name)
                 }
                 
                 Section("Default Todo Title") {

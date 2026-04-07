@@ -92,7 +92,7 @@ struct NoteTemplateManagementView: View {
             }
             .padding(SettingsStyle.padding)
         }
-        .navigationTitle("CDNote Templates")
+        .navigationTitle("Note Templates")
         .toolbar {
             ToolbarItem(placement: .primaryAction) {
                 Button {

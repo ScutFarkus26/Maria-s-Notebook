@@ -152,7 +152,7 @@ extension StudentNotesViewModel {
                     let name = lesson.name.trimmed()
                     return name.isEmpty ? "Lesson" : name
                 }
-                return "General CDNote"
+                return "General Note"
             }()
 
             return UnifiedNoteItem(
@@ -286,7 +286,7 @@ extension StudentNotesViewModel {
 
             return UnifiedNoteItem(
                 id: noteID, date: note.updatedAt ?? Date(), body: note.body,
-                source: .attendance, contextText: "Attendance CDNote",
+                source: .attendance, contextText: "Attendance Note",
                 color: record.status.color, associatedID: record.id,
                 tags: note.tagsArray, includeInReport: note.includeInReport,
                 needsFollowUp: note.needsFollowUp, imagePath: note.imagePath,

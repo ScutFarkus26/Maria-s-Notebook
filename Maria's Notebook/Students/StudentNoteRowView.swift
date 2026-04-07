@@ -168,7 +168,7 @@ struct StudentNoteRowView_Previews: PreviewProvider {
             StudentNoteRowView(item: UnifiedNoteItem(
                 id: UUID(),
                 date: Date(),
-                body: "CDStudent showed great enthusiasm for the decimal system introduction today.",
+                body: "Student showed great enthusiasm for the decimal system introduction today.",
                 source: .lesson,
                 contextText: "Decimal System",
                 color: .green,
@@ -207,7 +207,7 @@ struct StudentNoteRowView_Previews: PreviewProvider {
                 date: Date().addingTimeInterval(-172800),
                 body: "Parent mentioned that student was very excited about the math lesson.",
                 source: .general,
-                contextText: "General CDNote",
+                contextText: "General Note",
                 color: .blue,
                 associatedID: nil,
                 tags: [],
