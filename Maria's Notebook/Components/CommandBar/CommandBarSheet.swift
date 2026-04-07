@@ -13,7 +13,7 @@ struct CommandBarSheet: View {
     var onPresentation: (UUID) -> Void
     var onWorkItem: (UUID?, Set<UUID>) -> Void
     var onPractice: ((UUID?, Set<UUID>) -> Void)?
-    var onNote: (UUID?, String) -> Void
+    var onNote: (Set<UUID>, String, [String]) -> Void
     var onTodo: (String) -> Void
 
     // MARK: - Data
@@ -311,8 +311,8 @@ struct CommandBarSheet: View {
             onWorkItem(lessonID, studentIDs)
         case .openPractice(let lessonID, let studentIDs):
             onPractice?(lessonID, studentIDs)
-        case .openNote(let studentID, let bodyText):
-            onNote(studentID, bodyText)
+        case .openNote(let studentIDs, let bodyText, let inferredTags):
+            onNote(studentIDs, bodyText, inferredTags)
         case .openTodo(let titleText):
             onTodo(titleText)
         }

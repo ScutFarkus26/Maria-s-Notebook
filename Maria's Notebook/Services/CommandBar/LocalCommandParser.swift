@@ -77,17 +77,14 @@ actor LocalCommandParser {
             in: normalized, lessons: lessons, students: students
         )
 
-        // Step 4: Extract free text (everything not consumed)
-        let freeText = extractFreeText(
-            from: normalized,
-            intent: intent,
-            studentNames: matchedStudentIDs.compactMap { id in
-                students.first { $0.id == id }
-            }.map { "\($0.firstName) \($0.lastName)".lowercased() },
-            lessonName: matchedLessonName?.lowercased()
-        )
+        // Step 4: Extract free text — only strip the intent keyword prefix,
+        // preserving the user's original observation text intact
+        let freeText = extractFreeText(from: input, intent: intent)
 
-        // Step 5: Compute confidence
+        // Step 5: Infer Montessori observation tags from the text
+        let inferredTags = inferTags(from: normalized)
+
+        // Step 6: Compute confidence
         var confidence = intentConfidence
         if !matchedStudentIDs.isEmpty { confidence += 0.2 }
         if matchedLessonID != nil { confidence += 0.2 }
@@ -104,6 +101,7 @@ actor LocalCommandParser {
             },
             rawLessonName: matchedLessonName,
             freeText: freeText,
+            inferredTags: inferredTags,
             confidence: confidence
         )
 
@@ -203,41 +201,89 @@ actor LocalCommandParser {
 
     // MARK: - Free Text Extraction
 
-    private func extractFreeText(
-        from text: String,
-        intent: RecordIntent,
-        studentNames: [String],
-        lessonName: String?
-    ) -> String {
-        var remaining = text
-
-        // Remove intent keywords
-        let allKeywords = Self.presentationKeywords
-            .union(Self.workKeywords)
-            .union(Self.noteKeywords)
-            .union(Self.todoKeywords)
-
-        for keyword in allKeywords where remaining.contains(keyword) {
-            remaining = remaining.replacingOccurrences(of: keyword, with: "")
+    /// Light-touch extraction: only strips the intent trigger keyword/phrase from the
+    /// original input, preserving student names, filler words, and everything else.
+    private func extractFreeText(from originalInput: String, intent: RecordIntent) -> String {
+        let keywords: Set<String> = switch intent {
+        case .recordPresentation: Self.presentationKeywords
+        case .assignWork: Self.workKeywords
+        case .recordPractice: Self.practiceKeywords
+        case .addNote: Self.noteKeywords
+        case .addTodo: Self.todoKeywords
         }
 
-        // Remove student names
-        for name in studentNames {
-            remaining = remaining.replacingOccurrences(of: name, with: "")
+        var result = originalInput
+
+        // Check multi-word phrases first
+        for entry in Self.phrasePrefixes where entry.intent == intent {
+            if let range = result.range(of: entry.phrase, options: .caseInsensitive) {
+                result.removeSubrange(range)
+                break
+            }
         }
 
-        // Remove lesson name
-        if let lesson = lessonName {
-            remaining = remaining.replacingOccurrences(of: lesson, with: "")
+        // Remove the first occurrence of the matched intent keyword
+        let lower = result.lowercased()
+        for keyword in keywords {
+            if let range = lower.range(of: "\\b\(NSRegularExpression.escapedPattern(for: keyword))\\b",
+                                       options: .regularExpression) {
+                // Map the range from the lowercased copy to the original
+                let startOffset = lower.distance(from: lower.startIndex, to: range.lowerBound)
+                let endOffset = lower.distance(from: lower.startIndex, to: range.upperBound)
+                let originalStart = result.index(result.startIndex, offsetBy: startOffset)
+                let originalEnd = result.index(result.startIndex, offsetBy: endOffset)
+                result.removeSubrange(originalStart..<originalEnd)
+                break
+            }
         }
 
-        // Remove common filler words
-        let fillers = ["to", "the", "a", "an", "on", "for", "and", "with", "i", "me"]
-        let words = remaining.split(separator: " ").map { String($0) }
-        let filtered = words.filter { !fillers.contains($0) }
+        // Trim leading/trailing whitespace, colons, dashes
+        let trimChars = CharacterSet.whitespaces.union(CharacterSet(charactersIn: ":-–—"))
+        return result.trimmingCharacters(in: trimChars)
+    }
 
-        return filtered.joined(separator: " ")
-            .trimmed()
+    // MARK: - Tag Inference
+
+    /// Infer Montessori observation tags from text via keyword matching.
+    private func inferTags(from normalizedText: String) -> [String] {
+        let tagKeywords: [(keywords: [String], tag: String)] = [
+            (["concentrat", "focused", "deep work", "absorbed", "engrossed"],
+             MontessoriObservationTags.concentration),
+            (["repeat", "again and again", "over and over"],
+             MontessoriObservationTags.repetition),
+            (["social", "together", "collaborat", "friend", "peer", "group work"],
+             MontessoriObservationTags.socialInteraction),
+            (["independent", "by himself", "by herself", "on her own", "on his own", "alone"],
+             MontessoriObservationTags.independence),
+            (["material", "manipulat", "using the"],
+             MontessoriObservationTags.materialUse),
+            (["walking", "running", "climbing", "gross motor", "fine motor"],
+             MontessoriObservationTags.movement),
+            (["order", "organiz", "tidy", "neat", "arranging"],
+             MontessoriObservationTags.loveOfOrder),
+            (["disciplin", "self-control", "patient", "waiting"],
+             MontessoriObservationTags.selfDiscipline),
+            (["grace", "courtesy", "polite", "manners"],
+             MontessoriObservationTags.graceAndCourtesy),
+            (["practical life", "pouring", "sweeping", "buttoning", "dressing"],
+             MontessoriObservationTags.practicalLife),
+            (["sensorial", "texture", "color sorting", "grading"],
+             MontessoriObservationTags.sensorial),
+            (["language", "reading", "writing", "phonetic", "letter sound"],
+             MontessoriObservationTags.languageDevelopment),
+            (["math", "counting", "number", "addition", "stamp game", "bead"],
+             MontessoriObservationTags.mathematicalThinking),
+            (["culture", "geography", "continent", "map", "science", "botany", "zoology"],
+             MontessoriObservationTags.culturalExploration)
+        ]
+
+        var matched: [String] = []
+        for entry in tagKeywords {
+            if entry.keywords.contains(where: { normalizedText.contains($0) }) {
+                matched.append(entry.tag)
+            }
+        }
+        return matched
     }
 
     // MARK: - Levenshtein Distance

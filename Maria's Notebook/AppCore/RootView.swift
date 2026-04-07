@@ -45,8 +45,9 @@ struct RootView: View {
     @State private var selectedNavItem: NavigationItem = .today
 
     // Command bar pre-population state
-    @State private var commandBarNoteStudentID: UUID?
+    @State private var commandBarNoteStudentIDs: Set<UUID> = []
     @State private var commandBarNoteText: String = ""
+    @State private var commandBarNoteInferredTags: [String] = []
     @State private var commandBarWorkLessonID: UUID?
     @State private var commandBarWorkStudentIDs: Set<UUID> = []
     @State private var commandBarTodoTitle: String = ""
@@ -151,12 +152,14 @@ struct RootView: View {
         }
         .sheet(isPresented: $isShowingQuickNote) {
             QuickNoteSheet(
-                initialStudentID: commandBarNoteStudentID,
-                initialBodyText: commandBarNoteText
+                initialStudentIDs: commandBarNoteStudentIDs,
+                initialBodyText: commandBarNoteText,
+                initialTags: commandBarNoteInferredTags
             )
             .onDisappear {
-                commandBarNoteStudentID = nil
+                commandBarNoteStudentIDs = []
                 commandBarNoteText = ""
+                commandBarNoteInferredTags = []
             }
         }
         .sheet(isPresented: $isShowingCommandBar) {
@@ -171,10 +174,11 @@ struct RootView: View {
                     commandBarWorkStudentIDs = studentIDs
                     isShowingNewWorkItem = true
                 },
-                onNote: { studentID, bodyText in
+                onNote: { studentIDs, bodyText, inferredTags in
                     isShowingCommandBar = false
-                    commandBarNoteStudentID = studentID
+                    commandBarNoteStudentIDs = studentIDs
                     commandBarNoteText = bodyText
+                    commandBarNoteInferredTags = inferredTags
                     isShowingQuickNote = true
                 },
                 onTodo: { titleText in

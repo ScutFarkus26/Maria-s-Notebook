@@ -54,6 +54,7 @@ struct ParsedCommand: Sendable {
     let rawStudentNames: [String]
     let rawLessonName: String?
     let freeText: String
+    let inferredTags: [String]
     let confidence: Double
 
     static let confidenceThreshold: Double = 0.6
@@ -75,6 +76,6 @@ enum CommandAction {
     case openPresentation(draftID: UUID)
     case openWorkItem(lessonID: UUID?, studentIDs: Set<UUID>)
     case openPractice(lessonID: UUID?, studentIDs: Set<UUID>)
-    case openNote(studentID: UUID?, bodyText: String)
+    case openNote(studentIDs: Set<UUID>, bodyText: String, inferredTags: [String])
     case openTodo(titleText: String)
 }

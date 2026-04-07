@@ -73,6 +73,7 @@ final class ClaudeCommandParser {
             rawStudentNames: response.studentNames,
             rawLessonName: response.lessonName,
             freeText: response.freeText,
+            inferredTags: [],
             confidence: response.confidence
         )
     }

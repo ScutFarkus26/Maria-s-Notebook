@@ -64,14 +64,15 @@ class QuickNoteViewModel {
 
     // MARK: - Initialization
 
-    init(initialStudentID: UUID? = nil, initialBodyText: String = "") {
-        self.initialStudentID = initialStudentID
+    init(initialStudentIDs: Set<UUID> = [], initialBodyText: String = "", initialTags: [String] = []) {
+        self.initialStudentID = initialStudentIDs.first
+        self.selectedStudentIDs = initialStudentIDs
 
-        if let initialID = initialStudentID {
-            self.selectedStudentIDs.insert(initialID)
-        }
         if !initialBodyText.isEmpty {
             self.bodyText = initialBodyText
+        }
+        if !initialTags.isEmpty {
+            self.tags = initialTags
         }
     }
     

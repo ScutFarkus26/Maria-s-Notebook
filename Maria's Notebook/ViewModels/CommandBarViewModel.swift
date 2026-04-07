@@ -117,9 +117,11 @@ final class CommandBarViewModel {
             )
 
         case .addNote:
+            let bodyText = command.freeText.isEmpty ? inputText : command.freeText
             return .openNote(
-                studentID: command.studentIDs.first,
-                bodyText: command.freeText
+                studentIDs: Set(command.studentIDs),
+                bodyText: bodyText,
+                inferredTags: command.inferredTags
             )
 
         case .addTodo:

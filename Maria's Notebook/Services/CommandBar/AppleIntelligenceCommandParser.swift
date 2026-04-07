@@ -102,6 +102,7 @@ final class AppleIntelligenceCommandParser {
             rawStudentNames: parsed.studentNames,
             rawLessonName: parsed.lessonName.isEmpty ? nil : parsed.lessonName,
             freeText: parsed.freeText,
+            inferredTags: [],
             confidence: min(confidence, 1.0)
         )
     }
