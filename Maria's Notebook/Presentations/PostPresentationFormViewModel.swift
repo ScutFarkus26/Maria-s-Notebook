@@ -56,9 +56,25 @@ final class PostPresentationFormViewModel {
     var isNextLessonSectionExpanded: Bool = false
 
     // MARK: - Computed Properties
-    
-    var canDismiss: Bool {
+
+    /// Whether the form has a valid status selected (required to complete).
+    var hasValidStatus: Bool {
         status == .justPresented || status == .previouslyPresented
+    }
+
+    /// Whether the form has unsaved content the user would lose by dismissing.
+    var hasUnsavedContent: Bool {
+        if !groupObservation.trimmed().isEmpty { return true }
+        if !bulkAssignment.trimmed().isEmpty { return true }
+        if entries.values.contains(where: { !$0.observation.trimmed().isEmpty || !$0.assignment.trimmed().isEmpty }) {
+            return true
+        }
+        return false
+    }
+
+    /// Controls interactive dismiss: blocks if status is invalid OR if there's unsaved content.
+    var canDismiss: Bool {
+        hasValidStatus && !hasUnsavedContent
     }
 
     // MARK: - Initialization

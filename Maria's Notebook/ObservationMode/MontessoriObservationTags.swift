@@ -22,6 +22,15 @@ enum MontessoriObservationTags {
     static let attachmentToReality = TagHelper.createTag(name: "Attachment to Reality", color: .blue)
     static let selfDiscipline = TagHelper.createTag(name: "Self-Discipline", color: .orange)
 
+    // MARK: - AMI Curriculum Domain Tags
+
+    static let graceAndCourtesy = TagHelper.createTag(name: "Grace & Courtesy", color: .purple)
+    static let practicalLife = TagHelper.createTag(name: "Practical Life", color: .green)
+    static let sensorial = TagHelper.createTag(name: "Sensorial", color: .orange)
+    static let languageDevelopment = TagHelper.createTag(name: "Language Development", color: .blue)
+    static let mathematicalThinking = TagHelper.createTag(name: "Mathematical Thinking", color: .red)
+    static let culturalExploration = TagHelper.createTag(name: "Cultural Exploration", color: .purple)
+
     /// All observation tags for the quick-tag bar
     static let allTags: [String] = [
         concentration,
@@ -37,6 +46,16 @@ enum MontessoriObservationTags {
         selfDiscipline
     ]
 
+    /// AMI curriculum domain tags
+    static let curriculumDomainTags: [String] = [
+        graceAndCourtesy,
+        practicalLife,
+        sensorial,
+        languageDevelopment,
+        mathematicalThinking,
+        culturalExploration
+    ]
+
     /// Normalization indicator tags specifically (subset of allTags)
     static let normalizationIndicators: [String] = [
         concentration,
@@ -46,9 +65,10 @@ enum MontessoriObservationTags {
         selfDiscipline
     ]
 
-    /// Check if a given tag is a Montessori observation tag
+    /// Check if a given tag is a Montessori observation tag (including curriculum domains)
     static func isObservationTag(_ tag: String) -> Bool {
         let name = TagHelper.tagName(tag)
-        return allTags.contains { TagHelper.tagName($0) == name }
+        let combined = allTags + curriculumDomainTags
+        return combined.contains { TagHelper.tagName($0) == name }
     }
 }

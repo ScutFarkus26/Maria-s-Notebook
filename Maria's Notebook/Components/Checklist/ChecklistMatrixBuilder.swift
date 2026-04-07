@@ -16,6 +16,7 @@ enum ChecklistMatrixBuilder {
     ///   - lessons: Lessons to include in the matrix
     ///   - context: Model context for fetching data
     /// - Returns: Dictionary mapping student ID -> lesson ID -> state
+    @MainActor
     static func buildMatrix(
         students: [CDStudent],
         lessons: [CDLesson],
@@ -49,9 +50,21 @@ enum ChecklistMatrixBuilder {
         let calendar = Calendar.current
         let today = calendar.startOfDay(for: Date())
 
+        // Pre-compute preceding lessons and progression rules for blocking reasons
+        var precedingLessonMap: [UUID: CDLesson] = [:]
+        var progressionRulesMap: [UUID: LessonProgressionRules.ResolvedRules] = [:]
+        for lesson in lessons {
+            guard let lessonID = lesson.id else { continue }
+            if let preceding = BlockingAlgorithmEngine.findPrecedingLesson(currentLesson: lesson, lessons: lessons) {
+                precedingLessonMap[lessonID] = preceding
+                progressionRulesMap[lessonID] = LessonProgressionRules.resolve(for: preceding, context: context)
+            }
+        }
+
         for student in students {
             var studentRow: [UUID: StudentChecklistRowState] = [:]
             let studentKey = student.cloudKitKey
+            let studentUUID = student.id ?? UUID()
 
             for lesson in lessons {
                 guard let lessonID = lesson.id else { continue }
@@ -63,12 +76,29 @@ enum ChecklistMatrixBuilder {
                     ((work.participants?.allObjects as? [CDWorkParticipantEntity]) ?? []).contains { $0.studentID == studentKey }
                 }
 
+                // Compute blocking reason for empty/scheduled cells
+                let blockingReason: BlockingReason
+                let isPresented = studentLAs.contains { $0.isPresented }
+                if !isPresented, let precedingLesson = precedingLessonMap[lessonID] {
+                    blockingReason = computeBlockingReason(
+                        precedingLesson: precedingLesson,
+                        rules: progressionRulesMap[lessonID],
+                        studentID: studentUUID,
+                        studentKey: studentKey,
+                        lasByLessonID: lasByLessonID,
+                        worksByLessonID: worksByLessonID
+                    )
+                } else {
+                    blockingReason = .none
+                }
+
                 let state = buildCellState(
                     lesson: lesson,
                     studentLAs: studentLAs,
                     studentWorkModels: studentWorks,
                     calendar: calendar,
-                    today: today
+                    today: today,
+                    blockingReason: blockingReason
                 )
                 studentRow[lessonID] = state
             }
@@ -84,12 +114,66 @@ enum ChecklistMatrixBuilder {
     /// Staleness threshold: 14 weekdays (approx 2.8 calendar weeks)
     private static let staleWeekdays = 14
 
+    /// Computes why a student is blocked from a lesson based on the preceding lesson's state.
+    @MainActor
+    private static func computeBlockingReason(
+        precedingLesson: CDLesson,
+        rules: LessonProgressionRules.ResolvedRules?,
+        studentID: UUID,
+        studentKey: String,
+        lasByLessonID: [String: [CDLessonAssignment]],
+        worksByLessonID: [String: [CDWorkModel]]
+    ) -> BlockingReason {
+        guard let rules, (rules.requiresPractice || rules.requiresTeacherConfirmation) else {
+            return .none
+        }
+
+        let precedingIDStr = precedingLesson.id?.uuidString ?? ""
+        let precedingLAs = lasByLessonID[precedingIDStr] ?? []
+        let presentedLA = precedingLAs.first { $0.isPresented && $0.studentIDs.contains(studentKey) }
+
+        guard let presentedLA else {
+            // Preceding lesson hasn't been presented to this student
+            return .prerequisiteNotPresented
+        }
+
+        var needsPractice = false
+        var needsConfirmation = false
+
+        if rules.requiresPractice {
+            let precedingWorks = worksByLessonID[precedingIDStr] ?? []
+            let studentWorks = precedingWorks.filter { work in
+                ((work.participants?.allObjects as? [CDWorkParticipantEntity]) ?? []).contains { $0.studentID == studentKey }
+            }
+            let allComplete = !studentWorks.isEmpty && studentWorks.allSatisfy { $0.status == WorkStatus.complete }
+            if studentWorks.isEmpty || !allComplete {
+                needsPractice = true
+            }
+        }
+
+        if rules.requiresTeacherConfirmation {
+            if !presentedLA.isStudentConfirmed(studentID) {
+                needsConfirmation = true
+            }
+        }
+
+        if needsPractice && needsConfirmation {
+            return .practiceAndConfirmation
+        } else if needsPractice {
+            return .practiceRequired
+        } else if needsConfirmation {
+            return .confirmationRequired
+        }
+        return .none
+    }
+
     private static func buildCellState(
         lesson: CDLesson,
         studentLAs: [CDLessonAssignment],
         studentWorkModels: [CDWorkModel],
         calendar: Calendar,
-        today: Date
+        today: Date,
+        blockingReason: BlockingReason = .none
     ) -> StudentChecklistRowState {
         let nonPresented = studentLAs.filter { !$0.isPresented }
         let plannedCandidate = nonPresented.first
@@ -134,7 +218,8 @@ enum ChecklistMatrixBuilder {
             isWorkReview: isWorkReview,
             lastActivityDate: lastActivityDate,
             isStale: isStale,
-            isInboxPlan: isInboxPlan
+            isInboxPlan: isInboxPlan,
+            blockingReason: blockingReason
         )
     }
 }

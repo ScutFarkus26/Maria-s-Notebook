@@ -19,7 +19,7 @@ extension UnifiedPresentationWorkflowPanel {
 
     var canComplete: Bool {
         // Must have valid presentation status
-        presentationViewModel.canDismiss
+        presentationViewModel.hasValidStatus
     }
 
     // Progress tracking

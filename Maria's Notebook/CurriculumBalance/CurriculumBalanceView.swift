@@ -9,6 +9,7 @@ import CoreData
 struct CurriculumBalanceView: View {
     @Environment(\.managedObjectContext) private var viewContext
     @State private var viewModel = CurriculumBalanceViewModel()
+    @State private var selectedGapSubjectName: String?
 
     // Change detection to trigger reload when assignments change
     @FetchRequest(sortDescriptors: [NSSortDescriptor(keyPath: \CDLessonAssignment.id, ascending: true)]) private var assignmentsForChange: FetchedResults<CDLessonAssignment>
@@ -152,7 +153,17 @@ struct CurriculumBalanceView: View {
         VStack(spacing: 16) {
             SubjectDistributionChart(data: viewModel.classroomDistribution)
             SubjectWeeklyTrendChart(data: viewModel.weeklyTrends)
-            CurriculumBalanceGapSection(gaps: viewModel.classroomGaps)
+            CurriculumBalanceGapSection(gaps: viewModel.classroomGaps) { gap in
+                selectedGapSubjectName = gap.subject
+            }
+        }
+        .sheet(isPresented: Binding(
+            get: { selectedGapSubjectName != nil },
+            set: { if !$0 { selectedGapSubjectName = nil } }
+        )) {
+            if let subject = selectedGapSubjectName {
+                GapActionSheet(subject: subject, context: viewContext)
+            }
         }
     }
 

@@ -40,6 +40,7 @@ struct QuickNoteSheet: View {
 
     // MARK: - UI State
     @FocusState private var isFocused: Bool
+    @State private var showQuickTags: Bool = false
 
     // MARK: - Init
     init(initialStudentID: UUID? = nil, initialBodyText: String = "") {
@@ -57,9 +58,9 @@ struct QuickNoteSheet: View {
                 // CDNote: ViewModel holds students for display name logic
                 viewModel.setupInitialState()
                 
-                // Delay focus to allow animation
+                // Brief delay for sheet animation to complete
                 do {
-                    try await Task.sleep(for: .milliseconds(500))
+                    try await Task.sleep(for: .milliseconds(100))
                 } catch {
                     Self.logger.warning("Failed to delay focus: \(error)")
                 }
@@ -119,16 +120,22 @@ struct QuickNoteSheet: View {
                             .labelsHidden().datePickerStyle(.compact)
                     }
                     
-                    // Tags
+                    // Montessori Quick Tags
+                    ObservationQuickTagBar(selectedTags: $viewModel.tags)
+
+                    // Custom Tags (non-Montessori tags added via full picker)
                     VStack(alignment: .leading, spacing: 4) {
-                        Label("Tags", systemImage: "tag")
+                        Label("Custom Tags", systemImage: "tag")
                             .font(.caption).foregroundStyle(.secondary)
-                        
+
+                        let quickTagSet = Set(MontessoriObservationTags.allTags + DevelopmentalCharacteristic.allCases.map(\.tag))
+                        let customTags = viewModel.tags.filter { !quickTagSet.contains($0) }
+
                         FlowLayout(spacing: 4) {
-                            ForEach(viewModel.tags, id: \.self) { tag in
+                            ForEach(customTags, id: \.self) { tag in
                                 TagBadge(tag: tag, compact: true)
                             }
-                            
+
                             Button {
                                 viewModel.showingTagPicker = true
                             } label: {
@@ -350,7 +357,15 @@ struct QuickNoteSheet: View {
                     )
                     .padding(.bottom, 8)
                 }
-                
+
+                // Montessori Quick Tags
+                if showQuickTags {
+                    ObservationQuickTagBar(selectedTags: $viewModel.tags)
+                        .padding(.horizontal)
+                        .padding(.bottom, 8)
+                        .transition(.move(edge: .bottom).combined(with: .opacity))
+                }
+
                 Divider()
 
                 iOSAccessoryBar(students: students)
@@ -428,8 +443,12 @@ struct QuickNoteSheet: View {
                     .fixedSize()
             }
 
-            // Tags
-            Button { viewModel.showingTagPicker = true } label: {
+            // Tags — tap toggles quick tags, long press opens full picker
+            Button {
+                withAnimation(.snappy(duration: 0.2)) {
+                    showQuickTags.toggle()
+                }
+            } label: {
                 HStack(spacing: 4) {
                     Image(systemName: "tag")
                     if !viewModel.tags.isEmpty {
@@ -438,9 +457,12 @@ struct QuickNoteSheet: View {
                             .fontWeight(.bold)
                     }
                 }
-                .foregroundStyle(viewModel.tags.isEmpty ? Color.primary : Color.blue)
+                .foregroundStyle(showQuickTags ? Color.accentColor : (viewModel.tags.isEmpty ? Color.primary : Color.blue))
                 .font(AppTheme.ScaledFont.titleMedium)
             }
+            .simultaneousGesture(LongPressGesture().onEnded { _ in
+                viewModel.showingTagPicker = true
+            })
 
             // Divider
             Rectangle().fill(Color.secondary.opacity(UIConstants.OpacityConstants.semi)).frame(width: 1, height: 16)

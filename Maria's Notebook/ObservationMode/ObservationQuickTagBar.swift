@@ -12,6 +12,9 @@ struct ObservationQuickTagBar: View {
             // Observation tags section
             observationTagsSection
 
+            // AMI curriculum domain tags
+            curriculumDomainSection
+
             // Developmental characteristics section (Feature #9)
             developmentalTraitsSection
         }
@@ -29,6 +32,24 @@ struct ObservationQuickTagBar: View {
 
             FlowLayout(spacing: 6) {
                 ForEach(MontessoriObservationTags.allTags, id: \.self) { tag in
+                    quickTagButton(tag)
+                }
+            }
+        }
+    }
+
+    // MARK: - Curriculum Domains
+
+    private var curriculumDomainSection: some View {
+        VStack(alignment: .leading, spacing: 6) {
+            Text("Curriculum Domains")
+                .font(.caption2)
+                .fontWeight(.bold)
+                .foregroundStyle(.secondary)
+                .textCase(.uppercase)
+
+            FlowLayout(spacing: 6) {
+                ForEach(MontessoriObservationTags.curriculumDomainTags, id: \.self) { tag in
                     quickTagButton(tag)
                 }
             }

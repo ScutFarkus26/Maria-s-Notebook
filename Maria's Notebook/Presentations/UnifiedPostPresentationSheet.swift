@@ -64,6 +64,9 @@ struct UnifiedPostPresentationSheet: View {
     // MARK: - State
 
     @State private var viewModel: PostPresentationFormViewModel
+    @State private var showDiscardConfirmation = false
+    @State private var isCompactMode = true
+    @State private var selectedDetent: PresentationDetent = .medium
 
     @Environment(\.dismiss) private var dismiss
     @Environment(\.managedObjectContext) private var viewContext
@@ -99,10 +102,6 @@ struct UnifiedPostPresentationSheet: View {
 
     // MARK: - Computed
 
-    private var canDismiss: Bool {
-        viewModel.canDismiss
-    }
-
     private var sortedStudents: [CDStudent] {
         students.sorted(by: StudentSortComparator.byFirstName)
     }
@@ -125,35 +124,53 @@ struct UnifiedPostPresentationSheet: View {
             // Content
             ScrollView {
                 VStack(spacing: AppTheme.Spacing.medium + AppTheme.Spacing.xsmall) {
-                    // Status Section
+                    // Status Section — always visible
                     statusSection
 
                     Divider()
                         .padding(.horizontal, AppTheme.Spacing.medium)
 
-                    // Bulk Assignment Section
-                    bulkAssignmentSection
-
-                    Divider()
-                        .padding(.horizontal, AppTheme.Spacing.medium)
-
-                    // CDStudent Entries Section
-                    studentEntriesSection
-
-                    Divider()
-                        .padding(.horizontal, AppTheme.Spacing.medium)
-
-                    // Next CDLesson Section
-                    if viewModel.nextLesson != nil {
-                        NextLessonSection(viewModel: viewModel)
-                            .padding(.horizontal, AppTheme.Spacing.medium)
-                    }
-
-                    Divider()
-                        .padding(.horizontal, AppTheme.Spacing.medium)
-
-                    // Group Observation Section
+                    // Group Observation — always visible for quick notes
                     groupObservationSection
+
+                    if isCompactMode {
+                        // Compact mode: show expand button for full details
+                        Button {
+                            withAnimation(.snappy(duration: 0.3)) {
+                                isCompactMode = false
+                                selectedDetent = .large
+                            }
+                        } label: {
+                            Label("Show Full Details", systemImage: "arrow.up.left.and.arrow.down.right")
+                                .font(AppTheme.ScaledFont.calloutSemibold)
+                                .frame(maxWidth: .infinity)
+                                .padding(.vertical, AppTheme.Spacing.compact)
+                        }
+                        .buttonStyle(.bordered)
+                        .padding(.horizontal, AppTheme.Spacing.medium)
+                    } else {
+                        // Full mode: all sections
+                        Divider()
+                            .padding(.horizontal, AppTheme.Spacing.medium)
+
+                        // Bulk Assignment Section
+                        bulkAssignmentSection
+
+                        Divider()
+                            .padding(.horizontal, AppTheme.Spacing.medium)
+
+                        // CDStudent Entries Section
+                        studentEntriesSection
+
+                        Divider()
+                            .padding(.horizontal, AppTheme.Spacing.medium)
+
+                        // Next CDLesson Section
+                        if viewModel.nextLesson != nil {
+                            NextLessonSection(viewModel: viewModel)
+                                .padding(.horizontal, AppTheme.Spacing.medium)
+                        }
+                    }
                 }
                 .padding(.vertical, AppTheme.Spacing.medium)
             }
@@ -179,9 +196,14 @@ struct UnifiedPostPresentationSheet: View {
         .frame(minWidth: UIConstants.SheetSize.medium.width + 80, minHeight: UIConstants.SheetSize.medium.height + 140)
         .presentationSizingFitted()
         #else
-        .presentationDetents([.large])
+        .presentationDetents([.medium, .large], selection: $selectedDetent)
         .presentationDragIndicator(.visible)
-        .interactiveDismissDisabled(!canDismiss)
+        .interactiveDismissDisabled(!viewModel.hasValidStatus || viewModel.hasUnsavedContent)
+        .onChange(of: selectedDetent) { _, newDetent in
+            if newDetent == .large {
+                withAnimation(.snappy(duration: 0.2)) { isCompactMode = false }
+            }
+        }
         #endif
     }
 
@@ -493,13 +515,26 @@ struct UnifiedPostPresentationSheet: View {
     private var footer: some View {
         HStack {
             Button("Cancel") {
-                onCancel()
-                dismiss()
+                if viewModel.hasUnsavedContent {
+                    showDiscardConfirmation = true
+                } else {
+                    onCancel()
+                    dismiss()
+                }
+            }
+            .confirmationDialog("Discard Changes?", isPresented: $showDiscardConfirmation, titleVisibility: .visible) {
+                Button("Discard", role: .destructive) {
+                    onCancel()
+                    dismiss()
+                }
+                Button("Keep Editing", role: .cancel) {}
+            } message: {
+                Text("You have unsaved observations and assignments that will be lost.")
             }
 
             Spacer()
 
-            if !canDismiss {
+            if !viewModel.hasValidStatus {
                 Text("Select a presented status to finish")
                     .font(AppTheme.ScaledFont.caption)
                     .foregroundStyle(AppColors.warning)
@@ -516,7 +551,7 @@ struct UnifiedPostPresentationSheet: View {
                         finalEntries[i].dueDate = viewModel.defaultDueDate
                     }
                 }
-                
+
                 // Unlock next lessons for selected students
                 if let unlockInfo = shouldUnlockNextLessons {
                     _ = UnlockNextLessonService.unlockNextLesson(
@@ -543,7 +578,7 @@ struct UnifiedPostPresentationSheet: View {
                 dismiss()
             }
             .buttonStyle(.borderedProminent)
-            .disabled(!canDismiss)
+            .disabled(!viewModel.hasValidStatus)
         }
         .padding(.horizontal, AppTheme.Spacing.medium + AppTheme.Spacing.xsmall)
         .padding(.vertical, AppTheme.Spacing.compact)

@@ -2,6 +2,50 @@ import Foundation
 
 // MARK: - Display Status
 
+/// Reason a student is blocked from progressing to the next lesson.
+public enum BlockingReason: Sendable, Equatable {
+    /// No blocking — student can proceed.
+    case none
+    /// The preceding lesson hasn't been presented yet.
+    case prerequisiteNotPresented
+    /// Practice work is required but not complete.
+    case practiceRequired
+    /// Teacher confirmation/proficiency check is needed.
+    case confirmationRequired
+    /// Both practice and confirmation are needed.
+    case practiceAndConfirmation
+
+    public var label: String {
+        switch self {
+        case .none: return ""
+        case .prerequisiteNotPresented: return "Prerequisite needed"
+        case .practiceRequired: return "Needs practice"
+        case .confirmationRequired: return "Needs confirmation"
+        case .practiceAndConfirmation: return "Needs practice & confirmation"
+        }
+    }
+
+    public var iconName: String {
+        switch self {
+        case .none: return ""
+        case .prerequisiteNotPresented: return "lock.fill"
+        case .practiceRequired: return "hourglass"
+        case .confirmationRequired: return "hand.raised.fill"
+        case .practiceAndConfirmation: return "exclamationmark.lock.fill"
+        }
+    }
+
+    public var color: SwiftUI.Color {
+        switch self {
+        case .none: return .clear
+        case .prerequisiteNotPresented: return .red
+        case .practiceRequired: return .orange
+        case .confirmationRequired: return .purple
+        case .practiceAndConfirmation: return .red
+        }
+    }
+}
+
 /// Resolved display status for a checklist cell, ordered by priority.
 public enum ChecklistDisplayStatus: Sendable {
     case empty
@@ -63,6 +107,7 @@ public struct StudentChecklistRowState: Identifiable, Equatable {
     public let lastActivityDate: Date?
     public let isStale: Bool
     public let isInboxPlan: Bool
+    public let blockingReason: BlockingReason
 
     /// Resolved display status, priority: proficient > reviewing > practicing > presented > scheduled > empty
     public var displayStatus: ChecklistDisplayStatus {
@@ -87,7 +132,8 @@ public struct StudentChecklistRowState: Identifiable, Equatable {
         isWorkReview: Bool = false,
         lastActivityDate: Date?,
         isStale: Bool,
-        isInboxPlan: Bool = false
+        isInboxPlan: Bool = false,
+        blockingReason: BlockingReason = .none
     ) {
         self.lessonID = lessonID
         self.plannedItemID = plannedItemID
@@ -102,5 +148,6 @@ public struct StudentChecklistRowState: Identifiable, Equatable {
         self.lastActivityDate = lastActivityDate
         self.isStale = isStale
         self.isInboxPlan = isInboxPlan
+        self.blockingReason = blockingReason
     }
 }

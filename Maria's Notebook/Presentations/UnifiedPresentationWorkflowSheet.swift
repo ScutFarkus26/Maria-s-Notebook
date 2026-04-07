@@ -24,6 +24,7 @@ struct UnifiedPresentationWorkflowSheet: View {
     
     @State private var presentationViewModel: PostPresentationFormViewModel
     @State private var triggerCompletion: Bool = false
+    @State private var showDiscardConfirmation: Bool = false
     
     // MARK: - Init
     
@@ -62,18 +63,31 @@ struct UnifiedPresentationWorkflowSheet: View {
             },
             triggerCompletion: $triggerCompletion
         )
+        .confirmationDialog("Discard Changes?", isPresented: $showDiscardConfirmation, titleVisibility: .visible) {
+            Button("Discard", role: .destructive) {
+                onCancel()
+                dismiss()
+            }
+            Button("Keep Editing", role: .cancel) {}
+        } message: {
+            Text("You have unsaved observations and assignments that will be lost.")
+        }
         .toolbar {
             ToolbarItem(placement: .cancellationAction) {
                 Button("Cancel") {
-                    onCancel()
-                    dismiss()
+                    if presentationViewModel.hasUnsavedContent {
+                        showDiscardConfirmation = true
+                    } else {
+                        onCancel()
+                        dismiss()
+                    }
                 }
             }
             ToolbarItem(placement: .confirmationAction) {
                 Button("Complete & Save All") {
                     triggerCompletion = true
                 }
-                .disabled(!presentationViewModel.canDismiss)
+                .disabled(!presentationViewModel.hasValidStatus)
             }
         }
     }

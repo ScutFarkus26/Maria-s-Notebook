@@ -6,6 +6,7 @@ import SwiftUI
 
 struct CurriculumBalanceGapSection: View {
     let gaps: [SubjectGap]
+    var onGapTapped: ((SubjectGap) -> Void)?
 
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
@@ -41,28 +42,44 @@ struct CurriculumBalanceGapSection: View {
     }
 
     private func gapRow(_ gap: SubjectGap) -> some View {
-        HStack(spacing: 10) {
-            Circle()
-                .fill(gap.color)
-                .frame(width: 8, height: 8)
+        Button {
+            onGapTapped?(gap)
+        } label: {
+            HStack(spacing: 10) {
+                Circle()
+                    .fill(gap.color)
+                    .frame(width: 8, height: 8)
 
-            Text(gap.subject)
-                .font(AppTheme.ScaledFont.body)
-                .foregroundStyle(.primary)
+                Text(gap.subject)
+                    .font(AppTheme.ScaledFont.body)
+                    .foregroundStyle(.primary)
 
-            Spacer()
+                Spacer()
 
-            VStack(alignment: .trailing, spacing: 1) {
-                Text("\(gap.count) lessons")
-                    .font(AppTheme.ScaledFont.captionSmall)
-                    .fontWeight(.semibold)
-                    .foregroundStyle(AppColors.warning)
+                VStack(alignment: .trailing, spacing: 1) {
+                    Text("\(gap.count) lessons")
+                        .font(AppTheme.ScaledFont.captionSmall)
+                        .fontWeight(.semibold)
+                        .foregroundStyle(AppColors.warning)
 
-                Text("avg \(String(format: "%.0f", gap.classAverage))")
-                    .font(.caption2)
-                    .foregroundStyle(.tertiary)
+                    Text("avg \(String(format: "%.0f", gap.classAverage))")
+                        .font(.caption2)
+                        .foregroundStyle(.tertiary)
+                }
+
+                if onGapTapped != nil {
+                    Image(systemName: "chevron.right")
+                        .font(.caption2)
+                        .foregroundStyle(.tertiary)
+                }
             }
+            .padding(.vertical, 4)
+            .padding(.horizontal, 8)
+            .background(
+                RoundedRectangle(cornerRadius: UIConstants.CornerRadius.small, style: .continuous)
+                    .fill(onGapTapped != nil ? Color.primary.opacity(UIConstants.OpacityConstants.veryFaint) : Color.clear)
+            )
         }
-        .padding(.vertical, 4)
+        .buttonStyle(.plain)
     }
 }
