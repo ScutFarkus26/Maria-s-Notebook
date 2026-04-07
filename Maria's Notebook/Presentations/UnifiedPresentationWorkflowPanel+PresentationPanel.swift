@@ -27,75 +27,99 @@ extension UnifiedPresentationWorkflowPanel {
 
             Divider()
 
-            ScrollView {
-                VStack(spacing: 20) {
-                    // Progression rules banner
-                    if let rules = presentationViewModel.resolvedRules,
-                       rules.requiresPractice || rules.requiresTeacherConfirmation {
-                        progressionRulesBanner(rules)
+            // Student navigation pill bar
+            studentPillBar
+                .padding(.vertical, 8)
+                .background(Color.primary.opacity(UIConstants.OpacityConstants.whisper))
+
+            Divider()
+
+            ScrollViewReader { proxy in
+                ScrollView {
+                    VStack(spacing: 20) {
+                        // Progression rules banner
+                        if let rules = presentationViewModel.resolvedRules,
+                           rules.requiresPractice || rules.requiresTeacherConfirmation {
+                            progressionRulesBanner(rules)
+                        }
+
+                        // Status Section
+                        presentationStatusSection
+
+                        Divider()
+                            .padding(.horizontal, 16)
+
+                        // Group Observation Section
+                        groupObservationSection
+
+                        Divider()
+                            .padding(.horizontal, 16)
+
+                        // CDStudent Entries Section
+                        studentEntriesSection
                     }
-
-                    // Status Section
-                    presentationStatusSection
-
-                    Divider()
-                        .padding(.horizontal, 16)
-
-                    // Group Observation Section
-                    groupObservationSection
-
-                    Divider()
-                        .padding(.horizontal, 16)
-
-                    // CDStudent Entries Section
-                    studentEntriesSection
+                    .padding(.vertical, 16)
                 }
-                .padding(.vertical, 16)
+                .dismissKeyboardOnScroll()
+                .onChange(of: scrollTargetStudentID) { _, newValue in
+                    if let id = newValue {
+                        withAnimation {
+                            proxy.scrollTo(id, anchor: .top)
+                        }
+                        scrollTargetStudentID = nil
+                    }
+                }
             }
-            .dismissKeyboardOnScroll()
-        }
-        .overlay(alignment: .bottomTrailing) {
-            studentNavigatorButton
-                .padding(16)
         }
     }
 
-    // MARK: - CDStudent Navigator Button
+    // MARK: - Student Pill Bar
 
-    var studentNavigatorButton: some View {
-        Menu {
-            ForEach(sortedStudents) { student in
-                Button {
-                    if let id = student.id { scrollToStudent(id) }
-                } label: {
-                    HStack {
-                        Text(StudentFormatter.displayName(for: student))
-                        Spacer()
-                        if let id = student.id, let level = presentationViewModel.entries[id]?.understandingLevel {
-                            Text("\(level)")
-                                .foregroundStyle(UnderstandingLevel.color(for: level))
-                        }
-                    }
+    var studentPillBar: some View {
+        ScrollView(.horizontal, showsIndicators: false) {
+            HStack(spacing: 6) {
+                ForEach(sortedStudents) { student in
+                    studentPill(student)
                 }
             }
+            .padding(.horizontal, 16)
+        }
+    }
+
+    func studentPill(_ student: CDStudent) -> some View {
+        let id = student.id ?? UUID()
+        let entry = presentationViewModel.entries[id]
+        let hasNotes = !(entry?.observation ?? "").isEmpty
+        let hasLevel = entry?.understandingLevel != nil && entry?.understandingLevel != 3
+
+        let pillColor: Color = if hasNotes && hasLevel {
+            AppColors.success
+        } else if hasNotes || hasLevel {
+            Color.accentColor
+        } else {
+            Color.secondary
+        }
+
+        return Button {
+            if !presentationViewModel.expandedStudentIDs.contains(id) {
+                presentationViewModel.expandedStudentIDs.insert(id)
+            }
+            scrollTargetStudentID = id
         } label: {
-            Image(systemName: "list.bullet.circle.fill")
-                .font(.system(size: 32))
-                .foregroundStyle(.white)
+            Text(student.firstName)
+                .font(.caption)
+                .fontWeight(.medium)
+                .foregroundStyle(pillColor == Color.secondary ? Color.secondary : Color.white)
+                .padding(.horizontal, 10)
+                .padding(.vertical, 5)
                 .background(
-                    Circle()
-                        .fill(Color.accentColor)
-                        .frame(width: 44, height: 44)
-                        .shadow(color: .black.opacity(UIConstants.OpacityConstants.moderate), radius: 4, y: 2)
+                    Capsule(style: .continuous)
+                        .fill(pillColor == Color.secondary
+                              ? Color.secondary.opacity(UIConstants.OpacityConstants.light)
+                              : pillColor)
                 )
         }
-    }
-
-    func scrollToStudent(_ studentID: UUID) {
-        // Toggle expansion to ensure student is visible
-        if !presentationViewModel.expandedStudentIDs.contains(studentID) {
-            presentationViewModel.expandedStudentIDs.insert(studentID)
-        }
+        .buttonStyle(.plain)
     }
 
     // MARK: - Presentation Status Section
@@ -173,6 +197,7 @@ extension UnifiedPresentationWorkflowPanel {
 
             ForEach(sortedStudents, id: \.id) { student in
                 studentEntryRow(for: student)
+                    .id(student.id)
             }
         }
         .padding(.horizontal, 16)

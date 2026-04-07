@@ -43,6 +43,7 @@ struct UnifiedPresentationWorkflowPanel: View {
     @State var bulkAppliedMessage: String = ""
     @State private var showStudentNavigator: Bool = false
     @State var bulkCheckInStyle: CheckInStyle = .flexible
+    @State var scrollTargetStudentID: UUID?
     @Namespace private var studentScrollAnchor
 
     private enum PanelFocus: Sendable {

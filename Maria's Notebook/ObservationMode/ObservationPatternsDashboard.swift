@@ -40,6 +40,10 @@ struct ObservationPatternsDashboard: View {
                 summaryRow
                     .padding(.horizontal)
 
+                // Observation coverage
+                observationCoverageSection
+                    .padding(.horizontal)
+
                 // Tag frequency chart
                 tagFrequencyChart
                     .padding(.horizontal)
@@ -97,7 +101,7 @@ struct ObservationPatternsDashboard: View {
             Text("\(viewModel.studentsObserved)")
                 .fontWeight(.semibold)
                 .foregroundStyle(.primary)
-            Text(" students")
+            Text("/\(viewModel.totalEnrolled) students")
                 .foregroundStyle(.tertiary)
             Spacer()
         }
@@ -184,6 +188,57 @@ struct ObservationPatternsDashboard: View {
         .cardStyle()
     }
 
+    // MARK: - Observation Coverage
+
+    private var observationCoverageSection: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            HStack {
+                Label("Student Coverage", systemImage: "person.crop.rectangle.stack")
+                    .font(.subheadline)
+                    .fontWeight(.semibold)
+                Spacer()
+                Text("\(viewModel.studentsObserved)/\(viewModel.totalEnrolled)")
+                    .font(.subheadline)
+                    .fontWeight(.bold)
+                    .foregroundStyle(
+                        viewModel.studentsObserved == viewModel.totalEnrolled
+                            ? AppColors.success : AppColors.warning
+                    )
+            }
+
+            let unobserved = viewModel.studentSummaries.filter { $0.observationCount == 0 }
+            if unobserved.isEmpty {
+                HStack(spacing: 8) {
+                    Image(systemName: SFSymbol.Action.checkmarkCircleFill)
+                        .foregroundStyle(AppColors.success)
+                    Text("All students observed this \(viewModel.timeRange.rawValue.lowercased())")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                }
+            } else {
+                Text("Not yet observed:")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+
+                FlowLayout(spacing: 6) {
+                    ForEach(unobserved) { student in
+                        Text(student.name)
+                            .font(.caption2)
+                            .fontWeight(.medium)
+                            .foregroundStyle(AppColors.warning)
+                            .padding(.horizontal, 8)
+                            .padding(.vertical, 4)
+                            .background(
+                                Capsule(style: .continuous)
+                                    .fill(AppColors.warning.opacity(UIConstants.OpacityConstants.light))
+                            )
+                    }
+                }
+            }
+        }
+        .cardStyle()
+    }
+
     // MARK: - Empty State
 
     private var emptyState: some View {
@@ -249,6 +304,7 @@ final class ObservationPatternsViewModel {
     private(set) var studentSummaries: [StudentObservationSummary] = []
     private(set) var totalObservations: Int = 0
     private(set) var studentsObserved: Int = 0
+    private(set) var totalEnrolled: Int = 0
     private(set) var isLoading = false
     var timeRange: ObservationTimeRange = .month
 
@@ -284,7 +340,8 @@ final class ObservationPatternsViewModel {
             allTags: allObservationTags
         )
         studentSummaries = summaries.sorted { $0.observationCount > $1.observationCount }
-        studentsObserved = summaries.count
+        totalEnrolled = students.count
+        studentsObserved = summaries.filter { $0.observationCount > 0 }.count
     }
 
     // MARK: - Private Helpers
@@ -331,7 +388,6 @@ final class ObservationPatternsViewModel {
         students.compactMap { student in
             guard let studentID = student.id else { return nil }
             let notes = map[studentID] ?? []
-            guard !notes.isEmpty else { return nil }
             var tagCounts: [String: Int] = [:]
             for note in notes {
                 for tag in (note.tags as? [String]) ?? [] {

@@ -9,6 +9,7 @@ struct ProgressionRootView: View {
     @Environment(\.managedObjectContext) private var viewContext
     @State private var viewModel = ProgressionRootViewModel()
     @State private var searchText = ""
+    @State private var settingsTarget: (subject: String, group: String)?
 
     private var filteredSummaries: [GroupSummary] {
         guard !searchText.isEmpty else { return viewModel.groupSummaries }
@@ -49,6 +50,14 @@ struct ProgressionRootView: View {
             }
             .refreshable {
                 viewModel.loadData(context: viewContext)
+            }
+            .sheet(isPresented: Binding(
+                get: { settingsTarget != nil },
+                set: { if !$0 { settingsTarget = nil } }
+            )) {
+                if let target = settingsTarget {
+                    GroupTrackSettingsSheet(subject: target.subject, group: target.group)
+                }
             }
         }
     }
@@ -93,9 +102,23 @@ struct ProgressionRootView: View {
                     Button {
                         AppRouter.shared.navigateToChecklist(subject: summary.subject, group: summary.group)
                     } label: {
-                        GroupSummaryCard(summary: summary)
+                        GroupSummaryCard(summary: summary) {
+                            settingsTarget = (summary.subject, summary.group)
+                        }
                     }
                     .buttonStyle(.plain)
+                    .contextMenu {
+                        Button {
+                            settingsTarget = (summary.subject, summary.group)
+                        } label: {
+                            Label("Progression Settings", systemImage: "gearshape")
+                        }
+                        Button {
+                            AppRouter.shared.navigateToChecklist(subject: summary.subject, group: summary.group)
+                        } label: {
+                            Label("Open Checklist", systemImage: "checklist")
+                        }
+                    }
                 }
             }
         }
@@ -106,6 +129,7 @@ struct ProgressionRootView: View {
 
 private struct GroupSummaryCard: View {
     let summary: GroupSummary
+    var onSettingsTapped: (() -> Void)?
 
     var body: some View {
         VStack(alignment: .leading, spacing: 8) {
@@ -125,6 +149,17 @@ private struct GroupSummaryCard: View {
                 }
 
                 Spacer()
+
+                if let onSettingsTapped {
+                    Button {
+                        onSettingsTapped()
+                    } label: {
+                        Image(systemName: "gearshape")
+                            .font(.caption)
+                            .foregroundStyle(.tertiary)
+                    }
+                    .buttonStyle(.plain)
+                }
             }
 
             Divider()
@@ -134,6 +169,14 @@ private struct GroupSummaryCard: View {
                 statBadge(count: summary.studentCount, label: "students", icon: "person.2", color: .primary)
                 if summary.activeWorkCount > 0 {
                     statBadge(count: summary.activeWorkCount, label: "active work", icon: "tray.full", color: .blue)
+                }
+                if summary.totalPracticeCount > 0 {
+                    statBadge(
+                        count: summary.totalPracticeCount,
+                        label: "practiced",
+                        icon: "arrow.triangle.2.circlepath",
+                        color: .orange
+                    )
                 }
             }
 

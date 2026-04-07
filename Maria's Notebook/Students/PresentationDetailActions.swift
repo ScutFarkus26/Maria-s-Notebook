@@ -106,6 +106,8 @@ final class PresentationDetailActions {
             Self.logger.warning("No next lesson found")
         case .noCurrentLesson:
             Self.logger.warning("Current lesson not found")
+        case .currentNotMastered(let reason):
+            Self.logger.warning("Current lesson not mastered: \(reason, privacy: .public)")
         case .emptySubjectOrGroup:
             Self.logger.warning("Empty subject or group")
         case .noStudents:

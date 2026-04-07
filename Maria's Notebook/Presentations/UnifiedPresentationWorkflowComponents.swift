@@ -331,12 +331,15 @@ struct StudentEntryRowHeader: View {
     let hasContent: Bool
     let isExpanded: Bool
     let understandingLevel: Int
+    var masteryStage: MasteryStage = .presented
 
     var body: some View {
         HStack(spacing: 12) {
             Text(studentName)
                 .font(AppTheme.ScaledFont.bodySemibold)
                 .foregroundStyle(.primary)
+
+            MasteryStageIndicator(stage: masteryStage)
 
             Spacer()
 
@@ -393,6 +396,67 @@ struct WorkDatesRow: View {
 
                 Spacer()
             }
+        }
+    }
+}
+
+// MARK: - AMI Mastery Stage
+
+enum MasteryStage: Sendable {
+    case presented
+    case practicing
+    case mastered
+
+    var label: String {
+        switch self {
+        case .presented: "Presented"
+        case .practicing: "Practicing"
+        case .mastered: "Mastered"
+        }
+    }
+
+    var color: Color {
+        switch self {
+        case .presented: .blue
+        case .practicing: .orange
+        case .mastered: .green
+        }
+    }
+}
+
+struct MasteryStageIndicator: View {
+    let stage: MasteryStage
+
+    var body: some View {
+        HStack(spacing: 3) {
+            icon
+            Text(stage.label)
+                .font(.system(size: 9, weight: .semibold))
+                .foregroundStyle(stage.color)
+        }
+        .padding(.horizontal, 6)
+        .padding(.vertical, 2)
+        .background(
+            Capsule(style: .continuous)
+                .fill(stage.color.opacity(UIConstants.OpacityConstants.light))
+        )
+    }
+
+    @ViewBuilder
+    private var icon: some View {
+        switch stage {
+        case .presented:
+            Image(systemName: "triangle")
+                .font(.system(size: 8, weight: .bold))
+                .foregroundStyle(stage.color)
+        case .practicing:
+            Image(systemName: "triangle.fill")
+                .font(.system(size: 8, weight: .bold))
+                .foregroundStyle(stage.color)
+        case .mastered:
+            Image(systemName: "circle.fill")
+                .font(.system(size: 8, weight: .bold))
+                .foregroundStyle(stage.color)
         }
     }
 }

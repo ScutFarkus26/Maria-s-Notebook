@@ -123,6 +123,8 @@ final class ProgressionRootViewModel {
             let allPresentedLessonIDs = Set(groupPresentations.map(\.lessonID))
             let furthestLesson = sorted.last { allPresentedLessonIDs.contains($0.id?.uuidString ?? "") }
 
+            let totalPractice = groupWork.reduce(0) { $0 + $1.practiceCount }
+
             summaries.append(GroupSummary(
                 id: "\(key.subject)|\(key.group)",
                 subject: key.subject,
@@ -130,6 +132,7 @@ final class ProgressionRootViewModel {
                 lessonCount: sorted.count,
                 studentCount: studentIDsInGroup.count,
                 activeWorkCount: activeWorkCount,
+                totalPracticeCount: totalPractice,
                 studentsReadyForNext: readyCount,
                 studentsNeedingAttention: needsAttentionCount,
                 furthestLessonName: furthestLesson?.name

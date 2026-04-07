@@ -9,6 +9,8 @@ struct ProgressDashboardStudentCard: View {
     var onTapPreviousLesson: ((UUID) -> Void)?
     var onTapNextLesson: ((UUID) -> Void)?
     var onTapWork: ((UUID) -> Void)?
+    /// Called with (lessonID, studentID) to add next lesson to inbox.
+    var onAddToInbox: ((UUID, UUID) -> Void)?
 
     @State private var isExpanded = true
 
@@ -117,6 +119,11 @@ struct ProgressDashboardStudentCard: View {
                     },
                     onTapWork: { workID in
                         onTapWork?(workID)
+                    },
+                    onScheduleNext: {
+                        if let lessonID = category.nextLesson?.id {
+                            onAddToInbox?(lessonID, card.id)
+                        }
                     }
                 )
                 .padding(.horizontal, 14)

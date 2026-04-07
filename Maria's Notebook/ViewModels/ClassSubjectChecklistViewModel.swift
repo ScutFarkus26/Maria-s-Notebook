@@ -34,7 +34,8 @@ class ClassSubjectChecklistViewModel {
 
     // MARK: - Multi-Selection State
     var selectedCells: Set<CellIdentifier> = []
-    var isSelectionMode: Bool { !selectedCells.isEmpty }
+    var isEditModeActive: Bool = false
+    var isSelectionMode: Bool { isEditModeActive || !selectedCells.isEmpty }
     private let lessonsLogic = LessonsViewModel()
 
     // OPTIMIZATION: Cache duplicate name computation to avoid recalculating on every render
@@ -144,6 +145,7 @@ class ClassSubjectChecklistViewModel {
 
     func clearSelection() {
         selectedCells.removeAll()
+        isEditModeActive = false
     }
 
     func isSelected(student: CDStudent, lesson: CDLesson) -> Bool {

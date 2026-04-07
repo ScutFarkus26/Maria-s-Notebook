@@ -22,6 +22,7 @@ struct PlanNextLessonService {
         case alreadyExists
         case noNextLesson
         case noCurrentLesson
+        case currentNotMastered(reason: String)
         case emptySubjectOrGroup
         case noStudents
     }
@@ -117,6 +118,16 @@ struct PlanNextLessonService {
             return .noStudents
         }
 
+        // Check mastery gates on the current lesson before advancing
+        let rules = LessonProgressionRules.resolve(for: currentLesson, context: context)
+        if rules.requiresPractice || rules.requiresTeacherConfirmation {
+            if let reason = checkMasteryGates(
+                assignment: lessonAssignment, rules: rules, context: context
+            ) {
+                return .currentNotMastered(reason: reason)
+            }
+        }
+
         guard let nextLessonID = nextLesson.id else { return .noNextLesson }
 
         // Check if it already exists (using strict inbox check)
@@ -175,6 +186,48 @@ struct PlanNextLessonService {
         )
 
         return .success(newAssignment)
+    }
+
+    // MARK: - Mastery Gate Check
+
+    /// Checks whether the current lesson's mastery gates are satisfied for the assignment's students.
+    /// Returns a human-readable reason string if gates are NOT met, or nil if all clear.
+    private static func checkMasteryGates(
+        assignment: CDLessonAssignment,
+        rules: LessonProgressionRules.ResolvedRules,
+        context: NSManagedObjectContext
+    ) -> String? {
+        // Only check presented assignments — drafts/scheduled shouldn't block
+        guard assignment.state == .presented else { return nil }
+
+        var reasons: [String] = []
+
+        // Gate 1: Practice/work completion
+        if rules.requiresPractice {
+            let workFetch = CDFetchRequest(CDWorkModel.self)
+            workFetch.predicate = NSPredicate(
+                format: "presentationID == %@",
+                assignment.id?.uuidString ?? ""
+            )
+            let work = (try? context.fetch(workFetch)) ?? []
+
+            if work.isEmpty && assignment.needsPractice {
+                reasons.append("practice not yet assigned")
+            } else if work.contains(where: { $0.status != .complete }) {
+                reasons.append("practice not yet complete")
+            }
+        }
+
+        // Gate 2: Teacher confirmation
+        if rules.requiresTeacherConfirmation {
+            let studentIDs = assignment.studentUUIDs
+            let unconfirmed = studentIDs.filter { !assignment.isStudentConfirmed($0) }
+            if !unconfirmed.isEmpty {
+                reasons.append("teacher confirmation pending")
+            }
+        }
+
+        return reasons.isEmpty ? nil : "Current lesson not yet mastered: " + reasons.joined(separator: ", ")
     }
 
     // Deprecated SwiftData bridge methods removed - no longer needed with Core Data.

@@ -21,8 +21,8 @@ extension UnifiedNoteEditor {
             }
             templatePickerSection
             tagSelectionSection
-            noteBodySection
             reportToggleSection
+            noteBodySection
         }
         .padding(AppTheme.Spacing.medium)
         .background(cardBackground)

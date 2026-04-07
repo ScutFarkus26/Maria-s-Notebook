@@ -38,6 +38,21 @@ struct ClassSubjectChecklistView: View {
                 }
                 .pickerStyle(.menu)
                 .frame(width: 150)
+
+                Button {
+                    withAnimation(.snappy(duration: 0.2)) {
+                        if viewModel.isSelectionMode {
+                            viewModel.clearSelection()
+                        } else {
+                            viewModel.isEditModeActive = true
+                        }
+                    }
+                } label: {
+                    Text(viewModel.isSelectionMode ? "Done" : "Edit")
+                        .fontWeight(.medium)
+                }
+                .buttonStyle(.bordered)
+                .controlSize(.small)
             }
 
             Divider()
@@ -110,22 +125,6 @@ struct ClassSubjectChecklistView: View {
                 .background(Color.accentColor.opacity(UIConstants.OpacityConstants.hint))
 
                 Divider()
-            } else {
-                // Hint for selection mode when not active
-                HStack {
-                    Spacer()
-                    #if os(iOS)
-                    Text("Tip: Long press a cell or use context menu to select multiple")
-                        .font(.caption)
-                        .foregroundStyle(.tertiary)
-                    #else
-                    Text("Tip: Long press or right-click to select multiple cells")
-                        .font(.caption)
-                        .foregroundStyle(.tertiary)
-                    #endif
-                    Spacer()
-                }
-                .padding(.vertical, 4)
             }
 
             // MARK: - 2D Scrollable Grid with Pinned Header

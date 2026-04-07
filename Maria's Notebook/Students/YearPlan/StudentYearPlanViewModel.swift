@@ -178,4 +178,37 @@ final class StudentYearPlanViewModel {
     var behindPaceCount: Int {
         entries.filter(\.isBehindPace).count
     }
+
+    /// Average spacing in days between consecutive planned entries.
+    var averageSpacingDays: Double? {
+        let planned = entries
+            .filter { $0.isPlanned || $0.isPromoted }
+            .compactMap(\.plannedDate)
+            .sorted()
+        guard planned.count >= 2 else { return nil }
+
+        let cal = AppCalendar.shared
+        var totalDays = 0
+        for idx in 1..<planned.count {
+            totalDays += cal.dateComponents([.day], from: planned[idx - 1], to: planned[idx]).day ?? 0
+        }
+        return Double(totalDays) / Double(planned.count - 1)
+    }
+
+    /// Number of consecutive entries that are compressed (spacing < 2 days).
+    var compressedCount: Int {
+        let planned = entries
+            .filter { $0.isPlanned || $0.isPromoted }
+            .compactMap(\.plannedDate)
+            .sorted()
+        guard planned.count >= 2 else { return 0 }
+
+        let cal = AppCalendar.shared
+        var count = 0
+        for idx in 1..<planned.count {
+            let days = cal.dateComponents([.day], from: planned[idx - 1], to: planned[idx]).day ?? 0
+            if days < 2 { count += 1 }
+        }
+        return count
+    }
 }

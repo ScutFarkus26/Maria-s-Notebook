@@ -87,6 +87,9 @@ struct ProgressDashboardView: View {
                             },
                             onTapWork: { workID in
                                 selectedWorkID = workID
+                            },
+                            onAddToInbox: { lessonID, studentID in
+                                addToInbox(lessonID: lessonID, studentID: studentID)
                             }
                         )
                     }
@@ -148,6 +151,18 @@ struct ProgressDashboardView: View {
             Spacer()
         }
         .font(.caption)
+    }
+
+    // MARK: - Actions
+
+    private func addToInbox(lessonID: UUID, studentID: UUID) {
+        _ = PresentationFactory.makeDraft(
+            lessonID: lessonID,
+            studentIDs: [studentID],
+            context: viewContext
+        )
+        _ = viewContext.safeSave()
+        viewModel.loadData(context: viewContext)
     }
 
     // MARK: - Empty State

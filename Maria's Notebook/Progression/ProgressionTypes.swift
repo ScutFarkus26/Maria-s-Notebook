@@ -85,6 +85,7 @@ struct GroupSummary: Identifiable, Sendable {
     let lessonCount: Int
     let studentCount: Int
     let activeWorkCount: Int
+    let totalPracticeCount: Int
     let studentsReadyForNext: Int
     let studentsNeedingAttention: Int
     let furthestLessonName: String?

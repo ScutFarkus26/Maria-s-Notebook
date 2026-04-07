@@ -163,6 +163,13 @@ extension CDWorkModel {
         kind == .report
     }
 
+    // MARK: - Practice Count
+
+    /// Number of check-ins recorded for this work item, representing practice repetitions.
+    var practiceCount: Int {
+        (checkIns?.allObjects as? [CDWorkCheckIn])?.count ?? 0
+    }
+
     // MARK: - Choice Mode Helpers
 
     /// For choice mode: returns true if this work has no participants yet

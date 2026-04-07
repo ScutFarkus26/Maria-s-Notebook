@@ -91,6 +91,9 @@ struct StudentYearPlanTab: View {
                 }
             }
         )
+        .safeAreaInset(edge: .bottom) {
+            yearPlanPaceSummary
+        }
         .task {
             viewModel.load(studentID: student.id, context: viewContext)
             await loadNonSchoolDays()
@@ -153,5 +156,64 @@ struct StudentYearPlanTab: View {
             ))
         }
         nonSchoolCells = cells
+    }
+
+    // MARK: - Pace Summary
+
+    @ViewBuilder
+    private var yearPlanPaceSummary: some View {
+        let entryCount = viewModel.entries.filter { $0.isPlanned || $0.isPromoted }.count
+        if entryCount >= 2 {
+            HStack(spacing: 16) {
+                // Average spacing
+                if let avg = viewModel.averageSpacingDays {
+                    HStack(spacing: 4) {
+                        Image(systemName: "ruler")
+                            .font(.caption2)
+                            .foregroundStyle(.secondary)
+                        Text("Avg spacing: \(String(format: "%.0f", avg)) days")
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                    }
+                }
+
+                // Compressed entries
+                let compressed = viewModel.compressedCount
+                if compressed > 0 {
+                    HStack(spacing: 4) {
+                        Image(systemName: "exclamationmark.triangle.fill")
+                            .font(.caption2)
+                            .foregroundStyle(AppColors.warning)
+                        Text("\(compressed) compressed")
+                            .font(.caption)
+                            .foregroundStyle(AppColors.warning)
+                    }
+                }
+
+                // Behind pace
+                let behind = viewModel.behindPaceCount
+                if behind > 0 {
+                    HStack(spacing: 4) {
+                        Image(systemName: "clock.badge.exclamationmark")
+                            .font(.caption2)
+                            .foregroundStyle(AppColors.destructive)
+                        Text("\(behind) behind")
+                            .font(.caption)
+                            .foregroundStyle(AppColors.destructive)
+                    }
+                }
+
+                if viewModel.averageSpacingDays == nil && compressed == 0 && behind == 0 {
+                    Text("\(entryCount) planned entries")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                }
+
+                Spacer()
+            }
+            .padding(.horizontal)
+            .padding(.vertical, 6)
+            .background(.ultraThinMaterial)
+        }
     }
 }

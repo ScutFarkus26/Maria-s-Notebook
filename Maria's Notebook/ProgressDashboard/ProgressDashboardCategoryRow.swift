@@ -9,6 +9,7 @@ struct ProgressDashboardCategoryRow: View {
     var onTapPreviousLesson: (() -> Void)?
     var onTapNextLesson: (() -> Void)?
     var onTapWork: ((UUID) -> Void)?
+    var onScheduleNext: (() -> Void)?
 
     private var subjectColor: Color {
         AppColors.color(forSubject: category.subject)
@@ -102,19 +103,33 @@ struct ProgressDashboardCategoryRow: View {
     private var nextColumn: some View {
         Group {
             if let next = category.nextLesson {
-                Button {
-                    onTapNextLesson?()
-                } label: {
-                    VStack(alignment: .leading, spacing: 2) {
-                        Text(next.name)
-                            .font(.footnote)
-                            .fontWeight(.medium)
-                            .foregroundStyle(.primary)
-                            .lineLimit(2)
-                        nextLessonStateBadge(next.state)
+                VStack(alignment: .leading, spacing: 4) {
+                    Button {
+                        onTapNextLesson?()
+                    } label: {
+                        VStack(alignment: .leading, spacing: 2) {
+                            Text(next.name)
+                                .font(.footnote)
+                                .fontWeight(.medium)
+                                .foregroundStyle(.primary)
+                                .lineLimit(2)
+                            nextLessonStateBadge(next.state)
+                        }
+                    }
+                    .buttonStyle(.plain)
+
+                    if case .notPlanned = next.state, let onScheduleNext {
+                        Button {
+                            onScheduleNext()
+                        } label: {
+                            Label("Add to Inbox", systemImage: "tray.and.arrow.down")
+                                .font(.caption2)
+                                .fontWeight(.medium)
+                        }
+                        .buttonStyle(.bordered)
+                        .controlSize(.mini)
                     }
                 }
-                .buttonStyle(.plain)
             } else {
                 VStack(alignment: .leading, spacing: 2) {
                     Text("End of sequence")
