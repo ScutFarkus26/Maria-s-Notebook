@@ -357,6 +357,8 @@ struct StudentTrackDetailView: View {
     let enrollment = CDStudentTrackEnrollmentEntity(context: ctx)
     enrollment.studentID = student.id?.uuidString ?? ""
     enrollment.trackID = track.id?.uuidString ?? ""
+    enrollment.student = student
+    enrollment.track = track
     enrollment.startedAt = Date()
     enrollment.isActive = false
 

@@ -9,6 +9,8 @@ public class CDTrackEntity: NSManagedObject {
     @NSManaged public var createdAt: Date?
 
     // MARK: - Relationships
+    @NSManaged public var enrollments: NSSet?
+    @NSManaged public var groupTrack: CDGroupTrackEntity?
     @NSManaged public var steps: NSSet?
 
     // MARK: - Convenience Init

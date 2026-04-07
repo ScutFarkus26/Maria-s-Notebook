@@ -63,12 +63,12 @@ struct GroupTrackService {
         }) {
             return existing
         }
-        let newTrack = CDGroupTrackEntity(context: context)
-        newTrack.subject = trimmedSubject
-        newTrack.group = trimmedGroup
-        newTrack.isSequential = true
-        newTrack.isExplicitlyDisabled = false
-        return newTrack
+        let newGroupTrack = CDGroupTrackEntity(context: context)
+        newGroupTrack.subject = trimmedSubject
+        newGroupTrack.group = trimmedGroup
+        newGroupTrack.isSequential = true
+        newGroupTrack.isExplicitlyDisabled = false
+        return newGroupTrack
     }
 
     /// Find or create a CDTrackEntity object (Core Data)
@@ -90,13 +90,19 @@ struct GroupTrackService {
         let trackTitle = "\(trimmedSubject) — \(trimmedGroup)"
         let allTracks = context.safeFetch(CDFetchRequest(CDTrackEntity.self))
 
+        let groupTrack = try? cdGetGroupTrack(subject: trimmedSubject, group: trimmedGroup, context: context)
+
         if let existingTrack = allTracks.first(where: { $0.title.trimmed() == trackTitle }) {
+            if existingTrack.groupTrack == nil, let groupTrack {
+                existingTrack.groupTrack = groupTrack
+            }
             try cdEnsureTrackSteps(for: existingTrack, subject: trimmedSubject, group: trimmedGroup, context: context)
             return existingTrack
         }
 
         let newTrack = CDTrackEntity(context: context)
         newTrack.title = trackTitle
+        newTrack.groupTrack = groupTrack
         try cdEnsureTrackSteps(for: newTrack, subject: trimmedSubject, group: trimmedGroup, context: context)
         return newTrack
     }
@@ -186,6 +192,7 @@ struct GroupTrackService {
 
         let trackID = track.id?.uuidString ?? ""
         let allEnrollments = context.safeFetch(CDFetchRequest(CDStudentTrackEnrollmentEntity.self))
+        let allStudents = context.safeFetch(CDFetchRequest(CDStudent.self))
 
         for studentID in studentIDs {
             let existingEnrollment = allEnrollments.first { enrollment in
@@ -199,12 +206,19 @@ struct GroupTrackService {
                         existing.startedAt = Date()
                     }
                 }
+                // Backfill relationships if missing
+                if existing.track == nil { existing.track = track }
+                if existing.student == nil {
+                    existing.student = allStudents.first { $0.id?.uuidString == studentID }
+                }
             } else {
                 let newEnrollment = CDStudentTrackEnrollmentEntity(context: context)
                 newEnrollment.studentID = studentID
                 newEnrollment.trackID = trackID
                 newEnrollment.startedAt = Date()
                 newEnrollment.isActive = true
+                newEnrollment.track = track
+                newEnrollment.student = allStudents.first { $0.id?.uuidString == studentID }
             }
         }
 

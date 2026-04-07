@@ -11,6 +11,10 @@ public class CDStudentTrackEnrollmentEntity: NSManagedObject {
     @NSManaged public var startedAt: Date?
     @NSManaged public var isActive: Bool
 
+    // MARK: - Relationships
+    @NSManaged public var student: CDStudent?
+    @NSManaged public var track: CDTrackEntity?
+
     // MARK: - Convenience Init
     @discardableResult
     convenience init(context: NSManagedObjectContext) {

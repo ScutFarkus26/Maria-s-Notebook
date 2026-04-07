@@ -23,5 +23,8 @@ enum MigrationRunner {
 
         // Backfill search index so scope getter no longer self-heals
         DataMigrations.backfillNoteSearchIndex(using: context)
+
+        // Backfill student/track relationships for CloudKit zone assignment
+        DataMigrations.backfillTrackEnrollmentRelationships(using: context)
     }
 }

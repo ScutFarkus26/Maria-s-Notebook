@@ -14,6 +14,7 @@
         <attribute name="enrollmentStatusRaw" attributeType="String" defaultValueString="enrolled"/>
         <attribute name="dateWithdrawn" optional="YES" attributeType="Date" usesScalarValueType="NO"/>
         <attribute name="modifiedAt" optional="YES" attributeType="Date" usesScalarValueType="NO"/>
+        <relationship name="trackEnrollments" optional="YES" toMany="YES" deletionRule="Cascade" destinationEntity="StudentTrackEnrollment" inverseName="student" inverseEntity="StudentTrackEnrollment"/>
     </entity>
     <!-- ==================== Lesson ==================== -->
     <entity name="Lesson" representedClassName="CDLesson" syncable="YES">
@@ -257,6 +258,7 @@
         <attribute name="isSequential" attributeType="Boolean" defaultValueString="YES" usesScalarValueType="YES"/>
         <attribute name="isExplicitlyDisabled" attributeType="Boolean" defaultValueString="NO" usesScalarValueType="YES"/>
         <attribute name="createdAt" optional="YES" attributeType="Date" usesScalarValueType="NO"/>
+        <relationship name="track" optional="YES" maxCount="1" deletionRule="Nullify" destinationEntity="Track" inverseName="groupTrack" inverseEntity="Track"/>
     </entity>
     <!-- ==================== Issue ==================== -->
     <entity name="Issue" representedClassName="CDIssue" syncable="YES">
@@ -384,6 +386,8 @@
         <attribute name="trackID" attributeType="String" defaultValueString=""/>
         <attribute name="startedAt" optional="YES" attributeType="Date" usesScalarValueType="NO"/>
         <attribute name="isActive" attributeType="Boolean" defaultValueString="YES" usesScalarValueType="YES"/>
+        <relationship name="student" optional="YES" maxCount="1" deletionRule="Nullify" destinationEntity="Student" inverseName="trackEnrollments" inverseEntity="Student"/>
+        <relationship name="track" optional="YES" maxCount="1" deletionRule="Nullify" destinationEntity="Track" inverseName="enrollments" inverseEntity="Track"/>
     </entity>
     <!-- ==================== Supply ==================== -->
     <entity name="Supply" representedClassName="CDSupply" syncable="YES">
@@ -482,6 +486,8 @@
         <attribute name="id" optional="YES" attributeType="UUID" usesScalarValueType="NO"/>
         <attribute name="title" attributeType="String" defaultValueString=""/>
         <attribute name="createdAt" optional="YES" attributeType="Date" usesScalarValueType="NO"/>
+        <relationship name="enrollments" optional="YES" toMany="YES" deletionRule="Cascade" destinationEntity="StudentTrackEnrollment" inverseName="track" inverseEntity="StudentTrackEnrollment"/>
+        <relationship name="groupTrack" optional="YES" maxCount="1" deletionRule="Nullify" destinationEntity="GroupTrack" inverseName="track" inverseEntity="GroupTrack"/>
         <relationship name="steps" optional="YES" toMany="YES" deletionRule="Cascade" destinationEntity="TrackStep" inverseName="track" inverseEntity="TrackStep"/>
     </entity>
     <!-- ==================== TrackStep ==================== -->

@@ -17,6 +17,9 @@ public class CDStudent: NSManagedObject {
     @NSManaged public var dateWithdrawn: Date?
     @NSManaged public var modifiedAt: Date?
 
+    // MARK: - Relationships
+    @NSManaged public var trackEnrollments: NSSet?
+
     // MARK: - Convenience Initializer
     @discardableResult
     convenience init(context: NSManagedObjectContext) {

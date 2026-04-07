@@ -455,7 +455,9 @@ extension BackupService {
             try BackupEntityImporter.importStudentTrackEnrollments(
                 enrollments,
                 into: viewContext,
-                existingCheck: { try fetchOne(CDStudentTrackEnrollmentEntity.self, id: $0, using: viewContext) }
+                existingCheck: { try fetchOne(CDStudentTrackEnrollmentEntity.self, id: $0, using: viewContext) },
+                studentCheck: { try fetchOne(CDStudent.self, id: $0, using: viewContext) },
+                trackCheck: { try fetchOne(CDTrackEntity.self, id: $0, using: viewContext) }
             )
         }
 

@@ -56,4 +56,9 @@ enum DataMigrations {
     static func backfillNoteSearchIndex(using context: NSManagedObjectContext) {
         DataCleanupService.backfillNoteSearchIndex(using: context)
     }
+
+    /// Backfill student/track relationships on enrollment records for CloudKit zone assignment.
+    static func backfillTrackEnrollmentRelationships(using context: NSManagedObjectContext) {
+        DataCleanupService.backfillTrackEnrollmentRelationships(using: context)
+    }
 }

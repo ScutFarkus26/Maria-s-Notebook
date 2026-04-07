@@ -60,7 +60,9 @@ extension BackupEntityImporter {
     static func importStudentTrackEnrollments(
         _ dtos: [StudentTrackEnrollmentDTO],
         into viewContext: NSManagedObjectContext,
-        existingCheck: EntityExistsCheck<CDStudentTrackEnrollmentEntity>
+        existingCheck: EntityExistsCheck<CDStudentTrackEnrollmentEntity>,
+        studentCheck: EntityExistsCheck<CDStudent>,
+        trackCheck: EntityExistsCheck<CDTrackEntity>
     ) rethrows {
         try importSimpleEntities(
             dtos, into: viewContext,
@@ -74,6 +76,13 @@ extension BackupEntityImporter {
             e.trackID = dto.trackID
             e.startedAt = dto.startedAt
             e.isActive = dto.isActive
+            // Set relationships for CloudKit zone assignment
+            if let studentUUID = UUID(uuidString: dto.studentID) {
+                e.student = try? studentCheck(studentUUID)
+            }
+            if let trackUUID = UUID(uuidString: dto.trackID) {
+                e.track = try? trackCheck(trackUUID)
+            }
             return e
         })
     }

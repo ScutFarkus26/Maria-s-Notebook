@@ -11,6 +11,9 @@ public class CDGroupTrackEntity: NSManagedObject {
     @NSManaged public var isExplicitlyDisabled: Bool
     @NSManaged public var createdAt: Date?
 
+    // MARK: - Relationships
+    @NSManaged public var track: CDTrackEntity?
+
     // MARK: - Convenience Init
     @discardableResult
     convenience init(context: NSManagedObjectContext) {
