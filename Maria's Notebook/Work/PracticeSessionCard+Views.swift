@@ -144,174 +144,13 @@ extension PracticeSessionCard {
         VStack(alignment: .leading, spacing: 16) {
             expandedHeader
             Divider()
-
-            // Students section
-            VStack(alignment: .leading, spacing: 8) {
-                Text("Participants")
-                    .font(AppTheme.ScaledFont.captionSemibold)
-                    .foregroundStyle(.secondary)
-                    .textCase(.uppercase)
-
-                ForEach(students) { student in
-                    HStack(spacing: 8) {
-                        Circle()
-                            .fill(Color.blue.opacity(UIConstants.OpacityConstants.moderate))
-                            .frame(width: 8, height: 8)
-
-                        Text(StudentFormatter.displayName(for: student))
-                            .font(AppTheme.ScaledFont.bodySemibold)
-                    }
-                }
-            }
-
-            // Quality metrics
-            if session.practiceQualityValue != nil || session.independenceLevelValue != nil {
-                VStack(alignment: .leading, spacing: 8) {
-                    Text("Quality Metrics")
-                        .font(AppTheme.ScaledFont.captionSemibold)
-                        .foregroundStyle(.secondary)
-                        .textCase(.uppercase)
-
-                    HStack(spacing: 16) {
-                        if let quality = session.practiceQualityValue, let label = session.practiceQualityLabel {
-                            VStack(alignment: .leading, spacing: 4) {
-                                Text("Engagement")
-                                    .font(AppTheme.ScaledFont.caption)
-                                    .foregroundStyle(.secondary)
-                                HStack(spacing: 6) {
-                                    ForEach(1...5, id: \.self) { level in
-                                        Circle()
-                                            .fill(Color.blue.opacity(quality >= level ? 1.0 : 0.2))
-                                            .frame(width: 12, height: 12)
-                                    }
-                                    Text(label)
-                                        .font(AppTheme.ScaledFont.captionSemibold)
-                                        .foregroundStyle(.blue)
-                                }
-                            }
-                        }
-
-                        if let independence = session.independenceLevelValue, let label = session.independenceLevelLabel {
-                            VStack(alignment: .leading, spacing: 4) {
-                                Text("Independence")
-                                    .font(AppTheme.ScaledFont.caption)
-                                    .foregroundStyle(.secondary)
-                                HStack(spacing: 6) {
-                                    ForEach(1...5, id: \.self) { level in
-                                        Circle()
-                                            .fill(Color.green.opacity(independence >= level ? 1.0 : 0.2))
-                                            .frame(width: 12, height: 12)
-                                    }
-                                    Text(label)
-                                        .font(AppTheme.ScaledFont.captionSemibold)
-                                        .foregroundStyle(AppColors.success)
-                                }
-                            }
-                        }
-                    }
-                }
-            }
-
-            // Observable behaviors
-            if !session.activeBehaviors.isEmpty {
-                VStack(alignment: .leading, spacing: 8) {
-                    Text("Observed Behaviors")
-                        .font(AppTheme.ScaledFont.captionSemibold)
-                        .foregroundStyle(.secondary)
-                        .textCase(.uppercase)
-
-                    FlowLayout(spacing: 6) {
-                        ForEach(session.activeBehaviors, id: \.self) { behavior in
-                            behaviorTag(behavior)
-                        }
-                    }
-                }
-            }
-
-            // Next steps / action items
-            if session.hasActionFlags || session.hasNextSteps {
-                VStack(alignment: .leading, spacing: 8) {
-                    Text("Next Steps")
-                        .font(AppTheme.ScaledFont.captionSemibold)
-                        .foregroundStyle(.secondary)
-                        .textCase(.uppercase)
-
-                    VStack(alignment: .leading, spacing: 6) {
-                        if session.needsReteaching {
-                            actionRow(icon: "arrow.counterclockwise", text: "Needs Reteaching", color: .orange)
-                        }
-                        if session.readyForCheckIn {
-                            actionRow(icon: "checkmark.circle", text: "Ready for Check-in", color: .blue)
-                        }
-                        if session.readyForAssessment {
-                            actionRow(icon: "star.circle", text: "Ready for Assessment", color: .green)
-                        }
-                        if let checkIn = session.checkInScheduledFor {
-                            actionRow(icon: "calendar", text: "Check-in: \(formatDate(checkIn))", color: .indigo)
-                        }
-                        if !session.followUpActions.isEmpty {
-                            HStack(alignment: .top, spacing: 6) {
-                                Image(systemName: "list.bullet")
-                                    .font(.system(size: 12, weight: .medium))
-                                    .foregroundStyle(.purple)
-                                Text(session.followUpActions)
-                                    .font(AppTheme.ScaledFont.caption)
-                                    .foregroundStyle(.primary)
-                            }
-                        }
-                    }
-                }
-            }
-
-            // Work items section
-            if !workItems.isEmpty {
-                VStack(alignment: .leading, spacing: 8) {
-                    Text("Work Items")
-                        .font(AppTheme.ScaledFont.captionSemibold)
-                        .foregroundStyle(.secondary)
-                        .textCase(.uppercase)
-
-                    ForEach(workItems, id: \.id) { work in
-                        HStack(spacing: 8) {
-                            Circle()
-                                .fill(Color.green.opacity(UIConstants.OpacityConstants.moderate))
-                                .frame(width: 8, height: 8)
-
-                            Text(work.title)
-                                .font(AppTheme.ScaledFont.body)
-                        }
-                    }
-                }
-            }
-
-            // Session notes
-            if !session.sharedNotes.isEmpty {
-                VStack(alignment: .leading, spacing: 8) {
-                    Text("Notes")
-                        .font(AppTheme.ScaledFont.captionSemibold)
-                        .foregroundStyle(.secondary)
-                        .textCase(.uppercase)
-
-                    Text(session.sharedNotes)
-                        .font(AppTheme.ScaledFont.body)
-                        .foregroundStyle(.primary)
-                }
-            }
-
-            // Metadata footer
-            HStack(spacing: 16) {
-                if let duration = session.durationFormatted {
-                    Label(duration, systemImage: "clock.fill")
-                        .font(AppTheme.ScaledFont.captionSemibold)
-                        .foregroundStyle(.secondary)
-                }
-
-                if let location = session.location, !location.isEmpty {
-                    Label(location, systemImage: "location.fill")
-                        .font(AppTheme.ScaledFont.captionSemibold)
-                        .foregroundStyle(.secondary)
-                }
-            }
+            expandedParticipants
+            expandedQualityMetrics
+            expandedBehaviors
+            expandedNextSteps
+            expandedWorkItems
+            expandedNotes
+            expandedMetadataFooter
         }
         .padding(20)
         .background(
@@ -322,6 +161,187 @@ extension PracticeSessionCard {
             RoundedRectangle(cornerRadius: 16)
                 .strokeBorder(session.isGroupSession ? Color.blue.opacity(UIConstants.OpacityConstants.semi) : Color.clear, lineWidth: 1.5)
         )
+    }
+
+    @ViewBuilder
+    private var expandedParticipants: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            Text("Participants")
+                .font(AppTheme.ScaledFont.captionSemibold)
+                .foregroundStyle(.secondary)
+                .textCase(.uppercase)
+
+            ForEach(students) { student in
+                HStack(spacing: 8) {
+                    Circle()
+                        .fill(Color.blue.opacity(UIConstants.OpacityConstants.moderate))
+                        .frame(width: 8, height: 8)
+
+                    Text(StudentFormatter.displayName(for: student))
+                        .font(AppTheme.ScaledFont.bodySemibold)
+                }
+            }
+        }
+    }
+
+    @ViewBuilder
+    private var expandedQualityMetrics: some View {
+        if session.practiceQualityValue != nil || session.independenceLevelValue != nil {
+            VStack(alignment: .leading, spacing: 8) {
+                Text("Quality Metrics")
+                    .font(AppTheme.ScaledFont.captionSemibold)
+                    .foregroundStyle(.secondary)
+                    .textCase(.uppercase)
+
+                HStack(spacing: 16) {
+                    if let quality = session.practiceQualityValue, let label = session.practiceQualityLabel {
+                        VStack(alignment: .leading, spacing: 4) {
+                            Text("Engagement")
+                                .font(AppTheme.ScaledFont.caption)
+                                .foregroundStyle(.secondary)
+                            HStack(spacing: 6) {
+                                ForEach(1...5, id: \.self) { level in
+                                    Circle()
+                                        .fill(Color.blue.opacity(quality >= level ? 1.0 : 0.2))
+                                        .frame(width: 12, height: 12)
+                                }
+                                Text(label)
+                                    .font(AppTheme.ScaledFont.captionSemibold)
+                                    .foregroundStyle(.blue)
+                            }
+                        }
+                    }
+
+                    if let independence = session.independenceLevelValue, let label = session.independenceLevelLabel {
+                        VStack(alignment: .leading, spacing: 4) {
+                            Text("Independence")
+                                .font(AppTheme.ScaledFont.caption)
+                                .foregroundStyle(.secondary)
+                            HStack(spacing: 6) {
+                                ForEach(1...5, id: \.self) { level in
+                                    Circle()
+                                        .fill(Color.green.opacity(independence >= level ? 1.0 : 0.2))
+                                        .frame(width: 12, height: 12)
+                                }
+                                Text(label)
+                                    .font(AppTheme.ScaledFont.captionSemibold)
+                                    .foregroundStyle(AppColors.success)
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    @ViewBuilder
+    private var expandedBehaviors: some View {
+        if !session.activeBehaviors.isEmpty {
+            VStack(alignment: .leading, spacing: 8) {
+                Text("Observed Behaviors")
+                    .font(AppTheme.ScaledFont.captionSemibold)
+                    .foregroundStyle(.secondary)
+                    .textCase(.uppercase)
+
+                FlowLayout(spacing: 6) {
+                    ForEach(session.activeBehaviors, id: \.self) { behavior in
+                        behaviorTag(behavior)
+                    }
+                }
+            }
+        }
+    }
+
+    @ViewBuilder
+    private var expandedNextSteps: some View {
+        if session.hasActionFlags || session.hasNextSteps {
+            VStack(alignment: .leading, spacing: 8) {
+                Text("Next Steps")
+                    .font(AppTheme.ScaledFont.captionSemibold)
+                    .foregroundStyle(.secondary)
+                    .textCase(.uppercase)
+
+                VStack(alignment: .leading, spacing: 6) {
+                    if session.needsReteaching {
+                        actionRow(icon: "arrow.counterclockwise", text: "Needs Reteaching", color: .orange)
+                    }
+                    if session.readyForCheckIn {
+                        actionRow(icon: "checkmark.circle", text: "Ready for Check-in", color: .blue)
+                    }
+                    if session.readyForAssessment {
+                        actionRow(icon: "star.circle", text: "Ready for Assessment", color: .green)
+                    }
+                    if let checkIn = session.checkInScheduledFor {
+                        actionRow(icon: "calendar", text: "Check-in: \(formatDate(checkIn))", color: .indigo)
+                    }
+                    if !session.followUpActions.isEmpty {
+                        HStack(alignment: .top, spacing: 6) {
+                            Image(systemName: "list.bullet")
+                                .font(.system(size: 12, weight: .medium))
+                                .foregroundStyle(.purple)
+                            Text(session.followUpActions)
+                                .font(AppTheme.ScaledFont.caption)
+                                .foregroundStyle(.primary)
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    @ViewBuilder
+    private var expandedWorkItems: some View {
+        if !workItems.isEmpty {
+            VStack(alignment: .leading, spacing: 8) {
+                Text("Work Items")
+                    .font(AppTheme.ScaledFont.captionSemibold)
+                    .foregroundStyle(.secondary)
+                    .textCase(.uppercase)
+
+                ForEach(workItems, id: \.id) { work in
+                    HStack(spacing: 8) {
+                        Circle()
+                            .fill(Color.green.opacity(UIConstants.OpacityConstants.moderate))
+                            .frame(width: 8, height: 8)
+
+                        Text(work.title)
+                            .font(AppTheme.ScaledFont.body)
+                    }
+                }
+            }
+        }
+    }
+
+    @ViewBuilder
+    private var expandedNotes: some View {
+        if !session.sharedNotes.isEmpty {
+            VStack(alignment: .leading, spacing: 8) {
+                Text("Notes")
+                    .font(AppTheme.ScaledFont.captionSemibold)
+                    .foregroundStyle(.secondary)
+                    .textCase(.uppercase)
+
+                Text(session.sharedNotes)
+                    .font(AppTheme.ScaledFont.body)
+                    .foregroundStyle(.primary)
+            }
+        }
+    }
+
+    private var expandedMetadataFooter: some View {
+        HStack(spacing: 16) {
+            if let duration = session.durationFormatted {
+                Label(duration, systemImage: "clock.fill")
+                    .font(AppTheme.ScaledFont.captionSemibold)
+                    .foregroundStyle(.secondary)
+            }
+
+            if let location = session.location, !location.isEmpty {
+                Label(location, systemImage: "location.fill")
+                    .font(AppTheme.ScaledFont.captionSemibold)
+                    .foregroundStyle(.secondary)
+            }
+        }
     }
 
     // MARK: - Header Components

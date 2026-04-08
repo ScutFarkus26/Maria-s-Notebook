@@ -92,35 +92,7 @@ struct QuickNoteSheet: View {
     // MARK: - macOS Layout
     #if os(macOS)
     private var macOSLayout: some View {
-        VStack(spacing: 0) {
-            // Header
-            ZStack {
-                Text("New Note")
-                    .font(.system(.headline, design: .rounded))
-                    .foregroundStyle(.secondary)
-                
-                HStack {
-                    Button("Cancel") { dismiss() }
-                        .keyboardShortcut(.cancelAction)
-                        .buttonStyle(.plain)
-                        .foregroundStyle(AppColors.destructive)
-                    
-                    Spacer()
-                    
-                    Button("Save") { 
-                        viewModel.saveNote(viewContext: viewContext)
-                        dismiss()
-                    }
-                        .keyboardShortcut(.defaultAction)
-                        .buttonStyle(.borderedProminent)
-                        .disabled(viewModel.bodyText.trimmed().isEmpty)
-                }
-            }
-            .padding()
-            .background(.ultraThinMaterial)
-            
-            Divider()
-            
+        NavigationStack {
             HStack(spacing: 0) {
                 // Sidebar Metadata
                 VStack(alignment: .leading, spacing: 20) {
@@ -290,6 +262,21 @@ struct QuickNoteSheet: View {
                     }
                     .padding()
                     .background(.ultraThinMaterial)
+                }
+            }
+            .navigationTitle("New Note")
+            .inlineNavigationTitle()
+            .toolbar {
+                ToolbarItem(placement: .cancellationAction) {
+                    Button("Cancel") { dismiss() }
+                }
+                ToolbarItem(placement: .confirmationAction) {
+                    Button("Save") {
+                        viewModel.saveNote(viewContext: viewContext)
+                        dismiss()
+                    }
+                    .fontWeight(.bold)
+                    .disabled(viewModel.bodyText.trimmed().isEmpty)
                 }
             }
         }

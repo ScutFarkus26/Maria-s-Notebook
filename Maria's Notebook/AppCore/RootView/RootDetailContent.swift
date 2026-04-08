@@ -26,74 +26,51 @@ struct RootDetailContent: View {
     var body: some View {
         Group {
             switch selectedNavItem {
-            case .today:
-                TodayView(context: viewContext)
-            case .attendance:
-                // On iPhone compact, use standalone attendance view
-                if isIPhoneCompact {
-                    AttendanceStandaloneView()
-                } else {
-                    TodayView(context: viewContext)
-                }
-            case .note:
-                noteTabContent
-            case .todos:
-                TodoMainView()
-            case .students:
-                StudentsRootView()
-            case .supplies:
-                SuppliesListView()
-            case .procedures:
-                ProceduresListView()
-            case .meetings:
-                MeetingsWorkflowView()
-            case .more:
-                MoreMenuView()
-            case .lessons:
-                LessonsMenuRootView()
-            case .planningChecklist:
-                ClassSubjectChecklistView()
-            case .planningAgenda:
-                PresentationsView()
-            case .planningWork:
-                WorksAgendaView()
-            case .planningProgression:
-                ProgressionRootView()
-            case .planningProjects:
-                ProjectsRootView()
-            case .progressDashboard:
-                ProgressDashboardView()
-            case .lessonFrequency:
-                LessonFrequencyView()
-            case .curriculumBalance:
-                CurriculumBalanceView()
-            case .greatLessonsTimeline:
-                GreatLessonsTimelineView()
-            case .goingOut:
-                GoingOutRootView()
-            case .classroomJobs:
-                ClassroomJobsRootView()
-            case .transitionPlanner:
-                TransitionPlannerRootView()
-            case .needsLesson:
-                NeedsLessonView()
-            case .perpetualCalendar:
-                PerpetualCalendarView()
-            case .community:
-                CommunityMeetingsView()
-            case .schedules:
-                SchedulesView()
-            case .issues:
-                IssuesListView()
-            case .resourceLibrary:
-                ResourceLibraryView()
-            case .askAI:
-                ChatView()
-            case .logs:
-                LogsMenuRootView()
-            case .settings:
-                SettingsView()
+            case .today: TodayView(context: viewContext)
+            case .attendance: attendanceContent
+            case .workCycle: WorkCycleView()
+            case .note: noteTabContent
+            case .todos: TodoMainView()
+            case .fridayReview: FridayReviewView()
+            case .students: StudentsRootView()
+            case .supplies: SuppliesListView()
+            case .procedures: ProceduresListView()
+            case .meetings: MeetingsWorkflowView()
+            case .more: MoreMenuView()
+            case .lessons: LessonsMenuRootView()
+            case .planningChecklist: ClassSubjectChecklistView()
+            case .planningAgenda: PresentationsView()
+            case .planningWork: WorksAgendaView()
+            case .planningProgression: ProgressionRootView()
+            case .planningProjects: ProjectsRootView()
+            case .progressDashboard: ProgressDashboardView()
+            case .lessonFrequency: LessonFrequencyView()
+            case .curriculumBalance: CurriculumBalanceView()
+            case .greatLessonsTimeline: GreatLessonsTimelineView()
+            case .goingOut: GoingOutRootView()
+            case .classroomJobs: ClassroomJobsRootView()
+            case .transitionPlanner: TransitionPlannerRootView()
+            case .threeYearCycle: ThreeYearCycleView()
+            case .needsLesson: NeedsLessonView()
+            case .smallGroupPlanner: SmallGroupPlannerView()
+            case .perpetualCalendar: PerpetualCalendarView()
+            case .community: CommunityMeetingsView()
+            case .schedules: SchedulesView()
+            case .issues: IssuesListView()
+            case .resourceLibrary: ResourceLibraryView()
+            case .askAI: ChatView()
+            case .logs: LogsMenuRootView()
+            case .settings: SettingsView()
             }
+        }
+    }
+
+    @ViewBuilder
+    private var attendanceContent: some View {
+        if isIPhoneCompact {
+            AttendanceStandaloneView()
+        } else {
+            TodayView(context: viewContext)
         }
     }
 
@@ -158,6 +135,11 @@ struct RootAdaptiveTabs: View {
             } label: {
                 Label("Todos", systemImage: "checkmark.circle")
             }
+            Tab(value: RootView.NavigationItem.fridayReview) {
+                RootDetailContent(selectedNavItem: .fridayReview)
+            } label: {
+                Label("Friday Review", systemImage: "checkmark.seal")
+            }
         } header: {
             Text("Today")
         }
@@ -182,6 +164,11 @@ Tab(value: RootView.NavigationItem.meetings) {
                 RootDetailContent(selectedNavItem: .classroomJobs)
             } label: {
                 Label("Jobs", systemImage: "person.2.badge.gearshape")
+            }
+            Tab(value: RootView.NavigationItem.workCycle) {
+                RootDetailContent(selectedNavItem: .workCycle)
+            } label: {
+                Label("Work Cycle", systemImage: "timer")
             }
         } header: {
             Text("Classroom")
@@ -212,6 +199,11 @@ Tab(value: RootView.NavigationItem.needsLesson) {
                 RootDetailContent(selectedNavItem: .needsLesson)
             } label: {
                 Label("Needs Lesson", systemImage: "clock.badge.exclamationmark")
+            }
+            Tab(value: RootView.NavigationItem.smallGroupPlanner) {
+                RootDetailContent(selectedNavItem: .smallGroupPlanner)
+            } label: {
+                Label("Group Planner", systemImage: "person.3.sequence")
             }
             Tab(value: RootView.NavigationItem.planningProjects) {
                 RootDetailContent(selectedNavItem: .planningProjects)
@@ -252,6 +244,11 @@ Tab(value: RootView.NavigationItem.needsLesson) {
                 RootDetailContent(selectedNavItem: .transitionPlanner)
             } label: {
                 Label("Transitions", systemImage: "arrow.right.arrow.left")
+            }
+            Tab(value: RootView.NavigationItem.threeYearCycle) {
+                RootDetailContent(selectedNavItem: .threeYearCycle)
+            } label: {
+                Label("Three-Year Cycle", systemImage: "chart.bar.doc.horizontal")
             }
         } header: {
             Text("Progress")
@@ -331,6 +328,8 @@ struct MoreMenuView: View {
                     moreMenuButton(.meetings)
                     moreMenuButton(.goingOut)
                     moreMenuButton(.classroomJobs)
+                    moreMenuButton(.fridayReview)
+                    moreMenuButton(.workCycle)
                 }
 
                 Section("Planning") {
@@ -344,7 +343,9 @@ struct MoreMenuView: View {
                     moreMenuButton(.curriculumBalance)
                     moreMenuButton(.greatLessonsTimeline)
                     moreMenuButton(.transitionPlanner)
+                    moreMenuButton(.threeYearCycle)
                     moreMenuButton(.needsLesson)
+                    moreMenuButton(.smallGroupPlanner)
                 }
 
                 Section("Resources") {

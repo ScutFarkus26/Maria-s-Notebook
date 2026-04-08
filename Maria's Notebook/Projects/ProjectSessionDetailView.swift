@@ -117,99 +117,8 @@ struct ProjectSessionDetailView: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {
-            GroupBox {
-                VStack(alignment: .leading, spacing: 12) {
-                    TextField("Chapter/Pages", text: Binding(
-                        get: { session.chapterOrPages ?? "" },
-                        set: { session.chapterOrPages = $0.isEmpty ? nil : $0 }
-                    ))
-                    .textFieldStyle(.roundedBorder)
-
-                    VStack(alignment: .leading, spacing: 8) {
-                        Text("Agenda Items")
-                            .font(.headline)
-                        ForEach(Array(session.agendaItems.enumerated()), id: \.offset) { index, _ in
-                            HStack {
-                                TextField("Agenda item", text: Binding(
-                                    get: {
-                                        session.agendaItems.indices.contains(index)
-                                            ? session.agendaItems[index] : ""
-                                    },
-                                    set: { newValue in
-                                        var items = session.agendaItems
-                                        if items.indices.contains(index) {
-                                            items[index] = newValue
-                                            session.agendaItems = items
-                                        }
-                                    }
-                                ))
-                                .textFieldStyle(.roundedBorder)
-                                Button(role: .destructive) {
-                                    var items = session.agendaItems
-                                    if items.indices.contains(index) {
-                                        items.remove(at: index)
-                                        session.agendaItems = items
-                                        do {
-                                            try modelContext.save()
-                                        } catch {
-                                            Self.logger.warning("Failed to save after removing agenda item: \(error)")
-                                        }
-                                    }
-                                } label: {
-                                    Image(systemName: "minus.circle.fill")
-                                        .foregroundStyle(AppColors.destructive)
-                                }
-                                .buttonStyle(.plain)
-                            }
-                        }
-                        Button {
-                            var items = session.agendaItems
-                            items.append("")
-                            session.agendaItems = items
-                            do {
-                                try modelContext.save()
-                            } catch {
-                                let desc = error.localizedDescription
-                                Self.logger.error("Failed to save after adding agenda item: \(desc, privacy: .public)")
-                            }
-                        } label: {
-                            Label("Add Item", systemImage: "plus.circle.fill")
-                        }
-                        .buttonStyle(.plain)
-                    }
-                }
-                .padding(.vertical, 6)
-            }
-            .padding(.horizontal)
-            .onDisappear {
-                do {
-                    try modelContext.save()
-                } catch {
-                    ProjectSessionDetailView.logger.warning("Failed to save session on disappear: \(error)")
-                }
-            }
-
-            List {
-                // Assignment mode indicator
-                if session.assignmentMode == .choice {
-                    Section {
-                        HStack {
-                            Label("Student Choice", systemImage: "hand.tap")
-                            Spacer()
-                            let totalCount = offeredWorks.count + sessionWorkModels.filter { !$0.isOffered }.count
-                            Text("Pick \(session.minSelections) of \(totalCount)")
-                                .foregroundStyle(.secondary)
-                        }
-                    }
-                }
-
-                // Choice mode: Show offered works and student selection status
-                if session.assignmentMode == .choice {
-                    choiceModeContent
-                } else {
-                    uniformModeContent
-                }
-            }
+            sessionGroupBox
+            sessionList
         }
         .navigationTitle(DateFormatters.mediumDate.string(from: session.meetingDate ?? Date()))
         .sheet(item: Binding(
@@ -244,6 +153,106 @@ struct ProjectSessionDetailView: View {
         }
         .sheet(isPresented: $showAddWorkSheet) {
             AddWorkOfferSheet(session: session)
+        }
+    }
+
+    private var sessionGroupBox: some View {
+        GroupBox {
+            VStack(alignment: .leading, spacing: 12) {
+                TextField("Chapter/Pages", text: Binding(
+                    get: { session.chapterOrPages ?? "" },
+                    set: { session.chapterOrPages = $0.isEmpty ? nil : $0 }
+                ))
+                .textFieldStyle(.roundedBorder)
+
+                agendaItemsEditor
+            }
+            .padding(.vertical, 6)
+        }
+        .padding(.horizontal)
+        .onDisappear {
+            do {
+                try modelContext.save()
+            } catch {
+                ProjectSessionDetailView.logger.warning("Failed to save session on disappear: \(error)")
+            }
+        }
+    }
+
+    private var agendaItemsEditor: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            Text("Agenda Items")
+                .font(.headline)
+            ForEach(Array(session.agendaItems.enumerated()), id: \.offset) { index, _ in
+                HStack {
+                    TextField("Agenda item", text: Binding(
+                        get: {
+                            session.agendaItems.indices.contains(index)
+                                ? session.agendaItems[index] : ""
+                        },
+                        set: { newValue in
+                            var items = session.agendaItems
+                            if items.indices.contains(index) {
+                                items[index] = newValue
+                                session.agendaItems = items
+                            }
+                        }
+                    ))
+                    .textFieldStyle(.roundedBorder)
+                    Button(role: .destructive) {
+                        var items = session.agendaItems
+                        if items.indices.contains(index) {
+                            items.remove(at: index)
+                            session.agendaItems = items
+                            do {
+                                try modelContext.save()
+                            } catch {
+                                Self.logger.warning("Failed to save after removing agenda item: \(error)")
+                            }
+                        }
+                    } label: {
+                        Image(systemName: "minus.circle.fill")
+                            .foregroundStyle(AppColors.destructive)
+                    }
+                    .buttonStyle(.plain)
+                }
+            }
+            Button {
+                var items = session.agendaItems
+                items.append("")
+                session.agendaItems = items
+                do {
+                    try modelContext.save()
+                } catch {
+                    let desc: String = error.localizedDescription
+                    Self.logger.error("Failed to save after adding agenda item: \(desc, privacy: .public)")
+                }
+            } label: {
+                Label("Add Item", systemImage: "plus.circle.fill")
+            }
+            .buttonStyle(.plain)
+        }
+    }
+
+    private var sessionList: some View {
+        List {
+            if session.assignmentMode == .choice {
+                Section {
+                    HStack {
+                        Label("Student Choice", systemImage: "hand.tap")
+                        Spacer()
+                        let totalCount: Int = offeredWorks.count + sessionWorkModels.filter { !$0.isOffered }.count
+                        Text("Pick \(session.minSelections) of \(totalCount)")
+                            .foregroundStyle(.secondary)
+                    }
+                }
+            }
+
+            if session.assignmentMode == .choice {
+                choiceModeContent
+            } else {
+                uniformModeContent
+            }
         }
     }
     

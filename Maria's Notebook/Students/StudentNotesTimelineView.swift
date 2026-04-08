@@ -98,131 +98,14 @@ struct StudentNotesTimelineList: View {
 
     var body: some View {
         VStack(spacing: 0) {
-            // Search Bar
-            DebouncedSearchField("Search notes...", text: $searchText) { debounced in
-                debouncedSearchText = debounced
-                resetPagination()
-            }
-            .padding(.horizontal)
-            .padding(.top, 8)
-
-            // Header: Filter Pills and Category Button
-            HStack(spacing: 12) {
-                ScrollView(.horizontal, showsIndicators: false) {
-                    HStack(spacing: 12) {
-                        ForEach(NoteFilter.allCases) { filter in
-                            PillButton(
-                                title: filter.rawValue,
-                                isSelected: selectedFilter == filter
-                            ) {
-                                adaptiveWithAnimation {
-                                    selectedFilter = filter
-                                    resetPagination()
-                                }
-                            }
-                        }
-                    }
-                }
-
-                // Tag filter button
-                Button {
-                    showingTagFilter.toggle()
-                } label: {
-                    HStack(spacing: 4) {
-                        Image(systemName: "line.3.horizontal.decrease.circle")
-                        if !selectedFilterTags.isEmpty {
-                            Text("\(selectedFilterTags.count)")
-                                .font(.caption)
-                                .fontWeight(.semibold)
-                        }
-                    }
-                    .foregroundStyle(selectedFilterTags.isEmpty ? Color.secondary : Color.accentColor)
-                }
-                .buttonStyle(.plain)
-                .accessibilityLabel("Filter by tag")
-            }
-            .padding(.horizontal)
-            .padding(.vertical, 8)
-            .background(.background)
-
-            // Tag filter chips (collapsible)
-            if showingTagFilter {
-                tagFilterSection
-            }
-
-            // Active filters summary
-            if hasActiveFilters {
-                activeFiltersSummary
-            }
-
+            searchBar
+            filterBar
+            if showingTagFilter { tagFilterSection }
+            if hasActiveFilters { activeFiltersSummary }
             Divider()
-
-            // List Content - Using ScrollView + LazyVStack to avoid nested List issues
-            if filteredItems.isEmpty {
-                ContentUnavailableView(
-                    label: {
-                        Label("No Notes Found", systemImage: "note.text")
-                    },
-                    description: {
-                        Text(emptyStateMessage)
-                    }
-                )
-                .frame(maxHeight: .infinity)
-            } else {
-                ScrollView {
-                    LazyVStack(spacing: 0, pinnedViews: [.sectionHeaders]) {
-                        // Pinned Notes Section
-                        if !pinnedItems.isEmpty {
-                            Section {
-                                ForEach(pinnedItems) { item in
-                                    noteRow(for: item)
-                                }
-                            } header: {
-                                pinnedSectionHeader
-                            }
-                        }
-
-                        // Monthly grouped sections
-                        ForEach(groupedItems, id: \.key) { group in
-                            Section {
-                                ForEach(group.items) { item in
-                                    noteRow(for: item)
-                                }
-                            } header: {
-                                Text(monthYearHeader(for: group.key))
-                                    .font(.headline)
-                                    .foregroundStyle(.primary)
-                                    .textCase(nil)
-                                    .frame(maxWidth: .infinity, alignment: .leading)
-                                    .padding(.horizontal, 16)
-                                    .padding(.vertical, 12)
-                                    .background(.background)
-                            }
-                        }
-
-                        // Load More trigger
-                        if hasMoreItems {
-                            loadMoreButton
-                        }
-                    }
-                }
-            }
-            
-            // Quick CDNote Bar
+            notesListContent
             Divider()
-            HStack(spacing: 10) {
-                TextField("Add a note...", text: $newNoteText)
-                    .textFieldStyle(.roundedBorder)
-                
-                Button(action: addNote) {
-                    Image(systemName: "paperplane.fill")
-                        .font(.headline)
-                        .foregroundStyle(canAdd ? Color.accentColor : Color.secondary)
-                }
-                .disabled(!canAdd)
-            }
-            .padding()
-            .background(.bar)
+            quickNoteBar
         }
         .sheet(item: $noteBeingEdited) { note in
             NoteEditSheet(note: note) {
@@ -332,6 +215,122 @@ struct StudentNotesTimelineList: View {
         } message: {
             Text("This action cannot be undone.")
         }
+    }
+
+    // MARK: - Extracted Sections
+
+    private var searchBar: some View {
+        DebouncedSearchField("Search notes...", text: $searchText) { debounced in
+            debouncedSearchText = debounced
+            resetPagination()
+        }
+        .padding(.horizontal)
+        .padding(.top, 8)
+    }
+
+    private var filterBar: some View {
+        HStack(spacing: 12) {
+            ScrollView(.horizontal, showsIndicators: false) {
+                HStack(spacing: 12) {
+                    ForEach(NoteFilter.allCases) { filter in
+                        PillButton(
+                            title: filter.rawValue,
+                            isSelected: selectedFilter == filter
+                        ) {
+                            adaptiveWithAnimation {
+                                selectedFilter = filter
+                                resetPagination()
+                            }
+                        }
+                    }
+                }
+            }
+
+            Button {
+                showingTagFilter.toggle()
+            } label: {
+                HStack(spacing: 4) {
+                    Image(systemName: "line.3.horizontal.decrease.circle")
+                    if !selectedFilterTags.isEmpty {
+                        Text("\(selectedFilterTags.count)")
+                            .font(.caption)
+                            .fontWeight(.semibold)
+                    }
+                }
+                .foregroundStyle(selectedFilterTags.isEmpty ? Color.secondary : Color.accentColor)
+            }
+            .buttonStyle(.plain)
+            .accessibilityLabel("Filter by tag")
+        }
+        .padding(.horizontal)
+        .padding(.vertical, 8)
+        .background(.background)
+    }
+
+    @ViewBuilder
+    private var notesListContent: some View {
+        if filteredItems.isEmpty {
+            ContentUnavailableView(
+                label: {
+                    Label("No Notes Found", systemImage: "note.text")
+                },
+                description: {
+                    Text(emptyStateMessage)
+                }
+            )
+            .frame(maxHeight: .infinity)
+        } else {
+            ScrollView {
+                LazyVStack(spacing: 0, pinnedViews: [.sectionHeaders]) {
+                    if !pinnedItems.isEmpty {
+                        Section {
+                            ForEach(pinnedItems) { item in
+                                noteRow(for: item)
+                            }
+                        } header: {
+                            pinnedSectionHeader
+                        }
+                    }
+
+                    ForEach(groupedItems, id: \.key) { group in
+                        Section {
+                            ForEach(group.items) { item in
+                                noteRow(for: item)
+                            }
+                        } header: {
+                            Text(monthYearHeader(for: group.key))
+                                .font(.headline)
+                                .foregroundStyle(.primary)
+                                .textCase(nil)
+                                .frame(maxWidth: .infinity, alignment: .leading)
+                                .padding(.horizontal, 16)
+                                .padding(.vertical, 12)
+                                .background(.background)
+                        }
+                    }
+
+                    if hasMoreItems {
+                        loadMoreButton
+                    }
+                }
+            }
+        }
+    }
+
+    private var quickNoteBar: some View {
+        HStack(spacing: 10) {
+            TextField("Add a note...", text: $newNoteText)
+                .textFieldStyle(.roundedBorder)
+
+            Button(action: addNote) {
+                Image(systemName: "paperplane.fill")
+                    .font(.headline)
+                    .foregroundStyle(canAdd ? Color.accentColor : Color.secondary)
+            }
+            .disabled(!canAdd)
+        }
+        .padding()
+        .background(.bar)
     }
 
     private var canAdd: Bool {

@@ -62,70 +62,8 @@ struct CalendarMonthGridView: View {
 
     var body: some View {
         VStack(spacing: 8) {
-            // Weekday headers
-            HStack(spacing: 0) {
-                ForEach(weekdaySymbols, id: \.self) { sym in
-                    Text(sym)
-                        .font(.footnote.weight(.semibold))
-                        .foregroundStyle(.secondary)
-                        .frame(maxWidth: .infinity)
-                }
-            }
-            .padding(.bottom, 4)
-
-            // Weeks grid
-            VStack(spacing: 8) {
-                ForEach(Array(weeks.enumerated()), id: \.offset) { _, row in
-                    HStack(spacing: 8) {
-                        ForEach(Array(row.enumerated()), id: \.offset) { _, date in
-                            DayCell(
-                                date: date,
-                                calendar: calendar,
-                                nonSchoolDates: nonSchoolDates ?? computedNonSchoolDates
-                            ) { d in
-                                Task {
-                                    let toggleResult: Bool?
-                                    do {
-                                        toggleResult = try await SchoolCalendar.toggleNonSchoolDay(
-                                            d,
-                                            using: viewContext
-                                        )
-                                    } catch {
-                                        Self.logger.warning("Failed to toggle non-school day: \(error)")
-                                        toggleResult = nil
-                                    }
-                                    // Save changes after toggle
-                                    do {
-                                        try viewContext.save()
-                                    } catch {
-                                        Self.logger.warning("Failed to save after toggle: \(error)")
-                                    }
-                                    let newState: Bool
-                                    if let result = toggleResult {
-                                        newState = result
-                                    } else {
-                                        newState = await SchoolCalendar.isNonSchoolDay(d, using: viewContext)
-                                    }
-                                    await MainActor.run {
-                                        onDateToggled?(d, newState)
-                                    }
-                                    // Refresh local cache after toggle if we're managing it
-                                    if nonSchoolDates == nil {
-                                        let start = startOfMonth
-                                        let end = calendar.date(byAdding: .month, value: 1, to: start) ?? start
-                                        let set = await SchoolCalendar.nonSchoolDays(
-                                            in: start..<end,
-                                            using: viewContext
-                                        )
-                                        await MainActor.run { computedNonSchoolDates = set }
-                                    }
-                                }
-                            }
-                            .frame(maxWidth: .infinity)
-                        }
-                    }
-                }
-            }
+            weekdayHeaders
+            weeksGrid
         }
         .task {
             if nonSchoolDates == nil {
@@ -137,6 +75,68 @@ struct CalendarMonthGridView: View {
         }
         .onChange(of: calendar) { _, _ in
             Task { if nonSchoolDates == nil { await loadNonSchoolDates() } }
+        }
+    }
+
+    private var weekdayHeaders: some View {
+        HStack(spacing: 0) {
+            ForEach(weekdaySymbols, id: \.self) { sym in
+                Text(sym)
+                    .font(.footnote.weight(.semibold))
+                    .foregroundStyle(.secondary)
+                    .frame(maxWidth: .infinity)
+            }
+        }
+        .padding(.bottom, 4)
+    }
+
+    private var weeksGrid: some View {
+        VStack(spacing: 8) {
+            ForEach(Array(weeks.enumerated()), id: \.offset) { _, row in
+                HStack(spacing: 8) {
+                    ForEach(Array(row.enumerated()), id: \.offset) { _, date in
+                        DayCell(
+                            date: date,
+                            calendar: calendar,
+                            nonSchoolDates: nonSchoolDates ?? computedNonSchoolDates,
+                            onTap: { d in handleDayTap(d) }
+                        )
+                        .frame(maxWidth: .infinity)
+                    }
+                }
+            }
+        }
+    }
+
+    private func handleDayTap(_ d: Date) {
+        Task {
+            let toggleResult: Bool?
+            do {
+                toggleResult = try await SchoolCalendar.toggleNonSchoolDay(d, using: viewContext)
+            } catch {
+                Self.logger.warning("Failed to toggle non-school day: \(error)")
+                toggleResult = nil
+            }
+            do {
+                try viewContext.save()
+            } catch {
+                Self.logger.warning("Failed to save after toggle: \(error)")
+            }
+            let newState: Bool
+            if let result = toggleResult {
+                newState = result
+            } else {
+                newState = await SchoolCalendar.isNonSchoolDay(d, using: viewContext)
+            }
+            await MainActor.run {
+                onDateToggled?(d, newState)
+            }
+            if nonSchoolDates == nil {
+                let start: Date = startOfMonth
+                let end: Date = calendar.date(byAdding: .month, value: 1, to: start) ?? start
+                let set: Set<Date> = await SchoolCalendar.nonSchoolDays(in: start..<end, using: viewContext)
+                await MainActor.run { computedNonSchoolDates = set }
+            }
         }
     }
 }

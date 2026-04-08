@@ -101,55 +101,13 @@ extension PresentationsInboxView {
     @ViewBuilder
     // swiftlint:disable:next function_body_length
     func studentRow(_ student: CDStudent) -> some View {
-        let studentID = student.id ?? UUID()
-        let isSelected = coordinator.selectedStudentFilter == studentID
+        let studentID: UUID = student.id ?? UUID()
+        let isSelected: Bool = coordinator.selectedStudentFilter == studentID
 
         HStack(spacing: AppTheme.Spacing.small) {
-            VStack(alignment: .leading, spacing: AppTheme.Spacing.xxsmall) {
-                Text(StudentFormatter.displayName(for: student))
-                    .font(.subheadline.weight(.medium))
-                    .lineLimit(1)
-
-                // Days since last lesson - compact format
-                if let days = student.id.flatMap({ daysSinceLastLessonByStudent[$0] }) {
-                    if days == Int.max {
-                        Text("No lessons")
-                            .font(.caption2)
-                            .foregroundStyle(AppColors.warning)
-                    } else if days == 0 {
-                        Text("Today")
-                            .font(.caption2)
-                            .foregroundStyle(.secondary)
-                    } else {
-                        Text("\(days)d ago")
-                            .font(.caption2)
-                            .foregroundStyle(days >= 3 ? AppColors.warning : .secondary)
-                    }
-                } else {
-                    Text("No lessons")
-                        .font(.caption2)
-                        .foregroundStyle(AppColors.warning)
-                }
-            }
-
+            studentRowInfo(student)
             Spacer()
-
-            // Days badge for quick scanning
-            if let days = student.id.flatMap({ daysSinceLastLessonByStudent[$0] }), days != Int.max && days > 0 {
-                Text("\(days)")
-                    .font(.caption2.weight(.bold))
-                    .foregroundStyle(days >= 3 ? .white : .secondary)
-                    .frame(width: AppTheme.Spacing.large, height: AppTheme.Spacing.medium + AppTheme.Spacing.xsmall)
-                    .background {
-                        if days >= 3 {
-                            RoundedRectangle(cornerRadius: AppTheme.Spacing.xsmall)
-                                .fill(.orange)
-                        } else {
-                            RoundedRectangle(cornerRadius: AppTheme.Spacing.xsmall)
-                                .fill(Color.primary.opacity(UIConstants.OpacityConstants.light))
-                        }
-                    }
-            }
+            studentDaysBadge(student)
         }
         .padding(.horizontal, AppTheme.Spacing.small + AppTheme.Spacing.xxsmall)
         .padding(.vertical, AppTheme.Spacing.small)
@@ -174,6 +132,54 @@ extension PresentationsInboxView {
                     coordinator.filterByStudent(studentID)
                 }
             }
+        }
+    }
+
+    @ViewBuilder
+    private func studentRowInfo(_ student: CDStudent) -> some View {
+        VStack(alignment: .leading, spacing: AppTheme.Spacing.xxsmall) {
+            Text(StudentFormatter.displayName(for: student))
+                .font(.subheadline.weight(.medium))
+                .lineLimit(1)
+
+            if let days: Int = student.id.flatMap({ daysSinceLastLessonByStudent[$0] }) {
+                if days == Int.max {
+                    Text("No lessons")
+                        .font(.caption2)
+                        .foregroundStyle(AppColors.warning)
+                } else if days == 0 {
+                    Text("Today")
+                        .font(.caption2)
+                        .foregroundStyle(.secondary)
+                } else {
+                    Text("\(days)d ago")
+                        .font(.caption2)
+                        .foregroundStyle(days >= 3 ? AppColors.warning : .secondary)
+                }
+            } else {
+                Text("No lessons")
+                    .font(.caption2)
+                    .foregroundStyle(AppColors.warning)
+            }
+        }
+    }
+
+    @ViewBuilder
+    private func studentDaysBadge(_ student: CDStudent) -> some View {
+        if let days: Int = student.id.flatMap({ daysSinceLastLessonByStudent[$0] }), days != Int.max && days > 0 {
+            Text("\(days)")
+                .font(.caption2.weight(.bold))
+                .foregroundStyle(days >= 3 ? .white : .secondary)
+                .frame(width: AppTheme.Spacing.large, height: AppTheme.Spacing.medium + AppTheme.Spacing.xsmall)
+                .background {
+                    if days >= 3 {
+                        RoundedRectangle(cornerRadius: AppTheme.Spacing.xsmall)
+                            .fill(.orange)
+                    } else {
+                        RoundedRectangle(cornerRadius: AppTheme.Spacing.xsmall)
+                            .fill(Color.primary.opacity(UIConstants.OpacityConstants.light))
+                    }
+                }
         }
     }
 }

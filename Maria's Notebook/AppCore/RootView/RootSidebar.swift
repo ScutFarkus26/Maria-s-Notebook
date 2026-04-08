@@ -28,6 +28,8 @@ extension RootSidebar {
                 sidebarRow(.today, title: "Today", systemImage: SFSymbol.Weather.sun)
 
                 sidebarRow(.todos, title: "Todos", systemImage: SFSymbol.Action.checkmarkCircle)
+
+                sidebarRow(.fridayReview, title: "Friday Review", systemImage: "checkmark.seal")
             }
 
             Section("Students") {
@@ -58,6 +60,8 @@ extension RootSidebar {
                 sidebarRow(.classroomJobs, title: "Jobs", systemImage: "person.2.badge.gearshape")
 
                 sidebarRow(.attendance, title: "Attendance", systemImage: "checklist")
+
+                sidebarRow(.workCycle, title: "Work Cycle", systemImage: "timer")
             }
 
             Section("Curriculum") {
@@ -91,6 +95,8 @@ extension RootSidebar {
 
                 sidebarRow(.needsLesson, title: "Needs Lesson", systemImage: "clock.badge.exclamationmark")
 
+                sidebarRow(.smallGroupPlanner, title: "Group Planner", systemImage: "person.3.sequence")
+
                 sidebarRow(.planningProjects, title: "Projects", systemImage: SFSymbol.CDDocument.folder)
             }
 
@@ -106,6 +112,8 @@ extension RootSidebar {
                 sidebarRow(.greatLessonsTimeline, title: "Great Lessons", systemImage: "sparkles")
 
                 sidebarRow(.transitionPlanner, title: "Transitions", systemImage: "arrow.right.arrow.left")
+
+                sidebarRow(.threeYearCycle, title: "Three-Year Cycle", systemImage: "chart.bar.doc.horizontal")
             }
 
             Section("Resources") {
@@ -157,6 +165,12 @@ extension RootSidebar {
                 }
                 .buttonStyle(.plain)
                 .accessibilityHint("Manage your personal todos and tasks")
+
+                Button { selection = .fridayReview } label: {
+                    Label("Friday Review", systemImage: "checkmark.seal")
+                }
+                .buttonStyle(.plain)
+                .accessibilityHint("Review the week and prepare Monday priorities")
             }
 
             Section("Students") {
@@ -198,6 +212,12 @@ extension RootSidebar {
                 }
                 .buttonStyle(.plain)
                 .accessibilityHint("Track daily student attendance")
+
+                Button { selection = .workCycle } label: {
+                    Label("Work Cycle", systemImage: "timer")
+                }
+                .buttonStyle(.plain)
+                .accessibilityHint("Track student activity during the work cycle")
             }
 
             Section("Curriculum") {
@@ -230,6 +250,12 @@ extension RootSidebar {
                 }
                 .buttonStyle(.plain)
                 .accessibilityHint("See which students need a lesson based on days since last presentation")
+
+                Button { selection = .smallGroupPlanner } label: {
+                    Label("Group Planner", systemImage: "person.3.sequence")
+                }
+                .buttonStyle(.plain)
+                .accessibilityHint("Find ready and almost-ready students for group presentations")
 
                 Button { selection = .planningProjects } label: {
                     Label("Projects", systemImage: SFSymbol.CDDocument.folder)
@@ -268,6 +294,12 @@ extension RootSidebar {
                 }
                 .buttonStyle(.plain)
                 .accessibilityHint("View lesson progress mapped to the Five Great Lessons")
+
+                Button { selection = .threeYearCycle } label: {
+                    Label("Three-Year Cycle", systemImage: "chart.bar.doc.horizontal")
+                }
+                .buttonStyle(.plain)
+                .accessibilityHint("View student progress across the three-year Montessori cycle")
 
                 Button { selection = .transitionPlanner } label: {
                     Label("Transitions", systemImage: "arrow.right.arrow.left")

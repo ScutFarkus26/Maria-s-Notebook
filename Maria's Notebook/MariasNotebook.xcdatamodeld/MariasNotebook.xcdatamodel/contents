@@ -854,4 +854,30 @@
         <attribute name="createdAt" optional="YES" attributeType="Date" usesScalarValueType="NO"/>
         <attribute name="modifiedAt" optional="YES" attributeType="Date" usesScalarValueType="NO"/>
     </entity>
+    <!-- ==================== WorkCycleSession ==================== -->
+    <entity name="WorkCycleSession" representedClassName="CDWorkCycleSession" syncable="YES">
+        <attribute name="id" optional="YES" attributeType="UUID" usesScalarValueType="NO"/>
+        <attribute name="date" optional="YES" attributeType="Date" usesScalarValueType="NO"/>
+        <attribute name="startTime" optional="YES" attributeType="Date" usesScalarValueType="NO"/>
+        <attribute name="endTime" optional="YES" attributeType="Date" usesScalarValueType="NO"/>
+        <attribute name="statusRaw" attributeType="String" defaultValueString="active"/>
+        <attribute name="notes" attributeType="String" defaultValueString=""/>
+        <attribute name="createdAt" optional="YES" attributeType="Date" usesScalarValueType="NO"/>
+        <attribute name="modifiedAt" optional="YES" attributeType="Date" usesScalarValueType="NO"/>
+    </entity>
+    <!-- ==================== WorkCycleEntry ==================== -->
+    <entity name="WorkCycleEntry" representedClassName="CDWorkCycleEntry" syncable="YES">
+        <attribute name="id" optional="YES" attributeType="UUID" usesScalarValueType="NO"/>
+        <attribute name="sessionID" attributeType="String" defaultValueString=""/>
+        <attribute name="studentID" attributeType="String" defaultValueString=""/>
+        <attribute name="activityDescription" attributeType="String" defaultValueString=""/>
+        <attribute name="socialModeRaw" attributeType="String" defaultValueString="independent"/>
+        <attribute name="concentrationRaw" attributeType="String" defaultValueString="focused"/>
+        <attribute name="startTime" optional="YES" attributeType="Date" usesScalarValueType="NO"/>
+        <attribute name="endTime" optional="YES" attributeType="Date" usesScalarValueType="NO"/>
+        <attribute name="workItemID" optional="YES" attributeType="String"/>
+        <attribute name="notes" attributeType="String" defaultValueString=""/>
+        <attribute name="createdAt" optional="YES" attributeType="Date" usesScalarValueType="NO"/>
+        <attribute name="modifiedAt" optional="YES" attributeType="Date" usesScalarValueType="NO"/>
+    </entity>
 </model>

@@ -53,7 +53,7 @@ final class GreatLessonsTimelineViewModel {
         }
 
         // 2. Build lookup indices
-        let lessonsByID: [UUID: CDLesson] = Dictionary(
+        let _: [UUID: CDLesson] = Dictionary(
             uniqueKeysWithValues: allLessons.compactMap { lesson in
                 guard let id = lesson.id else { return nil }
                 return (id, lesson)
@@ -73,7 +73,7 @@ final class GreatLessonsTimelineViewModel {
                 return (id, student)
             }
         )
-        let visibleStudentIDs = Set(studentsByID.keys.map(\.uuidString))
+        _ = Set(studentsByID.keys.map(\.uuidString))
 
         // 3. Resolve lessons to Great Lessons
         var lessonsByGreatLesson: [GreatLesson: [CDLesson]] = [:]
@@ -97,7 +97,7 @@ final class GreatLessonsTimelineViewModel {
 
         for gl in GreatLesson.allCases {
             let lessons = lessonsByGreatLesson[gl] ?? []
-            let lessonIDs = Set(lessons.compactMap { $0.id })
+            _ = Set(lessons.compactMap { $0.id })
 
             // Group by subject → group
             let grouped = Dictionary(grouping: lessons) {

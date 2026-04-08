@@ -11,53 +11,70 @@ struct AddSequenceSheet: View {
 
     var body: some View {
         NavigationStack {
-            Form {
-                lessonSection
-                startDateSection
-                spacingSection
+            formContent
+                .navigationTitle("Add Lesson Sequence")
+                #if os(iOS)
+                .navigationBarTitleDisplayMode(.inline)
+                #endif
+                .toolbar { formToolbar }
+                .onChange(of: viewModel.selectedLesson) { _, _ in
+                    refreshPreview()
+                }
+                .onChange(of: viewModel.startDate) { _, _ in
+                    refreshPreview()
+                }
+                .onChange(of: viewModel.spacingDays) { _, _ in
+                    refreshPreview()
+                }
+        }
+    }
 
-                if viewModel.showsOverflowWarning {
-                    Section {
-                        Label(
-                            "\(viewModel.overflowCount) lesson\(viewModel.overflowCount == 1 ? "" : "s") extend\(viewModel.overflowCount == 1 ? "s" : "") past the school year end.",
-                            systemImage: "exclamationmark.triangle.fill"
-                        )
-                        .font(.caption)
-                        .foregroundStyle(.orange)
-                    }
-                }
-
-                if !viewModel.previewItems.isEmpty {
-                    previewSection
-                }
-            }
-            .navigationTitle("Add Lesson Sequence")
-            #if os(iOS)
-            .navigationBarTitleDisplayMode(.inline)
-            #endif
-            .toolbar {
-                ToolbarItem(placement: .cancellationAction) {
-                    Button("Cancel") { dismiss() }
-                }
-                ToolbarItem(placement: .confirmationAction) {
-                    Button("Schedule All") {
-                        viewModel.scheduleAll(student: student, context: viewContext)
-                        onComplete()
-                        dismiss()
-                    }
-                    .disabled(viewModel.previewItems.isEmpty)
-                }
-            }
-            .onChange(of: viewModel.selectedLesson) { _, _ in
-                Task { await viewModel.computePreview(context: viewContext) }
-            }
-            .onChange(of: viewModel.startDate) { _, _ in
-                Task { await viewModel.computePreview(context: viewContext) }
-            }
-            .onChange(of: viewModel.spacingDays) { _, _ in
-                Task { await viewModel.computePreview(context: viewContext) }
+    private var formContent: some View {
+        Form {
+            lessonSection
+            startDateSection
+            spacingSection
+            overflowWarningSection
+            if !viewModel.previewItems.isEmpty {
+                previewSection
             }
         }
+    }
+
+    @ViewBuilder
+    private var overflowWarningSection: some View {
+        if viewModel.showsOverflowWarning {
+            let count: Int = viewModel.overflowCount
+            let noun: String = count == 1 ? "lesson" : "lessons"
+            let verb: String = count == 1 ? "extends" : "extend"
+            Section {
+                Label(
+                    "\(count) \(noun) \(verb) past the school year end.",
+                    systemImage: "exclamationmark.triangle.fill"
+                )
+                .font(.caption)
+                .foregroundStyle(.orange)
+            }
+        }
+    }
+
+    @ToolbarContentBuilder
+    private var formToolbar: some ToolbarContent {
+        ToolbarItem(placement: .cancellationAction) {
+            Button("Cancel") { dismiss() }
+        }
+        ToolbarItem(placement: .confirmationAction) {
+            Button("Schedule All") {
+                viewModel.scheduleAll(student: student, context: viewContext)
+                onComplete()
+                dismiss()
+            }
+            .disabled(viewModel.previewItems.isEmpty)
+        }
+    }
+
+    private func refreshPreview() {
+        Task { await viewModel.computePreview(context: viewContext) }
     }
 
     // MARK: - Sections
