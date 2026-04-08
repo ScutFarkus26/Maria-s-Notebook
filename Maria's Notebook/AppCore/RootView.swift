@@ -86,34 +86,7 @@ struct RootView: View {
 
     // MARK: - Body
     var body: some View {
-        VStack(spacing: 0) {
-            warningBanners
-            Divider()
-            mainContent
-        }
-        .overlay(alignment: .topTrailing) {
-            HStack(spacing: 8) {
-                Button {
-                    isShowingSearch = true
-                } label: {
-                    Image(systemName: "magnifyingglass")
-                        .font(.system(size: 14, weight: .medium))
-                        .foregroundStyle(.secondary)
-                }
-                .buttonStyle(.plain)
-                .accessibilityLabel("Search")
-                CompactSyncStatusIndicator(compact: true)
-            }
-            .padding(.trailing, 12)
-            .padding(.top, 6)
-        }
-        .onAppear(perform: restoreSelectionIfNeeded)
-        .onChange(of: selectedNavItem) { _, item in
-            persistSelection(item)
-        }
-        .onChange(of: appRouter.navigationDestination, handleNavigationDestinationChange)
-        .onChange(of: appRouter.selectedNavItem, handleSelectedNavItemChange)
-        .onChange(of: appRouter.selectedTab, handleSelectedTabChange)
+        rootLayoutWithObservers
         .saveErrorAlert()
         .toastOverlay(dependencies.toastService)
         #if !os(macOS)
@@ -266,6 +239,45 @@ struct RootView: View {
     }
 
     // MARK: - View Components
+
+    private var rootLayoutWithObservers: some View {
+        rootLayout
+        .onAppear(perform: restoreSelectionIfNeeded)
+        .onChange(of: selectedNavItem) { _, item in
+            persistSelection(item)
+        }
+        .onChange(of: appRouter.navigationDestination, handleNavigationDestinationChange)
+        .onChange(of: appRouter.selectedNavItem, handleSelectedNavItemChange)
+        .onChange(of: appRouter.selectedTab, handleSelectedTabChange)
+    }
+
+    private var rootLayout: some View {
+        VStack(spacing: 0) {
+            warningBanners
+            Divider()
+            mainContent
+        }
+        .overlay(alignment: .topTrailing) {
+            searchAndSyncOverlay
+        }
+    }
+
+    private var searchAndSyncOverlay: some View {
+        HStack(spacing: 8) {
+            Button {
+                isShowingSearch = true
+            } label: {
+                Image(systemName: "magnifyingglass")
+                    .font(.system(size: 14, weight: .medium))
+                    .foregroundStyle(.secondary)
+            }
+            .buttonStyle(.plain)
+            .accessibilityLabel("Search")
+            CompactSyncStatusIndicator(compact: true)
+        }
+        .padding(.trailing, 12)
+        .padding(.top, 6)
+    }
 
     @ViewBuilder
     private var warningBanners: some View {

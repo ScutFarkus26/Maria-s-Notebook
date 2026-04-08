@@ -98,13 +98,21 @@ extension PresentationsInboxView {
         }
     }
 
-    @ViewBuilder
-    // swiftlint:disable:next function_body_length
     func studentRow(_ student: CDStudent) -> some View {
         let studentID: UUID = student.id ?? UUID()
         let isSelected: Bool = coordinator.selectedStudentFilter == studentID
 
-        HStack(spacing: AppTheme.Spacing.small) {
+        return studentRowContent(student: student, studentID: studentID, isSelected: isSelected)
+    }
+
+    private func studentRowContent(student: CDStudent, studentID: UUID, isSelected: Bool) -> some View {
+        let bgColor: Color = isSelected
+            ? Color.orange.opacity(UIConstants.OpacityConstants.accent + 0.05)
+            : Color.primary.opacity(UIConstants.OpacityConstants.veryFaint)
+        let borderColor: Color = isSelected ? Color.orange : Color.clear
+        let cornerRadius: CGFloat = UIConstants.CornerRadius.medium
+
+        return HStack(spacing: AppTheme.Spacing.small) {
             studentRowInfo(student)
             Spacer()
             studentDaysBadge(student)
@@ -112,25 +120,25 @@ extension PresentationsInboxView {
         .padding(.horizontal, AppTheme.Spacing.small + AppTheme.Spacing.xxsmall)
         .padding(.vertical, AppTheme.Spacing.small)
         .background(
-            RoundedRectangle(cornerRadius: UIConstants.CornerRadius.medium, style: .continuous)
-                .fill(
-                    isSelected
-                        ? Color.orange.opacity(UIConstants.OpacityConstants.accent + 0.05)
-                        : Color.primary.opacity(UIConstants.OpacityConstants.veryFaint)
-                )
+            RoundedRectangle(cornerRadius: cornerRadius, style: .continuous)
+                .fill(bgColor)
         )
         .overlay(
-            RoundedRectangle(cornerRadius: UIConstants.CornerRadius.medium, style: .continuous)
-                .stroke(isSelected ? Color.orange : Color.clear, lineWidth: UIConstants.StrokeWidth.thick)
+            RoundedRectangle(cornerRadius: cornerRadius, style: .continuous)
+                .stroke(borderColor, lineWidth: UIConstants.StrokeWidth.thick)
         )
         .contentShape(Rectangle())
         .onTapGesture {
-            adaptiveWithAnimation(.easeInOut(duration: 0.15)) {
-                if coordinator.selectedStudentFilter == studentID {
-                    coordinator.clearStudentFilter()
-                } else {
-                    coordinator.filterByStudent(studentID)
-                }
+            toggleStudentFilter(studentID)
+        }
+    }
+
+    private func toggleStudentFilter(_ studentID: UUID) {
+        adaptiveWithAnimation(.easeInOut(duration: 0.15)) {
+            if coordinator.selectedStudentFilter == studentID {
+                coordinator.clearStudentFilter()
+            } else {
+                coordinator.filterByStudent(studentID)
             }
         }
     }

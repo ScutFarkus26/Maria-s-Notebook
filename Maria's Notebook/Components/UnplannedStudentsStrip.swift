@@ -46,47 +46,9 @@ struct UnplannedStudentsStrip: View {
 
     private var content: some View {
         VStack(spacing: 8) {
-            HStack(spacing: 8) {
-                Image(systemName: "chevron.down")
-                    .rotationEffect(.degrees(expanded ? 180 : 0))
-                    .foregroundStyle(.secondary)
-                Text("Unplanned today · \(unplanned.count)")
-                    .font(AppTheme.ScaledFont.captionSemibold)
-                    .foregroundStyle(.secondary)
-                Spacer(minLength: 0)
-            }
-            .contentShape(Rectangle())
-            .onTapGesture {
-                adaptiveWithAnimation(.easeInOut(duration: 0.15)) { expanded.toggle() }
-            }
-
+            collapsibleHeader
             if expanded {
-                Divider()
-                    .overlay(Color.primary.opacity(UIConstants.OpacityConstants.veryFaint))
-                ScrollView(.horizontal, showsIndicators: false) {
-                    HStack(spacing: 6) {
-                        ForEach(unplanned, id: \.id) { student in
-                            Button {
-                                onSelect(student)
-                            } label: {
-                                Text(chipLabel(for: student))
-                                    .font(.caption)
-                                    .foregroundStyle(.primary)
-                                    .padding(.horizontal, 10)
-                                    .padding(.vertical, 6)
-                                    .background(
-                                        Capsule().fill(Color.primary.opacity(UIConstants.OpacityConstants.trace))
-                                    )
-                                    .overlay(
-                                        Capsule().stroke(Color.primary.opacity(UIConstants.OpacityConstants.accent), lineWidth: 1)
-                                    )
-                            }
-                            .buttonStyle(.plain)
-                        }
-                    }
-                    .padding(.vertical, 2)
-                }
-                .frame(maxWidth: .infinity, alignment: .leading)
+                expandedContent
             }
         }
         .padding(10)
@@ -98,6 +60,57 @@ struct UnplannedStudentsStrip: View {
                         .stroke(Color.primary.opacity(UIConstants.OpacityConstants.subtle), lineWidth: 1)
                 )
         )
+    }
+
+    private var collapsibleHeader: some View {
+        HStack(spacing: 8) {
+            Image(systemName: "chevron.down")
+                .rotationEffect(.degrees(expanded ? 180 : 0))
+                .foregroundStyle(.secondary)
+            Text("Unplanned today · \(unplanned.count)")
+                .font(AppTheme.ScaledFont.captionSemibold)
+                .foregroundStyle(.secondary)
+            Spacer(minLength: 0)
+        }
+        .contentShape(Rectangle())
+        .onTapGesture {
+            adaptiveWithAnimation(.easeInOut(duration: 0.15)) { expanded.toggle() }
+        }
+    }
+
+    private var expandedContent: some View {
+        Group {
+            Divider()
+                .overlay(Color.primary.opacity(UIConstants.OpacityConstants.veryFaint))
+            ScrollView(.horizontal, showsIndicators: false) {
+                HStack(spacing: 6) {
+                    ForEach(unplanned, id: \.id) { student in
+                        studentChip(student)
+                    }
+                }
+                .padding(.vertical, 2)
+            }
+            .frame(maxWidth: .infinity, alignment: .leading)
+        }
+    }
+
+    private func studentChip(_ student: CDStudent) -> some View {
+        Button {
+            onSelect(student)
+        } label: {
+            Text(chipLabel(for: student))
+                .font(.caption)
+                .foregroundStyle(.primary)
+                .padding(.horizontal, 10)
+                .padding(.vertical, 6)
+                .background(
+                    Capsule().fill(Color.primary.opacity(UIConstants.OpacityConstants.trace))
+                )
+                .overlay(
+                    Capsule().stroke(Color.primary.opacity(UIConstants.OpacityConstants.accent), lineWidth: 1)
+                )
+        }
+        .buttonStyle(.plain)
     }
 }
 

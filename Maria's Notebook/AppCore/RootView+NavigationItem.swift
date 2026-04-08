@@ -32,6 +32,7 @@ extension RootView {
         case curriculumBalance
         case greatLessonsTimeline
         case goingOut
+        case parentCommunication
         case classroomJobs
         case transitionPlanner
         case threeYearCycle
@@ -40,6 +41,7 @@ extension RootView {
 
         case perpetualCalendar
 
+        case prepChecklist
         case community
         case schedules
         case issues
@@ -76,12 +78,14 @@ extension RootView {
             case .curriculumBalance:   return ("Curriculum Balance", SFSymbol.Chart.chartPie)
             case .greatLessonsTimeline: return ("Great Lessons", "sparkles")
             case .goingOut:            return ("Going Out", "figure.walk")
+            case .parentCommunication: return ("Parent Comms", "envelope")
             case .classroomJobs:       return ("Jobs", "person.2.badge.gearshape")
             case .transitionPlanner:   return ("Transitions", "arrow.right.arrow.left")
             case .threeYearCycle:      return ("Three-Year Cycle", "chart.bar.doc.horizontal")
             case .needsLesson:         return ("Needs Lesson", "clock.badge.exclamationmark")
             case .smallGroupPlanner:   return ("Group Planner", "person.3.sequence")
             case .perpetualCalendar:   return ("Calendar", "calendar.day.timeline.leading")
+            case .prepChecklist:       return ("Prep Checklist", "checklist.checked")
             case .community:           return ("Community", "bubble.left.and.bubble.right")
             case .schedules:           return ("Schedules", "clock.badge.checkmark")
             case .issues:              return ("Issues", "exclamationmark.triangle")
@@ -114,9 +118,9 @@ extension RootView {
                  .planningChecklist, .planningAgenda, .planningWork,
                  .planningProgression, .planningProjects, .progressDashboard,
                  .lessonFrequency, .curriculumBalance, .greatLessonsTimeline,
-                 .goingOut, .fridayReview, .workCycle,
+                 .goingOut, .parentCommunication, .fridayReview, .workCycle,
                  .classroomJobs, .transitionPlanner, .threeYearCycle, .needsLesson, .smallGroupPlanner,
-                 .perpetualCalendar,
+                 .prepChecklist, .perpetualCalendar,
                  .community, .schedules, .resourceLibrary, .askAI, .logs, .settings:
                 return true
             default:
@@ -145,7 +149,9 @@ extension RootView {
                  .smallGroupPlanner:
                 return .planning
             case .goingOut:          return nil
+            case .parentCommunication: return nil
             case .classroomJobs:     return nil
+            case .prepChecklist:     return nil
             case .perpetualCalendar: return nil
             case .community:         return .community
             case .schedules:         return nil

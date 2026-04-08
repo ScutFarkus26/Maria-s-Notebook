@@ -48,63 +48,83 @@ extension UnifiedNoteEditor {
 
     var tagSelectionSection: some View {
         VStack(alignment: .leading, spacing: AppTheme.Spacing.small) {
-            HStack {
-                Text("Tags")
-                    .font(AppTheme.ScaledFont.caption.weight(.semibold))
-                    .foregroundStyle(.secondary)
-                Spacer()
-#if ENABLE_FOUNDATION_MODELS && canImport(FoundationModels)
-                if !bodyText.trimmed().isEmpty {
-                    Button {
-                        Task { await suggestTagsAndScope() }
-                    } label: {
-                        HStack(spacing: AppTheme.Spacing.xsmall) {
-                            Image(systemName: "wand.and.stars")
-                            Text(isSuggesting ? "Suggesting…" : "Suggest Tags")
-                        }
-                    }
-                    .disabled(isSuggesting)
-                }
-#endif
-            }
-
-            ScrollView(.horizontal, showsIndicators: false) {
-                HStack(spacing: AppTheme.Spacing.small) {
-                    ForEach(tags, id: \.self) { tag in
-                        HStack(spacing: 4) {
-                            TagBadge(tag: tag)
-                            Button {
-                                adaptiveWithAnimation { tags.removeAll { $0 == tag } }
-                            } label: {
-                                Image(systemName: "xmark.circle.fill")
-                                    .font(.system(size: 12))
-                                    .foregroundStyle(.secondary)
-                            }
-                            .buttonStyle(.plain)
-                        }
-                    }
-                    Button {
-                        showingTagPicker = true
-                    } label: {
-                        HStack(spacing: AppTheme.Spacing.xsmall) {
-                            Image(systemName: "plus")
-                                .font(.system(size: 12, weight: .medium))
-                            Text("Add Tag")
-                                .font(AppTheme.ScaledFont.caption.weight(.medium))
-                        }
-                        .padding(.horizontal, AppTheme.Spacing.compact)
-                        .padding(.vertical, AppTheme.Spacing.verySmall)
-                        .background(Color.secondary.opacity(UIConstants.OpacityConstants.light))
-                        .clipShape(RoundedRectangle(cornerRadius: UIConstants.CornerRadius.extraLarge))
-                    }
-                    .buttonStyle(.plain)
-                }
-                .padding(.vertical, AppTheme.Spacing.xxsmall)
-            }
-            .sheet(isPresented: $showingTagPicker) {
-                NoteTagPickerSheet(selectedTags: $tags)
-            }
+            tagSectionHeader
+            tagPillsScroll
         }
+    }
+
+    private var tagSectionHeader: some View {
+        HStack {
+            Text("Tags")
+                .font(AppTheme.ScaledFont.caption.weight(.semibold))
+                .foregroundStyle(.secondary)
+            Spacer()
+#if ENABLE_FOUNDATION_MODELS && canImport(FoundationModels)
+            if !bodyText.trimmed().isEmpty {
+                Button {
+                    Task { await suggestTagsAndScope() }
+                } label: {
+                    HStack(spacing: AppTheme.Spacing.xsmall) {
+                        Image(systemName: "wand.and.stars")
+                        Text(isSuggesting ? "Suggesting…" : "Suggest Tags")
+                    }
+                }
+                .disabled(isSuggesting)
+            }
+#endif
+        }
+    }
+
+    private var tagPillsScroll: some View {
+        ScrollView(.horizontal, showsIndicators: false) {
+            HStack(spacing: AppTheme.Spacing.small) {
+                ForEach(tags, id: \.self) { tag in
+                    tagPill(tag)
+                }
+                addTagButton
+            }
+            .padding(.vertical, AppTheme.Spacing.xxsmall)
+        }
+        .sheet(isPresented: $showingTagPicker) {
+            NoteTagPickerSheet(selectedTags: $tags)
+        }
+    }
+
+    private func tagPill(_ tag: String) -> some View {
+        HStack(spacing: 4) {
+            TagBadge(tag: tag)
+            Button {
+                removeTag(tag)
+            } label: {
+                Image(systemName: "xmark.circle.fill")
+                    .font(.system(size: 12))
+                    .foregroundStyle(.secondary)
+            }
+            .buttonStyle(.plain)
+        }
+    }
+
+    private func removeTag(_ tag: String) {
+        let tagToRemove: String = tag
+        adaptiveWithAnimation { tags.removeAll { $0 == tagToRemove } }
+    }
+
+    private var addTagButton: some View {
+        Button {
+            showingTagPicker = true
+        } label: {
+            HStack(spacing: AppTheme.Spacing.xsmall) {
+                Image(systemName: "plus")
+                    .font(.system(size: 12, weight: .medium))
+                Text("Add Tag")
+                    .font(AppTheme.ScaledFont.caption.weight(.medium))
+            }
+            .padding(.horizontal, AppTheme.Spacing.compact)
+            .padding(.vertical, AppTheme.Spacing.verySmall)
+            .background(Color.secondary.opacity(UIConstants.OpacityConstants.light))
+            .clipShape(RoundedRectangle(cornerRadius: UIConstants.CornerRadius.extraLarge))
+        }
+        .buttonStyle(.plain)
     }
 
     // MARK: - CDNote Body Section

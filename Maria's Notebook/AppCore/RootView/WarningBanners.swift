@@ -117,14 +117,22 @@ struct CloudKitSyncWarningBanner: View {
     }
 
     var body: some View {
-        HStack(alignment: .center, spacing: 12) {
-            Image(systemName: isiCloudSignedIn ? "icloud.slash" : "person.crop.circle.badge.exclamationmark")
+        bannerContent
+    }
+
+    private var bannerContent: some View {
+        let iconName: String = isiCloudSignedIn ? "icloud.slash" : "person.crop.circle.badge.exclamationmark"
+        let title: String = warningTitle
+        let message: String = warningMessage
+
+        return HStack(alignment: .center, spacing: 12) {
+            Image(systemName: iconName)
                 .foregroundStyle(.yellow)
                 .accessibilityHidden(true)
             VStack(alignment: .leading, spacing: 2) {
-                Text(warningTitle)
+                Text(title)
                     .font(AppTheme.ScaledFont.callout.weight(.bold))
-                Text(warningMessage)
+                Text(message)
                     .font(AppTheme.ScaledFont.caption)
                     .foregroundStyle(.secondary)
                     .lineLimit(2)
@@ -148,7 +156,7 @@ struct CloudKitSyncWarningBanner: View {
             alignment: .bottom
         )
         .accessibilityElement(children: .combine)
-        .accessibilityLabel("\(warningTitle). \(warningMessage)")
+        .accessibilityLabel("\(title). \(message)")
         .accessibilityHint("Contains settings button")
     }
 }

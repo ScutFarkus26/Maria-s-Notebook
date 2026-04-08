@@ -41,6 +41,34 @@ struct AddLessonView: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 20) {
+            addLessonHeader
+            addLessonForm
+        }
+        .padding(24)
+        .frame(width: 520, height: 720)
+        .sheet(isPresented: $showingBulkEntry) {
+            BulkLessonsEntryView(
+                defaultSubject: subject.trimmed().isEmpty ? defaultSubject : subject,
+                defaultGroup: group.trimmed().isEmpty ? defaultGroup : group,
+                onDone: { showingBulkEntry = false }
+            )
+#if os(macOS)
+            .frame(minWidth: 720, minHeight: 560)
+            .presentationSizingFitted()
+#else
+            .presentationDetents([.large])
+            .presentationDragIndicator(.visible)
+#endif
+        }
+        .onAppear {
+            if subject.trimmed().isEmpty, let d = defaultSubject, !d.isEmpty { subject = d }
+            if group.trimmed().isEmpty, let g = defaultGroup, !g.isEmpty { group = g }
+        }
+        .saveErrorAlert()
+    }
+
+    private var addLessonHeader: some View {
+        VStack(alignment: .leading, spacing: 20) {
             Text("Add Lesson")
                 .font(AppTheme.ScaledFont.titleLarge)
 
@@ -53,9 +81,13 @@ struct AddLessonView: View {
                 }
                 .buttonStyle(.bordered)
             }
+        }
+    }
 
-            Form {
-                Section("Basics") {
+    private var addLessonForm: some View {
+        VStack {
+        Form {
+            Section("Basics") {
                     TextField("Lesson Name", text: $name)
                     TextField("Subject", text: $subject)
                     TextField("Group", text: $group)
@@ -126,80 +158,65 @@ struct AddLessonView: View {
             }
             .formStyle(.grouped)
 
-            HStack {
-                Spacer()
+            addLessonActionButtons
+        }
+    }
 
-                Button("Cancel") {
-                    dismiss()
-                }
+    private var addLessonActionButtons: some View {
+        HStack {
+            Spacer()
 
-                Button("Add") {
-                    let newLesson = repository.createLesson(
-                        name: name.trimmed(),
-                        subject: subject.trimmed(),
-                        group: group.trimmed(),
-                        subheading: subheading.trimmed(),
-                        writeUp: writeUp,
-                        source: source,
-                        personalKind: source == .personal ? personalKind : nil,
-                        materials: materials,
-                        purpose: purpose.trimmed(),
-                        ageRange: ageRange.trimmed(),
-                        teacherNotes: teacherNotes,
-                        lessonFormat: lessonFormat,
-                        parentStoryID: lessonFormat == .story ? parentStoryID?.uuidString : nil
+            Button("Cancel") {
+                dismiss()
+            }
+
+            Button("Add") {
+                addLesson()
+            }
+            .keyboardShortcut(.defaultAction)
+            .disabled(name.trimmed().isEmpty)
+        }
+    }
+
+    private func addLesson() {
+        let newLesson = repository.createLesson(
+            name: name.trimmed(),
+            subject: subject.trimmed(),
+            group: group.trimmed(),
+            subheading: subheading.trimmed(),
+            writeUp: writeUp,
+            source: source,
+            personalKind: source == .personal ? personalKind : nil,
+            materials: materials,
+            purpose: purpose.trimmed(),
+            ageRange: ageRange.trimmed(),
+            teacherNotes: teacherNotes,
+            lessonFormat: lessonFormat,
+            parentStoryID: lessonFormat == .story ? parentStoryID?.uuidString : nil
+        )
+
+        let subjectTrimmed: String = newLesson.subject.trimmed()
+        let groupTrimmed: String = newLesson.group.trimmed()
+        if !subjectTrimmed.isEmpty && !groupTrimmed.isEmpty {
+            let isTrack: Bool = GroupTrackService.isTrack(
+                subject: subjectTrimmed, group: groupTrimmed, context: viewContext
+            )
+            if isTrack {
+                do {
+                    _ = try GroupTrackService.getOrCreateTrack(
+                        subject: subjectTrimmed,
+                        group: groupTrimmed,
+                        context: viewContext
                     )
-
-                    // Automatically create/update CDTrackEntity object if lesson belongs to a track
-                    let subjectTrimmed = newLesson.subject.trimmed()
-                    let groupTrimmed = newLesson.group.trimmed()
-                    if !subjectTrimmed.isEmpty && !groupTrimmed.isEmpty {
-                        let isTrack = GroupTrackService.isTrack(
-                            subject: subjectTrimmed, group: groupTrimmed, context: viewContext
-                        )
-                        if isTrack {
-                            do {
-                                _ = try GroupTrackService.getOrCreateTrack(
-                                    subject: subjectTrimmed,
-                                    group: groupTrimmed,
-                                    context: viewContext
-                                )
-                            } catch {
-                                // swiftlint:disable:next line_length
-                                Self.logger.warning("Failed to create/update CDTrackEntity for \(subjectTrimmed)/\(groupTrimmed): \(error)")
-                            }
-                        }
-                    }
-
-                    if repository.save(reason: "Adding lesson") {
-                        dismiss()
-                    }
+                } catch {
+                    Self.logger.warning("Failed to create/update CDTrackEntity for \(subjectTrimmed)/\(groupTrimmed): \(error)")
                 }
-                .keyboardShortcut(.defaultAction)
-                .disabled(name.trimmed().isEmpty)
             }
         }
-        .padding(24)
-        .frame(width: 520, height: 720)
-        .sheet(isPresented: $showingBulkEntry) {
-            BulkLessonsEntryView(
-                defaultSubject: subject.trimmed().isEmpty ? defaultSubject : subject,
-                defaultGroup: group.trimmed().isEmpty ? defaultGroup : group,
-                onDone: { showingBulkEntry = false }
-            )
-#if os(macOS)
-            .frame(minWidth: 720, minHeight: 560)
-            .presentationSizingFitted()
-#else
-            .presentationDetents([.large])
-            .presentationDragIndicator(.visible)
-#endif
+
+        if repository.save(reason: "Adding lesson") {
+            dismiss()
         }
-        .onAppear {
-            if subject.trimmed().isEmpty, let d = defaultSubject, !d.isEmpty { subject = d }
-            if group.trimmed().isEmpty, let g = defaultGroup, !g.isEmpty { group = g }
-        }
-        .saveErrorAlert()
     }
 }
 

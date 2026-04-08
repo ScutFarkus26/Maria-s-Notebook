@@ -9,31 +9,11 @@ extension StudentsView {
 
     var threePaneSidebar: some View {
         VStack(spacing: 0) {
-            // Sort and Filter controls at the top
             if mode == .roster {
-                VStack(spacing: 8) {
-                    SortFilterControls(
-                        sortOrderRaw: $studentsSortOrderRaw,
-                        filterRaw: $studentsFilterRaw,
-                        effectiveSortOrder: effectiveSortOrder,
-                        selectedFilter: selectedFilter,
-                        showEditButton: effectiveSortOrder == .manual
-                    )
-
-                    SearchField("Search students", text: $searchText)
-                        .onSubmit {
-                            if let first = filteredStudents.first {
-                                selectedStudentID = first.id
-                            }
-                        }
-                }
-                .padding(.horizontal, 16)
-                .padding(.vertical, 12)
-                .background(.bar)
+                threePaneSortFilterControls
                 Divider()
             }
 
-            // CDStudent list
             NavigationStack {
                 rosterListContent
                     .navigationTitle("Students")
@@ -41,6 +21,28 @@ extension StudentsView {
             }
             .listStyle(.sidebar)
         }
+    }
+
+    private var threePaneSortFilterControls: some View {
+        VStack(spacing: 8) {
+            SortFilterControls(
+                sortOrderRaw: $studentsSortOrderRaw,
+                filterRaw: $studentsFilterRaw,
+                effectiveSortOrder: effectiveSortOrder,
+                selectedFilter: selectedFilter,
+                showEditButton: effectiveSortOrder == .manual
+            )
+
+            SearchField("Search students", text: $searchText)
+                .onSubmit {
+                    if let first = filteredStudents.first {
+                        selectedStudentID = first.id
+                    }
+                }
+        }
+        .padding(.horizontal, 16)
+        .padding(.vertical, 12)
+        .background(.bar)
     }
 
     var threePaneContent: some View {

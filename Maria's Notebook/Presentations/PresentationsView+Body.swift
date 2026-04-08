@@ -7,111 +7,8 @@ import CoreData
 extension PresentationsView {
 
     var body: some View {
-        Group {
-            if horizontalSizeClass == .compact {
-                // iPhone Layout: Segmented Control approach
-                VStack(spacing: 0) {
-                    Picker("View", selection: $mobileViewSelection) {
-                        ForEach(MobileViewMode.allCases, id: \.self) { mode in
-                            Text(mode.rawValue).tag(mode)
-                        }
-                    }
-                    .pickerStyle(.segmented)
-                    .padding()
-
-                    switch mobileViewSelection {
-                    case .inbox:
-                        PresentationsInboxView(
-                            readyLessons: readyLessons,
-                            blockedLessons: blockedLessons,
-                            blockingResults: viewModel.blockingResults,
-                            getBlockingWork: getBlockingWork,
-                            filteredSnapshot: filteredSnapshot,
-                            missWindow: missWindow,
-                            missWindowRaw: $missWindowRaw,
-                            coordinator: coordinator,
-                            cachedLessons: viewModel.lessons,
-                            cachedStudents: viewModel.cachedStudents,
-                            daysSinceLastLessonByStudent: daysSinceLastLessonByStudent,
-                            lastSubjectByStudent: viewModel.lastSubjectByStudent,
-                            openWorkCountByStudent: viewModel.openWorkCountByStudent
-                        )
-                    case .calendar:
-                        PresentationsCalendarStrip(
-                            days: days,
-                            startDate: $startDate,
-                            isNonSchool: isNonSchool,
-                            onClear: { la in
-                                la.unschedule()
-                                do {
-                                    try viewContext.save()
-                                } catch {
-                                    Self.logger.warning("Failed to save schedule clear: \(error)")
-                                }
-                            },
-                            onSelect: { la in
-                                coordinator.showLessonAssignmentDetail(la)
-                            }
-                        )
-                    }
-                }
-            } else {
-                // macOS / iPad Layout: Existing Split View
-                VStack(spacing: 0) {
-                    ViewHeader(title: "Presentations")
-                    Divider()
-                    GeometryReader { proxy in
-                        let inboxHeight = proxy.size.height * (coordinator.isCalendarMinimized ? 1.0 : 0.5)
-                        let calendarHeight = proxy.size.height * 0.5
-
-                        VStack(spacing: 0) {
-                            // Top: Inbox
-                            PresentationsInboxView(
-                                readyLessons: readyLessons,
-                                blockedLessons: blockedLessons,
-                                blockingResults: viewModel.blockingResults,
-                                getBlockingWork: getBlockingWork,
-                                filteredSnapshot: filteredSnapshot,
-                                missWindow: missWindow,
-                                missWindowRaw: $missWindowRaw,
-                                coordinator: coordinator,
-                                cachedLessons: viewModel.lessons,
-                                cachedStudents: viewModel.cachedStudents,
-                                daysSinceLastLessonByStudent: daysSinceLastLessonByStudent,
-                                lastSubjectByStudent: viewModel.lastSubjectByStudent,
-                                openWorkCountByStudent: viewModel.openWorkCountByStudent
-                            )
-                            .frame(height: inboxHeight)
-
-                            if !coordinator.isCalendarMinimized {
-                                Divider()
-                                // Bottom: Calendar strip
-                                PresentationsCalendarStrip(
-                                    days: days,
-                                    startDate: $startDate,
-                                    isNonSchool: isNonSchool,
-                                    onClear: { la in
-                                        la.unschedule()
-                                        do {
-                                            try viewContext.save()
-                                        } catch {
-                                            Self.logger.warning("Failed to save schedule clear: \(error)")
-                                        }
-                                    },
-                                    onSelect: { la in
-                                        coordinator.showLessonAssignmentDetail(la)
-                                    }
-                                )
-                                .frame(height: calendarHeight)
-                                .transition(.opacity.combined(with: .move(edge: .bottom)))
-                            }
-                        }
-                    }
-                }
-            }
-        }
+        presentationsMainContent
         .task {
-            // Update ViewModel immediately
             updateViewModel()
 
             if startDateRaw != 0 {
@@ -183,6 +80,96 @@ extension PresentationsView {
                 Text("Sheet not yet implemented")
             }
         }
+    }
+
+    @ViewBuilder
+    private var presentationsMainContent: some View {
+        if horizontalSizeClass == .compact {
+            compactLayout
+        } else {
+            regularLayout
+        }
+    }
+
+    // MARK: - Layout Helpers
+
+    private var compactLayout: some View {
+        VStack(spacing: 0) {
+            Picker("View", selection: $mobileViewSelection) {
+                ForEach(MobileViewMode.allCases, id: \.self) { mode in
+                    Text(mode.rawValue).tag(mode)
+                }
+            }
+            .pickerStyle(.segmented)
+            .padding()
+
+            switch mobileViewSelection {
+            case .inbox:
+                inboxView
+            case .calendar:
+                calendarStripView
+            }
+        }
+    }
+
+    private var regularLayout: some View {
+        VStack(spacing: 0) {
+            ViewHeader(title: "Presentations")
+            Divider()
+            GeometryReader { proxy in
+                let inboxHeight: CGFloat = proxy.size.height * (coordinator.isCalendarMinimized ? 1.0 : 0.5)
+                let calendarHeight: CGFloat = proxy.size.height * 0.5
+
+                VStack(spacing: 0) {
+                    inboxView
+                        .frame(height: inboxHeight)
+
+                    if !coordinator.isCalendarMinimized {
+                        Divider()
+                        calendarStripView
+                            .frame(height: calendarHeight)
+                            .transition(.opacity.combined(with: .move(edge: .bottom)))
+                    }
+                }
+            }
+        }
+    }
+
+    private var inboxView: some View {
+        PresentationsInboxView(
+            readyLessons: readyLessons,
+            blockedLessons: blockedLessons,
+            blockingResults: viewModel.blockingResults,
+            getBlockingWork: getBlockingWork,
+            filteredSnapshot: filteredSnapshot,
+            missWindow: missWindow,
+            missWindowRaw: $missWindowRaw,
+            coordinator: coordinator,
+            cachedLessons: viewModel.lessons,
+            cachedStudents: viewModel.cachedStudents,
+            daysSinceLastLessonByStudent: daysSinceLastLessonByStudent,
+            lastSubjectByStudent: viewModel.lastSubjectByStudent,
+            openWorkCountByStudent: viewModel.openWorkCountByStudent
+        )
+    }
+
+    private var calendarStripView: some View {
+        PresentationsCalendarStrip(
+            days: days,
+            startDate: $startDate,
+            isNonSchool: isNonSchool,
+            onClear: { la in
+                la.unschedule()
+                do {
+                    try viewContext.save()
+                } catch {
+                    Self.logger.warning("Failed to save schedule clear: \(error)")
+                }
+            },
+            onSelect: { la in
+                coordinator.showLessonAssignmentDetail(la)
+            }
+        )
     }
 
     // MARK: - Helpers

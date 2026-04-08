@@ -52,6 +52,8 @@ extension RootSidebar {
 
                 sidebarRow(.goingOut, title: "Going Out", systemImage: "figure.walk")
 
+                sidebarRow(.parentCommunication, title: "Parent Comms", systemImage: "envelope")
+
             }
 
             Section("Classroom") {
@@ -62,6 +64,8 @@ extension RootSidebar {
                 sidebarRow(.attendance, title: "Attendance", systemImage: "checklist")
 
                 sidebarRow(.workCycle, title: "Work Cycle", systemImage: "timer")
+
+                sidebarRow(.prepChecklist, title: "Prep Checklist", systemImage: "checklist.checked")
             }
 
             Section("Curriculum") {
@@ -153,220 +157,97 @@ extension RootSidebar {
 
     var iOSSidebar: some View {
         List {
-            Section("Today") {
-                Button { selection = .today } label: {
-                    Label("Today", systemImage: SFSymbol.Weather.sun)
-                }
-                .buttonStyle(.plain)
-                .accessibilityHint("View today's schedule, reminders, and tasks")
+            iOSSidebarTodaySection
+            iOSSidebarStudentsSection
+            iOSSidebarClassroomSection
+            iOSSidebarCurriculumSection
+            iOSSidebarProgressSection
+            iOSSidebarResourcesSection
+            iOSSidebarToolsSection
+            iOSSidebarSystemSection
+        }
+    }
 
-                Button { selection = .todos } label: {
-                    Label("Todos", systemImage: SFSymbol.Action.checkmarkCircle)
-                }
-                .buttonStyle(.plain)
-                .accessibilityHint("Manage your personal todos and tasks")
+    private func iOSSidebarButton(_ item: RootView.NavigationItem, title: String, systemImage: String, hint: String) -> some View {
+        Button { selection = item } label: {
+            Label(title, systemImage: systemImage)
+        }
+        .buttonStyle(.plain)
+        .accessibilityHint(hint)
+    }
 
-                Button { selection = .fridayReview } label: {
-                    Label("Friday Review", systemImage: "checkmark.seal")
-                }
-                .buttonStyle(.plain)
-                .accessibilityHint("Review the week and prepare Monday priorities")
-            }
+    private var iOSSidebarTodaySection: some View {
+        Section("Today") {
+            iOSSidebarButton(.today, title: "Today", systemImage: SFSymbol.Weather.sun, hint: "View today's schedule, reminders, and tasks")
+            iOSSidebarButton(.todos, title: "Todos", systemImage: SFSymbol.Action.checkmarkCircle, hint: "Manage your personal todos and tasks")
+            iOSSidebarButton(.fridayReview, title: "Friday Review", systemImage: "checkmark.seal", hint: "Review the week and prepare Monday priorities")
+        }
+    }
 
-            Section("Students") {
-                Button { selection = .students } label: {
-                    Label("Students", systemImage: SFSymbol.People.person3)
-                }
-                .buttonStyle(.plain)
-                .accessibilityHint("Manage student profiles and records")
+    private var iOSSidebarStudentsSection: some View {
+        Section("Students") {
+            iOSSidebarButton(.students, title: "Students", systemImage: SFSymbol.People.person3, hint: "Manage student profiles and records")
+            iOSSidebarButton(.meetings, title: "Meetings", systemImage: SFSymbol.People.person2, hint: "Conduct weekly student meetings")
+            iOSSidebarButton(.goingOut, title: "Going Out", systemImage: "figure.walk", hint: "Plan and track student going-out excursions")
+            iOSSidebarButton(.parentCommunication, title: "Parent Comms", systemImage: "envelope", hint: "Draft and track parent communications")
+        }
+    }
 
-                Button { selection = .meetings } label: {
-                    Label("Meetings", systemImage: SFSymbol.People.person2)
-                }
-                .buttonStyle(.plain)
-                .accessibilityHint("Conduct weekly student meetings")
+    private var iOSSidebarClassroomSection: some View {
+        Section("Classroom") {
+            iOSSidebarButton(.community, title: "Community", systemImage: "bubble.left.and.bubble.right", hint: "View community meetings and topics")
+            iOSSidebarButton(.classroomJobs, title: "Jobs", systemImage: "person.2.badge.gearshape", hint: "Manage classroom job rotation board")
+            iOSSidebarButton(.attendance, title: "Attendance", systemImage: "checklist", hint: "Track daily student attendance")
+            iOSSidebarButton(.workCycle, title: "Work Cycle", systemImage: "timer", hint: "Track student activity during the work cycle")
+            iOSSidebarButton(.prepChecklist, title: "Prep Checklist", systemImage: "checklist.checked", hint: "Daily classroom environment preparation checklist")
+        }
+    }
 
-                Button { selection = .goingOut } label: {
-                    Label("Going Out", systemImage: "figure.walk")
-                }
-                .buttonStyle(.plain)
-                .accessibilityHint("Plan and track student going-out excursions")
+    private var iOSSidebarCurriculumSection: some View {
+        Section("Curriculum") {
+            iOSSidebarButton(.lessons, title: "Lessons", systemImage: SFSymbol.Education.book, hint: "Browse and manage lesson plans")
+            iOSSidebarButton(.planningChecklist, title: "Checklist", systemImage: "list.clipboard", hint: "View class subject checklist")
+            iOSSidebarButton(.planningAgenda, title: "Presentations", systemImage: SFSymbol.Time.calendar, hint: "Manage lesson presentations agenda")
+            iOSSidebarButton(.planningWork, title: "Open Work", systemImage: "tray.full", hint: "View and manage student work")
+            iOSSidebarButton(.needsLesson, title: "Needs Lesson", systemImage: "clock.badge.exclamationmark", hint: "See which students need a lesson based on days since last presentation")
+            iOSSidebarButton(.smallGroupPlanner, title: "Group Planner", systemImage: "person.3.sequence", hint: "Find ready and almost-ready students for group presentations")
+            iOSSidebarButton(.planningProjects, title: "Projects", systemImage: SFSymbol.CDDocument.folder, hint: "Manage student projects")
+        }
+    }
 
-            }
+    private var iOSSidebarProgressSection: some View {
+        Section("Progress") {
+            iOSSidebarButton(.planningProgression, title: "Progression", systemImage: SFSymbol.Chart.chartLine, hint: "View student progression through curriculum")
+            iOSSidebarButton(.progressDashboard, title: "Progress Dashboard", systemImage: "person.text.rectangle", hint: "View per-student progress across all subjects")
+            iOSSidebarButton(.lessonFrequency, title: "Lesson Frequency", systemImage: SFSymbol.Chart.chartBar, hint: "View weekly lesson frequency per student")
+            iOSSidebarButton(.curriculumBalance, title: "Curriculum Balance", systemImage: SFSymbol.Chart.chartPie, hint: "Analyze subject distribution and curriculum gaps")
+            iOSSidebarButton(.greatLessonsTimeline, title: "Great Lessons", systemImage: "sparkles", hint: "View lesson progress mapped to the Five Great Lessons")
+            iOSSidebarButton(.threeYearCycle, title: "Three-Year Cycle", systemImage: "chart.bar.doc.horizontal", hint: "View student progress across the three-year Montessori cycle")
+            iOSSidebarButton(.transitionPlanner, title: "Transitions", systemImage: "arrow.right.arrow.left", hint: "Plan and track student transitions between levels")
+        }
+    }
 
-            Section("Classroom") {
-                Button { selection = .community } label: {
-                    Label("Community", systemImage: "bubble.left.and.bubble.right")
-                }
-                .buttonStyle(.plain)
-                .accessibilityHint("View community meetings and topics")
+    private var iOSSidebarResourcesSection: some View {
+        Section("Resources") {
+            iOSSidebarButton(.resourceLibrary, title: "Resources", systemImage: "tray.2", hint: "Browse and organize classroom resource documents")
+            iOSSidebarButton(.supplies, title: "Supplies", systemImage: "shippingbox", hint: "Track classroom supplies and inventory")
+            iOSSidebarButton(.procedures, title: "Procedures", systemImage: SFSymbol.CDDocument.docText, hint: "View classroom procedures and routines")
+            iOSSidebarButton(.schedules, title: "Schedules", systemImage: "clock.badge.checkmark", hint: "View recurring schedules")
+            iOSSidebarButton(.perpetualCalendar, title: "Calendar", systemImage: "calendar.day.timeline.leading", hint: "View perpetual year-at-a-glance calendar")
+            iOSSidebarButton(.issues, title: "Issues", systemImage: "exclamationmark.triangle", hint: "Track and resolve classroom issues")
+        }
+    }
 
-                Button { selection = .classroomJobs } label: {
-                    Label("Jobs", systemImage: "person.2.badge.gearshape")
-                }
-                .buttonStyle(.plain)
-                .accessibilityHint("Manage classroom job rotation board")
+    private var iOSSidebarToolsSection: some View {
+        Section("Tools") {
+            iOSSidebarButton(.askAI, title: "Ask AI", systemImage: "bubble.left.and.text.bubble.right", hint: "Ask questions about your classroom data")
+        }
+    }
 
-                Button { selection = .attendance } label: {
-                    Label("Attendance", systemImage: "checklist")
-                }
-                .buttonStyle(.plain)
-                .accessibilityHint("Track daily student attendance")
-
-                Button { selection = .workCycle } label: {
-                    Label("Work Cycle", systemImage: "timer")
-                }
-                .buttonStyle(.plain)
-                .accessibilityHint("Track student activity during the work cycle")
-            }
-
-            Section("Curriculum") {
-                Button { selection = .lessons } label: {
-                    Label("Lessons", systemImage: SFSymbol.Education.book)
-                }
-                .buttonStyle(.plain)
-                .accessibilityHint("Browse and manage lesson plans")
-
-                Button { selection = .planningChecklist } label: {
-                    Label("Checklist", systemImage: "list.clipboard")
-                }
-                .buttonStyle(.plain)
-                .accessibilityHint("View class subject checklist")
-
-                Button { selection = .planningAgenda } label: {
-                    Label("Presentations", systemImage: SFSymbol.Time.calendar)
-                }
-                .buttonStyle(.plain)
-                .accessibilityHint("Manage lesson presentations agenda")
-
-                Button { selection = .planningWork } label: {
-                    Label("Open Work", systemImage: "tray.full")
-                }
-                .buttonStyle(.plain)
-                .accessibilityHint("View and manage student work")
-
-                Button { selection = .needsLesson } label: {
-                    Label("Needs Lesson", systemImage: "clock.badge.exclamationmark")
-                }
-                .buttonStyle(.plain)
-                .accessibilityHint("See which students need a lesson based on days since last presentation")
-
-                Button { selection = .smallGroupPlanner } label: {
-                    Label("Group Planner", systemImage: "person.3.sequence")
-                }
-                .buttonStyle(.plain)
-                .accessibilityHint("Find ready and almost-ready students for group presentations")
-
-                Button { selection = .planningProjects } label: {
-                    Label("Projects", systemImage: SFSymbol.CDDocument.folder)
-                }
-                .buttonStyle(.plain)
-                .accessibilityHint("Manage student projects")
-            }
-
-            Section("Progress") {
-                Button { selection = .planningProgression } label: {
-                    Label("Progression", systemImage: SFSymbol.Chart.chartLine)
-                }
-                .buttonStyle(.plain)
-                .accessibilityHint("View student progression through curriculum")
-
-                Button { selection = .progressDashboard } label: {
-                    Label("Progress Dashboard", systemImage: "person.text.rectangle")
-                }
-                .buttonStyle(.plain)
-                .accessibilityHint("View per-student progress across all subjects")
-
-                Button { selection = .lessonFrequency } label: {
-                    Label("Lesson Frequency", systemImage: SFSymbol.Chart.chartBar)
-                }
-                .buttonStyle(.plain)
-                .accessibilityHint("View weekly lesson frequency per student")
-
-                Button { selection = .curriculumBalance } label: {
-                    Label("Curriculum Balance", systemImage: SFSymbol.Chart.chartPie)
-                }
-                .buttonStyle(.plain)
-                .accessibilityHint("Analyze subject distribution and curriculum gaps")
-
-                Button { selection = .greatLessonsTimeline } label: {
-                    Label("Great Lessons", systemImage: "sparkles")
-                }
-                .buttonStyle(.plain)
-                .accessibilityHint("View lesson progress mapped to the Five Great Lessons")
-
-                Button { selection = .threeYearCycle } label: {
-                    Label("Three-Year Cycle", systemImage: "chart.bar.doc.horizontal")
-                }
-                .buttonStyle(.plain)
-                .accessibilityHint("View student progress across the three-year Montessori cycle")
-
-                Button { selection = .transitionPlanner } label: {
-                    Label("Transitions", systemImage: "arrow.right.arrow.left")
-                }
-                .buttonStyle(.plain)
-                .accessibilityHint("Plan and track student transitions between levels")
-            }
-
-            Section("Resources") {
-                Button { selection = .resourceLibrary } label: {
-                    Label("Resources", systemImage: "tray.2")
-                }
-                .buttonStyle(.plain)
-                .accessibilityHint("Browse and organize classroom resource documents")
-
-                Button { selection = .supplies } label: {
-                    Label("Supplies", systemImage: "shippingbox")
-                }
-                .buttonStyle(.plain)
-                .accessibilityHint("Track classroom supplies and inventory")
-
-                Button { selection = .procedures } label: {
-                    Label("Procedures", systemImage: SFSymbol.CDDocument.docText)
-                }
-                .buttonStyle(.plain)
-                .accessibilityHint("View classroom procedures and routines")
-
-                Button { selection = .schedules } label: {
-                    Label("Schedules", systemImage: "clock.badge.checkmark")
-                }
-                .buttonStyle(.plain)
-                .accessibilityHint("View recurring schedules")
-
-                Button { selection = .perpetualCalendar } label: {
-                    Label("Calendar", systemImage: "calendar.day.timeline.leading")
-                }
-                .buttonStyle(.plain)
-                .accessibilityHint("View perpetual year-at-a-glance calendar")
-
-                Button { selection = .issues } label: {
-                    Label("Issues", systemImage: "exclamationmark.triangle")
-                }
-                .buttonStyle(.plain)
-                .accessibilityHint("Track and resolve classroom issues")
-            }
-
-            Section("Tools") {
-                Button { selection = .askAI } label: {
-                    Label("Ask AI", systemImage: "bubble.left.and.text.bubble.right")
-                }
-                .buttonStyle(.plain)
-                .accessibilityHint("Ask questions about your classroom data")
-            }
-
-            Section("System") {
-                Button { selection = .logs } label: {
-                    Label("Logs", systemImage: SFSymbol.List.list)
-                }
-                .buttonStyle(.plain)
-                .accessibilityHint("View activity and observation logs")
-
-                Button { selection = .settings } label: {
-                    Label("Settings", systemImage: SFSymbol.Settings.gear)
-                }
-                .buttonStyle(.plain)
-                .accessibilityHint("Configure app preferences and sync options")
-            }
+    private var iOSSidebarSystemSection: some View {
+        Section("System") {
+            iOSSidebarButton(.logs, title: "Logs", systemImage: SFSymbol.List.list, hint: "View activity and observation logs")
+            iOSSidebarButton(.settings, title: "Settings", systemImage: SFSymbol.Settings.gear, hint: "Configure app preferences and sync options")
         }
     }
 }

@@ -31,161 +31,11 @@ struct TelemetryDashboardView: View {
     var body: some View {
         ScrollView {
             VStack(alignment: .leading, spacing: 20) {
-                // Header
-                HStack {
-                    VStack(alignment: .leading) {
-                        Text("Backup Telemetry")
-                            .font(.largeTitle)
-                            .fontWeight(.bold)
-                        
-                        Text("Performance metrics and statistics")
-                            .font(.subheadline)
-                            .foregroundStyle(.secondary)
-                    }
-                    
-                    Spacer()
-                    
-                    // Period Selector
-                    Picker("Period", selection: $selectedPeriod) {
-                        ForEach(Period.allCases, id: \.self) { period in
-                            Text(period.rawValue).tag(period)
-                        }
-                    }
-                    .pickerStyle(.segmented)
-                    .frame(width: 300)
-                }
-                
+                dashboardHeader
                 if let report {
-                    // Success Rate Cards
-                    HStack(spacing: 16) {
-                        MetricCard(
-                            title: "Backup Success Rate",
-                            value: "\(Int(report.metrics.backupSuccessRate))%",
-                            subtitle: "\(report.successfulBackups)/\(report.totalBackups) successful",
-                            color: successRateColor(report.metrics.backupSuccessRate),
-                            icon: "arrow.up.doc.fill"
-                        )
-                        
-                        MetricCard(
-                            title: "Restore Success Rate",
-                            value: "\(Int(report.metrics.restoreSuccessRate))%",
-                            subtitle: "\(report.successfulRestores)/\(report.totalRestores) successful",
-                            color: successRateColor(report.metrics.restoreSuccessRate),
-                            icon: "arrow.down.doc.fill"
-                        )
-                    }
-                    
-                    // Performance Metrics
-                    HStack(spacing: 16) {
-                        MetricCard(
-                            title: "Avg Backup Time",
-                            value: report.metrics.formattedAvgBackupTime,
-                            subtitle: "Per backup operation",
-                            color: .blue,
-                            icon: "clock.fill"
-                        )
-                        
-                        MetricCard(
-                            title: "Avg Restore Time",
-                            value: report.metrics.formattedAvgRestoreTime,
-                            subtitle: "Per restore operation",
-                            color: .purple,
-                            icon: "clock.fill"
-                        )
-                        
-                        MetricCard(
-                            title: "Avg File Size",
-                            value: report.metrics.formattedAvgFileSize,
-                            subtitle: "Per backup file",
-                            color: .orange,
-                            icon: "doc.fill"
-                        )
-                    }
-                    
-                    // Operation Timeline
-                    if !telemetry.recentEvents.isEmpty {
-                        VStack(alignment: .leading, spacing: 12) {
-                            Text("Operation Timeline")
-                                .font(.headline)
-                            
-                            EventTimelineChart(events: filteredEvents)
-                                .frame(height: 200)
-                        }
-                        .padding()
-                        .background(Color.controlBackgroundColor())
-                        .cornerRadius(8)
-                    }
-                    
-                    // Top Errors
-                    if !report.topErrors.isEmpty {
-                        VStack(alignment: .leading, spacing: 12) {
-                            Text("Top Errors")
-                                .font(.headline)
-                            
-                            ForEach(Array(report.topErrors.enumerated()), id: \.offset) { index, errorTuple in
-                                HStack {
-                                    Text("\(index + 1).")
-                                        .font(.caption)
-                                        .foregroundStyle(.secondary)
-                                        .frame(width: 20)
-                                    
-                                    Text(errorTuple.error)
-                                        .font(.body)
-                                    
-                                    Spacer()
-                                    
-                                    Text("\(errorTuple.count)×")
-                                        .font(.caption)
-                                        .foregroundStyle(.secondary)
-                                }
-                            }
-                        }
-                        .padding()
-                        .background(Color.controlBackgroundColor())
-                        .cornerRadius(8)
-                    }
-                    
-                    // Device Info
-                    VStack(alignment: .leading, spacing: 8) {
-                        Text("Device Information")
-                            .font(.headline)
-                        
-                        Grid(alignment: .leading) {
-                            GridRow {
-                                Text("Model:")
-                                    .foregroundStyle(.secondary)
-                                Text(report.deviceInfo.model)
-                            }
-                            GridRow {
-                                Text("OS Version:")
-                                    .foregroundStyle(.secondary)
-                                Text(report.deviceInfo.osVersion)
-                            }
-                            GridRow {
-                                Text("App Version:")
-                                    .foregroundStyle(.secondary)
-                                Text("\(report.deviceInfo.appVersion) (\(report.deviceInfo.appBuild))")
-                            }
-                        }
-                        .font(.caption)
-                    }
-                    .padding()
-                    .background(Color.controlBackgroundColor())
-                    .cornerRadius(8)
+                    reportContent(report)
                 }
-                
-                // Actions
-                HStack {
-                    Button("Export Data") {
-                        exportTelemetryData()
-                    }
-                    
-                    Button("Clear Data") {
-                        telemetry.clearAllData()
-                        updateReport()
-                    }
-                    .foregroundStyle(AppColors.destructive)
-                }
+                actionButtons
             }
             .padding()
         }
@@ -197,6 +47,154 @@ struct TelemetryDashboardView: View {
         }
     }
     
+    // MARK: - Body Sections
+
+    private var dashboardHeader: some View {
+        HStack {
+            VStack(alignment: .leading) {
+                Text("Backup Telemetry")
+                    .font(.largeTitle)
+                    .fontWeight(.bold)
+                Text("Performance metrics and statistics")
+                    .font(.subheadline)
+                    .foregroundStyle(.secondary)
+            }
+            Spacer()
+            Picker("Period", selection: $selectedPeriod) {
+                ForEach(Period.allCases, id: \.self) { period in
+                    Text(period.rawValue).tag(period)
+                }
+            }
+            .pickerStyle(.segmented)
+            .frame(width: 300)
+        }
+    }
+
+    private func reportContent(_ report: BackupTelemetryService.TelemetryReport) -> some View {
+        Group {
+            HStack(spacing: 16) {
+                MetricCard(
+                    title: "Backup Success Rate",
+                    value: "\(Int(report.metrics.backupSuccessRate))%",
+                    subtitle: "\(report.successfulBackups)/\(report.totalBackups) successful",
+                    color: successRateColor(report.metrics.backupSuccessRate),
+                    icon: "arrow.up.doc.fill"
+                )
+                MetricCard(
+                    title: "Restore Success Rate",
+                    value: "\(Int(report.metrics.restoreSuccessRate))%",
+                    subtitle: "\(report.successfulRestores)/\(report.totalRestores) successful",
+                    color: successRateColor(report.metrics.restoreSuccessRate),
+                    icon: "arrow.down.doc.fill"
+                )
+            }
+
+            HStack(spacing: 16) {
+                MetricCard(
+                    title: "Avg Backup Time",
+                    value: report.metrics.formattedAvgBackupTime,
+                    subtitle: "Per backup operation",
+                    color: .blue,
+                    icon: "clock.fill"
+                )
+                MetricCard(
+                    title: "Avg Restore Time",
+                    value: report.metrics.formattedAvgRestoreTime,
+                    subtitle: "Per restore operation",
+                    color: .purple,
+                    icon: "clock.fill"
+                )
+                MetricCard(
+                    title: "Avg File Size",
+                    value: report.metrics.formattedAvgFileSize,
+                    subtitle: "Per backup file",
+                    color: .orange,
+                    icon: "doc.fill"
+                )
+            }
+
+            if !telemetry.recentEvents.isEmpty {
+                VStack(alignment: .leading, spacing: 12) {
+                    Text("Operation Timeline")
+                        .font(.headline)
+                    EventTimelineChart(events: filteredEvents)
+                        .frame(height: 200)
+                }
+                .padding()
+                .background(Color.controlBackgroundColor())
+                .cornerRadius(8)
+            }
+
+            if !report.topErrors.isEmpty {
+                errorsSection(report.topErrors)
+            }
+
+            deviceInfoSection(report.deviceInfo)
+        }
+    }
+
+    private func errorsSection(_ errors: [BackupTelemetryService.ErrorCount]) -> some View {
+        VStack(alignment: .leading, spacing: 12) {
+            Text("Top Errors")
+                .font(.headline)
+            ForEach(Array(errors.enumerated()), id: \.offset) { index, errorTuple in
+                HStack {
+                    Text("\(index + 1).")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                        .frame(width: 20)
+                    Text(errorTuple.error)
+                        .font(.body)
+                    Spacer()
+                    Text("\(errorTuple.count)×")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                }
+            }
+        }
+        .padding()
+        .background(Color.controlBackgroundColor())
+        .cornerRadius(8)
+    }
+
+    private func deviceInfoSection(_ info: BackupTelemetryService.DeviceInfo) -> some View {
+        VStack(alignment: .leading, spacing: 8) {
+            Text("Device Information")
+                .font(.headline)
+            Grid(alignment: .leading) {
+                GridRow {
+                    Text("Model:").foregroundStyle(.secondary)
+                    Text(info.model)
+                }
+                GridRow {
+                    Text("OS Version:").foregroundStyle(.secondary)
+                    Text(info.osVersion)
+                }
+                GridRow {
+                    Text("App Version:").foregroundStyle(.secondary)
+                    Text("\(info.appVersion) (\(info.appBuild))")
+                }
+            }
+            .font(.caption)
+        }
+        .padding()
+        .background(Color.controlBackgroundColor())
+        .cornerRadius(8)
+    }
+
+    private var actionButtons: some View {
+        HStack {
+            Button("Export Data") {
+                exportTelemetryData()
+            }
+            Button("Clear Data") {
+                telemetry.clearAllData()
+                updateReport()
+            }
+            .foregroundStyle(AppColors.destructive)
+        }
+    }
+
     private var filteredEvents: [BackupTelemetryService.TelemetryEvent] {
         let cutoffDate = Calendar.current.date(byAdding: .day, value: -selectedPeriod.days, to: Date()) ?? Date()
         return telemetry.recentEvents.filter { $0.timestamp >= cutoffDate }

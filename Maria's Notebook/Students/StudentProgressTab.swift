@@ -46,50 +46,8 @@ struct StudentProgressTab: View {
     var body: some View {
         ScrollView {
             VStack(spacing: 20) {
-                // 0. AI-Powered Insights Section
-                NavigationLink(destination: StudentInsightsView(student: student)) {
-                    HStack(spacing: 16) {
-                        Image(systemName: "brain.head.profile")
-                            .font(.system(size: 32))
-                            .foregroundStyle(.white)
-                            .frame(width: 56, height: 56)
-                            .background(
-                                LinearGradient(
-                                    colors: [.purple, .blue],
-                                    startPoint: .topLeading,
-                                    endPoint: .bottomTrailing
-                                )
-                            )
-                            .cornerRadius(UIConstants.CornerRadius.large)
+                insightsLink
 
-                        VStack(alignment: .leading, spacing: AppTheme.Spacing.xsmall) {
-                            Text("Development Insights")
-                                .font(.headline)
-                                .foregroundStyle(.primary)
-                            
-                            Text("AI-powered analysis of recent progress")
-                                .font(.subheadline)
-                                .foregroundStyle(.secondary)
-                        }
-                        
-                        Spacer()
-                        
-                        Image(systemName: "chevron.right")
-                            .foregroundStyle(.secondary)
-                    }
-                    .padding(AppTheme.Spacing.medium)
-                    #if os(iOS)
-                    .background(Color(.systemBackground))
-                    #else
-                    .background(Color(NSColor.controlBackgroundColor))
-                    #endif
-                    .cornerRadius(UIConstants.CornerRadius.large)
-                    .shadow(color: .purple.opacity(UIConstants.OpacityConstants.moderate), radius: 8, x: 0, y: 4)
-                }
-                .buttonStyle(.plain)
-                .padding(.horizontal, AppTheme.Spacing.xsmall)
-                
-                // 1. Projects Section
                 if !viewModel.activeProjects.isEmpty {
                     VStack(alignment: .leading, spacing: 12) {
                         Label("Active Projects", systemImage: "book.closed.fill")
@@ -177,6 +135,51 @@ struct StudentProgressTab: View {
         }
     }
     
+    // MARK: - Insights Link
+
+    private var insightsLink: some View {
+        NavigationLink(destination: StudentInsightsView(student: student)) {
+            HStack(spacing: 16) {
+                Image(systemName: "brain.head.profile")
+                    .font(.system(size: 32))
+                    .foregroundStyle(.white)
+                    .frame(width: 56, height: 56)
+                    .background(
+                        LinearGradient(
+                            colors: [.purple, .blue],
+                            startPoint: .topLeading,
+                            endPoint: .bottomTrailing
+                        )
+                    )
+                    .cornerRadius(UIConstants.CornerRadius.large)
+
+                VStack(alignment: .leading, spacing: AppTheme.Spacing.xsmall) {
+                    Text("Development Insights")
+                        .font(.headline)
+                        .foregroundStyle(.primary)
+                    Text("AI-powered analysis of recent progress")
+                        .font(.subheadline)
+                        .foregroundStyle(.secondary)
+                }
+
+                Spacer()
+
+                Image(systemName: "chevron.right")
+                    .foregroundStyle(.secondary)
+            }
+            .padding(AppTheme.Spacing.medium)
+            #if os(iOS)
+            .background(Color(.systemBackground))
+            #else
+            .background(Color(NSColor.controlBackgroundColor))
+            #endif
+            .cornerRadius(UIConstants.CornerRadius.large)
+            .shadow(color: .purple.opacity(UIConstants.OpacityConstants.moderate), radius: 8, x: 0, y: 4)
+        }
+        .buttonStyle(.plain)
+        .padding(.horizontal, AppTheme.Spacing.xsmall)
+    }
+
     // MARK: - Empty State
     private var emptyStateView: some View {
         ContentUnavailableView {
@@ -228,121 +231,144 @@ struct StudentProgressTab: View {
     
     // MARK: - Enrollment Card
     @ViewBuilder
-    // swiftlint:disable:next function_body_length
     private func enrollmentCard(enrollment: CDStudentTrackEnrollmentEntity, track: CDTrackEntity) -> some View {
         let stats = viewModel.trackStats(for: enrollment, track: track)
         let progress = viewModel.trackProgress(for: track)
-        let trackColor = viewModel.trackColor(for: track.title)
+        let trackColor: Color = viewModel.trackColor(for: track.title)
 
         ProgressCardContainer(color: trackColor, isActive: enrollment.isActive) {
             VStack(alignment: .leading, spacing: 16) {
-                ProgressCardHeader(
-                    iconName: "list.bullet.rectangle",
-                    color: trackColor,
-                    title: track.title,
-                    subtitle: enrollment.startedAt.map {
-                        "Started \($0.formatted(.relative(presentation: .named)))"
-                    } ?? "Enrolled \((enrollment.createdAt ?? Date()).formatted(.relative(presentation: .named)))",
-                    isComplete: progress.isComplete && progress.totalSteps > 0,
-                    isActive: enrollment.isActive
-                )
-
-                Divider().padding(.vertical, AppTheme.Spacing.xsmall)
-
-                if progress.totalSteps > 0 {
-                    VStack(alignment: .leading, spacing: 12) {
-                        ProgressStatsSection(
-                            completed: progress.proficientCount,
-                            total: progress.totalSteps,
-                            color: trackColor, completionLabel: ""
-                        )
-                        StepDotsVisualization(
-                            steps: progress.trackSteps,
-                            completedStepIDs: progress.completedStepIDs,
-                            color: trackColor
-                        )
-                    }
-                    .padding(.bottom, AppTheme.Spacing.xsmall)
-                }
-
-                if let lesson = progress.currentLesson, progress.totalSteps > 0 {
-                    Divider().padding(.vertical, AppTheme.Spacing.xsmall)
-                    NextItemBanner(
-                        iconName: "book.fill", label: "Next Lesson",
-                        title: lesson.name.isEmpty ? "Untitled Lesson" : lesson.name,
-                        subtitle: nil, color: trackColor
-                    )
-                } else if progress.isComplete && progress.totalSteps > 0 {
-                    Divider().padding(.vertical, AppTheme.Spacing.xsmall)
-                    CompletionTrophyBanner(message: "All lessons mastered!")
-                }
-
-                if stats.totalActivity > 0 {
-                    Divider().padding(.vertical, AppTheme.Spacing.xsmall)
-                    VStack(alignment: .leading, spacing: 12) {
-                        ActivityStatsRow(totalActivity: stats.totalActivity, color: trackColor)
-                        HStack(spacing: 12) {
-                            Button { filterSheet = .presentations(enrollment, track) } label: {
-                                ProgressStatBadge(
-                                    count: stats.presentationCount,
-                                    label: "Presentations",
-                                    icon: "person.2.fill", color: .orange
-                                )
-                            }
-                            .buttonStyle(.plain)
-                            .disabled(stats.presentationCount == 0)
-
-                            Button { filterSheet = .work(enrollment, track) } label: {
-                                ProgressStatBadge(
-                                    count: stats.workCount, label: "Work",
-                                    icon: "briefcase.fill", color: .blue
-                                )
-                            }
-                            .buttonStyle(.plain)
-                            .disabled(stats.workCount == 0)
-
-                            Button { filterSheet = .notes(enrollment, track) } label: {
-                                ProgressStatBadge(
-                                    count: stats.noteCount, label: "Notes",
-                                    icon: "note.text", color: .yellow
-                                )
-                            }
-                            .buttonStyle(.plain)
-                            .disabled(stats.noteCount == 0)
-                        }
-                        if let date = stats.lastActivityDate { LastActivityRow(lastActivityDate: date) }
-                    }
-                } else if progress.totalSteps == 0 {
-                    EmptyStateBanner(iconName: "hourglass", message: "No activity recorded yet")
-                }
-
-                let notesPreview = enrollment.latestUnifiedNoteText
-                if !notesPreview.trimmed().isEmpty {
-                    Divider().padding(.vertical, AppTheme.Spacing.xsmall)
-                    NotesPreviewSection(notes: notesPreview, color: trackColor)
-                }
-
-                // View Class Progress link
-                let trackParts = track.title.components(separatedBy: " — ")
-                if trackParts.count == 2 {
-                    Divider().padding(.vertical, AppTheme.Spacing.xsmall)
-                    Button {
-                        let subject = trackParts[0].trimmingCharacters(in: .whitespaces)
-                        let group = trackParts[1].trimmingCharacters(in: .whitespaces)
-                        AppRouter.shared.navigateToChecklist(subject: subject, group: group)
-                    } label: {
-                        Label("View Class Progress", systemImage: "checklist")
-                            .font(.caption)
-                            .foregroundStyle(trackColor)
-                    }
-                    .buttonStyle(.plain)
-                }
+                enrollmentCardHeader(enrollment: enrollment, track: track, progress: progress, color: trackColor)
+                enrollmentCardProgress(progress: progress, color: trackColor)
+                enrollmentCardNextItem(progress: progress, color: trackColor)
+                enrollmentCardActivity(enrollment: enrollment, track: track, stats: stats, progress: progress, color: trackColor)
+                enrollmentCardNotes(enrollment: enrollment, color: trackColor)
+                enrollmentCardClassLink(track: track, color: trackColor)
             }
         }
         .onAppear {
             viewModel.autoCompleteTrackIfNeeded(
                 enrollment: enrollment, progress: progress, context: viewContext
             )
+        }
+    }
+
+    @ViewBuilder
+    private func enrollmentCardHeader(enrollment: CDStudentTrackEnrollmentEntity, track: CDTrackEntity, progress: StudentProgressTabViewModel.TrackProgress, color: Color) -> some View {
+        let subtitle: String = enrollment.startedAt.map {
+            "Started \($0.formatted(.relative(presentation: .named)))"
+        } ?? "Enrolled \((enrollment.createdAt ?? Date()).formatted(.relative(presentation: .named)))"
+
+        ProgressCardHeader(
+            iconName: "list.bullet.rectangle",
+            color: color,
+            title: track.title,
+            subtitle: subtitle,
+            isComplete: progress.isComplete && progress.totalSteps > 0,
+            isActive: enrollment.isActive
+        )
+
+        Divider().padding(.vertical, AppTheme.Spacing.xsmall)
+    }
+
+    @ViewBuilder
+    private func enrollmentCardProgress(progress: StudentProgressTabViewModel.TrackProgress, color: Color) -> some View {
+        if progress.totalSteps > 0 {
+            VStack(alignment: .leading, spacing: 12) {
+                ProgressStatsSection(
+                    completed: progress.proficientCount,
+                    total: progress.totalSteps,
+                    color: color, completionLabel: ""
+                )
+                StepDotsVisualization(
+                    steps: progress.trackSteps,
+                    completedStepIDs: progress.completedStepIDs,
+                    color: color
+                )
+            }
+            .padding(.bottom, AppTheme.Spacing.xsmall)
+        }
+    }
+
+    @ViewBuilder
+    private func enrollmentCardNextItem(progress: StudentProgressTabViewModel.TrackProgress, color: Color) -> some View {
+        if let lesson = progress.currentLesson, progress.totalSteps > 0 {
+            Divider().padding(.vertical, AppTheme.Spacing.xsmall)
+            NextItemBanner(
+                iconName: "book.fill", label: "Next Lesson",
+                title: lesson.name.isEmpty ? "Untitled Lesson" : lesson.name,
+                subtitle: nil, color: color
+            )
+        } else if progress.isComplete && progress.totalSteps > 0 {
+            Divider().padding(.vertical, AppTheme.Spacing.xsmall)
+            CompletionTrophyBanner(message: "All lessons mastered!")
+        }
+    }
+
+    @ViewBuilder
+    private func enrollmentCardActivity(enrollment: CDStudentTrackEnrollmentEntity, track: CDTrackEntity, stats: StudentProgressTabViewModel.TrackStats, progress: StudentProgressTabViewModel.TrackProgress, color: Color) -> some View { // swiftlint:disable:this function_parameter_count
+        if stats.totalActivity > 0 {
+            Divider().padding(.vertical, AppTheme.Spacing.xsmall)
+            activityStatsContent(enrollment: enrollment, track: track, stats: stats, color: color)
+        } else if progress.totalSteps == 0 {
+            EmptyStateBanner(iconName: "hourglass", message: "No activity recorded yet")
+        }
+    }
+
+    private func activityStatsContent(enrollment: CDStudentTrackEnrollmentEntity, track: CDTrackEntity, stats: StudentProgressTabViewModel.TrackStats, color: Color) -> some View {
+        VStack(alignment: .leading, spacing: 12) {
+            ActivityStatsRow(totalActivity: stats.totalActivity, color: color)
+            activityFilterButtons(enrollment: enrollment, track: track, stats: stats)
+            if let date = stats.lastActivityDate { LastActivityRow(lastActivityDate: date) }
+        }
+    }
+
+    private func activityFilterButtons(enrollment: CDStudentTrackEnrollmentEntity, track: CDTrackEntity, stats: StudentProgressTabViewModel.TrackStats) -> some View {
+        HStack(spacing: 12) {
+            Button { filterSheet = .presentations(enrollment, track) } label: {
+                ProgressStatBadge(count: stats.presentationCount, label: "Presentations", icon: "person.2.fill", color: .orange)
+            }
+            .buttonStyle(.plain)
+            .disabled(stats.presentationCount == 0)
+
+            Button { filterSheet = .work(enrollment, track) } label: {
+                ProgressStatBadge(count: stats.workCount, label: "Work", icon: "briefcase.fill", color: .blue)
+            }
+            .buttonStyle(.plain)
+            .disabled(stats.workCount == 0)
+
+            Button { filterSheet = .notes(enrollment, track) } label: {
+                ProgressStatBadge(count: stats.noteCount, label: "Notes", icon: "note.text", color: .yellow)
+            }
+            .buttonStyle(.plain)
+            .disabled(stats.noteCount == 0)
+        }
+    }
+
+    @ViewBuilder
+    private func enrollmentCardNotes(enrollment: CDStudentTrackEnrollmentEntity, color: Color) -> some View {
+        let notesPreview: String = enrollment.latestUnifiedNoteText
+        if !notesPreview.trimmed().isEmpty {
+            Divider().padding(.vertical, AppTheme.Spacing.xsmall)
+            NotesPreviewSection(notes: notesPreview, color: color)
+        }
+    }
+
+    @ViewBuilder
+    private func enrollmentCardClassLink(track: CDTrackEntity, color: Color) -> some View {
+        let trackParts: [String] = track.title.components(separatedBy: " — ")
+        if trackParts.count == 2 {
+            Divider().padding(.vertical, AppTheme.Spacing.xsmall)
+            Button {
+                let subject: String = trackParts[0].trimmingCharacters(in: .whitespaces)
+                let group: String = trackParts[1].trimmingCharacters(in: .whitespaces)
+                AppRouter.shared.navigateToChecklist(subject: subject, group: group)
+            } label: {
+                Label("View Class Progress", systemImage: "checklist")
+                    .font(.caption)
+                    .foregroundStyle(color)
+            }
+            .buttonStyle(.plain)
         }
     }
 

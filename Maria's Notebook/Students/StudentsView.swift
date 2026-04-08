@@ -98,70 +98,85 @@ struct StudentsView: View {
             }
         }
         #else
-        // iOS: Keep existing structure for different layout needs
-        Group {
-            if shouldUseGridView {
-                // Full-screen grid view for age/birthday modes or lastLesson sort order
-                NavigationStack {
-                    Group {
-                        if horizontalSizeClass == .compact {
-                            // iPhone: Show placeholder views
-                            placeholderContentForMode
-                        } else {
-                            // iPad: Show grid view
-                            rosterGridContent
-                        }
-                    }
-                    .toolbar {
-                        iOSToolbarContent
-                    }
-                    .navigationTitle("Students")
-                    .inlineNavigationTitle()
-                }
-            } else if mode == .roster || mode == .withdrawn {
-                // Three-pane layout for Roster/Withdrawn mode
-                if horizontalSizeClass == .compact {
-                    // iPhone: Use single pane with sheet for details
-                    NavigationStack {
-                        VStack(spacing: 0) {
-                            SearchField("Search students", text: $searchText)
-                                .padding(.horizontal, 16)
-                                .padding(.vertical, 8)
-                                .onSubmit {
-                                    if let first = filteredStudents.first {
-                                        selectedStudentForSheet = first
-                                    }
-                                }
-                            rosterListContent
-                        }
-                        .navigationTitle("Students")
-                        .inlineNavigationTitle()
-                        .listStyle(.plain)
-                        .toolbar {
-                            toolbarContent
-                        }
-                    }
-                } else {
-                    // iPad: Use two-pane layout (student list + detail)
-                    NavigationStack {
-                        HStack(spacing: 0) {
-                            threePaneSidebar
-                                .frame(width: 360)
-                            Divider()
-                            threePaneContent
-                                .frame(maxWidth: .infinity)
-                        }
-                        .navigationTitle("Students")
-                        .inlineNavigationTitle()
-                        .toolbar {
-                            toolbarContent
-                        }
-                    }
-                }
-            }
-        }
+        iOSMainContent
         #endif
     }
+
+    #if os(iOS)
+    @ViewBuilder
+    private var iOSMainContent: some View {
+        if shouldUseGridView {
+            iOSGridLayout
+        } else if mode == .roster || mode == .withdrawn {
+            iOSRosterLayout
+        }
+    }
+
+    private var iOSGridLayout: some View {
+        NavigationStack {
+            Group {
+                if horizontalSizeClass == .compact {
+                    placeholderContentForMode
+                } else {
+                    rosterGridContent
+                }
+            }
+            .toolbar {
+                iOSToolbarContent
+            }
+            .navigationTitle("Students")
+            .inlineNavigationTitle()
+        }
+    }
+
+    @ViewBuilder
+    private var iOSRosterLayout: some View {
+        if horizontalSizeClass == .compact {
+            iOSCompactRosterLayout
+        } else {
+            iOSRegularRosterLayout
+        }
+    }
+
+    private var iOSCompactRosterLayout: some View {
+        NavigationStack {
+            VStack(spacing: 0) {
+                SearchField("Search students", text: $searchText)
+                    .padding(.horizontal, 16)
+                    .padding(.vertical, 8)
+                    .onSubmit {
+                        if let first = filteredStudents.first {
+                            selectedStudentForSheet = first
+                        }
+                    }
+                rosterListContent
+            }
+            .navigationTitle("Students")
+            .inlineNavigationTitle()
+            .listStyle(.plain)
+            .toolbar {
+                toolbarContent
+            }
+        }
+    }
+
+    private var iOSRegularRosterLayout: some View {
+        NavigationStack {
+            HStack(spacing: 0) {
+                threePaneSidebar
+                    .frame(width: 360)
+                Divider()
+                threePaneContent
+                    .frame(maxWidth: .infinity)
+            }
+            .navigationTitle("Students")
+            .inlineNavigationTitle()
+            .toolbar {
+                toolbarContent
+            }
+        }
+    }
+    #endif
 
     // Helper to break up complex view builder expression
     private var contentWithSheetsAndAlerts: some View {

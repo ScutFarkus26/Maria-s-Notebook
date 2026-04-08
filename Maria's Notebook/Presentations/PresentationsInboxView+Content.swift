@@ -133,21 +133,26 @@ extension PresentationsInboxView {
             GridItem(.flexible(), spacing: AppTheme.Spacing.small)
         ], alignment: .leading, spacing: AppTheme.Spacing.small) {
             ForEach(filteredAndSortedReadyLessons, id: \.id) { la in
-                inboxRow(la)
-                    .id(la.id)
-                    .overlay(
-                        RoundedRectangle(
-                            cornerRadius: UIConstants.CornerRadius.medium,
-                            style: .continuous
-                        )
-                        .stroke(Color.accentColor, lineWidth: suggestedLessonID == la.id ? 2.5 : 0)
-                        .shadow(
-                            color: .accentColor.opacity(suggestedLessonID == la.id ? 0.4 : 0),
-                            radius: 6
-                        )
-                    )
+                readyGridItem(la)
             }
         }
         .padding(.horizontal, AppTheme.Spacing.compact)
+    }
+
+    private func readyGridItem(_ la: CDLessonAssignment) -> some View {
+        let isSuggested: Bool = suggestedLessonID == la.id
+        return inboxRow(la)
+            .id(la.id)
+            .overlay(
+                RoundedRectangle(
+                    cornerRadius: UIConstants.CornerRadius.medium,
+                    style: .continuous
+                )
+                .stroke(Color.accentColor, lineWidth: isSuggested ? 2.5 : 0)
+                .shadow(
+                    color: .accentColor.opacity(isSuggested ? 0.4 : 0),
+                    radius: 6
+                )
+            )
     }
 }

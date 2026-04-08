@@ -45,14 +45,16 @@ struct StudentDetailView: View {
     private var lessonAssignmentIDs: [UUID] { vm.lessonAssignments.compactMap(\.id) }
 
     private var tabUsesUnscrolledLayout: Bool {
-        selectedTab == .progress || selectedTab == .developmentalTraits
-            || selectedTab == .history || selectedTab == .files
-            || selectedTab == .yearPlan
+        switch selectedTab {
+        case .progress, .developmentalTraits, .history, .files, .yearPlan: true
+        default: false
+        }
     }
 
     @ViewBuilder
     private var tabContent: some View {
-        switch selectedTab {
+        let tab: StudentDetailTab = selectedTab
+        switch tab {
         case .overview:
             StudentOverviewTab(
                 student: student,
@@ -169,29 +171,7 @@ struct StudentDetailView: View {
     }
     
     var body: some View {
-        VStack(spacing: 0) {
-            headerRow
-
-            StudentDetailTabNavigation(selectedTab: $selectedTab)
-
-            Divider().padding(.top, 8)
-
-            if selectedTab == .notes {
-                StudentNotesTab(student: student)
-            } else if tabUsesUnscrolledLayout {
-                tabContent
-                    .padding(.horizontal, 32)
-                    .padding(.bottom, 24)
-            } else {
-                ScrollView {
-                    VStack(spacing: 28) {
-                        tabContent
-                    }
-                    .padding(.horizontal, 32)
-                    .padding(.bottom, 24)
-                }
-            }
-        }
+        mainContent
         .studentDetailMainSizing()
         .safeAreaInset(edge: .bottom) {
             StudentDetailBottomBar(
@@ -261,6 +241,33 @@ struct StudentDetailView: View {
         .onChange(of: lessonAssignmentIDs) { _, _ in
             vm.loadData(viewContext: viewContext)
             workCache = fetchWorkForStudent()
+        }
+    }
+
+    @ViewBuilder
+    private var mainContent: some View {
+        VStack(spacing: 0) {
+            headerRow
+
+            StudentDetailTabNavigation(selectedTab: $selectedTab)
+
+            Divider().padding(.top, 8)
+
+            if selectedTab == .notes {
+                StudentNotesTab(student: student)
+            } else if tabUsesUnscrolledLayout {
+                tabContent
+                    .padding(.horizontal, 32)
+                    .padding(.bottom, 24)
+            } else {
+                ScrollView {
+                    VStack(spacing: 28) {
+                        tabContent
+                    }
+                    .padding(.horizontal, 32)
+                    .padding(.bottom, 24)
+                }
+            }
         }
     }
 

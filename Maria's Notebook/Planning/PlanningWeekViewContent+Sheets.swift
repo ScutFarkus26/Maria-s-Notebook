@@ -85,28 +85,36 @@ extension PlanningWeekViewContent {
 
     @ViewBuilder
     private func sheetForGiveLessonDraft(id: UUID) -> some View {
-        if let la = fetchLessonAssignment(by: id) {
-            PresentationDetailView(lessonAssignment: la) { activeSheet = nil }
-                .largeSheetSizing()
-                .onDisappear {
-                    if let current = fetchLessonAssignment(by: id) {
-                        if current.lesson == nil && current.studentIDs.isEmpty {
-                            viewContext.delete(current)
-                            presentationRepository.save(reason: "Deleting empty draft")
-                            onRefreshNeeded?()
-                        }
-                    }
-                }
+        if let la: CDLessonAssignment = fetchLessonAssignment(by: id) {
+            giveLessonDraftContent(la: la, id: id)
         } else {
-            ProgressView("Preparing…")
-                .frame(minWidth: 320, minHeight: 240)
-                .task {
-                    try? await Task.sleep(for: .milliseconds(100))
-                    if case .giveLessonDraft(let currentId) = activeSheet, currentId == id {
-                        activeSheet = nil
+            giveLessonDraftFallback(id: id)
+        }
+    }
+
+    private func giveLessonDraftContent(la: CDLessonAssignment, id: UUID) -> some View {
+        PresentationDetailView(lessonAssignment: la) { activeSheet = nil }
+            .largeSheetSizing()
+            .onDisappear {
+                if let current = fetchLessonAssignment(by: id) {
+                    if current.lesson == nil && current.studentIDs.isEmpty {
+                        viewContext.delete(current)
+                        presentationRepository.save(reason: "Deleting empty draft")
+                        onRefreshNeeded?()
                     }
                 }
-        }
+            }
+    }
+
+    private func giveLessonDraftFallback(id: UUID) -> some View {
+        ProgressView("Preparing…")
+            .frame(minWidth: 320, minHeight: 240)
+            .task {
+                try? await Task.sleep(for: .milliseconds(100))
+                if case .giveLessonDraft(let currentId) = activeSheet, currentId == id {
+                    activeSheet = nil
+                }
+            }
     }
 
     func fetchLessonAssignment(by id: UUID) -> CDLessonAssignment? {

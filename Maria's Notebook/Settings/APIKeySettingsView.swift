@@ -172,88 +172,10 @@ struct APIKeyInformationSheet: View {
         NavigationStack {
             ScrollView {
                 VStack(alignment: .leading, spacing: 20) {
-                    // Step 1
-                    VStack(alignment: .leading, spacing: 8) {
-                        Label("Step 1: Create an Account", systemImage: "1.circle.fill")
-                            .font(.headline)
-                        
-                        Text("Visit console.anthropic.com and sign up for a free account.")
-                            .font(.body)
-                        
-                        Link("Open Anthropic Console →", destination: .knownURL("https://console.anthropic.com/"))
-                            .font(.subheadline)
-                    }
-                    .padding()
-                    .background(Color.blue.opacity(UIConstants.OpacityConstants.light))
-                    .cornerRadius(12)
-                    
-                    // Step 2
-                    VStack(alignment: .leading, spacing: 8) {
-                        Label("Step 2: Get API Key", systemImage: "2.circle.fill")
-                            .font(.headline)
-                        
-                        Text(
-                            "Navigate to 'API Keys' section and click 'Create Key'."
-                            + " Copy the key (starts with 'sk-ant-')."
-                        )
-                            .font(.body)
-                    }
-                    .padding()
-                    .background(Color.blue.opacity(UIConstants.OpacityConstants.light))
-                    .cornerRadius(12)
-                    
-                    // Step 3
-                    VStack(alignment: .leading, spacing: 8) {
-                        Label("Step 3: Add to App", systemImage: "3.circle.fill")
-                            .font(.headline)
-                        
-                        Text("Paste your API key in the settings above and tap 'Save API Key'.")
-                            .font(.body)
-                    }
-                    .padding()
-                    .background(Color.blue.opacity(UIConstants.OpacityConstants.light))
-                    .cornerRadius(12)
-                    
-                    Divider()
-                        .padding(.vertical)
-                    
-                    // Cost Information
-                    VStack(alignment: .leading, spacing: 12) {
-                        Label("Cost Information", systemImage: "dollarsign.circle")
-                            .font(.headline)
-                        
-                        Text("New accounts receive $5 in free credits.")
-                            .font(.body)
-                        
-                        Text("Each student analysis costs approximately $0.01-0.02 (1-2 cents).")
-                            .font(.body)
-                        
-                        Text("$5 credit = ~250-500 student analyses")
-                            .font(.body)
-                            .fontWeight(.semibold)
-                        
-                        Link("View Detailed Pricing →", destination: .knownURL("https://www.anthropic.com/pricing"))
-                            .font(.subheadline)
-                    }
-                    .padding()
-                    .background(Color.green.opacity(UIConstants.OpacityConstants.light))
-                    .cornerRadius(12)
-                    
-                    // Privacy CDNote
-                    VStack(alignment: .leading, spacing: 8) {
-                        Label("Privacy & Security", systemImage: "lock.shield")
-                            .font(.headline)
-                        
-                        Text(
-                            "Your API key is stored securely on your device."
-                            + " Student data is sent directly to Anthropic's secure servers"
-                            + " for analysis and is not stored by Anthropic or any third parties."
-                        )
-                            .font(.body)
-                    }
-                    .padding()
-                    .background(Color.purple.opacity(UIConstants.OpacityConstants.light))
-                    .cornerRadius(12)
+                    stepsSection
+                    Divider().padding(.vertical)
+                    costSection
+                    privacySection
                 }
                 .padding()
             }
@@ -267,6 +189,76 @@ struct APIKeyInformationSheet: View {
                 }
             }
         }
+    }
+
+    private var stepsSection: some View {
+        Group {
+            infoCard(color: .blue) {
+                Label("Step 1: Create an Account", systemImage: "1.circle.fill")
+                    .font(.headline)
+                Text("Visit console.anthropic.com and sign up for a free account.")
+                    .font(.body)
+                Link("Open Anthropic Console →", destination: .knownURL("https://console.anthropic.com/"))
+                    .font(.subheadline)
+            }
+
+            infoCard(color: .blue) {
+                Label("Step 2: Get API Key", systemImage: "2.circle.fill")
+                    .font(.headline)
+                Text(
+                    "Navigate to 'API Keys' section and click 'Create Key'."
+                    + " Copy the key (starts with 'sk-ant-')."
+                )
+                    .font(.body)
+            }
+
+            infoCard(color: .blue) {
+                Label("Step 3: Add to App", systemImage: "3.circle.fill")
+                    .font(.headline)
+                Text("Paste your API key in the settings above and tap 'Save API Key'.")
+                    .font(.body)
+            }
+        }
+    }
+
+    private var costSection: some View {
+        infoCard(color: .green, spacing: 12) {
+            Label("Cost Information", systemImage: "dollarsign.circle")
+                .font(.headline)
+            Text("New accounts receive $5 in free credits.")
+                .font(.body)
+            Text("Each student analysis costs approximately $0.01-0.02 (1-2 cents).")
+                .font(.body)
+            Text("$5 credit = ~250-500 student analyses")
+                .font(.body)
+                .fontWeight(.semibold)
+            Link("View Detailed Pricing →", destination: .knownURL("https://www.anthropic.com/pricing"))
+                .font(.subheadline)
+        }
+    }
+
+    private var privacySection: some View {
+        infoCard(color: .purple) {
+            Label("Privacy & Security", systemImage: "lock.shield")
+                .font(.headline)
+            Text(
+                "Your API key is stored securely on your device."
+                + " Student data is sent directly to Anthropic's secure servers"
+                + " for analysis and is not stored by Anthropic or any third parties."
+            )
+                .font(.body)
+        }
+    }
+
+    private func infoCard<Content: View>(
+        color: Color,
+        spacing: CGFloat = 8,
+        @ViewBuilder content: () -> Content
+    ) -> some View {
+        VStack(alignment: .leading, spacing: spacing, content: content)
+            .padding()
+            .background(color.opacity(UIConstants.OpacityConstants.light))
+            .cornerRadius(12)
     }
 }
 

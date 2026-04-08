@@ -81,95 +81,7 @@ struct LessonProgressSection: View {
     private var progressCard: some View {
         GlassCard {
             VStack(alignment: .leading, spacing: 16) {
-                // State chips row
-                HStack(spacing: 10) {
-                    // Just Presented
-                    Button {
-                        isPresented = true
-                        givenAt = calendar.startOfDay(for: Date())
-                        presentedMode = .just
-                        showJustPresentedFlash = true
-                        Task { @MainActor in
-                            do {
-                                try await Task.sleep(for: .milliseconds(800))
-                                showJustPresentedFlash = false
-                            } catch {
-                                Self.logger.warning("Task sleep failed: \(error)")
-                            }
-                        }
-                    } label: {
-                        StatusChip(
-                            title: "Just Presented",
-                            systemImage: "checkmark.circle.fill",
-                            tint: .green,
-                            active: presentedMode == .just
-                        )
-                    }
-                    .buttonStyle(.plain)
-                    .sensoryFeedback(.success, trigger: showJustPresentedFlash)
-
-                    // Previously Presented
-                    Button {
-                        isPresented = true
-                        // Date is optional; leave as-is until chosen
-                        presentedMode = .previous
-                    } label: {
-                        StatusChip(
-                            title: "Previously Presented",
-                            systemImage: "clock.badge.checkmark",
-                            tint: .green,
-                            active: presentedMode == .previous
-                        )
-                    }
-                    .buttonStyle(.plain)
-
-                    Spacer()
-
-                    if presentedMode == .previous && isPresented {
-                        Button {
-                            presentedDate = calendar.startOfDay(for: givenAt ?? Date())
-                            showPresentedPopover.toggle()
-                        } label: {
-                            HStack(spacing: 6) {
-                                Image(systemName: "calendar")
-                                if let date = givenAt {
-                                    Text(date, style: .date)
-                                } else {
-                                    Text("Add Date")
-                                }
-                            }
-                            .font(.caption)
-                            .foregroundStyle(.secondary)
-                        }
-                        .buttonStyle(.plain)
-                        .popover(isPresented: $showPresentedPopover, arrowEdge: .top) {
-                            VStack(alignment: .leading, spacing: 12) {
-                                Text("Presentation Date")
-                                    .font(.headline)
-                                DatePicker("Date", selection: $presentedDate, displayedComponents: [.date])
-                                #if os(macOS)
-                                .datePickerStyle(.field)
-                                #else
-                                .datePickerStyle(.compact)
-                                #endif
-                                HStack {
-                                    Button("Clear") {
-                                        givenAt = nil
-                                        showPresentedPopover = false
-                                    }
-                                    Spacer()
-                                    Button("Set") {
-                                        givenAt = calendar.startOfDay(for: presentedDate)
-                                        showPresentedPopover = false
-                                    }
-                                    .buttonStyle(.borderedProminent)
-                                }
-                            }
-                            .padding(12)
-                            .frame(minWidth: 280)
-                        }
-                    }
-                }
+                stateChipsRow
 
                 // Bottom row: Needs another presentation aligned right
                 HStack {
@@ -290,6 +202,98 @@ struct LessonProgressSection: View {
                     presentedMode = .none
                 }
             }
+        }
+    }
+
+    private var stateChipsRow: some View {
+        HStack(spacing: 10) {
+            Button {
+                isPresented = true
+                givenAt = calendar.startOfDay(for: Date())
+                presentedMode = .just
+                showJustPresentedFlash = true
+                Task { @MainActor in
+                    do {
+                        try await Task.sleep(for: .milliseconds(800))
+                        showJustPresentedFlash = false
+                    } catch {
+                        Self.logger.warning("Task sleep failed: \(error)")
+                    }
+                }
+            } label: {
+                StatusChip(
+                    title: "Just Presented",
+                    systemImage: "checkmark.circle.fill",
+                    tint: .green,
+                    active: presentedMode == .just
+                )
+            }
+            .buttonStyle(.plain)
+            .sensoryFeedback(.success, trigger: showJustPresentedFlash)
+
+            Button {
+                isPresented = true
+                presentedMode = .previous
+            } label: {
+                StatusChip(
+                    title: "Previously Presented",
+                    systemImage: "clock.badge.checkmark",
+                    tint: .green,
+                    active: presentedMode == .previous
+                )
+            }
+            .buttonStyle(.plain)
+
+            Spacer()
+
+            if presentedMode == .previous && isPresented {
+                presentedDateButton
+            }
+        }
+    }
+
+    private var presentedDateButton: some View {
+        Button {
+            presentedDate = calendar.startOfDay(for: givenAt ?? Date())
+            showPresentedPopover.toggle()
+        } label: {
+            HStack(spacing: 6) {
+                Image(systemName: "calendar")
+                if let date = givenAt {
+                    Text(date, style: .date)
+                } else {
+                    Text("Add Date")
+                }
+            }
+            .font(.caption)
+            .foregroundStyle(.secondary)
+        }
+        .buttonStyle(.plain)
+        .popover(isPresented: $showPresentedPopover, arrowEdge: .top) {
+            VStack(alignment: .leading, spacing: 12) {
+                Text("Presentation Date")
+                    .font(.headline)
+                DatePicker("Date", selection: $presentedDate, displayedComponents: [.date])
+                #if os(macOS)
+                .datePickerStyle(.field)
+                #else
+                .datePickerStyle(.compact)
+                #endif
+                HStack {
+                    Button("Clear") {
+                        givenAt = nil
+                        showPresentedPopover = false
+                    }
+                    Spacer()
+                    Button("Set") {
+                        givenAt = calendar.startOfDay(for: presentedDate)
+                        showPresentedPopover = false
+                    }
+                    .buttonStyle(.borderedProminent)
+                }
+            }
+            .padding(12)
+            .frame(minWidth: 280)
         }
     }
 

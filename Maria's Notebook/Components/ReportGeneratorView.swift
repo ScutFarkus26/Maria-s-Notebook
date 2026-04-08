@@ -34,98 +34,11 @@ struct ReportGeneratorView: View {
     var body: some View {
         NavigationStack {
             Form {
-                // Date Range Section
-                Section {
-                    Picker("Period", selection: $selectedDateRange) {
-                        ForEach(ReportGeneratorService.DateRangeOption.allCases) { option in
-                            Text(option.rawValue).tag(option)
-                        }
-                    }
-
-                    if selectedDateRange == .custom {
-                        DatePicker("Start Date", selection: $customStartDate, displayedComponents: .date)
-                        DatePicker("End Date", selection: $customEndDate, displayedComponents: .date)
-                    }
-                } header: {
-                    Text("Date Range")
-                } footer: {
-                    Text("Only notes flagged for report within this range will be included.")
-                }
-
-                // Report Style Section
-                Section {
-                    Picker("Style", selection: $selectedStyle) {
-                        ForEach(ReportGeneratorService.ReportStyle.allCases) { style in
-                            Text(style.rawValue).tag(style)
-                        }
-                    }
-                } header: {
-                    Text("Report Style")
-                } footer: {
-                    styleDescription
-                }
-
-                // Preview Section
-                Section {
-                    Button {
-                        fetchNoteCount()
-                    } label: {
-                        HStack {
-                            Text("Check Available Notes")
-                            Spacer()
-                            if noteCount > 0 {
-                                Text("\(noteCount) notes")
-                                    .foregroundStyle(.secondary)
-                            }
-                        }
-                    }
-                } header: {
-                    Text("Preview")
-                }
-
-                // Generate Section
-                Section {
-                    Button {
-                        generateReport()
-                    } label: {
-                        HStack {
-                            Spacer()
-                            if isGenerating {
-                                ProgressView()
-                                    .padding(.trailing, 8)
-                            }
-                            Text(isGenerating ? "Generating..." : "Generate Report")
-                                .fontWeight(.semibold)
-                            Spacer()
-                        }
-                    }
-                    .disabled(isGenerating || noteCount == 0)
-
-                    if let errorMessage {
-                        Text(errorMessage)
-                            .foregroundStyle(AppColors.destructive)
-                            .font(.caption)
-                    }
-                }
-
-                // Share Section (after generation)
-                if generatedPDF != nil {
-                    Section {
-                        Button {
-                            showingShareSheet = true
-                        } label: {
-                            Label("Share Report", systemImage: "square.and.arrow.up")
-                        }
-
-                        Button {
-                            showingPreview = true
-                        } label: {
-                            Label("Preview Report", systemImage: "doc.text.magnifyingglass")
-                        }
-                    } header: {
-                        Text("Export")
-                    }
-                }
+                dateRangeSection
+                reportStyleSection
+                previewSection
+                generateSection
+                exportSection
             }
             .navigationTitle("Generate Report")
             .inlineNavigationTitle()
@@ -178,6 +91,107 @@ struct ReportGeneratorView: View {
         #if os(macOS)
         .frame(minWidth: 450, minHeight: 500)
         #endif
+    }
+
+    // MARK: - Form Sections
+
+    private var dateRangeSection: some View {
+        Section {
+            Picker("Period", selection: $selectedDateRange) {
+                ForEach(ReportGeneratorService.DateRangeOption.allCases) { option in
+                    Text(option.rawValue).tag(option)
+                }
+            }
+
+            if selectedDateRange == .custom {
+                DatePicker("Start Date", selection: $customStartDate, displayedComponents: .date)
+                DatePicker("End Date", selection: $customEndDate, displayedComponents: .date)
+            }
+        } header: {
+            Text("Date Range")
+        } footer: {
+            Text("Only notes flagged for report within this range will be included.")
+        }
+    }
+
+    private var reportStyleSection: some View {
+        Section {
+            Picker("Style", selection: $selectedStyle) {
+                ForEach(ReportGeneratorService.ReportStyle.allCases) { style in
+                    Text(style.rawValue).tag(style)
+                }
+            }
+        } header: {
+            Text("Report Style")
+        } footer: {
+            styleDescription
+        }
+    }
+
+    private var previewSection: some View {
+        Section {
+            Button {
+                fetchNoteCount()
+            } label: {
+                HStack {
+                    Text("Check Available Notes")
+                    Spacer()
+                    if noteCount > 0 {
+                        Text("\(noteCount) notes")
+                            .foregroundStyle(.secondary)
+                    }
+                }
+            }
+        } header: {
+            Text("Preview")
+        }
+    }
+
+    private var generateSection: some View {
+        Section {
+            Button {
+                generateReport()
+            } label: {
+                HStack {
+                    Spacer()
+                    if isGenerating {
+                        ProgressView()
+                            .padding(.trailing, 8)
+                    }
+                    Text(isGenerating ? "Generating..." : "Generate Report")
+                        .fontWeight(.semibold)
+                    Spacer()
+                }
+            }
+            .disabled(isGenerating || noteCount == 0)
+
+            if let errorMessage {
+                Text(errorMessage)
+                    .foregroundStyle(AppColors.destructive)
+                    .font(.caption)
+            }
+        }
+    }
+
+    @ViewBuilder
+    private var exportSection: some View {
+        if generatedPDF != nil {
+            Section {
+                Button {
+                    showingShareSheet = true
+                } label: {
+                    Label("Share Report", systemImage: "square.and.arrow.up")
+                }
+
+                Button {
+                    showingPreview = true
+                } label: {
+                    Label("Preview Report", systemImage: "doc.text.magnifyingglass")
+                }
+            } header: {
+                Text("Export")
+            }
+        }
     }
 
     private var styleDescription: some View {

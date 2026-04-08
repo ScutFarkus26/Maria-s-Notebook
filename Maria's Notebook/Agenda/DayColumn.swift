@@ -49,32 +49,42 @@ struct DayColumn: View {
 
     /// Synchronous helper that determines if a date is a non-school day using direct NSManagedObjectContext fetches.
     private func isNonSchoolDaySync(_ date: Date) -> Bool {
-        let day = AppCalendar.startOfDay(date)
-        let cal = AppCalendar.shared
+        let day: Date = AppCalendar.startOfDay(date)
 
         // 1) Explicit non-school day wins
-        do {
-            let nsDescriptor = { let r = CDNonSchoolDay.fetchRequest() as! NSFetchRequest<CDNonSchoolDay>; r.predicate = NSPredicate(format: "date == %@", day as CVarArg); r.fetchLimit = 1; return r }()
-            let nonSchoolDays: [CDNonSchoolDay] = try viewContext.fetch(nsDescriptor)
-            if !nonSchoolDays.isEmpty { return true }
-        } catch {
-            // On fetch error, fall back to weekend logic below
-        }
+        if hasNonSchoolDay(on: day) { return true }
 
         // 2) Weekends are non-school by default (Sunday=1, Saturday=7)
-        let weekday = cal.component(.weekday, from: day)
-        let isWeekend = (weekday == 1 || weekday == 7)
+        let weekday: Int = AppCalendar.shared.component(.weekday, from: day)
+        let isWeekend: Bool = (weekday == 1 || weekday == 7)
         guard isWeekend else { return false }
 
         // 3) Weekend override makes it a school day
+        return !hasSchoolDayOverride(on: day)
+    }
+
+    private func hasNonSchoolDay(on day: Date) -> Bool {
+        let request: NSFetchRequest<CDNonSchoolDay> = CDNonSchoolDay.fetchRequest() as! NSFetchRequest<CDNonSchoolDay>
+        request.predicate = NSPredicate(format: "date == %@", day as CVarArg)
+        request.fetchLimit = 1
         do {
-            let ovDescriptor = { let r = CDSchoolDayOverride.fetchRequest() as! NSFetchRequest<CDSchoolDayOverride>; r.predicate = NSPredicate(format: "date == %@", day as CVarArg); r.fetchLimit = 1; return r }()
-            let overrides: [CDSchoolDayOverride] = try viewContext.fetch(ovDescriptor)
-            if !overrides.isEmpty { return false }
+            let results: [CDNonSchoolDay] = try viewContext.fetch(request)
+            return !results.isEmpty
         } catch {
-            // If override fetch fails, assume weekend remains non-school
+            return false
         }
-        return true
+    }
+
+    private func hasSchoolDayOverride(on day: Date) -> Bool {
+        let request: NSFetchRequest<CDSchoolDayOverride> = CDSchoolDayOverride.fetchRequest() as! NSFetchRequest<CDSchoolDayOverride>
+        request.predicate = NSPredicate(format: "date == %@", day as CVarArg)
+        request.fetchLimit = 1
+        do {
+            let results: [CDSchoolDayOverride] = try viewContext.fetch(request)
+            return !results.isEmpty
+        } catch {
+            return false
+        }
     }
 
     var body: some View {

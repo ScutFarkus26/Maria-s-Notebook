@@ -44,37 +44,10 @@ struct LessonSearchPicker: View {
                     ForEach(subjectSection.groups, id: \.group) { groupSection in
                         DisclosureGroup {
                             ForEach(groupSection.lessons, id: \.id) { lesson in
-                                Button {
-                                    selectedLesson = lesson
-                                    dismiss()
-                                } label: {
-                                    HStack {
-                                        VStack(alignment: .leading, spacing: 2) {
-                                            Text(lesson.name)
-                                                .font(.body)
-                                                .foregroundStyle(.primary)
-                                            if !lesson.subheading.isEmpty {
-                                                Text(lesson.subheading)
-                                                    .font(.caption)
-                                                    .foregroundStyle(.secondary)
-                                            }
-                                        }
-                                        Spacer()
-                                        if lesson.id == selectedLesson?.id {
-                                            Image(systemName: "checkmark")
-                                                .foregroundStyle(.accent)
-                                        }
-                                    }
-                                }
+                                lessonRow(lesson)
                             }
                         } label: {
-                            HStack(spacing: 6) {
-                                Circle()
-                                    .fill(AppColors.color(forSubject: subjectSection.subject))
-                                    .frame(width: 8, height: 8)
-                                Text(groupSection.group)
-                                    .font(.subheadline.weight(.medium))
-                            }
+                            groupLabel(subjectSection.subject, group: groupSection.group)
                         }
                     }
                 } header: {
@@ -84,5 +57,40 @@ struct LessonSearchPicker: View {
         }
         .searchable(text: $searchText, prompt: "Search lessons...")
         .navigationTitle("Choose Lesson")
+    }
+
+    private func lessonRow(_ lesson: CDLesson) -> some View {
+        Button {
+            selectedLesson = lesson
+            dismiss()
+        } label: {
+            HStack {
+                VStack(alignment: .leading, spacing: 2) {
+                    Text(lesson.name)
+                        .font(.body)
+                        .foregroundStyle(.primary)
+                    if !lesson.subheading.isEmpty {
+                        Text(lesson.subheading)
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                    }
+                }
+                Spacer()
+                if lesson.id == selectedLesson?.id {
+                    Image(systemName: "checkmark")
+                        .foregroundStyle(.accent)
+                }
+            }
+        }
+    }
+
+    private func groupLabel(_ subject: String, group: String) -> some View {
+        HStack(spacing: 6) {
+            Circle()
+                .fill(AppColors.color(forSubject: subject))
+                .frame(width: 8, height: 8)
+            Text(group)
+                .font(.subheadline.weight(.medium))
+        }
     }
 }

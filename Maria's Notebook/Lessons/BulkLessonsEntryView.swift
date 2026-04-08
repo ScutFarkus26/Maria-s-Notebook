@@ -98,134 +98,10 @@ public struct BulkLessonsEntryView: View {
 
     public var body: some View {
         VStack(spacing: 0) {
-            // Header
-            HStack(alignment: .firstTextBaseline) {
-                Text("Bulk Add Lessons")
-                    .font(AppTheme.ScaledFont.titleMedium)
-                Spacer()
-            }
-            .padding(.horizontal, 24)
-            .padding(.top, 18)
-
-            Divider()
-                .padding(.top, 8)
-
-            // Content
-            VStack(alignment: .leading, spacing: 12) {
-                Text("Type directly into the grid below. Each non-empty Name creates a lesson.")
-                    .font(.footnote)
-                    .foregroundStyle(.secondary)
-
-                HStack(spacing: 8) {
-                    Text("Source:")
-                        .font(AppTheme.ScaledFont.captionSemibold)
-                        .foregroundStyle(.secondary)
-                    Picker("Source", selection: $batchSource) {
-                        ForEach(LessonSource.allCases) { s in
-                            Text(s.label).tag(s)
-                        }
-                    }
-                    .pickerStyle(.segmented)
-                    if batchSource == .personal {
-                        Picker("Personal Type", selection: $batchPersonalKind) {
-                            ForEach(PersonalLessonKind.allCases) { k in
-                                Text(k.label).tag(k)
-                            }
-                        }
-                        .pickerStyle(.menu)
-                    }
-                    Spacer()
-                }
-
-                // Quick Fill bar
-                HStack(spacing: 8) {
-                    Label("Quick Fill", systemImage: "paintbrush")
-                        .foregroundStyle(.secondary)
-                        .font(AppTheme.ScaledFont.captionSemibold)
-                    Divider().frame(height: 16)
-                    TextField("Subject", text: $quickSubject)
-                        .textFieldStyle(.roundedBorder)
-                        .frame(width: 180)
-                    Button("Selected") { applyFill(.subject, value: quickSubject, toSelected: true) }
-                        .buttonStyle(.bordered)
-                    Button("All") { applyFill(.subject, value: quickSubject, toSelected: false) }
-                        .buttonStyle(.bordered)
-                    Divider().frame(height: 16)
-                    TextField("Group", text: $quickGroup)
-                        .textFieldStyle(.roundedBorder)
-                        .frame(width: 160)
-                    Button("Selected") { applyFill(.group, value: quickGroup, toSelected: true) }
-                        .buttonStyle(.bordered)
-                    Button("All") { applyFill(.group, value: quickGroup, toSelected: false) }
-                        .buttonStyle(.bordered)
-                    Spacer()
-                    Button(selectedRowIDs.count == rows.count && !rows.isEmpty ? "Deselect All" : "Select All") {
-                        toggleSelectAll(!(selectedRowIDs.count == rows.count && !rows.isEmpty))
-                    }
-                    .buttonStyle(.bordered)
-                }
-
-                GeometryReader { geo in
-                    let widths = columnWidths(total: geo.size.width - 16) // subtract small padding margin
-                    VStack(alignment: .leading, spacing: 8) {
-                        headerRow(widths: widths)
-                        ScrollView {
-                            LazyVStack(spacing: 8) {
-                                ForEach($rows) { $row in
-                                    editorRow(for: $row, widths: widths)
-                                }
-                            }
-                            .padding(.vertical, 4)
-                        }
-                        .background(
-                            RoundedRectangle(cornerRadius: 12, style: .continuous)
-                                .stroke(Color.primary.opacity(UIConstants.OpacityConstants.subtle), lineWidth: 1)
-                        )
-                        .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
-                    }
-                }
-                .frame(minHeight: 300)
-
-                HStack(spacing: 12) {
-                    Button {
-                        addRows(5)
-                    } label: {
-                        Label("Add 5 Rows", systemImage: "plus")
-                    }
-                    .buttonStyle(.bordered)
-
-                    Button(role: .destructive) {
-                        clearAll()
-                    } label: {
-                        Label("Clear", systemImage: "trash")
-                    }
-                    .buttonStyle(.bordered)
-
-                    Spacer()
-                }
-                .padding(.top, 4)
-            }
-            .padding(.horizontal, 24)
-            .padding(.vertical, 16)
-
-            // Footer
-            VStack(spacing: 0) {
-                Divider()
-                HStack {
-                    Button("Cancel") { dismiss() }
-                    Spacer()
-                    Button {
-                        commit()
-                    } label: {
-                        Label("Add \(validCount) Lesson\(validCount == 1 ? "" : "s")", systemImage: "plus.circle.fill")
-                    }
-                    .buttonStyle(.borderedProminent)
-                    .disabled(validCount == 0)
-                }
-                .padding(.horizontal, 20)
-                .padding(.vertical, 12)
-                .background(.bar)
-            }
+            bulkEntryHeader
+            Divider().padding(.top, 8)
+            bulkEntryContent
+            bulkEntryFooter
         }
 #if os(macOS)
         .frame(minWidth: 720, minHeight: 560)
@@ -234,6 +110,133 @@ public struct BulkLessonsEntryView: View {
         .presentationDetents([.large])
         .presentationDragIndicator(.visible)
 #endif
+    }
+
+    // MARK: - Extracted Body Sections
+
+    private var bulkEntryHeader: some View {
+        HStack(alignment: .firstTextBaseline) {
+            Text("Bulk Add Lessons")
+                .font(AppTheme.ScaledFont.titleMedium)
+            Spacer()
+        }
+        .padding(.horizontal, 24)
+        .padding(.top, 18)
+    }
+
+    private var bulkEntryContent: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            Text("Type directly into the grid below. Each non-empty Name creates a lesson.")
+                .font(.footnote)
+                .foregroundStyle(.secondary)
+
+            sourcePickerRow
+            quickFillBar
+
+            GeometryReader { geo in
+                let widths: [CGFloat] = columnWidths(total: geo.size.width - 16)
+                VStack(alignment: .leading, spacing: 8) {
+                    headerRow(widths: widths)
+                    ScrollView {
+                        LazyVStack(spacing: 8) {
+                            ForEach($rows) { $row in
+                                editorRow(for: $row, widths: widths)
+                            }
+                        }
+                        .padding(.vertical, 4)
+                    }
+                    .background(
+                        RoundedRectangle(cornerRadius: 12, style: .continuous)
+                            .stroke(Color.primary.opacity(UIConstants.OpacityConstants.subtle), lineWidth: 1)
+                    )
+                    .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
+                }
+            }
+            .frame(minHeight: 300)
+
+            HStack(spacing: 12) {
+                Button { addRows(5) } label: { Label("Add 5 Rows", systemImage: "plus") }
+                    .buttonStyle(.bordered)
+                Button(role: .destructive) { clearAll() } label: { Label("Clear", systemImage: "trash") }
+                    .buttonStyle(.bordered)
+                Spacer()
+            }
+            .padding(.top, 4)
+        }
+        .padding(.horizontal, 24)
+        .padding(.vertical, 16)
+    }
+
+    private var sourcePickerRow: some View {
+        HStack(spacing: 8) {
+            Text("Source:")
+                .font(AppTheme.ScaledFont.captionSemibold)
+                .foregroundStyle(.secondary)
+            Picker("Source", selection: $batchSource) {
+                ForEach(LessonSource.allCases) { s in
+                    Text(s.label).tag(s)
+                }
+            }
+            .pickerStyle(.segmented)
+            if batchSource == .personal {
+                Picker("Personal Type", selection: $batchPersonalKind) {
+                    ForEach(PersonalLessonKind.allCases) { k in
+                        Text(k.label).tag(k)
+                    }
+                }
+                .pickerStyle(.menu)
+            }
+            Spacer()
+        }
+    }
+
+    private var quickFillBar: some View {
+        HStack(spacing: 8) {
+            Label("Quick Fill", systemImage: "paintbrush")
+                .foregroundStyle(.secondary)
+                .font(AppTheme.ScaledFont.captionSemibold)
+            Divider().frame(height: 16)
+            TextField("Subject", text: $quickSubject)
+                .textFieldStyle(.roundedBorder)
+                .frame(width: 180)
+            Button("Selected") { applyFill(.subject, value: quickSubject, toSelected: true) }
+                .buttonStyle(.bordered)
+            Button("All") { applyFill(.subject, value: quickSubject, toSelected: false) }
+                .buttonStyle(.bordered)
+            Divider().frame(height: 16)
+            TextField("Group", text: $quickGroup)
+                .textFieldStyle(.roundedBorder)
+                .frame(width: 160)
+            Button("Selected") { applyFill(.group, value: quickGroup, toSelected: true) }
+                .buttonStyle(.bordered)
+            Button("All") { applyFill(.group, value: quickGroup, toSelected: false) }
+                .buttonStyle(.bordered)
+            Spacer()
+            Button(selectedRowIDs.count == rows.count && !rows.isEmpty ? "Deselect All" : "Select All") {
+                toggleSelectAll(!(selectedRowIDs.count == rows.count && !rows.isEmpty))
+            }
+            .buttonStyle(.bordered)
+        }
+    }
+
+    private var bulkEntryFooter: some View {
+        VStack(spacing: 0) {
+            Divider()
+            HStack {
+                Button("Cancel") { dismiss() }
+                Spacer()
+                Button {
+                    commit()
+                } label: {
+                    Label("Add \(validCount) Lesson\(validCount == 1 ? "" : "s")", systemImage: "plus.circle.fill")
+                }
+                .buttonStyle(.borderedProminent)
+                .disabled(validCount == 0)
+            }
+            .padding(.horizontal, 20)
+            .padding(.vertical, 12)
+            .background(.bar)
+        }
     }
 
     private func headerRow(widths: [CGFloat]) -> some View {

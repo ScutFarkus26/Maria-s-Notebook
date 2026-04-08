@@ -47,50 +47,8 @@ struct WorkCardGridContent: View {
 
     var body: some View {
         HStack(spacing: 0) {
-            Rectangle()
-                .fill(ageColor)
-                .frame(width: UIConstants.ageIndicatorWidth)
-                .opacity(config.work.status == .complete ? 0.0 : 1.0)
-                .accessibilityHidden(true)
-
-            HStack(spacing: 10) {
-                VStack(alignment: .leading, spacing: 3) {
-                    HStack {
-                        Text(displayTitle)
-                            .font(.subheadline.weight(.bold))
-                            .lineLimit(2)
-                        Spacer()
-                        if config.needsAttention {
-                            Text("Needs Attention")
-                                .font(.caption2.weight(.semibold))
-                                .foregroundStyle(.white)
-                                .padding(.horizontal, 6)
-                                .padding(.vertical, 3)
-                                .background(Capsule().fill(Color.red.opacity(UIConstants.OpacityConstants.nearSolid)))
-                                .accessibilityLabel("Needs Attention")
-                        }
-                    }
-                    HStack(spacing: 8) {
-                        Text(config.studentDisplay)
-                            .font(.caption)
-                            .foregroundStyle(.secondary)
-                            .lineLimit(1)
-                        Text("•")
-                            .font(.caption)
-                            .foregroundStyle(.secondary)
-                        Text(kindText)
-                            .font(.caption2)
-                            .foregroundStyle(.secondary)
-                        Text("•")
-                            .font(.caption)
-                            .foregroundStyle(.secondary)
-                        Text("\(config.ageSchoolDays)d")
-                            .font(.caption2)
-                            .foregroundStyle(.secondary)
-                    }
-                }
-                Spacer()
-            }
+            ageIndicator
+            gridContent
         }
         .padding(8)
         .frame(maxWidth: .infinity, minHeight: 60)
@@ -99,6 +57,63 @@ struct WorkCardGridContent: View {
         .contentShape(Rectangle())
         .accessibilityElement(children: .combine)
         .onTapGesture { config.onOpen(config.work) }
+    }
+
+    private var ageIndicator: some View {
+        Rectangle()
+            .fill(ageColor)
+            .frame(width: UIConstants.ageIndicatorWidth)
+            .opacity(config.work.status == .complete ? 0.0 : 1.0)
+            .accessibilityHidden(true)
+    }
+
+    private var gridContent: some View {
+        HStack(spacing: 10) {
+            VStack(alignment: .leading, spacing: 3) {
+                titleRow
+                metadataRow
+            }
+            Spacer()
+        }
+    }
+
+    private var titleRow: some View {
+        HStack {
+            Text(displayTitle)
+                .font(.subheadline.weight(.bold))
+                .lineLimit(2)
+            Spacer()
+            if config.needsAttention {
+                Text("Needs Attention")
+                    .font(.caption2.weight(.semibold))
+                    .foregroundStyle(.white)
+                    .padding(.horizontal, 6)
+                    .padding(.vertical, 3)
+                    .background(Capsule().fill(Color.red.opacity(UIConstants.OpacityConstants.nearSolid)))
+                    .accessibilityLabel("Needs Attention")
+            }
+        }
+    }
+
+    private var metadataRow: some View {
+        HStack(spacing: 8) {
+            Text(config.studentDisplay)
+                .font(.caption)
+                .foregroundStyle(.secondary)
+                .lineLimit(1)
+            Text("•")
+                .font(.caption)
+                .foregroundStyle(.secondary)
+            Text(kindText)
+                .font(.caption2)
+                .foregroundStyle(.secondary)
+            Text("•")
+                .font(.caption)
+                .foregroundStyle(.secondary)
+            Text("\(config.ageSchoolDays)d")
+                .font(.caption2)
+                .foregroundStyle(.secondary)
+        }
         .contextMenu {
             Button {
                 config.onOpen(config.work)

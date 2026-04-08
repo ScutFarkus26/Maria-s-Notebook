@@ -29,7 +29,15 @@ struct ResourceImportSheet: View {
 
     var body: some View {
         NavigationStack {
-            Form {
+            importForm
+        }
+        #if os(macOS)
+        .frame(minWidth: 450, minHeight: 400)
+        #endif
+    }
+
+    private var importForm: some View {
+        Form {
                 Section("File") {
                     if let url = selectedFileURL {
                         HStack {
@@ -155,10 +163,6 @@ struct ResourceImportSheet: View {
             ) { result in
                 handleFileSelection(result)
             }
-        }
-        #if os(macOS)
-        .frame(minWidth: 450, minHeight: 400)
-        #endif
     }
 
     // MARK: - File Handling

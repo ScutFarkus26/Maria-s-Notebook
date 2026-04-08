@@ -29,101 +29,12 @@ struct ClassSubjectChecklistView: View {
 
     var body: some View {
         VStack(spacing: 0) {
-            // MARK: - Page Header / Controls
-            ViewHeader(title: "Checklist") {
-                Picker("Subject", selection: $viewModel.selectedSubject) {
-                    ForEach(viewModel.availableSubjects, id: \.self) { sub in
-                        Text(sub).tag(sub)
-                    }
-                }
-                .pickerStyle(.menu)
-                .frame(width: 150)
-
-                Button {
-                    withAnimation(.snappy(duration: 0.2)) {
-                        if viewModel.isSelectionMode {
-                            viewModel.clearSelection()
-                        } else {
-                            viewModel.isEditModeActive = true
-                        }
-                    }
-                } label: {
-                    Text(viewModel.isSelectionMode ? "Done" : "Edit")
-                        .fontWeight(.medium)
-                }
-                .buttonStyle(.bordered)
-                .controlSize(.small)
-            }
+            checklistHeader
 
             Divider()
 
-            // MARK: - Batch Actions Toolbar
             if viewModel.isSelectionMode {
-                HStack(spacing: 12) {
-                    Text("\(viewModel.selectedCells.count) selected")
-                        .font(.system(.subheadline, design: .rounded).weight(.medium))
-                        .foregroundStyle(.secondary)
-
-                    Spacer()
-
-                    Button {
-                        viewModel.batchAddToInbox(context: viewContext)
-                    } label: {
-                        Label("Add to Inbox", systemImage: "tray")
-                    }
-                    .buttonStyle(.bordered)
-
-                    Button {
-                        viewModel.batchMarkPresented(context: viewContext)
-                    } label: {
-                        Label("Presented", systemImage: "checkmark")
-                    }
-                    .buttonStyle(.bordered)
-
-                    Button {
-                        viewModel.batchMarkPreviouslyPresented(context: viewContext)
-                    } label: {
-                        Label("Prev. Presented", systemImage: "clock.badge.checkmark")
-                    }
-                    .buttonStyle(.bordered)
-
-                    Button {
-                        viewModel.batchMarkProficient(context: viewContext)
-                    } label: {
-                        Label("Mastered", systemImage: "checkmark.circle.fill")
-                    }
-                    .buttonStyle(.bordered)
-                    .tint(.green)
-
-                    if viewModel.selectedCellsSameLessonID != nil {
-                        Button {
-                            isShowingAddWorkSheet = true
-                        } label: {
-                            Label("Add Work", systemImage: "pencil.and.list.clipboard")
-                        }
-                        .buttonStyle(.bordered)
-                        .tint(.orange)
-                    }
-
-                    Button {
-                        viewModel.batchClearStatus(context: viewContext)
-                    } label: {
-                        Label("Clear", systemImage: "xmark.circle")
-                    }
-                    .buttonStyle(.bordered)
-                    .tint(.red)
-
-                    Button {
-                        viewModel.clearSelection()
-                    } label: {
-                        Text("Done")
-                    }
-                    .buttonStyle(.borderedProminent)
-                }
-                .padding(.horizontal)
-                .padding(.vertical, 8)
-                .background(Color.accentColor.opacity(UIConstants.OpacityConstants.hint))
-
+                batchActionsToolbar
                 Divider()
             }
 
@@ -264,6 +175,108 @@ struct ClassSubjectChecklistView: View {
         }
     }
 
+}
+
+// MARK: - Batch Actions Toolbar
+
+extension ClassSubjectChecklistView {
+    var batchActionsToolbar: some View {
+        HStack(spacing: 12) {
+            Text("\(viewModel.selectedCells.count) selected")
+                .font(.system(.subheadline, design: .rounded).weight(.medium))
+                .foregroundStyle(.secondary)
+
+            Spacer()
+
+            Button {
+                viewModel.batchAddToInbox(context: viewContext)
+            } label: {
+                Label("Add to Inbox", systemImage: "tray")
+            }
+            .buttonStyle(.bordered)
+
+            Button {
+                viewModel.batchMarkPresented(context: viewContext)
+            } label: {
+                Label("Presented", systemImage: "checkmark")
+            }
+            .buttonStyle(.bordered)
+
+            Button {
+                viewModel.batchMarkPreviouslyPresented(context: viewContext)
+            } label: {
+                Label("Prev. Presented", systemImage: "clock.badge.checkmark")
+            }
+            .buttonStyle(.bordered)
+
+            Button {
+                viewModel.batchMarkProficient(context: viewContext)
+            } label: {
+                Label("Mastered", systemImage: "checkmark.circle.fill")
+            }
+            .buttonStyle(.bordered)
+            .tint(.green)
+
+            if viewModel.selectedCellsSameLessonID != nil {
+                Button {
+                    isShowingAddWorkSheet = true
+                } label: {
+                    Label("Add Work", systemImage: "pencil.and.list.clipboard")
+                }
+                .buttonStyle(.bordered)
+                .tint(.orange)
+            }
+
+            Button {
+                viewModel.batchClearStatus(context: viewContext)
+            } label: {
+                Label("Clear", systemImage: "xmark.circle")
+            }
+            .buttonStyle(.bordered)
+            .tint(.red)
+
+            Button {
+                viewModel.clearSelection()
+            } label: {
+                Text("Done")
+            }
+            .buttonStyle(.borderedProminent)
+        }
+        .padding(.horizontal)
+        .padding(.vertical, 8)
+        .background(Color.accentColor.opacity(UIConstants.OpacityConstants.hint))
+    }
+}
+
+// MARK: - Checklist Header
+
+extension ClassSubjectChecklistView {
+    var checklistHeader: some View {
+        ViewHeader(title: "Checklist") {
+            Picker("Subject", selection: $viewModel.selectedSubject) {
+                ForEach(viewModel.availableSubjects, id: \.self) { sub in
+                    Text(sub).tag(sub)
+                }
+            }
+            .pickerStyle(.menu)
+            .frame(width: 150)
+
+            Button {
+                withAnimation(.snappy(duration: 0.2)) {
+                    if viewModel.isSelectionMode {
+                        viewModel.clearSelection()
+                    } else {
+                        viewModel.isEditModeActive = true
+                    }
+                }
+            } label: {
+                Text(viewModel.isSelectionMode ? "Done" : "Edit")
+                    .fontWeight(.medium)
+            }
+            .buttonStyle(.bordered)
+            .controlSize(.small)
+        }
+    }
 }
 
 // MARK: - Header Row

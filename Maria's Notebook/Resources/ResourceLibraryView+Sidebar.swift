@@ -10,91 +10,103 @@ extension ResourceLibraryView {
     var categorySidebar: some View {
         ScrollView {
             VStack(alignment: .leading, spacing: 4) {
-                // Quick Access
-                sidebarButton(
-                    label: "All Resources", icon: "tray.2",
-                    count: allResources.count,
-                    isSelected: smartFilter == .all && selectedCategory == nil && selectedTagFilter == nil
-                ) {
-                    smartFilter = .all
-                    selectedCategory = nil
-                    selectedTagFilter = nil
-                }
-
-                if favoritesCount > 0 {
-                    sidebarButton(
-                        label: "Favorites", icon: SFSymbol.Shape.starFill,
-                        count: favoritesCount,
-                        isSelected: smartFilter == .favorites
-                    ) {
-                        smartFilter = .favorites
-                        selectedCategory = nil
-                        selectedTagFilter = nil
-                    }
-                }
-
-                if recentsCount > 0 {
-                    sidebarButton(
-                        label: "Recents", icon: "clock",
-                        count: recentsCount,
-                        isSelected: smartFilter == .recents
-                    ) {
-                        smartFilter = .recents
-                        selectedCategory = nil
-                        selectedTagFilter = nil
-                    }
-                }
-
-                // Tags
-                if !allUsedTags.isEmpty {
-                    Divider()
-                        .padding(.vertical, 8)
-
-                    Text("TAGS")
-                        .font(.caption.weight(.semibold))
-                        .foregroundStyle(.secondary)
-                        .padding(.horizontal, 12)
-                        .padding(.bottom, 4)
-
-                    ForEach(allUsedTags, id: \.self) { tag in
-                        sidebarTagButton(tag: tag, isSelected: selectedTagFilter == tag) {
-                            if selectedTagFilter == tag {
-                                selectedTagFilter = nil
-                            } else {
-                                selectedTagFilter = tag
-                                smartFilter = .all
-                                selectedCategory = nil
-                            }
-                        }
-                    }
-                }
-
-                // Categories
-                Divider()
-                    .padding(.vertical, 8)
-
-                Text("CATEGORIES")
-                    .font(.caption.weight(.semibold))
-                    .foregroundStyle(.secondary)
-                    .padding(.horizontal, 12)
-                    .padding(.bottom, 4)
-
-                ForEach(categoriesWithCounts, id: \.category) { item in
-                    sidebarButton(
-                        label: item.category.rawValue,
-                        icon: item.category.icon,
-                        count: item.count,
-                        isSelected: selectedCategory == item.category
-                    ) {
-                        selectedCategory = item.category
-                        smartFilter = .all
-                        selectedTagFilter = nil
-                    }
-                }
+                quickAccessSection
+                tagsSidebarSection
+                categoriesSidebarSection
             }
             .padding(12)
         }
         .background(Color.primary.opacity(UIConstants.OpacityConstants.ghost))
+    }
+
+    private var quickAccessSection: some View {
+        Group {
+            sidebarButton(
+                label: "All Resources", icon: "tray.2",
+                count: allResources.count,
+                isSelected: smartFilter == .all && selectedCategory == nil && selectedTagFilter == nil
+            ) {
+                smartFilter = .all
+                selectedCategory = nil
+                selectedTagFilter = nil
+            }
+
+            if favoritesCount > 0 {
+                sidebarButton(
+                    label: "Favorites", icon: SFSymbol.Shape.starFill,
+                    count: favoritesCount,
+                    isSelected: smartFilter == .favorites
+                ) {
+                    smartFilter = .favorites
+                    selectedCategory = nil
+                    selectedTagFilter = nil
+                }
+            }
+
+            if recentsCount > 0 {
+                sidebarButton(
+                    label: "Recents", icon: "clock",
+                    count: recentsCount,
+                    isSelected: smartFilter == .recents
+                ) {
+                    smartFilter = .recents
+                    selectedCategory = nil
+                    selectedTagFilter = nil
+                }
+            }
+        }
+    }
+
+    @ViewBuilder
+    private var tagsSidebarSection: some View {
+        if !allUsedTags.isEmpty {
+            Divider()
+                .padding(.vertical, 8)
+
+            Text("TAGS")
+                .font(.caption.weight(.semibold))
+                .foregroundStyle(.secondary)
+                .padding(.horizontal, 12)
+                .padding(.bottom, 4)
+
+            ForEach(allUsedTags, id: \.self) { tag in
+                sidebarTagButton(tag: tag, isSelected: selectedTagFilter == tag) {
+                    if selectedTagFilter == tag {
+                        selectedTagFilter = nil
+                    } else {
+                        selectedTagFilter = tag
+                        smartFilter = .all
+                        selectedCategory = nil
+                    }
+                }
+            }
+        }
+    }
+
+    private var categoriesSidebarSection: some View {
+        Group {
+            Divider()
+                .padding(.vertical, 8)
+
+            Text("CATEGORIES")
+                .font(.caption.weight(.semibold))
+                .foregroundStyle(.secondary)
+                .padding(.horizontal, 12)
+                .padding(.bottom, 4)
+
+            ForEach(categoriesWithCounts, id: \.category) { item in
+                sidebarButton(
+                    label: item.category.rawValue,
+                    icon: item.category.icon,
+                    count: item.count,
+                    isSelected: selectedCategory == item.category
+                ) {
+                    selectedCategory = item.category
+                    smartFilter = .all
+                    selectedTagFilter = nil
+                }
+            }
+        }
     }
 
     func sidebarTagButton(tag: String, isSelected: Bool, action: @escaping () -> Void) -> some View {

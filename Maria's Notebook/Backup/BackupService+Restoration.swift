@@ -44,9 +44,8 @@ extension BackupService {
             try loadAndDecodeBackup(from: url, password: password, progress: progress)
         }
 
-        progress(0.50, "Analyzing\u{2026}") // preview analysis: fixed midpoint
+        progress(0.50, "Analyzing\u{2026}")
 
-        // Use BackupPreviewAnalyzer to compute insert/skip/delete counts
         let analysis = BackupPreviewAnalyzer.analyze(
             payload: payload,
             viewContext: viewContext,
@@ -55,8 +54,8 @@ extension BackupService {
                 do {
                     return (try self.fetchOne(type, id: id, using: viewContext)) != nil
                 } catch {
-                    let typeName = String(describing: type)
-                    let desc = error.localizedDescription
+                    let typeName: String = String(describing: type)
+                    let desc: String = error.localizedDescription
                     Self.logger.warning(
                         "Entity existence check failed for \(typeName, privacy: .public): \(desc, privacy: .public)"
                     )

@@ -35,21 +35,24 @@ struct NeedsLessonView: View {
     }
 
     private var sortedStudents: [CDStudent] {
-        let daysMap = daysSinceLastLesson
-        return visibleStudents.sorted { lhs, rhs in
-            let lDays = lhs.id.flatMap { daysMap[$0] } ?? -1
-            let rDays = rhs.id.flatMap { daysMap[$0] } ?? -1
-            // Students with no presentations (-1) go first
-            if lDays == -1 && rDays == -1 {
-                return lhs.fullName.localizedCaseInsensitiveCompare(rhs.fullName) == .orderedAscending
-            }
-            if lDays == -1 { return true }
-            if rDays == -1 { return false }
-            if lDays == rDays {
-                return lhs.fullName.localizedCaseInsensitiveCompare(rhs.fullName) == .orderedAscending
-            }
-            return lDays > rDays // More days = needs lesson more urgently
+        let daysMap: [UUID: Int] = daysSinceLastLesson
+        return visibleStudents.sorted { (lhs: CDStudent, rhs: CDStudent) -> Bool in
+            sortByNeedPriority(lhs, rhs, daysMap: daysMap)
         }
+    }
+
+    private func sortByNeedPriority(_ lhs: CDStudent, _ rhs: CDStudent, daysMap: [UUID: Int]) -> Bool {
+        let lDays: Int = lhs.id.flatMap { daysMap[$0] } ?? -1
+        let rDays: Int = rhs.id.flatMap { daysMap[$0] } ?? -1
+        if lDays == rDays {
+            let lName: String = lhs.fullName
+            let rName: String = rhs.fullName
+            return lName.localizedCaseInsensitiveCompare(rName) == .orderedAscending
+        }
+        // Students with no presentations (-1) go first, then highest days first
+        if lDays == -1 { return true }
+        if rDays == -1 { return false }
+        return lDays > rDays
     }
 
     var body: some View {

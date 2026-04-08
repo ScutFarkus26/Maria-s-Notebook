@@ -45,6 +45,10 @@ extension CDTransitionPlan: Identifiable {}
 extension CDWorkCompletionRecord: Identifiable {}
 extension CDWorkStep: Identifiable {}
 extension CDResource: Identifiable {}
+extension CDParentCommunication: Identifiable {}
+extension CDPrepChecklist: Identifiable {}
+extension CDPrepChecklistItem: Identifiable {}
+extension CDPrepChecklistCompletion: Identifiable {}
 
 // MARK: - CD short name convenience aliases
 

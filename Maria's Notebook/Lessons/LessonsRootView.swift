@@ -147,6 +147,63 @@ struct LessonsRootView: View {
     // MARK: - Body
 
     var body: some View {
+        lessonsMainLayout
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
+        .adaptiveAnimation(.spring(response: 0.3, dampingFraction: 0.85), value: selectedLessonDetail?.id)
+        #if os(macOS)
+        .onKeyPress(.escape) {
+            if isJiggling {
+                adaptiveWithAnimation(.spring(response: 0.3, dampingFraction: 0.8)) {
+                    isJiggling = false
+                }
+                return .handled
+            }
+            return .ignored
+        }
+        #endif
+        #if os(iOS)
+        .environment(\.editMode, $editMode)
+        #endif
+        .task { await handleInitialLoad() }
+        .task(id: lessonsForSubject.compactMap(\.id)) { await fetchPresentationHistory() }
+        .onChange(of: listSelectedSubject) { _, newValue in handleListSelectionChange(newValue) }
+        .onChange(of: filterState.selectedSubject) { _, newValue in handleSubjectChange(newValue) }
+        .onChange(of: filterState.searchText) { _, newValue in handleSearchTextChange(newValue) }
+        .onChange(of: isJiggling) { _, newValue in handleJigglingChange(newValue) }
+        .onChange(of: displayMode) { _, newValue in handleDisplayModeChange(newValue) }
+        .sheet(item: $lessonToSchedule) { lesson in lessonScheduleSheet(lesson) }
+        .sheet(item: $trackSettingsItem) { item in GroupTrackSettingsSheet(subject: item.subject, group: item.group) }
+        .sheet(item: $reorderSubheadingsItem) { item in
+            ReorderSubheadingsSheet(subject: item.subject, group: item.group, lessons: Array(lessons))
+        }
+        .sheet(isPresented: $showingAddLesson) { AddLessonView(defaultSubject: selectedSubject) }
+        .sheet(isPresented: $showingBulkEntry) { BulkLessonsEntryView(defaultSubject: selectedSubject) }
+    }
+
+    private func lessonScheduleSheet(_ lesson: CDLesson) -> some View {
+        SchedulePresentationSheet(
+            lesson: lesson,
+            onPlan: { studentIDs in planPresentation(for: lesson, studentIDs: studentIDs) },
+            onCancel: { lessonToSchedule = nil }
+        )
+    }
+
+    private func handleSearchTextChange(_ newValue: String) {
+        Task { @MainActor in
+            searchTextRaw = newValue
+            if !newValue.trimmed().isEmpty {
+                isJiggling = false
+            }
+        }
+    }
+
+    private func handleJigglingChange(_ newValue: Bool) {
+        #if os(iOS)
+        editMode = newValue ? .active : .inactive
+        #endif
+    }
+
+    private var lessonsMainLayout: some View {
         VStack(spacing: 0) {
             ViewHeader(title: "Lessons") { headerTrailingControls }
             Divider()
@@ -166,75 +223,6 @@ struct LessonsRootView: View {
                         .transition(.move(edge: .trailing))
                 }
             }
-        }
-        .frame(maxWidth: .infinity, maxHeight: .infinity)
-        .adaptiveAnimation(.spring(response: 0.3, dampingFraction: 0.85), value: selectedLessonDetail?.id)
-        #if os(macOS)
-        .onKeyPress(.escape) {
-            if isJiggling {
-                adaptiveWithAnimation(.spring(response: 0.3, dampingFraction: 0.8)) {
-                    isJiggling = false
-                }
-                return .handled
-            }
-            return .ignored
-        }
-        #endif
-        #if os(iOS)
-        .environment(\.editMode, $editMode)
-        #endif
-        .task {
-            await handleInitialLoad()
-        }
-        .task(id: lessonsForSubject.compactMap(\.id)) {
-            await fetchPresentationHistory()
-        }
-        .onChange(of: listSelectedSubject) { _, newValue in
-            handleListSelectionChange(newValue)
-        }
-        .onChange(of: filterState.selectedSubject) { _, newValue in
-            handleSubjectChange(newValue)
-        }
-        .onChange(of: filterState.searchText) { _, newValue in
-            Task { @MainActor in
-                searchTextRaw = newValue
-                if !newValue.trimmed().isEmpty {
-                    isJiggling = false
-                }
-            }
-        }
-        .onChange(of: isJiggling) { _, newValue in
-            #if os(iOS)
-            editMode = newValue ? .active : .inactive
-            #endif
-        }
-        .onChange(of: displayMode) { _, newValue in
-            handleDisplayModeChange(newValue)
-        }
-        .sheet(item: $lessonToSchedule) { lesson in
-            SchedulePresentationSheet(
-                lesson: lesson,
-                onPlan: { studentIDs in
-                    planPresentation(for: lesson, studentIDs: studentIDs)
-                },
-                onCancel: { lessonToSchedule = nil }
-            )
-        }
-        .sheet(item: $trackSettingsItem) { item in
-            GroupTrackSettingsSheet(subject: item.subject, group: item.group)
-        }
-        .sheet(item: $reorderSubheadingsItem) { item in
-            ReorderSubheadingsSheet(
-                subject: item.subject,
-                group: item.group,
-                lessons: Array(lessons)
-            )
-        }
-        .sheet(isPresented: $showingAddLesson) {
-            AddLessonView(defaultSubject: selectedSubject)
-        }
-        .sheet(isPresented: $showingBulkEntry) {
-            BulkLessonsEntryView(defaultSubject: selectedSubject)
         }
     }
 

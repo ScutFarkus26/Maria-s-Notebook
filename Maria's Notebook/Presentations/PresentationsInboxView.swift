@@ -104,152 +104,175 @@ struct PresentationsInboxView: View {
 
     var body: some View {
         HStack(spacing: 0) {
-            // Left side: Presentations inbox
             VStack(alignment: .leading, spacing: 0) {
-                // Header
-                VStack(spacing: AppTheme.Spacing.small) {
-                    HStack(spacing: AppTheme.Spacing.compact) {
-                        Image(systemName: "tray")
-                            .imageScale(.large)
-                            .foregroundStyle(Color.accentColor)
-                        Text("Presentations")
-                            .font(.title3.weight(.semibold))
-                        
-                        aiSuggestButton
-                        
-                        Spacer()
-
-                        #if os(iOS)
-                        Button {
-                            adaptiveWithAnimation(.spring(response: 0.3, dampingFraction: 0.8)) {
-                                coordinator.toggleCalendar()
-                            }
-                        } label: {
-                            Image(systemName: coordinator.isCalendarMinimized ? "calendar" : "calendar.badge.minus")
-                                .font(.system(size: 16, weight: .semibold))
-                                .foregroundStyle(.secondary)
-                                .padding(AppTheme.Spacing.small)
-                                .background(Color.primary.opacity(UIConstants.OpacityConstants.light))
-                                .clipShape(Circle())
-                        }
-                        #endif
-                    }
-                    .padding(.horizontal, AppTheme.Spacing.medium)
-                    .padding(.top, AppTheme.Spacing.small)
-
-                    HStack(spacing: AppTheme.Spacing.compact) {
-                        Image(systemName: "magnifyingglass").foregroundStyle(.secondary)
-                        TextField("Search students or lessons", text: $searchText)
-                            .textFieldStyle(.plain)
-                            .onSubmit {
-                                searchDebounceTask?.cancel()
-                                debouncedSearchText = searchText
-                            }
-                    }
-                    .padding(.horizontal, AppTheme.Spacing.medium)
-                    .padding(.vertical, AppTheme.Spacing.small)
-                    .background(Color.primary.opacity(UIConstants.OpacityConstants.veryFaint))
-                    .clipShape(RoundedRectangle(cornerRadius: UIConstants.CornerRadius.medium))
-                    .padding(.horizontal, AppTheme.Spacing.medium)
-                    .onChange(of: searchText) { _, newValue in
-                        searchDebounceTask?.cancel()
-                        searchDebounceTask = Task { @MainActor in
-                            do {
-                                try await Task.sleep(for: .milliseconds(250)) // 250ms debounce
-                            } catch {
-                                Self.logger.debug("Search debounce interrupted: \(error)")
-                            }
-                            guard !Task.isCancelled else { return }
-                            debouncedSearchText = newValue
-                        }
-                    }
-
-                    // Active student filter chip
-                    if let studentID = coordinator.selectedStudentFilter,
-                       let student = cachedStudents.first(where: { $0.id == studentID }) {
-                        HStack(spacing: AppTheme.Spacing.verySmall) {
-                            Image(systemName: "person.fill")
-                                .font(.caption2)
-                            Text(StudentFormatter.displayName(for: student))
-                                .font(.caption.weight(.medium))
-                            Button {
-                                adaptiveWithAnimation(.easeInOut(duration: 0.15)) {
-                                    coordinator.clearStudentFilter()
-                                }
-                            } label: {
-                                Image(systemName: "xmark.circle.fill")
-                                    .font(.caption)
-                            }
-                        }
-                        .foregroundStyle(AppColors.warning)
-                        .padding(.horizontal, AppTheme.Spacing.small + AppTheme.Spacing.xxsmall)
-                        .padding(.vertical, AppTheme.Spacing.verySmall)
-                        .background(AppColors.warning.opacity(UIConstants.OpacityConstants.accent))
-                        .clipShape(Capsule())
-                        .padding(.horizontal, AppTheme.Spacing.medium)
-                    }
-                }
-                .padding(.bottom, AppTheme.Spacing.small)
-                .background(.regularMaterial)
-
+                inboxHeader
                 Divider()
-
                 presentationsContent
             }
 
-            // Right side: Students needing lessons
             Divider()
             studentsNeedingLessonsSidebar
         }
-        .overlay {
-            if coordinator.isInboxTargeted {
-                Color.accentColor.opacity(UIConstants.OpacityConstants.accent)
-                    .allowsHitTesting(false)
-                
-                RoundedRectangle(cornerRadius: UIConstants.CornerRadius.large)
-                    .stroke(Color.accentColor, lineWidth: UIConstants.StrokeWidth.extraThick)
-                    .padding(AppTheme.Spacing.xxsmall)
-                    .allowsHitTesting(false)
-                
-                VStack {
-                    Image(systemName: "arrow.down.doc.fill")
-                        .font(.system(size: 50))
-                        .foregroundStyle(Color.accentColor)
-                    Text("Drop to Unschedule")
-                        .font(.title2.weight(.bold))
-                        .foregroundStyle(Color.accentColor)
-                }
-                .allowsHitTesting(false)
-            }
-        }
-        .dropDestination(for: String.self) { items, _ in
-            guard let str = items.first,
-                  let payload = UnifiedCalendarDragPayload.parse(str),
-                  case .presentation(let id) = payload,
-                  let la = lessonAssignments.first(where: { $0.id == id }),
-                  la.scheduledFor != nil else { return false }
-            la.unschedule()
-            viewContext.safeSave()
-            return true
-        } isTargeted: { targeted in
+        .overlay { dropTargetOverlay }
+        .dropDestination(for: String.self, action: handleDrop, isTargeted: { targeted in
             adaptiveWithAnimation { coordinator.setInboxTargeted(targeted) }
-        }
+        })
         .onChange(of: cachedLessons) { _, newLessons in
-            cachedLessonsByID = Dictionary(newLessons.compactMap { guard let id = $0.id else { return nil }; return (id, $0) }, uniquingKeysWith: { first, _ in first })
+            cachedLessonsByID = buildLessonLookup(newLessons)
         }
         .onChange(of: cachedStudents) { _, newStudents in
-            cachedStudentsByID = Dictionary(newStudents.compactMap { guard let id = $0.id else { return nil }; return (id, $0) }, uniquingKeysWith: { first, _ in first })
+            cachedStudentsByID = buildStudentLookup(newStudents)
         }
         .task {
-            // Initialize cached dictionaries on first load
-            cachedLessonsByID = Dictionary(cachedLessons.compactMap { guard let id = $0.id else { return nil }; return (id, $0) }, uniquingKeysWith: { first, _ in first })
-            cachedStudentsByID = Dictionary(cachedStudents.compactMap { guard let id = $0.id else { return nil }; return (id, $0) }, uniquingKeysWith: { first, _ in first })
+            cachedLessonsByID = buildLessonLookup(cachedLessons)
+            cachedStudentsByID = buildStudentLookup(cachedStudents)
         }
         .onDisappear {
             suggestDismissTask?.cancel()
         }
     }
-    
+
+    private var inboxHeader: some View {
+        VStack(spacing: AppTheme.Spacing.small) {
+            inboxTitleBar
+            inboxSearchBar
+            activeStudentFilterChip
+        }
+        .padding(.bottom, AppTheme.Spacing.small)
+        .background(.regularMaterial)
+    }
+
+    private var inboxTitleBar: some View {
+        HStack(spacing: AppTheme.Spacing.compact) {
+            Image(systemName: "tray")
+                .imageScale(.large)
+                .foregroundStyle(Color.accentColor)
+            Text("Presentations")
+                .font(.title3.weight(.semibold))
+
+            aiSuggestButton
+
+            Spacer()
+
+            #if os(iOS)
+            Button {
+                adaptiveWithAnimation(.spring(response: 0.3, dampingFraction: 0.8)) {
+                    coordinator.toggleCalendar()
+                }
+            } label: {
+                Image(systemName: coordinator.isCalendarMinimized ? "calendar" : "calendar.badge.minus")
+                    .font(.system(size: 16, weight: .semibold))
+                    .foregroundStyle(.secondary)
+                    .padding(AppTheme.Spacing.small)
+                    .background(Color.primary.opacity(UIConstants.OpacityConstants.light))
+                    .clipShape(Circle())
+            }
+            #endif
+        }
+        .padding(.horizontal, AppTheme.Spacing.medium)
+        .padding(.top, AppTheme.Spacing.small)
+    }
+
+    private var inboxSearchBar: some View {
+        HStack(spacing: AppTheme.Spacing.compact) {
+            Image(systemName: "magnifyingglass").foregroundStyle(.secondary)
+            TextField("Search students or lessons", text: $searchText)
+                .textFieldStyle(.plain)
+                .onSubmit {
+                    searchDebounceTask?.cancel()
+                    debouncedSearchText = searchText
+                }
+        }
+        .padding(.horizontal, AppTheme.Spacing.medium)
+        .padding(.vertical, AppTheme.Spacing.small)
+        .background(Color.primary.opacity(UIConstants.OpacityConstants.veryFaint))
+        .clipShape(RoundedRectangle(cornerRadius: UIConstants.CornerRadius.medium))
+        .padding(.horizontal, AppTheme.Spacing.medium)
+        .onChange(of: searchText) { _, newValue in
+            searchDebounceTask?.cancel()
+            searchDebounceTask = Task { @MainActor in
+                do {
+                    try await Task.sleep(for: .milliseconds(250))
+                } catch {
+                    Self.logger.debug("Search debounce interrupted: \(error)")
+                }
+                guard !Task.isCancelled else { return }
+                debouncedSearchText = newValue
+            }
+        }
+    }
+
+    @ViewBuilder
+    private var activeStudentFilterChip: some View {
+        if let studentID = coordinator.selectedStudentFilter,
+           let student = cachedStudents.first(where: { $0.id == studentID }) {
+            studentFilterChipContent(student)
+        }
+    }
+
+    private func studentFilterChipContent(_ student: CDStudent) -> some View {
+        HStack(spacing: AppTheme.Spacing.verySmall) {
+            Image(systemName: "person.fill")
+                .font(.caption2)
+            Text(StudentFormatter.displayName(for: student))
+                .font(.caption.weight(.medium))
+            Button {
+                adaptiveWithAnimation(.easeInOut(duration: 0.15)) {
+                    coordinator.clearStudentFilter()
+                }
+            } label: {
+                Image(systemName: "xmark.circle.fill")
+                    .font(.caption)
+            }
+        }
+        .foregroundStyle(AppColors.warning)
+        .padding(.horizontal, AppTheme.Spacing.small + AppTheme.Spacing.xxsmall)
+        .padding(.vertical, AppTheme.Spacing.verySmall)
+        .background(AppColors.warning.opacity(UIConstants.OpacityConstants.accent))
+        .clipShape(Capsule())
+        .padding(.horizontal, AppTheme.Spacing.medium)
+    }
+
+    @ViewBuilder
+    private var dropTargetOverlay: some View {
+        if coordinator.isInboxTargeted {
+            Color.accentColor.opacity(UIConstants.OpacityConstants.accent)
+                .allowsHitTesting(false)
+
+            RoundedRectangle(cornerRadius: UIConstants.CornerRadius.large)
+                .stroke(Color.accentColor, lineWidth: UIConstants.StrokeWidth.extraThick)
+                .padding(AppTheme.Spacing.xxsmall)
+                .allowsHitTesting(false)
+
+            VStack {
+                Image(systemName: "arrow.down.doc.fill")
+                    .font(.system(size: 50))
+                    .foregroundStyle(Color.accentColor)
+                Text("Drop to Unschedule")
+                    .font(.title2.weight(.bold))
+                    .foregroundStyle(Color.accentColor)
+            }
+            .allowsHitTesting(false)
+        }
+    }
+    private func handleDrop(_ items: [String], _ location: CGPoint) -> Bool {
+        guard let str = items.first,
+              let payload = UnifiedCalendarDragPayload.parse(str),
+              case .presentation(let id) = payload,
+              let la = lessonAssignments.first(where: { $0.id == id }),
+              la.scheduledFor != nil else { return false }
+        la.unschedule()
+        viewContext.safeSave()
+        return true
+    }
+
+    private func buildLessonLookup(_ lessons: some Collection<CDLesson>) -> [UUID: CDLesson] {
+        Dictionary(lessons.compactMap { guard let id = $0.id else { return nil }; return (id, $0) }, uniquingKeysWith: { first, _ in first })
+    }
+
+    private func buildStudentLookup(_ students: some Collection<CDStudent>) -> [UUID: CDStudent] {
+        Dictionary(students.compactMap { guard let id = $0.id else { return nil }; return (id, $0) }, uniquingKeysWith: { first, _ in first })
+    }
 }
 
 // MARK: - Filtering, Sorting, and Suggest Next

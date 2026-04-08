@@ -76,177 +76,9 @@ struct LessonAssignmentDetailSheet: View, Identifiable {
     var body: some View {
         VStack(spacing: 0) {
             if let la = assignment {
-                // Header
-                HStack {
-                    Text("Presentation Info")
-                        .font(AppTheme.ScaledFont.titleSmall)
-                    Spacer()
-                    Button("Edit") {
-                        showingEditSheet = true
-                    }
-                    .buttonStyle(.bordered)
-                    .disabled(studentList(for: la).isEmpty)
-                    
-                    Button(action: close) {
-                        Text("Done")
-                            .fontWeight(.semibold)
-                    }
-                    .keyboardShortcut(.defaultAction)
-                    .buttonStyle(.borderedProminent)
-                }
-                .padding(.horizontal, 24)
-                .padding(.top, 18)
-
+                detailHeader(la)
                 Divider().padding(.top, 8)
-
-                ScrollView {
-                    VStack(alignment: .leading, spacing: 20) {
-                        VStack(alignment: .leading, spacing: 6) {
-                            Text(title(for: la))
-                                .font(AppTheme.ScaledFont.titleMedium)
-                            if let presentedAt = la.presentedAt {
-                                HStack(spacing: 6) {
-                                    Image(systemName: SFSymbol.Time.calendar)
-                                        .foregroundStyle(.secondary)
-                                    Text(DateFormatters.mediumDateTime.string(from: presentedAt))
-                                        .foregroundStyle(.secondary)
-                                }
-                            }
-                        }
-
-                        // State badge
-                        HStack(spacing: 8) {
-                            Image(systemName: stateBadgeIcon(for: la.state))
-                                .foregroundStyle(stateBadgeColor(for: la.state))
-                            Text(la.stateDescription)
-                                .font(.subheadline)
-                                .foregroundStyle(.secondary)
-                        }
-
-                        // Students
-                        VStack(alignment: .leading, spacing: 8) {
-                            HStack(spacing: 8) {
-                                Image(systemName: "person.2")
-                                    .foregroundStyle(.secondary)
-                                Text("Students")
-                                    .font(.headline)
-                                    .foregroundStyle(.primary)
-                            }
-                            let list = studentList(for: la)
-                            if list.isEmpty {
-                                Text("No students")
-                                    .font(.subheadline)
-                                    .foregroundStyle(.secondary)
-                            } else {
-                                FlowLayout(spacing: 8) {
-                                    ForEach(list, id: \.id) { s in
-                                        Text(StudentFormatter.displayName(for: s))
-                                            .font(.caption.weight(.semibold))
-                                            .padding(.horizontal, 10)
-                                            .padding(.vertical, 6)
-                                            .background(
-                                                RoundedRectangle(cornerRadius: 12, style: .continuous)
-                                                    .fill(Color.primary.opacity(UIConstants.OpacityConstants.veryFaint))
-                                            )
-                                    }
-                                }
-                            }
-                        }
-
-                        // Planning flags (if any are set)
-                        if la.needsPractice || la.needsAnotherPresentation || !la.followUpWork.isEmpty {
-                            VStack(alignment: .leading, spacing: 8) {
-                                HStack(spacing: 8) {
-                                    Image(systemName: "flag")
-                                        .foregroundStyle(AppColors.warning)
-                                    Text("Follow-Up")
-                                        .font(.headline)
-                                        .foregroundStyle(.primary)
-                                }
-
-                                if la.needsPractice {
-                                    Label("Needs Practice", systemImage: "arrow.triangle.2.circlepath")
-                                        .font(.subheadline)
-                                        .foregroundStyle(AppColors.warning)
-                                }
-
-                                if la.needsAnotherPresentation {
-                                    Label(
-                                        "Needs Another Presentation",
-                                        systemImage: SFSymbol.Action.arrowCounterclockwise
-                                    )
-                                        .font(.subheadline)
-                                        .foregroundStyle(AppColors.warning)
-                                }
-
-                                if !la.followUpWork.isEmpty {
-                                    Text(la.followUpWork)
-                                        .font(.subheadline)
-                                        .foregroundStyle(.secondary)
-                                        .padding(10)
-                                        .background(
-                                            RoundedRectangle(cornerRadius: 8)
-                                                .fill(Color.orange.opacity(UIConstants.OpacityConstants.light))
-                                        )
-                                }
-                            }
-                        }
-                        
-                        // Work Items Summary
-                        workSummarySection(for: la)
-
-                        // Notes
-                        VStack(alignment: .leading, spacing: 8) {
-                            HStack(spacing: 8) {
-                                Image(systemName: "note.text")
-                                    .foregroundStyle(.secondary)
-                                Text("Notes")
-                                    .font(.headline)
-                                    .foregroundStyle(.primary)
-                                Spacer()
-                                Button {
-                                    showAddNoteSheet = true
-                                } label: {
-                                    Image(systemName: "plus.circle.fill")
-                                        .foregroundStyle(.accent)
-                                }
-                            }
-                            if unifiedNotes.isEmpty {
-                                Text("No notes for this presentation")
-                                    .font(.subheadline)
-                                    .foregroundStyle(.secondary)
-                            } else {
-                                VStack(alignment: .leading, spacing: 8) {
-                                    // Show unified notes
-                                    ForEach(
-                                        unifiedNotes.sorted { ($0.createdAt ?? .distantPast) > ($1.createdAt ?? .distantPast) },
-                                        id: \.objectID
-                                    ) { note in
-                                        unifiedNoteRow(note)
-                                    }
-                                }
-                            }
-                        }
-
-                        // General notes field (if any)
-                        if !la.notes.isEmpty {
-                            VStack(alignment: .leading, spacing: 8) {
-                                HStack(spacing: 8) {
-                                    Image(systemName: "doc.text")
-                                        .foregroundStyle(.secondary)
-                                    Text("Assignment Notes")
-                                        .font(.headline)
-                                        .foregroundStyle(.primary)
-                                }
-                                Text(la.notes)
-                                    .font(.subheadline)
-                                    .foregroundStyle(.secondary)
-                            }
-                        }
-                    }
-                    .padding(.horizontal, 32)
-                    .padding(.vertical, 24)
-                }
+                detailScrollContent(la)
             } else {
                 // Loading skeleton
                 VStack(spacing: 0) {
@@ -329,6 +161,185 @@ struct LessonAssignmentDetailSheet: View, Identifiable {
             }
             reloadNotes()
             isLoading = false
+        }
+    }
+
+    // MARK: - Extracted Body Sections
+
+    private func detailHeader(_ la: CDLessonAssignment) -> some View {
+        HStack {
+            Text("Presentation Info")
+                .font(AppTheme.ScaledFont.titleSmall)
+            Spacer()
+            Button("Edit") {
+                showingEditSheet = true
+            }
+            .buttonStyle(.bordered)
+            .disabled(studentList(for: la).isEmpty)
+
+            Button(action: close) {
+                Text("Done")
+                    .fontWeight(.semibold)
+            }
+            .keyboardShortcut(.defaultAction)
+            .buttonStyle(.borderedProminent)
+        }
+        .padding(.horizontal, 24)
+        .padding(.top, 18)
+    }
+
+    private func detailScrollContent(_ la: CDLessonAssignment) -> some View {
+        ScrollView {
+            VStack(alignment: .leading, spacing: 20) {
+                VStack(alignment: .leading, spacing: 6) {
+                    Text(title(for: la))
+                        .font(AppTheme.ScaledFont.titleMedium)
+                    if let presentedAt = la.presentedAt {
+                        HStack(spacing: 6) {
+                            Image(systemName: SFSymbol.Time.calendar)
+                                .foregroundStyle(.secondary)
+                            Text(DateFormatters.mediumDateTime.string(from: presentedAt))
+                                .foregroundStyle(.secondary)
+                        }
+                    }
+                }
+
+                HStack(spacing: 8) {
+                    Image(systemName: stateBadgeIcon(for: la.state))
+                        .foregroundStyle(stateBadgeColor(for: la.state))
+                    Text(la.stateDescription)
+                        .font(.subheadline)
+                        .foregroundStyle(.secondary)
+                }
+
+                studentsSection(for: la)
+
+                if la.needsPractice || la.needsAnotherPresentation || !la.followUpWork.isEmpty {
+                    followUpSection(for: la)
+                }
+
+                workSummarySection(for: la)
+                notesSection(for: la)
+
+                if !la.notes.isEmpty {
+                    VStack(alignment: .leading, spacing: 8) {
+                        HStack(spacing: 8) {
+                            Image(systemName: "doc.text")
+                                .foregroundStyle(.secondary)
+                            Text("Assignment Notes")
+                                .font(.headline)
+                                .foregroundStyle(.primary)
+                        }
+                        Text(la.notes)
+                            .font(.subheadline)
+                            .foregroundStyle(.secondary)
+                    }
+                }
+            }
+            .padding(.horizontal, 32)
+            .padding(.vertical, 24)
+        }
+    }
+
+    private func studentsSection(for la: CDLessonAssignment) -> some View {
+        VStack(alignment: .leading, spacing: 8) {
+            HStack(spacing: 8) {
+                Image(systemName: "person.2")
+                    .foregroundStyle(.secondary)
+                Text("Students")
+                    .font(.headline)
+                    .foregroundStyle(.primary)
+            }
+            let list: [CDStudent] = studentList(for: la)
+            if list.isEmpty {
+                Text("No students")
+                    .font(.subheadline)
+                    .foregroundStyle(.secondary)
+            } else {
+                FlowLayout(spacing: 8) {
+                    ForEach(list, id: \.id) { s in
+                        Text(StudentFormatter.displayName(for: s))
+                            .font(.caption.weight(.semibold))
+                            .padding(.horizontal, 10)
+                            .padding(.vertical, 6)
+                            .background(
+                                RoundedRectangle(cornerRadius: 12, style: .continuous)
+                                    .fill(Color.primary.opacity(UIConstants.OpacityConstants.veryFaint))
+                            )
+                    }
+                }
+            }
+        }
+    }
+
+    private func followUpSection(for la: CDLessonAssignment) -> some View {
+        VStack(alignment: .leading, spacing: 8) {
+            HStack(spacing: 8) {
+                Image(systemName: "flag")
+                    .foregroundStyle(AppColors.warning)
+                Text("Follow-Up")
+                    .font(.headline)
+                    .foregroundStyle(.primary)
+            }
+
+            if la.needsPractice {
+                Label("Needs Practice", systemImage: "arrow.triangle.2.circlepath")
+                    .font(.subheadline)
+                    .foregroundStyle(AppColors.warning)
+            }
+
+            if la.needsAnotherPresentation {
+                Label(
+                    "Needs Another Presentation",
+                    systemImage: SFSymbol.Action.arrowCounterclockwise
+                )
+                    .font(.subheadline)
+                    .foregroundStyle(AppColors.warning)
+            }
+
+            if !la.followUpWork.isEmpty {
+                Text(la.followUpWork)
+                    .font(.subheadline)
+                    .foregroundStyle(.secondary)
+                    .padding(10)
+                    .background(
+                        RoundedRectangle(cornerRadius: 8)
+                            .fill(Color.orange.opacity(UIConstants.OpacityConstants.light))
+                    )
+            }
+        }
+    }
+
+    private func notesSection(for la: CDLessonAssignment) -> some View {
+        VStack(alignment: .leading, spacing: 8) {
+            HStack(spacing: 8) {
+                Image(systemName: "note.text")
+                    .foregroundStyle(.secondary)
+                Text("Notes")
+                    .font(.headline)
+                    .foregroundStyle(.primary)
+                Spacer()
+                Button {
+                    showAddNoteSheet = true
+                } label: {
+                    Image(systemName: "plus.circle.fill")
+                        .foregroundStyle(.accent)
+                }
+            }
+            if unifiedNotes.isEmpty {
+                Text("No notes for this presentation")
+                    .font(.subheadline)
+                    .foregroundStyle(.secondary)
+            } else {
+                VStack(alignment: .leading, spacing: 8) {
+                    ForEach(
+                        unifiedNotes.sorted { ($0.createdAt ?? .distantPast) > ($1.createdAt ?? .distantPast) },
+                        id: \.objectID
+                    ) { note in
+                        unifiedNoteRow(note)
+                    }
+                }
+            }
         }
     }
 

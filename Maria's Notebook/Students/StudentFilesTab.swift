@@ -75,78 +75,7 @@ struct StudentFilesTab: View {
         VStack(spacing: 0) {
             ScrollView {
                 VStack(alignment: .leading, spacing: 20) {
-                    HStack {
-                        Text("Files")
-                            .font(.headline)
-                        Spacer()
-
-                        Menu {
-                            Section("Filter by") {
-                                Button {
-                                    filterCategory = nil
-                                } label: {
-                                    Label("All", systemImage: SFSymbol.CDDocument.folder)
-                                    if filterCategory == nil {
-                                        Image(systemName: "checkmark")
-                                    }
-                                }
-
-                                ForEach(uniqueCategories, id: \.self) { category in
-                                    Button {
-                                        filterCategory = category
-                                    } label: {
-                                        Text(category)
-                                        if filterCategory == category {
-                                            Image(systemName: "checkmark")
-                                        }
-                                    }
-                                }
-                            }
-
-                            Section("Sort by") {
-                                Button {
-                                    sortOption = .dateDesc
-                                } label: {
-                                    Label("Date (Newest)", systemImage: SFSymbol.Time.calendar)
-                                    if sortOption == .dateDesc {
-                                        Image(systemName: "checkmark")
-                                    }
-                                }
-
-                                Button {
-                                    sortOption = .dateAsc
-                                } label: {
-                                    Label("Date (Oldest)", systemImage: SFSymbol.Time.calendar)
-                                    if sortOption == .dateAsc {
-                                        Image(systemName: "checkmark")
-                                    }
-                                }
-
-                                Button {
-                                    sortOption = .title
-                                } label: {
-                                    Label("Title", systemImage: SFSymbol.Text.textformat)
-                                    if sortOption == .title {
-                                        Image(systemName: "checkmark")
-                                    }
-                                }
-                            }
-                        } label: {
-                            Label("Filter & Sort", systemImage: SFSymbol.Search.lineHorizontal3DecreaseCircle)
-                        }
-                        .buttonStyle(.bordered)
-
-                        Button {
-                            #if os(macOS)
-                            presentMacOpenPanel()
-                            #else
-                            showFileImporter = true
-                            #endif
-                        } label: {
-                            Label("Add File", systemImage: SFSymbol.Action.plusCircleFill)
-                        }
-                        .buttonStyle(.borderedProminent)
-                    }
+                    filesToolbar
 
                     if allDocuments.isEmpty {
                         ContentUnavailableView(
@@ -217,6 +146,85 @@ struct StudentFilesTab: View {
                 openDocumentInDefaultApp(url)
             }
         }
+    }
+
+    private var filesToolbar: some View {
+        HStack {
+            Text("Files")
+                .font(.headline)
+            Spacer()
+
+            filesFilterSortMenu
+
+            Button {
+                #if os(macOS)
+                presentMacOpenPanel()
+                #else
+                showFileImporter = true
+                #endif
+            } label: {
+                Label("Add File", systemImage: SFSymbol.Action.plusCircleFill)
+            }
+            .buttonStyle(.borderedProminent)
+        }
+    }
+
+    private var filesFilterSortMenu: some View {
+        Menu {
+            Section("Filter by") {
+                Button {
+                    filterCategory = nil
+                } label: {
+                    Label("All", systemImage: SFSymbol.CDDocument.folder)
+                    if filterCategory == nil {
+                        Image(systemName: "checkmark")
+                    }
+                }
+
+                ForEach(uniqueCategories, id: \.self) { category in
+                    Button {
+                        filterCategory = category
+                    } label: {
+                        Text(category)
+                        if filterCategory == category {
+                            Image(systemName: "checkmark")
+                        }
+                    }
+                }
+            }
+
+            Section("Sort by") {
+                Button {
+                    sortOption = .dateDesc
+                } label: {
+                    Label("Date (Newest)", systemImage: SFSymbol.Time.calendar)
+                    if sortOption == .dateDesc {
+                        Image(systemName: "checkmark")
+                    }
+                }
+
+                Button {
+                    sortOption = .dateAsc
+                } label: {
+                    Label("Date (Oldest)", systemImage: SFSymbol.Time.calendar)
+                    if sortOption == .dateAsc {
+                        Image(systemName: "checkmark")
+                    }
+                }
+
+                Button {
+                    sortOption = .title
+                } label: {
+                    Label("Title", systemImage: SFSymbol.Text.textformat)
+                    if sortOption == .title {
+                        Image(systemName: "checkmark")
+                    }
+                }
+            }
+        } label: {
+            Label("Filter & Sort", systemImage: SFSymbol.Search.lineHorizontal3DecreaseCircle)
+        }
+        .buttonStyle(.bordered)
     }
 }
 

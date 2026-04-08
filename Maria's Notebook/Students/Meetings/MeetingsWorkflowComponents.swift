@@ -19,45 +19,10 @@ struct MeetingsQueueSidebar: View {
 
     var body: some View {
         List(selection: $selectedStudentID) {
-            // Threshold picker and age filter at top
-            Section {
-                MeetingThresholdPicker(days: $daysSinceThreshold, showCompleted: $showCompletedThisWeek)
-                AgeFilterPicker(selectedAgeRanges: $selectedAgeRanges)
-            }
-
-            Section("Needs Meeting (\(studentsNeedingMeeting.count))") {
-                ForEach(studentsNeedingMeeting) { student in
-                    StudentQueueRow(
-                        student: student,
-                        lastMeeting: lastMeetingFor(student),
-                        isSelected: selectedStudentID == student.id,
-                        showCheckmark: false,
-                        scheduledDate: student.id.flatMap { scheduledMeetingDates[$0] }
-                    )
-                    .tag(student.id)
-                    .contextMenu {
-                        scheduleMeetingMenu(for: student)
-                    }
-                }
-                .onMove(perform: searchText.isEmpty ? onMove : nil)
-            }
-
+            filtersSection
+            needsMeetingSection
             if showCompletedThisWeek {
-                Section("Met Recently (\(studentsCompleted.count))") {
-                    ForEach(studentsCompleted) { student in
-                        StudentQueueRow(
-                            student: student,
-                            lastMeeting: lastMeetingFor(student),
-                            isSelected: selectedStudentID == student.id,
-                            showCheckmark: true,
-                            scheduledDate: student.id.flatMap { scheduledMeetingDates[$0] }
-                        )
-                        .tag(student.id)
-                        .contextMenu {
-                            scheduleMeetingMenu(for: student)
-                        }
-                    }
-                }
+                completedSection
             }
         }
         .listStyle(.sidebar)
@@ -72,6 +37,44 @@ struct MeetingsQueueSidebar: View {
         #if os(macOS)
         .frame(minWidth: 220)
         #endif
+    }
+
+    private var filtersSection: some View {
+        Section {
+            MeetingThresholdPicker(days: $daysSinceThreshold, showCompleted: $showCompletedThisWeek)
+            AgeFilterPicker(selectedAgeRanges: $selectedAgeRanges)
+        }
+    }
+
+    private var needsMeetingSection: some View {
+        Section("Needs Meeting (\(studentsNeedingMeeting.count))") {
+            ForEach(studentsNeedingMeeting) { student in
+                studentRow(student, showCheckmark: false)
+            }
+            .onMove(perform: searchText.isEmpty ? onMove : nil)
+        }
+    }
+
+    private var completedSection: some View {
+        Section("Met Recently (\(studentsCompleted.count))") {
+            ForEach(studentsCompleted) { student in
+                studentRow(student, showCheckmark: true)
+            }
+        }
+    }
+
+    private func studentRow(_ student: CDStudent, showCheckmark: Bool) -> some View {
+        StudentQueueRow(
+            student: student,
+            lastMeeting: lastMeetingFor(student),
+            isSelected: selectedStudentID == student.id,
+            showCheckmark: showCheckmark,
+            scheduledDate: student.id.flatMap { scheduledMeetingDates[$0] }
+        )
+        .tag(student.id)
+        .contextMenu {
+            scheduleMeetingMenu(for: student)
+        }
     }
 
     // MARK: - Schedule Meeting Context Menu

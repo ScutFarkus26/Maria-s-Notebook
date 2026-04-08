@@ -17,51 +17,147 @@ struct RootDetailContent: View {
     /// Returns true if we're on iPhone compact layout
     private var isIPhoneCompact: Bool {
         #if os(iOS)
-        return horizontalSizeClass == .compact
+        horizontalSizeClass == .compact
         #else
-        return false
+        false
         #endif
     }
 
     var body: some View {
         Group {
             switch selectedNavItem {
-            case .today: TodayView(context: viewContext)
-            case .attendance: attendanceContent
-            case .workCycle: WorkCycleView()
-            case .note: noteTabContent
-            case .todos: TodoMainView()
-            case .fridayReview: FridayReviewView()
-            case .students: StudentsRootView()
-            case .supplies: SuppliesListView()
-            case .procedures: ProceduresListView()
-            case .meetings: MeetingsWorkflowView()
-            case .more: MoreMenuView()
-            case .lessons: LessonsMenuRootView()
-            case .planningChecklist: ClassSubjectChecklistView()
-            case .planningAgenda: PresentationsView()
-            case .planningWork: WorksAgendaView()
-            case .planningProgression: ProgressionRootView()
-            case .planningProjects: ProjectsRootView()
-            case .progressDashboard: ProgressDashboardView()
-            case .lessonFrequency: LessonFrequencyView()
-            case .curriculumBalance: CurriculumBalanceView()
-            case .greatLessonsTimeline: GreatLessonsTimelineView()
-            case .goingOut: GoingOutRootView()
-            case .classroomJobs: ClassroomJobsRootView()
-            case .transitionPlanner: TransitionPlannerRootView()
-            case .threeYearCycle: ThreeYearCycleView()
-            case .needsLesson: NeedsLessonView()
-            case .smallGroupPlanner: SmallGroupPlannerView()
-            case .perpetualCalendar: PerpetualCalendarView()
-            case .community: CommunityMeetingsView()
-            case .schedules: SchedulesView()
-            case .issues: IssuesListView()
-            case .resourceLibrary: ResourceLibraryView()
-            case .askAI: ChatView()
-            case .logs: LogsMenuRootView()
-            case .settings: SettingsView()
+            case .today, .attendance, .workCycle, .note, .todos, .fridayReview:
+                dailyContent
+            case .students, .meetings, .goingOut, .parentCommunication, .classroomJobs, .more:
+                studentsContent
+            case .lessons, .planningChecklist, .planningAgenda, .planningWork,
+                 .planningProgression, .planningProjects, .needsLesson, .smallGroupPlanner:
+                curriculumContent
+            case .progressDashboard, .lessonFrequency, .curriculumBalance,
+                 .greatLessonsTimeline, .transitionPlanner, .threeYearCycle:
+                progressContent
+            case .supplies, .procedures, .schedules, .perpetualCalendar,
+                 .prepChecklist, .community, .issues, .resourceLibrary:
+                resourcesContent
+            case .askAI, .logs, .settings:
+                toolsContent
             }
+        }
+    }
+
+    @ViewBuilder
+    private var dailyContent: some View {
+        switch selectedNavItem {
+        case .today: TodayView(context: viewContext)
+        case .attendance: attendanceContent
+        case .workCycle: WorkCycleView()
+        case .note: noteTabContent
+        case .todos: TodoMainView()
+        case .fridayReview: FridayReviewView()
+        default: EmptyView()
+        }
+    }
+
+    @ViewBuilder
+    private var studentsContent: some View {
+        switch selectedNavItem {
+        case .students: StudentsRootView()
+        case .meetings: MeetingsWorkflowView()
+        case .goingOut: GoingOutRootView()
+        case .parentCommunication: ParentCommunicationRootView()
+        case .classroomJobs: ClassroomJobsRootView()
+        case .more: MoreMenuView()
+        default: EmptyView()
+        }
+    }
+
+    @ViewBuilder
+    private var curriculumContent: some View {
+        switch selectedNavItem {
+        case .lessons, .planningChecklist, .planningAgenda, .planningWork:
+            curriculumPlanningContent
+        case .planningProgression, .planningProjects, .needsLesson, .smallGroupPlanner:
+            curriculumAdvancedContent
+        default: EmptyView()
+        }
+    }
+
+    @ViewBuilder
+    private var curriculumPlanningContent: some View {
+        switch selectedNavItem {
+        case .lessons: LessonsMenuRootView()
+        case .planningChecklist: ClassSubjectChecklistView()
+        case .planningAgenda: PresentationsView()
+        case .planningWork: WorksAgendaView()
+        default: EmptyView()
+        }
+    }
+
+    @ViewBuilder
+    private var curriculumAdvancedContent: some View {
+        switch selectedNavItem {
+        case .planningProgression: ProgressionRootView()
+        case .planningProjects: ProjectsRootView()
+        case .needsLesson: NeedsLessonView()
+        case .smallGroupPlanner: SmallGroupPlannerView()
+        default: EmptyView()
+        }
+    }
+
+    @ViewBuilder
+    private var progressContent: some View {
+        switch selectedNavItem {
+        case .progressDashboard, .lessonFrequency, .curriculumBalance:
+            progressAnalyticsContent
+        case .greatLessonsTimeline, .transitionPlanner, .threeYearCycle:
+            progressTimelineContent
+        default: EmptyView()
+        }
+    }
+
+    @ViewBuilder
+    private var progressAnalyticsContent: some View {
+        switch selectedNavItem {
+        case .progressDashboard: ProgressDashboardView()
+        case .lessonFrequency: LessonFrequencyView()
+        case .curriculumBalance: CurriculumBalanceView()
+        default: EmptyView()
+        }
+    }
+
+    @ViewBuilder
+    private var progressTimelineContent: some View {
+        switch selectedNavItem {
+        case .greatLessonsTimeline: GreatLessonsTimelineView()
+        case .transitionPlanner: TransitionPlannerRootView()
+        case .threeYearCycle: ThreeYearCycleView()
+        default: EmptyView()
+        }
+    }
+
+    @ViewBuilder
+    private var resourcesContent: some View {
+        switch selectedNavItem {
+        case .supplies: SuppliesListView()
+        case .procedures: ProceduresListView()
+        case .schedules: SchedulesView()
+        case .perpetualCalendar: PerpetualCalendarView()
+        case .prepChecklist: PrepChecklistRootView()
+        case .community: CommunityMeetingsView()
+        case .issues: IssuesListView()
+        case .resourceLibrary: ResourceLibraryView()
+        default: EmptyView()
+        }
+    }
+
+    @ViewBuilder
+    private var toolsContent: some View {
+        let item: RootView.NavigationItem = selectedNavItem
+        switch item {
+        case .askAI: ChatView()
+        case .logs: LogsMenuRootView()
+        case .settings: SettingsView()
+        default: EmptyView()
         }
     }
 
@@ -155,6 +251,11 @@ Tab(value: RootView.NavigationItem.meetings) {
             } label: {
                 Label("Going Out", systemImage: "figure.walk")
             }
+            Tab(value: RootView.NavigationItem.parentCommunication) {
+                RootDetailContent(selectedNavItem: .parentCommunication)
+            } label: {
+                Label("Parent Comms", systemImage: "envelope")
+            }
         } header: {
             Text("Students")
         }
@@ -169,6 +270,11 @@ Tab(value: RootView.NavigationItem.meetings) {
                 RootDetailContent(selectedNavItem: .workCycle)
             } label: {
                 Label("Work Cycle", systemImage: "timer")
+            }
+            Tab(value: RootView.NavigationItem.prepChecklist) {
+                RootDetailContent(selectedNavItem: .prepChecklist)
+            } label: {
+                Label("Prep Checklist", systemImage: "checklist.checked")
             }
         } header: {
             Text("Classroom")
@@ -327,7 +433,9 @@ struct MoreMenuView: View {
                 Section("Daily") {
                     moreMenuButton(.meetings)
                     moreMenuButton(.goingOut)
+                    moreMenuButton(.parentCommunication)
                     moreMenuButton(.classroomJobs)
+                    moreMenuButton(.prepChecklist)
                     moreMenuButton(.fridayReview)
                     moreMenuButton(.workCycle)
                 }

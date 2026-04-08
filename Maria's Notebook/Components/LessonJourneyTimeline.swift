@@ -83,6 +83,9 @@ struct LessonJourneyTimeline: View {
 
     @ViewBuilder
     private func presentationCard(_ presentation: CDLessonAssignment) -> some View {
+        let statusText: String = presentation.isPresented ? "Presented" : presentation.isScheduled ? "Scheduled" : "Draft"
+        let students: [CDStudent] = presentation.fetchStudents(from: viewContext)
+
         VStack(alignment: .leading, spacing: 10) {
             HStack(spacing: 8) {
                 Image(systemName: presentation.isPresented ? "checkmark.circle.fill" : "calendar")
@@ -90,7 +93,7 @@ struct LessonJourneyTimeline: View {
                     .font(.system(size: 18, weight: .semibold))
 
                 VStack(alignment: .leading, spacing: 2) {
-                    Text(presentation.isPresented ? "Presented" : presentation.isScheduled ? "Scheduled" : "Draft")
+                    Text(statusText)
                         .font(AppTheme.ScaledFont.captionSemibold)
                         .foregroundStyle(.primary)
 
@@ -102,25 +105,8 @@ struct LessonJourneyTimeline: View {
                 }
             }
 
-            let students = presentation.fetchStudents(from: viewContext)
             if !students.isEmpty {
-                VStack(alignment: .leading, spacing: 4) {
-                    Text("\(students.count) \(students.count == 1 ? "Student" : "Students")")
-                        .font(AppTheme.ScaledFont.captionSmallSemibold)
-                        .foregroundStyle(.secondary)
-
-                    ForEach(students.prefix(3)) { student in
-                        Text("• \(StudentFormatter.displayName(for: student))")
-                            .font(AppTheme.ScaledFont.captionSmall)
-                            .foregroundStyle(.secondary)
-                    }
-
-                    if students.count > 3 {
-                        Text("+ \(students.count - 3) more")
-                            .font(AppTheme.ScaledFont.captionSmall)
-                            .foregroundStyle(.tertiary)
-                    }
-                }
+                presentationStudentsList(students)
             }
         }
         .padding(14)
@@ -133,6 +119,26 @@ struct LessonJourneyTimeline: View {
             RoundedRectangle(cornerRadius: 12)
                 .stroke(Color.primary.opacity(UIConstants.OpacityConstants.light), lineWidth: 1.5)
         )
+    }
+
+    private func presentationStudentsList(_ students: [CDStudent]) -> some View {
+        VStack(alignment: .leading, spacing: 4) {
+            Text("\(students.count) \(students.count == 1 ? "Student" : "Students")")
+                .font(AppTheme.ScaledFont.captionSmallSemibold)
+                .foregroundStyle(.secondary)
+
+            ForEach(students.prefix(3)) { student in
+                Text("• \(StudentFormatter.displayName(for: student))")
+                    .font(AppTheme.ScaledFont.captionSmall)
+                    .foregroundStyle(.secondary)
+            }
+
+            if students.count > 3 {
+                Text("+ \(students.count - 3) more")
+                    .font(AppTheme.ScaledFont.captionSmall)
+                    .foregroundStyle(.tertiary)
+            }
+        }
     }
 
     @ViewBuilder

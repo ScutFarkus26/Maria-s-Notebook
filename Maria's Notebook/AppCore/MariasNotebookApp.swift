@@ -67,58 +67,69 @@ struct MariasNotebookApp: App {
         }
     }
     
+    // MARK: - App Flow Content
+
+    @ViewBuilder
+    private var appFlowContent: some View {
+        if bootstrapper.state == .ready {
+            readyContent
+        } else {
+            VStack(spacing: 20) {
+                ProgressView()
+                    .controlSize(.large)
+                Text(loadingMessage)
+                    .foregroundStyle(.secondary)
+            }
+            .frame(maxWidth: .infinity, maxHeight: .infinity)
+            .background(Color.clear)
+        }
+    }
+
+    @ViewBuilder
+    private var readyContent: some View {
+        if restoreCoordinator.isRestoring {
+            VStack(spacing: 20) {
+                ProgressView().controlSize(.large)
+                Text("Restoring data…")
+                    .foregroundStyle(.secondary)
+            }
+            .frame(maxWidth: .infinity, maxHeight: .infinity)
+            .background(Color.clear)
+        } else if !hasCompletedOnboarding {
+            OnboardingView()
+        } else {
+            RootView()
+                .environment(\.managedObjectContext, coreDataStack.viewContext)
+                .environment(\.calendar, AppCalendar.shared)
+                .environment(\.appRouter, appRouter)
+                .environment(\.dependencies, dependencies)
+                .environment(saveCoordinator)
+                .environment(restoreCoordinator)
+        }
+    }
+
+    private var mainWindowContent: some View {
+        let logger: Logger = Logger.app(category: "App")
+        // swiftlint:disable:next redundant_discardable_let
+        let _ = logger.info("App body: Starting scene body evaluation")
+        let stateDesc: String = String(describing: bootstrapper.state)
+        // swiftlint:disable:next redundant_discardable_let
+        let _ = logger.info("App body: bootstrapper state: \(stateDesc)")
+
+        return Group {
+            if databaseErrorCoordinator.error != nil || AppBootstrapping.initError != nil {
+                DatabaseErrorView(errorCoordinator: databaseErrorCoordinator, appRouter: appRouter)
+            } else {
+                appFlowContent
+            }
+        }
+    }
+
     // MARK: - Scene
-    
+
     var body: some Scene {
         WindowGroup("", id: "mainWindow") {
-            let logger = Logger.app(category: "App")
-            // swiftlint:disable:next redundant_discardable_let
-            let _ = logger.info("App body: Starting scene body evaluation")
-            let stateDesc = String(describing: bootstrapper.state)
-            // swiftlint:disable:next redundant_discardable_let
-            let _ = logger.info("App body: bootstrapper state: \(stateDesc)")
-            
-            Group {
-                // Show database error view if there's an initialization error
-                if databaseErrorCoordinator.error != nil || AppBootstrapping.initError != nil {
-                    DatabaseErrorView(errorCoordinator: databaseErrorCoordinator, appRouter: appRouter)
-                } else {
-                    // NORMAL APP FLOW
-                    if bootstrapper.state == .ready {
-                        Group {
-                            if restoreCoordinator.isRestoring {
-                                VStack(spacing: 20) {
-                                    ProgressView().controlSize(.large)
-                                    Text("Restoring data…")
-                                        .foregroundStyle(.secondary)
-                                }
-                                .frame(maxWidth: .infinity, maxHeight: .infinity)
-                                .background(Color.clear)
-                            } else if !hasCompletedOnboarding {
-                                OnboardingView()
-                            } else {
-                                RootView()
-                                    .environment(\.managedObjectContext, coreDataStack.viewContext)
-                                    .environment(\.calendar, AppCalendar.shared)
-                                    .environment(\.appRouter, appRouter)
-                                    .environment(\.dependencies, dependencies)
-                                    .environment(saveCoordinator)
-                                    .environment(restoreCoordinator)
-                            }
-                        }
-                    } else {
-                        // Loading / Splash Screen
-                        VStack(spacing: 20) {
-                            ProgressView()
-                                .controlSize(.large)
-                            Text(loadingMessage)
-                                .foregroundStyle(.secondary)
-                        }
-                        .frame(maxWidth: .infinity, maxHeight: .infinity)
-                        .background(Color.clear)
-                    }
-                }
-            }
+            mainWindowContent
             .task {
                 // Sync initError to error coordinator if not already set
                 if databaseErrorCoordinator.error == nil, let error = AppBootstrapping.initError {

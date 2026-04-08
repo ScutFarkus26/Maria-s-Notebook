@@ -28,57 +28,8 @@ extension LessonProgressView {
     // swiftlint:disable:next function_body_length
     func presentationRow(_ presentation: Presentation) -> some View {
         VStack(alignment: .leading, spacing: AppTheme.Spacing.compact) {
-            HStack(spacing: AppTheme.Spacing.compact) {
-                ZStack {
-                    Circle()
-                        .fill(
-                            presentation.isPresented
-                                ? Color.green.opacity(UIConstants.OpacityConstants.accent)
-                                : Color.blue.opacity(UIConstants.OpacityConstants.accent)
-                        )
-                        .frame(width: 44, height: 44)
-
-                    Image(systemName: presentation.isPresented ? "checkmark.circle.fill" : "calendar")
-                        .font(.system(size: 20, weight: .semibold))
-                        .foregroundStyle(presentation.isPresented ? .green : .blue)
-                }
-
-                VStack(alignment: .leading, spacing: AppTheme.Spacing.xxsmall + 1) {
-                    Text(presentation.isPresented ? "Presented" : presentation.isScheduled ? "Scheduled" : "Draft")
-                        .font(AppTheme.ScaledFont.bodySemibold)
-
-                    if let date = presentation.presentedAt ?? presentation.scheduledFor {
-                        Text(date.formatted(date: .abbreviated, time: .omitted))
-                            .font(AppTheme.ScaledFont.caption)
-                            .foregroundStyle(.secondary)
-                    }
-                }
-
-                Spacer()
-
-                let students = presentation.fetchStudents(from: viewContext)
-                StatusPill(
-                    text: "\(students.count) \(students.count == 1 ? "student" : "students")",
-                    color: .secondary,
-                    icon: nil
-                )
-            }
-
-            // Related work summary
-            let work = allWork.filter { $0.presentationID == presentation.id?.uuidString }
-            if !work.isEmpty {
-                HStack(spacing: AppTheme.Spacing.verySmall) {
-                    Image(systemName: "arrow.right")
-                        .font(.system(size: 12))
-                        .foregroundStyle(.secondary)
-
-                    let completed = work.filter { $0.status == .complete }.count
-                    Text("\(work.count) work \(work.count == 1 ? "item" : "items") (\(completed) complete)")
-                        .font(AppTheme.ScaledFont.caption)
-                        .foregroundStyle(.secondary)
-                }
-                .padding(.leading, 56)
-            }
+            presentationRowHeader(presentation)
+            presentationRowWorkSummary(presentation)
         }
         .padding(AppTheme.Spacing.medium)
         .background(
@@ -92,6 +43,63 @@ extension LessonProgressView {
                     lineWidth: UIConstants.StrokeWidth.thin
                 )
         )
+    }
+
+    private func presentationRowHeader(_ presentation: Presentation) -> some View {
+        HStack(spacing: AppTheme.Spacing.compact) {
+            ZStack {
+                Circle()
+                    .fill(
+                        presentation.isPresented
+                            ? Color.green.opacity(UIConstants.OpacityConstants.accent)
+                            : Color.blue.opacity(UIConstants.OpacityConstants.accent)
+                    )
+                    .frame(width: 44, height: 44)
+
+                Image(systemName: presentation.isPresented ? "checkmark.circle.fill" : "calendar")
+                    .font(.system(size: 20, weight: .semibold))
+                    .foregroundStyle(presentation.isPresented ? .green : .blue)
+            }
+
+            VStack(alignment: .leading, spacing: AppTheme.Spacing.xxsmall + 1) {
+                let statusText: String = presentation.isPresented ? "Presented" : presentation.isScheduled ? "Scheduled" : "Draft"
+                Text(statusText)
+                    .font(AppTheme.ScaledFont.bodySemibold)
+
+                if let date = presentation.presentedAt ?? presentation.scheduledFor {
+                    Text(date.formatted(date: .abbreviated, time: .omitted))
+                        .font(AppTheme.ScaledFont.caption)
+                        .foregroundStyle(.secondary)
+                }
+            }
+
+            Spacer()
+
+            let students: [CDStudent] = presentation.fetchStudents(from: viewContext)
+            StatusPill(
+                text: "\(students.count) \(students.count == 1 ? "student" : "students")",
+                color: .secondary,
+                icon: nil
+            )
+        }
+    }
+
+    @ViewBuilder
+    private func presentationRowWorkSummary(_ presentation: Presentation) -> some View {
+        let work: [CDWorkModel] = allWork.filter { $0.presentationID == presentation.id?.uuidString }
+        if !work.isEmpty {
+            HStack(spacing: AppTheme.Spacing.verySmall) {
+                Image(systemName: "arrow.right")
+                    .font(.system(size: 12))
+                    .foregroundStyle(.secondary)
+
+                let completed: Int = work.filter { $0.status == .complete }.count
+                Text("\(work.count) work \(work.count == 1 ? "item" : "items") (\(completed) complete)")
+                    .font(AppTheme.ScaledFont.caption)
+                    .foregroundStyle(.secondary)
+            }
+            .padding(.leading, 56)
+        }
     }
 
     // MARK: - Work Tab

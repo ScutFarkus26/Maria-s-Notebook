@@ -171,29 +171,9 @@ struct PracticePartnershipsView: View {
                 Text("Practice Partners")
                     .font(AppTheme.ScaledFont.calloutSemibold)
             }
-            
+
             ForEach(Array(partnerships.enumerated()), id: \.offset) { _, partnership in
-                HStack {
-                    Circle()
-                        .fill(Color.green.opacity(UIConstants.OpacityConstants.moderate))
-                        .frame(width: 10, height: 10)
-                    
-                    Text(StudentFormatter.displayName(for: partnership.partner))
-                        .font(AppTheme.ScaledFont.bodySemibold)
-                    
-                    Spacer()
-                    
-                    Text("\(partnership.sessionCount) session\(partnership.sessionCount == 1 ? "" : "s")")
-                        .font(AppTheme.ScaledFont.caption)
-                        .foregroundStyle(.secondary)
-                        .padding(.horizontal, 10)
-                        .padding(.vertical, 4)
-                        .background(
-                            Capsule()
-                                .fill(Color.green.opacity(UIConstants.OpacityConstants.light))
-                        )
-                }
-                .padding(.vertical, 4)
+                partnershipRow(partnership)
             }
         }
         .padding(20)
@@ -202,6 +182,30 @@ struct PracticePartnershipsView: View {
                 .fill(Color.primary.opacity(UIConstants.OpacityConstants.hint))
         )
         .padding(.horizontal)
+    }
+
+    private func partnershipRow(_ partnership: (partner: CDStudent, sessionCount: Int)) -> some View {
+        HStack {
+            Circle()
+                .fill(Color.green.opacity(UIConstants.OpacityConstants.moderate))
+                .frame(width: 10, height: 10)
+
+            Text(StudentFormatter.displayName(for: partnership.partner))
+                .font(AppTheme.ScaledFont.bodySemibold)
+
+            Spacer()
+
+            Text("\(partnership.sessionCount) session\(partnership.sessionCount == 1 ? "" : "s")")
+                .font(AppTheme.ScaledFont.caption)
+                .foregroundStyle(.secondary)
+                .padding(.horizontal, 10)
+                .padding(.vertical, 4)
+                .background(
+                    Capsule()
+                        .fill(Color.green.opacity(UIConstants.OpacityConstants.light))
+                )
+        }
+        .padding(.vertical, 4)
     }
     
     // MARK: - Empty State

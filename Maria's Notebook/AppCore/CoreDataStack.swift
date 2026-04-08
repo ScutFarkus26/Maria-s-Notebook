@@ -70,7 +70,9 @@ final class CoreDataStack {
         "CalendarNote",
         "SampleWork",
         "SampleWorkStep",
-        "ClassroomMembership"
+        "ClassroomMembership",
+        "PrepChecklist",
+        "PrepChecklistItem"
     ]
 
     /// Entities stored in the private (per-teacher) store.
@@ -105,7 +107,9 @@ final class CoreDataStack {
         "PlanningRecommendation",
         "Document",
         "YearPlanEntry",
-        "LessonGroupSettings"
+        "LessonGroupSettings",
+        "ParentCommunication",
+        "PrepChecklistCompletion"
     ]
 
     // MARK: - Store URLs

@@ -61,43 +61,48 @@ extension LessonsRootView {
     // MARK: - Lessons Content Column (Middle)
 
     var lessonsContentColumn: some View {
-        VStack(spacing: 0) {
-            // Filter chip bar (only show when a subject is selected or searching)
-            let hasSearchText = !filterState.debouncedSearchText.trimmed().isEmpty
-            let shouldShowFilters = (selectedSubject.map { !$0.trimmed().isEmpty } ?? false) || hasSearchText
+        let hasSearchText: Bool = !filterState.debouncedSearchText.trimmed().isEmpty
+        let hasSubject: Bool = selectedSubject.map { !$0.trimmed().isEmpty } ?? false
+        let shouldShowFilters: Bool = (hasSubject || hasSearchText) && displayMode == .browse
+        let shouldShowLessons: Bool = hasSubject || hasSearchText
+        let navTitle: String = selectedSubject == Self.storiesSentinel
+            ? "All Stories"
+            : (selectedSubject ?? "Lessons")
 
-            if shouldShowFilters && displayMode == .browse {
-                LessonsFilterChipBar(
-                    sourceFilter: $filterState.sourceFilter,
-                    personalKindFilter: $filterState.personalKindFilter,
-                    formatFilter: $filterState.formatFilter,
-                    hasAttachmentFilter: $filterState.hasAttachmentFilter,
-                    needsAttentionFilter: $filterState.needsAttentionFilter
-                )
-
+        return VStack(spacing: 0) {
+            if shouldShowFilters {
+                lessonsFilterBar
                 Divider()
             }
 
-            // Main content
-            Group {
-                let shouldShowLessons = (selectedSubject.map { !$0.trimmed().isEmpty } ?? false) || hasSearchText
-
-                if shouldShowLessons {
-                    if displayMode == .browse {
-                        browseModeLessons
-                    } else {
-                        planModeList
-                    }
-                } else {
-                    emptyStateView
-                }
-            }
-            .frame(maxWidth: .infinity, maxHeight: .infinity)
+            lessonsMainArea(shouldShowLessons: shouldShowLessons)
+                .frame(maxWidth: .infinity, maxHeight: .infinity)
         }
-        .navigationTitle(
-            selectedSubject == Self.storiesSentinel ? "All Stories" : (selectedSubject ?? "Lessons")
-        )
+        .navigationTitle(navTitle)
         .searchable(text: $filterState.searchText, placement: .toolbar)
+    }
+
+    @ViewBuilder
+    private func lessonsMainArea(shouldShowLessons: Bool) -> some View {
+        if shouldShowLessons {
+            if displayMode == .browse {
+                browseModeLessons
+            } else {
+                planModeList
+            }
+        } else {
+            emptyStateView
+        }
+    }
+
+    private var lessonsFilterBar: some View {
+        LessonsFilterChipBar(
+            sourceFilter: $filterState.sourceFilter,
+            personalKindFilter: $filterState.personalKindFilter,
+            formatFilter: $filterState.formatFilter,
+            hasAttachmentFilter: $filterState.hasAttachmentFilter,
+            needsAttentionFilter: $filterState.needsAttentionFilter
+        )
     }
 
     private var browseModeLessons: some View {
@@ -183,72 +188,89 @@ extension LessonsRootView {
     // MARK: - Outline View
 
     private var outlineView: some View {
-        let ungroupedLabel = "Ungrouped"
-
+        let ungroupedLabel: String = "Ungrouped"
         let displayGroups: [String] = computeDisplayGroups(ungroupedLabel: ungroupedLabel)
+        let lessonsByGroup: [String: [CDLesson]] = buildLessonsByGroup(displayGroups: displayGroups, ungroupedLabel: ungroupedLabel)
+        let allSubheadings: [String: [String]] = buildSubheadings(displayGroups: displayGroups, lessonsByGroup: lessonsByGroup)
 
-        var lessonsByGroup: [String: [CDLesson]] = [:]
+        return outlineViewContent(
+            displayGroups: displayGroups,
+            lessonsByGroup: lessonsByGroup,
+            allSubheadings: allSubheadings
+        )
+    }
+
+    private func buildLessonsByGroup(displayGroups: [String], ungroupedLabel: String) -> [String: [CDLesson]] {
+        var result: [String: [CDLesson]] = [:]
         for group in displayGroups {
-            lessonsByGroup[group] = lessonsForGroup(group, ungroupedLabel: ungroupedLabel)
+            result[group] = lessonsForGroup(group, ungroupedLabel: ungroupedLabel)
         }
+        return result
+    }
 
-        var allSubheadings: [String: [String]] = [:]
+    private func buildSubheadings(displayGroups: [String], lessonsByGroup: [String: [CDLesson]]) -> [String: [String]] {
+        var result: [String: [String]] = [:]
         for group in displayGroups {
-            let groupLessons = lessonsByGroup[group] ?? []
-            let subs = Array(Set(groupLessons.map { $0.subheading.trimmed() }.filter { !$0.isEmpty }))
+            let groupLessons: [CDLesson] = lessonsByGroup[group] ?? []
+            let subs: [String] = Array(Set(groupLessons.map { $0.subheading.trimmed() }.filter { !$0.isEmpty }))
                 .sorted { $0.localizedCaseInsensitiveCompare($1) == .orderedAscending }
             if !subs.isEmpty {
-                allSubheadings[group] = subs
+                result[group] = subs
             }
         }
+        return result
+    }
 
-        return LessonsOutlineView(
+    private func outlineViewContent(
+        displayGroups: [String],
+        lessonsByGroup: [String: [CDLesson]],
+        allSubheadings: [String: [String]]
+    ) -> some View {
+        LessonsOutlineView(
             subject: selectedSubject ?? "",
             displayGroups: displayGroups,
             lessonsByGroup: lessonsByGroup,
             allSubheadings: allSubheadings,
             selectedLessonID: selectedLessonDetail?.id,
             isJiggling: isJiggling,
-            onSelectLesson: { lesson in
-                selectedLessonDetail = lesson
-            },
-            onScheduleLesson: { lesson in
-                lessonToSchedule = lesson
-            },
-            onMoveToGroup: { lesson, targetGroup in
-                moveLessonToGroup(lesson: lesson, newGroup: targetGroup)
-            },
-            onMoveToSubheading: { lesson, targetSh in
-                moveLessonToSubheading(lesson: lesson, newSubheading: targetSh)
-            },
-            onReorderSubheadings: { group in
-                if let subject = selectedSubject {
-                    reorderSubheadingsItem = SubheadingReorderItem(subject: subject, group: group)
-                }
-            },
-            onConfigureTrack: { group in
-                if let subject = selectedSubject {
-                    trackSettingsItem = TrackSettingsItem(subject: subject, group: group)
-                }
-            },
-            onActivateJiggle: {
-                adaptiveWithAnimation(.spring(response: 0.3, dampingFraction: 0.8)) {
-                    isJiggling = true
-                }
-            },
+            onSelectLesson: { selectedLessonDetail = $0 },
+            onScheduleLesson: { lessonToSchedule = $0 },
+            onMoveToGroup: { moveLessonToGroup(lesson: $0, newGroup: $1) },
+            onMoveToSubheading: { moveLessonToSubheading(lesson: $0, newSubheading: $1) },
+            onReorderSubheadings: { handleReorderSubheadings($0) },
+            onConfigureTrack: { handleConfigureTrack($0) },
+            onActivateJiggle: { handleActivateJiggle() },
             onMoveLessonsInGroup: { source, destination, group in
                 let groupLessons = lessonsForGroup(group, ungroupedLabel: "Ungrouped")
                 moveLessonsInSubject(from: source, to: destination, in: groupLessons)
             },
-            onMoveGroups: { source, destination in
-                moveGroups(from: source, to: destination, in: displayGroups)
-            },
-            onMoveLessonIDToGroup: { lessonID, targetGroup in
-                if let lesson = lessonsForSubject.first(where: { $0.id == lessonID }) {
-                    moveLessonToGroup(lesson: lesson, newGroup: targetGroup)
-                }
-            }
+            onMoveGroups: { moveGroups(from: $0, to: $1, in: displayGroups) },
+            onMoveLessonIDToGroup: { handleMoveLessonIDToGroup($0, targetGroup: $1) }
         )
+    }
+
+    private func handleReorderSubheadings(_ group: String) {
+        if let subject = selectedSubject {
+            reorderSubheadingsItem = SubheadingReorderItem(subject: subject, group: group)
+        }
+    }
+
+    private func handleConfigureTrack(_ group: String) {
+        if let subject = selectedSubject {
+            trackSettingsItem = TrackSettingsItem(subject: subject, group: group)
+        }
+    }
+
+    private func handleActivateJiggle() {
+        adaptiveWithAnimation(.spring(response: 0.3, dampingFraction: 0.8)) {
+            isJiggling = true
+        }
+    }
+
+    private func handleMoveLessonIDToGroup(_ lessonID: UUID, targetGroup: String) {
+        if let lesson = lessonsForSubject.first(where: { $0.id == lessonID }) {
+            moveLessonToGroup(lesson: lesson, newGroup: targetGroup)
+        }
     }
 
     /// Computes the ordered display groups from reorderableGroups or fresh data.

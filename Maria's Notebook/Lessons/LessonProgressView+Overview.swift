@@ -31,6 +31,14 @@ extension LessonProgressView {
 
     @ViewBuilder
     func statsCards(stats: LessonStats) -> some View {
+        let workSubtitle: String = stats.totalWorkItems > 0
+            ? "\(Int(stats.workCompletionRate * 100))% complete"
+            : "No work yet"
+        let activeSubtitle: String = stats.activeWorkItems == 0 ? "All caught up!" : "In progress"
+        let practiceSubtitle: String = stats.totalPracticeSessions > 0
+            ? "Last: \(stats.lastPresentedDate?.formatted(date: .abbreviated, time: .omitted) ?? "N/A")"
+            : "None yet"
+
         LazyVGrid(columns: [GridItem(.flexible()), GridItem(.flexible())], spacing: AppTheme.Spacing.medium) {
             statCard(
                 title: "Presentations",
@@ -43,7 +51,7 @@ extension LessonProgressView {
             statCard(
                 title: "Work Items",
                 value: "\(stats.completedWorkItems)/\(stats.totalWorkItems)",
-                subtitle: stats.totalWorkItems > 0 ? "\(Int(stats.workCompletionRate * 100))% complete" : "No work yet",
+                subtitle: workSubtitle,
                 icon: "folder.badge.gearshape",
                 color: .blue
             )
@@ -51,7 +59,7 @@ extension LessonProgressView {
             statCard(
                 title: "Active Work",
                 value: "\(stats.activeWorkItems)",
-                subtitle: stats.activeWorkItems == 0 ? "All caught up!" : "In progress",
+                subtitle: activeSubtitle,
                 icon: "circle.dashed",
                 color: .orange
             )
@@ -59,9 +67,7 @@ extension LessonProgressView {
             statCard(
                 title: "Practice Sessions",
                 value: "\(stats.totalPracticeSessions)",
-                subtitle: stats.totalPracticeSessions > 0
-                    ? "Last: \(stats.lastPresentedDate?.formatted(date: .abbreviated, time: .omitted) ?? "N/A")"
-                    : "None yet",
+                subtitle: practiceSubtitle,
                 icon: "person.2.fill",
                 color: .purple
             )

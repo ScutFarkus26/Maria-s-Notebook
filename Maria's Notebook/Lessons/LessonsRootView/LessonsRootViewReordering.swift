@@ -97,34 +97,19 @@ extension LessonsRootView {
         guard let sourceIndex = source.first else { return }
         guard sourceIndex < groupLessons.count else { return }
 
-        var reorderedGroup = groupLessons
+        var reorderedGroup: [CDLesson] = groupLessons
         reorderedGroup.move(fromOffsets: source, toOffset: destination)
 
         for (idx, lesson) in reorderedGroup.enumerated() {
             lesson.orderInGroup = Int64(idx)
         }
 
-        // Use the persisted group order (which includes "Ungrouped" position)
-        let ungroupedLabel = "Ungrouped"
-        let displayGroups = reorderableGroups
-
-        var allLessonsInOrder: [CDLesson] = []
-        for group in displayGroups {
-            let lessonsInGroup = lessonsForSubject.filter { lesson in
-                let lessonGroupTrimmed = lesson.group.trimmed()
-                if group == ungroupedLabel {
-                    return lessonGroupTrimmed.isEmpty
-                } else {
-                    return lessonGroupTrimmed.caseInsensitiveCompare(group.trimmed()) == .orderedSame
-                }
-            }.sorted { lhs, rhs in
-                if lhs.orderInGroup != rhs.orderInGroup {
-                    return lhs.orderInGroup < rhs.orderInGroup
-                }
-                return lhs.name.localizedCaseInsensitiveCompare(rhs.name) == .orderedAscending
-            }
-            allLessonsInOrder.append(contentsOf: lessonsInGroup)
-        }
+        let ungroupedLabel: String = "Ungrouped"
+        let displayGroups: [String] = reorderableGroups
+        let allLessonsInOrder: [CDLesson] = collectOrderedLessons(
+            displayGroups: displayGroups,
+            ungroupedLabel: ungroupedLabel
+        )
 
         for (idx, lesson) in allLessonsInOrder.enumerated() {
             lesson.sortIndex = Int64(idx)
@@ -135,6 +120,28 @@ extension LessonsRootView {
         } catch {
             logger.error("Failed to save lesson reorder: \(error)")
         }
+    }
+
+    private func collectOrderedLessons(displayGroups: [String], ungroupedLabel: String) -> [CDLesson] {
+        var result: [CDLesson] = []
+        for group in displayGroups {
+            let trimmedGroup: String = group.trimmed()
+            let lessonsInGroup: [CDLesson] = lessonsForSubject.filter { (lesson: CDLesson) -> Bool in
+                let lessonGroupTrimmed: String = lesson.group.trimmed()
+                if group == ungroupedLabel {
+                    return lessonGroupTrimmed.isEmpty
+                } else {
+                    return lessonGroupTrimmed.caseInsensitiveCompare(trimmedGroup) == .orderedSame
+                }
+            }.sorted { (lhs: CDLesson, rhs: CDLesson) -> Bool in
+                if lhs.orderInGroup != rhs.orderInGroup {
+                    return lhs.orderInGroup < rhs.orderInGroup
+                }
+                return lhs.name.localizedCaseInsensitiveCompare(rhs.name) == .orderedAscending
+            }
+            result.append(contentsOf: lessonsInGroup)
+        }
+        return result
     }
 
     // MARK: - Move Single CDLesson Up/Down in Group
