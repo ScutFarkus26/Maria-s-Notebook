@@ -84,4 +84,20 @@ enum GreatLesson: String, CaseIterable, Identifiable, Codable {
             return ["Math", "Mathematics", "Geometry"]
         }
     }
+
+    // MARK: - Resolution
+
+    /// Returns all Great Lessons for a given lesson.
+    /// Prefers explicit tag (authoritative), falls back to subject-based heuristic.
+    /// A lesson may map to multiple Great Lessons (e.g., Science → Universe + Life).
+    /// Returns empty array if no mapping exists.
+    static func resolve(for lesson: CDLesson) -> [GreatLesson] {
+        if let explicit = lesson.greatLesson {
+            return [explicit]
+        }
+        let normalized = lesson.subject.normalizedForComparison()
+        return GreatLesson.allCases.filter { gl in
+            gl.relatedSubjects.contains { $0.normalizedForComparison() == normalized }
+        }
+    }
 }

@@ -103,6 +103,8 @@ extension RootSidebar {
 
                 sidebarRow(.curriculumBalance, title: "Curriculum Balance", systemImage: SFSymbol.Chart.chartPie)
 
+                sidebarRow(.greatLessonsTimeline, title: "Great Lessons", systemImage: "sparkles")
+
                 sidebarRow(.transitionPlanner, title: "Transitions", systemImage: "arrow.right.arrow.left")
             }
 
@@ -260,6 +262,12 @@ extension RootSidebar {
                 }
                 .buttonStyle(.plain)
                 .accessibilityHint("Analyze subject distribution and curriculum gaps")
+
+                Button { selection = .greatLessonsTimeline } label: {
+                    Label("Great Lessons", systemImage: "sparkles")
+                }
+                .buttonStyle(.plain)
+                .accessibilityHint("View lesson progress mapped to the Five Great Lessons")
 
                 Button { selection = .transitionPlanner } label: {
                     Label("Transitions", systemImage: "arrow.right.arrow.left")

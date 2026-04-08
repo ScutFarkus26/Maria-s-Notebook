@@ -67,6 +67,8 @@ struct RootDetailContent: View {
                 LessonFrequencyView()
             case .curriculumBalance:
                 CurriculumBalanceView()
+            case .greatLessonsTimeline:
+                GreatLessonsTimelineView()
             case .goingOut:
                 GoingOutRootView()
             case .classroomJobs:
@@ -241,6 +243,11 @@ Tab(value: RootView.NavigationItem.needsLesson) {
             } label: {
                 Label("Curriculum Balance", systemImage: SFSymbol.Chart.chartPie)
             }
+            Tab(value: RootView.NavigationItem.greatLessonsTimeline) {
+                RootDetailContent(selectedNavItem: .greatLessonsTimeline)
+            } label: {
+                Label("Great Lessons", systemImage: "sparkles")
+            }
             Tab(value: RootView.NavigationItem.transitionPlanner) {
                 RootDetailContent(selectedNavItem: .transitionPlanner)
             } label: {
@@ -335,6 +342,7 @@ struct MoreMenuView: View {
                     moreMenuButton(.planningProjects)
                     moreMenuButton(.lessonFrequency)
                     moreMenuButton(.curriculumBalance)
+                    moreMenuButton(.greatLessonsTimeline)
                     moreMenuButton(.transitionPlanner)
                     moreMenuButton(.needsLesson)
                 }

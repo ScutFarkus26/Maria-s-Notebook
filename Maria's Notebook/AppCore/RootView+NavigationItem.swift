@@ -28,6 +28,7 @@ extension RootView {
         case progressDashboard
         case lessonFrequency
         case curriculumBalance
+        case greatLessonsTimeline
         case goingOut
         case classroomJobs
         case transitionPlanner
@@ -67,6 +68,7 @@ extension RootView {
             case .progressDashboard:   return ("Progress Dashboard", "person.text.rectangle")
             case .lessonFrequency:     return ("Lesson Frequency", SFSymbol.Chart.chartBar)
             case .curriculumBalance:   return ("Curriculum Balance", SFSymbol.Chart.chartPie)
+            case .greatLessonsTimeline: return ("Great Lessons", "sparkles")
             case .goingOut:            return ("Going Out", "figure.walk")
             case .classroomJobs:       return ("Jobs", "person.2.badge.gearshape")
             case .transitionPlanner:   return ("Transitions", "arrow.right.arrow.left")
@@ -103,7 +105,7 @@ extension RootView {
             case .lessons, .supplies, .procedures, .meetings,
                  .planningChecklist, .planningAgenda, .planningWork,
                  .planningProgression, .planningProjects, .progressDashboard,
-                 .lessonFrequency, .curriculumBalance,
+                 .lessonFrequency, .curriculumBalance, .greatLessonsTimeline,
                  .goingOut,
                  .classroomJobs, .transitionPlanner, .needsLesson,
                  .perpetualCalendar,
@@ -128,7 +130,7 @@ extension RootView {
             case .todos:             return nil
             case .planningChecklist, .planningAgenda, .planningWork,
                  .planningProgression, .planningProjects, .progressDashboard,
-                 .lessonFrequency, .curriculumBalance,
+                 .lessonFrequency, .curriculumBalance, .greatLessonsTimeline,
                  .transitionPlanner, .needsLesson:
                 return .planning
             case .goingOut:          return nil
