@@ -15,7 +15,7 @@ struct ProgressDashboardStudentCard: View {
     @State private var isExpanded = true
 
     private var levelColor: Color {
-        card.level == .lower ? .green : .blue
+        card.level == .lower ? Color.green : Color.blue
     }
 
     private var initials: String {

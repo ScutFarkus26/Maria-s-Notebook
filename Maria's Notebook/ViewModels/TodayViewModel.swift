@@ -348,47 +348,42 @@ extension TodayViewModel: Equatable {
               lhs.levelFilter == rhs.levelFilter else {
             return false
         }
-        
-        // Compare output arrays by count and IDs (not full equality to avoid deep comparison)
-        guard lhs.todaysLessons.count == rhs.todaysLessons.count,
-              lhs.todaysLessons.map(\.id) == rhs.todaysLessons.map(\.id),
-              
+
+        // Pre-compute ID comparisons with explicit types to help the type checker
+        let lessonsMatch: Bool = lhs.todaysLessons.count == rhs.todaysLessons.count
+            && lhs.todaysLessons.map(\.id) == rhs.todaysLessons.map(\.id)
+        let workMatch: Bool = lhs.completedWork.count == rhs.completedWork.count
+            && lhs.completedWork.map(\.id) == rhs.completedWork.map(\.id)
+        let remindersMatch: Bool = lhs.todaysReminders.count == rhs.todaysReminders.count
+            && lhs.todaysReminders.map(\.id) == rhs.todaysReminders.map(\.id)
+        let calendarMatch: Bool = lhs.todaysCalendarEvents.count == rhs.todaysCalendarEvents.count
+            && lhs.todaysCalendarEvents.map(\.id) == rhs.todaysCalendarEvents.map(\.id)
+        let meetingsMatch: Bool = lhs.scheduledMeetings.count == rhs.scheduledMeetings.count
+            && lhs.scheduledMeetings.map(\.id) == rhs.scheduledMeetings.map(\.id)
+            && lhs.completedMeetings.count == rhs.completedMeetings.count
+            && lhs.completedMeetings.map(\.id) == rhs.completedMeetings.map(\.id)
+        let notesMatch: Bool = lhs.recentNotes.count == rhs.recentNotes.count
+            && lhs.recentNotes.map(\.id) == rhs.recentNotes.map(\.id)
+
+        guard lessonsMatch, workMatch, remindersMatch, calendarMatch, meetingsMatch, notesMatch,
               lhs.overdueSchedule.count == rhs.overdueSchedule.count,
               lhs.todaysSchedule.count == rhs.todaysSchedule.count,
               lhs.staleFollowUps.count == rhs.staleFollowUps.count,
-              
-              lhs.completedWork.count == rhs.completedWork.count,
-              lhs.completedWork.map(\.id) == rhs.completedWork.map(\.id),
-              
-              lhs.todaysReminders.count == rhs.todaysReminders.count,
-              lhs.todaysReminders.map(\.id) == rhs.todaysReminders.map(\.id),
               lhs.overdueReminders.count == rhs.overdueReminders.count,
-              lhs.anytimeReminders.count == rhs.anytimeReminders.count,
-              
-              lhs.todaysCalendarEvents.count == rhs.todaysCalendarEvents.count,
-              lhs.todaysCalendarEvents.map(\.id) == rhs.todaysCalendarEvents.map(\.id),
-
-              lhs.scheduledMeetings.count == rhs.scheduledMeetings.count,
-              lhs.scheduledMeetings.map(\.id) == rhs.scheduledMeetings.map(\.id),
-
-              lhs.completedMeetings.count == rhs.completedMeetings.count,
-              lhs.completedMeetings.map(\.id) == rhs.completedMeetings.map(\.id),
-
-              lhs.recentNotes.count == rhs.recentNotes.count,
-              lhs.recentNotes.map(\.id) == rhs.recentNotes.map(\.id) else {
+              lhs.anytimeReminders.count == rhs.anytimeReminders.count else {
             return false
         }
-        
+
         // Compare attendance summary
         guard lhs.attendanceSummary == rhs.attendanceSummary,
               lhs.absentToday == rhs.absentToday,
               lhs.leftEarlyToday == rhs.leftEarlyToday else {
             return false
         }
-        
+
         // Don't compare cache internals (studentsByID, lessonsByID, workByID, etc.)
         // as they don't directly affect rendering
-        
+
         return true
     }
 }

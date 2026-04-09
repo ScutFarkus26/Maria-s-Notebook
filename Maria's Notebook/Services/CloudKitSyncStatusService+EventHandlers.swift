@@ -12,7 +12,7 @@ extension CloudKitSyncStatusService {
     func handleNetworkChange(isAvailable: Bool) {
         if isAvailable {
             // Network restored - clear network-related errors and trigger retry
-            let isNetworkError = lastSyncError?.contains("network") == true
+            let isNetworkError: Bool = lastSyncError?.contains("network") == true
                 || lastSyncError?.contains("offline") == true
                 || lastSyncError?.contains("Waiting") == true
             if isNetworkError {
@@ -28,7 +28,7 @@ extension CloudKitSyncStatusService {
     func handleICloudAccountChange(isAvailable: Bool) {
         if isAvailable {
             // User signed into iCloud - clear any offline errors and retry
-            let isICloudError = lastSyncError?.contains("iCloud") == true
+            let isICloudError: Bool = lastSyncError?.contains("iCloud") == true
                 || lastSyncError?.contains("signed in") == true
                 || lastSyncError?.contains("Sign into") == true
             if isICloudError {

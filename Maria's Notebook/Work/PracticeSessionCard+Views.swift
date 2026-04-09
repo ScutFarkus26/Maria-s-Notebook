@@ -51,79 +51,11 @@ extension PracticeSessionCard {
         Button(action: { onTap?() }, label: {
             VStack(alignment: .leading, spacing: 12) {
                 sessionHeader
-
-                // Students
-                HStack(spacing: 6) {
-                    ForEach(students) { student in
-                        Text(StudentFormatter.displayName(for: student))
-                            .font(AppTheme.ScaledFont.bodySemibold)
-                            .foregroundStyle(.primary)
-
-                        if student.id != students.last?.id {
-                            Text("&")
-                                .font(AppTheme.ScaledFont.body)
-                                .foregroundStyle(.secondary)
-                        }
-                    }
-                }
-
-                // Quality metrics (if available)
-                if session.practiceQualityValue != nil || session.independenceLevelValue != nil {
-                    HStack(spacing: 12) {
-                        if let quality = session.practiceQualityValue {
-                            qualityIndicator(level: quality, color: .blue, label: "Quality")
-                        }
-
-                        if let independence = session.independenceLevelValue {
-                            qualityIndicator(level: independence, color: .green, label: "Independence")
-                        }
-                    }
-                }
-
-                // Behavior tags (if any)
-                if !session.activeBehaviors.isEmpty {
-                    ScrollView(.horizontal, showsIndicators: false) {
-                        HStack(spacing: 6) {
-                            ForEach(session.activeBehaviors, id: \.self) { behavior in
-                                behaviorTag(behavior)
-                            }
-                        }
-                    }
-                }
-
-                // Notes preview
-                if !session.sharedNotes.isEmpty {
-                    Text(session.sharedNotes)
-                        .font(AppTheme.ScaledFont.caption)
-                        .foregroundStyle(.secondary)
-                        .lineLimit(2)
-                        .italic()
-                }
-
-                // Footer metadata
-                HStack(spacing: 12) {
-                    if let duration = session.durationFormatted {
-                        Label(duration, systemImage: "clock.fill")
-                            .font(AppTheme.ScaledFont.caption)
-                            .foregroundStyle(.secondary)
-                    }
-
-                    if let location = session.location, !location.isEmpty {
-                        Label(location, systemImage: "location.fill")
-                            .font(AppTheme.ScaledFont.caption)
-                            .foregroundStyle(.secondary)
-                            .lineLimit(1)
-                    }
-
-                    Spacer()
-
-                    // Work items count
-                    if session.workItemCount > 1 {
-                        Text("\(session.workItemCount) items")
-                            .font(AppTheme.ScaledFont.caption)
-                            .foregroundStyle(.secondary)
-                    }
-                }
+                standardStudentsRow
+                standardQualityMetrics
+                standardBehaviorTags
+                standardNotesPreview
+                standardFooter
             }
             .padding(16)
             .background(
@@ -136,6 +68,87 @@ extension PracticeSessionCard {
             )
         })
         .buttonStyle(.plain)
+    }
+
+    private var standardStudentsRow: some View {
+        HStack(spacing: 6) {
+            ForEach(students) { student in
+                Text(StudentFormatter.displayName(for: student))
+                    .font(AppTheme.ScaledFont.bodySemibold)
+                    .foregroundStyle(.primary)
+
+                if student.id != students.last?.id {
+                    Text("&")
+                        .font(AppTheme.ScaledFont.body)
+                        .foregroundStyle(.secondary)
+                }
+            }
+        }
+    }
+
+    @ViewBuilder
+    private var standardQualityMetrics: some View {
+        if session.practiceQualityValue != nil || session.independenceLevelValue != nil {
+            HStack(spacing: 12) {
+                if let quality = session.practiceQualityValue {
+                    qualityIndicator(level: quality, color: .blue, label: "Quality")
+                }
+
+                if let independence = session.independenceLevelValue {
+                    qualityIndicator(level: independence, color: .green, label: "Independence")
+                }
+            }
+        }
+    }
+
+    @ViewBuilder
+    private var standardBehaviorTags: some View {
+        if !session.activeBehaviors.isEmpty {
+            ScrollView(.horizontal, showsIndicators: false) {
+                HStack(spacing: 6) {
+                    ForEach(session.activeBehaviors, id: \.self) { behavior in
+                        behaviorTag(behavior)
+                    }
+                }
+            }
+        }
+    }
+
+    @ViewBuilder
+    private var standardNotesPreview: some View {
+        if !session.sharedNotes.isEmpty {
+            Text(session.sharedNotes)
+                .font(AppTheme.ScaledFont.caption)
+                .foregroundStyle(.secondary)
+                .lineLimit(2)
+                .italic()
+        }
+    }
+
+    private var standardFooter: some View {
+        HStack(spacing: 12) {
+            if let duration = session.durationFormatted {
+                Label(duration, systemImage: "clock.fill")
+                    .font(AppTheme.ScaledFont.caption)
+                    .foregroundStyle(.secondary)
+            }
+
+            if let location = session.location, !location.isEmpty {
+                Label(location, systemImage: "location.fill")
+                    .font(AppTheme.ScaledFont.caption)
+                    .foregroundStyle(.secondary)
+                    .lineLimit(1)
+            }
+
+            Spacer()
+
+            // Work items count
+            if session.workItemCount > 1 {
+                Text("\(session.workItemCount) items")
+                    .font(AppTheme.ScaledFont.caption)
+                    .foregroundStyle(.secondary)
+            }
+        }
     }
 
     // MARK: - Expanded View

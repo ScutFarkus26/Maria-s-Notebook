@@ -25,6 +25,32 @@ struct IssueDetailSheet: View {
 
     var isEditing: Bool { issue != nil }
 
+    private var categoryPicker: some View {
+        Picker("Category", selection: $category) {
+            ForEach(IssueCategory.allCases, id: \.self) { (cat: IssueCategory) in
+                Label(cat.rawValue, systemImage: cat.systemImage)
+                    .tag(cat)
+            }
+        }
+    }
+
+    private var priorityPicker: some View {
+        Picker("Priority", selection: $priority) {
+            ForEach(IssuePriority.allCases, id: \.self) { (pri: IssuePriority) in
+                Text(pri.rawValue).tag(pri)
+            }
+        }
+    }
+
+    private var statusPicker: some View {
+        Picker("Status", selection: $status) {
+            ForEach(IssueStatus.allCases, id: \.self) { (stat: IssueStatus) in
+                Label(stat.rawValue, systemImage: stat.systemImage)
+                    .tag(stat)
+            }
+        }
+    }
+
     var body: some View {
         NavigationStack {
             Form {
@@ -35,25 +61,9 @@ struct IssueDetailSheet: View {
                     TextField("Description", text: $description, axis: .vertical)
                         .lineLimit(3...6)
 
-                    Picker("Category", selection: $category) {
-                        ForEach(IssueCategory.allCases, id: \.self) { cat in
-                            Label(cat.rawValue, systemImage: cat.systemImage)
-                                .tag(cat)
-                        }
-                    }
-
-                    Picker("Priority", selection: $priority) {
-                        ForEach(IssuePriority.allCases, id: \.self) { pri in
-                            Text(pri.rawValue).tag(pri)
-                        }
-                    }
-
-                    Picker("Status", selection: $status) {
-                        ForEach(IssueStatus.allCases, id: \.self) { stat in
-                            Label(stat.rawValue, systemImage: stat.systemImage)
-                                .tag(stat)
-                        }
-                    }
+                    categoryPicker
+                    priorityPicker
+                    statusPicker
 
                     TextField("Location", text: $location)
                 }

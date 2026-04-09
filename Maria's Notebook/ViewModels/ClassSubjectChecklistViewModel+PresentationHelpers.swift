@@ -21,7 +21,8 @@ extension ClassSubjectChecklistViewModel {
         let matchingWorkModels = context.safeFetch(workRequest)
 
         if let existingWork = matchingWorkModels.first(where: { work in
-            ((work.participants?.allObjects as? [CDWorkParticipantEntity]) ?? []).contains { $0.studentID == sid.uuidString }
+            let participants: [CDWorkParticipantEntity] = (work.participants?.allObjects as? [CDWorkParticipantEntity]) ?? []
+            return participants.contains { $0.studentID == sid.uuidString }
         }) {
             existingWork.status = .complete
             existingWork.completedAt = AppCalendar.startOfDay(Date())

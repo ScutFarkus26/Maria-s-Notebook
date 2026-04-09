@@ -125,49 +125,53 @@ struct MariasNotebookApp: App {
         }
     }
 
+    // MARK: - Startup
+
+    private func performStartupBootstrap() async {
+        // Sync initError to error coordinator if not already set
+        if databaseErrorCoordinator.error == nil, let error = AppBootstrapping.initError {
+            databaseErrorCoordinator.setError(error)
+        }
+
+        #if !os(macOS)
+        // TipKit's root quick-action tip is temporarily disabled on macOS
+        // because it can trigger a SwiftUI update loop when switching views.
+        try? Tips.configure([
+            .displayFrequency(.weekly)
+        ])
+        #endif
+
+        // Only bootstrap if the store loaded successfully
+        if AppBootstrapping.initError == nil {
+            #if os(macOS)
+            appDelegate.setCoreDataStack(coreDataStack)
+            #endif
+            await bootstrapper.bootstrap(coreDataStack: coreDataStack)
+
+            // Configure CloudKit sync status monitoring
+            CloudKitSyncStatusService.shared.configure(with: coreDataStack)
+
+            // Register for remote notifications so CloudKit can push sync events.
+            // NSPersistentCloudKitContainer handles incoming notifications
+            // internally — we just need to ensure the app is registered.
+            #if os(iOS)
+            UIApplication.shared.registerForRemoteNotifications()
+            #elseif os(macOS)
+            NSApplication.shared.registerForRemoteNotifications()
+            #endif
+
+            // PERFORMANCE: Start memory pressure monitoring
+            // This allows the app to proactively clear caches before being terminated
+            _ = dependencies.memoryPressureMonitor
+        }
+    }
+
     // MARK: - Scene
 
     var body: some Scene {
         WindowGroup("", id: "mainWindow") {
             mainWindowContent
-            .task {
-                // Sync initError to error coordinator if not already set
-                if databaseErrorCoordinator.error == nil, let error = AppBootstrapping.initError {
-                    databaseErrorCoordinator.setError(error)
-                }
-                
-                #if !os(macOS)
-                // TipKit's root quick-action tip is temporarily disabled on macOS
-                // because it can trigger a SwiftUI update loop when switching views.
-                try? Tips.configure([
-                    .displayFrequency(.weekly)
-                ])
-                #endif
-
-                // Only bootstrap if the store loaded successfully
-                if AppBootstrapping.initError == nil {
-                    #if os(macOS)
-                    appDelegate.setCoreDataStack(coreDataStack)
-                    #endif
-                    await bootstrapper.bootstrap(coreDataStack: coreDataStack)
-
-                    // Configure CloudKit sync status monitoring
-                    CloudKitSyncStatusService.shared.configure(with: coreDataStack)
-
-                    // Register for remote notifications so CloudKit can push sync events.
-                    // NSPersistentCloudKitContainer handles incoming notifications
-                    // internally — we just need to ensure the app is registered.
-                    #if os(iOS)
-                    UIApplication.shared.registerForRemoteNotifications()
-                    #elseif os(macOS)
-                    NSApplication.shared.registerForRemoteNotifications()
-                    #endif
-
-                    // PERFORMANCE: Start memory pressure monitoring
-                    // This allows the app to proactively clear caches before being terminated
-                    _ = dependencies.memoryPressureMonitor
-                }
-            }
+            .task { await performStartupBootstrap() }
             #if os(macOS)
             .modifier(OpenWindowOnNotificationModifier())
             #endif

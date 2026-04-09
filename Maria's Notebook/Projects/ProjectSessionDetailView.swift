@@ -115,16 +115,27 @@ struct ProjectSessionDetailView: View {
         session.project?.memberStudentIDsArray ?? []
     }
 
+    private var studentSelectionBinding: Binding<StudentIDWrapper?> {
+        Binding<StudentIDWrapper?>(
+            get: { showSelectionSheetForStudent.map { StudentIDWrapper(id: $0) } },
+            set: { showSelectionSheetForStudent = $0?.id }
+        )
+    }
+
+    private var lessonPickerBinding: Binding<WorkIDWrapper?> {
+        Binding<WorkIDWrapper?>(
+            get: { showLessonPickerForWork.flatMap { w in w.id.map { WorkIDWrapper(id: $0) } } },
+            set: { wrapper in showLessonPickerForWork = wrapper.flatMap { w in allWorkModels.first { $0.id == w.id } } }
+        )
+    }
+
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {
             sessionGroupBox
             sessionList
         }
         .navigationTitle(DateFormatters.mediumDate.string(from: session.meetingDate ?? Date()))
-        .sheet(item: Binding(
-            get: { showSelectionSheetForStudent.map { StudentIDWrapper(id: $0) } },
-            set: { showSelectionSheetForStudent = $0?.id }
-        )) { wrapper in
+        .sheet(item: studentSelectionBinding) { wrapper in
             StudentSelectionSheet(
                 session: session,
                 studentID: wrapper.id,
@@ -132,10 +143,7 @@ struct ProjectSessionDetailView: View {
                 offeredWorks: sessionWorkModels // All session works for selection
             )
         }
-        .sheet(item: Binding(
-            get: { showLessonPickerForWork.flatMap { w in w.id.map { WorkIDWrapper(id: $0) } } },
-            set: { wrapper in showLessonPickerForWork = wrapper.flatMap { w in allWorkModels.first { $0.id == w.id } } }
-        )) { wrapper in
+        .sheet(item: lessonPickerBinding) { wrapper in
             if let targetWork = allWorkModels.first(where: { $0.id == wrapper.id }) {
                 ProjectLessonPickerSheet(
                     viewModel: {

@@ -23,7 +23,7 @@ extension UnifiedNoteEditor {
             ScrollView(.horizontal, showsIndicators: false) {
                 HStack(spacing: AppTheme.Spacing.small) {
                     ForEach(Array(detectedStudentIDs), id: \.self) { studentID in
-                        if let student = students.first(where: { $0.id == studentID }) {
+                        if let student: CDStudent = students.first(where: { $0.id == studentID }) {
                             detectedStudentButton(studentID: studentID, student: student)
                         }
                     }
@@ -93,7 +93,7 @@ extension UnifiedNoteEditor {
         ScrollView(.horizontal, showsIndicators: false) {
             HStack(spacing: AppTheme.Spacing.small) {
                 ForEach(Array(selectedStudentIDs), id: \.self) { studentID in
-                    if let student = students.first(where: { $0.id == studentID }) {
+                    if let student: CDStudent = students.first(where: { $0.id == studentID }) {
                         selectedStudentChip(studentID: studentID, student: student)
                     }
                 }

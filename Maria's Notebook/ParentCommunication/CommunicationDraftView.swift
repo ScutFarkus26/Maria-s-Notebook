@@ -64,7 +64,9 @@ struct CommunicationDraftView: View {
             }
         }
         .navigationTitle("New Communication")
+        #if os(iOS)
         .navigationBarTitleDisplayMode(.inline)
+        #endif
         .toolbar {
             ToolbarItem(placement: .cancellationAction) {
                 Button("Cancel") { dismiss() }

@@ -16,9 +16,10 @@ struct LessonsListView: View {
     // MODERN: Computed properties - no manual cache management needed
     
     private var lessonsInGroup: [CDLesson] {
-        lessons
-            .filter { $0.subject.caseInsensitiveCompare(subject) == .orderedSame }
-            .filter { $0.group.caseInsensitiveCompare(group) == .orderedSame }
+        lessons.filter { (lesson: CDLesson) -> Bool in
+            lesson.subject.caseInsensitiveCompare(subject) == .orderedSame
+                && lesson.group.caseInsensitiveCompare(group) == .orderedSame
+        }
     }
 
     private var orderedLessons: [CDLesson] {

@@ -26,9 +26,9 @@ struct ResourceLessonPicker: View {
             $0.subject.trimmingCharacters(in: .whitespaces)
         }
 
-        return grouped.keys.sorted {
-            $0.localizedCaseInsensitiveCompare($1) == .orderedAscending
-        }.compactMap { subject in
+        return grouped.keys.sorted { (a: String, b: String) -> Bool in
+            a.localizedCaseInsensitiveCompare(b) == .orderedAscending
+        }.compactMap { (subject: String) -> (subject: String, lessons: [CDLesson])? in
             guard let lessons = grouped[subject], !lessons.isEmpty else { return nil }
             return (subject: subject, lessons: lessons.sorted { $0.name < $1.name })
         }
