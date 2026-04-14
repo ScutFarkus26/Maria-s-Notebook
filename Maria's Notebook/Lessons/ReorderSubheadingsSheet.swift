@@ -15,14 +15,13 @@ struct ReorderSubheadingsSheet: View {
     @State private var isEditing: Bool = false
 
     private var existing: [String] {
-        Array(Set(
-            lessons
-                .filter { $0.subject.caseInsensitiveCompare(subject) == .orderedSame }
-                .filter { $0.group.caseInsensitiveCompare(group) == .orderedSame }
-                .map { $0.subheading.trimmed() }
-                .filter { !$0.isEmpty }
-        ))
-        .sorted { $0.localizedCaseInsensitiveCompare($1) == .orderedAscending }
+        let filtered: [CDLesson] = lessons.filter {
+            $0.subject.caseInsensitiveCompare(subject) == .orderedSame
+                && $0.group.caseInsensitiveCompare(group) == .orderedSame
+        }
+        let subheadings: [String] = filtered.map { $0.subheading.trimmed() }
+        let unique: Set<String> = Set(subheadings.filter { !$0.isEmpty })
+        return unique.sorted { $0.localizedCaseInsensitiveCompare($1) == .orderedAscending }
     }
 
     var body: some View {

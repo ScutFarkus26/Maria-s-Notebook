@@ -15,49 +15,7 @@ extension TodoEditSheet {
                 .textCase(.uppercase)
                 .tracking(0.5)
 
-            // Mood selection
-            VStack(alignment: .leading, spacing: 8) {
-                Text("How are you feeling about this task?")
-                    .font(.subheadline)
-                    .foregroundStyle(.secondary)
-
-                LazyVGrid(columns: [GridItem(.adaptive(minimum: 80))], spacing: 8) {
-                    ForEach(TodoMood.allCases, id: \.self) { mood in
-                        Button {
-                            if selectedMood == mood {
-                                selectedMood = nil // Deselect if already selected
-                            } else {
-                                selectedMood = mood
-                            }
-                        } label: {
-                            VStack(spacing: 4) {
-                                Text(mood.emoji)
-                                    .font(.title2)
-                                Text(mood.rawValue)
-                                    .font(.caption)
-                                    .lineLimit(1)
-                                    .minimumScaleFactor(0.8)
-                            }
-                            .frame(maxWidth: .infinity)
-                            .padding(.vertical, 8)
-                            .background(
-                                selectedMood == mood
-                                    ? mood.color.opacity(UIConstants.OpacityConstants.moderate)
-                                    : Color.primary.opacity(UIConstants.OpacityConstants.trace)
-                            )
-                            .cornerRadius(8)
-                            .overlay(
-                                RoundedRectangle(cornerRadius: 8)
-                                    .strokeBorder(
-                                        selectedMood == mood ? mood.color : Color.clear,
-                                        lineWidth: 2
-                                    )
-                            )
-                        }
-                        .buttonStyle(.plain)
-                    }
-                }
-            }
+            moodGrid
 
             // Reflection notes
             VStack(alignment: .leading, spacing: 8) {
@@ -76,6 +34,52 @@ extension TodoEditSheet {
                 Text("Personal thoughts, lessons learned, or context")
                     .font(.caption)
                     .foregroundStyle(.secondary)
+            }
+        }
+    }
+
+    @ViewBuilder
+    private var moodGrid: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            Text("How are you feeling about this task?")
+                .font(.subheadline)
+                .foregroundStyle(.secondary)
+
+            LazyVGrid(columns: [GridItem(.adaptive(minimum: 80))], spacing: 8) {
+                ForEach(TodoMood.allCases, id: \.self) { mood in
+                    Button {
+                        if selectedMood == mood {
+                            selectedMood = nil
+                        } else {
+                            selectedMood = mood
+                        }
+                    } label: {
+                        VStack(spacing: 4) {
+                            Text(mood.emoji)
+                                .font(.title2)
+                            Text(mood.rawValue)
+                                .font(.caption)
+                                .lineLimit(1)
+                                .minimumScaleFactor(0.8)
+                        }
+                        .frame(maxWidth: .infinity)
+                        .padding(.vertical, 8)
+                        .background(
+                            selectedMood == mood
+                                ? mood.color.opacity(UIConstants.OpacityConstants.moderate)
+                                : Color.primary.opacity(UIConstants.OpacityConstants.trace)
+                        )
+                        .cornerRadius(8)
+                        .overlay(
+                            RoundedRectangle(cornerRadius: 8)
+                                .strokeBorder(
+                                    selectedMood == mood ? mood.color : Color.clear,
+                                    lineWidth: 2
+                                )
+                        )
+                    }
+                    .buttonStyle(.plain)
+                }
             }
         }
     }

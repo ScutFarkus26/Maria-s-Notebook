@@ -67,117 +67,11 @@ struct TodoAnalyticsView: View {
         NavigationStack {
             ScrollView {
                 VStack(alignment: .leading, spacing: 24) {
-                    // Summary Cards
-                    HStack(spacing: 12) {
-                        TodoStatCard(
-                            title: "Completion Rate",
-                            value: String(format: "%.0f%%", completionRate),
-                            icon: "checkmark.circle.fill",
-                            color: .green
-                        )
-                        
-                        TodoStatCard(
-                            title: "This Week",
-                            value: "\(completedLast7Days.count)",
-                            icon: "calendar",
-                            color: .blue
-                        )
-                        
-                        TodoStatCard(
-                            title: "This Month",
-                            value: "\(completedLast30Days.count)",
-                            icon: "calendar.badge.clock",
-                            color: .purple
-                        )
-                    }
-                    
-                    // Daily Completion Chart
-                    VStack(alignment: .leading, spacing: 12) {
-                        Text("Daily Completions (Last 7 Days)")
-                            .font(AppTheme.ScaledFont.calloutSemibold)
-                        
-                        Chart(dailyCompletionData, id: \.date) { item in
-                            BarMark(
-                                x: .value("Day", item.date, unit: .day),
-                                y: .value("Completed", item.count)
-                            )
-                            .foregroundStyle(.blue.gradient)
-                        }
-                        .frame(height: 200)
-                        .chartXAxis {
-                            AxisMarks(values: .stride(by: .day)) { _ in
-                                AxisValueLabel(format: .dateTime.weekday(.narrow))
-                            }
-                        }
-                    }
-                    .padding()
-                    .background(Color.primary.opacity(UIConstants.OpacityConstants.ghost))
-                    .cornerRadius(12)
-                    
-                    // Tag Breakdown
-                    if !tagBreakdown.isEmpty {
-                        VStack(alignment: .leading, spacing: 12) {
-                            Text("Completions by Tag")
-                                .font(AppTheme.ScaledFont.calloutSemibold)
-                            
-                            ForEach(tagBreakdown, id: \.tag) { item in
-                                HStack {
-                                    TagBadge(tag: item.tag, compact: true)
-                                    Spacer()
-                                    Text("\(item.count)")
-                                        .font(AppTheme.ScaledFont.bodySemibold)
-                                        .foregroundStyle(TodoTagHelper.tagColor(item.tag).color)
-                                }
-                                .padding(.vertical, 8)
-                            }
-                        }
-                        .padding()
-                        .background(Color.primary.opacity(UIConstants.OpacityConstants.ghost))
-                        .cornerRadius(12)
-                    }
-                    
-                    // Priority Breakdown
-                    if !priorityBreakdown.isEmpty {
-                        VStack(alignment: .leading, spacing: 12) {
-                            Text("Completions by Priority")
-                                .font(AppTheme.ScaledFont.calloutSemibold)
-                            
-                            ForEach(priorityBreakdown, id: \.priority) { item in
-                                HStack {
-                                    Image(systemName: item.priority.icon)
-                                        .font(.system(size: 12))
-                                        .foregroundStyle(Color(item.priority.color))
-                                    Text(item.priority.rawValue)
-                                        .font(AppTheme.ScaledFont.body)
-                                    Spacer()
-                                    Text("\(item.count)")
-                                        .font(AppTheme.ScaledFont.bodySemibold)
-                                        .foregroundStyle(Color(item.priority.color))
-                                }
-                                .padding(.vertical, 8)
-                            }
-                        }
-                        .padding()
-                        .background(Color.primary.opacity(UIConstants.OpacityConstants.ghost))
-                        .cornerRadius(12)
-                    }
-                    
-                    // Insights
-                    if let topTag = tagBreakdown.first {
-                        VStack(alignment: .leading, spacing: 8) {
-                            Label("Insights", systemImage: "lightbulb.fill")
-                                .font(AppTheme.ScaledFont.calloutSemibold)
-                                .foregroundStyle(AppColors.warning)
-
-                            let tagName = TodoTagHelper.tagName(topTag.tag)
-                            Text("You complete the most \(tagName) tasks (\(topTag.count) total)")
-                                .font(AppTheme.ScaledFont.body)
-                                .foregroundStyle(.secondary)
-                        }
-                        .padding()
-                        .background(AppColors.warning.opacity(UIConstants.OpacityConstants.light))
-                        .cornerRadius(12)
-                    }
+                    summaryCards
+                    dailyCompletionChart
+                    tagBreakdownSection
+                    priorityBreakdownSection
+                    insightsSection
                 }
                 .padding()
             }
@@ -190,6 +84,128 @@ struct TodoAnalyticsView: View {
                     }
                 }
             }
+        }
+    }
+
+    @ViewBuilder
+    private var summaryCards: some View {
+        HStack(spacing: 12) {
+            TodoStatCard(
+                title: "Completion Rate",
+                value: String(format: "%.0f%%", completionRate),
+                icon: "checkmark.circle.fill",
+                color: .green
+            )
+
+            TodoStatCard(
+                title: "This Week",
+                value: "\(completedLast7Days.count)",
+                icon: "calendar",
+                color: .blue
+            )
+
+            TodoStatCard(
+                title: "This Month",
+                value: "\(completedLast30Days.count)",
+                icon: "calendar.badge.clock",
+                color: .purple
+            )
+        }
+    }
+
+    @ViewBuilder
+    private var dailyCompletionChart: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            Text("Daily Completions (Last 7 Days)")
+                .font(AppTheme.ScaledFont.calloutSemibold)
+
+            Chart(dailyCompletionData, id: \.date) { item in
+                BarMark(
+                    x: .value("Day", item.date, unit: .day),
+                    y: .value("Completed", item.count)
+                )
+                .foregroundStyle(.blue.gradient)
+            }
+            .frame(height: 200)
+            .chartXAxis {
+                AxisMarks(values: .stride(by: .day)) { _ in
+                    AxisValueLabel(format: .dateTime.weekday(.narrow))
+                }
+            }
+        }
+        .padding()
+        .background(Color.primary.opacity(UIConstants.OpacityConstants.ghost))
+        .cornerRadius(12)
+    }
+
+    @ViewBuilder
+    private var tagBreakdownSection: some View {
+        if !tagBreakdown.isEmpty {
+            VStack(alignment: .leading, spacing: 12) {
+                Text("Completions by Tag")
+                    .font(AppTheme.ScaledFont.calloutSemibold)
+
+                ForEach(tagBreakdown, id: \.tag) { item in
+                    HStack {
+                        TagBadge(tag: item.tag, compact: true)
+                        Spacer()
+                        Text("\(item.count)")
+                            .font(AppTheme.ScaledFont.bodySemibold)
+                            .foregroundStyle(TodoTagHelper.tagColor(item.tag).color)
+                    }
+                    .padding(.vertical, 8)
+                }
+            }
+            .padding()
+            .background(Color.primary.opacity(UIConstants.OpacityConstants.ghost))
+            .cornerRadius(12)
+        }
+    }
+
+    @ViewBuilder
+    private var priorityBreakdownSection: some View {
+        if !priorityBreakdown.isEmpty {
+            VStack(alignment: .leading, spacing: 12) {
+                Text("Completions by Priority")
+                    .font(AppTheme.ScaledFont.calloutSemibold)
+
+                ForEach(priorityBreakdown, id: \.priority) { item in
+                    HStack {
+                        Image(systemName: item.priority.icon)
+                            .font(.system(size: 12))
+                            .foregroundStyle(Color(item.priority.color))
+                        Text(item.priority.rawValue)
+                            .font(AppTheme.ScaledFont.body)
+                        Spacer()
+                        Text("\(item.count)")
+                            .font(AppTheme.ScaledFont.bodySemibold)
+                            .foregroundStyle(Color(item.priority.color))
+                    }
+                    .padding(.vertical, 8)
+                }
+            }
+            .padding()
+            .background(Color.primary.opacity(UIConstants.OpacityConstants.ghost))
+            .cornerRadius(12)
+        }
+    }
+
+    @ViewBuilder
+    private var insightsSection: some View {
+        if let topTag = tagBreakdown.first {
+            VStack(alignment: .leading, spacing: 8) {
+                Label("Insights", systemImage: "lightbulb.fill")
+                    .font(AppTheme.ScaledFont.calloutSemibold)
+                    .foregroundStyle(AppColors.warning)
+
+                let tagName = TodoTagHelper.tagName(topTag.tag)
+                Text("You complete the most \(tagName) tasks (\(topTag.count) total)")
+                    .font(AppTheme.ScaledFont.body)
+                    .foregroundStyle(.secondary)
+            }
+            .padding()
+            .background(AppColors.warning.opacity(UIConstants.OpacityConstants.light))
+            .cornerRadius(12)
         }
     }
 }
