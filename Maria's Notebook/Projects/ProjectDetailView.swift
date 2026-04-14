@@ -48,7 +48,7 @@ struct ProjectDetailView: View {
             uniquingKeysWith: { first, _ in first }
         )
     }
-    
+
     var body: some View {
         ScrollView {
             VStack(alignment: .leading, spacing: AppTheme.Spacing.medium) {
@@ -106,63 +106,34 @@ struct ProjectDetailView: View {
                                 }
                             }
                         }
-
-                        // Shared Assignments (only show if present)
-                        let shared = ((club.sharedTemplates?.allObjects as? [CDProjectAssignmentTemplate]) ?? []).filter(\.isShared)
-                        if !shared.isEmpty {
-                            Divider().opacity(UIConstants.OpacityConstants.faint + 0.12)
-                            VStack(alignment: .leading, spacing: AppTheme.Spacing.small) {
-                                Label("Shared Assignments", systemImage: "square.and.pencil")
-                                    .font(.headline)
-                                ScrollView(.horizontal, showsIndicators: false) {
-                                    HStack(spacing: AppTheme.Spacing.small) {
-                                        ForEach(shared, id: \.objectID) { tpl in
-                                            Chip(text: tpl.title.isEmpty ? "Untitled" : tpl.title)
-                                        }
-                                    }
-                                }
-                            }
-                        }
                     }
                 }
 
-                // Template
-                SectionCard(title: "Template", systemImage: SFSymbol.List.squareGrid) {
-                    VStack(alignment: .leading, spacing: AppTheme.Spacing.compact) {
-                        // Roles: one-row chips with Manage button (not collapsible)
-                        VStack(alignment: .leading, spacing: AppTheme.Spacing.small) {
-                            HStack(alignment: .center) {
-                                Label("Roles", systemImage: "person.badge.key")
-                                    .font(.headline)
-                                Spacer()
-                                Button {
-                                    showManageRoles = true
-                                } label: {
-                                    Label("Manage", systemImage: "slider.horizontal.3")
-                                }
-                                .buttonStyle(.bordered)
+                // Roles
+                SectionCard(title: "Roles", systemImage: "person.badge.key") {
+                    VStack(alignment: .leading, spacing: AppTheme.Spacing.small) {
+                        HStack(alignment: .center) {
+                            Text("Defined Roles")
+                                .font(.headline)
+                            Spacer()
+                            Button {
+                                showManageRoles = true
+                            } label: {
+                                Label("Manage", systemImage: "slider.horizontal.3")
                             }
-                            if roles.isEmpty {
-                                Text("No roles yet")
-                                    .foregroundStyle(.secondary)
-                            } else {
-                                ScrollView(.horizontal, showsIndicators: false) {
-                                    HStack(spacing: AppTheme.Spacing.small) {
-                                        ForEach(Array(roles), id: \.objectID) { role in
-                                            Chip(text: role.title.isEmpty ? "Role" : role.title)
-                                        }
+                            .buttonStyle(.bordered)
+                        }
+                        if roles.isEmpty {
+                            Text("No roles yet")
+                                .foregroundStyle(.secondary)
+                        } else {
+                            ScrollView(.horizontal, showsIndicators: false) {
+                                HStack(spacing: AppTheme.Spacing.small) {
+                                    ForEach(Array(roles), id: \.objectID) { role in
+                                        Chip(text: role.title.isEmpty ? "Role" : role.title)
                                     }
                                 }
                             }
-                        }
-
-                        // Weeks (remain collapsible to save space)
-                        DisclosureGroup {
-                            ProjectWeeksEditorView(club: club, showHeader: false)
-                                .padding(.top, AppTheme.Spacing.xsmall)
-                        } label: {
-                            Label("Weeks", systemImage: SFSymbol.Time.calendar)
-                                .font(.headline)
                         }
                     }
                 }
@@ -236,7 +207,7 @@ private struct SessionRow: View {
             predicate: NSPredicate(format: "sourceContextID == %@", sid)
         )
     }
-    
+
     var body: some View {
         HStack {
             VStack(alignment: .leading, spacing: AppTheme.Spacing.xxsmall) {

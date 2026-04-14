@@ -13,8 +13,8 @@ import OSLog
 /// - `BackupDTOTransformers+Work.swift` — CDWorkCheckIn, CDWorkStep,
 ///   WorkParticipant, CDPracticeSession
 /// - `BackupDTOTransformers+Projects.swift` — CDProject, CDProjectSession,
-///   CDProjectRole, CDProjectTemplateWeek, CDProjectWeekRoleAssignment,
-///   CDCommunityTopicEntity, CDProposedSolutionEntity, CDCommunityAttachmentEntity
+///   CDProjectRole, CDCommunityTopicEntity, CDProposedSolutionEntity,
+///   CDCommunityAttachmentEntity
 /// - `BackupDTOTransformers+Misc.swift` — Calendar, Todo, CDTrackEntity,
 ///   CDSupply, CDSchedule, CDIssue, CDProcedure, CDDocument, and remaining types
 enum BackupDTOTransformers {

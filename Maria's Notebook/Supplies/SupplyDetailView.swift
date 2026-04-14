@@ -12,17 +12,8 @@ struct SupplyDetailView: View {
     @State private var editName: String = ""
     @State private var editCategory: SupplyCategory = .other
     @State private var editLocation: String = ""
-    @State private var editMinimumThreshold: Int = 0
-    @State private var editReorderAmount: Int = 0
-    @State private var editUnit: String = ""
     @State private var editNotes: String = ""
     @State private var showingDeleteConfirmation = false
-    @State private var showingOrderSheet = false
-    @State private var showingReceiveSheet = false
-
-    private var transactions: [CDSupplyTransaction] {
-        SupplyService.fetchRecentTransactions(for: supply, limit: 20)
-    }
 
     var body: some View {
         NavigationStack {
@@ -40,22 +31,16 @@ struct SupplyDetailView: View {
                             editName: $editName,
                             editCategory: $editCategory,
                             editLocation: $editLocation,
-                            editUnit: $editUnit,
-                            editMinimumThreshold: $editMinimumThreshold,
-                            editReorderAmount: $editReorderAmount,
                             editNotes: $editNotes
                         )
                     } else {
                         detailsSection
                     }
-
-                    // Transaction history
-                    SupplyHistorySection(transactions: transactions)
                 }
                 .padding(.horizontal, 24)
                 .padding(.vertical, 16)
             }
-            .navigationTitle(isEditing ? "Edit CDSupply" : supply.name)
+            .navigationTitle(isEditing ? "Edit Supply" : supply.name)
             .inlineNavigationTitle()
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {
@@ -86,22 +71,6 @@ struct SupplyDetailView: View {
 
                             Divider()
 
-                            if supply.isOnOrder {
-                                Button {
-                                    showingReceiveSheet = true
-                                } label: {
-                                    Label("Mark as Received", systemImage: "checkmark.circle")
-                                }
-                            } else {
-                                Button {
-                                    showingOrderSheet = true
-                                } label: {
-                                    Label("Mark as Ordered", systemImage: "shippingbox")
-                                }
-                            }
-
-                            Divider()
-
                             Button(role: .destructive) {
                                 showingDeleteConfirmation = true
                             } label: {
@@ -114,7 +83,7 @@ struct SupplyDetailView: View {
                 }
             }
             .confirmationDialog(
-                "Delete CDSupply",
+                "Delete Supply",
                 isPresented: $showingDeleteConfirmation,
                 titleVisibility: .visible
             ) {
@@ -125,12 +94,6 @@ struct SupplyDetailView: View {
             } message: {
                 Text("Are you sure you want to delete \"\(supply.name)\"? This action cannot be undone.")
             }
-        }
-        .sheet(isPresented: $showingOrderSheet) {
-            MarkAsOrderedSheet(supply: supply)
-        }
-        .sheet(isPresented: $showingReceiveSheet) {
-            MarkAsReceivedSheet(supply: supply)
         }
         #if os(macOS)
         .frame(minWidth: 500, minHeight: 600)
@@ -143,9 +106,6 @@ struct SupplyDetailView: View {
         editName = supply.name
         editCategory = supply.category
         editLocation = supply.location
-        editMinimumThreshold = Int(supply.minimumThreshold)
-        editReorderAmount = Int(supply.reorderAmount)
-        editUnit = supply.unit
         editNotes = supply.notes
         isEditing = true
     }
@@ -154,9 +114,6 @@ struct SupplyDetailView: View {
         supply.name = editName
         supply.category = editCategory
         supply.location = editLocation
-        supply.minimumThreshold = Int64(editMinimumThreshold)
-        supply.reorderAmount = Int64(editReorderAmount)
-        supply.unit = editUnit
         supply.notes = editNotes
         supply.modifiedAt = Date()
         viewContext.safeSave()
@@ -172,12 +129,12 @@ private extension SupplyDetailView {
         HStack(spacing: 16) {
             ZStack {
                 Circle()
-                    .fill(supply.status.color.opacity(UIConstants.OpacityConstants.accent))
+                    .fill(Color.accentColor.opacity(UIConstants.OpacityConstants.accent))
                     .frame(width: 60, height: 60)
 
                 Image(systemName: supply.category.icon)
                     .font(.title)
-                    .foregroundStyle(supply.status.color)
+                    .foregroundStyle(Color.accentColor)
             }
 
             VStack(alignment: .leading, spacing: 4) {
@@ -185,47 +142,19 @@ private extension SupplyDetailView {
                     .font(.subheadline)
                     .foregroundStyle(.secondary)
 
-                HStack(spacing: 8) {
-                    Image(systemName: supply.status.icon)
-                    Text(supply.status.rawValue)
-                        .font(.headline)
+                if !supply.location.isEmpty {
+                    Label(supply.location, systemImage: "mappin")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
                 }
-                .foregroundStyle(supply.status.color)
             }
 
             Spacer()
-
-            if supply.isOnOrder {
-                VStack(alignment: .trailing, spacing: 2) {
-                    Label("On Order", systemImage: "shippingbox.fill")
-                        .font(.caption.weight(.medium))
-                    Text("\(supply.orderedQuantity) \(supply.unit)")
-                        .font(.caption2)
-                    if let orderDate = supply.orderDate {
-                        Text(orderDate, style: .date)
-                            .font(.caption2)
-                    }
-                }
-                .padding(.horizontal, 10)
-                .padding(.vertical, 6)
-                .background(
-                    RoundedRectangle(cornerRadius: 8, style: .continuous)
-                        .fill(Color.blue.opacity(UIConstants.OpacityConstants.accent))
-                )
-                .foregroundStyle(.blue)
-            } else if supply.needsReorder {
-                Label("Reorder", systemImage: "arrow.triangle.2.circlepath")
-                    .font(.caption.weight(.medium))
-                    .padding(.horizontal, 10)
-                    .padding(.vertical, 6)
-                    .background(Capsule().fill(AppColors.warning.opacity(UIConstants.OpacityConstants.accent)))
-                    .foregroundStyle(AppColors.warning)
-            }
         }
         .padding()
         .background(
             RoundedRectangle(cornerRadius: 16, style: .continuous)
-                .fill(supply.status.color.opacity(UIConstants.OpacityConstants.subtle))
+                .fill(Color.accentColor.opacity(UIConstants.OpacityConstants.subtle))
         )
     }
 
@@ -238,54 +167,14 @@ private extension SupplyDetailView {
             }
 
             HStack(spacing: 24) {
-                VStack(spacing: 4) {
-                    Text("\(supply.currentQuantity)")
-                        .font(AppTheme.ScaledFont.titleXLarge)
-                        .foregroundStyle(supply.status.color)
-                    Text(supply.unit)
-                        .font(.subheadline)
-                        .foregroundStyle(.secondary)
-                }
+                Text("\(supply.currentQuantity)")
+                    .font(AppTheme.ScaledFont.titleXLarge)
 
                 Spacer()
-
-                VStack(alignment: .trailing, spacing: 8) {
-                    HStack {
-                        Text("Min:")
-                            .foregroundStyle(.secondary)
-                        Text("\(supply.minimumThreshold)")
-                    }
-                    .font(.subheadline)
-
-                    HStack {
-                        Text("Reorder:")
-                            .foregroundStyle(.secondary)
-                        Text("\(supply.reorderAmount)")
-                    }
-                    .font(.subheadline)
-                }
             }
-
-            GeometryReader { geometry in
-                ZStack(alignment: .leading) {
-                    RoundedRectangle(cornerRadius: 4)
-                        .fill(Color.primary.opacity(UIConstants.OpacityConstants.light))
-
-                    RoundedRectangle(cornerRadius: 4)
-                        .fill(supply.status.color)
-                        .frame(width: stockPercentage * geometry.size.width)
-                }
-            }
-            .frame(height: 8)
         }
         .padding()
         .cardStyle()
-    }
-
-    var stockPercentage: CGFloat {
-        guard supply.minimumThreshold > 0 else { return 1.0 }
-        let ratio = CGFloat(supply.currentQuantity) / CGFloat(supply.minimumThreshold * 2)
-        return min(1.0, max(0, ratio))
     }
 
     var detailsSection: some View {
@@ -297,9 +186,6 @@ private extension SupplyDetailView {
                 detailRow(label: "Name", value: supply.name)
                 detailRow(label: "Category", value: supply.category.rawValue)
                 detailRow(label: "Location", value: supply.location.isEmpty ? "Not set" : supply.location)
-                detailRow(label: "Unit", value: supply.unit)
-                detailRow(label: "Minimum Threshold", value: "\(supply.minimumThreshold)")
-                detailRow(label: "Reorder Amount", value: "\(supply.reorderAmount)")
 
                 if !supply.notes.isEmpty {
                     VStack(alignment: .leading, spacing: 4) {
@@ -337,9 +223,6 @@ private extension SupplyDetailView {
     supply.category = .art
     supply.location = "Cabinet A"
     supply.currentQuantity = 12
-    supply.minimumThreshold = 5
-    supply.reorderAmount = 20
-    supply.unit = "boxes"
     supply.notes = "Preferred brand: Crayola. Order from Amazon."
 
     return SupplyDetailView(supply: supply)

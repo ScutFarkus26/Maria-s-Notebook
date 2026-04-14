@@ -35,16 +35,10 @@ extension StreamingBackupWriter {
             return BackupDTOTransformers.toDTOs(completionRecords)
         case let projects as [CDProject]:
             return BackupDTOTransformers.toDTOs(projects)
-        case let templates as [CDProjectAssignmentTemplate]:
-            return BackupDTOTransformers.toDTOs(templates)
         case let sessions as [CDProjectSession]:
             return BackupDTOTransformers.toDTOs(sessions)
         case let roles as [CDProjectRole]:
             return BackupDTOTransformers.toDTOs(roles)
-        case let weeks as [CDProjectTemplateWeek]:
-            return BackupDTOTransformers.toDTOs(weeks)
-        case let roleAssignments as [CDProjectWeekRoleAssignment]:
-            return BackupDTOTransformers.toDTOs(roleAssignments)
         case let works as [CDWorkModel]:
             return BackupDTOTransformers.toDTOs(works)
         case let checkIns as [CDWorkCheckIn]:
@@ -83,8 +77,6 @@ extension StreamingBackupWriter {
             return BackupDTOTransformers.toDTOs(documents)
         case let supplies as [CDSupply]:
             return BackupDTOTransformers.toDTOs(supplies)
-        case let transactions as [CDSupplyTransaction]:
-            return BackupDTOTransformers.toDTOs(transactions)
         case let procedures as [CDProcedure]:
             return BackupDTOTransformers.toDTOs(procedures)
         case let schedules as [CDSchedule]:

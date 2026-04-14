@@ -36,13 +36,11 @@ struct BackupEntityRegistry {
         CDSampleWork.self,
         CDSampleWorkStep.self,
         CDPracticeSession.self,
-        // Projects
+        // Projects (CDProjectAssignmentTemplate, CDProjectTemplateWeek,
+        // CDProjectWeekRoleAssignment removed — deprecated, schema-only)
         CDProject.self,
-        CDProjectAssignmentTemplate.self,
         CDProjectSession.self,
         CDProjectRole.self,
-        CDProjectTemplateWeek.self,
-        CDProjectWeekRoleAssignment.self,
         // Issues
         CDIssue.self,
         CDIssueAction.self,
@@ -60,7 +58,6 @@ struct BackupEntityRegistry {
         CDDocument.self,
         // Supplies
         CDSupply.self,
-        CDSupplyTransaction.self,
         // Procedures
         CDProcedure.self,
         // Schedules

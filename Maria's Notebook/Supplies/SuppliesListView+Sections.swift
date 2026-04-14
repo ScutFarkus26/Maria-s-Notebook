@@ -8,46 +8,19 @@ extension SuppliesListView {
     // MARK: - Stats Section
 
     var statsSection: some View {
-        LazyVGrid(columns: [
-            GridItem(.flexible()),
-            GridItem(.flexible()),
-            GridItem(.flexible()),
-            GridItem(.flexible()),
-            GridItem(.flexible())
-        ], spacing: 16) {
+        HStack(spacing: 16) {
             StatCard(
                 title: "Total Supplies",
-                value: "\(stats.totalSupplies)",
+                value: "\(supplies.count)",
                 subtitle: nil,
                 systemImage: "shippingbox.fill"
             )
 
             StatCard(
-                title: "Low Stock",
-                value: "\(stats.lowStock)",
-                subtitle: stats.lowStock > 0 ? "Needs attention" : nil,
-                systemImage: "exclamationmark.triangle.fill"
-            )
-
-            StatCard(
                 title: "Out of Stock",
-                value: "\(stats.outOfStock)",
-                subtitle: stats.outOfStock > 0 ? "Order now" : nil,
-                systemImage: "xmark.circle.fill"
-            )
-
-            StatCard(
-                title: "Needs Reorder",
-                value: "\(stats.needsReorder)",
+                value: "\(supplies.filter { $0.currentQuantity <= 0 }.count)",
                 subtitle: nil,
-                systemImage: "arrow.triangle.2.circlepath"
-            )
-
-            StatCard(
-                title: "On Order",
-                value: "\(stats.onOrder)",
-                subtitle: stats.onOrder > 0 ? "Awaiting delivery" : nil,
-                systemImage: "shippingbox.and.arrow.backward.fill"
+                systemImage: "xmark.circle.fill"
             )
         }
     }
@@ -137,22 +110,6 @@ extension SuppliesListView {
 
                     Divider()
 
-                    if supply.isOnOrder {
-                        Button {
-                            receiveSupply = supply
-                        } label: {
-                            Label("Mark as Received", systemImage: "checkmark.circle")
-                        }
-                    } else {
-                        Button {
-                            orderSupply = supply
-                        } label: {
-                            Label("Mark as Ordered", systemImage: "shippingbox")
-                        }
-                    }
-
-                    Divider()
-
                     Button(role: .destructive) {
                         SupplyService.deleteSupply(supply, in: viewContext)
                     } label: {
@@ -182,7 +139,7 @@ extension SuppliesListView {
             Button {
                 showingAddSheet = true
             } label: {
-                Label("Add First CDSupply", systemImage: "plus")
+                Label("Add First Supply", systemImage: "plus")
             }
             .buttonStyle(.borderedProminent)
         }
@@ -210,11 +167,10 @@ extension SuppliesListView {
     // MARK: - Actions
 
     func handleQuickAdjust(supply: CDSupply, adjustment: Int) {
-        let reason = adjustment > 0 ? "Quick add" : "Quick remove"
         if adjustment > 0 {
-            SupplyService.addStock(to: supply, amount: adjustment, reason: reason, in: viewContext)
+            SupplyService.addStock(to: supply, amount: adjustment, in: viewContext)
         } else {
-            SupplyService.removeStock(from: supply, amount: abs(adjustment), reason: reason, in: viewContext)
+            SupplyService.removeStock(from: supply, amount: abs(adjustment), in: viewContext)
         }
     }
 }

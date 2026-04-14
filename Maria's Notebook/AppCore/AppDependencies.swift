@@ -199,6 +199,7 @@ final class AppDependencies {
     var _lessonPlanningService: LessonPlanningService?
     var _databaseAnalysisService: DatabaseAnalysisService?
     var _reportGeneratorService: ReportGeneratorService?
+    var _meetingInsightsService: MeetingInsightsService?
 
     // MARK: - UI Services
 

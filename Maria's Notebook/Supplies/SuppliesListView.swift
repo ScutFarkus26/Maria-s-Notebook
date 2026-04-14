@@ -4,7 +4,7 @@ import CoreData
 /// Main view for managing classroom supplies
 struct SuppliesListView: View {
     @Environment(\.managedObjectContext) var viewContext
-    @FetchRequest(sortDescriptors: [NSSortDescriptor(keyPath: \CDSupply.name, ascending: true)]) private var supplies: FetchedResults<CDSupply>
+    @FetchRequest(sortDescriptors: [NSSortDescriptor(keyPath: \CDSupply.name, ascending: true)]) var supplies: FetchedResults<CDSupply>
 
     @State var searchText = ""
     @State private var selectedCategory: SupplyCategory?
@@ -12,22 +12,6 @@ struct SuppliesListView: View {
     @State var selectedSupply: CDSupply?
     @State private var showingQuickAdjustSheet = false
     @State var quickAdjustSupply: CDSupply?
-    @State var orderSupply: CDSupply?
-    @State var receiveSupply: CDSupply?
-
-    var stats: SupplyStats {
-        let lowStock = supplies.filter { $0.status == .low || $0.status == .critical }.count
-        let outOfStock = supplies.filter { $0.status == .outOfStock }.count
-        let needsReorder = supplies.filter(\.needsReorder).count
-        let onOrder = supplies.filter(\.isOnOrder).count
-        return SupplyStats(
-            totalSupplies: supplies.count,
-            lowStock: lowStock,
-            outOfStock: outOfStock,
-            needsReorder: needsReorder,
-            onOrder: onOrder
-        )
-    }
 
     var filteredSupplies: [CDSupply] {
         var result = Array(supplies)
@@ -86,7 +70,7 @@ struct SuppliesListView: View {
                     Button {
                         showingAddSheet = true
                     } label: {
-                        Label("Add CDSupply", systemImage: "plus")
+                        Label("Add Supply", systemImage: "plus")
                     }
                     .buttonStyle(.borderedProminent)
                     .controlSize(.small)
@@ -122,12 +106,6 @@ struct SuppliesListView: View {
         }
         .sheet(item: $quickAdjustSupply) { supply in
             QuickAdjustSheet(supply: supply)
-        }
-        .sheet(item: $orderSupply) { supply in
-            MarkAsOrderedSheet(supply: supply)
-        }
-        .sheet(item: $receiveSupply) { supply in
-            MarkAsReceivedSheet(supply: supply)
         }
     }
 }

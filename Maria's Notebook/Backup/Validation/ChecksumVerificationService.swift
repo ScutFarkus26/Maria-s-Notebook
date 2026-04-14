@@ -75,6 +75,9 @@ public final class ChecksumVerificationService {
         entityChecksums["ProjectWeekRoleAssignment"] = try checksumFor(
             payload.projectWeekRoleAssignments, encoder: encoder
         )
+        // NOTE: Checksums still computed for deprecated entities above because the
+        // DTOs remain in BackupPayload for backward compatibility. They will always
+        // be empty arrays for new backups.
         entityChecksums["Preferences"] = try checksumFor(payload.preferences, encoder: encoder)
         
         // Generate global checksum from all entity checksums combined

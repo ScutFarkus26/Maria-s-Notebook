@@ -8,6 +8,17 @@ import OSLog
 /// - Important: The entity's `representedClassName` in the `.xcdatamodel` must
 ///   match the `@objc(...)` name on the Swift class, or `entity()` will fail.
 func CDFetchRequest<T: NSManagedObject>(_ type: T.Type = T.self) -> NSFetchRequest<T> {
+    // Prefer model-based lookup (safe with multi-store configurations where
+    // NSManagedObject.entity() can return an ambiguous/nil-named description).
+    if let model = CoreDataStack.activeModel {
+        let className = NSStringFromClass(type)
+        if let entity = model.entities.first(where: { $0.managedObjectClassName == className }),
+           let name = entity.name, !name.isEmpty {
+            return NSFetchRequest<T>(entityName: name)
+        }
+    }
+
+    // Fallback to static entity() lookup (works in single-store mode)
     let entity = type.entity()
     guard let name = entity.name, !name.isEmpty else {
         fatalError(

@@ -1,9 +1,11 @@
 import Foundation
 import CoreData
 
+// Deprecated: Entity kept as stub for CloudKit schema compatibility.
+// Do not add new code here.
+
 @objc(CDProjectAssignmentTemplate)
 public class CDProjectAssignmentTemplate: NSManagedObject {
-    // MARK: - Core Data Properties
     @NSManaged public var id: UUID?
     @NSManaged public var createdAt: Date?
     @NSManaged public var projectID: String
@@ -11,30 +13,5 @@ public class CDProjectAssignmentTemplate: NSManagedObject {
     @NSManaged public var instructions: String
     @NSManaged public var isShared: Bool
     @NSManaged public var defaultLinkedLessonID: String?
-
-    // MARK: - Relationships
     @NSManaged public var project: CDProject?
-
-    // MARK: - Convenience Initializer
-    @discardableResult
-    convenience init(context: NSManagedObjectContext) {
-        let entity = NSEntityDescription.entity(forEntityName: "ProjectAssignmentTemplate", in: context)!
-        self.init(entity: entity, insertInto: context)
-        self.id = UUID()
-        self.createdAt = Date()
-        self.projectID = ""
-        self.title = ""
-        self.instructions = ""
-        self.isShared = true
-        self.defaultLinkedLessonID = nil
-    }
-}
-
-// MARK: - Computed Properties
-
-extension CDProjectAssignmentTemplate {
-    var projectIDUUID: UUID? {
-        get { UUID(uuidString: projectID) }
-        set { projectID = newValue?.uuidString ?? "" }
-    }
 }

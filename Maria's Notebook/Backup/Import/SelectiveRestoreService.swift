@@ -21,7 +21,7 @@ public final class SelectiveRestoreService {
     var studentsByID: [UUID: CDStudent] = [:]
     var lessonsByID: [UUID: CDLesson] = [:]
     var topicsByID: [UUID: CDCommunityTopicEntity] = [:]
-    var templateWeeksByID: [UUID: CDProjectTemplateWeek] = [:]
+    // templateWeeksByID removed — CDProjectTemplateWeek is deprecated
 
     /// ID sets for simple existence checks (no entity retrieval needed)
     var existingIDSets: [String: Set<UUID>] = [:]

@@ -50,7 +50,7 @@ struct ProjectsRootView: View {
                 Button {
                     showNewSheet = true
                 } label: {
-                    Label("Add CDProject", systemImage: "plus")
+                    Label("Add Project", systemImage: "plus")
                 }
                 .buttonStyle(.borderedProminent)
             }
@@ -71,7 +71,7 @@ struct ProjectsRootView: View {
         .sheet(isPresented: $showNewSheet) {
             ProjectEditorSheet(club: nil)
         }
-        .alert("Delete CDProject?", isPresented: $showDeleteAlert, presenting: clubToDelete) { club in
+        .alert("Delete Project?", isPresented: $showDeleteAlert, presenting: clubToDelete) { club in
             Button("Delete", role: .destructive) {
                 deleteClub(club)
             }
@@ -133,7 +133,7 @@ struct ProjectsRootView: View {
                 Button {
                     showNewSheet = true
                 } label: {
-                    Label("Add CDProject", systemImage: "plus")
+                    Label("Add Project", systemImage: "plus")
                 }
             }
         }
@@ -202,17 +202,6 @@ struct ProjectsRootView: View {
             modelContext.delete(s)
         }
 
-        // Delete templates associated with this club
-        let allTemplates: [CDProjectAssignmentTemplate]
-        do {
-            allTemplates = try modelContext.fetch(CDFetchRequest(CDProjectAssignmentTemplate.self))
-        } catch {
-            Self.logger.warning("Failed to fetch project templates: \(error)")
-            allTemplates = []
-        }
-        let templates = allTemplates.filter { $0.projectID == clubIDString }
-        for t in templates { modelContext.delete(t) }
-
         // Delete roles for this club
         let allRoles: [CDProjectRole]
         do {
@@ -224,32 +213,6 @@ struct ProjectsRootView: View {
         let roles = allRoles.filter { $0.projectID == clubIDString }
         for r in roles { modelContext.delete(r) }
 
-        // Delete template weeks and their related data
-        let allWeeks: [CDProjectTemplateWeek]
-        do {
-            allWeeks = try modelContext.fetch(CDFetchRequest(CDProjectTemplateWeek.self))
-        } catch {
-            Self.logger.warning("Failed to fetch project template weeks: \(error)")
-            allWeeks = []
-        }
-        let weeks = allWeeks.filter { $0.projectID == clubIDString }
-        for w in weeks {
-            // Role assignments for the week
-            let allAssigns: [CDProjectWeekRoleAssignment]
-            do {
-                allAssigns = try modelContext.fetch(CDFetchRequest(CDProjectWeekRoleAssignment.self))
-            } catch {
-                Self.logger.warning("Failed to fetch week role assignments: \(error)")
-                allAssigns = []
-            }
-            let assigns = allAssigns.filter { $0.weekID == w.id?.uuidString }
-            for a in assigns { modelContext.delete(a) }
-
-            modelContext.delete(w)
-        }
-
-        // Removed legacy cleanup block per instructions
-
         // Finally, delete the club itself
         modelContext.delete(club)
         
@@ -258,7 +221,7 @@ struct ProjectsRootView: View {
             selectedClubIDString = ""
         }
         
-        saveCoordinator.save(modelContext, reason: "Delete CDProject")
+        saveCoordinator.save(modelContext, reason: "Delete Project")
     }
 }
 

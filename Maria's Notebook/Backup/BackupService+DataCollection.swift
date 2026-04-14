@@ -101,16 +101,13 @@ extension BackupService {
         progress(BackupProgress.progress(for: .collecting, subProgress: 0.39), "Collecting projects\u{2026}")
         payload.projects = fetchAndTransformInBatches(
             CDProject.self, using: viewContext) { BackupServiceHelpers.toDTOs($0) }
-        payload.projectAssignmentTemplates = fetchAndTransformInBatches(
-            CDProjectAssignmentTemplate.self, using: viewContext) { BackupServiceHelpers.toDTOs($0) }
+        payload.projectAssignmentTemplates = [] // Deprecated
         payload.projectSessions = fetchAndTransformInBatches(
             CDProjectSession.self, using: viewContext) { BackupServiceHelpers.toDTOs($0) }
         payload.projectRoles = fetchAndTransformInBatches(
             CDProjectRole.self, using: viewContext) { BackupServiceHelpers.toDTOs($0) }
-        payload.projectTemplateWeeks = fetchAndTransformInBatches(
-            CDProjectTemplateWeek.self, using: viewContext) { BackupServiceHelpers.toDTOs($0) }
-        payload.projectWeekRoleAssignments = fetchAndTransformInBatches(
-            CDProjectWeekRoleAssignment.self, using: viewContext) { BackupServiceHelpers.toDTOs($0) }
+        payload.projectTemplateWeeks = [] // Deprecated
+        payload.projectWeekRoleAssignments = [] // Deprecated
     }
 
     private func collectWorkTrackingDTOs(
@@ -178,8 +175,6 @@ extension BackupService {
             CDDocument.self, using: viewContext) { BackupDTOTransformers.toDTOs($0) }
         payload.supplies = fetchAndTransformInBatches(
             CDSupply.self, using: viewContext) { BackupDTOTransformers.toDTOs($0) }
-        payload.supplyTransactions = fetchAndTransformInBatches(
-            CDSupplyTransaction.self, using: viewContext) { BackupDTOTransformers.toDTOs($0) }
         payload.procedures = fetchAndTransformInBatches(
             CDProcedure.self, using: viewContext) { BackupDTOTransformers.toDTOs($0) }
         payload.schedules = fetchAndTransformInBatches(
@@ -374,7 +369,6 @@ extension BackupService {
             "GroupTrack": payload.groupTracks?.count ?? 0,
             "Document": payload.documents?.count ?? 0,
             "Supply": payload.supplies?.count ?? 0,
-            "SupplyTransaction": payload.supplyTransactions?.count ?? 0,
             "Procedure": payload.procedures?.count ?? 0,
             "Schedule": payload.schedules?.count ?? 0,
             "ScheduleSlot": payload.scheduleSlots?.count ?? 0,

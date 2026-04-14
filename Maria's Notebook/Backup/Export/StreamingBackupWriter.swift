@@ -186,10 +186,7 @@ public final class StreamingBackupWriter {
         let projects: [CDProject] = try await streamFetchRaw(CDProject.self, from: viewContext)
         collector.payload.projects = BackupDTOTransformers.toDTOs(projects)
 
-        let projectTemplates: [CDProjectAssignmentTemplate] = try await streamFetchRaw(
-            CDProjectAssignmentTemplate.self, from: viewContext
-        )
-        collector.payload.projectAssignmentTemplates = BackupDTOTransformers.toDTOs(projectTemplates)
+        collector.payload.projectAssignmentTemplates = [] // Deprecated
 
         let projectSessions: [CDProjectSession] = try await streamFetchRaw(CDProjectSession.self, from: viewContext)
         collector.payload.projectSessions = BackupDTOTransformers.toDTOs(projectSessions)
@@ -197,13 +194,8 @@ public final class StreamingBackupWriter {
         let projectRoles: [CDProjectRole] = try await streamFetchRaw(CDProjectRole.self, from: viewContext)
         collector.payload.projectRoles = BackupDTOTransformers.toDTOs(projectRoles)
 
-        let projectWeeks: [CDProjectTemplateWeek] = try await streamFetchRaw(CDProjectTemplateWeek.self, from: viewContext)
-        collector.payload.projectTemplateWeeks = BackupDTOTransformers.toDTOs(projectWeeks)
-
-        let projectWeekAssignments: [CDProjectWeekRoleAssignment] = try await streamFetchRaw(
-            CDProjectWeekRoleAssignment.self, from: viewContext
-        )
-        collector.payload.projectWeekRoleAssignments = BackupDTOTransformers.toDTOs(projectWeekAssignments)
+        collector.payload.projectTemplateWeeks = [] // Deprecated
+        collector.payload.projectWeekRoleAssignments = [] // Deprecated
     }
 
     private func streamV8Entities(
@@ -291,11 +283,6 @@ public final class StreamingBackupWriter {
 
         let supplies: [CDSupply] = try await streamFetchRaw(CDSupply.self, from: viewContext)
         collector.payload.supplies = BackupDTOTransformers.toDTOs(supplies)
-
-        let supplyTransactions: [CDSupplyTransaction] = try await streamFetchRaw(
-            CDSupplyTransaction.self, from: viewContext
-        )
-        collector.payload.supplyTransactions = BackupDTOTransformers.toDTOs(supplyTransactions)
 
         let procedures: [CDProcedure] = try await streamFetchRaw(CDProcedure.self, from: viewContext)
         collector.payload.procedures = BackupDTOTransformers.toDTOs(procedures)

@@ -130,20 +130,9 @@ public struct SupplyDTO: Codable, Sendable {
     public var categoryRaw: String
     public var location: String
     public var currentQuantity: Int
-    public var minimumThreshold: Int
-    public var reorderAmount: Int
-    public var unit: String
     public var notes: String
     public var createdAt: Date
     public var modifiedAt: Date
-}
-
-public struct SupplyTransactionDTO: Codable, Sendable {
-    public var id: UUID
-    public var supplyID: String
-    public var date: Date
-    public var quantityChange: Int
-    public var reason: String
 }
 
 // MARK: - CDDocument DTO

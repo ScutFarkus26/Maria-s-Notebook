@@ -74,7 +74,7 @@ struct RepositoryContainer {
 
     // MARK: - Projects
 
-    /// Repository for CDProject, CDProjectSession, and CDProjectAssignmentTemplate entities
+    /// Repository for CDProject and CDProjectSession entities
     var projects: ProjectRepository {
         ProjectRepository(context: context, saveCoordinator: saveCoordinator)
     }

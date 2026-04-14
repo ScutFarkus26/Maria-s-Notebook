@@ -6,9 +6,6 @@ struct SupplyEditableDetailsSection: View {
     @Binding var editName: String
     @Binding var editCategory: SupplyCategory
     @Binding var editLocation: String
-    @Binding var editUnit: String
-    @Binding var editMinimumThreshold: Int
-    @Binding var editReorderAmount: Int
     @Binding var editNotes: String
 
     var body: some View {
@@ -21,7 +18,7 @@ struct SupplyEditableDetailsSection: View {
                     Text("Name")
                         .font(.subheadline)
                         .foregroundStyle(.secondary)
-                    TextField("CDSupply name", text: $editName)
+                    TextField("Supply name", text: $editName)
                         .textFieldStyle(.roundedBorder)
                 }
 
@@ -46,32 +43,6 @@ struct SupplyEditableDetailsSection: View {
                         .foregroundStyle(.secondary)
                     TextField("Storage location", text: $editLocation)
                         .textFieldStyle(.roundedBorder)
-                }
-
-                VStack(alignment: .leading, spacing: 6) {
-                    Text("Unit")
-                        .font(.subheadline)
-                        .foregroundStyle(.secondary)
-                    TextField("e.g., boxes, packs, items", text: $editUnit)
-                        .textFieldStyle(.roundedBorder)
-                }
-
-                HStack(spacing: 16) {
-                    VStack(alignment: .leading, spacing: 6) {
-                        Text("Minimum Threshold")
-                            .font(.subheadline)
-                            .foregroundStyle(.secondary)
-                        TextField("0", value: $editMinimumThreshold, format: .number)
-                            .textFieldStyle(.roundedBorder)
-                    }
-
-                    VStack(alignment: .leading, spacing: 6) {
-                        Text("Reorder Amount")
-                            .font(.subheadline)
-                            .foregroundStyle(.secondary)
-                        TextField("0", value: $editReorderAmount, format: .number)
-                            .textFieldStyle(.roundedBorder)
-                    }
                 }
 
                 VStack(alignment: .leading, spacing: 6) {

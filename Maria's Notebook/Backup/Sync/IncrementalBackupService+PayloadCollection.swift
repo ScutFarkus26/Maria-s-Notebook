@@ -21,11 +21,8 @@ extension IncrementalBackupService {
         var attendance: [CDAttendanceRecord] = []
         var workCompletions: [CDWorkCompletionRecord] = []
         var projects: [CDProject] = []
-        var projectTemplates: [CDProjectAssignmentTemplate] = []
         var projectSessions: [CDProjectSession] = []
         var projectRoles: [CDProjectRole] = []
-        var projectWeeks: [CDProjectTemplateWeek] = []
-        var projectWeekAssignments: [CDProjectWeekRoleAssignment] = []
     }
 }
 
@@ -220,24 +217,12 @@ extension IncrementalBackupService {
             CDProject.self, using: viewContext, sinceDate: sinceDate,
             changedCounts: &changedCounts, totalCounts: &totalCounts
         )
-        result.projectTemplates = fetchFilteredEntities(
-            CDProjectAssignmentTemplate.self, using: viewContext, sinceDate: sinceDate,
-            changedCounts: &changedCounts, totalCounts: &totalCounts
-        )
         result.projectSessions = fetchFilteredEntities(
             CDProjectSession.self, using: viewContext, sinceDate: sinceDate,
             changedCounts: &changedCounts, totalCounts: &totalCounts
         )
         result.projectRoles = fetchFilteredEntities(
             CDProjectRole.self, using: viewContext, sinceDate: sinceDate,
-            changedCounts: &changedCounts, totalCounts: &totalCounts
-        )
-        result.projectWeeks = fetchFilteredEntities(
-            CDProjectTemplateWeek.self, using: viewContext, sinceDate: sinceDate,
-            changedCounts: &changedCounts, totalCounts: &totalCounts
-        )
-        result.projectWeekAssignments = fetchFilteredEntities(
-            CDProjectWeekRoleAssignment.self, using: viewContext, sinceDate: sinceDate,
             changedCounts: &changedCounts, totalCounts: &totalCounts
         )
     }
@@ -261,11 +246,8 @@ extension IncrementalBackupService {
         let attendanceDTOs = BackupServiceHelpers.toDTOs(remaining.attendance)
         let workCompletionDTOs = BackupServiceHelpers.toDTOs(remaining.workCompletions)
         let projectDTOs = BackupServiceHelpers.toDTOs(remaining.projects)
-        let projectTemplateDTOs = BackupServiceHelpers.toDTOs(remaining.projectTemplates)
         let projectSessionDTOs = BackupServiceHelpers.toDTOs(remaining.projectSessions)
         let projectRoleDTOs = BackupServiceHelpers.toDTOs(remaining.projectRoles)
-        let projectWeekDTOs = BackupServiceHelpers.toDTOs(remaining.projectWeeks)
-        let projectWeekAssignDTOs = BackupServiceHelpers.toDTOs(remaining.projectWeekAssignments)
         let lessonAssignmentDTOs = mapLessonAssignmentDTOs(lessonAssignments)
         let preferences = BackupPreferencesService.buildPreferencesDTO()
 
@@ -284,11 +266,11 @@ extension IncrementalBackupService {
             attendance: attendanceDTOs,
             workCompletions: workCompletionDTOs,
             projects: projectDTOs,
-            projectAssignmentTemplates: projectTemplateDTOs,
+            projectAssignmentTemplates: [],
             projectSessions: projectSessionDTOs,
             projectRoles: projectRoleDTOs,
-            projectTemplateWeeks: projectWeekDTOs,
-            projectWeekRoleAssignments: projectWeekAssignDTOs,
+            projectTemplateWeeks: [],
+            projectWeekRoleAssignments: [],
             preferences: preferences
         )
     }

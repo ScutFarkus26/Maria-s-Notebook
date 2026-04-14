@@ -22,11 +22,8 @@ extension CDTodoItemEntity: Identifiable {}
 extension CDTodoSubtaskEntity: Identifiable {}
 extension CDTodoTemplateEntity: Identifiable {}
 extension CDProject: Identifiable {}
-extension CDProjectTemplateWeek: Identifiable {}
 extension CDProjectSession: Identifiable {}
 extension CDProjectRole: Identifiable {}
-extension CDProjectAssignmentTemplate: Identifiable {}
-extension CDProjectWeekRoleAssignment: Identifiable {}
 extension CDStudentTrackEnrollmentEntity: Identifiable {}
 extension CDWorkCheckIn: Identifiable {}
 extension CDSchedule: Identifiable {}
@@ -36,7 +33,6 @@ extension CDReminder: Identifiable {}
 extension CDMeetingTemplateEntity: Identifiable {}
 extension CDNoteTemplateEntity: Identifiable {}
 extension CDSupply: Identifiable {}
-extension CDSupplyTransaction: Identifiable {}
 extension CDDocument: Identifiable {}
 extension CDProposedSolutionEntity: Identifiable {}
 extension CDCommunityAttachmentEntity: Identifiable {}

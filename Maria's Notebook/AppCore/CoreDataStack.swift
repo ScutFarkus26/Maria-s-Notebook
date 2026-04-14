@@ -13,6 +13,13 @@ import OSLog
 final class CoreDataStack {
     private static let logger = Logger.app(category: "CoreDataStack")
 
+    // MARK: - Active Model
+
+    /// The managed object model used by the current stack.
+    /// Used by `CDFetchRequest` to resolve entity names safely in multi-store configurations,
+    /// avoiding the "Multiple NSEntityDescriptions" ambiguity with `NSManagedObject.entity()`.
+    nonisolated(unsafe) static private(set) var activeModel: NSManagedObjectModel?
+
     // MARK: - Container
 
     let container: NSPersistentCloudKitContainer
@@ -172,6 +179,7 @@ final class CoreDataStack {
         // pollute the cached instance. NSManagedObjectModel(contentsOf:) can return
         // a cached object, and calling setEntities on it would affect subsequent inits.
         let model = cachedModel.copy() as! NSManagedObjectModel  // swiftlint:disable:this force_cast
+        Self.activeModel = model
 
         // Validate that all entities in our routing tables exist in the model
         Self.validateEntityRouting(model: model)

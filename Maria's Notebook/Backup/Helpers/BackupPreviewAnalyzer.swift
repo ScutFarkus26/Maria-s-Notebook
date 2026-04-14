@@ -101,23 +101,11 @@ enum BackupPreviewAnalyzer {
         assign("WorkModel", payload.workModels?.count ?? 0, 0, count(CDWorkModel.self))
         assign("WorkCompletionRecord", payload.workCompletions.count, 0, count(CDWorkCompletionRecord.self))
         assign("Project", payload.projects.count, 0, count(CDProject.self))
-        assign(
-            "ProjectAssignmentTemplate",
-            payload.projectAssignmentTemplates.count, 0,
-            count(CDProjectAssignmentTemplate.self)
-        )
+        assign("ProjectAssignmentTemplate", payload.projectAssignmentTemplates.count, 0, 0) // Deprecated
         assign("ProjectSession", payload.projectSessions.count, 0, count(CDProjectSession.self))
         assign("ProjectRole", payload.projectRoles.count, 0, count(CDProjectRole.self))
-        assign(
-            "ProjectTemplateWeek",
-            payload.projectTemplateWeeks.count, 0,
-            count(CDProjectTemplateWeek.self)
-        )
-        assign(
-            "ProjectWeekRoleAssignment",
-            payload.projectWeekRoleAssignments.count, 0,
-            count(CDProjectWeekRoleAssignment.self)
-        )
+        assign("ProjectTemplateWeek", payload.projectTemplateWeeks.count, 0, 0) // Deprecated
+        assign("ProjectWeekRoleAssignment", payload.projectWeekRoleAssignments.count, 0, 0) // Deprecated
         // Format v12+ entities
         assign("GoingOut", payload.goingOuts?.count ?? 0, 0, count(CDGoingOut.self))
         assign("GoingOutChecklistItem", payload.goingOutChecklistItems?.count ?? 0, 0, count(CDGoingOutChecklistItem.self))
@@ -271,11 +259,7 @@ enum BackupPreviewAnalyzer {
         let projectCounts = countFiltered(payload.projects, type: CDProject.self) { $0.id }
         assign("Project", projectCounts.ins, projectCounts.sk, 0)
 
-        let templateCounts = countFiltered(
-            payload.projectAssignmentTemplates,
-            type: CDProjectAssignmentTemplate.self
-        ) { $0.id }
-        assign("ProjectAssignmentTemplate", templateCounts.ins, templateCounts.sk, 0)
+        assign("ProjectAssignmentTemplate", 0, 0, 0)
 
         let sessionCounts = countFiltered(payload.projectSessions, type: CDProjectSession.self) { $0.id }
         assign("ProjectSession", sessionCounts.ins, sessionCounts.sk, 0)
@@ -283,13 +267,7 @@ enum BackupPreviewAnalyzer {
         let roleCounts = countFiltered(payload.projectRoles, type: CDProjectRole.self) { $0.id }
         assign("ProjectRole", roleCounts.ins, roleCounts.sk, 0)
 
-        let weekCounts = countFiltered(payload.projectTemplateWeeks, type: CDProjectTemplateWeek.self) { $0.id }
-        assign("ProjectTemplateWeek", weekCounts.ins, weekCounts.sk, 0)
-
-        let assignmentCounts = countFiltered(
-            payload.projectWeekRoleAssignments,
-            type: CDProjectWeekRoleAssignment.self
-        ) { $0.id }
-        assign("ProjectWeekRoleAssignment", assignmentCounts.ins, assignmentCounts.sk, 0)
+        assign("ProjectTemplateWeek", 0, 0, 0)
+        assign("ProjectWeekRoleAssignment", 0, 0, 0)
     }
 }

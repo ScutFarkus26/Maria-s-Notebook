@@ -127,23 +127,6 @@ enum BackupServiceHelpers {
         }
     }
 
-    /// Converts an array of ProjectAssignmentTemplates to ProjectAssignmentTemplateDTOs
-    static func toDTOs(_ projectTemplates: [CDProjectAssignmentTemplate]) -> [ProjectAssignmentTemplateDTO] {
-        projectTemplates.compactMap { t in
-            guard let tID = t.id,
-                  let projectIDUUID = UUID(uuidString: t.projectID) else { return nil }
-            return ProjectAssignmentTemplateDTO(
-                id: tID,
-                createdAt: t.createdAt ?? Date(),
-                projectID: projectIDUUID,
-                title: t.title,
-                instructions: t.instructions,
-                isShared: t.isShared,
-                defaultLinkedLessonID: t.defaultLinkedLessonID
-            )
-        }
-    }
-
     /// Converts an array of ProjectSessions to ProjectSessionDTOs
     static func toDTOs(_ projectSessions: [CDProjectSession]) -> [ProjectSessionDTO] {
         projectSessions.compactMap { s in
@@ -179,39 +162,8 @@ enum BackupServiceHelpers {
         }
     }
 
-    /// Converts an array of ProjectTemplateWeeks to ProjectTemplateWeekDTOs
-    static func toDTOs(_ projectWeeks: [CDProjectTemplateWeek]) -> [ProjectTemplateWeekDTO] {
-        projectWeeks.compactMap { w in
-            guard let wID = w.id,
-                  let projectIDUUID = UUID(uuidString: w.projectID) else { return nil }
-            return ProjectTemplateWeekDTO(
-                id: wID,
-                createdAt: w.createdAt ?? Date(),
-                projectID: projectIDUUID,
-                weekIndex: Int(w.weekIndex),
-                readingRange: w.readingRange,
-                agendaItemsJSON: w.agendaItemsJSON,
-                linkedLessonIDsJSON: w.linkedLessonIDsJSON,
-                workInstructions: w.workInstructions
-            )
-        }
-    }
-
-    /// Converts an array of ProjectWeekRoleAssignments to ProjectWeekRoleAssignmentDTOs
-    static func toDTOs(_ projectWeekAssignments: [CDProjectWeekRoleAssignment]) -> [ProjectWeekRoleAssignmentDTO] {
-        projectWeekAssignments.compactMap { a in
-            guard let aID = a.id,
-                  let weekIDUUID = UUID(uuidString: a.weekID),
-                  let roleIDUUID = UUID(uuidString: a.roleID) else { return nil }
-            return ProjectWeekRoleAssignmentDTO(
-                id: aID,
-                createdAt: a.createdAt ?? Date(),
-                weekID: weekIDUUID,
-                studentID: a.studentID,
-                roleID: roleIDUUID
-            )
-        }
-    }
+    // toDTOs for CDProjectTemplateWeek, CDProjectAssignmentTemplate,
+    // CDProjectWeekRoleAssignment removed — entities deprecated.
 
     // MARK: - Envelope Building
 
@@ -433,7 +385,6 @@ enum BackupPayloadDeduplicator {
         result.groupTracks = payload.groupTracks.map { uniqueBy($0) { $0.id } }
         result.documents = payload.documents.map { uniqueBy($0) { $0.id } }
         result.supplies = payload.supplies.map { uniqueBy($0) { $0.id } }
-        result.supplyTransactions = payload.supplyTransactions.map { uniqueBy($0) { $0.id } }
         result.procedures = payload.procedures.map { uniqueBy($0) { $0.id } }
         result.schedules = payload.schedules.map { uniqueBy($0) { $0.id } }
         result.scheduleSlots = payload.scheduleSlots.map { uniqueBy($0) { $0.id } }

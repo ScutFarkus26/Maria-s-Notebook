@@ -13,7 +13,6 @@ public class CDProject: NSManagedObject {
     @NSManaged public var isActive: Bool
 
     // MARK: - Relationships
-    @NSManaged public var sharedTemplates: NSSet?
     @NSManaged public var sessions: NSSet?
 
     // MARK: - Convenience Initializer
@@ -50,18 +49,6 @@ extension CDProject {
 // MARK: - Generated Accessors for To-Many Relationships
 
 extension CDProject {
-    @objc(addSharedTemplatesObject:)
-    @NSManaged public func addToSharedTemplates(_ value: CDProjectAssignmentTemplate)
-
-    @objc(removeSharedTemplatesObject:)
-    @NSManaged public func removeFromSharedTemplates(_ value: CDProjectAssignmentTemplate)
-
-    @objc(addSharedTemplates:)
-    @NSManaged public func addToSharedTemplates(_ values: NSSet)
-
-    @objc(removeSharedTemplates:)
-    @NSManaged public func removeFromSharedTemplates(_ values: NSSet)
-
     @objc(addSessionsObject:)
     @NSManaged public func addToSessions(_ value: CDProjectSession)
 

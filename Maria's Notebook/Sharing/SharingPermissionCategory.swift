@@ -66,8 +66,8 @@ enum SharingPermissionCategory: String, CaseIterable, Identifiable, Sendable {
             return ["StudentMeeting", "ScheduledMeeting"]
         case .projects:
             return [
-                "Project", "ProjectSession", "ProjectAssignmentTemplate",
-                "ProjectRole", "ProjectTemplateWeek", "ProjectWeekRoleAssignment"
+                "Project", "ProjectSession", "ProjectRole",
+                "ProjectAssignmentTemplate", "ProjectTemplateWeek", "ProjectWeekRoleAssignment"
             ]
         case .todos:
             return ["TodoItem", "TodoSubtask"]

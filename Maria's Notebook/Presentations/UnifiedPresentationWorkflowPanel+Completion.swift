@@ -52,8 +52,12 @@ extension UnifiedPresentationWorkflowPanel {
         let cdContext = AppBootstrapping.getSharedCoreDataStack().viewContext
         let repository = WorkRepository(context: cdContext)
 
+        // Track which students got manual work drafts
+        var studentsWithWork: Set<UUID> = []
+
         for (studentID, drafts) in workDrafts {
             for draft in drafts where !draft.title.isEmpty {
+                studentsWithWork.insert(studentID)
 
                 do {
                     let work = try repository.createWork(
@@ -87,6 +91,27 @@ extension UnifiedPresentationWorkflowPanel {
                     }
                 } catch {
                     Self.logger.warning("Failed to create work item: \(error)")
+                }
+            }
+        }
+
+        // Auto-create practice work for students without manual drafts when "Just Presented"
+        if presentationViewModel.status == .justPresented {
+            let lesson = lessons.first { $0.id == lessonID }
+            let workKind = lesson?.defaultWorkKind ?? .practiceLesson
+            let title = "Practice: \(lessonName)"
+
+            for student in students {
+                guard let studentID = student.id, !studentsWithWork.contains(studentID) else { continue }
+                do {
+                    _ = try repository.createWork(
+                        studentID: studentID,
+                        lessonID: lessonID,
+                        title: title,
+                        kind: workKind
+                    )
+                } catch {
+                    Self.logger.warning("Failed to auto-create practice work: \(error)")
                 }
             }
         }

@@ -53,44 +53,11 @@ extension BackupEntityImporter {
             s.categoryRaw = (SupplyCategory(rawValue: dto.categoryRaw) ?? .other).rawValue
             s.location = dto.location
             s.currentQuantity = Int64(dto.currentQuantity)
-            s.minimumThreshold = Int64(dto.minimumThreshold)
-            s.reorderAmount = Int64(dto.reorderAmount)
-            s.unit = dto.unit
             s.notes = dto.notes
             s.createdAt = dto.createdAt
             s.modifiedAt = dto.modifiedAt
             return s
         })
-    }
-
-    // MARK: - CDSupply Transactions
-
-    static func importSupplyTransactions(
-        _ dtos: [SupplyTransactionDTO],
-        into viewContext: NSManagedObjectContext,
-        existingCheck: EntityExistsCheck<CDSupplyTransaction>,
-        supplyCheck: EntityExistsCheck<CDSupply>
-    ) rethrows {
-        for dto in dtos {
-            if shouldSkipExisting(id: dto.id, existingCheck: existingCheck) { continue }
-            let t = CDSupplyTransaction(context: viewContext)
-            t.id = dto.id
-            t.supplyID = dto.supplyID
-            t.date = dto.date
-            t.quantityChange = Int64(dto.quantityChange)
-            t.reason = dto.reason
-            if let supplyUUID = UUID(uuidString: dto.supplyID) {
-                do {
-                    if let supply = try supplyCheck(supplyUUID) {
-                        t.supply = supply
-                    }
-                } catch {
-                    let desc = error.localizedDescription
-                    Logger.backup.warning("Failed to check supply for transaction: \(desc, privacy: .public)")
-                }
-            }
-            viewContext.insert(t)
-        }
     }
 
     // MARK: - Procedures

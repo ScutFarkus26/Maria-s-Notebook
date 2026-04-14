@@ -110,7 +110,7 @@ extension SelectiveRestoreService {
         studentsByID = cacheDictionary(CDStudent.self, idKeyPath: \.id, in: context)
         lessonsByID = cacheDictionary(CDLesson.self, idKeyPath: \.id, in: context)
         topicsByID = cacheDictionary(CDCommunityTopicEntity.self, idKeyPath: \.id, in: context)
-        templateWeeksByID = cacheDictionary(CDProjectTemplateWeek.self, idKeyPath: \.id, in: context)
+        // templateWeeksByID removed — CDProjectTemplateWeek is deprecated
 
         // Build ID sets for simple existence checks
         // LegacyPresentation removed — entity IDs cached via CDLessonAssignment below
@@ -126,8 +126,7 @@ extension SelectiveRestoreService {
         cacheEntityIDs(CDWorkCompletionRecord.self, key: "workCompletionRecords", idKeyPath: \.id, in: context)
         cacheEntityIDs(CDProject.self, key: "projects", idKeyPath: \.id, in: context)
         cacheEntityIDs(CDProjectRole.self, key: "projectRoles", idKeyPath: \.id, in: context)
-        cacheEntityIDs(CDProjectAssignmentTemplate.self, key: "projectAssignmentTemplates", idKeyPath: \.id, in: context)
-        cacheEntityIDs(CDProjectWeekRoleAssignment.self, key: "projectWeekRoleAssignments", idKeyPath: \.id, in: context)
+        // CDProjectAssignmentTemplate and CDProjectWeekRoleAssignment caches removed — deprecated
         cacheEntityIDs(CDProjectSession.self, key: "projectSessions", idKeyPath: \.id, in: context)
     }
 
@@ -136,7 +135,6 @@ extension SelectiveRestoreService {
         studentsByID = [:]
         lessonsByID = [:]
         topicsByID = [:]
-        templateWeeksByID = [:]
         existingIDSets = [:]
     }
 }

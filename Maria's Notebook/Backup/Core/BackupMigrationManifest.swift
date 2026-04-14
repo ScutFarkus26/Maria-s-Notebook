@@ -357,7 +357,7 @@ extension BackupMigrationManifest {
         PayloadField(name: "groupTracks", introducedIn: 8, description: "CDGroupTrack records"),
         PayloadField(name: "documents", introducedIn: 8, description: "CDDocument metadata"),
         PayloadField(name: "supplies", introducedIn: 8, description: "CDSupply records"),
-        PayloadField(name: "supplyTransactions", introducedIn: 8, description: "CDSupplyTransaction records"),
+        PayloadField(name: "supplyTransactions", introducedIn: 8, description: "CDSupplyTransaction records (deprecated, ignored on import)"),
         PayloadField(name: "procedures", introducedIn: 8, description: "CDProcedure records"),
         PayloadField(name: "schedules", introducedIn: 8, description: "CDSchedule records"),
         PayloadField(name: "scheduleSlots", introducedIn: 8, description: "CDScheduleSlot records"),

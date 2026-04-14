@@ -277,24 +277,8 @@ extension BackupService {
             existingCheck: { try fetchOne(CDProjectRole.self, id: $0, using: viewContext) }
         )
 
-        try BackupEntityImporter.importProjectTemplateWeeks(
-            payload.projectTemplateWeeks,
-            into: viewContext,
-            existingCheck: { try fetchOne(CDProjectTemplateWeek.self, id: $0, using: viewContext) }
-        )
-
-        try BackupEntityImporter.importProjectAssignmentTemplates(
-            payload.projectAssignmentTemplates,
-            into: viewContext,
-            existingCheck: { try fetchOne(CDProjectAssignmentTemplate.self, id: $0, using: viewContext) }
-        )
-
-        try BackupEntityImporter.importProjectWeekRoleAssignments(
-            payload.projectWeekRoleAssignments,
-            into: viewContext,
-            existingCheck: { try fetchOne(CDProjectWeekRoleAssignment.self, id: $0, using: viewContext) },
-            weekCheck: { try fetchOne(CDProjectTemplateWeek.self, id: $0, using: viewContext) }
-        )
+        // Import of CDProjectTemplateWeek, CDProjectAssignmentTemplate, and
+        // CDProjectWeekRoleAssignment skipped — entities deprecated.
 
         try BackupEntityImporter.importProjectSessions(
             payload.projectSessions,
@@ -487,15 +471,6 @@ extension BackupService {
                 supplies,
                 into: viewContext,
                 existingCheck: { try fetchOne(CDSupply.self, id: $0, using: viewContext) }
-            )
-        }
-
-        if let supplyTransactions = payload.supplyTransactions {
-            try BackupEntityImporter.importSupplyTransactions(
-                supplyTransactions,
-                into: viewContext,
-                existingCheck: { try fetchOne(CDSupplyTransaction.self, id: $0, using: viewContext) },
-                supplyCheck: { try fetchOne(CDSupply.self, id: $0, using: viewContext) }
             )
         }
 

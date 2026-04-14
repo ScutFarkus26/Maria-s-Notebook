@@ -68,4 +68,16 @@ extension AppDependencies {
         _reportGeneratorService = service
         return service
     }
+
+    var meetingInsightsService: MeetingInsightsService {
+        if let service = _meetingInsightsService {
+            return service
+        }
+        let service = MeetingInsightsService(
+            modelContext: viewContext,
+            mcpClient: mcpClient
+        )
+        _meetingInsightsService = service
+        return service
+    }
 }

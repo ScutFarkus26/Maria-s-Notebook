@@ -212,24 +212,9 @@ extension BackupDTOTransformers {
             categoryRaw: s.category.rawValue,
             location: s.location,
             currentQuantity: Int(s.currentQuantity),
-            minimumThreshold: Int(s.minimumThreshold),
-            reorderAmount: Int(s.reorderAmount),
-            unit: s.unit,
             notes: s.notes,
             createdAt: s.createdAt ?? Date(),
             modifiedAt: s.modifiedAt ?? Date()
-        )
-    }
-
-    // MARK: - CDSupplyTransaction
-
-    static func toDTO(_ t: CDSupplyTransaction) -> SupplyTransactionDTO {
-        SupplyTransactionDTO(
-            id: t.id ?? UUID(),
-            supplyID: t.supplyID,
-            date: t.date ?? Date(),
-            quantityChange: Int(t.quantityChange),
-            reason: t.reason
         )
     }
 
@@ -493,10 +478,6 @@ extension BackupDTOTransformers {
 
     static func toDTOs(_ supplies: [CDSupply]) -> [SupplyDTO] {
         supplies.map { toDTO($0) }
-    }
-
-    static func toDTOs(_ transactions: [CDSupplyTransaction]) -> [SupplyTransactionDTO] {
-        transactions.map { toDTO($0) }
     }
 
     static func toDTOs(_ procedures: [CDProcedure]) -> [ProcedureDTO] {

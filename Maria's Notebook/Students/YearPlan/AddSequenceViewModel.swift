@@ -4,9 +4,27 @@ import CoreData
 @Observable
 @MainActor
 final class AddSequenceViewModel {
+    enum SelectionMode: String, CaseIterable {
+        case group = "By Group"
+        case lesson = "By Lesson"
+    }
+
+    var selectionMode: SelectionMode = .group
     var selectedLesson: CDLesson?
     var startDate: Date = Date()
     var spacingDays: Int = 3
+
+    // Group picker state
+    private(set) var subjects: [String] = []
+    private var allGroupsBySubject: [String: [String]] = [:]
+    var selectedSubject: String?
+    var selectedGroup: String?
+    private(set) var allLessonsPresentedInGroup = false
+
+    var availableGroups: [String] {
+        guard let subject = selectedSubject else { return [] }
+        return allGroupsBySubject[subject] ?? []
+    }
 
     private(set) var previewItems: [PreviewItem] = []
     private(set) var showsOverflowWarning = false
@@ -20,6 +38,67 @@ final class AddSequenceViewModel {
         let date: Date
         let alreadyExists: Bool
         let orderInSequence: Int
+    }
+
+    func loadSubjectsAndGroups(context: NSManagedObjectContext) {
+        let req = CDFetchRequest(CDLesson.self)
+        let allLessons = context.safeFetch(req)
+
+        var groupsMap: [String: Set<String>] = [:]
+        for lesson in allLessons where !lesson.subject.isEmpty && !lesson.group.isEmpty {
+            groupsMap[lesson.subject, default: []].insert(lesson.group)
+        }
+        subjects = groupsMap.keys.sorted()
+        allGroupsBySubject = groupsMap.mapValues { $0.sorted() }
+    }
+
+    func selectGroup(subject: String, group: String, student: CDStudent, context: NSManagedObjectContext) {
+        guard let studentID = student.id else { return }
+
+        // Fetch all lessons in subject+group sorted by order
+        let lessonReq = CDFetchRequest(CDLesson.self)
+        lessonReq.predicate = NSPredicate(
+            format: "subject ==[c] %@ AND group ==[c] %@",
+            subject, group
+        )
+        lessonReq.sortDescriptors = [NSSortDescriptor(key: "orderInGroup", ascending: true)]
+        let lessonsInGroup = context.safeFetch(lessonReq)
+        guard !lessonsInGroup.isEmpty else {
+            selectedLesson = nil
+            allLessonsPresentedInGroup = false
+            return
+        }
+
+        // Fetch presented assignments
+        let assignmentReq = CDFetchRequest(CDLessonAssignment.self)
+        assignmentReq.predicate = NSPredicate(
+            format: "stateRaw == %@",
+            LessonAssignmentState.presented.rawValue
+        )
+        let presentedAssignments = context.safeFetch(assignmentReq)
+
+        // Build set of lesson IDs this student has been presented
+        let lessonIDsInGroup = Set(lessonsInGroup.compactMap { $0.id?.uuidString })
+        var presentedLessonIDs = Set<String>()
+        for assignment in presentedAssignments {
+            guard lessonIDsInGroup.contains(assignment.lessonID) else { continue }
+            if assignment.studentUUIDs.contains(studentID) {
+                presentedLessonIDs.insert(assignment.lessonID)
+            }
+        }
+
+        // Find first unpresented lesson
+        if let firstUnpresented = lessonsInGroup.first(where: {
+            guard let id = $0.id?.uuidString else { return false }
+            return !presentedLessonIDs.contains(id)
+        }) {
+            allLessonsPresentedInGroup = false
+            selectedLesson = firstUnpresented
+        } else {
+            // All presented — default to first lesson for re-scheduling
+            allLessonsPresentedInGroup = true
+            selectedLesson = lessonsInGroup.first
+        }
     }
 
     func computePreview(context: NSManagedObjectContext) async {

@@ -171,19 +171,7 @@ public final class BackupValidationService {
             }
         }
 
-        // Validate project sessions reference valid weeks
-        let weekIDs = Set(payload.projectTemplateWeeks.map(\.id))
-        for session in payload.projectSessions {
-            if let weekID = session.templateWeekID, !weekIDs.contains(weekID) {
-                errors.append(ValidationError(
-                    entityType: "ProjectSession",
-                    entityID: session.id,
-                    field: "templateWeekID",
-                    message: "References non-existent template week: \(weekID)",
-                    severity: .warning
-                ))
-            }
-        }
+        // templateWeekID validation removed — CDProjectTemplateWeek is deprecated
 
         return errors
     }
@@ -269,11 +257,8 @@ public final class BackupValidationService {
         entityCounts.append(("AttendanceRecord", payload.attendance.count))
         entityCounts.append(("WorkCompletionRecord", payload.workCompletions.count))
         entityCounts.append(("Project", payload.projects.count))
-        entityCounts.append(("ProjectAssignmentTemplate", payload.projectAssignmentTemplates.count))
         entityCounts.append(("ProjectSession", payload.projectSessions.count))
         entityCounts.append(("ProjectRole", payload.projectRoles.count))
-        entityCounts.append(("ProjectTemplateWeek", payload.projectTemplateWeeks.count))
-        entityCounts.append(("ProjectWeekRoleAssignment", payload.projectWeekRoleAssignments.count))
 
         for (entityType, count) in entityCounts where count > 0 {
             let willInsert: Int

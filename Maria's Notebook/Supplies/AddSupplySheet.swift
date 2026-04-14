@@ -10,9 +10,6 @@ struct AddSupplySheet: View {
     @State private var category: SupplyCategory = .other
     @State private var location: String = ""
     @State private var currentQuantity: Int = 0
-    @State private var minimumThreshold: Int = 0
-    @State private var reorderAmount: Int = 0
-    @State private var unit: String = "items"
     @State private var notes: String = ""
 
     private var isValid: Bool {
@@ -24,7 +21,7 @@ struct AddSupplySheet: View {
             ScrollView {
                 VStack(alignment: .leading, spacing: 20) {
                     // Header
-                    Text("New CDSupply")
+                    Text("New Supply")
                         .font(AppTheme.ScaledFont.titleXLarge)
 
                     // Basic Info Section
@@ -34,11 +31,6 @@ struct AddSupplySheet: View {
 
                     // Stock Info Section
                     stockInfoSection
-
-                    Divider()
-
-                    // Reorder Settings Section
-                    reorderSettingsSection
 
                     Divider()
 
@@ -54,7 +46,7 @@ struct AddSupplySheet: View {
             HStack {
                 Button("Cancel") { dismiss() }
                 Spacer()
-                Button("Add CDSupply") { addSupply() }
+                Button("Add Supply") { addSupply() }
                     .buttonStyle(.borderedProminent)
                     .disabled(!isValid)
             }
@@ -77,7 +69,7 @@ struct AddSupplySheet: View {
             Text("Basic Information")
                 .font(.headline)
 
-            TextField("CDSupply Name", text: $name)
+            TextField("Supply Name", text: $name)
                 .textFieldStyle(.roundedBorder)
 
             // Category picker
@@ -129,71 +121,18 @@ struct AddSupplySheet: View {
             Text("Stock Information")
                 .font(.headline)
 
-            HStack(spacing: 16) {
-                VStack(alignment: .leading, spacing: 6) {
-                    Text("Current Quantity")
-                        .font(.subheadline)
-                        .foregroundStyle(.secondary)
-                    HStack {
-                        TextField("0", value: $currentQuantity, format: .number)
-                            .textFieldStyle(.roundedBorder)
-                            .frame(width: 80)
-                        Stepper("", value: $currentQuantity, in: 0...9999)
-                            .labelsHidden()
-                    }
-                }
-
-                VStack(alignment: .leading, spacing: 6) {
-                    Text("Unit")
-                        .font(.subheadline)
-                        .foregroundStyle(.secondary)
-                    TextField("items", text: $unit)
+            VStack(alignment: .leading, spacing: 6) {
+                Text("Current Quantity")
+                    .font(.subheadline)
+                    .foregroundStyle(.secondary)
+                HStack {
+                    TextField("0", value: $currentQuantity, format: .number)
                         .textFieldStyle(.roundedBorder)
-                        .frame(width: 120)
+                        .frame(width: 80)
+                    Stepper("", value: $currentQuantity, in: 0...9999)
+                        .labelsHidden()
                 }
             }
-        }
-    }
-
-    // MARK: - Reorder Settings Section
-
-    @ViewBuilder
-    private var reorderSettingsSection: some View {
-        VStack(alignment: .leading, spacing: 12) {
-            Text("Reorder Settings")
-                .font(.headline)
-
-            HStack(spacing: 16) {
-                VStack(alignment: .leading, spacing: 6) {
-                    Text("Minimum Threshold")
-                        .font(.subheadline)
-                        .foregroundStyle(.secondary)
-                    HStack {
-                        TextField("0", value: $minimumThreshold, format: .number)
-                            .textFieldStyle(.roundedBorder)
-                            .frame(width: 80)
-                        Stepper("", value: $minimumThreshold, in: 0...9999)
-                            .labelsHidden()
-                    }
-                }
-
-                VStack(alignment: .leading, spacing: 6) {
-                    Text("Reorder Amount")
-                        .font(.subheadline)
-                        .foregroundStyle(.secondary)
-                    HStack {
-                        TextField("0", value: $reorderAmount, format: .number)
-                            .textFieldStyle(.roundedBorder)
-                            .frame(width: 80)
-                        Stepper("", value: $reorderAmount, in: 0...9999)
-                            .labelsHidden()
-                    }
-                }
-            }
-
-            Text("You'll be alerted when stock falls below the minimum threshold.")
-                .font(.footnote)
-                .foregroundStyle(.secondary)
         }
     }
 
@@ -231,9 +170,6 @@ struct AddSupplySheet: View {
             category: category,
             location: location.trimmed(),
             currentQuantity: currentQuantity,
-            minimumThreshold: minimumThreshold,
-            reorderAmount: reorderAmount,
-            unit: unit.trimmed(),
             notes: notes.trimmed(),
             in: viewContext
         )

@@ -123,45 +123,7 @@ extension BackupValidationService {
                 message: "References non-existent project: \(role.projectID)", severity: .critical
             ))
         }
-        for week in payload.projectTemplateWeeks where !projectIDs.contains(week.projectID) {
-            errors.append(ValidationError(
-                entityType: "ProjectTemplateWeek", entityID: week.id, field: "projectID",
-                message: "References non-existent project: \(week.projectID)", severity: .critical
-            ))
-        }
-        errors += validateProjectWeekRoleAssignmentRefs(
-            payload, studentIDs: studentIDs, roleIDs: roleIDs, weekIDs: weekIDs
-        )
-        return errors
-    }
-
-    private func validateProjectWeekRoleAssignmentRefs(
-        _ payload: BackupPayload,
-        studentIDs: Set<UUID>,
-        roleIDs: Set<UUID>,
-        weekIDs: Set<UUID>
-    ) -> [ValidationError] {
-        var errors: [ValidationError] = []
-        for assignment in payload.projectWeekRoleAssignments {
-            if !weekIDs.contains(assignment.weekID) {
-                errors.append(ValidationError(
-                    entityType: "ProjectWeekRoleAssignment", entityID: assignment.id, field: "weekID",
-                    message: "References non-existent project week: \(assignment.weekID)", severity: .critical
-                ))
-            }
-            if !roleIDs.contains(assignment.roleID) {
-                errors.append(ValidationError(
-                    entityType: "ProjectWeekRoleAssignment", entityID: assignment.id, field: "roleID",
-                    message: "References non-existent project role: \(assignment.roleID)", severity: .critical
-                ))
-            }
-            if let studentUUID = UUID(uuidString: assignment.studentID), !studentIDs.contains(studentUUID) {
-                errors.append(ValidationError(
-                    entityType: "ProjectWeekRoleAssignment", entityID: assignment.id, field: "studentID",
-                    message: "References non-existent student: \(assignment.studentID)", severity: .critical
-                ))
-            }
-        }
+        // ProjectTemplateWeek and ProjectWeekRoleAssignment validation removed — deprecated
         return errors
     }
 }

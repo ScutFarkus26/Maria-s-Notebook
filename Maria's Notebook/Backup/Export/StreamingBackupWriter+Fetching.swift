@@ -27,11 +27,11 @@ extension StreamingBackupWriter {
         counts["AttendanceRecord"] = try context.count(for:CDAttendanceRecord.fetchRequest() as! NSFetchRequest<CDAttendanceRecord>)
         counts["WorkCompletionRecord"] = try context.count(for:CDWorkCompletionRecord.fetchRequest() as! NSFetchRequest<CDWorkCompletionRecord>)
         counts["Project"] = try context.count(for:CDProject.fetchRequest() as! NSFetchRequest<CDProject>)
-        counts["ProjectAssignmentTemplate"] = try context.count(for:CDProjectAssignmentTemplate.fetchRequest() as! NSFetchRequest<CDProjectAssignmentTemplate>)
+        counts["ProjectAssignmentTemplate"] = 0 // Deprecated
         counts["ProjectSession"] = try context.count(for:CDProjectSession.fetchRequest() as! NSFetchRequest<CDProjectSession>)
         counts["ProjectRole"] = try context.count(for:CDProjectRole.fetchRequest() as! NSFetchRequest<CDProjectRole>)
-        counts["ProjectTemplateWeek"] = try context.count(for:CDProjectTemplateWeek.fetchRequest() as! NSFetchRequest<CDProjectTemplateWeek>)
-        counts["ProjectWeekRoleAssignment"] = try context.count(for:CDProjectWeekRoleAssignment.fetchRequest() as! NSFetchRequest<CDProjectWeekRoleAssignment>)
+        counts["ProjectTemplateWeek"] = 0 // Deprecated
+        counts["ProjectWeekRoleAssignment"] = 0 // Deprecated
         return counts
     }
 
@@ -56,7 +56,6 @@ extension StreamingBackupWriter {
         counts["GroupTrack"] = try context.count(for:CDGroupTrack.fetchRequest() as! NSFetchRequest<CDGroupTrack>)
         counts["Document"] = try context.count(for:CDDocument.fetchRequest() as! NSFetchRequest<CDDocument>)
         counts["Supply"] = try context.count(for:CDSupply.fetchRequest() as! NSFetchRequest<CDSupply>)
-        counts["SupplyTransaction"] = try context.count(for:CDSupplyTransaction.fetchRequest() as! NSFetchRequest<CDSupplyTransaction>)
         counts["Procedure"] = try context.count(for:CDProcedure.fetchRequest() as! NSFetchRequest<CDProcedure>)
         counts["Schedule"] = try context.count(for:CDSchedule.fetchRequest() as! NSFetchRequest<CDSchedule>)
         counts["ScheduleSlot"] = try context.count(for:CDScheduleSlot.fetchRequest() as! NSFetchRequest<CDScheduleSlot>)

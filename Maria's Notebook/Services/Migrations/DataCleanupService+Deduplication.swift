@@ -355,9 +355,8 @@ extension DataCleanupService {
         results["Project"] = deduplicate(CDProject.self, using: context)
         results["ProjectRole"] = deduplicate(CDProjectRole.self, using: context)
         results["ProjectSession"] = deduplicate(CDProjectSession.self, using: context)
-        results["ProjectAssignmentTemplate"] = deduplicate(CDProjectAssignmentTemplate.self, using: context)
-        results["ProjectTemplateWeek"] = deduplicate(CDProjectTemplateWeek.self, using: context)
-        results["ProjectWeekRoleAssignment"] = deduplicate(CDProjectWeekRoleAssignment.self, using: context)
+        // ProjectAssignmentTemplate, ProjectTemplateWeek, and ProjectWeekRoleAssignment
+        // deduplication removed — these entities are deprecated
 
         // CDTrackEntity models
         results["Track"] = deduplicate(CDTrackEntity.self, using: context)

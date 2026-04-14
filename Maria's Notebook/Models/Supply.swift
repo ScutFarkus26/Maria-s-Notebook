@@ -36,27 +36,3 @@ enum SupplyCategory: String, Codable, CaseIterable, Identifiable, Sendable {
     }
 }
 
-/// Represents the stock status of a supply
-enum SupplyStatus: String, Codable, Sendable {
-    case healthy = "Healthy"
-    case low = "Low"
-    case critical = "Critical"
-    case outOfStock = "Out of Stock"
-
-    var icon: String {
-        switch self {
-        case .healthy: return "checkmark.circle.fill"
-        case .low: return "exclamationmark.triangle.fill"
-        case .critical: return "exclamationmark.circle.fill"
-        case .outOfStock: return "xmark.circle.fill"
-        }
-    }
-
-    var color: Color {
-        switch self {
-        case .healthy: return .primary
-        case .low: return .orange
-        case .critical, .outOfStock: return .red
-        }
-    }
-}

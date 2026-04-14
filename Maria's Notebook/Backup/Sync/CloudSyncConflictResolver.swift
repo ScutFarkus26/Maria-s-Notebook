@@ -377,11 +377,11 @@ public final class CloudSyncConflictResolver {
             "AttendanceRecord": payload.attendance.count,
             "WorkCompletionRecord": payload.workCompletions.count,
             "Project": payload.projects.count,
-            "ProjectAssignmentTemplate": payload.projectAssignmentTemplates.count,
+            "ProjectAssignmentTemplate": 0,
             "ProjectSession": payload.projectSessions.count,
             "ProjectRole": payload.projectRoles.count,
-            "ProjectTemplateWeek": payload.projectTemplateWeeks.count,
-            "ProjectWeekRoleAssignment": payload.projectWeekRoleAssignments.count
+            "ProjectTemplateWeek": 0,
+            "ProjectWeekRoleAssignment": 0
         ]
     }
 }

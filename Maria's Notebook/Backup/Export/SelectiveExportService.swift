@@ -436,9 +436,8 @@ public final class SelectiveExportService {
             ? collectProjects(viewContext: viewContext, filter: filter) : []
         counts["Project"] = payload.projects.count
 
-        payload.projectAssignmentTemplates = shouldInclude(.projects)
-            ? collectProjectTemplates(viewContext: viewContext, filter: filter) : []
-        counts["ProjectAssignmentTemplate"] = payload.projectAssignmentTemplates.count
+        payload.projectAssignmentTemplates = []
+        counts["ProjectAssignmentTemplate"] = 0
 
         payload.projectSessions = shouldInclude(.projects)
             ? collectProjectSessions(viewContext: viewContext, filter: filter) : []
@@ -448,13 +447,11 @@ public final class SelectiveExportService {
             ? collectProjectRoles(viewContext: viewContext, filter: filter) : []
         counts["ProjectRole"] = payload.projectRoles.count
 
-        payload.projectTemplateWeeks = shouldInclude(.projects)
-            ? collectProjectWeeks(viewContext: viewContext, filter: filter) : []
-        counts["ProjectTemplateWeek"] = payload.projectTemplateWeeks.count
+        payload.projectTemplateWeeks = []
+        counts["ProjectTemplateWeek"] = 0
 
-        payload.projectWeekRoleAssignments = shouldInclude(.projects)
-            ? collectProjectWeekAssignments(viewContext: viewContext, filter: filter) : []
-        counts["ProjectWeekRoleAssignment"] = payload.projectWeekRoleAssignments.count
+        payload.projectWeekRoleAssignments = []
+        counts["ProjectWeekRoleAssignment"] = 0
     }
 
     private func collectStudents(viewContext: NSManagedObjectContext, filter: ExportFilter) -> [StudentDTO] {
@@ -523,19 +520,6 @@ extension SelectiveExportService {
         return BackupServiceHelpers.toDTOs(filtered)
     }
 
-    private func collectProjectTemplates(
-        viewContext: NSManagedObjectContext, filter: ExportFilter
-    ) -> [ProjectAssignmentTemplateDTO] {
-        let all = safeFetch(
-            CDProjectAssignmentTemplate.fetchRequest() as! NSFetchRequest<CDProjectAssignmentTemplate>,
-            context: viewContext
-        )
-        let filtered = BackupServiceHelpers.filterByProjects(
-            all, projectIDs: filter.projectIDs
-        ) { UUID(uuidString: $0.projectID) }
-        return BackupServiceHelpers.toDTOs(filtered)
-    }
-
     private func collectProjectSessions(
         viewContext: NSManagedObjectContext, filter: ExportFilter
     ) -> [ProjectSessionDTO] {
@@ -556,34 +540,4 @@ extension SelectiveExportService {
         return BackupServiceHelpers.toDTOs(filtered)
     }
 
-    private func collectProjectWeeks(
-        viewContext: NSManagedObjectContext, filter: ExportFilter
-    ) -> [ProjectTemplateWeekDTO] {
-        let all = safeFetch(
-            CDProjectTemplateWeek.fetchRequest() as! NSFetchRequest<CDProjectTemplateWeek>,
-            context: viewContext
-        )
-        let filtered = BackupServiceHelpers.filterByProjects(
-            all, projectIDs: filter.projectIDs
-        ) { UUID(uuidString: $0.projectID) }
-        return BackupServiceHelpers.toDTOs(filtered)
-    }
-
-    private func collectProjectWeekAssignments(
-        viewContext: NSManagedObjectContext, filter: ExportFilter
-    ) -> [ProjectWeekRoleAssignmentDTO] {
-        let all = safeFetch(CDProjectWeekRoleAssignment.fetchRequest() as! NSFetchRequest<CDProjectWeekRoleAssignment>, context: viewContext)
-
-        if let projectIDs = filter.projectIDs {
-            let weeks = safeFetch(CDProjectTemplateWeek.fetchRequest() as! NSFetchRequest<CDProjectTemplateWeek>, context: viewContext)
-            let includedWeekIDs = Set(weeks.filter { w in
-                guard let pid = UUID(uuidString: w.projectID) else { return false }
-                return projectIDs.contains(pid)
-            }.compactMap { $0.id?.uuidString })
-            let filtered = all.filter { includedWeekIDs.contains($0.weekID) }
-            return BackupServiceHelpers.toDTOs(filtered)
-        }
-
-        return BackupServiceHelpers.toDTOs(all)
-    }
 }

@@ -19,6 +19,8 @@ struct MeetingContextPane: View {
     @State private var selectedWorkID: UUID?
     @State private var isContextCollapsed: Bool = false
     @State private var showAllOpenWork: Bool = false
+    @State private var popoverMeeting: CDStudentMeeting?
+    @State private var showAllMeetings: Bool = false
 
     var body: some View {
         ScrollView {
@@ -173,7 +175,9 @@ struct MeetingContextPane: View {
     }
 
     private func workDisplayTitle(_ work: CDWorkModel) -> String {
-        lessonsByID[uuidString: work.lessonID]?.name ?? "Lesson"
+        let title = work.title.trimmed()
+        if !title.isEmpty { return title }
+        return lessonsByID[uuidString: work.lessonID]?.name ?? "Lesson"
     }
 
     // MARK: - Lessons Since Section
@@ -238,7 +242,28 @@ struct MeetingContextPane: View {
 
     private var meetingHistorySection: some View {
         VStack(alignment: .leading, spacing: 12) {
-            sectionHeader("Recent Meetings", icon: "clock")
+            HStack {
+                sectionHeader("Recent Meetings", icon: "clock")
+
+                Spacer()
+
+                if meetings.count > 3 {
+                    Button {
+                        adaptiveWithAnimation {
+                            showAllMeetings.toggle()
+                        }
+                    } label: {
+                        HStack(spacing: 4) {
+                            Text(showAllMeetings ? "Show Less" : "Show All (\(meetings.count))")
+                                .font(.caption)
+                            Image(systemName: showAllMeetings ? "chevron.up" : "chevron.down")
+                                .font(.caption2)
+                        }
+                        .foregroundStyle(.accent)
+                    }
+                    .buttonStyle(.plain)
+                }
+            }
 
             if meetings.isEmpty {
                 Text("No prior meetings")
@@ -246,7 +271,8 @@ struct MeetingContextPane: View {
                     .foregroundStyle(.secondary)
                     .padding(.vertical, 4)
             } else {
-                ForEach(meetings.prefix(3)) { meeting in
+                let visibleMeetings = showAllMeetings ? meetings : Array(meetings.prefix(3))
+                ForEach(visibleMeetings) { meeting in
                     meetingHistoryRow(meeting)
                 }
             }
@@ -256,28 +282,49 @@ struct MeetingContextPane: View {
     }
 
     private func meetingHistoryRow(_ meeting: CDStudentMeeting) -> some View {
-        VStack(alignment: .leading, spacing: 4) {
+        Button {
+            popoverMeeting = meeting
+        } label: {
             HStack {
-                Text((meeting.date ?? Date()).formatted(date: .abbreviated, time: .omitted))
-                    .font(.footnote.weight(.medium))
+                VStack(alignment: .leading, spacing: 4) {
+                    HStack {
+                        Text((meeting.date ?? Date()).formatted(date: .abbreviated, time: .omitted))
+                            .font(.footnote.weight(.medium))
 
-                if meeting.completed {
-                    Image(systemName: "checkmark.circle.fill")
-                        .font(.caption)
-                        .foregroundStyle(AppColors.success)
+                        if meeting.completed {
+                            Image(systemName: "checkmark.circle.fill")
+                                .font(.caption)
+                                .foregroundStyle(AppColors.success)
+                        }
+                    }
+
+                    if !meeting.focus.trimmed().isEmpty {
+                        Text(meeting.focus)
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                            .lineLimit(2)
+                    }
                 }
 
                 Spacer()
-            }
 
-            if !meeting.focus.trimmed().isEmpty {
-                Text(meeting.focus)
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
-                    .lineLimit(2)
+                Image(systemName: "chevron.right")
+                    .font(.caption2)
+                    .foregroundStyle(.tertiary)
             }
         }
+        .buttonStyle(.plain)
+        .contentShape(Rectangle())
         .padding(.vertical, 4)
+        .popover(
+            isPresented: Binding(
+                get: { popoverMeeting?.id == meeting.id && popoverMeeting != nil },
+                set: { if !$0 { popoverMeeting = nil } }
+            ),
+            arrowEdge: .trailing
+        ) {
+            MeetingDetailPopover(meeting: meeting)
+        }
     }
 
     // MARK: - Helpers

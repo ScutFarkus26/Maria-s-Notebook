@@ -215,47 +215,16 @@ extension SelectiveRestoreService {
             into: viewContext,
             existingCheck: cachedExistenceCheck(key: "projectRoles", entityName: "ProjectRole", in: viewContext)
         )
-        BackupEntityImporter.importProjectTemplateWeeks(
-            payload.projectTemplateWeeks,
-            into: viewContext,
-            existingCheck: { [templateWeeksByID] id in templateWeeksByID[id] }
-        )
-        // Refresh template weeks cache for subsequent imports
-        do {
-            let allWeeks = try viewContext.fetch(CDProjectTemplateWeek.fetchRequest() as! NSFetchRequest<CDProjectTemplateWeek>)
-            templateWeeksByID = Dictionary(uniqueKeysWithValues: allWeeks.compactMap { w in w.id.map { ($0, w) } })
-        } catch {
-            let desc = error.localizedDescription
-            Self.logger.warning("Failed to refresh template weeks cache: \(desc, privacy: .public)")
-        }
+        // NOTE: ProjectTemplateWeek, ProjectAssignmentTemplate, and ProjectWeekRoleAssignment
+        // imports are skipped — these entities are deprecated.
 
-        try importProjectDetailEntities(from: payload, into: viewContext)
-
-        let total = payload.projects.count + payload.projectAssignmentTemplates.count +
-            payload.projectSessions.count + payload.projectRoles.count +
-            payload.projectTemplateWeeks.count + payload.projectWeekRoleAssignments.count
-        return ImportResult(imported: total, skipped: 0, warning: "")
-    }
-
-    private func importProjectDetailEntities(
-        from payload: BackupPayload,
-        into viewContext: NSManagedObjectContext
-    ) throws {
-        try BackupEntityImporter.importProjectAssignmentTemplates(
-            payload.projectAssignmentTemplates,
-            into: viewContext,
-            existingCheck: cachedExistenceCheck(key: "projectAssignmentTemplates", entityName: "ProjectAssignmentTemplate", in: viewContext)
-        )
-        try BackupEntityImporter.importProjectWeekRoleAssignments(
-            payload.projectWeekRoleAssignments,
-            into: viewContext,
-            existingCheck: cachedExistenceCheck(key: "projectWeekRoleAssignments", entityName: "ProjectWeekRoleAssignment", in: viewContext),
-            weekCheck: { [templateWeeksByID] id in templateWeeksByID[id] }
-        )
         try BackupEntityImporter.importProjectSessions(
             payload.projectSessions,
             into: viewContext,
             existingCheck: cachedExistenceCheck(key: "projectSessions", entityName: "ProjectSession", in: viewContext)
         )
+
+        let total = payload.projects.count + payload.projectSessions.count + payload.projectRoles.count
+        return ImportResult(imported: total, skipped: 0, warning: "")
     }
 }

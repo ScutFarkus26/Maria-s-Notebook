@@ -2,7 +2,7 @@
 //  ProjectRepository.swift
 //  Maria's Notebook
 //
-//  Repository for CDProject, CDProjectSession, and CDProjectAssignmentTemplate CRUD operations.
+//  Repository for CDProject and CDProjectSession CRUD operations.
 //
 
 import Foundation
@@ -165,49 +165,5 @@ struct ProjectRepository: SavingRepository {
         try context.save()
     }
 
-    // MARK: - Fetch Templates
-
-    /// Fetch a CDProjectAssignmentTemplate by ID
-    func fetchTemplate(id: UUID) -> CDProjectAssignmentTemplate? {
-        let request = CDFetchRequest(CDProjectAssignmentTemplate.self)
-        request.predicate = NSPredicate(format: "id == %@", id as CVarArg)
-        return context.safeFetchFirst(request)
-    }
-
-    /// Fetch templates for a project
-    func fetchTemplates(forProjectID projectID: UUID) -> [CDProjectAssignmentTemplate] {
-        let request = CDFetchRequest(CDProjectAssignmentTemplate.self)
-        request.predicate = NSPredicate(format: "projectID == %@", projectID.uuidString)
-        request.sortDescriptors = [NSSortDescriptor(key: "createdAt", ascending: true)]
-        return context.safeFetch(request)
-    }
-
-    // MARK: - Create Template
-
-    /// Create a new CDProjectAssignmentTemplate
-    @discardableResult
-    func createTemplate(
-        projectID: UUID,
-        title: String,
-        instructions: String = "",
-        isShared: Bool = true,
-        defaultLinkedLessonID: UUID? = nil
-    ) -> CDProjectAssignmentTemplate {
-        let template = CDProjectAssignmentTemplate(context: context)
-        template.projectIDUUID = projectID
-        template.title = title
-        template.instructions = instructions
-        template.isShared = isShared
-        template.defaultLinkedLessonID = defaultLinkedLessonID?.uuidString
-        return template
-    }
-
-    // MARK: - Delete Template
-
-    /// Delete a CDProjectAssignmentTemplate by ID
-    func deleteTemplate(id: UUID) throws {
-        guard let template = fetchTemplate(id: id) else { return }
-        context.delete(template)
-        try context.save()
-    }
+    // Template methods removed — CDProjectAssignmentTemplate deprecated.
 }

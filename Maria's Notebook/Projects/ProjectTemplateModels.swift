@@ -29,39 +29,4 @@ struct JSONStringList {
     }
 }
 
-// MARK: - Template Offered Work
-
-/// Represents a work offer in a template (stored as JSON)
-struct TemplateOfferedWork: Codable, Identifiable, Equatable {
-    var id: String = UUID().uuidString
-    var title: String = ""
-    var instructions: String = ""
-}
-
-// MARK: - Template Offered Works JSON Helper
-struct TemplateOfferedWorksJSON {
-    private static let logger = Logger.projects
-    nonisolated static func encode(_ works: [TemplateOfferedWork]) -> String {
-        guard !works.isEmpty else { return "" }
-        do {
-            let data = try JSONEncoder().encode(works)
-            if let s = String(data: data, encoding: .utf8) {
-                return s
-            }
-        } catch {
-            Self.logger.warning("Failed to encode template offered works: \(error)")
-        }
-        return ""
-    }
-    nonisolated static func decode(_ s: String) -> [TemplateOfferedWork] {
-        let trimmed = s.trimmed()
-        guard !trimmed.isEmpty, let data = trimmed.data(using: .utf8) else { return [] }
-        do {
-            let arr = try JSONDecoder().decode([TemplateOfferedWork].self, from: data)
-            return arr
-        } catch {
-            Self.logger.warning("Failed to decode template offered works: \(error)")
-            return []
-        }
-    }
-}
+// TemplateOfferedWork and TemplateOfferedWorksJSON removed — CDProjectTemplateWeek deprecated.

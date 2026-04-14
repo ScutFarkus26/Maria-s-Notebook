@@ -17,6 +17,26 @@ struct AddSequenceSheet: View {
                 .navigationBarTitleDisplayMode(.inline)
                 #endif
                 .toolbar { formToolbar }
+                .task {
+                    viewModel.loadSubjectsAndGroups(context: viewContext)
+                }
+                .onChange(of: viewModel.selectionMode) { _, _ in
+                    viewModel.selectedSubject = nil
+                    viewModel.selectedGroup = nil
+                    viewModel.selectedLesson = nil
+                }
+                .onChange(of: viewModel.selectedSubject) { _, _ in
+                    viewModel.selectedGroup = nil
+                    viewModel.selectedLesson = nil
+                }
+                .onChange(of: viewModel.selectedGroup) { _, newGroup in
+                    if let subject = viewModel.selectedSubject, let group = newGroup {
+                        viewModel.selectGroup(
+                            subject: subject, group: group,
+                            student: student, context: viewContext
+                        )
+                    }
+                }
                 .onChange(of: viewModel.selectedLesson) { _, _ in
                     refreshPreview()
                 }
@@ -80,22 +100,76 @@ struct AddSequenceSheet: View {
     // MARK: - Sections
 
     private var lessonSection: some View {
-        Section("Starting Lesson") {
-            NavigationLink {
-                LessonSearchPicker(selectedLesson: $viewModel.selectedLesson)
-            } label: {
-                if let lesson = viewModel.selectedLesson {
-                    VStack(alignment: .leading, spacing: 2) {
-                        Text(lesson.name)
-                            .font(.body)
-                        Text("\(lesson.subject) \u{00B7} \(lesson.group)")
-                            .font(.caption)
-                            .foregroundStyle(.secondary)
-                    }
-                } else {
-                    Text("Choose a lesson...")
+        Section {
+            Picker("Selection Mode", selection: $viewModel.selectionMode) {
+                ForEach(AddSequenceViewModel.SelectionMode.allCases, id: \.self) { mode in
+                    Text(mode.rawValue).tag(mode)
+                }
+            }
+            .pickerStyle(.segmented)
+
+            if viewModel.selectionMode == .group {
+                groupPickerContent
+            } else {
+                lessonPickerContent
+            }
+        } header: {
+            Text(viewModel.selectionMode == .group ? "Curriculum Group" : "Starting Lesson")
+        }
+    }
+
+    @ViewBuilder
+    private var groupPickerContent: some View {
+        Picker("Subject", selection: $viewModel.selectedSubject) {
+            Text("Select a subject").tag(nil as String?)
+            ForEach(viewModel.subjects, id: \.self) { subject in
+                Text(subject).tag(subject as String?)
+            }
+        }
+
+        if viewModel.selectedSubject != nil {
+            Picker("Group", selection: $viewModel.selectedGroup) {
+                Text("Select a group").tag(nil as String?)
+                ForEach(viewModel.availableGroups, id: \.self) { group in
+                    Text(group).tag(group as String?)
+                }
+            }
+        }
+
+        if let lesson = viewModel.selectedLesson, viewModel.selectedGroup != nil {
+            HStack {
+                VStack(alignment: .leading, spacing: 2) {
+                    Text(viewModel.allLessonsPresentedInGroup
+                         ? "All lessons presented — restarting from:"
+                         : "Starting at:")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                    Text(lesson.name)
+                        .font(.body)
+                }
+                Spacer()
+                Circle()
+                    .fill(AppColors.color(forSubject: lesson.subject))
+                    .frame(width: 8, height: 8)
+            }
+        }
+    }
+
+    private var lessonPickerContent: some View {
+        NavigationLink {
+            LessonSearchPicker(selectedLesson: $viewModel.selectedLesson)
+        } label: {
+            if let lesson = viewModel.selectedLesson {
+                VStack(alignment: .leading, spacing: 2) {
+                    Text(lesson.name)
+                        .font(.body)
+                    Text("\(lesson.subject) \u{00B7} \(lesson.group)")
+                        .font(.caption)
                         .foregroundStyle(.secondary)
                 }
+            } else {
+                Text("Choose a lesson...")
+                    .foregroundStyle(.secondary)
             }
         }
     }

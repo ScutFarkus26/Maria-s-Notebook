@@ -72,11 +72,11 @@ enum BackupSizeEstimator {
         counts["AttendanceRecord"] = safeFetchCount(CDAttendanceRecord.self, using: viewContext)
         counts["WorkCompletionRecord"] = safeFetchCount(CDWorkCompletionRecord.self, using: viewContext)
         counts["Project"] = safeFetchCount(CDProject.self, using: viewContext)
-        counts["ProjectAssignmentTemplate"] = safeFetchCount(CDProjectAssignmentTemplate.self, using: viewContext)
+        counts["ProjectAssignmentTemplate"] = 0 // Deprecated
         counts["ProjectSession"] = safeFetchCount(CDProjectSession.self, using: viewContext)
         counts["ProjectRole"] = safeFetchCount(CDProjectRole.self, using: viewContext)
-        counts["ProjectTemplateWeek"] = safeFetchCount(CDProjectTemplateWeek.self, using: viewContext)
-        counts["ProjectWeekRoleAssignment"] = safeFetchCount(CDProjectWeekRoleAssignment.self, using: viewContext)
+        counts["ProjectTemplateWeek"] = 0 // Deprecated
+        counts["ProjectWeekRoleAssignment"] = 0 // Deprecated
 
         return counts
     }

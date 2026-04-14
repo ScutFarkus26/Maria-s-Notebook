@@ -199,7 +199,7 @@ public struct BackupPayload: Codable, Sendable {
         case reminders, calendarEvents
         case tracks, trackSteps, studentTrackEnrollments, groupTracks
         case documents
-        case supplies, supplyTransactions, procedures
+        case supplies, procedures
         case schedules, scheduleSlots
         case issues, issueActions
         case developmentSnapshots
@@ -275,7 +275,6 @@ public struct BackupPayload: Codable, Sendable {
 
     // Supplies & Procedures (format v8+)
     public var supplies: [SupplyDTO]?
-    public var supplyTransactions: [SupplyTransactionDTO]?
     public var procedures: [ProcedureDTO]?
 
     // Schedules (format v8+)

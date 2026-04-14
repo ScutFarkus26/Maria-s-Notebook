@@ -78,7 +78,7 @@ final class Phase7PreTests {
             "Issue", "IssueAction",
             "Reminder", "CalendarEvent",
             "Document",
-            "Supply", "SupplyTransaction",
+            "Supply",
             "DevelopmentSnapshot",
             "TodoItem", "TodoSubtask", "TodoTemplate",
             "TodayAgendaOrder",

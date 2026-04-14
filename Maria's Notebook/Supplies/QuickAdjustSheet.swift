@@ -12,7 +12,6 @@ struct QuickAdjustSheet: View {
 
     @State private var adjustmentAmount: Int = 0
     @State private var adjustmentType: AdjustmentType = .add
-    @State private var reason: String = ""
 
     enum AdjustmentType: String, CaseIterable {
         case add = "Add"
@@ -27,7 +26,7 @@ struct QuickAdjustSheet: View {
                     HStack {
                         Text("Current Stock")
                         Spacer()
-                        Text("\(supply.currentQuantity) \(supply.unit)")
+                        Text("\(supply.currentQuantity)")
                             .foregroundStyle(.secondary)
                     }
                 }
@@ -47,22 +46,16 @@ struct QuickAdjustSheet: View {
                             .textFieldStyle(.roundedBorder)
                             .frame(width: 80)
                             .multilineTextAlignment(.trailing)
-                        Text(supply.unit)
-                            .foregroundStyle(.secondary)
                     }
 
                     if adjustmentType != .set {
                         HStack {
                             Text("New Total")
                             Spacer()
-                            Text("\(newTotal) \(supply.unit)")
+                            Text("\(newTotal)")
                                 .foregroundStyle(.secondary)
                         }
                     }
-                }
-
-                Section("Reason") {
-                    TextField("Reason for adjustment", text: $reason)
                 }
             }
             .navigationTitle("Adjust Stock")
@@ -100,25 +93,13 @@ struct QuickAdjustSheet: View {
     }
 
     private func saveAdjustment() {
-        let adjustmentReason = reason.isEmpty ? adjustmentType.rawValue : reason
-
         switch adjustmentType {
         case .add:
-            SupplyService.addStock(to: supply, amount: adjustmentAmount, reason: adjustmentReason, in: viewContext)
+            SupplyService.addStock(to: supply, amount: adjustmentAmount, in: viewContext)
         case .remove:
-            SupplyService.removeStock(
-                from: supply,
-                amount: adjustmentAmount,
-                reason: adjustmentReason,
-                in: viewContext
-            )
+            SupplyService.removeStock(from: supply, amount: adjustmentAmount, in: viewContext)
         case .set:
-            SupplyService.updateQuantity(
-                for: supply,
-                newQuantity: adjustmentAmount,
-                reason: adjustmentReason,
-                in: viewContext
-            )
+            SupplyService.updateQuantity(for: supply, newQuantity: adjustmentAmount, in: viewContext)
         }
     }
 }

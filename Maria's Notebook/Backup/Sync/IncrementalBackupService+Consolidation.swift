@@ -20,11 +20,8 @@ extension IncrementalBackupService {
         var attendance: [UUID: AttendanceRecordDTO] = [:]
         var workCompletions: [UUID: WorkCompletionRecordDTO] = [:]
         var projects: [UUID: ProjectDTO] = [:]
-        var projectTemplates: [UUID: ProjectAssignmentTemplateDTO] = [:]
         var projectSessions: [UUID: ProjectSessionDTO] = [:]
         var projectRoles: [UUID: ProjectRoleDTO] = [:]
-        var projectWeeks: [UUID: ProjectTemplateWeekDTO] = [:]
-        var projectWeekAssignments: [UUID: ProjectWeekRoleAssignmentDTO] = [:]
         var latestPreferences: PreferencesDTO?
 
         // swiftlint:disable:next cyclomatic_complexity
@@ -42,11 +39,8 @@ extension IncrementalBackupService {
             for dto in payload.attendance { attendance[dto.id] = dto }
             for dto in payload.workCompletions { workCompletions[dto.id] = dto }
             for dto in payload.projects { projects[dto.id] = dto }
-            for dto in payload.projectAssignmentTemplates { projectTemplates[dto.id] = dto }
             for dto in payload.projectSessions { projectSessions[dto.id] = dto }
             for dto in payload.projectRoles { projectRoles[dto.id] = dto }
-            for dto in payload.projectTemplateWeeks { projectWeeks[dto.id] = dto }
-            for dto in payload.projectWeekRoleAssignments { projectWeekAssignments[dto.id] = dto }
             latestPreferences = payload.preferences
         }
 
@@ -66,11 +60,11 @@ extension IncrementalBackupService {
                 attendance: Array(attendance.values),
                 workCompletions: Array(workCompletions.values),
                 projects: Array(projects.values),
-                projectAssignmentTemplates: Array(projectTemplates.values),
+                projectAssignmentTemplates: [],
                 projectSessions: Array(projectSessions.values),
                 projectRoles: Array(projectRoles.values),
-                projectTemplateWeeks: Array(projectWeeks.values),
-                projectWeekRoleAssignments: Array(projectWeekAssignments.values),
+                projectTemplateWeeks: [],
+                projectWeekRoleAssignments: [],
                 preferences: latestPreferences ?? PreferencesDTO(values: [:])
             )
         }
@@ -90,11 +84,11 @@ extension IncrementalBackupService {
                 "AttendanceRecord": attendance.count,
                 "WorkCompletionRecord": workCompletions.count,
                 "Project": projects.count,
-                "ProjectAssignmentTemplate": projectTemplates.count,
+                "ProjectAssignmentTemplate": 0,
                 "ProjectSession": projectSessions.count,
                 "ProjectRole": projectRoles.count,
-                "ProjectTemplateWeek": projectWeeks.count,
-                "ProjectWeekRoleAssignment": projectWeekAssignments.count
+                "ProjectTemplateWeek": 0,
+                "ProjectWeekRoleAssignment": 0
             ]
         }
     }
