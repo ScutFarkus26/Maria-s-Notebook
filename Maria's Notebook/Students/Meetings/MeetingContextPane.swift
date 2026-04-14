@@ -3,6 +3,7 @@
 
 import SwiftUI
 import CoreData
+import OSLog
 
 // MARK: - Context Pane
 
@@ -16,11 +17,19 @@ struct MeetingContextPane: View {
     let lessonsByID: [UUID: CDLesson]
     var isCompact: Bool = false
 
+    @Environment(\.managedObjectContext) private var viewContext
+
     @State private var selectedWorkID: UUID?
     @State private var isContextCollapsed: Bool = false
     @State private var showAllOpenWork: Bool = false
     @State private var popoverMeeting: CDStudentMeeting?
     @State private var showAllMeetings: Bool = false
+    @State private var meetingToDelete: CDStudentMeeting?
+
+    private static let logger = Logger(
+        subsystem: Bundle.main.bundleIdentifier ?? "MariasNotebook",
+        category: "MeetingContextPane"
+    )
 
     var body: some View {
         ScrollView {
@@ -63,6 +72,23 @@ struct MeetingContextPane: View {
                 onDone: { selectedWorkID = nil },
                 showRepresentButton: true
             )
+        }
+        .sheet(item: $popoverMeeting) { meeting in
+            MeetingDetailSheet(meeting: meeting)
+        }
+        .confirmationDialog(
+            "Delete Meeting?",
+            isPresented: Binding(
+                get: { meetingToDelete != nil },
+                set: { if !$0 { meetingToDelete = nil } }
+            ),
+            titleVisibility: .visible
+        ) {
+            Button("Delete", role: .destructive) {
+                if let meeting = meetingToDelete {
+                    deleteMeeting(meeting)
+                }
+            }
         }
     }
 
@@ -316,14 +342,10 @@ struct MeetingContextPane: View {
         .buttonStyle(.plain)
         .contentShape(Rectangle())
         .padding(.vertical, 4)
-        .popover(
-            isPresented: Binding(
-                get: { popoverMeeting?.id == meeting.id && popoverMeeting != nil },
-                set: { if !$0 { popoverMeeting = nil } }
-            ),
-            arrowEdge: .trailing
-        ) {
-            MeetingDetailPopover(meeting: meeting)
+        .contextMenu {
+            Button("Delete", systemImage: "trash", role: .destructive) {
+                meetingToDelete = meeting
+            }
         }
     }
 
@@ -338,5 +360,16 @@ struct MeetingContextPane: View {
     private var cardBackground: some View {
         RoundedRectangle(cornerRadius: 10, style: .continuous)
             .fill(Color.primary.opacity(UIConstants.OpacityConstants.trace))
+    }
+
+    private func deleteMeeting(_ meeting: CDStudentMeeting) {
+        adaptiveWithAnimation {
+            viewContext.delete(meeting)
+            do {
+                try viewContext.save()
+            } catch {
+                Self.logger.warning("Failed to save after deleting meeting: \(error)")
+            }
+        }
     }
 }
