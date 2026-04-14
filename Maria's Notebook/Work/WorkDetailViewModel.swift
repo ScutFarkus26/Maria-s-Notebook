@@ -22,11 +22,10 @@ final class WorkDetailViewModel {
     var resolvedStudentID: UUID?
 
     // Peer context
-    var workParticipants: [(student: CDStudent, completedAt: Date?)] = []
-    var samePresentationPeers: [CDStudent] = []
-    var otherLessonRecipients: [CDStudent] = []
+    var workParticipants: [(student: CDStudent, completedAt: Date?)] = []  // project collaborators
+    var lessonCohort: [LessonCohortEntry] = []  // progression peers with context
+    var awaitingFollowUp: [CDStudent] = []  // received lesson but no work yet
     var peerWorkIDs: [UUID: UUID] = [:]  // studentID → workID for tap navigation
-    var peersWithWork: [(student: CDStudent, status: WorkStatus)] = []  // other students with work for same lesson
 
     var showPresentationNotes = false
     var showAddNoteSheet = false
@@ -174,58 +173,58 @@ final class WorkDetailViewModel {
         loadPeerData(for: workModel, modelContext: modelContext)
     }
 
+    // swiftlint:disable:next function_body_length
     private func loadPeerData(for workModel: CDWorkModel, modelContext: NSManagedObjectContext) {
         let primaryStudentID = workModel.studentID
 
-        // Collect all peer student IDs we need to resolve
-        var allPeerStudentIDs = Set<UUID>()
-
-        // 1. Work participants
+        // 1. Work participants (for project-type work)
         let participants = (workModel.participants?.allObjects as? [CDWorkParticipantEntity]) ?? []
         let otherParticipants = participants.filter { $0.studentID != primaryStudentID }
         let participantIDs = otherParticipants.compactMap { UUID(uuidString: $0.studentID) }
-        allPeerStudentIDs.formUnion(participantIDs)
 
-        // 2. Same-presentation peers
-        var samePresentationIDs = Set<UUID>()
-        if let presentation = relatedPresentation {
-            let presentationStudentIDs = presentation.studentUUIDs.filter { $0.uuidString != primaryStudentID }
-            samePresentationIDs = Set(presentationStudentIDs)
-            allPeerStudentIDs.formUnion(samePresentationIDs)
-        }
+        // 2. Fetch all work items for the same lesson by other students
+        let allWorkRequest = CDFetchRequest(CDWorkModel.self)
+        let allWork = safeFetch(allWorkRequest, context: modelContext)
+        let peerWorks = allWork
+            .filter { $0.lessonID == workModel.lessonID && $0.studentID != primaryStudentID }
+        let peerWorkStudentIDs = Set(peerWorks.compactMap { UUID(uuidString: $0.studentID) })
 
-        // 3. Other lesson recipients (different presentations of the same lesson)
-        var otherRecipientIDs = Set<UUID>()
+        // 3. Lesson recipients who don't have work yet (awaiting follow-up)
         let sameLessonAssignments = relatedLessonAssignments.filter {
             $0.lessonID == workModel.lessonID && $0.state == .presented
         }
-        for la in sameLessonAssignments where la.id != relatedPresentation?.id {
+        var allLessonRecipientIDs = Set<UUID>()
+        for la in sameLessonAssignments {
             let studentIDs = la.studentUUIDs.filter { $0.uuidString != primaryStudentID }
-            otherRecipientIDs.formUnion(studentIDs)
+            allLessonRecipientIDs.formUnion(studentIDs)
         }
-        // Remove anyone already in the same-presentation group
-        otherRecipientIDs.subtract(samePresentationIDs)
-        allPeerStudentIDs.formUnion(otherRecipientIDs)
+        let awaitingFollowUpIDs = allLessonRecipientIDs.subtracting(peerWorkStudentIDs)
 
-        // Fetch all work items for the same lesson by other students
-        let peerWorkRequest = CDFetchRequest(CDWorkModel.self)
-        let peerWorks = safeFetch(peerWorkRequest, context: modelContext)
-            .filter { $0.lessonID == workModel.lessonID && $0.studentID != primaryStudentID }
-
-        // Include students who have work items in the peer ID set
-        let workPeerStudentIDs = Set(peerWorks.compactMap { UUID(uuidString: $0.studentID) })
-        allPeerStudentIDs.formUnion(workPeerStudentIDs)
+        // Collect all peer student IDs we need to resolve
+        var allPeerStudentIDs = Set<UUID>()
+        allPeerStudentIDs.formUnion(participantIDs)
+        allPeerStudentIDs.formUnion(peerWorkStudentIDs)
+        allPeerStudentIDs.formUnion(awaitingFollowUpIDs)
 
         guard !allPeerStudentIDs.isEmpty else { return }
 
-        // Batch-fetch all peer students
+        // Batch-fetch all students
         let allStudents = safeFetch(CDFetchRequest(CDStudent.self), context: modelContext)
         let studentsByID = Dictionary(
             allStudents.compactMap { s in s.id.map { ($0, s) } },
             uniquingKeysWith: { first, _ in first }
         )
 
-        // Resolve work participants
+        // Build lesson lookup for progression context
+        let lessonsByIDString: [String: CDLesson] = Dictionary(
+            relatedLessons.compactMap { l -> (String, CDLesson)? in
+                guard let idStr = l.id?.uuidString else { return nil }
+                return (idStr, l)
+            },
+            uniquingKeysWith: { first, _ in first }
+        )
+
+        // Resolve work participants (project collaborators)
         let participantCompletedAt = Dictionary(
             otherParticipants.compactMap { p in UUID(uuidString: p.studentID).map { ($0, p.completedAt) } },
             uniquingKeysWith: { first, _ in first }
@@ -234,14 +233,6 @@ final class WorkDetailViewModel {
             guard let student = studentsByID[id] else { return nil }
             return (student: student, completedAt: participantCompletedAt[id] ?? nil)
         }
-
-        // Resolve same-presentation peers
-        samePresentationPeers = samePresentationIDs.compactMap { studentsByID[$0] }
-            .sorted { ($0.firstName) < ($1.firstName) }
-
-        // Resolve other lesson recipients
-        otherLessonRecipients = otherRecipientIDs.compactMap { studentsByID[$0] }
-            .sorted { ($0.firstName) < ($1.firstName) }
 
         // Build peer work ID lookup for tap navigation
         peerWorkIDs = Dictionary(
@@ -253,23 +244,45 @@ final class WorkDetailViewModel {
             uniquingKeysWith: { first, _ in first }
         )
 
-        // Resolve "also working on this" — students with their own work for the same lesson
-        // Exclude anyone already shown as a work participant to avoid duplication
-        let participantIDSet = Set(participantIDs)
-        peersWithWork = peerWorks
-            .compactMap { w -> (student: CDStudent, status: WorkStatus)? in
-                guard let studentUUID = UUID(uuidString: w.studentID),
-                      !participantIDSet.contains(studentUUID),
-                      let student = studentsByID[studentUUID] else { return nil }
-                return (student: student, status: w.status)
-            }
-            .sorted { $0.student.firstName < $1.student.firstName }
-            // Deduplicate by student (keep first work item per student)
-            .reduce(into: [(student: CDStudent, status: WorkStatus)]()) { result, entry in
-                if !result.contains(where: { $0.student.objectID == entry.student.objectID }) {
-                    result.append(entry)
+        // Build lesson cohort — peers with work for same lesson, with progression context
+        var seenStudentIDs = Set<UUID>()
+        var cohortEntries: [LessonCohortEntry] = []
+        for w in peerWorks {
+            guard let studentUUID = UUID(uuidString: w.studentID),
+                  let student = studentsByID[studentUUID] else { continue }
+            guard seenStudentIDs.insert(studentUUID).inserted else { continue }
+
+            var currentWorkTitle: String?
+            if w.status == .complete {
+                // Find their current active work in the same subject/group progression
+                let progressionWork = allWork
+                    .filter { $0.studentID == w.studentID && $0.status != .complete }
+                    .compactMap { (aw: CDWorkModel) -> (lessonID: String, order: Int64)? in
+                        guard let lesson = lessonsByIDString[aw.lessonID] else { return nil }
+                        return (lessonID: aw.lessonID, order: lesson.orderInGroup)
+                    }
+                    .min { $0.order < $1.order }
+
+                if let pw = progressionWork {
+                    currentWorkTitle = lessonsByIDString[pw.lessonID]?.name
                 }
             }
+
+            cohortEntries.append(LessonCohortEntry(
+                student: student,
+                status: w.status,
+                currentWorkTitle: currentWorkTitle
+            ))
+        }
+        lessonCohort = cohortEntries.sorted {
+            if $0.sortKey != $1.sortKey { return $0.sortKey < $1.sortKey }
+            return $0.student.firstName < $1.student.firstName
+        }
+
+        // Resolve awaiting follow-up
+        awaitingFollowUp = awaitingFollowUpIDs
+            .compactMap { studentsByID[$0] }
+            .sorted { $0.firstName < $1.firstName }
     }
     
     private func loadWorkNotes(for workModel: CDWorkModel?) {
@@ -381,6 +394,22 @@ final class WorkDetailViewModel {
         case "follow-up": return .orange
         case "general": return .gray
         default: return .purple
+        }
+    }
+}
+
+// MARK: - Peer Context Types
+
+struct LessonCohortEntry {
+    let student: CDStudent
+    let status: WorkStatus
+    let currentWorkTitle: String?  // for completed peers: what they're working on now
+
+    var sortKey: Int {
+        switch status {
+        case .active: return 0
+        case .review: return 1
+        case .complete: return 2
         }
     }
 }

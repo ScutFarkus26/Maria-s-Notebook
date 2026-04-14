@@ -308,7 +308,7 @@ extension WorkDetailView {
 
     @ViewBuilder
     func peersSection() -> some View {
-        // Work participants — who else is doing this work
+        // Collaborators on this work item
         if !viewModel.workParticipants.isEmpty {
             DetailSectionCard(
                 title: "Working With",
@@ -319,81 +319,97 @@ extension WorkDetailView {
                     ForEach(viewModel.workParticipants, id: \.student.objectID) { entry in
                         peerRow(
                             student: entry.student,
-                            statusLabel: peerStatusLabel(completedAt: entry.completedAt),
-                            statusColor: entry.completedAt != nil ? .green : nil
+                            detail: participantDetail(completedAt: entry.completedAt)
                         )
                     }
                 }
             }
         }
 
-        // Other students with their own work for the same lesson
-        if !viewModel.peersWithWork.isEmpty {
+        // Lesson cohort (for progression work)
+        if !viewModel.lessonCohort.isEmpty {
             DetailSectionCard(
-                title: "Also Working On This",
+                title: "Lesson Cohort",
                 icon: "person.2.circle.fill",
                 accentColor: .orange
             ) {
                 VStack(alignment: .leading, spacing: 6) {
-                    ForEach(viewModel.peersWithWork, id: \.student.objectID) { entry in
-                        peerRow(
-                            student: entry.student,
-                            statusLabel: workStatusLabel(peerStatus: entry.status),
-                            statusColor: entry.status.color
-                        )
+                    ForEach(viewModel.lessonCohort, id: \.student.objectID) { entry in
+                        cohortRow(entry)
                     }
                 }
             }
         }
 
-        // Lesson co-recipients
-        let showSamePresentationPeers = viewModel.relatedPresentation == nil
-            && !viewModel.samePresentationPeers.isEmpty
-        let showOtherRecipients = !viewModel.otherLessonRecipients.isEmpty
-
-        if showSamePresentationPeers || showOtherRecipients {
+        // Awaiting follow-up (received lesson but no work yet)
+        if !viewModel.awaitingFollowUp.isEmpty {
             DetailSectionCard(
-                title: "Also Received This Lesson",
-                icon: "book.closed.fill",
+                title: "Awaiting Follow-Up",
+                icon: "bell.badge.fill",
                 accentColor: .indigo
             ) {
                 VStack(alignment: .leading, spacing: 6) {
-                    if showSamePresentationPeers {
-                        ForEach(viewModel.samePresentationPeers) { student in
-                            peerRow(student: student, statusLabel: nil, statusColor: nil)
-                        }
-                    }
-                    if showOtherRecipients {
-                        ForEach(viewModel.otherLessonRecipients) { student in
-                            peerRow(
-                                student: student,
-                                statusLabel: "presented separately",
-                                statusColor: .secondary
-                            )
-                        }
+                    ForEach(viewModel.awaitingFollowUp) { student in
+                        peerRow(
+                            student: student,
+                            detail: .badge("awaiting follow-up", color: .secondary)
+                        )
                     }
                 }
             }
         }
     }
 
+    // MARK: - Peer Row Helpers
+
+    private enum PeerRowDetail {
+        case none
+        case badge(String, color: Color)
+        case subtitle(String)
+    }
+
     @ViewBuilder
-    private func peerRow(student: CDStudent, statusLabel: String?, statusColor: Color?) -> some View {
+    private func cohortRow(_ entry: LessonCohortEntry) -> some View {
+        let detail: PeerRowDetail = {
+            if entry.status == .complete {
+                if let title = entry.currentWorkTitle {
+                    return .subtitle("now on: \(title)")
+                }
+                return .badge("complete", color: .green)
+            }
+            if entry.status != viewModel.status {
+                return .badge(entry.status.displayName.lowercased(), color: entry.status.color)
+            }
+            return .none
+        }()
+
+        peerRow(student: entry.student, detail: detail)
+    }
+
+    @ViewBuilder
+    private func peerRow(student: CDStudent, detail: PeerRowDetail) -> some View {
         let hasPeerWork = student.id.flatMap { viewModel.peerWorkIDs[$0] } != nil
 
         HStack(spacing: 8) {
             Text(StudentFormatter.displayName(for: student))
                 .font(AppTheme.ScaledFont.caption)
 
-            if let statusLabel {
-                Text(statusLabel)
+            switch detail {
+            case .none:
+                EmptyView()
+            case .badge(let text, let color):
+                Text(text)
                     .font(AppTheme.ScaledFont.captionSmall)
-                    .foregroundStyle(statusColor ?? .secondary)
+                    .foregroundStyle(color)
                     .padding(.horizontal, 6)
                     .padding(.vertical, 2)
                     .background(
-                        Capsule().fill((statusColor ?? .secondary).opacity(UIConstants.OpacityConstants.faint))
+                        Capsule().fill(color.opacity(UIConstants.OpacityConstants.faint))
                     )
+            case .subtitle(let text):
+                Text(text)
+                    .font(AppTheme.ScaledFont.captionSmall)
+                    .foregroundStyle(.secondary)
             }
 
             Spacer()
@@ -414,15 +430,8 @@ extension WorkDetailView {
         .disabled(!hasPeerWork)
     }
 
-    private func peerStatusLabel(completedAt: Date?) -> String? {
-        guard viewModel.status != .complete else { return nil }
-        if completedAt != nil { return "completed" }
-        return nil
-    }
-
-    private func workStatusLabel(peerStatus: WorkStatus) -> String? {
-        // Only show status when it differs from the current student's status
-        guard peerStatus != viewModel.status else { return nil }
-        return peerStatus.displayName.lowercased()
+    private func participantDetail(completedAt: Date?) -> PeerRowDetail {
+        guard viewModel.status != .complete, completedAt != nil else { return .none }
+        return .badge("completed", color: .green)
     }
 }
