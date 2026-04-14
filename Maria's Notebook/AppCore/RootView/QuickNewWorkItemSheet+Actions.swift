@@ -17,6 +17,7 @@ extension QuickNewWorkItemSheet {
 
         do {
             var createdWorkID: UUID?
+            var createdWorks: [CDWorkModel] = []
             // Create work for each selected student
             for studentID in selectedStudentIDs {
                 let work = try repository.createWork(
@@ -45,11 +46,26 @@ extension QuickNewWorkItemSheet {
                     checkIn.purpose = checkInReason.purpose
                 }
 
+                createdWorks.append(work)
+
                 // Keep reference to first created work for "Create & Open"
                 if createdWorkID == nil {
                     createdWorkID = work.id
                 }
             }
+
+            // Link multi-student work as participants on each other's work items
+            if createdWorks.count > 1 {
+                for work in createdWorks {
+                    for otherWork in createdWorks where otherWork !== work {
+                        let participant = CDWorkParticipantEntity(context: viewContext)
+                        participant.id = UUID()
+                        participant.studentID = otherWork.studentID
+                        participant.work = work
+                    }
+                }
+            }
+
             saveCoordinator.save(viewContext, reason: "Quick New Work Item")
             dismiss()
 

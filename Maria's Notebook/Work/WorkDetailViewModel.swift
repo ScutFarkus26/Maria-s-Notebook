@@ -205,6 +205,15 @@ final class WorkDetailViewModel {
             .filter { $0.lessonID == workModel.lessonID && $0.studentID != primaryStudentID }
         let peerWorkStudentIDs = Set(peerWorks.compactMap { UUID(uuidString: $0.studentID) })
 
+        // 2b. Fallback for project work: if no project members found via sourceContextID,
+        // treat other students with project-kind work for the same lesson as the project group
+        if projectMemberIDs.isEmpty && workModel.kind == .research {
+            let projectPeerIDs = peerWorks
+                .filter { $0.kind == .research }
+                .compactMap { UUID(uuidString: $0.studentID) }
+            projectMemberIDs = Set(projectPeerIDs)
+        }
+
         // 4. Lesson recipients who don't have work yet (awaiting follow-up)
         let sameLessonAssignments = relatedLessonAssignments.filter {
             $0.lessonID == workModel.lessonID && $0.state == .presented
@@ -267,7 +276,8 @@ final class WorkDetailViewModel {
         )
 
         // Build lesson cohort — peers with work for same lesson, with progression context
-        var seenStudentIDs = Set<UUID>()
+        // Exclude students already shown in the project group card
+        var seenStudentIDs = projectMemberIDs
         var cohortEntries: [LessonCohortEntry] = []
         for w in peerWorks {
             guard let studentUUID = UUID(uuidString: w.studentID),
