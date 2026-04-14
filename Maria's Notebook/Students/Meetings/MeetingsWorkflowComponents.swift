@@ -34,9 +34,6 @@ struct MeetingsQueueSidebar: View {
             }
             #endif
         }
-        #if os(macOS)
-        .frame(minWidth: 220)
-        #endif
     }
 
     private var filtersSection: some View {

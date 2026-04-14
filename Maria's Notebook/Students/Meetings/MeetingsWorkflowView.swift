@@ -190,6 +190,7 @@ struct MeetingsWorkflowView: View {
                     studentForMeetingDatePicker = student
                 }
             )
+            .navigationSplitViewColumnWidth(min: 220, ideal: 250, max: 300)
         } detail: {
             if let student = selectedStudent {
                 MeetingSessionView(
@@ -208,6 +209,7 @@ struct MeetingsWorkflowView: View {
                 emptyState
             }
         }
+        .navigationSplitViewStyle(.prominentDetail)
         .navigationTitle("Meetings")
         .inlineNavigationTitle()
         .onAppear {
