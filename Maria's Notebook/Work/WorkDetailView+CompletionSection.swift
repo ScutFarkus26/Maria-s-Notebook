@@ -326,6 +326,21 @@ extension WorkDetailView {
             }
         }
 
+        // Project group members
+        if !viewModel.projectGroupMembers.isEmpty {
+            DetailSectionCard(
+                title: "Project Group",
+                icon: "folder.fill.badge.person.crop",
+                accentColor: .cyan
+            ) {
+                VStack(alignment: .leading, spacing: 6) {
+                    ForEach(viewModel.projectGroupMembers) { student in
+                        peerRow(student: student, detail: .none)
+                    }
+                }
+            }
+        }
+
         // Lesson cohort (for progression work)
         if !viewModel.lessonCohort.isEmpty {
             DetailSectionCard(

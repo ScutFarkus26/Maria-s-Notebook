@@ -20,6 +20,7 @@ struct StudentMeetingsTab: View {
 
     // MARK: - Environment & Data
     @Environment(\.managedObjectContext) var viewContext
+    @Environment(\.dependencies) var dependencies
 
     // Query all work models; we'll filter by studentID
     @FetchRequest(sortDescriptors: [NSSortDescriptor(keyPath: \CDWorkModel.createdAt, ascending: false)])
@@ -94,6 +95,14 @@ struct StudentMeetingsTab: View {
     // Work detail sheet
     @State var selectedWorkID: UUID?
 
+    // Meeting insights state
+    @State var meetingInsights: MeetingInsightsResult?
+    @State var isGeneratingInsights: Bool = false
+    @State var insightsTimeframeDays: Int = 30
+    @State var insightsError: String?
+    @State var showingAPIKeySettings: Bool = false
+    @State private var lastAnalyzedMeetingCount: Int = 0
+
     // Work snapshot settings
     @SyncedAppStorage("WorkAge.overdueDays") private var workOverdueDays: Int = 14
 
@@ -145,75 +154,122 @@ struct StudentMeetingsTab: View {
         )
     }
 
-    // MARK: - Body
-    var body: some View {
+    private var bodyContent: some View {
         VStack(alignment: .leading, spacing: 20) {
             activeWorkSnapshotSection
             lessonsSinceLastMeetingSection
             historySection
+            meetingInsightsSection
             currentMeetingSection
         }
-        .frame(maxWidth: .infinity, alignment: .leading)
-        .onAppear {
-            loadCurrentFromDefaults()
-            migrateHistoryIfNeeded()
-        }
-        .onChange(of: isCompleted) { _, _ in saveCurrentToDefaults() }
-        .onChange(of: reflectionText) { _, _ in saveCurrentToDefaults() }
-        .onChange(of: focusText) { _, _ in saveCurrentToDefaults() }
-        .onChange(of: requestsText) { _, _ in saveCurrentToDefaults() }
-        .onChange(of: guideNotesText) { _, _ in saveCurrentToDefaults() }
-        .onChange(of: nextMeetingDate) { _, _ in saveCurrentToDefaults() }
-        .sheet(item: $editingMeeting) { meeting in
-            VStack(alignment: .leading, spacing: 12) {
-                Text("Edit Meeting").font(.headline)
-                DatePicker("Date", selection: $editDate, displayedComponents: .date)
-                Toggle("Completed", isOn: $editCompleted)
-                TextField("Reflection", text: $editReflection, axis: .vertical)
-                    .textFieldStyle(.roundedBorder)
-                    .lineLimit(2...4)
-                TextField("Focus", text: $editFocus, axis: .vertical)
-                    .textFieldStyle(.roundedBorder)
-                    .lineLimit(2...4)
-                TextField("Requests", text: $editRequests, axis: .vertical)
-                    .textFieldStyle(.roundedBorder)
-                    .lineLimit(2...4)
-                TextField("Guide notes", text: $editGuideNotes, axis: .vertical)
-                    .textFieldStyle(.roundedBorder)
-                    .lineLimit(2...4)
-                HStack {
-                    Spacer()
-                    Button("Cancel") { editingMeeting = nil }
-                    Button("Save") {
-                        meeting.date = editDate
-                        meeting.completed = editCompleted
-                        meeting.reflection = editReflection
-                        meeting.focus = editFocus
-                        meeting.requests = editRequests
-                        meeting.guideNotes = editGuideNotes
-                        do {
-                            try viewContext.save()
-                        } catch {
-                            Self.logger.warning("Failed to save meeting edit: \(error)")
-                        }
-                        editingMeeting = nil
-                    }
-                    .keyboardShortcut(.defaultAction)
-                }
+    }
+
+    // MARK: - Body
+    var body: some View {
+        bodyWithSheets
+    }
+
+    private var bodyWithPersistence: some View {
+        bodyContent
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .onAppear(perform: handleOnAppear)
+            .onChange(of: isCompleted) { _, _ in saveCurrentToDefaults() }
+            .onChange(of: reflectionText) { _, _ in saveCurrentToDefaults() }
+            .onChange(of: focusText) { _, _ in saveCurrentToDefaults() }
+            .onChange(of: requestsText) { _, _ in saveCurrentToDefaults() }
+            .onChange(of: guideNotesText) { _, _ in saveCurrentToDefaults() }
+            .onChange(of: nextMeetingDate) { _, _ in saveCurrentToDefaults() }
+    }
+
+    private var bodyWithModifiers: some View {
+        bodyWithPersistence
+            .onChange(of: insightsTimeframeDays) { _, _ in handleInsightsTimeframeChange() }
+            .onChange(of: meetingItems.count) { _, newCount in handleMeetingCountChange(newCount) }
+            .task { await handleInsightsTask() }
+    }
+
+    private var bodyWithSheets: some View {
+        bodyWithModifiers
+            .sheet(isPresented: $showingAPIKeySettings) { NavigationStack { APIKeySettingsView() } }
+            .sheet(item: $editingMeeting) { meeting in editMeetingSheet(meeting) }
+            .sheet(item: workSheetBinding) { wrapper in
+                WorkDetailView(workID: wrapper.id) { selectedWorkID = nil }
             }
-            .padding()
-#if os(macOS)
-            .frame(minWidth: 420)
-#endif
-        }
-        .sheet(item: Binding(
+    }
+
+    private var workSheetBinding: Binding<WorkIDWrapper?> {
+        Binding(
             get: { selectedWorkID.map { WorkIDWrapper(id: $0) } },
             set: { selectedWorkID = $0?.id }
-        )) { wrapper in
-            WorkDetailView(workID: wrapper.id) {
-                selectedWorkID = nil
+        )
+    }
+
+    private func handleOnAppear() {
+        loadCurrentFromDefaults()
+        migrateHistoryIfNeeded()
+    }
+
+    private func handleInsightsTimeframeChange() {
+        meetingInsights = nil
+        Task { await generateInsights() }
+    }
+
+    private func handleMeetingCountChange(_ newCount: Int) {
+        if newCount != lastAnalyzedMeetingCount && lastAnalyzedMeetingCount > 0 {
+            meetingInsights = nil
+            Task { await generateInsights() }
+        }
+    }
+
+    private func handleInsightsTask() async {
+        if meetingInsights == nil && !meetingItems.isEmpty {
+            lastAnalyzedMeetingCount = meetingItems.count
+            await generateInsights()
+        }
+    }
+
+    @ViewBuilder
+    private func editMeetingSheet(_ meeting: CDStudentMeeting) -> some View {
+        VStack(alignment: .leading, spacing: 12) {
+            Text("Edit Meeting").font(.headline)
+            DatePicker("Date", selection: $editDate, displayedComponents: .date)
+            Toggle("Completed", isOn: $editCompleted)
+            TextField("Reflection", text: $editReflection, axis: .vertical)
+                .textFieldStyle(.roundedBorder)
+                .lineLimit(2...4)
+            TextField("Focus", text: $editFocus, axis: .vertical)
+                .textFieldStyle(.roundedBorder)
+                .lineLimit(2...4)
+            TextField("Requests", text: $editRequests, axis: .vertical)
+                .textFieldStyle(.roundedBorder)
+                .lineLimit(2...4)
+            TextField("Guide notes", text: $editGuideNotes, axis: .vertical)
+                .textFieldStyle(.roundedBorder)
+                .lineLimit(2...4)
+            HStack {
+                Spacer()
+                Button("Cancel") { editingMeeting = nil }
+                Button("Save") {
+                    meeting.date = editDate
+                    meeting.completed = editCompleted
+                    meeting.reflection = editReflection
+                    meeting.focus = editFocus
+                    meeting.requests = editRequests
+                    meeting.guideNotes = editGuideNotes
+                    do {
+                        try viewContext.save()
+                    } catch {
+                        Self.logger.warning("Failed to save meeting edit: \(error)")
+                    }
+                    editingMeeting = nil
+                }
+                .keyboardShortcut(.defaultAction)
             }
         }
+        .padding()
+#if os(macOS)
+        .frame(minWidth: 420)
+#endif
     }
 
     // MARK: - Sections
@@ -290,7 +346,9 @@ struct StudentMeetingsTab: View {
     }
 
     func workDisplayTitle(_ work: CDWorkModel) -> String {
-        lessonsByID[uuidString: work.lessonID]?.name ?? "Lesson"
+        let title = work.title.trimmed()
+        if !title.isEmpty { return title }
+        return lessonsByID[uuidString: work.lessonID]?.name ?? "Lesson"
     }
 
     // MARK: - Helper for sheet binding

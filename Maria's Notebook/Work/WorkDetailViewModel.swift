@@ -22,7 +22,8 @@ final class WorkDetailViewModel {
     var resolvedStudentID: UUID?
 
     // Peer context
-    var workParticipants: [(student: CDStudent, completedAt: Date?)] = []  // project collaborators
+    var workParticipants: [(student: CDStudent, completedAt: Date?)] = []  // work-level collaborators
+    var projectGroupMembers: [CDStudent] = []  // other students in the same project
     var lessonCohort: [LessonCohortEntry] = []  // progression peers with context
     var awaitingFollowUp: [CDStudent] = []  // received lesson but no work yet
     var peerWorkIDs: [UUID: UUID] = [:]  // studentID → workID for tap navigation
@@ -177,19 +178,34 @@ final class WorkDetailViewModel {
     private func loadPeerData(for workModel: CDWorkModel, modelContext: NSManagedObjectContext) {
         let primaryStudentID = workModel.studentID
 
-        // 1. Work participants (for project-type work)
+        // 1. Work participants
         let participants = (workModel.participants?.allObjects as? [CDWorkParticipantEntity]) ?? []
         let otherParticipants = participants.filter { $0.studentID != primaryStudentID }
         let participantIDs = otherParticipants.compactMap { UUID(uuidString: $0.studentID) }
 
-        // 2. Fetch all work items for the same lesson by other students
+        // 2. Project members (via sourceContextID → CDProjectSession → CDProject)
+        var projectMemberIDs = Set<UUID>()
+        if workModel.sourceContextType == .projectSession,
+           let sessionIDString = workModel.sourceContextID,
+           let sessionID = UUID(uuidString: sessionIDString) {
+            let sessionRequest = CDFetchRequest(CDProjectSession.self)
+            sessionRequest.predicate = NSPredicate(format: "id == %@", sessionID as CVarArg)
+            sessionRequest.fetchLimit = 1
+            if let project = safeFetch(sessionRequest, context: modelContext).first?.project {
+                projectMemberIDs = Set(
+                    project.memberStudentUUIDs.filter { $0.uuidString != primaryStudentID }
+                )
+            }
+        }
+
+        // 3. Fetch all work items for the same lesson by other students
         let allWorkRequest = CDFetchRequest(CDWorkModel.self)
         let allWork = safeFetch(allWorkRequest, context: modelContext)
         let peerWorks = allWork
             .filter { $0.lessonID == workModel.lessonID && $0.studentID != primaryStudentID }
         let peerWorkStudentIDs = Set(peerWorks.compactMap { UUID(uuidString: $0.studentID) })
 
-        // 3. Lesson recipients who don't have work yet (awaiting follow-up)
+        // 4. Lesson recipients who don't have work yet (awaiting follow-up)
         let sameLessonAssignments = relatedLessonAssignments.filter {
             $0.lessonID == workModel.lessonID && $0.state == .presented
         }
@@ -203,6 +219,7 @@ final class WorkDetailViewModel {
         // Collect all peer student IDs we need to resolve
         var allPeerStudentIDs = Set<UUID>()
         allPeerStudentIDs.formUnion(participantIDs)
+        allPeerStudentIDs.formUnion(projectMemberIDs)
         allPeerStudentIDs.formUnion(peerWorkStudentIDs)
         allPeerStudentIDs.formUnion(awaitingFollowUpIDs)
 
@@ -233,6 +250,11 @@ final class WorkDetailViewModel {
             guard let student = studentsByID[id] else { return nil }
             return (student: student, completedAt: participantCompletedAt[id] ?? nil)
         }
+
+        // Resolve project group members
+        projectGroupMembers = projectMemberIDs
+            .compactMap { studentsByID[$0] }
+            .sorted { $0.firstName < $1.firstName }
 
         // Build peer work ID lookup for tap navigation
         peerWorkIDs = Dictionary(
