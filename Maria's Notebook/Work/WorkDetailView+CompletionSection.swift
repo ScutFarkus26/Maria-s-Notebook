@@ -303,4 +303,101 @@ extension WorkDetailView {
             }
         }
     }
+
+    // MARK: - Peers Section
+
+    @ViewBuilder
+    func peersSection() -> some View {
+        // Work participants — who else is doing this work
+        if !viewModel.workParticipants.isEmpty {
+            DetailSectionCard(
+                title: "Working With",
+                icon: "person.2.fill",
+                accentColor: .teal
+            ) {
+                VStack(alignment: .leading, spacing: 6) {
+                    ForEach(viewModel.workParticipants, id: \.student.objectID) { entry in
+                        peerRow(
+                            student: entry.student,
+                            statusLabel: peerStatusLabel(completedAt: entry.completedAt),
+                            statusColor: entry.completedAt != nil ? .green : nil
+                        )
+                    }
+                }
+            }
+        }
+
+        // Lesson co-recipients
+        let showSamePresentationPeers = viewModel.relatedPresentation == nil
+            && !viewModel.samePresentationPeers.isEmpty
+        let showOtherRecipients = !viewModel.otherLessonRecipients.isEmpty
+
+        if showSamePresentationPeers || showOtherRecipients {
+            DetailSectionCard(
+                title: "Also Received This Lesson",
+                icon: "book.closed.fill",
+                accentColor: .indigo
+            ) {
+                VStack(alignment: .leading, spacing: 6) {
+                    if showSamePresentationPeers {
+                        ForEach(viewModel.samePresentationPeers) { student in
+                            peerRow(student: student, statusLabel: nil, statusColor: nil)
+                        }
+                    }
+                    if showOtherRecipients {
+                        ForEach(viewModel.otherLessonRecipients) { student in
+                            peerRow(
+                                student: student,
+                                statusLabel: "presented separately",
+                                statusColor: .secondary
+                            )
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    @ViewBuilder
+    private func peerRow(student: CDStudent, statusLabel: String?, statusColor: Color?) -> some View {
+        let hasPeerWork = student.id.flatMap { viewModel.peerWorkIDs[$0] } != nil
+
+        HStack(spacing: 8) {
+            Text(StudentFormatter.displayName(for: student))
+                .font(AppTheme.ScaledFont.caption)
+
+            if let statusLabel {
+                Text(statusLabel)
+                    .font(AppTheme.ScaledFont.captionSmall)
+                    .foregroundStyle(statusColor ?? .secondary)
+                    .padding(.horizontal, 6)
+                    .padding(.vertical, 2)
+                    .background(
+                        Capsule().fill((statusColor ?? .secondary).opacity(UIConstants.OpacityConstants.faint))
+                    )
+            }
+
+            Spacer()
+
+            if hasPeerWork {
+                Image(systemName: "chevron.right")
+                    .font(.system(size: 10, weight: .semibold))
+                    .foregroundStyle(.tertiary)
+            }
+        }
+        .contentShape(Rectangle())
+        .onTapGesture {
+            if let studentID = student.id,
+               let workID = viewModel.peerWorkIDs[studentID] {
+                selectedWorkID = workID
+            }
+        }
+        .disabled(!hasPeerWork)
+    }
+
+    private func peerStatusLabel(completedAt: Date?) -> String? {
+        guard viewModel.status != .complete else { return nil }
+        if completedAt != nil { return "completed" }
+        return nil
+    }
 }

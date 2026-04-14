@@ -290,4 +290,17 @@ extension WorkDetailView {
     func lessonTitle() -> String {
         return viewModel.relatedLesson?.name ?? "Lesson"
     }
+
+    // MARK: - Peer Work Navigation
+
+    struct PeerWorkIDWrapper: Identifiable {
+        let id: UUID
+    }
+
+    var peerWorkSheetBinding: Binding<PeerWorkIDWrapper?> {
+        Binding(
+            get: { selectedWorkID.map { PeerWorkIDWrapper(id: $0) } },
+            set: { selectedWorkID = $0?.id }
+        )
+    }
 }

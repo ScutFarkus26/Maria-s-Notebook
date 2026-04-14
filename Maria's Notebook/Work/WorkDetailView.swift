@@ -116,6 +116,7 @@ struct WorkDetailView: View {
         }
     }
 
+    @State var selectedWorkID: UUID?
     @State var selectedPracticeSession: CDPracticeSession?
 
     @ViewBuilder
@@ -127,6 +128,8 @@ struct WorkDetailView: View {
                     headerSection()
 
                     presentationContextSection()
+
+                    peersSection()
 
                     nextPresentationStatusSection
 
@@ -142,6 +145,9 @@ struct WorkDetailView: View {
             }
             .sheet(item: $selectedPracticeSession) { session in
                 practiceSessionDetailSheet(session: session)
+            }
+            .sheet(item: peerWorkSheetBinding) { wrapper in
+                WorkDetailView(workID: wrapper.id) { selectedWorkID = nil }
             }
             Divider()
             VStack(spacing: 12) {

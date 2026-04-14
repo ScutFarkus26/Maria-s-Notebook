@@ -21,6 +21,12 @@ final class WorkDetailViewModel {
     var resolvedLessonID: UUID?
     var resolvedStudentID: UUID?
 
+    // Peer context
+    var workParticipants: [(student: CDStudent, completedAt: Date?)] = []
+    var samePresentationPeers: [CDStudent] = []
+    var otherLessonRecipients: [CDStudent] = []
+    var peerWorkIDs: [UUID: UUID] = [:]  // studentID → workID for tap navigation
+
     var showPresentationNotes = false
     var showAddNoteSheet = false
     var noteBeingEdited: CDNote?
@@ -162,6 +168,84 @@ final class WorkDetailViewModel {
 
         // Load presentation
         relatedPresentation = workModel.fetchPresentation(from: modelContext)
+
+        // Load peer context
+        loadPeerData(for: workModel, modelContext: modelContext)
+    }
+
+    private func loadPeerData(for workModel: CDWorkModel, modelContext: NSManagedObjectContext) {
+        let primaryStudentID = workModel.studentID
+
+        // Collect all peer student IDs we need to resolve
+        var allPeerStudentIDs = Set<UUID>()
+
+        // 1. Work participants
+        let participants = (workModel.participants?.allObjects as? [CDWorkParticipantEntity]) ?? []
+        let otherParticipants = participants.filter { $0.studentID != primaryStudentID }
+        let participantIDs = otherParticipants.compactMap { UUID(uuidString: $0.studentID) }
+        allPeerStudentIDs.formUnion(participantIDs)
+
+        // 2. Same-presentation peers
+        var samePresentationIDs = Set<UUID>()
+        if let presentation = relatedPresentation {
+            let presentationStudentIDs = presentation.studentUUIDs.filter { $0.uuidString != primaryStudentID }
+            samePresentationIDs = Set(presentationStudentIDs)
+            allPeerStudentIDs.formUnion(samePresentationIDs)
+        }
+
+        // 3. Other lesson recipients (different presentations of the same lesson)
+        var otherRecipientIDs = Set<UUID>()
+        let sameLessonAssignments = relatedLessonAssignments.filter {
+            $0.lessonID == workModel.lessonID && $0.state == .presented
+        }
+        for la in sameLessonAssignments where la.id != relatedPresentation?.id {
+            let studentIDs = la.studentUUIDs.filter { $0.uuidString != primaryStudentID }
+            otherRecipientIDs.formUnion(studentIDs)
+        }
+        // Remove anyone already in the same-presentation group
+        otherRecipientIDs.subtract(samePresentationIDs)
+        allPeerStudentIDs.formUnion(otherRecipientIDs)
+
+        guard !allPeerStudentIDs.isEmpty else { return }
+
+        // Batch-fetch all peer students
+        let allStudents = safeFetch(CDFetchRequest(CDStudent.self), context: modelContext)
+        let studentsByID = Dictionary(
+            allStudents.compactMap { s in s.id.map { ($0, s) } },
+            uniquingKeysWith: { first, _ in first }
+        )
+
+        // Resolve work participants
+        let participantCompletedAt = Dictionary(
+            otherParticipants.compactMap { p in UUID(uuidString: p.studentID).map { ($0, p.completedAt) } },
+            uniquingKeysWith: { first, _ in first }
+        )
+        workParticipants = participantIDs.compactMap { id in
+            guard let student = studentsByID[id] else { return nil }
+            return (student: student, completedAt: participantCompletedAt[id] ?? nil)
+        }
+
+        // Resolve same-presentation peers
+        samePresentationPeers = samePresentationIDs.compactMap { studentsByID[$0] }
+            .sorted { ($0.firstName) < ($1.firstName) }
+
+        // Resolve other lesson recipients
+        otherLessonRecipients = otherRecipientIDs.compactMap { studentsByID[$0] }
+            .sorted { ($0.firstName) < ($1.firstName) }
+
+        // Build peer work ID lookup for tap navigation
+        let allPeerIDStrings = allPeerStudentIDs.map(\.uuidString)
+        let peerWorkRequest = CDFetchRequest(CDWorkModel.self)
+        let peerWorks = safeFetch(peerWorkRequest, context: modelContext)
+            .filter { $0.lessonID == workModel.lessonID && allPeerIDStrings.contains($0.studentID) }
+        peerWorkIDs = Dictionary(
+            peerWorks.compactMap { w in
+                guard let studentUUID = UUID(uuidString: w.studentID),
+                      let workUUID = w.id else { return nil }
+                return (studentUUID, workUUID)
+            },
+            uniquingKeysWith: { first, _ in first }
+        )
     }
     
     private func loadWorkNotes(for workModel: CDWorkModel?) {
