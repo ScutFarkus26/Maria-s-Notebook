@@ -173,7 +173,7 @@ struct MeetingsWorkflowView: View {
     // MARK: - Body
 
     var body: some View {
-        NavigationSplitView {
+        HStack(spacing: 0) {
             MeetingsQueueSidebar(
                 studentsNeedingMeeting: filteredStudentsNeedingMeeting,
                 studentsCompleted: filteredStudentsCompleted,
@@ -190,8 +190,10 @@ struct MeetingsWorkflowView: View {
                     studentForMeetingDatePicker = student
                 }
             )
-            .navigationSplitViewColumnWidth(min: 220, ideal: 250, max: 300)
-        } detail: {
+            .frame(width: 250)
+
+            Divider()
+
             if let student = selectedStudent {
                 MeetingSessionView(
                     student: student,
@@ -205,11 +207,12 @@ struct MeetingsWorkflowView: View {
                         moveToNextStudent()
                     }
                 )
+                .frame(maxWidth: .infinity)
             } else {
                 emptyState
+                    .frame(maxWidth: .infinity)
             }
         }
-        .navigationSplitViewStyle(.prominentDetail)
         .navigationTitle("Meetings")
         .inlineNavigationTitle()
         .onAppear {

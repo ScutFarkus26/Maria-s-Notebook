@@ -18,15 +18,44 @@ struct MeetingsQueueSidebar: View {
     var onPickMeetingDate: ((CDStudent) -> Void)?
 
     var body: some View {
-        List(selection: $selectedStudentID) {
-            filtersSection
-            needsMeetingSection
-            if showCompletedThisWeek {
-                completedSection
+        VStack(spacing: 0) {
+            HStack {
+                Image(systemName: "magnifyingglass")
+                    .foregroundStyle(.secondary)
+                    .font(.subheadline)
+                TextField("Search students", text: $searchText)
+                    .textFieldStyle(.plain)
+                    .font(.subheadline)
+                if !searchText.isEmpty {
+                    Button {
+                        searchText = ""
+                    } label: {
+                        Image(systemName: "xmark.circle.fill")
+                            .foregroundStyle(.secondary)
+                            .font(.caption)
+                    }
+                    .buttonStyle(.plain)
+                }
             }
+            .padding(8)
+            .background(
+                RoundedRectangle(cornerRadius: 8, style: .continuous)
+                    .fill(Color.primary.opacity(UIConstants.OpacityConstants.trace))
+            )
+            .padding(.horizontal, 12)
+            .padding(.top, 12)
+            .padding(.bottom, 8)
+
+            List(selection: $selectedStudentID) {
+                filtersSection
+                needsMeetingSection
+                if showCompletedThisWeek {
+                    completedSection
+                }
+            }
+            .listStyle(.sidebar)
+            .scrollContentBackground(.hidden)
         }
-        .listStyle(.sidebar)
-        .searchable(text: $searchText, prompt: "Search students")
         .toolbar {
             #if os(iOS)
             ToolbarItem(placement: .navigationBarTrailing) {
