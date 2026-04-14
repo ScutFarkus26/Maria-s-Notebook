@@ -34,7 +34,7 @@ enum MeetingPersistenceService {
         let prefix = "StudentMeetings.current.\(studentID.uuidString)"
         let d = UserDefaults.standard
         return CurrentMeetingData(
-            isCompleted: d.bool(forKey: prefix + ".completed"),
+            isCompleted: false,
             reflectionText: d.string(forKey: prefix + ".reflection") ?? "",
             focusText: d.string(forKey: prefix + ".focus") ?? "",
             requestsText: d.string(forKey: prefix + ".requests") ?? "",
@@ -49,7 +49,6 @@ enum MeetingPersistenceService {
     static func saveCurrent(studentID: UUID, data: CurrentMeetingData) {
         let prefix = "StudentMeetings.current.\(studentID.uuidString)"
         let d = UserDefaults.standard
-        d.set(data.isCompleted, forKey: prefix + ".completed")
         d.set(data.reflectionText, forKey: prefix + ".reflection")
         d.set(data.focusText, forKey: prefix + ".focus")
         d.set(data.requestsText, forKey: prefix + ".requests")

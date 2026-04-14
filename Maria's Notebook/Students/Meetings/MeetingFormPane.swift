@@ -10,12 +10,12 @@ struct MeetingFormPane: View {
     let student: CDStudent
     let meetings: [CDStudentMeeting]
     let meetingTemplates: [CDMeetingTemplate]
+    var overdueWorkCount: Int = 0
     var onComplete: (() -> Void)?
 
     @Environment(\.managedObjectContext) private var viewContext
 
     // Form state
-    @State private var isCompleted: Bool = false
     @State private var reflectionText: String = ""
     @State private var focusText: String = ""
     @State private var requestsText: String = ""
@@ -44,6 +44,25 @@ struct MeetingFormPane: View {
         activeTemplate?.guideNotesPrompt ?? "Observations only you can see..."
     }
 
+    private var previousFocusText: String? {
+        let text = meetings.first?.focus.trimmed() ?? ""
+        return text.isEmpty ? nil : text
+    }
+
+    private var reflectionHints: [MeetingFieldHint] {
+        var hints: [MeetingFieldHint] = []
+        if let focus = previousFocusText {
+            hints.append(MeetingFieldHint(text: "Last focus: \(focus)", color: .secondary))
+        }
+        if overdueWorkCount > 0 {
+            hints.append(MeetingFieldHint(
+                text: "Has \(overdueWorkCount) overdue item\(overdueWorkCount == 1 ? "" : "s")",
+                color: AppColors.warning.opacity(0.8)
+            ))
+        }
+        return hints
+    }
+
     private var todayString: String {
         DateFormatter.localizedString(from: Date(), dateStyle: .medium, timeStyle: .none)
     }
@@ -69,21 +88,21 @@ struct MeetingFormPane: View {
                             .foregroundStyle(.secondary)
                     }
 
-                    Spacer()
-
-                    Toggle("Completed", isOn: $isCompleted)
-                        .toggleStyle(.switch)
-                        .labelsHidden()
-
-                    Text("Completed")
-                        .font(.subheadline)
-                        .foregroundStyle(.secondary)
                 }
 
                 // Form fields
-                meetingField(title: "Student Reflection", text: $reflectionText, placeholder: reflectionPlaceholder)
+                meetingField(title: "Student Reflection", text: $reflectionText, placeholder: reflectionPlaceholder, hints: reflectionHints)
                 meetingField(title: "Focus for This Week", text: $focusText, placeholder: focusPlaceholder)
-                meetingField(title: "Lesson Requests", text: $requestsText, placeholder: requestsPlaceholder)
+                meetingField(title: "Lesson Requests", text: $requestsText, placeholder: requestsPlaceholder) {
+                    Spacer()
+                    Button {
+                        showingAddLessonSheet = true
+                    } label: {
+                        Label("Add to Inbox", systemImage: "plus.circle")
+                            .font(.caption)
+                    }
+                    .buttonStyle(.borderless)
+                }
                 meetingField(title: "Guide Notes (private)", text: $guideNotesText, placeholder: guideNotesPlaceholder)
 
                 // Schedule Next Meeting
@@ -103,19 +122,20 @@ struct MeetingFormPane: View {
                     }
                     .buttonStyle(.bordered)
 
+                    Spacer()
+
                     Button {
-                        showingAddLessonSheet = true
+                        saveCurrentToDefaults()
                     } label: {
-                        Label("Add Lesson to Inbox", systemImage: "plus.circle")
+                        Text("Save Draft")
                     }
                     .buttonStyle(.bordered)
-
-                    Spacer()
+                    .disabled(isCurrentEmpty)
 
                     Button {
                         saveAndContinue()
                     } label: {
-                        Label("Save & Next", systemImage: "arrow.right")
+                        Label("Complete & Next", systemImage: "checkmark.circle")
                     }
                     .buttonStyle(.borderedProminent)
                     .disabled(isCurrentEmpty)
@@ -140,16 +160,31 @@ struct MeetingFormPane: View {
         .onChange(of: requestsText) { _, _ in saveCurrentToDefaults() }
         .onChange(of: guideNotesText) { _, _ in saveCurrentToDefaults() }
         .onChange(of: nextMeetingDate) { _, _ in saveCurrentToDefaults() }
-        .onChange(of: isCompleted) { _, _ in saveCurrentToDefaults() }
     }
 
     // MARK: - Form Field
 
-    private func meetingField(title: String, text: Binding<String>, placeholder: String) -> some View {
+    private func meetingField<TrailingLabel: View>(
+        title: String,
+        text: Binding<String>,
+        placeholder: String,
+        hints: [MeetingFieldHint] = [],
+        @ViewBuilder trailingLabel: () -> TrailingLabel = { EmptyView() }
+    ) -> some View {
         VStack(alignment: .leading, spacing: 6) {
-            Text(title)
-                .font(.subheadline.weight(.medium))
-                .foregroundStyle(.secondary)
+            HStack {
+                Text(title)
+                    .font(.subheadline.weight(.medium))
+                    .foregroundStyle(.secondary)
+                trailingLabel()
+            }
+
+            ForEach(hints) { hint in
+                Text(hint.text)
+                    .font(.caption)
+                    .foregroundStyle(hint.color)
+                    .lineLimit(2)
+            }
 
             ZStack(alignment: .topLeading) {
                 TextEditor(text: text)
@@ -181,7 +216,7 @@ struct MeetingFormPane: View {
 
     private var currentMeetingData: MeetingPersistenceService.CurrentMeetingData {
         MeetingPersistenceService.CurrentMeetingData(
-            isCompleted: isCompleted,
+            isCompleted: false,
             reflectionText: reflectionText,
             focusText: focusText,
             requestsText: requestsText,
@@ -193,7 +228,6 @@ struct MeetingFormPane: View {
     private func loadCurrentFromDefaults() {
         guard let studentID = student.id else { return }
         let data = MeetingPersistenceService.loadCurrent(studentID: studentID)
-        isCompleted = data.isCompleted
         reflectionText = data.reflectionText
         focusText = data.focusText
         requestsText = data.requestsText
@@ -207,7 +241,6 @@ struct MeetingFormPane: View {
     }
 
     private func clearForm() {
-        isCompleted = false
         reflectionText = ""
         focusText = ""
         requestsText = ""
@@ -220,10 +253,18 @@ struct MeetingFormPane: View {
 
     private func saveAndContinue() {
         guard let studentID = student.id else { return }
-        // Save to history
+        // Save to history — always mark as completed
+        let completedData = MeetingPersistenceService.CurrentMeetingData(
+            isCompleted: true,
+            reflectionText: reflectionText,
+            focusText: focusText,
+            requestsText: requestsText,
+            guideNotesText: guideNotesText,
+            nextMeetingDate: nextMeetingDate
+        )
         if MeetingPersistenceService.saveToHistory(
             studentID: studentID,
-            data: currentMeetingData,
+            data: completedData,
             context: viewContext
         ) {
             // Schedule next meeting if date was set
@@ -238,4 +279,12 @@ struct MeetingFormPane: View {
             onComplete?()
         }
     }
+}
+
+// MARK: - Meeting Field Hint
+
+private struct MeetingFieldHint: Identifiable {
+    let id = UUID()
+    let text: String
+    let color: Color
 }

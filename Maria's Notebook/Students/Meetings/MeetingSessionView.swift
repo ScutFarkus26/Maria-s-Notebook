@@ -75,6 +75,7 @@ struct MeetingSessionView: View {
                         student: student,
                         meetings: meetings,
                         meetingTemplates: meetingTemplates,
+                        overdueWorkCount: workStats.overdue.count,
                         onComplete: onComplete
                     )
                     .frame(maxWidth: .infinity)
@@ -102,6 +103,7 @@ struct MeetingSessionView: View {
                             student: student,
                             meetings: meetings,
                             meetingTemplates: meetingTemplates,
+                            overdueWorkCount: workStats.overdue.count,
                             onComplete: onComplete
                         )
                     }

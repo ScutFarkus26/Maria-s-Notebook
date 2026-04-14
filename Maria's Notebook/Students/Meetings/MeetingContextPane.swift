@@ -84,6 +84,18 @@ struct MeetingContextPane: View {
                 statBox(title: "Completed", count: recentCompleted.count, color: .green)
             }
 
+            if !overdueWork.isEmpty {
+                VStack(alignment: .leading, spacing: 4) {
+                    Text("Overdue/Stuck")
+                        .font(.caption.weight(.medium))
+                        .foregroundStyle(AppColors.warning)
+
+                    ForEach(overdueWork.prefix(3)) { work in
+                        workRow(work)
+                    }
+                }
+            }
+
             if !openWork.isEmpty {
                 VStack(alignment: .leading, spacing: 4) {
                     HStack {
@@ -112,18 +124,6 @@ struct MeetingContextPane: View {
                     }
 
                     ForEach(showAllOpenWork ? openWork : Array(openWork.prefix(5))) { work in
-                        workRow(work)
-                    }
-                }
-            }
-
-            if !overdueWork.isEmpty {
-                VStack(alignment: .leading, spacing: 4) {
-                    Text("Overdue/Stuck")
-                        .font(.caption.weight(.medium))
-                        .foregroundStyle(AppColors.warning)
-
-                    ForEach(overdueWork.prefix(3)) { work in
                         workRow(work)
                     }
                 }
