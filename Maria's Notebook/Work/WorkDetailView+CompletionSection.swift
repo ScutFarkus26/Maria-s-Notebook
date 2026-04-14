@@ -327,6 +327,25 @@ extension WorkDetailView {
             }
         }
 
+        // Other students with their own work for the same lesson
+        if !viewModel.peersWithWork.isEmpty {
+            DetailSectionCard(
+                title: "Also Working On This",
+                icon: "person.2.circle.fill",
+                accentColor: .orange
+            ) {
+                VStack(alignment: .leading, spacing: 6) {
+                    ForEach(viewModel.peersWithWork, id: \.student.objectID) { entry in
+                        peerRow(
+                            student: entry.student,
+                            statusLabel: workStatusLabel(peerStatus: entry.status),
+                            statusColor: entry.status.color
+                        )
+                    }
+                }
+            }
+        }
+
         // Lesson co-recipients
         let showSamePresentationPeers = viewModel.relatedPresentation == nil
             && !viewModel.samePresentationPeers.isEmpty
@@ -399,5 +418,11 @@ extension WorkDetailView {
         guard viewModel.status != .complete else { return nil }
         if completedAt != nil { return "completed" }
         return nil
+    }
+
+    private func workStatusLabel(peerStatus: WorkStatus) -> String? {
+        // Only show status when it differs from the current student's status
+        guard peerStatus != viewModel.status else { return nil }
+        return peerStatus.displayName.lowercased()
     }
 }

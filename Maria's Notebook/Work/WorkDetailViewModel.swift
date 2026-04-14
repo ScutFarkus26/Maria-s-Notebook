@@ -26,6 +26,7 @@ final class WorkDetailViewModel {
     var samePresentationPeers: [CDStudent] = []
     var otherLessonRecipients: [CDStudent] = []
     var peerWorkIDs: [UUID: UUID] = [:]  // studentID → workID for tap navigation
+    var peersWithWork: [(student: CDStudent, status: WorkStatus)] = []  // other students with work for same lesson
 
     var showPresentationNotes = false
     var showAddNoteSheet = false
@@ -206,6 +207,15 @@ final class WorkDetailViewModel {
         otherRecipientIDs.subtract(samePresentationIDs)
         allPeerStudentIDs.formUnion(otherRecipientIDs)
 
+        // Fetch all work items for the same lesson by other students
+        let peerWorkRequest = CDFetchRequest(CDWorkModel.self)
+        let peerWorks = safeFetch(peerWorkRequest, context: modelContext)
+            .filter { $0.lessonID == workModel.lessonID && $0.studentID != primaryStudentID }
+
+        // Include students who have work items in the peer ID set
+        let workPeerStudentIDs = Set(peerWorks.compactMap { UUID(uuidString: $0.studentID) })
+        allPeerStudentIDs.formUnion(workPeerStudentIDs)
+
         guard !allPeerStudentIDs.isEmpty else { return }
 
         // Batch-fetch all peer students
@@ -234,10 +244,6 @@ final class WorkDetailViewModel {
             .sorted { ($0.firstName) < ($1.firstName) }
 
         // Build peer work ID lookup for tap navigation
-        let allPeerIDStrings = allPeerStudentIDs.map(\.uuidString)
-        let peerWorkRequest = CDFetchRequest(CDWorkModel.self)
-        let peerWorks = safeFetch(peerWorkRequest, context: modelContext)
-            .filter { $0.lessonID == workModel.lessonID && allPeerIDStrings.contains($0.studentID) }
         peerWorkIDs = Dictionary(
             peerWorks.compactMap { w in
                 guard let studentUUID = UUID(uuidString: w.studentID),
@@ -246,6 +252,24 @@ final class WorkDetailViewModel {
             },
             uniquingKeysWith: { first, _ in first }
         )
+
+        // Resolve "also working on this" — students with their own work for the same lesson
+        // Exclude anyone already shown as a work participant to avoid duplication
+        let participantIDSet = Set(participantIDs)
+        peersWithWork = peerWorks
+            .compactMap { w -> (student: CDStudent, status: WorkStatus)? in
+                guard let studentUUID = UUID(uuidString: w.studentID),
+                      !participantIDSet.contains(studentUUID),
+                      let student = studentsByID[studentUUID] else { return nil }
+                return (student: student, status: w.status)
+            }
+            .sorted { $0.student.firstName < $1.student.firstName }
+            // Deduplicate by student (keep first work item per student)
+            .reduce(into: [(student: CDStudent, status: WorkStatus)]()) { result, entry in
+                if !result.contains(where: { $0.student.objectID == entry.student.objectID }) {
+                    result.append(entry)
+                }
+            }
     }
     
     private func loadWorkNotes(for workModel: CDWorkModel?) {
