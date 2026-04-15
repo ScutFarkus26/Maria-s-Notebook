@@ -15,6 +15,7 @@ public class CDStudentMeeting: NSManagedObject {
 
     // MARK: - Relationships
     @NSManaged public var notes: NSSet?
+    @NSManaged public var workReviews: NSSet?
 
     // MARK: - Convenience Initializer
     @discardableResult
@@ -55,4 +56,16 @@ extension CDStudentMeeting {
 
     @objc(removeNotes:)
     @NSManaged public func removeFromNotes(_ values: NSSet)
+
+    @objc(addWorkReviewsObject:)
+    @NSManaged public func addToWorkReviews(_ value: CDMeetingWorkReview)
+
+    @objc(removeWorkReviewsObject:)
+    @NSManaged public func removeFromWorkReviews(_ value: CDMeetingWorkReview)
+
+    @objc(addWorkReviews:)
+    @NSManaged public func addToWorkReviews(_ values: NSSet)
+
+    @objc(removeWorkReviews:)
+    @NSManaged public func removeFromWorkReviews(_ values: NSSet)
 }

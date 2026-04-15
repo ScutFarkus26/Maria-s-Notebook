@@ -9,7 +9,7 @@ public enum BackupMigrationManifest {
 
     // MARK: - Format Version History
 
-    /// Complete history of all supported backup format versions (v5–v13).
+    /// Complete history of all supported backup format versions (v5–v14).
     /// Versions prior to v5 are unsupported (no checksum enforcement).
     public static let versionHistory: [FormatVersionInfo] = [
         FormatVersionInfo(
@@ -110,6 +110,18 @@ public enum BackupMigrationManifest {
             ],
             breakingChanges: [],
             migrationNotes: "New optional array; older payloads decode this as nil."
+        ),
+        FormatVersionInfo(
+            version: 14,
+            releaseDate: DateComponents(calendar: .current, year: 2026, month: 4, day: 15).date!,
+            description: "Adds CDMeetingWorkReview, CDStudentFocusItem, CDWorkModel.restingUntil",
+            changes: [
+                "CDMeetingWorkReview entity for tracking work discussed in meetings",
+                "CDStudentFocusItem entity for structured focus carry-forward",
+                "CDWorkModel.restingUntil for intentional rest (pauses aging)"
+            ],
+            breakingChanges: [],
+            migrationNotes: "New optional arrays; older payloads decode these as nil."
         )
     ]
 
@@ -216,7 +228,7 @@ public enum BackupMigrationManifest {
 
 extension BackupMigrationManifest {
 
-    /// Documents entity schemas across format versions (v5–v13)
+    /// Documents entity schemas across format versions (v5–v14)
     public enum EntitySchemaChanges {
 
         // MARK: - CDStudent
@@ -392,7 +404,11 @@ extension BackupMigrationManifest {
         PayloadField(name: "albumGroupUIStates", introducedIn: 12, description: "AlbumGroupUIState DTO-only stubs"),
 
         // Classroom sharing (v13+)
-        PayloadField(name: "classroomMemberships", introducedIn: 13, description: "CDClassroomMembership records")
+        PayloadField(name: "classroomMemberships", introducedIn: 13, description: "CDClassroomMembership records"),
+
+        // Meeting-Work Integration (v14+)
+        PayloadField(name: "meetingWorkReviews", introducedIn: 14, description: "CDMeetingWorkReview records"),
+        PayloadField(name: "studentFocusItems", introducedIn: 14, description: "CDStudentFocusItem records")
     ]
 
     public struct PayloadField: Identifiable, Sendable {

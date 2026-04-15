@@ -118,6 +118,7 @@ struct WorkDetailView: View {
 
     @State var selectedWorkID: UUID?
     @State var selectedPracticeSession: CDPracticeSession?
+    @State var showGroupMeetingDatePicker: Bool = false
 
     @ViewBuilder
     // swiftlint:disable:next function_body_length
@@ -141,6 +142,7 @@ struct WorkDetailView: View {
                     practiceHistorySection()
                     notesSection()
                     calendarSection()
+                    groupMeetingSection()
                 }.padding(AppTheme.Spacing.xlarge)
             }
             .sheet(item: $selectedPracticeSession) { session in
@@ -253,6 +255,9 @@ struct WorkDetailView: View {
                 WorkStepEditorSheet(work: work, existingStep: step) {
                     viewModel.stepBeingEdited = nil
                 }
+            }
+            .sheet(isPresented: $showGroupMeetingDatePicker) {
+                groupMeetingDatePickerSheet(work: work)
             }
     }
 }

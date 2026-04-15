@@ -230,6 +230,9 @@ extension BackupEntityImporter {
             meeting.studentID = studentUUID.uuidString
             meeting.date = dto.date
             meeting.createdAt = dto.createdAt
+            meeting._participantIDsData = dto.participantIDsData
+            meeting.workID = dto.workID
+            meeting.isGroupMeeting = dto.isGroupMeeting ?? false
             viewContext.insert(meeting)
         }
     }
@@ -278,5 +281,47 @@ extension BackupEntityImporter {
             membership.modifiedAt = dto.modifiedAt
             return membership
         })
+    }
+
+    // MARK: - CDMeetingWorkReview (format v14+)
+
+    static func importMeetingWorkReviews(
+        _ dtos: [MeetingWorkReviewDTO],
+        into viewContext: NSManagedObjectContext
+    ) {
+        for dto in dtos {
+            let entity = CDMeetingWorkReview(context: viewContext)
+            entity.id = dto.id
+            entity.meetingID = dto.meetingID
+            entity.workID = dto.workID
+            entity.noteText = dto.noteText
+            entity.createdAt = dto.createdAt
+
+            // Wire relationship
+            let request = NSFetchRequest<CDStudentMeeting>(entityName: "StudentMeeting")
+            request.predicate = NSPredicate(format: "id == %@", (UUID(uuidString: dto.meetingID) ?? UUID()) as CVarArg)
+            request.fetchLimit = 1
+            entity.meeting = try? viewContext.fetch(request).first
+        }
+    }
+
+    // MARK: - CDStudentFocusItem (format v14+)
+
+    static func importStudentFocusItems(
+        _ dtos: [StudentFocusItemDTO],
+        into viewContext: NSManagedObjectContext
+    ) {
+        for dto in dtos {
+            let entity = CDStudentFocusItem(context: viewContext)
+            entity.id = dto.id
+            entity.studentID = dto.studentID
+            entity.text = dto.text
+            entity.statusRaw = dto.statusRaw
+            entity.createdInMeetingID = dto.createdInMeetingID
+            entity.resolvedInMeetingID = dto.resolvedInMeetingID
+            entity.resolvedAt = dto.resolvedAt
+            entity.createdAt = dto.createdAt
+            entity.sortOrder = Int64(dto.sortOrder)
+        }
     }
 }

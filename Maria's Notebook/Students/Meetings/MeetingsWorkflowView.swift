@@ -62,8 +62,14 @@ struct MeetingsWorkflowView: View {
     private var scheduledMeetingDates: [UUID: Date] {
         var result: [UUID: Date] = [:]
         for sm in scheduledMeetingsQuery {
-            if let sid = sm.studentIDUUID {
-                result[sid] = sm.date
+            for studentIDString in sm.allStudentIDs {
+                if let sid = UUID(uuidString: studentIDString) {
+                    if let existing = result[sid] {
+                        result[sid] = min(existing, sm.date ?? .distantFuture)
+                    } else {
+                        result[sid] = sm.date
+                    }
+                }
             }
         }
         return result

@@ -698,6 +698,21 @@ extension BackupService {
                 existingCheck: { try fetchOne(CDClassroomMembership.self, id: $0, using: viewContext) }
             )
         }
+
+        // v14+ entities
+        if let meetingWorkReviews = payload.meetingWorkReviews {
+            BackupEntityImporter.importMeetingWorkReviews(
+                meetingWorkReviews,
+                into: viewContext
+            )
+        }
+
+        if let studentFocusItems = payload.studentFocusItems {
+            BackupEntityImporter.importStudentFocusItems(
+                studentFocusItems,
+                into: viewContext
+            )
+        }
     }
 
     private func repairDenormalizedFields(viewContext: NSManagedObjectContext) throws {

@@ -1,5 +1,5 @@
 // MeetingFormPane.swift
-// Meeting form pane for creating/editing weekly meeting notes
+// Meeting form pane with focus checklist and work review persistence
 
 import SwiftUI
 import CoreData
@@ -11,17 +11,24 @@ struct MeetingFormPane: View {
     let meetings: [CDStudentMeeting]
     let meetingTemplates: [CDMeetingTemplate]
     var overdueWorkCount: Int = 0
+    @Binding var workReviewDrafts: [UUID: String]
+    @Binding var reviewedWorkIDs: Set<UUID>
     var onComplete: (() -> Void)?
 
     @Environment(\.managedObjectContext) private var viewContext
 
     // Form state
     @State private var reflectionText: String = ""
-    @State private var focusText: String = ""
     @State private var requestsText: String = ""
     @State private var guideNotesText: String = ""
     @State private var nextMeetingDate: Date?
     @State private var showingAddLessonSheet: Bool = false
+
+    // Focus checklist state
+    @State private var pendingFocusItems: [PendingFocusItem] = []
+    @State private var resolvedFocusItemIDs: Set<UUID> = []
+    @State private var droppedFocusItemIDs: Set<UUID> = []
+    @State private var activeFocusItems: [CDStudentFocusItem] = []
 
     // Get the active meeting template for placeholder prompts
     private var activeTemplate: CDMeetingTemplate? {
@@ -30,10 +37,6 @@ struct MeetingFormPane: View {
 
     private var reflectionPlaceholder: String {
         activeTemplate?.reflectionPrompt ?? "What went well? What was hard?"
-    }
-
-    private var focusPlaceholder: String {
-        activeTemplate?.focusPrompt ?? "1-3 priorities for this week..."
     }
 
     private var requestsPlaceholder: String {
@@ -69,9 +72,12 @@ struct MeetingFormPane: View {
 
     private var isCurrentEmpty: Bool {
         reflectionText.trimmed().isEmpty &&
-        focusText.trimmed().isEmpty &&
         requestsText.trimmed().isEmpty &&
-        guideNotesText.trimmed().isEmpty
+        guideNotesText.trimmed().isEmpty &&
+        pendingFocusItems.allSatisfy { $0.text.trimmed().isEmpty } &&
+        resolvedFocusItemIDs.isEmpty &&
+        droppedFocusItemIDs.isEmpty &&
+        reviewedWorkIDs.isEmpty
     }
 
     var body: some View {
@@ -92,7 +98,15 @@ struct MeetingFormPane: View {
 
                 // Form fields
                 meetingField(title: "Student Reflection", text: $reflectionText, placeholder: reflectionPlaceholder, hints: reflectionHints)
-                meetingField(title: "Focus for This Week", text: $focusText, placeholder: focusPlaceholder)
+
+                // Focus checklist (replaces free-text focus field)
+                FocusChecklistView(
+                    existingItems: activeFocusItems,
+                    pendingNewItems: $pendingFocusItems,
+                    resolvedItemIDs: $resolvedFocusItemIDs,
+                    droppedItemIDs: $droppedFocusItemIDs
+                )
+
                 meetingField(title: "Lesson Requests", text: $requestsText, placeholder: requestsPlaceholder) {
                     Spacer()
                     Button {
@@ -104,6 +118,11 @@ struct MeetingFormPane: View {
                     .buttonStyle(.borderless)
                 }
                 meetingField(title: "Guide Notes (private)", text: $guideNotesText, placeholder: guideNotesPlaceholder)
+
+                // Work review summary
+                if !reviewedWorkIDs.isEmpty {
+                    reviewedWorkSummary
+                }
 
                 // Schedule Next Meeting
                 OptionalDatePicker(
@@ -148,18 +167,39 @@ struct MeetingFormPane: View {
         }
         .onAppear {
             loadCurrentFromDefaults()
+            loadActiveFocusItems()
         }
         .onChange(of: student.id) { _, _ in
             // Save current before switching
             saveCurrentToDefaults()
             // Load new student's draft
             loadCurrentFromDefaults()
+            loadActiveFocusItems()
         }
         .onChange(of: reflectionText) { _, _ in saveCurrentToDefaults() }
-        .onChange(of: focusText) { _, _ in saveCurrentToDefaults() }
         .onChange(of: requestsText) { _, _ in saveCurrentToDefaults() }
         .onChange(of: guideNotesText) { _, _ in saveCurrentToDefaults() }
         .onChange(of: nextMeetingDate) { _, _ in saveCurrentToDefaults() }
+    }
+
+    // MARK: - Reviewed Work Summary
+
+    private var reviewedWorkSummary: some View {
+        VStack(alignment: .leading, spacing: 6) {
+            Text("Work Reviewed")
+                .font(.subheadline.weight(.medium))
+                .foregroundStyle(.secondary)
+
+            HStack(spacing: 6) {
+                Image(systemName: "checkmark.circle.fill")
+                    .foregroundStyle(AppColors.success)
+                    .font(.caption)
+
+                Text("\(reviewedWorkIDs.count) item\(reviewedWorkIDs.count == 1 ? "" : "s") reviewed in this meeting")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+            }
+        }
     }
 
     // MARK: - Form Field
@@ -212,16 +252,26 @@ struct MeetingFormPane: View {
         }
     }
 
+    // MARK: - Focus Items
+
+    private func loadActiveFocusItems() {
+        guard let studentID = student.id else { return }
+        activeFocusItems = FocusItemService.fetchActive(studentID: studentID, context: viewContext)
+    }
+
     // MARK: - Persistence
 
     private var currentMeetingData: MeetingPersistenceService.CurrentMeetingData {
         MeetingPersistenceService.CurrentMeetingData(
             isCompleted: false,
             reflectionText: reflectionText,
-            focusText: focusText,
+            focusText: "", // Focus is now managed via checklist
             requestsText: requestsText,
             guideNotesText: guideNotesText,
-            nextMeetingDate: nextMeetingDate
+            nextMeetingDate: nextMeetingDate,
+            pendingFocusTexts: pendingFocusItems.map(\.text),
+            resolvedFocusIDs: resolvedFocusItemIDs.map(\.uuidString),
+            droppedFocusIDs: droppedFocusItemIDs.map(\.uuidString)
         )
     }
 
@@ -229,10 +279,14 @@ struct MeetingFormPane: View {
         guard let studentID = student.id else { return }
         let data = MeetingPersistenceService.loadCurrent(studentID: studentID)
         reflectionText = data.reflectionText
-        focusText = data.focusText
         requestsText = data.requestsText
         guideNotesText = data.guideNotesText
         nextMeetingDate = data.nextMeetingDate
+
+        // Restore focus checklist draft state
+        pendingFocusItems = (data.pendingFocusTexts ?? []).map { PendingFocusItem(text: $0) }
+        resolvedFocusItemIDs = Set((data.resolvedFocusIDs ?? []).compactMap { UUID(uuidString: $0) })
+        droppedFocusItemIDs = Set((data.droppedFocusIDs ?? []).compactMap { UUID(uuidString: $0) })
     }
 
     private func saveCurrentToDefaults() {
@@ -242,10 +296,14 @@ struct MeetingFormPane: View {
 
     private func clearForm() {
         reflectionText = ""
-        focusText = ""
         requestsText = ""
         guideNotesText = ""
         nextMeetingDate = nil
+        pendingFocusItems = []
+        resolvedFocusItemIDs = []
+        droppedFocusItemIDs = []
+        workReviewDrafts = [:]
+        reviewedWorkIDs = []
         if let studentID = student.id {
             MeetingPersistenceService.clearCurrent(studentID: studentID)
         }
@@ -253,31 +311,89 @@ struct MeetingFormPane: View {
 
     private func saveAndContinue() {
         guard let studentID = student.id else { return }
-        // Save to history — always mark as completed
+
+        // Build focus text snapshot for backward compatibility
+        let resolvedItems = activeFocusItems.filter { resolvedFocusItemIDs.contains($0.id ?? UUID()) }
+        let carryForwardItems = activeFocusItems.filter {
+            guard let id = $0.id else { return false }
+            return !resolvedFocusItemIDs.contains(id) && !droppedFocusItemIDs.contains(id)
+        }
+        let focusSnapshot = FocusItemService.snapshotText(
+            activeItems: carryForwardItems,
+            resolvedItems: resolvedItems,
+            newTexts: pendingFocusItems.map(\.text)
+        )
+
+        // Save meeting to history
         let completedData = MeetingPersistenceService.CurrentMeetingData(
             isCompleted: true,
             reflectionText: reflectionText,
-            focusText: focusText,
+            focusText: focusSnapshot,
             requestsText: requestsText,
             guideNotesText: guideNotesText,
             nextMeetingDate: nextMeetingDate
         )
-        if MeetingPersistenceService.saveToHistory(
+
+        guard let meeting = MeetingPersistenceService.saveToHistory(
             studentID: studentID,
             data: completedData,
             context: viewContext
-        ) {
-            // Schedule next meeting if date was set
-            if let date = nextMeetingDate {
-                MeetingScheduler.scheduleMeeting(
-                    studentID: studentID,
-                    date: date,
-                    context: viewContext
-                )
+        ) else { return }
+
+        let meetingID = meeting.id ?? UUID()
+
+        // Persist work reviews
+        MeetingReviewService.persistReviews(
+            meetingID: meetingID,
+            meeting: meeting,
+            drafts: workReviewDrafts,
+            reviewedIDs: reviewedWorkIDs,
+            context: viewContext
+        )
+
+        // Persist focus item changes
+        // 1. Resolve checked items
+        for item in activeFocusItems {
+            guard let itemID = item.id else { continue }
+            if resolvedFocusItemIDs.contains(itemID) {
+                FocusItemService.resolve(item, inMeetingID: meetingID)
+            } else if droppedFocusItemIDs.contains(itemID) {
+                FocusItemService.drop(item, inMeetingID: meetingID)
             }
-            clearForm()
-            onComplete?()
         }
+
+        // 2. Create new focus items
+        let existingCount = activeFocusItems.count
+        for (index, pending) in pendingFocusItems.enumerated() {
+            let trimmed = pending.text.trimmingCharacters(in: .whitespacesAndNewlines)
+            guard !trimmed.isEmpty else { continue }
+            FocusItemService.create(
+                studentID: studentID,
+                text: trimmed,
+                meetingID: meetingID,
+                sortOrder: existingCount + index,
+                context: viewContext
+            )
+        }
+
+        // Save all changes
+        do {
+            try viewContext.save()
+        } catch {
+            // Already logged in individual services
+        }
+
+        // Schedule next meeting if date was set
+        if let date = nextMeetingDate {
+            MeetingScheduler.scheduleMeeting(
+                studentID: studentID,
+                date: date,
+                context: viewContext
+            )
+        }
+
+        clearForm()
+        onComplete?()
     }
 }
 

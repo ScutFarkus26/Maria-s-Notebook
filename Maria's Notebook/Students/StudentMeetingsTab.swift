@@ -436,7 +436,7 @@ struct StudentMeetingsTab: View {
             studentID: studentID,
             data: currentMeetingData,
             context: viewContext
-        ) {
+        ) != nil {
             // Schedule next meeting if date was set
             if let date = nextMeetingDate {
                 MeetingScheduler.scheduleMeeting(

@@ -19,11 +19,17 @@ enum MeetingPersistenceService {
         var guideNotesText: String = ""
         var nextMeetingDate: Date?
 
+        // Focus checklist draft persistence
+        var pendingFocusTexts: [String]?
+        var resolvedFocusIDs: [String]?
+        var droppedFocusIDs: [String]?
+
         var isEmpty: Bool {
             reflectionText.trimmed().isEmpty &&
             focusText.trimmed().isEmpty &&
             requestsText.trimmed().isEmpty &&
-            guideNotesText.trimmed().isEmpty
+            guideNotesText.trimmed().isEmpty &&
+            (pendingFocusTexts ?? []).allSatisfy { $0.trimmed().isEmpty }
         }
     }
 
@@ -39,7 +45,10 @@ enum MeetingPersistenceService {
             focusText: d.string(forKey: prefix + ".focus") ?? "",
             requestsText: d.string(forKey: prefix + ".requests") ?? "",
             guideNotesText: d.string(forKey: prefix + ".guideNotes") ?? "",
-            nextMeetingDate: d.object(forKey: prefix + ".nextMeetingDate") as? Date
+            nextMeetingDate: d.object(forKey: prefix + ".nextMeetingDate") as? Date,
+            pendingFocusTexts: d.stringArray(forKey: prefix + ".pendingFocusTexts"),
+            resolvedFocusIDs: d.stringArray(forKey: prefix + ".resolvedFocusIDs"),
+            droppedFocusIDs: d.stringArray(forKey: prefix + ".droppedFocusIDs")
         )
     }
 
@@ -54,6 +63,9 @@ enum MeetingPersistenceService {
         d.set(data.requestsText, forKey: prefix + ".requests")
         d.set(data.guideNotesText, forKey: prefix + ".guideNotes")
         d.set(data.nextMeetingDate, forKey: prefix + ".nextMeetingDate")
+        d.set(data.pendingFocusTexts, forKey: prefix + ".pendingFocusTexts")
+        d.set(data.resolvedFocusIDs, forKey: prefix + ".resolvedFocusIDs")
+        d.set(data.droppedFocusIDs, forKey: prefix + ".droppedFocusIDs")
     }
 
     // MARK: - Clear Current
@@ -65,23 +77,24 @@ enum MeetingPersistenceService {
 
     // MARK: - Save to History
 
-    /// Saves current meeting data to SwiftData history.
+    /// Saves current meeting data to Core Data history.
     ///
     /// - Parameters:
     ///   - studentID: CDStudent ID
     ///   - data: Current meeting data
-    ///   - context: Model context
-    /// - Returns: true if saved successfully
+    ///   - context: Managed object context
+    /// - Returns: The created CDStudentMeeting, or nil if data was empty
     @discardableResult
-    static func saveToHistory(studentID: UUID, data: CurrentMeetingData, context: NSManagedObjectContext) -> Bool {
+    static func saveToHistory(studentID: UUID, data: CurrentMeetingData, context: NSManagedObjectContext) -> CDStudentMeeting? {
         let trimmedReflection = data.reflectionText.trimmed()
         let trimmedFocus = data.focusText.trimmed()
         let trimmedRequests = data.requestsText.trimmed()
         let trimmedGuide = data.guideNotesText.trimmed()
 
         guard !(trimmedReflection.isEmpty && trimmedFocus.isEmpty
-               && trimmedRequests.isEmpty && trimmedGuide.isEmpty) else {
-            return false
+               && trimmedRequests.isEmpty && trimmedGuide.isEmpty
+               && (data.pendingFocusTexts ?? []).allSatisfy { $0.trimmed().isEmpty }) else {
+            return nil
         }
 
         let entry = CDStudentMeeting(context: context)
@@ -97,7 +110,7 @@ enum MeetingPersistenceService {
         } catch {
             logger.warning("Failed to save meeting to history: \(error)")
         }
-        return true
+        return entry
     }
 
     // MARK: - Migrate History

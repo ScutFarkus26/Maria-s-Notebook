@@ -29,6 +29,7 @@ public class CDWorkModel: NSManagedObject {
     @NSManaged public var sampleWorkID: String?
     @NSManaged public var legacyStudentLessonID: String?
     @NSManaged public var checkInStyleRaw: String?
+    @NSManaged public var restingUntil: Date?
 
     // MARK: - Relationships
     @NSManaged public var participants: NSSet?
@@ -66,6 +67,7 @@ public class CDWorkModel: NSManagedObject {
         self.sampleWorkID = nil
         self.legacyStudentLessonID = nil
         self.checkInStyleRaw = nil
+        self.restingUntil = nil
     }
 }
 
@@ -106,6 +108,14 @@ extension CDWorkModel {
     var checkInStyle: CheckInStyle {
         get { checkInStyleRaw.flatMap { CheckInStyle(rawValue: $0) } ?? .flexible }
         set { checkInStyleRaw = newValue.rawValue }
+    }
+
+    // MARK: - Resting
+
+    /// Whether this work is intentionally resting (aging paused until `restingUntil`).
+    var isResting: Bool {
+        guard let until = restingUntil else { return false }
+        return until > AppCalendar.startOfDay(Date())
     }
 
     // MARK: - Completion helpers

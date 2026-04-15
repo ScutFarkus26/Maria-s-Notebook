@@ -94,6 +94,9 @@ struct BackupEntityRegistry {
         // produces entity name '' and throws an unrecoverable ObjC NSException.
         // Classroom Membership (format v13+)
         CDClassroomMembership.self,
+        // Meeting-Work Integration (format v14+)
+        CDMeetingWorkReview.self,
+        CDStudentFocusItem.self,
         // Year Plan + Progression
         CDYearPlanEntry.self,
         CDLessonGroupSettings.self

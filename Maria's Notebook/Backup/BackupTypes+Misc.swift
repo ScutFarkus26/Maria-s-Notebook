@@ -256,6 +256,9 @@ public struct ScheduledMeetingDTO: Codable, Sendable {
     public var studentID: String
     public var date: Date
     public var createdAt: Date
+    public var participantIDsData: Data?
+    public var workID: String?
+    public var isGroupMeeting: Bool?
 }
 
 // MARK: - Album Group DTOs (format v12+)
@@ -283,4 +286,28 @@ public struct ClassroomMembershipDTO: Codable, Sendable {
     public var ownerIdentity: String
     public var joinedAt: Date
     public var modifiedAt: Date
+}
+
+// MARK: - MeetingWorkReview DTO (format v14+)
+
+public struct MeetingWorkReviewDTO: Codable, Sendable {
+    public var id: UUID
+    public var meetingID: String
+    public var workID: String
+    public var noteText: String
+    public var createdAt: Date
+}
+
+// MARK: - StudentFocusItem DTO (format v14+)
+
+public struct StudentFocusItemDTO: Codable, Sendable {
+    public var id: UUID
+    public var studentID: String
+    public var text: String
+    public var statusRaw: String
+    public var createdInMeetingID: String
+    public var resolvedInMeetingID: String?
+    public var resolvedAt: Date?
+    public var createdAt: Date
+    public var sortOrder: Int
 }

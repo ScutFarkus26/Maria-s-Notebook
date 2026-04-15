@@ -48,6 +48,8 @@ public struct WorkModelDTO: Codable, Sendable {
     public var sampleWorkID: String?
     public var legacyStudentLessonID: String?
     public var checkInStyleRaw: String?
+    // Format v14+
+    public var restingUntil: Date?
 }
 
 // MARK: - CDPlanningRecommendation DTO

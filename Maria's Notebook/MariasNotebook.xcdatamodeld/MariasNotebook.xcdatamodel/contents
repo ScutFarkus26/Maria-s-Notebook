@@ -525,6 +525,7 @@
         <attribute name="sampleWorkID" optional="YES" attributeType="String"/>
         <attribute name="legacyStudentLessonID" optional="YES" attributeType="String"/>
         <attribute name="checkInStyleRaw" optional="YES" attributeType="String"/>
+        <attribute name="restingUntil" optional="YES" attributeType="Date" usesScalarValueType="NO"/>
         <relationship name="participants" optional="YES" toMany="YES" deletionRule="Cascade" destinationEntity="WorkParticipantEntity" inverseName="work" inverseEntity="WorkParticipantEntity"/>
         <relationship name="checkIns" optional="YES" toMany="YES" deletionRule="Cascade" destinationEntity="WorkCheckIn" inverseName="work" inverseEntity="WorkCheckIn"/>
         <relationship name="steps" optional="YES" toMany="YES" deletionRule="Cascade" destinationEntity="WorkStep" inverseName="work" inverseEntity="WorkStep"/>
@@ -803,6 +804,28 @@
         <attribute name="requests" attributeType="String" defaultValueString=""/>
         <attribute name="guideNotes" attributeType="String" defaultValueString=""/>
         <relationship name="notes" optional="YES" toMany="YES" deletionRule="Cascade" destinationEntity="Note" inverseName="studentMeeting" inverseEntity="Note"/>
+        <relationship name="workReviews" optional="YES" toMany="YES" deletionRule="Cascade" destinationEntity="MeetingWorkReview" inverseName="meeting" inverseEntity="MeetingWorkReview"/>
+    </entity>
+    <!-- ==================== MeetingWorkReview ==================== -->
+    <entity name="MeetingWorkReview" representedClassName="CDMeetingWorkReview" syncable="YES">
+        <attribute name="id" optional="YES" attributeType="UUID" usesScalarValueType="NO"/>
+        <attribute name="meetingID" attributeType="String" defaultValueString=""/>
+        <attribute name="workID" attributeType="String" defaultValueString=""/>
+        <attribute name="noteText" attributeType="String" defaultValueString=""/>
+        <attribute name="createdAt" optional="YES" attributeType="Date" usesScalarValueType="NO"/>
+        <relationship name="meeting" optional="YES" maxCount="1" deletionRule="Nullify" destinationEntity="StudentMeeting" inverseName="workReviews" inverseEntity="StudentMeeting"/>
+    </entity>
+    <!-- ==================== StudentFocusItem ==================== -->
+    <entity name="StudentFocusItem" representedClassName="CDStudentFocusItem" syncable="YES">
+        <attribute name="id" optional="YES" attributeType="UUID" usesScalarValueType="NO"/>
+        <attribute name="studentID" attributeType="String" defaultValueString=""/>
+        <attribute name="text" attributeType="String" defaultValueString=""/>
+        <attribute name="statusRaw" attributeType="String" defaultValueString="active"/>
+        <attribute name="createdInMeetingID" attributeType="String" defaultValueString=""/>
+        <attribute name="resolvedInMeetingID" optional="YES" attributeType="String"/>
+        <attribute name="resolvedAt" optional="YES" attributeType="Date" usesScalarValueType="NO"/>
+        <attribute name="createdAt" optional="YES" attributeType="Date" usesScalarValueType="NO"/>
+        <attribute name="sortOrder" attributeType="Integer 64" defaultValueString="0" usesScalarValueType="YES"/>
     </entity>
     <!-- ==================== ScheduledMeeting ==================== -->
     <entity name="ScheduledMeeting" representedClassName="CDScheduledMeeting" syncable="YES">
@@ -810,6 +833,9 @@
         <attribute name="studentID" attributeType="String" defaultValueString=""/>
         <attribute name="date" optional="YES" attributeType="Date" usesScalarValueType="NO"/>
         <attribute name="createdAt" optional="YES" attributeType="Date" usesScalarValueType="NO"/>
+        <attribute name="_participantIDsData" optional="YES" attributeType="Binary"/>
+        <attribute name="workID" optional="YES" attributeType="String"/>
+        <attribute name="isGroupMeeting" optional="YES" attributeType="Boolean" defaultValueString="NO" usesScalarValueType="YES"/>
     </entity>
     <!-- ==================== CalendarNote ==================== -->
     <entity name="CalendarNote" representedClassName="CDCalendarNote" syncable="YES">

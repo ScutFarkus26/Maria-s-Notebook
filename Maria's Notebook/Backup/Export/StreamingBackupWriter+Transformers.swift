@@ -103,6 +103,10 @@ extension StreamingBackupWriter {
             return BackupDTOTransformers.toDTOs(resources)
         case let links as [CDNoteStudentLink]:
             return BackupDTOTransformers.toDTOs(links)
+        case let reviews as [CDMeetingWorkReview]:
+            return BackupDTOTransformers.toDTOs(reviews)
+        case let focusItems as [CDStudentFocusItem]:
+            return BackupDTOTransformers.toDTOs(focusItems)
         default:
             return []
         }

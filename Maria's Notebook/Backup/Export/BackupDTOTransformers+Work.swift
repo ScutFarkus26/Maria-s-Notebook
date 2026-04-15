@@ -33,7 +33,8 @@ extension BackupDTOTransformers {
             sourceContextID: work.sourceContextID,
             sampleWorkID: work.sampleWorkID,
             legacyStudentLessonID: work.legacyStudentLessonID,
-            checkInStyleRaw: work.checkInStyleRaw
+            checkInStyleRaw: work.checkInStyleRaw,
+            restingUntil: work.restingUntil
         )
     }
 

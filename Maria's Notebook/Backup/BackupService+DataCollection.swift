@@ -240,11 +240,20 @@ extension BackupService {
             AlbumGroupUIState.self, using: viewContext) { BackupDTOTransformers.toDTOs($0) }
 
         progress(
-            BackupProgress.progress(for: .collecting, subProgress: 0.95),
+            BackupProgress.progress(for: .collecting, subProgress: 0.93),
             "Collecting classroom memberships\u{2026}"
         )
         payload.classroomMemberships = fetchAndTransformInBatches(
             CDClassroomMembership.self, using: viewContext) { BackupDTOTransformers.toDTOs($0) }
+
+        progress(
+            BackupProgress.progress(for: .collecting, subProgress: 0.95),
+            "Collecting meeting work reviews & focus items\u{2026}"
+        )
+        payload.meetingWorkReviews = fetchAndTransformInBatches(
+            CDMeetingWorkReview.self, using: viewContext) { BackupDTOTransformers.toDTOs($0) }
+        payload.studentFocusItems = fetchAndTransformInBatches(
+            CDStudentFocusItem.self, using: viewContext) { BackupDTOTransformers.toDTOs($0) }
     }
 
     // MARK: - Encode & Write
@@ -392,7 +401,9 @@ extension BackupService {
             "ScheduledMeeting": payload.scheduledMeetings?.count ?? 0,
             "AlbumGroupOrder": payload.albumGroupOrders?.count ?? 0,
             "AlbumGroupUIState": payload.albumGroupUIStates?.count ?? 0,
-            "ClassroomMembership": payload.classroomMemberships?.count ?? 0
+            "ClassroomMembership": payload.classroomMemberships?.count ?? 0,
+            "MeetingWorkReview": payload.meetingWorkReviews?.count ?? 0,
+            "StudentFocusItem": payload.studentFocusItems?.count ?? 0
         ]
     }
 

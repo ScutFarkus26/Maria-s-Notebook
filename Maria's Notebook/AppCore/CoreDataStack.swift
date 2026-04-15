@@ -116,7 +116,9 @@ final class CoreDataStack {
         "YearPlanEntry",
         "LessonGroupSettings",
         "ParentCommunication",
-        "PrepChecklistCompletion"
+        "PrepChecklistCompletion",
+        "MeetingWorkReview",
+        "StudentFocusItem"
     ]
 
     // MARK: - Store URLs

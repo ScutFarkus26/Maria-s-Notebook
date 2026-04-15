@@ -149,4 +149,85 @@ extension WorkDetailView {
         modelContext.delete(item)
         saveCoordinator.save(modelContext, reason: "Deleting check-in")
     }
+
+    // MARK: - Group Meeting
+
+    /// All participant UUIDs for this work (primary student + collaborators).
+    private var groupMeetingParticipantIDs: [UUID] {
+        var ids: [UUID] = []
+        if let primaryID = viewModel.resolvedStudentID {
+            ids.append(primaryID)
+        }
+        for entry in viewModel.workParticipants {
+            if let pid = entry.student.id {
+                ids.append(pid)
+            }
+        }
+        return ids
+    }
+
+    @ViewBuilder
+    func groupMeetingSection() -> some View {
+        let participantIDs = groupMeetingParticipantIDs
+        if participantIDs.count >= 2 {
+            DetailSectionCard(title: "Group Meeting", icon: "person.3", accentColor: .teal) {
+                VStack(alignment: .leading, spacing: 12) {
+                    Text("Schedule a meeting with all participants on this work.")
+                        .font(AppTheme.ScaledFont.caption)
+                        .foregroundStyle(.secondary)
+
+                    // Participant chips
+                    FlowLayout(spacing: 6) {
+                        if let primary = viewModel.relatedStudent {
+                            participantChip(name: primary.fullName)
+                        }
+                        ForEach(viewModel.workParticipants, id: \.student.id) { entry in
+                            participantChip(name: entry.student.fullName)
+                        }
+                    }
+
+                    Button {
+                        showGroupMeetingDatePicker = true
+                    } label: {
+                        Label("Pick a Date", systemImage: "calendar.badge.plus")
+                            .font(AppTheme.ScaledFont.captionSemibold)
+                            .frame(maxWidth: .infinity)
+                    }
+                    .buttonStyle(.borderedProminent)
+                    .tint(.teal)
+                    .controlSize(.regular)
+                }
+            }
+        }
+    }
+
+    private func participantChip(name: String) -> some View {
+        Text(name)
+            .font(AppTheme.ScaledFont.captionSemibold)
+            .padding(.horizontal, 10)
+            .padding(.vertical, 5)
+            .background(Color.teal.opacity(UIConstants.OpacityConstants.light))
+            .clipShape(Capsule())
+    }
+
+    @ViewBuilder
+    func groupMeetingDatePickerSheet(work: CDWorkModel) -> some View {
+        let participantNames = groupMeetingParticipantIDs.compactMap { id in
+            if let primary = viewModel.relatedStudent, primary.id == id {
+                return primary.fullName
+            }
+            return viewModel.workParticipants.first { $0.student.id == id }?.student.fullName
+        }
+        let title = participantNames.prefix(2).joined(separator: ", ")
+            + (participantNames.count > 2 ? " + \(participantNames.count - 2)" : "")
+
+        MeetingDatePickerSheet(studentName: title) { date in
+            MeetingScheduler.scheduleGroupMeeting(
+                participantIDs: groupMeetingParticipantIDs,
+                date: date,
+                workID: work.id,
+                context: modelContext
+            )
+        }
+    }
 }

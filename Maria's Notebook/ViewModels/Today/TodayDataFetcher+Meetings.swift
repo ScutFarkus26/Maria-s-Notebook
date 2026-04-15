@@ -26,7 +26,9 @@ extension TodayDataFetcher {
         )
         request.sortDescriptors = [NSSortDescriptor(keyPath: \CDScheduledMeeting.createdAt, ascending: true)]
         let meetings = context.safeFetch(request)
-        let studentIDs = Set(meetings.compactMap(\.studentIDUUID))
+        let studentIDs = Set(meetings.flatMap { meeting in
+            meeting.allStudentIDs.compactMap { UUID(uuidString: $0) }
+        })
         return ScheduledMeetingsFetchResult(meetings: meetings, neededStudentIDs: studentIDs)
     }
 

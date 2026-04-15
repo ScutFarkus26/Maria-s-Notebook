@@ -14,6 +14,10 @@ struct MeetingSessionView: View {
 
     @Environment(\.managedObjectContext) private var viewContext
 
+    // Shared state for work reviews during this meeting session
+    @State private var workReviewDrafts: [UUID: String] = [:]
+    @State private var reviewedWorkIDs: Set<UUID> = []
+
     // Use uniquingKeysWith to handle CloudKit sync duplicates
     private var lessonsByID: [UUID: CDLesson] {
         Dictionary(lessons.compactMap { lesson -> (UUID, CDLesson)? in
@@ -63,7 +67,9 @@ struct MeetingSessionView: View {
                         recentCompleted: workStats.recentCompleted,
                         lessonsSinceLastMeeting: lessonsSinceLastMeeting,
                         meetings: meetings,
-                        lessonsByID: lessonsByID
+                        lessonsByID: lessonsByID,
+                        workReviewDrafts: $workReviewDrafts,
+                        reviewedWorkIDs: $reviewedWorkIDs
                     )
                     .frame(width: min(geometry.size.width * 0.4, 400))
                     .background(Color.primary.opacity(UIConstants.OpacityConstants.ghost))
@@ -76,6 +82,8 @@ struct MeetingSessionView: View {
                         meetings: meetings,
                         meetingTemplates: meetingTemplates,
                         overdueWorkCount: workStats.overdue.count,
+                        workReviewDrafts: $workReviewDrafts,
+                        reviewedWorkIDs: $reviewedWorkIDs,
                         onComplete: onComplete
                     )
                     .frame(maxWidth: .infinity)
@@ -93,7 +101,9 @@ struct MeetingSessionView: View {
                             lessonsSinceLastMeeting: lessonsSinceLastMeeting,
                             meetings: meetings,
                             lessonsByID: lessonsByID,
-                            isCompact: true
+                            isCompact: true,
+                            workReviewDrafts: $workReviewDrafts,
+                            reviewedWorkIDs: $reviewedWorkIDs
                         )
 
                         Divider()
@@ -104,6 +114,8 @@ struct MeetingSessionView: View {
                             meetings: meetings,
                             meetingTemplates: meetingTemplates,
                             overdueWorkCount: workStats.overdue.count,
+                            workReviewDrafts: $workReviewDrafts,
+                            reviewedWorkIDs: $reviewedWorkIDs,
                             onComplete: onComplete
                         )
                     }

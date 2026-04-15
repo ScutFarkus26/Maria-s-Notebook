@@ -44,6 +44,7 @@ extension BackupEntityImporter {
                 work.legacyStudentLessonID = dto.legacyStudentLessonID
                 work.sampleWorkID = dto.sampleWorkID
                 work.checkInStyleRaw = dto.checkInStyleRaw
+                work.restingUntil = dto.restingUntil
                 return work
             })
     }

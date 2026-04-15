@@ -735,7 +735,10 @@ extension BackupDTOTransformers {
             id: meeting.id ?? UUID(),
             studentID: meeting.studentID,
             date: meeting.date ?? Date(),
-            createdAt: meeting.createdAt ?? Date()
+            createdAt: meeting.createdAt ?? Date(),
+            participantIDsData: meeting._participantIDsData,
+            workID: meeting.workID,
+            isGroupMeeting: meeting.isGroupMeeting
         )
     }
 
@@ -788,5 +791,41 @@ extension BackupDTOTransformers {
 
     static func toDTOs(_ memberships: [CDClassroomMembership]) -> [ClassroomMembershipDTO] {
         memberships.map { toDTO($0) }
+    }
+
+    // MARK: - CDMeetingWorkReview (format v14+)
+
+    static func toDTO(_ review: CDMeetingWorkReview) -> MeetingWorkReviewDTO {
+        MeetingWorkReviewDTO(
+            id: review.id ?? UUID(),
+            meetingID: review.meetingID,
+            workID: review.workID,
+            noteText: review.noteText,
+            createdAt: review.createdAt ?? Date()
+        )
+    }
+
+    static func toDTOs(_ reviews: [CDMeetingWorkReview]) -> [MeetingWorkReviewDTO] {
+        reviews.map { toDTO($0) }
+    }
+
+    // MARK: - CDStudentFocusItem (format v14+)
+
+    static func toDTO(_ item: CDStudentFocusItem) -> StudentFocusItemDTO {
+        StudentFocusItemDTO(
+            id: item.id ?? UUID(),
+            studentID: item.studentID,
+            text: item.text,
+            statusRaw: item.statusRaw,
+            createdInMeetingID: item.createdInMeetingID,
+            resolvedInMeetingID: item.resolvedInMeetingID,
+            resolvedAt: item.resolvedAt,
+            createdAt: item.createdAt ?? Date(),
+            sortOrder: Int(item.sortOrder)
+        )
+    }
+
+    static func toDTOs(_ items: [CDStudentFocusItem]) -> [StudentFocusItemDTO] {
+        items.map { toDTO($0) }
     }
 }

@@ -61,6 +61,38 @@ enum MeetingScheduler {
         return fetchAll(studentID: studentIDString, context: context).first?.date
     }
 
+    // MARK: - Group Meetings
+
+    /// Schedules a group meeting for multiple students, optionally linked to a work item.
+    static func scheduleGroupMeeting(
+        participantIDs: [UUID],
+        date: Date,
+        workID: UUID? = nil,
+        context: NSManagedObjectContext
+    ) {
+        guard !participantIDs.isEmpty else { return }
+        let normalizedDate = AppCalendar.startOfDay(date)
+
+        let meeting = CDScheduledMeeting(context: context)
+        meeting.isGroupMeeting = true
+        meeting.participantStudentIDs = participantIDs.map(\.uuidString)
+        meeting.studentID = participantIDs[0].uuidString
+        meeting.date = normalizedDate
+        meeting.workIDUUID = workID
+
+        context.safeSave()
+    }
+
+    /// Returns all scheduled meetings involving a given student
+    /// (either as primary student or as a group meeting participant).
+    static func scheduledMeetings(involving studentID: UUID, context: NSManagedObjectContext) -> [CDScheduledMeeting] {
+        let descriptor = NSFetchRequest<CDScheduledMeeting>(entityName: "ScheduledMeeting")
+        descriptor.sortDescriptors = [NSSortDescriptor(keyPath: \CDScheduledMeeting.date, ascending: true)]
+        let all = context.safeFetch(descriptor)
+        let idString = studentID.uuidString
+        return all.filter { $0.allStudentIDs.contains(idString) }
+    }
+
     // MARK: - Private
 
     private static func fetchAll(studentID: String, context: NSManagedObjectContext) -> [CDScheduledMeeting] {

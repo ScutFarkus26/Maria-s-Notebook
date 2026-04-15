@@ -45,6 +45,8 @@ extension CDParentCommunication: Identifiable {}
 extension CDPrepChecklist: Identifiable {}
 extension CDPrepChecklistItem: Identifiable {}
 extension CDPrepChecklistCompletion: Identifiable {}
+extension CDMeetingWorkReview: Identifiable {}
+extension CDStudentFocusItem: Identifiable {}
 
 // MARK: - CD short name convenience aliases
 
