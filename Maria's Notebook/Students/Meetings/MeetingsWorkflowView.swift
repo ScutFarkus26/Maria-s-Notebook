@@ -59,6 +59,12 @@ struct MeetingsWorkflowView: View {
 
     // MARK: - Computed Properties
 
+    private var absentTodayIDs: Set<UUID> {
+        let ids = students.compactMap(\.id)
+        let statuses = viewContext.attendanceStatuses(for: ids, on: Date())
+        return Set(statuses.compactMap { $0.value == .absent ? $0.key : nil })
+    }
+
     private var scheduledMeetingDates: [UUID: Date] {
         var result: [UUID: Date] = [:]
         for sm in scheduledMeetingsQuery {
@@ -167,6 +173,22 @@ struct MeetingsWorkflowView: View {
         return result
     }
 
+    private var filteredStudentsNeedingMeetingPresent: [CDStudent] {
+        let absent = absentTodayIDs
+        return filteredStudentsNeedingMeeting.filter { student in
+            guard let id = student.id else { return true }
+            return !absent.contains(id)
+        }
+    }
+
+    private var filteredStudentsAbsentToday: [CDStudent] {
+        let absent = absentTodayIDs
+        return filteredStudentsNeedingMeeting.filter { student in
+            guard let id = student.id else { return false }
+            return absent.contains(id)
+        }
+    }
+
     private func meetingsFor(_ student: CDStudent) -> [CDStudentMeeting] {
         let studentIDString = student.id?.uuidString ?? ""
         return allMeetings.filter { $0.studentID == studentIDString }
@@ -181,7 +203,8 @@ struct MeetingsWorkflowView: View {
     var body: some View {
         HStack(spacing: 0) {
             MeetingsQueueSidebar(
-                studentsNeedingMeeting: filteredStudentsNeedingMeeting,
+                studentsNeedingMeeting: filteredStudentsNeedingMeetingPresent,
+                studentsAbsentToday: filteredStudentsAbsentToday,
                 studentsCompleted: filteredStudentsCompleted,
                 selectedStudentID: $selectedStudentID,
                 searchText: $searchText,
@@ -254,9 +277,9 @@ struct MeetingsWorkflowView: View {
                 .multilineTextAlignment(.center)
                 .frame(maxWidth: 300)
 
-            if !studentsNeedingMeeting.isEmpty {
+            if !filteredStudentsNeedingMeetingPresent.isEmpty {
                 Button {
-                    selectedStudentID = studentsNeedingMeeting.first?.id
+                    selectedStudentID = filteredStudentsNeedingMeetingPresent.first?.id
                 } label: {
                     Label("Start First Meeting", systemImage: "play.fill")
                 }
@@ -270,7 +293,11 @@ struct MeetingsWorkflowView: View {
     // MARK: - Actions
 
     private func moveToNextStudent() {
-        let queue = studentsNeedingMeeting
+        let absent = absentTodayIDs
+        let queue = studentsNeedingMeeting.filter { student in
+            guard let id = student.id else { return true }
+            return !absent.contains(id)
+        }
         if let currentIndex = queue.firstIndex(where: { $0.id == selectedStudentID }) {
             let nextIndex = currentIndex + 1
             if nextIndex < queue.count {

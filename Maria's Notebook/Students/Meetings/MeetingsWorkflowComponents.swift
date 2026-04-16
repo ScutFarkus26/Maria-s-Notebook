@@ -5,6 +5,7 @@ import CoreData
 
 struct MeetingsQueueSidebar: View {
     let studentsNeedingMeeting: [CDStudent]
+    var studentsAbsentToday: [CDStudent] = []
     let studentsCompleted: [CDStudent]
     @Binding var selectedStudentID: UUID?
     @Binding var searchText: String
@@ -49,6 +50,9 @@ struct MeetingsQueueSidebar: View {
             List(selection: $selectedStudentID) {
                 filtersSection
                 needsMeetingSection
+                if !studentsAbsentToday.isEmpty {
+                    absentTodaySection
+                }
                 if showCompletedThisWeek {
                     completedSection
                 }
@@ -78,6 +82,14 @@ struct MeetingsQueueSidebar: View {
                 studentRow(student, showCheckmark: false)
             }
             .onMove(perform: searchText.isEmpty ? onMove : nil)
+        }
+    }
+
+    private var absentTodaySection: some View {
+        Section("Absent Today (\(studentsAbsentToday.count))") {
+            ForEach(studentsAbsentToday) { student in
+                studentRow(student, showCheckmark: false)
+            }
         }
     }
 
@@ -308,25 +320,14 @@ struct StudentQueueRow: View {
     var showCheckmark: Bool = false
     var scheduledDate: Date?
 
-    @Environment(\.managedObjectContext) private var viewContext
-
     private var daysSinceLastMeeting: Int? {
         guard let lastMeeting else { return nil }
         return Calendar.current.dateComponents([.day], from: lastMeeting.date ?? Date(), to: Date()).day
     }
 
-    private var isAbsentToday: Bool {
-        guard let studentID = student.id else { return false }
-        return viewContext.attendanceStatus(for: studentID, on: Date()) == .absent
-    }
-
     var body: some View {
         HStack(spacing: 10) {
             StudentAvatarView(student: student, size: 36)
-                .overlay(
-                    Circle()
-                        .stroke(isAbsentToday ? Color.red : Color.clear, lineWidth: 1.5)
-                )
 
             VStack(alignment: .leading, spacing: 2) {
                 Text(StudentFormatter.displayName(for: student))
