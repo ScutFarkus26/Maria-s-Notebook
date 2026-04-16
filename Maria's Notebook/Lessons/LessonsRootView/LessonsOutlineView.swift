@@ -223,7 +223,9 @@ struct LessonsOutlineView: View {
                 .fill(isSelected ? Color.accentColor.opacity(UIConstants.OpacityConstants.moderate) : Color.clear)
                 .padding(.horizontal, 4)
         )
-        .contextMenu { lessonContextMenu(lesson: lesson, group: group, subheadings: subheadings) }
+        .when(!isJiggling) { view in
+            view.contextMenu { lessonContextMenu(lesson: lesson, group: group, subheadings: subheadings) }
+        }
         .id(lesson.id)
     }
 

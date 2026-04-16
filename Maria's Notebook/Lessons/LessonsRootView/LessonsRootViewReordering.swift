@@ -92,7 +92,8 @@ extension LessonsRootView {
 
     @MainActor
     func moveLessonsInSubject(from source: IndexSet, to destination: Int, in groupLessons: [CDLesson]) {
-        guard canReorderInPlanMode else { return }
+        // Allow reordering in both browse (jiggle) and plan modes.
+        guard canReorder else { return }
         guard let subject = selectedSubject, !subject.trimmed().isEmpty else { return }
         guard let sourceIndex = source.first else { return }
         guard sourceIndex < groupLessons.count else { return }

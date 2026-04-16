@@ -173,9 +173,7 @@ struct LessonsCardsGridView: View {
     }
 
     var body: some View {
-        let needsGeometry = isManualMode && onReorder != nil
-
-        return ScrollViewReader { scrollProxy in
+        ScrollViewReader { scrollProxy in
             ScrollView {
                 LazyVGrid(columns: columns, alignment: .leading, spacing: 24) {
                     if groupedItems.count > 1 {
@@ -202,16 +200,17 @@ struct LessonsCardsGridView: View {
                 .padding(.leading, 0)
             }
             .frame(maxWidth: .infinity, maxHeight: .infinity)
-            .when(needsGeometry) { view in
-                view
-                    .coordinateSpace(name: "lessonsGridScroll")
-                    .onPreferenceChange(LessonItemFramePreference.self) { frames in
-                        // Defer state update to next run loop to avoid layout recursion
-                        // PreferenceKey updates happen during layout, so we must defer state changes
-                        Task { @MainActor in
-                            itemFrames = frames
-                        }
-                    }
+            // Apply coordinate space + preference handler unconditionally so entering/exiting
+            // jiggle mode doesn't change the ScrollView's structural identity (which would reset
+            // the scroll position). LessonCardContainer only emits frame preferences when
+            // shouldMeasureFrames is true, so there's no perf cost outside jiggle mode.
+            .coordinateSpace(name: "lessonsGridScroll")
+            .onPreferenceChange(LessonItemFramePreference.self) { frames in
+                // Defer state update to next run loop to avoid layout recursion
+                // PreferenceKey updates happen during layout, so we must defer state changes
+                Task { @MainActor in
+                    itemFrames = frames
+                }
             }
             .onChange(of: selectedLessonID) { _, newValue in
                 if let lessonID = newValue {

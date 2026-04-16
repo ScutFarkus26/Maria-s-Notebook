@@ -60,11 +60,13 @@ extension LessonsCardsGridView {
         .overlay(RightClickCatcher(onRightClick: { onGiveLesson?(lesson) }))
 #endif
 #if !os(macOS)
-        .contextMenu {
-            Button {
-                onGiveLesson?(lesson)
-            } label: {
-                Label("Give Lesson", systemImage: "person.crop.circle.badge.checkmark")
+        .when(!isManualMode) { view in
+            view.contextMenu {
+                Button {
+                    onGiveLesson?(lesson)
+                } label: {
+                    Label("Give Lesson", systemImage: "person.crop.circle.badge.checkmark")
+                }
             }
         }
 #endif
