@@ -180,6 +180,8 @@ struct MeetingFormPane: View {
         .onChange(of: requestsText) { _, _ in saveCurrentToDefaults() }
         .onChange(of: guideNotesText) { _, _ in saveCurrentToDefaults() }
         .onChange(of: nextMeetingDate) { _, _ in saveCurrentToDefaults() }
+        .onChange(of: workReviewDrafts) { _, _ in saveCurrentToDefaults() }
+        .onChange(of: reviewedWorkIDs) { _, _ in saveCurrentToDefaults() }
     }
 
     // MARK: - Reviewed Work Summary
@@ -271,7 +273,9 @@ struct MeetingFormPane: View {
             nextMeetingDate: nextMeetingDate,
             pendingFocusTexts: pendingFocusItems.map(\.text),
             resolvedFocusIDs: resolvedFocusItemIDs.map(\.uuidString),
-            droppedFocusIDs: droppedFocusItemIDs.map(\.uuidString)
+            droppedFocusIDs: droppedFocusItemIDs.map(\.uuidString),
+            workReviewDrafts: Dictionary(uniqueKeysWithValues: workReviewDrafts.map { ($0.key.uuidString, $0.value) }),
+            reviewedWorkIDs: reviewedWorkIDs.map(\.uuidString)
         )
     }
 
@@ -287,6 +291,14 @@ struct MeetingFormPane: View {
         pendingFocusItems = (data.pendingFocusTexts ?? []).map { PendingFocusItem(text: $0) }
         resolvedFocusItemIDs = Set((data.resolvedFocusIDs ?? []).compactMap { UUID(uuidString: $0) })
         droppedFocusItemIDs = Set((data.droppedFocusIDs ?? []).compactMap { UUID(uuidString: $0) })
+
+        // Restore work review draft state
+        let restoredDrafts: [(UUID, String)] = (data.workReviewDrafts ?? [:]).compactMap { key, value in
+            guard let uuid = UUID(uuidString: key) else { return nil }
+            return (uuid, value)
+        }
+        workReviewDrafts = Dictionary(uniqueKeysWithValues: restoredDrafts)
+        reviewedWorkIDs = Set((data.reviewedWorkIDs ?? []).compactMap { UUID(uuidString: $0) })
     }
 
     private func saveCurrentToDefaults() {

@@ -24,13 +24,20 @@ enum MeetingWorkSnapshotHelper {
         let sid = studentID.uuidString
         let workModelsForStudent = allWorkModels.filter { $0.studentID == sid }
 
-        let openWork = workModelsForStudent.filter { $0.status != .complete }
-
         let overdueThreshold = Calendar.current.date(
             byAdding: .day, value: -workOverdueDays, to: Date()
         ) ?? Date.distantPast
-        let overdueWork = workModelsForStudent.filter {
-            $0.status != .complete && ($0.createdAt ?? Date()) < overdueThreshold
+
+        let notComplete = workModelsForStudent.filter { $0.status != .complete }
+
+        let overdueWork = notComplete.filter {
+            ($0.createdAt ?? Date()) < overdueThreshold
+        }
+
+        let overdueIDs = Set(overdueWork.compactMap(\.id))
+        let openWork = notComplete.filter { work in
+            guard let id = work.id else { return true }
+            return !overdueIDs.contains(id)
         }
 
         let recentThreshold = Calendar.current.date(byAdding: .day, value: -7, to: Date()) ?? Date.distantPast

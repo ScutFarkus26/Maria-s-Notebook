@@ -154,16 +154,27 @@ struct FocusChecklistView: View {
 
     private var addItemRow: some View {
         HStack(spacing: 8) {
-            Image(systemName: "plus.circle")
-                .foregroundStyle(.accent)
-                .font(.body)
+            Button {
+                addNewItem(refocus: true)
+            } label: {
+                Image(systemName: "plus.circle")
+                    .foregroundStyle(.accent)
+                    .font(.body)
+            }
+            .buttonStyle(.plain)
 
             TextField("Add focus item...", text: $newItemText)
                 .font(.body)
                 .textFieldStyle(.plain)
+                .submitLabel(.done)
                 .focused($isNewItemFocused)
                 .onSubmit {
-                    addNewItem()
+                    addNewItem(refocus: true)
+                }
+                .onChange(of: isNewItemFocused) { _, isFocused in
+                    if !isFocused {
+                        addNewItem(refocus: false)
+                    }
                 }
         }
         .padding(.vertical, 4)
@@ -171,12 +182,14 @@ struct FocusChecklistView: View {
 
     // MARK: - Helpers
 
-    private func addNewItem() {
+    private func addNewItem(refocus: Bool) {
         let trimmed = newItemText.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !trimmed.isEmpty else { return }
         pendingNewItems.append(PendingFocusItem(text: trimmed))
         newItemText = ""
-        isNewItemFocused = true
+        if refocus {
+            isNewItemFocused = true
+        }
     }
 
     private func weeksCarried(since date: Date) -> Int {

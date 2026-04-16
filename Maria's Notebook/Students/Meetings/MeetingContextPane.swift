@@ -25,7 +25,6 @@ struct MeetingContextPane: View {
 
     @State private var selectedWorkID: UUID?
     @State private var isContextCollapsed: Bool = false
-    @State private var showAllOpenWork: Bool = false
     @State private var popoverMeeting: CDStudentMeeting?
     @State private var showAllMeetings: Bool = false
     @State private var meetingToDelete: CDStudentMeeting?
@@ -125,7 +124,7 @@ struct MeetingContextPane: View {
                         .font(.caption.weight(.medium))
                         .foregroundStyle(AppColors.warning)
 
-                    ForEach(overdueWork.prefix(3)) { work in
+                    ForEach(overdueWork) { work in
                         workCard(work)
                     }
                 }
@@ -133,32 +132,11 @@ struct MeetingContextPane: View {
 
             if !openWork.isEmpty {
                 VStack(alignment: .leading, spacing: 4) {
-                    HStack {
-                        Text("Open Work")
-                            .font(.caption.weight(.medium))
-                            .foregroundStyle(.secondary)
+                    Text("Open Work")
+                        .font(.caption.weight(.medium))
+                        .foregroundStyle(.secondary)
 
-                        Spacer()
-
-                        if openWork.count > 5 {
-                            Button {
-                                adaptiveWithAnimation {
-                                    showAllOpenWork.toggle()
-                                }
-                            } label: {
-                                HStack(spacing: 4) {
-                                    Text(showAllOpenWork ? "Show Less" : "Show All (\(openWork.count))")
-                                        .font(.caption)
-                                    Image(systemName: showAllOpenWork ? "chevron.up" : "chevron.down")
-                                        .font(.caption2)
-                                }
-                                .foregroundStyle(.accent)
-                            }
-                            .buttonStyle(.plain)
-                        }
-                    }
-
-                    ForEach(showAllOpenWork ? openWork : Array(openWork.prefix(5))) { work in
+                    ForEach(openWork) { work in
                         workCard(work)
                     }
                 }
@@ -259,7 +237,7 @@ struct MeetingContextPane: View {
                         if newStatus == .complete {
                             work.completedAt = Date()
                         }
-                        markReviewed(workID)
+                        markReviewed(workID, touching: work)
                         trySave()
                     }
                 )) {
@@ -282,6 +260,7 @@ struct MeetingContextPane: View {
                         get: { work.completionOutcome ?? .proficient },
                         set: { newOutcome in
                             work.completionOutcome = newOutcome
+                            markReviewed(workID, touching: work)
                             trySave()
                         }
                     )) {
@@ -304,32 +283,27 @@ struct MeetingContextPane: View {
                     get: { workReviewDrafts[workID] ?? "" },
                     set: { newValue in
                         workReviewDrafts[workID] = newValue
-                        markReviewed(workID)
+                        markReviewed(workID, touching: work)
                     }
                 ))
                 .font(.caption)
                 .textFieldStyle(.roundedBorder)
+
+                if !(workReviewDrafts[workID] ?? "").trimmed().isEmpty {
+                    Image(systemName: "checkmark.circle.fill")
+                        .font(.caption)
+                        .foregroundStyle(AppColors.success)
+                        .accessibilityLabel("Saved")
+                }
             }
 
             // Quick actions
             HStack(spacing: 12) {
-                // Clear overdue
-                Button {
-                    work.lastTouchedAt = Date()
-                    markReviewed(workID)
-                    trySave()
-                } label: {
-                    Label("Clear Overdue", systemImage: "clock.badge.checkmark")
-                        .font(.caption2)
-                }
-                .buttonStyle(.bordered)
-                .controlSize(.small)
-
                 // Rest / Un-rest
                 if work.isResting {
                     Button {
                         MeetingReviewService.clearWorkResting(work)
-                        markReviewed(workID)
+                        markReviewed(workID, touching: work)
                         trySave()
                     } label: {
                         Label("Wake Up", systemImage: "sun.max")
@@ -359,7 +333,7 @@ struct MeetingContextPane: View {
                                 .frame(maxWidth: 300)
                             Button("Confirm") {
                                 MeetingReviewService.setWorkResting(work, until: restingDate)
-                                markReviewed(workID)
+                                markReviewed(workID, touching: work)
                                 trySave()
                                 restingDatePickerWorkID = nil
                             }
@@ -382,8 +356,11 @@ struct MeetingContextPane: View {
         }
     }
 
-    private func markReviewed(_ workID: UUID) {
+    private func markReviewed(_ workID: UUID, touching work: CDWorkModel? = nil) {
         reviewedWorkIDs.insert(workID)
+        if let work {
+            work.lastTouchedAt = Date()
+        }
     }
 
     private func trySave() {

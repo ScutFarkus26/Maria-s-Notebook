@@ -24,12 +24,18 @@ enum MeetingPersistenceService {
         var resolvedFocusIDs: [String]?
         var droppedFocusIDs: [String]?
 
+        // Work review draft persistence (keyed by workID uuidString)
+        var workReviewDrafts: [String: String]?
+        var reviewedWorkIDs: [String]?
+
         var isEmpty: Bool {
             reflectionText.trimmed().isEmpty &&
             focusText.trimmed().isEmpty &&
             requestsText.trimmed().isEmpty &&
             guideNotesText.trimmed().isEmpty &&
-            (pendingFocusTexts ?? []).allSatisfy { $0.trimmed().isEmpty }
+            (pendingFocusTexts ?? []).allSatisfy { $0.trimmed().isEmpty } &&
+            (workReviewDrafts ?? [:]).values.allSatisfy { $0.trimmed().isEmpty } &&
+            (reviewedWorkIDs ?? []).isEmpty
         }
     }
 
@@ -48,7 +54,9 @@ enum MeetingPersistenceService {
             nextMeetingDate: d.object(forKey: prefix + ".nextMeetingDate") as? Date,
             pendingFocusTexts: d.stringArray(forKey: prefix + ".pendingFocusTexts"),
             resolvedFocusIDs: d.stringArray(forKey: prefix + ".resolvedFocusIDs"),
-            droppedFocusIDs: d.stringArray(forKey: prefix + ".droppedFocusIDs")
+            droppedFocusIDs: d.stringArray(forKey: prefix + ".droppedFocusIDs"),
+            workReviewDrafts: d.dictionary(forKey: prefix + ".workReviewDrafts") as? [String: String],
+            reviewedWorkIDs: d.stringArray(forKey: prefix + ".reviewedWorkIDs")
         )
     }
 
@@ -66,6 +74,8 @@ enum MeetingPersistenceService {
         d.set(data.pendingFocusTexts, forKey: prefix + ".pendingFocusTexts")
         d.set(data.resolvedFocusIDs, forKey: prefix + ".resolvedFocusIDs")
         d.set(data.droppedFocusIDs, forKey: prefix + ".droppedFocusIDs")
+        d.set(data.workReviewDrafts, forKey: prefix + ".workReviewDrafts")
+        d.set(data.reviewedWorkIDs, forKey: prefix + ".reviewedWorkIDs")
     }
 
     // MARK: - Clear Current
