@@ -122,6 +122,20 @@ final class TodayViewModel {
         cacheManager.lessonName(for: lessonID)
     }
 
+    // MARK: - Error Reporting
+
+    /// Throttle: last time a fetch error toast was shown (30s cooldown)
+    private var lastErrorToastTime: Date?
+
+    private func showFetchErrorToast(_ collector: FetchErrorCollector) {
+        let now = Date()
+        if let last = lastErrorToastTime, now.timeIntervalSince(last) < 30 { return }
+        lastErrorToastTime = now
+        ToastService.shared.showError(collector.summary, actionLabel: "Retry") { [weak self] in
+            self?.scheduleReload()
+        }
+    }
+
     // MARK: - Scheduling
 
     // ENERGY OPTIMIZATION: Debounce reloads to prevent excessive database queries
@@ -181,12 +195,15 @@ final class TodayViewModel {
     // swiftlint:disable:next function_body_length
     func reload() {
         let (day, nextDay) = AppCalendar.dayRange(for: date)
+        let errorCollector = FetchErrorCollector()
 
         // PERFORMANCE: Fetch all data first, then batch update @Published properties
         // This reduces view re-renders from 7+ to 1 by coalescing all changes
 
         // 1. Fetch lessons data
-        let lessonsResult = TodayLessonsLoader.fetchLessonsWithIDs(day: day, nextDay: nextDay, context: context)
+        let lessonsResult = TodayLessonsLoader.fetchLessonsWithIDs(
+            day: day, nextDay: nextDay, context: context, errorCollector: errorCollector
+        )
         if !lessonsResult.lessons.isEmpty {
             cacheManager.loadStudentsIfNeeded(ids: lessonsResult.neededStudentIDs, context: context)
             cacheManager.loadLessonsIfNeeded(ids: lessonsResult.neededLessonIDs, context: context)
@@ -198,29 +215,37 @@ final class TodayViewModel {
 
         // 2. Fetch work data
         if let prelimResult = TodayDataFetcher.fetchWorkData(
-            day: day, nextDay: nextDay, referenceDate: date, context: context
+            day: day, nextDay: nextDay, referenceDate: date, context: context,
+            errorCollector: errorCollector
         ) {
             cacheManager.loadStudentsIfNeeded(ids: prelimResult.neededStudentIDs, context: context)
             cacheManager.loadLessonsIfNeeded(ids: prelimResult.neededLessonIDs, context: context)
         }
         let workResult = TodayWorkLoader.loadWork(
             day: day, nextDay: nextDay, referenceDate: date,
-            studentsByID: studentsByID, levelFilter: levelFilter, context: context
+            studentsByID: studentsByID, levelFilter: levelFilter, context: context,
+            errorCollector: errorCollector
         )
         cacheManager.updateWork(workResult.workByID)
 
         // 3. Fetch completed work
-        let completedResult = TodayWorkLoader.fetchCompletedWork(day: day, nextDay: nextDay, context: context)
+        let completedResult = TodayWorkLoader.fetchCompletedWork(
+            day: day, nextDay: nextDay, context: context, errorCollector: errorCollector
+        )
         cacheManager.loadStudentsIfNeeded(ids: completedResult.neededStudentIDs, context: context)
         let filteredCompletedWork = TodayLevelFilterService.filterWork(
             completedResult.completedWork, studentsByID: studentsByID, levelFilter: levelFilter
         )
 
         // 4. Fetch reminders
-        let remindersResult = TodayDataFetcher.fetchReminders(day: day, nextDay: nextDay, context: context)
+        let remindersResult = TodayDataFetcher.fetchReminders(
+            day: day, nextDay: nextDay, context: context, errorCollector: errorCollector
+        )
 
         // 5. Fetch calendar events
-        let calendarEvents = TodayDataFetcher.fetchCalendarEvents(day: day, nextDay: nextDay, context: context)
+        let calendarEvents = TodayDataFetcher.fetchCalendarEvents(
+            day: day, nextDay: nextDay, context: context, errorCollector: errorCollector
+        )
 
         // 6. Fetch scheduled meetings
         let meetingsResult = TodayDataFetcher.fetchScheduledMeetings(day: day, nextDay: nextDay, context: context)
@@ -233,14 +258,16 @@ final class TodayViewModel {
         cacheManager.loadStudentsIfNeeded(ids: completedMeetingsResult.neededStudentIDs, context: context)
 
         // 7. Fetch attendance
-        let attendanceResult = TodayDataFetcher.fetchAttendance(day: day, nextDay: nextDay, context: context)
+        let attendanceResult = TodayDataFetcher.fetchAttendance(
+            day: day, nextDay: nextDay, context: context, errorCollector: errorCollector
+        )
         cacheManager.loadStudentsIfNeeded(ids: attendanceResult.neededStudentIDs, context: context)
         let processedAttendance = TodayAttendanceLoader.processAttendance(
             records: attendanceResult.records, studentsByID: studentsByID, levelFilter: levelFilter
         )
 
         // 7. Fetch recent notes
-        let notesResult = TodayDataFetcher.fetchRecentNotes(context: context)
+        let notesResult = TodayDataFetcher.fetchRecentNotes(context: context, errorCollector: errorCollector)
         let missingStudentIDs = notesResult.neededStudentIDs.subtracting(recentNoteStudentsByID.keys)
         var updatedRecentNoteStudents = recentNoteStudentsByID
         
@@ -287,6 +314,11 @@ final class TodayViewModel {
             day: day,
             context: context
         )
+
+        // 9. Surface any fetch errors via toast
+        if errorCollector.hasErrors {
+            showFetchErrorToast(errorCollector)
+        }
     }
 
     // MARK: - Agenda Reordering

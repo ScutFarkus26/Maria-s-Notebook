@@ -241,8 +241,9 @@ struct AppleIntelligenceSheet: View {
             generationError = message
             editorText = context + "\n\n[Error: \(message)]"
         } catch {
-            generationError = error.localizedDescription
-            editorText = context + "\n\n[Error generating draft: \(error.localizedDescription)]"
+            let message = AppErrorMessages.aiMessage(for: error)
+            generationError = message
+            editorText = context + "\n\n[Error: \(message)]"
         }
         
         isGenerating = false
@@ -278,7 +279,7 @@ struct AppleIntelligenceSheet: View {
         case .concurrentRequests:
             return "Another AI request is already in progress. Please wait."
         default:
-            return error.localizedDescription
+            return "Apple Intelligence encountered an unexpected issue. Try again."
         }
     }
     #endif

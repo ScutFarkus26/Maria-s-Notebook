@@ -78,17 +78,8 @@ final class SaveCoordinator {
             try context.save()
             return true
         } catch {
-            let ns = error as NSError
             self.lastSaveError = error
-            var message = ns.localizedDescription
-            // Enrich message with underlying error if present
-            if let underlying = ns.userInfo[NSUnderlyingErrorKey] as? NSError {
-                message += "\nUnderlying: \(underlying.localizedDescription)"
-            }
-            if let why = reason, !why.trimmed().isEmpty {
-                message = "\(why):\n\n\(message)"
-            }
-            self.lastSaveErrorMessage = message
+            self.lastSaveErrorMessage = AppErrorMessages.saveFailureMessage(for: error, reason: reason)
             if !self.suppressAlerts && !self.isShowingSaveError {
                 self.isShowingSaveError = true
             }

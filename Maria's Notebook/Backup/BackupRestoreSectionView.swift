@@ -87,7 +87,7 @@ struct BackupRestoreSectionView: View {
                 viewModel.setLastBackupNow()
                 viewModel.resultSummary = "Exported backup successfully."
             case .failure(let error):
-                viewModel.importError = "Failed to write backup: \(error.localizedDescription)"
+                viewModel.importError = AppErrorMessages.backupMessage(for: error, operation: "save the backup")
             }
             viewModel.exportData = nil
             viewModel.backupProgress = 0; viewModel.backupMessage = ""
@@ -105,7 +105,7 @@ struct BackupRestoreSectionView: View {
             case .success(let url):
                 Task { await viewModel.previewImportedURL(viewContext: viewContext, url: url) }
             case .failure(let error):
-                viewModel.importError = "Failed to restore: \(error.localizedDescription)"
+                viewModel.importError = AppErrorMessages.backupMessage(for: error, operation: "open the backup file")
             }
         }
         // MARK: - Folder Importer (Default Folder)

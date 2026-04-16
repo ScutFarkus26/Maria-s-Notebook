@@ -112,7 +112,7 @@ public struct ReminderSyncSettingsView: View {
                 isRefreshing = false
             }
         } catch {
-            lastSyncStatus = "Failed to request access: \(error.localizedDescription)"
+            lastSyncStatus = AppErrorMessages.syncMessage(for: error, service: "Reminders")
             isRefreshing = false
         }
     }
@@ -137,7 +137,7 @@ public struct ReminderSyncSettingsView: View {
             lastSyncStatus = "Sync completed successfully"
             isRefreshing = false
         } catch {
-            lastSyncStatus = "Sync failed: \(error.localizedDescription)"
+            lastSyncStatus = AppErrorMessages.syncMessage(for: error, service: "Reminders")
             isRefreshing = false
         }
     }

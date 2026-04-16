@@ -52,13 +52,15 @@ enum TodayWorkLoader {
         referenceDate: Date,
         studentsByID: [UUID: CDStudent],
         levelFilter: LevelFilter,
-        context: NSManagedObjectContext
+        context: NSManagedObjectContext,
+        errorCollector: FetchErrorCollector? = nil
     ) -> WorkLoadResult {
         guard let fetchResult = TodayDataFetcher.fetchWorkData(
             day: day,
             nextDay: nextDay,
             referenceDate: referenceDate,
-            context: context
+            context: context,
+            errorCollector: errorCollector
         ) else {
             return emptyResult
         }
@@ -107,9 +109,12 @@ enum TodayWorkLoader {
     static func fetchCompletedWork(
         day: Date,
         nextDay: Date,
-        context: NSManagedObjectContext
+        context: NSManagedObjectContext,
+        errorCollector: FetchErrorCollector? = nil
     ) -> CompletedWorkResult {
-        let workItems = TodayDataFetcher.fetchCompletedWork(day: day, nextDay: nextDay, context: context)
+        let workItems = TodayDataFetcher.fetchCompletedWork(
+            day: day, nextDay: nextDay, context: context, errorCollector: errorCollector
+        )
 
         // Collect student IDs for completed work
         var neededStudentIDs = Set<UUID>()

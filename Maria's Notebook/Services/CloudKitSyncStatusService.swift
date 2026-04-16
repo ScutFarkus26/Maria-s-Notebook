@@ -207,9 +207,9 @@ final class CloudKitSyncStatusService {
             updateSyncHealth()
             return true
         } catch {
-            lastSyncError = error.localizedDescription
+            lastSyncError = AppErrorMessages.userMessage(for: error, context: "syncing with iCloud")
             UserDefaults.standard.set(lastSyncError, forKey: UserDefaultsKeys.cloudKitLastSyncError)
-            SyncEventLogger.shared.log("cloudkit", status: "error", message: error.localizedDescription)
+            SyncEventLogger.shared.log("cloudkit", status: "error", message: error.localizedDescription)  // Keep raw for logs
             isSyncing = false
             lastOperation = "Manual sync failed"
             lastOperationDate = Date()
@@ -268,6 +268,12 @@ final class CloudKitSyncStatusService {
                         message: "Sync failed after 5 retry attempts"
                     )
                     self.updateSyncHealth()
+                    ToastService.shared.showError(
+                        "iCloud sync failed. Data may be out of date.",
+                        actionLabel: "Retry"
+                    ) { [weak self] in
+                        Task { await self?.syncNow() }
+                    }
                 }
             }
         )

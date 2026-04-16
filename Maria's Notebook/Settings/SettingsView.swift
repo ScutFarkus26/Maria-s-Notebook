@@ -80,7 +80,7 @@ struct SettingsView: View {
                     settingsImportMessage = "Settings imported successfully"
                 }
             } catch {
-                settingsImportMessage = "Import failed: \(error.localizedDescription)"
+                settingsImportMessage = AppErrorMessages.importMessage(for: error, fileType: "settings file")
             }
         }
         .alert("Settings Import", isPresented: Binding(

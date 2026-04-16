@@ -78,7 +78,7 @@ struct StudentInsightsView: View {
         do {
             snapshots = try viewContext.fetch(descriptor)
         } catch {
-            errorMessage = "Failed to load snapshots: \(error.localizedDescription)"
+            errorMessage = "Couldn't load development snapshots. Try closing and reopening this view."
         }
     }
 
@@ -106,7 +106,7 @@ struct StudentInsightsView: View {
 
                 await loadSnapshots()
             } catch {
-                errorMessage = "Failed to generate analysis: \(error.localizedDescription)"
+                errorMessage = AppErrorMessages.aiMessage(for: error)
             }
 
             isGenerating = false
@@ -128,7 +128,7 @@ struct StudentInsightsView: View {
                 parentSummary = try await dependencies.studentAnalysisService.generateParentSummary(snapshot: snapshot)
                 showingParentSummary = true
             } catch {
-                errorMessage = "Failed to generate parent summary: \(error.localizedDescription)"
+                errorMessage = AppErrorMessages.aiMessage(for: error)
             }
         }
     }

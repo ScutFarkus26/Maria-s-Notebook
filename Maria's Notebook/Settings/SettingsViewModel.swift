@@ -139,7 +139,7 @@ final class SettingsViewModel {
                     ToastService.shared.showSuccess("Backup saved successfully")
                     loadDefaultFolderName()
                 } catch {
-                    importError = "Failed to write backup: \(error.localizedDescription)"
+                    importError = AppErrorMessages.backupMessage(for: error, operation: "save the backup")
                 }
             } else {
                 resultSummary = "Export canceled."
@@ -151,7 +151,7 @@ final class SettingsViewModel {
             exportData = data
 #endif
         } catch {
-            importError = "Failed to export: \(error.localizedDescription)"
+            importError = AppErrorMessages.backupMessage(for: error, operation: "export your backup")
         }
     }
 
@@ -177,7 +177,7 @@ final class SettingsViewModel {
             restorePreviewData = preview
             pendingImportURL = url
         } catch {
-            importError = "Failed to analyze backup: \(error.localizedDescription)"
+            importError = AppErrorMessages.backupMessage(for: error, operation: "read the backup file")
         }
     }
 
@@ -214,7 +214,7 @@ final class SettingsViewModel {
             )
             dependencies.appRouter.requestBackfillIsPresented()
         } catch {
-            importError = "Failed to restore: \(error.localizedDescription)"
+            importError = AppErrorMessages.backupMessage(for: error, operation: "restore your backup")
         }
     }
 

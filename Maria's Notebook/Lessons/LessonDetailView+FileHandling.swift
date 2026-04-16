@@ -79,7 +79,7 @@ extension LessonDetailView {
                     saveCoordinator.save(viewContext, reason: "Migrate lesson file to managed storage")
                 }
             } catch {
-                await MainActor.run { importError = error.localizedDescription }
+                await MainActor.run { importError = AppErrorMessages.importMessage(for: error, fileType: "lesson file") }
             }
         }
     }

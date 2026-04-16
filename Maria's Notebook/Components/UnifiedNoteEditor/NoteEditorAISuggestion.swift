@@ -81,10 +81,10 @@ extension UnifiedNoteEditor {
             case .refusal:
                 self.suggestionError = "The request could not be processed due to content restrictions."
             default:
-                self.suggestionError = error.localizedDescription
+                self.suggestionError = "Apple Intelligence encountered an unexpected issue. Try again."
             }
         } catch {
-            self.suggestionError = error.localizedDescription
+            self.suggestionError = AppErrorMessages.aiMessage(for: error)
         }
     }
 }

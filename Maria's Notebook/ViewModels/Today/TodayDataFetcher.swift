@@ -2,6 +2,48 @@ import Foundation
 import OSLog
 import CoreData
 
+// MARK: - Fetch Error Collector
+
+/// Collects errors from multiple fetch operations for consolidated reporting.
+/// Not Sendable — intended for single-threaded use within TodayViewModel.reload().
+final class FetchErrorCollector {
+    enum Category: String, CaseIterable {
+        case lessons, work, reminders, calendar, attendance, notes, meetings
+
+        var displayName: String {
+            switch self {
+            case .lessons: return "today's lessons"
+            case .work: return "work items"
+            case .reminders: return "reminders"
+            case .calendar: return "calendar events"
+            case .attendance: return "attendance"
+            case .notes: return "recent notes"
+            case .meetings: return "meetings"
+            }
+        }
+    }
+
+    private(set) var errors: [(Category, Error)] = []
+
+    func record(_ category: Category, _ error: Error) {
+        errors.append((category, error))
+    }
+
+    var hasErrors: Bool { !errors.isEmpty }
+
+    var summary: String {
+        let names = errors.map(\.0.displayName)
+        let distinct = NSOrderedSet(array: names).array as? [String] ?? names
+        switch distinct.count {
+        case 0: return ""
+        case 1: return "Couldn't load \(distinct[0])"
+        case 2: return "Couldn't load \(distinct[0]) or \(distinct[1])"
+        default:
+            return "Couldn't load some of today's data"
+        }
+    }
+}
+
 // MARK: - Today Data Fetcher
 
 // Service for fetching data needed by TodayViewModel.
@@ -19,7 +61,8 @@ enum TodayDataFetcher {
     static func fetchLessons(
         day: Date,
         nextDay: Date,
-        context: NSManagedObjectContext
+        context: NSManagedObjectContext,
+        errorCollector: FetchErrorCollector? = nil
     ) -> [CDLessonAssignment] {
         do {
             // Fetch lessons scheduled for this day
@@ -69,6 +112,8 @@ enum TodayDataFetcher {
 
             return dayLessons
         } catch {
+            errorCollector?.record(.lessons, error)
+            logger.error("Failed to fetch lessons: \(error)")
             return []
         }
     }
@@ -90,7 +135,8 @@ enum TodayDataFetcher {
         day: Date,
         nextDay: Date,
         referenceDate: Date,
-        context: NSManagedObjectContext
+        context: NSManagedObjectContext,
+        errorCollector: FetchErrorCollector? = nil
     ) -> WorkFetchResult? {
         do {
             // ENERGY OPTIMIZATION: Limit work fetch to relevant time window
@@ -185,6 +231,7 @@ enum TodayDataFetcher {
                 neededLessonIDs: workLessonIDs
             )
         } catch {
+            errorCollector?.record(.work, error)
             logger.error("Error fetching work/plans: \(error)")
             return nil
         }
@@ -197,7 +244,8 @@ enum TodayDataFetcher {
     static func fetchCompletedWork(
         day: Date,
         nextDay: Date,
-        context: NSManagedObjectContext
+        context: NSManagedObjectContext,
+        errorCollector: FetchErrorCollector? = nil
     ) -> [CDWorkModel] {
         do {
             let request = CDFetchRequest(CDWorkModel.self)
@@ -210,6 +258,8 @@ enum TodayDataFetcher {
             request.fetchLimit = 100
             return try context.fetch(request)
         } catch {
+            errorCollector?.record(.work, error)
+            logger.error("Error fetching completed work: \(error)")
             return []
         }
     }
@@ -228,7 +278,8 @@ enum TodayDataFetcher {
     @MainActor static func fetchReminders(
         day: Date,
         nextDay: Date,
-        context: NSManagedObjectContext
+        context: NSManagedObjectContext,
+        errorCollector: FetchErrorCollector? = nil
     ) -> ReminderFetchResult {
         do {
             let startOfDay = AppCalendar.startOfDay(day)
@@ -270,6 +321,7 @@ enum TodayDataFetcher {
 
             return ReminderFetchResult(overdue: overdue, today: today, anytime: anytime)
         } catch {
+            errorCollector?.record(.reminders, error)
             logger.error("Error loading reminders: \(error)")
             return ReminderFetchResult(overdue: [], today: [], anytime: [])
         }
@@ -281,7 +333,8 @@ enum TodayDataFetcher {
     static func fetchCalendarEvents(
         day: Date,
         nextDay: Date,
-        context: NSManagedObjectContext
+        context: NSManagedObjectContext,
+        errorCollector: FetchErrorCollector? = nil
     ) -> [CDCalendarEvent] {
         do {
             let request = CDFetchRequest(CDCalendarEvent.self)
@@ -292,6 +345,7 @@ enum TodayDataFetcher {
             request.sortDescriptors = [NSSortDescriptor(keyPath: \CDCalendarEvent.startDate, ascending: true)]
             return try context.fetch(request)
         } catch {
+            errorCollector?.record(.calendar, error)
             logger.error("Error loading calendar events: \(error)")
             return []
         }
@@ -309,7 +363,8 @@ enum TodayDataFetcher {
     static func fetchAttendance(
         day: Date,
         nextDay: Date,
-        context: NSManagedObjectContext
+        context: NSManagedObjectContext,
+        errorCollector: FetchErrorCollector? = nil
     ) -> AttendanceFetchResult {
         do {
             let request = CDFetchRequest(CDAttendanceRecord.self)
@@ -321,6 +376,8 @@ enum TodayDataFetcher {
             let studentIDs = Set(records.compactMap { $0.studentID.asUUID })
             return AttendanceFetchResult(records: records, neededStudentIDs: studentIDs)
         } catch {
+            errorCollector?.record(.attendance, error)
+            logger.error("Error fetching attendance: \(error)")
             return AttendanceFetchResult(records: [], neededStudentIDs: [])
         }
     }
@@ -334,7 +391,10 @@ enum TodayDataFetcher {
     }
 
     /// Fetches recent notes from the last 7 days.
-    static func fetchRecentNotes(context: NSManagedObjectContext) -> RecentNotesFetchResult {
+    static func fetchRecentNotes(
+        context: NSManagedObjectContext,
+        errorCollector: FetchErrorCollector? = nil
+    ) -> RecentNotesFetchResult {
         let cutoff = Calendar.current.date(byAdding: .day, value: -7, to: Date())
             ?? Date().addingTimeInterval(-7*24*3600)
         do {
@@ -351,6 +411,8 @@ enum TodayDataFetcher {
 
             return RecentNotesFetchResult(notes: fetchedNotes, neededStudentIDs: noteStudentIDs)
         } catch {
+            errorCollector?.record(.notes, error)
+            logger.error("Error fetching recent notes: \(error)")
             return RecentNotesFetchResult(notes: [], neededStudentIDs: [])
         }
     }

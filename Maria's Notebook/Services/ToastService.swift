@@ -30,6 +30,12 @@ enum ToastType {
     }
 }
 
+/// A labeled action button for a toast (e.g. "Retry", "Open Settings")
+struct ToastAction {
+    let label: String
+    let handler: () -> Void
+}
+
 /// A toast message to display
 struct ToastMessage: Identifiable, Equatable {
     let id = UUID()
@@ -37,12 +43,20 @@ struct ToastMessage: Identifiable, Equatable {
     let type: ToastType
     let duration: TimeInterval
     let undoAction: (() -> Void)?
+    let action: ToastAction?
 
-    init(_ message: String, type: ToastType = .info, duration: TimeInterval = 2.0, undoAction: (() -> Void)? = nil) {
+    init(
+        _ message: String,
+        type: ToastType = .info,
+        duration: TimeInterval = 2.0,
+        undoAction: (() -> Void)? = nil,
+        action: ToastAction? = nil
+    ) {
         self.message = message
         self.type = type
         self.duration = duration
         self.undoAction = undoAction
+        self.action = action
     }
 
     static func == (lhs: ToastMessage, rhs: ToastMessage) -> Bool {
@@ -88,9 +102,13 @@ final class ToastService {
             duration: effectiveDuration,
             undoAction: undoAction
         )
+        enqueue(toast)
+    }
 
+    /// Enqueue a fully-constructed toast message
+    private func enqueue(_ toast: ToastMessage) {
         // Trigger haptic feedback based on toast type
-        switch type {
+        switch toast.type {
         case .success: HapticService.shared.notification(.success)
         case .warning: HapticService.shared.notification(.warning)
         case .error: HapticService.shared.notification(.error)
@@ -124,6 +142,24 @@ final class ToastService {
     /// Show an error toast (for non-critical errors that don't need an alert)
     func showError(_ message: String, duration: TimeInterval = 3.0) {
         show(message, type: .error, duration: duration)
+    }
+
+    /// Show an error toast with an action button (e.g. "Retry")
+    func showError(_ message: String, actionLabel: String, action: @escaping () -> Void) {
+        let toast = ToastMessage(
+            message, type: .error, duration: 5.0,
+            action: ToastAction(label: actionLabel, handler: action)
+        )
+        enqueue(toast)
+    }
+
+    /// Show a warning toast with an action button
+    func showWarning(_ message: String, actionLabel: String, action: @escaping () -> Void) {
+        let toast = ToastMessage(
+            message, type: .warning, duration: 5.0,
+            action: ToastAction(label: actionLabel, handler: action)
+        )
+        enqueue(toast)
     }
 
     /// Dismiss the current toast immediately
@@ -226,6 +262,18 @@ struct ToastView: View {
                     onUndo?()
                 } label: {
                     Text("Undo")
+                        .font(AppTheme.ScaledFont.captionSemibold)
+                        .underline()
+                }
+                .buttonStyle(.plain)
+            }
+
+            if let action = toast.action {
+                Button {
+                    action.handler()
+                    onUndo?()
+                } label: {
+                    Text(action.label)
                         .font(AppTheme.ScaledFont.captionSemibold)
                         .underline()
                 }

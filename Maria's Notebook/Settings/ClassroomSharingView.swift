@@ -271,7 +271,7 @@ struct ClassroomSharingView: View {
                     do {
                         try await service?.leaveClassroom()
                     } catch {
-                        errorMessage = error.localizedDescription
+                        errorMessage = AppErrorMessages.userMessage(for: error, context: "leaving the classroom")
                     }
                 }
             }

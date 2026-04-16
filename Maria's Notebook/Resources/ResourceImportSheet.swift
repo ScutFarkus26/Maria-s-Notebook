@@ -189,7 +189,7 @@ struct ResourceImportSheet: View {
 
         case .failure(let error):
             Self.logger.warning("File picker failed: \(error, privacy: .public)")
-            importError = "Failed to select file: \(error.localizedDescription)"
+            importError = "Couldn't access the selected file. Try selecting it again."
         }
     }
 
@@ -251,7 +251,7 @@ struct ResourceImportSheet: View {
             dismiss()
         } catch {
             Self.logger.error("Failed to import resource: \(error, privacy: .public)")
-            importError = "Import failed: \(error.localizedDescription)"
+            importError = AppErrorMessages.importMessage(for: error, fileType: "resource")
         }
     }
 }

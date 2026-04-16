@@ -240,7 +240,7 @@ extension LessonDetailCard {
                     saveCoordinator.save(viewContext, reason: "Migrate lesson file to managed storage")
                 }
             } catch {
-                await MainActor.run { importError = error.localizedDescription }
+                await MainActor.run { importError = AppErrorMessages.importMessage(for: error, fileType: "lesson file") }
             }
         }
     }
@@ -279,7 +279,7 @@ extension LessonDetailCard {
                             saveCoordinator.save(viewContext, reason: "Import lesson Pages file")
                         }
                     } catch {
-                        await MainActor.run { importError = error.localizedDescription }
+                        await MainActor.run { importError = AppErrorMessages.importMessage(for: error, fileType: "lesson file") }
                     }
                 }
             }

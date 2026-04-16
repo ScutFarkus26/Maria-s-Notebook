@@ -109,8 +109,8 @@ final class LessonPlanningViewModel {
                 }
             } catch {
                 Self.logger.warning("Planning failed: \(error)")
-                errorMessage = error.localizedDescription
-                messages.append(PlanningMessage(role: .system, content: "Error: \(error.localizedDescription)"))
+                errorMessage = AppErrorMessages.aiMessage(for: error)
+                messages.append(PlanningMessage(role: .system, content: "Error: \(errorMessage ?? "")"))
                 currentStep = .idle
             }
             isLoading = false
@@ -143,7 +143,7 @@ final class LessonPlanningViewModel {
                 currentStep = .presentingPlan
             } catch {
                 Self.logger.warning("Follow-up failed: \(error)")
-                messages.append(PlanningMessage(role: .system, content: "Error: \(error.localizedDescription)"))
+                messages.append(PlanningMessage(role: .system, content: "Error: \(AppErrorMessages.aiMessage(for: error))"))
                 currentStep = .awaitingInput
             }
             isLoading = false
@@ -211,7 +211,7 @@ final class LessonPlanningViewModel {
             currentStep = .complete
         } catch {
             Self.logger.warning("Failed to apply plan: \(error)")
-            errorMessage = error.localizedDescription
+            errorMessage = AppErrorMessages.aiMessage(for: error)
             currentStep = .presentingPlan
         }
         

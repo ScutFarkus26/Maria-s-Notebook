@@ -181,7 +181,7 @@ final class ChatViewModel {
                 currentSession.save()
             } catch {
                 Self.logger.warning("Chat send failed: \(error)")
-                self.errorMessage = error.localizedDescription
+                self.errorMessage = AppErrorMessages.aiMessage(for: error)
                 self.streamingContent = nil
             }
             self.isLoading = false
@@ -221,7 +221,7 @@ final class ChatViewModel {
                 currentSession.save()
             } catch {
                 Self.logger.warning("Cloud escalation failed: \(error)")
-                self.errorMessage = error.localizedDescription
+                self.errorMessage = AppErrorMessages.aiMessage(for: error)
                 self.streamingContent = nil
             }
             self.isLoading = false

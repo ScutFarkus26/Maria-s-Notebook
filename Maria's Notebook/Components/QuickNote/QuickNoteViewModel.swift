@@ -369,7 +369,7 @@ class QuickNoteViewModel {
                 self.aiError = Self.userMessage(for: error)
                 self.isProcessingAI = false
             } catch {
-                self.aiError = error.localizedDescription
+                self.aiError = AppErrorMessages.aiMessage(for: error)
                 self.isProcessingAI = false
             }
         } else {
@@ -397,7 +397,7 @@ class QuickNoteViewModel {
         case .concurrentRequests:
             return "Another AI request is already in progress. Please wait."
         default:
-            return error.localizedDescription
+            return "Apple Intelligence encountered an unexpected issue. Try again."
         }
     }
     #endif

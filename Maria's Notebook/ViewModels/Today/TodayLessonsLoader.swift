@@ -30,9 +30,12 @@ enum TodayLessonsLoader {
     static func fetchLessonsWithIDs(
         day: Date,
         nextDay: Date,
-        context: NSManagedObjectContext
+        context: NSManagedObjectContext,
+        errorCollector: FetchErrorCollector? = nil
     ) -> LessonsResult {
-        let dayLessons = TodayDataFetcher.fetchLessons(day: day, nextDay: nextDay, context: context)
+        let dayLessons = TodayDataFetcher.fetchLessons(
+            day: day, nextDay: nextDay, context: context, errorCollector: errorCollector
+        )
 
         if dayLessons.isEmpty {
             return LessonsResult(lessons: [], neededStudentIDs: [], neededLessonIDs: [])
