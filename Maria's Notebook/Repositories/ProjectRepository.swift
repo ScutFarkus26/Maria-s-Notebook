@@ -40,6 +40,7 @@ struct ProjectRepository: SavingRepository {
         let request = CDFetchRequest(CDProject.self)
         request.predicate = predicate
         request.sortDescriptors = sortBy
+        request.fetchBatchSize = 20
         return context.safeFetch(request)
     }
 
@@ -110,6 +111,7 @@ struct ProjectRepository: SavingRepository {
         let request = CDFetchRequest(CDProjectSession.self)
         request.predicate = NSPredicate(format: "projectID == %@", projectID.uuidString)
         request.sortDescriptors = [NSSortDescriptor(key: "meetingDate", ascending: true)]
+        request.fetchBatchSize = 20
         return context.safeFetch(request)
     }
 

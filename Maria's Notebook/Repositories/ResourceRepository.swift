@@ -31,6 +31,7 @@ struct ResourceRepository: SavingRepository {
         let request = CDFetchRequest(CDResource.self)
         request.predicate = predicate
         request.sortDescriptors = sortBy
+        request.fetchBatchSize = 20
         return context.safeFetch(request)
     }
 

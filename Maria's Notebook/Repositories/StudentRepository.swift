@@ -43,6 +43,8 @@ struct StudentRepository: SavingRepository {
         let request = CDFetchRequest(CDStudent.self)
         request.predicate = predicate
         request.sortDescriptors = sortBy
+        request.relationshipKeyPathsForPrefetching = ["lessonAssignments"]
+        request.fetchBatchSize = 20
         return context.safeFetch(request)
     }
 

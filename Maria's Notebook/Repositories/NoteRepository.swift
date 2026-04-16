@@ -40,6 +40,8 @@ struct NoteRepository: SavingRepository {
         let request = CDFetchRequest(CDNote.self)
         request.predicate = predicate
         request.sortDescriptors = sortBy
+        request.relationshipKeyPathsForPrefetching = ["studentLinks"]
+        request.fetchBatchSize = 20
         return context.safeFetch(request)
     }
 

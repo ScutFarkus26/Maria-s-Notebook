@@ -40,6 +40,7 @@ struct NoteTemplateRepository: SavingRepository {
         let request = CDFetchRequest(CDNoteTemplateEntity.self)
         request.predicate = predicate
         request.sortDescriptors = sortBy
+        request.fetchBatchSize = 20
         return context.safeFetch(request)
     }
 

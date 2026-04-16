@@ -28,6 +28,8 @@ enum TodayDataFetcher {
                 format: "scheduledForDay >= %@ AND scheduledForDay < %@",
                 day as NSDate, nextDay as NSDate
             )
+            byDayRequest.relationshipKeyPathsForPrefetching = ["lesson", "students"]
+            byDayRequest.fetchBatchSize = 20
             var dayLessons = try context.fetch(byDayRequest)
 
             // Also fetch lessons that were presented (presentedAt) on this day but not scheduled for it.
@@ -39,6 +41,7 @@ enum TodayDataFetcher {
                 presentedState, day as NSDate, nextDay as NSDate,
                 day as NSDate, nextDay as NSDate
             )
+            presentedRequest.relationshipKeyPathsForPrefetching = ["lesson", "students"]
             let presentedLessons = try context.fetch(presentedRequest)
 
             // Deduplicate against already-fetched scheduled lessons

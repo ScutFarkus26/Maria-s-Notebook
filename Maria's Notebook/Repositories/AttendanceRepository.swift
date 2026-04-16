@@ -43,6 +43,7 @@ struct AttendanceRepository: SavingRepository {
         let request = CDFetchRequest(CDAttendanceRecord.self)
         request.predicate = predicate
         request.sortDescriptors = sortBy
+        request.fetchBatchSize = 20
         return context.safeFetch(request)
     }
 

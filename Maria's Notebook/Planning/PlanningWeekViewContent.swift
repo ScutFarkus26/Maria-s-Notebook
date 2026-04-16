@@ -69,6 +69,8 @@ struct PlanningWeekViewContent: View {
                 NSSortDescriptor(key: "scheduledForDay", ascending: true),
                 NSSortDescriptor(key: "createdAt", ascending: true)
             ]
+        descriptor.relationshipKeyPathsForPrefetching = ["lesson", "students"]
+        descriptor.fetchBatchSize = 20
         do {
             weekLessonAssignments = try viewContext.fetch(descriptor)
         } catch {

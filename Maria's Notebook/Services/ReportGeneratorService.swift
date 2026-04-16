@@ -39,6 +39,7 @@ struct ReportGeneratorService {
             endDate as NSDate
         )
         request.sortDescriptors = [NSSortDescriptor(key: "createdAt", ascending: false)]
+        request.relationshipKeyPathsForPrefetching = ["studentLinks"]
 
         let allFlagged = context.safeFetch(request)
 
