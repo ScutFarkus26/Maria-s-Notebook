@@ -140,11 +140,4 @@ final class Phase8PreTests {
         #expect(total == 60, "Total routed entities should be 60, got \(total)")
     }
 
-    @Test("AlbumGroupOrder and AlbumGroupUIState are in backup but may not be routed")
-    func albumGroupEntitiesInBackup() {
-        // These UI state entities exist in the backup registry
-        let types = BackupEntityRegistry.allTypes
-        #expect(types.contains(where: { $0 == AlbumGroupOrder.self }))
-        #expect(types.contains(where: { $0 == AlbumGroupUIState.self }))
-    }
 }

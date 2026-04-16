@@ -96,15 +96,6 @@ final class AppBootstrapper {
         let calElapsed = Self.formatSeconds(Date().timeIntervalSince(calendarStart))
         Self.logger.info("Bootstrap: Calendar setup completed in \(calElapsed)")
 
-        // 1.5. Migrate lesson files to iCloud Drive (if needed)
-        let filesMigrationStart = Date()
-        if let migratedCount = LessonFileStorage.migrateToICloudDrive() {
-            let filesElapsed = Self.formatSeconds(Date().timeIntervalSince(filesMigrationStart))
-            Self.logger.info("Bootstrap: Migrated \(migratedCount) files in \(filesElapsed)")
-        } else {
-            Self.logger.info("Bootstrap: No lesson file migration needed")
-        }
-
         // 2. Seed built-in templates (first launch or after restore)
         BuiltInTemplateSeeder.seedIfNeeded(context: context)
     }

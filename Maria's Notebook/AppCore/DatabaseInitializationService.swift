@@ -4,7 +4,7 @@ import OSLog
 
 // MARK: - Database Initialization Service
 
-/// Service for initializing and managing the SwiftData database container.
+/// Service for initializing and managing the Core Data database container.
 enum DatabaseInitializationService {
 
     // MARK: - Logger
@@ -18,7 +18,7 @@ enum DatabaseInitializationService {
 
     // MARK: - Store URL
 
-    /// Returns the URL for the SwiftData store file.
+    /// Returns the URL for the Core Data store file.
     static func storeFileURL() -> URL {
         let fm = FileManager.default
         let appSupport: URL
@@ -45,7 +45,7 @@ enum DatabaseInitializationService {
 
     // MARK: - Reset Operations
 
-    /// Deletes the SwiftData persistent store file/package.
+    /// Deletes the persistent store file/package.
     /// This only deletes local data on this device and does NOT delete CloudKit data.
     static func resetPersistentStore() throws {
         let url = storeFileURL()
@@ -61,7 +61,7 @@ enum DatabaseInitializationService {
     }
 
     #if DEBUG
-    /// Resets the local database by deleting SwiftData store files and clearing related state.
+    /// Resets the local database by deleting store files and clearing related state.
     /// This is a DEBUG-only function that performs a complete reset.
     @MainActor
     static func resetLocalDatabaseInDebug() throws {
@@ -83,39 +83,6 @@ enum DatabaseInitializationService {
         UserDefaults.standard.set(true, forKey: UserDefaultsKeys.enableCloudKitSync)
         UserDefaults.standard.removeObject(forKey: UserDefaultsKeys.lastStoreErrorDescription)
         UserDefaults.standard.set(false, forKey: UserDefaultsKeys.ephemeralSessionFlag)
-    }
-
-    // MARK: - Migration
-
-    /// Attempts to migrate CDAttendanceRecord.studentID from UUID to String.
-    /// Returns true if migration was successful or not needed.
-    @discardableResult
-    static func attemptAttendanceRecordMigrationIfNeeded() -> Bool {
-        let storeURL = storeFileURL()
-        let fm = FileManager.default
-
-        guard fm.fileExists(atPath: storeURL.path) else {
-            return true
-        }
-
-        let migrationFlagKey = "Migration.attendanceRecordStudentIDCoreData.v1"
-        if UserDefaults.standard.bool(forKey: migrationFlagKey) {
-            return true
-        }
-
-        return true
-    }
-
-    // MARK: - SQLite Configuration
-
-    /// Configures SQLite to suppress detached signature logging errors.
-    /// CDNote: WAL checkpoint optimization is handled by disabling autosave and batching saves in SaveCoordinator.
-    static func configureSQLiteToSuppressDetachedSignatureErrors(for container: NSPersistentContainer) {
-        _ = container
-        // WAL checkpoint contention is primarily managed by:
-        // 1. Disabling autosave on main context (see AppBootstrapping)
-        // 2. Batching saves through SaveCoordinator
-        // 3. Removing unnecessary immediate saves throughout the codebase
     }
 
     // MARK: - Error Handling

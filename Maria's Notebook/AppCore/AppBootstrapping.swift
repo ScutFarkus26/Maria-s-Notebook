@@ -37,14 +37,14 @@ final class AppBootstrapping {
     
     // MARK: - Store Management
     
-    /// Deletes the SwiftData persistent store file/package.
+    /// Deletes the persistent store file/package.
     /// This only deletes local data on this device and does NOT delete CloudKit data.
     static func resetPersistentStore() throws {
         try DatabaseInitializationService.resetPersistentStore()
     }
 
     #if DEBUG
-    /// Resets the local database by deleting SwiftData store files and clearing related state.
+    /// Resets the local database by deleting store files and clearing related state.
     /// This is a DEBUG-only function that performs a complete reset.
     static func resetLocalDatabaseInDebug() throws {
         try DatabaseInitializationService.resetLocalDatabaseInDebug()
@@ -90,18 +90,6 @@ final class AppBootstrapping {
         DatabaseInitializationService.storeFileURL()
     }
 
-    /// Attempts to migrate CDAttendanceRecord.studentID from UUID to String.
-    /// Returns true if migration was successful or not needed.
-    @discardableResult
-    static func attemptAttendanceRecordMigrationIfNeeded() -> Bool {
-        DatabaseInitializationService.attemptAttendanceRecordMigrationIfNeeded()
-    }
-
-    /// Configures SQLite to suppress detached signature logging errors.
-    static func configureSQLiteToSuppressDetachedSignatureErrors(for container: NSPersistentContainer) {
-        DatabaseInitializationService.configureSQLiteToSuppressDetachedSignatureErrors(for: container)
-    }
-    
     // MARK: - App Initialization
     
     /// Performs initial app setup tasks.
@@ -137,12 +125,9 @@ final class AppBootstrapping {
         // "cannot open file at line 51043 of [f0ca7bba1c]"
         // "os_unix.c:51043: (2) open(/private/var/db/DetachedSignatures) - No such file or directory"
         setenv("SQLITE_DISABLE_SIGNATURE_LOGGING", "1", 0)
-        
-        // Cleanup: remove legacy Beta flag now that Engagement Lifecycle is always on
-        UserDefaults.standard.removeObject(forKey: "useEngagementLifecycle")
-        
-        // NOTE: CoreData+CloudKit error messages and WAL maintenance logs in console
-        // SwiftData uses Core Data internally, and during CloudKit initialization,
+
+        // NOTE: Core Data+CloudKit error messages and WAL maintenance logs in console
+        // During CloudKit initialization,
         // it creates temporary stores (file:///dev/null) that get torn down, causing harmless error messages.
         // These errors (like "store was removed from coordinator" and error code 134060)
         // are expected during initialization and don't affect functionality.

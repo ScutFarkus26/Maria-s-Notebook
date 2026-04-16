@@ -408,8 +408,6 @@ enum BackupPayloadDeduplicator {
         result.transitionChecklistItems = payload.transitionChecklistItems.map { uniqueBy($0) { $0.id } }
         result.calendarNotes = payload.calendarNotes.map { uniqueBy($0) { $0.id } }
         result.scheduledMeetings = payload.scheduledMeetings.map { uniqueBy($0) { $0.id } }
-        result.albumGroupOrders = payload.albumGroupOrders.map { uniqueBy($0) { $0.id } }
-        result.albumGroupUIStates = payload.albumGroupUIStates.map { uniqueBy($0) { $0.id } }
         // Format v14+ entity deduplication
         result.meetingWorkReviews = payload.meetingWorkReviews.map { uniqueBy($0) { $0.id } }
         result.studentFocusItems = payload.studentFocusItems.map { uniqueBy($0) { $0.id } }

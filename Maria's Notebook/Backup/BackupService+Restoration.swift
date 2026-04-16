@@ -674,22 +674,6 @@ extension BackupService {
             )
         }
 
-        if let albumOrders = payload.albumGroupOrders {
-            try BackupEntityImporter.importAlbumGroupOrders(
-                albumOrders,
-                into: viewContext,
-                existingCheck: { try fetchOne(AlbumGroupOrder.self, id: $0, using: viewContext) }
-            )
-        }
-
-        if let albumStates = payload.albumGroupUIStates {
-            try BackupEntityImporter.importAlbumGroupUIStates(
-                albumStates,
-                into: viewContext,
-                existingCheck: { try fetchOne(AlbumGroupUIState.self, id: $0, using: viewContext) }
-            )
-        }
-
         // v13+ entities
         if let memberships = payload.classroomMemberships {
             try BackupEntityImporter.importClassroomMemberships(

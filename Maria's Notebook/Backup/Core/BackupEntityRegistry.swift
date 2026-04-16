@@ -88,10 +88,6 @@ struct BackupEntityRegistry {
         CDCalendarNote.self,
         // Scheduled Meetings
         CDScheduledMeeting.self,
-        // Album UI State — AlbumGroupOrder & AlbumGroupUIState are legacy SwiftData stubs
-        // with no entity in the .xcdatamodeld. They are handled as DTO-only during import/export
-        // but must NOT appear here, because iterating allTypes and calling fetchRequest() on them
-        // produces entity name '' and throws an unrecoverable ObjC NSException.
         // Classroom Membership (format v13+)
         CDClassroomMembership.self,
         // Meeting-Work Integration (format v14+)

@@ -95,8 +95,7 @@ public enum BackupMigrationManifest {
                 "CDGoingOut and CDGoingOutChecklistItem",
                 "CDClassroomJob and CDJobAssignment",
                 "CDTransitionPlan and CDTransitionChecklistItem",
-                "CDCalendarNote, CDScheduledMeeting",
-                "AlbumGroupOrder, AlbumGroupUIState (DTO-only stubs)"
+                "CDCalendarNote, CDScheduledMeeting"
             ],
             breakingChanges: [],
             migrationNotes: "New optional arrays; older payloads decode these as nil."
@@ -400,8 +399,6 @@ extension BackupMigrationManifest {
         PayloadField(name: "transitionChecklistItems", introducedIn: 12, description: "CDTransitionChecklistItem records"),
         PayloadField(name: "calendarNotes", introducedIn: 12, description: "CDCalendarNote records"),
         PayloadField(name: "scheduledMeetings", introducedIn: 12, description: "CDScheduledMeeting records"),
-        PayloadField(name: "albumGroupOrders", introducedIn: 12, description: "AlbumGroupOrder DTO-only stubs"),
-        PayloadField(name: "albumGroupUIStates", introducedIn: 12, description: "AlbumGroupUIState DTO-only stubs"),
 
         // Classroom sharing (v13+)
         PayloadField(name: "classroomMemberships", introducedIn: 13, description: "CDClassroomMembership records"),

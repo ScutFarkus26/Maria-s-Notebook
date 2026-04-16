@@ -234,10 +234,6 @@ extension BackupService {
             CDCalendarNote.self, using: viewContext) { BackupDTOTransformers.toDTOs($0) }
         payload.scheduledMeetings = fetchAndTransformInBatches(
             CDScheduledMeeting.self, using: viewContext) { BackupDTOTransformers.toDTOs($0) }
-        payload.albumGroupOrders = fetchAndTransformInBatches(
-            AlbumGroupOrder.self, using: viewContext) { BackupDTOTransformers.toDTOs($0) }
-        payload.albumGroupUIStates = fetchAndTransformInBatches(
-            AlbumGroupUIState.self, using: viewContext) { BackupDTOTransformers.toDTOs($0) }
 
         progress(
             BackupProgress.progress(for: .collecting, subProgress: 0.93),
@@ -399,8 +395,6 @@ extension BackupService {
             "TransitionChecklistItem": payload.transitionChecklistItems?.count ?? 0,
             "CalendarNote": payload.calendarNotes?.count ?? 0,
             "ScheduledMeeting": payload.scheduledMeetings?.count ?? 0,
-            "AlbumGroupOrder": payload.albumGroupOrders?.count ?? 0,
-            "AlbumGroupUIState": payload.albumGroupUIStates?.count ?? 0,
             "ClassroomMembership": payload.classroomMemberships?.count ?? 0,
             "MeetingWorkReview": payload.meetingWorkReviews?.count ?? 0,
             "StudentFocusItem": payload.studentFocusItems?.count ?? 0
@@ -469,8 +463,6 @@ extension BackupService {
         }
 
         // Guard: ensure the entity actually exists in the Core Data model.
-        // Stub classes (e.g. AlbumGroupOrder) have no entity in the .xcdatamodeld,
-        // so T.fetchRequest() would produce entity name '' and throw an ObjC exception.
         let model = context.persistentStoreCoordinator?.managedObjectModel
         if model?.entitiesByName.values.first(where: { $0.managedObjectClassName == NSStringFromClass(T.self) }) == nil {
             Self.logger.info(

@@ -7,7 +7,7 @@ public enum BackupFile: Sendable {
     /// Format version 14: Adds CDMeetingWorkReview, CDStudentFocusItem, CDWorkModel.restingUntil
     /// Format version 13: Adds CDClassroomMembership backup coverage
     /// Format version 12: Adds CDGoingOut, CDClassroomJob, CDTransitionPlan, CDCalendarNote,
-    /// CDScheduledMeeting, AlbumGroupOrder, AlbumGroupUIState backup coverage
+    /// CDScheduledMeeting backup coverage
     /// Format version 11: Adds CDWorkModel/CDPlanningRecommendation/CDResource/CDNoteStudentLink;
     /// removes LegacyPresentation backward compatibility
     /// Format version 10: Adds CDSampleWork/CDSampleWorkStep, CDWorkStep completionOutcome, CDPracticeSession workStepID
@@ -211,7 +211,6 @@ public struct BackupPayload: Codable, Sendable {
         case classroomJobs, jobAssignments
         case transitionPlans, transitionChecklistItems
         case calendarNotes, scheduledMeetings
-        case albumGroupOrders, albumGroupUIStates
         case classroomMemberships
         case meetingWorkReviews, studentFocusItems
         case preferences
@@ -324,10 +323,6 @@ public struct BackupPayload: Codable, Sendable {
 
     // Scheduled Meetings (format v12+)
     public var scheduledMeetings: [ScheduledMeetingDTO]?
-
-    // Album Group state (format v12+)
-    public var albumGroupOrders: [AlbumGroupOrderDTO]?
-    public var albumGroupUIStates: [AlbumGroupUIStateDTO]?
 
     // Classroom Membership (format v13+)
     public var classroomMemberships: [ClassroomMembershipDTO]?

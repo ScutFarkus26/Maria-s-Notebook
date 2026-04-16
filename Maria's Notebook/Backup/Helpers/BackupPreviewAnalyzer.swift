@@ -119,8 +119,6 @@ enum BackupPreviewAnalyzer {
         )
         assign("CalendarNote", payload.calendarNotes?.count ?? 0, 0, count(CDCalendarNote.self))
         assign("ScheduledMeeting", payload.scheduledMeetings?.count ?? 0, 0, count(CDScheduledMeeting.self))
-        assign("AlbumGroupOrder", payload.albumGroupOrders?.count ?? 0, 0, count(AlbumGroupOrder.self))
-        assign("AlbumGroupUIState", payload.albumGroupUIStates?.count ?? 0, 0, count(AlbumGroupUIState.self))
     }
 
     // MARK: - Merge Mode Analysis

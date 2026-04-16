@@ -746,36 +746,6 @@ extension BackupDTOTransformers {
         meetings.map { toDTO($0) }
     }
 
-    // MARK: - AlbumGroupOrder
-
-    static func toDTO(_ order: AlbumGroupOrder) -> AlbumGroupOrderDTO {
-        AlbumGroupOrderDTO(
-            id: order.id ?? UUID(),
-            scopeKey: order.scopeKey ?? "",
-            groupName: order.groupName ?? "",
-            sortIndex: Int(order.sortIndex)
-        )
-    }
-
-    static func toDTOs(_ orders: [AlbumGroupOrder]) -> [AlbumGroupOrderDTO] {
-        orders.map { toDTO($0) }
-    }
-
-    // MARK: - AlbumGroupUIState
-
-    static func toDTO(_ state: AlbumGroupUIState) -> AlbumGroupUIStateDTO {
-        AlbumGroupUIStateDTO(
-            id: state.id ?? UUID(),
-            scopeKey: state.scopeKey ?? "",
-            groupName: state.groupName ?? "",
-            isCollapsed: state.isCollapsed
-        )
-    }
-
-    static func toDTOs(_ states: [AlbumGroupUIState]) -> [AlbumGroupUIStateDTO] {
-        states.map { toDTO($0) }
-    }
-
     // MARK: - CDClassroomMembership
 
     static func toDTO(_ membership: CDClassroomMembership) -> ClassroomMembershipDTO {

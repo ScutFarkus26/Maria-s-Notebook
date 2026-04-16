@@ -2,7 +2,7 @@ import Foundation
 import CoreData
 import OSLog
 
-// MARK: - CDGoingOut, CDClassroomJob, CDTransitionPlan, CDCalendarNote, CDScheduledMeeting, AlbumGroup entities
+// MARK: - CDGoingOut, CDClassroomJob, CDTransitionPlan, CDCalendarNote, CDScheduledMeeting
 
 extension BackupEntityImporter {
 
@@ -235,29 +235,6 @@ extension BackupEntityImporter {
             meeting.isGroupMeeting = dto.isGroupMeeting ?? false
             viewContext.insert(meeting)
         }
-    }
-
-    // MARK: - AlbumGroupOrder
-    // No-op: AlbumGroupOrder has no entity in the .xcdatamodeld (legacy SwiftData stub).
-    // DTOs are decoded from old backups but silently dropped during import.
-
-    static func importAlbumGroupOrders(
-        _ dtos: [AlbumGroupOrderDTO],
-        into viewContext: NSManagedObjectContext,
-        existingCheck: EntityExistsCheck<AlbumGroupOrder>
-    ) rethrows {
-        // Intentionally empty — entity does not exist in Core Data model
-    }
-
-    // MARK: - AlbumGroupUIState
-    // No-op: AlbumGroupUIState has no entity in the .xcdatamodeld (legacy SwiftData stub).
-
-    static func importAlbumGroupUIStates(
-        _ dtos: [AlbumGroupUIStateDTO],
-        into viewContext: NSManagedObjectContext,
-        existingCheck: EntityExistsCheck<AlbumGroupUIState>
-    ) rethrows {
-        // Intentionally empty — entity does not exist in Core Data model
     }
 
     // MARK: - CDClassroomMembership (format v13+)

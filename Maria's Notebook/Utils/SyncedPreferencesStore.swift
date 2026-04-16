@@ -76,9 +76,6 @@ public final class SyncedPreferencesStore {
     private var pendingSyncKeys: Set<String> = []
     
     private init() {
-        // Migrate existing UserDefaults values to KVS on first launch
-        migrateFromUserDefaultsIfNeeded()
-
         // Observe external changes (sync from other devices)
         observeExternalChanges()
 

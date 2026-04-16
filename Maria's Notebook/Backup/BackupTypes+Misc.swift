@@ -261,21 +261,6 @@ public struct ScheduledMeetingDTO: Codable, Sendable {
     public var isGroupMeeting: Bool?
 }
 
-// MARK: - Album Group DTOs (format v12+)
-
-public struct AlbumGroupOrderDTO: Codable, Sendable {
-    public var id: UUID
-    public var scopeKey: String
-    public var groupName: String
-    public var sortIndex: Int
-}
-
-public struct AlbumGroupUIStateDTO: Codable, Sendable {
-    public var id: UUID
-    public var scopeKey: String
-    public var groupName: String
-    public var isCollapsed: Bool
-}
 
 // MARK: - Classroom Membership DTO (format v13+)
 

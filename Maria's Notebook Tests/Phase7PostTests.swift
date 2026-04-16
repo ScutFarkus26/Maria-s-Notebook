@@ -183,7 +183,6 @@ final class Phase7PostTests {
         #expect(types.contains(where: { $0 == CDProcedure.self }))
         #expect(types.contains(where: { $0 == CDClassroomJob.self }))
         #expect(types.contains(where: { $0 == CDGoingOut.self }))
-        #expect(types.contains(where: { $0 == AlbumGroupOrder.self }))
     }
 
     @Test("Key private store entity types still in registry after v13 bump")
