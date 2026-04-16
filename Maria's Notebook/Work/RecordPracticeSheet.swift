@@ -13,7 +13,7 @@ struct RecordPracticeSheet: View {
     @Environment(\.managedObjectContext) var viewContext
 
     @FetchRequest(sortDescriptors: []) private var allStudentsRaw: FetchedResults<CDStudent>
-    var allStudents: [CDStudent] { allStudentsRaw.filter(\.isEnrolled) }
+    var allStudents: [CDStudent] { allStudentsRaw.filterEnrolled() }
     @FetchRequest(sortDescriptors: []) var allLessons: FetchedResults<CDLesson>
     @FetchRequest(sortDescriptors: []) private var allWork: FetchedResults<CDWorkModel>
 

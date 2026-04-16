@@ -104,7 +104,7 @@ final class CurriculumBalanceViewModel {
         let studentRequest: NSFetchRequest<CDStudent> = CDFetchRequest(CDStudent.self)
         studentRequest.sortDescriptors = CDStudent.sortByName
         let allStudents = context.safeFetch(studentRequest)
-        let visibleStudents = TestStudentsFilter.filterVisible(allStudents.filter(\.isEnrolled))
+        let visibleStudents = TestStudentsFilter.filterVisible(allStudents.filterEnrolled())
         let recordsByStudent = Dictionary(grouping: records) { $0.studentID }
 
         studentCards = visibleStudents.compactMap { student in

@@ -105,7 +105,7 @@ final class TodayCacheManager {
         // Core Data NSPredicate doesn't efficiently support IN queries with large UUID sets
         let request = CDFetchRequest(CDStudent.self)
         request.fetchLimit = 500 // Safety limit for student roster
-        let allStudents = context.safeFetch(request).filter(\.isEnrolled)
+        let allStudents = context.safeFetch(request).filterEnrolled()
 
         // OPTIMIZATION: Use Set for O(1) lookups instead of repeated array searches
         let missingIDSet = Set(missingIDs)

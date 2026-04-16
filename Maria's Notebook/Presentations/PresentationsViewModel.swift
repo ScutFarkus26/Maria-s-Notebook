@@ -185,7 +185,7 @@ final class PresentationsViewModel {
         lastUpdateDate = Date()
 
         let visibleStudents = TestStudentsFilter.filterVisible(
-            students.filter(\.isEnrolled), show: showTestStudents, namesRaw: testStudentNamesRaw
+            students.filterEnrolled(), show: showTestStudents, namesRaw: testStudentNamesRaw
         )
         cachedStudentsStorage = visibleStudents
 

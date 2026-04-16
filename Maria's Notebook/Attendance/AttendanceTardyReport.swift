@@ -10,7 +10,7 @@ struct AttendanceTardyReport: View {
 
     @FetchRequest(sortDescriptors: [NSSortDescriptor(keyPath: \CDStudent.lastName, ascending: true)])
     private var allStudentsRaw: FetchedResults<CDStudent>
-    private var students: [CDStudent] { Array(allStudentsRaw).uniqueByID.filter(\.isEnrolled) }
+    private var students: [CDStudent] { Array(allStudentsRaw).uniqueByID.filterEnrolled() }
 
     // Default range: last 30 days
     @State private var startDate: Date = AppCalendar.startOfDay(

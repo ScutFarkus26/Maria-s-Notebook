@@ -34,7 +34,7 @@ struct LessonAssignmentDetailSheet: View, Identifiable {
     // Filter out test students when setting is disabled
     private var students: [CDStudent] {
         TestStudentsFilter.filterVisible(
-            Array(studentsRaw).uniqueByID.filter(\.isEnrolled), show: showTestStudents,
+            Array(studentsRaw).uniqueByID.filterEnrolled(), show: showTestStudents,
             namesRaw: testStudentNamesRaw
         )
     }

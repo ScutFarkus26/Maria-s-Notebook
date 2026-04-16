@@ -20,7 +20,7 @@ struct SchedulePresentationSheet: View {
     // Filter out test students when setting is disabled
     private var allStudents: [CDStudent] {
         TestStudentsFilter.filterVisible(
-            Array(allStudentsRaw).uniqueByID.filter(\.isEnrolled), show: showTestStudents,
+            Array(allStudentsRaw).uniqueByID.filterEnrolled(), show: showTestStudents,
             namesRaw: testStudentNamesRaw
         )
     }

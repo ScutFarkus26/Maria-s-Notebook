@@ -65,10 +65,7 @@ final class WorkCycleViewModel {
 
     func loadStudents(context: NSManagedObjectContext) {
         let request = CDFetchRequest(CDStudent.self)
-        request.predicate = NSPredicate(
-            format: "enrollmentStatusRaw == %@",
-            CDStudent.EnrollmentStatus.enrolled.rawValue
-        )
+        request.predicate = CDStudent.enrolledPredicate
         request.sortDescriptors = CDStudent.sortByName
         let allStudents = TestStudentsFilter.filterVisible(context.safeFetch(request))
 

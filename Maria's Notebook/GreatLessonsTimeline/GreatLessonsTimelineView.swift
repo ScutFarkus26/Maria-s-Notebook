@@ -21,7 +21,7 @@ struct GreatLessonsTimelineView: View {
     // Student list for picker
     @FetchRequest(
         sortDescriptors: CDStudent.sortByName,
-        predicate: NSPredicate(format: "enrollmentStatusRaw == %@", CDStudent.EnrollmentStatus.enrolled.rawValue)
+        predicate: CDStudent.enrolledPredicate
     ) private var students: FetchedResults<CDStudent>
 
     private var visibleStudents: [CDStudent] {

@@ -321,7 +321,7 @@ final class LessonPlanningViewModel {
         let request = CDFetchRequest(CDStudent.self)
         request.sortDescriptors = [NSSortDescriptor(keyPath: \CDStudent.lastName, ascending: true)]
         let all = context.safeFetch(request)
-        return TestStudentsFilter.filterVisible(all.filter(\.isEnrolled))
+        return TestStudentsFilter.filterVisible(all.filterEnrolled())
     }
 }
 

@@ -52,10 +52,7 @@ final class ParentCommunicationViewModel {
         communications = ParentCommunicationService.fetchCommunications(in: context)
 
         let studentRequest = CDFetchRequest(CDStudent.self)
-        studentRequest.predicate = NSPredicate(
-            format: "enrollmentStatusRaw == %@",
-            CDStudent.EnrollmentStatus.enrolled.rawValue
-        )
+        studentRequest.predicate = CDStudent.enrolledPredicate
         studentRequest.sortDescriptors = CDStudent.sortByName
         students = context.safeFetch(studentRequest)
     }

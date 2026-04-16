@@ -14,7 +14,7 @@ struct TodoEditSheet: View {
 
     var students: [CDStudent] {
         TestStudentsFilter.filterVisible(
-            Array(studentsRaw).uniqueByID.filter(\.isEnrolled),
+            Array(studentsRaw).uniqueByID.filterEnrolled(),
             show: showTestStudents,
             namesRaw: testStudentNamesRaw
         )

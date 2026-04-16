@@ -21,7 +21,7 @@ struct AttendanceExpandedView: View {
     @FetchRequest(sortDescriptors: [NSSortDescriptor(keyPath: \CDStudent.lastName, ascending: true)])
     private var allStudentsRaw: FetchedResults<CDStudent>
     // DEDUPLICATION: CloudKit sync can create duplicate records with the same ID.
-    private var allStudents: [CDStudent] { Array(allStudentsRaw).uniqueByID.filter(\.isEnrolled) }
+    private var allStudents: [CDStudent] { Array(allStudentsRaw).uniqueByID.filterEnrolled() }
     private var allStudentIDs: [UUID] { allStudents.compactMap(\.id) }
 
     @State var viewModel = AttendanceViewModel()

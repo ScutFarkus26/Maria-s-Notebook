@@ -43,7 +43,7 @@ final class GreatLessonsTimelineViewModel {
         let allAssignments = fetchPresentedAssignments(context: context)
         let allWork = fetchActiveWork(context: context)
         let allStudents = TestStudentsFilter.filterVisible(
-            fetchAllStudents(context: context).filter(\.isEnrolled)
+            fetchAllStudents(context: context).filterEnrolled()
         )
 
         guard !allLessons.isEmpty else {

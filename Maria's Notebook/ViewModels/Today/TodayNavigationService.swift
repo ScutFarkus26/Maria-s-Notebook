@@ -178,7 +178,7 @@ enum TodayNavigationService {
             if !neededStudentIDs.isEmpty {
                 let studentRequest = CDFetchRequest(CDStudent.self)
                 studentRequest.fetchLimit = 500 // Safety limit for student roster
-                let allStudents = try context.fetch(studentRequest).filter(\.isEnrolled)
+                let allStudents = try context.fetch(studentRequest).filterEnrolled()
                 let filtered = allStudents.filter { student in
                     guard let studentID = student.id else { return false }
                     return neededStudentIDs.contains(studentID)

@@ -11,7 +11,7 @@ struct ClassroomJobHistoryView: View {
 
     @FetchRequest(sortDescriptors: CDStudent.sortByName)private var allStudentsRaw: FetchedResults<CDStudent>
 
-    private var allStudents: [CDStudent] { allStudentsRaw.filter(\.isEnrolled) }
+    private var allStudents: [CDStudent] { allStudentsRaw.filterEnrolled() }
 
     @FetchRequest(sortDescriptors: [NSSortDescriptor(keyPath: \CDClassroomJob.sortOrder, ascending: true)]) private var allJobs: FetchedResults<CDClassroomJob>
 

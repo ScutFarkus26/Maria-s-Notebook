@@ -289,7 +289,7 @@ final class ProgressDashboardViewModel {
     // MARK: - Fetching
 
     private func fetchAllStudents(context: NSManagedObjectContext) -> [CDStudent] {
-        context.safeFetch({ let r = CDStudent.fetchRequest() as! NSFetchRequest<CDStudent>; r.sortDescriptors = CDStudent.sortByName; return r }()).filter(\.isEnrolled)
+        context.safeFetch({ let r = CDStudent.fetchRequest() as! NSFetchRequest<CDStudent>; r.sortDescriptors = CDStudent.sortByName; return r }()).filterEnrolled()
     }
 
     private func fetchAllLessons(context: NSManagedObjectContext) -> [CDLesson] {

@@ -275,7 +275,7 @@ final class TodayViewModel {
         if !missingStudentIDs.isEmpty {
             let studentRequest = CDFetchRequest(CDStudent.self)
             studentRequest.fetchLimit = 500 // Safety limit for student roster
-            let allStudents = context.safeFetch(studentRequest).filter(\.isEnrolled)
+            let allStudents = context.safeFetch(studentRequest).filterEnrolled()
             let missingStudents = allStudents.filter { student in
                 guard let id = student.id else { return false }
                 return missingStudentIDs.contains(id)

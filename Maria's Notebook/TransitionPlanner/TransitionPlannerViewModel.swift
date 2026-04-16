@@ -24,7 +24,7 @@ final class TransitionPlannerViewModel {
 
         let studentRequest = CDFetchRequest(CDStudent.self)
         studentRequest.sortDescriptors = CDStudent.sortByName
-        students = TestStudentsFilter.filterVisible(context.safeFetch(studentRequest).filter(\.isEnrolled))
+        students = TestStudentsFilter.filterVisible(context.safeFetch(studentRequest).filterEnrolled())
     }
 
     func student(for plan: CDTransitionPlan) -> CDStudent? {

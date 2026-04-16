@@ -9,7 +9,7 @@ struct MeetingsWorkflowView: View {
 
     // MARK: - Queries
 
-    @FetchRequest(sortDescriptors: [NSSortDescriptor(keyPath: \CDStudent.firstName, ascending: true), NSSortDescriptor(keyPath: \CDStudent.lastName, ascending: true)])
+    @FetchRequest(sortDescriptors: CDStudent.sortByName, predicate: CDStudent.enrolledPredicate)
     private var studentsRaw: FetchedResults<CDStudent>
 
     @FetchRequest(sortDescriptors: [NSSortDescriptor(keyPath: \CDStudentMeeting.date, ascending: false)])
@@ -33,7 +33,7 @@ struct MeetingsWorkflowView: View {
     private var testStudentNamesRaw: String = "Danny De Berry,Lil Dan D"
 
     private var students: [CDStudent] {
-        TestStudentsFilter.filterVisible(Array(studentsRaw).uniqueByID, show: showTestStudents, namesRaw: testStudentNamesRaw)
+        studentsRaw.visibleRoster(showTest: showTestStudents, testNames: testStudentNamesRaw)
     }
 
     // MARK: - State

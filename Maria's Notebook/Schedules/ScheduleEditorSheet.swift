@@ -23,7 +23,7 @@ struct ScheduleEditorSheet: View {
     @Environment(\.managedObjectContext) private var viewContext
 
     @FetchRequest(sortDescriptors: [NSSortDescriptor(keyPath: \CDStudent.firstName, ascending: true)]) private var studentsRaw: FetchedResults<CDStudent>
-    private var students: [CDStudent] { studentsRaw.filter(\.isEnrolled) }
+    private var students: [CDStudent] { studentsRaw.filterEnrolled() }
 
     // Form state
     @State private var name: String = ""

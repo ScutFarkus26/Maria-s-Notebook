@@ -70,7 +70,7 @@ struct UnifiedNoteEditor: View {
 
     // MARK: - Query
     @FetchRequest(sortDescriptors: CDStudent.sortByName)var studentsRaw: FetchedResults<CDStudent>
-    var students: [CDStudent] { studentsRaw.filter(\.isEnrolled) }
+    var students: [CDStudent] { studentsRaw.filterEnrolled() }
 
     // MARK: - State
     @State var selectedStudentIDs: Set<UUID> = []

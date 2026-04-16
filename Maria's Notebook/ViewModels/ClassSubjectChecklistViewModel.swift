@@ -48,6 +48,7 @@ class ClassSubjectChecklistViewModel {
 
     func loadData(context: NSManagedObjectContext) {
         let studentFetch = CDFetchRequest(CDStudent.self)
+        studentFetch.predicate = CDStudent.enrolledPredicate
         studentFetch.sortDescriptors = [NSSortDescriptor(keyPath: \CDStudent.birthday, ascending: true)]
         let fetched = context.safeFetch(studentFetch)
         self.allStudents = fetched

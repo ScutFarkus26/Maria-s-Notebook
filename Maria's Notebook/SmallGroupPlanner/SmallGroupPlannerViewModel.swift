@@ -46,10 +46,7 @@ final class SmallGroupPlannerViewModel {
 
         // Fetch enrolled visible students
         let studentRequest = CDFetchRequest(CDStudent.self)
-        studentRequest.predicate = NSPredicate(
-            format: "enrollmentStatusRaw == %@",
-            CDStudent.EnrollmentStatus.enrolled.rawValue
-        )
+        studentRequest.predicate = CDStudent.enrolledPredicate
         studentRequest.sortDescriptors = CDStudent.sortByName
         allStudents = TestStudentsFilter.filterVisible(context.safeFetch(studentRequest))
 

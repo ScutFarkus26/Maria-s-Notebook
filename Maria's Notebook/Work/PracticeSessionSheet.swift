@@ -14,7 +14,7 @@ struct PracticeSessionSheet: View {
 
     @FetchRequest(sortDescriptors: [NSSortDescriptor(keyPath: \CDStudent.firstName, ascending: true)])
     private var allStudentsRaw: FetchedResults<CDStudent>
-    private var allStudents: [CDStudent] { Array(allStudentsRaw).filter(\.isEnrolled) }
+    private var allStudents: [CDStudent] { Array(allStudentsRaw).filterEnrolled() }
     @FetchRequest(sortDescriptors: [NSSortDescriptor(keyPath: \CDWorkModel.createdAt, ascending: false)])
     private var allWork: FetchedResults<CDWorkModel>
     @FetchRequest(sortDescriptors: [NSSortDescriptor(keyPath: \CDLessonAssignment.presentedAt, ascending: false)])

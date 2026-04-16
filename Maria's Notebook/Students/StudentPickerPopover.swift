@@ -22,7 +22,7 @@ struct StudentPickerPopover: View {
 
     var filteredStudentsForPicker: [CDStudent] {
         let search = searchText.normalizedForComparison()
-        let enrolled = students.filter(\.isEnrolled)
+        let enrolled = students.filterEnrolled()
 
         let searched = enrolled.filter { student in
             if search.isEmpty { return true }

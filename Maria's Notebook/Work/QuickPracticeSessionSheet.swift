@@ -14,7 +14,7 @@ struct QuickPracticeSessionSheet: View {
     @Environment(\.managedObjectContext) var modelContext
 
     @FetchRequest(sortDescriptors: []) private var allStudentsRaw: FetchedResults<CDStudent>
-    private var allStudents: [CDStudent] { allStudentsRaw.filter(\.isEnrolled) }
+    private var allStudents: [CDStudent] { allStudentsRaw.filterEnrolled() }
     @FetchRequest(sortDescriptors: []) private var allWork: FetchedResults<CDWorkModel>
     @FetchRequest(sortDescriptors: []) private var allLessonAssignments: FetchedResults<CDLessonAssignment>
 

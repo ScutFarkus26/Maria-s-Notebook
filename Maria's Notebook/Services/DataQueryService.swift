@@ -34,10 +34,13 @@ final class DataQueryService {
     // MARK: - Students
 
     /// Fetch all students, optionally filtering out test students and/or withdrawn students.
-    func fetchAllStudents(excludeTest: Bool = false, excludeWithdrawn: Bool = false) -> [CDStudent] {
+    /// `excludeWithdrawn` defaults to `true` — the active roster is the usual caller intent.
+    /// Pass `excludeWithdrawn: false` when you need to resolve historical references (e.g. work,
+    /// notes, or meetings that reference a student who has since been withdrawn).
+    func fetchAllStudents(excludeTest: Bool = false, excludeWithdrawn: Bool = true) -> [CDStudent] {
         if let cached = studentsCache {
             var result = cached
-            if excludeWithdrawn { result = result.filter(\.isEnrolled) }
+            if excludeWithdrawn { result = result.filterEnrolled() }
             return excludeTest ? TestStudentsFilter.filterVisible(result) : result
         }
 
@@ -47,7 +50,7 @@ final class DataQueryService {
         studentsCache = students
 
         var result = students
-        if excludeWithdrawn { result = result.filter(\.isEnrolled) }
+        if excludeWithdrawn { result = result.filterEnrolled() }
         return excludeTest ? TestStudentsFilter.filterVisible(result) : result
     }
 
@@ -92,7 +95,8 @@ final class DataQueryService {
 
         // DEDUPLICATION: CloudKit sync can create duplicate records with the same ID.
         // Use uniqueByID to prevent crash on "Duplicate values for key"
-        let allStudents = fetchAllStudents()
+        // Include withdrawn — this cache backs fetchStudent(id:) which must resolve historical references.
+        let allStudents = fetchAllStudents(excludeWithdrawn: false)
         var seen = Set<UUID>()
         let students = allStudents.filter { s in
             guard let id = s.id else { return false }

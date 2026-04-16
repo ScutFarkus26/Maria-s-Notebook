@@ -16,7 +16,7 @@ struct GapActionSheet: View {
     @FetchRequest(sortDescriptors: CDStudent.sortByName) private var studentsRaw: FetchedResults<CDStudent>
 
     private var enrolledStudents: [CDStudent] {
-        Array(studentsRaw).uniqueByID.filter(\.isEnrolled)
+        Array(studentsRaw).uniqueByID.filterEnrolled()
     }
 
     init(subject: String, context: NSManagedObjectContext) {
