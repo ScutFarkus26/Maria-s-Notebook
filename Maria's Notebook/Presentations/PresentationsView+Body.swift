@@ -154,22 +154,46 @@ extension PresentationsView {
     }
 
     private var calendarStripView: some View {
-        PresentationsCalendarStrip(
-            days: days,
-            startDate: $startDate,
-            isNonSchool: isNonSchool,
-            onClear: { la in
-                la.unschedule()
-                do {
-                    try viewContext.save()
-                } catch {
-                    Self.logger.warning("Failed to save schedule clear: \(error)")
+        VStack(spacing: 0) {
+            presentationsLegend
+            PresentationsCalendarStrip(
+                days: days,
+                startDate: $startDate,
+                isNonSchool: isNonSchool,
+                onClear: { la in
+                    la.unschedule()
+                    do {
+                        try viewContext.save()
+                    } catch {
+                        Self.logger.warning("Failed to save schedule clear: \(error)")
+                    }
+                },
+                onSelect: { la in
+                    coordinator.showLessonAssignmentDetail(la)
                 }
-            },
-            onSelect: { la in
-                coordinator.showLessonAssignmentDetail(la)
-            }
-        )
+            )
+        }
+    }
+
+    private var presentationsLegend: some View {
+        HStack(spacing: 14) {
+            legendSwatch(color: .red, label: "Absent")
+            legendSwatch(color: AppColors.attention, label: "Scheduled more than once")
+            Spacer()
+        }
+        .font(.caption2)
+        .foregroundStyle(.secondary)
+        .padding(.horizontal, 16)
+        .padding(.vertical, 6)
+    }
+
+    private func legendSwatch(color: Color, label: String) -> some View {
+        HStack(spacing: 5) {
+            Capsule()
+                .stroke(color, lineWidth: 1)
+                .frame(width: 18, height: 11)
+            Text(label)
+        }
     }
 
     // MARK: - Helpers

@@ -5,6 +5,7 @@ struct ChipView: View {
     let label: String
     let isMissing: Bool
     let isAbsent: Bool
+    let isDoubleBooked: Bool
     let subjectColor: Color
     let hasHad: Bool
     let suppressIndicator: Bool
@@ -49,8 +50,10 @@ struct ChipView: View {
         )
         .overlay(
             Capsule().stroke(
-                // Only use red stroke for absence, orange for "missed lesson", clear for blocking (keeps it regular)
-                isAbsent ? Color.red : (highlight ? Color.orange : Color.clear),
+                // Priority: red (absent) > amber (scheduled more than once today) > orange (highlight) > clear
+                isAbsent ? Color.red
+                    : (isDoubleBooked ? AppColors.attention
+                        : (highlight ? Color.orange : Color.clear)),
                 lineWidth: 1
             )
         )

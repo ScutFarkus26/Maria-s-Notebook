@@ -58,4 +58,6 @@ struct AppColors {
     static let success: Color = .green
     /// Blue — informational, neutral highlights
     static let info: Color = .blue
+    /// Amber — scheduling conflicts / "heads up" planning cues. Distinct from `.warning` orange.
+    static let attention: Color = Color(red: 0.80, green: 0.55, blue: 0.10)
 }

@@ -30,6 +30,18 @@ struct PresentationsDayColumn: View {
         }
         .sorted { ($0.scheduledFor ?? .distantPast) < ($1.scheduledFor ?? .distantPast) }
     }
+
+    // Students appearing on 2+ not-yet-presented lesson assignments on this day.
+    // `scheduledLessonsForDay` already filters to `!la.isGiven`, so the count is pending-only.
+    private var doubleBookedStudentIDs: Set<UUID> {
+        var counts: [UUID: Int] = [:]
+        for assignment in scheduledLessonsForDay {
+            for id in assignment.studentUUIDs {
+                counts[id, default: 0] += 1
+            }
+        }
+        return Set(counts.filter { $0.value >= 2 }.keys)
+    }
     
     // Phase 6: WorkPlanItem removed from schema - migrated to CDWorkCheckIn
     // OPTIMIZATION: Filter pre-loaded work items instead of fetching from database
@@ -110,10 +122,12 @@ struct PresentationsDayColumn: View {
                                 switch item {
                                 case .lessonAssignment(let la):
                                     let laID = la.id ?? UUID()
+                                    let dayDoubleBooked = doubleBookedStudentIDs
                                     PresentationPill(
                                         snapshot: la.snapshot(), day: day,
                                         targetLessonAssignmentID: laID,
-                                        showTimeBadge: false, enableMergeDrop: true
+                                        showTimeBadge: false, enableMergeDrop: true,
+                                        doubleBookedStudentIDs: dayDoubleBooked
                                     )
                                         .onTapGesture { onSelect(la) }
                                         .draggable(
@@ -122,7 +136,8 @@ struct PresentationsDayColumn: View {
                                             PresentationPill(
                                                 snapshot: la.snapshot(), day: day,
                                                 targetLessonAssignmentID: laID,
-                                                showTimeBadge: false, enableMergeDrop: true
+                                                showTimeBadge: false, enableMergeDrop: true,
+                                                doubleBookedStudentIDs: dayDoubleBooked
                                             ).opacity(UIConstants.OpacityConstants.nearSolid)
                                         }
                                         .contextMenu {

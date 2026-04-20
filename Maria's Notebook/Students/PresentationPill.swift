@@ -33,6 +33,7 @@ struct PresentationPill: View {
     var enableMergeDrop: Bool = false
     var showAgeIndicator: Bool = true
     var blockingWork: [UUID: CDWorkModel] = [:]
+    var doubleBookedStudentIDs: Set<UUID> = []
 
     // PERFORMANCE: Accept cached data instead of using @Query per-pill
     var cachedLessons: [CDLesson]?
@@ -283,6 +284,7 @@ struct PresentationPill: View {
                 HStack(spacing: 6) {
                     ForEach(studentChips, id: \.id) { chip in
                         let isAbsent = (chip.status == .absent)
+                        let isDoubleBooked = doubleBookedStudentIDs.contains(chip.id)
                         // Removed !isAllSelected check here so that individuals
                         // are highlighted even if the whole group is in the lesson.
                         let highlight = !chip.hasHad && !suppressHighlighting
@@ -290,6 +292,7 @@ struct PresentationPill: View {
                             label: chip.label,
                             isMissing: chip.isMissing,
                             isAbsent: isAbsent,
+                            isDoubleBooked: isDoubleBooked,
                             subjectColor: subjectColor,
                             hasHad: chip.hasHad,
                             suppressIndicator: isAllSelected,
