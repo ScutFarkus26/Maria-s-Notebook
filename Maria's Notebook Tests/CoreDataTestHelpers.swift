@@ -57,6 +57,49 @@ enum CoreDataTestHelpers {
         return membership
     }
 
+    /// Inserts a CDLesson with the given name into the context.
+    @discardableResult
+    static func seedLesson(
+        in context: NSManagedObjectContext,
+        name: String = "Test Lesson",
+        subject: String = "Math",
+        group: String = "Counting"
+    ) -> CDLesson {
+        let lesson = CDLesson(context: context)
+        lesson.name = name
+        lesson.subject = subject
+        lesson.group = group
+        return lesson
+    }
+
+    /// Inserts a CDWorkModel with the given title and student/lesson links.
+    @discardableResult
+    static func seedWorkModel(
+        in context: NSManagedObjectContext,
+        title: String = "Test Work",
+        studentID: UUID = UUID(),
+        lessonID: UUID = UUID()
+    ) -> CDWorkModel {
+        let work = CDWorkModel(context: context)
+        work.title = title
+        work.studentID = studentID.uuidString
+        work.lessonID = lessonID.uuidString
+        return work
+    }
+
+    /// Inserts a CDAttendanceRecord for the given date + student.
+    @discardableResult
+    static func seedAttendance(
+        in context: NSManagedObjectContext,
+        studentID: UUID = UUID(),
+        date: Date = Date()
+    ) -> CDAttendanceRecord {
+        let record = CDAttendanceRecord(context: context)
+        record.studentID = studentID.uuidString
+        record.date = date
+        return record
+    }
+
     /// Saves the context, returning true on success.
     @discardableResult
     static func save(_ context: NSManagedObjectContext) -> Bool {
