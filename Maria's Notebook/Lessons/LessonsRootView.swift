@@ -111,7 +111,13 @@ struct LessonsRootView: View {
     /// Sentinel value for the "All Stories" sidebar entry
     static let storiesSentinel = "__stories__"
 
+    /// Sentinel value for the "Parshas" sidebar entry (parsha-indexed lesson browser)
+    static let parshasSentinel = "__parshas__"
+
     var lessonsForSubject: [CDLesson] {
+        // Parshas sentinel renders its own column (ParshaBrowseView); the regular lesson
+        // list is irrelevant, so skip the fetch entirely.
+        if filterState.selectedSubject == Self.parshasSentinel { return [] }
         let hasSearchText = !filterState.debouncedSearchText.trimmed().isEmpty
         let isStoriesView = filterState.selectedSubject == Self.storiesSentinel
         // DEDUPLICATION: CloudKit sync can create duplicate records with the same ID.

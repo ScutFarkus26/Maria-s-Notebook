@@ -30,6 +30,8 @@ public class CDLesson: NSManagedObject {
     @NSManaged public var primaryAttachmentID: String?
     @NSManaged public var requiresPracticeOverride: String
     @NSManaged public var requiresConfirmationOverride: String
+    @NSManaged public var parshaKey: String?
+    @NSManaged public var derivedFromLessonID: String?
 
     // MARK: - Relationships
     @NSManaged public var attachments: NSSet?
@@ -66,6 +68,8 @@ public class CDLesson: NSManagedObject {
         self.primaryAttachmentID = nil
         self.requiresPracticeOverride = "inherit"
         self.requiresConfirmationOverride = "inherit"
+        self.parshaKey = nil
+        self.derivedFromLessonID = nil
     }
 }
 
@@ -193,6 +197,38 @@ extension CDLesson {
     /// Sample works sorted by orderIndex
     var orderedSampleWorks: [CDSampleWorkEntity] {
         ((sampleWorks?.allObjects as? [CDSampleWorkEntity]) ?? []).sorted { $0.orderIndex < $1.orderIndex }
+    }
+
+    /// The art (or other) lesson this parsha lesson draws its technique from, if any.
+    var derivedFromLesson: CDLesson? {
+        guard let id = derivedFromLessonID, !id.isEmpty,
+              let ctx = managedObjectContext else { return nil }
+        let req = CDFetchRequest(CDLesson.self)
+        req.predicate = NSPredicate(format: "id == %@", id)
+        req.fetchLimit = 1
+        return ctx.safeFetchFirst(req)
+    }
+
+    /// Fetches all lessons tagged to the given parsha key, sorted by name.
+    static func lessonsForParsha(_ key: String, context: NSManagedObjectContext) -> [CDLesson] {
+        let req = CDFetchRequest(CDLesson.self)
+        req.predicate = NSPredicate(format: "parshaKey == %@", key)
+        req.sortDescriptors = [NSSortDescriptor(keyPath: \CDLesson.name, ascending: true)]
+        return context.safeFetch(req)
+    }
+
+    /// Returns lesson counts grouped by parshaKey across all lessons that are tagged.
+    static func parshaLessonCounts(context: NSManagedObjectContext) -> [String: Int] {
+        let req = CDFetchRequest(CDLesson.self)
+        req.predicate = NSPredicate(format: "parshaKey != nil AND parshaKey != %@", "")
+        let tagged: [CDLesson] = context.safeFetch(req)
+        var counts: [String: Int] = [:]
+        for lesson in tagged {
+            if let key = lesson.parshaKey, !key.isEmpty {
+                counts[key, default: 0] += 1
+            }
+        }
+        return counts
     }
 }
 

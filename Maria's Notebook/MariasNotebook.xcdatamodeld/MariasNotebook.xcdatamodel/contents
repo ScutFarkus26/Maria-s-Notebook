@@ -44,6 +44,8 @@
         <attribute name="primaryAttachmentID" optional="YES" attributeType="String"/>
         <attribute name="requiresPracticeOverride" attributeType="String" defaultValueString="inherit"/>
         <attribute name="requiresConfirmationOverride" attributeType="String" defaultValueString="inherit"/>
+        <attribute name="parshaKey" optional="YES" attributeType="String"/>
+        <attribute name="derivedFromLessonID" optional="YES" attributeType="String"/>
         <relationship name="attachments" optional="YES" toMany="YES" deletionRule="Cascade" destinationEntity="LessonAttachment" inverseName="lesson" inverseEntity="LessonAttachment"/>
         <relationship name="sampleWorks" optional="YES" toMany="YES" deletionRule="Cascade" destinationEntity="SampleWork" inverseName="lesson" inverseEntity="SampleWork"/>
     </entity>

@@ -35,6 +35,17 @@ extension LessonsRootView {
             Section {
                 Label {
                     HStack {
+                        Text("Parshas")
+                        Spacer()
+                    }
+                } icon: {
+                    Image(systemName: "scroll")
+                        .foregroundStyle(.indigo)
+                }
+                .tag(Self.parshasSentinel)
+
+                Label {
+                    HStack {
                         Text("All Stories")
                         Spacer()
                         if storyLessonCount > 0 {
@@ -60,7 +71,18 @@ extension LessonsRootView {
 
     // MARK: - Lessons Content Column (Middle)
 
+    @ViewBuilder
     var lessonsContentColumn: some View {
+        if selectedSubject == Self.parshasSentinel {
+            ParshaBrowseView { lesson in
+                selectedLessonDetail = lesson
+            }
+        } else {
+            normalLessonsContentColumn
+        }
+    }
+
+    private var normalLessonsContentColumn: some View {
         let hasSearchText: Bool = !filterState.debouncedSearchText.trimmed().isEmpty
         let hasSubject: Bool = selectedSubject.map { !$0.trimmed().isEmpty } ?? false
         let shouldShowFilters: Bool = (hasSubject || hasSearchText) && displayMode == .browse
