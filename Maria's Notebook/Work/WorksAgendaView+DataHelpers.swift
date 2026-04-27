@@ -76,6 +76,13 @@ extension WorksAgendaView {
             works = works.filter { !scheduledWorkIDs.contains($0.id ?? UUID()) }
         }
 
+        // Filter by visible work kinds. Untagged work falls back to .practiceLesson,
+        // matching how WorkCard displays it.
+        let kinds = visibleKinds.wrappedValue
+        if kinds.count < WorkKind.allCases.count {
+            works = works.filter { kinds.contains($0.kind ?? .practiceLesson) }
+        }
+
         // Optional search (use debounced text for filtering)
         if !debouncedSearchText.trimmed().isEmpty {
             let query = debouncedSearchText.lowercased()

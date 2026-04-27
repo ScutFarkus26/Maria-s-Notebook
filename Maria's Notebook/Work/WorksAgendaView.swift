@@ -46,6 +46,27 @@ struct WorksAgendaView: View {
     @AppStorage(UserDefaultsKeys.generalTestStudentNames)
     var testStudentNamesRaw: String = "Danny De Berry,Lil Dan D"
     @AppStorage(UserDefaultsKeys.workAgendaHideScheduled) var hideScheduled: Bool = false
+    @AppStorage(UserDefaultsKeys.workAgendaVisibleKinds)
+    var visibleKindsRaw: String = WorkKind.allCases.map(\.rawValue).joined(separator: ",")
+
+    var visibleKinds: Binding<Set<WorkKind>> {
+        Binding(
+            get: {
+                let parsed = visibleKindsRaw
+                    .split(separator: ",")
+                    .compactMap { WorkKind(rawValue: String($0)) }
+                let set = Set(parsed)
+                return set.isEmpty ? Set(WorkKind.allCases) : set
+            },
+            set: { newValue in
+                let safe = newValue.isEmpty ? Set(WorkKind.allCases) : newValue
+                visibleKindsRaw = WorkKind.allCases
+                    .filter { safe.contains($0) }
+                    .map(\.rawValue)
+                    .joined(separator: ",")
+            }
+        )
+    }
 
     @State var sortMode: WorkAgendaSortMode = .lesson
     @State var searchText: String = ""
@@ -243,7 +264,7 @@ struct WorksAgendaView: View {
             .background(Color.primary.opacity(UIConstants.OpacityConstants.trace))
             .clipShape(RoundedRectangle(cornerRadius: 10))
             .padding(.horizontal, 16)
-            .padding(.bottom, 8)
+            .padding(.bottom, 4)
             .onChange(of: searchText) { _, newValue in
                 searchDebounceTask?.cancel()
                 searchDebounceTask = Task { @MainActor in
@@ -252,6 +273,9 @@ struct WorksAgendaView: View {
                     debouncedSearchText = newValue
                 }
             }
+
+            WorkKindFilterChipBar(visibleKinds: visibleKinds)
+                .padding(.bottom, 4)
         }
     }
 }

@@ -131,6 +131,7 @@ enum UserDefaultsKeys {
 
     // MARK: - Work
     static let workAgendaHideScheduled = "WorkAgenda.hideScheduled"
+    static let workAgendaVisibleKinds = "WorkAgenda.visibleKinds"
     static let workCalendarShowPresentations = "WorkCalendar.showPresentations"
 
     // MARK: - Migrations
