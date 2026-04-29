@@ -80,38 +80,65 @@ private extension PerpetualCalendarView {
         let isEditing = editingCell == cellID
         let hasUserNote = note != nil && !(note?.text.isEmpty ?? true)
         let isHoliday = holiday != nil && !hasUserNote
+        let parsha = parshaName(for: cellID)
 
-        return HStack(spacing: 4) {
-            Text("\(cellID.day)")
-                .font(.system(.caption, design: .rounded).monospacedDigit())
-                .foregroundStyle(isToday ? Color.white : (isNonSchool ? Color.red.opacity(UIConstants.OpacityConstants.half) : Color.secondary))
-                .frame(width: 22, height: 22)
-                .background {
-                    if isToday {
-                        Circle().fill(Color.accentColor)
-                    }
-                }
-
-            if isEditing {
-                TextField("", text: $editText)
-                    .font(.system(.caption, design: .rounded))
-                    .textFieldStyle(.plain)
-                    .frame(maxWidth: .infinity, alignment: .leading)
-                    .onSubmit { commitEdit(cellID: cellID) }
-            } else {
-                Text(displayText)
-                    .font(.system(.caption, design: .rounded))
-                    .foregroundStyle(textStyle(isHoliday: isHoliday, isNoSchool: isNonSchool))
+        return VStack(alignment: .leading, spacing: 0) {
+            if let parsha {
+                Text(parsha)
+                    .font(.system(.caption2, design: .rounded).weight(.semibold))
+                    .foregroundStyle(Color.red.opacity(UIConstants.OpacityConstants.half))
                     .lineLimit(1)
                     .frame(maxWidth: .infinity, alignment: .leading)
-                    .contentShape(Rectangle())
-                    .onTapGesture {
-                        beginEdit(cellID: cellID, currentText: note?.text ?? holiday ?? "")
-                    }
+                    .padding(.horizontal, 10)
+                    .padding(.top, 2)
             }
+
+            HStack(spacing: 4) {
+                Text("\(cellID.day)")
+                    .font(.system(.caption, design: .rounded).monospacedDigit())
+                    .foregroundStyle(isToday ? Color.white : (isNonSchool ? Color.red.opacity(UIConstants.OpacityConstants.half) : Color.secondary))
+                    .frame(width: 22, height: 22)
+                    .background {
+                        if isToday {
+                            Circle().fill(Color.accentColor)
+                        }
+                    }
+
+                if isEditing {
+                    TextField("", text: $editText)
+                        .font(.system(.caption, design: .rounded))
+                        .textFieldStyle(.plain)
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                        .onSubmit { commitEdit(cellID: cellID) }
+                } else {
+                    Text(displayText)
+                        .font(.system(.caption, design: .rounded))
+                        .foregroundStyle(textStyle(isHoliday: isHoliday, isNoSchool: isNonSchool))
+                        .lineLimit(1)
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                        .contentShape(Rectangle())
+                        .onTapGesture {
+                            beginEdit(cellID: cellID, currentText: note?.text ?? holiday ?? "")
+                        }
+                }
+            }
+            .padding(.horizontal, 10)
+            .padding(.vertical, 1)
         }
-        .padding(.horizontal, 10)
-        .padding(.vertical, 1)
+    }
+
+    func parshaName(for cellID: CellID) -> String? {
+        let cal = AppCalendar.shared
+        var comps = DateComponents()
+        comps.year = cellID.year
+        comps.month = cellID.month
+        comps.day = cellID.day
+        guard let date = cal.date(from: comps),
+              cal.component(.weekday, from: date) == 7,
+              let key = HebrewParshaService.currentParshaKey(on: date) else {
+            return nil
+        }
+        return HebrewParshaService.displayName(forKey: key)
     }
 
     func textStyle(isHoliday: Bool, isNoSchool: Bool) -> some ShapeStyle {
