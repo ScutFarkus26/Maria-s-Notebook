@@ -133,6 +133,8 @@ final class AppBootstrapper {
 
         await MigrationRunner.runIfNeeded(context: coreDataStack.viewContext)
 
+        await PDFFolderMigrationService.runIfNeeded(coreDataStack: coreDataStack)
+
         // Save all migration changes in one batch to minimize store coordinator changes
         await MainActor.run {
             if coreDataStack.viewContext.hasChanges {

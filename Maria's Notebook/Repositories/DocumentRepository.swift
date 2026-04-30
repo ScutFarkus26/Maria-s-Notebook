@@ -57,19 +57,22 @@ struct DocumentRepository: SavingRepository {
 
     // MARK: - Create
 
-    /// Create a new CDDocument
+    /// Create a new CDDocument backed by a file in the iCloud "Student Files" folder.
     @discardableResult
     func createDocument(
         title: String,
         category: String,
-        pdfData: Data? = nil,
+        pdfFileBookmark: Data? = nil,
+        pdfFileRelativePath: String = "",
         student: CDStudent? = nil
     ) -> CDDocument {
         let document = CDDocument(context: context)
         document.title = title
         document.category = category
         document.uploadDate = Date()
-        document.pdfData = pdfData
+        document.pdfData = nil
+        document.pdfFileBookmark = pdfFileBookmark
+        document.pdfFileRelativePath = pdfFileRelativePath
         document.student = student
         return document
     }
@@ -81,23 +84,27 @@ struct DocumentRepository: SavingRepository {
     func updateDocument(
         id: UUID,
         title: String? = nil,
-        category: String? = nil,
-        pdfData: Data? = nil
+        category: String? = nil
     ) -> Bool {
         guard let document = fetchDocument(id: id) else { return false }
 
         if let title { document.title = title }
         if let category { document.category = category }
-        if let pdfData { document.pdfData = pdfData }
 
         return true
     }
 
     // MARK: - Delete
 
-    /// Delete a CDDocument by ID
+    /// Delete a CDDocument by ID. Also removes its on-disk file if managed.
     func deleteDocument(id: UUID) throws {
         guard let document = fetchDocument(id: id) else { return }
+        if let url = StudentDocumentFileStorage.resolveURL(
+            bookmark: document.pdfFileBookmark,
+            relativePath: document.pdfFileRelativePath
+        ) {
+            try? StudentDocumentFileStorage.deleteIfManaged(url)
+        }
         context.delete(document)
         try context.save()
     }

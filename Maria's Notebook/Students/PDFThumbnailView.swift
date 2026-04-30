@@ -11,7 +11,13 @@ import UIKit
 #endif
 
 struct PDFThumbnail: View {
+    let url: URL?
     let data: Data?
+
+    init(url: URL? = nil, data: Data? = nil) {
+        self.url = url
+        self.data = data
+    }
 
     @State private var page: PDFPage?
     @State private var isLoading = true
@@ -35,13 +41,15 @@ struct PDFThumbnail: View {
     }
 
     private func loadPDFPage() async {
-        guard let pdfData = data else {
-            isLoading = false
-            return
-        }
-
         // Keep PDFKit objects on the current actor to avoid crossing non-Sendable types.
-        let pdfDocument = PDFDocument(data: pdfData)
+        let pdfDocument: PDFDocument?
+        if let url {
+            pdfDocument = PDFDocument(url: url)
+        } else if let data {
+            pdfDocument = PDFDocument(data: data)
+        } else {
+            pdfDocument = nil
+        }
         self.page = pdfDocument?.page(at: 0)
         self.isLoading = false
     }

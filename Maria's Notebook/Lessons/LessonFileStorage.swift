@@ -33,10 +33,10 @@ public enum LessonFileStorage {
         if let ubiquityURL = fm.url(forUbiquityContainerIdentifier: nil) {
             let lessonFilesURL = ubiquityURL
                 .appendingPathComponent("Documents", isDirectory: true)
-                .appendingPathComponent("CDLesson Files", isDirectory: true)
-            
+                .appendingPathComponent("Lesson Files", isDirectory: true)
+
             logger.debug("Using iCloud container path: \(lessonFilesURL.path)")
-            logger.debug("Visible in Finder as: iCloud Drive/Maria's Notebook/CDLesson Files")
+            logger.debug("Visible in Finder as: iCloud Drive/Maria's Notebook/Lesson Files")
             try createDirectoryIfNeeded(at: lessonFilesURL)
             return lessonFilesURL
         }
@@ -48,7 +48,7 @@ public enum LessonFileStorage {
             in: .userDomainMask,
             appropriateFor: nil,
             create: true
-        ).appendingPathComponent("CDLesson Files", isDirectory: true)
+        ).appendingPathComponent("Lesson Files", isDirectory: true)
         try createDirectoryIfNeeded(at: documentsURL)
         return documentsURL
     }
@@ -106,11 +106,7 @@ public enum LessonFileStorage {
         // Sanitize lesson name or fallback
         let baseNameSanitized = sanitizeFilenameComponent(lessonName?.trimmed(), fallback: "Lesson")
 
-        // UUID suffix: last 8 characters of UUID string without hyphens
-        let uuidString = lessonID.uuidString.replacingOccurrences(of: "-", with: "")
-        let uuidSuffix = String(uuidString.suffix(8))
-
-        var baseFilename = "\(baseNameSanitized)-\(uuidSuffix)"
+        var baseFilename = baseNameSanitized
         if !extWithDot.isEmpty {
             baseFilename += extWithDot
         }
@@ -118,9 +114,9 @@ public enum LessonFileStorage {
         var destinationURL = destDir.appendingPathComponent(baseFilename, isDirectory: false)
 
         // Ensure uniqueness by appending a counter
-        var counter = 1
+        var counter = 2
         while fm.fileExists(atPath: destinationURL.path) {
-            let numberedBase = "\(baseNameSanitized)-\(uuidSuffix)-\(counter)"
+            let numberedBase = "\(baseNameSanitized)-\(counter)"
             let filename = numberedBase + extWithDot
             destinationURL = destDir.appendingPathComponent(filename, isDirectory: false)
             counter += 1
@@ -249,22 +245,14 @@ public enum LessonFileStorage {
             scopePrefix = "[Subject] "
         }
         
-        // Add lesson UUID suffix for lesson-scoped attachments to ensure uniqueness
-        let uuidString = (lesson.id ?? UUID()).uuidString.replacingOccurrences(of: "-", with: "")
-        let uuidSuffix = String(uuidString.suffix(8))
-        
-        let baseFilename = scope == .lesson
-            ? "\(baseName)-\(uuidSuffix)\(extWithDot)"
-            : "\(scopePrefix)\(baseName)\(extWithDot)"
-        
+        let baseFilename = "\(scopePrefix)\(baseName)\(extWithDot)"
+
         var destinationURL = destDir.appendingPathComponent(baseFilename, isDirectory: false)
-        
+
         // Ensure uniqueness by appending a counter
-        var counter = 1
+        var counter = 2
         while fm.fileExists(atPath: destinationURL.path) {
-            let numberedFilename = scope == .lesson
-                ? "\(baseName)-\(uuidSuffix)-\(counter)\(extWithDot)"
-                : "\(scopePrefix)\(baseName)-\(counter)\(extWithDot)"
+            let numberedFilename = "\(scopePrefix)\(baseName)-\(counter)\(extWithDot)"
             destinationURL = destDir.appendingPathComponent(numberedFilename, isDirectory: false)
             counter += 1
         }
@@ -380,26 +368,13 @@ public enum LessonFileStorage {
             scopePrefix = "[Subject] "
         }
 
-        let uuidString = (lesson.id ?? UUID()).uuidString.replacingOccurrences(of: "-", with: "")
-        let uuidSuffix = String(uuidString.suffix(8))
-
         func candidateURL(counter: Int?) -> URL {
             let filename: String
-            switch scope {
-            case .lesson:
-                if let counter {
-                    filename = "\(name.base)-\(uuidSuffix)-\(counter)\(name.extWithDot)"
-                } else {
-                    filename = "\(name.base)-\(uuidSuffix)\(name.extWithDot)"
-                }
-            case .group, .subject:
-                if let counter {
-                    filename = "\(scopePrefix)\(name.base)-\(counter)\(name.extWithDot)"
-                } else {
-                    filename = "\(scopePrefix)\(name.base)\(name.extWithDot)"
-                }
+            if let counter {
+                filename = "\(scopePrefix)\(name.base)-\(counter)\(name.extWithDot)"
+            } else {
+                filename = "\(scopePrefix)\(name.base)\(name.extWithDot)"
             }
-
             return directory.appendingPathComponent(filename, isDirectory: false)
         }
 
@@ -411,7 +386,7 @@ public enum LessonFileStorage {
                 return candidate
             }
 
-            counter = (counter ?? 0) + 1
+            counter = (counter ?? 1) + 1
         }
     }
 

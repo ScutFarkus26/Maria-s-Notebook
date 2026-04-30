@@ -10,9 +10,16 @@ struct DocumentCard: View {
     let onDelete: () -> Void
     let onRename: () -> Void
 
+    private var fileURL: URL? {
+        StudentDocumentFileStorage.resolveURL(
+            bookmark: document.pdfFileBookmark,
+            relativePath: document.pdfFileRelativePath
+        )
+    }
+
     var body: some View {
         VStack(alignment: .leading, spacing: 8) {
-            PDFThumbnail(data: document.pdfData)
+            PDFThumbnail(url: fileURL, data: document.pdfData)
                 .aspectRatio(contentMode: .fit)
                 .frame(maxWidth: .infinity, maxHeight: 120)
                 .frame(alignment: .center)
@@ -40,7 +47,9 @@ struct DocumentCard: View {
         )
         .contentShape(Rectangle())
         .onTapGesture {
-            if let url = createTemporaryFileURL() {
+            if let url = fileURL {
+                onOpen(url)
+            } else if let url = createTemporaryFileURL() {
                 onOpen(url)
             }
         }

@@ -9,6 +9,8 @@ public class CDDocument: NSManagedObject {
     @NSManaged public var category: String
     @NSManaged public var uploadDate: Date?
     @NSManaged public var pdfData: Data?
+    @NSManaged public var pdfFileBookmark: Data?
+    @NSManaged public var pdfFileRelativePath: String
 
     // MARK: - Cross-Store Foreign Key
     @NSManaged public var studentID: String?
@@ -23,6 +25,8 @@ public class CDDocument: NSManagedObject {
         self.category = ""
         self.uploadDate = Date()
         self.pdfData = nil
+        self.pdfFileBookmark = nil
+        self.pdfFileRelativePath = ""
     }
 }
 

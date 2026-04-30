@@ -136,6 +136,7 @@ enum UserDefaultsKeys {
 
     // MARK: - Migrations
     static let hasUnifiedNotesMigrationRun = "Migration.unifiedNotes.v1"
+    static let pdfFolderMigrationV1Complete = "Migration.pdfFolder.v1"
 
     // MARK: - Settings UI
     static let whatsNewDismissedVersion = "WhatsNew.dismissedVersion"

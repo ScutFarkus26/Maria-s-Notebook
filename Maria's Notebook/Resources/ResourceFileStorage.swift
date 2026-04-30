@@ -2,7 +2,7 @@ import Foundation
 import OSLog
 
 /// File storage for CDResource Library documents.
-/// Stores PDFs under `Documents/CDResource Files/Category/` in the iCloud container
+/// Stores PDFs under `Documents/Resource Files/Category/` in the iCloud container
 /// (visible in Finder), following the same pattern as `LessonFileStorage`.
 enum ResourceFileStorage {
     private static let logger = Logger.resources
@@ -17,7 +17,7 @@ enum ResourceFileStorage {
         if let ubiquityURL = fm.url(forUbiquityContainerIdentifier: nil) {
             let resourceFilesURL = ubiquityURL
                 .appendingPathComponent("Documents", isDirectory: true)
-                .appendingPathComponent("CDResource Files", isDirectory: true)
+                .appendingPathComponent("Resource Files", isDirectory: true)
 
             try createDirectoryIfNeeded(at: resourceFilesURL)
             return resourceFilesURL
@@ -30,7 +30,7 @@ enum ResourceFileStorage {
             in: .userDomainMask,
             appropriateFor: nil,
             create: true
-        ).appendingPathComponent("CDResource Files", isDirectory: true)
+        ).appendingPathComponent("Resource Files", isDirectory: true)
         try createDirectoryIfNeeded(at: documentsURL)
         return documentsURL
     }
@@ -61,15 +61,13 @@ enum ResourceFileStorage {
         let extWithDot = sourceExt.isEmpty ? ".pdf" : "." + sourceExt
 
         let baseName = sanitizeFilenameComponent(title, fallback: "Resource")
-        let uuidString = resourceID.uuidString.replacingOccurrences(of: "-", with: "")
-        let uuidSuffix = String(uuidString.suffix(8))
 
-        var baseFilename = "\(baseName)-\(uuidSuffix)\(extWithDot)"
+        var baseFilename = "\(baseName)\(extWithDot)"
         var destinationURL = destDir.appendingPathComponent(baseFilename, isDirectory: false)
 
-        var counter = 1
+        var counter = 2
         while fm.fileExists(atPath: destinationURL.path) {
-            baseFilename = "\(baseName)-\(uuidSuffix)-\(counter)\(extWithDot)"
+            baseFilename = "\(baseName)-\(counter)\(extWithDot)"
             destinationURL = destDir.appendingPathComponent(baseFilename, isDirectory: false)
             counter += 1
         }

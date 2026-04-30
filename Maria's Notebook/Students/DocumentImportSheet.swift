@@ -1,5 +1,6 @@
 import SwiftUI
 import CoreData
+import OSLog
 
 struct DocumentImportSheet: View {
     let pdfURL: URL
@@ -69,13 +70,24 @@ struct DocumentImportSheet: View {
         // Look up CDStudent by ID for the Core Data repository
         let studentRepo = StudentRepository(context: managedObjectContext)
         let cdStudent = student.id.flatMap { studentRepo.fetchStudent(id: $0) }
-        repository.createDocument(
-            title: trimmedTitle,
-            category: category,
-            pdfData: pdfData,
-            student: cdStudent
-        )
-        _ = repository.save(reason: "Import document for student")
+
+        do {
+            let imported = try StudentDocumentFileStorage.writePDFData(
+                pdfData,
+                studentName: cdStudent?.fullName ?? student.fullName,
+                title: trimmedTitle
+            )
+            repository.createDocument(
+                title: trimmedTitle,
+                category: category,
+                pdfFileBookmark: imported.bookmark,
+                pdfFileRelativePath: imported.relativePath,
+                student: cdStudent
+            )
+            _ = repository.save(reason: "Import document for student")
+        } catch {
+            Logger.students.error("Failed to import student document: \(error.localizedDescription)")
+        }
 
         onSave()
         dismiss()
