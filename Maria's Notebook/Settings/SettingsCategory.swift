@@ -111,6 +111,7 @@ enum SettingsCategory: String, CaseIterable, Identifiable, Hashable {
                 "AI Models", "Chat Model", "Lesson Planning Model", "Background Tasks Model",
                 "Apple Intelligence", "On-Device", "Ollama", "Server URL", "Model",
                 "Install Models", "Pull Model", "Claude API Key", "Anthropic",
+                "OpenAI API Key", "OpenAI", "gpt-image-1", "Story Cover",
                 "Configure API Key", "Sonnet", "Haiku", "Test Connection",
                 "Lesson Planning Assistant", "Depth", "System Prompt", "Temperature", "Timeout",
                 "API Usage", "Estimated Cost"

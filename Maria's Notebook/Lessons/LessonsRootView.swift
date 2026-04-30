@@ -13,6 +13,7 @@ import CoreData
 enum LessonsDisplayMode: String, CaseIterable, Identifiable {
     case browse = "Browse"
     case plan = "Plan"
+    case map = "Map"
 
     var id: String { rawValue }
 
@@ -20,7 +21,37 @@ enum LessonsDisplayMode: String, CaseIterable, Identifiable {
         switch self {
         case .browse: return "square.grid.2x2"
         case .plan: return "list.bullet"
+        case .map: return "chart.bar.doc.horizontal"
         }
+    }
+}
+
+/// Top-level grouping spine for the scope-and-sequence Map.
+enum MapSpine: String, CaseIterable, Identifiable {
+    case subject = "Subject"
+    case greatLesson = "Great Lesson"
+
+    var id: String { rawValue }
+
+    var icon: String {
+        switch self {
+        case .subject: return "books.vertical"
+        case .greatLesson: return "sparkles"
+        }
+    }
+}
+
+/// Identifies one (subject, group) thread in the scope-and-sequence map.
+/// An empty `group` string represents the synthetic "ungrouped" bucket;
+/// `displayName` resolves it to "Other" for UI.
+struct ThreadKey: Hashable, Identifiable {
+    let subject: String
+    let group: String
+
+    var id: String { "\(subject)||\(group)" }
+
+    var displayName: String {
+        group.trimmed().isEmpty ? "Other" : group
     }
 }
 
@@ -57,6 +88,7 @@ struct LessonsRootView: View {
     @SceneStorage("Lessons.selectedSubject") var selectedSubjectRaw: String = ""
     @SceneStorage("Lessons.searchText") var searchTextRaw: String = ""
     @SceneStorage("Lessons.displayMode") var displayModeRaw: String = LessonsDisplayMode.browse.rawValue
+    @AppStorage("Lessons.mapSpine") var mapSpineRaw: String = MapSpine.subject.rawValue
 
     // MARK: - Sheet State
     @State var lessonToSchedule: CDLesson?
@@ -68,6 +100,9 @@ struct LessonsRootView: View {
 
     // MARK: - Reordering State
     @State var reorderableGroups: [String] = []
+
+    // MARK: - Map Mode State
+    @State var focusedThread: ThreadKey?
 
     // MARK: - Presentation History State
     @State var statusCounts: [UUID: Int]?
@@ -136,6 +171,10 @@ struct LessonsRootView: View {
 
     var displayMode: LessonsDisplayMode {
         LessonsDisplayMode(rawValue: displayModeRaw) ?? .browse
+    }
+
+    var mapSpine: MapSpine {
+        MapSpine(rawValue: mapSpineRaw) ?? .subject
     }
 
     var canReorderInPlanMode: Bool {
@@ -285,6 +324,9 @@ struct LessonsRootView: View {
             isJiggling = false
             if newValue == .plan {
                 syncReorderableGroups()
+            }
+            if newValue != .map {
+                focusedThread = nil
             }
             #if os(iOS)
             editMode = isJiggling ? .active : .inactive

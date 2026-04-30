@@ -27,6 +27,7 @@ struct WorkAgendaCalendarPane: View {
         let date: Date
         var reason: String = "progressCheck" // Phase 6: Changed from WorkPlanItem.Reason
         var note: String = ""
+        var studentInitiated: Bool = false
     }
 
     var body: some View {
@@ -68,11 +69,12 @@ struct WorkAgendaCalendarPane: View {
                 PlanPromptSheetView(
                     prompt: p,
                     onCancel: { prompt = nil },
-                    onSave: { reason, note in
+                    onSave: { reason, note, studentInitiated in
                         savePlan(
                             workID: p.workID,
                             date: p.date,
-                            reason: reason, note: note
+                            reason: reason, note: note,
+                            studentInitiated: studentInitiated
                         )
                         prompt = nil
                     }
@@ -191,20 +193,21 @@ struct WorkAgendaCalendarPane: View {
     }
 
     // MARK: - Actions
-    private func savePlan(workID: UUID, date: Date, reason: String?, note: String) {
+    private func savePlan(workID: UUID, date: Date, reason: String?, note: String, studentInitiated: Bool) {
         let normalized = AppCalendar.startOfDay(date)
         let noteOrNil = note.isEmpty ? nil : note
-        
+
         // PHASE 6: Create CDWorkCheckIn only (WorkPlanItem removed)
         let checkIn = CDWorkCheckIn(context: modelContext)
         checkIn.workID = workID.uuidString
         checkIn.date = normalized
         checkIn.status = .scheduled
         checkIn.purpose = reason ?? "progressCheck"
+        checkIn.studentInitiated = studentInitiated
         if let noteText = noteOrNil, !noteText.trimmed().isEmpty {
             checkIn.setLegacyNoteText(noteText, in: modelContext)
         }
-        
+
         if let work = fetchWork(id: workID) {
             work.dueAt = normalized
         }
@@ -369,6 +372,12 @@ private struct CheckInStudentRow: View {
                 Text(studentName)
                     .font(AppTheme.ScaledFont.bodySemibold)
                     .foregroundStyle(.primary)
+                if checkIn.studentInitiated {
+                    Image(systemName: "person.fill")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                        .accessibilityLabel("Student requested this check-in")
+                }
                 Spacer()
                 if let work {
                     statusDots(for: work)
@@ -440,19 +449,21 @@ private struct CheckInStudentRow: View {
 private struct PlanPromptSheetView: View {
     let prompt: WorkAgendaCalendarPane.PlanPrompt
     let onCancel: () -> Void
-    let onSave: (String, String) -> Void // Phase 6: Changed from WorkPlanItem.Reason to String
+    let onSave: (String, String, Bool) -> Void
     @State private var reason: String = "progressCheck"
     @State private var note: String = ""
+    @State private var studentInitiated: Bool = false
     init(
         prompt: WorkAgendaCalendarPane.PlanPrompt,
         onCancel: @escaping () -> Void,
-        onSave: @escaping (String, String) -> Void
+        onSave: @escaping (String, String, Bool) -> Void
     ) {
         self.prompt = prompt
         self.onCancel = onCancel
         self.onSave = onSave
         _reason = State(initialValue: prompt.reason)
         _note = State(initialValue: prompt.note)
+        _studentInitiated = State(initialValue: prompt.studentInitiated)
     }
     var body: some View {
         VStack(alignment: .leading, spacing: 16) {
@@ -467,13 +478,17 @@ private struct PlanPromptSheetView: View {
                 }
                 .pickerStyle(.segmented)
             }
+            Toggle("Student requested this", isOn: $studentInitiated)
+                #if os(macOS)
+                .toggleStyle(.checkbox)
+                #endif
             TextField("Optional note", text: $note)
                 .textFieldStyle(.roundedBorder)
                 .disableAutocorrection(true)
             HStack {
                 Spacer()
                 Button("Cancel", action: onCancel)
-                Button("Save") { onSave(reason, note) }
+                Button("Save") { onSave(reason, note, studentInitiated) }
                     .keyboardShortcut(.defaultAction)
             }
         }

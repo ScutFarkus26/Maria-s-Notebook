@@ -348,6 +348,45 @@ extension SettingsView {
                 }
             }
 
+            SettingsGroup(title: "OpenAI API Key", systemImage: "key.viewfinder") {
+                VStack(spacing: 12) {
+                    HStack {
+                        VStack(alignment: .leading, spacing: 4) {
+                            Text("OpenAI API")
+                                .font(.subheadline.weight(.bold))
+                                .foregroundStyle(.primary)
+
+                            if OpenAIAPIClient.hasAPIKey() {
+                                Label("API key configured", systemImage: "checkmark.circle.fill")
+                                    .font(.caption)
+                                    .foregroundStyle(AppColors.success)
+                            } else {
+                                Label("Optional — enables Story cover generation", systemImage: "info.circle")
+                                    .font(.caption)
+                                    .foregroundStyle(.secondary)
+                            }
+                        }
+                        Spacer()
+                    }
+
+                    Divider()
+
+                    NavigationLink {
+                        OpenAIAPIKeySettingsView()
+                            .settingsBreadcrumb("Settings › AI Features")
+                    } label: {
+                        HStack {
+                            Text("Configure API Key")
+                            Spacer()
+                            Image(systemName: "chevron.right")
+                                .font(.caption)
+                                .foregroundStyle(.secondary)
+                        }
+                    }
+                    .buttonStyle(.plain)
+                }
+            }
+
             SettingsGroup(title: "Lesson Planning Assistant", systemImage: "list.clipboard", collapsible: true) {
                 LessonPlanningSettingsView()
                     .frame(maxWidth: .infinity)

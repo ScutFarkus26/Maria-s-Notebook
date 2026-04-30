@@ -95,7 +95,9 @@ struct BackupEntityRegistry {
         CDStudentFocusItem.self,
         // Year Plan + Progression
         CDYearPlanEntry.self,
-        CDLessonGroupSettings.self
+        CDLessonGroupSettings.self,
+        // Stories
+        CDStory.self
     ]
     
     /// Entity type names for progress reporting and error messages

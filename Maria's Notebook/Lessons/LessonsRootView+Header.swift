@@ -41,8 +41,7 @@ extension LessonsRootView {
             }
         }
         .pickerStyle(.segmented)
-        .frame(maxWidth: 180)
-        .disabled(selectedSubject == nil)
+        .frame(maxWidth: 240)
     }
 
     private var headerAddMenu: some View {

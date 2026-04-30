@@ -260,6 +260,9 @@ struct MariasNotebookApp: App {
 
                 Button("Attendance") { appRouter.navigateTo(.attendance) }
                     .keyboardShortcut("6", modifiers: .command)
+
+                Button("Stories") { appRouter.navigateTo(.stories) }
+                    .keyboardShortcut("7", modifiers: .command)
             }
             
             // 4. STANDARD SETTINGS (App Menu)

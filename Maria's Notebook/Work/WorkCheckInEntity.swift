@@ -14,6 +14,7 @@ public class CDWorkCheckIn: NSManagedObject {
     @NSManaged public var date: Date?
     @NSManaged public var statusRaw: String
     @NSManaged public var purpose: String
+    @NSManaged public var studentInitiated: Bool
 
     // MARK: - Relationships
     @NSManaged public var work: CDWorkModel?
@@ -29,6 +30,7 @@ public class CDWorkCheckIn: NSManagedObject {
         self.date = Date()
         self.statusRaw = WorkCheckInStatus.scheduled.rawValue
         self.purpose = ""
+        self.studentInitiated = false
     }
 }
 

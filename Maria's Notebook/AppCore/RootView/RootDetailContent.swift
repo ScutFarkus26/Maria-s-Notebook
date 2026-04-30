@@ -30,7 +30,7 @@ struct RootDetailContent: View {
                 dailyContent
             case .students, .meetings, .goingOut, .parentCommunication, .classroomJobs, .more:
                 studentsContent
-            case .lessons, .planningChecklist, .planningAgenda, .planningWork,
+            case .lessons, .stories, .planningChecklist, .planningAgenda, .planningWork,
                  .planningProgression, .planningProjects, .needsLesson, .smallGroupPlanner:
                 curriculumContent
             case .progressDashboard, .lessonFrequency, .curriculumBalance,
@@ -74,7 +74,7 @@ struct RootDetailContent: View {
     @ViewBuilder
     private var curriculumContent: some View {
         switch selectedNavItem {
-        case .lessons, .planningChecklist, .planningAgenda, .planningWork:
+        case .lessons, .stories, .planningChecklist, .planningAgenda, .planningWork:
             curriculumPlanningContent
         case .planningProgression, .planningProjects, .needsLesson, .smallGroupPlanner:
             curriculumAdvancedContent
@@ -86,6 +86,7 @@ struct RootDetailContent: View {
     private var curriculumPlanningContent: some View {
         switch selectedNavItem {
         case .lessons: LessonsMenuRootView()
+        case .stories: StoriesRootView()
         case .planningChecklist: ClassSubjectChecklistView()
         case .planningAgenda: PresentationsView()
         case .planningWork: WorksAgendaView()
@@ -286,6 +287,11 @@ Tab(value: RootView.NavigationItem.meetings) {
             } label: {
                 Label("Lessons", systemImage: "book")
             }
+            Tab(value: RootView.NavigationItem.stories) {
+                RootDetailContent(selectedNavItem: .stories)
+            } label: {
+                Label("Stories", systemImage: "books.vertical")
+            }
             Tab(value: RootView.NavigationItem.planningChecklist) {
                 RootDetailContent(selectedNavItem: .planningChecklist)
             } label: {
@@ -442,6 +448,7 @@ struct MoreMenuView: View {
 
                 Section("Planning") {
                     moreMenuButton(.lessons)
+                    moreMenuButton(.stories)
                     moreMenuButton(.planningChecklist)
                     moreMenuButton(.planningAgenda)
                     moreMenuButton(.planningWork)

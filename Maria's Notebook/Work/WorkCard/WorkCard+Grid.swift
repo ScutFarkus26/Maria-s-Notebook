@@ -57,6 +57,14 @@ struct WorkCardGridContent: View {
         .contentShape(Rectangle())
         .accessibilityElement(children: .combine)
         .onTapGesture { config.onOpen(config.work) }
+        .draggable(UnifiedCalendarDragPayload.work(config.work.id ?? UUID()).stringRepresentation) {
+            VStack(alignment: .leading, spacing: 6) {
+                Text(displayTitle).font(.subheadline)
+                Text(config.studentDisplay).font(.caption).foregroundStyle(.secondary)
+            }
+            .padding(8)
+            .background(RoundedRectangle(cornerRadius: 8).fill(Color.primary.opacity(UIConstants.OpacityConstants.veryFaint)))
+        }
     }
 
     private var ageIndicator: some View {
@@ -166,14 +174,6 @@ struct WorkCardGridContent: View {
             } label: {
                 Label("Copy Title", systemImage: "doc.on.doc")
             }
-        }
-        .draggable(UnifiedCalendarDragPayload.work(config.work.id ?? UUID()).stringRepresentation) {
-            VStack(alignment: .leading, spacing: 6) {
-                Text(displayTitle).font(.subheadline)
-                Text(config.studentDisplay).font(.caption).foregroundStyle(.secondary)
-            }
-            .padding(8)
-            .background(RoundedRectangle(cornerRadius: 8).fill(Color.primary.opacity(UIConstants.OpacityConstants.veryFaint)))
         }
     }
 

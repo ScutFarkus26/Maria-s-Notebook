@@ -12,6 +12,7 @@ struct LessonDetailView: View {
     var allLessons: [CDLesson] = []
     var onSave: (CDLesson) -> Void
     var onDone: (() -> Void)?
+    var onLocateInMap: ((CDLesson) -> Void)?
 
     @Environment(\.dismiss) private var dismiss
     @Environment(\.managedObjectContext) var viewContext
@@ -319,6 +320,14 @@ extension LessonDetailView {
                     .buttonStyle(.borderedProminent)
                     .disabled(draftName.trimmed().isEmpty)
                 } else {
+                    if let onLocateInMap, !lesson.subject.trimmed().isEmpty {
+                        Button {
+                            onLocateInMap(lesson)
+                        } label: {
+                            Label("Locate in Map", systemImage: "chart.bar.doc.horizontal")
+                        }
+                        .help("Show this lesson's thread in the scope-and-sequence map")
+                    }
                     Button("Edit") {
                         seedDrafts()
                         isEditing = true

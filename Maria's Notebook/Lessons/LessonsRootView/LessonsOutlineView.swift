@@ -26,6 +26,7 @@ struct LessonsOutlineView: View {
     var onMoveLessonsInGroup: ((_ source: IndexSet, _ destination: Int, _ group: String) -> Void)?
     var onMoveGroups: ((_ source: IndexSet, _ destination: Int) -> Void)?
     var onMoveLessonIDToGroup: ((_ lessonID: UUID, _ targetGroup: String) -> Void)?
+    var onLocateInMap: ((CDLesson) -> Void)?
 
     @State private var expandedGroups: Set<String> = []
     var body: some View {
@@ -238,6 +239,11 @@ struct LessonsOutlineView: View {
         }
         Button { onScheduleLesson?(lesson) } label: {
             Label("Plan Presentation", systemImage: "tray.and.arrow.down")
+        }
+        if let onLocateInMap {
+            Button { onLocateInMap(lesson) } label: {
+                Label("Locate in Map", systemImage: "chart.bar.doc.horizontal")
+            }
         }
         Divider()
 

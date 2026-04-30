@@ -23,6 +23,13 @@ struct WorkCheckInPill: View {
                     .font(AppTheme.ScaledFont.caption)
                     .foregroundStyle(.secondary)
                     .lineLimit(2)
+                if checkIn.studentInitiated {
+                    Spacer(minLength: 4)
+                    Image(systemName: "person.fill")
+                        .font(.caption2)
+                        .foregroundStyle(.secondary)
+                        .accessibilityLabel("Student requested")
+                }
             }
             // Second row: purpose (e.g., Progress Check, Due Date)
             if !checkIn.purpose.isEmpty {

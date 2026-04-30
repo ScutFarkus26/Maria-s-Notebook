@@ -213,6 +213,6 @@ extension PresentationDetailContentView {
     }
 
     func canCompleteWorkflow(presentationVM: PostPresentationFormViewModel) -> Bool {
-        presentationVM.canDismiss
+        presentationVM.hasValidStatus
     }
 }

@@ -67,6 +67,13 @@ extension LessonsCardsGridView {
                 } label: {
                     Label("Give Lesson", systemImage: "person.crop.circle.badge.checkmark")
                 }
+                if let onLocateInMap {
+                    Button {
+                        onLocateInMap(lesson)
+                    } label: {
+                        Label("Locate in Map", systemImage: "chart.bar.doc.horizontal")
+                    }
+                }
             }
         }
 #endif

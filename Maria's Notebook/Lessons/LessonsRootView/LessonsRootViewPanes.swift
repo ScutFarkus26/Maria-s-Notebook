@@ -77,8 +77,82 @@ extension LessonsRootView {
             ParshaBrowseView { lesson in
                 selectedLessonDetail = lesson
             }
+        } else if displayMode == .map {
+            mapModeColumn
         } else {
             normalLessonsContentColumn
+        }
+    }
+
+    // MARK: - Map Mode Column
+
+    @ViewBuilder
+    private var mapModeColumn: some View {
+        if let focusedThread {
+            let lessonsInThread: [CDLesson] = lessonsForThread(focusedThread)
+            LessonsScopeThreadFocusView(
+                threadKey: focusedThread,
+                lessons: lessonsInThread,
+                onBack: { self.focusedThread = nil },
+                onSelectLesson: { lesson in selectedLessonDetail = lesson },
+                onShowInBrowse: { lesson in showLessonInBrowse(lesson) }
+            )
+            .navigationTitle(focusedThread.displayName)
+        } else {
+            let mapSubject: String? = (selectedSubject == Self.storiesSentinel) ? nil : selectedSubject
+            LessonsScopeMapView(
+                lessons: Array(lessons),
+                selectedSubject: mapSubject,
+                spine: Binding(
+                    get: { mapSpine },
+                    set: { mapSpineRaw = $0.rawValue }
+                ),
+                onSelectThread: { key in self.focusedThread = key }
+            )
+            .navigationTitle("Scope & Sequence")
+        }
+    }
+
+    /// Switches from Map mode to Browse mode, focused on the lesson's subject and showing
+    /// the lesson's detail. Used by the "View in Browse" action from a Map pill.
+    private func showLessonInBrowse(_ lesson: CDLesson) {
+        focusedThread = nil
+        displayModeRaw = LessonsDisplayMode.browse.rawValue
+        if !lesson.subject.trimmed().isEmpty {
+            filterState.selectedSubject = lesson.subject
+            listSelectedSubject = lesson.subject
+        }
+        selectedLessonDetail = lesson
+    }
+
+    /// Switches from any mode to Map mode, focused on the lesson's (subject, group) thread.
+    /// Used by the "Locate in Map" action from Browse cards and Plan rows.
+    func locateLessonInMap(_ lesson: CDLesson) {
+        let subject = lesson.subject.trimmed()
+        guard !subject.isEmpty else { return }
+        // Locating in Map by subject is unambiguous; if the user is currently on the
+        // Great Lesson spine, they'll still see the lesson's thread because the focus
+        // view is keyed by (subject, group), not the spine.
+        displayModeRaw = LessonsDisplayMode.map.rawValue
+        focusedThread = ThreadKey(subject: subject, group: lesson.group)
+        // Keep selectedLessonDetail as-is so the right pane continues to show the lesson.
+        selectedLessonDetail = lesson
+    }
+
+    /// Returns the lessons that belong to a (subject, group) thread.
+    /// An empty group string in the key denotes the synthetic "ungrouped" bucket.
+    private func lessonsForThread(_ key: ThreadKey) -> [CDLesson] {
+        let subjectKey = key.subject.trimmed().lowercased()
+        let groupKey = key.group.trimmed().lowercased()
+        let isUngroupedBucket = groupKey.isEmpty
+
+        return lessons.filter { lesson in
+            guard lesson.subject.trimmed().lowercased() == subjectKey else { return false }
+            let lessonGroupTrimmed = lesson.group.trimmed().lowercased()
+            if isUngroupedBucket {
+                return lessonGroupTrimmed.isEmpty
+            }
+            return lessonGroupTrimmed == groupKey
         }
     }
 
@@ -148,6 +222,9 @@ extension LessonsRootView {
                 adaptiveWithAnimation(.spring(response: 0.3, dampingFraction: 0.8)) {
                     isJiggling = true
                 }
+            },
+            onLocateInMap: { lesson in
+                locateLessonInMap(lesson)
             },
             statusCounts: statusCounts,
             selectedSubject: selectedSubject,
@@ -267,7 +344,8 @@ extension LessonsRootView {
                 moveLessonsInSubject(from: source, to: destination, in: groupLessons)
             },
             onMoveGroups: { moveGroups(from: $0, to: $1, in: displayGroups) },
-            onMoveLessonIDToGroup: { handleMoveLessonIDToGroup($0, targetGroup: $1) }
+            onMoveLessonIDToGroup: { handleMoveLessonIDToGroup($0, targetGroup: $1) },
+            onLocateInMap: { lesson in locateLessonInMap(lesson) }
         )
     }
 
@@ -341,6 +419,9 @@ extension LessonsRootView {
             },
             onDone: {
                 selectedLessonDetail = nil
+            },
+            onLocateInMap: { lesson in
+                locateLessonInMap(lesson)
             }
         )
         .frame(width: 520)

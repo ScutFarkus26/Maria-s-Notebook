@@ -79,7 +79,8 @@ final class CoreDataStack {
         "SampleWorkStep",
         "ClassroomMembership",
         "PrepChecklist",
-        "PrepChecklistItem"
+        "PrepChecklistItem",
+        "Story"
     ]
 
     /// Entities stored in the private (per-teacher) store.

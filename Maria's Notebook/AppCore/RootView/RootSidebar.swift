@@ -84,6 +84,8 @@ extension RootSidebar {
                     }
                 }
 
+                sidebarRow(.stories, title: "Stories", systemImage: "books.vertical")
+
                 sidebarRow(.planningChecklist, title: "Checklist", systemImage: "list.clipboard")
 
                 sidebarRow(.planningAgenda, title: "Presentations", systemImage: SFSymbol.Time.calendar)
@@ -206,6 +208,7 @@ extension RootSidebar {
     private var iOSSidebarCurriculumSection: some View {
         Section("Curriculum") {
             iOSSidebarButton(.lessons, title: "Lessons", systemImage: SFSymbol.Education.book, hint: "Browse and manage lesson plans")
+            iOSSidebarButton(.stories, title: "Stories", systemImage: "books.vertical", hint: "Browse and import story PDFs")
             iOSSidebarButton(.planningChecklist, title: "Checklist", systemImage: "list.clipboard", hint: "View class subject checklist")
             iOSSidebarButton(.planningAgenda, title: "Presentations", systemImage: SFSymbol.Time.calendar, hint: "Manage lesson presentations agenda")
             iOSSidebarButton(.planningWork, title: "Open Work", systemImage: "tray.full", hint: "View and manage student work")

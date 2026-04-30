@@ -19,6 +19,7 @@ struct LessonsCardsGridView: View {
     let onReorder: ((_ movingLesson: CDLesson, _ fromIndex: Int, _ toIndex: Int, _ subset: [CDLesson]) -> Void)?
     let onGiveLesson: ((CDLesson) -> Void)?
     let onActivateJiggle: (() -> Void)?
+    let onLocateInMap: ((CDLesson) -> Void)?
     let statusCounts: [UUID: Int]?
     let selectedSubject: String?
     let selectedLessonID: UUID?
@@ -32,6 +33,7 @@ struct LessonsCardsGridView: View {
         onReorder: ((_ movingLesson: CDLesson, _ fromIndex: Int, _ toIndex: Int, _ subset: [CDLesson]) -> Void)? = nil,
         onGiveLesson: ((CDLesson) -> Void)? = nil,
         onActivateJiggle: (() -> Void)? = nil,
+        onLocateInMap: ((CDLesson) -> Void)? = nil,
         statusCounts: [UUID: Int]? = nil,
         selectedSubject: String? = nil,
         selectedLessonID: UUID? = nil,
@@ -44,6 +46,7 @@ struct LessonsCardsGridView: View {
         self.onReorder = onReorder
         self.onGiveLesson = onGiveLesson
         self.onActivateJiggle = onActivateJiggle
+        self.onLocateInMap = onLocateInMap
         self.statusCounts = statusCounts
         self.selectedSubject = selectedSubject
         self.selectedLessonID = selectedLessonID
