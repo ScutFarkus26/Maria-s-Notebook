@@ -23,32 +23,45 @@ struct WorkCycleView: View {
             .searchable(text: $viewModel.searchText, prompt: "Search students")
             .onAppear { viewModel.loadData(context: viewContext) }
             .onChange(of: changeToken) { _, _ in
-                if let session = viewModel.session {
-                    viewModel.loadStudents(context: viewContext)
-                    _ = session // suppress unused warning
-                }
+                handleChangeToken()
             }
             .sheet(item: $selectedStudentID) { studentID in
-                WorkCycleEntrySheet(
-                    studentID: studentID,
-                    studentName: viewModel.studentCards.first { $0.id == studentID }?.displayName ?? "",
-                    onSave: { activity, socialMode, concentration, workItemID in
-                        viewModel.addEntry(
-                            studentID: studentID,
-                            activity: activity,
-                            socialMode: socialMode,
-                            concentration: concentration,
-                            workItemID: workItemID,
-                            context: viewContext
-                        )
-                    }
-                )
+                entrySheet(for: studentID)
             }
             .sheet(isPresented: $showingSummary) {
-                if let summary = viewModel.cycleSummary {
-                    WorkCycleSummaryView(summary: summary)
-                }
+                summarySheet
             }
+    }
+
+    private func handleChangeToken() {
+        if viewModel.session != nil {
+            viewModel.loadStudents(context: viewContext)
+        }
+    }
+
+    private func entrySheet(for studentID: UUID) -> some View {
+        let studentName = viewModel.studentCards.first { $0.id == studentID }?.displayName ?? ""
+        return WorkCycleEntrySheet(
+            studentID: studentID,
+            studentName: studentName,
+            onSave: { activity, socialMode, concentration, workItemID in
+                viewModel.addEntry(
+                    studentID: studentID,
+                    activity: activity,
+                    socialMode: socialMode,
+                    concentration: concentration,
+                    workItemID: workItemID,
+                    context: viewContext
+                )
+            }
+        )
+    }
+
+    @ViewBuilder
+    private var summarySheet: some View {
+        if let summary = viewModel.cycleSummary {
+            WorkCycleSummaryView(summary: summary)
+        }
     }
 
     // MARK: - Content
@@ -93,7 +106,7 @@ struct WorkCycleView: View {
 
     private var timerSection: some View {
         VStack(spacing: 4) {
-            Text(viewModel.elapsedFormatted)
+            timerText
                 .font(.system(size: 48, weight: .light, design: .rounded))
                 .monospacedDigit()
                 .foregroundStyle(viewModel.session?.isPaused == true ? AppColors.warning : .primary)
@@ -110,6 +123,17 @@ struct WorkCycleView: View {
         .frame(maxWidth: .infinity)
         .padding(.vertical, 16)
         .cardStyle()
+    }
+
+    @ViewBuilder
+    private var timerText: some View {
+        if viewModel.session?.isActive == true {
+            TimelineView(.periodic(from: .now, by: 1)) { context in
+                Text(viewModel.elapsedFormatted(at: context.date))
+            }
+        } else {
+            Text(viewModel.elapsedFormatted(at: Date()))
+        }
     }
 
     private var sessionControls: some View {

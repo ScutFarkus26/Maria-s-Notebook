@@ -45,6 +45,7 @@ struct TodayView: View {
     @State var selectedWorkID: UUID?
     @State var selectedLessonAssignment: CDLessonAssignment?
     @State var isShowingQuickNote = false
+    @State var pendingNoteStudentIDs: Set<UUID>?
     @State var noteBeingEdited: CDNote?
 
     // MARK: - Attendance State
@@ -60,6 +61,24 @@ struct TodayView: View {
     // MARK: - Todo State
     @State var selectedTodoItem: CDTodoItem?
     @State var isShowingNewTodo = false
+
+    // MARK: - Day Pad / Done Today / Day Cards State
+    @AppStorage(UserDefaultsKeys.todayDayPadExpanded) var isDayPadExpanded: Bool = false
+    @AppStorage(UserDefaultsKeys.todayDoneTodayExpanded) var isDoneTodayExpanded: Bool = false
+    /// Bumped when a day card is dismissed to force the section to recompute.
+    @State var dayCardsRefreshTrigger: Int = 0
+    @State var prepChecklistRemainingCount: Int = 0
+    @State var needsLessonCount: Int = 0
+
+    // MARK: - Active Work Cycle Sessions (for Right Now hero)
+    @FetchRequest(
+        sortDescriptors: [NSSortDescriptor(keyPath: \CDWorkCycleSession.startTime, ascending: false)],
+        predicate: NSPredicate(
+            format: "statusRaw == %@ OR statusRaw == %@",
+            CycleStatus.active.rawValue,
+            CycleStatus.paused.rawValue
+        )
+    ) var activeWorkCycleSessions: FetchedResults<CDWorkCycleSession>
     @FetchRequest(
         sortDescriptors: [NSSortDescriptor(keyPath: \CDTodoItem.createdAt, ascending: false)],
         predicate: NSPredicate(format: "isCompleted == NO")
@@ -94,116 +113,47 @@ struct TodayView: View {
     // MARK: - Body
 
     var body: some View {
-        Group {
-            if restoreCoordinator.isRestoring {
-                restoringView
-            } else {
-                mainContent
+        rootContent
+            .task(priority: .userInitiated) {
+                await handleViewAppear()
             }
-        }
-        // PERFORMANCE: Use .task instead of .onAppear for automatic cancellation
-        // .task automatically cancels when view disappears, preventing unnecessary work
-        .task(priority: .userInitiated) {
-            await handleViewAppear()
-        }
-        .onChange(of: calendar) { _, newCal in
-            viewModel.setCalendar(newCal)
-            AppCalendar.adopt(timeZoneFrom: newCal)
-        }
-        .onChange(of: viewModel.date) { _, newValue in
-            handleDateChange(newValue)
-        }
-        .onChange(of: appRouter.planningInboxRefreshTrigger) { _, _ in
-            viewModel.reload()
-        }
-        // PERFORMANCE: Pause expensive syncs when app is in background
-        .onChange(of: scenePhase) { _, newPhase in
-            handleScenePhaseChange(newPhase)
-        }
-        .sheet(id: $selectedWorkID) { id in
-            WorkDetailView(workID: id) {
-                selectedWorkID = nil
+            .onChange(of: calendar) { _, newCal in
+                viewModel.setCalendar(newCal)
+                AppCalendar.adopt(timeZoneFrom: newCal)
+            }
+            .onChange(of: viewModel.date) { _, newValue in
+                handleDateChange(newValue)
+            }
+            .onChange(of: appRouter.planningInboxRefreshTrigger) { _, _ in
                 viewModel.reload()
             }
-        }
-        .sheet(item: $selectedLessonAssignment) { la in
-            PresentationDetailView(lessonAssignment: la) {
-                selectedLessonAssignment = nil
+            .onChange(of: scenePhase) { _, newPhase in
+                handleScenePhaseChange(newPhase)
             }
-#if os(macOS)
-            .frame(minWidth: 720, minHeight: 640)
-            .presentationSizingFitted()
-#else
-            .presentationDetents([.large])
-            .presentationDragIndicator(.visible)
-#endif
-        }
-        .sheet(isPresented: $isShowingQuickNote) {
-            QuickNoteSheet()
-        }
-#if os(iOS)
-        .sheet(item: $selectedTodoItem) { todo in
-            NavigationStack {
-                EditTodoForm(todo: todo)
-                    .navigationTitle("Edit Todo")
-                    .inlineNavigationTitle()
-                    .toolbar {
-                        ToolbarItem(placement: .cancellationAction) {
-                            Button("Done") {
-                                selectedTodoItem = nil
-                            }
-                        }
-                    }
+            .modifier(TodayViewSheets(
+                selectedWorkID: $selectedWorkID,
+                selectedLessonAssignment: $selectedLessonAssignment,
+                isShowingQuickNote: $isShowingQuickNote,
+                pendingNoteStudentIDs: $pendingNoteStudentIDs,
+                selectedTodoItem: $selectedTodoItem,
+                isShowingNewTodo: $isShowingNewTodo,
+                noteBeingEdited: $noteBeingEdited,
+                selectedMeetingStudentID: $selectedMeetingStudentID,
+                selectedMeetingID: $selectedMeetingID,
+                viewContext: viewContext,
+                onReload: { viewModel.reload() }
+            ))
+            .overlay(alignment: .top) {
+                toastOverlay
             }
-            .presentationDetents([.medium, .large])
-            .presentationDragIndicator(.visible)
-        }
-#endif
-        .sheet(isPresented: $isShowingNewTodo) {
-            NavigationStack {
-                NewTodoForm()
-                    .navigationTitle("New Todo")
-                    .inlineNavigationTitle()
-                    .toolbar {
-                        ToolbarItem(placement: .cancellationAction) {
-                            Button("Cancel") {
-                                isShowingNewTodo = false
-                            }
-                        }
-                    }
-            }
-        }
-        .sheet(item: $noteBeingEdited) { note in
-            NoteEditSheet(note: note) {
-                viewModel.reload()
-            }
-#if os(macOS)
-            .frame(minWidth: 520, minHeight: 420)
-            .presentationSizingFitted()
-#else
-            .presentationDetents([.large])
-            .presentationDragIndicator(.visible)
-#endif
-        }
-        .sheet(id: $selectedMeetingStudentID) { studentID in
-            ScheduledMeetingSessionSheet(studentID: studentID) {
-                if let meetingID = selectedMeetingID {
-                    MeetingScheduler.clearMeeting(id: meetingID, context: viewContext)
-                }
-                selectedMeetingStudentID = nil
-                selectedMeetingID = nil
-                viewModel.reload()
-            }
-#if os(macOS)
-            .frame(minWidth: 860, minHeight: 640)
-            .presentationSizingFitted()
-#else
-            .presentationDetents([.large])
-            .presentationDragIndicator(.visible)
-#endif
-        }
-        .overlay(alignment: .top) {
-            toastOverlay
+    }
+
+    @ViewBuilder
+    private var rootContent: some View {
+        if restoreCoordinator.isRestoring {
+            restoringView
+        } else {
+            mainContent
         }
     }
 
@@ -226,16 +176,13 @@ struct TodayView: View {
                 Divider()
                 #endif
 
-                // On iPhone compact, attendance has its own tab, so hide it here
+                // On iPhone compact, attendance has its own tab, so hide it here.
+                // Otherwise render the strip (and expanded grid, if open) above the
+                // list so the user can mark attendance without losing scroll position.
                 if !isIPhoneCompact {
                     attendanceSection
-
-                    if !isAttendanceExpanded {
-                        listContent
-                    }
-                } else {
-                    listContent
                 }
+                listContent
             }
             .navigationTitle("Today")
             #if os(iOS)
@@ -245,32 +192,24 @@ struct TodayView: View {
     }
 
     private var attendanceSection: some View {
-        Group {
-            if isAttendanceExpanded {
-                VStack(spacing: 0) {
-                    attendanceStrip
-                        .padding(.horizontal, 16)
+        VStack(spacing: 0) {
+            attendanceStrip
+                .padding(.horizontal, 16)
 
-                    AttendanceExpandedView(
-                        date: viewModel.date,
-                        isNonSchoolDay: isNonSchoolDaySync(viewModel.date),
-                        onChange: { viewModel.reload() },
-                        onToast: { message in toast(message) }
-                    )
-                    .padding(.horizontal, 16)
-                    .transition(.move(edge: .top).combined(with: .opacity))
-                }
-                .frame(maxHeight: .infinity)
-                .padding(.top, 10)
-            } else {
-                VStack(spacing: 0) {
-                    attendanceStrip
-                        .padding(.horizontal, 16)
-                        .padding(.bottom, 10)
-                }
-                .padding(.top, 10)
+            if isAttendanceExpanded {
+                AttendanceExpandedView(
+                    date: viewModel.date,
+                    isNonSchoolDay: isNonSchoolDaySync(viewModel.date),
+                    onChange: { viewModel.reload() },
+                    onToast: { message in toast(message) }
+                )
+                .padding(.horizontal, 16)
+                .padding(.top, 8)
+                .transition(.move(edge: .top).combined(with: .opacity))
             }
         }
+        .padding(.top, 10)
+        .padding(.bottom, isAttendanceExpanded ? 8 : 10)
     }
 
     private var listContent: some View {
@@ -278,16 +217,21 @@ struct TodayView: View {
         twoColumnLayout
         #else
         List {
-            calendarEventsListSection
-            todosListSection
-            presentedLessonsListSection
-            checkedWorkListSection
-            completedMeetingsListSection
+            // What's next, then today's surfaces
+            rightNowListSection
+            dayCardsListSection
             agendaListSection
+            todosListSection
+            calendarEventsListSection
+            remindersListSection
+            dayPadListSection
+            recentNotesListSection
+            doneTodayListSection
         }
         .listStyle(.insetGrouped)
         .refreshable {
             viewModel.reload()
+            reloadDerivedCounts()
         }
         #endif
     }
@@ -295,15 +239,16 @@ struct TodayView: View {
     #if os(macOS)
     private var twoColumnLayout: some View {
         HStack(alignment: .top, spacing: 0) {
-            // Left column: Calendar + Todos + Reminders + Meetings
-            // + Lessons Presented + Work Checked + Completed Meetings
+            // Left column: glanceable surfaces; Right column: live agenda
             List {
-                calendarEventsListSection
+                rightNowListSection
+                dayCardsListSection
                 todosListSection
+                calendarEventsListSection
                 remindersListSection
-                presentedLessonsListSection
-                checkedWorkListSection
-                completedMeetingsListSection
+                dayPadListSection
+                recentNotesListSection
+                doneTodayListSection
             }
             .listStyle(.inset)
             .frame(minWidth: 280, idealWidth: 320, maxWidth: 400)
@@ -370,11 +315,7 @@ struct TodayView: View {
                 viewModel.date = AppCalendar.startOfDay(coerced)
             }
 
-            Button {
-                isShowingQuickNote = true
-            } label: {
-                Label("Note", systemImage: "square.and.pencil")
-            }
+            toolbarPlusMenu
         }
     }
 
@@ -412,8 +353,42 @@ struct TodayView: View {
             viewModel.date = AppCalendar.startOfDay(coerced)
         }
         updateFilteredQueries()
+        reloadDerivedCounts()
         // Await both syncs — cancellation propagates automatically when view disappears
         _ = await (reminderSync, calendarSync)
+    }
+
+    /// Recomputes counts that drive the day-aware cards (prep remaining, needs-lesson).
+    /// Called on appear, refresh, and date change.
+    func reloadDerivedCounts() {
+        prepChecklistRemainingCount = computePrepRemainingCount()
+        needsLessonCount = computeNeedsLessonCount()
+    }
+
+    private func computePrepRemainingCount() -> Int {
+        let checklists = PrepChecklistService.fetchActiveChecklists(in: viewContext)
+        var totalItems = 0
+        var completedItems = 0
+        for checklist in checklists {
+            totalItems += checklist.itemsArray.count
+            completedItems += PrepChecklistService.fetchTodayCompletions(for: checklist, in: viewContext).count
+        }
+        return max(0, totalItems - completedItems)
+    }
+
+    private func computeNeedsLessonCount() -> Int {
+        let request = CDFetchRequest(CDStudent.self)
+        request.predicate = CDStudent.enrolledPredicate
+        let students = TestStudentsFilter.filterVisible(viewContext.safeFetch(request)).uniqueByID
+        guard !students.isEmpty else { return 0 }
+        let viewModel = StudentsViewModel()
+        let daysMap = viewModel.computeDaysSinceLastLessonCache(
+            for: students,
+            using: viewContext,
+            calendar: calendar
+        )
+        // Count students who've never been presented (-1) OR overdue (>= 7 days)
+        return daysMap.values.filter { $0 == -1 || $0 >= 7 }.count
     }
     
     private func handleScenePhaseChange(_ newPhase: ScenePhase) {
@@ -437,14 +412,15 @@ struct TodayView: View {
     private func handleDateChange(_ newValue: Date) {
         let coerced = nearestSchoolDaySync(to: newValue)
         let startOfDay = AppCalendar.startOfDay(coerced)
-        
+
         // Only update if the coerced date is different to prevent feedback loops
         if startOfDay != newValue && startOfDay != AppCalendar.startOfDay(newValue) {
             viewModel.date = startOfDay
             return
         }
-        
+
         updateFilteredQueries()
+        reloadDerivedCounts()
     }
 
     // PERF: Async functions instead of fire-and-forget Task blocks.
@@ -485,3 +461,139 @@ struct TodayView: View {
 // - TodayViewListRows.swift - Individual row components
 // - AttendanceExpandedView.swift - Expanded attendance grid
 // - SchoolDayCache.swift - School day caching
+
+// MARK: - Sheets Modifier
+// Bundles all of TodayView's sheet presentations into a single ViewModifier so
+// the body's modifier chain stays short enough for the type checker.
+private struct TodayViewSheets: ViewModifier {
+    @Binding var selectedWorkID: UUID?
+    @Binding var selectedLessonAssignment: CDLessonAssignment?
+    @Binding var isShowingQuickNote: Bool
+    @Binding var pendingNoteStudentIDs: Set<UUID>?
+    @Binding var selectedTodoItem: CDTodoItem?
+    @Binding var isShowingNewTodo: Bool
+    @Binding var noteBeingEdited: CDNote?
+    @Binding var selectedMeetingStudentID: UUID?
+    @Binding var selectedMeetingID: UUID?
+    let viewContext: NSManagedObjectContext
+    let onReload: () -> Void
+
+    func body(content: Content) -> some View {
+        content
+            .sheet(id: $selectedWorkID) { id in
+                WorkDetailView(workID: id) {
+                    selectedWorkID = nil
+                    onReload()
+                }
+            }
+            .sheet(item: $selectedLessonAssignment) { la in
+                lessonAssignmentSheet(la)
+            }
+            .sheet(
+                isPresented: $isShowingQuickNote,
+                onDismiss: { pendingNoteStudentIDs = nil },
+                content: { quickNoteSheetContent }
+            )
+#if os(iOS)
+            .sheet(item: $selectedTodoItem) { todo in
+                editTodoSheet(todo)
+            }
+#endif
+            .sheet(isPresented: $isShowingNewTodo) {
+                newTodoSheet
+            }
+            .sheet(item: $noteBeingEdited) { note in
+                noteEditSheet(note)
+            }
+            .sheet(id: $selectedMeetingStudentID) { studentID in
+                meetingSessionSheet(studentID)
+            }
+    }
+
+    private func lessonAssignmentSheet(_ la: CDLessonAssignment) -> some View {
+        PresentationDetailView(lessonAssignment: la) {
+            selectedLessonAssignment = nil
+        }
+#if os(macOS)
+        .frame(minWidth: 720, minHeight: 640)
+        .presentationSizingFitted()
+#else
+        .presentationDetents([.large])
+        .presentationDragIndicator(.visible)
+#endif
+    }
+
+    @ViewBuilder
+    private var quickNoteSheetContent: some View {
+        if let preselected = pendingNoteStudentIDs {
+            QuickNoteSheet(initialStudentIDs: preselected)
+        } else {
+            QuickNoteSheet()
+        }
+    }
+
+#if os(iOS)
+    private func editTodoSheet(_ todo: CDTodoItem) -> some View {
+        NavigationStack {
+            EditTodoForm(todo: todo)
+                .navigationTitle("Edit Todo")
+                .inlineNavigationTitle()
+                .toolbar {
+                    ToolbarItem(placement: .cancellationAction) {
+                        Button("Done") {
+                            selectedTodoItem = nil
+                        }
+                    }
+                }
+        }
+        .presentationDetents([.medium, .large])
+        .presentationDragIndicator(.visible)
+    }
+#endif
+
+    private var newTodoSheet: some View {
+        NavigationStack {
+            NewTodoForm()
+                .navigationTitle("New Todo")
+                .inlineNavigationTitle()
+                .toolbar {
+                    ToolbarItem(placement: .cancellationAction) {
+                        Button("Cancel") {
+                            isShowingNewTodo = false
+                        }
+                    }
+                }
+        }
+    }
+
+    private func noteEditSheet(_ note: CDNote) -> some View {
+        NoteEditSheet(note: note) {
+            onReload()
+        }
+#if os(macOS)
+        .frame(minWidth: 520, minHeight: 420)
+        .presentationSizingFitted()
+#else
+        .presentationDetents([.large])
+        .presentationDragIndicator(.visible)
+#endif
+    }
+
+    private func meetingSessionSheet(_ studentID: UUID) -> some View {
+        ScheduledMeetingSessionSheet(studentID: studentID) {
+            if let meetingID = selectedMeetingID {
+                MeetingScheduler.clearMeeting(id: meetingID, context: viewContext)
+            }
+            selectedMeetingStudentID = nil
+            selectedMeetingID = nil
+            onReload()
+        }
+#if os(macOS)
+        .frame(minWidth: 860, minHeight: 640)
+        .presentationSizingFitted()
+#else
+        .presentationDetents([.large])
+        .presentationDragIndicator(.visible)
+#endif
+    }
+}

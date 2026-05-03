@@ -45,16 +45,15 @@ struct RootDetailContent: View {
         }
     }
 
-    @ViewBuilder
-    private var dailyContent: some View {
+    private var dailyContent: AnyView {
         switch selectedNavItem {
-        case .today: TodayView(context: viewContext)
-        case .attendance: attendanceContent
-        case .workCycle: WorkCycleView()
-        case .note: noteTabContent
-        case .todos: TodoMainView()
-        case .fridayReview: FridayReviewView()
-        default: EmptyView()
+        case .today: AnyView(TodayView(context: viewContext))
+        case .attendance: AnyView(attendanceContent)
+        case .workCycle: AnyView(WorkCycleView())
+        case .note: AnyView(noteTabContent)
+        case .todos: AnyView(TodoMainView())
+        case .fridayReview: AnyView(FridayReviewView())
+        default: AnyView(EmptyView())
         }
     }
 
@@ -151,14 +150,12 @@ struct RootDetailContent: View {
         }
     }
 
-    @ViewBuilder
-    private var toolsContent: some View {
-        let item: RootView.NavigationItem = selectedNavItem
-        switch item {
-        case .askAI: ChatView()
-        case .logs: LogsMenuRootView()
-        case .settings: SettingsView()
-        default: EmptyView()
+    private var toolsContent: AnyView {
+        switch selectedNavItem {
+        case .askAI: AnyView(ChatView())
+        case .logs: AnyView(LogsMenuRootView())
+        case .settings: AnyView(SettingsView())
+        default: AnyView(EmptyView())
         }
     }
 

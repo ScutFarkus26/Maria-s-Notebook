@@ -9,7 +9,6 @@ final class WorkCycleViewModel {
     private(set) var session: CDWorkCycleSession?
     private(set) var studentCards: [StudentCycleCard] = []
     private(set) var entries: [CDWorkCycleEntry] = []
-    private(set) var elapsedTime: TimeInterval = 0
     private(set) var isLoading = false
     private(set) var cycleSummary: CycleSummary?
     private(set) var pastSessions: [CDWorkCycleSession] = []
@@ -17,7 +16,15 @@ final class WorkCycleViewModel {
     var searchText: String = ""
     var levelFilter: LevelFilter = .all
 
-    private var timerTask: Task<Void, Never>?
+    /// Elapsed seconds at the moment the session was last resumed (or 0 for a fresh session).
+    /// Combined with `liveTickReference` to compute current elapsed without a timer.
+    @ObservationIgnored
+    private var resumeBaselineElapsed: TimeInterval = 0
+
+    /// When the session was last resumed/started. `nil` when paused or no session — in that
+    /// case `resumeBaselineElapsed` is the frozen value to display.
+    @ObservationIgnored
+    private var liveTickReference: Date?
 
     // MARK: - Filtered Cards
 
@@ -40,12 +47,22 @@ final class WorkCycleViewModel {
         return cards
     }
 
-    var hasActiveSession: Bool { session != nil && session?.isCompleted == false }
+    var hasActiveSession: Bool {
+        guard let session else { return false }
+        return !session.isCompleted
+    }
 
     // MARK: - Timer Display
 
-    var elapsedFormatted: String {
-        let total = Int(elapsedTime)
+    /// Computes elapsed seconds for the active session at a given moment.
+    /// Use a 1Hz `TimelineView` to drive this for live display — no view-model timer needed.
+    func elapsedTime(at date: Date) -> TimeInterval {
+        guard let liveTickReference else { return resumeBaselineElapsed }
+        return resumeBaselineElapsed + date.timeIntervalSince(liveTickReference)
+    }
+
+    func elapsedFormatted(at date: Date) -> String {
+        let total = Int(elapsedTime(at: date))
         let hours = total / 3600
         let minutes = (total % 3600) / 60
         let seconds = total % 60
@@ -108,14 +125,16 @@ final class WorkCycleViewModel {
             session = existing
             loadEntries(for: existing, context: context)
 
-            // Resume elapsed time
-            if let start = existing.startTime {
-                elapsedTime = Date().timeIntervalSince(start)
-            }
-
-            // Resume timer if active
+            // Restore elapsed-time state matching prior in-app behavior:
+            // active sessions tick live from startTime; paused sessions show now-since-start
+            // as a frozen snapshot (preserving the existing reload-jump behavior).
+            let elapsedNow = existing.startTime.map { Date().timeIntervalSince($0) } ?? 0
             if existing.isActive {
-                startTimer()
+                resumeBaselineElapsed = 0
+                liveTickReference = existing.startTime
+            } else {
+                resumeBaselineElapsed = elapsedNow
+                liveTickReference = nil
             }
         }
     }
@@ -145,33 +164,37 @@ final class WorkCycleViewModel {
         let newSession = CDWorkCycleSession(context: context)
         session = newSession
         entries = []
-        elapsedTime = 0
+        resumeBaselineElapsed = 0
+        liveTickReference = newSession.startTime
         cycleSummary = nil
         context.safeSave()
-        startTimer()
         loadStudents(context: context)
     }
 
     func pauseSession(context: NSManagedObjectContext) {
         guard let session else { return }
+        // Freeze the current elapsed value before tearing down the live reference.
+        resumeBaselineElapsed = elapsedTime(at: Date())
+        liveTickReference = nil
         session.status = .paused
         context.safeSave()
-        stopTimer()
     }
 
     func resumeSession(context: NSManagedObjectContext) {
         guard let session else { return }
+        liveTickReference = Date()
         session.status = .active
         context.safeSave()
-        startTimer()
     }
 
     func endSession(context: NSManagedObjectContext) {
         guard let session else { return }
+        // Snapshot final elapsed value so computeSummary's fallback stays correct.
+        resumeBaselineElapsed = elapsedTime(at: Date())
+        liveTickReference = nil
         session.endTime = Date()
         session.status = .completed
         context.safeSave()
-        stopTimer()
         computeSummary()
     }
 
@@ -210,28 +233,10 @@ final class WorkCycleViewModel {
         }
     }
 
-    // MARK: - Timer
-
-    private func startTimer() {
-        stopTimer()
-        timerTask = Task { [weak self] in
-            while !Task.isCancelled {
-                try? await Task.sleep(for: .seconds(1))
-                guard !Task.isCancelled else { break }
-                self?.elapsedTime += 1
-            }
-        }
-    }
-
-    private func stopTimer() {
-        timerTask?.cancel()
-        timerTask = nil
-    }
-
     // MARK: - Summary
 
     func computeSummary() {
-        let duration = session?.duration ?? elapsedTime
+        let duration = session?.duration ?? elapsedTime(at: Date())
 
         var concentrationCounts: [ConcentrationLevel: Int] = [:]
         var socialModeCounts: [SocialMode: Int] = [:]

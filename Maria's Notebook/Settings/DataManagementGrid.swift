@@ -70,7 +70,7 @@ struct DataManagementGrid: View {
             switch result {
             case .success(let url):
                 Task { await viewModel.previewImportedURL(viewContext: viewContext, url: url) }
-            case .failure(let error):
+            case .failure:
                 viewModel.importError = "Couldn't access the selected backup file. Try selecting it again."
             }
         }
