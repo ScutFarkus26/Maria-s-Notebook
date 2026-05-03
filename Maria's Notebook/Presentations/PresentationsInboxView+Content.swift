@@ -41,6 +41,23 @@ extension PresentationsInboxView {
                 .padding(.horizontal, AppTheme.Spacing.verySmall)
             }
         }
+        .contextMenu {
+            Button("Unlock Lesson", systemImage: "lock.open") {
+                unlockOnDeckLesson(la)
+            }
+            .disabled(la.manuallyUnblocked)
+        }
+    }
+
+    private func unlockOnDeckLesson(_ la: CDLessonAssignment) {
+        guard !la.manuallyUnblocked, let ctx = la.managedObjectContext else { return }
+        la.manuallyUnblocked = true
+        la.modifiedAt = Date()
+        do {
+            try ctx.save()
+        } catch {
+            Logger.presentations.error("Failed to save manual unlock: \(error)")
+        }
     }
 
     private func splitReadyToInbox(_ la: CDLessonAssignment, result: BlockingAlgorithmEngine.BlockingCheckResult) {

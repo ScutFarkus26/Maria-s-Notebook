@@ -68,6 +68,7 @@ final class PresentationsViewModel {
             hasher.combine(la.needsPractice)
             hasher.combine(la.needsAnotherPresentation)
             hasher.combine(la.lessonID)
+            hasher.combine(la.manuallyUnblocked)
         }
         return hasher.finalize()
     }
