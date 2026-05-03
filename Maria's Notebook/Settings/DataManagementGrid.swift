@@ -30,6 +30,8 @@ struct DataManagementGrid: View {
     @State private var showingExporter = false
     @State private var showingFolderImporter = false
     @State private var resultMessage: String?
+    @State private var folderRejection: BackupDestination.FolderRejection?
+    @State private var migrationPrompt: BackupFolderMigration.Prompt?
 
     private var isWorking: Bool {
         (viewModel.backupProgress > 0 && viewModel.backupProgress < 1.0) ||
@@ -90,6 +92,8 @@ struct DataManagementGrid: View {
                     _ = url.startAccessingSecurityScopedResource()
                     do {
                         try BackupDestination.setDefaultFolder(url)
+                    } catch let rejection as BackupDestination.FolderRejection {
+                        folderRejection = rejection
                     } catch {
                         Self.logger.warning("Failed to set default backup folder: \(error, privacy: .public)")
                     }
@@ -98,6 +102,38 @@ struct DataManagementGrid: View {
             } catch {
                 Self.logger.warning("Failed to get folder URL: \(error, privacy: .public)")
             }
+        }
+        .alert(
+            "Can't use that folder",
+            isPresented: Binding(
+                get: { folderRejection != nil },
+                set: { if !$0 { folderRejection = nil } }
+            ),
+            presenting: folderRejection
+        ) { _ in
+            Button("OK", role: .cancel) {}
+        } message: { rejection in
+            Text(rejection.errorDescription ?? "")
+        }
+        .alert(
+            "Move backups out of this folder?",
+            isPresented: Binding(
+                get: { migrationPrompt != nil },
+                set: { if !$0 { migrationPrompt = nil } }
+            ),
+            presenting: migrationPrompt
+        ) { prompt in
+            Button("Move to iCloud Drive") {
+                Task {
+                    let result = await BackupFolderMigration.moveBackupsToManagedFolder(from: prompt.suspiciousFolder)
+                    handleMigrationResult(result)
+                }
+            }
+            Button("Keep using this folder", role: .cancel) {
+                BackupFolderMigration.dismiss()
+            }
+        } message: { prompt in
+            Text(migrationMessage(for: prompt))
         }
         .sheet(item: $viewModel.operationSummary) { summary in
             BackupSummaryView(summary: summary)
@@ -126,7 +162,37 @@ struct DataManagementGrid: View {
         .onAppear {
             viewModel.loadDefaultFolderName()
             viewModel.calculateEstimatedBackupSize(viewContext: viewContext)
+            if migrationPrompt == nil {
+                migrationPrompt = BackupFolderMigration.pendingPrompt()
+            }
         }
+    }
+
+    private func migrationMessage(for prompt: BackupFolderMigration.Prompt) -> String {
+        let path = prompt.suspiciousFolder.path
+        let count = prompt.fileCount
+        if count == 0 {
+            return "Manual backups are saving to “\(path)”, which looks unsafe. " +
+                   "Move to iCloud Drive › Maria's Notebook › Backups?"
+        }
+        let noun = count == 1 ? "backup" : "backups"
+        return "\(count) \(noun) are saved in “\(path)”, which looks unsafe " +
+               "(code repo, app bundle, or system folder). Move them to " +
+               "iCloud Drive › Maria's Notebook › Backups?"
+    }
+
+    private func handleMigrationResult(_ result: BackupFolderMigration.MoveResult) {
+        switch result {
+        case .moved(let count, _):
+            let noun = count == 1 ? "backup" : "backups"
+            resultMessage = "Moved \(count) \(noun) to iCloud Drive."
+            ToastService.shared.showSuccess("Backups moved")
+        case .nothingToMove:
+            resultMessage = "Cleared default folder. Future backups go to iCloud Drive."
+        case .failed(let error):
+            resultMessage = "Couldn't move backups: \(error.localizedDescription)"
+        }
+        viewModel.loadDefaultFolderName()
     }
 
     // MARK: - Progress Bar
@@ -245,9 +311,9 @@ struct DataManagementGrid: View {
                     folderMenu
                 }
 
-                Text(viewModel.defaultFolderName.isEmpty ? "No folder selected" : viewModel.defaultFolderName)
+                Text(viewModel.defaultFolderName)
                     .font(.caption)
-                    .foregroundStyle(viewModel.defaultFolderName.isEmpty ? .secondary : .primary)
+                    .foregroundStyle(.primary)
                     .lineLimit(1)
 
                 if let date = viewModel.lastBackupDate {
@@ -281,15 +347,15 @@ struct DataManagementGrid: View {
     private var folderMenu: some View {
         Menu {
             Button { showingFolderImporter = true } label: {
-                Label("Choose Folder…", systemImage: SFSymbol.CDDocument.folderBadgePlus)
+                Label("Choose Custom Folder…", systemImage: SFSymbol.CDDocument.folderBadgePlus)
             }
-            if !viewModel.defaultFolderName.isEmpty {
-                Button { openFolder() } label: {
-                    Label("Open in Finder", systemImage: "arrow.up.forward.square")
-                }
+            Button { openFolder() } label: {
+                Label("Open in Finder", systemImage: "arrow.up.forward.square")
+            }
+            if BackupDestination.resolveBookmarkedFolder() != nil {
                 Divider()
-                Button(role: .destructive) { clearFolder() } label: {
-                    Label("Clear", systemImage: SFSymbol.Action.xmarkCircle)
+                Button { resetToDefault() } label: {
+                    Label("Reset to iCloud Drive", systemImage: "icloud")
                 }
             }
         } label: {
@@ -376,7 +442,7 @@ struct DataManagementGrid: View {
         #endif
     }
 
-    private func clearFolder() {
+    private func resetToDefault() {
         BackupDestination.clearDefaultFolder()
         viewModel.loadDefaultFolderName()
     }

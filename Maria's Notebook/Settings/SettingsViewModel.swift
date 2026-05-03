@@ -55,7 +55,11 @@ final class SettingsViewModel {
     }
 
     func loadDefaultFolderName() {
-        defaultFolderName = BackupDestination.resolveDefaultFolder()?.lastPathComponent ?? ""
+        if let custom = BackupDestination.resolveBookmarkedFolder() {
+            defaultFolderName = custom.lastPathComponent
+        } else {
+            defaultFolderName = BackupFolderStorage.displayLabel()
+        }
     }
     
     /// Calculates estimated backup size asynchronously

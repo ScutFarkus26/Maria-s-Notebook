@@ -30,6 +30,8 @@ struct BackupRestoreSectionView: View {
     @State private var showingExporter = false
     @State private var showingImporter = false
     @State private var showingFolderImporter = false
+    @State private var folderRejection: BackupDestination.FolderRejection?
+    @State private var migrationPrompt: BackupFolderMigration.Prompt?
 
     private var exportDocument: BackupPackageDocument? { viewModel.exportData.map { BackupPackageDocument(data: $0) } }
 
@@ -124,6 +126,8 @@ struct BackupRestoreSectionView: View {
                         do {
                             try BackupDestination.setDefaultFolder(url)
                             viewModel.loadDefaultFolderName()
+                        } catch let rejection as BackupDestination.FolderRejection {
+                            folderRejection = rejection
                         } catch {
                             let desc = error.localizedDescription
                             Self.logger.error("Error setting default folder: \(desc, privacy: .public)")
@@ -139,6 +143,38 @@ struct BackupRestoreSectionView: View {
             Button("OK", role: .cancel) {}
         } message: {
             Text(viewModel.importError ?? "Unknown error")
+        }
+        .alert(
+            "Can't use that folder",
+            isPresented: Binding(
+                get: { folderRejection != nil },
+                set: { if !$0 { folderRejection = nil } }
+            ),
+            presenting: folderRejection
+        ) { _ in
+            Button("OK", role: .cancel) {}
+        } message: { rejection in
+            Text(rejection.errorDescription ?? "")
+        }
+        .alert(
+            "Move backups out of this folder?",
+            isPresented: Binding(
+                get: { migrationPrompt != nil },
+                set: { if !$0 { migrationPrompt = nil } }
+            ),
+            presenting: migrationPrompt
+        ) { prompt in
+            Button("Move to iCloud Drive") {
+                Task {
+                    let result = await BackupFolderMigration.moveBackupsToManagedFolder(from: prompt.suspiciousFolder)
+                    handleMigrationResult(result)
+                }
+            }
+            Button("Keep using this folder", role: .cancel) {
+                BackupFolderMigration.dismiss()
+            }
+        } message: { prompt in
+            Text(migrationMessage(for: prompt))
         }
         .sheet(item: $viewModel.operationSummary) { (summary: BackupOperationSummary) in
             BackupSummaryView(summary: summary)
@@ -168,6 +204,9 @@ struct BackupRestoreSectionView: View {
         .onAppear {
             viewModel.loadDefaultFolderName()
             viewModel.calculateEstimatedBackupSize(viewContext: viewContext)
+            if migrationPrompt == nil {
+                migrationPrompt = BackupFolderMigration.pendingPrompt()
+            }
         }
 #if os(iOS)
         .onChange(of: viewModel.exportData) { _, newValue in
@@ -189,6 +228,33 @@ struct BackupRestoreSectionView: View {
             get: { viewModel.restorePreviewData != nil },
             set: { if !$0 { viewModel.restorePreviewData = nil } }
         )
+    }
+
+    private func migrationMessage(for prompt: BackupFolderMigration.Prompt) -> String {
+        let path = prompt.suspiciousFolder.path
+        let count = prompt.fileCount
+        if count == 0 {
+            return "Manual backups are saving to “\(path)”, which looks unsafe. " +
+                   "Move to iCloud Drive › Maria's Notebook › Backups?"
+        }
+        let noun = count == 1 ? "backup" : "backups"
+        return "\(count) \(noun) are saved in “\(path)”, which looks unsafe " +
+               "(code repo, app bundle, or system folder). Move them to " +
+               "iCloud Drive › Maria's Notebook › Backups?"
+    }
+
+    private func handleMigrationResult(_ result: BackupFolderMigration.MoveResult) {
+        switch result {
+        case .moved(let count, _):
+            let noun = count == 1 ? "backup" : "backups"
+            viewModel.resultSummary = "Moved \(count) \(noun) to iCloud Drive."
+            ToastService.shared.showSuccess("Backups moved")
+        case .nothingToMove:
+            viewModel.resultSummary = "Cleared default folder. Future backups go to iCloud Drive."
+        case .failed(let error):
+            viewModel.importError = "Couldn't move backups: \(error.localizedDescription)"
+        }
+        viewModel.loadDefaultFolderName()
     }
 }
 
