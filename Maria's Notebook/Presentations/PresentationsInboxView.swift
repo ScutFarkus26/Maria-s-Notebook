@@ -41,6 +41,8 @@ struct PresentationsInboxView: View {
     @State var searchText: String = ""
     @State var debouncedSearchText: String = ""
     @State private var searchDebounceTask: Task<Void, Never>?
+    /// Committed search tokens (lowercased). All must match in addition to the live search text.
+    @State var committedFilters: [String] = []
     @State var suggestedLessonID: UUID?
     @State var suggestDismissTask: Task<Void, Never>?
 
@@ -136,10 +138,34 @@ struct PresentationsInboxView: View {
         VStack(spacing: AppTheme.Spacing.small) {
             inboxTitleBar
             inboxSearchBar
+            committedFilterChipsRow
             activeStudentFilterChip
         }
         .padding(.bottom, AppTheme.Spacing.small)
         .background(.regularMaterial)
+    }
+
+    @ViewBuilder
+    private var committedFilterChipsRow: some View {
+        if !committedFilters.isEmpty {
+            ScrollView(.horizontal, showsIndicators: false) {
+                HStack(spacing: AppTheme.Spacing.verySmall) {
+                    ForEach(committedFilters, id: \.self) { token in
+                        searchTokenChip(token)
+                    }
+                    Button {
+                        committedFilters.removeAll()
+                    } label: {
+                        Text("Clear all")
+                            .font(.caption.weight(.medium))
+                            .foregroundStyle(.secondary)
+                    }
+                    .buttonStyle(.plain)
+                    .padding(.leading, AppTheme.Spacing.verySmall)
+                }
+                .padding(.horizontal, AppTheme.Spacing.medium)
+            }
+        }
     }
 
     private var inboxTitleBar: some View {
@@ -176,11 +202,22 @@ struct PresentationsInboxView: View {
     private var inboxSearchBar: some View {
         HStack(spacing: AppTheme.Spacing.compact) {
             Image(systemName: "magnifyingglass").foregroundStyle(.secondary)
-            TextField("Search students or lessons", text: $searchText)
+
+            TextField("Search students, lessons, or subjects (press Return to add filter)", text: $searchText)
                 .textFieldStyle(.plain)
                 .onSubmit {
-                    searchDebounceTask?.cancel()
-                    debouncedSearchText = searchText
+                    commitCurrentSearchAsFilter()
+                }
+                .onKeyPress(.return) {
+                    commitCurrentSearchAsFilter()
+                    return .handled
+                }
+                .onKeyPress(.delete) {
+                    if searchText.isEmpty, !committedFilters.isEmpty {
+                        committedFilters.removeLast()
+                        return .handled
+                    }
+                    return .ignored
                 }
         }
         .padding(.horizontal, AppTheme.Spacing.medium)
@@ -200,6 +237,37 @@ struct PresentationsInboxView: View {
                 debouncedSearchText = newValue
             }
         }
+    }
+
+    private func commitCurrentSearchAsFilter() {
+        let trimmed = searchText.trimmed().lowercased()
+        guard !trimmed.isEmpty else { return }
+        if !committedFilters.contains(trimmed) {
+            committedFilters.append(trimmed)
+        }
+        searchText = ""
+        searchDebounceTask?.cancel()
+        debouncedSearchText = ""
+    }
+
+    private func searchTokenChip(_ token: String) -> some View {
+        HStack(spacing: AppTheme.Spacing.xxsmall) {
+            Text(token)
+                .font(.caption.weight(.medium))
+                .lineLimit(1)
+            Button {
+                committedFilters.removeAll { $0 == token }
+            } label: {
+                Image(systemName: "xmark.circle.fill")
+                    .font(.caption)
+            }
+            .buttonStyle(.plain)
+        }
+        .foregroundStyle(Color.accentColor)
+        .padding(.horizontal, AppTheme.Spacing.small)
+        .padding(.vertical, AppTheme.Spacing.xxsmall)
+        .background(Color.accentColor.opacity(UIConstants.OpacityConstants.accent))
+        .clipShape(Capsule())
     }
 
     @ViewBuilder
@@ -300,11 +368,19 @@ extension PresentationsInboxView {
         guard !query.isEmpty else { return true }
         let lessonTitleLower = lessonTitle(for: la, using: lessonsByID).lowercased()
         let studentNamesLower = studentNames(for: la, using: studentsByID).lowercased()
-        return lessonTitleLower.contains(query) || studentNamesLower.contains(query)
+        let subjectLower = (lessonsByID[uuidString: la.lessonID]?.subject ?? "").lowercased()
+        return lessonTitleLower.contains(query)
+            || studentNamesLower.contains(query)
+            || subjectLower.contains(query)
     }
 
     func sortedLessons(_ lessons: [CDLessonAssignment], query: String) -> [CDLessonAssignment] {
-        let matched = lessons.filter { matchesSearch($0, query: query) }
+        let matched = lessons.filter { la in
+            for token in committedFilters where !matchesSearch(la, query: token) {
+                return false
+            }
+            return matchesSearch(la, query: query)
+        }
 
         switch sortMode {
         case .lesson:
