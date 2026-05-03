@@ -15,12 +15,13 @@ struct PillDropDelegate: DropDelegate {
     let setMergeHighlight: (Bool) -> Void
     let canAccept: () -> Bool
     let onDidMutate: (String) -> Void
+    var onMergeReceived: () -> Void = {}
 
     func dropEntered(info: DropInfo) { checkHighlight(info: info) }
 
     func dropUpdated(info: DropInfo) -> DropProposal? {
         checkHighlight(info: info)
-        return canAccept() ? DropProposal(operation: .copy) : DropProposal(operation: .cancel)
+        return DropProposal(operation: .copy)
     }
 
     func dropExited(info: DropInfo) {
@@ -34,7 +35,6 @@ struct PillDropDelegate: DropDelegate {
     func performDrop(info: DropInfo) -> Bool {
         setHighlight(false)
         setMergeHighlight(false)
-        guard canAccept() else { return false }
         guard let targetID = targetLessonAssignmentID else { return false }
         let providers = info.itemProviders(for: [UTType.text])
         guard let provider = providers.first else { return false }
@@ -74,13 +74,17 @@ struct PillDropDelegate: DropDelegate {
                 return
             }
 
-            if enableMergeDrop, let sourceID = UUID(uuidString: str.trimmed()) {
+            if enableMergeDrop,
+               let payload = UnifiedCalendarDragPayload.parse(str),
+               case .presentation(let sourceID) = payload {
                 Task { @MainActor in
-                    _ = PresentationMergeService.merge(
+                    if PresentationMergeService.merge(
                         sourceID: sourceID,
                         targetID: targetID,
                         context: viewContext
-                    )
+                    ) {
+                        onMergeReceived()
+                    }
                 }
             }
         }
@@ -106,7 +110,9 @@ struct PillDropDelegate: DropDelegate {
                         setMergeHighlight(false)
                     }
                 }
-            } else if enableMergeDrop, let sourceID = UUID(uuidString: str.trimmed()) {
+            } else if enableMergeDrop,
+                      let payload = UnifiedCalendarDragPayload.parse(str),
+                      case .presentation(let sourceID) = payload {
                 Task { @MainActor in
                     guard sourceID != targetID else {
                         setHighlight(false)

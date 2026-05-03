@@ -55,6 +55,7 @@ struct PresentationPill: View {
     @State private var isValidDragTarget = false
     @State private var selectedWorkForDetail: CDWorkModel?
     @State private var isMergeTargeted = false
+    @State private var mergeAcceptedPulse = false
 
     // Cached expensive computations to avoid recalculating during scroll
     @State private var cachedAttendanceStatuses: [UUID: AttendanceStatus] = [:]
@@ -408,8 +409,15 @@ struct PresentationPill: View {
             styledPill
                 .overlay(Capsule().stroke(borderColor, lineWidth: 1))
                 .overlay(Capsule().stroke(dragColor, lineWidth: 2))
+                .overlay(
+                    Capsule()
+                        .stroke(Color.accentColor, lineWidth: 3)
+                        .opacity(mergeAcceptedPulse ? 0.85 : 0.0)
+                )
                 .overlay(mergeHighlightOverlay)
                 .overlay(alignment: .trailing) { timeBadge }
+                .scaleEffect(mergeAcceptedPulse ? 1.06 : 1.0)
+                .animation(.spring(response: 0.32, dampingFraction: 0.55), value: mergeAcceptedPulse)
                 .contentShape(Capsule())
                 .accessibilityLabel(accessibilityLabel)
                 .onDrop(of: [UTType.text], delegate: PillDropDelegate(
@@ -421,7 +429,8 @@ struct PresentationPill: View {
                     setHighlight: { isValid in isValidDragTarget = isValid },
                     setMergeHighlight: { isValid in isMergeTargeted = isValid },
                     canAccept: { isValidDragTarget || isMergeTargeted },
-                    onDidMutate: { reason in saveCoordinator.save(viewContext, reason: reason) }
+                    onDidMutate: { reason in saveCoordinator.save(viewContext, reason: reason) },
+                    onMergeReceived: { triggerMergeAcceptedPulse() }
                 ))
         }
         .sheet(item: $selectedWorkForDetail) { work in
@@ -448,6 +457,14 @@ struct PresentationPill: View {
             lastCacheDay = currentDay
             cachedAttendanceStatuses = viewContext.attendanceStatuses(for: snapshot.studentIDs, on: currentDay)
             cachedRecentlyPresentedIDs = loadRecentlyPresentedIDsShared(for: currentDay)
+        }
+    }
+
+    private func triggerMergeAcceptedPulse() {
+        mergeAcceptedPulse = true
+        Task { @MainActor in
+            try? await Task.sleep(for: .milliseconds(220))
+            mergeAcceptedPulse = false
         }
     }
 
