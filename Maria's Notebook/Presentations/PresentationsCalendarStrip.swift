@@ -25,6 +25,8 @@ struct PresentationsCalendarStrip: View {
     // Now fetched once in .task and refreshed via .onChange when days or showWork change.
     @State private var cachedWorkItems: [CDWorkCheckIn] = []
 
+    @State private var showClearAllConfirmation: Bool = false
+
     private func fetchWorkItems() {
         guard showWork, let firstDay = days.first, let lastDay = days.last else {
             cachedWorkItems = []
@@ -95,7 +97,7 @@ struct PresentationsCalendarStrip: View {
                 }
                 .padding(.horizontal, 12)
                 
-                HStack(spacing: 8) {
+                HStack(spacing: 16) {
                     Spacer()
                     Button {
                         Task {
@@ -106,9 +108,28 @@ struct PresentationsCalendarStrip: View {
                     }
                     .buttonStyle(.plain)
                     .help("Move all scheduled lessons forward by one school day")
+                    Button {
+                        showClearAllConfirmation = true
+                    } label: {
+                        Label("Clear All to Inbox", systemImage: "tray.and.arrow.up")
+                    }
+                    .buttonStyle(.plain)
+                    .help("Unschedule all scheduled lessons and return them to On Deck")
                     Spacer()
                 }
                 .padding(.horizontal, 12)
+                .confirmationDialog(
+                    "Clear all scheduled presentations?",
+                    isPresented: $showClearAllConfirmation,
+                    titleVisibility: .visible
+                ) {
+                    Button("Clear All to Inbox", role: .destructive) {
+                        Task { await clearAllScheduledLessonsToInbox() }
+                    }
+                    Button("Cancel", role: .cancel) { }
+                } message: {
+                    Text("This will move every scheduled, ungiven presentation back to On Deck.")
+                }
 
                 ScrollView(.horizontal, showsIndicators: false) {
                     LazyHStack(alignment: .top, spacing: 12) {
@@ -183,6 +204,24 @@ struct PresentationsCalendarStrip: View {
         startDate = cursor
     }
     
+    private func clearAllScheduledLessonsToInbox() async {
+        let scheduledLessons = lessonAssignments.filter { la in
+            la.scheduledFor != nil && !la.isGiven
+        }
+
+        guard !scheduledLessons.isEmpty else { return }
+
+        for lesson in scheduledLessons {
+            lesson.unschedule()
+        }
+
+        do {
+            try viewContext.save()
+        } catch {
+            Self.logger.warning("Failed to save lesson unschedule changes: \(error)")
+        }
+    }
+
     private func moveAllScheduledLessonsForward() async {
         // Find all scheduled lessons that haven't been given
         let scheduledLessons = lessonAssignments.filter { la in
