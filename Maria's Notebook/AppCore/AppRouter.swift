@@ -88,6 +88,14 @@ final class AppRouter {
     /// Refresh trigger for planning inbox
     var planningInboxRefreshTrigger: UUID = UUID()
 
+    /// Triggers for quick-action sheets shown by RootView. Setting any to true asks
+    /// RootView to present the corresponding sheet; RootView resets the value to false
+    /// after consuming it. Used by Today's toolbar `+` menu and other entry points
+    /// that don't have direct access to RootView's local sheet state.
+    var triggerNewWorkItem: Bool = false
+    var triggerRecordPractice: Bool = false
+    var triggerNewPresentation: Bool = false
+
     /// App lifecycle events
     var appDataWillBeReplaced: Bool = false
     var appDataDidRestore: Bool = false

@@ -428,6 +428,14 @@
         <attribute name="itemID" optional="YES" attributeType="UUID" usesScalarValueType="NO"/>
         <attribute name="position" attributeType="Integer 64" defaultValueString="0" usesScalarValueType="YES"/>
     </entity>
+    <!-- ==================== DayPad ==================== -->
+    <entity name="DayPad" representedClassName="CDDayPad" syncable="YES">
+        <attribute name="id" optional="YES" attributeType="UUID" usesScalarValueType="NO"/>
+        <attribute name="day" optional="YES" attributeType="Date" usesScalarValueType="NO"/>
+        <attribute name="body" optional="YES" attributeType="String" defaultValueString=""/>
+        <attribute name="createdAt" optional="YES" attributeType="Date" usesScalarValueType="NO"/>
+        <attribute name="modifiedAt" optional="YES" attributeType="Date" usesScalarValueType="NO"/>
+    </entity>
     <!-- ==================== TodoItem ==================== -->
     <entity name="TodoItem" representedClassName="TodoItemEntity" syncable="YES">
         <attribute name="id" optional="YES" attributeType="UUID" usesScalarValueType="NO"/>

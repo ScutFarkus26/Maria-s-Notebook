@@ -249,6 +249,27 @@ struct RootView: View {
         .onChange(of: appRouter.navigationDestination, handleNavigationDestinationChange)
         .onChange(of: appRouter.selectedNavItem, handleSelectedNavItemChange)
         .onChange(of: appRouter.selectedTab, handleSelectedTabChange)
+        .onChange(of: appRouter.triggerNewWorkItem) { _, value in
+            guard value else { return }
+            appRouter.triggerNewWorkItem = false
+            isShowingNewWorkItem = true
+        }
+        .onChange(of: appRouter.triggerRecordPractice) { _, value in
+            guard value else { return }
+            appRouter.triggerRecordPractice = false
+            isShowingRecordPractice = true
+        }
+        .onChange(of: appRouter.triggerNewPresentation) { _, value in
+            guard value else { return }
+            appRouter.triggerNewPresentation = false
+            let draft = PresentationFactory.makeDraft(lessonID: UUID(), studentIDs: [], context: viewContext)
+            do {
+                try viewContext.save()
+            } catch {
+                Self.logger.error("Failed to save new presentation draft: \(error)")
+            }
+            newPresentationDraftID = draft.id
+        }
     }
 
     private var rootLayout: some View {
@@ -314,7 +335,6 @@ struct RootView: View {
 
     // MARK: - Event Handlers
 
-    // swiftlint:disable:next cyclomatic_complexity
     private func restoreSelectionIfNeeded() {
         let persistedSelection = resolvedPersistedNavItem()
         if selectedNavItem != persistedSelection {

@@ -417,6 +417,35 @@ enum TodayDataFetcher {
         }
     }
 
+    // MARK: - Day Pad Fetching
+
+    /// Fetches the day pad for a specific date, if one exists.
+    /// If multiple rows exist for the same day (CloudKit dupe), returns the one
+    /// with the latest `modifiedAt` and deletes the others.
+    static func fetchDayPad(
+        day: Date,
+        context: NSManagedObjectContext
+    ) -> CDDayPad? {
+        let dayStart = AppCalendar.startOfDay(day)
+        let request = CDFetchRequest(CDDayPad.self)
+        request.predicate = NSPredicate(format: "day == %@", dayStart as NSDate)
+        do {
+            let pads = try context.fetch(request)
+            guard !pads.isEmpty else { return nil }
+            if pads.count == 1 { return pads[0] }
+            let sorted = pads.sorted {
+                ($0.modifiedAt ?? .distantPast) > ($1.modifiedAt ?? .distantPast)
+            }
+            for stale in sorted.dropFirst() {
+                context.delete(stale)
+            }
+            return sorted.first
+        } catch {
+            logger.error("Error fetching day pad: \(error)")
+            return nil
+        }
+    }
+
     // MARK: - Private Helpers
 
     /// Extracts student IDs from a CDNote's scope.

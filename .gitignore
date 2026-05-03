@@ -10,3 +10,6 @@ build_temp/
 
 # macOS
 .DS_Store
+
+# Local app data backups
+Backups/

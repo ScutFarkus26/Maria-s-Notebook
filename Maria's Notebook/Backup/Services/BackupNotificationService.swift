@@ -3,6 +3,7 @@
 // Handles backup-related notifications and alerts
 
 import Foundation
+import Observation
 import UserNotifications
 import OSLog
 #if os(macOS)
@@ -104,6 +105,9 @@ public final class BackupNotificationService {
 
     private(set) var recentNotifications: [BackupNotification] = []
     private(set) var unreadCount: Int = 0
+
+    @ObservationIgnored
+    private var lastObservedEventTimestamp: Date?
 
     // MARK: - Initialization
 
@@ -270,45 +274,50 @@ public final class BackupNotificationService {
     // MARK: - Private Helpers
 
     private func setupObservers() {
-        // Observe backup events from AutoBackupManager
+        // Seed the high-water-mark with whatever event already exists so we don't
+        // re-fire a notification for a backup that completed before we attached.
+        lastObservedEventTimestamp = autoBackupManager?.lastBackupEvent?.timestamp
+        observeBackupEvents()
+    }
+
+    /// Observes AutoBackupManager.lastBackupEvent via the Observation framework.
+    /// Wakes only when the @Observable property mutates; re-establishes after each fire.
+    private func observeBackupEvents() {
         guard let autoBackupManager else { return }
-        
-        Task { @MainActor in
-            var lastEvent: AutoBackupManager.BackupEvent?
-            
-            while !Task.isCancelled {
-                // Check if there's a new event
-                if let event = autoBackupManager.lastBackupEvent, event.timestamp != lastEvent?.timestamp {
-                    lastEvent = event
-                    
-                    switch event.result {
-                    case .success(let url):
-                        let fileSize: Int64?
-                        do {
-                            fileSize = try FileManager.default.attributesOfItem(atPath: url.path)[.size] as? Int64
-                        } catch {
-                            let name = url.lastPathComponent
-                            let desc = error.localizedDescription
-                            Logger.backup.warning(
-                                "Failed to get file size for \(name, privacy: .public): \(desc, privacy: .public)"
-                            )
-                            fileSize = nil
-                        }
-                        self.notifyBackupComplete(type: event.trigger, url: url, fileSize: fileSize)
-                        
-                    case .failure(let error):
-                        self.notifyBackupFailed(type: event.trigger, error: error)
-                    }
+
+        withObservationTracking {
+            _ = autoBackupManager.lastBackupEvent
+        } onChange: {
+            Task { @MainActor [weak self] in
+                guard let self else { return }
+                if let event = autoBackupManager.lastBackupEvent,
+                   event.timestamp != self.lastObservedEventTimestamp {
+                    self.lastObservedEventTimestamp = event.timestamp
+                    self.handle(event: event)
                 }
-                
-                // Check periodically for new events
-                do {
-                    try await Task.sleep(for: .seconds(0.5))
-                } catch {
-                    Logger.backup.warning("Task sleep interrupted: \(error.localizedDescription, privacy: .public)")
-                    break
-                }
+                self.observeBackupEvents()
             }
+        }
+    }
+
+    private func handle(event: AutoBackupManager.BackupEvent) {
+        switch event.result {
+        case .success(let url):
+            let fileSize: Int64?
+            do {
+                fileSize = try FileManager.default.attributesOfItem(atPath: url.path)[.size] as? Int64
+            } catch {
+                let name = url.lastPathComponent
+                let desc = error.localizedDescription
+                Logger.backup.warning(
+                    "Failed to get file size for \(name, privacy: .public): \(desc, privacy: .public)"
+                )
+                fileSize = nil
+            }
+            notifyBackupComplete(type: event.trigger, url: url, fileSize: fileSize)
+
+        case .failure(let error):
+            notifyBackupFailed(type: event.trigger, error: error)
         }
     }
 

@@ -10,6 +10,16 @@ struct AttendanceGrid: View {
 
     @Environment(\.horizontalSizeClass) private var hSizeClass
 
+    private var duplicateFirstNames: Set<String> {
+        var counts: [String: Int] = [:]
+        for student in students {
+            let key = student.firstName.trimmed().lowercased()
+            guard !key.isEmpty else { continue }
+            counts[key, default: 0] += 1
+        }
+        return Set(counts.filter { $0.value > 1 }.map(\.key))
+    }
+
     // Layout constants
     private let horizontalPadding: CGFloat = UIConstants.AttendanceGrid.horizontalPadding
     private let verticalPadding: CGFloat = UIConstants.AttendanceGrid.verticalPadding
@@ -40,6 +50,7 @@ struct AttendanceGrid: View {
                     student: student,
                     record: recordsByStudentID[student.cloudKitKey],
                     isEditing: true,
+                    duplicateFirstNames: duplicateFirstNames,
                     onTap: {
                         onCycleStatus(student)
                     },
@@ -92,6 +103,7 @@ struct AttendanceGrid: View {
                                 student: student,
                                 record: recordsByStudentID[student.cloudKitKey],
                                 isEditing: true,
+                                duplicateFirstNames: duplicateFirstNames,
                                 onTap: {
                                     onCycleStatus(student)
                                 },
@@ -116,6 +128,7 @@ struct AttendanceGrid: View {
                                 student: student,
                                 record: recordsByStudentID[student.cloudKitKey],
                                 isEditing: true,
+                                duplicateFirstNames: duplicateFirstNames,
                                 onTap: {
                                     onCycleStatus(student)
                                 },

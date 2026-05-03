@@ -71,6 +71,8 @@ struct BackupEntityRegistry {
         CDTodoTemplate.self,
         // Agenda
         CDTodayAgendaOrder.self,
+        // Today's Pad — per-date scratchpad
+        CDDayPad.self,
         // Planning recommendations
         CDPlanningRecommendation.self,
         // Resources

@@ -141,4 +141,10 @@ enum UserDefaultsKeys {
     // MARK: - Settings UI
     static let whatsNewDismissedVersion = "WhatsNew.dismissedVersion"
     static let backupAgeWarningDays = "BackupAge.warningDays"
+
+    // MARK: - Today
+    static let todayDayPadExpanded = "Today.dayPadExpanded"
+    static let todayDoneTodayExpanded = "Today.doneTodayExpanded"
+    /// Dynamic per-date keys for dismissable Today cards: "Today.dayCardDismissed.<yyyy-MM-dd>.<cardName>"
+    static let todayDayCardDismissedPrefix = "Today.dayCardDismissed."
 }

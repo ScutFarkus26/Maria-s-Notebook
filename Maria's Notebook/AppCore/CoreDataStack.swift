@@ -119,7 +119,10 @@ final class CoreDataStack {
         "ParentCommunication",
         "PrepChecklistCompletion",
         "MeetingWorkReview",
-        "StudentFocusItem"
+        "StudentFocusItem",
+        "DayPad",
+        "WorkCycleEntry",
+        "WorkCycleSession"
     ]
 
     // MARK: - Store URLs

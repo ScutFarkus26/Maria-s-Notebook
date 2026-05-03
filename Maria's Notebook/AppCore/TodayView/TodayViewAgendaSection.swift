@@ -4,6 +4,7 @@
 
 import SwiftUI
 import CoreData
+import OSLog
 
 // MARK: - TodayView Agenda Section Extension
 
@@ -172,54 +173,84 @@ extension TodayView {
     @ViewBuilder
     func agendaRowContent(for item: AgendaItem) -> some View {
         switch item {
-        case .lesson(let sl):
-            agendaLessonRow(sl)
-
-        case .meeting(let meeting):
-            agendaMeetingRow(meeting)
-
-        case .scheduledWork(let scheduled):
-            ScheduledWorkListRow(
-                item: scheduled,
-                studentName: resolveStudentName(for: scheduled.work),
-                lessonName: resolveLessonName(for: scheduled.work),
-                onTap: {
-                    selectedWorkID = scheduled.work.id
-                }
-            )
-
-        case .followUp(let followUp):
-            FollowUpWorkListRow(
-                item: followUp,
-                studentName: resolveStudentName(for: followUp.work),
-                lessonName: resolveLessonName(for: followUp.work),
-                onTap: {
-                    selectedWorkID = followUp.work.id
-                }
-            )
-
-        case .groupedScheduledWork(let items):
-            GroupedScheduledWorkListRow(
-                items: items,
-                studentNames: items.map { resolveStudentName(for: $0.work) },
-                lessonName: items.first.map { resolveLessonName(for: $0.work) } ?? "Lesson",
-                isFlexible: items.first?.work.checkInStyle == .flexible,
-                onTap: { workID in
-                    selectedWorkID = workID
-                }
-            )
-
-        case .groupedFollowUp(let items):
-            GroupedFollowUpWorkListRow(
-                items: items,
-                studentNames: items.map { resolveStudentName(for: $0.work) },
-                lessonName: items.first.map { resolveLessonName(for: $0.work) } ?? "Lesson",
-                isFlexible: items.first?.work.checkInStyle == .flexible,
-                onTap: { workID in
-                    selectedWorkID = workID
-                }
-            )
+        case .lesson(let sl): agendaLessonRow(sl)
+        case .meeting(let meeting): agendaMeetingRow(meeting)
+        case .scheduledWork(let scheduled): agendaScheduledWorkRow(scheduled)
+        case .followUp(let followUp): agendaFollowUpRow(followUp)
+        case .groupedScheduledWork(let items): agendaGroupedScheduledWorkRow(items)
+        case .groupedFollowUp(let items): agendaGroupedFollowUpRow(items)
         }
+    }
+
+    @ViewBuilder
+    private func agendaScheduledWorkRow(_ scheduled: ScheduledWorkItem) -> some View {
+        ScheduledWorkListRow(
+            item: scheduled,
+            studentName: resolveStudentName(for: scheduled.work),
+            lessonName: resolveLessonName(for: scheduled.work),
+            onTap: { selectedWorkID = scheduled.work.id }
+        )
+        .contextMenu {
+            Button {
+                selectedWorkID = scheduled.work.id
+            } label: {
+                Label("Open Detail", systemImage: "doc.text.magnifyingglass")
+            }
+            Button {
+                bumpCheckInToTomorrow(scheduled.checkIn)
+            } label: {
+                Label("Bump to Tomorrow", systemImage: "calendar.badge.plus")
+            }
+            Button {
+                quickNoteAboutWork(scheduled.work)
+            } label: {
+                Label("Add Note", systemImage: "square.and.pencil")
+            }
+        }
+    }
+
+    @ViewBuilder
+    private func agendaFollowUpRow(_ followUp: FollowUpWorkItem) -> some View {
+        FollowUpWorkListRow(
+            item: followUp,
+            studentName: resolveStudentName(for: followUp.work),
+            lessonName: resolveLessonName(for: followUp.work),
+            onTap: { selectedWorkID = followUp.work.id }
+        )
+        .contextMenu {
+            Button {
+                selectedWorkID = followUp.work.id
+            } label: {
+                Label("Open Detail", systemImage: "doc.text.magnifyingglass")
+            }
+            Button {
+                quickNoteAboutWork(followUp.work)
+            } label: {
+                Label("Add Note", systemImage: "square.and.pencil")
+            }
+        }
+    }
+
+    @ViewBuilder
+    private func agendaGroupedScheduledWorkRow(_ items: [ScheduledWorkItem]) -> some View {
+        GroupedScheduledWorkListRow(
+            items: items,
+            studentNames: items.map { resolveStudentName(for: $0.work) },
+            lessonName: items.first.map { resolveLessonName(for: $0.work) } ?? "Lesson",
+            isFlexible: items.first?.work.checkInStyle == .flexible,
+            onTap: { workID in selectedWorkID = workID }
+        )
+    }
+
+    @ViewBuilder
+    private func agendaGroupedFollowUpRow(_ items: [FollowUpWorkItem]) -> some View {
+        GroupedFollowUpWorkListRow(
+            items: items,
+            studentNames: items.map { resolveStudentName(for: $0.work) },
+            lessonName: items.first.map { resolveLessonName(for: $0.work) } ?? "Lesson",
+            isFlexible: items.first?.work.checkInStyle == .flexible,
+            onTap: { workID in selectedWorkID = workID }
+        )
     }
 
     @ViewBuilder
@@ -239,6 +270,78 @@ extension TodayView {
         .onTapGesture {
             selectedLessonAssignment = sl
         }
+        .contextMenu {
+            if !sl.isPresented {
+                Button {
+                    markLessonPresented(sl)
+                } label: {
+                    Label("Mark Presented Now", systemImage: "checkmark.circle")
+                }
+            }
+            Button {
+                bumpLessonToTomorrow(sl)
+            } label: {
+                Label("Bump to Tomorrow", systemImage: "calendar.badge.plus")
+            }
+            Button {
+                quickNoteAboutLesson(sl)
+            } label: {
+                Label("Add Note About This Lesson", systemImage: "square.and.pencil")
+            }
+        }
+    }
+
+    func markLessonPresented(_ sl: CDLessonAssignment) {
+        sl.markPresented()
+        do {
+            try viewContext.save()
+            viewModel.reload()
+            toast("Marked presented")
+        } catch {
+            Logger.app_.warning("Failed to mark lesson presented: \(error.localizedDescription)")
+        }
+    }
+
+    func bumpLessonToTomorrow(_ sl: CDLessonAssignment) {
+        let base = sl.scheduledFor ?? viewModel.date
+        guard let tomorrow = Calendar.current.date(byAdding: .day, value: 1, to: base) else { return }
+        sl.schedule(for: tomorrow)
+        do {
+            try viewContext.save()
+            viewModel.reload()
+            toast("Bumped to tomorrow")
+        } catch {
+            Logger.app_.warning("Failed to bump lesson: \(error.localizedDescription)")
+        }
+    }
+
+    func quickNoteAboutLesson(_ sl: CDLessonAssignment) {
+        pendingNoteStudentIDs = sl.resolvedStudentIDs.isEmpty
+            ? nil
+            : Set(sl.resolvedStudentIDs)
+        isShowingQuickNote = true
+    }
+
+    func bumpCheckInToTomorrow(_ checkIn: CDWorkCheckIn) {
+        let base = checkIn.date ?? viewModel.date
+        guard let tomorrow = Calendar.current.date(byAdding: .day, value: 1, to: base) else { return }
+        checkIn.date = tomorrow
+        do {
+            try viewContext.save()
+            viewModel.reload()
+            toast("Bumped to tomorrow")
+        } catch {
+            Logger.app_.warning("Failed to bump check-in: \(error.localizedDescription)")
+        }
+    }
+
+    func quickNoteAboutWork(_ work: CDWorkModel) {
+        if let studentID = UUID(uuidString: work.studentID) {
+            pendingNoteStudentIDs = [studentID]
+        } else {
+            pendingNoteStudentIDs = nil
+        }
+        isShowingQuickNote = true
     }
 
     @ViewBuilder
@@ -266,32 +369,6 @@ extension TodayView {
             } label: {
                 Label("Remove", systemImage: "calendar.badge.minus")
             }
-        }
-    }
-
-    // MARK: - Completed Section
-
-    var completedListSection: some View {
-        Section {
-            if viewModel.completedWork.isEmpty {
-                emptyStateText("No completions yet")
-            } else {
-                ForEach(viewModel.completedWork) { work in
-                    CompletionListRow(
-                        studentName: resolveStudentName(for: work),
-                        lessonName: resolveLessonName(for: work),
-                        work: work
-                    )
-                    .id(work.id)
-                    .listRowInsets(EdgeInsets(top: 8, leading: 20, bottom: 8, trailing: 20))
-                    .contentShape(Rectangle())
-                    .onTapGesture {
-                        selectedWorkID = work.id
-                    }
-                }
-            }
-        } header: {
-            sectionHeader("Completed")
         }
     }
 

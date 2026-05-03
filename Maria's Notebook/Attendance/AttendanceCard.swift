@@ -14,6 +14,7 @@ struct AttendanceCard: View {
     let student: CDStudent
     let record: CDAttendanceRecord?
     let isEditing: Bool
+    let duplicateFirstNames: Set<String>
     let onTap: () -> Void
     let onEditNote: (String?) -> Void
     let onSetAbsenceReason: ((AbsenceReason) -> Void)?
@@ -26,6 +27,16 @@ struct AttendanceCard: View {
     private var absenceReason: AbsenceReason { record?.absenceReason ?? .none }
 
     private var statusLabel: String { status.displayName }
+
+    private var displayName: String {
+        let first = student.firstName
+        let key = first.trimmed().lowercased()
+        if duplicateFirstNames.contains(key),
+           let initialChar = student.lastName.trimmed().first {
+            return "\(first) \(String(initialChar).uppercased())."
+        }
+        return first
+    }
 
     private var accentColor: Color {
         switch status {
@@ -52,7 +63,7 @@ struct AttendanceCard: View {
     @ViewBuilder
     private var originalLayout: some View {
         HStack(spacing: 8) {
-            Text(student.fullName)
+            Text(displayName)
                 .font(AppTheme.ScaledFont.titleSmall)
                 .lineLimit(1)
                 .truncationMode(.tail)
@@ -183,7 +194,7 @@ struct AttendanceCard: View {
 
             // Name + subtitle
             VStack(alignment: .leading, spacing: 2) {
-                Text(student.fullName)
+                Text(displayName)
                     .font(AppTheme.ScaledFont.callout)
                     .lineLimit(1)
                     .truncationMode(.tail)

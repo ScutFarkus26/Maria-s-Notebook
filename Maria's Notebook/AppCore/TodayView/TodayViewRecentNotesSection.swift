@@ -3,6 +3,7 @@
 // so the guide can review them before planning today's lessons.
 
 import SwiftUI
+import CoreData
 
 extension TodayView {
 

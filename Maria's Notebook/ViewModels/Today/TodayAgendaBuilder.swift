@@ -185,6 +185,30 @@ enum TodayAgendaBuilder {
         }
     }
 
+    /// Deletes empty day pads older than 30 days. Non-empty pads are preserved
+    /// so a teacher can return to past notes indefinitely.
+    @MainActor static func cleanupOldDayPads(context: NSManagedObjectContext) {
+        let cutoff = AppCalendar.startOfDay(
+            Calendar.current.date(byAdding: .day, value: -30, to: Date()) ?? Date()
+        )
+        do {
+            let request = CDFetchRequest(CDDayPad.self)
+            request.predicate = NSPredicate(
+                format: "day < %@ AND (body == nil OR body == %@)",
+                cutoff as NSDate, ""
+            )
+            request.fetchLimit = 1000
+            let old = try context.fetch(request)
+            guard !old.isEmpty else { return }
+            for entry in old {
+                context.delete(entry)
+            }
+            try context.save()
+        } catch {
+            logger.warning("Failed to cleanup old day pads: \(error)")
+        }
+    }
+
     // MARK: - Private
 
     private static func fetchSavedOrder(for day: Date, context: NSManagedObjectContext) -> [CDTodayAgendaOrder] {
