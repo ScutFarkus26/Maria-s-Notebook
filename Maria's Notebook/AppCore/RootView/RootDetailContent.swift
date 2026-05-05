@@ -164,7 +164,7 @@ struct RootDetailContent: View {
         if isIPhoneCompact {
             AttendanceStandaloneView()
         } else {
-            TodayView(context: viewContext)
+            AttendanceMacView()
         }
     }
 
