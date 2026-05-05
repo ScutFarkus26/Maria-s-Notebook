@@ -85,6 +85,13 @@ extension PresentationDetailContentView {
     }
 
     @ViewBuilder
+    var groupRecapSection: some View {
+        if let recap = vm.groupRecap, !recap.lessonsInGroup.isEmpty {
+            GroupRecapSection(recap: recap)
+        }
+    }
+
+    @ViewBuilder
     func lessonPickerOrChangeControl(horizontalPadding: CGFloat) -> some View {
         if currentLesson == nil || vm.showLessonPicker {
             VStack(alignment: .leading, spacing: 8) {

@@ -1,0 +1,126 @@
+// GroupRecap.swift
+// Sendable snapshot types describing every lesson, presentation, work item,
+// and note for each student in the current presentation, scoped to the
+// curriculum group of the lesson the user is currently editing.
+//
+// Built on the main actor by GroupRecapResolver and rendered by
+// GroupRecapSection. Values are immutable and Sendable so SwiftUI views
+// can hold them in @State without dragging in NSManagedObject references.
+
+import Foundation
+
+// MARK: - Top Level
+
+struct GroupRecap: Sendable, Equatable {
+    let groupName: String
+    let subject: String
+    /// All lessons in the group (including the current one), sorted by `orderInGroup` then name.
+    let lessonsInGroup: [GroupRecapLesson]
+    /// One entry per student in the current presentation.
+    let studentEntries: [GroupRecapStudentEntry]
+}
+
+struct GroupRecapLesson: Sendable, Equatable, Identifiable {
+    let id: UUID                 // CDLesson.id
+    let name: String
+    let orderInGroup: Int
+    /// True for the lesson the user is currently editing.
+    let isCurrent: Bool
+}
+
+// MARK: - Per-Student
+
+struct GroupRecapStudentEntry: Sendable, Equatable, Identifiable {
+    let id: UUID                 // CDStudent.id
+    let studentName: String
+    /// One entry per lesson in the group, in `lessonsInGroup` order.
+    let lessonEntries: [GroupRecapLessonEntry]
+    /// Notes linked to a lesson in the group AND to this student that didn't
+    /// land in any specific bucket below (defensive catch-all).
+    let orphanNotes: [GroupRecapNote]
+}
+
+struct GroupRecapLessonEntry: Sendable, Equatable, Identifiable {
+    let id: UUID                 // CDLesson.id (stable per row inside a student)
+    let lessonName: String
+    let isCurrentLesson: Bool
+
+    /// nil ⇒ "Not yet presented" (no CDLessonPresentation row for this student).
+    let outcomeState: LessonPresentationState?
+    let firstPresentedAt: Date?
+    let lastObservedAt: Date?
+    let masteredAt: Date?
+
+    /// Per-student lesson outcome notes (CDLessonPresentation.notes).
+    let perStudentLessonNotes: String?
+
+    /// Every CDLessonAssignment the student was part of for this lesson, newest first.
+    let presentations: [GroupRecapPresentation]
+    /// Every CDWorkModel for this (student, lesson), newest first.
+    let workItems: [GroupRecapWorkItem]
+    /// CDNote rows tied to (lessonID, this student) that aren't already attached
+    /// to a presentation, work item, or check-in below.
+    let directNotes: [GroupRecapNote]
+
+    /// True when there's literally nothing to show for this lesson (no presentation,
+    /// no work, no notes, no outcome). The view renders "Not yet presented" for these.
+    var isEmpty: Bool {
+        outcomeState == nil
+            && presentations.isEmpty
+            && workItems.isEmpty
+            && directNotes.isEmpty
+            && (perStudentLessonNotes ?? "").isEmpty
+    }
+}
+
+// MARK: - Presentations
+
+struct GroupRecapPresentation: Sendable, Equatable, Identifiable {
+    let id: UUID                 // CDLessonAssignment.id
+    let presentedAt: Date?
+    let scheduledFor: Date?
+    let state: LessonAssignmentState
+    let needsPractice: Bool
+    let needsAnotherPresentation: Bool
+    /// Group-level teacher notes from CDLessonAssignment.notes.
+    let groupNotes: String
+    /// Free-form CDNote rows whose `lessonAssignment` relationship points at this assignment.
+    let attachedNotes: [GroupRecapNote]
+}
+
+// MARK: - Work
+
+struct GroupRecapWorkItem: Sendable, Equatable, Identifiable {
+    let id: UUID                 // CDWorkModel.id
+    let title: String
+    let kind: WorkKind?
+    let status: WorkStatus
+    let completionOutcome: CompletionOutcome?
+    let assignedAt: Date?
+    let completedAt: Date?
+    /// Free-form CDNote rows whose `work` relationship points at this work item
+    /// (excluding ones attached to a specific check-in below).
+    let attachedNotes: [GroupRecapNote]
+    /// Newest first.
+    let checkIns: [GroupRecapCheckIn]
+}
+
+struct GroupRecapCheckIn: Sendable, Equatable, Identifiable {
+    let id: UUID                 // CDWorkCheckIn.id
+    let date: Date?
+    let status: WorkCheckInStatus
+    let purpose: String
+    /// CDNote rows whose `workCheckIn` relationship points at this check-in.
+    let notes: [GroupRecapNote]
+}
+
+// MARK: - Notes
+
+struct GroupRecapNote: Sendable, Equatable, Identifiable {
+    let id: UUID                 // CDNote.id
+    let body: String
+    let createdAt: Date?
+    /// CDNote.categoryRaw — kept as raw string so this file doesn't need to import the enum.
+    let category: String
+    let isPinned: Bool
+}

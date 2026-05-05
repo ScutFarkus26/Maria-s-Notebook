@@ -40,6 +40,13 @@ final class PresentationDetailViewModel {
     /// nil = not yet loaded, .presented = shown but not mastered, .proficient = student has mastered
     var proficiencyState: LessonPresentationState = .presented
 
+    // MARK: - Group Recap
+    /// Snapshot of every lesson, work item, and note in the same curriculum group as
+    /// the current lesson, broken down per student. nil when there is no group to show
+    /// (lesson has no group, or no lessons match). Recomputed on appear and whenever
+    /// the editing lesson or roster changes.
+    var groupRecap: GroupRecap?
+
     // MARK: - UI State
     var showLessonPicker: Bool = false
     var showAssignmentComposer: Bool = false
@@ -122,6 +129,18 @@ final class PresentationDetailViewModel {
         guard let current = lessonObject(from: lessons) else { return nil }
         let actions = PresentationDetailActions()
         return actions.nextLessonInGroup(from: current, lessons: lessons)
+    }
+
+    // MARK: - Group Recap
+
+    /// Recomputes the group-recap snapshot for the current lesson + roster.
+    /// Safe to call repeatedly; runs synchronously on the main actor and is fast for typical group sizes.
+    func recomputeGroupRecap(currentLesson: CDLesson?, students: [CDStudent]) {
+        groupRecap = GroupRecapResolver.resolve(
+            currentLesson: currentLesson,
+            students: students,
+            context: viewContext
+        )
     }
 
     // MARK: - Actions
