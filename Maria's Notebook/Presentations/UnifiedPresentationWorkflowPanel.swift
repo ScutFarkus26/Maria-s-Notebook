@@ -82,7 +82,8 @@ struct UnifiedPresentationWorkflowPanel: View {
                 lessonID: lessonID,
                 studentIDs: studentIDs,
                 lessons: Array(lessons),
-                lessonAssignments: Array(lessonAssignments)
+                lessonAssignments: Array(lessonAssignments),
+                context: viewContext
             )
         }
         .onChange(of: triggerCompletion?.wrappedValue) { _, newValue in

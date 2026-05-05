@@ -196,7 +196,8 @@ final class PostPresentationFormViewModel {
         lessonID: UUID,
         studentIDs: Set<UUID>,
         lessons: [CDLesson],
-        lessonAssignments: [CDLessonAssignment]
+        lessonAssignments: [CDLessonAssignment],
+        context: NSManagedObjectContext
     ) {
         guard let currentLesson = lessons.first(where: { $0.id != nil && $0.id == lessonID }) else {
             nextLesson = nil
@@ -206,6 +207,18 @@ final class PostPresentationFormViewModel {
         nextLesson = PlanNextLessonService.findNextLesson(after: currentLesson, in: lessons)
 
         guard let nextLesson else { return }
+
+        // Pre-fill the schedule date with the Year Plan's planned date (if any) so the
+        // picker shows the planned date when the teacher switches to Schedule. Default
+        // action stays .inbox — Year Plan only suggests a date, it doesn't pick the action.
+        if let nextID = nextLesson.id,
+           let planned = YearPlanPromotionService.plannedDate(
+               lessonID: nextID.uuidString,
+               studentIDs: studentIDs,
+               context: context
+           ) {
+            nextLessonScheduleDate = planned
+        }
 
         // Check for existing assignment (any state: inbox or scheduled)
         existingNextAssignment = lessonAssignments.first { la in
@@ -248,7 +261,9 @@ final class PostPresentationFormViewModel {
 
         switch nextLessonAction {
         case .hold:
-            // Ensure a draft assignment exists so the blocking algorithm can detect it
+            // Ensure a draft assignment exists so the blocking algorithm can detect it.
+            // Opt out of Year Plan auto-promote: Hold means the user wants to block the
+            // sequence with a draft, not schedule per the Year Plan.
             if existingNextAssignment == nil {
                 PlanNextLessonService.planLesson(
                     nextLesson,
@@ -256,7 +271,8 @@ final class PostPresentationFormViewModel {
                     allStudents: allStudents,
                     allLessons: allLessons,
                     existingLessonAssignments: lessonAssignments,
-                    context: viewContext
+                    context: viewContext,
+                    autoPromoteFromYearPlan: false
                 )
             }
 
@@ -266,14 +282,16 @@ final class PostPresentationFormViewModel {
                 existing.state = .draft
                 existing.scheduledFor = nil
             } else {
-                // Create new draft
+                // Create new draft. Opt out of Year Plan auto-promote: the user explicitly
+                // chose Inbox, so we must not schedule the assignment per the Year Plan.
                 PlanNextLessonService.planLesson(
                     nextLesson,
                     forStudents: studentIDs,
                     allStudents: allStudents,
                     allLessons: allLessons,
                     existingLessonAssignments: lessonAssignments,
-                    context: viewContext
+                    context: viewContext,
+                    autoPromoteFromYearPlan: false
                 )
             }
 

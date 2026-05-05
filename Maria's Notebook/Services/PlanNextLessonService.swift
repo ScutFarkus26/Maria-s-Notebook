@@ -99,7 +99,8 @@ struct PlanNextLessonService {
         allLessons: [CDLesson],
         allStudents: [CDStudent],
         existingLessonAssignments: [CDLessonAssignment],
-        context: NSManagedObjectContext
+        context: NSManagedObjectContext,
+        autoPromoteFromYearPlan: Bool = true
     ) -> PlanResult {
         // Get the current lesson
         guard let lessonIDUUID = lessonAssignment.lessonIDUUID,
@@ -143,9 +144,11 @@ struct PlanNextLessonService {
         )
 
         // Auto-promote from Year Plan if a matching entry exists
-        YearPlanPromotionService.autoPromoteIfPlanExists(
-            assignment: newAssignment, context: context
-        )
+        if autoPromoteFromYearPlan {
+            YearPlanPromotionService.autoPromoteIfPlanExists(
+                assignment: newAssignment, context: context
+            )
+        }
 
         return .success(newAssignment)
     }
@@ -160,7 +163,8 @@ struct PlanNextLessonService {
         allStudents: [CDStudent],
         allLessons: [CDLesson],
         existingLessonAssignments: [CDLessonAssignment],
-        context: NSManagedObjectContext
+        context: NSManagedObjectContext,
+        autoPromoteFromYearPlan: Bool = true
     ) -> PlanResult {
         guard !studentIDs.isEmpty else {
             return .noStudents
@@ -181,9 +185,11 @@ struct PlanNextLessonService {
         )
 
         // Auto-promote from Year Plan if a matching entry exists
-        YearPlanPromotionService.autoPromoteIfPlanExists(
-            assignment: newAssignment, context: context
-        )
+        if autoPromoteFromYearPlan {
+            YearPlanPromotionService.autoPromoteIfPlanExists(
+                assignment: newAssignment, context: context
+            )
+        }
 
         return .success(newAssignment)
     }

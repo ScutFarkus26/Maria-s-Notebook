@@ -188,7 +188,8 @@ struct UnifiedPostPresentationSheet: View {
                     lessonID: lessonID,
                     studentIDs: studentIDs,
                     lessons: Array(lessons),
-                    lessonAssignments: Array(lessonAssignments)
+                    lessonAssignments: Array(lessonAssignments),
+                    context: viewContext
                 )
             }
         }

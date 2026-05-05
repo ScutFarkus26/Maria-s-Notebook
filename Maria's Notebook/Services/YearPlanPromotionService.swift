@@ -78,10 +78,29 @@ enum YearPlanPromotionService {
         return assignment
     }
 
+    /// Returns the earliest planned date across all matching Year Plan entries for the
+    /// given lesson + students. Read-only — does not promote.
+    /// Used to pre-fill the Schedule date picker so the teacher sees the planned date
+    /// as the default.
+    static func plannedDate(
+        lessonID: String,
+        studentIDs: Set<UUID>,
+        context: NSManagedObjectContext
+    ) -> Date? {
+        var dates: [Date] = []
+        for studentID in studentIDs {
+            if let entry = findMatchingEntry(lessonID: lessonID, studentID: studentID, context: context),
+               let date = entry.plannedDate {
+                dates.append(date)
+            }
+        }
+        return dates.min()
+    }
+
     // MARK: - Helpers
 
     /// Find a Year Plan entry matching a lesson + student that is still planned.
-    private static func findMatchingEntry(
+    static func findMatchingEntry(
         lessonID: String,
         studentID: UUID,
         context: NSManagedObjectContext
