@@ -1,13 +1,28 @@
 // LessonsOutlineView.swift
-// Hierarchical outline view for plan mode with jiggle-mode drag/drop reordering
+// Hierarchical outline view for edit mode with direct drag/drop reordering
 
 import SwiftUI
 import CoreData
+import UniformTypeIdentifiers
+
+// MARK: - Subheading Drag Payload
+
+/// Drag payload for reordering subheadings within a group. Carrying subject + group
+/// lets the drop site reject cross-group drops without callback churn.
+struct SubheadingTransfer: Codable, Transferable {
+    let subject: String
+    let group: String
+    let name: String
+
+    static var transferRepresentation: some TransferRepresentation {
+        CodableRepresentation(contentType: .data)
+    }
+}
 
 // MARK: - LessonsOutlineView
 
 /// A hierarchical outline view showing Group > Subheading > CDLesson with
-/// DisclosureGroups, context menus, and iOS-style jiggle mode for reordering.
+/// DisclosureGroups, context menus, and direct drag-to-reorder.
 struct LessonsOutlineView: View {
     let subject: String
     let displayGroups: [String]
@@ -21,6 +36,7 @@ struct LessonsOutlineView: View {
     var onMoveToGroup: ((CDLesson, String) -> Void)?
     var onMoveToSubheading: ((CDLesson, String) -> Void)?
     var onReorderSubheadings: ((String) -> Void)?
+    var onReorderSubheadingByDrag: ((_ group: String, _ source: String, _ target: String) -> Void)?
     var onConfigureTrack: ((String) -> Void)?
     var onActivateJiggle: (() -> Void)?
     var onMoveLessonsInGroup: ((_ source: IndexSet, _ destination: Int, _ group: String) -> Void)?
@@ -29,6 +45,7 @@ struct LessonsOutlineView: View {
     var onLocateInMap: ((CDLesson) -> Void)?
 
     @State private var expandedGroups: Set<String> = []
+    @State private var dropTargetSubheading: String?
     var body: some View {
         List {
             ForEach(displayGroups, id: \.self) { group in
@@ -109,29 +126,27 @@ struct LessonsOutlineView: View {
                 .font(.system(.body, design: .rounded, weight: .semibold))
             Spacer()
 
-            if !isJiggling {
-                if subheadings.hasSubheadings {
-                    Button {
-                        onReorderSubheadings?(group)
-                    } label: {
-                        Image(systemName: "arrow.up.arrow.down")
-                            .foregroundStyle(.secondary)
-                            .font(.caption)
-                    }
-                    .buttonStyle(.plain)
-                    .help("Reorder subheadings")
-                }
-
+            if subheadings.hasSubheadings {
                 Button {
-                    onConfigureTrack?(group)
+                    onReorderSubheadings?(group)
                 } label: {
-                    Image(systemName: "gearshape")
+                    Image(systemName: "arrow.up.arrow.down")
                         .foregroundStyle(.secondary)
                         .font(.caption)
                 }
                 .buttonStyle(.plain)
-                .help("Configure track settings")
+                .help("Reorder subheadings")
             }
+
+            Button {
+                onConfigureTrack?(group)
+            } label: {
+                Image(systemName: "gearshape")
+                    .foregroundStyle(.secondary)
+                    .font(.caption)
+            }
+            .buttonStyle(.plain)
+            .help("Configure track settings")
 
             Text("\(lessons.count)")
                 .font(.caption)
@@ -164,8 +179,34 @@ struct LessonsOutlineView: View {
                 .font(.caption2)
                 .foregroundStyle(.tertiary)
         }
-        .listRowBackground(Color.clear)
+        .contentShape(Rectangle())
+        .listRowBackground(
+            RoundedRectangle(cornerRadius: 6)
+                .fill(dropTargetSubheading == name && !name.isEmpty
+                      ? Color.accentColor.opacity(UIConstants.OpacityConstants.moderate)
+                      : Color.clear)
+                .padding(.horizontal, 4)
+        )
         .listRowSeparator(.hidden)
+        .when(!name.isEmpty) { view in
+            view
+                .draggable(SubheadingTransfer(subject: subject, group: group, name: name))
+                .dropDestination(for: SubheadingTransfer.self) { items, _ in
+                    guard let item = items.first,
+                          item.subject == subject,
+                          item.group == group,
+                          item.name != name
+                    else { return false }
+                    onReorderSubheadingByDrag?(group, item.name, name)
+                    return true
+                } isTargeted: { isTargeted in
+                    if isTargeted {
+                        dropTargetSubheading = name
+                    } else if dropTargetSubheading == name {
+                        dropTargetSubheading = nil
+                    }
+                }
+        }
 
         ForEach(lessons) { lesson in
             lessonOutlineRow(lesson: lesson, group: group, subheadings: allGroupSubheadings)
@@ -184,8 +225,6 @@ struct LessonsOutlineView: View {
         subheadings: [String]
     ) -> some View {
         let isSelected = selectedLessonID == lesson.id
-        let lessonSeed = (lessonsByGroup[group] ?? [])
-            .firstIndex(where: { $0.id == lesson.id }) ?? 0
         let displayName = lesson.name.isEmpty ? "Untitled Lesson" : lesson.name
 
         HStack(spacing: 8) {
@@ -203,35 +242,31 @@ struct LessonsOutlineView: View {
             Spacer()
         }
         .contentShape(Rectangle())
-        // When jiggling, don't add tap/long-press as high-priority — they block .onMove drag.
-        // Use simultaneousGesture for tap so it doesn't eat the drag, and skip long-press entirely.
-        .when(!isJiggling) { view in
-            view
-                .onTapGesture { onSelectLesson?(lesson) }
-                .onLongPressGesture(minimumDuration: 0.4) {
-                    #if os(iOS)
-                    UIImpactFeedbackGenerator(style: .medium).impactOccurred()
-                    #endif
-                    onActivateJiggle?()
-                }
-        }
-        .when(isJiggling) { view in
-            view.simultaneousGesture(TapGesture().onEnded { onSelectLesson?(lesson) })
-        }
-        .jiggle(isActive: isJiggling, seed: lessonSeed)
+        // simultaneousGesture lets tap-to-select coexist with .onMove drag.
+        .simultaneousGesture(TapGesture().onEnded { onSelectLesson?(lesson) })
         .listRowBackground(
             RoundedRectangle(cornerRadius: 6)
                 .fill(isSelected ? Color.accentColor.opacity(UIConstants.OpacityConstants.moderate) : Color.clear)
                 .padding(.horizontal, 4)
         )
-        .when(!isJiggling) { view in
-            view.contextMenu { lessonContextMenu(lesson: lesson, group: group, subheadings: subheadings) }
-        }
+        .contextMenu { lessonContextMenu(lesson: lesson, group: group, subheadings: subheadings) }
         .id(lesson.id)
     }
 
+    // MARK: - Helpers
+
+    fileprivate struct GroupSubheadings {
+        let order: [String]
+        let bySubheading: [String: [CDLesson]]
+        let hasSubheadings: Bool
+    }
+}
+
+// MARK: - Lesson Context Menu & Subheading Helpers
+
+extension LessonsOutlineView {
     @ViewBuilder
-    private func lessonContextMenu(
+    func lessonContextMenu(
         lesson: CDLesson, group: String, subheadings: [String]
     ) -> some View {
         Button { onSelectLesson?(lesson) } label: {
@@ -268,18 +303,19 @@ struct LessonsOutlineView: View {
         }
     }
 
-    // MARK: - Helpers
-
-    private struct GroupSubheadings {
-        let order: [String]
-        let bySubheading: [String: [CDLesson]]
-        let hasSubheadings: Bool
-    }
-
-    private func groupSubheadings(for group: String, lessons: [CDLesson]) -> GroupSubheadings {
+    fileprivate func groupSubheadings(for group: String, lessons: [CDLesson]) -> GroupSubheadings {
         let bySubheading = Dictionary(grouping: lessons) { $0.subheading.trimmed() }
-        let nonEmpty = Array(Set(bySubheading.keys.filter { !$0.isEmpty }))
-            .sorted { $0.localizedCaseInsensitiveCompare($1) == .orderedAscending }
+
+        // Prefer the order computed by the parent (which already consults FilterOrderStore).
+        // Fall back to alphabetical for safety.
+        let providedOrder: [String] = allSubheadings[group] ?? []
+        let presentNonEmpty = Set(bySubheading.keys.filter { !$0.isEmpty })
+        var nonEmpty: [String] = providedOrder.filter { presentNonEmpty.contains($0) }
+        let missing = presentNonEmpty.subtracting(nonEmpty)
+        if !missing.isEmpty {
+            let alphabetical = missing.sorted { $0.localizedCaseInsensitiveCompare($1) == .orderedAscending }
+            nonEmpty.append(contentsOf: alphabetical)
+        }
 
         guard !nonEmpty.isEmpty else {
             return GroupSubheadings(order: [], bySubheading: bySubheading, hasSubheadings: false)

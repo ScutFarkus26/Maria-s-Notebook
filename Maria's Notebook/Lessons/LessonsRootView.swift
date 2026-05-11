@@ -24,6 +24,14 @@ enum LessonsDisplayMode: String, CaseIterable, Identifiable {
         case .map: return "chart.bar.doc.horizontal"
         }
     }
+
+    var displayName: String {
+        switch self {
+        case .browse: return "Browse"
+        case .plan: return "Edit"
+        case .map: return "Map"
+        }
+    }
 }
 
 /// Top-level grouping spine for the scope-and-sequence Map.
@@ -100,6 +108,10 @@ struct LessonsRootView: View {
 
     // MARK: - Reordering State
     @State var reorderableGroups: [String] = []
+    /// Counter bumped after a subheading drag-reorder. `buildSubheadings` references it
+    /// so SwiftUI re-evaluates the outline when `FilterOrderStore` changes (UserDefaults
+    /// doesn't publish on its own).
+    @State var subheadingOrderRevision: Int = 0
 
     // MARK: - Map Mode State
     @State var focusedThread: ThreadKey?
@@ -184,7 +196,7 @@ struct LessonsRootView: View {
     }
 
     var canReorder: Bool {
-        isJiggling &&
+        (isJiggling || displayMode == .plan) &&
         filterState.debouncedSearchText.trimmed().isEmpty &&
         (filterState.selectedSubject?.trimmed().isEmpty == false)
     }
@@ -244,7 +256,7 @@ struct LessonsRootView: View {
 
     private func handleJigglingChange(_ newValue: Bool) {
         #if os(iOS)
-        editMode = newValue ? .active : .inactive
+        editMode = (newValue || displayMode == .plan) ? .active : .inactive
         #endif
     }
 
@@ -329,7 +341,7 @@ struct LessonsRootView: View {
                 focusedThread = nil
             }
             #if os(iOS)
-            editMode = isJiggling ? .active : .inactive
+            editMode = (isJiggling || newValue == .plan) ? .active : .inactive
             #endif
         }
     }

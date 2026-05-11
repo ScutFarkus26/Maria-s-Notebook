@@ -37,7 +37,7 @@ extension LessonsRootView {
             set: { displayModeRaw = $0.rawValue }
         )) {
             ForEach(LessonsDisplayMode.allCases) { mode in
-                Label(mode.rawValue, systemImage: mode.icon).tag(mode)
+                Label(mode.displayName, systemImage: mode.icon).tag(mode)
             }
         }
         .pickerStyle(.segmented)
