@@ -147,7 +147,7 @@ struct ScheduleCard: View {
         VStack(alignment: .leading, spacing: 12) {
             // Header
             HStack(spacing: 10) {
-                Image(systemName: schedule.icon)
+                Image.safeSymbol(schedule.icon)
                     .font(.title2)
                     .foregroundStyle(Color(hex: schedule.colorHex) ?? .blue)
 

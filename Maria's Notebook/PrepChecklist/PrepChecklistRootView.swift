@@ -95,7 +95,7 @@ struct PrepChecklistRootView: View {
                     .stroke(checklist.color.gradient, style: StrokeStyle(lineWidth: 4, lineCap: .round))
                     .rotationEffect(.degrees(-90))
 
-                Image(systemName: checklist.icon)
+                Image.safeSymbol(checklist.icon)
                     .font(.title3)
                     .foregroundStyle(checklist.color)
             }

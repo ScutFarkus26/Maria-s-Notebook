@@ -64,7 +64,7 @@ struct ScheduleDetailSheet: View {
 
     private var headerSection: some View {
         HStack(spacing: 16) {
-            Image(systemName: schedule.icon)
+            Image.safeSymbol(schedule.icon)
                 .font(.system(size: 40))
                 .foregroundStyle(Color(hex: schedule.colorHex) ?? .blue)
                 .frame(width: 60, height: 60)

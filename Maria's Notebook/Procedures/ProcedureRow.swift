@@ -13,7 +13,7 @@ struct ProcedureRow: View {
                     .fill(Color.accentColor.opacity(UIConstants.OpacityConstants.medium))
                     .frame(width: 40, height: 40)
 
-                Image(systemName: procedure.displayIcon)
+                Image.safeSymbol(procedure.displayIcon)
                     .font(.system(size: 18))
                     .foregroundStyle(.accent)
             }
@@ -62,7 +62,7 @@ struct ProcedureCompactRow: View {
 
     var body: some View {
         HStack(spacing: 10) {
-            Image(systemName: procedure.displayIcon)
+            Image.safeSymbol(procedure.displayIcon)
                 .foregroundStyle(.accent)
                 .frame(width: 24)
 

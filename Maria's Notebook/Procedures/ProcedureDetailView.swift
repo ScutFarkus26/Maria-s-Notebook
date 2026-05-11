@@ -106,7 +106,7 @@ struct ProcedureDetailView: View {
                             height: UIConstants.CardSize.studentAvatar * 0.7
                         )
 
-                    Image(systemName: procedure.displayIcon)
+                    Image.safeSymbol(procedure.displayIcon)
                         .font(.system(size: UIConstants.CardSize.iconSizeLarge))
                         .foregroundStyle(.accent)
                 }
@@ -202,7 +202,7 @@ struct ProcedureDetailView: View {
             VStack(spacing: AppTheme.Spacing.small) {
                 ForEach(relatedProcedures) { related in
                     HStack(spacing: AppTheme.Spacing.small + AppTheme.Spacing.xxsmall) {
-                        Image(systemName: related.displayIcon)
+                        Image.safeSymbol(related.displayIcon)
                             .foregroundStyle(.accent)
                             .frame(width: UIConstants.CardSize.iconSizeLarge)
 
