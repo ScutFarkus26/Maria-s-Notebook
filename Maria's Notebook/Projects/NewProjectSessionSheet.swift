@@ -123,12 +123,14 @@ struct NewProjectSessionSheet: View {
             Text("Offered Works")
                 .font(.subheadline).fontWeight(.medium)
 
-            ForEach($offeredWorks) { $work in
+            ForEach(offeredWorks) { work in
                 HStack(alignment: .top) {
                     VStack(spacing: 4) {
-                        TextField("Title", text: $work.title)
+                        TextField("Title",
+                                  text: $offeredWorks.element(id: work.id, default: "", \.title))
                             .textFieldStyle(.roundedBorder)
-                        TextField("Instructions (optional)", text: $work.instructions)
+                        TextField("Instructions (optional)",
+                                  text: $offeredWorks.element(id: work.id, default: "", \.instructions))
                             .textFieldStyle(.roundedBorder)
                             .font(.caption)
                     }

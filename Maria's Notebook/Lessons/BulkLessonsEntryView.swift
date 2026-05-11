@@ -139,8 +139,8 @@ public struct BulkLessonsEntryView: View {
                     headerRow(widths: widths)
                     ScrollView {
                         LazyVStack(spacing: 8) {
-                            ForEach($rows) { $row in
-                                editorRow(for: $row, widths: widths)
+                            ForEach(rows) { row in
+                                editorRow(rowID: row.id, widths: widths)
                             }
                         }
                         .padding(.vertical, 4)
@@ -270,31 +270,36 @@ public struct BulkLessonsEntryView: View {
         .clipShape(RoundedRectangle(cornerRadius: 6))
     }
 
-    private func editorRow(for row: Binding<EntryRow>, widths: [CGFloat]) -> some View {
+    private func editorRow(rowID: UUID, widths: [CGFloat]) -> some View {
         HStack(spacing: columnSpacing) {
             Button {
-                let id = row.wrappedValue.id
-                if selectedRowIDs.contains(id) { selectedRowIDs.remove(id) } else { selectedRowIDs.insert(id) }
+                if selectedRowIDs.contains(rowID) { selectedRowIDs.remove(rowID) }
+                else { selectedRowIDs.insert(rowID) }
             } label: {
-                Image(systemName: selectedRowIDs.contains(row.wrappedValue.id) ? "checkmark.circle.fill" : "circle")
-                    .foregroundStyle(selectedRowIDs.contains(row.wrappedValue.id) ? Color.accentColor : Color.secondary)
+                Image(systemName: selectedRowIDs.contains(rowID) ? "checkmark.circle.fill" : "circle")
+                    .foregroundStyle(selectedRowIDs.contains(rowID) ? Color.accentColor : Color.secondary)
             }
             .buttonStyle(.plain)
             .frame(width: selectionColumnWidth)
 
-            TextField("Lesson Name", text: row.name)
+            TextField("Lesson Name",
+                      text: $rows.element(id: rowID, default: "", \.name))
                 .textFieldStyle(.roundedBorder)
                 .frame(width: widths[0], alignment: .leading)
-            TextField("Subject", text: row.subject)
+            TextField("Subject",
+                      text: $rows.element(id: rowID, default: "", \.subject))
                 .textFieldStyle(.roundedBorder)
                 .frame(width: widths[1], alignment: .leading)
-            TextField("Group", text: row.group)
+            TextField("Group",
+                      text: $rows.element(id: rowID, default: "", \.group))
                 .textFieldStyle(.roundedBorder)
                 .frame(width: widths[2], alignment: .leading)
-            TextField("Subheading", text: row.subheading)
+            TextField("Subheading",
+                      text: $rows.element(id: rowID, default: "", \.subheading))
                 .textFieldStyle(.roundedBorder)
                 .frame(width: widths[3], alignment: .leading)
-            TextField("Write Up", text: row.writeUp)
+            TextField("Write Up",
+                      text: $rows.element(id: rowID, default: "", \.writeUp))
                 .textFieldStyle(.roundedBorder)
                 .frame(width: widths[4], alignment: .leading)
         }

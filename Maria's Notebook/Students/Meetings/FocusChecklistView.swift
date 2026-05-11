@@ -33,8 +33,8 @@ struct FocusChecklistView: View {
                 }
 
                 // New items added in this session
-                ForEach($pendingNewItems) { $item in
-                    pendingItemRow($item)
+                ForEach(pendingNewItems) { item in
+                    pendingItemRow(itemID: item.id)
                 }
 
                 // Add new item row
@@ -124,13 +124,14 @@ struct FocusChecklistView: View {
 
     // MARK: - Pending Item Row
 
-    private func pendingItemRow(_ item: Binding<PendingFocusItem>) -> some View {
+    private func pendingItemRow(itemID: UUID) -> some View {
         HStack(spacing: 8) {
             Image(systemName: "circle")
                 .foregroundStyle(.secondary)
                 .font(.body)
 
-            TextField("Focus item...", text: item.text)
+            TextField("Focus item...",
+                      text: $pendingNewItems.element(id: itemID, default: "", \.text))
                 .font(.body)
                 .textFieldStyle(.plain)
 
@@ -138,7 +139,7 @@ struct FocusChecklistView: View {
 
             Button {
                 adaptiveWithAnimation {
-                    pendingNewItems.removeAll { $0.id == item.wrappedValue.id }
+                    pendingNewItems.removeAll { $0.id == itemID }
                 }
             } label: {
                 Image(systemName: "trash")
