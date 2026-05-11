@@ -57,10 +57,15 @@ struct ThisWeeksParshaView: View {
     }
 
     private var noParshaState: some View {
-        ContentUnavailableView {
-            Label("No weekly parsha this Shabbat", systemImage: "book.closed")
+        let festival = HebrewParshaService.displacingFestivalName(forShabbat: shabbat)
+        return ContentUnavailableView {
+            Label(festival.map { "Shabbat \($0)" } ?? "No weekly parsha", systemImage: "book.closed")
         } description: {
-            Text("The Shabbat of \(shabbat.formatted(date: .long, time: .omitted)) coincides with a festival reading, so no weekly parsha is read.")
+            if let festival {
+                Text("\(shabbat.formatted(date: .long, time: .omitted)) coincides with \(festival), so a festival reading replaces the weekly parsha.")
+            } else {
+                Text("No weekly parsha is read on \(shabbat.formatted(date: .long, time: .omitted)).")
+            }
         }
     }
 }
@@ -114,15 +119,23 @@ private struct ParshaContentList: View {
             .sorted { $0.year > $1.year }
     }
 
-    private var upcomingShabbatot: [(date: Date, key: String)] {
+    private struct UpcomingEntry: Identifiable {
+        let date: Date
+        let parshaKey: String?
+        let festivalName: String?
+        var id: Date { date }
+    }
+
+    private var upcomingShabbatot: [UpcomingEntry] {
         let calendar = Calendar(identifier: .gregorian)
-        var result: [(Date, String)] = []
+        var result: [UpcomingEntry] = []
         for offset in 1...4 {
-            guard let next = calendar.date(byAdding: .day, value: 7 * offset, to: shabbat),
-                  let key = HebrewParshaService.parshaKey(forShabbat: next) else {
+            guard let next = calendar.date(byAdding: .day, value: 7 * offset, to: shabbat) else {
                 continue
             }
-            result.append((next, key))
+            let key = HebrewParshaService.parshaKey(forShabbat: next)
+            let festival = HebrewParshaService.displacingFestivalName(forShabbat: next)
+            result.append(UpcomingEntry(date: next, parshaKey: key, festivalName: festival))
         }
         return result
     }
@@ -293,9 +306,13 @@ private struct ParshaContentList: View {
 
     private var upcomingSection: some View {
         Section("Upcoming") {
-            ForEach(upcomingShabbatot, id: \.date) { entry in
+            ForEach(upcomingShabbatot) { entry in
                 NavigationLink(value: entry.date) {
-                    UpcomingParshaRow(date: entry.date, parshaKey: entry.key)
+                    UpcomingParshaRow(
+                        date: entry.date,
+                        parshaKey: entry.parshaKey,
+                        festivalName: entry.festivalName
+                    )
                 }
             }
         }
@@ -349,19 +366,36 @@ private struct ParshaLessonRow: View {
 
 private struct UpcomingParshaRow: View {
     let date: Date
-    let parshaKey: String
+    let parshaKey: String?
+    let festivalName: String?
+
+    private var title: String {
+        if let parshaKey { return HebrewParshaService.displayName(forKey: parshaKey) }
+        if let festivalName { return festivalName }
+        return "—"
+    }
+
+    private var isFestival: Bool { parshaKey == nil && festivalName != nil }
 
     var body: some View {
         HStack {
             VStack(alignment: .leading, spacing: AppTheme.Spacing.xxsmall) {
-                Text(HebrewParshaService.displayName(forKey: parshaKey))
+                Text(title)
                     .font(AppTheme.ScaledFont.bodySemibold)
-                    .foregroundStyle(.primary)
+                    .foregroundStyle(isFestival ? Color.accentColor : .primary)
                 Text(date.formatted(date: .abbreviated, time: .omitted))
                     .font(AppTheme.ScaledFont.caption)
                     .foregroundStyle(.secondary)
             }
             Spacer()
+            if isFestival {
+                Text("Festival")
+                    .font(AppTheme.ScaledFont.captionSmallSemibold)
+                    .foregroundStyle(Color.accentColor)
+                    .padding(.horizontal, AppTheme.Spacing.small)
+                    .padding(.vertical, AppTheme.Spacing.xxsmall)
+                    .background(Capsule().fill(Color.accentColor.opacity(0.12)))
+            }
         }
         .padding(.vertical, AppTheme.Spacing.xxsmall)
     }

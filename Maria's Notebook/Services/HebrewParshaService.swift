@@ -125,8 +125,23 @@ enum HebrewParshaService {
         return parshaKey(forShabbat: shabbat)
     }
 
+    /// Returns the diaspora festival that displaces the weekly parsha on this Shabbat,
+    /// or `nil` if a normal weekly reading takes place. The three displacing windows are
+    /// Sukkot/Shemini Atzeret, Pesach (including Chol HaMoed Shabbatot), and Shavuot.
+    static func displacingFestivalName(forShabbat shabbat: Date) -> String? {
+        let hebrew = Calendar(identifier: .hebrew)
+        let comps = hebrew.dateComponents([.month, .day], from: shabbat)
+        guard let month = comps.month, let day = comps.day else { return nil }
+        if month == 1, (15...22).contains(day) { return "Sukkot" }
+        if month == 8, (15...22).contains(day) { return "Pesach" }
+        if month == 10, day == 6 || day == 7 { return "Shavuot" }
+        return nil
+    }
+
     /// Returns the parsha key read on the given Shabbat (start-of-day Saturday, Gregorian).
+    /// Returns `nil` when the Shabbat is displaced by a festival reading.
     static func parshaKey(forShabbat shabbat: Date) -> String? {
+        if displacingFestivalName(forShabbat: shabbat) != nil { return nil }
         let gregorian = Calendar(identifier: .gregorian)
         let hebrew = Calendar(identifier: .hebrew)
 
