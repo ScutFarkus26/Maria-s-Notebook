@@ -44,7 +44,17 @@ class ClassSubjectChecklistViewModel {
     var lastStudentHashForDuplicates: Int?
 
     // OPTIMIZATION: Cache lessons-per-group to avoid filtering + sorting on every body evaluation
-    private var cachedLessonsByGroup: [String: [CDLesson]] = [:]
+    private var cachedLessonsByGroup: [String: LessonsBySubheading] = [:]
+
+    /// Lessons inside a single group, bucketed by subheading and ordered for display.
+    /// `order` lists subheading names in render order ("" appended last when present).
+    /// Each `bySubheading` array is pre-sorted by `orderInGroup`, then name.
+    /// `hasSubheadings` is `false` when only the empty bucket exists — callers can skip rendering sub-header rows.
+    struct LessonsBySubheading {
+        let order: [String]
+        let bySubheading: [String: [CDLesson]]
+        let hasSubheadings: Bool
+    }
 
     func loadData(context: NSManagedObjectContext) {
         let studentFetch = CDFetchRequest(CDStudent.self)
@@ -99,14 +109,44 @@ class ClassSubjectChecklistViewModel {
         recomputeMatrix(context: context)
     }
 
-    func lessonsIn(group: String) -> [CDLesson] {
+    func lessonsGrouped(group: String) -> LessonsBySubheading {
         if let cached = cachedLessonsByGroup[group] {
             return cached
         }
         let groupTrimmed = group.trimmed()
-        let result = lessons.filter {
+        let groupLessons = lessons.filter {
             $0.group.trimmed().localizedCaseInsensitiveCompare(groupTrimmed) == .orderedSame
-        }.sorted { $0.orderInGroup < $1.orderInGroup }
+        }
+        let bySubheadingRaw = Dictionary(grouping: groupLessons) { $0.subheading.trimmed() }
+        let bySubheading = bySubheadingRaw.mapValues { lessonsInBucket -> [CDLesson] in
+            lessonsInBucket.sorted { lhs, rhs in
+                if lhs.orderInGroup != rhs.orderInGroup { return lhs.orderInGroup < rhs.orderInGroup }
+                return lhs.name.localizedCaseInsensitiveCompare(rhs.name) == .orderedAscending
+            }
+        }
+
+        let existingNonEmpty = Array(Set(bySubheading.keys.filter { !$0.isEmpty }))
+            .sorted { $0.localizedCaseInsensitiveCompare($1) == .orderedAscending }
+        let subjectTrimmed = selectedSubject.trimmed()
+        let nonEmptyOrder: [String]
+        if subjectTrimmed.isEmpty || existingNonEmpty.isEmpty {
+            nonEmptyOrder = existingNonEmpty
+        } else {
+            nonEmptyOrder = FilterOrderStore.loadSubheadingOrder(
+                for: subjectTrimmed, group: groupTrimmed, existing: existingNonEmpty
+            )
+        }
+
+        var order = nonEmptyOrder
+        if bySubheading.keys.contains("") {
+            order.append("")
+        }
+
+        let result = LessonsBySubheading(
+            order: order,
+            bySubheading: bySubheading,
+            hasSubheadings: !existingNonEmpty.isEmpty
+        )
         cachedLessonsByGroup[group] = result
         return result
     }

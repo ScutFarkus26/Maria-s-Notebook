@@ -65,63 +65,70 @@ struct ClassSubjectChecklistView: View {
                                     .borderSeparated()
                             }
 
-                            let lessons = viewModel.lessonsIn(group: group)
-                            ForEach(lessons) { lesson in
-                                HStack(spacing: 0) {
-                                    // CDLesson Name (Sticky Left)
-                                    StickyLeftItem(width: lessonColumnWidth, height: rowHeight) {
-                                        VStack(alignment: .leading) {
-                                            Text(lesson.name)
-                                                .font(.system(.body, design: .rounded).weight(.medium))
-                                                .lineLimit(2)
-                                                .minimumScaleFactor(0.9)
-                                        }
-                                        .padding(.horizontal, 8)
-                                        .frame(width: lessonColumnWidth, height: rowHeight, alignment: .leading)
-                                        .backgroundPlatform()
-                                        .borderSeparated()
+                            let grouped = viewModel.lessonsGrouped(group: group)
+                            ForEach(grouped.order, id: \.self) { subheading in
+                                if let shLessons = grouped.bySubheading[subheading], !shLessons.isEmpty {
+                                    if grouped.hasSubheadings {
+                                        subheadingRow(name: subheading)
                                     }
-
-                                    // Grid Cells
-                                    ForEach(viewModel.students) { student in
-                                        let state = viewModel.state(for: student, lesson: lesson)
-                                        ClassChecklistSmartCell(
-                                            state: state,
-                                            isSelected: viewModel.isSelected(student: student, lesson: lesson),
-                                            isSelectionMode: viewModel.isSelectionMode,
-                                            studentName: student.fullName,
-                                            lessonName: lesson.name,
-                                            onTap: {
-                                                viewModel.toggleScheduled(
-                                                    student: student, lesson: lesson, context: viewContext
-                                                )
-                                            },
-                                            onSelect: {
-                                                viewModel.toggleSelection(student: student, lesson: lesson)
-                                            },
-                                            onMarkComplete: {
-                                                viewModel.markComplete(
-                                                    student: student, lesson: lesson, context: viewContext
-                                                )
-                                            },
-                                            onMarkPresented: {
-                                                viewModel.togglePresented(
-                                                    student: student, lesson: lesson, context: viewContext
-                                                )
-                                            },
-                                            onMarkPreviouslyPresented: {
-                                                viewModel.togglePreviouslyPresented(
-                                                    student: student, lesson: lesson, context: viewContext
-                                                )
-                                            },
-                                            onClear: {
-                                                viewModel.clearStatus(
-                                                    student: student, lesson: lesson, context: viewContext
-                                                )
+                                    ForEach(shLessons) { lesson in
+                                        HStack(spacing: 0) {
+                                            // CDLesson Name (Sticky Left)
+                                            StickyLeftItem(width: lessonColumnWidth, height: rowHeight) {
+                                                VStack(alignment: .leading) {
+                                                    Text(lesson.name)
+                                                        .font(.system(.body, design: .rounded).weight(.medium))
+                                                        .lineLimit(2)
+                                                        .minimumScaleFactor(0.9)
+                                                }
+                                                .padding(.horizontal, 8)
+                                                .frame(width: lessonColumnWidth, height: rowHeight, alignment: .leading)
+                                                .backgroundPlatform()
+                                                .borderSeparated()
                                             }
-                                        )
-                                        .frame(width: studentColumnWidth, height: rowHeight)
-                                        .borderSeparated()
+
+                                            // Grid Cells
+                                            ForEach(viewModel.students) { student in
+                                                let state = viewModel.state(for: student, lesson: lesson)
+                                                ClassChecklistSmartCell(
+                                                    state: state,
+                                                    isSelected: viewModel.isSelected(student: student, lesson: lesson),
+                                                    isSelectionMode: viewModel.isSelectionMode,
+                                                    studentName: student.fullName,
+                                                    lessonName: lesson.name,
+                                                    onTap: {
+                                                        viewModel.toggleScheduled(
+                                                            student: student, lesson: lesson, context: viewContext
+                                                        )
+                                                    },
+                                                    onSelect: {
+                                                        viewModel.toggleSelection(student: student, lesson: lesson)
+                                                    },
+                                                    onMarkComplete: {
+                                                        viewModel.markComplete(
+                                                            student: student, lesson: lesson, context: viewContext
+                                                        )
+                                                    },
+                                                    onMarkPresented: {
+                                                        viewModel.togglePresented(
+                                                            student: student, lesson: lesson, context: viewContext
+                                                        )
+                                                    },
+                                                    onMarkPreviouslyPresented: {
+                                                        viewModel.togglePreviouslyPresented(
+                                                            student: student, lesson: lesson, context: viewContext
+                                                        )
+                                                    },
+                                                    onClear: {
+                                                        viewModel.clearStatus(
+                                                            student: student, lesson: lesson, context: viewContext
+                                                        )
+                                                    }
+                                                )
+                                                .frame(width: studentColumnWidth, height: rowHeight)
+                                                .borderSeparated()
+                                            }
+                                        }
                                     }
                                 }
                             }
@@ -175,6 +182,37 @@ struct ClassSubjectChecklistView: View {
         }
     }
 
+}
+
+// MARK: - Subheading Row
+
+extension ClassSubjectChecklistView {
+    @ViewBuilder
+    fileprivate func subheadingRow(name: String) -> some View {
+        let height: CGFloat = 24
+        HStack(spacing: 0) {
+            StickyLeftItem(width: lessonColumnWidth, height: height) {
+                HStack(spacing: 6) {
+                    RoundedRectangle(cornerRadius: 1)
+                        .fill(Color.secondary.opacity(UIConstants.OpacityConstants.semi))
+                        .frame(width: 3, height: 12)
+                    Text(name.isEmpty ? "Other" : name)
+                        .font(.system(.caption, design: .rounded).weight(.medium))
+                        .foregroundStyle(.secondary)
+                    Spacer()
+                }
+                .padding(.leading, 24)
+                .frame(width: lessonColumnWidth, height: height, alignment: .leading)
+                .background(Color.secondary.opacity(UIConstants.OpacityConstants.trace))
+                .borderSeparated()
+            }
+
+            Color.secondary.opacity(UIConstants.OpacityConstants.trace)
+                .frame(height: height)
+                .frame(width: CGFloat(viewModel.students.count) * studentColumnWidth)
+                .borderSeparated()
+        }
+    }
 }
 
 // MARK: - Batch Actions Toolbar

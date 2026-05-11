@@ -219,6 +219,53 @@ extension LessonsRootView {
         rebuildSortIndexForSubject()
     }
 
+    // MARK: - Reorder Subheading by Drag
+
+    /// Move a subheading block within its group. Persists the new subheading order via
+    /// `FilterOrderStore` (so Plan/Cards/List views update) and rewrites `orderInGroup`
+    /// on the affected lessons so flat views (Browse) reflect the same order.
+    @MainActor
+    func reorderSubheadingByDrag(group: String, source: String, target: String) {
+        guard let subject = selectedSubject, !subject.trimmed().isEmpty else { return }
+        guard source != target else { return }
+
+        let groupLessons = lessonsForGroup(group, ungroupedLabel: "Ungrouped")
+        let existingNonEmpty: [String] = Array(Set(
+            groupLessons.map { $0.subheading.trimmed() }.filter { !$0.isEmpty }
+        )).sorted { $0.localizedCaseInsensitiveCompare($1) == .orderedAscending }
+
+        var order = FilterOrderStore.loadSubheadingOrder(for: subject, group: group, existing: existingNonEmpty)
+        order.removeAll { $0 == source }
+        if let targetIdx = order.firstIndex(of: target) {
+            order.insert(source, at: targetIdx)
+        } else {
+            order.append(source)
+        }
+
+        FilterOrderStore.saveSubheadingOrder(order, for: subject, group: group)
+        FilterOrderStore.resetCache()
+
+        // Propagate to flat views: rewrite orderInGroup so lessons under the moved
+        // subheading sit contiguously in the new position. Within each subheading,
+        // preserve current orderInGroup sort.
+        let bySubheading = Dictionary(grouping: groupLessons) { $0.subheading.trimmed() }
+        var idx: Int64 = 0
+        let fullOrder: [String] = order + (bySubheading.keys.contains("") ? [""] : [])
+        for sh in fullOrder {
+            let lessons = (bySubheading[sh] ?? []).sorted { lhs, rhs in
+                if lhs.orderInGroup != rhs.orderInGroup { return lhs.orderInGroup < rhs.orderInGroup }
+                return lhs.name.localizedCaseInsensitiveCompare(rhs.name) == .orderedAscending
+            }
+            for lesson in lessons {
+                lesson.orderInGroup = idx
+                idx += 1
+            }
+        }
+
+        rebuildSortIndexForSubject()
+        subheadingOrderRevision &+= 1
+    }
+
     // MARK: - Move CDLesson to Different Subheading
 
     @MainActor

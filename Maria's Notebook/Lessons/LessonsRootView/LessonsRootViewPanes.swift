@@ -308,13 +308,18 @@ extension LessonsRootView {
     }
 
     private func buildSubheadings(displayGroups: [String], lessonsByGroup: [String: [CDLesson]]) -> [String: [String]] {
+        _ = subheadingOrderRevision
+        let subject: String = selectedSubject ?? ""
         var result: [String: [String]] = [:]
         for group in displayGroups {
             let groupLessons: [CDLesson] = lessonsByGroup[group] ?? []
-            let subs: [String] = Array(Set(groupLessons.map { $0.subheading.trimmed() }.filter { !$0.isEmpty }))
+            let existing: [String] = Array(Set(groupLessons.map { $0.subheading.trimmed() }.filter { !$0.isEmpty }))
                 .sorted { $0.localizedCaseInsensitiveCompare($1) == .orderedAscending }
-            if !subs.isEmpty {
-                result[group] = subs
+            guard !existing.isEmpty else { continue }
+            if subject.trimmed().isEmpty {
+                result[group] = existing
+            } else {
+                result[group] = FilterOrderStore.loadSubheadingOrder(for: subject, group: group, existing: existing)
             }
         }
         return result
@@ -337,6 +342,9 @@ extension LessonsRootView {
             onMoveToGroup: { moveLessonToGroup(lesson: $0, newGroup: $1) },
             onMoveToSubheading: { moveLessonToSubheading(lesson: $0, newSubheading: $1) },
             onReorderSubheadings: { handleReorderSubheadings($0) },
+            onReorderSubheadingByDrag: { group, source, target in
+                reorderSubheadingByDrag(group: group, source: source, target: target)
+            },
             onConfigureTrack: { handleConfigureTrack($0) },
             onActivateJiggle: { handleActivateJiggle() },
             onMoveLessonsInGroup: { source, destination, group in
