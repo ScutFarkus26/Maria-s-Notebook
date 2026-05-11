@@ -286,10 +286,10 @@ enum MacPDFRenderer {
             let fittingSize = hostingView.fittingSize
             let height = max(fittingSize.height, 1)
 
+            // setContentSize triggers AppKit's layout pass; forcing
+            // -layoutSubtreeIfNeeded inside that pass is illegal.
             hostingView.setFrameSize(NSSize(width: width, height: height))
             tempWindow.setContentSize(NSSize(width: width, height: height))
-            hostingView.needsLayout = true
-            hostingView.layoutSubtreeIfNeeded()
             RunLoop.current.run(until: Date(timeIntervalSinceNow: 0.05))
 
             let size = NSSize(width: width, height: height)
