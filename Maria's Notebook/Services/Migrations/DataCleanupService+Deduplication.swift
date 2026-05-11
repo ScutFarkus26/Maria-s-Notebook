@@ -385,6 +385,8 @@ extension DataCleanupService {
 
         // Other models
         results["Reminder"] = deduplicate(CDReminder.self, using: context)
+        results["TodoItem"] = deduplicate(CDTodoItemEntity.self, using: context)
+        results["TodoSubtask"] = deduplicate(CDTodoSubtaskEntity.self, using: context)
 
         return results.filter { $0.value > 0 }
     }
