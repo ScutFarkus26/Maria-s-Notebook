@@ -83,7 +83,7 @@ struct PrepChecklistHistoryView: View {
         return VStack(spacing: 8) {
             // Weekday headers
             HStack(spacing: 4) {
-                ForEach(["M", "T", "W", "T", "F", "S", "S"], id: \.self) { day in
+                ForEach(Array(["M", "T", "W", "T", "F", "S", "S"].enumerated()), id: \.offset) { _, day in
                     Text(day)
                         .font(.caption2)
                         .fontWeight(.medium)

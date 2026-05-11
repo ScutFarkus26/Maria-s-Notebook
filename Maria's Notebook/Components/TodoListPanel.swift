@@ -148,7 +148,7 @@ struct TodoListPanel: View {
                                 }
                                 .padding(48)
                             } else {
-                                ForEach(Array(filteredTodos.enumerated()), id: \.element.id) { index, todo in
+                                ForEach(Array(filteredTodos.enumerated()), id: \.element.objectID) { index, todo in
                                     VStack(spacing: 0) {
                                         TodoRow(
                                             todo: todo,

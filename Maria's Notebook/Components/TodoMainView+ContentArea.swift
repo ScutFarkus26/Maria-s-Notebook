@@ -275,7 +275,7 @@ extension TodoMainView {
 
             // Todo rows with thin dividers
             VStack(spacing: 0) {
-                ForEach(Array(todos.enumerated()), id: \.element.id) { index, todo in
+                ForEach(Array(todos.enumerated()), id: \.element.objectID) { index, todo in
                     VStack(spacing: 0) {
                         HStack(spacing: 0) {
                             if isSelectMode {
