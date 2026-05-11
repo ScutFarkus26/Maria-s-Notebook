@@ -122,6 +122,11 @@ final class AppBootstrapper {
         }
         logger.info("Post-launch: deduplication completed in \(formatSeconds(Date().timeIntervalSince(dedupStart)))")
 
+        // 3.85. Shared-store zone repair: a record in the shared store
+        // without a CKShare zone poisons the CloudKit mirroring delegate
+        // (NSCocoaErrorDomain 134060) for the rest of the session.
+        await SharedStoreZoneRepair.runIfNeeded(coreDataStack: coreDataStack)
+
         // 3.9. Data Integrity Repairs (Run on ~10% of launches to reduce startup impact)
         if Int.random(in: 1...10) == 1 {
             let integrityStart = Date()
