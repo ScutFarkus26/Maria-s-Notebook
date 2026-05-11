@@ -227,6 +227,10 @@ final class SettingsViewModel {
     private func safeRemoveItem(at url: URL, context: String = #function) {
         do {
             try FileManager.default.removeItem(at: url)
+        } catch let error as NSError where
+            (error.domain == NSPOSIXErrorDomain && error.code == 2) ||
+            (error.domain == NSCocoaErrorDomain && error.code == NSFileNoSuchFileError) {
+            // File already gone — nothing to clean up.
         } catch {
             Self.logger.warning(
                 "Failed to remove item at \(url.lastPathComponent, privacy: .public): \(error, privacy: .public)"

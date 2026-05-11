@@ -97,6 +97,15 @@ enum BackupDestination {
                 }
             }
             return url
+        } catch let error as NSError where
+            error.domain == NSCocoaErrorDomain && error.code == NSFileReadCorruptFileError {
+            // Bookmark blob is corrupt or in a format we no longer understand
+            // (e.g. saved by an older build without security scope). Evict it
+            // so we stop spamming the log every time someone touches backups,
+            // and fall back to the managed iCloud folder.
+            logger.warning("Backup folder bookmark is corrupt; clearing it.")
+            clearDefaultFolder()
+            return nil
         } catch {
             logger.debug("Failed to resolve backup folder bookmark: \(error)")
             return nil
