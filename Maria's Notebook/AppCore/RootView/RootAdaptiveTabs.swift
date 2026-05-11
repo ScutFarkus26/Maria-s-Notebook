@@ -114,6 +114,16 @@ struct RootAdaptiveTabs: View {
         }
 
         TabSection {
+            Tab(value: RootView.NavigationItem.thisWeeksParsha) {
+                RootDetailContent(selectedNavItem: .thisWeeksParsha)
+            } label: {
+                Label("This Week’s Parsha", systemImage: "book.closed")
+            }
+        } header: {
+            Text("Parsha")
+        }
+
+        TabSection {
             Tab(value: RootView.NavigationItem.planningAgenda) {
                 RootDetailContent(selectedNavItem: .planningAgenda)
             } label: {

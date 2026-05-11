@@ -88,6 +88,10 @@ extension RootSidebar {
                 sidebarRow(.planningProjects, title: "Projects", systemImage: SFSymbol.CDDocument.folder)
             }
 
+            Section("Parsha") {
+                sidebarRow(.thisWeeksParsha, title: "This Week’s Parsha", systemImage: "book.closed")
+            }
+
             Section("Planning") {
                 sidebarRow(.planningAgenda, title: "Presentations", systemImage: SFSymbol.Time.calendar)
 
@@ -161,6 +165,7 @@ extension RootSidebar {
             iOSSidebarStudentsSection
             iOSSidebarClassroomSection
             iOSSidebarCurriculumSection
+            iOSSidebarParshaSection
             iOSSidebarPlanningSection
             iOSSidebarInsightsSection
             iOSSidebarResourcesSection
@@ -258,6 +263,15 @@ extension RootSidebar {
                              title: "Projects",
                              systemImage: SFSymbol.CDDocument.folder,
                              hint: "Manage student projects")
+        }
+    }
+
+    private var iOSSidebarParshaSection: some View {
+        Section("Parsha") {
+            iOSSidebarButton(.thisWeeksParsha,
+                             title: "This Week’s Parsha",
+                             systemImage: "book.closed",
+                             hint: "View this week’s Torah portion, its passages, topics, and related lessons")
         }
     }
 

@@ -41,6 +41,8 @@ struct RootDetailContent: View {
                 resourcesContent
             case .askAI, .logs, .settings:
                 toolsContent
+            case .thisWeeksParsha:
+                ThisWeeksParshaView()
             }
         }
     }

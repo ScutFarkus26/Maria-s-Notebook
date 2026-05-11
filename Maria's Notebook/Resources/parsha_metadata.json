@@ -1,0 +1,371 @@
+{
+  "version": 2,
+  "parshas": [
+    {
+      "key": "bereishit",
+      "passageRange": "Genesis 1:1–6:8",
+      "passageRangeHebrew": "בְּרֵאשִׁית א:א–ו:ח",
+      "topics": ["Creation of the world", "Adam and Eve in the Garden", "Cain and Abel", "Generations from Adam to Noah"]
+    },
+    {
+      "key": "noach",
+      "passageRange": "Genesis 6:9–11:32",
+      "passageRangeHebrew": "בְּרֵאשִׁית ו:ט–יא:לב",
+      "topics": ["Noah and the Ark", "The Flood", "Rainbow covenant", "Tower of Babel", "Lineage to Abraham"]
+    },
+    {
+      "key": "lech-lecha",
+      "passageRange": "Genesis 12:1–17:27",
+      "passageRangeHebrew": "בְּרֵאשִׁית יב:א–יז:כז",
+      "topics": ["Abraham’s call to Canaan", "Famine and descent to Egypt", "War of the kings", "Covenant Between the Parts", "Birth of Ishmael", "Covenant of circumcision"]
+    },
+    {
+      "key": "vayera",
+      "passageRange": "Genesis 18:1–22:24",
+      "passageRangeHebrew": "בְּרֵאשִׁית יח:א–כב:כד",
+      "topics": ["The three visitors", "Destruction of Sodom and Gomorrah", "Birth of Isaac", "Hagar and Ishmael sent away", "The Binding of Isaac (Akedah)"]
+    },
+    {
+      "key": "chayei-sarah",
+      "passageRange": "Genesis 23:1–25:18",
+      "passageRangeHebrew": "בְּרֵאשִׁית כג:א–כה:יח",
+      "topics": ["Death of Sarah", "Purchase of the Cave of Machpelah", "Eliezer finds Rebecca", "Isaac and Rebecca marry", "Death of Abraham"]
+    },
+    {
+      "key": "toldot",
+      "passageRange": "Genesis 25:19–28:9",
+      "passageRangeHebrew": "בְּרֵאשִׁית כה:יט–כח:ט",
+      "topics": ["Birth of Jacob and Esau", "Sale of the birthright", "Isaac’s wells", "Isaac’s blessings", "Jacob sent to Haran"]
+    },
+    {
+      "key": "vayetzei",
+      "passageRange": "Genesis 28:10–32:3",
+      "passageRangeHebrew": "בְּרֵאשִׁית כח:י–לב:ג",
+      "topics": ["Jacob’s ladder dream", "Jacob meets Rachel", "Marriages to Leah and Rachel", "Birth of the tribes", "Flight from Laban"]
+    },
+    {
+      "key": "vayishlach",
+      "passageRange": "Genesis 32:4–36:43",
+      "passageRangeHebrew": "בְּרֵאשִׁית לב:ד–לו:מג",
+      "topics": ["Wrestling with the angel", "Reunion with Esau", "Dinah and Shechem", "Death of Rachel", "Genealogy of Esau"]
+    },
+    {
+      "key": "vayeshev",
+      "passageRange": "Genesis 37:1–40:23",
+      "passageRangeHebrew": "בְּרֵאשִׁית לז:א–מ:כג",
+      "topics": ["Joseph’s coat and dreams", "Brothers sell Joseph", "Judah and Tamar", "Joseph in Potiphar’s house", "Dreams of the cupbearer and baker"]
+    },
+    {
+      "key": "miketz",
+      "passageRange": "Genesis 41:1–44:17",
+      "passageRangeHebrew": "בְּרֵאשִׁית מא:א–מד:יז",
+      "topics": ["Pharaoh’s dreams", "Joseph rises to power", "Brothers come to Egypt", "Benjamin brought down", "The silver goblet"]
+    },
+    {
+      "key": "vayigash",
+      "passageRange": "Genesis 44:18–47:27",
+      "passageRangeHebrew": "בְּרֵאשִׁית מד:יח–מז:כז",
+      "topics": ["Judah’s plea", "Joseph reveals himself", "Jacob travels to Egypt", "Reunion of father and son", "Settlement in Goshen"]
+    },
+    {
+      "key": "vayechi",
+      "passageRange": "Genesis 47:28–50:26",
+      "passageRangeHebrew": "בְּרֵאשִׁית מז:כח–נ:כו",
+      "topics": ["Jacob’s final years", "Blessings of Ephraim and Manasseh", "Blessings of the twelve tribes", "Death and burial of Jacob", "Death of Joseph"]
+    },
+    {
+      "key": "shemot",
+      "passageRange": "Exodus 1:1–6:1",
+      "passageRangeHebrew": "שְׁמוֹת א:א–ו:א",
+      "topics": ["Israelite slavery in Egypt", "Birth of Moses", "Moses flees to Midian", "The burning bush", "First confrontation with Pharaoh"]
+    },
+    {
+      "key": "vaera",
+      "passageRange": "Exodus 6:2–9:35",
+      "passageRangeHebrew": "שְׁמוֹת ו:ב–ט:לה",
+      "topics": ["God’s revelation to Moses", "Genealogy of Levi", "First seven plagues", "Pharaoh’s hardened heart"]
+    },
+    {
+      "key": "bo",
+      "passageRange": "Exodus 10:1–13:16",
+      "passageRangeHebrew": "שְׁמוֹת י:א–יג:טז",
+      "topics": ["Plagues of locusts and darkness", "Plague of the firstborn", "First Passover offering", "Exodus from Egypt", "Laws of Passover and firstborn"]
+    },
+    {
+      "key": "beshalach",
+      "passageRange": "Exodus 13:17–17:16",
+      "passageRangeHebrew": "שְׁמוֹת יג:יז–יז:טז",
+      "topics": ["Splitting of the Sea", "Song at the Sea", "Manna and quail", "Water from the rock", "Battle with Amalek"]
+    },
+    {
+      "key": "yitro",
+      "passageRange": "Exodus 18:1–20:23",
+      "passageRangeHebrew": "שְׁמוֹת יח:א–כ:כג",
+      "topics": ["Jethro’s visit and counsel", "Appointment of judges", "Preparation at Sinai", "Revelation and the Ten Commandments"]
+    },
+    {
+      "key": "mishpatim",
+      "passageRange": "Exodus 21:1–24:18",
+      "passageRangeHebrew": "שְׁמוֹת כא:א–כד:יח",
+      "topics": ["Civil and criminal laws", "Servitude and damages", "The three pilgrimage festivals", "Covenant ceremony", "Moses ascends Sinai"]
+    },
+    {
+      "key": "terumah",
+      "passageRange": "Exodus 25:1–27:19",
+      "passageRangeHebrew": "שְׁמוֹת כה:א–כז:יט",
+      "topics": ["Donations for the Tabernacle", "Ark and showbread table", "The Menorah", "Tabernacle structure", "The outer altar and courtyard"]
+    },
+    {
+      "key": "tetzaveh",
+      "passageRange": "Exodus 27:20–30:10",
+      "passageRangeHebrew": "שְׁמוֹת כז:כ–ל:י",
+      "topics": ["Oil for the eternal lamp", "Priestly garments", "Consecration of Aaron and sons", "Daily offerings", "The incense altar"]
+    },
+    {
+      "key": "ki-tisa",
+      "passageRange": "Exodus 30:11–34:35",
+      "passageRangeHebrew": "שְׁמוֹת ל:יא–לד:לה",
+      "topics": ["Half-shekel census", "The washbasin and anointing oil", "Shabbat", "Sin of the Golden Calf", "Moses’ intercession", "Second tablets and God’s attributes"]
+    },
+    {
+      "key": "vayakhel",
+      "passageRange": "Exodus 35:1–38:20",
+      "passageRangeHebrew": "שְׁמוֹת לה:א–לח:כ",
+      "topics": ["Shabbat reminder", "Donations for the Tabernacle", "Construction of the Tabernacle", "Ark, table, menorah, altars"]
+    },
+    {
+      "key": "pekudei",
+      "passageRange": "Exodus 38:21–40:38",
+      "passageRangeHebrew": "שְׁמוֹת לח:כא–מ:לח",
+      "topics": ["Accounting of the materials", "Priestly garments completed", "Erecting the Tabernacle", "Cloud of glory descends"]
+    },
+    {
+      "key": "vayakhel-pekudei",
+      "passageRange": "Exodus 35:1–40:38",
+      "passageRangeHebrew": "שְׁמוֹת לה:א–מ:לח",
+      "topics": ["Shabbat reminder", "Construction of the Tabernacle", "Priestly garments", "Erecting the Tabernacle", "Cloud of glory descends"]
+    },
+    {
+      "key": "vayikra",
+      "passageRange": "Leviticus 1:1–5:26",
+      "passageRangeHebrew": "וַיִּקְרָא א:א–ה:כו",
+      "topics": ["Burnt offerings", "Meal offerings", "Peace offerings", "Sin offerings", "Guilt offerings"]
+    },
+    {
+      "key": "tzav",
+      "passageRange": "Leviticus 6:1–8:36",
+      "passageRangeHebrew": "וַיִּקְרָא ו:א–ח:לו",
+      "topics": ["Priestly procedures for offerings", "The eternal fire", "Consecration of Aaron and sons", "Seven days of installation"]
+    },
+    {
+      "key": "shemini",
+      "passageRange": "Leviticus 9:1–11:47",
+      "passageRangeHebrew": "וַיִּקְרָא ט:א–יא:מז",
+      "topics": ["Eighth-day inauguration of the Tabernacle", "Death of Nadav and Avihu", "Laws of kosher animals, fish, and birds", "Laws of impurity from creatures"]
+    },
+    {
+      "key": "tazria",
+      "passageRange": "Leviticus 12:1–13:59",
+      "passageRangeHebrew": "וַיִּקְרָא יב:א–יג:נט",
+      "topics": ["Laws of childbirth", "Tzaraat skin afflictions", "Tzaraat of garments", "Priestly diagnosis and quarantine"]
+    },
+    {
+      "key": "metzora",
+      "passageRange": "Leviticus 14:1–15:33",
+      "passageRangeHebrew": "וַיִּקְרָא יד:א–טו:לג",
+      "topics": ["Purification of the metzora", "Tzaraat of houses", "Bodily emissions and ritual purity"]
+    },
+    {
+      "key": "tazria-metzora",
+      "passageRange": "Leviticus 12:1–15:33",
+      "passageRangeHebrew": "וַיִּקְרָא יב:א–טו:לג",
+      "topics": ["Childbirth purity", "Tzaraat of skin, garments, and houses", "Purification rituals", "Bodily emissions"]
+    },
+    {
+      "key": "acharei-mot",
+      "passageRange": "Leviticus 16:1–18:30",
+      "passageRangeHebrew": "וַיִּקְרָא טז:א–יח:ל",
+      "topics": ["Yom Kippur Temple service", "The scapegoat", "Prohibition of private altars", "Forbidden relationships"]
+    },
+    {
+      "key": "kedoshim",
+      "passageRange": "Leviticus 19:1–20:27",
+      "passageRangeHebrew": "וַיִּקְרָא יט:א–כ:כז",
+      "topics": ["The holiness code", "Love your neighbor as yourself", "Honoring parents", "Just business practices", "Punishments for forbidden relationships"]
+    },
+    {
+      "key": "acharei-mot-kedoshim",
+      "passageRange": "Leviticus 16:1–20:27",
+      "passageRangeHebrew": "וַיִּקְרָא טז:א–כ:כז",
+      "topics": ["Yom Kippur service", "The scapegoat", "Forbidden relationships", "Holiness code", "Love your neighbor as yourself"]
+    },
+    {
+      "key": "emor",
+      "passageRange": "Leviticus 21:1–24:23",
+      "passageRangeHebrew": "וַיִּקְרָא כא:א–כד:כג",
+      "topics": ["Priestly purity and conduct", "Disqualified priests and offerings", "Festival calendar", "Bread of the Presence", "The blasphemer"]
+    },
+    {
+      "key": "behar",
+      "passageRange": "Leviticus 25:1–26:2",
+      "passageRangeHebrew": "וַיִּקְרָא כה:א–כו:ב",
+      "topics": ["The Sabbatical year (Shmita)", "The Jubilee year (Yovel)", "Redemption of land and houses", "Treatment of indentured servants"]
+    },
+    {
+      "key": "bechukotai",
+      "passageRange": "Leviticus 26:3–27:34",
+      "passageRangeHebrew": "וַיִּקְרָא כו:ג–כז:לד",
+      "topics": ["Blessings for following the Torah", "Curses of the Tochacha", "Vows and valuations", "Tithes and consecrations"]
+    },
+    {
+      "key": "behar-bechukotai",
+      "passageRange": "Leviticus 25:1–27:34",
+      "passageRangeHebrew": "וַיִּקְרָא כה:א–כז:לד",
+      "topics": ["Sabbatical and Jubilee years", "Land redemption", "Blessings and curses", "Vows and tithes"]
+    },
+    {
+      "key": "bamidbar",
+      "passageRange": "Numbers 1:1–4:20",
+      "passageRangeHebrew": "בְּמִדְבַּר א:א–ד:כ",
+      "topics": ["First census of Israel", "Arrangement of the tribal encampment", "Levite duties and roles", "The Kohathite service"]
+    },
+    {
+      "key": "naso",
+      "passageRange": "Numbers 4:21–7:89",
+      "passageRangeHebrew": "בְּמִדְבַּר ד:כא–ז:פט",
+      "topics": ["Gershonite and Merarite duties", "The sotah ritual", "Laws of the Nazirite", "The Priestly Blessing", "Offerings of the twelve tribal princes"]
+    },
+    {
+      "key": "behaalotecha",
+      "passageRange": "Numbers 8:1–12:16",
+      "passageRangeHebrew": "בְּמִדְבַּר ח:א–יב:טז",
+      "topics": ["Lighting the Menorah", "Consecration of the Levites", "The Second Passover (Pesach Sheni)", "Cloud and silver trumpets", "Complaints and the quail", "Miriam’s leprosy"]
+    },
+    {
+      "key": "shelach",
+      "passageRange": "Numbers 13:1–15:41",
+      "passageRangeHebrew": "בְּמִדְבַּר יג:א–טו:מא",
+      "topics": ["The twelve spies", "The people’s rebellion", "Forty years in the wilderness decreed", "Libations and challah", "The wood gatherer", "Tzitzit"]
+    },
+    {
+      "key": "korach",
+      "passageRange": "Numbers 16:1–18:32",
+      "passageRangeHebrew": "בְּמִדְבַּר טז:א–יח:לב",
+      "topics": ["Korach’s rebellion", "Earth swallows the rebels", "Aaron’s staff blossoms", "Priestly and Levite gifts"]
+    },
+    {
+      "key": "chukat",
+      "passageRange": "Numbers 19:1–22:1",
+      "passageRangeHebrew": "בְּמִדְבַּר יט:א–כב:א",
+      "topics": ["The Red Heifer", "Death of Miriam", "Waters of Meribah", "Death of Aaron", "The copper serpent", "Wars with Sihon and Og"]
+    },
+    {
+      "key": "balak",
+      "passageRange": "Numbers 22:2–25:9",
+      "passageRangeHebrew": "בְּמִדְבַּר כב:ב–כה:ט",
+      "topics": ["Balak hires Balaam", "Balaam’s donkey", "Curses turned to blessings", "Sin at Peor", "Pinchas’s zealotry"]
+    },
+    {
+      "key": "chukat-balak",
+      "passageRange": "Numbers 19:1–25:9",
+      "passageRangeHebrew": "בְּמִדְבַּר יט:א–כה:ט",
+      "topics": ["Red Heifer", "Death of Miriam and Aaron", "Waters of Meribah", "Balaam’s blessings", "Sin at Peor"]
+    },
+    {
+      "key": "pinchas",
+      "passageRange": "Numbers 25:10–30:1",
+      "passageRangeHebrew": "בְּמִדְבַּר כה:י–ל:א",
+      "topics": ["Covenant of peace with Pinchas", "Second census", "Daughters of Tzelafchad", "Appointment of Joshua", "Festival and daily offerings"]
+    },
+    {
+      "key": "matot",
+      "passageRange": "Numbers 30:2–32:42",
+      "passageRangeHebrew": "בְּמִדְבַּר ל:ב–לב:מב",
+      "topics": ["Laws of vows", "War against Midian", "Division of spoils", "Reuben, Gad, and half-Manasseh settle east of the Jordan"]
+    },
+    {
+      "key": "masei",
+      "passageRange": "Numbers 33:1–36:13",
+      "passageRangeHebrew": "בְּמִדְבַּר לג:א–לו:יג",
+      "topics": ["Forty-two stages of the journey", "Borders of the Land of Israel", "Levite cities and cities of refuge", "Inheritance of the daughters of Tzelafchad"]
+    },
+    {
+      "key": "matot-masei",
+      "passageRange": "Numbers 30:2–36:13",
+      "passageRangeHebrew": "בְּמִדְבַּר ל:ב–לו:יג",
+      "topics": ["Laws of vows", "War with Midian", "Settlement east of the Jordan", "Stages of the journey", "Borders of the Land", "Cities of refuge"]
+    },
+    {
+      "key": "devarim",
+      "passageRange": "Deuteronomy 1:1–3:22",
+      "passageRangeHebrew": "דְּבָרִים א:א–ג:כב",
+      "topics": ["Moses’ opening discourse", "Review of the spy episode", "Forty years in the wilderness", "Conquest of Sihon and Og", "Encouragement of Joshua"]
+    },
+    {
+      "key": "vaetchanan",
+      "passageRange": "Deuteronomy 3:23–7:11",
+      "passageRangeHebrew": "דְּבָרִים ג:כג–ז:יא",
+      "topics": ["Moses’ plea to enter the Land", "Warnings against idolatry", "Restatement of the Ten Commandments", "The Shema", "Promised Land warnings"]
+    },
+    {
+      "key": "eikev",
+      "passageRange": "Deuteronomy 7:12–11:25",
+      "passageRangeHebrew": "דְּבָרִים ז:יב–יא:כה",
+      "topics": ["Blessings for obedience", "Lessons of the wilderness", "The Land’s praises", "Second paragraph of the Shema"]
+    },
+    {
+      "key": "reeh",
+      "passageRange": "Deuteronomy 11:26–16:17",
+      "passageRangeHebrew": "דְּבָרִים יא:כו–טז:יז",
+      "topics": ["Blessing and curse", "Centralized worship", "False prophets and idolatry", "Kosher laws", "Tithes and Sabbatical release", "The three pilgrimage festivals"]
+    },
+    {
+      "key": "shoftim",
+      "passageRange": "Deuteronomy 16:18–21:9",
+      "passageRangeHebrew": "דְּבָרִים טז:יח–כא:ט",
+      "topics": ["Judges and officers", "Laws of the king", "Levites and prophets", "Cities of refuge", "Laws of warfare", "The eglah arufah"]
+    },
+    {
+      "key": "ki-teitzei",
+      "passageRange": "Deuteronomy 21:10–25:19",
+      "passageRangeHebrew": "דְּבָרִים כא:י–כה:יט",
+      "topics": ["The captive woman", "Rebellious son", "Family and social laws", "Returning lost property", "Honest weights and measures", "Remembering Amalek"]
+    },
+    {
+      "key": "ki-tavo",
+      "passageRange": "Deuteronomy 26:1–29:8",
+      "passageRangeHebrew": "דְּבָרִים כו:א–כט:ח",
+      "topics": ["First fruits and the tithe declaration", "Blessings on Mount Gerizim and curses on Mount Eival", "The Tochacha (rebuke)", "Covenant in the plains of Moab"]
+    },
+    {
+      "key": "nitzavim",
+      "passageRange": "Deuteronomy 29:9–30:20",
+      "passageRangeHebrew": "דְּבָרִים כט:ט–ל:כ",
+      "topics": ["Renewal of the covenant", "Warning of exile", "Return and repentance (teshuva)", "The Torah is not far away", "Choosing life"]
+    },
+    {
+      "key": "vayelech",
+      "passageRange": "Deuteronomy 31:1–31:30",
+      "passageRangeHebrew": "דְּבָרִים לא:א–לא:ל",
+      "topics": ["Moses’ farewell to Israel", "Joshua’s appointment", "Torah given to the Levites", "Hakhel commandment", "Song of testimony foretold"]
+    },
+    {
+      "key": "nitzavim-vayelech",
+      "passageRange": "Deuteronomy 29:9–31:30",
+      "passageRangeHebrew": "דְּבָרִים כט:ט–לא:ל",
+      "topics": ["Renewal of the covenant", "Repentance and return", "Choosing life", "Moses’ farewell", "Joshua’s appointment", "Hakhel commandment"]
+    },
+    {
+      "key": "haazinu",
+      "passageRange": "Deuteronomy 32:1–32:52",
+      "passageRangeHebrew": "דְּבָרִים לב:א–לב:נב",
+      "topics": ["Song of Moses", "Israel’s rebellion and redemption foretold", "Moses prepares to ascend Mount Nebo"]
+    },
+    {
+      "key": "vzot-haberachah",
+      "passageRange": "Deuteronomy 33:1–34:12",
+      "passageRangeHebrew": "דְּבָרִים לג:א–לד:יב",
+      "topics": ["Moses’ final blessings to the tribes", "Death of Moses on Mount Nebo", "Joshua succeeds Moses", "The unmatched greatness of Moses"]
+    }
+  ]
+}

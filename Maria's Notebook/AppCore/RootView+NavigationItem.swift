@@ -51,6 +51,8 @@ extension RootView {
         case logs
         case settings
 
+        case thisWeeksParsha
+
         var id: Self { self }
 
         // Combines displayName + icon into one exhaustive switch,
@@ -95,6 +97,7 @@ extension RootView {
             case .askAI:               return ("Ask AI", "bubble.left.and.text.bubble.right")
             case .logs:                return ("Logs", "list.bullet")
             case .settings:            return ("Settings", "gear")
+            case .thisWeeksParsha:     return ("This Week’s Parsha", "book.closed")
             }
         }
 
@@ -122,7 +125,7 @@ extension RootView {
                  .lessonFrequency, .curriculumBalance, .greatLessonsTimeline,
                  .goingOut, .parentCommunication, .fridayReview, .workCycle,
                  .classroomJobs, .transitionPlanner, .threeYearCycle, .needsLesson, .smallGroupPlanner,
-                 .prepChecklist, .perpetualCalendar,
+                 .prepChecklist, .perpetualCalendar, .thisWeeksParsha,
                  .community, .schedules, .resourceLibrary, .askAI, .logs, .settings:
                 return true
             default:
@@ -163,6 +166,7 @@ extension RootView {
             case .askAI:             return nil
             case .logs:              return .logs
             case .settings:          return .settings
+            case .thisWeeksParsha:   return nil
             }
         }
     }
