@@ -8,10 +8,10 @@ struct TopicDetailView: View, Identifiable {
     @Environment(\.managedObjectContext) private var viewContext
     @Environment(SaveCoordinator.self) private var saveCoordinator
 
-    let topicID: UUID
+    let topic: CDCommunityTopicEntity
     var onSave: (CDCommunityTopicEntity) -> Void
 
-    @State private var vm = TopicDetailViewModel()
+    @State private var vm: TopicDetailViewModel
 
     // Ephemeral input state for adding content
     @State private var newSolutionTitle: String = ""
@@ -23,86 +23,84 @@ struct TopicDetailView: View, Identifiable {
 
     @State private var showingImagePicker = false
 
+    init(topic: CDCommunityTopicEntity, onSave: @escaping (CDCommunityTopicEntity) -> Void) {
+        self.topic = topic
+        self.onSave = onSave
+        let model = TopicDetailViewModel()
+        model.bind(topic: topic)
+        self._vm = State(wrappedValue: model)
+    }
+
     var body: some View {
         ScrollView {
-            if vm.isLoading || vm.topic == nil {
-                VStack(spacing: 16) {
-                    ProgressView()
-                    Text("Loading topic…")
-                        .font(.subheadline)
-                        .foregroundStyle(.secondary)
-                }
-                .frame(maxWidth: .infinity, minHeight: 240)
-            } else {
-                VStack(spacing: 20) {
-                    TopicBasicsSection(title: $vm.title, issue: $vm.issue, broughtBy: $vm.raisedBy)
-                    CreatedDateSection(createdDate: $vm.createdAt)
+            VStack(spacing: 20) {
+                TopicBasicsSection(title: $vm.title, issue: $vm.issue, broughtBy: $vm.raisedBy)
+                CreatedDateSection(createdDate: $vm.createdAt)
 
-                    TagsSection(tags: vm.topic?.tags ?? [], tagsDraft: $vm.tagsDraft)
+                TagsSection(tags: vm.topic?.tags ?? [], tagsDraft: $vm.tagsDraft)
 
-                    ResolutionSection(
-                        addressed: $vm.addressed,
-                        addressedDate: $vm.addressedDate,
-                        resolution: $vm.resolution
-                    )
+                ResolutionSection(
+                    addressed: $vm.addressed,
+                    addressedDate: $vm.addressedDate,
+                    resolution: $vm.resolution
+                )
 
-                    ProposedSolutionsSection(
-                        solutions: vm.proposedSolutions,
-                        newSolutionTitle: $newSolutionTitle,
-                        newSolutionDetails: $newSolutionDetails,
-                        newSolutionProposedBy: $newSolutionProposedBy,
-                        onToggleAdopted: { s in
-                            vm.toggleSolutionAdopted(s)
-                            saveCoordinator.save(viewContext, reason: "Toggle solution adopted")
-                        },
-                        onDelete: { s in
-                            vm.deleteSolution(context: viewContext, s)
-                            saveCoordinator.save(viewContext, reason: "Delete solution")
-                        },
-                        onAdd: {
-                            let title = newSolutionTitle.trimmed()
-                            let details = newSolutionDetails.trimmed()
-                            let proposedBy = newSolutionProposedBy.trimmed()
-                            vm.addSolution(
-                                context: viewContext,
-                                title: title,
-                                details: details,
-                                proposedBy: proposedBy
-                            )
-                            saveCoordinator.save(viewContext, reason: "Add proposed solution")
-                            newSolutionTitle = ""; newSolutionDetails = ""; newSolutionProposedBy = ""
-                        }
-                    )
+                ProposedSolutionsSection(
+                    solutions: vm.proposedSolutions,
+                    newSolutionTitle: $newSolutionTitle,
+                    newSolutionDetails: $newSolutionDetails,
+                    newSolutionProposedBy: $newSolutionProposedBy,
+                    onToggleAdopted: { s in
+                        vm.toggleSolutionAdopted(s)
+                        saveCoordinator.save(viewContext, reason: "Toggle solution adopted")
+                    },
+                    onDelete: { s in
+                        vm.deleteSolution(context: viewContext, s)
+                        saveCoordinator.save(viewContext, reason: "Delete solution")
+                    },
+                    onAdd: {
+                        let title = newSolutionTitle.trimmed()
+                        let details = newSolutionDetails.trimmed()
+                        let proposedBy = newSolutionProposedBy.trimmed()
+                        vm.addSolution(
+                            context: viewContext,
+                            title: title,
+                            details: details,
+                            proposedBy: proposedBy
+                        )
+                        saveCoordinator.save(viewContext, reason: "Add proposed solution")
+                        newSolutionTitle = ""; newSolutionDetails = ""; newSolutionProposedBy = ""
+                    }
+                )
 
-                    AttachmentsSection(
-                        attachments: vm.attachments,
-                        showingImagePicker: $showingImagePicker,
-                        onDelete: { a in
-                            vm.deleteAttachment(context: viewContext, a)
-                            saveCoordinator.save(viewContext, reason: "Delete attachment")
-                        }
-                    )
+                AttachmentsSection(
+                    attachments: vm.attachments,
+                    showingImagePicker: $showingImagePicker,
+                    onDelete: { a in
+                        vm.deleteAttachment(context: viewContext, a)
+                        saveCoordinator.save(viewContext, reason: "Delete attachment")
+                    }
+                )
 
-                    MeetingNotesSection(
-                        notes: vm.notes,
-                        newNoteSpeaker: $newNoteSpeaker,
-                        newNoteContent: $newNoteContent,
-                        onDelete: { n in
-                            vm.deleteNote(context: viewContext, n)
-                            saveCoordinator.save(viewContext, reason: "Delete note")
-                        },
-                        onAdd: {
-                            let speaker = newNoteSpeaker.trimmed()
-                            let content = newNoteContent.trimmed()
-                            guard !content.isEmpty else { return }
-                            vm.addNote(context: viewContext, speaker: speaker, content: content)
-                            saveCoordinator.save(viewContext, reason: "Add note")
-                            newNoteSpeaker = ""; newNoteContent = ""
-                        }
-                    )
-                }
-                .padding()
+                MeetingNotesSection(
+                    notes: vm.notes,
+                    newNoteSpeaker: $newNoteSpeaker,
+                    newNoteContent: $newNoteContent,
+                    onDelete: { n in
+                        vm.deleteNote(context: viewContext, n)
+                        saveCoordinator.save(viewContext, reason: "Delete note")
+                    },
+                    onAdd: {
+                        let speaker = newNoteSpeaker.trimmed()
+                        let content = newNoteContent.trimmed()
+                        guard !content.isEmpty else { return }
+                        vm.addNote(context: viewContext, speaker: speaker, content: content)
+                        saveCoordinator.save(viewContext, reason: "Add note")
+                        newNoteSpeaker = ""; newNoteContent = ""
+                    }
+                )
             }
+            .padding()
         }
         .navigationTitle("Topic Details")
         .toolbar {
@@ -128,9 +126,6 @@ struct TopicDetailView: View, Identifiable {
                     Image(systemName: "square.and.arrow.up")
                 }
             }
-        }
-        .task(id: topicID) {
-            await vm.load(context: viewContext, topicID: topicID)
         }
     }
 }

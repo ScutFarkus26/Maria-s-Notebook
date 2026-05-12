@@ -4,9 +4,6 @@ import SwiftUI
 @Observable
 @MainActor
 final class TopicDetailViewModel {
-    // Loading state
-    var isLoading: Bool = false
-
     // Backing model
     var topic: CDCommunityTopicEntity?
 
@@ -20,7 +17,6 @@ final class TopicDetailViewModel {
     var addressedDate: Date = Date()
     var tagsDraft: String = ""
 
-    // Derived lists (loaded lazily)
     var proposedSolutions: [CDProposedSolutionEntity] = []
     var notes: [CDNote] = []
     var attachments: [CDCommunityAttachment] = []
@@ -59,66 +55,19 @@ final class TopicDetailViewModel {
         topic.addressedDate = addressed ? addressedDate : nil
     }
 
-    // MARK: - Fetch request builders
+    // Populate view-model state synchronously from a topic entity. Called from
+    // TopicDetailView's init so the view tree is stable from first render
+    // (no loading→loaded swap that could race the sheet's first layout pass).
+    func bind(topic: CDCommunityTopicEntity) {
+        self.topic = topic
+        populateFields(from: topic)
 
-    private static func requestForTopic(id: UUID) -> NSFetchRequest<CDCommunityTopicEntity> {
-        let request = CDFetchRequest(CDCommunityTopicEntity.self)
-        request.predicate = NSPredicate(format: "id == %@", id as CVarArg)
-        return request
-    }
-
-    private static func requestForSolutions(topicID id: UUID) -> NSFetchRequest<CDProposedSolutionEntity> {
-        let request = CDFetchRequest(CDProposedSolutionEntity.self)
-        request.predicate = NSPredicate(format: "topic.id == %@", id as CVarArg)
-        request.sortDescriptors = [NSSortDescriptor(keyPath: \CDProposedSolutionEntity.createdAt, ascending: true)]
-        return request
-    }
-
-    private static func requestForNotes(topicID id: UUID) -> NSFetchRequest<CDNote> {
-        let request = CDFetchRequest(CDNote.self)
-        request.predicate = NSPredicate(format: "communityTopic.id == %@", id as CVarArg)
-        request.sortDescriptors = [NSSortDescriptor(keyPath: \CDNote.createdAt, ascending: true)]
-        return request
-    }
-
-    private static func requestForAttachments(topicID id: UUID) -> NSFetchRequest<CDCommunityAttachment> {
-        let request = CDFetchRequest(CDCommunityAttachment.self)
-        request.predicate = NSPredicate(format: "topic.id == %@", id as CVarArg)
-        request.sortDescriptors = [NSSortDescriptor(keyPath: \CDCommunityAttachment.createdAt, ascending: true)]
-        return request
-    }
-
-    func load(context: NSManagedObjectContext, topicID: UUID) async {
-        // NSManagedObjectContext is not Sendable, but this function is @MainActor isolated
-        // so it's safe to use the context here
-        isLoading = true
-        defer { isLoading = false }
-
-        do {
-            // Fetch the topic by ID
-            let topicRequest = Self.requestForTopic(id: topicID)
-            topicRequest.fetchLimit = 1
-            let topics = try context.fetch(topicRequest)
-            guard let topic = topics.first else {
-                self.topic = nil
-                return
-            }
-            self.topic = topic
-
-            // Populate lightweight fields
-            populateFields(from: topic)
-
-            // Targeted fetches for relationships
-            let solRequest = Self.requestForSolutions(topicID: topicID)
-            let noteRequest = Self.requestForNotes(topicID: topicID)
-            let attRequest = Self.requestForAttachments(topicID: topicID)
-
-            // NSManagedObjectContext is not Sendable, so fetch sequentially
-            self.proposedSolutions = try context.fetch(solRequest)
-            self.notes = try context.fetch(noteRequest)
-            self.attachments = try context.fetch(attRequest)
-        } catch {
-        }
+        proposedSolutions = ((topic.proposedSolutions as? Set<CDProposedSolutionEntity>) ?? [])
+            .sorted { ($0.createdAt ?? .distantPast) < ($1.createdAt ?? .distantPast) }
+        attachments = ((topic.attachments as? Set<CDCommunityAttachmentEntity>) ?? [])
+            .sorted { ($0.createdAt ?? .distantPast) < ($1.createdAt ?? .distantPast) }
+        notes = topic.unifiedNotes
+            .sorted { ($0.createdAt ?? .distantPast) < ($1.createdAt ?? .distantPast) }
     }
 
     func persistChanges(context: NSManagedObjectContext) {

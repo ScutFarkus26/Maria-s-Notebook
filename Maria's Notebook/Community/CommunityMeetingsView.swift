@@ -8,7 +8,7 @@ struct CommunityMeetingsView: View {
     @FetchRequest(sortDescriptors: [NSSortDescriptor(keyPath: \CDCommunityTopicEntity.createdAt, ascending: false)]) private var topics: FetchedResults<CDCommunityTopicEntity>
 
     @State private var showingAdd = false
-    @State private var selectedTopicID: UUID?
+    @State private var selectedTopic: CDCommunityTopicEntity?
 
     enum DateFilter { case today, thisWeek, thisMonth, last30, thisYear }
     @State private var filterDate: DateFilter?
@@ -126,16 +126,9 @@ struct CommunityMeetingsView: View {
                 saveCoordinator.save(viewContext, reason: "Add community topic")
             }
         }
-        .sheet(isPresented: Binding<Bool>(
-            get: { selectedTopicID != nil },
-            set: { newValue in if newValue == false { selectedTopicID = nil } }
-        )) {
-            if let id = selectedTopicID {
-                TopicDetailView(topicID: id) { _ in
-                    saveCoordinator.save(viewContext, reason: "Update community topic")
-                }
-            } else {
-                EmptyView()
+        .sheet(item: $selectedTopic) { topic in
+            TopicDetailView(topic: topic) { _ in
+                saveCoordinator.save(viewContext, reason: "Update community topic")
             }
         }
     }
@@ -155,7 +148,7 @@ struct CommunityMeetingsView: View {
                 // Clear the search text so the newly added appears and UI resets
                 searchText = ""
                 // Optionally open the detail editor for the new topic
-                selectedTopicID = t.id
+                selectedTopic = t
             }
         )
     }
@@ -173,7 +166,7 @@ struct CommunityMeetingsView: View {
                     VStack(spacing: 10) {
                         ForEach(open) { t in
                             TopicRowView(topic: t) {
-                                selectedTopicID = t.id
+                                selectedTopic = t
                             }
                         }
                     }
@@ -186,7 +179,7 @@ struct CommunityMeetingsView: View {
                     VStack(spacing: 10) {
                         ForEach(resolved) { t in
                             TopicRowView(topic: t) {
-                                selectedTopicID = t.id
+                                selectedTopic = t
                             }
                         }
                     }
