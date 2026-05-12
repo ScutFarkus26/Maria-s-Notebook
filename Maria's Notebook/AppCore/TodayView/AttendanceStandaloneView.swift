@@ -21,6 +21,7 @@ struct AttendanceStandaloneView: View {
     @State private var schoolDayCache = SchoolDayCache()
     @State private var toastMessage: String?
     @State private var showingTardyReport = false
+    @State private var showingAbsenceReport = false
 
     // MARK: - Body
     var body: some View {
@@ -72,6 +73,9 @@ struct AttendanceStandaloneView: View {
             #endif
             .sheet(isPresented: $showingTardyReport) {
                 AttendanceTardyReport()
+            }
+            .sheet(isPresented: $showingAbsenceReport) {
+                AttendanceAbsenceReport()
             }
         }
     }

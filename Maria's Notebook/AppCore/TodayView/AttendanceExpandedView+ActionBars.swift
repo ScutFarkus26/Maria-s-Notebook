@@ -63,6 +63,13 @@ extension AttendanceExpandedView {
                     Label("Tardy Report", systemImage: "chart.bar.doc.horizontal")
                 }
 
+                // Absence Report
+                Button {
+                    showingAbsenceReport = true
+                } label: {
+                    Label("Absence Report", systemImage: "chart.bar.doc.horizontal")
+                }
+
                 // Email
                 if emailEnabled {
                     Button {
@@ -91,15 +98,16 @@ extension AttendanceExpandedView {
             .pickerStyle(.segmented)
             .frame(maxWidth: 160)
 
-            // Tardy Report
-            Button {
-                showingTardyReport = true
+            // Reports
+            Menu {
+                Button("Tardy Report") { showingTardyReport = true }
+                Button("Absence Report") { showingAbsenceReport = true }
             } label: {
-                Label("Tardy Report", systemImage: "chart.bar.doc.horizontal")
+                Label("Reports", systemImage: "chart.bar.doc.horizontal")
                     .labelStyle(.iconOnly)
             }
             .buttonStyle(.bordered)
-            .help("View Tardy Report")
+            .help("View Reports")
 
             Spacer()
 

@@ -29,6 +29,7 @@ struct AttendanceExpandedView: View {
     @SyncedAppStorage("AttendanceEmail.enabled") var emailEnabled: Bool = true
     @State private var showMailSheet = false
     @State var showingTardyReport = false
+    @State var showingAbsenceReport = false
     @State private var toastMessage: String?
     @State var isEditing: Bool = true
     @State var localSortKey: AttendanceViewModel.SortKey = .lastName
@@ -214,6 +215,9 @@ struct AttendanceExpandedView: View {
         }
         .sheet(isPresented: $showingTardyReport) {
             AttendanceTardyReport()
+        }
+        .sheet(isPresented: $showingAbsenceReport) {
+            AttendanceAbsenceReport()
         }
         .sheet(isPresented: $showMailSheet) {
 #if os(iOS)

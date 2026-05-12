@@ -2,8 +2,8 @@ import SwiftUI
 import CoreData
 import OSLog
 
-/// Sheet showing tardy counts per student over a selected date range.
-struct AttendanceTardyReport: View {
+/// Sheet showing absence counts per student over a selected date range.
+struct AttendanceAbsenceReport: View {
     private static let logger = Logger.attendance
     @Environment(\.managedObjectContext) private var viewContext
     @Environment(\.dismiss) private var dismiss
@@ -18,34 +18,34 @@ struct AttendanceTardyReport: View {
     )
     @State private var endDate: Date = AppCalendar.startOfDay(Date())
 
-    private var rows: [TardyRow] {
+    private var rows: [AbsenceRow] {
         guard startDate <= endDate else { return [] }
         let start = AppCalendar.startOfDay(startDate)
         let end = AppCalendar.startOfDay(endDate)
 
-        // Fetch all records in the range, then filter for tardy in memory
+        // Fetch all records in the range, then filter for absent in memory
         let fetchRequest = NSFetchRequest<CDAttendanceRecord>(entityName: "AttendanceRecord")
         fetchRequest.predicate = NSPredicate(format: "date >= %@ AND date <= %@", start as NSDate, end as NSDate)
-        let records = safeFetch(fetchRequest, context: "AttendanceTardyReport.rows")
+        let records = safeFetch(fetchRequest, context: "AttendanceAbsenceReport.rows")
 
-        // Count tardies per studentID
+        // Count absences per studentID
         var countsByID: [String: Int] = [:]
-        for record in records where record.status == .tardy {
+        for record in records where record.status == .absent {
             countsByID[record.studentID, default: 0] += 1
         }
 
-        // Map to student names, include only students with at least 1 tardy
-        let rows: [TardyRow] = students.compactMap { student in
+        // Map to student names, include only students with at least 1 absence
+        let rows: [AbsenceRow] = students.compactMap { student in
             let key = student.cloudKitKey
             guard let count = countsByID[key], count > 0 else { return nil }
-            return TardyRow(student: student, tardyCount: count)
+            return AbsenceRow(student: student, absenceCount: count)
         }
 
-        return rows.sorted { $0.tardyCount > $1.tardyCount }
+        return rows.sorted { $0.absenceCount > $1.absenceCount }
     }
 
-    private var totalTardies: Int {
-        rows.reduce(0) { $0 + $1.tardyCount }
+    private var totalAbsences: Int {
+        rows.reduce(0) { $0 + $1.absenceCount }
     }
 
     var body: some View {
@@ -70,7 +70,7 @@ struct AttendanceTardyReport: View {
                     resultsList
                 }
             }
-            .navigationTitle("Tardy Report")
+            .navigationTitle("Absence Report")
             .inlineNavigationTitle()
             .toolbar {
                 ToolbarItem(placement: .confirmationAction) {
@@ -140,11 +140,11 @@ struct AttendanceTardyReport: View {
             summaryChip(
                 value: rows.count,
                 label: rows.count == 1 ? "Student" : "Students",
-                color: .orange
+                color: .red
             )
             summaryChip(
-                value: totalTardies,
-                label: totalTardies == 1 ? "Tardy" : "Total Tardies",
+                value: totalAbsences,
+                label: totalAbsences == 1 ? "Absence" : "Total Absences",
                 color: .blue
             )
             Spacer()
@@ -178,11 +178,11 @@ struct AttendanceTardyReport: View {
                             .foregroundStyle(.secondary)
                     }
                     Spacer()
-                    Text("\(row.tardyCount)")
+                    Text("\(row.absenceCount)")
                         .font(.system(.title3, design: .rounded).weight(.semibold))
-                        .foregroundStyle(AppColors.warning)
+                        .foregroundStyle(AppColors.destructive)
                         .frame(minWidth: 32, alignment: .trailing)
-                    Text(row.tardyCount == 1 ? "tardy" : "tardies")
+                    Text(row.absenceCount == 1 ? "absence" : "absences")
                         .font(.caption)
                         .foregroundStyle(.secondary)
                 }
@@ -196,9 +196,9 @@ struct AttendanceTardyReport: View {
 
     private var emptyState: some View {
         ContentUnavailableView(
-            "No Tardies",
+            "No Absences",
             systemImage: "checkmark.seal",
-            description: Text("No tardies recorded in the selected range.")
+            description: Text("No absences recorded in the selected range.")
         )
         .frame(maxWidth: .infinity, maxHeight: .infinity)
     }
@@ -229,13 +229,13 @@ struct AttendanceTardyReport: View {
 
 // MARK: - Supporting Types
 
-private struct TardyRow: Identifiable {
+private struct AbsenceRow: Identifiable {
     let id: UUID = UUID()
     let student: CDStudent
-    let tardyCount: Int
+    let absenceCount: Int
 }
 
 #Preview {
-    AttendanceTardyReport()
+    AttendanceAbsenceReport()
         .previewEnvironment()
 }

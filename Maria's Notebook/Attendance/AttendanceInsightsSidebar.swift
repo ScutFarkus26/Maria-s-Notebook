@@ -9,6 +9,7 @@ enum AttendanceInsightsTimeframe: String, CaseIterable, Identifiable, Sendable {
     case last7
     case last30
     case last90
+    case schoolYear
 
     var id: String { rawValue }
 
@@ -17,6 +18,7 @@ enum AttendanceInsightsTimeframe: String, CaseIterable, Identifiable, Sendable {
         case .last7: return "Last 7 days"
         case .last30: return "Last 30 days"
         case .last90: return "Last 90 days"
+        case .schoolYear: return "This school year"
         }
     }
 
@@ -25,14 +27,45 @@ enum AttendanceInsightsTimeframe: String, CaseIterable, Identifiable, Sendable {
         case .last7: return "7d"
         case .last30: return "30d"
         case .last90: return "90d"
+        case .schoolYear: return "Year"
         }
     }
 
-    var days: Int {
+    /// Range ending at `referenceDate` (inclusive) for this timeframe.
+    func range(endingAt referenceDate: Date) -> ClosedRange<Date> {
+        let end = AppCalendar.startOfDay(referenceDate)
+        switch self {
+        case .last7, .last30, .last90:
+            let start = AppCalendar.addingDays(-(fixedDays - 1), to: end)
+            return start...end
+        case .schoolYear:
+            let start = AppCalendar.startOfDay(FloridaGradeCalculator.schoolYearStart(for: referenceDate))
+            return start...end
+        }
+    }
+
+    /// Comparison range used to render trend deltas. Fixed-window timeframes step back by their
+    /// own length; the school year compares to the same period in the prior school year.
+    func priorRange(for range: ClosedRange<Date>) -> ClosedRange<Date> {
+        switch self {
+        case .last7, .last30, .last90:
+            let priorEnd = AppCalendar.addingDays(-fixedDays, to: range.lowerBound)
+            let priorStart = AppCalendar.addingDays(-(fixedDays - 1), to: priorEnd)
+            return priorStart...priorEnd
+        case .schoolYear:
+            let cal = Calendar.current
+            let priorStart = cal.date(byAdding: .year, value: -1, to: range.lowerBound) ?? range.lowerBound
+            let priorEnd = cal.date(byAdding: .year, value: -1, to: range.upperBound) ?? range.upperBound
+            return AppCalendar.startOfDay(priorStart)...AppCalendar.startOfDay(priorEnd)
+        }
+    }
+
+    private var fixedDays: Int {
         switch self {
         case .last7: return 7
         case .last30: return 30
         case .last90: return 90
+        case .schoolYear: return 0
         }
     }
 }
@@ -97,7 +130,7 @@ struct AttendanceInsightsSidebar: View {
             }
             .pickerStyle(.segmented)
             .labelsHidden()
-            .frame(width: 170)
+            .frame(width: 220)
         }
     }
 
@@ -112,8 +145,8 @@ struct AttendanceInsightsSidebar: View {
     // MARK: Reload
 
     private func reloadAll() {
-        let range = currentRange()
-        let priorRange = priorRange(for: range)
+        let range = timeframe.range(endingAt: referenceDate)
+        let priorRange = timeframe.priorRange(for: range)
         summary = AttendanceInsightsService.classSummary(in: range, students: students, context: viewContext)
         priorSummary = AttendanceInsightsService.classSummary(in: priorRange, students: students, context: viewContext)
         watchList = AttendanceInsightsService.watchList(in: range, students: students, context: viewContext, limit: 5)
@@ -123,18 +156,5 @@ struct AttendanceInsightsSidebar: View {
             students: students,
             context: viewContext
         )
-    }
-
-    private func currentRange() -> ClosedRange<Date> {
-        let end = AppCalendar.startOfDay(referenceDate)
-        let start = AppCalendar.addingDays(-(timeframe.days - 1), to: end)
-        return start...end
-    }
-
-    private func priorRange(for range: ClosedRange<Date>) -> ClosedRange<Date> {
-        let length = timeframe.days
-        let priorEnd = AppCalendar.addingDays(-length, to: range.lowerBound)
-        let priorStart = AppCalendar.addingDays(-(length - 1), to: priorEnd)
-        return priorStart...priorEnd
     }
 }
