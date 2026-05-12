@@ -125,6 +125,88 @@ enum HebrewParshaService {
         return parshaKey(forShabbat: shabbat)
     }
 
+    /// Maps a combined parsha key to its component single keys, so callers can match a
+    /// requested single (e.g. "vayakhel") against a year that reads it combined
+    /// (e.g. "vayakhel-pekudei").
+    private static let combinedKeyComponents: [String: [String]] = [
+        "vayakhel-pekudei": ["vayakhel", "pekudei"],
+        "tazria-metzora": ["tazria", "metzora"],
+        "acharei-mot-kedoshim": ["acharei-mot", "kedoshim"],
+        "behar-bechukotai": ["behar", "bechukotai"],
+        "chukat-balak": ["chukat", "balak"],
+        "matot-masei": ["matot", "masei"],
+        "nitzavim-vayelech": ["nitzavim", "vayelech"]
+    ]
+
+    /// Returns the next Shabbat on or after `from` whose reading matches `targetKey`,
+    /// either directly or because the target is one half of a combined parsha read on
+    /// that Shabbat. Walks up to 70 weeks ahead.
+    static func nextShabbat(forParshaKey targetKey: String, from: Date = Date()) -> Date? {
+        let gregorian = Calendar(identifier: .gregorian)
+        var current = shabbatOfWeek(containing: from, calendar: gregorian)
+        for _ in 0..<70 {
+            if let actual = parshaKey(forShabbat: current) {
+                if actual == targetKey { return current }
+                if let parts = combinedKeyComponents[actual], parts.contains(targetKey) {
+                    return current
+                }
+            }
+            guard let next = gregorian.date(byAdding: .day, value: 7, to: current) else { return nil }
+            current = next
+        }
+        return nil
+    }
+
+    /// Returns every Shabbat in the Hebrew year containing `date`, paired with its parsha
+    /// key (nil on festival-displaced Shabbatot) and the festival name (when displaced).
+    /// Walks from the first sedra Shabbat after Simchat Torah through next Rosh Hashanah.
+    static func shabbatotForHebrewYear(containing date: Date)
+        -> [(date: Date, parshaKey: String?, festivalName: String?)] {
+        let gregorian = Calendar(identifier: .gregorian)
+        let hebrew = Calendar(identifier: .hebrew)
+
+        guard let hebYear = hebrew.dateComponents([.year], from: date).year else { return [] }
+        // Find the cycle year whose Simchat Torah is on or before `date`.
+        let candidateCycleYears: [Int] = [hebYear, hebYear - 1]
+        for cycleYear in candidateCycleYears {
+            var comps = DateComponents()
+            comps.year = cycleYear
+            comps.month = 1
+            comps.day = 23
+            guard let simchatTorah = hebrew.date(from: comps).map(gregorian.startOfDay) else {
+                continue
+            }
+            guard date >= simchatTorah else { continue }
+
+            // First Shabbat after Simchat Torah carries the first sedra reading (Bereishit).
+            var current = shabbatOfWeek(containing: simchatTorah, calendar: gregorian)
+            if gregorian.isDate(simchatTorah, inSameDayAs: current) {
+                current = gregorian.date(byAdding: .day, value: 7, to: current) ?? current
+            } else if current < simchatTorah {
+                current = gregorian.date(byAdding: .day, value: 7, to: current) ?? current
+            }
+
+            var nextRHComps = DateComponents()
+            nextRHComps.year = cycleYear + 1
+            nextRHComps.month = 1
+            nextRHComps.day = 1
+            guard let nextRH = hebrew.date(from: nextRHComps).map(gregorian.startOfDay) else {
+                return []
+            }
+
+            var results: [(date: Date, parshaKey: String?, festivalName: String?)] = []
+            while current < nextRH {
+                let key = parshaKey(forShabbat: current)
+                let festival = displacingFestivalName(forShabbat: current)
+                results.append((current, key, festival))
+                guard let next = gregorian.date(byAdding: .day, value: 7, to: current) else { break }
+                current = next
+            }
+            return results
+        }
+        return []
+    }
+
     /// Returns the diaspora festival that displaces the weekly parsha on this Shabbat,
     /// or `nil` if a normal weekly reading takes place. The three displacing windows are
     /// Sukkot/Shemini Atzeret, Pesach (including Chol HaMoed Shabbatot), and Shavuot.

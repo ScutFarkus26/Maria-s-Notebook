@@ -43,6 +43,14 @@ struct RootDetailContent: View {
                 toolsContent
             case .thisWeeksParsha:
                 ThisWeeksParshaView()
+            case .parshaCalendar:
+                ParshaCalendarView()
+            case .parshaAlbumMatches:
+                ParshaAlbumSuggestionsView()
+            case .parshaCoverage:
+                ParshaCoverageView()
+            case .parshaTopics:
+                ParshaTopicBrowserView()
             }
         }
     }

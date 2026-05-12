@@ -52,6 +52,10 @@ extension RootView {
         case settings
 
         case thisWeeksParsha
+        case parshaCalendar
+        case parshaAlbumMatches
+        case parshaCoverage
+        case parshaTopics
 
         var id: Self { self }
 
@@ -98,6 +102,10 @@ extension RootView {
             case .logs:                return ("Logs", "list.bullet")
             case .settings:            return ("Settings", "gear")
             case .thisWeeksParsha:     return ("This Week’s Parsha", "book.closed")
+            case .parshaCalendar:      return ("Parsha Calendar", "calendar")
+            case .parshaAlbumMatches:  return ("Album Matches", "sparkles")
+            case .parshaCoverage:      return ("Parsha Coverage", "square.grid.2x2.fill")
+            case .parshaTopics:        return ("Topics", "tag.fill")
             }
         }
 
@@ -125,7 +133,8 @@ extension RootView {
                  .lessonFrequency, .curriculumBalance, .greatLessonsTimeline,
                  .goingOut, .parentCommunication, .fridayReview, .workCycle,
                  .classroomJobs, .transitionPlanner, .threeYearCycle, .needsLesson, .smallGroupPlanner,
-                 .prepChecklist, .perpetualCalendar, .thisWeeksParsha,
+                 .prepChecklist, .perpetualCalendar,
+                 .thisWeeksParsha, .parshaCalendar, .parshaAlbumMatches, .parshaCoverage, .parshaTopics,
                  .community, .schedules, .resourceLibrary, .askAI, .logs, .settings:
                 return true
             default:
@@ -166,7 +175,11 @@ extension RootView {
             case .askAI:             return nil
             case .logs:              return .logs
             case .settings:          return .settings
-            case .thisWeeksParsha:   return nil
+            case .thisWeeksParsha:     return nil
+            case .parshaCalendar:      return nil
+            case .parshaAlbumMatches:  return nil
+            case .parshaCoverage:      return nil
+            case .parshaTopics:        return nil
             }
         }
     }

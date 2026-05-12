@@ -119,6 +119,26 @@ struct RootAdaptiveTabs: View {
             } label: {
                 Label("This Week’s Parsha", systemImage: "book.closed")
             }
+            Tab(value: RootView.NavigationItem.parshaCalendar) {
+                RootDetailContent(selectedNavItem: .parshaCalendar)
+            } label: {
+                Label("Parsha Calendar", systemImage: "calendar")
+            }
+            Tab(value: RootView.NavigationItem.parshaAlbumMatches) {
+                RootDetailContent(selectedNavItem: .parshaAlbumMatches)
+            } label: {
+                Label("Album Matches", systemImage: "sparkles")
+            }
+            Tab(value: RootView.NavigationItem.parshaCoverage) {
+                RootDetailContent(selectedNavItem: .parshaCoverage)
+            } label: {
+                Label("Coverage", systemImage: "square.grid.2x2.fill")
+            }
+            Tab(value: RootView.NavigationItem.parshaTopics) {
+                RootDetailContent(selectedNavItem: .parshaTopics)
+            } label: {
+                Label("Topics", systemImage: "tag.fill")
+            }
         } header: {
             Text("Parsha")
         }

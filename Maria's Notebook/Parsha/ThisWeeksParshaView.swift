@@ -54,6 +54,9 @@ struct ThisWeeksParshaView: View {
         .navigationDestination(for: Date.self) { date in
             ThisWeeksParshaView(forShabbat: date)
         }
+        .navigationDestination(for: ParshaSuggestionsNav.self) { nav in
+            ParshaSuggestionsDetailView(parshaKey: nav.parshaKey) { /* refresh handled by view */ }
+        }
     }
 
     private var noParshaState: some View {
@@ -75,11 +78,17 @@ private struct ParshaContentList: View {
     let shabbat: Date
     let isCurrentWeek: Bool
 
+    @Environment(\.managedObjectContext) private var viewContext
+    @Environment(\.dependencies) private var dependencies
+
     @FetchRequest private var lessons: FetchedResults<CDLesson>
 
     @State private var showingNewLesson = false
     @State private var showingTagPicker = false
     @State private var lessonToSchedule: CDLesson?
+    @State private var cachedSuggestions: CachedParshaSuggestions?
+    @State private var isGeneratingSuggestions = false
+    @State private var suggestionError: String?
 
     init(parshaKey: String, shabbat: Date, isCurrentWeek: Bool) {
         self.parshaKey = parshaKey
@@ -140,6 +149,15 @@ private struct ParshaContentList: View {
         return result
     }
 
+    private func copyParshaName() {
+        #if os(macOS)
+        NSPasteboard.general.clearContents()
+        NSPasteboard.general.setString(displayName, forType: .string)
+        #else
+        UIPasteboard.general.string = displayName
+        #endif
+    }
+
     var body: some View {
         List {
             if let special = specialShabbat {
@@ -151,12 +169,16 @@ private struct ParshaContentList: View {
                 topicsSection(metadata: metadata)
             }
             lessonsSection
+            suggestionsSection
             if !previousPresentations.isEmpty {
                 previousPresentationsSection
             }
             if isCurrentWeek && !upcomingShabbatot.isEmpty {
                 upcomingSection
             }
+        }
+        .onAppear {
+            cachedSuggestions = ParshaSuggestionService.allCachedSuggestions()[parshaKey]
         }
         .toolbar {
             ToolbarItem(placement: .primaryAction) {
@@ -218,6 +240,13 @@ private struct ParshaContentList: View {
                     .foregroundStyle(.secondary)
             }
             .padding(.vertical, AppTheme.Spacing.xsmall)
+            .contextMenu {
+                Button {
+                    copyParshaName()
+                } label: {
+                    Label("Copy Name", systemImage: "doc.on.doc")
+                }
+            }
         }
     }
 
@@ -254,6 +283,82 @@ private struct ParshaContentList: View {
                     }
                 }
             }
+        }
+    }
+
+    @ViewBuilder
+    private var suggestionsSection: some View {
+        Section {
+            if let cached = cachedSuggestions, !cached.suggestions.isEmpty {
+                ForEach(cached.suggestions.prefix(3)) { suggestion in
+                    InlineSuggestionRow(suggestion: suggestion, parshaKey: parshaKey)
+                }
+                NavigationLink(value: ParshaSuggestionsNav(parshaKey: parshaKey)) {
+                    Text(cached.suggestions.count > 3
+                         ? "View all \(cached.suggestions.count) matches"
+                         : "Manage suggestions")
+                        .font(AppTheme.ScaledFont.captionSemibold)
+                        .foregroundStyle(Color.accentColor)
+                }
+            } else {
+                generateSuggestionsRow
+            }
+        } header: {
+            HStack {
+                Label("Album Matches (AI)", systemImage: "sparkles")
+                Spacer()
+                if let cached = cachedSuggestions {
+                    Text("Generated \(cached.generatedAt.formatted(.relative(presentation: .named)))")
+                        .font(AppTheme.ScaledFont.captionSmall)
+                        .foregroundStyle(.secondary)
+                }
+            }
+        }
+    }
+
+    @ViewBuilder
+    private var generateSuggestionsRow: some View {
+        if AnthropicAPIClient.hasAPIKey() {
+            VStack(alignment: .leading, spacing: AppTheme.Spacing.xsmall) {
+                Text("Let AI find lessons in your albums that connect to \(displayName).")
+                    .font(AppTheme.ScaledFont.caption)
+                    .foregroundStyle(.secondary)
+                Button {
+                    Task { await generateSuggestions() }
+                } label: {
+                    if isGeneratingSuggestions {
+                        ProgressView()
+                    } else {
+                        Label("Find AI Matches", systemImage: "sparkles")
+                    }
+                }
+                .buttonStyle(.bordered)
+                .controlSize(.small)
+                .disabled(isGeneratingSuggestions)
+                if let suggestionError {
+                    Text(suggestionError)
+                        .font(AppTheme.ScaledFont.caption)
+                        .foregroundStyle(.red)
+                }
+            }
+            .padding(.vertical, AppTheme.Spacing.xxsmall)
+        } else {
+            Label("Add an Anthropic API key in Settings → AI to enable suggestions.", systemImage: "exclamationmark.triangle.fill")
+                .font(AppTheme.ScaledFont.caption)
+                .foregroundStyle(.orange)
+        }
+    }
+
+    private func generateSuggestions() async {
+        suggestionError = nil
+        isGeneratingSuggestions = true
+        defer { isGeneratingSuggestions = false }
+        let service = ParshaSuggestionService(mcpClient: dependencies.mcpClient, context: viewContext)
+        do {
+            let result = try await service.generateSuggestions(forParshaKey: parshaKey)
+            cachedSuggestions = result
+        } catch {
+            suggestionError = error.localizedDescription
         }
     }
 
@@ -451,5 +556,45 @@ private struct TopicBulletLabelStyle: LabelStyle {
             configuration.title
                 .foregroundStyle(.primary)
         }
+    }
+}
+
+/// Hashable wrapper used to push the dedicated suggestions detail from inside a NavigationStack.
+struct ParshaSuggestionsNav: Hashable {
+    let parshaKey: String
+}
+
+private struct InlineSuggestionRow: View {
+    let suggestion: ParshaSuggestion
+    let parshaKey: String
+
+    @Environment(\.managedObjectContext) private var viewContext
+
+    private var lesson: CDLesson? {
+        let req = CDFetchRequest(CDLesson.self)
+        req.predicate = NSPredicate(format: "id == %@", suggestion.lessonID.uuidString)
+        req.fetchLimit = 1
+        return viewContext.safeFetchFirst(req)
+    }
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: AppTheme.Spacing.xxsmall) {
+            if let lesson {
+                NavigationLink(value: lesson) {
+                    Text(lesson.name.isEmpty ? "Untitled Lesson" : lesson.name)
+                        .font(AppTheme.ScaledFont.bodySemibold)
+                        .foregroundStyle(Color.accentColor)
+                }
+                .buttonStyle(.plain)
+            } else {
+                Text("Lesson no longer exists")
+                    .font(AppTheme.ScaledFont.bodySemibold)
+                    .foregroundStyle(.secondary)
+            }
+            Text(suggestion.reasoning)
+                .font(AppTheme.ScaledFont.caption)
+                .foregroundStyle(.secondary)
+        }
+        .padding(.vertical, AppTheme.Spacing.xxsmall)
     }
 }

@@ -90,6 +90,10 @@ extension RootSidebar {
 
             Section("Parsha") {
                 sidebarRow(.thisWeeksParsha, title: "This Week’s Parsha", systemImage: "book.closed")
+                sidebarRow(.parshaCalendar, title: "Parsha Calendar", systemImage: "calendar")
+                sidebarRow(.parshaAlbumMatches, title: "Album Matches", systemImage: "sparkles")
+                sidebarRow(.parshaCoverage, title: "Coverage", systemImage: "square.grid.2x2.fill")
+                sidebarRow(.parshaTopics, title: "Topics", systemImage: "tag.fill")
             }
 
             Section("Planning") {
@@ -272,6 +276,22 @@ extension RootSidebar {
                              title: "This Week’s Parsha",
                              systemImage: "book.closed",
                              hint: "View this week’s Torah portion, its passages, topics, and related lessons")
+            iOSSidebarButton(.parshaCalendar,
+                             title: "Parsha Calendar",
+                             systemImage: "calendar",
+                             hint: "Annual calendar of every Shabbat and its parsha for the current Hebrew year")
+            iOSSidebarButton(.parshaAlbumMatches,
+                             title: "Album Matches",
+                             systemImage: "sparkles",
+                             hint: "AI-suggested album lessons whose themes connect to each parsha")
+            iOSSidebarButton(.parshaCoverage,
+                             title: "Coverage",
+                             systemImage: "square.grid.2x2.fill",
+                             hint: "See which parshas have lessons and which still need them")
+            iOSSidebarButton(.parshaTopics,
+                             title: "Topics",
+                             systemImage: "tag.fill",
+                             hint: "Browse parshas by topic — pick a theme to see which parshas mention it")
         }
     }
 
