@@ -140,7 +140,7 @@ private struct CalendarRowView: View {
                     }
                 }
                 if let key = parshaKey, let metadata = ParshaMetadataService.metadata(forKey: key) {
-                    Text(metadata.passageRange)
+                    Text("\(metadata.torahReference) (\(metadata.passageRange))")
                         .font(AppTheme.ScaledFont.caption)
                         .foregroundStyle(.secondary)
                 }
