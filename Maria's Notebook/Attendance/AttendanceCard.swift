@@ -179,7 +179,7 @@ struct AttendanceCard: View {
                 if isEditing { onTap() }
             } label: {
                 Image(systemName: statusIconName)
-                    .font(.system(size: 24, weight: .medium))
+                    .font(.system(.title2, weight: .medium))
                     .foregroundStyle(accentColor)
                     .frame(width: 32, height: 32)
                     .contentShape(Circle())
@@ -206,7 +206,7 @@ struct AttendanceCard: View {
                         .foregroundStyle(accentColor)
                     if status == .absent && absenceReason != .none {
                         Image(systemName: absenceReason.icon)
-                            .font(.system(size: 10))
+                            .font(.caption2)
                             .foregroundStyle(accentColor)
                         Text(absenceReason.displayName)
                             .font(AppTheme.ScaledFont.captionSmall)
@@ -226,13 +226,13 @@ struct AttendanceCard: View {
                         showingNoteEditor = true
                     } label: {
                         Image(systemName: "note.text")
-                            .font(.system(size: 14))
+                            .font(.subheadline)
                             .foregroundStyle(.secondary)
                     }
                     .buttonStyle(.plain)
                 } else {
                     Image(systemName: "note.text")
-                        .font(.system(size: 14))
+                        .font(.subheadline)
                         .foregroundStyle(.secondary)
                 }
             } else if isEditing {
@@ -241,7 +241,7 @@ struct AttendanceCard: View {
                     showingNoteEditor = true
                 } label: {
                     Image(systemName: "square.and.pencil")
-                        .font(.system(size: 14))
+                        .font(.subheadline)
                         .foregroundStyle(.tertiary)
                 }
                 .buttonStyle(.plain)
@@ -250,6 +250,9 @@ struct AttendanceCard: View {
         .padding(.vertical, AppTheme.Spacing.small)
         .padding(.horizontal, AppTheme.Spacing.medium)
         .contentShape(Rectangle())
+        .accessibilityElement(children: .combine)
+        .accessibilityLabel("\(displayName), \(statusLabel)\(status == .absent && absenceReason != .none ? ", \(absenceReason.displayName)" : "")\(hasNote ? ", has note" : "")")
+        .accessibilityAddTraits(isEditing ? .isButton : [])
     }
 
     @ViewBuilder

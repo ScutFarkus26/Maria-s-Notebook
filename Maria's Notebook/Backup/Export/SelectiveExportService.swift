@@ -219,10 +219,10 @@ public final class SelectiveExportService {
         let relatedEntitiesAdded = 0
 
         // Count all entities
-        let allStudents = safeFetch(CDStudent.fetchRequest() as! NSFetchRequest<CDStudent>, context: viewContext)
-        let allLessons = safeFetch(CDLesson.fetchRequest() as! NSFetchRequest<CDLesson>, context: viewContext)
-        let allNotes = safeFetch(CDNote.fetchRequest() as! NSFetchRequest<CDNote>, context: viewContext)
-        let allProjects = safeFetch(CDProject.fetchRequest() as! NSFetchRequest<CDProject>, context: viewContext)
+        let allStudents = safeFetch(NSFetchRequest<CDStudent>(entityName: "Student"), context: viewContext)
+        let allLessons = safeFetch(NSFetchRequest<CDLesson>(entityName: "Lesson"), context: viewContext)
+        let allNotes = safeFetch(NSFetchRequest<CDNote>(entityName: "Note"), context: viewContext)
+        let allProjects = safeFetch(NSFetchRequest<CDProject>(entityName: "Project"), context: viewContext)
 
         // Apply student filter
         let includedStudents: [CDStudent]
@@ -455,13 +455,13 @@ public final class SelectiveExportService {
     }
 
     private func collectStudents(viewContext: NSManagedObjectContext, filter: ExportFilter) -> [StudentDTO] {
-        let allStudents = safeFetch(CDStudent.fetchRequest() as! NSFetchRequest<CDStudent>, context: viewContext)
+        let allStudents = safeFetch(NSFetchRequest<CDStudent>(entityName: "Student"), context: viewContext)
         let filtered = filter.studentIDs.map { ids in allStudents.filter { guard let sid = $0.id else { return false }; return ids.contains(sid) } } ?? allStudents
         return BackupServiceHelpers.toDTOs(filtered)
     }
 
     private func collectLessons(viewContext: NSManagedObjectContext) -> [LessonDTO] {
-        let allLessons = safeFetch(CDLesson.fetchRequest() as! NSFetchRequest<CDLesson>, context: viewContext)
+        let allLessons = safeFetch(NSFetchRequest<CDLesson>(entityName: "Lesson"), context: viewContext)
         return BackupServiceHelpers.toDTOs(allLessons)
     }
 
@@ -471,7 +471,7 @@ public final class SelectiveExportService {
 
 extension SelectiveExportService {
     private func collectNotes(viewContext: NSManagedObjectContext, filter: ExportFilter) -> [NoteDTO] {
-        let all = safeFetch(CDNote.fetchRequest() as! NSFetchRequest<CDNote>, context: viewContext)
+        let all = safeFetch(NSFetchRequest<CDNote>(entityName: "Note"), context: viewContext)
         let filtered = BackupServiceHelpers.filterByDateRange(all, dateRange: filter.dateRange) { $0.createdAt }
         return BackupServiceHelpers.toDTOs(filtered)
     }
@@ -479,7 +479,7 @@ extension SelectiveExportService {
     // Removed: collectPresentations - Presentations are no longer exported; CDLessonAssignment is used instead
 
     private func collectNonSchoolDays(viewContext: NSManagedObjectContext, filter: ExportFilter) -> [NonSchoolDayDTO] {
-        let all = safeFetch(CDNonSchoolDay.fetchRequest() as! NSFetchRequest<CDNonSchoolDay>, context: viewContext)
+        let all = safeFetch(NSFetchRequest<CDNonSchoolDay>(entityName: "NonSchoolDay"), context: viewContext)
         let filtered = BackupServiceHelpers.filterByDateRange(all, dateRange: filter.dateRange) { $0.date }
         return BackupServiceHelpers.toDTOs(filtered)
     }
@@ -487,13 +487,13 @@ extension SelectiveExportService {
     private func collectSchoolDayOverrides(
         viewContext: NSManagedObjectContext, filter: ExportFilter
     ) -> [SchoolDayOverrideDTO] {
-        let all = safeFetch(CDSchoolDayOverride.fetchRequest() as! NSFetchRequest<CDSchoolDayOverride>, context: viewContext)
+        let all = safeFetch(NSFetchRequest<CDSchoolDayOverride>(entityName: "SchoolDayOverride"), context: viewContext)
         let filtered = BackupServiceHelpers.filterByDateRange(all, dateRange: filter.dateRange) { $0.date }
         return BackupServiceHelpers.toDTOs(filtered)
     }
 
     private func collectAttendance(viewContext: NSManagedObjectContext, filter: ExportFilter) -> [AttendanceRecordDTO] {
-        let all = safeFetch(CDAttendanceRecord.fetchRequest() as! NSFetchRequest<CDAttendanceRecord>, context: viewContext)
+        let all = safeFetch(NSFetchRequest<CDAttendanceRecord>(entityName: "AttendanceRecord"), context: viewContext)
         var filtered = BackupServiceHelpers.filterByStudents(
             all, studentIDs: filter.studentIDs
         ) { UUID(uuidString: $0.studentID) }
@@ -504,7 +504,7 @@ extension SelectiveExportService {
     private func collectWorkCompletions(
         viewContext: NSManagedObjectContext, filter: ExportFilter
     ) -> [WorkCompletionRecordDTO] {
-        let all = safeFetch(CDWorkCompletionRecord.fetchRequest() as! NSFetchRequest<CDWorkCompletionRecord>, context: viewContext)
+        let all = safeFetch(NSFetchRequest<CDWorkCompletionRecord>(entityName: "WorkCompletionRecord"), context: viewContext)
         var filtered = BackupServiceHelpers.filterByStudents(
             all, studentIDs: filter.studentIDs
         ) { UUID(uuidString: $0.studentID) }
@@ -515,7 +515,7 @@ extension SelectiveExportService {
     }
 
     private func collectProjects(viewContext: NSManagedObjectContext, filter: ExportFilter) -> [ProjectDTO] {
-        let all = safeFetch(CDProject.fetchRequest() as! NSFetchRequest<CDProject>, context: viewContext)
+        let all = safeFetch(NSFetchRequest<CDProject>(entityName: "Project"), context: viewContext)
         let filtered = BackupServiceHelpers.filterByProjects(all, projectIDs: filter.projectIDs) { $0.id }
         return BackupServiceHelpers.toDTOs(filtered)
     }
@@ -524,7 +524,7 @@ extension SelectiveExportService {
         viewContext: NSManagedObjectContext, filter: ExportFilter
     ) -> [ProjectSessionDTO] {
         let all = safeFetch(
-            CDProjectSession.fetchRequest() as! NSFetchRequest<CDProjectSession>, context: viewContext
+            NSFetchRequest<CDProjectSession>(entityName: "ProjectSession"), context: viewContext
         )
         let filtered = BackupServiceHelpers.filterByProjects(
             all, projectIDs: filter.projectIDs
@@ -533,7 +533,7 @@ extension SelectiveExportService {
     }
 
     private func collectProjectRoles(viewContext: NSManagedObjectContext, filter: ExportFilter) -> [ProjectRoleDTO] {
-        let all = safeFetch(CDProjectRole.fetchRequest() as! NSFetchRequest<CDProjectRole>, context: viewContext)
+        let all = safeFetch(NSFetchRequest<CDProjectRole>(entityName: "ProjectRole"), context: viewContext)
         let filtered = BackupServiceHelpers.filterByProjects(
             all, projectIDs: filter.projectIDs
         ) { UUID(uuidString: $0.projectID) }

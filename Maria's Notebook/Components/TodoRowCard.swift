@@ -229,6 +229,21 @@ struct TodoRowCard: View {
                 Label("Delete", systemImage: "trash")
             }
         }
+        .accessibilityAction(named: Text(todo.isCompleted ? "Mark Incomplete" : "Mark Complete")) {
+            todo.isCompleted.toggle()
+            todo.completedAt = todo.isCompleted ? Date() : nil
+            do {
+                try viewContext.save()
+            } catch {
+                Self.logger.error("Failed to save todo completion state: \(error.localizedDescription, privacy: .public)")
+            }
+        }
+        .accessibilityAction(named: Text("Edit")) {
+            onEdit()
+        }
+        .accessibilityAction(named: Text("Delete")) {
+            onDelete()
+        }
     }
 
     private func togglePriority() {

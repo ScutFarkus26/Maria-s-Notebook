@@ -315,7 +315,7 @@ final class ObservationPatternsViewModel {
         let allObservationTags = MontessoriObservationTags.allTags + DevelopmentalCharacteristic.allTags
         let range = timeRange.dateRange(from: Date())
 
-        let descriptor = { let r = CDNote.fetchRequest() as! NSFetchRequest<CDNote>; r.sortDescriptors = [NSSortDescriptor(keyPath: \CDNote.createdAt, ascending: false)]; return r }()
+        let descriptor = { let r = NSFetchRequest<CDNote>(entityName: "Note"); r.sortDescriptors = [NSSortDescriptor(keyPath: \CDNote.createdAt, ascending: false)]; return r }()
         let observationNotes = context.safeFetch(descriptor).filter { note in
             guard let createdAt = note.createdAt else { return false }
             let tags = (note.tags as? [String]) ?? []
@@ -331,7 +331,7 @@ final class ObservationPatternsViewModel {
         tagCounts = computeTagCounts(from: observationNotes, allTags: allObservationTags)
 
         let students = TestStudentsFilter.filterVisible(
-            context.safeFetch({ let r = CDStudent.fetchRequest() as! NSFetchRequest<CDStudent>; r.sortDescriptors = CDStudent.sortByName; return r }()).filterEnrolled()
+            context.safeFetch({ let r = NSFetchRequest<CDStudent>(entityName: "Student"); r.sortDescriptors = CDStudent.sortByName; return r }()).filterEnrolled()
         )
         let observationMap = buildStudentObservationMap(from: observationNotes)
         let summaries = buildStudentSummaries(

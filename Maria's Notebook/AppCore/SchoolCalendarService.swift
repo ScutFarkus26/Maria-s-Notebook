@@ -64,9 +64,9 @@ public final class SchoolCalendarService {
         let end = cal.startOfDay(for: range.upperBound)
 
         // Fetch Core Data models directly (we are on MainActor)
-        let nsFetchRequest: NSFetchRequest<CDNonSchoolDay> = CDNonSchoolDay.fetchRequest() as! NSFetchRequest<CDNonSchoolDay>
+        let nsFetchRequest: NSFetchRequest<CDNonSchoolDay> = NSFetchRequest<CDNonSchoolDay>(entityName: "NonSchoolDay")
         nsFetchRequest.predicate = NSPredicate(format: "date >= %@ AND date < %@", start as NSDate, end as NSDate)
-        let ovFetchRequest: NSFetchRequest<CDSchoolDayOverride> = CDSchoolDayOverride.fetchRequest() as! NSFetchRequest<CDSchoolDayOverride>
+        let ovFetchRequest: NSFetchRequest<CDSchoolDayOverride> = NSFetchRequest<CDSchoolDayOverride>(entityName: "SchoolDayOverride")
         ovFetchRequest.predicate = NSPredicate(format: "date >= %@ AND date < %@", start as NSDate, end as NSDate)
         let ns: [CDNonSchoolDay]
         let ovs: [CDSchoolDayOverride]
@@ -123,7 +123,7 @@ public final class SchoolCalendarService {
 
         if isWeekend {
             // Weekend logic
-            let overrideFetch: NSFetchRequest<CDSchoolDayOverride> = CDSchoolDayOverride.fetchRequest() as! NSFetchRequest<CDSchoolDayOverride>
+            let overrideFetch: NSFetchRequest<CDSchoolDayOverride> = NSFetchRequest<CDSchoolDayOverride>(entityName: "SchoolDayOverride")
             overrideFetch.predicate = NSPredicate(format: "date == %@", day as NSDate)
             overrideFetch.fetchLimit = 1
             let overrides: [CDSchoolDayOverride] = try context.fetch(overrideFetch)
@@ -144,7 +144,7 @@ public final class SchoolCalendarService {
             return becameNonSchool
         } else {
             // Weekday logic
-            let nsFetch: NSFetchRequest<CDNonSchoolDay> = CDNonSchoolDay.fetchRequest() as! NSFetchRequest<CDNonSchoolDay>
+            let nsFetch: NSFetchRequest<CDNonSchoolDay> = NSFetchRequest<CDNonSchoolDay>(entityName: "NonSchoolDay")
             nsFetch.predicate = NSPredicate(format: "date == %@", day as NSDate)
             nsFetch.fetchLimit = 1
             let items: [CDNonSchoolDay] = try context.fetch(nsFetch)

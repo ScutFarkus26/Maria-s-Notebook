@@ -203,7 +203,7 @@ final class GreatLessonsTimelineViewModel {
     // MARK: - Data Fetching
 
     private func fetchAllLessons(context: NSManagedObjectContext) -> [CDLesson] {
-        let request = CDLesson.fetchRequest() as! NSFetchRequest<CDLesson>
+        let request = NSFetchRequest<CDLesson>(entityName: "Lesson")
         request.sortDescriptors = [
             NSSortDescriptor(keyPath: \CDLesson.subject, ascending: true),
             NSSortDescriptor(keyPath: \CDLesson.group, ascending: true),
@@ -213,18 +213,18 @@ final class GreatLessonsTimelineViewModel {
     }
 
     private func fetchPresentedAssignments(context: NSManagedObjectContext) -> [CDLessonAssignment] {
-        let request = CDLessonAssignment.fetchRequest() as! NSFetchRequest<CDLessonAssignment>
+        let request = NSFetchRequest<CDLessonAssignment>(entityName: "LessonAssignment")
         request.predicate = NSPredicate(format: "presentedAt != nil")
         return context.safeFetch(request)
     }
 
     private func fetchActiveWork(context: NSManagedObjectContext) -> [CDWorkModel] {
-        let request = CDWorkModel.fetchRequest() as! NSFetchRequest<CDWorkModel>
+        let request = NSFetchRequest<CDWorkModel>(entityName: "WorkModel")
         return context.safeFetch(request)
     }
 
     private func fetchAllStudents(context: NSManagedObjectContext) -> [CDStudent] {
-        let request = CDStudent.fetchRequest() as! NSFetchRequest<CDStudent>
+        let request = NSFetchRequest<CDStudent>(entityName: "Student")
         request.sortDescriptors = CDStudent.sortByName
         return context.safeFetch(request)
     }

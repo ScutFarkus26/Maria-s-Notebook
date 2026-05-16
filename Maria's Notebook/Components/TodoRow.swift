@@ -260,6 +260,15 @@ struct TodoRow: View {
         .onTapGesture {
             onEdit()
         }
+        .accessibilityAction(named: Text(todo.isCompleted ? "Mark Incomplete" : "Mark Complete")) {
+            onToggle()
+        }
+        .accessibilityAction(named: Text("Edit")) {
+            onEdit()
+        }
+        .accessibilityAction(named: Text("Delete")) {
+            onDelete()
+        }
         .contextMenu {
             Button { onEdit() } label: {
                 Label("Edit", systemImage: "pencil")

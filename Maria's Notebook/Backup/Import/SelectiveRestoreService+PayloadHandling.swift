@@ -56,7 +56,7 @@ extension SelectiveRestoreService {
         _ type: T.Type, key: String, idKeyPath: KeyPath<T, UUID?>, in context: NSManagedObjectContext
     ) {
         do {
-            let entities = try context.fetch(T.fetchRequest() as! NSFetchRequest<T>)
+            let entities = try context.fetch(NSFetchRequest<T>(entityName: T.entity().name ?? String(describing: T.self)))
             existingIDSets[key] = Set(entities.compactMap { $0[keyPath: idKeyPath] })
         } catch {
             let desc = error.localizedDescription
@@ -71,7 +71,7 @@ extension SelectiveRestoreService {
         _ type: T.Type, idKeyPath: KeyPath<T, UUID?>, in context: NSManagedObjectContext
     ) -> [UUID: T] {
         do {
-            let entities = try context.fetch(T.fetchRequest() as! NSFetchRequest<T>)
+            let entities = try context.fetch(NSFetchRequest<T>(entityName: T.entity().name ?? String(describing: T.self)))
             return Dictionary(uniqueKeysWithValues: entities.compactMap { e in
                 e[keyPath: idKeyPath].map { ($0, e) }
             })

@@ -1,6 +1,7 @@
 import SwiftUI
 import CoreData
 import Foundation
+import TipKit
 
 // MARK: - Helper Methods & General Sections
 
@@ -148,6 +149,7 @@ extension WorkDetailView {
                         .buttonStyle(.plain)
                     }
                 }
+                .popoverTip(WorkLifecycleTip(), arrowEdge: .top)
             }
 
             // Check-in style

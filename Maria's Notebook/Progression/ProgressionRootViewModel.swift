@@ -145,7 +145,7 @@ final class ProgressionRootViewModel {
     // MARK: - Data Fetching
 
     private func fetchAllLessons(context: NSManagedObjectContext) -> [CDLesson] {
-        let request = CDLesson.fetchRequest() as! NSFetchRequest<CDLesson>
+        let request = NSFetchRequest<CDLesson>(entityName: "Lesson")
         request.sortDescriptors = [
             NSSortDescriptor(keyPath: \CDLesson.subject, ascending: true),
             NSSortDescriptor(keyPath: \CDLesson.group, ascending: true),
@@ -155,17 +155,17 @@ final class ProgressionRootViewModel {
     }
 
     private func fetchPresentations(context: NSManagedObjectContext) -> [CDLessonAssignment] {
-        let descriptor = CDLessonAssignment.fetchRequest() as! NSFetchRequest<CDLessonAssignment>
+        let descriptor = NSFetchRequest<CDLessonAssignment>(entityName: "LessonAssignment")
         return context.safeFetch(descriptor)
     }
 
     private func fetchAllWork(context: NSManagedObjectContext) -> [CDWorkModel] {
-        let descriptor = CDWorkModel.fetchRequest() as! NSFetchRequest<CDWorkModel>
+        let descriptor = NSFetchRequest<CDWorkModel>(entityName: "WorkModel")
         return context.safeFetch(descriptor)
     }
 
     private func fetchAllStudents(context: NSManagedObjectContext) -> [CDStudent] {
-        let descriptor = { let r = CDStudent.fetchRequest() as! NSFetchRequest<CDStudent>; r.sortDescriptors = CDStudent.sortByName; return r }()
+        let descriptor = { let r = NSFetchRequest<CDStudent>(entityName: "Student"); r.sortDescriptors = CDStudent.sortByName; return r }()
         return context.safeFetch(descriptor)
     }
 }

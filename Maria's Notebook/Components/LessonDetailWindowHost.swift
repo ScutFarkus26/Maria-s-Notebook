@@ -10,7 +10,7 @@ struct LessonDetailWindowHost: View {
     @Environment(\.managedObjectContext) private var viewContext
 
     var body: some View {
-        let fetchDescriptor = { let r = CDLesson.fetchRequest() as! NSFetchRequest<CDLesson>; r.predicate = NSPredicate(format: "id == %@", lessonID as CVarArg); return r }()
+        let fetchDescriptor = { let r = NSFetchRequest<CDLesson>(entityName: "Lesson"); r.predicate = NSPredicate(format: "id == %@", lessonID as CVarArg); return r }()
         if let lesson = viewContext.safeFetchFirst(fetchDescriptor) {
             LessonDetailView(lesson: lesson, onSave: { _ in
                 // Save is handled by the view itself with SaveCoordinator

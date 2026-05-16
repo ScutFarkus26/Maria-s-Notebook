@@ -26,8 +26,9 @@ struct SyncStatusBadge: View {
                         .frame(width: 28, height: 28)
 
                     Image(systemName: syncService.syncHealth.icon)
-                        .font(.system(size: 12))
+                        .font(.caption)
                         .foregroundStyle(syncService.syncHealth.color)
+                        .symbolEffect(.pulse, options: .repeat(.continuous), isActive: syncService.isSyncing)
                 }
                 .frame(minWidth: 44, minHeight: 44)
                 .contentShape(Circle())

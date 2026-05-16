@@ -16,6 +16,7 @@ import SwiftUI
 import CoreData
 import UniformTypeIdentifiers
 import OSLog
+import TipKit
 #if os(iOS)
 import MessageUI
 import UIKit
@@ -53,6 +54,10 @@ struct TodayView: View {
 
     // MARK: - Toast State
     @State var toastMessage: String?
+
+    #if os(iOS)
+    private let pullToRefreshTip = PullToRefreshTip()
+    #endif
 
     // MARK: - Meeting State
     @State var selectedMeetingStudentID: UUID?
@@ -217,8 +222,12 @@ struct TodayView: View {
         twoColumnLayout
         #else
         List {
+            TipView(pullToRefreshTip)
+                .listRowBackground(Color.clear)
+                .listRowInsets(EdgeInsets())
             // What's next, then today's surfaces
             rightNowListSection
+            deadlinesListSection
             dayCardsListSection
             agendaListSection
             todosListSection
@@ -232,6 +241,7 @@ struct TodayView: View {
         .refreshable {
             viewModel.reload()
             reloadDerivedCounts()
+            pullToRefreshTip.invalidate(reason: .actionPerformed)
         }
         #endif
     }
@@ -242,6 +252,7 @@ struct TodayView: View {
             // Left column: glanceable surfaces; Right column: live agenda
             List {
                 rightNowListSection
+                deadlinesListSection
                 dayCardsListSection
                 todosListSection
                 calendarEventsListSection
@@ -308,13 +319,21 @@ struct TodayView: View {
                 let next = nextSchoolDaySync(after: viewModel.date)
                 viewModel.date = AppCalendar.startOfDay(next)
             } label: { Image(systemName: "chevron.right") }
+        }
 
+        ToolbarSpacer(.flexible, placement: .topBarTrailing)
+
+        ToolbarItem(placement: .topBarTrailing) {
             Button("Today") {
                 let today = Date()
                 let coerced = nearestSchoolDaySync(to: today)
                 viewModel.date = AppCalendar.startOfDay(coerced)
             }
+        }
 
+        ToolbarSpacer(.fixed, placement: .topBarTrailing)
+
+        ToolbarItem(placement: .topBarTrailing) {
             toolbarPlusMenu
         }
     }

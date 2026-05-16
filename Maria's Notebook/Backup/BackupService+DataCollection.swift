@@ -250,6 +250,8 @@ extension BackupService {
             CDMeetingWorkReview.self, using: viewContext) { BackupDTOTransformers.toDTOs($0) }
         payload.studentFocusItems = fetchAndTransformInBatches(
             CDStudentFocusItem.self, using: viewContext) { BackupDTOTransformers.toDTOs($0) }
+        payload.initiatives = fetchAndTransformInBatches(
+            CDInitiative.self, using: viewContext) { BackupDTOTransformers.toDTOs($0) }
     }
 
     // MARK: - Encode & Write
@@ -397,7 +399,8 @@ extension BackupService {
             "ScheduledMeeting": payload.scheduledMeetings?.count ?? 0,
             "ClassroomMembership": payload.classroomMemberships?.count ?? 0,
             "MeetingWorkReview": payload.meetingWorkReviews?.count ?? 0,
-            "StudentFocusItem": payload.studentFocusItems?.count ?? 0
+            "StudentFocusItem": payload.studentFocusItems?.count ?? 0,
+            "Initiative": payload.initiatives?.count ?? 0
         ]
     }
 
@@ -417,7 +420,7 @@ extension BackupService {
         while true {
             // Use autoreleasepool to release each batch's memory after processing
             let batch: [T]? = autoreleasepool {
-                let descriptor = T.fetchRequest() as! NSFetchRequest<T>
+                let descriptor = NSFetchRequest<T>(entityName: T.entity().name ?? String(describing: T.self))
                 descriptor.fetchOffset = offset
                 descriptor.fetchLimit = batchSize
                 do {
@@ -477,7 +480,7 @@ extension BackupService {
         while true {
             // Fetch, transform, and release in one autoreleasepool
             let dtos: [DTO]? = autoreleasepool {
-                let descriptor = T.fetchRequest() as! NSFetchRequest<T>
+                let descriptor = NSFetchRequest<T>(entityName: T.entity().name ?? String(describing: T.self))
                 descriptor.fetchOffset = offset
                 descriptor.fetchLimit = batchSize
 

@@ -16,7 +16,7 @@ extension BackupDiffService {
     ) -> EntityDiff {
         let currentStudents: [CDStudent]
         do {
-            currentStudents = try viewContext.fetch(CDStudent.fetchRequest() as! NSFetchRequest<CDStudent>)
+            currentStudents = try viewContext.fetch(NSFetchRequest<CDStudent>(entityName: "Student"))
         } catch {
             Self.logger.warning("Failed to fetch current students: \(error.localizedDescription, privacy: .public)")
             currentStudents = []
@@ -95,7 +95,7 @@ extension BackupDiffService {
     ) -> EntityDiff {
         let currentLessons: [CDLesson]
         do {
-            currentLessons = try viewContext.fetch(CDLesson.fetchRequest() as! NSFetchRequest<CDLesson>)
+            currentLessons = try viewContext.fetch(NSFetchRequest<CDLesson>(entityName: "Lesson"))
         } catch {
             Self.logger.warning("Failed to fetch current lessons: \(error.localizedDescription, privacy: .public)")
             currentLessons = []
@@ -164,7 +164,7 @@ extension BackupDiffService {
     ) -> EntityDiff {
         let current: [CDNote]
         do {
-            current = try viewContext.fetch(CDNote.fetchRequest() as! NSFetchRequest<CDNote>)
+            current = try viewContext.fetch(NSFetchRequest<CDNote>(entityName: "Note"))
         } catch {
             Self.logger.warning("Failed to fetch current notes: \(error.localizedDescription, privacy: .public)")
             current = []
@@ -224,14 +224,14 @@ extension BackupDiffService {
         let currentNSD: [CDNonSchoolDay]
         let currentOvr: [CDSchoolDayOverride]
         do {
-            currentNSD = try viewContext.fetch(CDNonSchoolDay.fetchRequest() as! NSFetchRequest<CDNonSchoolDay>)
+            currentNSD = try viewContext.fetch(NSFetchRequest<CDNonSchoolDay>(entityName: "NonSchoolDay"))
         } catch {
             let desc = error.localizedDescription
             Self.logger.warning("Failed to fetch current non-school days: \(desc, privacy: .public)")
             currentNSD = []
         }
         do {
-            currentOvr = try viewContext.fetch(CDSchoolDayOverride.fetchRequest() as! NSFetchRequest<CDSchoolDayOverride>)
+            currentOvr = try viewContext.fetch(NSFetchRequest<CDSchoolDayOverride>(entityName: "SchoolDayOverride"))
         } catch {
             let desc = error.localizedDescription
             Self.logger.warning("Failed to fetch current school day overrides: \(desc, privacy: .public)")
@@ -286,7 +286,7 @@ extension BackupDiffService {
     ) -> EntityDiff {
         let current: [CDProject]
         do {
-            current = try viewContext.fetch(CDProject.fetchRequest() as! NSFetchRequest<CDProject>)
+            current = try viewContext.fetch(NSFetchRequest<CDProject>(entityName: "Project"))
         } catch {
             let desc = error.localizedDescription
             Self.logger.warning("Failed to fetch current projects: \(desc, privacy: .public)")
@@ -327,7 +327,7 @@ extension BackupDiffService {
     ) -> EntityDiff {
         let current: [CDAttendanceRecord]
         do {
-            current = try viewContext.fetch(CDAttendanceRecord.fetchRequest() as! NSFetchRequest<CDAttendanceRecord>)
+            current = try viewContext.fetch(NSFetchRequest<CDAttendanceRecord>(entityName: "AttendanceRecord"))
         } catch {
             let desc = error.localizedDescription
             Self.logger.warning("Failed to fetch current attendance records: \(desc, privacy: .public)")

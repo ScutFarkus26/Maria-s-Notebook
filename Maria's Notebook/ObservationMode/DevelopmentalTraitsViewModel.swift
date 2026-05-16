@@ -33,7 +33,7 @@ final class DevelopmentalTraitsViewModel {
         isLoading = true
         defer { isLoading = false }
 
-        let descriptor = { let r = CDNote.fetchRequest() as! NSFetchRequest<CDNote>; r.sortDescriptors = [NSSortDescriptor(keyPath: \CDNote.createdAt, ascending: false)]; return r }()
+        let descriptor = { let r = NSFetchRequest<CDNote>(entityName: "Note"); r.sortDescriptors = [NSSortDescriptor(keyPath: \CDNote.createdAt, ascending: false)]; return r }()
         let allNotes = context.safeFetch(descriptor)
         let range = timeRange.dateRange(from: Date())
         let traitNotes = filterTraitNotes(from: allNotes, studentID: studentID, range: range)

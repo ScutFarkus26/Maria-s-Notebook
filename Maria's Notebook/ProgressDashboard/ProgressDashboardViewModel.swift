@@ -289,11 +289,11 @@ final class ProgressDashboardViewModel {
     // MARK: - Fetching
 
     private func fetchAllStudents(context: NSManagedObjectContext) -> [CDStudent] {
-        context.safeFetch({ let r = CDStudent.fetchRequest() as! NSFetchRequest<CDStudent>; r.sortDescriptors = CDStudent.sortByName; return r }()).filterEnrolled()
+        context.safeFetch({ let r = NSFetchRequest<CDStudent>(entityName: "Student"); r.sortDescriptors = CDStudent.sortByName; return r }()).filterEnrolled()
     }
 
     private func fetchAllLessons(context: NSManagedObjectContext) -> [CDLesson] {
-        let request = CDLesson.fetchRequest() as! NSFetchRequest<CDLesson>
+        let request = NSFetchRequest<CDLesson>(entityName: "Lesson")
         request.sortDescriptors = [
             NSSortDescriptor(keyPath: \CDLesson.subject, ascending: true),
             NSSortDescriptor(keyPath: \CDLesson.group, ascending: true),
@@ -303,11 +303,11 @@ final class ProgressDashboardViewModel {
     }
 
     private func fetchAllAssignments(context: NSManagedObjectContext) -> [CDLessonAssignment] {
-        context.safeFetch(CDLessonAssignment.fetchRequest() as! NSFetchRequest<CDLessonAssignment>)
+        context.safeFetch(NSFetchRequest<CDLessonAssignment>(entityName: "LessonAssignment"))
     }
 
     private func fetchAllWork(context: NSManagedObjectContext) -> [CDWorkModel] {
-        context.safeFetch(CDWorkModel.fetchRequest() as! NSFetchRequest<CDWorkModel>)
+        context.safeFetch(NSFetchRequest<CDWorkModel>(entityName: "WorkModel"))
     }
 }
 

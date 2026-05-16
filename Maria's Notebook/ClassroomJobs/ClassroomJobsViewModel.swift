@@ -35,11 +35,11 @@ final class ClassroomJobsViewModel {
     }
 
     func loadData(context: NSManagedObjectContext) {
-        let jobDescriptor: NSFetchRequest<CDClassroomJob> = CDClassroomJob.fetchRequest() as! NSFetchRequest<CDClassroomJob>
+        let jobDescriptor: NSFetchRequest<CDClassroomJob> = NSFetchRequest<CDClassroomJob>(entityName: "ClassroomJob")
         jobDescriptor.sortDescriptors = [NSSortDescriptor(keyPath: \CDClassroomJob.sortOrder, ascending: true)]
         jobs = context.safeFetch(jobDescriptor)
 
-        let studentDescriptor = { let r = CDStudent.fetchRequest() as! NSFetchRequest<CDStudent>; r.sortDescriptors = CDStudent.sortByName; return r }()
+        let studentDescriptor = { let r = NSFetchRequest<CDStudent>(entityName: "Student"); r.sortDescriptors = CDStudent.sortByName; return r }()
         students = TestStudentsFilter.filterVisible(context.safeFetch(studentDescriptor).filterEnrolled())
 
         loadCurrentAssignments(context: context)
@@ -48,7 +48,7 @@ final class ClassroomJobsViewModel {
     private func loadCurrentAssignments(context: NSManagedObjectContext) {
         let weekStart = currentWeekStart
         let weekEnd = Calendar.current.date(byAdding: .day, value: 7, to: weekStart) ?? weekStart
-        let descriptor: NSFetchRequest<CDJobAssignment> = CDJobAssignment.fetchRequest() as! NSFetchRequest<CDJobAssignment>
+        let descriptor: NSFetchRequest<CDJobAssignment> = NSFetchRequest<CDJobAssignment>(entityName: "JobAssignment")
         descriptor.predicate = NSPredicate(format: "weekStartDate >= %@ AND weekStartDate < %@", weekStart as CVarArg, weekEnd as CVarArg)
         let assignments = context.safeFetch(descriptor)
         currentAssignments = [:]
@@ -144,7 +144,7 @@ final class ClassroomJobsViewModel {
 
     private func fetchLastWeekMap(context: NSManagedObjectContext, weekStart: Date) -> [String: [String]] {
         let lastWeekStart = Calendar.current.date(byAdding: .day, value: -7, to: weekStart) ?? weekStart
-        let descriptor: NSFetchRequest<CDJobAssignment> = CDJobAssignment.fetchRequest() as! NSFetchRequest<CDJobAssignment>
+        let descriptor: NSFetchRequest<CDJobAssignment> = NSFetchRequest<CDJobAssignment>(entityName: "JobAssignment")
         descriptor.predicate = NSPredicate(format: "weekStartDate >= %@ AND weekStartDate < %@", lastWeekStart as CVarArg, weekStart as CVarArg)
         var map: [String: [String]] = [:]
         for assignment in context.safeFetch(descriptor) {
@@ -155,7 +155,7 @@ final class ClassroomJobsViewModel {
 
     private func clearCurrentWeekAssignments(context: NSManagedObjectContext, weekStart: Date) {
         let weekEnd = Calendar.current.date(byAdding: .day, value: 7, to: weekStart) ?? weekStart
-        let descriptor: NSFetchRequest<CDJobAssignment> = CDJobAssignment.fetchRequest() as! NSFetchRequest<CDJobAssignment>
+        let descriptor: NSFetchRequest<CDJobAssignment> = NSFetchRequest<CDJobAssignment>(entityName: "JobAssignment")
         descriptor.predicate = NSPredicate(format: "weekStartDate >= %@ AND weekStartDate < %@", weekStart as CVarArg, weekEnd as CVarArg)
         for existing in context.safeFetch(descriptor) {
             context.delete(existing)

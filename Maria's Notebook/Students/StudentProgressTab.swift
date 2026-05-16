@@ -138,7 +138,9 @@ struct StudentProgressTab: View {
     // MARK: - Insights Link
 
     private var insightsLink: some View {
-        NavigationLink(destination: StudentInsightsView(student: student)) {
+        NavigationLink {
+            StudentInsightsView(student: student)
+        } label: {
             HStack(spacing: 16) {
                 Image(systemName: "brain.head.profile")
                     .font(.system(size: 32))

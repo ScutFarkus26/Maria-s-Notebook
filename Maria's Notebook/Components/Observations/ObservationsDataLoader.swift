@@ -23,7 +23,7 @@ enum ObservationsDataLoader {
         var allItems: [UnifiedObservationItem] = []
 
         do {
-            let noteFetch = { let r = CDNote.fetchRequest() as! NSFetchRequest<CDNote>; r.sortDescriptors = [NSSortDescriptor(keyPath: \CDNote.createdAt, ascending: false)]; return r }()
+            let noteFetch = { let r = NSFetchRequest<CDNote>(entityName: "Note"); r.sortDescriptors = [NSSortDescriptor(keyPath: \CDNote.createdAt, ascending: false)]; return r }()
             let notes: [CDNote] = try context.fetch(noteFetch)
             for note in notes {
                 // Skip notes with empty body and no image (e.g., leftover from check-in migrations)
@@ -78,7 +78,7 @@ enum ObservationsDataLoader {
         // so we fetch all and filter in memory
         let allStudents: [CDStudent]
         do {
-            allStudents = try context.fetch(CDStudent.fetchRequest() as! NSFetchRequest<CDStudent>).filterEnrolled()
+            allStudents = try context.fetch(NSFetchRequest<CDStudent>(entityName: "Student")).filterEnrolled()
         } catch {
             logger.warning("Failed to fetch students: \(error)")
             allStudents = []

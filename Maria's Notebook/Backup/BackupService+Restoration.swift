@@ -697,10 +697,18 @@ extension BackupService {
                 into: viewContext
             )
         }
+
+        if let initiatives = payload.initiatives {
+            try BackupEntityImporter.importInitiatives(
+                initiatives,
+                into: viewContext,
+                existingCheck: { try fetchOne(CDInitiative.self, id: $0, using: viewContext) }
+            )
+        }
     }
 
     private func repairDenormalizedFields(viewContext: NSManagedObjectContext) throws {
-        let assignmentsForRepair = try viewContext.fetch(CDLessonAssignment.fetchRequest() as! NSFetchRequest<CDLessonAssignment>)
+        let assignmentsForRepair = try viewContext.fetch(NSFetchRequest<CDLessonAssignment>(entityName: "LessonAssignment"))
         var repairedCount = 0
         for la in assignmentsForRepair {
             let correct = la.scheduledFor.map { AppCalendar.startOfDay($0) } ?? Date.distantPast

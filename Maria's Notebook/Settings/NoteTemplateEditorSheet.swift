@@ -17,6 +17,7 @@ struct NoteTemplateEditorSheet: View {
     @State private var bodyText: String = ""
     @State private var tags: [String] = []
     @State private var showingTagPicker: Bool = false
+    @State private var saveTrigger = 0
 
     private var isEditing: Bool { template != nil }
 
@@ -106,6 +107,7 @@ struct NoteTemplateEditorSheet: View {
                     .disabled(!canSave)
                 }
             }
+            .sensoryFeedback(.success, trigger: saveTrigger)
         }
         #if os(iOS)
         .presentationDetents([.medium, .large])
@@ -155,6 +157,7 @@ struct NoteTemplateEditorSheet: View {
 
         do {
             try viewContext.save()
+            saveTrigger &+= 1
         } catch {
             Self.logger.warning("Failed to save note template: \(error, privacy: .public)")
         }

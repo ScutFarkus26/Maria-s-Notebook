@@ -207,7 +207,7 @@ class SettingsStatsViewModel {
         context: NSManagedObjectContext
     ) -> Int {
         // NSManagedObjectContext must be accessed on MainActor
-        let descriptor = T.fetchRequest() as! NSFetchRequest<T>
+        let descriptor = NSFetchRequest<T>(entityName: T.entity().name ?? String(describing: T.self))
         // CDNote: SwiftData doesn't have direct count, so we fetch and count
         // For large datasets, this could be optimized further with sampling
         return context.safeFetch(descriptor).count

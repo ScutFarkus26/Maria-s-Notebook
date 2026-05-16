@@ -198,7 +198,7 @@ enum BackupSizeEstimator {
         guard model?.entitiesByName.values.contains(where: { $0.managedObjectClassName == NSStringFromClass(T.self) }) == true else {
             return 0
         }
-        let descriptor = T.fetchRequest() as! NSFetchRequest<T>
+        let descriptor = NSFetchRequest<T>(entityName: T.entity().name ?? String(describing: T.self))
         do {
             return try context.count(for: descriptor)
         } catch {

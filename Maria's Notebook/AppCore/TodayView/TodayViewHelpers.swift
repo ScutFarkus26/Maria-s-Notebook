@@ -123,7 +123,7 @@ extension TodayView {
         let store = CDAttendanceStore(context: viewContext, calendar: calendar)
 
         do {
-            let fetchRequest: NSFetchRequest<CDAttendanceRecord> = CDAttendanceRecord.fetchRequest() as! NSFetchRequest<CDAttendanceRecord>
+            let fetchRequest: NSFetchRequest<CDAttendanceRecord> = NSFetchRequest<CDAttendanceRecord>(entityName: "AttendanceRecord")
             fetchRequest.predicate = NSPredicate(format: "studentID == %@ AND date == %@", studentID.uuidString, day as NSDate)
             fetchRequest.fetchLimit = 1
 
@@ -157,7 +157,7 @@ extension TodayView {
 
         // Fetch or create the attendance record
         do {
-            let fetchRequest: NSFetchRequest<CDAttendanceRecord> = CDAttendanceRecord.fetchRequest() as! NSFetchRequest<CDAttendanceRecord>
+            let fetchRequest: NSFetchRequest<CDAttendanceRecord> = NSFetchRequest<CDAttendanceRecord>(entityName: "AttendanceRecord")
             fetchRequest.predicate = NSPredicate(format: "studentID == %@ AND date == %@", studentID.uuidString, day as NSDate)
             fetchRequest.fetchLimit = 1
 
@@ -240,7 +240,7 @@ extension TodayView {
 
         // Fetch filtered CDLessonAssignment IDs
         do {
-            let fetchRequest: NSFetchRequest<CDLessonAssignment> = CDLessonAssignment.fetchRequest() as! NSFetchRequest<CDLessonAssignment>
+            let fetchRequest: NSFetchRequest<CDLessonAssignment> = NSFetchRequest<CDLessonAssignment>(entityName: "LessonAssignment")
             fetchRequest.predicate = NSPredicate(format: "scheduledForDay >= %@ AND scheduledForDay < %@", dayStart as NSDate, dayEnd as NSDate)
             fetchRequest.sortDescriptors = [NSSortDescriptor(keyPath: \CDLessonAssignment.id, ascending: true)]
             let lessons = try viewContext.fetch(fetchRequest)
@@ -253,7 +253,7 @@ extension TodayView {
         // Uses CDWorkCheckIn for scheduled work check-ins
         do {
             let scheduledStatus = WorkCheckInStatus.scheduled.rawValue
-            let fetchRequest: NSFetchRequest<CDWorkCheckIn> = CDWorkCheckIn.fetchRequest() as! NSFetchRequest<CDWorkCheckIn>
+            let fetchRequest: NSFetchRequest<CDWorkCheckIn> = NSFetchRequest<CDWorkCheckIn>(entityName: "WorkCheckIn")
             fetchRequest.predicate = NSPredicate(format: "statusRaw == %@ AND date <= %@", scheduledStatus, dayEnd as NSDate)
             fetchRequest.sortDescriptors = [NSSortDescriptor(keyPath: \CDWorkCheckIn.id, ascending: true)]
             let checkIns = try viewContext.fetch(fetchRequest)

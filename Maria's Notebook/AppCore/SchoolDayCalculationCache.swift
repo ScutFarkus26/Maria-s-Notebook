@@ -43,10 +43,10 @@ final class SchoolDayCalculationCache {
         let endDay = calendar.startOfDay(for: end)
         
         // Fetch all non-school days in range
-        let nonSchoolFetch: NSFetchRequest<CDNonSchoolDay> = CDNonSchoolDay.fetchRequest() as! NSFetchRequest<CDNonSchoolDay>
+        let nonSchoolFetch: NSFetchRequest<CDNonSchoolDay> = NSFetchRequest<CDNonSchoolDay>(entityName: "NonSchoolDay")
         nonSchoolFetch.predicate = NSPredicate(format: "date >= %@ AND date <= %@", startDay as NSDate, endDay as NSDate)
 
-        let overridesFetch: NSFetchRequest<CDSchoolDayOverride> = CDSchoolDayOverride.fetchRequest() as! NSFetchRequest<CDSchoolDayOverride>
+        let overridesFetch: NSFetchRequest<CDSchoolDayOverride> = NSFetchRequest<CDSchoolDayOverride>(entityName: "SchoolDayOverride")
         overridesFetch.predicate = NSPredicate(format: "date >= %@ AND date <= %@", startDay as NSDate, endDay as NSDate)
 
         let nonSchoolDays: [CDNonSchoolDay]

@@ -80,7 +80,7 @@ enum BackupPreviewAnalyzer {
                 return 0
             }
             do {
-                return try viewContext.fetch(T.fetchRequest() as! NSFetchRequest<T>).count
+                return try viewContext.fetch(NSFetchRequest<T>(entityName: T.entity().name ?? String(describing: T.self))).count
             } catch {
                 logger.warning("Failed to count \(T.self): \(error)")
                 return 0
@@ -151,7 +151,7 @@ enum BackupPreviewAnalyzer {
         // Build lesson lookup sets for presentation/assignment analysis
         let lessonsInStore: Set<UUID>
         do {
-            lessonsInStore = Set(try viewContext.fetch(CDLesson.fetchRequest() as! NSFetchRequest<CDLesson>).compactMap(\.id))
+            lessonsInStore = Set(try viewContext.fetch(NSFetchRequest<CDLesson>(entityName: "Lesson")).compactMap(\.id))
         } catch {
             logger.warning("Failed to fetch lessons: \(error)")
             lessonsInStore = Set()

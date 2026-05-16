@@ -84,7 +84,7 @@ extension SelectiveRestoreService {
         let newLessons = payload.lessons.filter { !existingLessonIDs.contains($0.id) }
         // Refresh lesson cache for subsequent imports
         do {
-            let allLessons = try viewContext.fetch(CDLesson.fetchRequest() as! NSFetchRequest<CDLesson>)
+            let allLessons = try viewContext.fetch(NSFetchRequest<CDLesson>(entityName: "Lesson"))
             lessonsByID = Dictionary(uniqueKeysWithValues: allLessons.compactMap { l in l.id.map { ($0, l) } })
         } catch {
             Self.logger.warning("Failed to refresh lesson cache: \(error.localizedDescription, privacy: .public)")
@@ -152,7 +152,7 @@ extension SelectiveRestoreService {
         )
         // Refresh topic cache for subsequent imports
         do {
-            let allTopics = try viewContext.fetch(CDCommunityTopicEntity.fetchRequest() as! NSFetchRequest<CDCommunityTopicEntity>)
+            let allTopics = try viewContext.fetch(NSFetchRequest<CDCommunityTopicEntity>(entityName: "CommunityTopic"))
             topicsByID = Dictionary(uniqueKeysWithValues: allTopics.compactMap { t in t.id.map { ($0, t) } })
         } catch {
             Self.logger.warning("Failed to refresh topic cache: \(error.localizedDescription, privacy: .public)")

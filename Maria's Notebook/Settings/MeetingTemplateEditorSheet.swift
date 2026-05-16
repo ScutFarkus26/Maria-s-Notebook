@@ -18,6 +18,7 @@ struct MeetingTemplateEditorSheet: View {
     @State private var focusPromptText: String = ""
     @State private var requestsPromptText: String = ""
     @State private var guideNotesPromptText: String = ""
+    @State private var saveTrigger = 0
 
     private var isEditing: Bool { template != nil }
 
@@ -102,6 +103,7 @@ struct MeetingTemplateEditorSheet: View {
                     .disabled(!canSave)
                 }
             }
+            .sensoryFeedback(.success, trigger: saveTrigger)
         }
         #if os(iOS)
         .presentationDetents([.medium, .large])
@@ -162,6 +164,7 @@ struct MeetingTemplateEditorSheet: View {
 
         do {
             try viewContext.save()
+            saveTrigger &+= 1
         } catch {
             Self.logger.warning("Failed to save meeting template: \(error, privacy: .public)")
         }

@@ -163,8 +163,9 @@ struct ProjectDetailView: View {
                                 let sorted = sessionsArray
                                     .sorted { ($0.meetingDate ?? .distantPast) > ($1.meetingDate ?? .distantPast) }
                                 ForEach(sorted, id: \.objectID) { session in
-                                    NavigationLink(destination: ProjectSessionDetailView(session: session)) {
-                                        // Use subview to correctly query work count
+                                    NavigationLink {
+                                        ProjectSessionDetailView(session: session)
+                                    } label: {
                                         SessionRow(session: session)
                                     }
                                     .buttonStyle(.plain)

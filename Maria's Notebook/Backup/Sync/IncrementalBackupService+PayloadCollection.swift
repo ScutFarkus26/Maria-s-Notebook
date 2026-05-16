@@ -85,7 +85,7 @@ extension IncrementalBackupService {
         changedCounts: inout [String: Int],
         totalCounts: inout [String: Int]
     ) -> [T] {
-        let descriptor = T.fetchRequest() as! NSFetchRequest<T>
+        let descriptor = NSFetchRequest<T>(entityName: T.entity().name ?? String(describing: T.self))
         let all: [T]
         do {
             all = try viewContext.fetch(descriptor)
@@ -118,7 +118,7 @@ extension IncrementalBackupService {
         // Notes need special handling since updatedAt is non-optional
         let allNotes: [CDNote]
         do {
-            allNotes = try viewContext.fetch(CDNote.fetchRequest() as! NSFetchRequest<CDNote>)
+            allNotes = try viewContext.fetch(NSFetchRequest<CDNote>(entityName: "Note"))
         } catch {
             Self.logger.warning("Failed to fetch CDNote: \(error.localizedDescription, privacy: .public)")
             allNotes = []

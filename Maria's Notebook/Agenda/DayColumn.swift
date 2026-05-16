@@ -64,7 +64,7 @@ struct DayColumn: View {
     }
 
     private func hasNonSchoolDay(on day: Date) -> Bool {
-        let request: NSFetchRequest<CDNonSchoolDay> = CDNonSchoolDay.fetchRequest() as! NSFetchRequest<CDNonSchoolDay>
+        let request: NSFetchRequest<CDNonSchoolDay> = NSFetchRequest<CDNonSchoolDay>(entityName: "NonSchoolDay")
         request.predicate = NSPredicate(format: "date == %@", day as CVarArg)
         request.fetchLimit = 1
         do {
@@ -76,7 +76,7 @@ struct DayColumn: View {
     }
 
     private func hasSchoolDayOverride(on day: Date) -> Bool {
-        let request: NSFetchRequest<CDSchoolDayOverride> = CDSchoolDayOverride.fetchRequest() as! NSFetchRequest<CDSchoolDayOverride>
+        let request: NSFetchRequest<CDSchoolDayOverride> = NSFetchRequest<CDSchoolDayOverride>(entityName: "SchoolDayOverride")
         request.predicate = NSPredicate(format: "date == %@", day as CVarArg)
         request.fetchLimit = 1
         do {
@@ -104,6 +104,8 @@ struct DayColumn: View {
                         .foregroundStyle(AppColors.destructive)
                 }
             }
+            .accessibilityElement(children: .combine)
+            .accessibilityAddTraits(.isHeader)
             .padding(.bottom, 2)
 
             ScrollView(.vertical, showsIndicators: false) {
