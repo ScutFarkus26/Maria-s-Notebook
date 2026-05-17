@@ -29,6 +29,12 @@ final class PresentationsViewModel {
         self.cachedLessons
     }
 
+    /// Lookup dictionary rebuilt during `updateAsync` so filter/sort paths don't re-allocate.
+    var lessonsByIDCache: [UUID: CDLesson] = [:]
+
+    /// Lookup dictionary rebuilt during `updateAsync` so filter/sort paths don't re-allocate.
+    var studentsByIDCache: [UUID: CDStudent] = [:]
+
     // MARK: - Dependencies
     var viewContext: NSManagedObjectContext?
     var calendar: Calendar = .current
@@ -37,7 +43,9 @@ final class PresentationsViewModel {
     private var lastUpdateDate: Date?
     private var cachedLessons: [CDLesson] = []
     private var cachedWorkModels: [CDWorkModel] = []
-    private var cachedLessonAssignments: [CDLessonAssignment] = []
+    /// All non-given lesson assignments cached during update — used by chip-filter
+    /// slices like `overdueReady` and `recentlyMissed`.
+    var cachedLessonAssignments: [CDLessonAssignment] = []
     private var cachedStudentsStorage: [CDStudent] = []
 
     // PERFORMANCE: CDTrackEntity pending update for cancellation
@@ -189,6 +197,16 @@ final class PresentationsViewModel {
             students.filterEnrolled(), show: showTestStudents, namesRaw: testStudentNamesRaw
         )
         cachedStudentsStorage = visibleStudents
+
+        // Rebuild lookup caches once per update so filter/sort paths are O(1) per access.
+        lessonsByIDCache = Dictionary(
+            lessons.compactMap { guard let id = $0.id else { return nil }; return (id, $0) },
+            uniquingKeysWith: { first, _ in first }
+        )
+        studentsByIDCache = Dictionary(
+            visibleStudents.compactMap { guard let id = $0.id else { return nil }; return (id, $0) },
+            uniquingKeysWith: { first, _ in first }
+        )
 
         // Count open work items per student for suggest-next scoring
         var workCounts: [UUID: Int] = [:]

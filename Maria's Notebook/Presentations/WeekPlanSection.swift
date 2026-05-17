@@ -1,23 +1,23 @@
-// PresentationsCalendarStrip.swift
-// Calendar strip section extracted from PresentationsView
+// WeekPlanSection.swift
+// Bottom planning area: the horizontally scrolling week of day columns.
 
 import SwiftUI
 import CoreData
 import OSLog
 
-struct PresentationsCalendarStrip: View {
+struct WeekPlanSection: View {
     private static let logger = Logger.presentations
     let days: [Date]
     @Binding var startDate: Date
     let isNonSchool: (Date) -> Bool
     let onClear: (CDLessonAssignment) -> Void
     let onSelect: (CDLessonAssignment) -> Void
-    
+
     @Environment(\.calendar) private var calendar
     @Environment(\.managedObjectContext) private var viewContext
-    
+
     @FetchRequest(sortDescriptors: []) private var lessonAssignments: FetchedResults<CDLessonAssignment>
-    
+
     @AppStorage(UserDefaultsKeys.presentationsCalendarShowWork) private var showWork: Bool = true
 
     // OPTIMIZATION: Cache work items in @State instead of fetching in a computed property.
@@ -43,7 +43,7 @@ struct PresentationsCalendarStrip: View {
             cachedWorkItems = []
         }
     }
-    
+
     // Find the earliest date with a scheduled lesson (including past dates)
     private var earliestDateWithLesson: Date? {
         let scheduledDates = lessonAssignments.compactMap { la -> Date? in
@@ -53,20 +53,30 @@ struct PresentationsCalendarStrip: View {
         return scheduledDates.min()
     }
 
+    /// Human-readable range covering the currently visible school days.
+    /// Falls back to a single-day label when the range collapses.
+    private var dateRangeLabel: String {
+        guard let first = days.first, let last = days.last else { return "" }
+        let format = Date.FormatStyle().month(.abbreviated).day().year()
+        let shortFormat = Date.FormatStyle().month(.abbreviated).day()
+        if calendar.isDate(first, inSameDayAs: last) {
+            return first.formatted(format)
+        }
+        let sameYear = calendar.component(.year, from: first) == calendar.component(.year, from: last)
+        let startText = sameYear ? first.formatted(shortFormat) : first.formatted(format)
+        let endText = last.formatted(format)
+        return "\(startText) – \(endText)"
+    }
+
     var body: some View {
         ScrollViewReader { proxy in
             VStack(spacing: 6) {
-                HStack(spacing: 8) {
-                    Button {
-                        moveStart(bySchoolDays: -UIConstants.planningNavigationStepSchoolDays)
-                    } label: { Image(systemName: "chevron.left") }
-                        .buttonStyle(.plain)
-                    Spacer()
+                HStack(spacing: 10) {
                     Button("Today") {
                         let targetDate = AgendaSchoolDayRules.computeInitialStartDate(
                             calendar: calendar, isNonSchoolDay: isNonSchool
                         )
-                        
+
                         // If we are already grounded on the correct start date, just scroll to it.
                         // Otherwise, update startDate, which will trigger the onChange below.
                         if calendar.isDate(targetDate, inSameDayAs: startDate) {
@@ -79,13 +89,43 @@ struct PresentationsCalendarStrip: View {
                             startDate = targetDate
                         }
                     }
-                    .buttonStyle(.plain)
-                    Spacer()
+                    .buttonStyle(.bordered)
+                    .controlSize(.small)
+
+                    Button {
+                        moveStart(bySchoolDays: -UIConstants.planningNavigationStepSchoolDays)
+                    } label: { Image(systemName: "chevron.left") }
+                        .buttonStyle(.plain)
+                        .help("Previous week")
+
+                    Text(dateRangeLabel)
+                        .font(.subheadline.weight(.medium))
+                        .foregroundStyle(.primary)
+                        .frame(minWidth: 180)
+                        .multilineTextAlignment(.center)
+
                     Button {
                         moveStart(bySchoolDays: UIConstants.planningNavigationStepSchoolDays)
                     } label: { Image(systemName: "chevron.right") }
                         .buttonStyle(.plain)
-                    
+                        .help("Next week")
+
+                    Spacer()
+
+                    Menu {
+                        Button {
+                            // Currently the only mode. Placeholder for future "Day" / "2 weeks".
+                        } label: {
+                            Label("Week", systemImage: "checkmark")
+                        }
+                    } label: {
+                        Label("Weekly View", systemImage: "chevron.down")
+                            .labelStyle(.titleAndIcon)
+                            .font(.caption.weight(.medium))
+                    }
+                    .menuStyle(.borderlessButton)
+                    .fixedSize()
+
                     Button {
                         showWork.toggle()
                     } label: {
@@ -96,7 +136,7 @@ struct PresentationsCalendarStrip: View {
                     .help(showWork ? "Hide work items" : "Show work items")
                 }
                 .padding(.horizontal, 12)
-                
+
                 HStack(spacing: 16) {
                     Spacer()
                     Button {
@@ -134,7 +174,7 @@ struct PresentationsCalendarStrip: View {
                 ScrollView(.horizontal, showsIndicators: false) {
                     LazyHStack(alignment: .top, spacing: 12) {
                         ForEach(days, id: \.self) { day in
-                            PresentationsDayColumn(
+                            WeekDayColumn(
                                 day: day,
                                 allLessonAssignments: Array(lessonAssignments),
                                 showWork: showWork,
@@ -203,7 +243,7 @@ struct PresentationsCalendarStrip: View {
         }
         startDate = cursor
     }
-    
+
     private func clearAllScheduledLessonsToInbox() async {
         let scheduledLessons = lessonAssignments.filter { la in
             la.scheduledFor != nil && !la.isGiven
@@ -227,16 +267,16 @@ struct PresentationsCalendarStrip: View {
         let scheduledLessons = lessonAssignments.filter { la in
             la.scheduledFor != nil && !la.isGiven
         }
-        
+
         guard !scheduledLessons.isEmpty else { return }
-        
+
         // Move each lesson forward by one school day
         for lesson in scheduledLessons {
             guard let currentDate = lesson.scheduledFor else { continue }
             let nextSchoolDay = await SchoolCalendar.nextSchoolDay(after: currentDate, using: viewContext)
             lesson.setScheduledFor(nextSchoolDay, using: calendar)
         }
-        
+
         // Save changes
         do {
             try viewContext.save()

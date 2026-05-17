@@ -126,10 +126,19 @@ struct PresentationsView: View {
 
     @State var startDate: Date = Date()
     @State var mobileViewSelection: MobileViewMode = .inbox
+    @State var compactTab: PresentationsCompactTab = .ready
     @State var cachedNonSchoolDates: Set<Date> = []
 
     // MODERN: Centralized navigation coordinator
     @State var coordinator = PresentationsCoordinator()
+
+    /// Search + (later) chip filter state, shared between header and ready section.
+    @State var filterState = PresentationsFilterState()
+
+    /// Lesson highlighted by the most recent "Suggest Next" click. Cleared
+    /// automatically after ~3s via `suggestDismissTask`.
+    @State var suggestedLessonID: UUID?
+    @State var suggestDismissTask: Task<Void, Never>?
 
     enum MobileViewMode: String, CaseIterable, Sendable {
         case inbox = "Inbox"

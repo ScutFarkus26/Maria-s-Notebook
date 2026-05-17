@@ -95,26 +95,49 @@ extension PresentationsView {
 
     private var compactLayout: some View {
         VStack(spacing: 0) {
-            Picker("View", selection: $mobileViewSelection) {
-                ForEach(MobileViewMode.allCases, id: \.self) { mode in
-                    Text(mode.rawValue).tag(mode)
+            screenHeader
+                .background(.regularMaterial)
+            Divider()
+            Picker("View", selection: $compactTab) {
+                ForEach(PresentationsCompactTab.allCases) { tab in
+                    Label(tab.title, systemImage: tab.systemImage).tag(tab)
                 }
             }
             .pickerStyle(.segmented)
-            .padding()
+            .padding(.horizontal, AppTheme.Spacing.medium)
+            .padding(.vertical, AppTheme.Spacing.small)
 
-            switch mobileViewSelection {
-            case .inbox:
-                inboxView
-            case .calendar:
+            Divider()
+
+            switch compactTab {
+            case .ready:
+                ReadyToPresentSection(
+                    viewModel: viewModel,
+                    blockingResults: viewModel.blockingResults,
+                    getBlockingWork: getBlockingWork,
+                    filteredSnapshot: filteredSnapshot,
+                    coordinator: coordinator,
+                    filterState: filterState,
+                    suggestedLessonID: suggestedLessonID
+                )
+            case .week:
                 calendarStripView
+            case .students:
+                StudentsNeedingLessonsView(
+                    viewModel: viewModel,
+                    coordinator: coordinator,
+                    filterState: filterState,
+                    lessonAssignments: Array(lessonAssignmentsForChangeDetection),
+                    showAboutCard: true
+                )
             }
         }
     }
 
     private var regularLayout: some View {
         VStack(spacing: 0) {
-            ViewHeader(title: "Presentations")
+            screenHeader
+                .background(.regularMaterial)
             Divider()
             GeometryReader { proxy in
                 let inboxHeight: CGFloat = proxy.size.height * (coordinator.isCalendarMinimized ? 1.0 : 0.5)
@@ -135,28 +158,57 @@ extension PresentationsView {
         }
     }
 
+    private var screenHeader: some View {
+        PresentationsHeader(
+            filterState: filterState,
+            coordinator: coordinator,
+            cachedStudents: viewModel.cachedStudents,
+            isSuggestEnabled: !viewModel.readyLessons.isEmpty,
+            onSuggestNext: triggerSuggestNext,
+            onFilters: { /* Filters panel: wired in a later phase. */ }
+        )
+    }
+
+    private func triggerSuggestNext() {
+        let candidates = viewModel.filteredAndSortedReady(
+            studentFilter: coordinator.selectedStudentFilter,
+            debouncedSearch: filterState.debouncedSearchText,
+            committedFilters: filterState.committedFilters
+        )
+        let all = Array(lessonAssignmentsForChangeDetection)
+        guard let suggested = viewModel.suggestedNext(among: candidates, allLessonAssignments: all),
+              let id = suggested.id else { return }
+        suggestDismissTask?.cancel()
+        adaptiveWithAnimation(.easeInOut(duration: 0.3)) {
+            suggestedLessonID = id
+        }
+        suggestDismissTask = Task { @MainActor in
+            try? await Task.sleep(for: .seconds(3))
+            guard !Task.isCancelled else { return }
+            adaptiveWithAnimation(.easeOut(duration: 0.5)) {
+                suggestedLessonID = nil
+            }
+        }
+    }
+
     private var inboxView: some View {
         PresentationsInboxView(
-            readyLessons: readyLessons,
-            blockedLessons: blockedLessons,
+            viewModel: viewModel,
             blockingResults: viewModel.blockingResults,
             getBlockingWork: getBlockingWork,
             filteredSnapshot: filteredSnapshot,
             missWindow: missWindow,
             missWindowRaw: $missWindowRaw,
             coordinator: coordinator,
-            cachedLessons: viewModel.lessons,
-            cachedStudents: viewModel.cachedStudents,
-            daysSinceLastLessonByStudent: daysSinceLastLessonByStudent,
-            lastSubjectByStudent: viewModel.lastSubjectByStudent,
-            openWorkCountByStudent: viewModel.openWorkCountByStudent
+            filterState: filterState,
+            suggestedLessonID: suggestedLessonID
         )
     }
 
     private var calendarStripView: some View {
         VStack(spacing: 0) {
             presentationsLegend
-            PresentationsCalendarStrip(
+            WeekPlanSection(
                 days: days,
                 startDate: $startDate,
                 isNonSchool: isNonSchool,

@@ -1,12 +1,12 @@
-// PresentationsDayColumn.swift
-// Day column component extracted from PresentationsView
+// WeekDayColumn.swift
+// Single day column in the Week Plan calendar.
 
 import SwiftUI
 import CoreData
 import UniformTypeIdentifiers
 import OSLog
 
-struct PresentationsDayColumn: View {
+struct WeekDayColumn: View {
     @Environment(\.managedObjectContext) private var viewContext
     @Environment(\.calendar) private var calendar
 
@@ -42,7 +42,7 @@ struct PresentationsDayColumn: View {
         }
         return Set(counts.filter { $0.value >= 2 }.keys)
     }
-    
+
     // Phase 6: WorkPlanItem removed from schema - migrated to CDWorkCheckIn
     // OPTIMIZATION: Filter pre-loaded work items instead of fetching from database
     // This eliminates per-column database queries (33 queries -> 0 queries)
@@ -50,7 +50,7 @@ struct PresentationsDayColumn: View {
         let (start, end) = AppCalendar.dayRange(for: day)
         return preloadedWorkItems.filter { ($0.date ?? .distantPast) >= start && ($0.date ?? .distantPast) < end }
     }
-    
+
     /// CDNote: Cannot conform to Sendable because SwiftData models are not Sendable
     enum CalendarItem: Identifiable {
         case lessonAssignment(CDLessonAssignment)
@@ -70,35 +70,31 @@ struct PresentationsDayColumn: View {
             }
         }
     }
-    
+
     private var allItemsForDay: [CalendarItem] {
         let lessons = scheduledLessonsForDay.map { CalendarItem.lessonAssignment($0) }
         let work = showWork ? workItemsForDay.map { CalendarItem.workCheckIn($0) } : []
         return (lessons + work).sorted { $0.sortDate < $1.sortDate }
     }
-    
-    private var uniqueStudentCount: Int {
-        let allStudentIDs = scheduledLessonsForDay.flatMap { $0.studentIDs }
-        return Set(allStudentIDs).count
+
+    private var plannedCount: Int {
+        scheduledLessonsForDay.count
     }
 
     var body: some View {
         VStack(alignment: .leading, spacing: 6) {
-            // Day header
+            // Day header — weekday, date, planned count
             HStack(spacing: 6) {
                 Text(day.formatted(Date.FormatStyle().weekday(.abbreviated)))
                     .font(.caption.weight(.semibold))
                 Text(day.formatted(Date.FormatStyle().day()))
                     .font(.headline.weight(.semibold))
-                if uniqueStudentCount > 0 {
-                    Text("\(uniqueStudentCount)")
+                Spacer()
+                if plannedCount > 0 {
+                    Text("\(plannedCount) planned")
                         .font(.caption.weight(.medium))
                         .foregroundStyle(.secondary)
-                        .padding(.horizontal, 6)
-                        .padding(.vertical, 2)
-                        .background(Capsule().fill(Color.primary.opacity(UIConstants.OpacityConstants.light)))
                 }
-                Spacer()
             }
             .padding(.horizontal, 6)
 
@@ -113,7 +109,7 @@ struct PresentationsDayColumn: View {
                 ScrollView(.vertical, showsIndicators: true) {
                     LazyVStack(alignment: .leading, spacing: 6) {
                         if allItemsForDay.isEmpty {
-                            Text("No plans yet")
+                            Text("Drag a presentation here")
                                 .font(.caption)
                                 .foregroundStyle(.secondary)
                                 .padding(8)
@@ -123,20 +119,24 @@ struct PresentationsDayColumn: View {
                                 case .lessonAssignment(let la):
                                     let laID = la.id ?? UUID()
                                     let dayDoubleBooked = doubleBookedStudentIDs
-                                    PresentationPill(
-                                        snapshot: la.snapshot(), day: day,
-                                        targetLessonAssignmentID: laID,
-                                        showTimeBadge: false, enableMergeDrop: true,
+                                    PresentationPlannerCard(
+                                        snapshot: la.snapshot(),
+                                        day: day,
+                                        cachedLessons: nil,
+                                        cachedStudents: nil,
+                                        blockingWork: [:],
                                         doubleBookedStudentIDs: dayDoubleBooked
                                     )
                                         .onTapGesture { onSelect(la) }
                                         .draggable(
                                             UnifiedCalendarDragPayload.presentation(laID).stringRepresentation
                                         ) {
-                                            PresentationPill(
-                                                snapshot: la.snapshot(), day: day,
-                                                targetLessonAssignmentID: laID,
-                                                showTimeBadge: false, enableMergeDrop: true,
+                                            PresentationPlannerCard(
+                                                snapshot: la.snapshot(),
+                                                day: day,
+                                                cachedLessons: [],
+                                                cachedStudents: [],
+                                                blockingWork: [:],
                                                 doubleBookedStudentIDs: dayDoubleBooked
                                             ).opacity(UIConstants.OpacityConstants.nearSolid)
                                         }
@@ -208,7 +208,7 @@ struct PresentationsDayColumn: View {
                 }
             }
             .contentShape(RoundedRectangle(cornerRadius: 10))
-            .onDrop(of: [UTType.text], delegate: PresentationsDayColumnDropDelegate(
+            .onDrop(of: [UTType.text], delegate: WeekDayColumnDropDelegate(
                 calendar: calendar,
                 viewContext: viewContext,
                 allLessonAssignments: allLessonAssignments,
@@ -240,13 +240,13 @@ struct PresentationsDayColumn: View {
 }
 
 // MARK: - Drop Delegate for day column
-private struct PresentationsDayColumnDropDelegate: DropDelegate {
+private struct WeekDayColumnDropDelegate: DropDelegate {
     private static let logger = Logger.presentations
     let calendar: Calendar
     let viewContext: NSManagedObjectContext
     let allLessonAssignments: [CDLessonAssignment]
     let day: Date
-    let getCurrentItems: () -> [PresentationsDayColumn.CalendarItem]
+    let getCurrentItems: () -> [WeekDayColumn.CalendarItem]
     let itemFramesProvider: () -> [UUID: CGRect]
     let onTargetChange: (Bool) -> Void
     let onInsertionIndexChange: (Int?) -> Void
@@ -313,11 +313,11 @@ private struct PresentationsDayColumnDropDelegate: DropDelegate {
             break
         }
     }
-    
+
     @MainActor
     private func applyPresentationDrop(id: UUID, locationY: CGFloat) {
         let current = getCurrentItems()
-        
+
         // Check if the drop landed on a pill for the same lesson — merge instead of reorder
         if let source = allLessonAssignments.first(where: { $0.id == id }), !source.isGiven {
             let frames = itemFramesProvider()
@@ -339,7 +339,7 @@ private struct PresentationsDayColumnDropDelegate: DropDelegate {
                 return
             }
         }
-        
+
         var ids = current.map(\.id)
         if let existing = ids.firstIndex(of: id) { ids.remove(at: existing) }
         let frames = itemFramesProvider()
@@ -380,7 +380,7 @@ private struct PresentationsDayColumnDropDelegate: DropDelegate {
             Self.logger.warning("Presentations schedule save failed: \(error)")
         }
     }
-    
+
     @MainActor
     private func applyWorkPlanItemDrop(id: UUID, locationY: CGFloat) {
         // Phase 6: WorkPlanItem removed from schema - migrated to CDWorkCheckIn
@@ -394,11 +394,11 @@ private struct PresentationsDayColumnDropDelegate: DropDelegate {
                 return nil
             }
         }() else { return }
-        
+
         // Update its date to this day
         let normalized = AppCalendar.startOfDay(day)
         item.date = normalized
-        
+
         // Also update the associated CDWorkModel's dueAt
         if let workID = UUID(uuidString: item.workID) {
             let workDescriptor = { let r = NSFetchRequest<CDWorkModel>(entityName: "WorkModel"); r.predicate = NSPredicate(format: "id == %@", workID as CVarArg); r.fetchLimit = 1; return r }()
