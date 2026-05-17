@@ -32,8 +32,9 @@ extension LessonsRootView {
     // MARK: - Move Groups
 
     @MainActor
-    func moveSequences(from source: IndexSet, to destination: Int, in groups: [String]) {
-        guard let area = selectedArea, !area.trimmed().isEmpty else { return }
+    func moveSequences(from source: IndexSet, to destination: Int, in groups: [String], overrideArea: String? = nil) {
+        let area = overrideArea ?? selectedArea ?? ""
+        guard !area.trimmed().isEmpty else { return }
         guard let sourceIndex = source.first else { return }
         guard sourceIndex < groups.count else { return }
 
@@ -65,34 +66,10 @@ extension LessonsRootView {
         FilterOrderStore.resetCache()
     }
 
-    // MARK: - Move Lessons Flat (for ungrouped individual positioning)
-
-    @MainActor
-    private func moveLessonsFlat(from source: IndexSet, to destination: Int, in allLessons: [CDLesson]) {
-        guard canReorderInOutlineMode else { return }
-        guard let sourceIndex = source.first else { return }
-        guard sourceIndex < allLessons.count else { return }
-
-        var reordered = allLessons
-        reordered.move(fromOffsets: source, toOffset: destination)
-
-        // Update sortIndex for all lessons based on their new position
-        for (idx, lesson) in reordered.enumerated() {
-            lesson.sortIndex = Int64(idx)
-        }
-
-        do {
-            try viewContext.save()
-        } catch {
-            logger.error("Failed to save lesson reorder: \(error)")
-        }
-    }
-
-    // MARK: - Move Lessons in Area (legacy, for sequence-based reordering)
+    // MARK: - Move Lessons in Area
 
     @MainActor
     func moveLessonsInArea(from source: IndexSet, to destination: Int, in groupLessons: [CDLesson]) {
-        // Allow reordering in both browse (jiggle) and plan modes.
         guard canReorder else { return }
         guard let area = selectedArea, !area.trimmed().isEmpty else { return }
         guard let sourceIndex = source.first else { return }
@@ -149,7 +126,7 @@ extension LessonsRootView {
 
     @MainActor
     func moveLessonInSequence(lesson: CDLesson, direction: Int, sequence: String, ungroupedLabel: String) {
-        guard canReorderInOutlineMode else { return }
+        guard canReorder else { return }
 
         let groupLessons = lessonsForSequence(sequence, ungroupedLabel: ungroupedLabel)
         guard let index = groupLessons.firstIndex(where: { $0.id == lesson.id }) else { return }
@@ -263,7 +240,6 @@ extension LessonsRootView {
         }
 
         rebuildSortIndexForArea()
-        sectionOrderRevision &+= 1
     }
 
     // MARK: - Move CDLesson to Different Section

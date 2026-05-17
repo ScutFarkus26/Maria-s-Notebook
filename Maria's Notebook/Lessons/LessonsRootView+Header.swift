@@ -11,26 +11,43 @@ extension LessonsRootView {
     var headerTrailingControls: some View {
         HStack(spacing: 12) {
             headerSearchField
-            if canShowEditSequenceButton {
-                editSequenceButton
+            parshasToggleButton
+            if canShowEditMapButton {
+                editMapButton
             }
-            headerModePicker
             headerAddMenu
         }
     }
 
-    private var editSequenceButton: some View {
+    private var parshasToggleButton: some View {
         Button {
-            isEditingSequence.toggle()
+            showingParshas.toggle()
+            if showingParshas {
+                isEditingMap = false
+                focusedThread = nil
+                selectedLessonDetail = nil
+            }
+        } label: {
+            Label("Parshas", systemImage: showingParshas ? "scroll.fill" : "scroll")
+        }
+        .buttonStyle(.bordered)
+        .tint(showingParshas ? .indigo : nil)
+        .help(showingParshas ? "Back to lessons map" : "Browse parshas")
+    }
+
+    private var editMapButton: some View {
+        Button {
+            isEditingMap.toggle()
+            if isEditingMap { syncReorderableSequences() }
         } label: {
             Label(
-                isEditingSequence ? "Done" : "Edit Sequence",
-                systemImage: isEditingSequence ? "checkmark" : "arrow.up.arrow.down"
+                isEditingMap ? "Done" : "Edit",
+                systemImage: isEditingMap ? "checkmark" : "arrow.up.arrow.down"
             )
         }
         .buttonStyle(.bordered)
-        .tint(isEditingSequence ? .accentColor : nil)
-        .help(isEditingSequence ? "Finish reordering" : "Reorder lessons and groups")
+        .tint(isEditingMap ? .accentColor : nil)
+        .help(isEditingMap ? "Finish editing" : "Reorder sequences and lessons")
     }
 
     private var headerSearchField: some View {
@@ -58,19 +75,6 @@ extension LessonsRootView {
         .background(
             Capsule().fill(Color.primary.opacity(UIConstants.OpacityConstants.veryFaint))
         )
-    }
-
-    private var headerModePicker: some View {
-        Picker("Mode", selection: Binding(
-            get: { displayMode },
-            set: { displayModeRaw = $0.rawValue }
-        )) {
-            ForEach(LessonsDisplayMode.allCases) { mode in
-                Label(mode.displayName, systemImage: mode.icon).tag(mode)
-            }
-        }
-        .pickerStyle(.segmented)
-        .frame(maxWidth: 240)
     }
 
     private var headerAddMenu: some View {

@@ -13,7 +13,6 @@ struct LessonDetailView: View {
     var onSave: (CDLesson) -> Void
     var onDone: (() -> Void)?
     var onLocateInMap: ((CDLesson) -> Void)?
-    var onLocateInSequence: ((CDLesson) -> Void)?
     var onSchedule: ((CDLesson) -> Void)?
 
     @Environment(\.dismiss) private var dismiss
@@ -358,14 +357,6 @@ extension LessonDetailView {
                     .buttonStyle(.borderedProminent)
                     .disabled(draftName.trimmed().isEmpty)
                 } else {
-                    if let onLocateInSequence, !lesson.area.trimmed().isEmpty {
-                        Button {
-                            onLocateInSequence(lesson)
-                        } label: {
-                            Label("Show in List", systemImage: "list.bullet.indent")
-                        }
-                        .help("Switch to the List view and focus on this lesson")
-                    }
                     if let onLocateInMap, !lesson.area.trimmed().isEmpty {
                         Button {
                             onLocateInMap(lesson)

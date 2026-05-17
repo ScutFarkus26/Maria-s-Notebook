@@ -11,141 +11,148 @@ private let logger = Logger.lessons
 
 extension LessonsRootView {
 
-    // MARK: - Areas Column (Left)
-
-    /// Computes lesson counts per area for display in the sidebar
-    private var lessonCountsByArea: [String: Int] {
-        var counts: [String: Int] = [:]
-        for lesson in lessons {
-            let area = lesson.area.trimmed()
-            if !area.isEmpty {
-                counts[area, default: 0] += 1
-            }
-        }
-        return counts
-    }
-
-    /// Count of all story-format lessons
-    private var storyLessonCount: Int {
-        lessons.filter(\.isStory).count
-    }
-
-    var areasColumn: some View {
-        List(selection: $listSelectedArea) {
-            Section {
-                Label {
-                    Text("All Lessons")
-                } icon: {
-                    Image(systemName: "rectangle.stack")
-                        .foregroundStyle(.blue)
-                }
-                .tag(Self.allLessonsSentinel)
-
-                Label {
-                    HStack {
-                        Text("All Stories")
-                        Spacer()
-                        if storyLessonCount > 0 {
-                            Text("\(storyLessonCount)")
-                                .font(AppTheme.ScaledFont.caption)
-                                .foregroundStyle(.secondary)
-                        }
-                    }
-                } icon: {
-                    Image(systemName: "book.pages")
-                        .foregroundStyle(.purple)
-                }
-                .tag(Self.storiesSentinel)
-
-                Label {
-                    HStack {
-                        Text("Parshas")
-                        Spacer()
-                    }
-                } icon: {
-                    Image(systemName: "scroll")
-                        .foregroundStyle(.indigo)
-                }
-                .tag(Self.parshasSentinel)
-            }
-
-            Section("Areas") {
-                ForEach(areas, id: \.self) { area in
-                    AreaListRow(area: area, lessonCount: lessonCountsByArea[area] ?? 0)
-                        .tag(area)
-                }
-            }
-        }
-        .listStyle(.sidebar)
-    }
-
-    // MARK: - Lessons Content Column (Middle)
+    // MARK: - Lessons Content Column
 
     @ViewBuilder
     var lessonsContentColumn: some View {
-        if selectedArea == Self.parshasSentinel {
+        if showingParshas {
             ParshaBrowseView { lesson in
                 selectedLessonDetail = lesson
             }
-        } else if displayMode == .map {
-            mapModeColumn
         } else {
-            normalLessonsContentColumn
+            mapContentColumn
         }
     }
 
-    // MARK: - Map Mode Column
+    // MARK: - Map Content Column
 
     @ViewBuilder
-    private var mapModeColumn: some View {
+    private var mapContentColumn: some View {
+        VStack(spacing: 0) {
+            lessonsFilterBar
+            Divider()
+            mapOrThreadView
+        }
+    }
+
+    @ViewBuilder
+    private var mapOrThreadView: some View {
         if let focusedThread {
             let lessonsInThread: [CDLesson] = lessonsForThread(focusedThread)
+            let sequences: [String] = groupsForSelectedArea
             LessonsScopeThreadFocusView(
                 threadKey: focusedThread,
                 lessons: lessonsInThread,
+                sequences: sequences,
+                isEditing: isEditingMap,
                 onBack: { self.focusedThread = nil },
                 onSelectLesson: { lesson in selectedLessonDetail = lesson },
-                onShowInBrowse: { lesson in showLessonInBrowse(lesson) }
+                onMoveLessonEarlier: { lesson in
+                    moveLessonInSequence(
+                        lesson: lesson,
+                        direction: -1,
+                        sequence: focusedThread.sequence,
+                        ungroupedLabel: "Ungrouped"
+                    )
+                },
+                onMoveLessonLater: { lesson in
+                    moveLessonInSequence(
+                        lesson: lesson,
+                        direction: 1,
+                        sequence: focusedThread.sequence,
+                        ungroupedLabel: "Ungrouped"
+                    )
+                },
+                onMoveLessonToSequence: { lesson, targetSequence in
+                    moveLessonToSequence(lesson: lesson, newSequence: targetSequence)
+                },
+                onReorderLessons: { source, destination in
+                    let groupLessons = lessonsForSequence(focusedThread.sequence, ungroupedLabel: "Ungrouped")
+                    moveLessonsInArea(from: source, to: destination, in: groupLessons)
+                }
             )
-            .navigationTitle(focusedThread.displayName)
         } else {
-            let mapArea: String? = (selectedArea == Self.storiesSentinel) ? nil : selectedArea
             LessonsScopeMapView(
-                lessons: Array(lessons),
-                selectedArea: mapArea,
+                lessons: filteredLessonsForMap,
+                selectedArea: selectedArea,
                 spine: Binding(
                     get: { mapSpine },
                     set: { mapSpineRaw = $0.rawValue }
                 ),
-                onSelectThread: { key in self.focusedThread = key }
+                isEditing: isEditingMap,
+                onSelectThread: { key in
+                    self.focusedThread = key
+                    if !key.area.isEmpty {
+                        filterState.selectedArea = key.area
+                    }
+                    syncReorderableSequences()
+                },
+                onMoveSequences: { source, destination, area in
+                    let currentSequences = reorderableSequences.isEmpty
+                        ? helper.groups(for: area, lessons: Array(lessons))
+                        : reorderableSequences
+                    moveSequences(from: source, to: destination, in: currentSequences, overrideArea: area)
+                },
+                onConfigureTrack: { key in
+                    handleConfigureTrack(key.sequence, area: key.area)
+                },
+                onReorderSections: { key in
+                    handleReorderSections(key.sequence, area: key.area)
+                },
+                onFocusArea: { area in
+                    filterState.selectedArea = area
+                    syncReorderableSequences()
+                },
+                onClearAreaFocus: {
+                    filterState.selectedArea = nil
+                    isEditingMap = false
+                }
             )
-            .navigationTitle("Scope & Sequence")
         }
     }
 
-    /// Switches from Map mode to Browse mode, focused on the lesson's area and showing
-    /// the lesson's detail. Used by the "View in Browse" action from a Map pill.
-    private func showLessonInBrowse(_ lesson: CDLesson) {
-        focusedThread = nil
-        displayModeRaw = LessonsDisplayMode.browse.rawValue
-        if !lesson.area.trimmed().isEmpty {
-            filterState.selectedArea = lesson.area
-            listSelectedArea = lesson.area
+    /// Lessons filtered for the map view — applies chip-bar filters but not the search text
+    /// (search text filtering is handled via lessonsForArea which already applies it).
+    private var filteredLessonsForMap: [CDLesson] {
+        var result = lessonsForArea
+
+        if let source = filterState.sourceFilter {
+            result = result.filter { $0.source == source }
         }
-        selectedLessonDetail = lesson
+        if let kind = filterState.personalKindFilter {
+            result = result.filter { $0.personalKind == kind }
+        }
+        if filterState.hasAttachmentFilter {
+            result = result.filter { $0.pagesFileBookmark != nil || $0.pagesFileRelativePath != nil }
+        }
+        if filterState.needsAttentionFilter, let counts = statusCounts {
+            result = result.filter { guard let id = $0.id else { return false }; return counts[id, default: 0] > 0 }
+        }
+
+        return result
     }
 
-    /// Switches from any mode to Map mode, focused on the lesson's (area, sequence) thread.
-    /// Used by the "Locate in Map" action from Browse cards and Plan rows.
+    private var lessonsFilterBar: some View {
+        LessonsFilterChipBar(
+            sourceFilter: $filterState.sourceFilter,
+            personalKindFilter: $filterState.personalKindFilter,
+            formatFilter: $filterState.formatFilter,
+            hasAttachmentFilter: $filterState.hasAttachmentFilter,
+            needsAttentionFilter: $filterState.needsAttentionFilter
+        )
+    }
+
+    // MARK: - Navigation helpers
+
+    /// Switches to Map mode focused on the lesson's (area, sequence) thread.
+    /// Used by the "Locate in Map" action from the detail pane.
     func locateLessonInMap(_ lesson: CDLesson) {
         let area = lesson.area.trimmed()
         guard !area.isEmpty else { return }
-        // Locating in Map by area is unambiguous; if the user is currently on the
-        // Great Lesson spine, they'll still see the lesson's thread because the focus
-        // view is keyed by (area, sequence), not the spine.
-        displayModeRaw = LessonsDisplayMode.map.rawValue
+        showingParshas = false
         focusedThread = ThreadKey(area: area, sequence: lesson.sequence)
-        // Keep selectedLessonDetail as-is so the right pane continues to show the lesson.
+        filterState.selectedArea = area
+        syncReorderableSequences()
         selectedLessonDetail = lesson
     }
 
@@ -166,269 +173,41 @@ extension LessonsRootView {
         }
     }
 
-    private var normalLessonsContentColumn: some View {
-        let hasSearchText: Bool = !filterState.debouncedSearchText.trimmed().isEmpty
-        let isAllLessons: Bool = selectedArea == Self.allLessonsSentinel
-        let hasArea: Bool = selectedArea.map { !$0.trimmed().isEmpty } ?? false
-        let shouldShowFilters: Bool = hasArea || hasSearchText || isAllLessons
-        let shouldShowLessons: Bool = hasArea || hasSearchText || isAllLessons
-        let navTitle: String = {
-            if selectedArea == Self.storiesSentinel { return "All Stories" }
-            if selectedArea == Self.allLessonsSentinel { return "All Lessons" }
-            return selectedArea ?? "Lessons"
-        }()
+    // MARK: - Track / Section sheet helpers
 
-        return VStack(spacing: 0) {
-            if shouldShowFilters {
-                lessonsFilterBar
-                Divider()
-            }
-
-            lessonsMainArea(shouldShowLessons: shouldShowLessons, hasSearchText: hasSearchText)
-                .frame(maxWidth: .infinity, maxHeight: .infinity)
-        }
-        .navigationTitle(navTitle)
+    private func handleReorderSections(_ sequence: String, area: String) {
+        reorderSectionsItem = SectionReorderItem(area: area, sequence: sequence)
     }
 
-    @ViewBuilder
-    private func lessonsMainArea(shouldShowLessons: Bool, hasSearchText: Bool) -> some View {
-        if shouldShowLessons {
-            if hasSearchText {
-                LessonsSearchResultsView(
-                    lessons: filteredLessonsForDisplay,
-                    statusCounts: statusCounts,
-                    lastPresentedDates: lastPresentedDates,
-                    selectedLessonID: selectedLessonDetail?.id,
-                    onSelectLesson: { selectedLessonDetail = $0 },
-                    onScheduleLesson: { lessonToSchedule = $0 }
-                )
-            } else if displayMode == .browse {
-                browseModeLessons
-            } else {
-                planModeList
-            }
-        } else {
-            emptyStateView
-        }
+    private func handleConfigureTrack(_ sequence: String, area: String) {
+        trackSettingsItem = TrackSettingsItem(area: area, sequence: sequence)
     }
 
-    private var lessonsFilterBar: some View {
-        LessonsFilterChipBar(
-            sourceFilter: $filterState.sourceFilter,
-            personalKindFilter: $filterState.personalKindFilter,
-            formatFilter: $filterState.formatFilter,
-            hasAttachmentFilter: $filterState.hasAttachmentFilter,
-            needsAttentionFilter: $filterState.needsAttentionFilter
-        )
-    }
+    // MARK: - Lesson Detail Pane (Right)
 
-    private var browseModeLessons: some View {
-        LessonsCardsGridView(
-            lessons: filteredLessonsForDisplay,
-            onTapLesson: { lesson in
-                selectedLessonDetail = lesson
+    func lessonDetailPane(lesson: CDLesson) -> some View {
+        LessonDetailView(
+            lesson: lesson,
+            allLessons: Array(lessons),
+            onSave: { _ in
+                saveCoordinator.save(viewContext, reason: "Update lesson")
             },
-            onGiveLesson: { lesson in
-                lessonToSchedule = lesson
-            },
-            onReorderInOutline: { lesson in
-                switchToOutlineMode(focusing: lesson)
+            onDone: {
+                selectedLessonDetail = nil
             },
             onLocateInMap: { lesson in
                 locateLessonInMap(lesson)
             },
-            statusCounts: statusCounts,
-            selectedArea: selectedArea,
-            selectedLessonID: selectedLessonDetail?.id,
-            lastPresentedDates: lastPresentedDates,
-            showIntroductionCards: !hasActiveFilters
-        )
-    }
-
-    /// Switches to Outline mode (formerly Plan), preserving the area so the
-    /// user can drag-reorder the lesson they just right-clicked on a Browse card.
-    func switchToOutlineMode(focusing lesson: CDLesson) {
-        let area = lesson.area.trimmed()
-        if !area.isEmpty {
-            filterState.selectedArea = area
-            listSelectedArea = area
-        }
-        displayModeRaw = LessonsDisplayMode.outline.rawValue
-    }
-
-    /// Lessons filtered by chip bar filters
-    private var filteredLessonsForDisplay: [CDLesson] {
-        var result = lessonsForArea
-
-        // Source filter
-        if let source = filterState.sourceFilter {
-            result = result.filter { $0.source == source }
-        }
-
-        // Personal kind filter
-        if let kind = filterState.personalKindFilter {
-            result = result.filter { $0.personalKind == kind }
-        }
-
-        // Has attachment filter
-        if filterState.hasAttachmentFilter {
-            result = result.filter { $0.pagesFileBookmark != nil || $0.pagesFileRelativePath != nil }
-        }
-
-        // Needs attention filter (status count > 0)
-        if filterState.needsAttentionFilter, let counts = statusCounts {
-            result = result.filter { guard let id = $0.id else { return false }; return counts[id, default: 0] > 0 }
-        }
-
-        return result
-    }
-
-    /// Whether any chip bar filters are active (used to hide introductions when filtering)
-    private var hasActiveFilters: Bool {
-        filterState.sourceFilter != nil ||
-        filterState.personalKindFilter != nil ||
-        filterState.hasAttachmentFilter ||
-        filterState.needsAttentionFilter
-    }
-
-    @ViewBuilder
-    private var emptyStateView: some View {
-        if areas.isEmpty {
-            ContentUnavailableView {
-                Label("No Lessons Yet", systemImage: "rectangle.stack")
-            } description: {
-                Text("Add lessons from your training album, or create your own. Each area groups the lessons you give from that album.")
-            } actions: {
-                Button {
-                    showingAddLesson = true
-                } label: {
-                    Label("Add Your First Lesson", systemImage: "plus")
-                }
-                .buttonStyle(.borderedProminent)
+            onSchedule: { lesson in
+                lessonToSchedule = lesson
             }
-        } else {
-            ContentUnavailableView(
-                "Select a Area",
-                systemImage: "rectangle.stack",
-                description: Text("Choose a area from the sidebar to browse its lessons.")
-            )
-        }
-    }
-
-    // MARK: - Plan Mode List
-
-    @ViewBuilder
-    private var planModeList: some View {
-        outlineView
-    }
-
-    // MARK: - Outline View
-
-    private var outlineView: some View {
-        let ungroupedLabel: String = "Ungrouped"
-        let displaySequences: [String] = computeDisplaySequences(ungroupedLabel: ungroupedLabel)
-        let lessonsBySequence: [String: [CDLesson]] = buildLessonsBySequence(displaySequences: displaySequences, ungroupedLabel: ungroupedLabel)
-        let allSections: [String: [String]] = buildSections(displaySequences: displaySequences, lessonsBySequence: lessonsBySequence)
-
-        return outlineViewContent(
-            displaySequences: displaySequences,
-            lessonsBySequence: lessonsBySequence,
-            allSections: allSections,
-            isEditing: canReorderInOutlineMode
         )
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
+        .background(AppTheme.Colors.paneBackground)
     }
 
-    private func buildLessonsBySequence(displaySequences: [String], ungroupedLabel: String) -> [String: [CDLesson]] {
-        var result: [String: [CDLesson]] = [:]
-        for sequence in displaySequences {
-            result[sequence] = lessonsForSequence(sequence, ungroupedLabel: ungroupedLabel)
-        }
-        return result
-    }
+    // MARK: - Reorder helper (still used by reordering extension)
 
-    private func buildSections(displaySequences: [String], lessonsBySequence: [String: [CDLesson]]) -> [String: [String]] {
-        _ = sectionOrderRevision
-        let area: String = selectedArea ?? ""
-        var result: [String: [String]] = [:]
-        for sequence in displaySequences {
-            let groupLessons: [CDLesson] = lessonsBySequence[sequence] ?? []
-            let existing: [String] = Array(Set(groupLessons.map { $0.section.trimmed() }.filter { !$0.isEmpty }))
-                .sorted { $0.localizedCaseInsensitiveCompare($1) == .orderedAscending }
-            guard !existing.isEmpty else { continue }
-            if area.trimmed().isEmpty {
-                result[sequence] = existing
-            } else {
-                result[sequence] = FilterOrderStore.loadSectionOrder(for: area, sequence: sequence, existing: existing)
-            }
-        }
-        return result
-    }
-
-    private func outlineViewContent(
-        displaySequences: [String],
-        lessonsBySequence: [String: [CDLesson]],
-        allSections: [String: [String]],
-        isEditing: Bool
-    ) -> some View {
-        LessonsOutlineView(
-            area: selectedArea ?? "",
-            displaySequences: displaySequences,
-            lessonsBySequence: lessonsBySequence,
-            allSections: allSections,
-            selectedLessonID: selectedLessonDetail?.id,
-            isEditing: isEditing,
-            onSelectLesson: { selectedLessonDetail = $0 },
-            onScheduleLesson: { lessonToSchedule = $0 },
-            onMoveToSequence: { moveLessonToSequence(lesson: $0, newSequence: $1) },
-            onMoveToSection: { moveLessonToSection(lesson: $0, newSection: $1) },
-            onReorderSections: { handleReorderSections($0) },
-            onReorderSectionByDrag: { sequence, source, target in
-                reorderSectionByDrag(sequence: sequence, source: source, target: target)
-            },
-            onConfigureTrack: { handleConfigureTrack($0) },
-            onMoveLessonsInSequence: { source, destination, sequence in
-                let groupLessons = lessonsForSequence(sequence, ungroupedLabel: "Ungrouped")
-                moveLessonsInArea(from: source, to: destination, in: groupLessons)
-            },
-            onMoveSequences: { moveSequences(from: $0, to: $1, in: displaySequences) },
-            onMoveLessonIDToSequence: { handleMoveLessonIDToSequence($0, targetSequence: $1) },
-            onLocateInMap: { lesson in locateLessonInMap(lesson) }
-        )
-    }
-
-    private func handleReorderSections(_ sequence: String) {
-        if let area = selectedArea {
-            reorderSectionsItem = SectionReorderItem(area: area, sequence: sequence)
-        }
-    }
-
-    private func handleConfigureTrack(_ sequence: String) {
-        if let area = selectedArea {
-            trackSettingsItem = TrackSettingsItem(area: area, sequence: sequence)
-        }
-    }
-
-    private func handleMoveLessonIDToSequence(_ lessonID: UUID, targetSequence: String) {
-        if let lesson = lessonsForArea.first(where: { $0.id == lessonID }) {
-            moveLessonToSequence(lesson: lesson, newSequence: targetSequence)
-        }
-    }
-
-    /// Computes the ordered display groups from reorderableSequences or fresh data.
-    private func computeDisplaySequences(ungroupedLabel: String) -> [String] {
-        let baseSequences = groupsFromFilteredLessons
-        let hasUngrouped = lessonsForArea.contains { $0.sequence.trimmed().isEmpty }
-        let allSequences = hasUngrouped ? (baseSequences + [ungroupedLabel]) : baseSequences
-
-        if reorderableSequences.isEmpty {
-            return allSequences
-        }
-        let existingSet = Set(reorderableSequences)
-        let missing = allSequences.filter { !existingSet.contains($0) }
-        return reorderableSequences.filter { allSequences.contains($0) } + missing
-    }
-
-    /// Returns sorted lessons for a specific sequence
     func lessonsForSequence(_ sequence: String, ungroupedLabel: String) -> [CDLesson] {
         lessonsForArea.filter { lesson in
             let lessonSequenceTrimmed = lesson.sequence.trimmed()
@@ -448,31 +227,4 @@ extension LessonsRootView {
             return (lhs.id?.uuidString ?? "") < (rhs.id?.uuidString ?? "")
         }
     }
-
-    // MARK: - CDLesson Detail Pane (Right)
-
-    func lessonDetailPane(lesson: CDLesson) -> some View {
-        LessonDetailView(
-            lesson: lesson,
-            allLessons: Array(lessons),
-            onSave: { _ in
-                saveCoordinator.save(viewContext, reason: "Update lesson")
-            },
-            onDone: {
-                selectedLessonDetail = nil
-            },
-            onLocateInMap: { lesson in
-                locateLessonInMap(lesson)
-            },
-            onLocateInSequence: { lesson in
-                switchToOutlineMode(focusing: lesson)
-            },
-            onSchedule: { lesson in
-                lessonToSchedule = lesson
-            }
-        )
-        .frame(maxWidth: .infinity, maxHeight: .infinity)
-        .background(AppTheme.Colors.paneBackground)
-    }
-
 }

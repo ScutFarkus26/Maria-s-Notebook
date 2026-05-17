@@ -10,31 +10,6 @@ import CoreData
 
 // MARK: - Supporting Types
 
-enum LessonsDisplayMode: String, CaseIterable, Identifiable {
-    case browse = "Browse"
-    // rawValue retained as "Plan" so existing @SceneStorage values continue to resolve.
-    case outline = "Plan"
-    case map = "Map"
-
-    var id: String { rawValue }
-
-    var icon: String {
-        switch self {
-        case .browse: return "square.grid.2x2"
-        case .outline: return "list.bullet.indent"
-        case .map: return "chart.bar.doc.horizontal"
-        }
-    }
-
-    var displayName: String {
-        switch self {
-        case .browse: return "Cards"
-        case .outline: return "List"
-        case .map: return "Map"
-        }
-    }
-}
-
 /// Top-level grouping spine for the scope-and-sequence Map.
 enum MapSpine: String, CaseIterable, Identifiable {
     case area = "Area"
@@ -90,13 +65,12 @@ struct LessonsRootView: View {
 
     // MARK: - UI State
     @State var filterState = LessonsFilterState()
-    @State var listSelectedArea: String?
 
     // MARK: - Scene Storage
     @SceneStorage("Lessons.selectedArea") var selectedAreaRaw: String = ""
     @SceneStorage("Lessons.searchText") var searchTextRaw: String = ""
-    @SceneStorage("Lessons.displayMode") var displayModeRaw: String = LessonsDisplayMode.outline.rawValue
     @SceneStorage("Lessons.detailPaneWidth") var detailPaneWidth: Double = 520
+    @SceneStorage("Lessons.showingParshas") var showingParshas: Bool = false
     @AppStorage("Lessons.mapSpine") var mapSpineRaw: String = MapSpine.area.rawValue
 
     static let detailPaneMinWidth: CGFloat = 440
@@ -111,16 +85,12 @@ struct LessonsRootView: View {
     @State var showingBulkEntry = false
 
     // MARK: - Editing State
-    @State var isEditingSequence: Bool = false
+    @State var isEditingMap: Bool = false
 
     // MARK: - Reordering State
     @State var detailPaneDragStartWidth: CGFloat?
 
     @State var reorderableSequences: [String] = []
-    /// Counter bumped after a section drag-reorder. `buildSections` references it
-    /// so SwiftUI re-evaluates the outline when `FilterOrderStore` changes (UserDefaults
-    /// doesn't publish on its own).
-    @State var sectionOrderRevision: Int = 0
 
     // MARK: - Map Mode State
     @State var focusedThread: ThreadKey?
@@ -164,22 +134,10 @@ struct LessonsRootView: View {
         }
     }
 
-    /// Sentinel value for the "All Stories" sidebar entry
-    static let storiesSentinel = "__stories__"
-
-    /// Sentinel value for the "Parshas" sidebar entry (parsha-indexed lesson browser)
-    static let parshasSentinel = "__parshas__"
-
-    /// Sentinel value for the "All Lessons" sidebar entry (cross-area browser)
-    static let allLessonsSentinel = "__all__"
-
     var lessonsForArea: [CDLesson] {
-        // Parshas sentinel renders its own column (ParshaBrowseView); the regular lesson
-        // list is irrelevant, so skip the fetch entirely.
-        if filterState.selectedArea == Self.parshasSentinel { return [] }
+        // Parshas mode renders its own view (ParshaBrowseView); skip the fetch entirely.
+        if showingParshas { return [] }
         let hasSearchText = !filterState.debouncedSearchText.trimmed().isEmpty
-        let isStoriesView = filterState.selectedArea == Self.storiesSentinel
-        let isAllLessons  = filterState.selectedArea == Self.allLessonsSentinel
         // DEDUPLICATION: CloudKit sync can create duplicate records with the same ID.
         // Use uniqueByID to prevent SwiftUI crash on "Duplicate values for key"
         return helper.filteredLessons(
@@ -188,43 +146,24 @@ struct LessonsRootView: View {
             personalKindFilter: filterState.personalKindFilter,
             formatFilter: filterState.formatFilter,
             searchText: filterState.debouncedSearchText,
-            selectedArea: (hasSearchText || isStoriesView || isAllLessons) ? nil : filterState.selectedArea,
+            selectedArea: hasSearchText ? nil : filterState.selectedArea,
             selectedSequence: nil,
             allLessons: Array(lessons)
         ).uniqueByID
-    }
-
-    var displayMode: LessonsDisplayMode {
-        LessonsDisplayMode(rawValue: displayModeRaw) ?? .browse
     }
 
     var mapSpine: MapSpine {
         MapSpine(rawValue: mapSpineRaw) ?? .area
     }
 
-    var canReorderInOutlineMode: Bool {
-        guard displayMode == .outline, isEditingSequence else { return false }
-        guard filterState.debouncedSearchText.trimmed().isEmpty else { return false }
-        guard let area = filterState.selectedArea,
-              !area.trimmed().isEmpty,
-              area != Self.allLessonsSentinel,
-              area != Self.storiesSentinel else { return false }
-        return true
-    }
-
     var canReorder: Bool {
-        canReorderInOutlineMode
+        guard isEditingMap else { return false }
+        guard filterState.debouncedSearchText.trimmed().isEmpty else { return false }
+        return true
     }
 
-    var canShowEditSequenceButton: Bool {
-        guard displayMode == .outline else { return false }
-        guard filterState.debouncedSearchText.trimmed().isEmpty else { return false }
-        guard let area = filterState.selectedArea,
-              !area.trimmed().isEmpty,
-              area != Self.allLessonsSentinel,
-              area != Self.storiesSentinel,
-              area != Self.parshasSentinel else { return false }
-        return true
+    var canShowEditMapButton: Bool {
+        filterState.debouncedSearchText.trimmed().isEmpty && !showingParshas
     }
 
     // MARK: - Body
@@ -238,10 +177,8 @@ struct LessonsRootView: View {
         #endif
         .task { await handleInitialLoad() }
         .task(id: lessonsForArea.compactMap(\.id)) { await fetchPresentationHistory() }
-        .onChange(of: listSelectedArea) { _, newValue in handleListSelectionChange(newValue) }
         .onChange(of: filterState.selectedArea) { _, newValue in handleAreaChange(newValue) }
         .onChange(of: filterState.searchText) { _, newValue in handleSearchTextChange(newValue) }
-        .onChange(of: displayMode) { _, newValue in handleDisplayModeChange(newValue) }
         .sheet(item: $lessonToSchedule) { lesson in lessonScheduleSheet(lesson) }
         .sheet(item: $trackSettingsItem) { item in SequenceTrackSettingsSheet(area: item.area, sequence: item.sequence) }
         .sheet(item: $reorderSectionsItem) { item in
@@ -270,11 +207,6 @@ struct LessonsRootView: View {
             ViewHeader(title: "Lessons") { headerTrailingControls }
             Divider()
             HStack(spacing: 0) {
-                areasColumn
-                    .frame(width: 280)
-
-                Divider()
-
                 lessonsContentColumn
                     .frame(maxWidth: .infinity)
 
@@ -332,60 +264,18 @@ struct LessonsRootView: View {
 
         if filterState.selectedArea == nil && !selectedAreaRaw.trimmed().isEmpty {
             filterState.selectedArea = selectedAreaRaw
-            listSelectedArea = selectedAreaRaw
         }
         if filterState.searchText.isEmpty && !searchTextRaw.isEmpty {
             filterState.searchText = searchTextRaw
         }
     }
 
-    private func handleListSelectionChange(_ newValue: String?) {
-        Task { @MainActor in
-            switch newValue {
-            case LessonsRootView.storiesSentinel:
-                filterState.selectedArea = newValue
-                filterState.formatFilter = .story
-            case LessonsRootView.allLessonsSentinel, LessonsRootView.parshasSentinel, nil:
-                if filterState.selectedArea == LessonsRootView.storiesSentinel {
-                    filterState.formatFilter = nil
-                }
-                filterState.selectedArea = newValue
-            default:
-                // Regular area selected: clear story filter if it was active from sidebar
-                if filterState.selectedArea == LessonsRootView.storiesSentinel {
-                    filterState.formatFilter = nil
-                }
-                if filterState.selectedArea != newValue {
-                    filterState.selectedArea = newValue
-                }
-            }
-        }
-    }
-
     private func handleAreaChange(_ newValue: String?) {
         Task { @MainActor in
-            if listSelectedArea != newValue {
-                listSelectedArea = newValue
-            }
             selectedAreaRaw = newValue ?? ""
-            isEditingSequence = false
+            isEditingMap = false
+            focusedThread = nil
             syncReorderableSequences()
-        }
-    }
-
-    private func handleDisplayModeChange(_ newValue: LessonsDisplayMode) {
-        Task { @MainActor in
-            displayModeRaw = newValue.rawValue
-            isEditingSequence = false
-            if newValue == .outline {
-                syncReorderableSequences()
-            }
-            if newValue != .map {
-                focusedThread = nil
-            }
-            #if os(iOS)
-            editMode = .inactive
-            #endif
         }
     }
 
