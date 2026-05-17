@@ -252,6 +252,31 @@ enum AppTheme {
         }
     }
 
+    // MARK: - Surface Colors
+
+    /// Platform-aware semantic surface colors. Use these instead of raw
+    /// `NSColor`/`UIColor` references when filling pane and card backgrounds.
+    enum Colors {
+        /// Primary pane background. Maps to window background on macOS,
+        /// secondary system background on iOS.
+        nonisolated static var paneBackground: Color {
+            #if os(macOS)
+            return Color(NSColor.windowBackgroundColor)
+            #else
+            return Color(uiColor: .secondarySystemBackground)
+            #endif
+        }
+
+        /// Secondary surface, slightly inset from primary panes.
+        nonisolated static var surfaceSecondary: Color {
+            #if os(macOS)
+            return Color(NSColor.controlBackgroundColor)
+            #else
+            return Color(uiColor: .systemBackground)
+            #endif
+        }
+    }
+
     // MARK: - Tracking (Letter Spacing) Constants (#12-14)
 
     /// Standardized letter-spacing values for typographic refinement

@@ -64,7 +64,7 @@ struct PaperLessonCard: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 8) {
-            // Header row: Name + Personal badge
+            // Header row: Name + status pills (top-right cluster)
             HStack(alignment: .top, spacing: 8) {
                 Text(lesson.name.isEmpty ? "Untitled CDLesson" : lesson.name)
                     .font(AppTheme.ScaledFont.titleSmall)
@@ -75,22 +75,33 @@ struct PaperLessonCard: View {
 
                 Spacer(minLength: 0)
 
-                if lesson.isStory {
-                    Text("Story")
-                        .font(AppTheme.ScaledFont.captionSmallSemibold)
-                        .padding(.horizontal, 8)
-                        .padding(.vertical, 4)
-                        .background(Capsule().fill(Color.purple.opacity(UIConstants.OpacityConstants.medium)))
-                        .foregroundStyle(.purple)
-                }
+                VStack(alignment: .trailing, spacing: 4) {
+                    if lesson.isStory {
+                        Text("Story")
+                            .font(AppTheme.ScaledFont.captionSmallSemibold)
+                            .padding(.horizontal, 8)
+                            .padding(.vertical, 4)
+                            .background(Capsule().fill(Color.purple.opacity(UIConstants.OpacityConstants.medium)))
+                            .foregroundStyle(.purple)
+                    }
 
-                if isPersonal {
-                    Text(lesson.personalKind?.badgeLabel ?? "Personal")
-                        .font(AppTheme.ScaledFont.captionSmallSemibold)
-                        .padding(.horizontal, 8)
-                        .padding(.vertical, 4)
-                        .background(Capsule().fill(Color.orange.opacity(UIConstants.OpacityConstants.medium)))
-                        .foregroundStyle(.orange)
+                    if isPersonal {
+                        Text(lesson.personalKind?.badgeLabel ?? "Personal")
+                            .font(AppTheme.ScaledFont.captionSmallSemibold)
+                            .padding(.horizontal, 8)
+                            .padding(.vertical, 4)
+                            .background(Capsule().fill(Color.orange.opacity(UIConstants.OpacityConstants.medium)))
+                            .foregroundStyle(.orange)
+                    }
+
+                    if !lesson.ageRange.trimmed().isEmpty {
+                        Text(lesson.ageRange)
+                            .font(AppTheme.ScaledFont.captionSmallSemibold)
+                            .padding(.horizontal, 8)
+                            .padding(.vertical, 4)
+                            .background(Capsule().fill(Color.secondary.opacity(UIConstants.OpacityConstants.medium)))
+                            .foregroundStyle(.secondary)
+                    }
                 }
             }
 
@@ -115,12 +126,19 @@ struct PaperLessonCard: View {
 
             // Bottom row: metadata badges
             HStack(spacing: 8) {
-                // Subject + Group
-                if !lesson.group.isEmpty || !lesson.subject.isEmpty {
-                    Text(groupSubjectLine)
-                        .font(AppTheme.ScaledFont.captionSmall)
-                        .foregroundStyle(.secondary)
-                        .lineLimit(1)
+                VStack(alignment: .leading, spacing: 2) {
+                    if !lesson.group.isEmpty || !lesson.subject.isEmpty {
+                        Text(groupSubjectLine)
+                            .font(AppTheme.ScaledFont.captionSmall)
+                            .foregroundStyle(.secondary)
+                            .lineLimit(1)
+                    }
+                    if let lastPresentedRelative {
+                        Text(lastPresentedRelative)
+                            .font(AppTheme.SemanticFont.metadata)
+                            .foregroundStyle(.secondary)
+                            .lineLimit(1)
+                    }
                 }
 
                 Spacer(minLength: 0)
@@ -160,6 +178,13 @@ struct PaperLessonCard: View {
         .frame(minHeight: 180) // Taller for paper-like 3:4 aspect ratio
         .background(paperBackground)
         .contentShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
+    }
+
+    private var lastPresentedRelative: String? {
+        guard let date = lastPresentedDate else { return nil }
+        let formatter = RelativeDateTimeFormatter()
+        formatter.unitsStyle = .abbreviated
+        return "Last given \(formatter.localizedString(for: date, relativeTo: Date()))"
     }
 
     private var groupSubjectLine: String {

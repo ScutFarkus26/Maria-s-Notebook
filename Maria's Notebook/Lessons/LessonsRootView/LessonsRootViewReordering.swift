@@ -69,7 +69,7 @@ extension LessonsRootView {
 
     @MainActor
     private func moveLessonsFlat(from source: IndexSet, to destination: Int, in allLessons: [CDLesson]) {
-        guard canReorderInPlanMode else { return }
+        guard canReorderInOutlineMode else { return }
         guard let sourceIndex = source.first else { return }
         guard sourceIndex < allLessons.count else { return }
 
@@ -149,7 +149,7 @@ extension LessonsRootView {
 
     @MainActor
     func moveLessonInGroup(lesson: CDLesson, direction: Int, group: String, ungroupedLabel: String) {
-        guard canReorderInPlanMode else { return }
+        guard canReorderInOutlineMode else { return }
 
         let groupLessons = lessonsForGroup(group, ungroupedLabel: ungroupedLabel)
         guard let index = groupLessons.firstIndex(where: { $0.id == lesson.id }) else { return }

@@ -13,6 +13,7 @@ struct LessonDetailView: View {
     var onSave: (CDLesson) -> Void
     var onDone: (() -> Void)?
     var onLocateInMap: ((CDLesson) -> Void)?
+    var onSchedule: ((CDLesson) -> Void)?
 
     @Environment(\.dismiss) private var dismiss
     @Environment(\.managedObjectContext) var viewContext
@@ -85,17 +86,38 @@ struct LessonDetailView: View {
 
     var body: some View {
         VStack(spacing: 0) {
-            // Header
-            HStack {
-                Text("Lesson Info")
-                    .font(AppTheme.ScaledFont.titleSmall)
+            // Top toolbar: close, spacer, open-in-new-window
+            HStack(spacing: 8) {
+                Button {
+                    if let onDone { onDone() } else { dismiss() }
+                } label: {
+                    Image(systemName: "xmark.circle.fill")
+                        .font(.system(size: 18, weight: .regular))
+                        .foregroundStyle(.secondary)
+                }
+                .buttonStyle(.plain)
+                .help("Close")
+                .keyboardShortcut(.cancelAction)
+
                 Spacer()
+
+                #if os(macOS)
+                Button {
+                    if let id = lesson.id { openLessonInNewWindow(id) }
+                } label: {
+                    Image(systemName: "uiwindow.split.2x1")
+                        .font(.system(size: 15, weight: .regular))
+                        .foregroundStyle(.secondary)
+                }
+                .buttonStyle(.plain)
+                .help("Open in New Window")
+                #endif
             }
-            .padding(.horizontal, AppTheme.Spacing.large)
-            .padding(.top, AppTheme.Spacing.medium + 2)
+            .padding(.horizontal, AppTheme.Spacing.medium)
+            .padding(.top, AppTheme.Spacing.small)
+            .padding(.bottom, AppTheme.Spacing.xsmall)
 
             Divider()
-                .padding(.top, AppTheme.Spacing.small)
 
             ScrollView {
                 VStack(spacing: AppTheme.Spacing.xxl) {
@@ -126,7 +148,7 @@ struct LessonDetailView: View {
                 .padding(.bottom, AppTheme.Spacing.large)
             }
         }
-        .frame(minWidth: 520, minHeight: 560)
+        .frame(minWidth: 440, minHeight: 560)
         .safeAreaInset(edge: .bottom) {
             bottomBar
         }
@@ -242,6 +264,7 @@ extension LessonDetailView {
         VStack(spacing: AppTheme.Spacing.compact) {
             Text(lesson.name.isEmpty ? "Untitled Lesson" : lesson.name)
                 .font(AppTheme.ScaledFont.titleXLarge)
+                .multilineTextAlignment(.center)
                 .frame(maxWidth: .infinity)
             HStack(spacing: AppTheme.Spacing.small) {
                 if !lesson.subject.isEmpty {
@@ -267,7 +290,21 @@ extension LessonDetailView {
                 }
             }
 
-            // Great CDLesson tag button
+            // Primary action: Give Lesson — the most common follow-up after viewing.
+            if !isEditing, let onSchedule {
+                Button {
+                    onSchedule(lesson)
+                } label: {
+                    Label("Give Lesson", systemImage: "person.crop.circle.badge.checkmark")
+                        .font(AppTheme.ScaledFont.bodySemibold)
+                        .frame(maxWidth: 240)
+                }
+                .buttonStyle(.borderedProminent)
+                .controlSize(.large)
+                .padding(.top, AppTheme.Spacing.xsmall)
+            }
+
+            // Great Lesson tag button
             Button {
                 showingGreatLessonTagEditor = true
             } label: {
@@ -328,15 +365,12 @@ extension LessonDetailView {
                         }
                         .help("Show this lesson's thread in the scope-and-sequence map")
                     }
-                    Button("Edit") {
-                        seedDrafts()
-                        isEditing = true
-                    }
                     Button("Delete", role: .destructive) {
                         showDeleteAlert = true
                     }
-                    Button("Done") {
-                        if let onDone { onDone() } else { dismiss() }
+                    Button("Edit") {
+                        seedDrafts()
+                        isEditing = true
                     }
                     .keyboardShortcut(.defaultAction)
                     .buttonStyle(.borderedProminent)

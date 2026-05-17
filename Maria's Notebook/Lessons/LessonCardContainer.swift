@@ -1,25 +1,19 @@
 import SwiftUI
 import CoreData
 
-struct LessonItemFramePreference: PreferenceKey {
-    nonisolated(unsafe) static var defaultValue: [UUID: CGRect] = [:]
-    static func reduce(value: inout [UUID: CGRect], nextValue: () -> [UUID: CGRect]) {
-        value.merge(nextValue(), uniquingKeysWith: { $1 })
-    }
-}
-
-struct LessonCardContainer: View {
+/// A Browse-mode lesson card: wraps `PaperLessonCard` with selection styling
+/// and (on macOS) hover-revealed quick action buttons. Tap and context menu
+/// gestures are applied by the caller.
+struct LessonBrowseCard: View {
     let lesson: CDLesson
-    let isDragging: Bool
-    let isHover: Bool
     let isSelected: Bool
     let hasAppeared: Bool
-    let gridNamespace: Namespace.ID
-    let disableAnimations: Bool
-    let shouldMeasureFrames: Bool
-    let shouldUseMatchedGeometry: Bool
     let statusCount: Int?
     let lastPresentedDate: Date?
+    let onGiveLesson: (() -> Void)?
+    let onLocateInMap: (() -> Void)?
+
+    @State private var isHovered = false
 
     var body: some View {
         let card = PaperLessonCard(
@@ -29,52 +23,78 @@ struct LessonCardContainer: View {
         )
 
         let baseView = Group {
-            if shouldUseMatchedGeometry {
-                card.matchedGeometryEffect(id: lesson.id, in: gridNamespace)
-            } else {
-                card
-            }
+            card
         }
         .when(hasAppeared) { view in
             view.transition(.opacity.combined(with: .scale(scale: 0.98)))
         }
 
-        let overlaidView = baseView
-            .overlay(
-                RoundedRectangle(cornerRadius: 14)
-                    .stroke(
-                        isDragging ? Color.accentColor.opacity(0.6) : Color.clear,
-                        lineWidth: 2
-                    )
-            )
-            .overlay(
-                RoundedRectangle(cornerRadius: 14)
-                    .stroke(
-                        isHover ? Color.accentColor.opacity(UIConstants.OpacityConstants.statusBg) : Color.clear,
-                        style: StrokeStyle(lineWidth: 2, dash: [6, 6])
-                    )
-            )
+        return baseView
+            .overlay(alignment: .bottom) {
+                hoverActionsOverlay
+            }
             .overlay(
                 RoundedRectangle(cornerRadius: 14)
                     .stroke(isSelected ? Color.accentColor : Color.clear, lineWidth: 3)
             )
-
-        overlaidView
-            .transaction { tx in
-                if disableAnimations { tx.animation = nil }
-            }
             .contentShape(Rectangle())
-            .background(
-                Group {
-                    if shouldMeasureFrames {
-                        GeometryReader { proxy in
-                            Color.clear.preference(
-                                key: LessonItemFramePreference.self,
-                                value: [lesson.id ?? UUID(): proxy.frame(in: .named("lessonsGridScroll"))]
-                            )
-                        }
-                    }
+            #if os(macOS)
+            .onHover { hovering in
+                adaptiveWithAnimation(.easeInOut(duration: 0.18)) {
+                    isHovered = hovering
                 }
+            }
+            #endif
+    }
+
+    @ViewBuilder
+    private var hoverActionsOverlay: some View {
+        #if os(macOS)
+        if isHovered, onGiveLesson != nil || onLocateInMap != nil {
+            HStack(spacing: 6) {
+                if let onGiveLesson {
+                    quickActionButton(
+                        title: "Give",
+                        icon: "person.crop.circle.badge.checkmark",
+                        action: onGiveLesson
+                    )
+                }
+                if let onLocateInMap {
+                    quickActionButton(
+                        title: "Map",
+                        icon: "chart.bar.doc.horizontal",
+                        action: onLocateInMap
+                    )
+                }
+            }
+            .padding(.horizontal, 8)
+            .padding(.vertical, 6)
+            .background(
+                Capsule().fill(.regularMaterial)
             )
+            .padding(.bottom, 10)
+            .transition(.opacity.combined(with: .move(edge: .bottom)))
+        }
+        #else
+        EmptyView()
+        #endif
+    }
+
+    private func quickActionButton(title: String, icon: String, action: @escaping () -> Void) -> some View {
+        Button(action: action) {
+            HStack(spacing: 4) {
+                Image(systemName: icon)
+                    .font(.system(size: 11, weight: .semibold))
+                Text(title)
+                    .font(AppTheme.ScaledFont.captionSmallSemibold)
+            }
+            .foregroundStyle(Color.accentColor)
+            .padding(.horizontal, 8)
+            .padding(.vertical, 4)
+            .background(
+                Capsule().fill(Color.accentColor.opacity(UIConstants.OpacityConstants.medium))
+            )
+        }
+        .buttonStyle(.plain)
     }
 }

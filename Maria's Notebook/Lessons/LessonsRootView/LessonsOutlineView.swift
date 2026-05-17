@@ -29,7 +29,6 @@ struct LessonsOutlineView: View {
     let lessonsByGroup: [String: [CDLesson]]
     let allSubheadings: [String: [String]]
     let selectedLessonID: UUID?
-    let isJiggling: Bool
 
     var onSelectLesson: ((CDLesson) -> Void)?
     var onScheduleLesson: ((CDLesson) -> Void)?
@@ -38,7 +37,6 @@ struct LessonsOutlineView: View {
     var onReorderSubheadings: ((String) -> Void)?
     var onReorderSubheadingByDrag: ((_ group: String, _ source: String, _ target: String) -> Void)?
     var onConfigureTrack: ((String) -> Void)?
-    var onActivateJiggle: (() -> Void)?
     var onMoveLessonsInGroup: ((_ source: IndexSet, _ destination: Int, _ group: String) -> Void)?
     var onMoveGroups: ((_ source: IndexSet, _ destination: Int) -> Void)?
     var onMoveLessonIDToGroup: ((_ lessonID: UUID, _ targetGroup: String) -> Void)?

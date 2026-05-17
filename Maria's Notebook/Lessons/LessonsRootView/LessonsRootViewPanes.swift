@@ -159,7 +159,8 @@ extension LessonsRootView {
     private var normalLessonsContentColumn: some View {
         let hasSearchText: Bool = !filterState.debouncedSearchText.trimmed().isEmpty
         let hasSubject: Bool = selectedSubject.map { !$0.trimmed().isEmpty } ?? false
-        let shouldShowFilters: Bool = (hasSubject || hasSearchText) && displayMode == .browse
+        // Filters now apply in both browse and outline modes for consistency.
+        let shouldShowFilters: Bool = hasSubject || hasSearchText
         let shouldShowLessons: Bool = hasSubject || hasSearchText
         let navTitle: String = selectedSubject == Self.storiesSentinel
             ? "All Stories"
@@ -175,7 +176,6 @@ extension LessonsRootView {
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
         }
         .navigationTitle(navTitle)
-        .searchable(text: $filterState.searchText, placement: .toolbar)
     }
 
     @ViewBuilder
@@ -204,24 +204,14 @@ extension LessonsRootView {
     private var browseModeLessons: some View {
         LessonsCardsGridView(
             lessons: filteredLessonsForDisplay,
-            isManualMode: isJiggling,
             onTapLesson: { lesson in
                 selectedLessonDetail = lesson
             },
-            onReorder: isJiggling ? { _, fromIndex, toIndex, subset in
-                moveLessonsInSubject(
-                    from: IndexSet(integer: fromIndex),
-                    to: toIndex > fromIndex ? toIndex + 1 : toIndex,
-                    in: subset
-                )
-            } : nil,
             onGiveLesson: { lesson in
                 lessonToSchedule = lesson
             },
-            onActivateJiggle: {
-                adaptiveWithAnimation(.spring(response: 0.3, dampingFraction: 0.8)) {
-                    isJiggling = true
-                }
+            onReorderInOutline: { lesson in
+                switchToOutlineMode(focusing: lesson)
             },
             onLocateInMap: { lesson in
                 locateLessonInMap(lesson)
@@ -232,6 +222,17 @@ extension LessonsRootView {
             lastPresentedDates: lastPresentedDates,
             showIntroductionCards: !hasActiveFilters
         )
+    }
+
+    /// Switches to Outline mode (formerly Plan), preserving the subject so the
+    /// user can drag-reorder the lesson they just right-clicked on a Browse card.
+    func switchToOutlineMode(focusing lesson: CDLesson) {
+        let subject = lesson.subject.trimmed()
+        if !subject.isEmpty {
+            filterState.selectedSubject = subject
+            listSelectedSubject = subject
+        }
+        displayModeRaw = LessonsDisplayMode.outline.rawValue
     }
 
     /// Lessons filtered by chip bar filters
@@ -269,12 +270,28 @@ extension LessonsRootView {
         filterState.needsAttentionFilter
     }
 
+    @ViewBuilder
     private var emptyStateView: some View {
-        ContentUnavailableView(
-            "Select an Album",
-            systemImage: "rectangle.stack",
-            description: Text("Select a subject from the sidebar to view lessons.")
-        )
+        if subjects.isEmpty {
+            ContentUnavailableView {
+                Label("No Lessons Yet", systemImage: "rectangle.stack")
+            } description: {
+                Text("Add lessons from your training album, or create your own. Each subject groups the lessons you give from that album.")
+            } actions: {
+                Button {
+                    showingAddLesson = true
+                } label: {
+                    Label("Add Your First Lesson", systemImage: "plus")
+                }
+                .buttonStyle(.borderedProminent)
+            }
+        } else {
+            ContentUnavailableView(
+                "Select a Subject",
+                systemImage: "rectangle.stack",
+                description: Text("Choose a subject from the sidebar to browse its lessons.")
+            )
+        }
     }
 
     // MARK: - Plan Mode List
@@ -336,7 +353,6 @@ extension LessonsRootView {
             lessonsByGroup: lessonsByGroup,
             allSubheadings: allSubheadings,
             selectedLessonID: selectedLessonDetail?.id,
-            isJiggling: isJiggling,
             onSelectLesson: { selectedLessonDetail = $0 },
             onScheduleLesson: { lessonToSchedule = $0 },
             onMoveToGroup: { moveLessonToGroup(lesson: $0, newGroup: $1) },
@@ -346,7 +362,6 @@ extension LessonsRootView {
                 reorderSubheadingByDrag(group: group, source: source, target: target)
             },
             onConfigureTrack: { handleConfigureTrack($0) },
-            onActivateJiggle: { handleActivateJiggle() },
             onMoveLessonsInGroup: { source, destination, group in
                 let groupLessons = lessonsForGroup(group, ungroupedLabel: "Ungrouped")
                 moveLessonsInSubject(from: source, to: destination, in: groupLessons)
@@ -366,12 +381,6 @@ extension LessonsRootView {
     private func handleConfigureTrack(_ group: String) {
         if let subject = selectedSubject {
             trackSettingsItem = TrackSettingsItem(subject: subject, group: group)
-        }
-    }
-
-    private func handleActivateJiggle() {
-        adaptiveWithAnimation(.spring(response: 0.3, dampingFraction: 0.8)) {
-            isJiggling = true
         }
     }
 
@@ -430,15 +439,13 @@ extension LessonsRootView {
             },
             onLocateInMap: { lesson in
                 locateLessonInMap(lesson)
+            },
+            onSchedule: { lesson in
+                lessonToSchedule = lesson
             }
         )
-        .frame(width: 520)
-        .frame(maxHeight: .infinity)
-        #if os(macOS)
-        .background(Color(NSColor.windowBackgroundColor))
-        #else
-        .background(Color(uiColor: .secondarySystemBackground))
-        #endif
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
+        .background(AppTheme.Colors.paneBackground)
     }
 
 }

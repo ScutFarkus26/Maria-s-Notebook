@@ -1,24 +1,19 @@
 // LessonsCardsGridView.swift
-// Performance optimizations: Geometry measurement and matchedGeometryEffect are gated to only run
-// when in manual reorder mode (isManualMode && onReorder != nil), avoiding expensive layout
-// measurements during normal browsing. Grid mode is browse-only (no reordering).
-// In browse mode (isManualMode=false), no GeometryReader, PreferenceKeys, or matchedGeometryEffect are used.
+// Browse mode lesson grid. Read-only: taps open detail, context menus surface
+// quick actions. Reordering happens in Outline mode — see "Reorder in Outline"
+// in the card context menu.
 
 import OSLog
 import SwiftUI
 import CoreData
 import Foundation
 
-// swiftlint:disable:next type_body_length
 struct LessonsCardsGridView: View {
     private static let logger = Logger.lessons
     let lessons: [CDLesson]
-    let isManualMode: Bool
     let onTapLesson: (CDLesson) -> Void
-    // Optional reorder callback; if provided and manual mode is enabled, supports drag reordering
-    let onReorder: ((_ movingLesson: CDLesson, _ fromIndex: Int, _ toIndex: Int, _ subset: [CDLesson]) -> Void)?
     let onGiveLesson: ((CDLesson) -> Void)?
-    let onActivateJiggle: (() -> Void)?
+    let onReorderInOutline: ((CDLesson) -> Void)?
     let onLocateInMap: ((CDLesson) -> Void)?
     let statusCounts: [UUID: Int]?
     let selectedSubject: String?
@@ -28,11 +23,9 @@ struct LessonsCardsGridView: View {
 
     init(
         lessons: [CDLesson],
-        isManualMode: Bool,
         onTapLesson: @escaping (CDLesson) -> Void,
-        onReorder: ((_ movingLesson: CDLesson, _ fromIndex: Int, _ toIndex: Int, _ subset: [CDLesson]) -> Void)? = nil,
         onGiveLesson: ((CDLesson) -> Void)? = nil,
-        onActivateJiggle: (() -> Void)? = nil,
+        onReorderInOutline: ((CDLesson) -> Void)? = nil,
         onLocateInMap: ((CDLesson) -> Void)? = nil,
         statusCounts: [UUID: Int]? = nil,
         selectedSubject: String? = nil,
@@ -41,11 +34,9 @@ struct LessonsCardsGridView: View {
         showIntroductionCards: Bool = true
     ) {
         self.lessons = lessons
-        self.isManualMode = isManualMode
         self.onTapLesson = onTapLesson
-        self.onReorder = onReorder
         self.onGiveLesson = onGiveLesson
-        self.onActivateJiggle = onActivateJiggle
+        self.onReorderInOutline = onReorderInOutline
         self.onLocateInMap = onLocateInMap
         self.statusCounts = statusCounts
         self.selectedSubject = selectedSubject
@@ -54,10 +45,6 @@ struct LessonsCardsGridView: View {
         self.showIntroductionCards = showIntroductionCards
     }
 
-    @State var draggingLessonID: UUID?
-    @State var hoverTargetID: UUID?
-    @State var itemFrames: [UUID: CGRect] = [:]
-    @Namespace var gridNamespace
     @State var hasAppeared: Bool = false
     @State private var showDeleteAlert: Bool = false
     @State var introductionToShow: CurriculumIntroduction?
@@ -178,13 +165,13 @@ struct LessonsCardsGridView: View {
     var body: some View {
         ScrollViewReader { scrollProxy in
             ScrollView {
-                LazyVGrid(columns: columns, alignment: .leading, spacing: 24) {
+                LazyVGrid(columns: columns, alignment: .leading, spacing: 24, pinnedViews: [.sectionHeaders]) {
                     if groupedItems.count > 1 {
                         ForEach(groupedItems, id: \.key) { entry in
                             Section {
                                 groupItemsWithSubheadings(entry: entry)
                             } header: {
-                                groupHeader(for: entry.key, subject: selectedSubject)
+                                groupHeader(for: entry.key, subject: selectedSubject, lessonCount: entry.value.compactMap(\.asLesson).count)
                             }
                         }
                     } else {
@@ -196,25 +183,13 @@ struct LessonsCardsGridView: View {
                 .transaction { tx in
                     if !hasAppeared { tx.animation = nil }
                 }
-                .adaptiveAnimation(gridAnimation, value: idList)
+                .adaptiveAnimation(.spring(response: 0.35, dampingFraction: 0.85, blendDuration: 0.1), value: idList)
                 .padding(.top, 24)
                 .padding(.bottom, 24)
                 .padding(.trailing, 24)
                 .padding(.leading, 0)
             }
             .frame(maxWidth: .infinity, maxHeight: .infinity)
-            // Apply coordinate space + preference handler unconditionally so entering/exiting
-            // jiggle mode doesn't change the ScrollView's structural identity (which would reset
-            // the scroll position). LessonCardContainer only emits frame preferences when
-            // shouldMeasureFrames is true, so there's no perf cost outside jiggle mode.
-            .coordinateSpace(name: "lessonsGridScroll")
-            .onPreferenceChange(LessonItemFramePreference.self) { frames in
-                // Defer state update to next run loop to avoid layout recursion
-                // PreferenceKey updates happen during layout, so we must defer state changes
-                Task { @MainActor in
-                    itemFrames = frames
-                }
-            }
             .onChange(of: selectedLessonID) { _, newValue in
                 if let lessonID = newValue {
                     Task { @MainActor in
@@ -247,29 +222,42 @@ struct LessonsCardsGridView: View {
     // MARK: - Group Header
 
     @ViewBuilder
-    private func groupHeader(for groupName: String, subject: String?) -> some View {
+    private func groupHeader(for groupName: String, subject: String?, lessonCount: Int) -> some View {
         let displayName = groupName.isEmpty ? "Ungrouped" : groupName
         let groupArg = groupName.isEmpty ? nil : groupName
         let hasIntro = subject != nil && introductionStore.hasIntroduction(
             for: subject!, group: groupArg
         )
+        let accentColor = subject.map { AppColors.color(forSubject: $0) } ?? .accentColor
 
-        HStack(spacing: 8) {
+        HStack(spacing: 10) {
             Text(displayName)
-                .font(AppTheme.ScaledFont.captionSemibold)
-                .foregroundStyle(.secondary)
+                .font(AppTheme.ScaledFont.titleSmall)
+                .foregroundStyle(.primary)
+
+            if lessonCount > 0 {
+                Text("\(lessonCount)")
+                    .font(AppTheme.ScaledFont.captionSmallSemibold)
+                    .monospacedDigit()
+                    .foregroundStyle(.secondary)
+                    .padding(.horizontal, 7)
+                    .padding(.vertical, 2)
+                    .background(
+                        Capsule().fill(accentColor.opacity(UIConstants.OpacityConstants.medium))
+                    )
+            }
 
             if hasIntro {
                 Button {
                     if let subj = subject {
                         introductionToShow = introductionStore.introduction(
-                        for: subj, group: groupArg
-                    )
+                            for: subj, group: groupArg
+                        )
                     }
                 } label: {
-                    Image(systemName: "info.circle")
+                    Image(systemName: "info.circle.fill")
                         .font(.system(size: 14, weight: .medium))
-                        .foregroundStyle(.secondary)
+                        .foregroundStyle(accentColor)
                 }
                 .buttonStyle(.plain)
                 .help("View introduction")
@@ -278,7 +266,9 @@ struct LessonsCardsGridView: View {
             Spacer()
         }
         .padding(.horizontal, 4)
-        .padding(.top, 8)
+        .padding(.top, 12)
+        .padding(.bottom, 8)
+        .background(AppTheme.Colors.paneBackground)
     }
 
     // MARK: - Subheading Sub-Sections
@@ -298,16 +288,24 @@ struct LessonsCardsGridView: View {
                     .id(item.id)
             }
 
-            // Then subheading clusters
+            // Then subheading clusters. Lessons with no subheading render un-headered
+            // at the bottom of the group rather than under a placeholder label.
             ForEach(order, id: \.self) { sh in
                 if let shLessons = bySubheading[sh], !shLessons.isEmpty {
-                    Section {
+                    if sh.isEmpty {
                         ForEach(shLessons, id: \.id) { lesson in
                             gridItemView(.lesson(lesson))
                                 .id("lesson-\(lesson.id?.uuidString ?? "")")
                         }
-                    } header: {
-                        subheadingHeader(sh.isEmpty ? "Other" : sh)
+                    } else {
+                        Section {
+                            ForEach(shLessons, id: \.id) { lesson in
+                                gridItemView(.lesson(lesson))
+                                    .id("lesson-\(lesson.id?.uuidString ?? "")")
+                            }
+                        } header: {
+                            subheadingHeader(sh)
+                        }
                     }
                 }
             }
@@ -320,22 +318,29 @@ struct LessonsCardsGridView: View {
         }
     }
 
-    /// A lightweight subheading divider row that spans the grid.
+    /// A subheading divider row that spans the grid, accented with the subject color.
     @ViewBuilder
     private func subheadingHeader(_ name: String) -> some View {
-        HStack(spacing: 6) {
-            RoundedRectangle(cornerRadius: 0.5)
-                .fill(Color.secondary.opacity(UIConstants.OpacityConstants.quarter))
-                .frame(width: 3, height: 14)
+        let accentColor = selectedSubject.map { AppColors.color(forSubject: $0) } ?? .secondary
+
+        HStack(spacing: 8) {
+            RoundedRectangle(cornerRadius: 1.5)
+                .fill(accentColor.opacity(UIConstants.OpacityConstants.semi))
+                .frame(width: 3, height: 16)
 
             Text(name)
-                .font(.system(.caption, design: .rounded, weight: .medium))
-                .foregroundStyle(.secondary)
+                .font(AppTheme.ScaledFont.bodyMedium)
+                .foregroundStyle(.primary.opacity(UIConstants.OpacityConstants.prominent))
 
-            VStack { Divider() }
+            VStack {
+                Rectangle()
+                    .fill(Color.secondary.opacity(UIConstants.OpacityConstants.faint))
+                    .frame(height: 1)
+            }
         }
         .padding(.leading, 8)
-        .padding(.top, 4)
+        .padding(.top, 6)
+        .padding(.bottom, 2)
     }
 
 }

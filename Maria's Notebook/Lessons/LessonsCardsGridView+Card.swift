@@ -21,61 +21,60 @@ extension LessonsCardsGridView {
 
     @ViewBuilder
     func card(_ lesson: CDLesson) -> some View {
-        let isDragging = isManualMode && draggingLessonID == lesson.id
-        let isHover = hoverTargetID == lesson.id
-        let isSelected = selectedLessonID == lesson.id
-        let shouldMeasureFrames = isManualMode && onReorder != nil
+        cardBase(lesson)
+            .modifier(LessonCardTapModifier(lesson: lesson, onTap: onTapLesson))
+            #if os(macOS)
+            .overlay(RightClickCatcher(onRightClick: { onGiveLesson?(lesson) }))
+            #endif
+            .contextMenu { cardContextMenu(lesson) }
+    }
 
-        LessonCardContainer(
+    private func cardBase(_ lesson: CDLesson) -> some View {
+        LessonBrowseCard(
             lesson: lesson,
-            isDragging: isDragging,
-            isHover: isHover,
-            isSelected: isSelected,
+            isSelected: selectedLessonID == lesson.id,
             hasAppeared: hasAppeared,
-            gridNamespace: gridNamespace,
-            disableAnimations: draggingLessonID != nil,
-            shouldMeasureFrames: shouldMeasureFrames,
-            shouldUseMatchedGeometry: shouldMeasureFrames,
             statusCount: lesson.id.flatMap { statusCounts?[$0] },
-            lastPresentedDate: lesson.id.flatMap { lastPresentedDates?[$0] }
+            lastPresentedDate: lesson.id.flatMap { lastPresentedDates?[$0] },
+            onGiveLesson: onGiveLesson.map { handler in { handler(lesson) } },
+            onLocateInMap: onLocateInMap.map { handler in { handler(lesson) } }
         )
-        .jiggle(isActive: isManualMode, seed: lessons.firstIndex(where: { $0.id == lesson.id }) ?? 0)
-#if os(macOS)
-        .highPriorityGesture(TapGesture(count: 1).onEnded { onTapLesson(lesson) })
-#else
-        .onTapGesture { onTapLesson(lesson) }
-#endif
-        .when(isManualMode && onReorder != nil) { view in
-            view.simultaneousGesture(longPressThenDrag(for: lesson))
+    }
+
+    @ViewBuilder
+    private func cardContextMenu(_ lesson: CDLesson) -> some View {
+        Button {
+            onGiveLesson?(lesson)
+        } label: {
+            Label("Give Lesson", systemImage: "person.crop.circle.badge.checkmark")
         }
-        .when(!isManualMode && onActivateJiggle != nil) { view in
-            view.onLongPressGesture(minimumDuration: 0.4) {
-                #if os(iOS)
-                UIImpactFeedbackGenerator(style: .medium).impactOccurred()
-                #endif
-                onActivateJiggle?()
+        if let onLocateInMap {
+            Button {
+                onLocateInMap(lesson)
+            } label: {
+                Label("Locate in Map", systemImage: "chart.bar.doc.horizontal")
             }
         }
-#if os(macOS)
-        .overlay(RightClickCatcher(onRightClick: { onGiveLesson?(lesson) }))
-#endif
-#if !os(macOS)
-        .when(!isManualMode) { view in
-            view.contextMenu {
-                Button {
-                    onGiveLesson?(lesson)
-                } label: {
-                    Label("Give Lesson", systemImage: "person.crop.circle.badge.checkmark")
-                }
-                if let onLocateInMap {
-                    Button {
-                        onLocateInMap(lesson)
-                    } label: {
-                        Label("Locate in Map", systemImage: "chart.bar.doc.horizontal")
-                    }
-                }
+        if let onReorderInOutline {
+            Divider()
+            Button {
+                onReorderInOutline(lesson)
+            } label: {
+                Label("Reorder in Outline…", systemImage: "list.bullet.indent")
             }
         }
-#endif
+    }
+}
+
+private struct LessonCardTapModifier: ViewModifier {
+    let lesson: CDLesson
+    let onTap: (CDLesson) -> Void
+
+    func body(content: Content) -> some View {
+        #if os(macOS)
+        content.highPriorityGesture(TapGesture(count: 1).onEnded { onTap(lesson) })
+        #else
+        content.onTapGesture { onTap(lesson) }
+        #endif
     }
 }

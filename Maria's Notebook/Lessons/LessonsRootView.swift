@@ -12,7 +12,8 @@ import CoreData
 
 enum LessonsDisplayMode: String, CaseIterable, Identifiable {
     case browse = "Browse"
-    case plan = "Plan"
+    // rawValue retained as "Plan" so existing @SceneStorage values continue to resolve.
+    case outline = "Plan"
     case map = "Map"
 
     var id: String { rawValue }
@@ -20,7 +21,7 @@ enum LessonsDisplayMode: String, CaseIterable, Identifiable {
     var icon: String {
         switch self {
         case .browse: return "square.grid.2x2"
-        case .plan: return "list.bullet"
+        case .outline: return "list.bullet.indent"
         case .map: return "chart.bar.doc.horizontal"
         }
     }
@@ -28,7 +29,7 @@ enum LessonsDisplayMode: String, CaseIterable, Identifiable {
     var displayName: String {
         switch self {
         case .browse: return "Browse"
-        case .plan: return "Edit"
+        case .outline: return "Outline"
         case .map: return "Map"
         }
     }
@@ -90,13 +91,16 @@ struct LessonsRootView: View {
     // MARK: - UI State
     @State var filterState = LessonsFilterState()
     @State var listSelectedSubject: String?
-    @State var isJiggling = false
 
     // MARK: - Scene Storage
     @SceneStorage("Lessons.selectedSubject") var selectedSubjectRaw: String = ""
     @SceneStorage("Lessons.searchText") var searchTextRaw: String = ""
     @SceneStorage("Lessons.displayMode") var displayModeRaw: String = LessonsDisplayMode.browse.rawValue
+    @SceneStorage("Lessons.detailPaneWidth") var detailPaneWidth: Double = 520
     @AppStorage("Lessons.mapSpine") var mapSpineRaw: String = MapSpine.subject.rawValue
+
+    static let detailPaneMinWidth: CGFloat = 440
+    static let detailPaneMaxWidth: CGFloat = 720
 
     // MARK: - Sheet State
     @State var lessonToSchedule: CDLesson?
@@ -107,6 +111,8 @@ struct LessonsRootView: View {
     @State var showingBulkEntry = false
 
     // MARK: - Reordering State
+    @State var detailPaneDragStartWidth: CGFloat?
+
     @State var reorderableGroups: [String] = []
     /// Counter bumped after a subheading drag-reorder. `buildSubheadings` references it
     /// so SwiftUI re-evaluates the outline when `FilterOrderStore` changes (UserDefaults
@@ -189,16 +195,14 @@ struct LessonsRootView: View {
         MapSpine(rawValue: mapSpineRaw) ?? .subject
     }
 
-    var canReorderInPlanMode: Bool {
-        displayMode == .plan &&
+    var canReorderInOutlineMode: Bool {
+        displayMode == .outline &&
         filterState.debouncedSearchText.trimmed().isEmpty &&
         (filterState.selectedSubject?.trimmed().isEmpty == false)
     }
 
     var canReorder: Bool {
-        (isJiggling || displayMode == .plan) &&
-        filterState.debouncedSearchText.trimmed().isEmpty &&
-        (filterState.selectedSubject?.trimmed().isEmpty == false)
+        canReorderInOutlineMode
     }
 
     // MARK: - Body
@@ -207,17 +211,6 @@ struct LessonsRootView: View {
         lessonsMainLayout
         .frame(maxWidth: .infinity, maxHeight: .infinity)
         .adaptiveAnimation(.spring(response: 0.3, dampingFraction: 0.85), value: selectedLessonDetail?.id)
-        #if os(macOS)
-        .onKeyPress(.escape) {
-            if isJiggling {
-                adaptiveWithAnimation(.spring(response: 0.3, dampingFraction: 0.8)) {
-                    isJiggling = false
-                }
-                return .handled
-            }
-            return .ignored
-        }
-        #endif
         #if os(iOS)
         .environment(\.editMode, $editMode)
         #endif
@@ -226,7 +219,6 @@ struct LessonsRootView: View {
         .onChange(of: listSelectedSubject) { _, newValue in handleListSelectionChange(newValue) }
         .onChange(of: filterState.selectedSubject) { _, newValue in handleSubjectChange(newValue) }
         .onChange(of: filterState.searchText) { _, newValue in handleSearchTextChange(newValue) }
-        .onChange(of: isJiggling) { _, newValue in handleJigglingChange(newValue) }
         .onChange(of: displayMode) { _, newValue in handleDisplayModeChange(newValue) }
         .sheet(item: $lessonToSchedule) { lesson in lessonScheduleSheet(lesson) }
         .sheet(item: $trackSettingsItem) { item in GroupTrackSettingsSheet(subject: item.subject, group: item.group) }
@@ -248,16 +240,7 @@ struct LessonsRootView: View {
     private func handleSearchTextChange(_ newValue: String) {
         Task { @MainActor in
             searchTextRaw = newValue
-            if !newValue.trimmed().isEmpty {
-                isJiggling = false
-            }
         }
-    }
-
-    private func handleJigglingChange(_ newValue: Bool) {
-        #if os(iOS)
-        editMode = (newValue || displayMode == .plan) ? .active : .inactive
-        #endif
     }
 
     private var lessonsMainLayout: some View {
@@ -274,13 +257,46 @@ struct LessonsRootView: View {
                     .frame(maxWidth: .infinity)
 
                 if let selectedLesson = selectedLessonDetail {
-                    Divider()
+                    resizableDetailDivider
                     lessonDetailPane(lesson: selectedLesson)
-                        .frame(width: 520)
+                        .frame(width: CGFloat(detailPaneWidth))
                         .transition(.move(edge: .trailing))
                 }
             }
         }
+    }
+
+    /// Vertical divider that resizes the detail pane when dragged.
+    private var resizableDetailDivider: some View {
+        Rectangle()
+            .fill(Color.clear)
+            .overlay(Divider())
+            .frame(width: 6)
+            .contentShape(Rectangle())
+            #if os(macOS)
+            .onHover { hovering in
+                if hovering {
+                    NSCursor.resizeLeftRight.push()
+                } else {
+                    NSCursor.pop()
+                }
+            }
+            #endif
+            .gesture(detailDividerDragGesture)
+    }
+
+    private var detailDividerDragGesture: some Gesture {
+        DragGesture(minimumDistance: 1)
+            .onChanged { value in
+                if detailPaneDragStartWidth == nil {
+                    detailPaneDragStartWidth = CGFloat(detailPaneWidth)
+                }
+                let start = detailPaneDragStartWidth ?? CGFloat(detailPaneWidth)
+                let raw = start - value.translation.width
+                let clamped = min(Self.detailPaneMaxWidth, max(Self.detailPaneMinWidth, raw))
+                detailPaneWidth = Double(clamped)
+            }
+            .onEnded { _ in detailPaneDragStartWidth = nil }
     }
 
     // MARK: - Event Handlers
@@ -325,7 +341,6 @@ struct LessonsRootView: View {
                 listSelectedSubject = newValue
             }
             selectedSubjectRaw = newValue ?? ""
-            isJiggling = false
             syncReorderableGroups()
         }
     }
@@ -333,15 +348,14 @@ struct LessonsRootView: View {
     private func handleDisplayModeChange(_ newValue: LessonsDisplayMode) {
         Task { @MainActor in
             displayModeRaw = newValue.rawValue
-            isJiggling = false
-            if newValue == .plan {
+            if newValue == .outline {
                 syncReorderableGroups()
             }
             if newValue != .map {
                 focusedThread = nil
             }
             #if os(iOS)
-            editMode = (isJiggling || newValue == .plan) ? .active : .inactive
+            editMode = newValue == .outline ? .active : .inactive
             #endif
         }
     }
