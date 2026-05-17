@@ -45,7 +45,7 @@ struct ViewHeader<TrailingContent: View>: View {
 #Preview("Header with Controls") {
     VStack(spacing: 0) {
         ViewHeader(title: "Checklist") {
-            Picker("Subject", selection: .constant("Biology")) {
+            Picker("Area", selection: .constant("Biology")) {
                 Text("Biology").tag("Biology")
                 Text("Math").tag("Math")
             }

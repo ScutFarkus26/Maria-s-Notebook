@@ -2,12 +2,12 @@ import Foundation
 import CoreData
 
 enum LessonsReorderService {
-    /// Reorders lessons within a subset and writes sequential orderInGroup values. Calls save on the provided context.
+    /// Reorders lessons within a subset and writes sequential orderInSequence values. Calls save on the provided context.
     /// - Parameters:
     ///   - movingLesson: The lesson being moved
     ///   - fromIndex: Original index within the subset
     ///   - toIndex: Target index within the subset
-    ///   - subset: The subset of lessons being reordered (e.g., the current group view)
+    ///   - subset: The subset of lessons being reordered (e.g., the current sequence view)
     ///   - context: NSManagedObjectContext to save changes
     public static func reorder(
         movingLesson: CDLesson, fromIndex: Int, toIndex: Int,
@@ -19,30 +19,30 @@ enum LessonsReorderService {
         let boundedTo = max(0, min(ordered.count, toIndex))
         ordered.insert(item, at: boundedTo)
         for (idx, l) in ordered.enumerated() {
-            l.orderInGroup = Int64(idx)
+            l.orderInSequence = Int64(idx)
         }
         try context.save()
     }
     
-    /// Reorders lessons within a subject (using sortIndex). Normalizes indices after reordering.
+    /// Reorders lessons within a area (using sortIndex). Normalizes indices after reordering.
     /// - Parameters:
     ///   - movingLesson: The lesson being moved
-    ///   - fromIndex: Original index within the subject
-    ///   - toIndex: Target index within the subject
-    ///   - allLessonsInSubject: All lessons in the subject (across all groups)
+    ///   - fromIndex: Original index within the area
+    ///   - toIndex: Target index within the area
+    ///   - allLessonsInArea: All lessons in the area (across all groups)
     ///   - context: NSManagedObjectContext to save changes
     @MainActor
-    public static func reorderInSubject(
+    public static func reorderInArea(
         movingLesson: CDLesson, fromIndex: Int, toIndex: Int,
-        allLessonsInSubject: [CDLesson], context: NSManagedObjectContext
+        allLessonsInArea: [CDLesson], context: NSManagedObjectContext
     ) throws {
-        var ordered = allLessonsInSubject
+        var ordered = allLessonsInArea
         let boundedFrom = max(0, min(ordered.count - 1, fromIndex))
         let item = ordered.remove(at: boundedFrom)
         let boundedTo = max(0, min(ordered.count, toIndex))
         ordered.insert(item, at: boundedTo)
         
-        // Update sortIndex for all lessons in the subject
+        // Update sortIndex for all lessons in the area
         for (idx, lesson) in ordered.enumerated() {
             lesson.sortIndex = Int64(idx)
         }
@@ -50,15 +50,15 @@ enum LessonsReorderService {
         try context.save()
     }
     
-    /// Reorders lessons within a group (using orderInGroup). Normalizes indices after reordering.
+    /// Reorders lessons within a sequence (using orderInSequence). Normalizes indices after reordering.
     /// - Parameters:
     ///   - movingLesson: The lesson being moved
-    ///   - fromIndex: Original index within the group
-    ///   - toIndex: Target index within the group
-    ///   - groupLessons: All lessons in the group
+    ///   - fromIndex: Original index within the sequence
+    ///   - toIndex: Target index within the sequence
+    ///   - groupLessons: All lessons in the sequence
     ///   - context: NSManagedObjectContext to save changes
     @MainActor
-    public static func reorderInGroup(
+    public static func reorderInSequence(
         movingLesson: CDLesson, fromIndex: Int, toIndex: Int,
         groupLessons: [CDLesson], context: NSManagedObjectContext
     ) throws {
@@ -68,9 +68,9 @@ enum LessonsReorderService {
         let boundedTo = max(0, min(ordered.count, toIndex))
         ordered.insert(item, at: boundedTo)
         
-        // Update orderInGroup for all lessons in the group
+        // Update orderInSequence for all lessons in the sequence
         for (idx, lesson) in ordered.enumerated() {
-            lesson.orderInGroup = Int64(idx)
+            lesson.orderInSequence = Int64(idx)
         }
         
         try context.save()

@@ -91,7 +91,7 @@ enum TransitionChecklistTemplates {
         // Social
         ("Seeks peer collaboration", .social),
         ("Can resolve conflicts with guidance", .social),
-        ("Shows group leadership", .social),
+        ("Shows sequence leadership", .social),
         ("Participates in going-out planning", .social),
 
         // Independence

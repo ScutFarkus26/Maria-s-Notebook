@@ -93,7 +93,7 @@ extension CDPracticeSession {
         set { independenceLevel = Int64(newValue ?? 0) }
     }
 
-    /// Returns true if this is a group practice session (2+ students)
+    /// Returns true if this is a sequence practice session (2+ students)
     var isGroupSession: Bool {
         studentIDsArray.count > 1
     }

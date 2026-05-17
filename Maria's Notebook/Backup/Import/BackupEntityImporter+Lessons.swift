@@ -21,10 +21,10 @@ extension BackupEntityImporter {
             let lesson = CDLesson(context: viewContext)
             lesson.id = dto.id
             lesson.name = dto.name
-            lesson.subject = dto.subject
-            lesson.group = dto.group
-            lesson.orderInGroup = Int64(dto.orderInGroup)
-            lesson.subheading = dto.subheading
+            lesson.area = dto.area
+            lesson.sequence = dto.sequence
+            lesson.orderInSequence = Int64(dto.orderInSequence)
+            lesson.section = dto.section
             lesson.writeUp = dto.writeUp
             if let pages = dto.pagesFileRelativePath { lesson.pagesFileRelativePath = pages }
             if let primaryAttachmentID = dto.primaryAttachmentID {
@@ -161,7 +161,7 @@ extension BackupEntityImporter {
 
             // Set snapshots
             assignment.lessonTitleSnapshot = dto.lessonTitleSnapshot
-            assignment.lessonSubheadingSnapshot = dto.lessonSubheadingSnapshot
+            assignment.lessonSectionSnapshot = dto.lessonSectionSnapshot
 
             // Set migration tracking
             assignment.migratedFromStudentLessonID = dto.migratedFromLegacyID

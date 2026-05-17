@@ -159,8 +159,8 @@ struct RootAdaptiveTabs: View {
             } label: {
                 Label("Needs Lesson", systemImage: "clock.badge.exclamationmark")
             }
-            Tab(value: RootView.NavigationItem.smallGroupPlanner) {
-                RootDetailContent(selectedNavItem: .smallGroupPlanner)
+            Tab(value: RootView.NavigationItem.smallSequencePlanner) {
+                RootDetailContent(selectedNavItem: .smallSequencePlanner)
             } label: {
                 Label("Group Planner", systemImage: "person.3.sequence")
             }

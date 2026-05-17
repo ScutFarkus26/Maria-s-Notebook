@@ -55,13 +55,13 @@ enum DataCleanupService {
             repaired += 1
         }
 
-        // Also backfill GroupTrack → Track relationships
-        let groupTracks = context.safeFetch(CDFetchRequest(CDGroupTrackEntity.self))
-        let orphanedGroupTracks = groupTracks.filter { $0.track == nil }
-        for groupTrack in orphanedGroupTracks {
-            let title = "\(groupTrack.subject) — \(groupTrack.group)"
+        // Also backfill SequenceTrack → Track relationships
+        let sequenceTracks = context.safeFetch(CDFetchRequest(CDSequenceTrackEntity.self))
+        let orphanedSequenceTracks = sequenceTracks.filter { $0.track == nil }
+        for sequenceTrack in orphanedSequenceTracks {
+            let title = "\(sequenceTrack.area) — \(sequenceTrack.sequence)"
             if let matchingTrack = tracks.first(where: { $0.title.trimmed() == title }) {
-                groupTrack.track = matchingTrack
+                sequenceTrack.track = matchingTrack
                 repaired += 1
             }
         }

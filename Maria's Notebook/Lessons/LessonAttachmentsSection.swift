@@ -37,7 +37,7 @@ private enum FileImportHelpers {
 }
 
 // swiftlint:disable type_body_length
-/// Displays and manages attachments for a lesson, including inherited attachments from group and subject.
+/// Displays and manages attachments for a lesson, including inherited attachments from sequence and area.
 struct LessonAttachmentsSection: View {
     private static let logger = Logger.lessons
 
@@ -63,11 +63,11 @@ struct LessonAttachmentsSection: View {
     }
     
     private var groupAttachments: [CDLessonAttachment] {
-        attachments.filter { $0.scope == .group }
+        attachments.filter { $0.scope == .sequence }
     }
     
-    private var subjectAttachments: [CDLessonAttachment] {
-        attachments.filter { $0.scope == .subject }
+    private var areaAttachments: [CDLessonAttachment] {
+        attachments.filter { $0.scope == .area }
     }
     
     var body: some View {
@@ -143,15 +143,15 @@ struct LessonAttachmentsSection: View {
 
                     if !groupAttachments.isEmpty {
                         attachmentGroup(
-                            title: "From Group: \(lesson.group)",
+                            title: "From Sequence: \(lesson.sequence)",
                             attachments: groupAttachments, isInherited: true
                         )
                     }
 
-                    if !subjectAttachments.isEmpty {
+                    if !areaAttachments.isEmpty {
                         attachmentGroup(
-                            title: "From Subject: \(lesson.subject)",
-                            attachments: subjectAttachments, isInherited: true
+                            title: "From Area: \(lesson.area)",
+                            attachments: areaAttachments, isInherited: true
                         )
                     }
                 }
@@ -434,8 +434,8 @@ struct LessonAttachmentsSection: View {
     let ctx = CoreDataStack.preview.viewContext
     let lesson = CDLesson(context: ctx)
     lesson.name = "Introduction to Place Value"
-    lesson.subject = "Math"
-    lesson.group = "Decimal System"
+    lesson.area = "Math"
+    lesson.sequence = "Decimal System"
 
     return LessonAttachmentsSection(lesson: lesson)
         .previewEnvironment()

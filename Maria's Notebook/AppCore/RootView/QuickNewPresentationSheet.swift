@@ -15,7 +15,7 @@ struct QuickNewPresentationSheet: View {
     @AppStorage(UserDefaultsKeys.generalTestStudentNames)
     private var testStudentNamesRaw: String = "Danny De Berry,Lil Dan D"
 
-    @FetchRequest(sortDescriptors: [NSSortDescriptor(keyPath: \CDLesson.subject, ascending: true), NSSortDescriptor(keyPath: \CDLesson.sortIndex, ascending: true)])
+    @FetchRequest(sortDescriptors: [NSSortDescriptor(keyPath: \CDLesson.area, ascending: true), NSSortDescriptor(keyPath: \CDLesson.sortIndex, ascending: true)])
     private var allLessons: FetchedResults<CDLesson>
 
     @FetchRequest(sortDescriptors: [NSSortDescriptor(keyPath: \CDStudent.lastName, ascending: true), NSSortDescriptor(keyPath: \CDStudent.firstName, ascending: true)])
@@ -46,8 +46,8 @@ struct QuickNewPresentationSheet: View {
         guard !query.isEmpty else { return Array(allLessons) }
         return Array(allLessons).filter {
             $0.name.lowercased().contains(query) ||
-            $0.subject.lowercased().contains(query) ||
-            $0.group.lowercased().contains(query)
+            $0.area.lowercased().contains(query) ||
+            $0.sequence.lowercased().contains(query)
         }
     }
 
@@ -153,8 +153,8 @@ struct QuickNewPresentationSheet: View {
                     VStack(alignment: .leading, spacing: 2) {
                         Text(lesson.name)
                             .font(.subheadline.weight(.bold))
-                        if !lesson.subject.isEmpty {
-                            Text(lesson.subject)
+                        if !lesson.area.isEmpty {
+                            Text(lesson.area)
                                 .font(.caption)
                                 .foregroundStyle(.secondary)
                         }
@@ -191,8 +191,8 @@ struct QuickNewPresentationSheet: View {
                         VStack(alignment: .leading, spacing: 2) {
                             Text(lesson.name)
                                 .foregroundStyle(.primary)
-                            if !lesson.subject.isEmpty {
-                                Text("\(lesson.subject) • \(lesson.group)")
+                            if !lesson.area.isEmpty {
+                                Text("\(lesson.area) • \(lesson.sequence)")
                                     .font(.caption)
                                     .foregroundStyle(.secondary)
                             }
@@ -333,7 +333,7 @@ struct QuickNewPresentationSheet: View {
         // Snapshot lesson info for historical accuracy
         if let lesson = selectedLesson {
             lessonAssignment.lessonTitleSnapshot = lesson.name
-            lessonAssignment.lessonSubheadingSnapshot = lesson.subheading
+            lessonAssignment.lessonSectionSnapshot = lesson.section
         }
 
         saveCoordinator.save(viewContext, reason: "Quick New Presentation")

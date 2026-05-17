@@ -6,11 +6,11 @@ enum LessonCSVImporter {
     // MARK: - Row DTO
     struct Row {
         var name: String
-        var subject: String
-        var group: String
-        var subheading: String
+        var area: String
+        var sequence: String
+        var section: String
         var writeUp: String
-        var orderInGroup: Int?
+        var orderInSequence: Int?
         var materials: String
         var purpose: String
         var ageRange: String
@@ -100,37 +100,37 @@ enum LessonCSVImporter {
     /// Commit parsed rows by inserting new CDLesson objects; updates existing lessons if duplicates found.
     static func commit(parsed: Parsed, into context: NSManagedObjectContext, existingLessons: [CDLesson]) throws -> Int {
         var byKey: [String: CDLesson] = [:]
-        var maxOrderByGroup: [String: Int] = [:]
+        var maxOrderBySequence: [String: Int] = [:]
         for lesson in existingLessons {
             byKey[duplicateKey(for: lesson)] = lesson
-            let groupKey = "\(lesson.subject)|\(lesson.group)"
-            let orderInt = Int(lesson.orderInGroup)
-            if orderInt > (maxOrderByGroup[groupKey] ?? -1) {
-                maxOrderByGroup[groupKey] = orderInt
+            let sequenceKey = "\(lesson.area)|\(lesson.sequence)"
+            let orderInt = Int(lesson.orderInSequence)
+            if orderInt > (maxOrderBySequence[sequenceKey] ?? -1) {
+                maxOrderBySequence[sequenceKey] = orderInt
             }
         }
         var inserted = 0
         var updated = 0
         for r in parsed.rows {
-            let key = duplicateKey(name: r.name, subject: r.subject, group: r.group)
+            let key = duplicateKey(name: r.name, area: r.area, sequence: r.sequence)
             if let existingLesson = byKey[key] {
                 if updateExistingLesson(existingLesson, with: r) { updated += 1 }
             } else {
-                let groupKey = "\(r.subject)|\(r.group)"
+                let sequenceKey = "\(r.area)|\(r.sequence)"
                 let order = nextInsertOrder(
-                    groupKey: groupKey, explicit: r.orderInGroup, maxOrderByGroup: &maxOrderByGroup
+                    sequenceKey: sequenceKey, explicit: r.orderInSequence, maxOrderBySequence: &maxOrderBySequence
                 )
                 let lesson = CDLesson(context: context)
                 lesson.name = r.name
-                lesson.subject = r.subject
-                lesson.group = r.group
-                lesson.subheading = r.subheading
+                lesson.area = r.area
+                lesson.sequence = r.sequence
+                lesson.section = r.section
                 lesson.writeUp = r.writeUp
                 lesson.materials = r.materials
                 lesson.purpose = r.purpose
                 lesson.ageRange = r.ageRange
                 lesson.teacherNotes = r.teacherNotes
-                lesson.orderInGroup = Int64(order)
+                lesson.orderInSequence = Int64(order)
                 byKey[key] = lesson
                 inserted += 1
             }
@@ -155,11 +155,11 @@ extension LessonCSVImporter {
         guard let header = records.first else { throw ImportError.empty }
         let synonyms: [String: [String]] = [
             "name": ["name", "lesson", "title"],
-            "subject": ["subject"],
-            "group": ["group", "category"],
-            "subheading": ["subheading", "subtitle"],
+            "area": ["area"],
+            "sequence": ["sequence", "category"],
+            "section": ["section", "subtitle"],
             "writeup": ["writeup", "write up", "notes", "description"],
-            "grouporder": ["grouporder", "group order", "order", "group position", "groupindex", "group index"],
+            "sequenceorder": ["sequenceorder", "sequence order", "order", "sequence position", "sequenceindex", "sequence index"],
             "materials": ["materials", "material"],
             "purpose": ["purpose", "objective", "learning objective"],
             "agerange": ["agerange", "age range", "age", "ages"],
@@ -175,31 +175,31 @@ extension LessonCSVImporter {
                 if let idx = headerMap[key], idx < record.count { return record[idx] } else { return "" }
             }
             let name = value("name").trimmed()
-            let subject = value("subject").trimmed()
-            if name.isEmpty || subject.isEmpty {
-                warnings.append("Row \(i + 2): Missing required Name or Subject; row skipped.")
+            let area = value("area").trimmed()
+            if name.isEmpty || area.isEmpty {
+                warnings.append("Row \(i + 2): Missing required Name or Area; row skipped.")
                 continue
             }
-            let groupOrderStr = value("grouporder").trimmed()
-            var orderInGroup: Int?
-            if !groupOrderStr.isEmpty {
-                if let parsedInt = Int(groupOrderStr), parsedInt >= 0 {
-                    orderInGroup = parsedInt
+            let sequenceOrderStr = value("sequenceorder").trimmed()
+            var orderInSequence: Int?
+            if !sequenceOrderStr.isEmpty {
+                if let parsedInt = Int(sequenceOrderStr), parsedInt >= 0 {
+                    orderInSequence = parsedInt
                 } else {
-                    warnings.append("Row \(i + 2): Invalid Group Order '\(groupOrderStr)'; ignored.")
+                    warnings.append("Row \(i + 2): Invalid Sequence Order '\(sequenceOrderStr)'; ignored.")
                 }
             }
             rows.append(Row(
-                name: name, subject: subject, group: value("group").trimmed(),
-                subheading: value("subheading").trimmed(), writeUp: value("writeup").trimmed(),
-                orderInGroup: orderInGroup, materials: value("materials").trimmed(),
+                name: name, area: area, sequence: value("sequence").trimmed(),
+                section: value("section").trimmed(), writeUp: value("writeup").trimmed(),
+                orderInSequence: orderInSequence, materials: value("materials").trimmed(),
                 purpose: value("purpose").trimmed(), ageRange: value("agerange").trimmed(),
                 teacherNotes: value("teachernotes").trimmed()
             ))
-            let key = duplicateKey(name: name, subject: subject, group: value("group").trimmed())
+            let key = duplicateKey(name: name, area: area, sequence: value("sequence").trimmed())
             if existingKeys.contains(key) {
                 potentialDupTitles.append(LessonFormatter.duplicateDetectionTitle(
-                    name: name, subject: subject, group: value("group").trimmed()
+                    name: name, area: area, sequence: value("sequence").trimmed()
                 ))
             }
         }
@@ -208,14 +208,14 @@ extension LessonCSVImporter {
 
     private static func updateExistingLesson(_ existing: CDLesson, with row: Row) -> Bool {
         var changed = false
-        if !row.subheading.isEmpty && row.subheading != existing.subheading {
-            existing.subheading = row.subheading; changed = true
+        if !row.section.isEmpty && row.section != existing.section {
+            existing.section = row.section; changed = true
         }
         if !row.writeUp.isEmpty && row.writeUp != existing.writeUp {
             existing.writeUp = row.writeUp; changed = true
         }
-        if let newOrder = row.orderInGroup, existing.orderInGroup != Int64(newOrder) {
-            existing.orderInGroup = Int64(newOrder); changed = true
+        if let newOrder = row.orderInSequence, existing.orderInSequence != Int64(newOrder) {
+            existing.orderInSequence = Int64(newOrder); changed = true
         }
         if !row.materials.isEmpty && row.materials != existing.materials {
             existing.materials = row.materials; changed = true
@@ -232,14 +232,14 @@ extension LessonCSVImporter {
         return changed
     }
 
-    private static func nextInsertOrder(groupKey: String, explicit: Int?, maxOrderByGroup: inout [String: Int]) -> Int {
+    private static func nextInsertOrder(sequenceKey: String, explicit: Int?, maxOrderBySequence: inout [String: Int]) -> Int {
         if let order = explicit {
-            let current = maxOrderByGroup[groupKey] ?? -1
-            if order > current { maxOrderByGroup[groupKey] = order }
+            let current = maxOrderBySequence[sequenceKey] ?? -1
+            if order > current { maxOrderBySequence[sequenceKey] = order }
             return order
         }
-        let next = (maxOrderByGroup[groupKey] ?? -1) + 1
-        maxOrderByGroup[groupKey] = next
+        let next = (maxOrderBySequence[sequenceKey] ?? -1) + 1
+        maxOrderBySequence[sequenceKey] = next
         return next
     }
 
@@ -307,23 +307,23 @@ extension LessonCSVImporter {
         return records
     }
 
-    /// Map header names to canonical keys using synonyms; requires name and subject.
+    /// Map header names to canonical keys using synonyms; requires name and area.
     private static func mapHeaders(_ header: [String], synonyms: [String: [String]]) throws -> [String: Int] {
         let mapping = CSVHeaderMapping.buildMapping(headers: header, synonymMap: synonyms)
         
         // Validate required headers
-        guard mapping["name"] != nil, mapping["subject"] != nil else {
-            throw ImportError.missingHeader("Name/Subject")
+        guard mapping["name"] != nil, mapping["area"] != nil else {
+            throw ImportError.missingHeader("Name/Area")
         }
         
         return mapping
     }
 
-    /// Normalize and combine name, subject, group to form a duplicate detection key.
-    private static func duplicateKey(name: String, subject: String, group: String) -> String {
+    /// Normalize and combine name, area, sequence to form a duplicate detection key.
+    private static func duplicateKey(name: String, area: String, sequence: String) -> String {
         let n = normalizeComponent(name)
-        let s = normalizeComponent(subject)
-        let g = normalizeComponent(group)
+        let s = normalizeComponent(area)
+        let g = normalizeComponent(sequence)
         return [n, s, g].joined(separator: "|")
     }
     /// Normalize a component string by trimming, lowercasing, removing diacritics and collapsing whitespace.
@@ -333,6 +333,6 @@ extension LessonCSVImporter {
 
     /// Compute duplicate key for a lesson.
     static func duplicateKey(for lesson: CDLesson) -> String {
-        duplicateKey(name: lesson.name, subject: lesson.subject, group: lesson.group)
+        duplicateKey(name: lesson.name, area: lesson.area, sequence: lesson.sequence)
     }
 }

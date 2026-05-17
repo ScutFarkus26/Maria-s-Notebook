@@ -1,34 +1,34 @@
-// ClassSubjectChecklistViewModel.swift
+// ClassAreaChecklistViewModel.swift
 // Maria's Notebook
 //
-// Extracted from ClassSubjectChecklistView.swift for better separation of concerns.
+// Extracted from ClassAreaChecklistView.swift for better separation of concerns.
 //
 // Extensions:
-// - ClassSubjectChecklistViewModel+NameDisplay.swift         (displayName, duplicateFirstNameKeys)
-// - ClassSubjectChecklistViewModel+CellActions.swift         (toggle/mark/clear individual cells)
-// - ClassSubjectChecklistViewModel+PresentationHelpers.swift (findOrCreateWork, upsert/deleteLessonPresentation)
+// - ClassAreaChecklistViewModel+NameDisplay.swift         (displayName, duplicateFirstNameKeys)
+// - ClassAreaChecklistViewModel+CellActions.swift         (toggle/mark/clear individual cells)
+// - ClassAreaChecklistViewModel+PresentationHelpers.swift (findOrCreateWork, upsert/deleteLessonPresentation)
 
 import SwiftUI
 import CoreData
 import OSLog
 
 // MARK: - ViewModel
-// Manages data loading, subject selection, and matrix state.
+// Manages data loading, area selection, and matrix state.
 // Delegates to:
 // - ChecklistMatrixBuilder: Matrix state computation
 // - ChecklistBatchActionExecutor: Batch operations
 // - ChecklistDragSelectionManager: Drag selection (used in view)
 @Observable
 @MainActor
-class ClassSubjectChecklistViewModel {
+class ClassAreaChecklistViewModel {
     static let logger = Logger.lessons
 
     var students: [CDStudent] = []
     private var allStudents: [CDStudent] = []
     var lessons: [CDLesson] = []
-    var orderedGroups: [String] = []
-    var availableSubjects: [String] = []
-    var selectedSubject: String = ""
+    var orderedSequences: [String] = []
+    var availableAreas: [String] = []
+    var selectedArea: String = ""
 
     var matrixStates: [UUID: [UUID: StudentChecklistRowState]] = [:]
 
@@ -43,17 +43,17 @@ class ClassSubjectChecklistViewModel {
     var cachedDuplicateFirstNameKeys: Set<String> = []
     var lastStudentHashForDuplicates: Int?
 
-    // OPTIMIZATION: Cache lessons-per-group to avoid filtering + sorting on every body evaluation
-    private var cachedLessonsByGroup: [String: LessonsBySubheading] = [:]
+    // OPTIMIZATION: Cache lessons-per-sequence to avoid filtering + sorting on every body evaluation
+    private var cachedLessonsBySequence: [String: LessonsBySection] = [:]
 
-    /// Lessons inside a single group, bucketed by subheading and ordered for display.
-    /// `order` lists subheading names in render order ("" appended last when present).
-    /// Each `bySubheading` array is pre-sorted by `orderInGroup`, then name.
-    /// `hasSubheadings` is `false` when only the empty bucket exists — callers can skip rendering sub-header rows.
-    struct LessonsBySubheading {
+    /// Lessons inside a single sequence, bucketed by section and ordered for display.
+    /// `order` lists section names in render order ("" appended last when present).
+    /// Each `bySection` array is pre-sorted by `orderInSequence`, then name.
+    /// `hasSections` is `false` when only the empty bucket exists — callers can skip rendering sub-header rows.
+    struct LessonsBySection {
         let order: [String]
-        let bySubheading: [String: [CDLesson]]
-        let hasSubheadings: Bool
+        let bySection: [String: [CDLesson]]
+        let hasSections: Bool
     }
 
     func loadData(context: NSManagedObjectContext) {
@@ -66,20 +66,20 @@ class ClassSubjectChecklistViewModel {
 
         let allLessonsFetch = CDFetchRequest(CDLesson.self)
         let allLessons = context.safeFetch(allLessonsFetch)
-        self.availableSubjects = lessonsLogic.subjects(from: allLessons)
+        self.availableAreas = lessonsLogic.areas(from: allLessons)
 
         // Consume deep-link filter from AppRouter if present
         let router = AppRouter.shared
-        if let filterSubject = router.checklistFilterSubject {
-            selectedSubject = filterSubject
-            router.checklistFilterSubject = nil
-            router.checklistFilterGroup = nil
-        } else if selectedSubject.isEmpty, let first = availableSubjects.first {
-            selectedSubject = first
+        if let filterArea = router.checklistFilterArea {
+            selectedArea = filterArea
+            router.checklistFilterArea = nil
+            router.checklistFilterSequence = nil
+        } else if selectedArea.isEmpty, let first = availableAreas.first {
+            selectedArea = first
         }
         // Refresh lessons and groups but skip matrix recompute —
         // the caller (onAppear) will call applyVisibilityFilter which recomputes.
-        refreshLessonsAndGroups(context: context)
+        refreshLessonsAndSequences(context: context)
     }
 
     func applyVisibilityFilter(context: NSManagedObjectContext, show: Bool, namesRaw: String) {
@@ -87,72 +87,72 @@ class ClassSubjectChecklistViewModel {
         recomputeMatrix(context: context)
     }
 
-    /// Refresh lesson list and group ordering without recomputing the matrix.
-    /// PERF: Uses subject predicate to narrow the query instead of loading all lessons.
-    private func refreshLessonsAndGroups(context: NSManagedObjectContext) {
-        guard !selectedSubject.isEmpty else { return }
-        let sub = selectedSubject.trimmed()
-        // Use case-insensitive CONTAINS for subject matching
+    /// Refresh lesson list and sequence ordering without recomputing the matrix.
+    /// PERF: Uses area predicate to narrow the query instead of loading all lessons.
+    private func refreshLessonsAndSequences(context: NSManagedObjectContext) {
+        guard !selectedArea.isEmpty else { return }
+        let sub = selectedArea.trimmed()
+        // Use case-insensitive CONTAINS for area matching
         let lessonsDescriptor = CDFetchRequest(CDLesson.self)
-        lessonsDescriptor.predicate = NSPredicate(format: "subject CONTAINS[cd] %@", sub)
+        lessonsDescriptor.predicate = NSPredicate(format: "area CONTAINS[cd] %@", sub)
         let fetchedLessons = context.safeFetch(lessonsDescriptor)
         // Post-filter for exact match (localizedStandardContains is substring-based)
         self.lessons = fetchedLessons.filter {
-            $0.subject.localizedCaseInsensitiveCompare(sub) == .orderedSame
+            $0.area.localizedCaseInsensitiveCompare(sub) == .orderedSame
         }
-        self.orderedGroups = lessonsLogic.groups(for: sub, lessons: self.lessons)
+        self.orderedSequences = lessonsLogic.groups(for: sub, lessons: self.lessons)
         invalidateLessonsCache()
     }
 
     func refreshMatrix(context: NSManagedObjectContext) {
-        refreshLessonsAndGroups(context: context)
+        refreshLessonsAndSequences(context: context)
         recomputeMatrix(context: context)
     }
 
-    func lessonsGrouped(group: String) -> LessonsBySubheading {
-        if let cached = cachedLessonsByGroup[group] {
+    func lessonsSequenced(sequence: String) -> LessonsBySection {
+        if let cached = cachedLessonsBySequence[sequence] {
             return cached
         }
-        let groupTrimmed = group.trimmed()
+        let groupTrimmed = sequence.trimmed()
         let groupLessons = lessons.filter {
-            $0.group.trimmed().localizedCaseInsensitiveCompare(groupTrimmed) == .orderedSame
+            $0.sequence.trimmed().localizedCaseInsensitiveCompare(groupTrimmed) == .orderedSame
         }
-        let bySubheadingRaw = Dictionary(grouping: groupLessons) { $0.subheading.trimmed() }
-        let bySubheading = bySubheadingRaw.mapValues { lessonsInBucket -> [CDLesson] in
+        let bySectionRaw = Dictionary(grouping: groupLessons) { $0.section.trimmed() }
+        let bySection = bySectionRaw.mapValues { lessonsInBucket -> [CDLesson] in
             lessonsInBucket.sorted { lhs, rhs in
-                if lhs.orderInGroup != rhs.orderInGroup { return lhs.orderInGroup < rhs.orderInGroup }
+                if lhs.orderInSequence != rhs.orderInSequence { return lhs.orderInSequence < rhs.orderInSequence }
                 return lhs.name.localizedCaseInsensitiveCompare(rhs.name) == .orderedAscending
             }
         }
 
-        let existingNonEmpty = Array(Set(bySubheading.keys.filter { !$0.isEmpty }))
+        let existingNonEmpty = Array(Set(bySection.keys.filter { !$0.isEmpty }))
             .sorted { $0.localizedCaseInsensitiveCompare($1) == .orderedAscending }
-        let subjectTrimmed = selectedSubject.trimmed()
+        let areaTrimmed = selectedArea.trimmed()
         let nonEmptyOrder: [String]
-        if subjectTrimmed.isEmpty || existingNonEmpty.isEmpty {
+        if areaTrimmed.isEmpty || existingNonEmpty.isEmpty {
             nonEmptyOrder = existingNonEmpty
         } else {
-            nonEmptyOrder = FilterOrderStore.loadSubheadingOrder(
-                for: subjectTrimmed, group: groupTrimmed, existing: existingNonEmpty
+            nonEmptyOrder = FilterOrderStore.loadSectionOrder(
+                for: areaTrimmed, sequence: groupTrimmed, existing: existingNonEmpty
             )
         }
 
         var order = nonEmptyOrder
-        if bySubheading.keys.contains("") {
+        if bySection.keys.contains("") {
             order.append("")
         }
 
-        let result = LessonsBySubheading(
+        let result = LessonsBySection(
             order: order,
-            bySubheading: bySubheading,
-            hasSubheadings: !existingNonEmpty.isEmpty
+            bySection: bySection,
+            hasSections: !existingNonEmpty.isEmpty
         )
-        cachedLessonsByGroup[group] = result
+        cachedLessonsBySequence[sequence] = result
         return result
     }
 
     private func invalidateLessonsCache() {
-        cachedLessonsByGroup.removeAll()
+        cachedLessonsBySequence.removeAll()
     }
 
     func state(for student: CDStudent, lesson: CDLesson) -> StudentChecklistRowState? {

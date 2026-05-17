@@ -1,11 +1,11 @@
 import SwiftUI
 import CoreData
 
-/// Displays resources linked to a specific lesson (by ID or subject).
+/// Displays resources linked to a specific lesson (by ID or area).
 /// Used inside LessonDetailView to cross-surface related resources.
 struct RelatedResourcesSection: View {
     let lessonID: UUID
-    let lessonSubject: String
+    let lessonArea: String
 
     @FetchRequest(sortDescriptors: [NSSortDescriptor(keyPath: \CDResource.title, ascending: true)]) private var allResources: FetchedResults<CDResource>
     @State private var selectedResource: CDResource?
@@ -30,13 +30,13 @@ struct RelatedResourcesSection: View {
                 continue
             }
 
-            // Check if this resource is linked to the same subject
-            if !lessonSubject.trimmingCharacters(in: .whitespaces).isEmpty {
-                let linkedSubjects = resource.linkedSubjects
+            // Check if this resource is linked to the same area
+            if !lessonArea.trimmingCharacters(in: .whitespaces).isEmpty {
+                let linkedAreas = resource.linkedAreas
                     .split(separator: ",")
                     .map { $0.trimmingCharacters(in: .whitespaces).lowercased() }
 
-                if linkedSubjects.contains(lessonSubject.trimmingCharacters(in: .whitespaces).lowercased()) {
+                if linkedAreas.contains(lessonArea.trimmingCharacters(in: .whitespaces).lowercased()) {
                     if seen.insert(resourceID).inserted {
                         results.append(resource)
                     }

@@ -1,12 +1,12 @@
-// SmallGroupPlannerLessonDetail.swift
+// SmallSequencePlannerLessonDetail.swift
 // Per-lesson drill-down showing three collapsible readiness tiers with student selection.
 
 import SwiftUI
 import CoreData
 
-struct SmallGroupPlannerLessonDetail: View {
-    let candidate: LessonGroupCandidate
-    @Bindable var viewModel: SmallGroupPlannerViewModel
+struct SmallSequencePlannerLessonDetail: View {
+    let candidate: LessonSequenceCandidate
+    @Bindable var viewModel: SmallSequencePlannerViewModel
     @Environment(\.managedObjectContext) private var viewContext
 
     @State private var isReadyExpanded = true
@@ -71,11 +71,11 @@ struct SmallGroupPlannerLessonDetail: View {
         VStack(alignment: .leading, spacing: 8) {
             HStack {
                 VStack(alignment: .leading, spacing: 4) {
-                    Text(candidate.subject)
+                    Text(candidate.area)
                         .font(.caption)
                         .foregroundStyle(.secondary)
 
-                    Text(candidate.group)
+                    Text(candidate.sequence)
                         .font(.caption)
                         .foregroundStyle(.secondary)
                 }
@@ -83,7 +83,7 @@ struct SmallGroupPlannerLessonDetail: View {
                 Spacer()
 
                 // Order badge
-                Text("#\(candidate.orderInGroup)")
+                Text("#\(candidate.orderInSequence)")
                     .font(.caption2)
                     .fontWeight(.bold)
                     .foregroundStyle(.white)
@@ -160,7 +160,7 @@ struct SmallGroupPlannerLessonDetail: View {
             }
 
             ForEach(candidate.readyStudents) { student in
-                SmallGroupPlannerStudentRow(
+                SmallSequencePlannerStudentRow(
                     student: student,
                     isSelected: viewModel.selectedStudentIDs.contains(student.id),
                     onToggle: { viewModel.toggleStudentSelection(student.id) }
@@ -180,7 +180,7 @@ struct SmallGroupPlannerLessonDetail: View {
             isExpanded: $isAlmostReadyExpanded
         ) {
             ForEach(candidate.almostReadyStudents) { student in
-                SmallGroupPlannerStudentRow(
+                SmallSequencePlannerStudentRow(
                     student: student,
                     isSelected: viewModel.selectedStudentIDs.contains(student.id),
                     onToggle: { viewModel.toggleStudentSelection(student.id) },
@@ -275,7 +275,7 @@ struct SmallGroupPlannerLessonDetail: View {
 
     // MARK: - Select All Button
 
-    private func selectAllButton(for candidate: LessonGroupCandidate) -> some View {
+    private func selectAllButton(for candidate: LessonSequenceCandidate) -> some View {
         Button {
             viewModel.selectAllReady(for: candidate)
         } label: {

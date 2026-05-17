@@ -1,11 +1,11 @@
 // GapActionSheet.swift
-// Shows unscheduled lessons for a subject gap, allowing quick inbox additions.
+// Shows unscheduled lessons for a area gap, allowing quick inbox additions.
 
 import SwiftUI
 import CoreData
 
 struct GapActionSheet: View {
-    let subject: String
+    let area: String
     let context: NSManagedObjectContext
 
     @Environment(\.dismiss) private var dismiss
@@ -19,13 +19,13 @@ struct GapActionSheet: View {
         Array(studentsRaw).uniqueByID.filterEnrolled()
     }
 
-    init(subject: String, context: NSManagedObjectContext) {
-        self.subject = subject
+    init(area: String, context: NSManagedObjectContext) {
+        self.area = area
         self.context = context
 
         _lessons = FetchRequest(
             sortDescriptors: [NSSortDescriptor(keyPath: \CDLesson.sortIndex, ascending: true)],
-            predicate: NSPredicate(format: "subject ==[c] %@", subject)
+            predicate: NSPredicate(format: "area ==[c] %@", area)
         )
         _existingAssignments = FetchRequest(
             sortDescriptors: [NSSortDescriptor(keyPath: \CDLessonAssignment.createdAt, ascending: false)],
@@ -47,9 +47,9 @@ struct GapActionSheet: View {
             List {
                 if availableLessons.isEmpty && addedLessonIDs.isEmpty {
                     ContentUnavailableView {
-                        Label("All \(subject) Lessons Planned", systemImage: "checkmark.circle")
+                        Label("All \(area) Lessons Planned", systemImage: "checkmark.circle")
                     } description: {
-                        Text("Every \(subject) lesson is already in your inbox or has been presented.")
+                        Text("Every \(area) lesson is already in your inbox or has been presented.")
                     }
                 } else {
                     if !addedLessonIDs.isEmpty {
@@ -63,14 +63,14 @@ struct GapActionSheet: View {
                         }
                     }
 
-                    Section("Available \(subject) Lessons") {
+                    Section("Available \(area) Lessons") {
                         ForEach(availableLessons, id: \.objectID) { lesson in
                             lessonRow(lesson)
                         }
                     }
                 }
             }
-            .navigationTitle("Address \(subject) Gap")
+            .navigationTitle("Address \(area) Gap")
             .inlineNavigationTitle()
             .toolbar {
                 ToolbarItem(placement: .confirmationAction) {
@@ -90,8 +90,8 @@ struct GapActionSheet: View {
             VStack(alignment: .leading, spacing: 2) {
                 Text(lesson.name)
                     .font(AppTheme.ScaledFont.callout)
-                if !lesson.group.isEmpty {
-                    Text(lesson.group)
+                if !lesson.sequence.isEmpty {
+                    Text(lesson.sequence)
                         .font(AppTheme.ScaledFont.caption)
                         .foregroundStyle(.secondary)
                 }

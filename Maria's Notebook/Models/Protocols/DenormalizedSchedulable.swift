@@ -3,7 +3,7 @@ import Foundation
 /// Protocol for SwiftData models that maintain denormalized scheduling and student grouping fields.
 ///
 /// `CDLessonAssignment` stores denormalized copies of scheduling dates
-/// and student group keys for efficient predicate filtering. This protocol provides shared
+/// and student sequence keys for efficient predicate filtering. This protocol provides shared
 /// default implementations so the synchronization logic lives in one place.
 ///
 /// Conforming types must expose their stored properties and relationship data through the
@@ -77,7 +77,7 @@ extension DenormalizedSchedulable {
         lessonRelationshipID ?? (UUID(uuidString: lessonID) ?? UUID())
     }
 
-    /// Order-insensitive key for quick equality/group checks.
+    /// Order-insensitive key for quick equality/sequence checks.
     /// Prefers the persisted key; falls back to computing from resolved student IDs.
     var studentGroupKey: String {
         if !studentGroupKeyPersisted.isEmpty { return studentGroupKeyPersisted }

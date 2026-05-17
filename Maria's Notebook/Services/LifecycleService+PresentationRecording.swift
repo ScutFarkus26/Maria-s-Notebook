@@ -29,14 +29,14 @@ extension LifecycleService {
 
         // Update track info if not already set
         if lessonAssignment.trackID == nil, let lesson = lessonAssignment.lesson {
-            let subject = lesson.subject.trimmed()
-            let group = lesson.group.trimmed()
-            if !subject.isEmpty && !group.isEmpty,
-               GroupTrackService.isTrack(subject: subject, group: group, context: modelContext) {
+            let area = lesson.area.trimmed()
+            let sequence = lesson.sequence.trimmed()
+            if !area.isEmpty && !sequence.isEmpty,
+               SequenceTrackService.isTrack(area: area, sequence: sequence, context: modelContext) {
                 do {
-                    let track = try GroupTrackService.getOrCreateTrack(
-                        subject: subject,
-                        group: group,
+                    let track = try SequenceTrackService.getOrCreateTrack(
+                        area: area,
+                        sequence: sequence,
                         context: modelContext
                     )
                     lessonAssignment.trackID = track.id?.uuidString
@@ -125,14 +125,14 @@ extension LifecycleService {
 
                     // Link CDWorkModel to CDTrackEntity if lesson belongs to a track
                     if let lesson = la.lesson {
-                        let subject = lesson.subject.trimmed()
-                        let group = lesson.group.trimmed()
-                        if !subject.isEmpty && !group.isEmpty,
-                           GroupTrackService.isTrack(subject: subject, group: group, context: modelContext) {
+                        let area = lesson.area.trimmed()
+                        let sequence = lesson.sequence.trimmed()
+                        if !area.isEmpty && !sequence.isEmpty,
+                           SequenceTrackService.isTrack(area: area, sequence: sequence, context: modelContext) {
                             do {
-                                _ = try GroupTrackService.getOrCreateTrack(
-                                    subject: subject,
-                                    group: group,
+                                _ = try SequenceTrackService.getOrCreateTrack(
+                                    area: area,
+                                    sequence: sequence,
                                     context: modelContext
                                 )
                             } catch {

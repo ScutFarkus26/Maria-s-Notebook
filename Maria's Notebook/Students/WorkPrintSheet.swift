@@ -97,7 +97,7 @@ struct WorkPrintSheet: View {
     }
 
     private var groups: [WorkPrintGroup] {
-        WorkPrintView.computeGroups(workItems: workItems, students: students)
+        WorkPrintView.computeSequences(workItems: workItems, students: students)
     }
 
     private func presentPrint() {

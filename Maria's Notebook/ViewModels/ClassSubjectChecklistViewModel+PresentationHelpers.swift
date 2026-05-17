@@ -1,12 +1,12 @@
-// ClassSubjectChecklistViewModel+PresentationHelpers.swift
+// ClassAreaChecklistViewModel+PresentationHelpers.swift
 // CDWorkModel find-or-create and CDLessonPresentation upsert/delete helpers
-// for ClassSubjectChecklistViewModel.
+// for ClassAreaChecklistViewModel.
 
 import Foundation
 import OSLog
 import CoreData
 
-extension ClassSubjectChecklistViewModel {
+extension ClassAreaChecklistViewModel {
 
     // MARK: - Work Model Helpers
 

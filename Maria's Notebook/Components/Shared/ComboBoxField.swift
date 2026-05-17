@@ -44,7 +44,7 @@ struct ComboBoxField: View {
 
     VStack(spacing: 20) {
         ComboBoxField(
-            title: "Subject",
+            title: "Area",
             text: $text,
             options: ["Math", "Language", "Science", "Practical Life"]
         )

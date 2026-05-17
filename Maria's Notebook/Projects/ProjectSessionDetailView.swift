@@ -74,7 +74,7 @@ struct ProjectSessionDetailView: View {
         var order: [String] = []
 
         for work in items {
-            // For works with participants, group by each participant
+            // For works with participants, sequence by each participant
             let participantIDs = work.selectedStudentIDs
             if participantIDs.isEmpty {
                 // Fallback to studentID for backward compatibility

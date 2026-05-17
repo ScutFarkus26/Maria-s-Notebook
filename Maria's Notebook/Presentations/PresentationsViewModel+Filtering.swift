@@ -37,10 +37,10 @@ extension PresentationsViewModel {
         guard !query.isEmpty else { return true }
         let lessonTitleLower = lessonTitle(for: la).lowercased()
         let studentNamesLower = studentNames(for: la).lowercased()
-        let subjectLower = (lessonsByID[uuidString: la.lessonID]?.subject ?? "").lowercased()
+        let areaLower = (lessonsByID[uuidString: la.lessonID]?.area ?? "").lowercased()
         return lessonTitleLower.contains(query)
             || studentNamesLower.contains(query)
-            || subjectLower.contains(query)
+            || areaLower.contains(query)
     }
 
     // MARK: - Filtering by student + search + committed tokens
@@ -152,12 +152,12 @@ extension PresentationsViewModel {
             .min() ?? 0
         let openWorkBoost = max(0.0, 20.0 - Double(minOpenWork) * 5.0)
 
-        // Factor 4: Subject diversity — penalize repeating last subject.
-        let lessonSubject = lessonsByID[la.resolvedLessonID]?.subject
+        // Factor 4: Area diversity — penalize repeating last area.
+        let lessonArea = lessonsByID[la.resolvedLessonID]?.area
             .trimmed().lowercased() ?? ""
         var diversityPenalty = 0.0
-        if !lessonSubject.isEmpty {
-            for sid in relevantStudents where lastSubjectByStudent[sid]?.trimmed().lowercased() == lessonSubject {
+        if !lessonArea.isEmpty {
+            for sid in relevantStudents where lastAreaByStudent[sid]?.trimmed().lowercased() == lessonArea {
                 diversityPenalty += 5.0
             }
         }

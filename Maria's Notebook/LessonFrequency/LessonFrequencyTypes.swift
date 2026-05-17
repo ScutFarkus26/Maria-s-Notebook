@@ -13,15 +13,15 @@ struct StudentFrequencyCard: Identifiable {
     let nickname: String?
     let level: CDStudent.Level
     let lessonCount: Int          // total lessons this week
-    let subjectBreakdown: [SubjectCount]  // sorted by count descending
+    let areaBreakdown: [AreaCount]  // sorted by count descending
 
     var displayName: String { nickname ?? firstName }
 }
 
-/// Count of lessons in a single subject for a student in a given week.
-struct SubjectCount: Identifiable {
-    var id: String { subject }
-    let subject: String
+/// Count of lessons in a single area for a student in a given week.
+struct AreaCount: Identifiable {
+    var id: String { area }
+    let area: String
     let count: Int
 }
 

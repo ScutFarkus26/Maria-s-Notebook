@@ -18,8 +18,8 @@ extension PresentationsViewModel {
 
         let excludedLessonIDs: Set<UUID> = {
             let ids = lessons.filter { l in
-                let s = norm(l.subject)
-                let g = norm(l.group)
+                let s = norm(l.area)
+                let g = norm(l.sequence)
                 return s == "parsha" || g == "parsha"
             }.compactMap(\.id)
             return Set(ids)
@@ -33,7 +33,7 @@ extension PresentationsViewModel {
 
         let (lastDateByStudent, lastLessonIDByStudent) = buildLastLessonData(from: given)
 
-        var subjects: [UUID: String] = [:]
+        var areas: [UUID: String] = [:]
         for s in students {
             guard let sid = s.id else { continue }
             if let last = lastDateByStudent[sid] {
@@ -49,14 +49,14 @@ extension PresentationsViewModel {
                 result[sid] = Int.max
             }
             if let lessonID = lastLessonIDByStudent[sid],
-               let subject = lessonsByID[lessonID]?.subject,
-               !subject.isEmpty {
-                subjects[sid] = subject
+               let area = lessonsByID[lessonID]?.area,
+               !area.isEmpty {
+                areas[sid] = area
             }
         }
 
         self.daysSinceLastLessonByStudent = result
-        self.lastSubjectByStudent = subjects
+        self.lastAreaByStudent = areas
     }
 
     func buildLastLessonData(

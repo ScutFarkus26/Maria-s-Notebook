@@ -1,10 +1,10 @@
 import SwiftUI
 
-// MARK: - Subject Micro-Pattern Definitions
+// MARK: - Area Micro-Pattern Definitions
 
-/// Defines the micro-pattern associated with a subject.
+/// Defines the micro-pattern associated with a area.
 /// Each pattern renders a subtle, repeating motif that gives the pill a tactile identity.
-enum SubjectMicroPattern {
+enum AreaMicroPattern {
     case waves        // Science, physics — sinusoidal undulation
     case grid         // Math, geometry — structured lattice
     case columns      // History, culture — architectural verticals
@@ -16,9 +16,9 @@ enum SubjectMicroPattern {
     case zigzag       // Practical life — woven/textile pattern
     case script       // Language, reading, writing — flowing baseline curves
     case hearts       // Grace & courtesy — gentle heart-rhythm waves
-    case fallback     // Unknown subjects — sparse diagonal hash
+    case fallback     // Unknown areas — sparse diagonal hash
 
-    private static let patternMap: [String: SubjectMicroPattern] = [
+    private static let patternMap: [String: AreaMicroPattern] = [
         "math": .grid, "mathematics": .grid, "geometry": .grid,
         "science": .waves,
         "history": .columns, "culture": .columns,
@@ -32,9 +32,9 @@ enum SubjectMicroPattern {
         "grace & courtesy": .hearts, "grace and courtesy": .hearts
     ]
 
-    /// Maps a subject string to its characteristic micro-pattern.
-    static func pattern(for subject: String) -> SubjectMicroPattern {
-        let key = subject.lowercased().trimmingCharacters(in: .whitespaces)
+    /// Maps a area string to its characteristic micro-pattern.
+    static func pattern(for area: String) -> AreaMicroPattern {
+        let key = area.lowercased().trimmingCharacters(in: .whitespaces)
         return patternMap[key] ?? .fallback
     }
 }
@@ -80,11 +80,11 @@ private struct GrainTexture: View {
 
 // MARK: - Micro-Pattern Layer
 
-/// Renders the subject-specific vector pattern using Canvas.
+/// Renders the area-specific vector pattern using Canvas.
 /// Strokes are intentionally thin and low-opacity to stay below conscious perception
 /// at normal reading distance, creating a subliminal tactile texture.
 private struct MicroPatternLayer: View {
-    let pattern: SubjectMicroPattern
+    let pattern: AreaMicroPattern
     let color: Color
     /// Master opacity for the entire pattern layer.
     let opacity: CGFloat
@@ -284,37 +284,37 @@ private struct MicroPatternLayer: View {
     }
 }
 
-// MARK: - Combined Subject Grain Background
+// MARK: - Combined Area Grain Background
 
 /// Composites the micro-pattern with a grain texture overlay.
-/// The result is a colored, grainy watermark that gives each subject a unique tactile feel.
-struct SubjectGrainBackground: View {
-    let subject: String
+/// The result is a colored, grainy watermark that gives each area a unique tactile feel.
+struct AreaGrainBackground: View {
+    let area: String
 
-    /// The subject's canonical color.
-    private var subjectColor: Color {
-        AppColors.color(forSubject: subject)
+    /// The area's canonical color.
+    private var areaColor: Color {
+        AppColors.color(forArea: area)
     }
 
-    private var microPattern: SubjectMicroPattern {
-        SubjectMicroPattern.pattern(for: subject)
+    private var microPattern: AreaMicroPattern {
+        AreaMicroPattern.pattern(for: area)
     }
 
     var body: some View {
         ZStack {
-            // Base: very faint subject color wash
-            subjectColor.opacity(UIConstants.OpacityConstants.trace)
+            // Base: very faint area color wash
+            areaColor.opacity(UIConstants.OpacityConstants.trace)
 
             // Layer 1: structural micro-pattern
             MicroPatternLayer(
                 pattern: microPattern,
-                color: subjectColor,
+                color: areaColor,
                 opacity: 0.12
             )
 
             // Layer 2: grain texture for tactile depth
             GrainTexture(
-                color: subjectColor,
+                color: areaColor,
                 intensity: 0.15
             )
         }
@@ -322,17 +322,17 @@ struct SubjectGrainBackground: View {
     }
 }
 
-// MARK: - Subject Grain Pill
+// MARK: - Area Grain Pill
 
-/// A pill component with a subject-specific grainy watermark background.
-/// Use in presentation views, work item cards, and anywhere subjects need
+/// A pill component with a area-specific grainy watermark background.
+/// Use in presentation views, work item cards, and anywhere areas need
 /// a subtle visual identity beyond plain color.
-struct SubjectGrainPill<Content: View>: View {
-    let subject: String
+struct AreaGrainPill<Content: View>: View {
+    let area: String
     @ViewBuilder let content: () -> Content
 
-    private var subjectColor: Color {
-        AppColors.color(forSubject: subject)
+    private var areaColor: Color {
+        AppColors.color(forArea: area)
     }
 
     var body: some View {
@@ -343,13 +343,13 @@ struct SubjectGrainPill<Content: View>: View {
                 Capsule()
                     .fill(Color.primary.opacity(UIConstants.OpacityConstants.trace))
                     .overlay {
-                        SubjectGrainBackground(subject: subject)
+                        AreaGrainBackground(area: area)
                             .clipShape(Capsule())
                     }
             }
             .overlay {
                 Capsule()
-                    .stroke(subjectColor.opacity(UIConstants.OpacityConstants.accent), lineWidth: 1)
+                    .stroke(areaColor.opacity(UIConstants.OpacityConstants.accent), lineWidth: 1)
             }
             .clipShape(Capsule())
     }
@@ -357,20 +357,20 @@ struct SubjectGrainPill<Content: View>: View {
 
 // MARK: - Convenience Wrapper
 
-/// Quick subject pill with a leading color dot and text label.
-struct SubjectGrainLabel: View {
-    let subject: String
+/// Quick area pill with a leading color dot and text label.
+struct AreaGrainLabel: View {
+    let area: String
     let title: String
 
-    private var subjectColor: Color {
-        AppColors.color(forSubject: subject)
+    private var areaColor: Color {
+        AppColors.color(forArea: area)
     }
 
     var body: some View {
-        SubjectGrainPill(subject: subject) {
+        AreaGrainPill(area: area) {
             HStack(spacing: 8) {
                 Circle()
-                    .fill(subjectColor)
+                    .fill(areaColor)
                     .frame(width: 6, height: 6)
                 Text(title)
                     .font(AppTheme.ScaledFont.captionSemibold)

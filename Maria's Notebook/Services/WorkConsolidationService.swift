@@ -33,18 +33,18 @@ struct WorkConsolidationService {
             return "\(title)|\(studentLessonID)|\(workKind)"
         }
 
-        for (_, group) in groups {
-            guard group.count > 1 else { continue }
+        for (_, sequence) in groups {
+            guard sequence.count > 1 else { continue }
 
             groupsConsolidated += 1
-            totalMerged += (group.count - 1)
+            totalMerged += (sequence.count - 1)
 
-            guard let canonical = group.min(by: { ($0.createdAt ?? .distantPast) < ($1.createdAt ?? .distantPast) }) else {
-                errors.append("Failed to find canonical work in group")
+            guard let canonical = sequence.min(by: { ($0.createdAt ?? .distantPast) < ($1.createdAt ?? .distantPast) }) else {
+                errors.append("Failed to find canonical work in sequence")
                 continue
             }
 
-            let duplicates = group.filter { $0.id != canonical.id }
+            let duplicates = sequence.filter { $0.id != canonical.id }
             mergeParticipants(into: canonical, from: duplicates)
             mergeNotes(into: canonical, from: duplicates)
             mergeCheckInsAndUnifiedNotes(into: canonical, from: duplicates)

@@ -1,9 +1,9 @@
-// ClassSubjectChecklistViewModel+NameDisplay.swift
-// Cached duplicate-aware name formatting for ClassSubjectChecklistViewModel.
+// ClassAreaChecklistViewModel+NameDisplay.swift
+// Cached duplicate-aware name formatting for ClassAreaChecklistViewModel.
 
 import Foundation
 
-extension ClassSubjectChecklistViewModel {
+extension ClassAreaChecklistViewModel {
 
     // MARK: - Name Display Helpers
 

@@ -150,7 +150,7 @@ struct LessonPickerPopover: View {
 
 struct StudentsSection: View {
     @Bindable var viewModel: LessonPickerViewModel
-    let subjectColor: Color
+    let areaColor: Color
     let displayName: (CDStudent) -> String
     @Binding var showingAddStudentSheet: Bool
     @Binding var showingStudentPickerPopover: Bool
@@ -164,7 +164,7 @@ struct StudentsSection: View {
                 ScrollView(.horizontal, showsIndicators: false) {
                     StudentChipsList(
                         students: viewModel.selectedStudents,
-                        subjectColor: subjectColor,
+                        areaColor: areaColor,
                         displayName: displayName,
                         onRemove: viewModel.removeStudent
                     )
@@ -175,7 +175,7 @@ struct StudentsSection: View {
                     showingStudentPickerPopover = true
                 } label: {
                     Image(systemName: "plus.circle.fill")
-                        .foregroundStyle(subjectColor)
+                        .foregroundStyle(areaColor)
                 }
                 .buttonStyle(.plain)
                 .popover(isPresented: $showingStudentPickerPopover, arrowEdge: .bottom) {
@@ -211,7 +211,7 @@ struct StudentsSection: View {
 
 struct StudentChipsList: View {
     let students: [CDStudent]
-    let subjectColor: Color
+    let areaColor: Color
     let displayName: (CDStudent) -> String
     let onRemove: (UUID) -> Void
     
@@ -222,15 +222,15 @@ struct StudentChipsList: View {
                     Text(displayName(student))
                         .padding(.horizontal, 12)
                         .padding(.vertical, 6)
-                        .background(subjectColor.opacity(UIConstants.OpacityConstants.moderate))
-                        .foregroundStyle(subjectColor)
+                        .background(areaColor.opacity(UIConstants.OpacityConstants.moderate))
+                        .foregroundStyle(areaColor)
                         .clipShape(Capsule())
                     Button {
                         guard let studentID = student.id else { return }
                         onRemove(studentID)
                     } label: {
                         Image(systemName: "xmark.circle.fill")
-                            .foregroundStyle(subjectColor)
+                            .foregroundStyle(areaColor)
                     }
                     .buttonStyle(.plain)
                 }
@@ -244,7 +244,7 @@ struct StudentChipsList: View {
 
 struct StatusSection: View {
     @Bindable var viewModel: LessonPickerViewModel
-    let subjectColor: Color
+    let areaColor: Color
     
     var body: some View {
         VStack(alignment: .leading, spacing: 8) {
@@ -256,8 +256,8 @@ struct StatusSection: View {
                         .font(.subheadline)
                         .padding(.horizontal, 12)
                         .padding(.vertical, 6)
-                        .background(subjectColor.opacity(UIConstants.OpacityConstants.moderate))
-                        .foregroundStyle(subjectColor)
+                        .background(areaColor.opacity(UIConstants.OpacityConstants.moderate))
+                        .foregroundStyle(areaColor)
                         .clipShape(Capsule())
                 }
                 .buttonStyle(.plain)

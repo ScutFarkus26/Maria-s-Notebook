@@ -15,15 +15,15 @@ struct ResourceImportSheet: View {
     @State private var descriptionText = ""
     @State private var selectedTags: [String] = []
     @State private var selectedLessonIDs: Set<UUID> = []
-    @State private var selectedSubjects: Set<String> = []
+    @State private var selectedAreas: Set<String> = []
     @State private var selectedFileURL: URL?
     @State private var isShowingFilePicker = false
     @State private var importError: String?
 
     private static let logger = Logger.resources
 
-    private var availableSubjects: [String] {
-        let unique = Set(allLessons.map { $0.subject.trimmingCharacters(in: .whitespaces) }.filter { !$0.isEmpty })
+    private var availableAreas: [String] {
+        let unique = Set(allLessons.map { $0.area.trimmingCharacters(in: .whitespaces) }.filter { !$0.isEmpty })
         return Array(unique).sorted { $0.localizedCaseInsensitiveCompare($1) == .orderedAscending }
     }
 
@@ -94,19 +94,19 @@ struct ResourceImportSheet: View {
                     }
 
                     NavigationLink {
-                        ResourceSubjectPicker(
-                            availableSubjects: availableSubjects,
-                            selectedSubjects: $selectedSubjects
+                        ResourceAreaPicker(
+                            availableAreas: availableAreas,
+                            selectedAreas: $selectedAreas
                         )
                     } label: {
                         HStack {
-                            Label("Subjects", systemImage: "graduationcap")
+                            Label("Areas", systemImage: "graduationcap")
                             Spacer()
-                            if selectedSubjects.isEmpty {
+                            if selectedAreas.isEmpty {
                                 Text("None")
                                     .foregroundStyle(.secondary)
                             } else {
-                                Text("\(selectedSubjects.count)")
+                                Text("\(selectedAreas.count)")
                                     .foregroundStyle(.secondary)
                             }
                         }
@@ -230,7 +230,7 @@ struct ResourceImportSheet: View {
 
             // Build linked IDs
             let lessonIDsString = selectedLessonIDs.map(\.uuidString).sorted().joined(separator: ",")
-            let subjectsString = selectedSubjects.sorted().joined(separator: ",")
+            let areasString = selectedAreas.sorted().joined(separator: ",")
 
             // Create resource
             let repo = ResourceRepository(context: viewContext)
@@ -244,7 +244,7 @@ struct ResourceImportSheet: View {
                 thumbnailData: thumbnail,
                 tags: selectedTags,
                 linkedLessonIDs: lessonIDsString,
-                linkedSubjects: subjectsString
+                linkedAreas: areasString
             )
             viewContext.safeSave()
 

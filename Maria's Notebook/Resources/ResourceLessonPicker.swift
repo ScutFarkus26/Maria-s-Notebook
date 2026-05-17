@@ -1,16 +1,16 @@
 import SwiftUI
 import CoreData
 
-/// Multi-select lesson picker grouped by subject.
+/// Multi-select lesson picker grouped by area.
 /// Shown as a NavigationLink destination inside import/edit sheets.
 struct ResourceLessonPicker: View {
     let allLessons: [CDLesson]
     @Binding var selectedLessonIDs: Set<UUID>
 
     @State private var searchText = ""
-    @State private var expandedSubjects: Set<String> = []
+    @State private var expandedAreas: Set<String> = []
 
-    private var groupedLessons: [(subject: String, lessons: [CDLesson])] {
+    private var groupedLessons: [(area: String, lessons: [CDLesson])] {
         let filtered: [CDLesson]
         if searchText.isEmpty {
             filtered = allLessons
@@ -18,19 +18,19 @@ struct ResourceLessonPicker: View {
             let query = searchText.lowercased()
             filtered = allLessons.filter {
                 $0.name.lowercased().contains(query) ||
-                $0.subject.lowercased().contains(query)
+                $0.area.lowercased().contains(query)
             }
         }
 
         let grouped = Dictionary(grouping: filtered) {
-            $0.subject.trimmingCharacters(in: .whitespaces)
+            $0.area.trimmingCharacters(in: .whitespaces)
         }
 
         return grouped.keys.sorted { (a: String, b: String) -> Bool in
             a.localizedCaseInsensitiveCompare(b) == .orderedAscending
-        }.compactMap { (subject: String) -> (subject: String, lessons: [CDLesson])? in
-            guard let lessons = grouped[subject], !lessons.isEmpty else { return nil }
-            return (subject: subject, lessons: lessons.sorted { $0.name < $1.name })
+        }.compactMap { (area: String) -> (area: String, lessons: [CDLesson])? in
+            guard let lessons = grouped[area], !lessons.isEmpty else { return nil }
+            return (area: area, lessons: lessons.sorted { $0.name < $1.name })
         }
     }
 
@@ -51,16 +51,16 @@ struct ResourceLessonPicker: View {
                 }
             }
 
-            ForEach(groupedLessons, id: \.subject) { group in
+            ForEach(groupedLessons, id: \.area) { group in
                 Section {
                     DisclosureGroup(
                         isExpanded: Binding(
-                            get: { expandedSubjects.contains(group.subject) || !searchText.isEmpty },
+                            get: { expandedAreas.contains(group.area) || !searchText.isEmpty },
                             set: { newValue in
                                 if newValue {
-                                    expandedSubjects.insert(group.subject)
+                                    expandedAreas.insert(group.area)
                                 } else {
-                                    expandedSubjects.remove(group.subject)
+                                    expandedAreas.remove(group.area)
                                 }
                             }
                         )
@@ -86,7 +86,7 @@ struct ResourceLessonPicker: View {
                         }
                     } label: {
                         HStack {
-                            Text(group.subject.isEmpty ? "Ungrouped" : group.subject)
+                            Text(group.area.isEmpty ? "Ungrouped" : group.area)
                                 .font(.subheadline.weight(.medium))
                             Spacer()
                             Text("\(group.lessons.count)")

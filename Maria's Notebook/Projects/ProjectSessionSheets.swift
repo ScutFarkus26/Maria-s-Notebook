@@ -59,8 +59,8 @@ struct ProjectLessonPickerSheet: View {
         if q.isEmpty { return all }
         return all.filter { l in
             l.name.localizedCaseInsensitiveContains(q) ||
-            l.subject.localizedCaseInsensitiveContains(q) ||
-            l.group.localizedCaseInsensitiveContains(q)
+            l.area.localizedCaseInsensitiveContains(q) ||
+            l.sequence.localizedCaseInsensitiveContains(q)
         }
     }
 }

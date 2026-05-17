@@ -41,11 +41,11 @@ final class PresentationDetailViewModel {
     var proficiencyState: LessonPresentationState = .presented
 
     // MARK: - Group Recap
-    /// Snapshot of every lesson, work item, and note in the same curriculum group as
-    /// the current lesson, broken down per student. nil when there is no group to show
-    /// (lesson has no group, or no lessons match). Recomputed on appear and whenever
+    /// Snapshot of every lesson, work item, and note in the same curriculum sequence as
+    /// the current lesson, broken down per student. nil when there is no sequence to show
+    /// (lesson has no sequence, or no lessons match). Recomputed on appear and whenever
     /// the editing lesson or roster changes.
-    var groupRecap: GroupRecap?
+    var groupRecap: SequenceRecap?
 
     // MARK: - UI State
     var showLessonPicker: Bool = false
@@ -124,19 +124,19 @@ final class PresentationDetailViewModel {
         lessons.first(where: { $0.id == editingLessonID })
     }
 
-    /// Determines the next lesson in the group based on the current selection
-    func nextLessonInGroup(from lessons: [CDLesson]) -> CDLesson? {
+    /// Determines the next lesson in the sequence based on the current selection
+    func nextLessonInSequence(from lessons: [CDLesson]) -> CDLesson? {
         guard let current = lessonObject(from: lessons) else { return nil }
         let actions = PresentationDetailActions()
-        return actions.nextLessonInGroup(from: current, lessons: lessons)
+        return actions.nextLessonInSequence(from: current, lessons: lessons)
     }
 
     // MARK: - Group Recap
 
-    /// Recomputes the group-recap snapshot for the current lesson + roster.
-    /// Safe to call repeatedly; runs synchronously on the main actor and is fast for typical group sizes.
-    func recomputeGroupRecap(currentLesson: CDLesson?, students: [CDStudent]) {
-        groupRecap = GroupRecapResolver.resolve(
+    /// Recomputes the sequence-recap snapshot for the current lesson + roster.
+    /// Safe to call repeatedly; runs synchronously on the main actor and is fast for typical sequence sizes.
+    func recomputeSequenceRecap(currentLesson: CDLesson?, students: [CDStudent]) {
+        groupRecap = SequenceRecapResolver.resolve(
             currentLesson: currentLesson,
             students: students,
             context: viewContext
@@ -182,7 +182,7 @@ final class PresentationDetailViewModel {
 
         // 3. Auto-create next lesson if needed
         let actions = PresentationDetailActions()
-        let nextLesson = nextLessonInGroup(from: lessons)
+        let nextLesson = nextLessonInSequence(from: lessons)
 
         actions.autoCreateNextIfNeeded(
             wasGiven: wasGiven,
@@ -241,9 +241,9 @@ final class PresentationDetailViewModel {
             )
 
             if let lesson = lessonAssignment.lesson {
-                GroupTrackService.autoEnrollInTrackIfNeeded(
-                    lessonSubject: lesson.subject,
-                    lessonGroup: lesson.group,
+                SequenceTrackService.autoEnrollInTrackIfNeeded(
+                    lessonArea: lesson.area,
+                    lessonSequence: lesson.sequence,
                     studentIDs: lessonAssignment.studentIDs,
                     context: viewContext,
                     saveCoordinator: saveCoordinator
@@ -253,9 +253,9 @@ final class PresentationDetailViewModel {
 
         if !nowGiven, lessonAssignment.scheduledFor != nil {
             if let lesson = lessonAssignment.lesson {
-                GroupTrackService.autoEnrollInTrackIfNeeded(
-                    lessonSubject: lesson.subject,
-                    lessonGroup: lesson.group,
+                SequenceTrackService.autoEnrollInTrackIfNeeded(
+                    lessonArea: lesson.area,
+                    lessonSequence: lesson.sequence,
                     studentIDs: lessonAssignment.studentIDs,
                     context: viewContext,
                     saveCoordinator: saveCoordinator

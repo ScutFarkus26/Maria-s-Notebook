@@ -3,9 +3,9 @@ import CoreData
 
 struct PresentationHeaderView: View {
     let lessonName: String
-    let subject: String
-    let group: String
-    let subjectColor: Color
+    let area: String
+    let sequence: String
+    let areaColor: Color
     var onTapTitle: (() -> Void)?
 
     var body: some View {
@@ -27,11 +27,11 @@ struct PresentationHeaderView: View {
             }
 
             HStack(spacing: 8) {
-                if !subject.trimmed().isEmpty {
-                    pillTag(subject, color: subjectColor)
+                if !area.trimmed().isEmpty {
+                    pillTag(area, color: areaColor)
                 }
-                if !group.trimmed().isEmpty {
-                    pillTag(group, color: .secondary.opacity(0.6))
+                if !sequence.trimmed().isEmpty {
+                    pillTag(sequence, color: .secondary.opacity(0.6))
                 }
             }
             .frame(maxWidth: .infinity)

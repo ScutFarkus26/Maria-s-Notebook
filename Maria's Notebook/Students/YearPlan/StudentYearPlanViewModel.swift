@@ -121,7 +121,7 @@ final class StudentYearPlanViewModel {
         // Find all planned entries in the same sequence after this one
         let subsequent = entries
             .filter {
-                $0.sequenceGroupKey == entry.sequenceGroupKey &&
+                $0.sequenceKey == entry.sequenceKey &&
                 $0.studentID == entry.studentID &&
                 $0.orderInSequence > entry.orderInSequence &&
                 $0.isPlanned
@@ -150,7 +150,7 @@ final class StudentYearPlanViewModel {
     func readjust(studentID: UUID, context: NSManagedObjectContext) async {
         let today = AppCalendar.startOfDay(Date())
 
-        let grouped = Dictionary(grouping: entries.filter { $0.isPlanned }) { $0.sequenceGroupKey }
+        let grouped = Dictionary(grouping: entries.filter { $0.isPlanned }) { $0.sequenceKey }
 
         for (_, sequenceEntries) in grouped {
             let sorted = sequenceEntries.sorted { $0.orderInSequence < $1.orderInSequence }

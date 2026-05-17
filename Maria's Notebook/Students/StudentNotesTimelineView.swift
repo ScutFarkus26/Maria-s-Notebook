@@ -292,13 +292,13 @@ struct StudentNotesTimelineList: View {
                         }
                     }
 
-                    ForEach(groupedItems, id: \.key) { group in
+                    ForEach(groupedItems, id: \.key) { sequence in
                         Section {
-                            ForEach(group.items) { item in
+                            ForEach(sequence.items) { item in
                                 noteRow(for: item)
                             }
                         } header: {
-                            Text(monthYearHeader(for: group.key))
+                            Text(monthYearHeader(for: sequence.key))
                                 .font(.headline)
                                 .foregroundStyle(.primary)
                                 .textCase(nil)

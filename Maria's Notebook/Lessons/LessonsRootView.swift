@@ -2,7 +2,7 @@
 //
 // Split into multiple files for maintainability:
 // - LessonsRootView.swift (this file) - Main view structure and body
-// - LessonsRootViewPanes.swift - Column panes (subjects, lessons, detail)
+// - LessonsRootViewPanes.swift - Column panes (areas, lessons, detail)
 // - LessonsRootViewReordering.swift - Reordering logic for groups and lessons
 
 import SwiftUI
@@ -37,43 +37,43 @@ enum LessonsDisplayMode: String, CaseIterable, Identifiable {
 
 /// Top-level grouping spine for the scope-and-sequence Map.
 enum MapSpine: String, CaseIterable, Identifiable {
-    case subject = "Subject"
+    case area = "Area"
     case greatLesson = "Great Lesson"
 
     var id: String { rawValue }
 
     var icon: String {
         switch self {
-        case .subject: return "books.vertical"
+        case .area: return "books.vertical"
         case .greatLesson: return "sparkles"
         }
     }
 }
 
-/// Identifies one (subject, group) thread in the scope-and-sequence map.
-/// An empty `group` string represents the synthetic "ungrouped" bucket;
+/// Identifies one (area, sequence) thread in the scope-and-sequence map.
+/// An empty `sequence` string represents the synthetic "ungrouped" bucket;
 /// `displayName` resolves it to "Other" for UI.
 struct ThreadKey: Hashable, Identifiable {
-    let subject: String
-    let group: String
+    let area: String
+    let sequence: String
 
-    var id: String { "\(subject)||\(group)" }
+    var id: String { "\(area)||\(sequence)" }
 
     var displayName: String {
-        group.trimmed().isEmpty ? "Other" : group
+        sequence.trimmed().isEmpty ? "Other" : sequence
     }
 }
 
 struct TrackSettingsItem: Identifiable {
     let id = UUID()
-    let subject: String
-    let group: String
+    let area: String
+    let sequence: String
 }
 
-struct SubheadingReorderItem: Identifiable {
+struct SectionReorderItem: Identifiable {
     let id = UUID()
-    let subject: String
-    let group: String
+    let area: String
+    let sequence: String
 }
 
 // MARK: - LessonsRootView
@@ -85,19 +85,19 @@ struct LessonsRootView: View {
     @Environment(SaveCoordinator.self) var saveCoordinator
 
     // MARK: - Data Query
-    @FetchRequest(sortDescriptors: [NSSortDescriptor(keyPath: \CDLesson.subject, ascending: true), NSSortDescriptor(keyPath: \CDLesson.sortIndex, ascending: true), NSSortDescriptor(keyPath: \CDLesson.orderInGroup, ascending: true)])
+    @FetchRequest(sortDescriptors: [NSSortDescriptor(keyPath: \CDLesson.area, ascending: true), NSSortDescriptor(keyPath: \CDLesson.sortIndex, ascending: true), NSSortDescriptor(keyPath: \CDLesson.orderInSequence, ascending: true)])
     var lessons: FetchedResults<CDLesson>
 
     // MARK: - UI State
     @State var filterState = LessonsFilterState()
-    @State var listSelectedSubject: String?
+    @State var listSelectedArea: String?
 
     // MARK: - Scene Storage
-    @SceneStorage("Lessons.selectedSubject") var selectedSubjectRaw: String = ""
+    @SceneStorage("Lessons.selectedArea") var selectedAreaRaw: String = ""
     @SceneStorage("Lessons.searchText") var searchTextRaw: String = ""
     @SceneStorage("Lessons.displayMode") var displayModeRaw: String = LessonsDisplayMode.outline.rawValue
     @SceneStorage("Lessons.detailPaneWidth") var detailPaneWidth: Double = 520
-    @AppStorage("Lessons.mapSpine") var mapSpineRaw: String = MapSpine.subject.rawValue
+    @AppStorage("Lessons.mapSpine") var mapSpineRaw: String = MapSpine.area.rawValue
 
     static let detailPaneMinWidth: CGFloat = 440
     static let detailPaneMaxWidth: CGFloat = 720
@@ -105,7 +105,7 @@ struct LessonsRootView: View {
     // MARK: - Sheet State
     @State var lessonToSchedule: CDLesson?
     @State var trackSettingsItem: TrackSettingsItem?
-    @State var reorderSubheadingsItem: SubheadingReorderItem?
+    @State var reorderSectionsItem: SectionReorderItem?
     @State var selectedLessonDetail: CDLesson?
     @State var showingAddLesson = false
     @State var showingBulkEntry = false
@@ -116,11 +116,11 @@ struct LessonsRootView: View {
     // MARK: - Reordering State
     @State var detailPaneDragStartWidth: CGFloat?
 
-    @State var reorderableGroups: [String] = []
-    /// Counter bumped after a subheading drag-reorder. `buildSubheadings` references it
+    @State var reorderableSequences: [String] = []
+    /// Counter bumped after a section drag-reorder. `buildSections` references it
     /// so SwiftUI re-evaluates the outline when `FilterOrderStore` changes (UserDefaults
     /// doesn't publish on its own).
-    @State var subheadingOrderRevision: Int = 0
+    @State var sectionOrderRevision: Int = 0
 
     // MARK: - Map Mode State
     @State var focusedThread: ThreadKey?
@@ -141,26 +141,26 @@ struct LessonsRootView: View {
 
     // MARK: - Computed Properties
 
-    var subjects: [String] {
-        helper.subjects(from: Array(lessons))
+    var areas: [String] {
+        helper.areas(from: Array(lessons))
     }
 
-    var selectedSubject: String? {
-        filterState.selectedSubject
+    var selectedArea: String? {
+        filterState.selectedArea
     }
 
-    var groupsForSelectedSubject: [String] {
-        guard let subject = selectedSubject, !subject.trimmed().isEmpty else { return [] }
-        return helper.groups(for: subject, lessons: Array(lessons))
+    var groupsForSelectedArea: [String] {
+        guard let area = selectedArea, !area.trimmed().isEmpty else { return [] }
+        return helper.groups(for: area, lessons: Array(lessons))
     }
 
     var groupsFromFilteredLessons: [String] {
         let hasSearchText = !filterState.debouncedSearchText.trimmed().isEmpty
         if hasSearchText {
-            let unique = Set(lessonsForSubject.map { $0.group.trimmed() }.filter { !$0.isEmpty })
+            let unique = Set(lessonsForArea.map { $0.sequence.trimmed() }.filter { !$0.isEmpty })
             return Array(unique).sorted { $0.localizedCaseInsensitiveCompare($1) == .orderedAscending }
         } else {
-            return groupsForSelectedSubject
+            return groupsForSelectedArea
         }
     }
 
@@ -170,16 +170,16 @@ struct LessonsRootView: View {
     /// Sentinel value for the "Parshas" sidebar entry (parsha-indexed lesson browser)
     static let parshasSentinel = "__parshas__"
 
-    /// Sentinel value for the "All Lessons" sidebar entry (cross-subject browser)
+    /// Sentinel value for the "All Lessons" sidebar entry (cross-area browser)
     static let allLessonsSentinel = "__all__"
 
-    var lessonsForSubject: [CDLesson] {
+    var lessonsForArea: [CDLesson] {
         // Parshas sentinel renders its own column (ParshaBrowseView); the regular lesson
         // list is irrelevant, so skip the fetch entirely.
-        if filterState.selectedSubject == Self.parshasSentinel { return [] }
+        if filterState.selectedArea == Self.parshasSentinel { return [] }
         let hasSearchText = !filterState.debouncedSearchText.trimmed().isEmpty
-        let isStoriesView = filterState.selectedSubject == Self.storiesSentinel
-        let isAllLessons  = filterState.selectedSubject == Self.allLessonsSentinel
+        let isStoriesView = filterState.selectedArea == Self.storiesSentinel
+        let isAllLessons  = filterState.selectedArea == Self.allLessonsSentinel
         // DEDUPLICATION: CloudKit sync can create duplicate records with the same ID.
         // Use uniqueByID to prevent SwiftUI crash on "Duplicate values for key"
         return helper.filteredLessons(
@@ -188,8 +188,8 @@ struct LessonsRootView: View {
             personalKindFilter: filterState.personalKindFilter,
             formatFilter: filterState.formatFilter,
             searchText: filterState.debouncedSearchText,
-            selectedSubject: (hasSearchText || isStoriesView || isAllLessons) ? nil : filterState.selectedSubject,
-            selectedGroup: nil,
+            selectedArea: (hasSearchText || isStoriesView || isAllLessons) ? nil : filterState.selectedArea,
+            selectedSequence: nil,
             allLessons: Array(lessons)
         ).uniqueByID
     }
@@ -199,16 +199,16 @@ struct LessonsRootView: View {
     }
 
     var mapSpine: MapSpine {
-        MapSpine(rawValue: mapSpineRaw) ?? .subject
+        MapSpine(rawValue: mapSpineRaw) ?? .area
     }
 
     var canReorderInOutlineMode: Bool {
         guard displayMode == .outline, isEditingSequence else { return false }
         guard filterState.debouncedSearchText.trimmed().isEmpty else { return false }
-        guard let subject = filterState.selectedSubject,
-              !subject.trimmed().isEmpty,
-              subject != Self.allLessonsSentinel,
-              subject != Self.storiesSentinel else { return false }
+        guard let area = filterState.selectedArea,
+              !area.trimmed().isEmpty,
+              area != Self.allLessonsSentinel,
+              area != Self.storiesSentinel else { return false }
         return true
     }
 
@@ -219,11 +219,11 @@ struct LessonsRootView: View {
     var canShowEditSequenceButton: Bool {
         guard displayMode == .outline else { return false }
         guard filterState.debouncedSearchText.trimmed().isEmpty else { return false }
-        guard let subject = filterState.selectedSubject,
-              !subject.trimmed().isEmpty,
-              subject != Self.allLessonsSentinel,
-              subject != Self.storiesSentinel,
-              subject != Self.parshasSentinel else { return false }
+        guard let area = filterState.selectedArea,
+              !area.trimmed().isEmpty,
+              area != Self.allLessonsSentinel,
+              area != Self.storiesSentinel,
+              area != Self.parshasSentinel else { return false }
         return true
     }
 
@@ -237,18 +237,18 @@ struct LessonsRootView: View {
         .environment(\.editMode, $editMode)
         #endif
         .task { await handleInitialLoad() }
-        .task(id: lessonsForSubject.compactMap(\.id)) { await fetchPresentationHistory() }
-        .onChange(of: listSelectedSubject) { _, newValue in handleListSelectionChange(newValue) }
-        .onChange(of: filterState.selectedSubject) { _, newValue in handleSubjectChange(newValue) }
+        .task(id: lessonsForArea.compactMap(\.id)) { await fetchPresentationHistory() }
+        .onChange(of: listSelectedArea) { _, newValue in handleListSelectionChange(newValue) }
+        .onChange(of: filterState.selectedArea) { _, newValue in handleAreaChange(newValue) }
         .onChange(of: filterState.searchText) { _, newValue in handleSearchTextChange(newValue) }
         .onChange(of: displayMode) { _, newValue in handleDisplayModeChange(newValue) }
         .sheet(item: $lessonToSchedule) { lesson in lessonScheduleSheet(lesson) }
-        .sheet(item: $trackSettingsItem) { item in GroupTrackSettingsSheet(subject: item.subject, group: item.group) }
-        .sheet(item: $reorderSubheadingsItem) { item in
-            ReorderSubheadingsSheet(subject: item.subject, group: item.group, lessons: Array(lessons))
+        .sheet(item: $trackSettingsItem) { item in SequenceTrackSettingsSheet(area: item.area, sequence: item.sequence) }
+        .sheet(item: $reorderSectionsItem) { item in
+            ReorderSectionsSheet(area: item.area, sequence: item.sequence, lessons: Array(lessons))
         }
-        .sheet(isPresented: $showingAddLesson) { AddLessonView(defaultSubject: selectedSubject) }
-        .sheet(isPresented: $showingBulkEntry) { BulkLessonsEntryView(defaultSubject: selectedSubject) }
+        .sheet(isPresented: $showingAddLesson) { AddLessonView(defaultArea: selectedArea) }
+        .sheet(isPresented: $showingBulkEntry) { BulkLessonsEntryView(defaultArea: selectedArea) }
     }
 
     private func lessonScheduleSheet(_ lesson: CDLesson) -> some View {
@@ -270,7 +270,7 @@ struct LessonsRootView: View {
             ViewHeader(title: "Lessons") { headerTrailingControls }
             Divider()
             HStack(spacing: 0) {
-                subjectsColumn
+                areasColumn
                     .frame(width: 280)
 
                 Divider()
@@ -330,9 +330,9 @@ struct LessonsRootView: View {
             sortIndexMigrated = true
         }
 
-        if filterState.selectedSubject == nil && !selectedSubjectRaw.trimmed().isEmpty {
-            filterState.selectedSubject = selectedSubjectRaw
-            listSelectedSubject = selectedSubjectRaw
+        if filterState.selectedArea == nil && !selectedAreaRaw.trimmed().isEmpty {
+            filterState.selectedArea = selectedAreaRaw
+            listSelectedArea = selectedAreaRaw
         }
         if filterState.searchText.isEmpty && !searchTextRaw.isEmpty {
             filterState.searchText = searchTextRaw
@@ -343,33 +343,33 @@ struct LessonsRootView: View {
         Task { @MainActor in
             switch newValue {
             case LessonsRootView.storiesSentinel:
-                filterState.selectedSubject = newValue
+                filterState.selectedArea = newValue
                 filterState.formatFilter = .story
             case LessonsRootView.allLessonsSentinel, LessonsRootView.parshasSentinel, nil:
-                if filterState.selectedSubject == LessonsRootView.storiesSentinel {
+                if filterState.selectedArea == LessonsRootView.storiesSentinel {
                     filterState.formatFilter = nil
                 }
-                filterState.selectedSubject = newValue
+                filterState.selectedArea = newValue
             default:
-                // Regular subject selected: clear story filter if it was active from sidebar
-                if filterState.selectedSubject == LessonsRootView.storiesSentinel {
+                // Regular area selected: clear story filter if it was active from sidebar
+                if filterState.selectedArea == LessonsRootView.storiesSentinel {
                     filterState.formatFilter = nil
                 }
-                if filterState.selectedSubject != newValue {
-                    filterState.selectedSubject = newValue
+                if filterState.selectedArea != newValue {
+                    filterState.selectedArea = newValue
                 }
             }
         }
     }
 
-    private func handleSubjectChange(_ newValue: String?) {
+    private func handleAreaChange(_ newValue: String?) {
         Task { @MainActor in
-            if listSelectedSubject != newValue {
-                listSelectedSubject = newValue
+            if listSelectedArea != newValue {
+                listSelectedArea = newValue
             }
-            selectedSubjectRaw = newValue ?? ""
+            selectedAreaRaw = newValue ?? ""
             isEditingSequence = false
-            syncReorderableGroups()
+            syncReorderableSequences()
         }
     }
 
@@ -378,7 +378,7 @@ struct LessonsRootView: View {
             displayModeRaw = newValue.rawValue
             isEditingSequence = false
             if newValue == .outline {
-                syncReorderableGroups()
+                syncReorderableSequences()
             }
             if newValue != .map {
                 focusedThread = nil
@@ -393,7 +393,7 @@ struct LessonsRootView: View {
 
     @MainActor
     private func fetchPresentationHistory() async {
-        let lessonIDs = lessonsForSubject.compactMap(\.id)
+        let lessonIDs = lessonsForArea.compactMap(\.id)
         guard !lessonIDs.isEmpty else {
             statusCounts = nil
             lastPresentedDates = nil

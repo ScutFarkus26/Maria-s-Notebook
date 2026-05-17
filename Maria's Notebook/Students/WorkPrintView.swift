@@ -26,10 +26,10 @@ struct WorkPrintView: View {
                 .padding(.vertical, 8)
 
             // Work items grouped by student
-            ForEach(Array(groupedWork.enumerated()), id: \.offset) { index, group in
+            ForEach(Array(groupedWork.enumerated()), id: \.offset) { index, sequence in
                 PrintStudentSectionContent(
-                    title: group.title,
-                    works: group.works,
+                    title: sequence.title,
+                    works: sequence.works,
                     lessons: lessons
                 )
 
@@ -132,7 +132,7 @@ struct PrintStudentSectionContent: View {
                        let lesson = lessons.first(where: { $0.id == lessonID }) {
                         HStack(spacing: 6) {
                             Circle()
-                                .fill(AppColors.color(forSubject: lesson.subject))
+                                .fill(AppColors.color(forArea: lesson.area))
                                 .frame(width: 6, height: 6)
 
                             Text(lesson.name)

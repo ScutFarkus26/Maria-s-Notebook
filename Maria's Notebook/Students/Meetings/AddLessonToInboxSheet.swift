@@ -10,7 +10,7 @@ struct AddLessonToInboxSheet: View {
     @Environment(\.managedObjectContext) private var viewContext
     @Environment(SaveCoordinator.self) private var saveCoordinator
     
-    @FetchRequest(sortDescriptors: [NSSortDescriptor(keyPath: \CDLesson.subject, ascending: true), NSSortDescriptor(keyPath: \CDLesson.sortIndex, ascending: true)])
+    @FetchRequest(sortDescriptors: [NSSortDescriptor(keyPath: \CDLesson.area, ascending: true), NSSortDescriptor(keyPath: \CDLesson.sortIndex, ascending: true)])
     private var allLessons: FetchedResults<CDLesson>
     
     @State private var selectedLessonID: UUID?
@@ -26,8 +26,8 @@ struct AddLessonToInboxSheet: View {
         guard !query.isEmpty else { return Array(allLessons) }
         return allLessons.filter {
             $0.name.lowercased().contains(query) ||
-            $0.subject.lowercased().contains(query) ||
-            $0.group.lowercased().contains(query)
+            $0.area.lowercased().contains(query) ||
+            $0.sequence.lowercased().contains(query)
         }
     }
     
@@ -136,15 +136,15 @@ struct AddLessonToInboxSheet: View {
                         Text(lesson.name)
                             .font(.subheadline.weight(.bold))
                         HStack(spacing: 4) {
-                            if !lesson.subject.isEmpty {
-                                Text(lesson.subject)
+                            if !lesson.area.isEmpty {
+                                Text(lesson.area)
                                     .font(.caption)
                                     .foregroundStyle(.secondary)
                             }
-                            if !lesson.group.isEmpty {
+                            if !lesson.sequence.isEmpty {
                                 Text("•")
                                     .foregroundStyle(.tertiary)
-                                Text(lesson.group)
+                                Text(lesson.sequence)
                                     .font(.caption)
                                     .foregroundStyle(.secondary)
                             }
@@ -182,8 +182,8 @@ struct AddLessonToInboxSheet: View {
                         VStack(alignment: .leading, spacing: 2) {
                             Text(lesson.name)
                                 .foregroundStyle(.primary)
-                            if !lesson.subject.isEmpty {
-                                Text("\(lesson.subject) • \(lesson.group)")
+                            if !lesson.area.isEmpty {
+                                Text("\(lesson.area) • \(lesson.sequence)")
                                     .font(.caption)
                                     .foregroundStyle(.secondary)
                             }

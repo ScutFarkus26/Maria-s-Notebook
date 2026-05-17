@@ -21,9 +21,9 @@ struct LessonDetailCard: View {
 
     @State var isEditing = false
     @State var draftName: String = ""
-    @State var draftSubject: String = ""
-    @State var draftGroup: String = ""
-    @State var draftSubheading: String = ""
+    @State var draftArea: String = ""
+    @State var draftSequence: String = ""
+    @State var draftSection: String = ""
     @State var draftWriteUp: String = ""
     @State var draftSuggestedFollowUpWork: String = ""
     @State var showDeleteAlert = false
@@ -130,9 +130,9 @@ struct LessonDetailCard: View {
 
     func seedDrafts() {
         draftName = lesson.name
-        draftSubject = lesson.subject
-        draftGroup = lesson.group
-        draftSubheading = lesson.subheading
+        draftArea = lesson.area
+        draftSequence = lesson.sequence
+        draftSection = lesson.section
         draftWriteUp = lesson.writeUp
         draftSuggestedFollowUpWork = lesson.suggestedFollowUpWork
         draftSource = lesson.source
@@ -192,9 +192,9 @@ struct LessonDetailCard: View {
     let ctx = CoreDataStack.preview.viewContext
     let lesson = CDLesson(context: ctx)
     lesson.name = "Decimal System"
-    lesson.subject = "Math"
-    lesson.group = "Number Work"
-    lesson.subheading = "Intro to base-10"
+    lesson.area = "Math"
+    lesson.sequence = "Number Work"
+    lesson.section = "Intro to base-10"
     lesson.writeUp = "A foundational presentation."
 
     return LessonDetailCard(lesson: lesson, onSave: { _ in }, onClose: {})

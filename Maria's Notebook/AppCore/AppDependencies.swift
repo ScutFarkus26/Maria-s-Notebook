@@ -109,12 +109,12 @@ final class AppDependencies {
     }
 
     // CDTrackEntity services
-    private var _groupTrackService: GroupTrackService?
-    var groupTrackService: GroupTrackService {
+    private var _groupTrackService: SequenceTrackService?
+    var groupTrackService: SequenceTrackService {
         if let service = _groupTrackService {
             return service
         }
-        let service = GroupTrackService()
+        let service = SequenceTrackService()
         _groupTrackService = service
         return service
     }
@@ -129,12 +129,12 @@ final class AppDependencies {
         return resolver
     }
 
-    private var _groupTrackProgressResolver: GroupTrackProgressResolver?
-    var groupTrackProgressResolver: GroupTrackProgressResolver {
+    private var _groupTrackProgressResolver: SequenceTrackProgressResolver?
+    var groupTrackProgressResolver: SequenceTrackProgressResolver {
         if let resolver = _groupTrackProgressResolver {
             return resolver
         }
-        let resolver = GroupTrackProgressResolver()
+        let resolver = SequenceTrackProgressResolver()
         _groupTrackProgressResolver = resolver
         return resolver
     }

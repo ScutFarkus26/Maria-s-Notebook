@@ -48,7 +48,7 @@ enum PresentationFactory {
         la.lessonID = lesson.id?.uuidString ?? ""
         la.studentIDs = students.compactMap { $0.id?.uuidString }
         la.lessonTitleSnapshot = lesson.name
-        la.lessonSubheadingSnapshot = lesson.subheading
+        la.lessonSectionSnapshot = lesson.section
         return la
     }
 

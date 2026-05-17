@@ -49,7 +49,7 @@ struct StudentReadinessAssessor {
                 studentID: student.id ?? UUID(),
                 studentName: student.firstName,
                 level: "",
-                subjectReadiness: [],
+                areaReadiness: [],
                 practiceQualityAvg: nil,
                 independenceAvg: nil,
                 daysSinceLastPresentation: nil,
@@ -80,7 +80,7 @@ struct StudentReadinessAssessor {
         let studentNotes = recentNotes.filter { note in
             note.searchIndexStudentID == student.id || note.scopeIsAll
         }
-        let subjectReadiness = computeSubjectReadiness(
+        let areaReadiness = computeAreaReadiness(
             student: student, allLessons: allLessons,
             presentations: studentPresentations, work: studentWork
         )
@@ -92,7 +92,7 @@ struct StudentReadinessAssessor {
             studentID: student.id ?? UUID(),
             studentName: student.fullName,
             level: student.level.rawValue,
-            subjectReadiness: subjectReadiness,
+            areaReadiness: areaReadiness,
             practiceQualityAvg: metrics.practiceQualityAvg,
             independenceAvg: metrics.independenceAvg,
             daysSinceLastPresentation: daysSinceLastPresentation,
@@ -140,51 +140,51 @@ struct StudentReadinessAssessor {
         return Calendar.current.dateComponents([.day], from: lastDate, to: Date()).day
     }
 
-    // MARK: - Subject Readiness Computation
+    // MARK: - Area Readiness Computation
 
-    private static func computeSubjectReadiness(
+    private static func computeAreaReadiness(
         student: CDStudent,
         allLessons: [CDLesson],
         presentations: [CDLessonAssignment],
         work: [CDWorkModel]
-    ) -> [SubjectReadiness] {
-        let lessonsBySubjectGroup = Dictionary(grouping: allLessons) {
-            SubjectGroupKey(subject: $0.subject.trimmed(), group: $0.group.trimmed())
+    ) -> [AreaReadiness] {
+        let lessonsByAreaSequence = Dictionary(grouping: allLessons) {
+            AreaSequenceKey(area: $0.area.trimmed(), sequence: $0.sequence.trimmed())
         }
-        var results: [SubjectReadiness] = []
-        for (key, lessons) in lessonsBySubjectGroup {
-            guard !key.subject.isEmpty, !key.group.isEmpty else { continue }
-            let sorted = lessons.sorted { $0.orderInGroup < $1.orderInGroup }
-            let groupProgress = scanLessonGroupProgress(sorted: sorted, presentations: presentations, work: work)
+        var results: [AreaReadiness] = []
+        for (key, lessons) in lessonsByAreaSequence {
+            guard !key.area.isEmpty, !key.sequence.isEmpty else { continue }
+            let sorted = lessons.sorted { $0.orderInSequence < $1.orderInSequence }
+            let groupProgress = scanLessonSequenceProgress(sorted: sorted, presentations: presentations, work: work)
             let currentLesson = groupProgress.currentLesson
             var nextLesson = groupProgress.nextLesson
             if currentLesson == nil, let first = sorted.first { nextLesson = first }
             if let current = currentLesson, nextLesson == nil {
                 nextLesson = PlanNextLessonService.findNextLesson(after: current, in: allLessons)
             }
-            results.append(SubjectReadiness(
-                subject: key.subject, group: key.group,
+            results.append(AreaReadiness(
+                area: key.area, sequence: key.sequence,
                 currentLessonName: currentLesson?.name, currentLessonID: currentLesson?.id,
                 nextLessonName: nextLesson?.name, nextLessonID: nextLesson?.id,
                 proficiencySignal: groupProgress.proficiency,
                 activeWorkCount: groupProgress.activeWorkInGroup,
-                completedInGroup: groupProgress.completedInGroup, totalInGroup: sorted.count
+                completedInSequence: groupProgress.completedInSequence, totalInSequence: sorted.count
             ))
         }
-        return results.sorted { ($0.subject, $0.group) < ($1.subject, $1.group) }
+        return results.sorted { ($0.area, $0.sequence) < ($1.area, $1.sequence) }
     }
 
-    private static func scanLessonGroupProgress(
+    private static func scanLessonSequenceProgress(
         sorted: [CDLesson], presentations: [CDLessonAssignment], work: [CDWorkModel]
-    ) -> LessonGroupProgress {
-        var progress = LessonGroupProgress()
+    ) -> LessonSequenceProgress {
+        var progress = LessonSequenceProgress()
         for lesson in sorted {
             let lessonIDStr = lesson.id?.uuidString ?? ""
             let presented = presentations.contains { la in
                 la.lessonID == lessonIDStr && la.presentedAt != nil
             }
             if presented {
-                progress.completedInGroup += 1
+                progress.completedInSequence += 1
                 progress.currentLesson = lesson
                 let lessonWork = work.filter { $0.lessonID == lessonIDStr }
                 let activeWork = lessonWork.filter { $0.status != WorkStatus.complete }
@@ -253,16 +253,16 @@ extension StudentReadinessAssessor {
 
             lines.append(studentLine)
 
-            // Only show subjects with a next lesson available (frontier)
-            let frontierSubjects = profile.subjectReadiness
+            // Only show areas with a next lesson available (frontier)
+            let frontierAreas = profile.areaReadiness
                 .filter { $0.nextLessonID != nil }
-            for sr in frontierSubjects.prefix(8) {
-                let prog = "\(sr.completedInGroup)/\(sr.totalInGroup)"
+            for sr in frontierAreas.prefix(8) {
+                let prog = "\(sr.completedInSequence)/\(sr.totalInSequence)"
                 let current = sr.currentLessonName
                     .map { "current: \($0) (\(sr.proficiencySignal.shortCode))" }
                     ?? "not started"
                 let next = sr.nextLessonName.map { "next: \($0)" } ?? ""
-                lines.append("  \(sr.subject)/\(sr.group) \(prog) \(current) \(next)")
+                lines.append("  \(sr.area)/\(sr.sequence) \(prog) \(current) \(next)")
             }
         }
 
@@ -276,9 +276,9 @@ extension StudentReadinessAssessor {
     private static func fetchAllLessons(context: NSManagedObjectContext) -> [CDLesson] {
         let request = CDFetchRequest(CDLesson.self)
         request.sortDescriptors = [
-            NSSortDescriptor(key: "subject", ascending: true),
-            NSSortDescriptor(key: "group", ascending: true),
-            NSSortDescriptor(key: "orderInGroup", ascending: true)
+            NSSortDescriptor(key: "area", ascending: true),
+            NSSortDescriptor(key: "sequence", ascending: true),
+            NSSortDescriptor(key: "orderInSequence", ascending: true)
         ]
         return context.safeFetch(request)
     }
@@ -314,15 +314,15 @@ extension StudentReadinessAssessor {
 
 // MARK: - Helper Types
 
-private struct SubjectGroupKey: Hashable {
-    let subject: String
-    let group: String
+private struct AreaSequenceKey: Hashable {
+    let area: String
+    let sequence: String
 }
 
-private struct LessonGroupProgress {
+private struct LessonSequenceProgress {
     var currentLesson: CDLesson?
     var nextLesson: CDLesson?
     var proficiency: ProficiencySignal = .notPresented
     var activeWorkInGroup: Int = 0
-    var completedInGroup: Int = 0
+    var completedInSequence: Int = 0
 }

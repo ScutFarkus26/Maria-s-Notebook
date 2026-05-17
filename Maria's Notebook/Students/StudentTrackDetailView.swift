@@ -18,11 +18,11 @@ struct StudentTrackDetailView: View {
     @State private var presentedLessonIDs: Set<String> = []
     @State private var isLoaded = false
 
-    // Timeline data from StudentSubjectProgressionViewModel
-    @State private var progressionVM = StudentSubjectProgressionViewModel()
+    // Timeline data from StudentAreaProgressionViewModel
+    @State private var progressionVM = StudentAreaProgressionViewModel()
     @State private var student: CDStudent?
-    @State private var parsedSubject: String = ""
-    @State private var parsedGroup: String = ""
+    @State private var parsedArea: String = ""
+    @State private var parsedSequence: String = ""
 
     private var proficientCount: Int { proficientLessonIDs.count }
     private var totalLessons: Int { trackLessons.count }
@@ -32,8 +32,8 @@ struct StudentTrackDetailView: View {
         return Int((Double(proficientCount) / Double(totalLessons)) * 100)
     }
 
-    private var subjectColor: Color {
-        AppColors.color(forSubject: parsedSubject)
+    private var areaColor: Color {
+        AppColors.color(forArea: parsedArea)
     }
 
     var body: some View {
@@ -76,24 +76,24 @@ struct StudentTrackDetailView: View {
     }
 
     private func loadData() {
-        // Parse subject and group from track title (format: "Subject — Group")
+        // Parse area and sequence from track title (format: "Area — Group")
         let parts = track.title.components(separatedBy: " — ")
         guard parts.count == 2 else {
             isLoaded = true
             return
         }
 
-        let subject = parts[0].trimmingCharacters(in: .whitespaces)
-        let group = parts[1].trimmingCharacters(in: .whitespaces)
-        parsedSubject = subject
-        parsedGroup = group
+        let area = parts[0].trimmingCharacters(in: .whitespaces)
+        let sequence = parts[1].trimmingCharacters(in: .whitespaces)
+        parsedArea = area
+        parsedSequence = sequence
         let studentID = enrollment.studentID
 
         // Fetch the student
         let allStudents = viewContext.safeFetch(NSFetchRequest<CDStudent>(entityName: "Student"))
         student = allStudents.first { $0.cloudKitKey == studentID }
 
-        // Fetch lessons for this subject/group
+        // Fetch lessons for this area/sequence
         let allLessons: [CDLesson]
         do {
             allLessons = try viewContext.fetch(NSFetchRequest<CDLesson>(entityName: "Lesson"))
@@ -103,10 +103,10 @@ struct StudentTrackDetailView: View {
         }
         trackLessons = allLessons
             .filter { lesson in
-                lesson.subject.trimmingCharacters(in: .whitespaces).caseInsensitiveCompare(subject) == .orderedSame &&
-                lesson.group.trimmingCharacters(in: .whitespaces).caseInsensitiveCompare(group) == .orderedSame
+                lesson.area.trimmingCharacters(in: .whitespaces).caseInsensitiveCompare(area) == .orderedSame &&
+                lesson.sequence.trimmingCharacters(in: .whitespaces).caseInsensitiveCompare(sequence) == .orderedSame
             }
-            .sorted { $0.orderInGroup < $1.orderInGroup }
+            .sorted { $0.orderInSequence < $1.orderInSequence }
 
         // Fetch LessonPresentations for this student
         let lessonIDStrings = Set(trackLessons.compactMap { $0.id?.uuidString })
@@ -126,7 +126,7 @@ struct StudentTrackDetailView: View {
 
         // Load timeline via progression VM
         if let foundStudent = student {
-            progressionVM.configure(for: foundStudent, subject: subject, group: group, context: viewContext)
+            progressionVM.configure(for: foundStudent, area: area, sequence: sequence, context: viewContext)
         }
 
         isLoaded = true
@@ -285,7 +285,7 @@ struct StudentTrackDetailView: View {
         VStack(alignment: .leading, spacing: 12) {
             HStack {
                 Image(systemName: "timeline.selection")
-                    .foregroundStyle(subjectColor)
+                    .foregroundStyle(areaColor)
                 Text("Timeline")
                     .font(.headline)
 
@@ -293,7 +293,7 @@ struct StudentTrackDetailView: View {
 
                 Text("\(progressionVM.completedCount)/\(progressionVM.totalCount)")
                     .font(.subheadline.bold())
-                    .foregroundStyle(subjectColor)
+                    .foregroundStyle(areaColor)
             }
 
             if progressionVM.nodes.isEmpty {
@@ -303,7 +303,7 @@ struct StudentTrackDetailView: View {
                     ForEach(progressionVM.nodes) { node in
                         ProgressionLessonRow(
                             node: node,
-                            subjectColor: subjectColor,
+                            areaColor: areaColor,
                             onScheduleLesson: node.isNext ? {
                                 scheduleNextLesson(after: node)
                             } : nil
@@ -334,7 +334,7 @@ struct StudentTrackDetailView: View {
         progressionVM.scheduleNextLesson(after: node.lesson, context: viewContext)
         if let foundStudent = student {
             progressionVM.configure(
-                for: foundStudent, subject: parsedSubject, group: parsedGroup, context: viewContext
+                for: foundStudent, area: parsedArea, sequence: parsedSequence, context: viewContext
             )
         }
     }

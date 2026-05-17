@@ -317,8 +317,8 @@ struct QuickNoteLessonPicker: View {
         let query = searchText.trimmed()
         return lessons.filter {
             $0.name.localizedCaseInsensitiveContains(query) ||
-            $0.subject.localizedCaseInsensitiveContains(query) ||
-            $0.group.localizedCaseInsensitiveContains(query)
+            $0.area.localizedCaseInsensitiveContains(query) ||
+            $0.sequence.localizedCaseInsensitiveContains(query)
         }
     }
 
@@ -369,7 +369,7 @@ struct QuickNoteLessonPicker: View {
                             VStack(alignment: .leading, spacing: 2) {
                                 Text(lesson.name.isEmpty ? "Untitled Lesson" : lesson.name)
                                     .foregroundStyle(.primary)
-                                let subtitle = [lesson.subject, lesson.group]
+                                let subtitle = [lesson.area, lesson.sequence]
                                     .filter { !$0.isEmpty }
                                     .joined(separator: " \u{00B7} ")
                                 if !subtitle.isEmpty {

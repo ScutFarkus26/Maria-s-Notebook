@@ -36,15 +36,15 @@ extension LessonDetailCard {
                 .multilineTextAlignment(.center)
 
             HStack(spacing: 8) {
-                if !lesson.subject.isEmpty {
-                    Text(lesson.subject)
+                if !lesson.area.isEmpty {
+                    Text(lesson.area)
                         .font(AppTheme.ScaledFont.bodySemibold)
                         .padding(.horizontal, 12)
                         .padding(.vertical, 6)
                         .background(Capsule().fill(Color.accentColor.opacity(UIConstants.OpacityConstants.medium)))
                 }
-                if !lesson.group.isEmpty {
-                    Text(lesson.group)
+                if !lesson.sequence.isEmpty {
+                    Text(lesson.sequence)
                         .font(AppTheme.ScaledFont.bodySemibold)
                         .padding(.horizontal, 12)
                         .padding(.vertical, 6)
@@ -101,9 +101,9 @@ extension LessonDetailCard {
                 Button {
                     let updated = lesson
                     updated.name = draftName.trimmed()
-                    updated.subject = draftSubject.trimmed()
-                    updated.group = draftGroup.trimmed()
-                    updated.subheading = draftSubheading.trimmed()
+                    updated.area = draftArea.trimmed()
+                    updated.sequence = draftSequence.trimmed()
+                    updated.section = draftSection.trimmed()
                     updated.writeUp = draftWriteUp
                     updated.suggestedFollowUpWork = draftSuggestedFollowUpWork
                     updated.source = draftSource

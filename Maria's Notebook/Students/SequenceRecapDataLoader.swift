@@ -1,6 +1,6 @@
-// GroupRecapDataLoader.swift
+// SequenceRecapDataLoader.swift
 // Bulk Core Data fetches + indexing + note distribution used by
-// GroupRecapResolver. Splitting these out keeps the resolver focused on
+// SequenceRecapResolver. Splitting these out keeps the resolver focused on
 // snapshot building.
 
 import Foundation
@@ -8,14 +8,14 @@ import CoreData
 
 // MARK: - Loader
 
-enum GroupRecapDataLoader {
+enum SequenceRecapDataLoader {
 
     @MainActor
     static func collect(
         lessonIDs: [String],
         studentIDs: [String],
         context: NSManagedObjectContext
-    ) -> GroupRecapCollectedData {
+    ) -> SequenceRecapCollectedData {
         let assignments = fetchAssignments(lessonIDs: lessonIDs, context: context)
         let presentations = fetchPresentations(
             lessonIDs: lessonIDs,
@@ -28,7 +28,7 @@ enum GroupRecapDataLoader {
             noteIDs: notes.compactMap { $0.id?.uuidString },
             context: context
         )
-        return GroupRecapCollectedData(
+        return SequenceRecapCollectedData(
             assignmentsByLesson: Dictionary(grouping: assignments) { $0.lessonID },
             presentationByPair: indexPresentations(presentations),
             workByPair: indexWork(work),
@@ -40,18 +40,18 @@ enum GroupRecapDataLoader {
     // MARK: - Fetches
 
     @MainActor
-    static func fetchLessonsInGroup(
-        group: String,
-        subject: String,
+    static func fetchLessonsInSequence(
+        sequence: String,
+        area: String,
         context: NSManagedObjectContext
     ) -> [CDLesson] {
         let req = CDFetchRequest(CDLesson.self)
         req.predicate = NSPredicate(
-            format: "group ==[c] %@ AND subject ==[c] %@ AND group != %@",
-            group, subject, ""
+            format: "sequence ==[c] %@ AND area ==[c] %@ AND sequence != %@",
+            sequence, area, ""
         )
         req.sortDescriptors = [
-            NSSortDescriptor(keyPath: \CDLesson.orderInGroup, ascending: true),
+            NSSortDescriptor(keyPath: \CDLesson.orderInSequence, ascending: true),
             NSSortDescriptor(keyPath: \CDLesson.name, ascending: true)
         ]
         return context.safeFetch(req)
@@ -129,10 +129,10 @@ enum GroupRecapDataLoader {
 
     private static func indexPresentations(
         _ presentations: [CDLessonPresentation]
-    ) -> [GroupRecapPairKey: CDLessonPresentation] {
-        var byPair: [GroupRecapPairKey: CDLessonPresentation] = [:]
+    ) -> [SequenceRecapPairKey: CDLessonPresentation] {
+        var byPair: [SequenceRecapPairKey: CDLessonPresentation] = [:]
         for p in presentations {
-            let key = GroupRecapPairKey(lessonID: p.lessonID, studentID: p.studentID)
+            let key = SequenceRecapPairKey(lessonID: p.lessonID, studentID: p.studentID)
             if let existing = byPair[key] {
                 let new = (p.lastObservedAt ?? p.presentedAt ?? .distantPast)
                 let old = (existing.lastObservedAt ?? existing.presentedAt ?? .distantPast)
@@ -146,9 +146,9 @@ enum GroupRecapDataLoader {
 
     private static func indexWork(
         _ work: [CDWorkModel]
-    ) -> [GroupRecapPairKey: [CDWorkModel]] {
+    ) -> [SequenceRecapPairKey: [CDWorkModel]] {
         work.reduce(into: [:]) { dict, w in
-            let key = GroupRecapPairKey(lessonID: w.lessonID, studentID: w.studentID)
+            let key = SequenceRecapPairKey(lessonID: w.lessonID, studentID: w.studentID)
             dict[key, default: []].append(w)
         }
     }
@@ -158,18 +158,18 @@ enum GroupRecapDataLoader {
 
 /// Distributes lesson-scoped CDNote rows into the most-specific bucket each
 /// belongs to (check-in > work > assignment > direct lesson > orphan).
-enum GroupRecapNoteBucketer {
+enum SequenceRecapNoteBucketer {
 
     static func bucket(
         notes: [CDNote],
         studentLinks: [String: Set<String>],
         studentIDSet: Set<String>,
         lessonIDSet: Set<String>
-    ) -> GroupRecapNoteBuckets {
+    ) -> SequenceRecapNoteBuckets {
         var byCheckIn: [String: [CDNote]] = [:]
         var byWork: [String: [CDNote]] = [:]
         var byAssignment: [String: [CDNote]] = [:]
-        var directByPair: [GroupRecapPairKey: [CDNote]] = [:]
+        var directByPair: [SequenceRecapPairKey: [CDNote]] = [:]
         var orphanByStudent: [String: [CDNote]] = [:]
 
         for note in notes {
@@ -186,7 +186,7 @@ enum GroupRecapNoteBucketer {
 
             if let lid = note.lessonID, lessonIDSet.contains(lid) {
                 for sid in effective {
-                    let key = GroupRecapPairKey(lessonID: lid, studentID: sid)
+                    let key = SequenceRecapPairKey(lessonID: lid, studentID: sid)
                     directByPair[key, default: []].append(note)
                 }
                 continue
@@ -196,7 +196,7 @@ enum GroupRecapNoteBucketer {
             }
         }
 
-        return GroupRecapNoteBuckets(
+        return SequenceRecapNoteBuckets(
             notesByCheckIn: byCheckIn,
             notesByWork: byWork,
             notesByAssignment: byAssignment,
@@ -245,32 +245,32 @@ enum GroupRecapNoteBucketer {
 // MARK: - Internal Types
 
 /// Result of bulk Core Data fetches, with everything pre-indexed for O(1) per-pair lookup.
-struct GroupRecapCollectedData {
+struct SequenceRecapCollectedData {
     let assignmentsByLesson: [String: [CDLessonAssignment]]
-    let presentationByPair: [GroupRecapPairKey: CDLessonPresentation]
-    let workByPair: [GroupRecapPairKey: [CDWorkModel]]
+    let presentationByPair: [SequenceRecapPairKey: CDLessonPresentation]
+    let workByPair: [SequenceRecapPairKey: [CDWorkModel]]
     let notes: [CDNote]
     let studentLinks: [String: Set<String>]
 }
 
 /// Notes distributed into their target buckets. Each note appears in exactly one
 /// bucket (most specific wins), guaranteeing it shows up exactly once in the UI.
-struct GroupRecapNoteBuckets {
+struct SequenceRecapNoteBuckets {
     let notesByCheckIn: [String: [CDNote]]
     let notesByWork: [String: [CDNote]]
     let notesByAssignment: [String: [CDNote]]
-    let directNotesByPair: [GroupRecapPairKey: [CDNote]]
+    let directNotesByPair: [SequenceRecapPairKey: [CDNote]]
     let orphanNotesByStudent: [String: [CDNote]]
 }
 
-struct GroupRecapPairKey: Hashable {
+struct SequenceRecapPairKey: Hashable {
     let lessonID: String
     let studentID: String
 }
 
 // MARK: - Note Snapshot Bridge
 
-extension GroupRecapNote {
+extension SequenceRecapNote {
     init(from note: CDNote) {
         self.init(
             id: note.id ?? UUID(),

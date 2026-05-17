@@ -163,9 +163,9 @@ enum ChecklistBatchActionExecutor {
                 existing.studentIDs = ids
             }
         } else {
-            if let group = allLAs.first(where: { !$0.isPresented && $0.scheduledFor == nil }) {
-                if !group.studentIDs.contains(studentIDString) {
-                    group.studentIDs.append(studentIDString)
+            if let sequence = allLAs.first(where: { !$0.isPresented && $0.scheduledFor == nil }) {
+                if !sequence.studentIDs.contains(studentIDString) {
+                    sequence.studentIDs.append(studentIDString)
                 }
             } else {
                 guard let lessonID = lesson.id, let studentID = student.id else { return }
@@ -245,12 +245,12 @@ enum ChecklistBatchActionExecutor {
             state: .proficient, from: prefetchedLPs, context: context
         )
 
-        GroupTrackService.autoEnrollInTrackIfNeeded(
-            lessonSubject: lesson.subject, lessonGroup: lesson.group,
+        SequenceTrackService.autoEnrollInTrackIfNeeded(
+            lessonArea: lesson.area, lessonSequence: lesson.sequence,
             studentIDs: [studentIDString], context: context
         )
-        GroupTrackService.checkAndCompleteTrackIfNeeded(
-            lessonSubject: lesson.subject, lessonGroup: lesson.group,
+        SequenceTrackService.checkAndCompleteTrackIfNeeded(
+            lessonArea: lesson.area, lessonSequence: lesson.sequence,
             studentID: studentIDString, context: context
         )
     }
@@ -301,13 +301,13 @@ enum ChecklistBatchActionExecutor {
         context: NSManagedObjectContext
     ) {
         let today = Date()
-        if let group = allLAs.first(where: {
+        if let sequence = allLAs.first(where: {
             $0.isPresented && ($0.presentedAt ?? Date.distantPast).isSameDay(as: today)
         }) {
-            if !group.studentIDs.contains(studentIDString) {
-                group.studentIDs.append(studentIDString)
-                GroupTrackService.autoEnrollInTrackIfNeeded(
-                    lessonSubject: lesson.subject, lessonGroup: lesson.group,
+            if !sequence.studentIDs.contains(studentIDString) {
+                sequence.studentIDs.append(studentIDString)
+                SequenceTrackService.autoEnrollInTrackIfNeeded(
+                    lessonArea: lesson.area, lessonSequence: lesson.sequence,
                     studentIDs: [studentIDString], context: context
                 )
             }
@@ -318,8 +318,8 @@ enum ChecklistBatchActionExecutor {
                 studentIDs: [studentID],
                 context: context
             )
-            GroupTrackService.autoEnrollInTrackIfNeeded(
-                lessonSubject: lesson.subject, lessonGroup: lesson.group,
+            SequenceTrackService.autoEnrollInTrackIfNeeded(
+                lessonArea: lesson.area, lessonSequence: lesson.sequence,
                 studentIDs: [studentIDString], context: context
             )
         }

@@ -1,14 +1,14 @@
-// GroupRecapSection.swift
-// Top-level collapsible section that shows the group recap on the
+// SequenceRecapSection.swift
+// Top-level collapsible section that shows the sequence recap on the
 // presentation detail view. Renders one nested DisclosureGroup per student
-// with a progress chip; per-student lesson rows are in GroupRecapBlocks.swift.
+// with a progress chip; per-student lesson rows are in SequenceRecapBlocks.swift.
 
 import SwiftUI
 
 // MARK: - Top-Level Section
 
-struct GroupRecapSection: View {
-    let recap: GroupRecap
+struct SequenceRecapSection: View {
+    let recap: SequenceRecap
 
     @State private var isExpanded: Bool = false
 
@@ -16,9 +16,9 @@ struct GroupRecapSection: View {
         DisclosureGroup(isExpanded: $isExpanded) {
             VStack(alignment: .leading, spacing: 16) {
                 ForEach(recap.studentEntries) { student in
-                    GroupRecapStudentSection(
+                    SequenceRecapStudentSection(
                         student: student,
-                        subjectColor: AppColors.color(forSubject: recap.subject)
+                        areaColor: AppColors.color(forArea: recap.area)
                     )
                 }
                 if recap.studentEntries.isEmpty {
@@ -46,10 +46,10 @@ struct GroupRecapSection: View {
         HStack(spacing: 10) {
             Image(systemName: "books.vertical")
                 .font(.title3)
-                .foregroundStyle(AppColors.color(forSubject: recap.subject))
+                .foregroundStyle(AppColors.color(forArea: recap.area))
                 .frame(width: 24)
             VStack(alignment: .leading, spacing: 2) {
-                Text("Group: \(recap.groupName)")
+                Text("Group: \(recap.sequenceName)")
                     .font(AppTheme.ScaledFont.calloutSemibold)
                 Text(summaryLine)
                     .font(AppTheme.ScaledFont.caption)
@@ -60,7 +60,7 @@ struct GroupRecapSection: View {
     }
 
     private var summaryLine: String {
-        let lessonCount = recap.lessonsInGroup.count
+        let lessonCount = recap.lessonsInSequence.count
         let studentCount = recap.studentEntries.count
         let lessonWord = lessonCount == 1 ? "lesson" : "lessons"
         let studentWord = studentCount == 1 ? "student" : "students"
@@ -70,9 +70,9 @@ struct GroupRecapSection: View {
 
 // MARK: - Per-Student Section
 
-struct GroupRecapStudentSection: View {
-    let student: GroupRecapStudentEntry
-    let subjectColor: Color
+struct SequenceRecapStudentSection: View {
+    let student: SequenceRecapStudentEntry
+    let areaColor: Color
 
     @State private var isExpanded: Bool = false
 
@@ -80,7 +80,7 @@ struct GroupRecapStudentSection: View {
         DisclosureGroup(isExpanded: $isExpanded) {
             VStack(alignment: .leading, spacing: 8) {
                 ForEach(student.lessonEntries) { entry in
-                    GroupRecapLessonRow(entry: entry, subjectColor: subjectColor)
+                    SequenceRecapLessonRow(entry: entry, areaColor: areaColor)
                 }
                 if !student.orphanNotes.isEmpty {
                     Divider().padding(.vertical, 4)
@@ -88,7 +88,7 @@ struct GroupRecapStudentSection: View {
                         .font(AppTheme.ScaledFont.captionSemibold)
                         .foregroundStyle(.secondary)
                     ForEach(student.orphanNotes) { note in
-                        GroupRecapNoteBlock(note: note)
+                        SequenceRecapNoteBlock(note: note)
                     }
                 }
             }

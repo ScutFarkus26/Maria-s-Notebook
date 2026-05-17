@@ -1,7 +1,7 @@
 // Maria's Notebook/Lessons/LessonsScopeMapView.swift
 //
-// Scope-and-sequence "Map" view: every group is one labeled row, every lesson
-// is a small pill on that row, organized into a spine (Subject or Great Lesson).
+// Scope-and-sequence "Map" view: every sequence is one labeled row, every lesson
+// is a small pill on that row, organized into a spine (Area or Great Lesson).
 // Tapping a thread row drills into LessonsScopeThreadFocusView.
 
 import SwiftUI
@@ -9,9 +9,9 @@ import CoreData
 
 struct LessonsScopeMapView: View {
     let lessons: [CDLesson]
-    /// Optional subject filter (nil = show all subjects).
-    /// Ignored when `spine == .greatLesson` — the Great Lesson spine is intentionally cross-subject.
-    let selectedSubject: String?
+    /// Optional area filter (nil = show all areas).
+    /// Ignored when `spine == .greatLesson` — the Great Lesson spine is intentionally cross-area.
+    let selectedArea: String?
     @Binding var spine: MapSpine
     let onSelectThread: (ThreadKey) -> Void
 
@@ -52,7 +52,7 @@ struct LessonsScopeMapView: View {
                     ThreadRow(
                         threadKey: row.key,
                         lessons: row.lessons,
-                        color: AppColors.color(forSubject: row.key.subject),
+                        color: AppColors.color(forArea: row.key.area),
                         onTap: { onSelectThread(row.key) }
                     )
                 }
@@ -85,28 +85,28 @@ struct LessonsScopeMapView: View {
 
     private var sections: [MapSection] {
         switch spine {
-        case .subject:
-            return subjectSections()
+        case .area:
+            return areaSections()
         case .greatLesson:
             return greatLessonSections()
         }
     }
 
-    private func subjectSections() -> [MapSection] {
-        let subjects: [String]
-        if let selectedSubject, !selectedSubject.trimmed().isEmpty {
-            subjects = [selectedSubject]
+    private func areaSections() -> [MapSection] {
+        let areas: [String]
+        if let selectedArea, !selectedArea.trimmed().isEmpty {
+            areas = [selectedArea]
         } else {
-            subjects = helper.subjects(from: lessons)
+            areas = helper.areas(from: lessons)
         }
 
-        return subjects.compactMap { subject -> MapSection? in
-            let rows = threadRowsForSubject(subject, lessons: lessonsInSubject(subject))
+        return areas.compactMap { area -> MapSection? in
+            let rows = threadRowsForArea(area, lessons: lessonsInArea(area))
             guard !rows.isEmpty else { return nil }
             return MapSection(
-                id: "subject:\(subject)",
-                title: subject,
-                color: AppColors.color(forSubject: subject),
+                id: "area:\(area)",
+                title: area,
+                color: AppColors.color(forArea: area),
                 icon: nil,
                 rows: rows
             )
@@ -114,7 +114,7 @@ struct LessonsScopeMapView: View {
     }
 
     private func greatLessonSections() -> [MapSection] {
-        // Spine ignores subject filter — Great Lesson is intentionally cross-subject.
+        // Spine ignores area filter — Great Lesson is intentionally cross-area.
         var unassigned: [CDLesson] = []
         var byGreatLesson: [GreatLesson: [CDLesson]] = [:]
 
@@ -130,7 +130,7 @@ struct LessonsScopeMapView: View {
         var result: [MapSection] = []
         for greatLesson in GreatLesson.allCases {
             guard let bucket = byGreatLesson[greatLesson], !bucket.isEmpty else { continue }
-            let rows = threadRowsAcrossSubjects(lessons: bucket)
+            let rows = threadRowsAcrossAreas(lessons: bucket)
             guard !rows.isEmpty else { continue }
             result.append(MapSection(
                 id: "greatLesson:\(greatLesson.rawValue)",
@@ -142,7 +142,7 @@ struct LessonsScopeMapView: View {
         }
 
         if !unassigned.isEmpty {
-            let rows = threadRowsAcrossSubjects(lessons: unassigned)
+            let rows = threadRowsAcrossAreas(lessons: unassigned)
             if !rows.isEmpty {
                 result.append(MapSection(
                     id: "greatLesson:unassigned",
@@ -159,35 +159,35 @@ struct LessonsScopeMapView: View {
 
     // MARK: - Thread row builders
 
-    private func lessonsInSubject(_ subject: String) -> [CDLesson] {
-        let key = subject.trimmed().lowercased()
-        return lessons.filter { $0.subject.trimmed().lowercased() == key }
+    private func lessonsInArea(_ area: String) -> [CDLesson] {
+        let key = area.trimmed().lowercased()
+        return lessons.filter { $0.area.trimmed().lowercased() == key }
     }
 
-    /// Thread rows for a single subject — order respects FilterOrderStore via `helper.groups`.
-    private func threadRowsForSubject(_ subject: String, lessons subjectLessons: [CDLesson]) -> [ThreadRowData] {
-        let groups = helper.groups(for: subject, lessons: lessons)
+    /// Thread rows for a single area — order respects FilterOrderStore via `helper.groups`.
+    private func threadRowsForArea(_ area: String, lessons areaLessons: [CDLesson]) -> [ThreadRowData] {
+        let groups = helper.groups(for: area, lessons: lessons)
         var rows: [ThreadRowData] = []
 
-        for group in groups {
-            let groupKey = group.trimmed().lowercased()
-            let inGroup = subjectLessons
-                .filter { $0.group.trimmed().lowercased() == groupKey }
+        for sequence in groups {
+            let sequenceKey = sequence.trimmed().lowercased()
+            let inSequence = areaLessons
+                .filter { $0.sequence.trimmed().lowercased() == sequenceKey }
                 .sorted(by: ThreadRowData.lessonSortOrder)
-            if !inGroup.isEmpty {
+            if !inSequence.isEmpty {
                 rows.append(ThreadRowData(
-                    key: ThreadKey(subject: subject, group: group),
-                    lessons: inGroup
+                    key: ThreadKey(area: area, sequence: sequence),
+                    lessons: inSequence
                 ))
             }
         }
 
-        let ungrouped = subjectLessons
-            .filter { $0.group.trimmed().isEmpty }
+        let ungrouped = areaLessons
+            .filter { $0.sequence.trimmed().isEmpty }
             .sorted(by: ThreadRowData.lessonSortOrder)
         if !ungrouped.isEmpty {
             rows.append(ThreadRowData(
-                key: ThreadKey(subject: subject, group: ""),
+                key: ThreadKey(area: area, sequence: ""),
                 lessons: ungrouped
             ))
         }
@@ -196,24 +196,24 @@ struct LessonsScopeMapView: View {
     }
 
     /// Thread rows aggregated from a heterogeneous lesson set. Used by Great Lesson spine
-    /// where one section spans multiple subjects. Subjects are interleaved alphabetically
-    /// within the section so threads stay grouped by their parent subject.
-    private func threadRowsAcrossSubjects(lessons bucket: [CDLesson]) -> [ThreadRowData] {
-        let bySubject = Dictionary(grouping: bucket) { $0.subject.trimmed() }
-        let orderedSubjects = bySubject.keys
+    /// where one section spans multiple areas. Areas are interleaved alphabetically
+    /// within the section so threads stay grouped by their parent area.
+    private func threadRowsAcrossAreas(lessons bucket: [CDLesson]) -> [ThreadRowData] {
+        let byArea = Dictionary(grouping: bucket) { $0.area.trimmed() }
+        let orderedAreas = byArea.keys
             .sorted { $0.localizedCaseInsensitiveCompare($1) == .orderedAscending }
 
         var rows: [ThreadRowData] = []
-        for subject in orderedSubjects {
-            guard !subject.isEmpty, let subjectLessons = bySubject[subject] else { continue }
-            rows.append(contentsOf: threadRowsForSubject(subject, lessons: subjectLessons))
+        for area in orderedAreas {
+            guard !area.isEmpty, let areaLessons = byArea[area] else { continue }
+            rows.append(contentsOf: threadRowsForArea(area, lessons: areaLessons))
         }
 
-        // Lessons with no subject — extremely unusual, but render as a final unassigned thread.
-        if let subjectless = bySubject[""], !subjectless.isEmpty {
-            let sorted = subjectless.sorted(by: ThreadRowData.lessonSortOrder)
+        // Lessons with no area — extremely unusual, but render as a final unassigned thread.
+        if let arealess = byArea[""], !arealess.isEmpty {
+            let sorted = arealess.sorted(by: ThreadRowData.lessonSortOrder)
             rows.append(ThreadRowData(
-                key: ThreadKey(subject: "", group: ""),
+                key: ThreadKey(area: "", sequence: ""),
                 lessons: sorted
             ))
         }
@@ -238,8 +238,8 @@ struct ThreadRowData: Identifiable {
     var id: String { key.id }
 
     static func lessonSortOrder(_ lhs: CDLesson, _ rhs: CDLesson) -> Bool {
-        if lhs.orderInGroup != rhs.orderInGroup {
-            return lhs.orderInGroup < rhs.orderInGroup
+        if lhs.orderInSequence != rhs.orderInSequence {
+            return lhs.orderInSequence < rhs.orderInSequence
         }
         let nameCompare = lhs.name.localizedCaseInsensitiveCompare(rhs.name)
         if nameCompare != .orderedSame {

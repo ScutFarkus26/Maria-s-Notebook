@@ -326,7 +326,7 @@ extension WorkDetailView {
             }
         }
 
-        // Project group members
+        // Project sequence members
         if !viewModel.projectGroupMembers.isEmpty {
             DetailSectionCard(
                 title: "Project Group",

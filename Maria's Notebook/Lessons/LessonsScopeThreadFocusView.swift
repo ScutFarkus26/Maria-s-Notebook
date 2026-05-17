@@ -1,6 +1,6 @@
 // Maria's Notebook/Lessons/LessonsScopeThreadFocusView.swift
 //
-// Drill-in view for one (subject, group) thread on the scope-and-sequence map.
+// Drill-in view for one (area, sequence) thread on the scope-and-sequence map.
 // Renders full-size labeled pills in sequence order; tapping one opens
 // LessonDetailView via the parent's selection binding.
 
@@ -15,7 +15,7 @@ struct LessonsScopeThreadFocusView: View {
     let onShowInBrowse: (CDLesson) -> Void
 
     private var color: Color {
-        AppColors.color(forSubject: threadKey.subject)
+        AppColors.color(forArea: threadKey.area)
     }
 
     private var sortedLessons: [CDLesson] {
@@ -88,7 +88,7 @@ struct LessonsScopeThreadFocusView: View {
 
     private var titleBlock: some View {
         VStack(alignment: .leading, spacing: 4) {
-            Text(threadKey.subject.uppercased())
+            Text(threadKey.area.uppercased())
                 .font(.system(size: 11, weight: .semibold, design: .rounded))
                 .tracking(0.8)
                 .foregroundStyle(color)

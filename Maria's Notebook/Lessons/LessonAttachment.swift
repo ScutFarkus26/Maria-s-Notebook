@@ -6,34 +6,34 @@ import Foundation
 public enum AttachmentScope: String, Codable, CaseIterable, Hashable, Identifiable {
     /// Attachment is specific to this lesson only
     case lesson
-    /// Attachment is shared across all lessons in the same group
-    case group
-    /// Attachment is shared across all lessons in the same subject
-    case subject
+    /// Attachment is shared across all lessons in the same sequence
+    case sequence
+    /// Attachment is shared across all lessons in the same area
+    case area
 
     public var id: String { rawValue }
 
     public var displayName: String {
         switch self {
         case .lesson: return "This CDLesson"
-        case .group: return "All Lessons in Group"
-        case .subject: return "All Lessons in Subject"
+        case .sequence: return "All Lessons in Sequence"
+        case .area: return "All Lessons in Area"
         }
     }
 
     public var icon: String {
         switch self {
         case .lesson: return "doc"
-        case .group: return "folder"
-        case .subject: return "books.vertical"
+        case .sequence: return "folder"
+        case .area: return "books.vertical"
         }
     }
 
     public var description: String {
         switch self {
         case .lesson: return "Only visible in this lesson"
-        case .group: return "Visible in all lessons in this group"
-        case .subject: return "Visible in all lessons in this subject"
+        case .sequence: return "Visible in all lessons in this sequence"
+        case .area: return "Visible in all lessons in this area"
         }
     }
 }

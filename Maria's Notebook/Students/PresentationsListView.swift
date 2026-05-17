@@ -50,7 +50,7 @@ struct PresentationsListView: View {
 
     @SceneStorage("Presentations.filter") var presentationsFilterRaw: String = "all"
     @SceneStorage("Presentations.sort") private var presentationsSortRaw: String = "default"
-    @SceneStorage("Presentations.subject") var presentationsSubjectRaw: String = ""
+    @SceneStorage("Presentations.area") var presentationsAreaRaw: String = ""
     @State var previousPresentationsFilterRaw: String?
 
     var filter: CompletionFilter {
@@ -70,14 +70,14 @@ struct PresentationsListView: View {
         }
     }
 
-    var selectedSubject: String? {
-        StringFallbacks.valueOrNil(presentationsSubjectRaw)
+    var selectedArea: String? {
+        StringFallbacks.valueOrNil(presentationsAreaRaw)
     }
 
     private let lessonsVM = LessonsViewModel()
 
-    var subjects: [String] {
-        lessonsVM.subjects(from: Array(lessons))
+    var areas: [String] {
+        lessonsVM.areas(from: Array(lessons))
     }
 
     // Use uniquingKeysWith to handle CloudKit sync duplicates
@@ -88,18 +88,18 @@ struct PresentationsListView: View {
     // MODERN: Computed properties with automatic dependency tracking
     // No manual cache invalidation needed - SwiftUI handles updates automatically
 
-    /// Subject-filtered lesson IDs for filtering lesson assignments
-    private var subjectLessonIDs: Set<UUID>? {
-        guard let subject = selectedSubject else { return nil }
-        let subjectLessons = lessons.filter { lesson in
-            lesson.subject.caseInsensitiveCompare(subject) == .orderedSame
+    /// Area-filtered lesson IDs for filtering lesson assignments
+    private var areaLessonIDs: Set<UUID>? {
+        guard let area = selectedArea else { return nil }
+        let areaLessons = lessons.filter { lesson in
+            lesson.area.caseInsensitiveCompare(area) == .orderedSame
         }
-        let ids = Set(subjectLessons.compactMap(\.id))
+        let ids = Set(areaLessons.compactMap(\.id))
         return ids.isEmpty ? nil : ids
     }
 
-    /// Filtered lesson assignments based on completion filter and subject selection
-    /// Automatically recomputes when filter, subject, or allLessonAssignments changes
+    /// Filtered lesson assignments based on completion filter and area selection
+    /// Automatically recomputes when filter, area, or allLessonAssignments changes
     var filteredAssignments: [CDLessonAssignment] {
         // Apply completion filter
         let base: [CDLessonAssignment]
@@ -115,8 +115,8 @@ struct PresentationsListView: View {
             base = allLessonAssignments.filter { $0.isPresented && $0.presentedAt == nil }
         }
 
-        // Apply subject filter if selected
-        if let lessonIDs = subjectLessonIDs {
+        // Apply area filter if selected
+        if let lessonIDs = areaLessonIDs {
             return base.filter { sl in
                 guard let lessonID = UUID(uuidString: sl.lessonID) else { return false }
                 return lessonIDs.contains(lessonID)

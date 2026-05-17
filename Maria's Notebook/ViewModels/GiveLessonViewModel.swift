@@ -105,8 +105,8 @@ final class LessonPickerViewModel {
 
         return sortedLessons.filter { lesson in
             lesson.name.lowercased().contains(query) ||
-            lesson.subject.lowercased().contains(query) ||
-            lesson.group.lowercased().contains(query)
+            lesson.area.lowercased().contains(query) ||
+            lesson.sequence.lowercased().contains(query)
         }
     }
     
@@ -268,7 +268,7 @@ final class LessonPickerViewModel {
 
         // Set snapshots for display
         la.lessonTitleSnapshot = finalLesson.name
-        la.lessonSubheadingSnapshot = finalLesson.subheading
+        la.lessonSectionSnapshot = finalLesson.section
 
         // CDLessonAssignment is already inserted into context by PresentationFactory.makeDraft
 
@@ -289,9 +289,9 @@ final class LessonPickerViewModel {
 
         // Auto-enroll students in track if lesson belongs to a track
         if mode == .given || (mode == .plan && scheduledFor != nil) {
-            GroupTrackService.autoEnrollInTrackIfNeeded(
-                lessonSubject: finalLesson.subject,
-                lessonGroup: finalLesson.group,
+            SequenceTrackService.autoEnrollInTrackIfNeeded(
+                lessonArea: finalLesson.area,
+                lessonSequence: finalLesson.sequence,
                 studentIDs: selectedIDs.map(\.uuidString),
                 context: context
             )
@@ -387,7 +387,7 @@ final class LessonPickerViewModel {
     private static func sortLessons(_ lessons: [CDLesson]) -> [CDLesson] {
         StringSorting.sortByMultipleLocalizedCaseInsensitive(
             items: lessons,
-            keyPaths: [\.name, \.subject, \.group],
+            keyPaths: [\.name, \.area, \.sequence],
             fallback: { ($0.id?.uuidString ?? "") < ($1.id?.uuidString ?? "") }
         )
     }
@@ -409,8 +409,8 @@ final class LessonPickerViewModel {
     func lessonDisplayTitle(for lesson: CDLesson) -> String {
         LessonFormatter.displayTitle(
             name: lesson.name,
-            subject: lesson.subject,
-            group: lesson.group
+            area: lesson.area,
+            sequence: lesson.sequence
         )
     }
 }

@@ -110,9 +110,9 @@ final class LessonFrequencyViewModel {
         for student in visibleStudents {
             let studentID = student.id ?? UUID()
             let studentRecords = recordsByStudent[studentID.uuidString] ?? []
-            let subjectGroups = Dictionary(grouping: studentRecords) { $0.subject }
-            let breakdown = subjectGroups.map {
-                SubjectCount(subject: $0.key, count: $0.value.count)
+            let areaSequences = Dictionary(grouping: studentRecords) { $0.area }
+            let breakdown = areaSequences.map {
+                AreaCount(area: $0.key, count: $0.value.count)
             }.sorted { $0.count > $1.count }
 
             cards.append(StudentFrequencyCard(
@@ -122,7 +122,7 @@ final class LessonFrequencyViewModel {
                 nickname: student.nickname,
                 level: student.level,
                 lessonCount: studentRecords.count,
-                subjectBreakdown: breakdown
+                areaBreakdown: breakdown
             ))
         }
 

@@ -5,17 +5,17 @@ import CoreData
 // swiftlint:disable:next type_body_length
 struct LessonProgressListView: View {
     @Environment(\.managedObjectContext) private var viewContext
-    @FetchRequest(sortDescriptors: [NSSortDescriptor(keyPath: \CDLesson.subject, ascending: true), NSSortDescriptor(keyPath: \CDLesson.group, ascending: true), NSSortDescriptor(keyPath: \CDLesson.orderInGroup, ascending: true)])
+    @FetchRequest(sortDescriptors: [NSSortDescriptor(keyPath: \CDLesson.area, ascending: true), NSSortDescriptor(keyPath: \CDLesson.sequence, ascending: true), NSSortDescriptor(keyPath: \CDLesson.orderInSequence, ascending: true)])
     private var allLessons: FetchedResults<CDLesson>
     
     @State private var selectedLesson: CDLesson?
     @State private var searchText = ""
-    @State private var selectedSubject: String?
+    @State private var selectedArea: String?
     @State private var lessonStats: [UUID: LessonStats] = [:]
     @State private var isLoadingStats = true
     
-    private var subjects: [String] {
-        Array(Set(allLessons.map { $0.subject.trimmed() }))
+    private var areas: [String] {
+        Array(Set(allLessons.map { $0.area.trimmed() }))
             .filter { !$0.isEmpty }
             .sorted()
     }
@@ -23,17 +23,17 @@ struct LessonProgressListView: View {
     private var filteredLessons: [CDLesson] {
         var lessons = Array(allLessons)
 
-        // Filter by subject
-        if let selectedSubject {
-            lessons = lessons.filter { $0.subject.trimmed() == selectedSubject }
+        // Filter by area
+        if let selectedArea {
+            lessons = lessons.filter { $0.area.trimmed() == selectedArea }
         }
 
         // Filter by search
         if !searchText.isEmpty {
             lessons = lessons.filter { lesson in
                 lesson.name.localizedCaseInsensitiveContains(searchText) ||
-                lesson.subject.localizedCaseInsensitiveContains(searchText) ||
-                lesson.group.localizedCaseInsensitiveContains(searchText)
+                lesson.area.localizedCaseInsensitiveContains(searchText) ||
+                lesson.sequence.localizedCaseInsensitiveContains(searchText)
             }
         }
 
@@ -118,38 +118,38 @@ struct LessonProgressListView: View {
                     .fill(Color.primary.opacity(UIConstants.OpacityConstants.hint))
             )
             
-            // Subject filter
-            if !subjects.isEmpty {
+            // Area filter
+            if !areas.isEmpty {
                 ScrollView(.horizontal, showsIndicators: false) {
                     HStack(spacing: 8) {
                         Button {
-                            selectedSubject = nil
+                            selectedArea = nil
                         } label: {
                             Text("All")
                                 .font(AppTheme.ScaledFont.bodySemibold)
-                                .foregroundStyle(selectedSubject == nil ? .white : .primary)
+                                .foregroundStyle(selectedArea == nil ? .white : .primary)
                                 .padding(.horizontal, 14)
                                 .padding(.vertical, 8)
                                 .background(
                                     Capsule()
-                                        .fill(selectedSubject == nil ? Color.accentColor : Color.primary.opacity(UIConstants.OpacityConstants.subtle))
+                                        .fill(selectedArea == nil ? Color.accentColor : Color.primary.opacity(UIConstants.OpacityConstants.subtle))
                                 )
                         }
                         .buttonStyle(.plain)
                         
-                        ForEach(subjects, id: \.self) { subject in
+                        ForEach(areas, id: \.self) { area in
                             Button {
-                                selectedSubject = subject
+                                selectedArea = area
                             } label: {
-                                Text(subject)
+                                Text(area)
                                     .font(AppTheme.ScaledFont.bodySemibold)
-                                    .foregroundStyle(selectedSubject == subject ? .white : .primary)
+                                    .foregroundStyle(selectedArea == area ? .white : .primary)
                                     .padding(.horizontal, 14)
                                     .padding(.vertical, 8)
                                     .background(
                                         Capsule()
                                             .fill(
-                                                selectedSubject == subject
+                                                selectedArea == area
                                                     ? Color.accentColor
                                                     : Color.primary.opacity(UIConstants.OpacityConstants.subtle)
                                             )
@@ -204,18 +204,18 @@ struct LessonProgressListView: View {
                         .lineLimit(1)
                     
                     HStack(spacing: 8) {
-                        if !lesson.subject.isEmpty {
-                            Text(lesson.subject)
+                        if !lesson.area.isEmpty {
+                            Text(lesson.area)
                                 .font(AppTheme.ScaledFont.caption)
                                 .foregroundStyle(.secondary)
                         }
                         
-                        if !lesson.group.isEmpty {
-                            if !lesson.subject.isEmpty {
+                        if !lesson.sequence.isEmpty {
+                            if !lesson.area.isEmpty {
                                 Text("•")
                                     .foregroundStyle(.tertiary)
                             }
-                            Text(lesson.group)
+                            Text(lesson.sequence)
                                 .font(AppTheme.ScaledFont.caption)
                                 .foregroundStyle(.secondary)
                         }

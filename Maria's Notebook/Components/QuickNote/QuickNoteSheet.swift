@@ -143,7 +143,7 @@ struct QuickNoteSheet: View {
                         if let lesson = selectedLesson {
                             QuickNoteLessonChip(
                                 lessonName: lesson.name,
-                                subject: lesson.subject
+                                area: lesson.area
                             ) {
                                 adaptiveWithAnimation { viewModel.selectedLessonID = nil }
                             }
@@ -320,7 +320,7 @@ struct QuickNoteSheet: View {
                     HStack {
                         QuickNoteLessonChip(
                             lessonName: lesson.name,
-                            subject: lesson.subject
+                            area: lesson.area
                         ) {
                             adaptiveWithAnimation { viewModel.selectedLessonID = nil }
                         }

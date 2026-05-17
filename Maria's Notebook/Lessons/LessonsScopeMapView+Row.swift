@@ -1,7 +1,7 @@
 // Maria's Notebook/Lessons/LessonsScopeMapView+Row.swift
 //
-// Thread row used by LessonsScopeMapView: leading colored bar, group label,
-// and a horizontal strip of named lesson pills tinted in the subject's hue.
+// Thread row used by LessonsScopeMapView: leading colored bar, sequence label,
+// and a horizontal strip of named lesson pills tinted in the area's hue.
 
 import SwiftUI
 import CoreData
@@ -64,7 +64,7 @@ struct ThreadRow: View {
 }
 
 /// Compact named pill representing a single lesson in the scope-and-sequence map.
-/// Shows the lesson name directly on the pill, tinted in the subject color.
+/// Shows the lesson name directly on the pill, tinted in the area color.
 struct MiniLessonPill: View {
     let name: String
     let color: Color

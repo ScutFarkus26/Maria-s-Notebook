@@ -107,7 +107,7 @@ struct LogsMenuRootView: View {
 
 /// A row component for displaying a log type in the sidebar.
 /// Shows the log's icon (colored circle with glyph) and title.
-/// Design matches SubjectListRow/StudentListRow/ProjectSidebarRow for visual consistency.
+/// Design matches AreaListRow/StudentListRow/ProjectSidebarRow for visual consistency.
 struct LogsSidebarRow: View {
     let mode: LogsMenuRootView.Mode
 

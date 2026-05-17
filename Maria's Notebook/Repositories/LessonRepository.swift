@@ -36,8 +36,8 @@ struct LessonRepository: SavingRepository {
     func fetchLessons(
         predicate: NSPredicate? = nil,
         sortBy: [NSSortDescriptor] = [
-            NSSortDescriptor(key: "subject", ascending: true),
-            NSSortDescriptor(key: "group", ascending: true),
+            NSSortDescriptor(key: "area", ascending: true),
+            NSSortDescriptor(key: "sequence", ascending: true),
             NSSortDescriptor(key: "sortIndex", ascending: true)
         ]
     ) -> [CDLesson] {
@@ -48,14 +48,14 @@ struct LessonRepository: SavingRepository {
         return context.safeFetch(request)
     }
 
-    /// Fetch lessons by subject
-    func fetchLessons(bySubject subject: String) -> [CDLesson] {
-        fetchLessons(predicate: NSPredicate(format: "subject == %@", subject))
+    /// Fetch lessons by area
+    func fetchLessons(byArea area: String) -> [CDLesson] {
+        fetchLessons(predicate: NSPredicate(format: "area == %@", area))
     }
 
-    /// Fetch lessons by subject and group
-    func fetchLessons(bySubject subject: String, group: String) -> [CDLesson] {
-        fetchLessons(predicate: NSPredicate(format: "subject == %@ AND group == %@", subject, group))
+    /// Fetch lessons by area and sequence
+    func fetchLessons(byArea area: String, sequence: String) -> [CDLesson] {
+        fetchLessons(predicate: NSPredicate(format: "area == %@ AND sequence == %@", area, sequence))
     }
 
     /// Fetch all root story lessons (stories with no parent)
@@ -75,11 +75,11 @@ struct LessonRepository: SavingRepository {
     @discardableResult
     func createLesson(
         name: String,
-        subject: String,
-        group: String = "",
-        subheading: String = "",
+        area: String,
+        sequence: String = "",
+        section: String = "",
         writeUp: String = "",
-        orderInGroup: Int = 0,
+        orderInSequence: Int = 0,
         sortIndex: Int = 0,
         source: LessonSource = .album,
         personalKind: PersonalLessonKind? = nil,
@@ -93,11 +93,11 @@ struct LessonRepository: SavingRepository {
     ) -> CDLesson {
         let lesson = CDLesson(context: context)
         lesson.name = name
-        lesson.subject = subject
-        lesson.group = group
-        lesson.subheading = subheading
+        lesson.area = area
+        lesson.sequence = sequence
+        lesson.section = section
         lesson.writeUp = writeUp
-        lesson.orderInGroup = Int64(orderInGroup)
+        lesson.orderInSequence = Int64(orderInSequence)
         lesson.sortIndex = Int64(sortIndex)
         lesson.source = source
         lesson.personalKind = personalKind
@@ -117,11 +117,11 @@ struct LessonRepository: SavingRepository {
     func updateLesson(
         id: UUID,
         name: String? = nil,
-        subject: String? = nil,
-        group: String? = nil,
-        subheading: String? = nil,
+        area: String? = nil,
+        sequence: String? = nil,
+        section: String? = nil,
         writeUp: String? = nil,
-        orderInGroup: Int? = nil,
+        orderInSequence: Int? = nil,
         sortIndex: Int? = nil,
         defaultWorkKind: WorkKind? = nil,
         materials: String? = nil,
@@ -136,11 +136,11 @@ struct LessonRepository: SavingRepository {
         guard let lesson = fetchLesson(id: id) else { return false }
 
         if let name { lesson.name = name }
-        if let subject { lesson.subject = subject }
-        if let group { lesson.group = group }
-        if let subheading { lesson.subheading = subheading }
+        if let area { lesson.area = area }
+        if let sequence { lesson.sequence = sequence }
+        if let section { lesson.section = section }
         if let writeUp { lesson.writeUp = writeUp }
-        if let orderInGroup { lesson.orderInGroup = Int64(orderInGroup) }
+        if let orderInSequence { lesson.orderInSequence = Int64(orderInSequence) }
         if let sortIndex { lesson.sortIndex = Int64(sortIndex) }
         if let defaultWorkKind { lesson.defaultWorkKind = defaultWorkKind }
         if let materials { lesson.materials = materials }

@@ -20,14 +20,14 @@ struct ResourceDetailView: View {
     @State private var editDescription = ""
     @State private var editTags: [String] = []
     @State private var editLessonIDs: Set<UUID> = []
-    @State private var editSubjects: Set<String> = []
+    @State private var editAreas: Set<String> = []
     @State private var showDeleteConfirmation = false
     @State private var pdfPage: PDFPage?
 
     private static let logger = Logger.resources
 
-    private var availableSubjects: [String] {
-        let unique = Set(allLessons.map { $0.subject.trimmingCharacters(in: .whitespaces) }.filter { !$0.isEmpty })
+    private var availableAreas: [String] {
+        let unique = Set(allLessons.map { $0.area.trimmingCharacters(in: .whitespaces) }.filter { !$0.isEmpty })
         return Array(unique).sorted { $0.localizedCaseInsensitiveCompare($1) == .orderedAscending }
     }
 
@@ -39,8 +39,8 @@ struct ResourceDetailView: View {
         )
     }
 
-    private var linkedSubjectSet: [String] {
-        resource.linkedSubjects
+    private var linkedAreaSet: [String] {
+        resource.linkedAreas
             .split(separator: ",")
             .map { String($0).trimmingCharacters(in: .whitespaces) }
             .filter { !$0.isEmpty }
@@ -71,8 +71,8 @@ struct ResourceDetailView: View {
                         tagsSection
                     }
 
-                    // Linked Subjects & Lessons
-                    if !linkedSubjectSet.isEmpty || !linkedLessons.isEmpty {
+                    // Linked Areas & Lessons
+                    if !linkedAreaSet.isEmpty || !linkedLessons.isEmpty {
                         linkingSection
                     }
 
@@ -251,18 +251,18 @@ struct ResourceDetailView: View {
         }
     }
 
-    // MARK: - Linked Subjects & Lessons
+    // MARK: - Linked Areas & Lessons
 
     private var linkingSection: some View {
         VStack(alignment: .leading, spacing: 12) {
-            if !linkedSubjectSet.isEmpty {
+            if !linkedAreaSet.isEmpty {
                 VStack(alignment: .leading, spacing: 8) {
-                    Text("Linked Subjects")
+                    Text("Linked Areas")
                         .font(.headline)
 
                     FlowLayout(spacing: 8) {
-                        ForEach(linkedSubjectSet, id: \.self) { subject in
-                            Text(subject)
+                        ForEach(linkedAreaSet, id: \.self) { area in
+                            Text(area)
                                 .font(.caption.weight(.medium))
                                 .padding(.horizontal, 8)
                                 .padding(.vertical, 4)
@@ -287,10 +287,10 @@ struct ResourceDetailView: View {
                                 .foregroundStyle(.secondary)
                             Text(lesson.name)
                                 .font(.subheadline)
-                            if !lesson.subject.isEmpty {
+                            if !lesson.area.isEmpty {
                                 Text("·")
                                     .foregroundStyle(.tertiary)
-                                Text(lesson.subject)
+                                Text(lesson.area)
                                     .font(.caption)
                                     .foregroundStyle(.secondary)
                             }
@@ -353,19 +353,19 @@ struct ResourceDetailView: View {
                     }
 
                     NavigationLink {
-                        ResourceSubjectPicker(
-                            availableSubjects: availableSubjects,
-                            selectedSubjects: $editSubjects
+                        ResourceAreaPicker(
+                            availableAreas: availableAreas,
+                            selectedAreas: $editAreas
                         )
                     } label: {
                         HStack {
-                            Label("Subjects", systemImage: "graduationcap")
+                            Label("Areas", systemImage: "graduationcap")
                             Spacer()
-                            if editSubjects.isEmpty {
+                            if editAreas.isEmpty {
                                 Text("None")
                                     .foregroundStyle(.secondary)
                             } else {
-                                Text("\(editSubjects.count)")
+                                Text("\(editAreas.count)")
                                     .foregroundStyle(.secondary)
                             }
                         }
@@ -450,7 +450,7 @@ struct ResourceDetailView: View {
         editDescription = resource.descriptionText
         editTags = resource.tagsArray
         editLessonIDs = linkedLessonIDSet
-        editSubjects = Set(linkedSubjectSet)
+        editAreas = Set(linkedAreaSet)
         isEditing = true
     }
 
@@ -460,7 +460,7 @@ struct ResourceDetailView: View {
         resource.descriptionText = editDescription.trimmingCharacters(in: .whitespaces)
         resource.tagsArray = editTags
         resource.linkedLessonIDs = editLessonIDs.map(\.uuidString).sorted().joined(separator: ",")
-        resource.linkedSubjects = editSubjects.sorted().joined(separator: ",")
+        resource.linkedAreas = editAreas.sorted().joined(separator: ",")
         resource.modifiedAt = Date()
         viewContext.safeSave()
         isEditing = false

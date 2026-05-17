@@ -1,5 +1,5 @@
-// GroupListView.swift
-// Column 2 of the 3-column NavigationSplitView: Displays groups/tracks for the selected subject.
+// SequenceListView.swift
+// Column 2 of the 3-column NavigationSplitView: Displays groups/tracks for the selected area.
 // Groups are derived from existing CDLesson data using LessonsViewModel.
 
 import SwiftUI
@@ -10,13 +10,13 @@ import AppKit
 import UIKit
 #endif
 
-struct GroupListView: View {
+struct SequenceListView: View {
     let groups: [String]
-    let selectedSubject: String?
-    let selectedGroup: String?
-    let onSelectGroup: (String?) -> Void
-    let onReorderGroups: ((IndexSet, Int) -> Void)?
-    var onRenameGroup: ((String) -> Void)?
+    let selectedArea: String?
+    let selectedSequence: String?
+    let onSelectSequence: (String?) -> Void
+    let onReorderSequences: ((IndexSet, Int) -> Void)?
+    var onRenameSequence: ((String) -> Void)?
     #if os(iOS)
     @Binding var editMode: EditMode
     #else
@@ -31,7 +31,7 @@ struct GroupListView: View {
                 listView
             }
         }
-        .navigationTitle(selectedSubject ?? "Groups")
+        .navigationTitle(selectedArea ?? "Sequences")
         #if os(iOS)
         .environment(\.editMode, $editMode)
         .inlineNavigationTitle()
@@ -40,50 +40,50 @@ struct GroupListView: View {
 
     private var listView: some View {
         List(selection: Binding(
-            get: { selectedGroup },
-            set: { onSelectGroup($0) }
+            get: { selectedSequence },
+            set: { onSelectSequence($0) }
         )) {
-            ForEach(groups, id: \.self) { group in
-                GroupListRow(
-                    group: group,
-                    subject: selectedSubject
+            ForEach(groups, id: \.self) { sequence in
+                SequenceListRow(
+                    sequence: sequence,
+                    area: selectedArea
                 )
-                .tag(group)
+                .tag(sequence)
                 .contextMenu {
                     Button {
-                        onSelectGroup(group)
+                        onSelectSequence(sequence)
                     } label: {
                         Label("View Lessons", systemImage: SFSymbol.Education.book)
                     }
 
-                    if let onRename = onRenameGroup {
+                    if let onRename = onRenameSequence {
                         Button {
-                            onRename(group)
+                            onRename(sequence)
                         } label: {
-                            Label("Rename Group", systemImage: SFSymbol.Education.pencil)
+                            Label("Rename Sequence", systemImage: SFSymbol.Education.pencil)
                         }
                     }
 
                     Divider()
 
                     Button {
-                        copyGroupName(group)
+                        copySequenceName(sequence)
                     } label: {
                         Label("Copy Name", systemImage: "doc.on.doc")
                     }
                 }
             }
-            .onMove(perform: onReorderGroups)
+            .onMove(perform: onReorderSequences)
         }
         .listStyle(.sidebar)
     }
 
-    private func copyGroupName(_ group: String) {
+    private func copySequenceName(_ sequence: String) {
         #if os(macOS)
         NSPasteboard.general.clearContents()
-        NSPasteboard.general.setString(group, forType: .string)
+        NSPasteboard.general.setString(sequence, forType: .string)
         #else
-        UIPasteboard.general.string = group
+        UIPasteboard.general.string = sequence
         #endif
     }
     
@@ -91,7 +91,7 @@ struct GroupListView: View {
         VStack(spacing: 8) {
             Text("No groups")
                 .font(AppTheme.ScaledFont.titleSmall)
-            Text("Select a subject to view groups")
+            Text("Select a area to view groups")
                 .font(AppTheme.ScaledFont.caption)
                 .foregroundStyle(.secondary)
         }
@@ -99,24 +99,24 @@ struct GroupListView: View {
     }
 }
 
-private struct GroupListRow: View {
-    let group: String
-    let subject: String?
+private struct SequenceListRow: View {
+    let sequence: String
+    let area: String?
     
     var body: some View {
         HStack(spacing: 8) {
             Image(systemName: "tag.fill")
-                .foregroundStyle(subjectColor)
+                .foregroundStyle(areaColor)
                 .font(.system(size: 16))
-            Text(group.isEmpty ? "Ungrouped" : group)
+            Text(sequence.isEmpty ? "Ungrouped" : sequence)
                 .font(AppTheme.ScaledFont.body)
         }
         .padding(.vertical, 4)
     }
     
-    private var subjectColor: Color {
-        if let subject {
-            return AppColors.color(forSubject: subject)
+    private var areaColor: Color {
+        if let area {
+            return AppColors.color(forArea: area)
         }
         return .secondary
     }

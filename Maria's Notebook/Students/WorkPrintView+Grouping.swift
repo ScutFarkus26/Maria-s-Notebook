@@ -13,10 +13,10 @@ struct WorkPrintGroup: Identifiable {
 extension WorkPrintView {
 
     var groupedWork: [WorkPrintGroup] {
-        Self.computeGroups(workItems: workItems, students: students)
+        Self.computeSequences(workItems: workItems, students: students)
     }
 
-    static func computeGroups(workItems: [CDWorkModel], students: [CDStudent]) -> [WorkPrintGroup] {
+    static func computeSequences(workItems: [CDWorkModel], students: [CDStudent]) -> [WorkPrintGroup] {
         // Group work by student for clearer organization
         let studentDict = Dictionary(grouping: workItems) { work in
             work.studentID

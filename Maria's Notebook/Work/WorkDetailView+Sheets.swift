@@ -33,8 +33,8 @@ extension View {
 private struct NextLessonResolver {
     static func resolveNextLesson(from currentID: UUID, lessons: [CDLesson]) -> CDLesson? {
         guard let current = lessons.first(where: { $0.id == currentID }) else { return nil }
-        let candidates = lessons.filter { $0.subject == current.subject && $0.group == current.group }
-            .sorted { $0.orderInGroup < $1.orderInGroup }
+        let candidates = lessons.filter { $0.area == current.area && $0.sequence == current.sequence }
+            .sorted { $0.orderInSequence < $1.orderInSequence }
         if let idx = candidates.firstIndex(where: { $0.id == current.id }), idx + 1 < candidates.count {
             return candidates[idx + 1]
         }

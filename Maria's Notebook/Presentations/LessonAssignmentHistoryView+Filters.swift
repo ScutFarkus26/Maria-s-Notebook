@@ -23,13 +23,13 @@ extension LessonAssignmentHistoryView {
         }
     }
 
-    var selectedSubjectLabel: String {
-        if selectedSubjects.isEmpty {
-            return "All Subjects"
-        } else if selectedSubjects.count == 1, let subject = selectedSubjects.first {
-            return subject
+    var selectedAreaLabel: String {
+        if selectedAreas.isEmpty {
+            return "All Areas"
+        } else if selectedAreas.count == 1, let area = selectedAreas.first {
+            return area
         } else {
-            return "\(selectedSubjects.count) Subjects"
+            return "\(selectedAreas.count) Areas"
         }
     }
 
@@ -69,30 +69,30 @@ extension LessonAssignmentHistoryView {
                 .background(RoundedRectangle(cornerRadius: 8, style: .continuous).fill(Color.primary.opacity(UIConstants.OpacityConstants.hint)))
             }
 
-            // Subject Menu (multi-select)
+            // Area Menu (multi-select)
             Menu {
-                Button("All Subjects") { selectedSubjects.removeAll() }
+                Button("All Areas") { selectedAreas.removeAll() }
                 Divider()
-                ForEach(availableSubjects, id: \.self) { subject in
+                ForEach(availableAreas, id: \.self) { area in
                     Button(action: {
-                        if selectedSubjects.contains(subject) {
-                            selectedSubjects.remove(subject)
+                        if selectedAreas.contains(area) {
+                            selectedAreas.remove(area)
                         } else {
-                            selectedSubjects.insert(subject)
+                            selectedAreas.insert(area)
                         }
                     }, label: {
                         HStack {
-                            if selectedSubjects.contains(subject) {
+                            if selectedAreas.contains(area) {
                                 Image(systemName: "checkmark")
                             }
-                            Text(subject)
+                            Text(area)
                         }
                     })
                 }
             } label: {
                 HStack(spacing: 6) {
                     Image(systemName: "line.3.horizontal.decrease.circle")
-                    Text(selectedSubjectLabel)
+                    Text(selectedAreaLabel)
                 }
                 .padding(.horizontal, 10)
                 .padding(.vertical, 6)

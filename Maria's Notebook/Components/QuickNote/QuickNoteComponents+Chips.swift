@@ -4,7 +4,7 @@ import SwiftUI
 
 struct QuickNoteLessonChip: View {
     let lessonName: String
-    let subject: String
+    let area: String
     let onRemove: () -> Void
 
     var body: some View {
@@ -18,8 +18,8 @@ struct QuickNoteLessonChip: View {
                 .fontWeight(.medium)
                 .lineLimit(1)
 
-            if !subject.isEmpty {
-                Text(subject)
+            if !area.isEmpty {
+                Text(area)
                     .font(.caption2)
                     .foregroundStyle(.secondary)
                     .lineLimit(1)

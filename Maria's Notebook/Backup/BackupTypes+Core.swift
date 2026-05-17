@@ -24,10 +24,10 @@ public struct StudentDTO: Codable, Sendable {
 public struct LessonDTO: Codable, Sendable {
     public var id: UUID
     public var name: String
-    public var subject: String
-    public var group: String
-    public var orderInGroup: Int
-    public var subheading: String
+    public var area: String
+    public var sequence: String
+    public var orderInSequence: Int
+    public var section: String
     public var writeUp: String
     public var createdAt: Date?
     public var updatedAt: Date?
@@ -108,7 +108,7 @@ public struct LessonAssignmentDTO: Codable, Sendable {
     public var lessonID: String
     public var studentIDs: [String]
     public var lessonTitleSnapshot: String?
-    public var lessonSubheadingSnapshot: String?
+    public var lessonSectionSnapshot: String?
     public var needsPractice: Bool
     public var needsAnotherPresentation: Bool
     public var followUpWork: String
@@ -128,7 +128,7 @@ public struct LessonAssignmentDTO: Codable, Sendable {
         lessonID: String,
         studentIDs: [String],
         lessonTitleSnapshot: String?,
-        lessonSubheadingSnapshot: String?,
+        lessonSectionSnapshot: String?,
         needsPractice: Bool,
         needsAnotherPresentation: Bool,
         followUpWork: String,
@@ -147,7 +147,7 @@ public struct LessonAssignmentDTO: Codable, Sendable {
         self.lessonID = lessonID
         self.studentIDs = studentIDs
         self.lessonTitleSnapshot = lessonTitleSnapshot
-        self.lessonSubheadingSnapshot = lessonSubheadingSnapshot
+        self.lessonSectionSnapshot = lessonSectionSnapshot
         self.needsPractice = needsPractice
         self.needsAnotherPresentation = needsAnotherPresentation
         self.followUpWork = followUpWork

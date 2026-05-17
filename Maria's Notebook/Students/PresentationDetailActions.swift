@@ -108,8 +108,8 @@ final class PresentationDetailActions {
             Self.logger.warning("Current lesson not found")
         case .currentNotMastered(let reason):
             Self.logger.warning("Current lesson not mastered: \(reason, privacy: .public)")
-        case .emptySubjectOrGroup:
-            Self.logger.warning("Empty subject or group")
+        case .emptyAreaOrSequence:
+            Self.logger.warning("Empty area or sequence")
         case .noStudents:
             Self.logger.warning("No students selected")
         }
@@ -121,7 +121,7 @@ final class PresentationDetailActions {
     }
 
     // swiftlint:disable:next function_parameter_count
-    func planNextLessonInGroup(
+    func planNextLessonInSequence(
         next: CDLesson,
         selectedStudentIDs: Set<UUID>,
         studentsAll: [CDStudent],
@@ -213,7 +213,7 @@ final class PresentationDetailActions {
         context.safeSave()
     }
 
-    func nextLessonInGroup(from current: CDLesson?, lessons: [CDLesson]) -> CDLesson? {
+    func nextLessonInSequence(from current: CDLesson?, lessons: [CDLesson]) -> CDLesson? {
         guard let current else { return nil }
         return PlanNextLessonService.findNextLesson(after: current, in: lessons)
     }

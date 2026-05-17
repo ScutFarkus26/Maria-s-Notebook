@@ -288,7 +288,7 @@ extension IncrementalBackupService {
                 lessonID: la.lessonID,
                 studentIDs: la.studentIDs,
                 lessonTitleSnapshot: la.lessonTitleSnapshot,
-                lessonSubheadingSnapshot: la.lessonSubheadingSnapshot,
+                lessonSectionSnapshot: la.lessonSectionSnapshot,
                 needsPractice: la.needsPractice,
                 needsAnotherPresentation: la.needsAnotherPresentation,
                 followUpWork: la.followUpWork,

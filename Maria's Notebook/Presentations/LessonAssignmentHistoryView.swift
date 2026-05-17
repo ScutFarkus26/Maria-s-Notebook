@@ -70,7 +70,7 @@ struct LessonAssignmentHistoryView: View {
 
     // Filter state
     @State var selectedStudentIDs: Set<UUID> = []
-    @State var selectedSubjects: Set<String> = []
+    @State var selectedAreas: Set<String> = []
     @State var searchText: String = ""
 
     @AppStorage(UserDefaultsKeys.presentationHistoryNameDisplayStyle)
@@ -105,11 +105,11 @@ struct LessonAssignmentHistoryView: View {
         Dictionary(safeStudents.compactMap { guard let id = $0.id else { return nil }; return (id, $0) }, uniquingKeysWith: { first, _ in first })
     }
 
-    // Available subjects from lessons (sorted, non-empty only)
-    var availableSubjects: [String] {
-        let subjects = Set(lessons.map { $0.subject.trimmed() })
+    // Available areas from lessons (sorted, non-empty only)
+    var availableAreas: [String] {
+        let areas = Set(lessons.map { $0.area.trimmed() })
             .filter { !$0.isEmpty }
-        return subjects.sorted()
+        return areas.sorted()
     }
 
     // Filtered assignments
@@ -122,14 +122,14 @@ struct LessonAssignmentHistoryView: View {
                 if assignmentStudentIDs.isDisjoint(with: selectedStudentIDs) { return false }
             }
 
-            // Subject filter
-            if !selectedSubjects.isEmpty {
+            // Area filter
+            if !selectedAreas.isEmpty {
                 if let lessonID = la.lessonIDUUID,
                    let lesson = lessonsByID[lessonID] {
-                    let subject = lesson.subject.trimmed()
-                    if !selectedSubjects.contains(subject) { return false }
+                    let area = lesson.area.trimmed()
+                    if !selectedAreas.contains(area) { return false }
                 } else {
-                    // No lesson found, exclude if filtering by subject
+                    // No lesson found, exclude if filtering by area
                     return false
                 }
             }
@@ -160,7 +160,7 @@ struct LessonAssignmentHistoryView: View {
                 result[pair.0, default: []].append(pair.1)
             }
             .mapValues { arr in
-                // DEDUPLICATION: Ensure no duplicate IDs within each day group
+                // DEDUPLICATION: Ensure no duplicate IDs within each day sequence
                 arr.uniqueByID.sorted { ($0.presentedAt ?? .distantPast) > ($1.presentedAt ?? .distantPast) }
             }
         let days = dict.keys.sorted(by: >)

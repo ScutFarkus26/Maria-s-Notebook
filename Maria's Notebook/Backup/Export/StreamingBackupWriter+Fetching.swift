@@ -53,7 +53,7 @@ extension StreamingBackupWriter {
         counts["Track"] = try context.count(for:NSFetchRequest<CDTrackEntity>(entityName: "Track"))
         counts["TrackStep"] = try context.count(for:NSFetchRequest<CDTrackStepEntity>(entityName: "TrackStep"))
         counts["StudentTrackEnrollment"] = try context.count(for:NSFetchRequest<CDStudentTrackEnrollmentEntity>(entityName: "StudentTrackEnrollment"))
-        counts["GroupTrack"] = try context.count(for:NSFetchRequest<CDGroupTrack>(entityName: "GroupTrack"))
+        counts["SequenceTrack"] = try context.count(for:NSFetchRequest<CDSequenceTrack>(entityName: "SequenceTrack"))
         counts["Document"] = try context.count(for:NSFetchRequest<CDDocument>(entityName: "Document"))
         counts["Supply"] = try context.count(for:NSFetchRequest<CDSupply>(entityName: "Supply"))
         counts["Procedure"] = try context.count(for:NSFetchRequest<CDProcedure>(entityName: "Procedure"))

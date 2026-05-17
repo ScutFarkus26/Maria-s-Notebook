@@ -113,8 +113,8 @@ struct YearPlanPill: View {
         return String(name.prefix(7)) + "."
     }
 
-    private var subjectColor: Color {
-        AppColors.color(forSubject: lesson?.subject ?? "")
+    private var areaColor: Color {
+        AppColors.color(forArea: lesson?.area ?? "")
     }
 
     private var paceColor: Color {
@@ -153,9 +153,9 @@ struct YearPlanPill: View {
             .padding(.horizontal, 4)
             .padding(.vertical, 1)
             .background(
-                Capsule().fill(subjectColor.opacity(UIConstants.OpacityConstants.moderate))
+                Capsule().fill(areaColor.opacity(UIConstants.OpacityConstants.moderate))
             )
-            .foregroundStyle(subjectColor)
+            .foregroundStyle(areaColor)
             .opacity(isMuted ? UIConstants.OpacityConstants.muted : 1)
             .overlay(
                 Capsule()

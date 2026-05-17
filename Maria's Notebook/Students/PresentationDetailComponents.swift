@@ -4,7 +4,7 @@ import CoreData
 // MARK: - CDStudent Chip Component
 struct StudentChip: View {
     let student: CDStudent
-    let subjectColor: Color
+    let areaColor: Color
     let onRemove: () -> Void
     
     var body: some View {
@@ -19,15 +19,15 @@ struct StudentChip: View {
                     .font(.system(size: 12, weight: .semibold))
             }
             .buttonStyle(.plain)
-            .foregroundStyle(subjectColor)
+            .foregroundStyle(areaColor)
             .accessibilityLabel("Remove \(StudentFormatter.displayName(for: student))")
         }
         .padding(.horizontal, 10)
         .padding(.vertical, 6)
-        .foregroundStyle(subjectColor)
+        .foregroundStyle(areaColor)
         .background(
             RoundedRectangle(cornerRadius: 16, style: .continuous)
-                .fill(subjectColor.opacity(UIConstants.OpacityConstants.accent))
+                .fill(areaColor.opacity(UIConstants.OpacityConstants.accent))
         )
     }
 }

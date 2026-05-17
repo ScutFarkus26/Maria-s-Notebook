@@ -5,13 +5,13 @@
 import SwiftUI
 import Charts
 
-/// Donut chart showing subject distribution.
-struct SubjectDistributionChart: View {
-    let data: [SubjectDistribution]
+/// Donut chart showing area distribution.
+struct AreaDistributionChart: View {
+    let data: [AreaDistribution]
 
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
-            Text("Subject Distribution")
+            Text("Area Distribution")
                 .font(AppTheme.ScaledFont.calloutSemibold)
 
             if data.isEmpty {
@@ -52,7 +52,7 @@ struct SubjectDistributionChart: View {
                         .fill(item.color)
                         .frame(width: 8, height: 8)
 
-                    Text(item.subject)
+                    Text(item.area)
                         .font(.caption)
                         .foregroundStyle(.secondary)
                         .lineLimit(1)
@@ -69,9 +69,9 @@ struct SubjectDistributionChart: View {
     }
 }
 
-/// Stacked bar chart showing weekly trends by subject.
-struct SubjectWeeklyTrendChart: View {
-    let data: [SubjectWeeklyTrend]
+/// Stacked bar chart showing weekly trends by area.
+struct AreaWeeklyTrendChart: View {
+    let data: [AreaWeeklyTrend]
 
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {

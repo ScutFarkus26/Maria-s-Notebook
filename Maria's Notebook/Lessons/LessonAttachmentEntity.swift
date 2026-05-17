@@ -51,7 +51,7 @@ extension CDLessonAttachment {
         ByteCountFormatter.string(fromByteCount: fileSizeBytes, countStyle: .file)
     }
 
-    /// Whether this attachment is inherited (group or subject scope)
+    /// Whether this attachment is inherited (sequence or area scope)
     var isInherited: Bool {
         scope != .lesson
     }

@@ -62,7 +62,7 @@ enum ProgressionOverride: String, Codable, CaseIterable, Identifiable, Sendable 
 
     var label: String {
         switch self {
-        case .inherit: return "From Group"
+        case .inherit: return "From Sequence"
         case .yes: return "Yes"
         case .no: return "No"
         }

@@ -89,20 +89,20 @@ extension BackupEntityImporter {
 
     // MARK: - Group Tracks
 
-    static func importGroupTracks(
-        _ dtos: [GroupTrackDTO],
+    static func importSequenceTracks(
+        _ dtos: [SequenceTrackDTO],
         into viewContext: NSManagedObjectContext,
-        existingCheck: EntityExistsCheck<CDGroupTrack>
+        existingCheck: EntityExistsCheck<CDSequenceTrack>
     ) rethrows {
         try importSimpleEntities(
             dtos, into: viewContext,
             existingCheck: existingCheck,
             idExtractor: { $0.id },
             entityBuilder: { dto in
-            let g = CDGroupTrack(context: viewContext)
+            let g = CDSequenceTrack(context: viewContext)
             g.id = dto.id
-            g.subject = dto.subject
-            g.group = dto.group
+            g.area = dto.area
+            g.sequence = dto.sequence
             g.isSequential = dto.isSequential
             g.isExplicitlyDisabled = dto.isExplicitlyDisabled
             g.createdAt = dto.createdAt

@@ -13,52 +13,52 @@ struct LessonsViewModel {
     private static let logger = Logger.lessons
     // MARK: - Public API
 
-    // Compute ordered unique subjects using FilterOrderStore
-    func subjects(from lessons: [CDLesson]) -> [String] {
-        let unique = Set(lessons.map { $0.subject.trimmed() }.filter { !$0.isEmpty })
+    // Compute ordered unique areas using FilterOrderStore
+    func areas(from lessons: [CDLesson]) -> [String] {
+        let unique = Set(lessons.map { $0.area.trimmed() }.filter { !$0.isEmpty })
         let existing = Array(unique).sorted { $0.localizedCaseInsensitiveCompare($1) == .orderedAscending }
-        return FilterOrderStore.loadSubjectOrder(existing: existing)
+        return FilterOrderStore.loadAreaOrder(existing: existing)
     }
 
-    // Compute ordered unique groups for a given subject using FilterOrderStore
-    func groups(for subject: String, lessons: [CDLesson]) -> [String] {
-        let trimmedSubject = subject.trimmed()
+    // Compute ordered unique groups for a given area using FilterOrderStore
+    func groups(for area: String, lessons: [CDLesson]) -> [String] {
+        let trimmedArea = area.trimmed()
         let unique = Set(
             lessons
-                // FIX: Trim lesson subject before comparing to ensure "Math " matches "Math"
-                .filter { $0.subject.trimmed().caseInsensitiveCompare(trimmedSubject) == .orderedSame }
-                .map { $0.group.trimmed() }
+                // FIX: Trim lesson area before comparing to ensure "Math " matches "Math"
+                .filter { $0.area.trimmed().caseInsensitiveCompare(trimmedArea) == .orderedSame }
+                .map { $0.sequence.trimmed() }
                 .filter { !$0.isEmpty }
         )
         let existing = Array(unique).sorted { $0.localizedCaseInsensitiveCompare($1) == .orderedAscending }
-        return FilterOrderStore.loadGroupOrder(for: trimmedSubject, existing: existing)
+        return FilterOrderStore.loadSequenceOrder(for: trimmedArea, existing: existing)
     }
 
     // MARK: - Private Helpers
 
     func norm(_ s: String) -> String { s.trimmed().lowercased() }
 
-    func subjectIndexMap(from lessons: [CDLesson]) -> [String: Int] {
-        let list = subjects(from: lessons)
+    func areaIndexMap(from lessons: [CDLesson]) -> [String: Int] {
+        let list = areas(from: lessons)
         return list.enumerated().reduce(into: [:]) { $0[norm($1.element)] = $1.offset }
     }
 
-    func groupIndex(for subject: String, lessons: [CDLesson]) -> [String: Int] {
-        let orderedGroups = groups(for: subject, lessons: lessons)
-        return orderedGroups.enumerated().reduce(into: [:]) { (d: inout [String: Int], p) in
+    func sequenceIndex(for area: String, lessons: [CDLesson]) -> [String: Int] {
+        let orderedSequences = groups(for: area, lessons: lessons)
+        return orderedSequences.enumerated().reduce(into: [:]) { (d: inout [String: Int], p) in
             d[norm(p.element)] = p.offset
         }
     }
 
-    private func indexForGroup(
-        _ group: String,
-        inSubject subject: String,
+    private func indexForSequence(
+        _ sequence: String,
+        inArea area: String,
         cache: inout [String: [String: Int]],
         lessons: [CDLesson]
     ) -> Int {
-        let key = norm(subject)
-        if cache[key] == nil { cache[key] = groupIndex(for: subject, lessons: lessons) }
-        return cache[key]?[norm(group)] ?? Int.max
+        let key = norm(area)
+        if cache[key] == nil { cache[key] = sequenceIndex(for: area, lessons: lessons) }
+        return cache[key]?[norm(sequence)] ?? Int.max
     }
 
     // MARK: - Predicate Building
@@ -67,8 +67,8 @@ struct LessonsViewModel {
         sourceFilter: LessonSource?,
         personalKindFilter: PersonalLessonKind?,
         formatFilter: LessonFormat? = nil,
-        selectedSubject: String?,
-        selectedGroup: String?,
+        selectedArea: String?,
+        selectedSequence: String?,
         searchText: String
     ) -> NSPredicate? {
         let query = searchText.trimmed()
@@ -91,14 +91,14 @@ struct LessonsViewModel {
                 "personal", personalKindFilterRaw, personalKindFilterRaw, "personal"))
         }
 
-        // Subject filter
-        if let trimmedSubject = selectedSubject?.trimmed(), !trimmedSubject.isEmpty {
-            subpredicates.append(NSPredicate(format: "subject == %@", trimmedSubject))
+        // Area filter
+        if let trimmedArea = selectedArea?.trimmed(), !trimmedArea.isEmpty {
+            subpredicates.append(NSPredicate(format: "area == %@", trimmedArea))
         }
 
         // Group filter
-        if let trimmedGroup = selectedGroup?.trimmed(), !trimmedGroup.isEmpty {
-            subpredicates.append(NSPredicate(format: "group == %@", trimmedGroup))
+        if let trimmedSequence = selectedSequence?.trimmed(), !trimmedSequence.isEmpty {
+            subpredicates.append(NSPredicate(format: "sequence == %@", trimmedSequence))
         }
 
         guard !subpredicates.isEmpty else { return nil }
@@ -132,48 +132,48 @@ struct LessonsViewModel {
     }
 
     struct LessonSortKey {
-        let subjectIdx: Int
+        let areaIdx: Int
         let groupIdx: Int
-        let orderInGroup: Int64
+        let orderInSequence: Int64
         let name: String
         let id: String
     }
 
-    func ensureInitialOrderInGroupIfNeeded(_ lessons: [CDLesson]) -> Bool {
+    func ensureInitialOrderInSequenceIfNeeded(_ lessons: [CDLesson]) -> Bool {
         var changed = false
         func norm(_ s: String) -> String { s.trimmed().lowercased() }
         var buckets: [String: [CDLesson]] = [:]
         for l in lessons {
-            let key = norm(l.subject) + "|" + norm(l.group)
+            let key = norm(l.area) + "|" + norm(l.sequence)
             buckets[key, default: []].append(l)
         }
 
         for (_, arr) in buckets {
             guard !arr.isEmpty else { continue }
-            let allZero = arr.allSatisfy { $0.orderInGroup == 0 }
+            let allZero = arr.allSatisfy { $0.orderInSequence == 0 }
             if allZero {
                 let sorted = arr.sorted { lhs, rhs in
                     lhs.name.localizedCaseInsensitiveCompare(rhs.name) == .orderedAscending
                 }
-                for (idx, l) in sorted.enumerated() where l.orderInGroup != Int64(idx) {
-                    l.orderInGroup = Int64(idx); changed = true
+                for (idx, l) in sorted.enumerated() where l.orderInSequence != Int64(idx) {
+                    l.orderInSequence = Int64(idx); changed = true
                 }
                 continue
             }
             var seen = Set<Int64>()
             var duplicates: [CDLesson] = []
-            for l in arr.sorted(by: { $0.orderInGroup < $1.orderInGroup }) {
-                if seen.contains(l.orderInGroup) {
+            for l in arr.sorted(by: { $0.orderInSequence < $1.orderInSequence }) {
+                if seen.contains(l.orderInSequence) {
                     duplicates.append(l)
                 } else {
-                    seen.insert(l.orderInGroup)
+                    seen.insert(l.orderInSequence)
                 }
             }
             if !duplicates.isEmpty {
                 var maxOrder = seen.max() ?? -1
                 for l in duplicates {
                     maxOrder += 1
-                    if l.orderInGroup != maxOrder { l.orderInGroup = maxOrder; changed = true }
+                    if l.orderInSequence != maxOrder { l.orderInSequence = maxOrder; changed = true }
                 }
             }
         }

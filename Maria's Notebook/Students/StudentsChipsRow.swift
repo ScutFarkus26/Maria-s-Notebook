@@ -4,7 +4,7 @@ import CoreData
 struct StudentsChipsRow: View {
     let students: [CDStudent]
     @Binding var selectedIDs: Set<UUID>
-    let subjectColor: Color
+    let areaColor: Color
     let onManage: () -> Void
 
     private func displayName(for student: CDStudent) -> String {
@@ -40,7 +40,7 @@ struct StudentsChipsRow: View {
                         }
                         .padding(.horizontal, 10)
                         .padding(.vertical, 6)
-                        .background(subjectColor.opacity(UIConstants.OpacityConstants.accent))
+                        .background(areaColor.opacity(UIConstants.OpacityConstants.accent))
                         .clipShape(Capsule())
                     }
                 }

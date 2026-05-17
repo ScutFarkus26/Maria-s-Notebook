@@ -23,8 +23,8 @@ struct LessonRelationshipsSection: View {
                     Text("•").font(AppTheme.ScaledFont.body)
                     Text(lesson.name.isEmpty ? "Untitled CDLesson" : lesson.name)
                         .font(AppTheme.ScaledFont.body)
-                    if !lesson.subject.isEmpty {
-                        Text("(\(lesson.subject))")
+                    if !lesson.area.isEmpty {
+                        Text("(\(lesson.area))")
                             .font(AppTheme.ScaledFont.caption)
                             .foregroundStyle(.secondary)
                     }

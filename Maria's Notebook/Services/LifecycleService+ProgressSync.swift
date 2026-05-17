@@ -32,8 +32,8 @@ extension LifecycleService {
             uniquingKeysWith: { first, _ in first }
         )
 
-        // 4. Create GroupTracks for all subject/group combinations
-        try createGroupTracks(from: allLessons, context: context)
+        // 4. Create SequenceTracks for all area/sequence combinations
+        try createSequenceTracks(from: allLessons, context: context)
 
         // 5. Sync presentations per assignment
         var presentationsUpdated = 0
@@ -58,28 +58,28 @@ extension LifecycleService {
 
     // MARK: - Phase Helpers
 
-    /// Creates CDGroupTrackEntity records for all unique subject/group combinations found in lessons.
-    private static func createGroupTracks(from allLessons: [CDLesson], context: NSManagedObjectContext) throws {
-        var uniqueSubjectGroups: Set<String> = []
+    /// Creates CDSequenceTrackEntity records for all unique area/sequence combinations found in lessons.
+    private static func createSequenceTracks(from allLessons: [CDLesson], context: NSManagedObjectContext) throws {
+        var uniqueAreaSequences: Set<String> = []
         for lesson in allLessons {
-            let subject = lesson.subject.trimmed()
-            let group = lesson.group.trimmed()
-            guard !subject.isEmpty && !group.isEmpty else { continue }
+            let area = lesson.area.trimmed()
+            let sequence = lesson.sequence.trimmed()
+            guard !area.isEmpty && !sequence.isEmpty else { continue }
 
-            let key = "\(subject)|\(group)"
-            guard !uniqueSubjectGroups.contains(key) else { continue }
-            uniqueSubjectGroups.insert(key)
+            let key = "\(area)|\(sequence)"
+            guard !uniqueAreaSequences.contains(key) else { continue }
+            uniqueAreaSequences.insert(key)
 
-            if GroupTrackService.isTrack(subject: subject, group: group, context: context) {
+            if SequenceTrackService.isTrack(area: area, sequence: sequence, context: context) {
                 do {
-                    _ = try GroupTrackService.cdGetOrCreateGroupTrack(
-                        subject: subject,
-                        group: group,
+                    _ = try SequenceTrackService.cdGetOrCreateSequenceTrack(
+                        area: area,
+                        sequence: sequence,
                         context: context
                     )
                 } catch {
                     // swiftlint:disable:next line_length
-                    logger.warning("Failed to create/get CDGroupTrackEntity for \(subject, privacy: .public)/\(group, privacy: .public): \(error.localizedDescription)")
+                    logger.warning("Failed to create/get CDSequenceTrackEntity for \(area, privacy: .public)/\(sequence, privacy: .public): \(error.localizedDescription)")
                 }
             }
         }
@@ -168,23 +168,23 @@ extension LifecycleService {
     private static func enrollInTrackIfNeeded(
         lesson: CDLesson, studentIDs: [String], lessonID: String, context: NSManagedObjectContext
     ) throws {
-        let subject = lesson.subject.trimmed()
-        let group = lesson.group.trimmed()
-        guard !subject.isEmpty && !group.isEmpty else { return }
-        guard GroupTrackService.isTrack(subject: subject, group: group, context: context) else { return }
+        let area = lesson.area.trimmed()
+        let sequence = lesson.sequence.trimmed()
+        guard !area.isEmpty && !sequence.isEmpty else { return }
+        guard SequenceTrackService.isTrack(area: area, sequence: sequence, context: context) else { return }
 
         do {
-            _ = try GroupTrackService.getOrCreateTrack(subject: subject, group: group, context: context)
+            _ = try SequenceTrackService.getOrCreateTrack(area: area, sequence: sequence, context: context)
         } catch {
             // swiftlint:disable:next line_length
-            logger.warning("Failed to create/get CDGroupTrackEntity for \(subject, privacy: .public)/\(group, privacy: .public): \(error.localizedDescription)")
+            logger.warning("Failed to create/get CDSequenceTrackEntity for \(area, privacy: .public)/\(sequence, privacy: .public): \(error.localizedDescription)")
         }
 
-        GroupTrackService.autoEnrollInTrackIfNeeded(
-            lessonSubject: subject, lessonGroup: group, studentIDs: studentIDs, context: context
+        SequenceTrackService.autoEnrollInTrackIfNeeded(
+            lessonArea: area, lessonSequence: sequence, studentIDs: studentIDs, context: context
         )
 
-        let trackID = "\(subject)|\(group)"
+        let trackID = "\(area)|\(sequence)"
         let presentations = safeFetch(
             CDFetchRequest(CDLessonPresentation.self), using: context, caller: "syncAllStudentProgress"
         )

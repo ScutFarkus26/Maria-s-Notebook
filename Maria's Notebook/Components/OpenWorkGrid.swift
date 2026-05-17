@@ -139,14 +139,14 @@ struct OpenWorkGrid: View {
         var order: [String] = []
         var buckets: [String: [WorkGridItem]] = [:]
         for it in items {
-            let key = groupKey(for: it)
+            let key = sequenceKey(for: it)
             if buckets[key] == nil { order.append(key); buckets[key] = [] }
             buckets[key]?.append(it)
         }
         return order.map { key in (key: key, items: buckets[key] ?? []) }
     }
 
-    private func groupKey(for item: WorkGridItem) -> String {
+    private func sequenceKey(for item: WorkGridItem) -> String {
         switch sortMode {
         case .lesson:
             return item.title

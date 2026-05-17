@@ -1,13 +1,13 @@
 // TrackListView.swift
-// List view for managing tracks (now group-based)
+// List view for managing tracks (now sequence-based)
 
 import OSLog
 import SwiftUI
 import CoreData
 
-private struct GroupTrackRoute: Hashable {
-    let subject: String
-    let group: String
+private struct SequenceTrackRoute: Hashable {
+    let area: String
+    let sequence: String
 }
 
 struct TrackListView: View {
@@ -16,19 +16,19 @@ struct TrackListView: View {
     @Environment(\.managedObjectContext) private var viewContext
     @State private var navigationPath = NavigationPath()
     
-    // Query all lessons to count them per group
-    @FetchRequest(sortDescriptors: [NSSortDescriptor(keyPath: \CDLesson.subject, ascending: true), NSSortDescriptor(keyPath: \CDLesson.group, ascending: true)])
+    // Query all lessons to count them per sequence
+    @FetchRequest(sortDescriptors: [NSSortDescriptor(keyPath: \CDLesson.area, ascending: true), NSSortDescriptor(keyPath: \CDLesson.sequence, ascending: true)])
     private var allLessons: FetchedResults<CDLesson>
     
-    // Get all group tracks
-    private var groupTracks: [CDGroupTrack] {
-        viewContext.safeFetch(CDFetchRequest(CDGroupTrackEntity.self))
+    // Get all sequence tracks
+    private var sequenceTracks: [CDSequenceTrack] {
+        viewContext.safeFetch(CDFetchRequest(CDSequenceTrackEntity.self))
     }
     
     var body: some View {
         NavigationStack(path: $navigationPath) {
             Group {
-                if groupTracks.isEmpty {
+                if sequenceTracks.isEmpty {
                     ContentUnavailableView {
                         Label("No Tracks", systemImage: "list.bullet")
                     } description: {
@@ -36,26 +36,26 @@ struct TrackListView: View {
                     }
                 } else {
                     List {
-                        ForEach(groupTracks, id: \.id) { groupTrack in
+                        ForEach(sequenceTracks, id: \.id) { sequenceTrack in
                             NavigationLink(
-                                value: GroupTrackRoute(subject: groupTrack.subject, group: groupTrack.group)
+                                value: SequenceTrackRoute(area: sequenceTrack.area, sequence: sequenceTrack.sequence)
                             ) {
-                                GroupTrackRow(groupTrack: groupTrack, allLessons: Array(allLessons))
+                                SequenceTrackRow(sequenceTrack: sequenceTrack, allLessons: Array(allLessons))
                             }
                             .contextMenu {
                                 Button {
-                                    toggleSequential(groupTrack)
+                                    toggleSequential(sequenceTrack)
                                 } label: {
                                     Label(
-                                        groupTrack.isSequential ? "Mark as Unordered" : "Mark as Sequential",
-                                        systemImage: groupTrack.isSequential ? "list.bullet" : "list.number"
+                                        sequenceTrack.isSequential ? "Mark as Unordered" : "Mark as Sequential",
+                                        systemImage: sequenceTrack.isSequential ? "list.bullet" : "list.number"
                                     )
                                 }
 
                                 Divider()
 
                                 Button(role: .destructive) {
-                                    removeTrack(groupTrack)
+                                    removeTrack(sequenceTrack)
                                 } label: {
                                     Label("Remove Track", systemImage: "trash")
                                 }
@@ -66,12 +66,12 @@ struct TrackListView: View {
             }
             .navigationTitle("Tracks")
         }
-        .navigationDestination(for: GroupTrackRoute.self) { route in
-            GroupTrackDetailView(subject: route.subject, group: route.group)
+        .navigationDestination(for: SequenceTrackRoute.self) { route in
+            SequenceTrackDetailView(area: route.area, sequence: route.sequence)
         }
     }
 
-    private func toggleSequential(_ track: CDGroupTrack) {
+    private func toggleSequential(_ track: CDSequenceTrack) {
         track.isSequential.toggle()
         do {
             try viewContext.save()
@@ -80,7 +80,7 @@ struct TrackListView: View {
         }
     }
 
-    private func removeTrack(_ track: CDGroupTrack) {
+    private func removeTrack(_ track: CDSequenceTrack) {
         viewContext.delete(track)
         do {
             try viewContext.save()
@@ -90,18 +90,18 @@ struct TrackListView: View {
     }
 }
 
-private struct GroupTrackRow: View {
-    let groupTrack: CDGroupTrack
+private struct SequenceTrackRow: View {
+    let sequenceTrack: CDSequenceTrack
     let allLessons: [CDLesson]
     
     private var lessons: [CDLesson] {
-        GroupTrackService.getLessonsForTrack(track: groupTrack, allLessons: allLessons)
+        SequenceTrackService.getLessonsForTrack(track: sequenceTrack, allLessons: allLessons)
     }
     
     var body: some View {
         HStack {
             VStack(alignment: .leading, spacing: 4) {
-                Text("\(groupTrack.subject) · \(groupTrack.group)")
+                Text("\(sequenceTrack.area) · \(sequenceTrack.sequence)")
                     .font(.headline)
                 
                 HStack(spacing: 8) {
@@ -109,7 +109,7 @@ private struct GroupTrackRow: View {
                         .font(.caption)
                         .foregroundStyle(.secondary)
                     
-                    if groupTrack.isSequential {
+                    if sequenceTrack.isSequential {
                         Label("Sequential", systemImage: "list.number")
                             .font(.caption)
                             .foregroundStyle(.secondary)

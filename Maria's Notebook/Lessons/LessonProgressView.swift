@@ -84,12 +84,12 @@ struct LessonProgressView: View {
                     .font(AppTheme.ScaledFont.titleMedium)
 
                 HStack(spacing: AppTheme.Spacing.small) {
-                    if !lesson.subject.isEmpty {
-                        StatusPill(text: lesson.subject, color: .blue, icon: nil)
+                    if !lesson.area.isEmpty {
+                        StatusPill(text: lesson.area, color: .blue, icon: nil)
                     }
 
-                    if !lesson.group.isEmpty {
-                        StatusPill(text: lesson.group, color: .purple, icon: nil)
+                    if !lesson.sequence.isEmpty {
+                        StatusPill(text: lesson.sequence, color: .purple, icon: nil)
                     }
                 }
             }

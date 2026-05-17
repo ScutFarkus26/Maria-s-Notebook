@@ -14,8 +14,8 @@ struct NextLessonRow: View {
             VStack(alignment: .leading, spacing: 2) {
                 Text(lesson?.name ?? "Lesson")
                     .font(AppTheme.ScaledFont.titleSmall)
-                if let subject = lesson?.subject, !subject.isEmpty {
-                    Text(subject)
+                if let area = lesson?.area, !area.isEmpty {
+                    Text(area)
                         .foregroundStyle(.secondary)
                 }
             }

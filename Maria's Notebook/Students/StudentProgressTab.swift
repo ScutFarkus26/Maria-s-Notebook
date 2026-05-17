@@ -200,11 +200,11 @@ struct StudentProgressTab: View {
         HStack(alignment: .center, spacing: AppTheme.Spacing.compact) {
             ZStack {
                 RoundedRectangle(cornerRadius: 10, style: .continuous)
-                    .fill(AppColors.color(forSubject: "Reading").opacity(UIConstants.OpacityConstants.faint))
+                    .fill(AppColors.color(forArea: "Reading").opacity(UIConstants.OpacityConstants.faint))
                     .frame(width: 44, height: 44)
                 Image(systemName: "book.closed.fill")
                     .font(.system(size: 20))
-                    .foregroundStyle(AppColors.color(forSubject: "Reading"))
+                    .foregroundStyle(AppColors.color(forArea: "Reading"))
             }
             
             VStack(alignment: .leading, spacing: AppTheme.Spacing.xsmall) {
@@ -362,9 +362,9 @@ struct StudentProgressTab: View {
         if trackParts.count == 2 {
             Divider().padding(.vertical, AppTheme.Spacing.xsmall)
             Button {
-                let subject: String = trackParts[0].trimmingCharacters(in: .whitespaces)
-                let group: String = trackParts[1].trimmingCharacters(in: .whitespaces)
-                AppRouter.shared.navigateToChecklist(subject: subject, group: group)
+                let area: String = trackParts[0].trimmingCharacters(in: .whitespaces)
+                let sequence: String = trackParts[1].trimmingCharacters(in: .whitespaces)
+                AppRouter.shared.navigateToChecklist(area: area, sequence: sequence)
             } label: {
                 Label("View Class Progress", systemImage: "checklist")
                     .font(.caption)

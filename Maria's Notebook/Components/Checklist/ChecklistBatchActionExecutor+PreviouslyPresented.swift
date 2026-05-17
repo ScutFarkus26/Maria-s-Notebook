@@ -66,13 +66,13 @@ extension ChecklistBatchActionExecutor {
         in allLAs: [CDLessonAssignment],
         context: NSManagedObjectContext
     ) {
-        if let group = allLAs.first(where: {
+        if let sequence = allLAs.first(where: {
             $0.isPresented && $0.presentedAt == nil
         }) {
-            if !group.studentIDs.contains(studentIDString) {
-                group.studentIDs.append(studentIDString)
-                GroupTrackService.autoEnrollInTrackIfNeeded(
-                    lessonSubject: lesson.subject, lessonGroup: lesson.group,
+            if !sequence.studentIDs.contains(studentIDString) {
+                sequence.studentIDs.append(studentIDString)
+                SequenceTrackService.autoEnrollInTrackIfNeeded(
+                    lessonArea: lesson.area, lessonSequence: lesson.sequence,
                     studentIDs: [studentIDString], context: context
                 )
             }
@@ -83,8 +83,8 @@ extension ChecklistBatchActionExecutor {
                 studentIDs: [studentID],
                 context: context
             )
-            GroupTrackService.autoEnrollInTrackIfNeeded(
-                lessonSubject: lesson.subject, lessonGroup: lesson.group,
+            SequenceTrackService.autoEnrollInTrackIfNeeded(
+                lessonArea: lesson.area, lessonSequence: lesson.sequence,
                 studentIDs: [studentIDString], context: context
             )
         }

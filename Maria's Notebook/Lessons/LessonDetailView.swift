@@ -25,34 +25,34 @@ struct LessonDetailView: View {
         LessonRepository(context: managedObjectContext, saveCoordinator: saveCoordinator)
     }
 
-    var existingSubjects: [String] {
-        Array(Set(allLessons.map { $0.subject.trimmed() }.filter { !$0.isEmpty }))
+    var existingAreas: [String] {
+        Array(Set(allLessons.map { $0.area.trimmed() }.filter { !$0.isEmpty }))
             .sorted { $0.localizedCaseInsensitiveCompare($1) == .orderedAscending }
     }
 
-    var existingGroups: [String] {
-        let subject = draftSubject.trimmed()
-        guard !subject.isEmpty else { return [] }
+    var existingSequences: [String] {
+        let area = draftArea.trimmed()
+        guard !area.isEmpty else { return [] }
         return Array(Set(
             allLessons
-                .filter { $0.subject.trimmed().caseInsensitiveCompare(subject) == .orderedSame }
-                .map { $0.group.trimmed() }
+                .filter { $0.area.trimmed().caseInsensitiveCompare(area) == .orderedSame }
+                .map { $0.sequence.trimmed() }
                 .filter { !$0.isEmpty }
         ))
         .sorted { $0.localizedCaseInsensitiveCompare($1) == .orderedAscending }
     }
 
-    var existingSubheadings: [String] {
-        let subject = draftSubject.trimmed()
-        let group = draftGroup.trimmed()
-        guard !subject.isEmpty, !group.isEmpty else { return [] }
+    var existingSections: [String] {
+        let area = draftArea.trimmed()
+        let sequence = draftSequence.trimmed()
+        guard !area.isEmpty, !sequence.isEmpty else { return [] }
         return Array(Set(
             allLessons
                 .filter {
-                    $0.subject.trimmed().caseInsensitiveCompare(subject) == .orderedSame &&
-                    $0.group.trimmed().caseInsensitiveCompare(group) == .orderedSame
+                    $0.area.trimmed().caseInsensitiveCompare(area) == .orderedSame &&
+                    $0.sequence.trimmed().caseInsensitiveCompare(sequence) == .orderedSame
                 }
-                .map { $0.subheading.trimmed() }
+                .map { $0.section.trimmed() }
                 .filter { !$0.isEmpty }
         ))
         .sorted { $0.localizedCaseInsensitiveCompare($1) == .orderedAscending }
@@ -60,9 +60,9 @@ struct LessonDetailView: View {
 
     @State private var isEditing = false
     @State var draftName: String = ""
-    @State var draftSubject: String = ""
-    @State var draftGroup: String = ""
-    @State var draftSubheading: String = ""
+    @State var draftArea: String = ""
+    @State var draftSequence: String = ""
+    @State var draftSection: String = ""
     @State var draftWriteUp: String = ""
     @State var draftSuggestedFollowUpWork: String = ""
     @State var draftSource: LessonSource = .album
@@ -268,11 +268,11 @@ extension LessonDetailView {
                 .multilineTextAlignment(.center)
                 .frame(maxWidth: .infinity)
             HStack(spacing: AppTheme.Spacing.small) {
-                if !lesson.subject.isEmpty {
-                    StatusPill(text: lesson.subject, color: .accentColor, icon: nil)
+                if !lesson.area.isEmpty {
+                    StatusPill(text: lesson.area, color: .accentColor, icon: nil)
                 }
-                if !lesson.group.isEmpty {
-                    StatusPill(text: lesson.group, color: .accentColor, icon: nil)
+                if !lesson.sequence.isEmpty {
+                    StatusPill(text: lesson.sequence, color: .accentColor, icon: nil)
                 }
                 if lesson.isStory {
                     StatusPill(text: "Story", color: .purple, icon: "book.pages")
@@ -332,9 +332,9 @@ extension LessonDetailView {
                     Button("Save") {
                         let updated = lesson
                         updated.name = draftName.trimmed()
-                        updated.subject = draftSubject.trimmed()
-                        updated.group = draftGroup.trimmed()
-                        updated.subheading = draftSubheading.trimmed()
+                        updated.area = draftArea.trimmed()
+                        updated.sequence = draftSequence.trimmed()
+                        updated.section = draftSection.trimmed()
                         updated.writeUp = draftWriteUp
                         updated.suggestedFollowUpWork = draftSuggestedFollowUpWork
                         updated.source = draftSource
@@ -358,7 +358,7 @@ extension LessonDetailView {
                     .buttonStyle(.borderedProminent)
                     .disabled(draftName.trimmed().isEmpty)
                 } else {
-                    if let onLocateInSequence, !lesson.subject.trimmed().isEmpty {
+                    if let onLocateInSequence, !lesson.area.trimmed().isEmpty {
                         Button {
                             onLocateInSequence(lesson)
                         } label: {
@@ -366,7 +366,7 @@ extension LessonDetailView {
                         }
                         .help("Switch to the List view and focus on this lesson")
                     }
-                    if let onLocateInMap, !lesson.subject.trimmed().isEmpty {
+                    if let onLocateInMap, !lesson.area.trimmed().isEmpty {
                         Button {
                             onLocateInMap(lesson)
                         } label: {
@@ -393,9 +393,9 @@ extension LessonDetailView {
 
     func seedDrafts() {
         draftName = lesson.name
-        draftSubject = lesson.subject
-        draftGroup = lesson.group
-        draftSubheading = lesson.subheading
+        draftArea = lesson.area
+        draftSequence = lesson.sequence
+        draftSection = lesson.section
         draftWriteUp = lesson.writeUp
         draftSuggestedFollowUpWork = lesson.suggestedFollowUpWork
         draftSource = lesson.source
@@ -415,9 +415,9 @@ extension LessonDetailView {
     let ctx = CoreDataStack.preview.viewContext
     let lesson = CDLesson(context: ctx)
     lesson.name = "Decimal System"
-    lesson.subject = "Math"
-    lesson.group = "Number Work"
-    lesson.subheading = "Intro to base-10"
+    lesson.area = "Math"
+    lesson.sequence = "Number Work"
+    lesson.section = "Intro to base-10"
     lesson.writeUp = "Sample write up."
 
     return LessonDetailView(lesson: lesson, onSave: { _ in })

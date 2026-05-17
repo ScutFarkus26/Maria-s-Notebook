@@ -43,7 +43,7 @@ struct ProjectEditorSheet: View {
             Group {
                 TextField("Title", text: $title)
                     .textFieldStyle(.roundedBorder)
-                TextField("Book/Subject (optional)", text: $bookTitle)
+                TextField("Book/Area (optional)", text: $bookTitle)
                     .textFieldStyle(.roundedBorder)
             }
 

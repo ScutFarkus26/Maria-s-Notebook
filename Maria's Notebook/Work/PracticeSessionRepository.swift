@@ -77,7 +77,7 @@ struct PracticeSessionRepository {
         return context.safeFetch(request)
     }
 
-    /// Fetches group practice sessions (2+ students)
+    /// Fetches sequence practice sessions (2+ students)
     func fetchGroupSessions() -> [CDPracticeSession] {
         let allSessions = fetchAll()
         return allSessions.filter { session in

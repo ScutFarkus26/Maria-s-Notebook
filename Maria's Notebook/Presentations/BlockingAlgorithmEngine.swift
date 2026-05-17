@@ -95,7 +95,7 @@ enum BlockingAlgorithmEngine {
     ///
     /// - Parameters:
     ///   - lessonAssignments: Array of LessonAssignments to check
-    ///   - lessons: All lessons (needed for group structure)
+    ///   - lessons: All lessons (needed for sequence structure)
     ///   - allLessonAssignments: All LessonAssignments (for presented lookup)
     ///   - workModels: All WorkModels (preferably filtered to non-complete)
     /// - Returns: Dictionary mapping CDLessonAssignment ID to BlockingCheckResult
@@ -251,7 +251,7 @@ enum BlockingAlgorithmEngine {
     ///
     /// - Parameters:
     ///   - la: The CDLessonAssignment to check
-    ///   - lessons: All lessons (needed for group structure)
+    ///   - lessons: All lessons (needed for sequence structure)
     ///   - allLessonAssignments: All LessonAssignments (for presented lookup)
     ///   - workModels: All WorkModels (preferably filtered to non-complete)
     /// - Returns: A BlockingCheckResult indicating if blocked and how many prerequisites are open
@@ -272,7 +272,7 @@ enum BlockingAlgorithmEngine {
 
     // MARK: - Find Preceding CDLesson
 
-    /// Find the preceding lesson in the sequence (same subject/group, previous orderInGroup).
+    /// Find the preceding lesson in the sequence (same area/sequence, previous orderInSequence).
     /// This is the public API for external callers.
     ///
     /// - Parameters:
@@ -286,19 +286,19 @@ enum BlockingAlgorithmEngine {
     /// Internal implementation of preceding lesson computation.
     /// Separated to allow reuse in context initialization without recursion.
     private static func computePrecedingLesson(currentLesson: CDLesson, lessons: [CDLesson]) -> CDLesson? {
-        let currentSubject = currentLesson.subject.trimmed()
-        let currentGroup = currentLesson.group.trimmed()
+        let currentArea = currentLesson.area.trimmed()
+        let currentSequence = currentLesson.sequence.trimmed()
 
-        guard !currentSubject.isEmpty, !currentGroup.isEmpty else {
+        guard !currentArea.isEmpty, !currentSequence.isEmpty else {
             return nil
         }
 
-        // Find all lessons in the same subject/group
+        // Find all lessons in the same area/sequence
         let candidates = lessons.filter { lesson in
-            lesson.subject.trimmed().caseInsensitiveCompare(currentSubject) == .orderedSame &&
-            lesson.group.trimmed().caseInsensitiveCompare(currentGroup) == .orderedSame
+            lesson.area.trimmed().caseInsensitiveCompare(currentArea) == .orderedSame &&
+            lesson.sequence.trimmed().caseInsensitiveCompare(currentSequence) == .orderedSame
         }
-        .sorted { $0.orderInGroup < $1.orderInGroup }
+        .sorted { $0.orderInSequence < $1.orderInSequence }
 
         // Find the current lesson's index
         guard let currentIndex = candidates.firstIndex(where: { $0.id == currentLesson.id }),

@@ -351,14 +351,14 @@ struct StoryDetailView: View {
                 Text(entry.lesson.name)
                     .font(.subheadline.weight(.semibold))
                     .lineLimit(2)
-                if !entry.lesson.subject.isEmpty {
-                    let subjectColor = AppColors.color(forSubject: entry.lesson.subject)
-                    Text(entry.lesson.subject)
+                if !entry.lesson.area.isEmpty {
+                    let areaColor = AppColors.color(forArea: entry.lesson.area)
+                    Text(entry.lesson.area)
                         .font(.caption2.weight(.semibold))
                         .padding(.horizontal, 6)
                         .padding(.vertical, 2)
-                        .background(Capsule().fill(subjectColor.opacity(0.18)))
-                        .foregroundStyle(subjectColor)
+                        .background(Capsule().fill(areaColor.opacity(0.18)))
+                        .foregroundStyle(areaColor)
                 }
                 Spacer(minLength: 0)
             }

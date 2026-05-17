@@ -1,19 +1,19 @@
-// SmallGroupPlannerTypes.swift
+// SmallSequencePlannerTypes.swift
 // Value types for the Small Group Planning Intelligence feature.
 
 import SwiftUI
 
 // MARK: - Lesson Group Candidate
 
-/// Represents a lesson that has potential students for a group presentation.
-struct LessonGroupCandidate: Identifiable, Sendable {
+/// Represents a lesson that has potential students for a sequence presentation.
+struct LessonSequenceCandidate: Identifiable, Sendable {
     let id: UUID
     let lessonName: String
-    let subject: String
-    let group: String
-    let orderInGroup: Int
-    let readyStudents: [GroupStudentStatus]
-    let almostReadyStudents: [GroupStudentStatus]
+    let area: String
+    let sequence: String
+    let orderInSequence: Int
+    let readyStudents: [SequenceStudentStatus]
+    let almostReadyStudents: [SequenceStudentStatus]
     let notReadyCount: Int
     let totalEnrolled: Int
     let precedingLessonName: String?
@@ -26,14 +26,14 @@ struct LessonGroupCandidate: Identifiable, Sendable {
 // MARK: - Student Status
 
 /// A student's readiness status for a specific lesson.
-struct GroupStudentStatus: Identifiable, Sendable {
+struct SequenceStudentStatus: Identifiable, Sendable {
     let id: UUID
     let firstName: String
     let lastName: String
     let nickname: String?
     let level: CDStudent.Level
     let tier: ReadinessTier
-    let blockingReasons: [GroupBlockingReason]
+    let blockingReasons: [SequenceBlockingReason]
     let precedingLessonName: String?
 
     var displayName: String { nickname ?? firstName }
@@ -82,7 +82,7 @@ enum ReadinessTier: String, Sendable, CaseIterable, Identifiable {
 // MARK: - Blocking Reason
 
 /// Specific reason a student is not yet ready for a lesson.
-enum GroupBlockingReason: Sendable, Identifiable {
+enum SequenceBlockingReason: Sendable, Identifiable {
     case needsPracticeCompletion(workTitle: String, workID: UUID, daysSinceAssigned: Int)
     case needsTeacherConfirmation(precedingLessonName: String, assignmentID: UUID)
     case needsPrecedingPresentation(lessonName: String)

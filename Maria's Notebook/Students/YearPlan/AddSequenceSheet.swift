@@ -18,21 +18,21 @@ struct AddSequenceSheet: View {
                 #endif
                 .toolbar { formToolbar }
                 .task {
-                    viewModel.loadSubjectsAndGroups(context: viewContext)
+                    viewModel.loadAreasAndSequences(context: viewContext)
                 }
                 .onChange(of: viewModel.selectionMode) { _, _ in
-                    viewModel.selectedSubject = nil
-                    viewModel.selectedGroup = nil
+                    viewModel.selectedArea = nil
+                    viewModel.selectedSequence = nil
                     viewModel.selectedLesson = nil
                 }
-                .onChange(of: viewModel.selectedSubject) { _, _ in
-                    viewModel.selectedGroup = nil
+                .onChange(of: viewModel.selectedArea) { _, _ in
+                    viewModel.selectedSequence = nil
                     viewModel.selectedLesson = nil
                 }
-                .onChange(of: viewModel.selectedGroup) { _, newGroup in
-                    if let subject = viewModel.selectedSubject, let group = newGroup {
-                        viewModel.selectGroup(
-                            subject: subject, group: group,
+                .onChange(of: viewModel.selectedSequence) { _, newSequence in
+                    if let area = viewModel.selectedArea, let sequence = newSequence {
+                        viewModel.selectSequence(
+                            area: area, sequence: sequence,
                             student: student, context: viewContext
                         )
                     }
@@ -108,38 +108,38 @@ struct AddSequenceSheet: View {
             }
             .pickerStyle(.segmented)
 
-            if viewModel.selectionMode == .group {
+            if viewModel.selectionMode == .sequence {
                 groupPickerContent
             } else {
                 lessonPickerContent
             }
         } header: {
-            Text(viewModel.selectionMode == .group ? "Curriculum Group" : "Starting Lesson")
+            Text(viewModel.selectionMode == .sequence ? "Curriculum Group" : "Starting Lesson")
         }
     }
 
     @ViewBuilder
     private var groupPickerContent: some View {
-        Picker("Subject", selection: $viewModel.selectedSubject) {
-            Text("Select a subject").tag(nil as String?)
-            ForEach(viewModel.subjects, id: \.self) { subject in
-                Text(subject).tag(subject as String?)
+        Picker("Area", selection: $viewModel.selectedArea) {
+            Text("Select a area").tag(nil as String?)
+            ForEach(viewModel.areas, id: \.self) { area in
+                Text(area).tag(area as String?)
             }
         }
 
-        if viewModel.selectedSubject != nil {
-            Picker("Group", selection: $viewModel.selectedGroup) {
-                Text("Select a group").tag(nil as String?)
-                ForEach(viewModel.availableGroups, id: \.self) { group in
-                    Text(group).tag(group as String?)
+        if viewModel.selectedArea != nil {
+            Picker("Sequence", selection: $viewModel.selectedSequence) {
+                Text("Select a sequence").tag(nil as String?)
+                ForEach(viewModel.availableSequences, id: \.self) { sequence in
+                    Text(sequence).tag(sequence as String?)
                 }
             }
         }
 
-        if let lesson = viewModel.selectedLesson, viewModel.selectedGroup != nil {
+        if let lesson = viewModel.selectedLesson, viewModel.selectedSequence != nil {
             HStack {
                 VStack(alignment: .leading, spacing: 2) {
-                    Text(viewModel.allLessonsPresentedInGroup
+                    Text(viewModel.allLessonsPresentedInSequence
                          ? "All lessons presented — restarting from:"
                          : "Starting at:")
                         .font(.caption)
@@ -149,7 +149,7 @@ struct AddSequenceSheet: View {
                 }
                 Spacer()
                 Circle()
-                    .fill(AppColors.color(forSubject: lesson.subject))
+                    .fill(AppColors.color(forArea: lesson.area))
                     .frame(width: 8, height: 8)
             }
         }
@@ -163,7 +163,7 @@ struct AddSequenceSheet: View {
                 VStack(alignment: .leading, spacing: 2) {
                     Text(lesson.name)
                         .font(.body)
-                    Text("\(lesson.subject) \u{00B7} \(lesson.group)")
+                    Text("\(lesson.area) \u{00B7} \(lesson.sequence)")
                         .font(.caption)
                         .foregroundStyle(.secondary)
                 }
@@ -199,7 +199,7 @@ struct AddSequenceSheet: View {
             ForEach(viewModel.previewItems) { item in
                 HStack {
                     Circle()
-                        .fill(AppColors.color(forSubject: item.subject))
+                        .fill(AppColors.color(forArea: item.area))
                         .frame(width: 8, height: 8)
                     Text(item.lessonName)
                         .font(.body)

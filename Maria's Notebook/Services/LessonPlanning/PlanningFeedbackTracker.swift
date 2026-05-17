@@ -26,8 +26,8 @@ struct PlanningFeedbackTracker {
         record.reasoning = recommendation.reasoning
         record.confidence = recommendation.confidence
         record.priority = Int64(recommendation.priority)
-        record.subjectContext = recommendation.subject
-        record.groupContext = recommendation.group
+        record.subjectContext = recommendation.area
+        record.groupContext = recommendation.sequence
         record.planningSessionID = session.id.uuidString
         record.depthLevel = session.depth.rawValue
         record.decisionRaw = decision.rawValue
@@ -87,8 +87,8 @@ struct PlanningFeedbackTracker {
 
     private static func buildCalibrationSummary(from records: [CDPlanningRecommendation]) -> String? {
         // Aggregate decision patterns
-        var acceptedSubjects: [String: Int] = [:]
-        var rejectedSubjects: [String: Int] = [:]
+        var acceptedAreas: [String: Int] = [:]
+        var rejectedAreas: [String: Int] = [:]
         var totalAccepted = 0
         var totalRejected = 0
 
@@ -96,10 +96,10 @@ struct PlanningFeedbackTracker {
             switch record.decision {
             case .accepted:
                 totalAccepted += 1
-                acceptedSubjects[record.subjectContext, default: 0] += 1
+                acceptedAreas[record.subjectContext, default: 0] += 1
             case .rejected:
                 totalRejected += 1
-                rejectedSubjects[record.subjectContext, default: 0] += 1
+                rejectedAreas[record.subjectContext, default: 0] += 1
             default:
                 break
             }
@@ -111,18 +111,18 @@ struct PlanningFeedbackTracker {
         lines.append("TEACHER PREFERENCE CALIBRATION (from \(records.count) past recommendations):")
         lines.append("Acceptance rate: \(totalAccepted)/\(totalAccepted + totalRejected)")
 
-        // Most accepted subjects
-        let topAccepted = acceptedSubjects.sorted { $0.value > $1.value }.prefix(3)
+        // Most accepted areas
+        let topAccepted = acceptedAreas.sorted { $0.value > $1.value }.prefix(3)
         if !topAccepted.isEmpty {
             let acceptedList = topAccepted.map { "\($0.key)(\($0.value))" }.joined(separator: ", ")
-            lines.append("Frequently accepted subjects: \(acceptedList)")
+            lines.append("Frequently accepted areas: \(acceptedList)")
         }
 
-        // Most rejected subjects
-        let topRejected = rejectedSubjects.sorted { $0.value > $1.value }.prefix(3)
+        // Most rejected areas
+        let topRejected = rejectedAreas.sorted { $0.value > $1.value }.prefix(3)
         if !topRejected.isEmpty {
             let rejectedList = topRejected.map { "\($0.key)(\($0.value))" }.joined(separator: ", ")
-            lines.append("Frequently rejected subjects: \(rejectedList)")
+            lines.append("Frequently rejected areas: \(rejectedList)")
         }
 
         // Teacher notes patterns

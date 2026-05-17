@@ -88,7 +88,7 @@ public struct ResourceDTO: Codable, Sendable {
     public var isFavorite: Bool
     public var lastViewedAt: Date?
     public var linkedLessonIDs: String
-    public var linkedSubjects: String
+    public var linkedAreas: String
     public var createdAt: Date
     public var modifiedAt: Date
     // CDNote: fileBookmark and thumbnailData are @externalStorage and excluded from backups by design

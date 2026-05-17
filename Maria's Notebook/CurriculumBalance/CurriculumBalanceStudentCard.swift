@@ -1,5 +1,5 @@
 // CurriculumBalanceStudentCard.swift
-// Expandable card showing one student's subject distribution and gap warnings.
+// Expandable card showing one student's area distribution and gap warnings.
 // Design follows ProgressDashboardStudentCard: initials circle, level color, card style.
 
 import SwiftUI
@@ -107,8 +107,8 @@ struct CurriculumBalanceStudentCard: View {
             Divider()
                 .padding(.horizontal, 14)
 
-            // Subject distribution bars
-            subjectBars
+            // Area distribution bars
+            areaBars
                 .padding(.horizontal, 14)
 
             // Gap warnings
@@ -120,11 +120,11 @@ struct CurriculumBalanceStudentCard: View {
         .padding(.bottom, 12)
     }
 
-    private var subjectBars: some View {
+    private var areaBars: some View {
         VStack(alignment: .leading, spacing: 6) {
-            ForEach(card.subjectCounts) { dist in
+            ForEach(card.areaCounts) { dist in
                 HStack(spacing: 8) {
-                    Text(dist.subject)
+                    Text(dist.area)
                         .font(.caption)
                         .foregroundStyle(.secondary)
                         .frame(width: 80, alignment: .trailing)
@@ -155,7 +155,7 @@ struct CurriculumBalanceStudentCard: View {
                         .font(.caption2)
                         .foregroundStyle(AppColors.warning)
 
-                    Text("\(gap.subject) is underrepresented")
+                    Text("\(gap.area) is underrepresented")
                         .font(.caption2)
                         .foregroundStyle(AppColors.warning)
                 }

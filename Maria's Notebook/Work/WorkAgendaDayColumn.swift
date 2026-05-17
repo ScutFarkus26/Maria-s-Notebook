@@ -9,7 +9,7 @@ struct WorkAgendaDayColumn: View {
     let availableHeight: CGFloat
     let showPresentations: Bool
     let onPillTap: (CDWorkCheckIn) -> Void
-    let onGroupTap: ((CheckInGroup) -> Void)?
+    let onSequenceTap: ((CheckInGroup) -> Void)?
     let onLessonAssignmentSelect: ((CDLessonAssignment) -> Void)?
 
     // Fetch work check-ins for this day (scheduled status only)
@@ -23,14 +23,14 @@ struct WorkAgendaDayColumn: View {
         availableHeight: CGFloat,
         showPresentations: Bool = true,
         onPillTap: @escaping (CDWorkCheckIn) -> Void,
-        onGroupTap: ((CheckInGroup) -> Void)? = nil,
+        onSequenceTap: ((CheckInGroup) -> Void)? = nil,
         onLessonAssignmentSelect: ((CDLessonAssignment) -> Void)? = nil
     ) {
         self.day = day
         self.availableHeight = availableHeight
         self.showPresentations = showPresentations
         self.onPillTap = onPillTap
-        self.onGroupTap = onGroupTap
+        self.onSequenceTap = onSequenceTap
         self.onLessonAssignmentSelect = onLessonAssignmentSelect
 
         // Initialize work check-ins query for this day (scheduled status only)
@@ -58,10 +58,10 @@ struct WorkAgendaDayColumn: View {
 
     // MARK: - Check-in Grouping
 
-    /// A resolved check-in group: one or more check-ins sharing the same lesson and purpose
+    /// A resolved check-in sequence: one or more check-ins sharing the same lesson and purpose
     struct CheckInGroup: Identifiable {
         let id: UUID
-        /// All check-ins in this group (same lesson + purpose)
+        /// All check-ins in this sequence (same lesson + purpose)
         let checkIns: [CDWorkCheckIn]
         let lessonTitle: String
         let studentNames: [String]
@@ -107,7 +107,7 @@ struct WorkAgendaDayColumn: View {
             let work: CDWorkModel
             let lessonTitle: String
             let studentName: String
-            let groupKey: String  // lessonID + purpose
+            let sequenceKey: String  // lessonID + purpose
             let checkInStyle: CheckInStyle
         }
 
@@ -119,12 +119,12 @@ struct WorkAgendaDayColumn: View {
             guard let work = modelContext.safeFetchFirst(workRequest) else { continue }
             let lessonTitle = resolvedLessonTitle(for: work)
             let studentName = resolvedStudentName(for: work)
-            let groupKey = "\(work.lessonID)|\(ci.purpose)"
+            let sequenceKey = "\(work.lessonID)|\(ci.purpose)"
             resolved.append(Resolved(
                 checkIn: ci, work: work,
                 lessonTitle: lessonTitle,
                 studentName: studentName,
-                groupKey: groupKey,
+                sequenceKey: sequenceKey,
                 checkInStyle: work.checkInStyle
             ))
         }
@@ -144,8 +144,8 @@ struct WorkAgendaDayColumn: View {
         var order: [String] = []
         var buckets: [String: [Resolved]] = [:]
         for r in groupableItems {
-            if buckets[r.groupKey] == nil { order.append(r.groupKey) }
-            buckets[r.groupKey, default: []].append(r)
+            if buckets[r.sequenceKey] == nil { order.append(r.sequenceKey) }
+            buckets[r.sequenceKey, default: []].append(r)
         }
 
         var result: [CheckInGroup] = []
@@ -212,21 +212,21 @@ struct WorkAgendaDayColumn: View {
             VStack(alignment: .leading, spacing: 4) {
                 ForEach(allItems) { item in
                     switch item {
-                    case .checkInGroup(let group):
-                        if group.isGrouped {
-                            GroupedWorkCheckInPill(group: group) {
-                                if let onGroupTap { onGroupTap(group) } else { onPillTap(group.primary) }
+                    case .checkInGroup(let sequence):
+                        if sequence.isGrouped {
+                            GroupedWorkCheckInPill(sequence: sequence) {
+                                if let onSequenceTap { onSequenceTap(sequence) } else { onPillTap(sequence.primary) }
                             }
-                            .draggable(UnifiedCalendarDragPayload.workCheckIn(group.primary.id ?? UUID()).stringRepresentation) {
-                                GroupedWorkCheckInPill(group: group)
+                            .draggable(UnifiedCalendarDragPayload.workCheckIn(sequence.primary.id ?? UUID()).stringRepresentation) {
+                                GroupedWorkCheckInPill(sequence: sequence)
                                     .opacity(UIConstants.OpacityConstants.almostOpaque)
                             }
                         } else {
-                            WorkCheckInPill(checkIn: group.primary, isDulled: false) {
-                                onPillTap(group.primary)
+                            WorkCheckInPill(checkIn: sequence.primary, isDulled: false) {
+                                onPillTap(sequence.primary)
                             }
-                            .draggable(UnifiedCalendarDragPayload.workCheckIn(group.primary.id ?? UUID()).stringRepresentation) {
-                                WorkCheckInPill(checkIn: group.primary, isDulled: false)
+                            .draggable(UnifiedCalendarDragPayload.workCheckIn(sequence.primary.id ?? UUID()).stringRepresentation) {
+                                WorkCheckInPill(checkIn: sequence.primary, isDulled: false)
                                     .opacity(UIConstants.OpacityConstants.almostOpaque)
                             }
                         }
@@ -283,11 +283,11 @@ struct WorkAgendaDayColumn: View {
 
 /// A pill that consolidates multiple check-ins for the same lesson and purpose into one row
 struct GroupedWorkCheckInPill: View {
-    let group: WorkAgendaDayColumn.CheckInGroup
+    let sequence: WorkAgendaDayColumn.CheckInGroup
     var onTap: (() -> Void)?
 
     private var purposeIcon: String {
-        let purpose = group.purpose.lowercased()
+        let purpose = sequence.purpose.lowercased()
         if purpose.contains("progress") || purpose.contains("check") {
             return "checkmark.circle"
         } else if purpose.contains("due") {
@@ -302,20 +302,20 @@ struct GroupedWorkCheckInPill: View {
     }
 
     private var studentNamesDisplay: String {
-        group.studentNames.joined(separator: ", ")
+        sequence.studentNames.joined(separator: ", ")
     }
 
     var body: some View {
         VStack(alignment: .leading, spacing: 4) {
             HStack(alignment: .firstTextBaseline, spacing: 6) {
                 // CDStudent count badge
-                Text("\(group.checkIns.count)")
+                Text("\(sequence.checkIns.count)")
                     .font(AppTheme.ScaledFont.captionSemibold)
                     .foregroundStyle(.white)
                     .padding(.horizontal, 5)
                     .padding(.vertical, 1)
                     .background(Capsule().fill(Color.accentColor))
-                Text(group.lessonTitle)
+                Text(sequence.lessonTitle)
                     .font(AppTheme.ScaledFont.captionSemibold)
                     .foregroundStyle(.primary)
                     .lineLimit(1)
@@ -324,11 +324,11 @@ struct GroupedWorkCheckInPill: View {
                 .font(AppTheme.ScaledFont.caption)
                 .foregroundStyle(.secondary)
                 .lineLimit(2)
-            if !group.purpose.isEmpty {
+            if !sequence.purpose.isEmpty {
                 HStack(spacing: 6) {
                     Image(systemName: purposeIcon)
                         .foregroundStyle(.secondary)
-                    Text(group.purpose)
+                    Text(sequence.purpose)
                         .font(.caption2)
                         .foregroundStyle(.secondary)
                 }

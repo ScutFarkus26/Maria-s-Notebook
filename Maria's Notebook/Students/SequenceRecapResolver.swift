@@ -1,7 +1,7 @@
-// GroupRecapResolver.swift
-// Builds a `GroupRecap` snapshot from the live Core Data store. Orchestrates
-// the bulk fetches in GroupRecapDataLoader and the note distribution in
-// GroupRecapNoteBucketer, then walks each (student × lesson) pair to assemble
+// SequenceRecapResolver.swift
+// Builds a `SequenceRecap` snapshot from the live Core Data store. Orchestrates
+// the bulk fetches in SequenceRecapDataLoader and the note distribution in
+// SequenceRecapNoteBucketer, then walks each (student × lesson) pair to assemble
 // per-student entries.
 //
 // Notes on cross-store FKs:
@@ -12,72 +12,72 @@
 import Foundation
 import CoreData
 
-enum GroupRecapResolver {
+enum SequenceRecapResolver {
 
     // MARK: - Public Entry Point
 
-    /// Builds a `GroupRecap` for the given lesson + students. Returns nil when there's
-    /// nothing meaningful to show (lesson has no group, or no lessons in the group).
+    /// Builds a `SequenceRecap` for the given lesson + students. Returns nil when there's
+    /// nothing meaningful to show (lesson has no sequence, or no lessons in the sequence).
     @MainActor
     static func resolve(
         currentLesson: CDLesson?,
         students: [CDStudent],
         context: NSManagedObjectContext
-    ) -> GroupRecap? {
+    ) -> SequenceRecap? {
         guard let currentLesson else { return nil }
-        let groupName = currentLesson.group
-        let subject = currentLesson.subject
-        guard !groupName.isEmpty else { return nil }
+        let sequenceName = currentLesson.sequence
+        let area = currentLesson.area
+        guard !sequenceName.isEmpty else { return nil }
 
-        let lessons = GroupRecapDataLoader.fetchLessonsInGroup(
-            group: groupName,
-            subject: subject,
+        let lessons = SequenceRecapDataLoader.fetchLessonsInSequence(
+            sequence: sequenceName,
+            area: area,
             context: context
         )
         guard !lessons.isEmpty else { return nil }
 
-        let lessonsInGroup = lessons.compactMap {
+        let lessonsInSequence = lessons.compactMap {
             lessonSummary(from: $0, currentLessonID: currentLesson.id)
         }
         let lessonIDStrings = lessons.compactMap { $0.id?.uuidString }
         let studentIDStrings = students.compactMap { $0.id?.uuidString }
 
         guard !studentIDStrings.isEmpty else {
-            return GroupRecap(
-                groupName: groupName,
-                subject: subject,
-                lessonsInGroup: lessonsInGroup,
+            return SequenceRecap(
+                sequenceName: sequenceName,
+                area: area,
+                lessonsInSequence: lessonsInSequence,
                 studentEntries: []
             )
         }
 
-        let collected = GroupRecapDataLoader.collect(
+        let collected = SequenceRecapDataLoader.collect(
             lessonIDs: lessonIDStrings,
             studentIDs: studentIDStrings,
             context: context
         )
-        let buckets = GroupRecapNoteBucketer.bucket(
+        let buckets = SequenceRecapNoteBucketer.bucket(
             notes: collected.notes,
             studentLinks: collected.studentLinks,
             studentIDSet: Set(studentIDStrings),
             lessonIDSet: Set(lessonIDStrings)
         )
 
-        let studentEntries: [GroupRecapStudentEntry] = students.compactMap { student in
+        let studentEntries: [SequenceRecapStudentEntry] = students.compactMap { student in
             guard let sid = student.id else { return nil }
             return buildStudentEntry(
                 student: student,
                 studentID: sid,
-                lessonsInGroup: lessonsInGroup,
+                lessonsInSequence: lessonsInSequence,
                 collected: collected,
                 buckets: buckets
             )
         }
 
-        return GroupRecap(
-            groupName: groupName,
-            subject: subject,
-            lessonsInGroup: lessonsInGroup,
+        return SequenceRecap(
+            sequenceName: sequenceName,
+            area: area,
+            lessonsInSequence: lessonsInSequence,
             studentEntries: studentEntries
         )
     }
@@ -87,12 +87,12 @@ enum GroupRecapResolver {
     private static func lessonSummary(
         from lesson: CDLesson,
         currentLessonID: UUID?
-    ) -> GroupRecapLesson? {
+    ) -> SequenceRecapLesson? {
         guard let id = lesson.id else { return nil }
-        return GroupRecapLesson(
+        return SequenceRecapLesson(
             id: id,
             name: lesson.name,
-            orderInGroup: Int(lesson.orderInGroup),
+            orderInSequence: Int(lesson.orderInSequence),
             isCurrent: id == currentLessonID
         )
     }
@@ -103,24 +103,24 @@ enum GroupRecapResolver {
     private static func buildStudentEntry(
         student: CDStudent,
         studentID: UUID,
-        lessonsInGroup: [GroupRecapLesson],
-        collected: GroupRecapCollectedData,
-        buckets: GroupRecapNoteBuckets
-    ) -> GroupRecapStudentEntry {
+        lessonsInSequence: [SequenceRecapLesson],
+        collected: SequenceRecapCollectedData,
+        buckets: SequenceRecapNoteBuckets
+    ) -> SequenceRecapStudentEntry {
         let studentIDString = studentID.uuidString
-        let lessonEntries = lessonsInGroup.map { lessonRecap in
+        let lessonEntries = lessonsInSequence.map { lessonRecap in
             buildLessonEntry(
                 studentIDString: studentIDString,
-                lessonInGroup: lessonRecap,
+                lessonInSequence: lessonRecap,
                 collected: collected,
                 buckets: buckets
             )
         }
         let orphan = (buckets.orphanNotesByStudent[studentIDString] ?? [])
-            .map { GroupRecapNote(from: $0) }
+            .map { SequenceRecapNote(from: $0) }
             .sorted { ($0.createdAt ?? .distantPast) > ($1.createdAt ?? .distantPast) }
 
-        return GroupRecapStudentEntry(
+        return SequenceRecapStudentEntry(
             id: studentID,
             studentName: student.fullName,
             lessonEntries: lessonEntries,
@@ -131,12 +131,12 @@ enum GroupRecapResolver {
     @MainActor
     private static func buildLessonEntry(
         studentIDString: String,
-        lessonInGroup: GroupRecapLesson,
-        collected: GroupRecapCollectedData,
-        buckets: GroupRecapNoteBuckets
-    ) -> GroupRecapLessonEntry {
-        let lessonIDString = lessonInGroup.id.uuidString
-        let pairKey = GroupRecapPairKey(lessonID: lessonIDString, studentID: studentIDString)
+        lessonInSequence: SequenceRecapLesson,
+        collected: SequenceRecapCollectedData,
+        buckets: SequenceRecapNoteBuckets
+    ) -> SequenceRecapLessonEntry {
+        let lessonIDString = lessonInSequence.id.uuidString
+        let pairKey = SequenceRecapPairKey(lessonID: lessonIDString, studentID: studentIDString)
 
         let presentations = buildPresentations(
             studentIDString: studentIDString,
@@ -146,14 +146,14 @@ enum GroupRecapResolver {
         )
         let workItems = buildWorkItems(pairKey: pairKey, collected: collected, buckets: buckets)
         let directNotes = (buckets.directNotesByPair[pairKey] ?? [])
-            .map { GroupRecapNote(from: $0) }
+            .map { SequenceRecapNote(from: $0) }
             .sorted { ($0.createdAt ?? .distantPast) > ($1.createdAt ?? .distantPast) }
         let lp = collected.presentationByPair[pairKey]
 
-        return GroupRecapLessonEntry(
-            id: lessonInGroup.id,
-            lessonName: lessonInGroup.name,
-            isCurrentLesson: lessonInGroup.isCurrent,
+        return SequenceRecapLessonEntry(
+            id: lessonInSequence.id,
+            lessonName: lessonInSequence.name,
+            isCurrentLesson: lessonInSequence.isCurrent,
             outcomeState: lp?.state,
             firstPresentedAt: lp?.presentedAt,
             lastObservedAt: lp?.lastObservedAt,
@@ -169,9 +169,9 @@ enum GroupRecapResolver {
     private static func buildPresentations(
         studentIDString: String,
         lessonIDString: String,
-        collected: GroupRecapCollectedData,
-        buckets: GroupRecapNoteBuckets
-    ) -> [GroupRecapPresentation] {
+        collected: SequenceRecapCollectedData,
+        buckets: SequenceRecapNoteBuckets
+    ) -> [SequenceRecapPresentation] {
         let assignmentsForLesson = collected.assignmentsByLesson[lessonIDString] ?? []
         let participating = assignmentsForLesson
             .filter { $0.studentIDs.contains(studentIDString) }
@@ -180,9 +180,9 @@ enum GroupRecapResolver {
         return participating.compactMap { a in
             guard let aid = a.id else { return nil }
             let attached = (buckets.notesByAssignment[aid.uuidString] ?? [])
-                .map { GroupRecapNote(from: $0) }
+                .map { SequenceRecapNote(from: $0) }
                 .sorted { ($0.createdAt ?? .distantPast) > ($1.createdAt ?? .distantPast) }
-            return GroupRecapPresentation(
+            return SequenceRecapPresentation(
                 id: aid,
                 presentedAt: a.presentedAt,
                 scheduledFor: a.scheduledFor,
@@ -197,10 +197,10 @@ enum GroupRecapResolver {
 
     @MainActor
     private static func buildWorkItems(
-        pairKey: GroupRecapPairKey,
-        collected: GroupRecapCollectedData,
-        buckets: GroupRecapNoteBuckets
-    ) -> [GroupRecapWorkItem] {
+        pairKey: SequenceRecapPairKey,
+        collected: SequenceRecapCollectedData,
+        buckets: SequenceRecapNoteBuckets
+    ) -> [SequenceRecapWorkItem] {
         let workForPair = (collected.workByPair[pairKey] ?? [])
             .sorted { sortKey(for: $0) > sortKey(for: $1) }
         return workForPair.compactMap { work in
@@ -211,18 +211,18 @@ enum GroupRecapResolver {
     @MainActor
     private static func buildWorkItem(
         work: CDWorkModel,
-        buckets: GroupRecapNoteBuckets
-    ) -> GroupRecapWorkItem? {
+        buckets: SequenceRecapNoteBuckets
+    ) -> SequenceRecapWorkItem? {
         guard let wid = work.id else { return nil }
         let checkIns = ((work.checkIns?.allObjects as? [CDWorkCheckIn]) ?? [])
             .sorted { ($0.date ?? .distantPast) > ($1.date ?? .distantPast) }
 
-        let checkInSnapshots: [GroupRecapCheckIn] = checkIns.compactMap { ci in
+        let checkInSnapshots: [SequenceRecapCheckIn] = checkIns.compactMap { ci in
             guard let ciid = ci.id else { return nil }
             let ciNotes = (buckets.notesByCheckIn[ciid.uuidString] ?? [])
-                .map { GroupRecapNote(from: $0) }
+                .map { SequenceRecapNote(from: $0) }
                 .sorted { ($0.createdAt ?? .distantPast) > ($1.createdAt ?? .distantPast) }
-            return GroupRecapCheckIn(
+            return SequenceRecapCheckIn(
                 id: ciid,
                 date: ci.date,
                 status: ci.status,
@@ -232,10 +232,10 @@ enum GroupRecapResolver {
         }
 
         let workNotes = (buckets.notesByWork[wid.uuidString] ?? [])
-            .map { GroupRecapNote(from: $0) }
+            .map { SequenceRecapNote(from: $0) }
             .sorted { ($0.createdAt ?? .distantPast) > ($1.createdAt ?? .distantPast) }
 
-        return GroupRecapWorkItem(
+        return SequenceRecapWorkItem(
             id: wid,
             title: work.title,
             kind: work.kind,

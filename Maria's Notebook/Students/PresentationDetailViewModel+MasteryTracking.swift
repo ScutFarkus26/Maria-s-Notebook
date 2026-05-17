@@ -78,9 +78,9 @@ extension PresentationDetailViewModel {
         // If marking as mastered, check if track is now complete
         if state == .proficient, let lesson = lessonAssignment.lesson {
             for studentID in studentIDs {
-                GroupTrackService.checkAndCompleteTrackIfNeeded(
-                    lessonSubject: lesson.subject,
-                    lessonGroup: lesson.group,
+                SequenceTrackService.checkAndCompleteTrackIfNeeded(
+                    lessonArea: lesson.area,
+                    lessonSequence: lesson.sequence,
                     studentID: studentID,
                     context: viewContext,
                     saveCoordinator: saveCoordinator

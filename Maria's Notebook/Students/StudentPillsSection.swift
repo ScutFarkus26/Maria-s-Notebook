@@ -3,7 +3,7 @@ import CoreData
 
 struct StudentPillsSection: View {
     let students: [CDStudent]
-    let subjectColor: Color
+    let areaColor: Color
     var onRemove: (UUID) -> Void
     var onOpenPicker: () -> Void
     var onOpenMove: () -> Void
@@ -62,15 +62,15 @@ struct StudentPillsSection: View {
                     .font(.system(size: 12, weight: .semibold))
             }
             .buttonStyle(.plain)
-            .foregroundStyle(subjectColor)
+            .foregroundStyle(areaColor)
             .accessibilityLabel("Remove \(StudentFormatter.displayName(for: student))")
         }
         .padding(.horizontal, 10)
         .padding(.vertical, 6)
-        .foregroundStyle(subjectColor)
+        .foregroundStyle(areaColor)
         .background(
             RoundedRectangle(cornerRadius: 16, style: .continuous)
-                .fill(subjectColor.opacity(UIConstants.OpacityConstants.accent))
+                .fill(areaColor.opacity(UIConstants.OpacityConstants.accent))
         )
     }
 }

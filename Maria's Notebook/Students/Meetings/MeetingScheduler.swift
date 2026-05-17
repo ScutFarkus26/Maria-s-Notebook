@@ -63,7 +63,7 @@ enum MeetingScheduler {
 
     // MARK: - Group Meetings
 
-    /// Schedules a group meeting for multiple students, optionally linked to a work item.
+    /// Schedules a sequence meeting for multiple students, optionally linked to a work item.
     static func scheduleGroupMeeting(
         participantIDs: [UUID],
         date: Date,
@@ -84,7 +84,7 @@ enum MeetingScheduler {
     }
 
     /// Returns all scheduled meetings involving a given student
-    /// (either as primary student or as a group meeting participant).
+    /// (either as primary student or as a sequence meeting participant).
     static func scheduledMeetings(involving studentID: UUID, context: NSManagedObjectContext) -> [CDScheduledMeeting] {
         let descriptor = NSFetchRequest<CDScheduledMeeting>(entityName: "ScheduledMeeting")
         descriptor.sortDescriptors = [NSSortDescriptor(keyPath: \CDScheduledMeeting.date, ascending: true)]

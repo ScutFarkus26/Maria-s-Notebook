@@ -6,7 +6,7 @@
 //
 //  Pipeline:
 //   1. Compute a document vector for the story (title + themes + summary) and for
-//      each lesson (name + subject + group + purpose + writeUp) using Apple's
+//      each lesson (name + area + sequence + purpose + writeUp) using Apple's
 //      `NLEmbedding.wordEmbedding(for: .english)` — averaged word vectors.
 //   2. Rank lessons by cosine similarity, keep the top 25 candidates.
 //   3. If an Anthropic API key is configured, ask Claude to rerank the candidates
@@ -30,7 +30,7 @@ enum StoryLessonMatcher {
     struct LessonMatch: Sendable {
         let lessonID: UUID
         let lessonName: String
-        let lessonSubject: String
+        let lessonArea: String
         let reason: String
         /// 0…1 cosine similarity from the embedding pre-filter. Useful for tie-breaking.
         let score: Double
@@ -147,9 +147,9 @@ enum StoryLessonMatcher {
     private static func lessonEmbeddingText(for lesson: CDLesson) -> String {
         var parts: [String] = []
         if !lesson.name.isEmpty { parts.append(lesson.name) }
-        if !lesson.subject.isEmpty { parts.append(lesson.subject) }
-        if !lesson.group.isEmpty { parts.append(lesson.group) }
-        if !lesson.subheading.isEmpty { parts.append(lesson.subheading) }
+        if !lesson.area.isEmpty { parts.append(lesson.area) }
+        if !lesson.sequence.isEmpty { parts.append(lesson.sequence) }
+        if !lesson.section.isEmpty { parts.append(lesson.section) }
         if !lesson.purpose.isEmpty { parts.append(lesson.purpose) }
         if !lesson.writeUp.isEmpty {
             parts.append(String(lesson.writeUp.prefix(500)))
@@ -237,9 +237,9 @@ enum StoryLessonMatcher {
             let purpose = candidate.lesson.purpose
                 .trimmingCharacters(in: .whitespacesAndNewlines)
                 .prefix(180)
-            let group = candidate.lesson.group.isEmpty ? "—" : candidate.lesson.group
+            let sequence = candidate.lesson.sequence.isEmpty ? "—" : candidate.lesson.sequence
             return "- id: \(id.uuidString); name: \"\(candidate.lesson.name)\"; "
-                + "subject: \(candidate.lesson.subject); group: \(group); "
+                + "area: \(candidate.lesson.area); sequence: \(sequence); "
                 + "purpose: \(purpose)"
         }.joined(separator: "\n")
 
@@ -258,7 +258,7 @@ enum StoryLessonMatcher {
         \(candidateLines)
 
         Pick the 3 to 5 candidate lessons that most pedagogically connect with this \
-        story for a Montessori classroom. Prefer lessons whose theme, subject, or \
+        story for a Montessori classroom. Prefer lessons whose theme, area, or \
         purpose has a meaningful overlap — not just keyword matches. For each chosen \
         lesson write ONE concise sentence explaining the connection (≤ 25 words).
 
@@ -304,7 +304,7 @@ enum StoryLessonMatcher {
             matches.append(LessonMatch(
                 lessonID: id,
                 lessonName: candidate.lesson.name,
-                lessonSubject: candidate.lesson.subject,
+                lessonArea: candidate.lesson.area,
                 reason: entry.reason.trimmingCharacters(in: .whitespacesAndNewlines),
                 score: candidate.similarity
             ))
@@ -320,8 +320,8 @@ enum StoryLessonMatcher {
             return LessonMatch(
                 lessonID: id,
                 lessonName: candidate.lesson.name,
-                lessonSubject: candidate.lesson.subject,
-                reason: "Strong overlap on subject and theme keywords.",
+                lessonArea: candidate.lesson.area,
+                reason: "Strong overlap on area and theme keywords.",
                 score: candidate.similarity
             )
         }

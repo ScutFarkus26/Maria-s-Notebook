@@ -115,7 +115,7 @@ public enum WorkSourceContextType: String, Codable, CaseIterable, Hashable, Iden
 public enum CheckInStyle: String, Codable, CaseIterable, Hashable, Identifiable, Sendable {
     /// Check each student one-on-one
     case individual
-    /// Check all students together as a group
+    /// Check all students together as a sequence
     case group
     /// Grouped display by default, expandable to individual rows
     case flexible

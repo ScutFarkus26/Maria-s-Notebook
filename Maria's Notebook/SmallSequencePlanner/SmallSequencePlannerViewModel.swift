@@ -1,34 +1,34 @@
-// SmallGroupPlannerViewModel.swift
+// SmallSequencePlannerViewModel.swift
 // ViewModel for Small Group Planning Intelligence — computes per-lesson per-student readiness tiers.
 
 import SwiftUI
 import CoreData
 
 @Observable @MainActor
-final class SmallGroupPlannerViewModel {
-    private(set) var candidates: [LessonGroupCandidate] = []
-    private(set) var subjects: [String] = []
+final class SmallSequencePlannerViewModel {
+    private(set) var candidates: [LessonSequenceCandidate] = []
+    private(set) var areas: [String] = []
     private(set) var isLoading = false
 
-    var selectedSubject: String?
-    var selectedGroup: String?
+    var selectedArea: String?
+    var selectedSequence: String?
     var levelFilter: LevelFilter = .all
     var selectedStudentIDs: Set<UUID> = []
 
     // MARK: - Computed
 
-    var availableGroups: [String] {
-        guard let subject = selectedSubject else { return [] }
-        return allGroupsBySubject[subject] ?? []
+    var availableSequences: [String] {
+        guard let area = selectedArea else { return [] }
+        return allSequencesByArea[area] ?? []
     }
 
-    var filteredCandidates: [LessonGroupCandidate] {
+    var filteredCandidates: [LessonSequenceCandidate] {
         candidates.filter { $0.hasOpportunity }
     }
 
     // MARK: - Private State
 
-    private var allGroupsBySubject: [String: [String]] = [:]
+    private var allSequencesByArea: [String: [String]] = [:]
     private var allLessons: [CDLesson] = []
     private var allStudents: [CDStudent] = []
     private var presentedAssignments: [CDLessonAssignment] = []
@@ -70,33 +70,33 @@ final class SmallGroupPlannerViewModel {
         let workRequest = CDFetchRequest(CDWorkModel.self)
         activeWork = context.safeFetch(workRequest)
 
-        // Build subject → groups index
+        // Build area → groups index
         var groupsMap: [String: Set<String>] = [:]
-        for lesson in allLessons where !lesson.subject.isEmpty && !lesson.group.isEmpty {
-            groupsMap[lesson.subject, default: []].insert(lesson.group)
+        for lesson in allLessons where !lesson.area.isEmpty && !lesson.sequence.isEmpty {
+            groupsMap[lesson.area, default: []].insert(lesson.sequence)
         }
-        subjects = groupsMap.keys.sorted()
-        allGroupsBySubject = groupsMap.mapValues { $0.sorted() }
+        areas = groupsMap.keys.sorted()
+        allSequencesByArea = groupsMap.mapValues { $0.sorted() }
 
-        // Build candidates for selected subject/group
+        // Build candidates for selected area/sequence
         buildCandidates(students: filteredStudents, context: context)
     }
 
     // MARK: - Build Candidates
 
     private func buildCandidates(students: [CDStudent], context: NSManagedObjectContext) {
-        guard let subject = selectedSubject, let group = selectedGroup else {
+        guard let area = selectedArea, let sequence = selectedSequence else {
             candidates = []
             return
         }
 
-        // Filter lessons to selected subject/group
+        // Filter lessons to selected area/sequence
         let groupLessons = allLessons
             .filter {
-                $0.subject.trimmed().caseInsensitiveCompare(subject) == .orderedSame &&
-                $0.group.trimmed().caseInsensitiveCompare(group) == .orderedSame
+                $0.area.trimmed().caseInsensitiveCompare(area) == .orderedSame &&
+                $0.sequence.trimmed().caseInsensitiveCompare(sequence) == .orderedSame
             }
-            .sorted { $0.orderInGroup < $1.orderInGroup }
+            .sorted { $0.orderInSequence < $1.orderInSequence }
 
         guard !groupLessons.isEmpty else {
             candidates = []
@@ -130,7 +130,7 @@ final class SmallGroupPlannerViewModel {
             }
         )
 
-        var result: [LessonGroupCandidate] = []
+        var result: [LessonSequenceCandidate] = []
 
         for lesson in groupLessons {
             guard let lessonID = lesson.id else { continue }
@@ -188,8 +188,8 @@ final class SmallGroupPlannerViewModel {
                 return set
             }()
 
-            var readyStudents: [GroupStudentStatus] = []
-            var almostReadyStudents: [GroupStudentStatus] = []
+            var readyStudents: [SequenceStudentStatus] = []
+            var almostReadyStudents: [SequenceStudentStatus] = []
             var notReadyCount = 0
 
             for studentID in studentIDs {
@@ -210,7 +210,7 @@ final class SmallGroupPlannerViewModel {
 
                 if let precedingAssignment {
                     // Student has preceding lesson — check gates
-                    var reasons: [GroupBlockingReason] = []
+                    var reasons: [SequenceBlockingReason] = []
 
                     // Gate 1: Practice completion
                     if let rules, rules.requiresPractice {
@@ -282,12 +282,12 @@ final class SmallGroupPlannerViewModel {
 
             // Only include lessons that have at least one ready or almost-ready student
             if !readyStudents.isEmpty || !almostReadyStudents.isEmpty {
-                result.append(LessonGroupCandidate(
+                result.append(LessonSequenceCandidate(
                     id: lessonID,
                     lessonName: lesson.name,
-                    subject: subject,
-                    group: group,
-                    orderInGroup: Int(lesson.orderInGroup),
+                    area: area,
+                    sequence: sequence,
+                    orderInSequence: Int(lesson.orderInSequence),
                     readyStudents: readyStudents,
                     almostReadyStudents: almostReadyStudents,
                     notReadyCount: notReadyCount,
@@ -343,7 +343,7 @@ final class SmallGroupPlannerViewModel {
         }
     }
 
-    func selectAllReady(for candidate: LessonGroupCandidate) {
+    func selectAllReady(for candidate: LessonSequenceCandidate) {
         for student in candidate.readyStudents {
             selectedStudentIDs.insert(student.id)
         }
@@ -354,10 +354,10 @@ final class SmallGroupPlannerViewModel {
     private func makeStatus(
         student: CDStudent,
         tier: ReadinessTier,
-        reasons: [GroupBlockingReason],
+        reasons: [SequenceBlockingReason],
         precedingName: String?
-    ) -> GroupStudentStatus {
-        GroupStudentStatus(
+    ) -> SequenceStudentStatus {
+        SequenceStudentStatus(
             id: student.id ?? UUID(),
             firstName: student.firstName,
             lastName: student.lastName,

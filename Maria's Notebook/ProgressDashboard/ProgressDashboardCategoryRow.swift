@@ -1,5 +1,5 @@
 // ProgressDashboardCategoryRow.swift
-// A single subject › group row showing previous → next lesson flow with open work.
+// A single area › sequence row showing previous → next lesson flow with open work.
 // Design: Flighty-inspired departure→arrival flow, Linear's minimal chrome.
 
 import SwiftUI
@@ -11,15 +11,15 @@ struct ProgressDashboardCategoryRow: View {
     var onTapWork: ((UUID) -> Void)?
     var onScheduleNext: (() -> Void)?
 
-    private var subjectColor: Color {
-        AppColors.color(forSubject: category.subject)
+    private var areaColor: Color {
+        AppColors.color(forArea: category.area)
     }
 
     var body: some View {
         HStack(alignment: .top, spacing: 0) {
-            // Leading subject color accent bar
+            // Leading area color accent bar
             RoundedRectangle(cornerRadius: 2)
-                .fill(subjectColor)
+                .fill(areaColor)
                 .frame(width: 3)
                 .padding(.vertical, 2)
 
@@ -37,16 +37,16 @@ struct ProgressDashboardCategoryRow: View {
 
     private var categoryHeader: some View {
         HStack(spacing: 5) {
-            Text(category.subject)
+            Text(category.area)
                 .fontWeight(.semibold)
-                .foregroundStyle(subjectColor)
+                .foregroundStyle(areaColor)
 
             Image(systemName: "chevron.right")
                 .font(.caption2)
                 .fontWeight(.bold)
-                .foregroundStyle(subjectColor.opacity(UIConstants.OpacityConstants.half))
+                .foregroundStyle(areaColor.opacity(UIConstants.OpacityConstants.half))
 
-            Text(category.group)
+            Text(category.sequence)
                 .fontWeight(.medium)
                 .foregroundStyle(.secondary)
         }

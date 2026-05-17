@@ -158,8 +158,8 @@ extension BackupService {
             CDTrackStepEntity.self, using: viewContext) { BackupDTOTransformers.toDTOs($0) }
         payload.studentTrackEnrollments = fetchAndTransformInBatches(
             CDStudentTrackEnrollmentEntity.self, using: viewContext) { BackupDTOTransformers.toDTOs($0) }
-        payload.groupTracks = fetchAndTransformInBatches(
-            CDGroupTrack.self, using: viewContext) { BackupDTOTransformers.toDTOs($0) }
+        payload.sequenceTracks = fetchAndTransformInBatches(
+            CDSequenceTrack.self, using: viewContext) { BackupDTOTransformers.toDTOs($0) }
     }
 
     private func collectOrganizationDTOs(
@@ -373,7 +373,7 @@ extension BackupService {
             "Track": payload.tracks?.count ?? 0,
             "TrackStep": payload.trackSteps?.count ?? 0,
             "StudentTrackEnrollment": payload.studentTrackEnrollments?.count ?? 0,
-            "GroupTrack": payload.groupTracks?.count ?? 0,
+            "SequenceTrack": payload.sequenceTracks?.count ?? 0,
             "Document": payload.documents?.count ?? 0,
             "Supply": payload.supplies?.count ?? 0,
             "Procedure": payload.procedures?.count ?? 0,

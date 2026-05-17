@@ -81,8 +81,8 @@ import Testing
             ],
             lessons: [
                 LessonDTO(
-                    id: lessonID, name: "Binomial Cube", subject: "Sensorial",
-                    group: "Visual Sense", orderInGroup: 1, subheading: "",
+                    id: lessonID, name: "Binomial Cube", area: "Sensorial",
+                    sequence: "Visual Sense", orderInSequence: 1, section: "",
                     writeUp: ""
                 )
             ],
@@ -189,8 +189,8 @@ import Testing
             ],
             lessons: [
                 LessonDTO(
-                    id: lessonID, name: "Pink Tower", subject: "Sensorial",
-                    group: "Visual Sense", orderInGroup: 1, subheading: "Extension 1",
+                    id: lessonID, name: "Pink Tower", area: "Sensorial",
+                    sequence: "Visual Sense", orderInSequence: 1, section: "Extension 1",
                     writeUp: "The child builds a tower from largest to smallest cube.",
                     materials: "10 pink cubes", purpose: "Visual discrimination of size"
                 )

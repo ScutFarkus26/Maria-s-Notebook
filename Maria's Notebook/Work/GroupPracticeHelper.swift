@@ -1,12 +1,12 @@
 import SwiftUI
 import CoreData
 
-/// Helper to identify and facilitate group practice opportunities
-struct GroupPracticeHelper {
+/// Helper to identify and facilitate sequence practice opportunities
+struct SequencePracticeHelper {
     let modelContext: NSManagedObjectContext
 
     /// Finds students who have work from the same lesson
-    func findGroupPracticeOpportunities(for work: CDWorkModel, in allWork: [CDWorkModel]) -> [CDWorkModel] {
+    func findSequencePracticeOpportunities(for work: CDWorkModel, in allWork: [CDWorkModel]) -> [CDWorkModel] {
         guard !work.lessonID.isEmpty else { return [] }
 
         return allWork.filter { otherWork in
@@ -18,13 +18,13 @@ struct GroupPracticeHelper {
     }
 
     /// Checks if there are practice partners available for this work
-    func hasGroupPracticeOpportunity(for work: CDWorkModel, in allWork: [CDWorkModel]) -> Bool {
-        !findGroupPracticeOpportunities(for: work, in: allWork).isEmpty
+    func hasSequencePracticeOpportunity(for work: CDWorkModel, in allWork: [CDWorkModel]) -> Bool {
+        !findSequencePracticeOpportunities(for: work, in: allWork).isEmpty
     }
 }
 
-/// Badge indicator for group practice availability
-struct GroupPracticeBadge: View {
+/// Badge indicator for sequence practice availability
+struct SequencePracticeBadge: View {
     let partnerCount: Int
     var action: (() -> Void)?
 
@@ -45,12 +45,12 @@ struct GroupPracticeBadge: View {
             )
         })
         .buttonStyle(.plain)
-        .help("Start group practice with \(partnerCount) partner\(partnerCount == 1 ? "" : "s")")
+        .help("Start sequence practice with \(partnerCount) partner\(partnerCount == 1 ? "" : "s")")
     }
 }
 
-/// Quick action button to start group practice
-struct QuickGroupPracticeButton: View {
+/// Quick action button to start sequence practice
+struct QuickSequencePracticeButton: View {
     let work: CDWorkModel
     let availablePartners: [CDWorkModel]
     @Binding var showPracticeSessionSheet: Bool
@@ -81,21 +81,21 @@ struct QuickGroupPracticeButton: View {
     }
 }
 
-/// Extension to WorkCard to add group practice indicators
+/// Extension to WorkCard to add sequence practice indicators
 extension View {
-    /// Adds a group practice badge overlay if partners are available
+    /// Adds a sequence practice badge overlay if partners are available
     func groupPracticeBadge(
         for work: CDWorkModel,
         in allWork: [CDWorkModel],
         context: NSManagedObjectContext,
         action: @escaping () -> Void
     ) -> some View {
-        let helper = GroupPracticeHelper(modelContext: context)
-        let partners = helper.findGroupPracticeOpportunities(for: work, in: allWork)
+        let helper = SequencePracticeHelper(modelContext: context)
+        let partners = helper.findSequencePracticeOpportunities(for: work, in: allWork)
 
         return self.overlay(alignment: .topTrailing) {
             if !partners.isEmpty {
-                GroupPracticeBadge(partnerCount: partners.count, action: action)
+                SequencePracticeBadge(partnerCount: partners.count, action: action)
                     .padding(8)
             }
         }
@@ -106,11 +106,11 @@ extension View {
 
 #Preview("Group Practice Badge") {
     VStack(spacing: 20) {
-        GroupPracticeBadge(partnerCount: 2)
+        SequencePracticeBadge(partnerCount: 2)
 
-        GroupPracticeBadge(partnerCount: 1)
+        SequencePracticeBadge(partnerCount: 1)
 
-        GroupPracticeBadge(partnerCount: 5)
+        SequencePracticeBadge(partnerCount: 5)
     }
     .padding()
 }

@@ -1,18 +1,18 @@
-// GroupTrackSettingsSheet.swift
-// Sheet for configuring whether a group is a track and if it's sequential
+// SequenceTrackSettingsSheet.swift
+// Sheet for configuring whether a sequence is a track and if it's sequential
 
 import SwiftUI
 import CoreData
 import OSLog
 
-struct GroupTrackSettingsSheet: View {
+struct SequenceTrackSettingsSheet: View {
     private static let logger = Logger.lessons
 
     @Environment(\.managedObjectContext) private var viewContext
     @Environment(\.dismiss) private var dismiss
     
-    let subject: String
-    let group: String
+    let area: String
+    let sequence: String
     
     @State private var isTrack: Bool = false
     @State private var isSequential: Bool = true
@@ -28,7 +28,7 @@ struct GroupTrackSettingsSheet: View {
                     if isTrack {
                         Picker("Track Type", selection: $isSequential) {
                             Text("Sequential (order matters)").tag(true)
-                            Text("Group (no order)").tag(false)
+                            Text("Sequence (no order)").tag(false)
                         }
                         .pickerStyle(.segmented)
                         
@@ -38,12 +38,12 @@ struct GroupTrackSettingsSheet: View {
                         .font(.caption)
                         .foregroundStyle(.secondary)
                     } else {
-                        Text("This group will not be available as a track for student enrollment.")
+                        Text("This sequence will not be available as a track for student enrollment.")
                             .font(.caption)
                             .foregroundStyle(.secondary)
                     }
                 } header: {
-                    Text("Group: \(group)")
+                    Text("Sequence: \(sequence)")
                 } footer: {
                     if isTrack {
                         Text("Students can be enrolled in this track to track their progress through these lessons.")
@@ -55,7 +55,7 @@ struct GroupTrackSettingsSheet: View {
                     Toggle("Requires Teacher Confirmation", isOn: $requiresConfirmation)
 
                     if !requiresPractice && !requiresConfirmation {
-                        Text("The next lesson in this group will unlock immediately after presentation.")
+                        Text("The next lesson in this sequence will unlock immediately after presentation.")
                             .font(.caption)
                             .foregroundStyle(.secondary)
                     } else {
@@ -66,7 +66,7 @@ struct GroupTrackSettingsSheet: View {
                 } header: {
                     Text("Progression Rules")
                 } footer: {
-                    Text("Controls what students must complete before advancing to the next lesson in this group.")
+                    Text("Controls what students must complete before advancing to the next lesson in this sequence.")
                 }
             }
             .navigationTitle("Track Settings")
@@ -95,9 +95,9 @@ struct GroupTrackSettingsSheet: View {
     private func loadSettings() {
         do {
             // Default behavior: all groups are tracks (sequential) unless explicitly disabled
-            if let track = try GroupTrackService.cdGetGroupTrack(
-                subject: subject,
-                group: group,
+            if let track = try SequenceTrackService.cdGetSequenceTrack(
+                area: area,
+                sequence: sequence,
                 context: viewContext
             ) {
                 // If a record exists, check if it's explicitly disabled
@@ -116,9 +116,9 @@ struct GroupTrackSettingsSheet: View {
         }
 
         // Load progression rules
-        if let gs = CDLessonGroupSettings.find(
-            subject: subject,
-            group: group,
+        if let gs = CDLessonSequenceSettings.find(
+            area: area,
+            sequence: sequence,
             context: viewContext
         ) {
             requiresPractice = gs.requiresPractice
@@ -130,31 +130,31 @@ struct GroupTrackSettingsSheet: View {
         do {
             if isTrack {
                 // User wants this to be a track - create or update record
-                let track = try GroupTrackService.cdGetOrCreateGroupTrack(
-                    subject: subject,
-                    group: group,
+                let track = try SequenceTrackService.cdGetOrCreateSequenceTrack(
+                    area: area,
+                    sequence: sequence,
                     context: viewContext
                 )
                 track.isSequential = isSequential
                 track.isExplicitlyDisabled = false // Explicitly enabled
             } else {
                 // User unchecked "Use as CDTrackEntity" - explicitly disable
-                let track = try GroupTrackService.cdGetOrCreateGroupTrack(
-                    subject: subject,
-                    group: group,
+                let track = try SequenceTrackService.cdGetOrCreateSequenceTrack(
+                    area: area,
+                    sequence: sequence,
                     context: viewContext
                 )
                 track.isExplicitlyDisabled = true
             }
 
             // Save progression rules
-            let gs = CDLessonGroupSettings.find(
-                subject: subject,
-                group: group,
+            let gs = CDLessonSequenceSettings.find(
+                area: area,
+                sequence: sequence,
                 context: viewContext
-            ) ?? CDLessonGroupSettings(context: viewContext)
-            gs.subject = subject
-            gs.group = group
+            ) ?? CDLessonSequenceSettings(context: viewContext)
+            gs.area = area
+            gs.sequence = sequence
             gs.requiresPractice = requiresPractice
             gs.requiresTeacherConfirmation = requiresConfirmation
             gs.modifiedAt = Date()

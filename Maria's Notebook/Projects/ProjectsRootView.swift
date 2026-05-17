@@ -229,7 +229,7 @@ struct ProjectsRootView: View {
 
 /// A row component for displaying a project in a list view.
 /// Shows the project's icon (colored circle with project icon), title, and member count.
-/// Design matches SubjectListRow/StudentListRow for visual consistency across the app.
+/// Design matches AreaListRow/StudentListRow for visual consistency across the app.
 struct ProjectSidebarRow: View {
     let club: CDProject
     let isSelected: Bool
@@ -237,12 +237,12 @@ struct ProjectSidebarRow: View {
 
     private var projectColor: Color {
         // Use a consistent color for projects, or could be customized per project
-        AppColors.color(forSubject: "Reading")
+        AppColors.color(forArea: "Reading")
     }
 
     var body: some View {
         HStack(spacing: AppTheme.Spacing.compact) {
-            // Icon circle with project icon (matching SubjectListRow/StudentListRow avatar style)
+            // Icon circle with project icon (matching AreaListRow/StudentListRow avatar style)
             ZStack {
                 Circle()
                     .fill(

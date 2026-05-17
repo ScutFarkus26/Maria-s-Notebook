@@ -1,5 +1,5 @@
 // GreatLessonBranchCard.swift
-// Card view for a single Great Lesson branch showing progress and subject breakdown.
+// Card view for a single Great Lesson branch showing progress and area breakdown.
 
 import SwiftUI
 
@@ -12,7 +12,7 @@ struct GreatLessonBranchCard: View {
         VStack(alignment: .leading, spacing: 10) {
             headerRow
             Divider()
-            subjectCapsules
+            areaCapsules
             statsRow
             gapIndicator
         }
@@ -83,22 +83,22 @@ struct GreatLessonBranchCard: View {
         .frame(width: 40, height: 40)
     }
 
-    // MARK: - Subject Capsules
+    // MARK: - Area Capsules
 
-    private var subjectCapsules: some View {
+    private var areaCapsules: some View {
         FlowLayout(spacing: 6) {
-            ForEach(branch.subjectGroups) { group in
-                subjectCapsule(group)
+            ForEach(branch.areaSequences) { sequence in
+                areaCapsule(sequence)
             }
         }
     }
 
-    private func subjectCapsule(_ group: BranchSubjectGroup) -> some View {
+    private func areaCapsule(_ sequence: BranchAreaSequence) -> some View {
         HStack(spacing: 4) {
             Circle()
-                .fill(AppColors.color(forSubject: group.subject))
+                .fill(AppColors.color(forArea: sequence.area))
                 .frame(width: 6, height: 6)
-            Text("\(group.subject) · \(group.lessons.count)")
+            Text("\(sequence.area) · \(sequence.lessons.count)")
                 .font(.caption2)
                 .fontWeight(.medium)
                 .foregroundStyle(.secondary)
@@ -107,7 +107,7 @@ struct GreatLessonBranchCard: View {
         .padding(.vertical, 4)
         .background(
             Capsule(style: .continuous)
-                .fill(AppColors.color(forSubject: group.subject).opacity(UIConstants.OpacityConstants.light))
+                .fill(AppColors.color(forArea: sequence.area).opacity(UIConstants.OpacityConstants.light))
         )
     }
 

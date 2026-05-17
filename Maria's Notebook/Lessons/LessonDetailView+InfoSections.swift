@@ -11,16 +11,16 @@ extension LessonDetailView {
                 value: lesson.name.isEmpty ? "Untitled CDLesson" : lesson.name
             )
             infoRow(
-                icon: SFSymbol.Education.graduationcap, title: "Subject",
-                value: lesson.subject.isEmpty ? "\u{2014}" : lesson.subject
+                icon: SFSymbol.Education.graduationcap, title: "Area",
+                value: lesson.area.isEmpty ? "\u{2014}" : lesson.area
             )
             infoRow(
-                icon: SFSymbol.List.squareGrid, title: "Group",
-                value: lesson.group.isEmpty ? "\u{2014}" : lesson.group
+                icon: SFSymbol.List.squareGrid, title: "Sequence",
+                value: lesson.sequence.isEmpty ? "\u{2014}" : lesson.sequence
             )
             infoRow(
-                icon: "text.bubble", title: "Subheading",
-                value: lesson.subheading.isEmpty ? "\u{2014}" : lesson.subheading
+                icon: "text.bubble", title: "Section",
+                value: lesson.section.isEmpty ? "\u{2014}" : lesson.section
             )
             infoRow(
                 icon: "square.stack.3d.up", title: "Source",
@@ -205,7 +205,7 @@ extension LessonDetailView {
 
             // Related Resources
             if let lessonID = lesson.id {
-                RelatedResourcesSection(lessonID: lessonID, lessonSubject: lesson.subject)
+                RelatedResourcesSection(lessonID: lessonID, lessonArea: lesson.area)
             }
 
             if let url = resolvedPagesURL {

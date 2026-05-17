@@ -101,10 +101,10 @@ public struct StudentTrackEnrollmentDTO: Codable, Sendable {
     public var isActive: Bool
 }
 
-public struct GroupTrackDTO: Codable, Sendable {
+public struct SequenceTrackDTO: Codable, Sendable {
     public var id: UUID
-    public var subject: String
-    public var group: String
+    public var area: String
+    public var sequence: String
     public var isSequential: Bool
     public var isExplicitlyDisabled: Bool
     public var createdAt: Date

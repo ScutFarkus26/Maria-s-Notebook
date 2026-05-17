@@ -60,24 +60,24 @@ extension SuppliesListView {
 
     var groupedSuppliesView: some View {
         VStack(alignment: .leading, spacing: 20) {
-            ForEach(groupedSupplies, id: \.category) { group in
+            ForEach(groupedSupplies, id: \.category) { sequence in
                 VStack(alignment: .leading, spacing: 12) {
                     HStack(spacing: 10) {
-                        Image(systemName: group.category.icon)
+                        Image(systemName: sequence.category.icon)
                             .font(.title2)
                             .foregroundStyle(.secondary)
-                        Text(group.category.rawValue)
+                        Text(sequence.category.rawValue)
                             .font(.title2)
                             .fontWeight(.bold)
                             .foregroundStyle(.primary)
                         Spacer()
-                        Text("\(group.supplies.count)")
+                        Text("\(sequence.supplies.count)")
                             .font(.subheadline)
                             .foregroundStyle(.secondary)
                     }
                     .padding(.top, 8)
 
-                    suppliesList(group.supplies)
+                    suppliesList(sequence.supplies)
                 }
             }
         }

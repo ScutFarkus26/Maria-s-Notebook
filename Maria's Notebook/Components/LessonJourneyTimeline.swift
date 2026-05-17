@@ -273,7 +273,7 @@ struct LessonJourneyTimeline: View {
     let stack = CoreDataStack.preview
     let context = stack.viewContext
     let lesson = CDLesson(context: context)
-    let _ = { lesson.name = "Long Division"; lesson.subject = "Math"; lesson.group = "Operations" }()
+    let _ = { lesson.name = "Long Division"; lesson.area = "Math"; lesson.sequence = "Operations" }()
 
     return ScrollView {
         VStack(spacing: 20) {

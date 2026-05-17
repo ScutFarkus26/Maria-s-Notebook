@@ -90,8 +90,8 @@ enum WorkPDFRenderer {
         yPosition -= 6
 
         // Draw groups
-        for groupName in groupOrder {
-            guard let groupItems = groups[groupName] else { continue }
+        for sequenceName in groupOrder {
+            guard let groupItems = groups[sequenceName] else { continue }
 
             // New page if needed
             if yPosition < margin + 30 {
@@ -106,7 +106,7 @@ enum WorkPDFRenderer {
             context.fill(CGRect(x: margin, y: yPosition - headerHeight, width: contentWidth, height: headerHeight))
 
             drawSingleLine(
-                "\(groupName) (\(groupItems.count))",
+                "\(sequenceName) (\(groupItems.count))",
                 at: CGPoint(x: margin + 4, y: yPosition - headerHeight + 3),
                 font: headerFont, color: blackColor, in: context
             )
@@ -188,7 +188,7 @@ enum WorkPDFRenderer {
         var groups: [String: [PrintItem]] = [:]
 
         for item in sorted {
-            let key = groupKey(for: item, sortMode: sortMode)
+            let key = sequenceKey(for: item, sortMode: sortMode)
             if groups[key] == nil {
                 groupOrder.append(key)
                 groups[key] = []
@@ -199,7 +199,7 @@ enum WorkPDFRenderer {
         return GroupedItems(sorted: sorted, groups: groups, groupOrder: groupOrder)
     }
 
-    private static func groupKey(for item: PrintItem, sortMode: WorkAgendaSortMode) -> String {
+    private static func sequenceKey(for item: PrintItem, sortMode: WorkAgendaSortMode) -> String {
         switch sortMode {
         case .lesson: return item.lessonTitle
         case .student: return item.studentName

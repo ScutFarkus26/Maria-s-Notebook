@@ -36,12 +36,12 @@ struct DayDetailPopover: View {
     @ViewBuilder
     private func itemRow(_ item: YearPlanCalendarItem) -> some View {
         let lesson = lessonsByID[item.lessonID]
-        let subject = lesson?.subject ?? ""
+        let area = lesson?.area ?? ""
 
         VStack(alignment: .leading, spacing: 4) {
             HStack(spacing: 6) {
                 Circle()
-                    .fill(AppColors.color(forSubject: subject))
+                    .fill(AppColors.color(forArea: area))
                     .frame(width: 8, height: 8)
 
                 Text(lesson?.name ?? "Unknown")
@@ -53,8 +53,8 @@ struct DayDetailPopover: View {
                 statusBadge(for: item)
             }
 
-            if !subject.isEmpty || !(lesson?.group.isEmpty ?? true) {
-                Text([subject, lesson?.group].compactMap { $0?.isEmpty == false ? $0 : nil }.joined(separator: " · "))
+            if !area.isEmpty || !(lesson?.sequence.isEmpty ?? true) {
+                Text([area, lesson?.sequence].compactMap { $0?.isEmpty == false ? $0 : nil }.joined(separator: " · "))
                     .font(.caption)
                     .foregroundStyle(.secondary)
             }

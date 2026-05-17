@@ -1,6 +1,6 @@
 import SwiftUI
 
-/// Flat, subject-grouped list shown when search is active.
+/// Flat, area-grouped list shown when search is active.
 /// Replaces the normal hierarchy so results are easy to scan and select.
 struct LessonsSearchResultsView: View {
     let lessons: [CDLesson]
@@ -24,17 +24,17 @@ struct LessonsSearchResultsView: View {
 
     private var resultsList: some View {
         List {
-            ForEach(groupedBySubject, id: \.subject) { group in
-                lessonSection(for: group)
+            ForEach(groupedByArea, id: \.area) { sequence in
+                lessonSection(for: sequence)
             }
         }
         .listStyle(.plain)
     }
 
     @ViewBuilder
-    private func lessonSection(for group: (subject: String, lessons: [CDLesson])) -> some View {
-        Section(group.subject) {
-            ForEach(group.lessons) { lesson in
+    private func lessonSection(for sequence: (area: String, lessons: [CDLesson])) -> some View {
+        Section(sequence.area) {
+            ForEach(sequence.lessons) { lesson in
                 lessonRow(for: lesson)
             }
         }
@@ -68,19 +68,19 @@ struct LessonsSearchResultsView: View {
 
     // MARK: - Grouping
 
-    private var groupedBySubject: [(subject: String, lessons: [CDLesson])] {
-        let subjects = FilterOrderStore.loadSubjectOrder(
-            existing: Array(Set(lessons.map { $0.subject.trimmed() }.filter { !$0.isEmpty }))
+    private var groupedByArea: [(area: String, lessons: [CDLesson])] {
+        let areas = FilterOrderStore.loadAreaOrder(
+            existing: Array(Set(lessons.map { $0.area.trimmed() }.filter { !$0.isEmpty }))
         )
-        var result: [(subject: String, lessons: [CDLesson])] = subjects.compactMap { subject in
-            let subjectLessons = lessons.filter { $0.subject.trimmed() == subject }
-            guard !subjectLessons.isEmpty else { return nil }
-            return (subject, subjectLessons)
+        var result: [(area: String, lessons: [CDLesson])] = areas.compactMap { area in
+            let areaLessons = lessons.filter { $0.area.trimmed() == area }
+            guard !areaLessons.isEmpty else { return nil }
+            return (area, areaLessons)
         }
-        // Append lessons with no subject at the end
-        let noSubject = lessons.filter { $0.subject.trimmed().isEmpty }
-        if !noSubject.isEmpty {
-            result.append(("Other", noSubject))
+        // Append lessons with no area at the end
+        let noArea = lessons.filter { $0.area.trimmed().isEmpty }
+        if !noArea.isEmpty {
+            result.append(("Other", noArea))
         }
         return result
     }

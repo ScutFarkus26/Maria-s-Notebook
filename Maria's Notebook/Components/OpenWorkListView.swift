@@ -94,8 +94,8 @@ struct OpenWorkListView: View {
         }()
         let dateString = DateFormatter.localizedString(from: date, dateStyle: .medium, timeStyle: .none)
         if let lesson = linkedLesson(for: work) {
-            let subject = lesson.subject.trimmed()
-            return subject.isEmpty ? dateString : "\(subject) • \(dateString)"
+            let area = lesson.area.trimmed()
+            return area.isEmpty ? dateString : "\(area) • \(dateString)"
         }
         return dateString
     }

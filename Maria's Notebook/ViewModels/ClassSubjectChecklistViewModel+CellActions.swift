@@ -1,10 +1,10 @@
-// ClassSubjectChecklistViewModel+CellActions.swift
-// Individual cell toggle/mark/clear operations for ClassSubjectChecklistViewModel.
+// ClassAreaChecklistViewModel+CellActions.swift
+// Individual cell toggle/mark/clear operations for ClassAreaChecklistViewModel.
 
 import Foundation
 import CoreData
 
-extension ClassSubjectChecklistViewModel {
+extension ClassAreaChecklistViewModel {
 
     // MARK: - Individual Cell Actions
 
@@ -51,9 +51,9 @@ extension ClassSubjectChecklistViewModel {
         student: CDStudent, studentIDString: String, lesson: CDLesson,
         in allLAs: [CDLessonAssignment], context: NSManagedObjectContext
     ) {
-        if let group = allLAs.first(where: { !$0.isPresented && $0.scheduledFor == nil }) {
-            if !group.studentIDs.contains(studentIDString) {
-                group.studentIDs.append(studentIDString)
+        if let sequence = allLAs.first(where: { !$0.isPresented && $0.scheduledFor == nil }) {
+            if !sequence.studentIDs.contains(studentIDString) {
+                sequence.studentIDs.append(studentIDString)
             }
         } else {
             guard let lessonID = lesson.id, let studentID = student.id else { return }
@@ -92,11 +92,11 @@ extension ClassSubjectChecklistViewModel {
             studentID: studentIDString, lessonID: lessonIDString,
             state: .proficient, context: context
         )
-        GroupTrackService.autoEnrollInTrackIfNeeded(
-            lessonSubject: lesson.subject, lessonGroup: lesson.group, studentIDs: [studentIDString], context: context
+        SequenceTrackService.autoEnrollInTrackIfNeeded(
+            lessonArea: lesson.area, lessonSequence: lesson.sequence, studentIDs: [studentIDString], context: context
         )
-        GroupTrackService.checkAndCompleteTrackIfNeeded(
-            lessonSubject: lesson.subject, lessonGroup: lesson.group, studentID: studentIDString, context: context
+        SequenceTrackService.checkAndCompleteTrackIfNeeded(
+            lessonArea: lesson.area, lessonSequence: lesson.sequence, studentID: studentIDString, context: context
         )
     }
 
@@ -144,11 +144,11 @@ extension ClassSubjectChecklistViewModel {
         let isGivenToday = { (la: CDLessonAssignment) -> Bool in
             la.isPresented && (la.presentedAt ?? Date.distantPast).isSameDay(as: today)
         }
-        if let group = allLAs.first(where: isGivenToday) {
-            if !group.studentIDs.contains(studentIDString) {
-                group.studentIDs.append(studentIDString)
-                GroupTrackService.autoEnrollInTrackIfNeeded(
-                    lessonSubject: lesson.subject, lessonGroup: lesson.group, studentIDs: [studentIDString], context: context
+        if let sequence = allLAs.first(where: isGivenToday) {
+            if !sequence.studentIDs.contains(studentIDString) {
+                sequence.studentIDs.append(studentIDString)
+                SequenceTrackService.autoEnrollInTrackIfNeeded(
+                    lessonArea: lesson.area, lessonSequence: lesson.sequence, studentIDs: [studentIDString], context: context
                 )
             }
         } else {
@@ -158,8 +158,8 @@ extension ClassSubjectChecklistViewModel {
                 studentIDs: [studentUUID],
                 context: context
             )
-            GroupTrackService.autoEnrollInTrackIfNeeded(
-                lessonSubject: lesson.subject, lessonGroup: lesson.group, studentIDs: [studentIDString], context: context
+            SequenceTrackService.autoEnrollInTrackIfNeeded(
+                lessonArea: lesson.area, lessonSequence: lesson.sequence, studentIDs: [studentIDString], context: context
             )
         }
     }
@@ -205,11 +205,11 @@ extension ClassSubjectChecklistViewModel {
         let isUndatedPresented = { (la: CDLessonAssignment) -> Bool in
             la.isPresented && la.presentedAt == nil
         }
-        if let group = allLAs.first(where: isUndatedPresented) {
-            if !group.studentIDs.contains(studentIDString) {
-                group.studentIDs.append(studentIDString)
-                GroupTrackService.autoEnrollInTrackIfNeeded(
-                    lessonSubject: lesson.subject, lessonGroup: lesson.group, studentIDs: [studentIDString], context: context
+        if let sequence = allLAs.first(where: isUndatedPresented) {
+            if !sequence.studentIDs.contains(studentIDString) {
+                sequence.studentIDs.append(studentIDString)
+                SequenceTrackService.autoEnrollInTrackIfNeeded(
+                    lessonArea: lesson.area, lessonSequence: lesson.sequence, studentIDs: [studentIDString], context: context
                 )
             }
         } else {
@@ -219,8 +219,8 @@ extension ClassSubjectChecklistViewModel {
                 studentIDs: [studentUUID],
                 context: context
             )
-            GroupTrackService.autoEnrollInTrackIfNeeded(
-                lessonSubject: lesson.subject, lessonGroup: lesson.group, studentIDs: [studentIDString], context: context
+            SequenceTrackService.autoEnrollInTrackIfNeeded(
+                lessonArea: lesson.area, lessonSequence: lesson.sequence, studentIDs: [studentIDString], context: context
             )
         }
     }

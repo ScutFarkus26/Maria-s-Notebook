@@ -51,7 +51,7 @@ enum PresentationSplitService {
 
         // Copy relevant metadata
         newAssignment.lessonTitleSnapshot = assignment.lessonTitleSnapshot
-        newAssignment.lessonSubheadingSnapshot = assignment.lessonSubheadingSnapshot
+        newAssignment.lessonSectionSnapshot = assignment.lessonSectionSnapshot
         newAssignment.trackID = assignment.trackID
         newAssignment.trackStepID = assignment.trackStepID
 

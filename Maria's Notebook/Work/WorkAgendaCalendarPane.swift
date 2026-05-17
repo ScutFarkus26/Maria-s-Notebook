@@ -17,7 +17,7 @@ struct WorkAgendaCalendarPane: View {
 
     private struct SelectionToken: Identifiable, Equatable { let id: UUID; let contractID: UUID }
     @State private var selected: SelectionToken?
-    @State private var selectedGroup: WorkAgendaDayColumn.CheckInGroup?
+    @State private var selectedSequence: WorkAgendaDayColumn.CheckInGroup?
     
     @AppStorage(UserDefaultsKeys.workCalendarShowPresentations) private var showPresentations: Bool = true
 
@@ -98,13 +98,13 @@ struct WorkAgendaCalendarPane: View {
             }
         }
         .sheet(isPresented: Binding(
-            get: { selectedGroup != nil },
-            set: { if !$0 { selectedGroup = nil } }
+            get: { selectedSequence != nil },
+            set: { if !$0 { selectedSequence = nil } }
         )) {
-            if let group = selectedGroup {
-                GroupedCheckInDetailSheet(group: group, onSelectWork: { workID in
-                    selectedGroup = nil
-                    // Small delay so the group sheet can dismiss before the detail sheet opens
+            if let sequence = selectedSequence {
+                GroupedCheckInDetailSheet(sequence: sequence, onSelectWork: { workID in
+                    selectedSequence = nil
+                    // Small delay so the sequence sheet can dismiss before the detail sheet opens
                     Task { @MainActor in
                         try? await Task.sleep(for: .milliseconds(350))
                         openDetail(workID: workID)
@@ -129,8 +129,8 @@ struct WorkAgendaCalendarPane: View {
                     openDetail(workID: workID)
                 }
             },
-            onGroupTap: { group in
-                selectedGroup = group
+            onSequenceTap: { sequence in
+                selectedSequence = sequence
             }
         )
         .onDrop(of: [.plainText], isTargeted: nil) { providers in
@@ -254,11 +254,11 @@ struct GroupedCheckInDetailSheet: View {
     @Environment(\.dismiss) private var dismiss
     @Environment(\.managedObjectContext) private var modelContext
 
-    let group: WorkAgendaDayColumn.CheckInGroup
+    let sequence: WorkAgendaDayColumn.CheckInGroup
     let onSelectWork: (UUID) -> Void
 
     private var purposeIcon: String {
-        let p = group.purpose.lowercased()
+        let p = sequence.purpose.lowercased()
         if p.contains("progress") || p.contains("check") {
             return "checkmark.circle"
         } else if p.contains("due") {
@@ -277,15 +277,15 @@ struct GroupedCheckInDetailSheet: View {
             VStack(alignment: .leading, spacing: 0) {
                 // Header
                 VStack(alignment: .leading, spacing: 4) {
-                    Text(group.lessonTitle)
+                    Text(sequence.lessonTitle)
                         .font(.title2.weight(.semibold))
                     HStack(spacing: 6) {
-                        if !group.purpose.isEmpty {
-                            Label(group.purpose, systemImage: purposeIcon)
+                        if !sequence.purpose.isEmpty {
+                            Label(sequence.purpose, systemImage: purposeIcon)
                                 .foregroundStyle(.secondary)
                             Text("·").foregroundStyle(.tertiary)
                         }
-                        Text(group.sortDate, style: .date)
+                        Text(sequence.sortDate, style: .date)
                             .foregroundStyle(.secondary)
                     }
                     .font(.subheadline)
@@ -298,14 +298,14 @@ struct GroupedCheckInDetailSheet: View {
 
                 ScrollView {
                     VStack(spacing: 1) {
-                        ForEach(Array(zip(group.checkIns, group.studentNames)), id: \.0.id) { checkIn, studentName in
+                        ForEach(Array(zip(sequence.checkIns, sequence.studentNames)), id: \.0.id) { checkIn, studentName in
                             studentRow(checkIn: checkIn, studentName: studentName)
                         }
                     }
                     .padding(.vertical, 8)
                 }
             }
-            .navigationTitle("\(group.checkIns.count) Students")
+            .navigationTitle("\(sequence.checkIns.count) Students")
             .inlineNavigationTitle()
             .toolbar {
                 ToolbarItem(placement: .confirmationAction) {

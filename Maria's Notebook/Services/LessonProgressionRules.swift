@@ -2,7 +2,7 @@ import Foundation
 import CoreData
 
 /// Resolves effective progression rules for a given lesson by checking
-/// lesson-level overrides first, then group-level settings, then defaults.
+/// lesson-level overrides first, then sequence-level settings, then defaults.
 @MainActor
 struct LessonProgressionRules {
 
@@ -17,7 +17,7 @@ struct LessonProgressionRules {
     enum Source: Sendable {
         case groupDefault
         case lessonOverride
-        /// No group settings exist; using built-in defaults.
+        /// No sequence settings exist; using built-in defaults.
         case builtInDefault
     }
 
@@ -27,7 +27,7 @@ struct LessonProgressionRules {
     ///
     /// Resolution order:
     /// 1. Lesson-level override ("yes" / "no") — wins immediately.
-    /// 2. Group-level `CDLessonGroupSettings` for `subject + group`.
+    /// 2. Group-level `CDLessonSequenceSettings` for `area + sequence`.
     /// 3. Built-in defaults: both gates on.
     static func resolve(
         for lesson: CDLesson,
@@ -45,10 +45,10 @@ struct LessonProgressionRules {
             )
         }
 
-        // Look up group settings
-        let groupSettings = CDLessonGroupSettings.find(
-            subject: lesson.subject,
-            group: lesson.group,
+        // Look up sequence settings
+        let groupSettings = CDLessonSequenceSettings.find(
+            area: lesson.area,
+            sequence: lesson.sequence,
             context: context
         )
 

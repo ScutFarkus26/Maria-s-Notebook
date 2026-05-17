@@ -40,8 +40,8 @@ extension LessonPlanningService {
                 return LessonRecommendation(
                     lessonID: lessonID,
                     lessonName: lesson?.name ?? apiRec.lessonName,
-                    subject: apiRec.subject,
-                    group: apiRec.group,
+                    area: apiRec.area,
+                    sequence: apiRec.sequence,
                     studentIDs: resolvedStudentIDs,
                     studentNames: apiRec.studentNames,
                     reasoning: apiRec.reasoning,

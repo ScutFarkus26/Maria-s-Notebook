@@ -5,7 +5,7 @@ struct NextLessonsListView: View {
     let lessons: [LessonAssignmentSnapshot]
     let countText: String
     let lessonName: (LessonAssignmentSnapshot) -> String
-    let lessonSubject: (LessonAssignmentSnapshot) -> String?
+    let lessonArea: (LessonAssignmentSnapshot) -> String?
 
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
@@ -39,8 +39,8 @@ struct NextLessonsListView: View {
                             VStack(alignment: .leading, spacing: 2) {
                                 Text(lessonName(sl))
                                     .font(AppTheme.ScaledFont.titleSmall)
-                                if let subject = lessonSubject(sl), !subject.isEmpty {
-                                    Text(subject)
+                                if let area = lessonArea(sl), !area.isEmpty {
+                                    Text(area)
                                         .foregroundStyle(.secondary)
                                 }
                             }

@@ -21,7 +21,7 @@ final class Phase7PreTests {
 
     @Test("BackupEntityRegistry contains exactly 55 entity types")
     func backupEntityRegistryCountMatches() {
-        // 57 → 55: AlbumGroupOrder & AlbumGroupUIState removed (no entity in .xcdatamodeld)
+        // 57 → 55: AlbumSequenceOrder & AlbumSequenceUIState removed (no entity in .xcdatamodeld)
         #expect(BackupEntityRegistry.allTypes.count == 55)
     }
 
@@ -46,7 +46,7 @@ final class Phase7PreTests {
             "StudentMeeting", "MeetingTemplate",
             "CommunityTopic", "ProposedSolution", "CommunityAttachment",
             "SampleWork", "SampleWorkStep",
-            "Track", "TrackStep", "StudentTrackEnrollment", "GroupTrack",
+            "Track", "TrackStep", "StudentTrackEnrollment", "SequenceTrack",
             "NoteTemplate", "Procedure",
             "Schedule", "ScheduleSlot",
             "Resource",
@@ -54,7 +54,7 @@ final class Phase7PreTests {
             "ClassroomJob", "JobAssignment",
             "TransitionPlan", "TransitionChecklistItem",
             "ScheduledMeeting"
-            // AlbumGroupOrder & AlbumGroupUIState removed — no entity in .xcdatamodeld
+            // AlbumSequenceOrder & AlbumSequenceUIState removed — no entity in .xcdatamodeld
         ]
 
         for typeName in expectedSharedTypes {

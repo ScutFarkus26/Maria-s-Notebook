@@ -41,10 +41,10 @@ enum BackupServiceHelpers {
             return LessonDTO(
                 id: lID,
                 name: l.name,
-                subject: l.subject,
-                group: l.group,
-                orderInGroup: Int(l.orderInGroup),
-                subheading: l.subheading,
+                area: l.area,
+                sequence: l.sequence,
+                orderInSequence: Int(l.orderInSequence),
+                section: l.section,
                 writeUp: l.writeUp,
                 createdAt: nil,
                 updatedAt: nil,
@@ -382,7 +382,7 @@ enum BackupPayloadDeduplicator {
         result.tracks = payload.tracks.map { uniqueBy($0) { $0.id } }
         result.trackSteps = payload.trackSteps.map { uniqueBy($0) { $0.id } }
         result.studentTrackEnrollments = payload.studentTrackEnrollments.map { uniqueBy($0) { $0.id } }
-        result.groupTracks = payload.groupTracks.map { uniqueBy($0) { $0.id } }
+        result.sequenceTracks = payload.sequenceTracks.map { uniqueBy($0) { $0.id } }
         result.documents = payload.documents.map { uniqueBy($0) { $0.id } }
         result.supplies = payload.supplies.map { uniqueBy($0) { $0.id } }
         result.procedures = payload.procedures.map { uniqueBy($0) { $0.id } }

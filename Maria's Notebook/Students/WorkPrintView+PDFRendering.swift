@@ -58,11 +58,11 @@ struct PDFRenderer {
         ))
 
         // Each student section
-        for group in groups {
+        for sequence in groups {
             blockViews.append(AnyView(
                 PrintStudentSectionContent(
-                    title: group.title,
-                    works: group.works,
+                    title: sequence.title,
+                    works: sequence.works,
                     lessons: lessons
                 )
             ))
@@ -230,11 +230,11 @@ enum MacPDFRenderer {
         ))
 
         // Each student section
-        for group in groups {
+        for sequence in groups {
             blockViews.append(AnyView(
                 PrintStudentSectionContent(
-                    title: group.title,
-                    works: group.works,
+                    title: sequence.title,
+                    works: sequence.works,
                     lessons: lessons
                 )
             ))

@@ -402,7 +402,7 @@ struct LessonAssignmentDetailSheet: View, Identifiable {
             la.needsAnotherPresentation = true
         }
         
-        // Update notes with group observation
+        // Update notes with sequence observation
         if !groupObservation.isEmpty {
             if la.notes.isEmpty {
                 la.notes = groupObservation
@@ -437,8 +437,8 @@ struct LessonAssignmentDetailSheet: View, Identifiable {
 
     let lesson = CDLesson(context: ctx)
     lesson.name = "Decimal System"
-    lesson.subject = "Math"
-    lesson.group = "Number Work"
+    lesson.area = "Math"
+    lesson.sequence = "Number Work"
 
     let student = CDStudent(context: ctx)
     student.firstName = "Ada"

@@ -1,5 +1,5 @@
 // CurriculumBalanceView.swift
-// Top-level view showing curriculum subject distribution and gap analysis.
+// Top-level view showing curriculum area distribution and gap analysis.
 // Supports classroom-wide and per-student scopes with configurable time ranges.
 // Design follows ProgressDashboardView: filters, summary, cards/charts.
 
@@ -9,7 +9,7 @@ import CoreData
 struct CurriculumBalanceView: View {
     @Environment(\.managedObjectContext) private var viewContext
     @State private var viewModel = CurriculumBalanceViewModel()
-    @State private var selectedGapSubjectName: String?
+    @State private var selectedGapAreaName: String?
 
     // Change detection to trigger reload when assignments change
     @FetchRequest(sortDescriptors: [NSSortDescriptor(keyPath: \CDLessonAssignment.id, ascending: true)]) private var assignmentsForChange: FetchedResults<CDLessonAssignment>
@@ -21,7 +21,7 @@ struct CurriculumBalanceView: View {
             .navigationTitle("Curriculum Balance")
             .searchable(
                 text: $viewModel.searchText,
-                prompt: viewModel.scope == .perStudent ? "Search students" : "Search subjects"
+                prompt: viewModel.scope == .perStudent ? "Search students" : "Search areas"
             )
             .onAppear { viewModel.loadData(context: viewContext) }
             .onChange(of: assignmentChangeToken) { _, _ in
@@ -130,10 +130,10 @@ struct CurriculumBalanceView: View {
                 .foregroundStyle(.primary)
             Text(" lessons · ")
                 .foregroundStyle(.tertiary)
-            Text("\(viewModel.uniqueSubjectCount)")
+            Text("\(viewModel.uniqueAreaCount)")
                 .fontWeight(.semibold)
                 .foregroundStyle(.primary)
-            Text(" subjects")
+            Text(" areas")
                 .foregroundStyle(.tertiary)
             if !viewModel.classroomGaps.isEmpty {
                 Text(" · ")
@@ -151,18 +151,18 @@ struct CurriculumBalanceView: View {
 
     private var classroomContent: some View {
         VStack(spacing: 16) {
-            SubjectDistributionChart(data: viewModel.classroomDistribution)
-            SubjectWeeklyTrendChart(data: viewModel.weeklyTrends)
+            AreaDistributionChart(data: viewModel.classroomDistribution)
+            AreaWeeklyTrendChart(data: viewModel.weeklyTrends)
             CurriculumBalanceGapSection(gaps: viewModel.classroomGaps) { gap in
-                selectedGapSubjectName = gap.subject
+                selectedGapAreaName = gap.area
             }
         }
         .sheet(isPresented: Binding(
-            get: { selectedGapSubjectName != nil },
-            set: { if !$0 { selectedGapSubjectName = nil } }
+            get: { selectedGapAreaName != nil },
+            set: { if !$0 { selectedGapAreaName = nil } }
         )) {
-            if let subject = selectedGapSubjectName {
-                GapActionSheet(subject: subject, context: viewContext)
+            if let area = selectedGapAreaName {
+                GapActionSheet(area: area, context: viewContext)
             }
         }
     }

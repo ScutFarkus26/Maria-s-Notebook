@@ -39,7 +39,7 @@ extension PlanningWeekViewContent {
         case .giveLessonDraft(let id):
             sheetForGiveLessonDraft(id: id)
         case .addLesson:
-            AddLessonView(defaultSubject: nil, defaultGroup: nil)
+            AddLessonView(defaultArea: nil, defaultSequence: nil)
                 .largeSheetSizing()
                 .onDisappear {
                     onRefreshNeeded?()

@@ -8,12 +8,12 @@ extension LessonDetailCard {
             TextField("Lesson Name", text: $draftName)
                 .textFieldStyle(.roundedBorder)
             HStack {
-                TextField("Subject", text: $draftSubject)
+                TextField("Area", text: $draftArea)
                     .textFieldStyle(.roundedBorder)
-                TextField("Group", text: $draftGroup)
+                TextField("Sequence", text: $draftSequence)
                     .textFieldStyle(.roundedBorder)
             }
-            TextField("Subheading", text: $draftSubheading)
+            TextField("Section", text: $draftSection)
                 .textFieldStyle(.roundedBorder)
 
             Picker("Source", selection: $draftSource) {
@@ -65,7 +65,7 @@ extension LessonDetailCard {
                         Text(o.label).tag(o)
                     }
                 }
-                Text("\"From Group\" uses the group's default setting.")
+                Text("\"From Group\" uses the sequence's default setting.")
                     .font(AppTheme.ScaledFont.caption)
                     .foregroundStyle(.tertiary)
             }

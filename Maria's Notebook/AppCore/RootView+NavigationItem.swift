@@ -41,7 +41,7 @@ extension RootView {
         case transitionPlanner
         case threeYearCycle
         case needsLesson
-        case smallGroupPlanner
+        case smallSequencePlanner
 
         case perpetualCalendar
 
@@ -97,7 +97,7 @@ extension RootView {
             case .transitionPlanner:   return ("Transitions", "arrow.right.arrow.left")
             case .threeYearCycle:      return ("Three-Year Cycle", "chart.bar.doc.horizontal")
             case .needsLesson:         return ("Needs Lesson", "clock.badge.exclamationmark")
-            case .smallGroupPlanner:   return ("Group Planner", "person.3.sequence")
+            case .smallSequencePlanner:   return ("Group Planner", "person.3.sequence")
             case .perpetualCalendar:   return ("Calendar", "calendar.day.timeline.leading")
             case .prepChecklist:       return ("Prep Checklist", "checklist.checked")
             case .community:           return ("Community", "bubble.left.and.bubble.right")
@@ -139,7 +139,7 @@ extension RootView {
                  .progressDashboard,
                  .lessonFrequency, .curriculumBalance, .greatLessonsTimeline,
                  .goingOut, .parentCommunication, .fridayReview, .workCycle,
-                 .classroomJobs, .transitionPlanner, .threeYearCycle, .needsLesson, .smallGroupPlanner,
+                 .classroomJobs, .transitionPlanner, .threeYearCycle, .needsLesson, .smallSequencePlanner,
                  .prepChecklist, .perpetualCalendar,
                  .thisWeeksParsha, .parshaCalendar, .parshaAlbumMatches, .parshaCoverage, .parshaTopics,
                  .community, .schedules, .resourceLibrary, .askAI, .logs, .settings:
@@ -171,7 +171,7 @@ extension RootView {
                  .progressDashboard,
                  .lessonFrequency, .curriculumBalance, .greatLessonsTimeline,
                  .transitionPlanner, .threeYearCycle, .needsLesson,
-                 .smallGroupPlanner:
+                 .smallSequencePlanner:
                 return .planning
             case .goingOut:          return nil
             case .parentCommunication: return nil

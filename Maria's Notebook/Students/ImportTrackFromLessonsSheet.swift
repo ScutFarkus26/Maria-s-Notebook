@@ -1,5 +1,5 @@
 // ImportTrackFromLessonsSheet.swift
-// Sheet for importing a track from lessons organized by subject and group
+// Sheet for importing a track from lessons organized by area and sequence
 
 import OSLog
 import SwiftUI
@@ -17,8 +17,8 @@ struct ImportTrackFromLessonsSheet: View {
     
     // MARK: - State
     @State private var allLessons: [CDLesson] = []
-    @State private var selectedSubject: String?
-    @State private var selectedGroup: String?
+    @State private var selectedArea: String?
+    @State private var selectedSequence: String?
     @State private var trackTitle: String = ""
     @State private var lastDefaultTitle: String = ""
     @State private var isLoading = true
@@ -26,61 +26,61 @@ struct ImportTrackFromLessonsSheet: View {
     // MARK: - Computed Properties
     private let viewModel = LessonsViewModel()
     
-    private var availableSubjects: [String] {
-        viewModel.subjects(from: allLessons)
+    private var availableAreas: [String] {
+        viewModel.areas(from: allLessons)
     }
     
-    private var availableGroups: [String] {
-        guard let subject = selectedSubject else { return [] }
-        return viewModel.groups(for: subject, lessons: allLessons)
+    private var availableSequences: [String] {
+        guard let area = selectedArea else { return [] }
+        return viewModel.groups(for: area, lessons: allLessons)
     }
     
     private var defaultTitle: String {
-        if let subject = selectedSubject, let group = selectedGroup {
-            return "\(subject) — \(group)"
+        if let area = selectedArea, let sequence = selectedSequence {
+            return "\(area) — \(sequence)"
         }
         return ""
     }
     
     private var canImport: Bool {
-        selectedSubject != nil && selectedGroup != nil && !trackTitle.trimmed().isEmpty
+        selectedArea != nil && selectedSequence != nil && !trackTitle.trimmed().isEmpty
     }
     
     // MARK: - Body
     var body: some View {
         NavigationStack {
             Form {
-                Section("Subject") {
-                    Picker("Subject", selection: $selectedSubject) {
-                        Text("Select a subject").tag(nil as String?)
-                        ForEach(availableSubjects, id: \.self) { subject in
-                            Text(subject).tag(subject as String?)
+                Section("Area") {
+                    Picker("Area", selection: $selectedArea) {
+                        Text("Select a area").tag(nil as String?)
+                        ForEach(availableAreas, id: \.self) { area in
+                            Text(area).tag(area as String?)
                         }
                     }
-                    .onChange(of: selectedSubject) { _, _ in
-                        // Reset group when subject changes
-                        selectedGroup = nil
+                    .onChange(of: selectedArea) { _, _ in
+                        // Reset sequence when area changes
+                        selectedSequence = nil
                         updateTitle()
                     }
                 }
                 
-                Section("Group") {
-                    if selectedSubject == nil {
-                        Text("Select a subject first")
+                Section("Sequence") {
+                    if selectedArea == nil {
+                        Text("Select a area first")
                             .foregroundStyle(.secondary)
                             .font(.caption)
-                    } else if availableGroups.isEmpty {
-                        Text("No groups found for this subject")
+                    } else if availableSequences.isEmpty {
+                        Text("No groups found for this area")
                             .foregroundStyle(.secondary)
                             .font(.caption)
                     } else {
-                        Picker("Group", selection: $selectedGroup) {
-                            Text("Select a group").tag(nil as String?)
-                            ForEach(availableGroups, id: \.self) { group in
-                                Text(group).tag(group as String?)
+                        Picker("Sequence", selection: $selectedSequence) {
+                            Text("Select a sequence").tag(nil as String?)
+                            ForEach(availableSequences, id: \.self) { sequence in
+                                Text(sequence).tag(sequence as String?)
                             }
                         }
-                        .onChange(of: selectedGroup) { _, _ in
+                        .onChange(of: selectedSequence) { _, _ in
                             updateTitle()
                         }
                     }
@@ -136,10 +136,10 @@ struct ImportTrackFromLessonsSheet: View {
     
     // MARK: - Import Logic
     private func importTrack() {
-        guard let subject = selectedSubject?.trimmed(),
-              let group = selectedGroup?.trimmed(),
-              !subject.isEmpty,
-              !group.isEmpty else {
+        guard let area = selectedArea?.trimmed(),
+              let sequence = selectedSequence?.trimmed(),
+              !area.isEmpty,
+              !sequence.isEmpty else {
             return
         }
         
@@ -156,17 +156,17 @@ struct ImportTrackFromLessonsSheet: View {
             return
         }
         
-        // In-memory filter to chosen subject + group using trimmed, case-insensitive comparisons
+        // In-memory filter to chosen area + sequence using trimmed, case-insensitive comparisons
         let filteredLessons = allLessonsFetched.filter { lesson in
-            lesson.subject.trimmed().caseInsensitiveCompare(subject) == .orderedSame &&
-            lesson.group.trimmed().caseInsensitiveCompare(group) == .orderedSame
+            lesson.area.trimmed().caseInsensitiveCompare(area) == .orderedSame &&
+            lesson.sequence.trimmed().caseInsensitiveCompare(sequence) == .orderedSame
         }
         
-        // Sort exactly like LessonsViewModel does when selectedGroup != nil:
-        // orderInGroup ascending, then name ascending, then id as final tiebreaker
+        // Sort exactly like LessonsViewModel does when selectedSequence != nil:
+        // orderInSequence ascending, then name ascending, then id as final tiebreaker
         let sortedLessons = filteredLessons.sorted { lhs, rhs in
-            if lhs.orderInGroup != rhs.orderInGroup {
-                return lhs.orderInGroup < rhs.orderInGroup
+            if lhs.orderInSequence != rhs.orderInSequence {
+                return lhs.orderInSequence < rhs.orderInSequence
             }
             let nameOrder = lhs.name.localizedCaseInsensitiveCompare(rhs.name)
             if nameOrder == .orderedSame {

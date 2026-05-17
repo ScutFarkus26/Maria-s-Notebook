@@ -20,7 +20,7 @@ struct LessonProgressSection: View {
     private enum PresentedMode { case none, just, previous }
 
     // MARK: - Inputs
-    let subjectColor: Color
+    let areaColor: Color
 
     @Binding var isPresented: Bool
     @Binding var givenAt: Date?
@@ -29,7 +29,7 @@ struct LessonProgressSection: View {
     @Binding var selectedStudentIDs: Set<UUID>
 
     let lesson: CDLesson?
-    let nextLessonInGroup: CDLesson?
+    let nextLessonInSequence: CDLesson?
     let presentationID: UUID
 
     let studentsAll: [CDStudent]
@@ -158,17 +158,17 @@ struct LessonProgressSection: View {
                     Spacer()
                 }
 
-                // Next in group suggestion
-                if isPresented, let next = nextLessonInGroup {
+                // Next in sequence suggestion
+                if isPresented, let next = nextLessonInSequence {
                     VStack(alignment: .leading, spacing: 8) {
                         HStack(spacing: 8) {
                             Image(systemName: "arrow.right.circle")
                                 .foregroundStyle(.blue)
-                            Text("Next in Group: \(next.name)")
+                            Text("Next in Sequence: \(next.name)")
                                 .font(AppTheme.ScaledFont.bodySemibold)
                         }
                         Button {
-                            planNextLessonInGroup()
+                            planNextLessonInSequence()
                         } label: {
                             Label("Plan Next Lesson", systemImage: "calendar.badge.plus")
                                 .font(AppTheme.ScaledFont.callout)
@@ -387,9 +387,9 @@ struct LessonProgressSection: View {
         }
 
         // Auto-enroll students in track if lesson belongs to a track
-        GroupTrackService.autoEnrollInTrackIfNeeded(
-            lessonSubject: lesson.subject,
-            lessonGroup: lesson.group,
+        SequenceTrackService.autoEnrollInTrackIfNeeded(
+            lessonArea: lesson.area,
+            lessonSequence: lesson.sequence,
             studentIDs: Array(selectedStudentIDs).map(\.uuidString),
             context: viewContext
         )
@@ -402,8 +402,8 @@ struct LessonProgressSection: View {
         return calendar.startOfDay(for: base)
     }
 
-    private func planNextLessonInGroup() {
-        guard let next = nextLessonInGroup, let nextID = next.id else { return }
+    private func planNextLessonInSequence() {
+        guard let next = nextLessonInSequence, let nextID = next.id else { return }
         let sameStudents = Set(selectedStudentIDs)
         let exists = lessonAssignmentsAll.contains { la in
             la.resolvedLessonID == nextID && Set(la.resolvedStudentIDs) == sameStudents && !la.isPresented

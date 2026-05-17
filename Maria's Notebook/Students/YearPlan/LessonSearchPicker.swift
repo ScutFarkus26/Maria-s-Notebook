@@ -7,9 +7,9 @@ struct LessonSearchPicker: View {
     @Environment(\.dismiss) private var dismiss
     @FetchRequest(
         sortDescriptors: [
-            NSSortDescriptor(keyPath: \CDLesson.subject, ascending: true),
-            NSSortDescriptor(keyPath: \CDLesson.group, ascending: true),
-            NSSortDescriptor(keyPath: \CDLesson.orderInGroup, ascending: true)
+            NSSortDescriptor(keyPath: \CDLesson.area, ascending: true),
+            NSSortDescriptor(keyPath: \CDLesson.sequence, ascending: true),
+            NSSortDescriptor(keyPath: \CDLesson.orderInSequence, ascending: true)
         ]
     ) private var allLessons: FetchedResults<CDLesson>
 
@@ -20,38 +20,38 @@ struct LessonSearchPicker: View {
         let query = searchText.lowercased()
         return allLessons.filter {
             $0.name.lowercased().contains(query)
-                || $0.subject.lowercased().contains(query)
-                || $0.group.lowercased().contains(query)
+                || $0.area.lowercased().contains(query)
+                || $0.sequence.lowercased().contains(query)
         }
     }
 
-    private var groupedBySubject: [(subject: String, groups: [(group: String, lessons: [CDLesson])])] {
-        let bySubject = Dictionary(grouping: filteredLessons) { $0.subject }
-        return bySubject.keys.sorted().map { subject in
-            let subjectLessons = bySubject[subject] ?? []
-            let byGroup = Dictionary(grouping: subjectLessons) { $0.group }
-            let groups = byGroup.keys.sorted().map { group in
-                (group: group, lessons: (byGroup[group] ?? []).sorted { $0.orderInGroup < $1.orderInGroup })
+    private var groupedByArea: [(area: String, groups: [(sequence: String, lessons: [CDLesson])])] {
+        let byArea = Dictionary(grouping: filteredLessons) { $0.area }
+        return byArea.keys.sorted().map { area in
+            let areaLessons = byArea[area] ?? []
+            let bySequence = Dictionary(grouping: areaLessons) { $0.sequence }
+            let groups = bySequence.keys.sorted().map { sequence in
+                (sequence: sequence, lessons: (bySequence[sequence] ?? []).sorted { $0.orderInSequence < $1.orderInSequence })
             }
-            return (subject: subject, groups: groups)
+            return (area: area, groups: groups)
         }
     }
 
     var body: some View {
         List {
-            ForEach(groupedBySubject, id: \.subject) { subjectSection in
+            ForEach(groupedByArea, id: \.area) { areaSection in
                 Section {
-                    ForEach(subjectSection.groups, id: \.group) { groupSection in
+                    ForEach(areaSection.groups, id: \.sequence) { groupSection in
                         DisclosureGroup {
                             ForEach(groupSection.lessons, id: \.id) { lesson in
                                 lessonRow(lesson)
                             }
                         } label: {
-                            groupLabel(subjectSection.subject, group: groupSection.group)
+                            groupLabel(areaSection.area, sequence: groupSection.sequence)
                         }
                     }
                 } header: {
-                    Text(subjectSection.subject)
+                    Text(areaSection.area)
                 }
             }
         }
@@ -69,8 +69,8 @@ struct LessonSearchPicker: View {
                     Text(lesson.name)
                         .font(.body)
                         .foregroundStyle(.primary)
-                    if !lesson.subheading.isEmpty {
-                        Text(lesson.subheading)
+                    if !lesson.section.isEmpty {
+                        Text(lesson.section)
                             .font(.caption)
                             .foregroundStyle(.secondary)
                     }
@@ -84,12 +84,12 @@ struct LessonSearchPicker: View {
         }
     }
 
-    private func groupLabel(_ subject: String, group: String) -> some View {
+    private func groupLabel(_ area: String, sequence: String) -> some View {
         HStack(spacing: 6) {
             Circle()
-                .fill(AppColors.color(forSubject: subject))
+                .fill(AppColors.color(forArea: area))
                 .frame(width: 8, height: 8)
-            Text(group)
+            Text(sequence)
                 .font(.subheadline.weight(.medium))
         }
     }

@@ -51,8 +51,8 @@ struct PlanningPromptBuilder {
           "recommendations": [
             {
               "lessonName": "exact lesson name from the data",
-              "subject": "subject name",
-              "group": "group name",
+              "area": "area name",
+              "sequence": "sequence name",
               "studentNames": ["student names who should receive this lesson"],
               "reasoning": "brief explanation of why this lesson now for these students",
               "confidence": 0.85,
@@ -99,7 +99,7 @@ struct PlanningPromptBuilder {
         Week days: \(dayLabels.joined(separator: ", "))
         
         TASK: Schedule these recommendations across the week. For each day:
-        1. Balance subjects - avoid clustering the same subject on one day
+        1. Balance areas - avoid clustering the same area on one day
         2. Consider student load - don't overload any single student
         3. Group presentations that share students on the same day when practical
         4. Limit to 3-4 new presentations per day maximum
@@ -110,8 +110,8 @@ struct PlanningPromptBuilder {
           "recommendations": [
             {
               "lessonName": "exact lesson name",
-              "subject": "subject name",
-              "group": "group name",
+              "area": "area name",
+              "sequence": "sequence name",
               "studentNames": ["student names"],
               "reasoning": "brief scheduling rationale",
               "confidence": 0.85,
@@ -121,8 +121,8 @@ struct PlanningPromptBuilder {
           ],
           "groupingSuggestions": [
             {
-              "lessonName": "lesson for group presentation",
-              "studentNames": ["students to group together"],
+              "lessonName": "lesson for sequence presentation",
+              "studentNames": ["students to sequence together"],
               "rationale": "why these students should be grouped"
             }
           ],
@@ -159,7 +159,7 @@ struct PlanningPromptBuilder {
         
         
         TASK: Optimize the weekly plan for the whole class:
-        1. Minimize context switching - cluster related subjects
+        1. Minimize context switching - cluster related areas
         2. Ensure equitable attention across all students
         3. Identify opportunities to combine presentations for efficiency
         4. Flag any students who are overloaded or underserved
@@ -170,8 +170,8 @@ struct PlanningPromptBuilder {
           "recommendations": [
             {
               "lessonName": "exact lesson name",
-              "subject": "subject name",
-              "group": "group name",
+              "area": "area name",
+              "sequence": "sequence name",
               "studentNames": ["student names"],
               "reasoning": "optimization rationale",
               "confidence": 0.85,

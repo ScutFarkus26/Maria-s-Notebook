@@ -14,9 +14,9 @@ struct ThreeYearCycleStudentCard: View {
             // Overall progress bar
             progressBar
 
-            // Top subject mini-bars
-            if !card.subjectCoverage.isEmpty {
-                subjectBars
+            // Top area mini-bars
+            if !card.areaCoverage.isEmpty {
+                areaBars
             }
         }
         .cardStyle()
@@ -129,21 +129,21 @@ struct ThreeYearCycleStudentCard: View {
         }
     }
 
-    // MARK: - Subject Bars
+    // MARK: - Area Bars
 
-    private var subjectBars: some View {
-        let topSubjects = card.subjectCoverage
+    private var areaBars: some View {
+        let topAreas = card.areaCoverage
             .sorted { $0.percentage < $1.percentage }
             .prefix(3)
 
         return VStack(spacing: 4) {
-            ForEach(Array(topSubjects)) { subject in
+            ForEach(Array(topAreas)) { area in
                 HStack(spacing: 6) {
                     Circle()
-                        .fill(subject.color)
+                        .fill(area.color)
                         .frame(width: 6, height: 6)
 
-                    Text(subject.subject)
+                    Text(area.area)
                         .font(.system(size: 9))
                         .foregroundStyle(.secondary)
                         .frame(width: 60, alignment: .leading)
@@ -151,16 +151,16 @@ struct ThreeYearCycleStudentCard: View {
                     GeometryReader { geo in
                         ZStack(alignment: .leading) {
                             RoundedRectangle(cornerRadius: 2, style: .continuous)
-                                .fill(subject.color.opacity(UIConstants.OpacityConstants.light))
+                                .fill(area.color.opacity(UIConstants.OpacityConstants.light))
 
                             RoundedRectangle(cornerRadius: 2, style: .continuous)
-                                .fill(subject.color)
-                                .frame(width: max(0, geo.size.width * subject.percentage))
+                                .fill(area.color)
+                                .frame(width: max(0, geo.size.width * area.percentage))
                         }
                     }
                     .frame(height: 4)
 
-                    Text("\(subject.presented)/\(subject.total)")
+                    Text("\(area.presented)/\(area.total)")
                         .font(.system(size: 8))
                         .foregroundStyle(.tertiary)
                         .frame(width: 30, alignment: .trailing)

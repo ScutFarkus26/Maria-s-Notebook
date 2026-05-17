@@ -2,8 +2,8 @@
 
 import Foundation
 
-/// Helper responsible for persisting and retrieving the order of subjects, per-subject groups,
-/// and per-subject+group subheadings using UserDefaults.
+/// Helper responsible for persisting and retrieving the order of areas, per-area groups,
+/// and per-area+sequence sections using UserDefaults.
 @MainActor
 struct FilterOrderStore {
     private let defaults: UserDefaults
@@ -11,82 +11,82 @@ struct FilterOrderStore {
 
     private static var shared = FilterOrderStore()
 
-    private static let subjectOrderKey = "Lessons.SubjectOrder"
-    private static let groupOrderPrefix = "Lessons.GroupOrder."
-    private static let subheadingOrderPrefix = "Lessons.SubheadingOrder." // subject+group
+    private static let areaOrderKey = "Lessons.AreaOrder"
+    private static let groupOrderPrefix = "Lessons.SequenceOrder."
+    private static let sectionOrderPrefix = "Lessons.SectionOrder." // area+sequence
 
-    private static var cachedSubjectOrder: [String]?
-    private static var cachedGroupOrders: [String: [String]] = [:]
-    private static var cachedSubheadingOrders: [String: [String]] = [:]
+    private static var cachedAreaOrder: [String]?
+    private static var cachedSequenceOrders: [String: [String]] = [:]
+    private static var cachedSectionOrders: [String: [String]] = [:]
 
     private static func normalized(_ s: String) -> String {
         s.normalizedForComparison()
     }
 
-    // MARK: Subjects
+    // MARK: Areas
 
-    static func loadSubjectOrder(existing: [String]) -> [String] {
-        if let cached = cachedSubjectOrder { return mergeOrder(saved: cached, existing: existing) }
-        guard let saved = shared.defaults.array(forKey: subjectOrderKey) as? [String] else {
-            cachedSubjectOrder = existing
+    static func loadAreaOrder(existing: [String]) -> [String] {
+        if let cached = cachedAreaOrder { return mergeOrder(saved: cached, existing: existing) }
+        guard let saved = shared.defaults.array(forKey: areaOrderKey) as? [String] else {
+            cachedAreaOrder = existing
             return existing
         }
         let result = mergeOrder(saved: saved, existing: existing)
-        cachedSubjectOrder = result
+        cachedAreaOrder = result
         return result
     }
 
-    static func saveSubjectOrder(_ order: [String]) {
-        cachedSubjectOrder = order
-        shared.defaults.set(order, forKey: subjectOrderKey)
+    static func saveAreaOrder(_ order: [String]) {
+        cachedAreaOrder = order
+        shared.defaults.set(order, forKey: areaOrderKey)
     }
 
     // MARK: Groups (Tracks)
 
-    static func loadGroupOrder(for subject: String, existing: [String]) -> [String] {
-        let key = groupOrderPrefix + normalized(subject)
-        if let cached = cachedGroupOrders[key] { return mergeOrder(saved: cached, existing: existing) }
+    static func loadSequenceOrder(for area: String, existing: [String]) -> [String] {
+        let key = groupOrderPrefix + normalized(area)
+        if let cached = cachedSequenceOrders[key] { return mergeOrder(saved: cached, existing: existing) }
         guard let saved = shared.defaults.array(forKey: key) as? [String] else {
-            cachedGroupOrders[key] = existing
+            cachedSequenceOrders[key] = existing
             return existing
         }
         let result = mergeOrder(saved: saved, existing: existing)
-        cachedGroupOrders[key] = result
+        cachedSequenceOrders[key] = result
         return result
     }
 
-    static func saveGroupOrder(_ order: [String], for subject: String) {
-        let key = groupOrderPrefix + normalized(subject)
-        cachedGroupOrders[key] = order
+    static func saveSequenceOrder(_ order: [String], for area: String) {
+        let key = groupOrderPrefix + normalized(area)
+        cachedSequenceOrders[key] = order
         shared.defaults.set(order, forKey: key)
     }
 
-    // MARK: Subheadings
+    // MARK: Sections
 
-    static func loadSubheadingOrder(for subject: String, group: String, existing: [String]) -> [String] {
-        let key = subheadingOrderPrefix + normalized(subject) + "." + normalized(group)
-        if let cached = cachedSubheadingOrders[key] { return mergeOrder(saved: cached, existing: existing) }
+    static func loadSectionOrder(for area: String, sequence: String, existing: [String]) -> [String] {
+        let key = sectionOrderPrefix + normalized(area) + "." + normalized(sequence)
+        if let cached = cachedSectionOrders[key] { return mergeOrder(saved: cached, existing: existing) }
         guard let saved = shared.defaults.array(forKey: key) as? [String] else {
-            cachedSubheadingOrders[key] = existing
+            cachedSectionOrders[key] = existing
             return existing
         }
         let result = mergeOrder(saved: saved, existing: existing)
-        cachedSubheadingOrders[key] = result
+        cachedSectionOrders[key] = result
         return result
     }
 
-    static func saveSubheadingOrder(_ order: [String], for subject: String, group: String) {
-        let key = subheadingOrderPrefix + normalized(subject) + "." + normalized(group)
-        cachedSubheadingOrders[key] = order
+    static func saveSectionOrder(_ order: [String], for area: String, sequence: String) {
+        let key = sectionOrderPrefix + normalized(area) + "." + normalized(sequence)
+        cachedSectionOrders[key] = order
         shared.defaults.set(order, forKey: key)
     }
 
     // MARK: Cache control
 
     static func resetCache() {
-        cachedSubjectOrder = nil
-        cachedGroupOrders.removeAll()
-        cachedSubheadingOrders.removeAll()
+        cachedAreaOrder = nil
+        cachedSequenceOrders.removeAll()
+        cachedSectionOrders.removeAll()
     }
 
     static func useDefaults(_ defaults: UserDefaults) {

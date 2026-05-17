@@ -51,9 +51,9 @@ final class Phase4PreTests {
     @Test("Concurrent background context creation does not hang", .timeLimit(.seconds(5)))
     func concurrentBackgroundContexts() async throws {
         let stack = try CoreDataTestHelpers.makeInMemoryStack()
-        await withTaskGroup(of: Void.self) { group in
+        await withTaskGroup(of: Void.self) { sequence in
             for _ in 0..<5 {
-                group.addTask { @MainActor in
+                sequence.addTask { @MainActor in
                     let ctx = stack.newBackgroundContext()
                     #expect(ctx.concurrencyType == .privateQueueConcurrencyType)
                 }

@@ -16,7 +16,7 @@ final class PresentationsViewModel {
     var blockingResults: [UUID: BlockingAlgorithmEngine.BlockingCheckResult] = [:]
     var blockingWorkCache: [UUID: [UUID: CDWorkModel]] = [:]
     var daysSinceLastLessonByStudent: [UUID: Int] = [:]
-    var lastSubjectByStudent: [UUID: String] = [:]
+    var lastAreaByStudent: [UUID: String] = [:]
     var openWorkCountByStudent: [UUID: Int] = [:]
 
     // Expose cached students for use in filteredSnapshot (avoids redundant fetching)

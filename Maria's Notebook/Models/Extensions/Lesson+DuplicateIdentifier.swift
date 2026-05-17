@@ -6,8 +6,8 @@ extension CDLesson {
     /// used to detect duplicates in imports and elsewhere.
     var duplicateIdentifier: String {
         let normalizedName = StringNormalization.normalizeComponent(name)
-        let normalizedSubject = StringNormalization.normalizeComponent(subject)
-        let normalizedGroup = StringNormalization.normalizeComponent(group)
-        return [normalizedName, normalizedSubject, normalizedGroup].joined(separator: "|")
+        let normalizedArea = StringNormalization.normalizeComponent(area)
+        let normalizedSequence = StringNormalization.normalizeComponent(sequence)
+        return [normalizedName, normalizedArea, normalizedSequence].joined(separator: "|")
     }
 }

@@ -10,7 +10,7 @@ struct GreatLessonBranch: Identifiable, Sendable {
     let id: String
     let greatLesson: GreatLesson
     let totalLessons: Int
-    let subjectGroups: [BranchSubjectGroup]
+    let areaSequences: [BranchAreaSequence]
     let studentProgress: [StudentBranchProgress]
 
     /// Overall completion rate across all students (0.0–1.0).
@@ -36,11 +36,11 @@ struct GreatLessonBranch: Identifiable, Sendable {
     }
 }
 
-/// A subject/group pair within a Great Lesson branch.
-struct BranchSubjectGroup: Identifiable, Sendable {
+/// A area/sequence pair within a Great Lesson branch.
+struct BranchAreaSequence: Identifiable, Sendable {
     let id: String
-    let subject: String
-    let group: String
+    let area: String
+    let sequence: String
     let lessons: [BranchLesson]
 }
 
@@ -62,7 +62,7 @@ struct StudentBranchProgress: Identifiable, Sendable {
     let activeWorkCount: Int
     let lastPresentedAt: Date?
     let completionPercentage: Double
-    let gapSubjects: [String]
+    let gapAreas: [String]
 
     var displayName: String { firstName }
     var initials: String { "\(firstName.prefix(1))\(lastName.prefix(1))" }

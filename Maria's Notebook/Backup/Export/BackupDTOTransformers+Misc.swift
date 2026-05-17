@@ -47,7 +47,7 @@ extension BackupDTOTransformers {
             lessonID: assignment.lessonID,
             studentIDs: assignment.studentIDs,
             lessonTitleSnapshot: assignment.lessonTitleSnapshot,
-            lessonSubheadingSnapshot: assignment.lessonSubheadingSnapshot,
+            lessonSectionSnapshot: assignment.lessonSectionSnapshot,
             needsPractice: assignment.needsPractice,
             needsAnotherPresentation: assignment.needsAnotherPresentation,
             followUpWork: assignment.followUpWork,
@@ -178,13 +178,13 @@ extension BackupDTOTransformers {
         )
     }
 
-    // MARK: - CDGroupTrack
+    // MARK: - CDSequenceTrack
 
-    static func toDTO(_ g: CDGroupTrack) -> GroupTrackDTO {
-        GroupTrackDTO(
+    static func toDTO(_ g: CDSequenceTrack) -> SequenceTrackDTO {
+        SequenceTrackDTO(
             id: g.id ?? UUID(),
-            subject: g.subject,
-            group: g.group,
+            area: g.area,
+            sequence: g.sequence,
             isSequential: g.isSequential,
             isExplicitlyDisabled: g.isExplicitlyDisabled,
             createdAt: g.createdAt ?? Date()
@@ -494,8 +494,8 @@ extension BackupDTOTransformers {
         enrollments.map { toDTO($0) }
     }
 
-    static func toDTOs(_ groupTracks: [CDGroupTrack]) -> [GroupTrackDTO] {
-        groupTracks.map { toDTO($0) }
+    static func toDTOs(_ sequenceTracks: [CDSequenceTrack]) -> [SequenceTrackDTO] {
+        sequenceTracks.map { toDTO($0) }
     }
 
     static func toDTOs(_ documents: [CDDocument]) -> [DocumentDTO] {
@@ -589,7 +589,7 @@ extension BackupDTOTransformers {
             isFavorite: r.isFavorite,
             lastViewedAt: r.lastViewedAt,
             linkedLessonIDs: r.linkedLessonIDs,
-            linkedSubjects: r.linkedSubjects,
+            linkedAreas: r.linkedAreas,
             createdAt: r.createdAt ?? Date(),
             modifiedAt: r.modifiedAt ?? Date()
         )

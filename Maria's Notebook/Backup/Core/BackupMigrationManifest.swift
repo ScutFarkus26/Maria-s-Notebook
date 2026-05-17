@@ -55,7 +55,7 @@ public enum BackupMigrationManifest {
                 "Lesson extras: CDLessonAttachment, CDLessonPresentation",
                 "Templates: CDNoteTemplate, CDMeetingTemplate",
                 "Reminders & Calendar: CDReminder, CDCalendarEvent",
-                "Tracks: CDTrackEntity, CDTrackStepEntity, CDStudentTrackEnrollmentEntity, CDGroupTrack",
+                "Tracks: CDTrackEntity, CDTrackStepEntity, CDStudentTrackEnrollmentEntity, CDSequenceTrack",
                 "Documents, Supplies, Procedures, Schedules, Issues, Todos, Agenda"
             ],
             breakingChanges: [],
@@ -132,6 +132,19 @@ public enum BackupMigrationManifest {
             ],
             breakingChanges: [],
             migrationNotes: "Initiatives is a new optional array; older payloads decode this as nil. CDTodoItem.initiativeID is optional and defaults to nil for older payloads."
+        ),
+        FormatVersionInfo(
+            version: 16,
+            releaseDate: DateComponents(calendar: .current, year: 2026, month: 5, day: 17).date!,
+            description: "Renames lesson hierarchy from subject/group/subheading to area/sequence/section",
+            changes: [
+                "CDLesson.subject -> area, CDLesson.group -> sequence, CDLesson.subheading -> section, CDLesson.orderInGroup -> orderInSequence",
+                "GroupTrack entity renamed to SequenceTrack; LessonGroupSettings renamed to LessonSequenceSettings",
+                "CDLessonAssignment.lessonSubheadingSnapshot -> lessonSectionSnapshot",
+                "Backup payload key groupTracks -> sequenceTracks"
+            ],
+            breakingChanges: ["Pre-v16 backups will not restore; payload keys and entity names changed."],
+            migrationNotes: "Destructive rename of lesson hierarchy; the local store is wiped at upgrade time."
         )
     ]
 
@@ -256,8 +269,8 @@ extension BackupMigrationManifest {
         public static let lessonChanges: [EntityChange] = [
             EntityChange(
                 version: 6, entity: "Lesson",
-                change: "Fields: id, name, subject, group, "
-                    + "orderInGroup, subheading, writeUp, "
+                change: "Fields: id, name, area, sequence, "
+                    + "orderInSequence, section, writeUp, "
                     + "pagesFileRelativePath"
             )
         ]
@@ -350,7 +363,7 @@ extension BackupMigrationManifest {
         PayloadField(name: "communityAttachments", introducedIn: 5, description: "Attachments for community topics"),
         PayloadField(name: "attendance", introducedIn: 5, description: "Attendance records"),
         PayloadField(name: "workCompletions", introducedIn: 5, description: "Work completion records"),
-        PayloadField(name: "projects", introducedIn: 5, description: "CDProject entities for group work"),
+        PayloadField(name: "projects", introducedIn: 5, description: "CDProject entities for sequence work"),
         PayloadField(name: "projectAssignmentTemplates", introducedIn: 5, description: "CDProject assignment templates"),
         PayloadField(name: "projectSessions", introducedIn: 5, description: "CDProject session records"),
         PayloadField(name: "projectRoles", introducedIn: 5, description: "CDProject role definitions"),
@@ -376,7 +389,7 @@ extension BackupMigrationManifest {
         PayloadField(name: "tracks", introducedIn: 8, description: "CDTrackEntity records"),
         PayloadField(name: "trackSteps", introducedIn: 8, description: "CDTrackStepEntity records"),
         PayloadField(name: "studentTrackEnrollments", introducedIn: 8, description: "CDStudentTrackEnrollmentEntity records"),
-        PayloadField(name: "groupTracks", introducedIn: 8, description: "CDGroupTrack records"),
+        PayloadField(name: "sequenceTracks", introducedIn: 8, description: "CDSequenceTrack records"),
         PayloadField(name: "documents", introducedIn: 8, description: "CDDocument metadata"),
         PayloadField(name: "supplies", introducedIn: 8, description: "CDSupply records"),
         PayloadField(name: "supplyTransactions", introducedIn: 8, description: "CDSupplyTransaction records (deprecated, ignored on import)"),

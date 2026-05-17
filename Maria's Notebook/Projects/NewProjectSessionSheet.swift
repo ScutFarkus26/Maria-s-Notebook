@@ -278,8 +278,8 @@ struct NewProjectSessionSheet: View {
         let l = CDLesson(context: context)
         l.id = UUID()
         l.name = name
-        l.subject = "Projects"
-        l.group = "Project"
+        l.area = "Projects"
+        l.sequence = "Project"
         return l.id!
     }
 }

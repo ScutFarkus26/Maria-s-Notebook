@@ -8,7 +8,7 @@ import CoreData
 
 struct IntroductionCard: View {
     let introduction: CurriculumIntroduction
-    let subjectColor: Color
+    let areaColor: Color
     let onTap: () -> Void
 
     private var manilaBackground: Color {
@@ -38,7 +38,7 @@ struct IntroductionCard: View {
                 HStack(spacing: 8) {
                     Image(systemName: "folder.fill")
                         .font(.system(size: 14, weight: .medium))
-                        .foregroundStyle(subjectColor)
+                        .foregroundStyle(areaColor)
 
                     Text("Introduction")
                         .font(AppTheme.ScaledFont.captionSmallSemibold)
@@ -49,7 +49,7 @@ struct IntroductionCard: View {
                     Spacer()
                 }
 
-                // Title: Group name or Album
+                // Title: Sequence name or Album
                 Text(introduction.displayTitle)
                     .font(AppTheme.ScaledFont.titleSmall)
                     .foregroundStyle(.primary)
@@ -75,11 +75,11 @@ struct IntroductionCard: View {
                             Text(ageRange)
                                 .font(AppTheme.ScaledFont.captionSmallSemibold)
                         }
-                        .foregroundStyle(subjectColor.opacity(UIConstants.OpacityConstants.heavy))
+                        .foregroundStyle(areaColor.opacity(UIConstants.OpacityConstants.heavy))
                         .padding(.horizontal, 8)
                         .padding(.vertical, 4)
                         .background(
-                            Capsule().fill(subjectColor.opacity(UIConstants.OpacityConstants.light))
+                            Capsule().fill(areaColor.opacity(UIConstants.OpacityConstants.light))
                         )
                     }
 
@@ -133,7 +133,7 @@ struct IntroductionCard: View {
             // Dashed border for folder feel
             RoundedRectangle(cornerRadius: 12, style: .continuous)
                 .stroke(
-                    subjectColor.opacity(colorScheme == .dark ? 0.4 : 0.35),
+                    areaColor.opacity(colorScheme == .dark ? 0.4 : 0.35),
                     style: StrokeStyle(lineWidth: 1.5, dash: [6, 4])
                 )
 
@@ -171,7 +171,7 @@ struct IntroductionCard: View {
                 // Close back to start
                 path.addLine(to: CGPoint(x: cornerRadius, y: 0))
             }
-            .fill(subjectColor.opacity(UIConstants.OpacityConstants.accent))
+            .fill(areaColor.opacity(UIConstants.OpacityConstants.accent))
         }
         .allowsHitTesting(false)
     }
@@ -179,17 +179,17 @@ struct IntroductionCard: View {
 
 // MARK: - Preview
 
-#Preview("Group Introduction") {
+#Preview("Sequence Introduction") {
     IntroductionCard(
         introduction: CurriculumIntroduction(
-            subject: "Math",
-            group: "Algebra",
+            area: "Math",
+            sequence: "Algebra",
             // swiftlint:disable:next line_length
             content: "## Introduction to Algebra\n\nAlgebra introduces students to abstract mathematical thinking through the use of variables and equations. This foundational work builds upon concrete number experiences.",
             prerequisites: "Decimal System, Four Operations",
             ageRange: "6-9"
         ),
-        subjectColor: .indigo,
+        areaColor: .indigo,
         onTap: {}
     )
     .frame(width: 280)
@@ -199,14 +199,14 @@ struct IntroductionCard: View {
 #Preview("Album Introduction") {
     IntroductionCard(
         introduction: CurriculumIntroduction(
-            subject: "Language",
-            group: nil,
+            area: "Language",
+            sequence: nil,
             // swiftlint:disable:next line_length
             content: "The Language curriculum encompasses reading, writing, grammar, and oral expression. Children progress from concrete letter work through increasingly abstract linguistic concepts.",
             prerequisites: nil,
             ageRange: "3-12"
         ),
-        subjectColor: .purple,
+        areaColor: .purple,
         onTap: {}
     )
     .frame(width: 280)
@@ -216,13 +216,13 @@ struct IntroductionCard: View {
 #Preview("Minimal Introduction") {
     IntroductionCard(
         introduction: CurriculumIntroduction(
-            subject: "Science",
-            group: "Botany",
+            area: "Science",
+            sequence: "Botany",
             content: "# Botany\n\nPlant studies for the elementary classroom.",
             prerequisites: nil,
             ageRange: nil
         ),
-        subjectColor: .teal,
+        areaColor: .teal,
         onTap: {}
     )
     .frame(width: 280)

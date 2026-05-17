@@ -1,14 +1,14 @@
-// StudentSubjectProgressionViewModel.swift
-// ViewModel for single student's progression through a subject/group.
+// StudentAreaProgressionViewModel.swift
+// ViewModel for single student's progression through a area/sequence.
 
 import Foundation
 import OSLog
 import CoreData
 
-/// Builds the lesson timeline for one student in a subject/group.
+/// Builds the lesson timeline for one student in a area/sequence.
 @Observable
 @MainActor
-final class StudentSubjectProgressionViewModel {
+final class StudentAreaProgressionViewModel {
     private static let logger = Logger.app_
 
     private(set) var nodes: [LessonProgressionNode] = []
@@ -23,7 +23,7 @@ final class StudentSubjectProgressionViewModel {
     // MARK: - Configuration
 
     // swiftlint:disable:next function_body_length
-    func configure(for student: CDStudent, subject: String, group: String, context: NSManagedObjectContext) {
+    func configure(for student: CDStudent, area: String, sequence: String, context: NSManagedObjectContext) {
         isLoading = true
         defer { isLoading = false }
 
@@ -38,14 +38,14 @@ final class StudentSubjectProgressionViewModel {
 
         let studentIDStr = student.id?.uuidString ?? ""
 
-        // Lessons in this group sorted by orderInGroup
+        // Lessons in this sequence sorted by orderInSequence
         let groupLessons = fetchedLessons
-            .filter { $0.subject.trimmed() == subject && $0.group.trimmed() == group }
-            .sorted { $0.orderInGroup < $1.orderInGroup }
+            .filter { $0.area.trimmed() == area && $0.sequence.trimmed() == sequence }
+            .sorted { $0.orderInSequence < $1.orderInSequence }
 
         totalCount = groupLessons.count
 
-        // CDStudent's presentations and work in this group
+        // CDStudent's presentations and work in this sequence
         let studentPresentations = fetchedPresentations.filter { $0.studentIDs.contains(studentIDStr) }
         let studentWork = fetchedWork.filter { $0.studentID == studentIDStr }
         let studentCheckIns = fetchedCheckIns.filter { ci in
@@ -137,7 +137,7 @@ final class StudentSubjectProgressionViewModel {
             result.append(LessonProgressionNode(
                 id: lesson.id ?? UUID(),
                 lesson: lesson,
-                orderInGroup: Int(lesson.orderInGroup),
+                orderInSequence: Int(lesson.orderInSequence),
                 status: status,
                 presentedAt: presentation?.presentedAt,
                 presentationID: presentation?.id,
@@ -191,9 +191,9 @@ final class StudentSubjectProgressionViewModel {
     private func fetchAllLessons(context: NSManagedObjectContext) -> [CDLesson] {
         let descriptor: NSFetchRequest<CDLesson> = NSFetchRequest(entityName: "Lesson")
         descriptor.sortDescriptors = [
-                NSSortDescriptor(keyPath: \CDLesson.subject, ascending: true),
-                NSSortDescriptor(keyPath: \CDLesson.group, ascending: true),
-                NSSortDescriptor(keyPath: \CDLesson.orderInGroup, ascending: true)
+                NSSortDescriptor(keyPath: \CDLesson.area, ascending: true),
+                NSSortDescriptor(keyPath: \CDLesson.sequence, ascending: true),
+                NSSortDescriptor(keyPath: \CDLesson.orderInSequence, ascending: true)
             ]
         return context.safeFetch(descriptor)
     }

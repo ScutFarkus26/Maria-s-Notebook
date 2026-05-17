@@ -20,26 +20,26 @@ extension LessonsViewModel {
         personalKindFilter: PersonalLessonKind?,
         formatFilter: LessonFormat? = nil,
         searchText: String,
-        selectedSubject: String?,
-        selectedGroup: String?,
+        selectedArea: String?,
+        selectedSequence: String?,
         allLessons: [CDLesson]? = nil
     ) -> [CDLesson] {
         let query = searchText.trimmed()
         let predicate = buildLessonPredicate(
             sourceFilter: sourceFilter, personalKindFilter: personalKindFilter,
             formatFilter: formatFilter,
-            selectedSubject: selectedSubject, selectedGroup: selectedGroup, searchText: searchText
+            selectedArea: selectedArea, selectedSequence: selectedSequence, searchText: searchText
         )
         let descriptor = NSFetchRequest<CDLesson>(entityName: "Lesson")
         if let predicate { descriptor.predicate = predicate }
-        descriptor.sortDescriptors = lessonSortDescriptors(selectedGroup: selectedGroup, selectedSubject: selectedSubject)
+        descriptor.sortDescriptors = lessonSortDescriptors(selectedSequence: selectedSequence, selectedArea: selectedArea)
 
         var fetched = viewContext.safeFetch(descriptor)
-        if let subject = selectedSubject?.trimmed(), !subject.isEmpty, query.isEmpty {
-            fetched = fetched.filter { $0.subject.trimmed().caseInsensitiveCompare(subject) == .orderedSame }
+        if let area = selectedArea?.trimmed(), !area.isEmpty, query.isEmpty {
+            fetched = fetched.filter { $0.area.trimmed().caseInsensitiveCompare(area) == .orderedSame }
         }
-        if let group = selectedGroup?.trimmed(), !group.isEmpty, query.isEmpty {
-            fetched = fetched.filter { $0.group.trimmed().caseInsensitiveCompare(group) == .orderedSame }
+        if let sequence = selectedSequence?.trimmed(), !sequence.isEmpty, query.isEmpty {
+            fetched = fetched.filter { $0.sequence.trimmed().caseInsensitiveCompare(sequence) == .orderedSame }
         }
         if let formatFilter {
             fetched = fetched.filter { $0.lessonFormat == formatFilter }
@@ -47,9 +47,9 @@ extension LessonsViewModel {
         if !query.isEmpty {
             fetched = fetched.filter { l in
                 l.name.localizedCaseInsensitiveContains(query)
-                || l.subject.localizedCaseInsensitiveContains(query)
-                || l.group.localizedCaseInsensitiveContains(query)
-                || l.subheading.localizedCaseInsensitiveContains(query)
+                || l.area.localizedCaseInsensitiveContains(query)
+                || l.sequence.localizedCaseInsensitiveContains(query)
+                || l.section.localizedCaseInsensitiveContains(query)
                 || l.writeUp.localizedCaseInsensitiveContains(query)
             }
         }
@@ -58,22 +58,22 @@ extension LessonsViewModel {
             allLessons: allLessons, sourceFilter: sourceFilter,
             personalKindFilter: personalKindFilter, viewContext: viewContext
         )
-        let subjectIndex = subjectIndexMap(from: scoped)
-        let groupIdxCache = buildGroupIndexCache(for: Set(fetched.map { norm($0.subject) }), from: scoped)
+        let areaIndex = areaIndexMap(from: scoped)
+        let sequenceIdxCache = buildSequenceIndexCache(for: Set(fetched.map { norm($0.area) }), from: scoped)
 
-        if !query.isEmpty || selectedGroup == nil && selectedSubject == nil {
-            return sortBySubjectGroupOrder(fetched, subjectIndex: subjectIndex, groupIndexCache: groupIdxCache)
-        } else if selectedGroup != nil {
+        if !query.isEmpty || selectedSequence == nil && selectedArea == nil {
+            return sortByAreaSequenceOrder(fetched, areaIndex: areaIndex, sequenceIndexCache: sequenceIdxCache)
+        } else if selectedSequence != nil {
             return fetched.sorted { lhs, rhs in
-                if lhs.orderInGroup == rhs.orderInGroup {
+                if lhs.orderInSequence == rhs.orderInSequence {
                     return Self.lessonNameOrder(lhs, rhs)
                 }
-                return lhs.orderInGroup < rhs.orderInGroup
+                return lhs.orderInSequence < rhs.orderInSequence
             }
         } else {
             return fetched.sorted { lhs, rhs in
                 if lhs.sortIndex != rhs.sortIndex { return lhs.sortIndex < rhs.sortIndex }
-                if lhs.orderInGroup != rhs.orderInGroup { return lhs.orderInGroup < rhs.orderInGroup }
+                if lhs.orderInSequence != rhs.orderInSequence { return lhs.orderInSequence < rhs.orderInSequence }
                 return Self.lessonNameOrder(lhs, rhs)
             }
         }
@@ -81,10 +81,10 @@ extension LessonsViewModel {
 
     // MARK: - Sort Descriptors
 
-    func lessonSortDescriptors(selectedGroup: String?, selectedSubject: String?) -> [NSSortDescriptor] {
-        if selectedGroup != nil { return [NSSortDescriptor(key: "orderInGroup", ascending: true), NSSortDescriptor(key: "name", ascending: true)] }
-        if selectedSubject != nil { return [NSSortDescriptor(key: "sortIndex", ascending: true), NSSortDescriptor(key: "name", ascending: true)] }
-        return [NSSortDescriptor(key: "subject", ascending: true), NSSortDescriptor(key: "sortIndex", ascending: true), NSSortDescriptor(key: "name", ascending: true)]
+    func lessonSortDescriptors(selectedSequence: String?, selectedArea: String?) -> [NSSortDescriptor] {
+        if selectedSequence != nil { return [NSSortDescriptor(key: "orderInSequence", ascending: true), NSSortDescriptor(key: "name", ascending: true)] }
+        if selectedArea != nil { return [NSSortDescriptor(key: "sortIndex", ascending: true), NSSortDescriptor(key: "name", ascending: true)] }
+        return [NSSortDescriptor(key: "area", ascending: true), NSSortDescriptor(key: "sortIndex", ascending: true), NSSortDescriptor(key: "name", ascending: true)]
     }
 
     // MARK: - Scoping & Caching
@@ -111,35 +111,35 @@ extension LessonsViewModel {
         return viewContext.safeFetch(scopedDescriptor)
     }
 
-    func buildGroupIndexCache(for subjects: Set<String>, from scoped: [CDLesson]) -> [String: [String: Int]] {
+    func buildSequenceIndexCache(for areas: Set<String>, from scoped: [CDLesson]) -> [String: [String: Int]] {
         var cache: [String: [String: Int]] = [:]
-        for subject in subjects where cache[subject] == nil {
-            if let original = scoped.first(where: { norm($0.subject) == subject })?.subject {
-                cache[subject] = groupIndex(for: original, lessons: scoped)
+        for area in areas where cache[area] == nil {
+            if let original = scoped.first(where: { norm($0.area) == area })?.area {
+                cache[area] = sequenceIndex(for: original, lessons: scoped)
             }
         }
         return cache
     }
 
-    func sortBySubjectGroupOrder(
+    func sortByAreaSequenceOrder(
         _ lessons: [CDLesson],
-        subjectIndex: [String: Int],
-        groupIndexCache: [String: [String: Int]]
+        areaIndex: [String: Int],
+        sequenceIndexCache: [String: [String: Int]]
     ) -> [CDLesson] {
         let keyed = lessons.map { lesson -> (CDLesson, LessonSortKey) in
-            let si = subjectIndex[norm(lesson.subject)] ?? Int.max
-            let gi = groupIndexCache[norm(lesson.subject)]?[norm(lesson.group)] ?? Int.max
+            let si = areaIndex[norm(lesson.area)] ?? Int.max
+            let gi = sequenceIndexCache[norm(lesson.area)]?[norm(lesson.sequence)] ?? Int.max
             let key = LessonSortKey(
-                subjectIdx: si, groupIdx: gi, orderInGroup: lesson.orderInGroup,
+                areaIdx: si, groupIdx: gi, orderInSequence: lesson.orderInSequence,
                 name: lesson.name, id: lesson.id?.uuidString ?? ""
             )
             return (lesson, key)
         }
         return keyed.sorted { lhs, rhs in
             let (_, l) = lhs; let (_, r) = rhs
-            if l.subjectIdx != r.subjectIdx { return l.subjectIdx < r.subjectIdx }
+            if l.areaIdx != r.areaIdx { return l.areaIdx < r.areaIdx }
             if l.groupIdx != r.groupIdx { return l.groupIdx < r.groupIdx }
-            if l.orderInGroup != r.orderInGroup { return l.orderInGroup < r.orderInGroup }
+            if l.orderInSequence != r.orderInSequence { return l.orderInSequence < r.orderInSequence }
             let n = l.name.localizedCaseInsensitiveCompare(r.name)
             return n == .orderedSame ? l.id < r.id : n == .orderedAscending
         }.map { $0.0 }

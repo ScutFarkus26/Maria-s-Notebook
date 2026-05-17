@@ -235,9 +235,9 @@ struct PlanningSlotDropDelegate: DropDelegate {
 
     private func autoEnrollIfNeeded(_ item: CDLessonAssignment) {
         if let lesson = item.lesson {
-            GroupTrackService.autoEnrollInTrackIfNeeded(
-                lessonSubject: lesson.subject,
-                lessonGroup: lesson.group,
+            SequenceTrackService.autoEnrollInTrackIfNeeded(
+                lessonArea: lesson.area,
+                lessonSequence: lesson.sequence,
                 studentIDs: item.studentIDs,
                 context: viewContext
             )

@@ -11,7 +11,7 @@ extension PresentationsListView {
         ScrollView {
             VStack(alignment: .leading, spacing: 12) {
                 completionFilters
-                subjectFilters
+                areaFilters
 
                 Divider()
 
@@ -53,30 +53,30 @@ extension PresentationsListView {
         }
     }
 
-    private var subjectFilters: some View {
+    private var areaFilters: some View {
         Group {
-            sidebarSectionHeader("Subject")
+            sidebarSectionHeader("Area")
 
             SidebarFilterButton(
-                icon: "rectangle.3.group",
-                title: "All Subjects",
+                icon: "rectangle.3.sequence",
+                title: "All Areas",
                 color: .accentColor,
-                isSelected: selectedSubject == nil
+                isSelected: selectedArea == nil
             ) {
                 adaptiveWithAnimation(.spring(response: 0.35, dampingFraction: 0.85, blendDuration: 0.1)) {
-                    presentationsSubjectRaw = ""
+                    presentationsAreaRaw = ""
                 }
             }
 
-            ForEach(subjects, id: \.self) { subject in
+            ForEach(areas, id: \.self) { area in
                 SidebarFilterButton(
                     icon: "folder.fill",
-                    title: subject,
-                    color: AppColors.color(forSubject: subject),
-                    isSelected: selectedSubject?.caseInsensitiveCompare(subject) == .orderedSame
+                    title: area,
+                    color: AppColors.color(forArea: area),
+                    isSelected: selectedArea?.caseInsensitiveCompare(area) == .orderedSame
                 ) {
                     adaptiveWithAnimation(.spring(response: 0.35, dampingFraction: 0.85, blendDuration: 0.1)) {
-                        presentationsSubjectRaw = subject
+                        presentationsAreaRaw = area
                     }
                 }
             }

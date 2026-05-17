@@ -13,46 +13,46 @@ extension LessonsRootView {
 
     // MARK: - Sync Reorderable Groups
 
-    func syncReorderableGroups() {
+    func syncReorderableSequences() {
         let ungroupedLabel = "Ungrouped"
-        let baseGroups = groupsForSelectedSubject
-        let hasUngrouped = lessonsForSubject.contains { $0.group.trimmed().isEmpty }
+        let baseSequences = groupsForSelectedArea
+        let hasUngrouped = lessonsForArea.contains { $0.sequence.trimmed().isEmpty }
 
-        if let subject = selectedSubject, !subject.trimmed().isEmpty {
+        if let area = selectedArea, !area.trimmed().isEmpty {
             // Include "Ungrouped" in existing groups so its position is preserved by mergeOrder
-            let existingWithUngrouped = hasUngrouped ? (baseGroups + [ungroupedLabel]) : baseGroups
-            let orderedGroups = FilterOrderStore.loadGroupOrder(for: subject, existing: existingWithUngrouped)
-            reorderableGroups = orderedGroups
+            let existingWithUngrouped = hasUngrouped ? (baseSequences + [ungroupedLabel]) : baseSequences
+            let orderedSequences = FilterOrderStore.loadSequenceOrder(for: area, existing: existingWithUngrouped)
+            reorderableSequences = orderedSequences
         } else {
-            let allGroups = hasUngrouped ? (baseGroups + [ungroupedLabel]) : baseGroups
-            reorderableGroups = allGroups
+            let allSequences = hasUngrouped ? (baseSequences + [ungroupedLabel]) : baseSequences
+            reorderableSequences = allSequences
         }
     }
 
     // MARK: - Move Groups
 
     @MainActor
-    func moveGroups(from source: IndexSet, to destination: Int, in groups: [String]) {
-        guard let subject = selectedSubject, !subject.trimmed().isEmpty else { return }
+    func moveSequences(from source: IndexSet, to destination: Int, in groups: [String]) {
+        guard let area = selectedArea, !area.trimmed().isEmpty else { return }
         guard let sourceIndex = source.first else { return }
         guard sourceIndex < groups.count else { return }
 
         var reordered = groups
         reordered.move(fromOffsets: source, toOffset: destination)
 
-        reorderableGroups = reordered
+        reorderableSequences = reordered
 
         // Save the full order including "Ungrouped" so its position is preserved
-        FilterOrderStore.saveGroupOrder(reordered, for: subject)
+        FilterOrderStore.saveSequenceOrder(reordered, for: area)
         FilterOrderStore.resetCache()
     }
 
     // MARK: - Move Group Up/Down
 
     @MainActor
-    func moveGroupUpDown(group: String, direction: Int, in groups: [String]) {
-        guard let subject = selectedSubject, !subject.trimmed().isEmpty else { return }
-        guard let index = groups.firstIndex(of: group) else { return }
+    func moveSequenceUpDown(sequence: String, direction: Int, in groups: [String]) {
+        guard let area = selectedArea, !area.trimmed().isEmpty else { return }
+        guard let index = groups.firstIndex(of: sequence) else { return }
 
         let target = index + direction
         guard target >= 0, target < groups.count else { return }
@@ -60,8 +60,8 @@ extension LessonsRootView {
         var reordered = groups
         reordered.swapAt(index, target)
 
-        reorderableGroups = reordered
-        FilterOrderStore.saveGroupOrder(reordered, for: subject)
+        reorderableSequences = reordered
+        FilterOrderStore.saveSequenceOrder(reordered, for: area)
         FilterOrderStore.resetCache()
     }
 
@@ -88,27 +88,27 @@ extension LessonsRootView {
         }
     }
 
-    // MARK: - Move Lessons in Subject (legacy, for group-based reordering)
+    // MARK: - Move Lessons in Area (legacy, for sequence-based reordering)
 
     @MainActor
-    func moveLessonsInSubject(from source: IndexSet, to destination: Int, in groupLessons: [CDLesson]) {
+    func moveLessonsInArea(from source: IndexSet, to destination: Int, in groupLessons: [CDLesson]) {
         // Allow reordering in both browse (jiggle) and plan modes.
         guard canReorder else { return }
-        guard let subject = selectedSubject, !subject.trimmed().isEmpty else { return }
+        guard let area = selectedArea, !area.trimmed().isEmpty else { return }
         guard let sourceIndex = source.first else { return }
         guard sourceIndex < groupLessons.count else { return }
 
-        var reorderedGroup: [CDLesson] = groupLessons
-        reorderedGroup.move(fromOffsets: source, toOffset: destination)
+        var reorderedSequence: [CDLesson] = groupLessons
+        reorderedSequence.move(fromOffsets: source, toOffset: destination)
 
-        for (idx, lesson) in reorderedGroup.enumerated() {
-            lesson.orderInGroup = Int64(idx)
+        for (idx, lesson) in reorderedSequence.enumerated() {
+            lesson.orderInSequence = Int64(idx)
         }
 
         let ungroupedLabel: String = "Ungrouped"
-        let displayGroups: [String] = reorderableGroups
+        let displaySequences: [String] = reorderableSequences
         let allLessonsInOrder: [CDLesson] = collectOrderedLessons(
-            displayGroups: displayGroups,
+            displaySequences: displaySequences,
             ungroupedLabel: ungroupedLabel
         )
 
@@ -123,24 +123,24 @@ extension LessonsRootView {
         }
     }
 
-    private func collectOrderedLessons(displayGroups: [String], ungroupedLabel: String) -> [CDLesson] {
+    private func collectOrderedLessons(displaySequences: [String], ungroupedLabel: String) -> [CDLesson] {
         var result: [CDLesson] = []
-        for group in displayGroups {
-            let trimmedGroup: String = group.trimmed()
-            let lessonsInGroup: [CDLesson] = lessonsForSubject.filter { (lesson: CDLesson) -> Bool in
-                let lessonGroupTrimmed: String = lesson.group.trimmed()
-                if group == ungroupedLabel {
-                    return lessonGroupTrimmed.isEmpty
+        for sequence in displaySequences {
+            let trimmedSequence: String = sequence.trimmed()
+            let lessonsInSequence: [CDLesson] = lessonsForArea.filter { (lesson: CDLesson) -> Bool in
+                let lessonSequenceTrimmed: String = lesson.sequence.trimmed()
+                if sequence == ungroupedLabel {
+                    return lessonSequenceTrimmed.isEmpty
                 } else {
-                    return lessonGroupTrimmed.caseInsensitiveCompare(trimmedGroup) == .orderedSame
+                    return lessonSequenceTrimmed.caseInsensitiveCompare(trimmedSequence) == .orderedSame
                 }
             }.sorted { (lhs: CDLesson, rhs: CDLesson) -> Bool in
-                if lhs.orderInGroup != rhs.orderInGroup {
-                    return lhs.orderInGroup < rhs.orderInGroup
+                if lhs.orderInSequence != rhs.orderInSequence {
+                    return lhs.orderInSequence < rhs.orderInSequence
                 }
                 return lhs.name.localizedCaseInsensitiveCompare(rhs.name) == .orderedAscending
             }
-            result.append(contentsOf: lessonsInGroup)
+            result.append(contentsOf: lessonsInSequence)
         }
         return result
     }
@@ -148,47 +148,47 @@ extension LessonsRootView {
     // MARK: - Move Single CDLesson Up/Down in Group
 
     @MainActor
-    func moveLessonInGroup(lesson: CDLesson, direction: Int, group: String, ungroupedLabel: String) {
+    func moveLessonInSequence(lesson: CDLesson, direction: Int, sequence: String, ungroupedLabel: String) {
         guard canReorderInOutlineMode else { return }
 
-        let groupLessons = lessonsForGroup(group, ungroupedLabel: ungroupedLabel)
+        let groupLessons = lessonsForSequence(sequence, ungroupedLabel: ungroupedLabel)
         guard let index = groupLessons.firstIndex(where: { $0.id == lesson.id }) else { return }
 
         let target = index + direction
         guard target >= 0, target < groupLessons.count else { return }
 
-        // Swap orderInGroup between the two lessons
+        // Swap orderInSequence between the two lessons
         let neighbor = groupLessons[target]
-        let tempOrder = lesson.orderInGroup
-        lesson.orderInGroup = neighbor.orderInGroup
-        neighbor.orderInGroup = tempOrder
+        let tempOrder = lesson.orderInSequence
+        lesson.orderInSequence = neighbor.orderInSequence
+        neighbor.orderInSequence = tempOrder
 
-        // Rebuild sortIndex across the entire subject
-        rebuildSortIndexForSubject()
+        // Rebuild sortIndex across the entire area
+        rebuildSortIndexForArea()
     }
 
-    /// Rebuilds `sortIndex` for all lessons in the selected subject based on group order and `orderInGroup`.
+    /// Rebuilds `sortIndex` for all lessons in the selected area based on sequence order and `orderInSequence`.
     @MainActor
-    private func rebuildSortIndexForSubject() {
+    private func rebuildSortIndexForArea() {
         let ungroupedLabel = "Ungrouped"
-        let displayGroups = reorderableGroups
+        let displaySequences = reorderableSequences
 
         var allLessonsInOrder: [CDLesson] = []
-        for group in displayGroups {
-            let lessonsInGroup = lessonsForSubject.filter { lesson in
-                let lessonGroupTrimmed = lesson.group.trimmed()
-                if group == ungroupedLabel {
-                    return lessonGroupTrimmed.isEmpty
+        for sequence in displaySequences {
+            let lessonsInSequence = lessonsForArea.filter { lesson in
+                let lessonSequenceTrimmed = lesson.sequence.trimmed()
+                if sequence == ungroupedLabel {
+                    return lessonSequenceTrimmed.isEmpty
                 } else {
-                    return lessonGroupTrimmed.caseInsensitiveCompare(group.trimmed()) == .orderedSame
+                    return lessonSequenceTrimmed.caseInsensitiveCompare(sequence.trimmed()) == .orderedSame
                 }
             }.sorted { lhs, rhs in
-                if lhs.orderInGroup != rhs.orderInGroup {
-                    return lhs.orderInGroup < rhs.orderInGroup
+                if lhs.orderInSequence != rhs.orderInSequence {
+                    return lhs.orderInSequence < rhs.orderInSequence
                 }
                 return lhs.name.localizedCaseInsensitiveCompare(rhs.name) == .orderedAscending
             }
-            allLessonsInOrder.append(contentsOf: lessonsInGroup)
+            allLessonsInOrder.append(contentsOf: lessonsInSequence)
         }
 
         for (idx, lesson) in allLessonsInOrder.enumerated() {
@@ -205,36 +205,36 @@ extension LessonsRootView {
     // MARK: - Move CDLesson to Different Group
 
     @MainActor
-    func moveLessonToGroup(lesson: CDLesson, newGroup: String) {
+    func moveLessonToSequence(lesson: CDLesson, newSequence: String) {
         let ungroupedLabel = "Ungrouped"
-        let actualGroup = (newGroup == ungroupedLabel) ? "" : newGroup
+        let actualGroup = (newSequence == ungroupedLabel) ? "" : newSequence
 
-        lesson.group = actualGroup
+        lesson.sequence = actualGroup
 
-        // Set orderInGroup to end of target group
-        let targetLessons = lessonsForGroup(newGroup, ungroupedLabel: ungroupedLabel)
-        let maxOrder = targetLessons.map(\.orderInGroup).max() ?? -1
-        lesson.orderInGroup = maxOrder + 1
+        // Set orderInSequence to end of target sequence
+        let targetLessons = lessonsForSequence(newSequence, ungroupedLabel: ungroupedLabel)
+        let maxOrder = targetLessons.map(\.orderInSequence).max() ?? -1
+        lesson.orderInSequence = maxOrder + 1
 
-        rebuildSortIndexForSubject()
+        rebuildSortIndexForArea()
     }
 
-    // MARK: - Reorder Subheading by Drag
+    // MARK: - Reorder Section by Drag
 
-    /// Move a subheading block within its group. Persists the new subheading order via
-    /// `FilterOrderStore` (so Plan/Cards/List views update) and rewrites `orderInGroup`
+    /// Move a section block within its sequence. Persists the new section order via
+    /// `FilterOrderStore` (so Plan/Cards/List views update) and rewrites `orderInSequence`
     /// on the affected lessons so flat views (Browse) reflect the same order.
     @MainActor
-    func reorderSubheadingByDrag(group: String, source: String, target: String) {
-        guard let subject = selectedSubject, !subject.trimmed().isEmpty else { return }
+    func reorderSectionByDrag(sequence: String, source: String, target: String) {
+        guard let area = selectedArea, !area.trimmed().isEmpty else { return }
         guard source != target else { return }
 
-        let groupLessons = lessonsForGroup(group, ungroupedLabel: "Ungrouped")
+        let groupLessons = lessonsForSequence(sequence, ungroupedLabel: "Ungrouped")
         let existingNonEmpty: [String] = Array(Set(
-            groupLessons.map { $0.subheading.trimmed() }.filter { !$0.isEmpty }
+            groupLessons.map { $0.section.trimmed() }.filter { !$0.isEmpty }
         )).sorted { $0.localizedCaseInsensitiveCompare($1) == .orderedAscending }
 
-        var order = FilterOrderStore.loadSubheadingOrder(for: subject, group: group, existing: existingNonEmpty)
+        var order = FilterOrderStore.loadSectionOrder(for: area, sequence: sequence, existing: existingNonEmpty)
         order.removeAll { $0 == source }
         if let targetIdx = order.firstIndex(of: target) {
             order.insert(source, at: targetIdx)
@@ -242,40 +242,40 @@ extension LessonsRootView {
             order.append(source)
         }
 
-        FilterOrderStore.saveSubheadingOrder(order, for: subject, group: group)
+        FilterOrderStore.saveSectionOrder(order, for: area, sequence: sequence)
         FilterOrderStore.resetCache()
 
-        // Propagate to flat views: rewrite orderInGroup so lessons under the moved
-        // subheading sit contiguously in the new position. Within each subheading,
-        // preserve current orderInGroup sort.
-        let bySubheading = Dictionary(grouping: groupLessons) { $0.subheading.trimmed() }
+        // Propagate to flat views: rewrite orderInSequence so lessons under the moved
+        // section sit contiguously in the new position. Within each section,
+        // preserve current orderInSequence sort.
+        let bySection = Dictionary(grouping: groupLessons) { $0.section.trimmed() }
         var idx: Int64 = 0
-        let fullOrder: [String] = order + (bySubheading.keys.contains("") ? [""] : [])
+        let fullOrder: [String] = order + (bySection.keys.contains("") ? [""] : [])
         for sh in fullOrder {
-            let lessons = (bySubheading[sh] ?? []).sorted { lhs, rhs in
-                if lhs.orderInGroup != rhs.orderInGroup { return lhs.orderInGroup < rhs.orderInGroup }
+            let lessons = (bySection[sh] ?? []).sorted { lhs, rhs in
+                if lhs.orderInSequence != rhs.orderInSequence { return lhs.orderInSequence < rhs.orderInSequence }
                 return lhs.name.localizedCaseInsensitiveCompare(rhs.name) == .orderedAscending
             }
             for lesson in lessons {
-                lesson.orderInGroup = idx
+                lesson.orderInSequence = idx
                 idx += 1
             }
         }
 
-        rebuildSortIndexForSubject()
-        subheadingOrderRevision &+= 1
+        rebuildSortIndexForArea()
+        sectionOrderRevision &+= 1
     }
 
-    // MARK: - Move CDLesson to Different Subheading
+    // MARK: - Move CDLesson to Different Section
 
     @MainActor
-    func moveLessonToSubheading(lesson: CDLesson, newSubheading: String) {
-        lesson.subheading = newSubheading
+    func moveLessonToSection(lesson: CDLesson, newSection: String) {
+        lesson.section = newSection
 
         do {
             try viewContext.save()
         } catch {
-            logger.error("Failed to save lesson subheading change: \(error)")
+            logger.error("Failed to save lesson section change: \(error)")
         }
     }
 

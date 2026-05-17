@@ -23,17 +23,17 @@ struct WorkRepository {
         request.fetchLimit = 1
         guard let lesson = context.safeFetchFirst(request) else { return }
 
-        let subject = lesson.subject.trimmed()
-        let group = lesson.group.trimmed()
+        let area = lesson.area.trimmed()
+        let sequence = lesson.sequence.trimmed()
 
-        guard !subject.isEmpty, !group.isEmpty,
-              GroupTrackService.isTrack(subject: subject, group: group, context: context) else { return }
+        guard !area.isEmpty, !sequence.isEmpty,
+              SequenceTrackService.isTrack(area: area, sequence: sequence, context: context) else { return }
 
         let track: CDTrackEntity
         do {
-            track = try GroupTrackService.getOrCreateTrack(
-                subject: subject,
-                group: group,
+            track = try SequenceTrackService.getOrCreateTrack(
+                area: area,
+                sequence: sequence,
                 context: context
             )
         } catch {

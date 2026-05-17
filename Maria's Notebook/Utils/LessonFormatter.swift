@@ -4,24 +4,24 @@ import Foundation
 /// Consolidates lesson formatting logic used across the app.
 /// All methods are nonisolated to allow calling from any actor context.
 enum LessonFormatter {
-    /// Formats a lesson title with optional subject and group.
+    /// Formats a lesson title with optional area and sequence.
     /// - Parameters:
     ///   - name: The lesson name
-    ///   - subject: Optional subject
-    ///   - group: Optional group
+    ///   - area: Optional area
+    ///   - sequence: Optional sequence
     /// - Returns: Formatted lesson title string
-    nonisolated static func displayTitle(name: String, subject: String? = nil, group: String? = nil) -> String {
+    nonisolated static func displayTitle(name: String, area: String? = nil, sequence: String? = nil) -> String {
         let trimmedName = name.trimmed()
-        let trimmedSubject = subject?.trimmed() ?? ""
-        let trimmedGroup = group?.trimmed() ?? ""
+        let trimmedArea = area?.trimmed() ?? ""
+        let trimmedSequence = sequence?.trimmed() ?? ""
         
         var suffix = ""
-        if !trimmedSubject.isEmpty && !trimmedGroup.isEmpty {
-            suffix = " • \(trimmedSubject) • \(trimmedGroup)"
-        } else if !trimmedSubject.isEmpty {
-            suffix = " • \(trimmedSubject)"
-        } else if !trimmedGroup.isEmpty {
-            suffix = " • \(trimmedGroup)"
+        if !trimmedArea.isEmpty && !trimmedSequence.isEmpty {
+            suffix = " • \(trimmedArea) • \(trimmedSequence)"
+        } else if !trimmedArea.isEmpty {
+            suffix = " • \(trimmedArea)"
+        } else if !trimmedSequence.isEmpty {
+            suffix = " • \(trimmedSequence)"
         }
         
         return trimmedName + suffix
@@ -30,14 +30,14 @@ enum LessonFormatter {
     /// Formats a lesson title for duplicate detection display.
     /// - Parameters:
     ///   - name: The lesson name
-    ///   - subject: The subject
-    ///   - group: Optional group
+    ///   - area: The area
+    ///   - sequence: Optional sequence
     /// - Returns: Formatted duplicate detection title
-    nonisolated static func duplicateDetectionTitle(name: String, subject: String, group: String) -> String {
-        let trimmedGroup = group.trimmed()
-        return trimmedGroup.isEmpty 
-            ? "\(name) — \(subject)" 
-            : "\(name) — \(subject) • \(trimmedGroup)"
+    nonisolated static func duplicateDetectionTitle(name: String, area: String, sequence: String) -> String {
+        let trimmedSequence = sequence.trimmed()
+        return trimmedSequence.isEmpty 
+            ? "\(name) — \(area)" 
+            : "\(name) — \(area) • \(trimmedSequence)"
     }
     
     /// Returns a fallback title if the name is empty.

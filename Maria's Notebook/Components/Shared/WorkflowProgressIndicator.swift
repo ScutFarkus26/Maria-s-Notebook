@@ -5,10 +5,10 @@ struct WorkflowProgressIndicator: View {
     let totalStudents: Int
     let studentsWithUnderstanding: Int
     let studentsWithNotes: Int
-    let hasGroupObservation: Bool
+    let hasSequenceObservation: Bool
     
     private var progressPercentage: Double {
-        let totalItems = 3.0 // understanding, notes, group observation
+        let totalItems = 3.0 // understanding, notes, sequence observation
         var completed = 0.0
         
         if studentsWithUnderstanding == totalStudents {
@@ -17,7 +17,7 @@ struct WorkflowProgressIndicator: View {
         if studentsWithNotes > 0 {
             completed += 1.0
         }
-        if hasGroupObservation {
+        if hasSequenceObservation {
             completed += 1.0
         }
         
@@ -41,7 +41,7 @@ struct WorkflowProgressIndicator: View {
                 
                 // Group observation
                 progressItem(
-                    isComplete: hasGroupObservation,
+                    isComplete: hasSequenceObservation,
                     text: "Group notes"
                 )
                 

@@ -69,8 +69,8 @@ enum GreatLesson: String, CaseIterable, Identifiable, Codable {
         }
     }
 
-    /// Primary subjects that relate to this Great CDLesson
-    var relatedSubjects: [String] {
+    /// Primary areas that relate to this Great CDLesson
+    var relatedAreas: [String] {
         switch self {
         case .comingOfUniverse:
             return ["Science", "Geography", "History"]
@@ -88,16 +88,16 @@ enum GreatLesson: String, CaseIterable, Identifiable, Codable {
     // MARK: - Resolution
 
     /// Returns all Great Lessons for a given lesson.
-    /// Prefers explicit tag (authoritative), falls back to subject-based heuristic.
+    /// Prefers explicit tag (authoritative), falls back to area-based heuristic.
     /// A lesson may map to multiple Great Lessons (e.g., Science → Universe + Life).
     /// Returns empty array if no mapping exists.
     static func resolve(for lesson: CDLesson) -> [GreatLesson] {
         if let explicit = lesson.greatLesson {
             return [explicit]
         }
-        let normalized = lesson.subject.normalizedForComparison()
+        let normalized = lesson.area.normalizedForComparison()
         return GreatLesson.allCases.filter { gl in
-            gl.relatedSubjects.contains { $0.normalizedForComparison() == normalized }
+            gl.relatedAreas.contains { $0.normalizedForComparison() == normalized }
         }
     }
 }

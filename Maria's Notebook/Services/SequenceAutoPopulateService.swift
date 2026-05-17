@@ -21,24 +21,24 @@ enum SequenceAutoPopulateService {
             return
         }
 
-        let subject = lesson.subject.trimmed()
-        let group = lesson.group.trimmed()
-        guard !subject.isEmpty, !group.isEmpty else { return }
+        let area = lesson.area.trimmed()
+        let sequence = lesson.sequence.trimmed()
+        guard !area.isEmpty, !sequence.isEmpty else { return }
 
-        // Fetch all lessons in same subject + group, sorted by orderInGroup
+        // Fetch all lessons in same area + sequence, sorted by orderInSequence
         let lessonReq = CDFetchRequest(CDLesson.self)
         lessonReq.predicate = NSPredicate(
-            format: "subject ==[c] %@ AND group ==[c] %@",
-            subject, group
+            format: "area ==[c] %@ AND sequence ==[c] %@",
+            area, sequence
         )
-        lessonReq.sortDescriptors = [NSSortDescriptor(key: "orderInGroup", ascending: true)]
-        let allInGroup = context.safeFetch(lessonReq)
+        lessonReq.sortDescriptors = [NSSortDescriptor(key: "orderInSequence", ascending: true)]
+        let allInSequence = context.safeFetch(lessonReq)
 
         // Filter to lessons at or after the current lesson's position
-        let sequence = allInGroup.filter { $0.orderInGroup >= lesson.orderInGroup }
-        guard !sequence.isEmpty else { return }
+        let lessonsAhead = allInSequence.filter { $0.orderInSequence >= lesson.orderInSequence }
+        guard !lessonsAhead.isEmpty else { return }
 
-        let sequenceGroupKey = "\(subject)::\(group)"
+        let sequenceKey = "\(area)::\(sequence)"
         let studentIDs = assignment.studentUUIDs
         guard !studentIDs.isEmpty else { return }
 
@@ -49,7 +49,7 @@ enum SequenceAutoPopulateService {
             let studentIDStr = studentID.uuidString
             var currentDate = scheduledDateNormalized
 
-            for (index, lessonInSequence) in sequence.enumerated() {
+            for (index, lessonInSequence) in lessonsAhead.enumerated() {
                 let lessonIDStr = lessonInSequence.id?.uuidString ?? ""
                 guard !lessonIDStr.isEmpty else { continue }
 
@@ -85,7 +85,7 @@ enum SequenceAutoPopulateService {
                 entry.lessonID = lessonIDStr
                 entry.plannedDate = currentDate
                 entry.spacingSchoolDays = defaultSpacing
-                entry.sequenceGroupKey = sequenceGroupKey
+                entry.sequenceKey = sequenceKey
                 entry.orderInSequence = Int64(index)
 
                 if isFirstEntry {
@@ -98,7 +98,7 @@ enum SequenceAutoPopulateService {
         }
 
         context.safeSave()
-        logger.info("Auto-populated \(sequence.count) entries for \(studentIDs.count) student(s) in \(sequenceGroupKey)")
+        logger.info("Auto-populated \(sequence.count) entries for \(studentIDs.count) student(s) in \(sequenceKey)")
     }
 
     // MARK: - Helpers

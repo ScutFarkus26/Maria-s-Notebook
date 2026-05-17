@@ -26,8 +26,8 @@ struct WorkCardPillContent: View {
         return "Work"
     }
 
-    private var lessonSubject: String {
-        lesson?.subject ?? ""
+    private var lessonArea: String {
+        lesson?.area ?? ""
     }
 
     private struct StudentChipData: Identifiable {
@@ -90,11 +90,11 @@ struct WorkCardPillContent: View {
             .background {
                 Capsule().fill(Color.primary.opacity(UIConstants.OpacityConstants.trace))
                     .overlay {
-                        SubjectGrainBackground(subject: lessonSubject)
+                        AreaGrainBackground(area: lessonArea)
                             .clipShape(Capsule())
                     }
             }
-            .overlay(Capsule().stroke(AppColors.color(forSubject: lessonSubject).opacity(UIConstants.OpacityConstants.accent), lineWidth: 1))
+            .overlay(Capsule().stroke(AppColors.color(forArea: lessonArea).opacity(UIConstants.OpacityConstants.accent), lineWidth: 1))
         }
     }
 }

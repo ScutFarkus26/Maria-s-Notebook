@@ -134,8 +134,8 @@ extension BackupDiffService {
             if current.name != dto.name {
                 changes.append(FieldChange(fieldName: "Name", oldValue: dto.name, newValue: current.name))
             }
-            if current.subject != dto.subject {
-                changes.append(FieldChange(fieldName: "Subject", oldValue: dto.subject, newValue: current.subject))
+            if current.area != dto.area {
+                changes.append(FieldChange(fieldName: "Area", oldValue: dto.area, newValue: current.area))
             }
             if current.writeUp != dto.writeUp {
                 changes.append(FieldChange(

@@ -151,22 +151,22 @@ public enum LessonFileStorage {
     
     // MARK: - Organizational Structure
     
-    /// Returns the organizational path for a lesson: Subject/Group
+    /// Returns the organizational path for a lesson: Area/Sequence
     /// Creates the directory structure if it doesn't exist.
     static func organizationalDirectory(forLesson lesson: CDLesson) throws -> URL {
         logger.debug("Getting lesson files directory...")
         let baseDir = try lessonFilesDirectory()
         logger.debug("Base directory: \(baseDir.path)")
         
-        // Sanitize subject and group names for filesystem
-        let sanitizedSubject = sanitizeFilenameComponent(lesson.subject, fallback: "General")
-        let sanitizedGroup = sanitizeFilenameComponent(lesson.group, fallback: "Ungrouped")
-        logger.debug("Sanitized subject: '\(sanitizedSubject)', group: '\(sanitizedGroup)'")
+        // Sanitize area and sequence names for filesystem
+        let sanitizedArea = sanitizeFilenameComponent(lesson.area, fallback: "General")
+        let sanitizedSequence = sanitizeFilenameComponent(lesson.sequence, fallback: "Ungrouped")
+        logger.debug("Sanitized area: '\(sanitizedArea)', sequence: '\(sanitizedSequence)'")
         
-        // Create Subject/Group structure
+        // Create Area/Sequence structure
         let orgDir = baseDir
-            .appendingPathComponent(sanitizedSubject, isDirectory: true)
-            .appendingPathComponent(sanitizedGroup, isDirectory: true)
+            .appendingPathComponent(sanitizedArea, isDirectory: true)
+            .appendingPathComponent(sanitizedSequence, isDirectory: true)
         
         logger.debug("Creating directory at: \(orgDir.path)")
         try createDirectoryIfNeeded(at: orgDir)
@@ -174,10 +174,10 @@ public enum LessonFileStorage {
         return orgDir
     }
     
-    /// Returns all attachments for a lesson, including inherited ones from group and subject scope.
+    /// Returns all attachments for a lesson, including inherited ones from sequence and area scope.
     /// - Parameter lesson: The lesson to get attachments for
-    /// - Parameter includeInherited: Whether to include group and subject-scoped attachments
-    /// - Returns: Array of attachments, with lesson-specific first, then group, then subject
+    /// - Parameter includeInherited: Whether to include sequence and area-scoped attachments
+    /// - Returns: Array of attachments, with lesson-specific first, then sequence, then area
     static func getAttachments(forLesson lesson: CDLesson, includeInherited: Bool = true) -> [CDLessonAttachment] {
         let allLessonAttachments = (lesson.attachments?.allObjects as? [CDLessonAttachment]) ?? []
 
@@ -185,11 +185,11 @@ public enum LessonFileStorage {
         var result = allLessonAttachments.filter { $0.scope == .lesson }
 
         if includeInherited {
-            // Add group-scoped attachments
-            result.append(contentsOf: allLessonAttachments.filter { $0.scope == .group })
+            // Add sequence-scoped attachments
+            result.append(contentsOf: allLessonAttachments.filter { $0.scope == .sequence })
 
-            // Add subject-scoped attachments
-            result.append(contentsOf: allLessonAttachments.filter { $0.scope == .subject })
+            // Add area-scoped attachments
+            result.append(contentsOf: allLessonAttachments.filter { $0.scope == .area })
         }
 
         // Sort by attachment date, most recent first
@@ -199,11 +199,11 @@ public enum LessonFileStorage {
     // MARK: - Attachment Import
     
     /// Imports an attachment file for a lesson with the specified scope.
-    /// The file is stored in the organizational directory structure (Subject/Group/).
+    /// The file is stored in the organizational directory structure (Area/Sequence/).
     /// - Parameters:
     ///   - sourceURL: The source file URL to import
     ///   - lesson: The lesson to attach the file to
-    ///   - scope: The scope of the attachment (lesson, group, or subject)
+    ///   - scope: The scope of the attachment (lesson, sequence, or area)
     ///   - customName: Optional custom name for the attachment (if nil, uses source filename)
     /// - Returns: A tuple containing the destination URL and relative path
     static func importAttachment(
@@ -239,10 +239,10 @@ public enum LessonFileStorage {
         switch scope {
         case .lesson:
             scopePrefix = ""
-        case .group:
-            scopePrefix = "[Group] "
-        case .subject:
-            scopePrefix = "[Subject] "
+        case .sequence:
+            scopePrefix = "[Sequence] "
+        case .area:
+            scopePrefix = "[Area] "
         }
         
         let baseFilename = "\(scopePrefix)\(baseName)\(extWithDot)"
@@ -316,16 +316,16 @@ public enum LessonFileStorage {
         )
     }
     
-    /// Searches for attachments matching a keyword across subjects, groups, or specific lessons.
+    /// Searches for attachments matching a keyword across areas, groups, or specific lessons.
     /// - Parameters:
     ///   - keyword: Search term to match against filenames and notes
-    ///   - subject: Optional subject filter
-    ///   - group: Optional group filter (requires subject to be set)
+    ///   - area: Optional area filter
+    ///   - sequence: Optional sequence filter (requires area to be set)
     /// - Returns: Array of matching attachments
     static func searchAttachments(
         keyword: String,
-        subject: String? = nil,
-        group: String? = nil
+        area: String? = nil,
+        sequence: String? = nil
     ) throws -> [CDLessonAttachment] {
         // This is a placeholder for future implementation
         // Would require access to NSManagedObjectContext to query all attachments
@@ -362,10 +362,10 @@ public enum LessonFileStorage {
         switch scope {
         case .lesson:
             scopePrefix = ""
-        case .group:
-            scopePrefix = "[Group] "
-        case .subject:
-            scopePrefix = "[Subject] "
+        case .sequence:
+            scopePrefix = "[Sequence] "
+        case .area:
+            scopePrefix = "[Area] "
         }
 
         func candidateURL(counter: Int?) -> URL {

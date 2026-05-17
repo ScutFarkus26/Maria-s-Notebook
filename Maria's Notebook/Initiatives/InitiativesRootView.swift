@@ -120,9 +120,9 @@ struct InitiativesRootView: View {
             .padding(.vertical, 8)
             Divider()
             List(selection: selectedBinding) {
-                ForEach(groupedByArea, id: \.area) { group in
-                    Section(group.area) {
-                        ForEach(group.items, id: \.objectID) { item in
+                ForEach(groupedByArea, id: \.area) { sequence in
+                    Section(sequence.area) {
+                        ForEach(sequence.items, id: \.objectID) { item in
                             InitiativeSidebarRow(initiative: item)
                                 .tag(item.id)
                                 .swipeActions(edge: .trailing, allowsFullSwipe: false) {

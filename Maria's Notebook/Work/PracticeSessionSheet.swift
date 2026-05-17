@@ -2,7 +2,7 @@ import OSLog
 import SwiftUI
 import CoreData
 
-/// Sheet for recording a practice session (solo or group) with students
+/// Sheet for recording a practice session (solo or sequence) with students
 struct PracticeSessionSheet: View {
     private static let logger = Logger.work
 
@@ -337,7 +337,7 @@ struct PracticeSessionSheet: View {
     jane.firstName = "Jane"; jane.lastName = "Doe"; jane.birthday = Date(); jane.level = .lower
 
     let lesson = CDLesson(context: ctx)
-    lesson.name = "Long Division"; lesson.subject = "Math"; lesson.group = "Operations"
+    lesson.name = "Long Division"; lesson.area = "Math"; lesson.sequence = "Operations"
 
     let work1 = CDWorkModel(context: ctx)
     work1.title = "Practice Long Division"; work1.kind = .practiceLesson

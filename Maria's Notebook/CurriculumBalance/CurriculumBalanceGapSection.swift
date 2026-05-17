@@ -1,12 +1,12 @@
 // CurriculumBalanceGapSection.swift
-// Gap analysis display showing subjects with notably low representation.
+// Gap analysis display showing areas with notably low representation.
 // Design follows TodoAnalyticsView insights section: warning-tinted card with indicators.
 
 import SwiftUI
 
 struct CurriculumBalanceGapSection: View {
-    let gaps: [SubjectGap]
-    var onGapTapped: ((SubjectGap) -> Void)?
+    let gaps: [AreaGap]
+    var onGapTapped: ((AreaGap) -> Void)?
 
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
@@ -24,7 +24,7 @@ struct CurriculumBalanceGapSection: View {
                 }
             } else {
                 VStack(alignment: .leading, spacing: 8) {
-                    Text("These subjects are below 50% of the average lesson count:")
+                    Text("These areas are below 50% of the average lesson count:")
                         .font(AppTheme.ScaledFont.caption)
                         .foregroundStyle(.secondary)
 
@@ -41,7 +41,7 @@ struct CurriculumBalanceGapSection: View {
         .cornerRadius(UIConstants.CornerRadius.large)
     }
 
-    private func gapRow(_ gap: SubjectGap) -> some View {
+    private func gapRow(_ gap: AreaGap) -> some View {
         Button {
             onGapTapped?(gap)
         } label: {
@@ -50,7 +50,7 @@ struct CurriculumBalanceGapSection: View {
                     .fill(gap.color)
                     .frame(width: 8, height: 8)
 
-                Text(gap.subject)
+                Text(gap.area)
                     .font(AppTheme.ScaledFont.body)
                     .foregroundStyle(.primary)
 

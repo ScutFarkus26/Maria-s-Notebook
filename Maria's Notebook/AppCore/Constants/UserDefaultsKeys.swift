@@ -124,7 +124,7 @@ enum UserDefaultsKeys {
     static let studentsViewSelectedFilter = "StudentsView.selectedFilter"
 
     // MARK: - Checklist
-    static let checklistSelectedSubject = "Checklist.selectedSubject"
+    static let checklistSelectedArea = "Checklist.selectedArea"
 
     // MARK: - Logs
     static let logsMenuRootViewMode = "LogsMenuRootView.mode"

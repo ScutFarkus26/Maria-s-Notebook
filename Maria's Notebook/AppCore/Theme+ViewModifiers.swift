@@ -122,7 +122,7 @@ extension View {
 extension View {
     /// Use weight instead of color for primary/secondary distinction (#15).
     /// Label: regular weight, primary color. Value: semibold weight, primary color.
-    /// Reserves color differences for meaning (status, subject, alert level).
+    /// Reserves color differences for meaning (status, area, alert level).
     func formLabelStyle() -> some View {
         self
             .font(AppTheme.SemanticFont.label)

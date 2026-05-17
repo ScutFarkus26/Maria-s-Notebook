@@ -120,20 +120,20 @@ final class DatabaseAnalysisService {
     private func serializeLessons(cutoff: Date?) -> String {
         let request: NSFetchRequest<CDLesson> = CDFetchRequest(CDLesson.self)
         request.sortDescriptors = [
-            NSSortDescriptor(key: "subject", ascending: true),
+            NSSortDescriptor(key: "area", ascending: true),
             NSSortDescriptor(key: "sortIndex", ascending: true)
         ]
         let lessons = modelContext.safeFetch(request)
         guard !lessons.isEmpty else { return "" }
 
         var lines = ["=== LESSONS (\(lessons.count)) ==="]
-        var currentSubject = ""
+        var currentArea = ""
         for l in lessons {
-            if l.subject != currentSubject {
-                currentSubject = l.subject
-                lines.append("--- \(currentSubject) ---")
+            if l.area != currentArea {
+                currentArea = l.area
+                lines.append("--- \(currentArea) ---")
             }
-            lines.append("\(l.name)|\(l.group)|order:\(l.orderInGroup)")
+            lines.append("\(l.name)|\(l.sequence)|order:\(l.orderInSequence)")
         }
         return lines.joined(separator: "\n")
     }

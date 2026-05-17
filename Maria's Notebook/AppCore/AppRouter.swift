@@ -21,7 +21,7 @@ final class AppRouter {
     
     /// Navigation destinations for sheet presentation
     enum NavigationDestination: Identifiable, Equatable {
-        case newLesson(defaultSubject: String?, defaultGroup: String?)
+        case newLesson(defaultArea: String?, defaultSequence: String?)
         case importLessons
         case newStudent
         case importStudents
@@ -82,8 +82,8 @@ final class AppRouter {
     var studentsMode: String?
     
     /// Checklist deep-link filters (consumed once by ChecklistViewModel)
-    var checklistFilterSubject: String?
-    var checklistFilterGroup: String?
+    var checklistFilterArea: String?
+    var checklistFilterSequence: String?
 
     /// Initiative deep-link target (consumed once by `InitiativesRootView`)
     var pendingInitiativeID: String?
@@ -106,8 +106,8 @@ final class AppRouter {
     // MARK: - Navigation Methods
     
     /// Request to show new lesson sheet
-    func requestNewLesson(defaultSubject: String? = nil, defaultGroup: String? = nil) {
-        navigationDestination = .newLesson(defaultSubject: defaultSubject, defaultGroup: defaultGroup)
+    func requestNewLesson(defaultArea: String? = nil, defaultSequence: String? = nil) {
+        navigationDestination = .newLesson(defaultArea: defaultArea, defaultSequence: defaultSequence)
     }
     
     /// Request to show import lessons
@@ -170,10 +170,10 @@ final class AppRouter {
         selectedNavItem = item
     }
 
-    /// Navigate to checklist with optional subject/group pre-selection
-    func navigateToChecklist(subject: String, group: String? = nil) {
-        checklistFilterSubject = subject
-        checklistFilterGroup = group
+    /// Navigate to checklist with optional area/sequence pre-selection
+    func navigateToChecklist(area: String, sequence: String? = nil) {
+        checklistFilterArea = area
+        checklistFilterSequence = sequence
         selectedNavItem = .planningChecklist
     }
     

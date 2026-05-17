@@ -38,7 +38,7 @@ final class LessonPlanningService {
     func suggestNextLessons(
         for student: CDStudent,
         depth: PlanningDepth = .quick,
-        subjectFilter: String? = nil,
+        areaFilter: String? = nil,
         preferences: String? = nil
     ) async throws -> (recommendations: [LessonRecommendation], session: PlanningSession) {
         mcpClient.configureForFeature(.lessonPlanning)
@@ -58,7 +58,7 @@ final class LessonPlanningService {
         let gapPrompt = PlanningPromptBuilder.buildGapAnalysisPrompt(
             profiles: [profile],
             curriculum: curriculumSummary,
-            preferences: buildPreferencesString(subjectFilter: subjectFilter, extra: preferences)
+            preferences: buildPreferencesString(areaFilter: areaFilter, extra: preferences)
         )
 
         session.tokensUsed += PlanningPromptBuilder.estimateTokens(for: gapPrompt)

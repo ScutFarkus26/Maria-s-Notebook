@@ -1,6 +1,6 @@
-// SubjectListView.swift
-// Column 1 of the 3-column NavigationSplitView: Displays all subjects as a list.
-// Subjects are derived from existing CDLesson data using LessonsViewModel.
+// AreaListView.swift
+// Column 1 of the 3-column NavigationSplitView: Displays all areas as a list.
+// Areas are derived from existing CDLesson data using LessonsViewModel.
 
 import SwiftUI
 import CoreData
@@ -10,40 +10,40 @@ import AppKit
 import UIKit
 #endif
 
-struct SubjectListView: View {
-    let subjects: [String]
-    let selectedSubject: String?
+struct AreaListView: View {
+    let areas: [String]
+    let selectedArea: String?
     let lessonCounts: [String: Int]
-    let onSelectSubject: (String?) -> Void
-    var onRenameSubject: ((String) -> Void)?
+    let onSelectArea: (String?) -> Void
+    var onRenameArea: ((String) -> Void)?
 
     var body: some View {
         List(selection: Binding(
-            get: { selectedSubject },
-            set: { onSelectSubject($0) }
+            get: { selectedArea },
+            set: { onSelectArea($0) }
         )) {
-            ForEach(subjects, id: \.self) { subject in
-                SubjectListRow(subject: subject, lessonCount: lessonCounts[subject] ?? 0)
-                    .tag(subject)
+            ForEach(areas, id: \.self) { area in
+                AreaListRow(area: area, lessonCount: lessonCounts[area] ?? 0)
+                    .tag(area)
                     .contextMenu {
                         Button {
-                            onSelectSubject(subject)
+                            onSelectArea(area)
                         } label: {
                             Label("View Lessons", systemImage: SFSymbol.Education.book)
                         }
 
-                        if let onRename = onRenameSubject {
+                        if let onRename = onRenameArea {
                             Button {
-                                onRename(subject)
+                                onRename(area)
                             } label: {
-                                Label("Rename Subject", systemImage: SFSymbol.Education.pencil)
+                                Label("Rename Area", systemImage: SFSymbol.Education.pencil)
                             }
                         }
 
                         Divider()
 
                         Button {
-                            copySubjectName(subject)
+                            copyAreaName(area)
                         } label: {
                             Label("Copy Name", systemImage: "doc.on.doc")
                         }
@@ -51,33 +51,33 @@ struct SubjectListView: View {
             }
         }
         .listStyle(.sidebar)
-        .navigationTitle("Subjects")
+        .navigationTitle("Areas")
     }
 
-    private func copySubjectName(_ subject: String) {
+    private func copyAreaName(_ area: String) {
         #if os(macOS)
         NSPasteboard.general.clearContents()
-        NSPasteboard.general.setString(subject, forType: .string)
+        NSPasteboard.general.setString(area, forType: .string)
         #else
-        UIPasteboard.general.string = subject
+        UIPasteboard.general.string = area
         #endif
     }
 }
 
-/// A row component for displaying a subject in a list view.
-/// Shows the subject's icon (colored circle with subject-specific glyph), name, and lesson count.
+/// A row component for displaying a area in a list view.
+/// Shows the area's icon (colored circle with area-specific glyph), name, and lesson count.
 /// Design matches StudentListRow for visual consistency across the app.
-struct SubjectListRow: View {
-    let subject: String
+struct AreaListRow: View {
+    let area: String
     let lessonCount: Int
 
-    private var subjectColor: Color {
-        AppColors.color(forSubject: subject)
+    private var areaColor: Color {
+        AppColors.color(forArea: area)
     }
 
-    /// Returns an SF Symbol name that best represents the subject
-    private var subjectIcon: String {
-        let key = subject.lowercased().trimmed()
+    /// Returns an SF Symbol name that best represents the area
+    private var areaIcon: String {
+        let key = area.lowercased().trimmed()
 
         switch key {
         case "math", "mathematics":
@@ -121,12 +121,12 @@ struct SubjectListRow: View {
 
     var body: some View {
         HStack(spacing: 12) {
-            // Icon circle with subject-specific glyph (matching StudentListRow avatar style)
+            // Icon circle with area-specific glyph (matching StudentListRow avatar style)
             ZStack {
                 Circle()
                     .fill(
                         RadialGradient(
-                            gradient: Gradient(colors: [subjectColor.opacity(UIConstants.OpacityConstants.heavy), subjectColor]),
+                            gradient: Gradient(colors: [areaColor.opacity(UIConstants.OpacityConstants.heavy), areaColor]),
                             center: .center,
                             startRadius: 8,
                             endRadius: 24
@@ -134,20 +134,20 @@ struct SubjectListRow: View {
                     )
                     .frame(width: 40, height: 40)
 
-                Image(systemName: subjectIcon)
+                Image(systemName: areaIcon)
                     .font(.system(size: 16, weight: .bold))
                     .foregroundStyle(.white)
             }
 
             // Name and lesson count
             VStack(alignment: .leading, spacing: 2) {
-                Text(subject)
+                Text(area)
                     .font(AppTheme.ScaledFont.bodySemibold)
                     .foregroundStyle(.primary)
 
                 // CDLesson count as secondary text
                 HStack(spacing: 4) {
-                    Circle().fill(subjectColor).frame(width: 6, height: 6)
+                    Circle().fill(areaColor).frame(width: 6, height: 6)
                     Text("\(lessonCount) \(lessonCount == 1 ? "lesson" : "lessons")")
                         .font(AppTheme.ScaledFont.captionSmallSemibold)
                         .foregroundStyle(.secondary)

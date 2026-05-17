@@ -273,9 +273,9 @@ final class StudentDetailViewModel {
         if let upcoming = upcomingLessonAssignment(for: lessonID, studentID: studentID) {
             upcoming.markPresented(at: presentedDate)
             saveCoordinator.save(viewContext, reason: "Recording presentation")
-            GroupTrackService.autoEnrollInTrackIfNeeded(
-                lessonSubject: lesson.subject,
-                lessonGroup: lesson.group,
+            SequenceTrackService.autoEnrollInTrackIfNeeded(
+                lessonArea: lesson.area,
+                lessonSequence: lesson.sequence,
                 studentIDs: [studentID.uuidString],
                 context: viewContext,
                 saveCoordinator: saveCoordinator
@@ -292,9 +292,9 @@ final class StudentDetailViewModel {
             if saveCoordinator.save(viewContext, reason: "Recording presentation") {
                 showToast("Presentation recorded")
             }
-            GroupTrackService.autoEnrollInTrackIfNeeded(
-                lessonSubject: lesson.subject,
-                lessonGroup: lesson.group,
+            SequenceTrackService.autoEnrollInTrackIfNeeded(
+                lessonArea: lesson.area,
+                lessonSequence: lesson.sequence,
                 studentIDs: [studentID.uuidString],
                 context: viewContext,
                 saveCoordinator: saveCoordinator
@@ -356,9 +356,9 @@ final class StudentDetailViewModel {
         saveCoordinator.save(viewContext, reason: "Creating draft lesson assignment")
 
         if giveStartGiven {
-            GroupTrackService.autoEnrollInTrackIfNeeded(
-                lessonSubject: lesson.subject,
-                lessonGroup: lesson.group,
+            SequenceTrackService.autoEnrollInTrackIfNeeded(
+                lessonArea: lesson.area,
+                lessonSequence: lesson.sequence,
                 studentIDs: [studentID.uuidString],
                 context: viewContext,
                 saveCoordinator: saveCoordinator
@@ -409,9 +409,9 @@ final class StudentDetailViewModel {
         viewContext.insert(newLA)
         saveCoordinator.save(viewContext, reason: "Logging presentation")
 
-        GroupTrackService.autoEnrollInTrackIfNeeded(
-            lessonSubject: lesson.subject,
-            lessonGroup: lesson.group,
+        SequenceTrackService.autoEnrollInTrackIfNeeded(
+            lessonArea: lesson.area,
+            lessonSequence: lesson.sequence,
             studentIDs: [studentID.uuidString],
             context: viewContext,
             saveCoordinator: saveCoordinator

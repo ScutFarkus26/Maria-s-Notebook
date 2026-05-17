@@ -1,30 +1,30 @@
 // ProgressionRootView.swift
-// Landing page for the Progression feature -- shows subject/group cards.
+// Landing page for the Progression feature -- shows area/sequence cards.
 
 import SwiftUI
 import CoreData
 
-/// Landing page that shows subject/group cards for groups with student activity.
+/// Landing page that shows area/sequence cards for groups with student activity.
 struct ProgressionRootView: View {
     @Environment(\.managedObjectContext) private var viewContext
     @State private var viewModel = ProgressionRootViewModel()
     @State private var searchText = ""
-    @State private var settingsTarget: (subject: String, group: String)?
+    @State private var settingsTarget: (area: String, sequence: String)?
 
-    private var filteredSummaries: [GroupSummary] {
+    private var filteredSummaries: [SequenceSummary] {
         guard !searchText.isEmpty else { return viewModel.groupSummaries }
         let query = searchText.lowercased()
         return viewModel.groupSummaries.filter {
-            $0.subject.lowercased().contains(query) ||
-            $0.group.lowercased().contains(query)
+            $0.area.lowercased().contains(query) ||
+            $0.sequence.lowercased().contains(query)
         }
     }
 
-    /// Group summaries by subject for sectioned display
-    private var groupedBySubject: [(subject: String, summaries: [GroupSummary])] {
-        let dict = Dictionary(grouping: filteredSummaries) { $0.subject }
+    /// Group summaries by area for sectioned display
+    private var groupedByArea: [(area: String, summaries: [SequenceSummary])] {
+        let dict = Dictionary(grouping: filteredSummaries) { $0.area }
         return dict.keys.sorted().map { key in
-            (subject: key, summaries: (dict[key] ?? []).sorted { $0.group < $1.group })
+            (area: key, summaries: (dict[key] ?? []).sorted { $0.sequence < $1.sequence })
         }
     }
 
@@ -44,7 +44,7 @@ struct ProgressionRootView: View {
             #if !os(macOS)
             .navigationBarTitleDisplayMode(.large)
             #endif
-            .searchable(text: $searchText, prompt: "Search subjects or groups")
+            .searchable(text: $searchText, prompt: "Search areas or groups")
             .onAppear {
                 viewModel.loadData(context: viewContext)
             }
@@ -56,7 +56,7 @@ struct ProgressionRootView: View {
                 set: { if !$0 { settingsTarget = nil } }
             )) {
                 if let target = settingsTarget {
-                    GroupTrackSettingsSheet(subject: target.subject, group: target.group)
+                    SequenceTrackSettingsSheet(area: target.area, sequence: target.sequence)
                 }
             }
         }
@@ -77,8 +77,8 @@ struct ProgressionRootView: View {
     private var scrollContent: some View {
         ScrollView {
             LazyVStack(alignment: .leading, spacing: 24) {
-                ForEach(groupedBySubject, id: \.subject) { section in
-                    sectionView(subject: section.subject, summaries: section.summaries)
+                ForEach(groupedByArea, id: \.area) { section in
+                    sectionView(area: section.area, summaries: section.summaries)
                 }
             }
             .padding()
@@ -87,34 +87,34 @@ struct ProgressionRootView: View {
 
     // MARK: - Section
 
-    private func sectionView(subject: String, summaries: [GroupSummary]) -> some View {
+    private func sectionView(area: String, summaries: [SequenceSummary]) -> some View {
         VStack(alignment: .leading, spacing: 12) {
             HStack(spacing: 8) {
                 Circle()
-                    .fill(AppColors.color(forSubject: subject))
+                    .fill(AppColors.color(forArea: area))
                     .frame(width: 10, height: 10)
-                Text(subject)
+                Text(area)
                     .font(.headline)
             }
 
             LazyVGrid(columns: [GridItem(.adaptive(minimum: 260, maximum: 400), spacing: 16)], spacing: 16) {
                 ForEach(summaries) { summary in
                     Button {
-                        AppRouter.shared.navigateToChecklist(subject: summary.subject, group: summary.group)
+                        AppRouter.shared.navigateToChecklist(area: summary.area, sequence: summary.sequence)
                     } label: {
-                        GroupSummaryCard(summary: summary) {
-                            settingsTarget = (summary.subject, summary.group)
+                        SequenceSummaryCard(summary: summary) {
+                            settingsTarget = (summary.area, summary.sequence)
                         }
                     }
                     .buttonStyle(.plain)
                     .contextMenu {
                         Button {
-                            settingsTarget = (summary.subject, summary.group)
+                            settingsTarget = (summary.area, summary.sequence)
                         } label: {
                             Label("Progression Settings", systemImage: "gearshape")
                         }
                         Button {
-                            AppRouter.shared.navigateToChecklist(subject: summary.subject, group: summary.group)
+                            AppRouter.shared.navigateToChecklist(area: summary.area, sequence: summary.sequence)
                         } label: {
                             Label("Open Checklist", systemImage: "checklist")
                         }
@@ -127,20 +127,20 @@ struct ProgressionRootView: View {
 
 // MARK: - Group Summary Card
 
-private struct GroupSummaryCard: View {
-    let summary: GroupSummary
+private struct SequenceSummaryCard: View {
+    let summary: SequenceSummary
     var onSettingsTapped: (() -> Void)?
 
     var body: some View {
         VStack(alignment: .leading, spacing: 8) {
-            // Color bar + group name
+            // Color bar + sequence name
             HStack(spacing: 8) {
                 RoundedRectangle(cornerRadius: 3)
-                    .fill(AppColors.color(forSubject: summary.subject))
+                    .fill(AppColors.color(forArea: summary.area))
                     .frame(width: 4, height: 36)
 
                 VStack(alignment: .leading, spacing: 2) {
-                    Text(summary.group)
+                    Text(summary.sequence)
                         .font(.headline)
                         .lineLimit(1)
                     Text("\(summary.lessonCount) lessons")

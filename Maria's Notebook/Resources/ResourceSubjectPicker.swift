@@ -1,27 +1,27 @@
 import SwiftUI
 
-/// Multi-select subject picker for linking resources to lesson subjects.
+/// Multi-select area picker for linking resources to lesson areas.
 /// Shown as a NavigationLink destination inside import/edit sheets.
-struct ResourceSubjectPicker: View {
-    let availableSubjects: [String]
-    @Binding var selectedSubjects: Set<String>
+struct ResourceAreaPicker: View {
+    let availableAreas: [String]
+    @Binding var selectedAreas: Set<String>
 
     var body: some View {
         List {
-            if availableSubjects.isEmpty {
-                Text("No subjects available yet. Subjects come from your lessons.")
+            if availableAreas.isEmpty {
+                Text("No areas available yet. Areas come from your lessons.")
                     .font(.subheadline)
                     .foregroundStyle(.secondary)
             } else {
-                if !selectedSubjects.isEmpty {
+                if !selectedAreas.isEmpty {
                     Section {
                         HStack {
-                            Text("\(selectedSubjects.count) subject\(selectedSubjects.count == 1 ? "" : "s") selected")
+                            Text("\(selectedAreas.count) area\(selectedAreas.count == 1 ? "" : "s") selected")
                                 .font(.subheadline)
                                 .foregroundStyle(.secondary)
                             Spacer()
                             Button("Clear All") {
-                                selectedSubjects.removeAll()
+                                selectedAreas.removeAll()
                             }
                             .font(.caption)
                         }
@@ -29,19 +29,19 @@ struct ResourceSubjectPicker: View {
                 }
 
                 Section {
-                    ForEach(availableSubjects, id: \.self) { subject in
+                    ForEach(availableAreas, id: \.self) { area in
                         Button {
-                            if selectedSubjects.contains(subject) {
-                                selectedSubjects.remove(subject)
+                            if selectedAreas.contains(area) {
+                                selectedAreas.remove(area)
                             } else {
-                                selectedSubjects.insert(subject)
+                                selectedAreas.insert(area)
                             }
                         } label: {
                             HStack {
-                                Text(subject)
+                                Text(area)
                                     .foregroundStyle(.primary)
                                 Spacer()
-                                if selectedSubjects.contains(subject) {
+                                if selectedAreas.contains(area) {
                                     Image(systemName: "checkmark")
                                         .foregroundStyle(Color.accentColor)
                                 }
@@ -51,7 +51,7 @@ struct ResourceSubjectPicker: View {
                 }
             }
         }
-        .navigationTitle("Link to Subjects")
+        .navigationTitle("Link to Areas")
         .inlineNavigationTitle()
     }
 }

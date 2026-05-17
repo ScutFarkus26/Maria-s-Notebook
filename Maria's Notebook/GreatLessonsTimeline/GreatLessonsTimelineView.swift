@@ -31,7 +31,7 @@ struct GreatLessonsTimelineView: View {
     var body: some View {
         content
             .navigationTitle("Great Lessons")
-            .searchable(text: $viewModel.searchText, prompt: "Search lessons or subjects")
+            .searchable(text: $viewModel.searchText, prompt: "Search lessons or areas")
             .onAppear { reload() }
             .onChange(of: changeToken) { _, _ in reload() }
             .onChange(of: scope) { _, _ in reload() }

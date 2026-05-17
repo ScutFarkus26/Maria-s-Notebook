@@ -6,7 +6,7 @@ struct ChipView: View {
     let isMissing: Bool
     let isAbsent: Bool
     let isDoubleBooked: Bool
-    let subjectColor: Color
+    let areaColor: Color
     let hasHad: Bool
     let suppressIndicator: Bool
     let highlight: Bool
@@ -46,7 +46,7 @@ struct ChipView: View {
         .padding(.vertical, 4)
         .background(
             Capsule()
-                .fill(isMissing ? Color.primary.opacity(UIConstants.OpacityConstants.veryFaint) : subjectColor.opacity(isAbsent ? 0.06 : 0.15))
+                .fill(isMissing ? Color.primary.opacity(UIConstants.OpacityConstants.veryFaint) : areaColor.opacity(isAbsent ? 0.06 : 0.15))
         )
         .overlay(
             Capsule().stroke(

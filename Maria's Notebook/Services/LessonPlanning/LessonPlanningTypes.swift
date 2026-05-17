@@ -123,8 +123,8 @@ struct LessonRecommendation: Identifiable, Codable {
     let id: UUID
     let lessonID: UUID
     let lessonName: String
-    let subject: String
-    let group: String
+    let area: String
+    let sequence: String
     let studentIDs: [UUID]
     let studentNames: [String]
     let reasoning: String
@@ -136,8 +136,8 @@ struct LessonRecommendation: Identifiable, Codable {
     init(
         lessonID: UUID,
         lessonName: String,
-        subject: String,
-        group: String,
+        area: String,
+        sequence: String,
         studentIDs: [UUID],
         studentNames: [String],
         reasoning: String,
@@ -148,8 +148,8 @@ struct LessonRecommendation: Identifiable, Codable {
         self.id = UUID()
         self.lessonID = lessonID
         self.lessonName = lessonName
-        self.subject = subject
-        self.group = group
+        self.area = area
+        self.sequence = sequence
         self.studentIDs = studentIDs
         self.studentNames = studentNames
         self.reasoning = reasoning
@@ -212,7 +212,7 @@ struct StudentReadinessProfile: Identifiable, Codable {
     let studentID: UUID
     let studentName: String
     let level: String
-    var subjectReadiness: [SubjectReadiness]
+    var areaReadiness: [AreaReadiness]
     let practiceQualityAvg: Double?
     let independenceAvg: Double?
     let daysSinceLastPresentation: Int?
@@ -223,7 +223,7 @@ struct StudentReadinessProfile: Identifiable, Codable {
         studentID: UUID,
         studentName: String,
         level: String,
-        subjectReadiness: [SubjectReadiness],
+        areaReadiness: [AreaReadiness],
         practiceQualityAvg: Double?,
         independenceAvg: Double?,
         daysSinceLastPresentation: Int?,
@@ -234,7 +234,7 @@ struct StudentReadinessProfile: Identifiable, Codable {
         self.studentID = studentID
         self.studentName = studentName
         self.level = level
-        self.subjectReadiness = subjectReadiness
+        self.areaReadiness = areaReadiness
         self.practiceQualityAvg = practiceQualityAvg
         self.independenceAvg = independenceAvg
         self.daysSinceLastPresentation = daysSinceLastPresentation
@@ -243,45 +243,45 @@ struct StudentReadinessProfile: Identifiable, Codable {
     }
 }
 
-// MARK: - Subject Readiness
+// MARK: - Area Readiness
 
-/// Per-subject readiness data for a single student.
-struct SubjectReadiness: Identifiable, Codable {
+/// Per-area readiness data for a single student.
+struct AreaReadiness: Identifiable, Codable {
     let id: UUID
-    let subject: String
-    let group: String
+    let area: String
+    let sequence: String
     let currentLessonName: String?
     let currentLessonID: UUID?
     let nextLessonName: String?
     let nextLessonID: UUID?
     let proficiencySignal: ProficiencySignal
     let activeWorkCount: Int
-    let completedInGroup: Int
-    let totalInGroup: Int
+    let completedInSequence: Int
+    let totalInSequence: Int
     
     init(
-        subject: String,
-        group: String,
+        area: String,
+        sequence: String,
         currentLessonName: String?,
         currentLessonID: UUID?,
         nextLessonName: String?,
         nextLessonID: UUID?,
         proficiencySignal: ProficiencySignal,
         activeWorkCount: Int,
-        completedInGroup: Int,
-        totalInGroup: Int
+        completedInSequence: Int,
+        totalInSequence: Int
     ) {
         self.id = UUID()
-        self.subject = subject
-        self.group = group
+        self.area = area
+        self.sequence = sequence
         self.currentLessonName = currentLessonName
         self.currentLessonID = currentLessonID
         self.nextLessonName = nextLessonName
         self.nextLessonID = nextLessonID
         self.proficiencySignal = proficiencySignal
         self.activeWorkCount = activeWorkCount
-        self.completedInGroup = completedInGroup
-        self.totalInGroup = totalInGroup
+        self.completedInSequence = completedInSequence
+        self.totalInSequence = totalInSequence
     }
 }
 
@@ -312,30 +312,30 @@ enum ProficiencySignal: String, Codable {
 
 /// Hierarchical representation of curriculum positions for a set of students.
 struct CurriculumMap: Codable {
-    var subjects: [SubjectMap]
+    var areas: [AreaMap]
     
-    struct SubjectMap: Identifiable, Codable {
+    struct AreaMap: Identifiable, Codable {
         let id: UUID
-        let subject: String
-        var groups: [GroupMap]
+        let area: String
+        var groups: [SequenceMap]
         
-        init(subject: String, groups: [GroupMap]) {
+        init(area: String, groups: [SequenceMap]) {
             self.id = UUID()
-            self.subject = subject
+            self.area = area
             self.groups = groups
         }
     }
     
-    struct GroupMap: Identifiable, Codable {
+    struct SequenceMap: Identifiable, Codable {
         let id: UUID
-        let group: String
+        let sequence: String
         var lessons: [LessonPosition]
         let completedCount: Int
         let totalCount: Int
         
-        init(group: String, lessons: [LessonPosition], completedCount: Int, totalCount: Int) {
+        init(sequence: String, lessons: [LessonPosition], completedCount: Int, totalCount: Int) {
             self.id = UUID()
-            self.group = group
+            self.sequence = sequence
             self.lessons = lessons
             self.completedCount = completedCount
             self.totalCount = totalCount
@@ -346,14 +346,14 @@ struct CurriculumMap: Codable {
         let id: UUID
         let lessonID: UUID
         let lessonName: String
-        let orderInGroup: Int
+        let orderInSequence: Int
         var studentStatuses: [PresentationStatus]
         
-        init(lessonID: UUID, lessonName: String, orderInGroup: Int, studentStatuses: [PresentationStatus]) {
+        init(lessonID: UUID, lessonName: String, orderInSequence: Int, studentStatuses: [PresentationStatus]) {
             self.id = UUID()
             self.lessonID = lessonID
             self.lessonName = lessonName
-            self.orderInGroup = orderInGroup
+            self.orderInSequence = orderInSequence
             self.studentStatuses = studentStatuses
         }
     }
@@ -396,8 +396,8 @@ struct PlanningResponse: Codable {
     
     struct APIRecommendation: Codable {
         let lessonName: String
-        let subject: String
-        let group: String
+        let area: String
+        let sequence: String
         let studentNames: [String]
         let reasoning: String
         let confidence: Double

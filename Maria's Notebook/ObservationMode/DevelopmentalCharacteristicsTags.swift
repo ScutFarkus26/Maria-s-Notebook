@@ -63,7 +63,7 @@ enum DevelopmentalCharacteristic: String, CaseIterable, Identifiable {
         case .imagination:
             return "The child uses imagination to explore what cannot be directly experienced"
         case .socialInstinct:
-            return "The child seeks group belonging, collaborative work, and peer relationships"
+            return "The child seeks sequence belonging, collaborative work, and peer relationships"
         case .heroWorship:
             return "The child admires heroes and role models, seeks inspiration"
         case .goingOutInstinct:

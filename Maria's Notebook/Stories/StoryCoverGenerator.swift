@@ -242,7 +242,7 @@ enum StoryCoverGenerator {
         ]
         if !cleaned.isEmpty {
             let themeList = cleaned.prefix(5).joined(separator: ", ")
-            components.append("Subject: \(themeList)")
+            components.append("Area: \(themeList)")
         }
         if let hint = settingHint(themes: cleaned, title: title) {
             components.append("Scene: \(hint)")

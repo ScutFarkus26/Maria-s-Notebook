@@ -5,7 +5,7 @@ import OSLog
 
 /// Assembles classroom data context for chat requests.
 /// Uses a two-tier strategy:
-/// - Tier 1: Classroom snapshot (student roster, subjects, weekly summary, todos) — built once per session
+/// - Tier 1: Classroom snapshot (student roster, areas, weekly summary, todos) — built once per session
 /// - Tier 2: Selective student detail — loaded per-question when student names are detected
 @MainActor
 // swiftlint:disable:next type_body_length
@@ -22,7 +22,7 @@ final class ChatContextAssembler {
 
     // MARK: - Tier 1: Classroom Snapshot
 
-    /// Builds a compact classroom snapshot including roster, subjects, weekly activity, and open todos.
+    /// Builds a compact classroom snapshot including roster, areas, weekly activity, and open todos.
     func buildClassroomSnapshot() -> String {
         let queryService = DataQueryService(context: context)
         let students = queryService.fetchAllStudents(excludeTest: true)
@@ -38,7 +38,7 @@ final class ChatContextAssembler {
         lines.append("")
 
         appendRosterSection(&lines, students: students)
-        appendSubjectsSection(&lines, lessons: lessons)
+        appendAreasSection(&lines, lessons: lessons)
         appendWeeklyActivitySection(
             &lines, weekStart: weekStart,
             lessonsDict: lessonsDict, studentsDict: studentsDict
@@ -65,11 +65,11 @@ final class ChatContextAssembler {
         lines.append("")
     }
 
-    private func appendSubjectsSection(_ lines: inout [String], lessons: [CDLesson]) {
-        let subjects = Set(lessons.map(\.subject)).filter { !$0.isEmpty }.sorted()
-        if !subjects.isEmpty {
-            lines.append("--- Subjects ---")
-            lines.append(subjects.joined(separator: ", "))
+    private func appendAreasSection(_ lines: inout [String], lessons: [CDLesson]) {
+        let areas = Set(lessons.map(\.area)).filter { !$0.isEmpty }.sorted()
+        if !areas.isEmpty {
+            lines.append("--- Areas ---")
+            lines.append(areas.joined(separator: ", "))
             lines.append("")
         }
     }
@@ -246,10 +246,10 @@ final class ChatContextAssembler {
         for pres in studentPresentations {
             let fallbackLesson = lessonsDict[pres.lessonIDUUID ?? UUID()]
             let lessonName = pres.lessonTitleSnapshot ?? fallbackLesson?.name ?? "Unknown"
-            let subject = lessonsDict[pres.lessonIDUUID ?? UUID()]?.subject ?? ""
-            let subjectStr = subject.isEmpty ? "" : " (\(subject))"
+            let area = lessonsDict[pres.lessonIDUUID ?? UUID()]?.area ?? ""
+            let areaStr = area.isEmpty ? "" : " (\(area))"
             let date = formattedDate(pres.presentedAt ?? pres.createdAt)
-            var line = "  • \(lessonName)\(subjectStr) — \(date)"
+            var line = "  • \(lessonName)\(areaStr) — \(date)"
             if pres.needsPractice { line += " [needs practice]" }
             if pres.needsAnotherPresentation { line += " [needs re-presentation]" }
             if !pres.followUpWork.isEmpty { line += " → follow-up: \(pres.followUpWork.prefix(80))" }

@@ -156,12 +156,12 @@ final class SearchIndexService {
         let lessons = context.safeFetch(request)
         for lesson in lessons {
             guard let lessonID = lesson.id else { continue }
-            let text = "\(lesson.name) \(lesson.subject) \(lesson.group) \(lesson.subheading)"
+            let text = "\(lesson.name) \(lesson.area) \(lesson.sequence) \(lesson.section)"
             let result = SearchResult(
                 id: lessonID,
                 entityType: .lesson,
                 title: lesson.name,
-                snippet: lesson.subject
+                snippet: lesson.area
             )
             indexResult(result, text: text)
         }

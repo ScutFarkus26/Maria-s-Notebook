@@ -28,9 +28,9 @@ extension Presentation {
         lessonTitleSnapshot ?? lesson?.name ?? "Unknown CDLesson"
     }
 
-    /// Display subheading - prefer snapshot for historical accuracy, fall back to lesson relationship.
-    var displaySubheading: String {
-        lessonSubheadingSnapshot ?? lesson?.subheading ?? ""
+    /// Display section - prefer snapshot for historical accuracy, fall back to lesson relationship.
+    var displaySection: String {
+        lessonSectionSnapshot ?? lesson?.section ?? ""
     }
 
     /// Whether this presentation has any students assigned.

@@ -71,8 +71,8 @@ extension StreamingBackupWriter {
             return BackupDTOTransformers.toDTOs(steps)
         case let enrollments as [CDStudentTrackEnrollmentEntity]:
             return BackupDTOTransformers.toDTOs(enrollments)
-        case let groupTracks as [CDGroupTrack]:
-            return BackupDTOTransformers.toDTOs(groupTracks)
+        case let sequenceTracks as [CDSequenceTrack]:
+            return BackupDTOTransformers.toDTOs(sequenceTracks)
         case let documents as [CDDocument]:
             return BackupDTOTransformers.toDTOs(documents)
         case let supplies as [CDSupply]:

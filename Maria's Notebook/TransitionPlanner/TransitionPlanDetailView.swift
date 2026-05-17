@@ -37,8 +37,8 @@ struct TransitionPlanDetailView: View {
                     .padding(.horizontal)
 
                 // Checklist
-                ForEach(itemsByCategory, id: \.category) { group in
-                    checklistSection(category: group.category, items: group.items)
+                ForEach(itemsByCategory, id: \.category) { sequence in
+                    checklistSection(category: sequence.category, items: sequence.items)
                         .padding(.horizontal)
                 }
 

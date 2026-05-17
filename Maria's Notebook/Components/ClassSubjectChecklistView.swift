@@ -1,5 +1,5 @@
 //
-//  ClassSubjectChecklistView.swift
+//  ClassAreaChecklistView.swift
 //  Maria's Notebook
 //
 //  Created by Danny De Berry on 12/22/25.
@@ -11,16 +11,16 @@ import CoreData
 import AppKit
 #endif
 
-struct ClassSubjectChecklistView: View {
+struct ClassAreaChecklistView: View {
     @Environment(\.managedObjectContext) private var viewContext
-    @State private var viewModel = ClassSubjectChecklistViewModel()
+    @State private var viewModel = ClassAreaChecklistViewModel()
     @State private var didFinishInitialLoad = false
     @State private var isShowingAddWorkSheet = false
 
     @AppStorage(UserDefaultsKeys.generalShowTestStudents) private var showTestStudents: Bool = false
     @AppStorage(UserDefaultsKeys.generalTestStudentNames)
     private var testStudentNamesRaw: String = "Danny De Berry,Lil Dan D"
-    @AppStorage(UserDefaultsKeys.checklistSelectedSubject) private var persistedSubject: String = ""
+    @AppStorage(UserDefaultsKeys.checklistSelectedArea) private var persistedArea: String = ""
 
     // Grid Configuration
     private let studentColumnWidth: CGFloat = 120
@@ -43,12 +43,12 @@ struct ClassSubjectChecklistView: View {
                 LazyVStack(alignment: .leading, spacing: 0, pinnedViews: [.sectionHeaders]) {
                     Section {
                         // Data Rows
-                        ForEach(viewModel.orderedGroups, id: \.self) { group in
+                        ForEach(viewModel.orderedSequences, id: \.self) { sequence in
                             // Group Header
                             HStack(spacing: 0) {
                                 StickyLeftItem(width: lessonColumnWidth, height: 30) {
                                     HStack {
-                                        Text(group)
+                                        Text(sequence)
                                             .font(.system(.caption, design: .rounded).weight(.bold))
                                             .foregroundStyle(.secondary)
                                             .padding(.leading)
@@ -58,18 +58,18 @@ struct ClassSubjectChecklistView: View {
                                     .borderSeparated()
                                 }
 
-                                // Spacer for the rest of the group row
+                                // Spacer for the rest of the sequence row
                                 Color.secondary.opacity(UIConstants.OpacityConstants.hint)
                                     .frame(height: 30)
                                     .frame(width: CGFloat(viewModel.students.count) * studentColumnWidth)
                                     .borderSeparated()
                             }
 
-                            let grouped = viewModel.lessonsGrouped(group: group)
-                            ForEach(grouped.order, id: \.self) { subheading in
-                                if let shLessons = grouped.bySubheading[subheading], !shLessons.isEmpty {
-                                    if grouped.hasSubheadings {
-                                        subheadingRow(name: subheading)
+                            let grouped = viewModel.lessonsSequenced(sequence: sequence)
+                            ForEach(grouped.order, id: \.self) { section in
+                                if let shLessons = grouped.bySection[section], !shLessons.isEmpty {
+                                    if grouped.hasSections {
+                                        sectionRow(name: section)
                                     }
                                     ForEach(shLessons) { lesson in
                                         HStack(spacing: 0) {
@@ -142,9 +142,9 @@ struct ClassSubjectChecklistView: View {
             .coordinateSpace(name: "gridSpace")
         }
         .onAppear {
-            // Restore persisted subject before loading so loadData uses it
-            if !persistedSubject.isEmpty {
-                viewModel.selectedSubject = persistedSubject
+            // Restore persisted area before loading so loadData uses it
+            if !persistedArea.isEmpty {
+                viewModel.selectedArea = persistedArea
             }
             // Single load: fetches students, lessons, and builds matrix once
             viewModel.loadData(context: viewContext)
@@ -164,11 +164,11 @@ struct ClassSubjectChecklistView: View {
                 )
             }
         })
-        .onChange(of: viewModel.selectedSubject) { _, newValue in
+        .onChange(of: viewModel.selectedArea) { _, newValue in
             // Skip during initial load — loadData already built the matrix
             guard didFinishInitialLoad else { return }
             viewModel.refreshMatrix(context: viewContext)
-            persistedSubject = newValue
+            persistedArea = newValue
         }
         .onChange(of: showTestStudents) { _, _ in
             viewModel.applyVisibilityFilter(
@@ -184,11 +184,11 @@ struct ClassSubjectChecklistView: View {
 
 }
 
-// MARK: - Subheading Row
+// MARK: - Section Row
 
-extension ClassSubjectChecklistView {
+extension ClassAreaChecklistView {
     @ViewBuilder
-    fileprivate func subheadingRow(name: String) -> some View {
+    fileprivate func sectionRow(name: String) -> some View {
         let height: CGFloat = 24
         HStack(spacing: 0) {
             StickyLeftItem(width: lessonColumnWidth, height: height) {
@@ -217,7 +217,7 @@ extension ClassSubjectChecklistView {
 
 // MARK: - Batch Actions Toolbar
 
-extension ClassSubjectChecklistView {
+extension ClassAreaChecklistView {
     var batchActionsToolbar: some View {
         HStack(spacing: 12) {
             Text("\(viewModel.selectedCells.count) selected")
@@ -288,11 +288,11 @@ extension ClassSubjectChecklistView {
 
 // MARK: - Checklist Header
 
-extension ClassSubjectChecklistView {
+extension ClassAreaChecklistView {
     var checklistHeader: some View {
         ViewHeader(title: "Checklist") {
-            Picker("Subject", selection: $viewModel.selectedSubject) {
-                ForEach(viewModel.availableSubjects, id: \.self) { sub in
+            Picker("Area", selection: $viewModel.selectedArea) {
+                ForEach(viewModel.availableAreas, id: \.self) { sub in
                     Text(sub).tag(sub)
                 }
             }
@@ -319,7 +319,7 @@ extension ClassSubjectChecklistView {
 
 // MARK: - Header Row
 
-extension ClassSubjectChecklistView {
+extension ClassAreaChecklistView {
     private var headerRow: some View {
         HStack(spacing: 0) {
             // Top-Left Corner (Sticky horizontally)

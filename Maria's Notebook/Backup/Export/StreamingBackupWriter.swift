@@ -273,8 +273,8 @@ public final class StreamingBackupWriter {
         )
         collector.payload.studentTrackEnrollments = BackupDTOTransformers.toDTOs(enrollments)
 
-        let groupTracks: [CDGroupTrack] = try await streamFetchRaw(CDGroupTrack.self, from: viewContext)
-        collector.payload.groupTracks = BackupDTOTransformers.toDTOs(groupTracks)
+        let sequenceTracks: [CDSequenceTrack] = try await streamFetchRaw(CDSequenceTrack.self, from: viewContext)
+        collector.payload.sequenceTracks = BackupDTOTransformers.toDTOs(sequenceTracks)
 
         progress(0.52, "Processing documents & supplies\u{2026}", collector.processedEntities, nil)
 

@@ -51,7 +51,7 @@ enum BuiltInTemplateSeeder {
             ),
             NoteTemplateSeed(
                 title: "Parent Communication",
-                body: "Subject:\nKey points shared:\nParent questions/concerns:\nAction items:",
+                body: "Area:\nKey points shared:\nParent questions/concerns:\nAction items:",
                 sortOrder: 4
             )
         ]

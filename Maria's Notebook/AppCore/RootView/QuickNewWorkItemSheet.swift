@@ -37,7 +37,7 @@ struct QuickNewWorkItemSheet: View {
     @AppStorage(UserDefaultsKeys.generalTestStudentNames)
     var testStudentNamesRaw: String = "Danny De Berry,Lil Dan D"
 
-    @FetchRequest(sortDescriptors: [NSSortDescriptor(keyPath: \CDLesson.subject, ascending: true), NSSortDescriptor(keyPath: \CDLesson.sortIndex, ascending: true)])
+    @FetchRequest(sortDescriptors: [NSSortDescriptor(keyPath: \CDLesson.area, ascending: true), NSSortDescriptor(keyPath: \CDLesson.sortIndex, ascending: true)])
     var allLessons: FetchedResults<CDLesson>
 
     @FetchRequest(sortDescriptors: [NSSortDescriptor(keyPath: \CDStudent.lastName, ascending: true), NSSortDescriptor(keyPath: \CDStudent.firstName, ascending: true)])
@@ -80,8 +80,8 @@ struct QuickNewWorkItemSheet: View {
         guard !query.isEmpty else { return Array(allLessons) }
         return Array(allLessons).filter {
             $0.name.lowercased().contains(query) ||
-            $0.subject.lowercased().contains(query) ||
-            $0.group.lowercased().contains(query)
+            $0.area.lowercased().contains(query) ||
+            $0.sequence.lowercased().contains(query)
         }
     }
 

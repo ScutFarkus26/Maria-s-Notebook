@@ -1,12 +1,12 @@
-// Maria's Notebook/Lessons/GroupIntroductionSheet.swift
+// Maria's Notebook/Lessons/SequenceIntroductionSheet.swift
 //
-// Sheet view for displaying album and group introductions.
+// Sheet view for displaying album and sequence introductions.
 // Renders markdown content with proper styling.
 
 import SwiftUI
 import CoreData
 
-struct GroupIntroductionSheet: View {
+struct SequenceIntroductionSheet: View {
     let introduction: CurriculumIntroduction
     @Environment(\.dismiss) private var dismiss
 
@@ -134,11 +134,11 @@ struct GroupIntroductionSheet: View {
 
 // MARK: - Preview
 
-#Preview("Group Introduction") {
-    GroupIntroductionSheet(
+#Preview("Sequence Introduction") {
+    SequenceIntroductionSheet(
         introduction: CurriculumIntroduction(
-            subject: "Math",
-            group: "Algebra",
+            area: "Math",
+            sequence: "Algebra",
             content: """
             # Algebra
 
@@ -163,10 +163,10 @@ struct GroupIntroductionSheet: View {
 }
 
 #Preview("Album Introduction") {
-    GroupIntroductionSheet(
+    SequenceIntroductionSheet(
         introduction: CurriculumIntroduction(
-            subject: "Math",
-            group: nil,
+            area: "Math",
+            sequence: nil,
             content: """
             # Math Album
 

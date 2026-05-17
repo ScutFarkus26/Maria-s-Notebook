@@ -1,65 +1,65 @@
-// GroupTrackDetailView.swift
-// Detail view for a group-based track showing lessons in order with optional student progress
+// SequenceTrackDetailView.swift
+// Detail view for a sequence-based track showing lessons in order with optional student progress
 
 import OSLog
 import SwiftUI
 import CoreData
 
-struct GroupTrackDetailView: View {
+struct SequenceTrackDetailView: View {
     private static let logger = Logger.students
 
     @Environment(\.managedObjectContext) private var viewContext
 
-    let subject: String
-    let group: String
+    let area: String
+    let sequence: String
     /// Optional student to show progress for. If nil, shows track structure only.
     var student: CDStudent?
 
-    @FetchRequest(sortDescriptors: [NSSortDescriptor(keyPath: \CDLesson.subject, ascending: true), NSSortDescriptor(keyPath: \CDLesson.orderInGroup, ascending: true)])
+    @FetchRequest(sortDescriptors: [NSSortDescriptor(keyPath: \CDLesson.area, ascending: true), NSSortDescriptor(keyPath: \CDLesson.orderInSequence, ascending: true)])
     private var allLessons: FetchedResults<CDLesson>
 
     @FetchRequest(sortDescriptors: []) private var allLessonPresentations: FetchedResults<CDLessonPresentation>
 
-    private var groupTrack: CDGroupTrack? {
+    private var sequenceTrack: CDSequenceTrack? {
         do {
-            return try GroupTrackService.cdGetGroupTrack(subject: subject, group: group, context: viewContext)
+            return try SequenceTrackService.cdGetSequenceTrack(area: area, sequence: sequence, context: viewContext)
         } catch {
-            Self.logger.warning("Failed to fetch group track: \(error)")
+            Self.logger.warning("Failed to fetch sequence track: \(error)")
             return nil
         }
     }
 
     private var effectiveTrackSettings: (isSequential: Bool, isExplicitlyDisabled: Bool) {
-        if let track = groupTrack {
+        if let track = sequenceTrack {
             return (isSequential: track.isSequential, isExplicitlyDisabled: track.isExplicitlyDisabled)
         }
         return (isSequential: true, isExplicitlyDisabled: false)
     }
 
     private var lessons: [CDLesson] {
-        // Check if this group is a track (all groups are tracks by default unless explicitly disabled)
-        guard GroupTrackService.isTrack(subject: subject, group: group, context: viewContext) else {
+        // Check if this sequence is a track (all groups are tracks by default unless explicitly disabled)
+        guard SequenceTrackService.isTrack(area: area, sequence: sequence, context: viewContext) else {
             return []
         }
 
-        // If we have an actual CDGroupTrack record, use it
-        if let track = groupTrack {
-            return GroupTrackService.getLessonsForTrack(track: track, allLessons: Array(allLessons))
+        // If we have an actual CDSequenceTrack record, use it
+        if let track = sequenceTrack {
+            return SequenceTrackService.getLessonsForTrack(track: track, allLessons: Array(allLessons))
         }
 
         // No record exists = default behavior = sequential track
-        // Filter and sort lessons for this group manually
+        // Filter and sort lessons for this sequence manually
         let settings = effectiveTrackSettings
         let filtered = Array(allLessons).filter { lesson in
-            lesson.subject.trimmed().caseInsensitiveCompare(subject.trimmed()) == .orderedSame &&
-            lesson.group.trimmed().caseInsensitiveCompare(group.trimmed()) == .orderedSame
+            lesson.area.trimmed().caseInsensitiveCompare(area.trimmed()) == .orderedSame &&
+            lesson.sequence.trimmed().caseInsensitiveCompare(sequence.trimmed()) == .orderedSame
         }
 
         return filtered.sorted { lhs, rhs in
             if settings.isSequential {
-                // Sequential: respect orderInGroup
-                if lhs.orderInGroup != rhs.orderInGroup {
-                    return lhs.orderInGroup < rhs.orderInGroup
+                // Sequential: respect orderInSequence
+                if lhs.orderInSequence != rhs.orderInSequence {
+                    return lhs.orderInSequence < rhs.orderInSequence
                 }
             }
             // Fallback to name for stable ordering
@@ -117,15 +117,15 @@ struct GroupTrackDetailView: View {
         Form {
             Section("Track") {
                 HStack {
-                    Text("Subject:")
+                    Text("Area:")
                     Spacer()
-                    Text(subject)
+                    Text(area)
                         .foregroundStyle(.secondary)
                 }
                 HStack {
-                    Text("Group:")
+                    Text("Sequence:")
                     Spacer()
-                    Text(group)
+                    Text(sequence)
                         .foregroundStyle(.secondary)
                 }
                 HStack {
@@ -194,7 +194,7 @@ struct GroupTrackDetailView: View {
 
             Section("Lessons") {
                 if lessons.isEmpty {
-                    Text("No lessons in this group.")
+                    Text("No lessons in this sequence.")
                         .foregroundStyle(.secondary)
                         .font(.caption)
                 } else {
@@ -208,7 +208,7 @@ struct GroupTrackDetailView: View {
                 }
             }
         }
-        .navigationTitle("\(subject) · \(group)")
+        .navigationTitle("\(area) · \(sequence)")
         .inlineNavigationTitle()
     }
 
@@ -255,8 +255,8 @@ private struct LessonStepRow: View {
                     .foregroundStyle(progressState == .proficient ? .secondary : .primary)
                     .strikethrough(progressState == .proficient, color: .secondary.opacity(UIConstants.OpacityConstants.half))
 
-                if !lesson.subheading.isEmpty {
-                    Text(lesson.subheading)
+                if !lesson.section.isEmpty {
+                    Text(lesson.section)
                         .font(.caption)
                         .foregroundStyle(.secondary)
                 }

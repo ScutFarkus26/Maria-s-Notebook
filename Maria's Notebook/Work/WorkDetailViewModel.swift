@@ -81,7 +81,7 @@ final class WorkDetailViewModel {
         WorkScheduleDateLogic.compute(forCheckIns: checkIns)
     }
     
-    // PERF: Uses pre-fetched relatedLessons (same subject+group) instead of all lessons
+    // PERF: Uses pre-fetched relatedLessons (same area+sequence) instead of all lessons
     func likelyNextLesson() -> CDLesson? {
         guard let currentLesson = relatedLesson else { return nil }
         return PlanNextLessonService.findNextLesson(
@@ -148,15 +148,15 @@ final class WorkDetailViewModel {
 
         // Load related lessons
         if let currentLesson = relatedLesson {
-            let subject = currentLesson.subject.trimmed()
-            let group = currentLesson.group.trimmed()
+            let area = currentLesson.area.trimmed()
+            let sequence = currentLesson.sequence.trimmed()
 
             let lessonRequest = CDFetchRequest(CDLesson.self)
-            lessonRequest.predicate = NSPredicate(format: "subject CONTAINS %@ AND group CONTAINS %@", subject, group)
+            lessonRequest.predicate = NSPredicate(format: "area CONTAINS %@ AND sequence CONTAINS %@", area, sequence)
             relatedLessons = safeFetch(lessonRequest, context: modelContext)
         }
 
-        // PERF: Load only lesson assignments for lessons in the same subject+group
+        // PERF: Load only lesson assignments for lessons in the same area+sequence
         // instead of loading all LessonAssignments via @Query
         if !relatedLessons.isEmpty {
             let relatedLessonIDs = Set(relatedLessons.compactMap { $0.id?.uuidString })
@@ -206,7 +206,7 @@ final class WorkDetailViewModel {
         let peerWorkStudentIDs = Set(peerWorks.compactMap { UUID(uuidString: $0.studentID) })
 
         // 2b. Fallback for project work: if no project members found via sourceContextID,
-        // treat other students with project-kind work for the same lesson as the project group
+        // treat other students with project-kind work for the same lesson as the project sequence
         if projectMemberIDs.isEmpty && workModel.kind == .research {
             let projectPeerIDs = peerWorks
                 .filter { $0.kind == .research }
@@ -260,7 +260,7 @@ final class WorkDetailViewModel {
             return (student: student, completedAt: participantCompletedAt[id] ?? nil)
         }
 
-        // Resolve project group members
+        // Resolve project sequence members
         projectGroupMembers = projectMemberIDs
             .compactMap { studentsByID[$0] }
             .sorted { $0.firstName < $1.firstName }
@@ -276,7 +276,7 @@ final class WorkDetailViewModel {
         )
 
         // Build lesson cohort — peers with work for same lesson, with progression context
-        // Exclude students already shown in the project group card
+        // Exclude students already shown in the project sequence card
         var seenStudentIDs = projectMemberIDs
         var cohortEntries: [LessonCohortEntry] = []
         for w in peerWorks {
@@ -286,12 +286,12 @@ final class WorkDetailViewModel {
 
             var currentWorkTitle: String?
             if w.status == .complete {
-                // Find their current active work in the same subject/group progression
+                // Find their current active work in the same area/sequence progression
                 let progressionWork = allWork
                     .filter { $0.studentID == w.studentID && $0.status != .complete }
                     .compactMap { (aw: CDWorkModel) -> (lessonID: String, order: Int64)? in
                         guard let lesson = lessonsByIDString[aw.lessonID] else { return nil }
-                        return (lessonID: aw.lessonID, order: lesson.orderInGroup)
+                        return (lessonID: aw.lessonID, order: lesson.orderInSequence)
                     }
                     .min { $0.order < $1.order }
 

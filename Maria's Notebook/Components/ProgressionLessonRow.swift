@@ -3,10 +3,10 @@
 
 import SwiftUI
 
-/// A lesson card in the student's subject/group timeline.
+/// A lesson card in the student's area/sequence timeline.
 struct ProgressionLessonRow: View {
     let node: LessonProgressionNode
-    let subjectColor: Color
+    let areaColor: Color
     let onScheduleLesson: (() -> Void)?
 
     var body: some View {
@@ -80,7 +80,7 @@ struct ProgressionLessonRow: View {
                             .font(.caption)
                     }
                     .buttonStyle(.bordered)
-                    .tint(subjectColor)
+                    .tint(areaColor)
                     .padding(.top, 4)
                 }
             }

@@ -18,21 +18,21 @@ struct PresentationCard: View {
         (lesson?.name.isEmpty == false ? lesson?.name : nil) ?? "Lesson"
     }
 
-    private var subject: String {
-        lesson?.subject ?? ""
+    private var area: String {
+        lesson?.area ?? ""
     }
 
-    private var subjectColor: Color {
-        AppColors.color(forSubject: subject)
+    private var areaColor: Color {
+        AppColors.color(forArea: area)
     }
 
-    private var subjectBadge: some View {
+    private var areaBadge: some View {
         StatusPill(
-            text: subject.isEmpty ? "Subject" : subject,
-            color: subjectColor,
+            text: area.isEmpty ? "Area" : area,
+            color: areaColor,
             icon: nil
         )
-        .accessibilityLabel("Subject: \(subject.isEmpty ? "Unknown" : subject)")
+        .accessibilityLabel("Area: \(area.isEmpty ? "Unknown" : area)")
     }
 
     private struct StudentChip: Identifiable { let id: UUID; let label: String; let isMissing: Bool }
@@ -68,7 +68,7 @@ struct PresentationCard: View {
                 Text(lessonName)
                     .font(AppTheme.ScaledFont.titleSmall)
                 Spacer(minLength: 0)
-                subjectBadge
+                areaBadge
             }
 
             if !studentChips.isEmpty {
@@ -87,7 +87,7 @@ struct PresentationCard: View {
                                     .fill(
                                         chip.isMissing
                                             ? Color.primary.opacity(UIConstants.OpacityConstants.faint)
-                                            : subjectColor.opacity(UIConstants.OpacityConstants.accent)
+                                            : areaColor.opacity(UIConstants.OpacityConstants.accent)
                                     )
                             )
                         }

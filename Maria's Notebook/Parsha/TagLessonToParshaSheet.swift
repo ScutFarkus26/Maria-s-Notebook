@@ -30,7 +30,7 @@ struct TagLessonToParshaSheet: View {
         guard !query.isEmpty else { return base }
         return base.filter { lesson in
             lesson.name.lowercased().contains(query) ||
-            lesson.subject.lowercased().contains(query)
+            lesson.area.lowercased().contains(query)
         }
     }
 
@@ -89,8 +89,8 @@ struct TagLessonToParshaSheet: View {
                 Text(lesson.name.isEmpty ? "Untitled Lesson" : lesson.name)
                     .font(AppTheme.ScaledFont.bodySemibold)
                     .foregroundStyle(.primary)
-                if !lesson.subject.isEmpty {
-                    Text(lesson.subject)
+                if !lesson.area.isEmpty {
+                    Text(lesson.area)
                         .font(AppTheme.ScaledFont.caption)
                         .foregroundStyle(.secondary)
                 }

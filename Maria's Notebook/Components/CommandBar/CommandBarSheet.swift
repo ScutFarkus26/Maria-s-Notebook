@@ -19,7 +19,7 @@ struct CommandBarSheet: View {
     // MARK: - Data
 
     @FetchRequest(sortDescriptors: CDStudent.sortByName)private var allStudents: FetchedResults<CDStudent>
-    @FetchRequest(sortDescriptors: [NSSortDescriptor(keyPath: \CDLesson.subject, ascending: true), NSSortDescriptor(keyPath: \CDLesson.name, ascending: true)]) private var allLessons: FetchedResults<CDLesson>
+    @FetchRequest(sortDescriptors: [NSSortDescriptor(keyPath: \CDLesson.area, ascending: true), NSSortDescriptor(keyPath: \CDLesson.name, ascending: true)]) private var allLessons: FetchedResults<CDLesson>
 
     @AppStorage(UserDefaultsKeys.generalShowTestStudents) private var showTestStudents: Bool = false
     @AppStorage(UserDefaultsKeys.generalTestStudentNames)
@@ -288,7 +288,7 @@ struct CommandBarSheet: View {
         }
         let lessonData = allLessons.compactMap { l -> LessonData? in
             guard let id = l.id else { return nil }
-            return LessonData(id: id, name: l.name, subject: l.subject, group: l.group)
+            return LessonData(id: id, name: l.name, area: l.area, sequence: l.sequence)
         }
 
         Task {

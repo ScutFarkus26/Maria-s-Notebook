@@ -80,13 +80,13 @@ extension PresentationDetailViewModel {
 
     // MARK: - Schedule Next CDLesson
 
-    /// Schedules a new presentation for the next lesson in the group
+    /// Schedules a new presentation for the next lesson in the sequence
     func scheduleNextLessonToInbox(
         studentsAll: [CDStudent],
         lessonAssignmentsAll: [CDLessonAssignment],
         lessons: [CDLesson]
     ) {
-        guard let next = nextLessonInGroup(from: lessons) else { return }
+        guard let next = nextLessonInSequence(from: lessons) else { return }
         guard !selectedStudentIDs.isEmpty else { return }
 
         let sameStudents = Set(selectedStudentIDs)
@@ -104,7 +104,7 @@ extension PresentationDetailViewModel {
         )
         newLA.lesson = next
         newLA.lessonTitleSnapshot = next.name
-        newLA.lessonSubheadingSnapshot = next.subheading
+        newLA.lessonSectionSnapshot = next.section
         saveCoordinator.save(viewContext, reason: "Scheduling next lesson")
         PresentationDetailUtilities.notifyInboxRefresh()
     }

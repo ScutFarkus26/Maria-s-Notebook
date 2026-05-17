@@ -1,26 +1,26 @@
 import Foundation
 
-/// Helper struct for resolving group-based track progress without SwiftData fetches.
+/// Helper struct for resolving sequence-based track progress without SwiftData fetches.
 /// All operations work on passed-in arrays.
 @MainActor
-struct GroupTrackProgressResolver {
-    /// Returns the total number of lessons in the group track.
-    static func totalLessons(track: CDGroupTrackEntity, lessons: [CDLesson]) -> Int {
-        return GroupTrackService.getLessonsForTrack(track: track, allLessons: lessons).count
+struct SequenceTrackProgressResolver {
+    /// Returns the total number of lessons in the sequence track.
+    static func totalLessons(track: CDSequenceTrackEntity, lessons: [CDLesson]) -> Int {
+        return SequenceTrackService.getLessonsForTrack(track: track, allLessons: lessons).count
     }
     
-    /// Returns the count of mastered lessons for a given student in a group track.
+    /// Returns the count of mastered lessons for a given student in a sequence track.
     /// A lesson is mastered if there exists a CDLessonPresentation where:
     /// - studentID matches
     /// - (masteredAt != nil OR state == .proficient)
     /// - lessonID matches the lesson's ID
     static func proficientCount(
-        track: CDGroupTrackEntity,
+        track: CDSequenceTrackEntity,
         studentID: String,
         lessons: [CDLesson],
         lessonPresentations: [CDLessonPresentation]
     ) -> Int {
-        let trackLessons = GroupTrackService.getLessonsForTrack(track: track, allLessons: lessons)
+        let trackLessons = SequenceTrackService.getLessonsForTrack(track: track, allLessons: lessons)
         
         return trackLessons.filter { lesson in
             isLessonProficient(lesson: lesson, studentID: studentID, lessonPresentations: lessonPresentations)
@@ -30,14 +30,14 @@ struct GroupTrackProgressResolver {
     /// Returns the first unmastered lesson in the track (for sequential tracks),
     /// or nil if all are mastered or track is unordered.
     static func currentLesson(
-        track: CDGroupTrackEntity,
+        track: CDSequenceTrackEntity,
         studentID: String,
         lessons: [CDLesson],
         lessonPresentations: [CDLessonPresentation]
     ) -> CDLesson? {
         guard track.isSequential else { return nil } // No "current" lesson for unordered tracks
         
-        let trackLessons = GroupTrackService.getLessonsForTrack(track: track, allLessons: lessons)
+        let trackLessons = SequenceTrackService.getLessonsForTrack(track: track, allLessons: lessons)
         
         return trackLessons.first { lesson in
             !isLessonProficient(lesson: lesson, studentID: studentID, lessonPresentations: lessonPresentations)

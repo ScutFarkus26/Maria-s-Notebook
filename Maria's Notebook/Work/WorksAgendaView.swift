@@ -287,7 +287,7 @@ struct WorksAgendaView: View {
     let s = CDStudent(context: ctx)
     s.firstName = "Ada"; s.lastName = "Lovelace"; s.birthday = Date(); s.level = .upper
     let l = CDLesson(context: ctx)
-    l.name = "Long Division"; l.subject = "Math"; l.group = "Ops"
+    l.name = "Long Division"; l.area = "Math"; l.sequence = "Ops"
     let w = CDWorkModel(context: ctx)
     w.status = .active; w.studentID = s.id?.uuidString ?? ""; w.lessonID = l.id?.uuidString ?? ""
 

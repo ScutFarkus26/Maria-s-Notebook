@@ -48,7 +48,7 @@ struct BackupEntityRegistry {
         CDTrackEntity.self,
         CDTrackStepEntity.self,
         CDStudentTrackEnrollmentEntity.self,
-        CDGroupTrack.self,
+        CDSequenceTrack.self,
         // Templates
         CDNoteTemplate.self,
         // Reminders & Calendar events
@@ -97,7 +97,7 @@ struct BackupEntityRegistry {
         CDStudentFocusItem.self,
         // Year Plan + Progression
         CDYearPlanEntry.self,
-        CDLessonGroupSettings.self,
+        CDLessonSequenceSettings.self,
         // Stories
         CDStory.self,
         // Book Club

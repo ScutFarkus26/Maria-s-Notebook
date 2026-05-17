@@ -1,14 +1,14 @@
-// GroupRecapBlocks.swift
+// SequenceRecapBlocks.swift
 // Per-lesson row + presentation/work/check-in/note blocks shown inside the
-// expanded GroupRecapStudentSection.
+// expanded SequenceRecapStudentSection.
 
 import SwiftUI
 
 // MARK: - Per-Lesson Row
 
-struct GroupRecapLessonRow: View {
-    let entry: GroupRecapLessonEntry
-    let subjectColor: Color
+struct SequenceRecapLessonRow: View {
+    let entry: SequenceRecapLessonEntry
+    let areaColor: Color
 
     @State private var isExpanded: Bool = false
 
@@ -42,7 +42,7 @@ struct GroupRecapLessonRow: View {
     }
 
     private var rowBackground: Color {
-        entry.isCurrentLesson ? subjectColor.opacity(0.08) : .clear
+        entry.isCurrentLesson ? areaColor.opacity(0.08) : .clear
     }
 
     private var hasDetails: Bool {
@@ -67,7 +67,7 @@ struct GroupRecapLessonRow: View {
 
             Spacer(minLength: 6)
 
-            GroupRecapStateBadge(entry: entry)
+            SequenceRecapStateBadge(entry: entry)
             if let date = mostRecentDate {
                 Text(date, format: .relative(presentation: .named))
                     .font(AppTheme.ScaledFont.captionSmall)
@@ -97,10 +97,10 @@ struct GroupRecapLessonRow: View {
             DetailLabeledBlock(label: "Lesson notes", text: perStudent)
         }
         ForEach(entry.presentations) { presentation in
-            GroupRecapPresentationBlock(presentation: presentation)
+            SequenceRecapPresentationBlock(presentation: presentation)
         }
         ForEach(entry.workItems) { work in
-            GroupRecapWorkBlock(work: work)
+            SequenceRecapWorkBlock(work: work)
         }
         if !entry.directNotes.isEmpty {
             VStack(alignment: .leading, spacing: 4) {
@@ -108,7 +108,7 @@ struct GroupRecapLessonRow: View {
                     .font(AppTheme.ScaledFont.captionSemibold)
                     .foregroundStyle(.secondary)
                 ForEach(entry.directNotes) { note in
-                    GroupRecapNoteBlock(note: note)
+                    SequenceRecapNoteBlock(note: note)
                 }
             }
         }
@@ -117,8 +117,8 @@ struct GroupRecapLessonRow: View {
 
 // MARK: - State Badge
 
-struct GroupRecapStateBadge: View {
-    let entry: GroupRecapLessonEntry
+struct SequenceRecapStateBadge: View {
+    let entry: SequenceRecapLessonEntry
 
     var body: some View {
         Text(label)
@@ -156,8 +156,8 @@ struct GroupRecapStateBadge: View {
 
 // MARK: - Presentation Block
 
-struct GroupRecapPresentationBlock: View {
-    let presentation: GroupRecapPresentation
+struct SequenceRecapPresentationBlock: View {
+    let presentation: SequenceRecapPresentation
 
     var body: some View {
         VStack(alignment: .leading, spacing: 6) {
@@ -168,10 +168,10 @@ struct GroupRecapPresentationBlock: View {
                     .font(AppTheme.ScaledFont.captionSemibold)
                 Spacer(minLength: 0)
                 if presentation.needsPractice {
-                    GroupRecapFlagPill(label: "Needs practice", color: .blue)
+                    SequenceRecapFlagPill(label: "Needs practice", color: .blue)
                 }
                 if presentation.needsAnotherPresentation {
-                    GroupRecapFlagPill(label: "Re-present", color: .orange)
+                    SequenceRecapFlagPill(label: "Re-present", color: .orange)
                 }
             }
             if !presentation.groupNotes.isEmpty {
@@ -183,7 +183,7 @@ struct GroupRecapPresentationBlock: View {
             if !presentation.attachedNotes.isEmpty {
                 VStack(alignment: .leading, spacing: 4) {
                     ForEach(presentation.attachedNotes) { note in
-                        GroupRecapNoteBlock(note: note)
+                        SequenceRecapNoteBlock(note: note)
                     }
                 }
                 .padding(.leading, 22)
@@ -216,8 +216,8 @@ struct GroupRecapPresentationBlock: View {
 
 // MARK: - Work Block
 
-struct GroupRecapWorkBlock: View {
-    let work: GroupRecapWorkItem
+struct SequenceRecapWorkBlock: View {
+    let work: SequenceRecapWorkItem
 
     var body: some View {
         VStack(alignment: .leading, spacing: 6) {
@@ -231,7 +231,7 @@ struct GroupRecapWorkBlock: View {
             if !work.attachedNotes.isEmpty {
                 VStack(alignment: .leading, spacing: 4) {
                     ForEach(work.attachedNotes) { note in
-                        GroupRecapNoteBlock(note: note)
+                        SequenceRecapNoteBlock(note: note)
                     }
                 }
                 .padding(.leading, 22)
@@ -239,7 +239,7 @@ struct GroupRecapWorkBlock: View {
             if !work.checkIns.isEmpty {
                 VStack(alignment: .leading, spacing: 4) {
                     ForEach(work.checkIns) { ci in
-                        GroupRecapCheckInBlock(checkIn: ci)
+                        SequenceRecapCheckInBlock(checkIn: ci)
                     }
                 }
                 .padding(.leading, 22)
@@ -293,8 +293,8 @@ struct GroupRecapWorkBlock: View {
 
 // MARK: - Check-In Block
 
-struct GroupRecapCheckInBlock: View {
-    let checkIn: GroupRecapCheckIn
+struct SequenceRecapCheckInBlock: View {
+    let checkIn: SequenceRecapCheckIn
 
     var body: some View {
         VStack(alignment: .leading, spacing: 4) {
@@ -316,7 +316,7 @@ struct GroupRecapCheckInBlock: View {
             if !checkIn.notes.isEmpty {
                 VStack(alignment: .leading, spacing: 4) {
                     ForEach(checkIn.notes) { note in
-                        GroupRecapNoteBlock(note: note)
+                        SequenceRecapNoteBlock(note: note)
                     }
                 }
                 .padding(.leading, 18)
@@ -335,8 +335,8 @@ struct GroupRecapCheckInBlock: View {
 
 // MARK: - Note Block
 
-struct GroupRecapNoteBlock: View {
-    let note: GroupRecapNote
+struct SequenceRecapNoteBlock: View {
+    let note: SequenceRecapNote
 
     var body: some View {
         HStack(alignment: .top, spacing: 6) {
@@ -365,7 +365,7 @@ struct GroupRecapNoteBlock: View {
 
 // MARK: - Flag Pill
 
-struct GroupRecapFlagPill: View {
+struct SequenceRecapFlagPill: View {
     let label: String
     let color: Color
 

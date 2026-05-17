@@ -1,11 +1,11 @@
-// SubjectGrainPill+Previews.swift
+// AreaGrainPill+Previews.swift
 
 import SwiftUI
 
 // MARK: - Preview
 
-#Preview("Subject Grain Pills") {
-    let subjects = [
+#Preview("Area Grain Pills") {
+    let areas = [
         ("Math", "Golden Bead Exchange"),
         ("Science", "Parts of a Flower"),
         ("History", "Timeline of Life"),
@@ -26,21 +26,21 @@ import SwiftUI
 
     ScrollView {
         VStack(alignment: .leading, spacing: 10) {
-            Text("Subject Grain Pills")
+            Text("Area Grain Pills")
                 .font(AppTheme.ScaledFont.titleMedium)
                 .padding(.bottom, 4)
 
-            ForEach(subjects, id: \.0) { subject, lesson in
-                SubjectGrainPill(subject: subject) {
+            ForEach(areas, id: \.0) { area, lesson in
+                AreaGrainPill(area: area) {
                     HStack(spacing: 8) {
                         Circle()
-                            .fill(AppColors.color(forSubject: subject))
+                            .fill(AppColors.color(forArea: area))
                             .frame(width: 6, height: 6)
                         VStack(alignment: .leading, spacing: 2) {
                             Text(lesson)
                                 .font(AppTheme.ScaledFont.captionSemibold)
                                 .foregroundStyle(.primary)
-                            Text(subject)
+                            Text(area)
                                 .font(AppTheme.ScaledFont.captionSmall)
                                 .foregroundStyle(.secondary)
                         }
@@ -54,7 +54,7 @@ import SwiftUI
 }
 
 #Preview("Pattern Comparison") {
-    let subjects = [
+    let areas = [
         "Math", "Science", "History", "Language",
         "Botany", "Music", "Art", "Geography",
         "Practical Life", "Sensorial", "Grace & Courtesy", "Geometry"
@@ -65,21 +65,21 @@ import SwiftUI
             GridItem(.flexible(), spacing: 12),
             GridItem(.flexible(), spacing: 12)
         ], spacing: 12) {
-            ForEach(subjects, id: \.self) { subject in
+            ForEach(areas, id: \.self) { area in
                 VStack(spacing: 4) {
                     RoundedRectangle(cornerRadius: 12)
                         .fill(Color.clear)
                         .frame(height: 80)
                         .overlay {
-                            SubjectGrainBackground(subject: subject)
+                            AreaGrainBackground(area: area)
                                 .clipShape(RoundedRectangle(cornerRadius: 12))
                         }
                         .overlay {
                             RoundedRectangle(cornerRadius: 12)
-                                .stroke(AppColors.color(forSubject: subject).opacity(UIConstants.OpacityConstants.moderate), lineWidth: 1)
+                                .stroke(AppColors.color(forArea: area).opacity(UIConstants.OpacityConstants.moderate), lineWidth: 1)
                         }
 
-                    Text(subject)
+                    Text(area)
                         .font(AppTheme.ScaledFont.captionSmallSemibold)
                         .foregroundStyle(.secondary)
                 }

@@ -1,12 +1,12 @@
 import Foundation
 import CoreData
 
-@objc(CDGroupTrackEntity)
-public class CDGroupTrackEntity: NSManagedObject {
+@objc(CDSequenceTrackEntity)
+public class CDSequenceTrackEntity: NSManagedObject {
     // MARK: - Attributes
     @NSManaged public var id: UUID?
-    @NSManaged public var subject: String
-    @NSManaged public var group: String
+    @NSManaged public var area: String
+    @NSManaged public var sequence: String
     @NSManaged public var isSequential: Bool
     @NSManaged public var isExplicitlyDisabled: Bool
     @NSManaged public var createdAt: Date?
@@ -17,11 +17,11 @@ public class CDGroupTrackEntity: NSManagedObject {
     // MARK: - Convenience Init
     @discardableResult
     convenience init(context: NSManagedObjectContext) {
-        let entity = NSEntityDescription.entity(forEntityName: "GroupTrack", in: context)!
+        let entity = NSEntityDescription.entity(forEntityName: "SequenceTrack", in: context)!
         self.init(entity: entity, insertInto: context)
         self.id = UUID()
-        self.subject = ""
-        self.group = ""
+        self.area = ""
+        self.sequence = ""
         self.isSequential = true
         self.isExplicitlyDisabled = false
         self.createdAt = Date()
@@ -29,9 +29,9 @@ public class CDGroupTrackEntity: NSManagedObject {
 }
 
 // MARK: - Computed Properties
-extension CDGroupTrackEntity {
-    /// Unique identifier for this (subject, group) combination
-    var groupKey: String {
-        "\(subject)|\(group)"
+extension CDSequenceTrackEntity {
+    /// Unique identifier for this (area, sequence) combination
+    var sequenceKey: String {
+        "\(area)|\(sequence)"
     }
 }

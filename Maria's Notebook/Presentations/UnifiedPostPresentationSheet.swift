@@ -2,7 +2,7 @@
 import SwiftUI
 import CoreData
 
-// Unified sheet for recording a presentation with per-student notes, assignments, and group observations.
+// Unified sheet for recording a presentation with per-student notes, assignments, and sequence observations.
 // This sheet stays open until the user clicks Done AND the status is valid (Just Presented or Previously Presented).
 // swiftlint:disable:next type_body_length
 struct UnifiedPostPresentationSheet: View {

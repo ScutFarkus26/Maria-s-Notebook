@@ -74,7 +74,7 @@ final class CurriculumIntroductionStore {
             }
         }
 
-        // Merge: user intros override bundled ones (matched by subject+group)
+        // Merge: user intros override bundled ones (matched by area+sequence)
         let merged = mergeIntroductions(bundled: bundledIntros, user: userIntros)
 
         introductions = merged
@@ -91,14 +91,14 @@ final class CurriculumIntroductionStore {
 
         // Build set of user-customized keys
         for intro in user {
-            let key = makeKey(subject: intro.subject, group: intro.group)
+            let key = makeKey(area: intro.area, sequence: intro.sequence)
             userKeys.insert(key)
             result.append(intro)
         }
 
         // Add bundled intros that don't have user overrides
         for intro in bundled {
-            let key = makeKey(subject: intro.subject, group: intro.group)
+            let key = makeKey(area: intro.area, sequence: intro.sequence)
             if !userKeys.contains(key) {
                 result.append(intro)
             }
@@ -107,40 +107,40 @@ final class CurriculumIntroductionStore {
         return result
     }
 
-    private func makeKey(subject: String, group: String?) -> String {
-        let normalizedSubject = subject.trimmed().lowercased()
-        let normalizedGroup = (group ?? "").trimmed().lowercased()
-        return "\(normalizedSubject)::\(normalizedGroup)"
+    private func makeKey(area: String, sequence: String?) -> String {
+        let normalizedArea = area.trimmed().lowercased()
+        let normalizedSequence = (sequence ?? "").trimmed().lowercased()
+        return "\(normalizedArea)::\(normalizedSequence)"
     }
 
     // MARK: - Querying
 
-    /// Returns the introduction for a specific subject and group
-    func introduction(for subject: String, group: String?) -> CurriculumIntroduction? {
-        let key = makeKey(subject: subject, group: group)
-        return introductions.first { makeKey(subject: $0.subject, group: $0.group) == key }
+    /// Returns the introduction for a specific area and sequence
+    func introduction(for area: String, sequence: String?) -> CurriculumIntroduction? {
+        let key = makeKey(area: area, sequence: sequence)
+        return introductions.first { makeKey(area: $0.area, sequence: $0.sequence) == key }
     }
 
-    /// Returns the album-level introduction for a subject
-    func albumIntroduction(for subject: String) -> CurriculumIntroduction? {
-        introduction(for: subject, group: nil)
+    /// Returns the album-level introduction for a area
+    func albumIntroduction(for area: String) -> CurriculumIntroduction? {
+        introduction(for: area, sequence: nil)
     }
 
-    /// Returns the group-level introduction
-    func groupIntroduction(for subject: String, group: String) -> CurriculumIntroduction? {
-        introduction(for: subject, group: group)
+    /// Returns the sequence-level introduction
+    func groupIntroduction(for area: String, sequence: String) -> CurriculumIntroduction? {
+        introduction(for: area, sequence: sequence)
     }
 
-    /// Returns true if an introduction exists for the given subject and group
-    func hasIntroduction(for subject: String, group: String?) -> Bool {
-        introduction(for: subject, group: group) != nil
+    /// Returns true if an introduction exists for the given area and sequence
+    func hasIntroduction(for area: String, sequence: String?) -> Bool {
+        introduction(for: area, sequence: sequence) != nil
     }
 
-    /// Returns all introductions for a given subject (album + all groups)
-    func introductions(for subject: String) -> [CurriculumIntroduction] {
-        let normalizedSubject = subject.trimmed().lowercased()
+    /// Returns all introductions for a given area (album + all groups)
+    func introductions(for area: String) -> [CurriculumIntroduction] {
+        let normalizedArea = area.trimmed().lowercased()
         return introductions.filter {
-            $0.subject.trimmed().lowercased() == normalizedSubject
+            $0.area.trimmed().lowercased() == normalizedArea
         }
     }
 
@@ -152,8 +152,8 @@ final class CurriculumIntroductionStore {
         updated.modifiedAt = Date()
 
         // Remove existing if present
-        let key = makeKey(subject: updated.subject, group: updated.group)
-        introductions.removeAll { makeKey(subject: $0.subject, group: $0.group) == key }
+        let key = makeKey(area: updated.area, sequence: updated.sequence)
+        introductions.removeAll { makeKey(area: $0.area, sequence: $0.sequence) == key }
 
         // Add the new/updated one
         introductions.append(updated)
@@ -164,8 +164,8 @@ final class CurriculumIntroductionStore {
 
     /// Deletes an introduction (only removes user customization; bundled will reappear on reload)
     func delete(_ introduction: CurriculumIntroduction) async throws {
-        let key = makeKey(subject: introduction.subject, group: introduction.group)
-        introductions.removeAll { makeKey(subject: $0.subject, group: $0.group) == key }
+        let key = makeKey(area: introduction.area, sequence: introduction.sequence)
+        introductions.removeAll { makeKey(area: $0.area, sequence: $0.sequence) == key }
 
         try await persistUserIntroductions()
     }
@@ -190,9 +190,9 @@ final class CurriculumIntroductionStore {
 
         var importCount = 0
         for intro in library.introductions {
-            let key = makeKey(subject: intro.subject, group: intro.group)
+            let key = makeKey(area: intro.area, sequence: intro.sequence)
             // Only add if not already present
-            if !introductions.contains(where: { makeKey(subject: $0.subject, group: $0.group) == key }) {
+            if !introductions.contains(where: { makeKey(area: $0.area, sequence: $0.sequence) == key }) {
                 introductions.append(intro)
                 importCount += 1
             }

@@ -14,8 +14,8 @@ struct DaysSinceLastLessonView: View {
     private var excludedLessonIDs: Set<UUID> {
         func norm(_ s: String) -> String { s.normalizedForComparison() }
         let ids = lessons.filter { l in
-            let s = norm(l.subject)
-            let g = norm(l.group)
+            let s = norm(l.area)
+            let g = norm(l.sequence)
             return s == "parsha" || g == "parsha"
         }.compactMap(\.id)
         return Set(ids)

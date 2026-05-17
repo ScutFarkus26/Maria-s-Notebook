@@ -6,8 +6,8 @@ struct AddLessonView: View {
     private static let logger = Logger.lessons
 
     // Optional defaults to prefill when adding from a filtered Albums view
-    let defaultSubject: String?
-    let defaultGroup: String?
+    let defaultArea: String?
+    let defaultSequence: String?
 
     @Environment(\.dismiss) private var dismiss
     @Environment(\.managedObjectContext) private var viewContext
@@ -19,9 +19,9 @@ struct AddLessonView: View {
     }
 
     @State private var name: String = ""
-    @State private var subject: String = ""
-    @State private var group: String = ""
-    @State private var subheading: String = ""
+    @State private var area: String = ""
+    @State private var sequence: String = ""
+    @State private var section: String = ""
     @State private var writeUp: String = ""
     @State private var materials: String = ""
     @State private var purpose: String = ""
@@ -34,9 +34,9 @@ struct AddLessonView: View {
     @State private var lessonFormat: LessonFormat = .standard
     @State private var parentStoryID: UUID?
 
-    init(defaultSubject: String? = nil, defaultGroup: String? = nil) {
-        self.defaultSubject = defaultSubject?.trimmed()
-        self.defaultGroup = defaultGroup?.trimmed()
+    init(defaultArea: String? = nil, defaultSequence: String? = nil) {
+        self.defaultArea = defaultArea?.trimmed()
+        self.defaultSequence = defaultSequence?.trimmed()
     }
 
     var body: some View {
@@ -48,8 +48,8 @@ struct AddLessonView: View {
         .frame(width: 520, height: 720)
         .sheet(isPresented: $showingBulkEntry) {
             BulkLessonsEntryView(
-                defaultSubject: subject.trimmed().isEmpty ? defaultSubject : subject,
-                defaultGroup: group.trimmed().isEmpty ? defaultGroup : group,
+                defaultArea: area.trimmed().isEmpty ? defaultArea : area,
+                defaultSequence: sequence.trimmed().isEmpty ? defaultSequence : sequence,
                 onDone: { showingBulkEntry = false }
             )
 #if os(macOS)
@@ -61,8 +61,8 @@ struct AddLessonView: View {
 #endif
         }
         .onAppear {
-            if subject.trimmed().isEmpty, let d = defaultSubject, !d.isEmpty { subject = d }
-            if group.trimmed().isEmpty, let g = defaultGroup, !g.isEmpty { group = g }
+            if area.trimmed().isEmpty, let d = defaultArea, !d.isEmpty { area = d }
+            if sequence.trimmed().isEmpty, let g = defaultSequence, !g.isEmpty { sequence = g }
         }
         .saveErrorAlert()
     }
@@ -89,9 +89,9 @@ struct AddLessonView: View {
         Form {
             Section("Basics") {
                     TextField("Lesson Name", text: $name)
-                    TextField("Subject", text: $subject)
-                    TextField("Group", text: $group)
-                    TextField("Subheading", text: $subheading)
+                    TextField("Area", text: $area)
+                    TextField("Sequence", text: $sequence)
+                    TextField("Section", text: $section)
                     Picker("Source", selection: $source) {
                         ForEach(LessonSource.allCases) { s in
                             Text(s.label).tag(s)
@@ -181,9 +181,9 @@ struct AddLessonView: View {
     private func addLesson() {
         let newLesson = repository.createLesson(
             name: name.trimmed(),
-            subject: subject.trimmed(),
-            group: group.trimmed(),
-            subheading: subheading.trimmed(),
+            area: area.trimmed(),
+            sequence: sequence.trimmed(),
+            section: section.trimmed(),
             writeUp: writeUp,
             source: source,
             personalKind: source == .personal ? personalKind : nil,
@@ -195,21 +195,21 @@ struct AddLessonView: View {
             parentStoryID: lessonFormat == .story ? parentStoryID?.uuidString : nil
         )
 
-        let subjectTrimmed: String = newLesson.subject.trimmed()
-        let groupTrimmed: String = newLesson.group.trimmed()
-        if !subjectTrimmed.isEmpty && !groupTrimmed.isEmpty {
-            let isTrack: Bool = GroupTrackService.isTrack(
-                subject: subjectTrimmed, group: groupTrimmed, context: viewContext
+        let areaTrimmed: String = newLesson.area.trimmed()
+        let groupTrimmed: String = newLesson.sequence.trimmed()
+        if !areaTrimmed.isEmpty && !groupTrimmed.isEmpty {
+            let isTrack: Bool = SequenceTrackService.isTrack(
+                area: areaTrimmed, sequence: groupTrimmed, context: viewContext
             )
             if isTrack {
                 do {
-                    _ = try GroupTrackService.getOrCreateTrack(
-                        subject: subjectTrimmed,
-                        group: groupTrimmed,
+                    _ = try SequenceTrackService.getOrCreateTrack(
+                        area: areaTrimmed,
+                        sequence: groupTrimmed,
                         context: viewContext
                     )
                 } catch {
-                    Self.logger.warning("Failed to create/update CDTrackEntity for \(subjectTrimmed)/\(groupTrimmed): \(error)")
+                    Self.logger.warning("Failed to create/update CDTrackEntity for \(areaTrimmed)/\(groupTrimmed): \(error)")
                 }
             }
         }

@@ -5,13 +5,13 @@ import SwiftUI
 import CoreData
 import UniformTypeIdentifiers
 
-// MARK: - Subheading Drag Payload
+// MARK: - Section Drag Payload
 
-/// Drag payload for reordering subheadings within a group. Carrying subject + group
-/// lets the drop site reject cross-group drops without callback churn.
-struct SubheadingTransfer: Codable, Transferable {
-    let subject: String
-    let group: String
+/// Drag payload for reordering sections within a sequence. Carrying area + sequence
+/// lets the drop site reject cross-sequence drops without callback churn.
+struct SectionTransfer: Codable, Transferable {
+    let area: String
+    let sequence: String
     let name: String
 
     static var transferRepresentation: some TransferRepresentation {
@@ -21,72 +21,72 @@ struct SubheadingTransfer: Codable, Transferable {
 
 // MARK: - LessonsOutlineView
 
-/// A hierarchical outline view showing Group > Subheading > CDLesson with
+/// A hierarchical outline view showing Group > Section > CDLesson with
 /// DisclosureGroups, context menus, and direct drag-to-reorder.
 struct LessonsOutlineView: View {
-    let subject: String
-    let displayGroups: [String]
-    let lessonsByGroup: [String: [CDLesson]]
-    let allSubheadings: [String: [String]]
+    let area: String
+    let displaySequences: [String]
+    let lessonsBySequence: [String: [CDLesson]]
+    let allSections: [String: [String]]
     let selectedLessonID: UUID?
     var isEditing: Bool = false
 
     var onSelectLesson: ((CDLesson) -> Void)?
     var onScheduleLesson: ((CDLesson) -> Void)?
-    var onMoveToGroup: ((CDLesson, String) -> Void)?
-    var onMoveToSubheading: ((CDLesson, String) -> Void)?
-    var onReorderSubheadings: ((String) -> Void)?
-    var onReorderSubheadingByDrag: ((_ group: String, _ source: String, _ target: String) -> Void)?
+    var onMoveToSequence: ((CDLesson, String) -> Void)?
+    var onMoveToSection: ((CDLesson, String) -> Void)?
+    var onReorderSections: ((String) -> Void)?
+    var onReorderSectionByDrag: ((_ sequence: String, _ source: String, _ target: String) -> Void)?
     var onConfigureTrack: ((String) -> Void)?
-    var onMoveLessonsInGroup: ((_ source: IndexSet, _ destination: Int, _ group: String) -> Void)?
-    var onMoveGroups: ((_ source: IndexSet, _ destination: Int) -> Void)?
-    var onMoveLessonIDToGroup: ((_ lessonID: UUID, _ targetGroup: String) -> Void)?
+    var onMoveLessonsInSequence: ((_ source: IndexSet, _ destination: Int, _ sequence: String) -> Void)?
+    var onMoveSequences: ((_ source: IndexSet, _ destination: Int) -> Void)?
+    var onMoveLessonIDToSequence: ((_ lessonID: UUID, _ targetSequence: String) -> Void)?
     var onLocateInMap: ((CDLesson) -> Void)?
 
-    @State private var expandedGroups: Set<String> = []
-    @State private var dropTargetSubheading: String?
+    @State private var expandedSequences: Set<String> = []
+    @State private var dropTargetSection: String?
 
     var body: some View {
         List {
             if isEditing {
-                ForEach(displayGroups, id: \.self) { group in
-                    groupDisclosure(group: group)
+                ForEach(displaySequences, id: \.self) { sequence in
+                    groupDisclosure(sequence: sequence)
                 }
                 .onMove { source, destination in
-                    onMoveGroups?(source, destination)
+                    onMoveSequences?(source, destination)
                 }
             } else {
-                ForEach(displayGroups, id: \.self) { group in
-                    groupDisclosure(group: group)
+                ForEach(displaySequences, id: \.self) { sequence in
+                    groupDisclosure(sequence: sequence)
                 }
             }
         }
         .listStyle(.plain)
-        .task { expandedGroups = Set(displayGroups) }
+        .task { expandedSequences = Set(displaySequences) }
     }
 
     // MARK: - Group Level
 
     @ViewBuilder
-    private func groupDisclosure(group: String) -> some View {
-        let lessons = lessonsByGroup[group] ?? []
-        let subheadings = groupSubheadings(for: group, lessons: lessons)
+    private func groupDisclosure(sequence: String) -> some View {
+        let lessons = lessonsBySequence[sequence] ?? []
+        let sections = sequenceSections(for: sequence, lessons: lessons)
 
         DisclosureGroup(
             isExpanded: Binding(
-                get: { expandedGroups.contains(group) },
+                get: { expandedSequences.contains(sequence) },
                 set: { isExpanded in
                     if isExpanded {
-                        expandedGroups.insert(group)
+                        expandedSequences.insert(sequence)
                     } else {
-                        expandedGroups.remove(group)
+                        expandedSequences.remove(sequence)
                     }
                 }
             )
         ) {
-            groupContent(group: group, lessons: lessons, subheadings: subheadings)
+            groupContent(sequence: sequence, lessons: lessons, sections: sections)
         } label: {
-            groupLabel(group: group, lessons: lessons, subheadings: subheadings)
+            groupLabel(sequence: sequence, lessons: lessons, sections: sections)
         }
     }
 
@@ -94,32 +94,32 @@ struct LessonsOutlineView: View {
 
     @ViewBuilder
     private func groupContent(
-        group: String,
+        sequence: String,
         lessons: [CDLesson],
-        subheadings: GroupSubheadings
+        sections: SequenceSections
     ) -> some View {
-        if subheadings.hasSubheadings {
-            ForEach(subheadings.order, id: \.self) { sh in
-                if let shLessons = subheadings.bySubheading[sh], !shLessons.isEmpty {
-                    subheadingSection(
+        if sections.hasSections {
+            ForEach(sections.order, id: \.self) { sh in
+                if let shLessons = sections.bySection[sh], !shLessons.isEmpty {
+                    sectionSection(
                         name: sh,
                         lessons: shLessons,
-                        group: group,
-                        allGroupSubheadings: subheadings.order
+                        sequence: sequence,
+                        allSequenceSections: sections.order
                     )
                 }
             }
         } else {
             if isEditing {
                 ForEach(lessons) { lesson in
-                    lessonOutlineRow(lesson: lesson, group: group, subheadings: [])
+                    lessonOutlineRow(lesson: lesson, sequence: sequence, sections: [])
                 }
                 .onMove { source, destination in
-                    onMoveLessonsInGroup?(source, destination, group)
+                    onMoveLessonsInSequence?(source, destination, sequence)
                 }
             } else {
                 ForEach(lessons) { lesson in
-                    lessonOutlineRow(lesson: lesson, group: group, subheadings: [])
+                    lessonOutlineRow(lesson: lesson, sequence: sequence, sections: [])
                 }
             }
         }
@@ -129,30 +129,30 @@ struct LessonsOutlineView: View {
 
     @ViewBuilder
     private func groupLabel(
-        group: String,
+        sequence: String,
         lessons: [CDLesson],
-        subheadings: GroupSubheadings
+        sections: SequenceSections
     ) -> some View {
         HStack {
-            Text(group)
+            Text(sequence)
                 .font(.system(.body, design: .rounded, weight: .semibold))
             Spacer()
 
             if isEditing {
-                if subheadings.hasSubheadings {
+                if sections.hasSections {
                     Button {
-                        onReorderSubheadings?(group)
+                        onReorderSections?(sequence)
                     } label: {
                         Image(systemName: "arrow.up.arrow.down")
                             .foregroundStyle(.secondary)
                             .font(.caption)
                     }
                     .buttonStyle(.plain)
-                    .help("Reorder subheadings")
+                    .help("Reorder sections")
                 }
 
                 Button {
-                    onConfigureTrack?(group)
+                    onConfigureTrack?(sequence)
                 } label: {
                     Image(systemName: "gearshape")
                         .foregroundStyle(.secondary)
@@ -172,14 +172,14 @@ struct LessonsOutlineView: View {
         }
     }
 
-    // MARK: - Subheading Level
+    // MARK: - Section Level
 
     @ViewBuilder
-    private func subheadingSection(
+    private func sectionSection(
         name: String,
         lessons: [CDLesson],
-        group: String,
-        allGroupSubheadings: [String]
+        sequence: String,
+        allSequenceSections: [String]
     ) -> some View {
         HStack(spacing: 6) {
             RoundedRectangle(cornerRadius: 1)
@@ -196,7 +196,7 @@ struct LessonsOutlineView: View {
         .contentShape(Rectangle())
         .listRowBackground(
             RoundedRectangle(cornerRadius: 6)
-                .fill(dropTargetSubheading == name && !name.isEmpty
+                .fill(dropTargetSection == name && !name.isEmpty
                       ? Color.accentColor.opacity(UIConstants.OpacityConstants.moderate)
                       : Color.clear)
                 .padding(.horizontal, 4)
@@ -204,34 +204,34 @@ struct LessonsOutlineView: View {
         .listRowSeparator(.hidden)
         .when(!name.isEmpty && isEditing) { view in
             view
-                .draggable(SubheadingTransfer(subject: subject, group: group, name: name))
-                .dropDestination(for: SubheadingTransfer.self) { items, _ in
+                .draggable(SectionTransfer(area: area, sequence: sequence, name: name))
+                .dropDestination(for: SectionTransfer.self) { items, _ in
                     guard let item = items.first,
-                          item.subject == subject,
-                          item.group == group,
+                          item.area == area,
+                          item.sequence == sequence,
                           item.name != name
                     else { return false }
-                    onReorderSubheadingByDrag?(group, item.name, name)
+                    onReorderSectionByDrag?(sequence, item.name, name)
                     return true
                 } isTargeted: { isTargeted in
                     if isTargeted {
-                        dropTargetSubheading = name
-                    } else if dropTargetSubheading == name {
-                        dropTargetSubheading = nil
+                        dropTargetSection = name
+                    } else if dropTargetSection == name {
+                        dropTargetSection = nil
                     }
                 }
         }
 
         if isEditing {
             ForEach(lessons) { lesson in
-                lessonOutlineRow(lesson: lesson, group: group, subheadings: allGroupSubheadings)
+                lessonOutlineRow(lesson: lesson, sequence: sequence, sections: allSequenceSections)
             }
             .onMove { source, destination in
-                onMoveLessonsInGroup?(source, destination, group)
+                onMoveLessonsInSequence?(source, destination, sequence)
             }
         } else {
             ForEach(lessons) { lesson in
-                lessonOutlineRow(lesson: lesson, group: group, subheadings: allGroupSubheadings)
+                lessonOutlineRow(lesson: lesson, sequence: sequence, sections: allSequenceSections)
             }
         }
     }
@@ -241,8 +241,8 @@ struct LessonsOutlineView: View {
     @ViewBuilder
     private func lessonOutlineRow(
         lesson: CDLesson,
-        group: String,
-        subheadings: [String]
+        sequence: String,
+        sections: [String]
     ) -> some View {
         LessonCompactRow(
             lesson: lesson,
@@ -250,25 +250,25 @@ struct LessonsOutlineView: View {
         )
         // simultaneousGesture lets tap-to-select coexist with .onMove drag.
         .simultaneousGesture(TapGesture().onEnded { onSelectLesson?(lesson) })
-        .contextMenu { lessonContextMenu(lesson: lesson, group: group, subheadings: subheadings) }
+        .contextMenu { lessonContextMenu(lesson: lesson, sequence: sequence, sections: sections) }
         .id(lesson.id)
     }
 
     // MARK: - Helpers
 
-    fileprivate struct GroupSubheadings {
+    fileprivate struct SequenceSections {
         let order: [String]
-        let bySubheading: [String: [CDLesson]]
-        let hasSubheadings: Bool
+        let bySection: [String: [CDLesson]]
+        let hasSections: Bool
     }
 }
 
-// MARK: - Lesson Context Menu & Subheading Helpers
+// MARK: - Lesson Context Menu & Section Helpers
 
 extension LessonsOutlineView {
     @ViewBuilder
     func lessonContextMenu(
-        lesson: CDLesson, group: String, subheadings: [String]
+        lesson: CDLesson, sequence: String, sections: [String]
     ) -> some View {
         Button { onSelectLesson?(lesson) } label: {
             Label("View Details", systemImage: "info.circle")
@@ -283,34 +283,34 @@ extension LessonsOutlineView {
         }
         Divider()
 
-        let otherGroups = displayGroups.filter { $0 != group }
-        if !otherGroups.isEmpty {
+        let otherSequences = displaySequences.filter { $0 != sequence }
+        if !otherSequences.isEmpty {
             Menu("Move to Group\u{2026}") {
-                ForEach(otherGroups, id: \.self) { targetGroup in
-                    Button(targetGroup) { onMoveToGroup?(lesson, targetGroup) }
+                ForEach(otherSequences, id: \.self) { targetSequence in
+                    Button(targetSequence) { onMoveToSequence?(lesson, targetSequence) }
                 }
             }
         }
 
-        let otherSubheadings = subheadings.filter { $0 != lesson.subheading.trimmed() }
-        if !otherSubheadings.isEmpty {
-            Menu("Move to Subheading\u{2026}") {
-                ForEach(otherSubheadings, id: \.self) { targetSh in
+        let otherSections = sections.filter { $0 != lesson.section.trimmed() }
+        if !otherSections.isEmpty {
+            Menu("Move to Section\u{2026}") {
+                ForEach(otherSections, id: \.self) { targetSh in
                     Button(targetSh.isEmpty ? "Other" : targetSh) {
-                        onMoveToSubheading?(lesson, targetSh)
+                        onMoveToSection?(lesson, targetSh)
                     }
                 }
             }
         }
     }
 
-    fileprivate func groupSubheadings(for group: String, lessons: [CDLesson]) -> GroupSubheadings {
-        let bySubheading = Dictionary(grouping: lessons) { $0.subheading.trimmed() }
+    fileprivate func sequenceSections(for sequence: String, lessons: [CDLesson]) -> SequenceSections {
+        let bySection = Dictionary(grouping: lessons) { $0.section.trimmed() }
 
         // Prefer the order computed by the parent (which already consults FilterOrderStore).
         // Fall back to alphabetical for safety.
-        let providedOrder: [String] = allSubheadings[group] ?? []
-        let presentNonEmpty = Set(bySubheading.keys.filter { !$0.isEmpty })
+        let providedOrder: [String] = allSections[sequence] ?? []
+        let presentNonEmpty = Set(bySection.keys.filter { !$0.isEmpty })
         var nonEmpty: [String] = providedOrder.filter { presentNonEmpty.contains($0) }
         let missing = presentNonEmpty.subtracting(nonEmpty)
         if !missing.isEmpty {
@@ -319,13 +319,13 @@ extension LessonsOutlineView {
         }
 
         guard !nonEmpty.isEmpty else {
-            return GroupSubheadings(order: [], bySubheading: bySubheading, hasSubheadings: false)
+            return SequenceSections(order: [], bySection: bySection, hasSections: false)
         }
 
         var ordered = nonEmpty
-        if bySubheading.keys.contains("") {
+        if bySection.keys.contains("") {
             ordered.append("")
         }
-        return GroupSubheadings(order: ordered, bySubheading: bySubheading, hasSubheadings: true)
+        return SequenceSections(order: ordered, bySection: bySection, hasSections: true)
     }
 }

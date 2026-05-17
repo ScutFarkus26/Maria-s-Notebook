@@ -16,7 +16,7 @@ struct LessonsCardsGridView: View {
     let onReorderInOutline: ((CDLesson) -> Void)?
     let onLocateInMap: ((CDLesson) -> Void)?
     let statusCounts: [UUID: Int]?
-    let selectedSubject: String?
+    let selectedArea: String?
     let selectedLessonID: UUID?
     let lastPresentedDates: [UUID: Date]?
     let showIntroductionCards: Bool
@@ -28,7 +28,7 @@ struct LessonsCardsGridView: View {
         onReorderInOutline: ((CDLesson) -> Void)? = nil,
         onLocateInMap: ((CDLesson) -> Void)? = nil,
         statusCounts: [UUID: Int]? = nil,
-        selectedSubject: String? = nil,
+        selectedArea: String? = nil,
         selectedLessonID: UUID? = nil,
         lastPresentedDates: [UUID: Date]? = nil,
         showIntroductionCards: Bool = true
@@ -39,7 +39,7 @@ struct LessonsCardsGridView: View {
         self.onReorderInOutline = onReorderInOutline
         self.onLocateInMap = onLocateInMap
         self.statusCounts = statusCounts
-        self.selectedSubject = selectedSubject
+        self.selectedArea = selectedArea
         self.selectedLessonID = selectedLessonID
         self.lastPresentedDates = lastPresentedDates
         self.showIntroductionCards = showIntroductionCards
@@ -61,16 +61,16 @@ struct LessonsCardsGridView: View {
 
     private var idList: [UUID] { lessons.compactMap(\.id) }
 
-    /// Groups lessons by group and prepends introduction cards where available.
+    /// Groups lessons by sequence and prepends introduction cards where available.
     private var groupedItems: [(key: String, value: [LessonsGridItem])] {
-        let lessonGroups = groupedByGroup
-        return lessonGroups.map { entry -> (key: String, value: [LessonsGridItem]) in
+        let lessonSequences = groupedBySequence
+        return lessonSequences.map { entry -> (key: String, value: [LessonsGridItem]) in
             var items: [LessonsGridItem] = []
 
-            // Add introduction card at the top of each group if available and enabled
+            // Add introduction card at the top of each sequence if available and enabled
             if showIntroductionCards,
-               let subject = selectedSubject,
-               let intro = introductionStore.introduction(for: subject, group: entry.key.isEmpty ? nil : entry.key) {
+               let area = selectedArea,
+               let intro = introductionStore.introduction(for: area, sequence: entry.key.isEmpty ? nil : entry.key) {
                 items.append(.introduction(intro))
             }
 
@@ -81,57 +81,57 @@ struct LessonsCardsGridView: View {
         }
     }
 
-    /// Organizes lessons within a group by subheading for hierarchical display.
-    /// Returns ordered subheading keys (empty string = no subheading) and a lookup of lessons per subheading.
-    private func subheadingsForGroup(
+    /// Organizes lessons within a sequence by section for hierarchical display.
+    /// Returns ordered section keys (empty string = no section) and a lookup of lessons per section.
+    private func sectionsForSequence(
         _ groupLessons: [CDLesson],
-        groupName: String
-    ) -> (order: [String], bySubheading: [String: [CDLesson]]) {
-        let bySubheading = groupLessons.grouped { $0.subheading.trimmed() }
-        let nonEmpty = Array(Set(bySubheading.keys.filter { !$0.isEmpty }))
+        sequenceName: String
+    ) -> (order: [String], bySection: [String: [CDLesson]]) {
+        let bySection = groupLessons.grouped { $0.section.trimmed() }
+        let nonEmpty = Array(Set(bySection.keys.filter { !$0.isEmpty }))
             .sorted { $0.localizedCaseInsensitiveCompare($1) == .orderedAscending }
 
-        let subject = selectedSubject ?? groupLessons.first?.subject ?? ""
-        let ordered = FilterOrderStore.loadSubheadingOrder(for: subject, group: groupName, existing: nonEmpty)
+        let area = selectedArea ?? groupLessons.first?.area ?? ""
+        let ordered = FilterOrderStore.loadSectionOrder(for: area, sequence: sequenceName, existing: nonEmpty)
 
-        // Append the empty-subheading bucket at the end if present
+        // Append the empty-section bucket at the end if present
         var result = ordered
-        if bySubheading.keys.contains("") {
+        if bySection.keys.contains("") {
             result.append("")
         }
-        return (order: result, bySubheading: bySubheading)
+        return (order: result, bySection: bySection)
     }
 
-    /// Whether a group has more than one distinct non-empty subheading (worth showing sub-sections).
-    private func groupHasSubheadings(_ groupLessons: [CDLesson]) -> Bool {
-        let distinct = Set(groupLessons.map { $0.subheading.trimmed() }.filter { !$0.isEmpty })
+    /// Whether a sequence has more than one distinct non-empty section (worth showing sub-sections).
+    private func groupHasSections(_ groupLessons: [CDLesson]) -> Bool {
+        let distinct = Set(groupLessons.map { $0.section.trimmed() }.filter { !$0.isEmpty })
         return !distinct.isEmpty
     }
 
-    private var groupedByGroup: [(key: String, value: [CDLesson])] {
-        let dict = lessons.grouped { $0.group.trimmed() }
+    private var groupedBySequence: [(key: String, value: [CDLesson])] {
+        let dict = lessons.grouped { $0.sequence.trimmed() }
         let mapped = dict
             .map { (key: $0.key, value: $0.value.sorted { lhs, rhs in
-                if lhs.orderInGroup != rhs.orderInGroup { return lhs.orderInGroup < rhs.orderInGroup }
+                if lhs.orderInSequence != rhs.orderInSequence { return lhs.orderInSequence < rhs.orderInSequence }
                 return lhs.name.localizedCaseInsensitiveCompare(rhs.name) == .orderedAscending
             })}
 
-        let subjectKey: String? = {
-            if let selected = selectedSubject, !selected.isEmpty {
+        let areaKey: String? = {
+            if let selected = selectedArea, !selected.isEmpty {
                 return selected
             }
-            let subjectsSet = Set(lessons.map { $0.subject.trimmed().lowercased() }.filter { !$0.isEmpty })
-            if subjectsSet.count == 1 {
-                return lessons.first?.subject
+            let areasSet = Set(lessons.map { $0.area.trimmed().lowercased() }.filter { !$0.isEmpty })
+            if areasSet.count == 1 {
+                return lessons.first?.area
             }
             return nil
         }()
 
         let keys = Array(dict.keys)
 
-        if let subjectKey {
+        if let areaKey {
             let existingNamed = keys.map { $0.trimmed() }.filter { !$0.isEmpty }
-            let orderedNamed = FilterOrderStore.loadGroupOrder(for: subjectKey, existing: existingNamed)
+            let orderedNamed = FilterOrderStore.loadSequenceOrder(for: areaKey, existing: existingNamed)
             var index: [String: Int] = [:]
             for (i, g) in orderedNamed.enumerated() {
                 index[g] = i
@@ -169,15 +169,15 @@ struct LessonsCardsGridView: View {
                     if groupedItems.count > 1 {
                         ForEach(groupedItems, id: \.key) { entry in
                             Section {
-                                groupItemsWithSubheadings(entry: entry)
+                                groupItemsWithSections(entry: entry)
                             } header: {
-                                groupHeader(for: entry.key, subject: selectedSubject, lessonCount: entry.value.compactMap(\.asLesson).count)
+                                groupHeader(for: entry.key, area: selectedArea, lessonCount: entry.value.compactMap(\.asLesson).count)
                             }
                         }
                     } else {
-                        // Single group or no grouping - show items with subheadings if applicable
+                        // Single sequence or no grouping - show items with sections if applicable
                         let entry = groupedItems.first ?? (key: "", value: lessons.map { LessonsGridItem.lesson($0) })
-                        groupItemsWithSubheadings(entry: entry)
+                        groupItemsWithSections(entry: entry)
                     }
                 }
                 .transaction { tx in
@@ -215,20 +215,20 @@ struct LessonsCardsGridView: View {
             }
         }
         .sheet(item: $introductionToShow) { introduction in
-            GroupIntroductionSheet(introduction: introduction)
+            SequenceIntroductionSheet(introduction: introduction)
         }
     }
 
     // MARK: - Group Header
 
     @ViewBuilder
-    private func groupHeader(for groupName: String, subject: String?, lessonCount: Int) -> some View {
-        let displayName = groupName.isEmpty ? "Ungrouped" : groupName
-        let groupArg = groupName.isEmpty ? nil : groupName
-        let hasIntro = subject != nil && introductionStore.hasIntroduction(
-            for: subject!, group: groupArg
+    private func groupHeader(for sequenceName: String, area: String?, lessonCount: Int) -> some View {
+        let displayName = sequenceName.isEmpty ? "Ungrouped" : sequenceName
+        let groupArg = sequenceName.isEmpty ? nil : sequenceName
+        let hasIntro = area != nil && introductionStore.hasIntroduction(
+            for: area!, sequence: groupArg
         )
-        let accentColor = subject.map { AppColors.color(forSubject: $0) } ?? .accentColor
+        let accentColor = area.map { AppColors.color(forArea: $0) } ?? .accentColor
 
         HStack(spacing: 10) {
             Text(displayName)
@@ -249,9 +249,9 @@ struct LessonsCardsGridView: View {
 
             if hasIntro {
                 Button {
-                    if let subj = subject {
+                    if let subj = area {
                         introductionToShow = introductionStore.introduction(
-                            for: subj, group: groupArg
+                            for: subj, sequence: groupArg
                         )
                     }
                 } label: {
@@ -271,16 +271,16 @@ struct LessonsCardsGridView: View {
         .background(AppTheme.Colors.paneBackground)
     }
 
-    // MARK: - Subheading Sub-Sections
+    // MARK: - Section Sub-Sections
 
-    /// Renders items within a group, inserting subheading divider rows when the group has subheadings.
+    /// Renders items within a sequence, inserting section divider rows when the sequence has sections.
     @ViewBuilder
-    private func groupItemsWithSubheadings(entry: (key: String, value: [LessonsGridItem])) -> some View {
+    private func groupItemsWithSections(entry: (key: String, value: [LessonsGridItem])) -> some View {
         let groupLessons = entry.value.compactMap(\.asLesson)
         let introItems = entry.value.filter(\.isIntroduction)
 
-        if groupHasSubheadings(groupLessons) {
-            let (order, bySubheading) = subheadingsForGroup(groupLessons, groupName: entry.key)
+        if groupHasSections(groupLessons) {
+            let (order, bySection) = sectionsForSequence(groupLessons, sequenceName: entry.key)
 
             // Show introduction cards first
             ForEach(introItems, id: \.id) { item in
@@ -288,10 +288,10 @@ struct LessonsCardsGridView: View {
                     .id(item.id)
             }
 
-            // Then subheading clusters. Lessons with no subheading render un-headered
-            // at the bottom of the group rather than under a placeholder label.
+            // Then section clusters. Lessons with no section render un-headered
+            // at the bottom of the sequence rather than under a placeholder label.
             ForEach(order, id: \.self) { sh in
-                if let shLessons = bySubheading[sh], !shLessons.isEmpty {
+                if let shLessons = bySection[sh], !shLessons.isEmpty {
                     if sh.isEmpty {
                         ForEach(shLessons, id: \.id) { lesson in
                             gridItemView(.lesson(lesson))
@@ -304,13 +304,13 @@ struct LessonsCardsGridView: View {
                                     .id("lesson-\(lesson.id?.uuidString ?? "")")
                             }
                         } header: {
-                            subheadingHeader(sh)
+                            sectionHeader(sh)
                         }
                     }
                 }
             }
         } else {
-            // No subheadings — render flat
+            // No sections — render flat
             ForEach(entry.value, id: \.id) { item in
                 gridItemView(item)
                     .id(item.id)
@@ -318,10 +318,10 @@ struct LessonsCardsGridView: View {
         }
     }
 
-    /// A subheading divider row that spans the grid, accented with the subject color.
+    /// A section divider row that spans the grid, accented with the area color.
     @ViewBuilder
-    private func subheadingHeader(_ name: String) -> some View {
-        let accentColor = selectedSubject.map { AppColors.color(forSubject: $0) } ?? .secondary
+    private func sectionHeader(_ name: String) -> some View {
+        let accentColor = selectedArea.map { AppColors.color(forArea: $0) } ?? .secondary
 
         HStack(spacing: 8) {
             RoundedRectangle(cornerRadius: 1.5)

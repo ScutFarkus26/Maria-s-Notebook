@@ -40,7 +40,7 @@ extension CDScheduledMeeting {
 
     /// All student IDs involved in this meeting.
     /// For single-student meetings returns `[studentID]`.
-    /// For group meetings returns the full participant list.
+    /// For sequence meetings returns the full participant list.
     var allStudentIDs: [String] {
         if isGroupMeeting, !participantStudentIDs.isEmpty {
             return participantStudentIDs

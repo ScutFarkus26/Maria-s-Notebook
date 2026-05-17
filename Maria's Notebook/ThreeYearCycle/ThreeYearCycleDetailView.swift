@@ -1,5 +1,5 @@
 // ThreeYearCycleDetailView.swift
-// Drill-down view showing full subject breakdown for a student's three-year cycle.
+// Drill-down view showing full area breakdown for a student's three-year cycle.
 
 import SwiftUI
 
@@ -21,12 +21,12 @@ struct ThreeYearCycleDetailView: View {
                 Divider()
                     .padding(.horizontal)
 
-                // Full subject breakdown
-                subjectBreakdownSection
+                // Full area breakdown
+                areaBreakdownSection
                     .padding(.horizontal)
 
                 // Recommendations
-                if !needsAttentionSubjects.isEmpty {
+                if !needsAttentionAreas.isEmpty {
                     recommendationsSection
                         .padding(.horizontal)
                 }
@@ -148,45 +148,45 @@ struct ThreeYearCycleDetailView: View {
         .cardStyle()
     }
 
-    // MARK: - Subject Breakdown
+    // MARK: - Area Breakdown
 
-    private var sortedSubjects: [SubjectCoverage] {
-        card.subjectCoverage.sorted { $0.percentage < $1.percentage }
+    private var sortedAreas: [AreaCoverage] {
+        card.areaCoverage.sorted { $0.percentage < $1.percentage }
     }
 
-    private var subjectBreakdownSection: some View {
+    private var areaBreakdownSection: some View {
         VStack(alignment: .leading, spacing: 10) {
-            Text("Subject Breakdown")
+            Text("Area Breakdown")
                 .font(.subheadline)
                 .fontWeight(.semibold)
 
             LazyVStack(spacing: 8) {
-                ForEach(sortedSubjects) { subject in
-                    subjectRow(subject)
+                ForEach(sortedAreas) { area in
+                    areaRow(area)
                 }
             }
         }
     }
 
-    private func subjectRow(_ subject: SubjectCoverage) -> some View {
+    private func areaRow(_ area: AreaCoverage) -> some View {
         VStack(spacing: 6) {
             HStack(spacing: 8) {
                 Circle()
-                    .fill(subject.color)
+                    .fill(area.color)
                     .frame(width: 8, height: 8)
 
-                Text(subject.subject)
+                Text(area.area)
                     .font(.subheadline)
                     .fontWeight(.medium)
 
                 Spacer()
 
-                Text("\(subject.presented)/\(subject.total)")
+                Text("\(area.presented)/\(area.total)")
                     .font(.caption)
                     .fontWeight(.bold)
-                    .foregroundStyle(subject.percentage < 0.3 ? AppColors.warning : .primary)
+                    .foregroundStyle(area.percentage < 0.3 ? AppColors.warning : .primary)
 
-                Text("\(Int(subject.percentage * 100))%")
+                Text("\(Int(area.percentage * 100))%")
                     .font(.caption)
                     .foregroundStyle(.secondary)
                     .frame(width: 32, alignment: .trailing)
@@ -195,11 +195,11 @@ struct ThreeYearCycleDetailView: View {
             GeometryReader { geo in
                 ZStack(alignment: .leading) {
                     RoundedRectangle(cornerRadius: 3, style: .continuous)
-                        .fill(subject.color.opacity(UIConstants.OpacityConstants.light))
+                        .fill(area.color.opacity(UIConstants.OpacityConstants.light))
 
                     RoundedRectangle(cornerRadius: 3, style: .continuous)
-                        .fill(subject.color.gradient)
-                        .frame(width: max(0, geo.size.width * subject.percentage))
+                        .fill(area.color.gradient)
+                        .frame(width: max(0, geo.size.width * area.percentage))
                 }
             }
             .frame(height: 6)
@@ -209,11 +209,11 @@ struct ThreeYearCycleDetailView: View {
 
     // MARK: - Recommendations
 
-    private var needsAttentionSubjects: [SubjectCoverage] {
+    private var needsAttentionAreas: [AreaCoverage] {
         guard card.cycleYear != .unknown else { return [] }
         let expectedPercentage = Double(card.cycleYear.rawValue) / 3.0
         let threshold = expectedPercentage * 0.5
-        return card.subjectCoverage.filter { $0.percentage < threshold }
+        return card.areaCoverage.filter { $0.percentage < threshold }
             .sorted { $0.percentage < $1.percentage }
     }
 
@@ -223,21 +223,21 @@ struct ThreeYearCycleDetailView: View {
                 Image(systemName: "exclamationmark.triangle.fill")
                     .font(.caption)
                     .foregroundStyle(AppColors.warning)
-                Text("Subjects Needing Attention")
+                Text("Areas Needing Attention")
                     .font(.subheadline)
                     .fontWeight(.semibold)
             }
 
             FlowLayout(spacing: 6) {
-                ForEach(needsAttentionSubjects) { subject in
+                ForEach(needsAttentionAreas) { area in
                     HStack(spacing: 4) {
                         Circle()
-                            .fill(subject.color)
+                            .fill(area.color)
                             .frame(width: 6, height: 6)
-                        Text(subject.subject)
+                        Text(area.area)
                             .font(.caption)
                             .fontWeight(.medium)
-                        Text("\(Int(subject.percentage * 100))%")
+                        Text("\(Int(area.percentage * 100))%")
                             .font(.system(size: 9))
                             .foregroundStyle(.secondary)
                     }

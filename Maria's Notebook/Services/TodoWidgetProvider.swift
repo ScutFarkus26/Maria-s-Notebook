@@ -26,18 +26,18 @@ import CoreData
  * 3. CONFIGURE APP GROUPS (for data sharing):
  *    - Select main app target > Signing & Capabilities
  *    - Add "App Groups" capability
- *    - Create group: "group.com.marianotebook.shared"
+ *    - Create sequence: "sequence.com.marianotebook.shared"
  *    - Select widget target > Signing & Capabilities  
  *    - Add "App Groups" capability
- *    - Select same group: "group.com.marianotebook.shared"
+ *    - Select same sequence: "sequence.com.marianotebook.shared"
  * 
  * 4. UPDATE MODEL CONTAINER:
- *    - Modify ModelContainer initialization to use app group:
+ *    - Modify ModelContainer initialization to use app sequence:
  *      let container = try ModelContainer(
  *          for: CDTodoItemEntity.self,
  *          configurations: ModelConfiguration(
  *              url: FileManager.default
- *                  .containerURL(forSecurityApplicationGroupIdentifier: "group.com.marianotebook.shared")!
+ *                  .containerURL(forSecurityApplicationGroupIdentifier: "sequence.com.marianotebook.shared")!
  *                  .appendingPathComponent("default.store")
  *          )
  *      )

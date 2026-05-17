@@ -76,9 +76,9 @@ final class ParshaSuggestionService {
             let purpose = String(lesson.purpose.trimmed().prefix(120))
             let writeUp = String(lesson.writeUp.trimmed().prefix(180))
             let parts = [purpose, writeUp].filter { !$0.isEmpty }.joined(separator: " ")
-            let subject = lesson.subject
-            let group = lesson.group
-            return "\(entry.index). \(lesson.name) [\(subject)\(group.isEmpty ? "" : " / \(group)")] — \(parts)"
+            let area = lesson.area
+            let sequence = lesson.sequence
+            return "\(entry.index). \(lesson.name) [\(area)\(sequence.isEmpty ? "" : " / \(sequence)")] — \(parts)"
         }.joined(separator: "\n")
 
         let prompt = """
@@ -91,7 +91,7 @@ final class ParshaSuggestionService {
         \(digestText)
 
         Select up to 5 lessons whose themes genuinely connect to this parsha — look beyond
-        surface subject overlap to find connections in character, moral, or thematic resonance.
+        surface area overlap to find connections in character, moral, or thematic resonance.
         If fewer than 5 connect meaningfully, return fewer.
 
         Respond with strict JSON:

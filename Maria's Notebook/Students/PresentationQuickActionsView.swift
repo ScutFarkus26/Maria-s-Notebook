@@ -61,24 +61,24 @@ struct PresentationQuickActionsView: View {
         return lessons.first(where: { $0.id == lessonIDUUID })
     }
 
-    private var subject: String {
-        (lesson?.subject.trimmed()) ?? ""
+    private var area: String {
+        (lesson?.area.trimmed()) ?? ""
     }
 
-    private var group: String {
-        (lesson?.group.trimmed()) ?? ""
+    private var sequence: String {
+        (lesson?.sequence.trimmed()) ?? ""
     }
 
-    private var nextLessonInGroup: CDLesson? {
+    private var nextLessonInSequence: CDLesson? {
         guard let current = lesson else { return nil }
-        let currentSubject = subject
-        let currentGroup = group
-        guard !currentSubject.isEmpty, !currentGroup.isEmpty else { return nil }
+        let currentArea = area
+        let currentSequence = sequence
+        guard !currentArea.isEmpty, !currentSequence.isEmpty else { return nil }
         let candidates = lessons.filter { l in
-            l.subject.trimmed().caseInsensitiveCompare(currentSubject) == .orderedSame &&
-            l.group.trimmed().caseInsensitiveCompare(currentGroup) == .orderedSame
+            l.area.trimmed().caseInsensitiveCompare(currentArea) == .orderedSame &&
+            l.sequence.trimmed().caseInsensitiveCompare(currentSequence) == .orderedSame
         }
-        .sorted { $0.orderInGroup < $1.orderInGroup }
+        .sorted { $0.orderInSequence < $1.orderInSequence }
         guard let idx = candidates.firstIndex(where: { $0.id == current.id }), idx + 1 < candidates.count else {
             return nil
         }
@@ -111,7 +111,7 @@ struct PresentationQuickActionsView: View {
                 }
 
                 Section(header: Text("Next Lesson in Group")) {
-                    if let next = nextLessonInGroup {
+                    if let next = nextLessonInSequence {
                         Text(next.name)
                             .fontWeight(.medium)
                     } else {
@@ -119,7 +119,7 @@ struct PresentationQuickActionsView: View {
                             .foregroundStyle(.secondary)
                     }
                     Button("Plan Next Lesson in Group") {
-                        guard let next = nextLessonInGroup else { return }
+                        guard let next = nextLessonInSequence else { return }
                         // Do not create or plan lessons for zero students
                         guard !lessonAssignment.resolvedStudentIDs.isEmpty else { return }
                         let sameStudents = Set(lessonAssignment.resolvedStudentIDs)
@@ -154,7 +154,7 @@ struct PresentationQuickActionsView: View {
                             showPlannedBanner = false
                         }
                     }
-                    .disabled(nextLessonInGroup == nil || didPlanNext || lessonAssignment.resolvedStudentIDs.isEmpty)
+                    .disabled(nextLessonInSequence == nil || didPlanNext || lessonAssignment.resolvedStudentIDs.isEmpty)
                 }
             }
             .frame(minWidth: 360)
@@ -255,9 +255,9 @@ struct PresentationQuickActionsView: View {
 
             // Auto-enroll in track if lesson belongs to a track
             if let lesson = lessonAssignment.lesson {
-                GroupTrackService.autoEnrollInTrackIfNeeded(
-                    lessonSubject: lesson.subject,
-                    lessonGroup: lesson.group,
+                SequenceTrackService.autoEnrollInTrackIfNeeded(
+                    lessonArea: lesson.area,
+                    lessonSequence: lesson.sequence,
                     studentIDs: lessonAssignment.studentIDs,
                     context: viewContext,
                     saveCoordinator: saveCoordinator
@@ -265,17 +265,17 @@ struct PresentationQuickActionsView: View {
             }
         }
 
-        // Phase 3: Auto-create next lesson in group when marking presented now
+        // Phase 3: Auto-create next lesson in sequence when marking presented now
         if presentedNow, let lessonIDUUID = UUID(uuidString: lessonAssignment.lessonID),
            let current = lessons.first(where: { $0.id == lessonIDUUID }) {
-            let currentSubject = current.subject.trimmed()
-            let currentGroup = current.group.trimmed()
-            if !currentSubject.isEmpty, !currentGroup.isEmpty {
+            let currentArea = current.area.trimmed()
+            let currentSequence = current.sequence.trimmed()
+            if !currentArea.isEmpty, !currentSequence.isEmpty {
                 let candidates = lessons.filter { l in
-                    l.subject.trimmed().caseInsensitiveCompare(currentSubject) == .orderedSame &&
-                    l.group.trimmed().caseInsensitiveCompare(currentGroup) == .orderedSame
+                    l.area.trimmed().caseInsensitiveCompare(currentArea) == .orderedSame &&
+                    l.sequence.trimmed().caseInsensitiveCompare(currentSequence) == .orderedSame
                 }
-                .sorted { $0.orderInGroup < $1.orderInGroup }
+                .sorted { $0.orderInSequence < $1.orderInSequence }
                 if let idx = candidates.firstIndex(where: { $0.id == current.id }), idx + 1 < candidates.count {
                     let next = candidates[idx + 1]
                     guard let nextID = next.id else { return }

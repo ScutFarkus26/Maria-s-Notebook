@@ -1,12 +1,12 @@
-// SmallGroupPlannerView.swift
-// Root view for Small Group Planning Intelligence — subject/group pickers with lesson card list.
+// SmallSequencePlannerView.swift
+// Root view for Small Group Planning Intelligence — area/sequence pickers with lesson card list.
 
 import SwiftUI
 import CoreData
 
-struct SmallGroupPlannerView: View {
+struct SmallSequencePlannerView: View {
     @Environment(\.managedObjectContext) private var viewContext
-    @State private var viewModel = SmallGroupPlannerViewModel()
+    @State private var viewModel = SmallSequencePlannerViewModel()
 
     // Change detection
     @FetchRequest(
@@ -28,11 +28,11 @@ struct SmallGroupPlannerView: View {
             .navigationTitle("Group Planner")
             .onAppear { viewModel.loadData(context: viewContext) }
             .onChange(of: changeToken) { _, _ in viewModel.loadData(context: viewContext) }
-            .onChange(of: viewModel.selectedSubject) { _, _ in
-                viewModel.selectedGroup = viewModel.availableGroups.first
+            .onChange(of: viewModel.selectedArea) { _, _ in
+                viewModel.selectedSequence = viewModel.availableSequences.first
                 viewModel.loadData(context: viewContext)
             }
-            .onChange(of: viewModel.selectedGroup) { _, _ in
+            .onChange(of: viewModel.selectedSequence) { _, _ in
                 viewModel.loadData(context: viewContext)
             }
             .onChange(of: viewModel.levelFilter) { _, _ in
@@ -47,7 +47,7 @@ struct SmallGroupPlannerView: View {
         if viewModel.isLoading {
             ProgressView()
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
-        } else if viewModel.subjects.isEmpty {
+        } else if viewModel.areas.isEmpty {
             emptyStateNoLessons
         } else {
             scrollContent
@@ -67,13 +67,13 @@ struct SmallGroupPlannerView: View {
                     .padding(.horizontal)
 
                 // Summary
-                if viewModel.selectedSubject != nil && viewModel.selectedGroup != nil {
+                if viewModel.selectedArea != nil && viewModel.selectedSequence != nil {
                     summaryRow
                         .padding(.horizontal)
                 }
 
                 // Lesson cards
-                if viewModel.filteredCandidates.isEmpty && viewModel.selectedGroup != nil {
+                if viewModel.filteredCandidates.isEmpty && viewModel.selectedSequence != nil {
                     emptyStateNoOpportunities
                 } else {
                     lessonCards
@@ -88,32 +88,32 @@ struct SmallGroupPlannerView: View {
 
     private var pickerBar: some View {
         VStack(spacing: 10) {
-            // Subject picker
+            // Area picker
             HStack {
-                Text("Subject")
+                Text("Area")
                     .font(.caption)
                     .foregroundStyle(.secondary)
                 Spacer()
-                Picker("Subject", selection: $viewModel.selectedSubject) {
+                Picker("Area", selection: $viewModel.selectedArea) {
                     Text("Select…").tag(nil as String?)
-                    ForEach(viewModel.subjects, id: \.self) { subject in
-                        Text(subject).tag(subject as String?)
+                    ForEach(viewModel.areas, id: \.self) { area in
+                        Text(area).tag(area as String?)
                     }
                 }
                 .pickerStyle(.menu)
             }
 
             // Group picker
-            if viewModel.selectedSubject != nil {
+            if viewModel.selectedArea != nil {
                 HStack {
-                    Text("Group")
+                    Text("Sequence")
                         .font(.caption)
                         .foregroundStyle(.secondary)
                     Spacer()
-                    Picker("Group", selection: $viewModel.selectedGroup) {
+                    Picker("Sequence", selection: $viewModel.selectedSequence) {
                         Text("Select…").tag(nil as String?)
-                        ForEach(viewModel.availableGroups, id: \.self) { group in
-                            Text(group).tag(group as String?)
+                        ForEach(viewModel.availableSequences, id: \.self) { sequence in
+                            Text(sequence).tag(sequence as String?)
                         }
                     }
                     .pickerStyle(.menu)
@@ -141,7 +141,7 @@ struct SmallGroupPlannerView: View {
             let count = viewModel.filteredCandidates.count
             Text("\(count)")
                 .fontWeight(.semibold)
-            Text(" lesson\(count == 1 ? "" : "s") with group opportunities")
+            Text(" lesson\(count == 1 ? "" : "s") with sequence opportunities")
                 .foregroundStyle(.tertiary)
             Spacer()
         }
@@ -161,7 +161,7 @@ struct SmallGroupPlannerView: View {
         }
         .navigationDestination(for: UUID.self) { lessonID in
             if let candidate = viewModel.filteredCandidates.first(where: { $0.id == lessonID }) {
-                SmallGroupPlannerLessonDetail(
+                SmallSequencePlannerLessonDetail(
                     candidate: candidate,
                     viewModel: viewModel
                 )
@@ -169,12 +169,12 @@ struct SmallGroupPlannerView: View {
         }
     }
 
-    private func lessonCard(_ candidate: LessonGroupCandidate) -> some View {
+    private func lessonCard(_ candidate: LessonSequenceCandidate) -> some View {
         VStack(alignment: .leading, spacing: 8) {
             // Title row
             HStack(spacing: 8) {
                 // Order badge
-                Text("\(candidate.orderInGroup)")
+                Text("\(candidate.orderInSequence)")
                     .font(.caption2)
                     .fontWeight(.bold)
                     .foregroundStyle(.white)
@@ -251,7 +251,7 @@ struct SmallGroupPlannerView: View {
         )
     }
 
-    private func initialsPreview(_ students: ArraySlice<GroupStudentStatus>) -> some View {
+    private func initialsPreview(_ students: ArraySlice<SequenceStudentStatus>) -> some View {
         HStack(spacing: -6) {
             ForEach(Array(students)) { student in
                 Text(student.initials)
@@ -277,7 +277,7 @@ struct SmallGroupPlannerView: View {
         ContentUnavailableView {
             Label("No Lessons", systemImage: "person.3.sequence")
         } description: {
-            Text("Add lessons with subjects and groups to find group presentation opportunities.")
+            Text("Add lessons with areas and groups to find sequence presentation opportunities.")
         }
     }
 
@@ -285,7 +285,7 @@ struct SmallGroupPlannerView: View {
         ContentUnavailableView {
             Label("No Group Opportunities", systemImage: "person.3.sequence")
         } description: {
-            Text("No students are ready or almost ready for lessons in this group. Try a different subject or group.")
+            Text("No students are ready or almost ready for lessons in this sequence. Try a different area or sequence.")
         }
         .padding(.top, 40)
     }

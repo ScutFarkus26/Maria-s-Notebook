@@ -31,7 +31,7 @@ extension UnifiedPresentationWorkflowPanel {
         presentationViewModel.entries.values.filter { $0.understandingLevel != 3 }.count
     }
 
-    var hasGroupObservation: Bool {
+    var hasSequenceObservation: Bool {
         !presentationViewModel.groupObservation.isEmpty
     }
 

@@ -377,10 +377,10 @@ public final class ConflictResolutionService {
         guard let lesson else { return }
 
         lesson.name = dto.name
-        lesson.subject = dto.subject
-        lesson.group = dto.group
-        lesson.orderInGroup = Int64(dto.orderInGroup)
-        lesson.subheading = dto.subheading
+        lesson.area = dto.area
+        lesson.sequence = dto.sequence
+        lesson.orderInSequence = Int64(dto.orderInSequence)
+        lesson.section = dto.section
         lesson.writeUp = dto.writeUp
         if let pages = dto.pagesFileRelativePath {
             lesson.pagesFileRelativePath = pages

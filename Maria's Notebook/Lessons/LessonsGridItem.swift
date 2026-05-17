@@ -6,7 +6,7 @@
 import Foundation
 
 /// Represents either a lesson or an introduction in the lessons grid.
-/// Introductions always sort before lessons within a group.
+/// Introductions always sort before lessons within a sequence.
 enum LessonsGridItem: Identifiable, Equatable {
     case introduction(CurriculumIntroduction)
     case lesson(CDLesson)
@@ -29,23 +29,23 @@ enum LessonsGridItem: Identifiable, Equatable {
         }
     }
 
-    /// The subject associated with this item.
-    var subject: String {
+    /// The area associated with this item.
+    var area: String {
         switch self {
         case .introduction(let intro):
-            return intro.subject
+            return intro.area
         case .lesson(let lesson):
-            return lesson.subject
+            return lesson.area
         }
     }
 
-    /// The group associated with this item.
-    var group: String {
+    /// The sequence associated with this item.
+    var sequence: String {
         switch self {
         case .introduction(let intro):
-            return intro.group ?? ""
+            return intro.sequence ?? ""
         case .lesson(let lesson):
-            return lesson.group
+            return lesson.sequence
         }
     }
 

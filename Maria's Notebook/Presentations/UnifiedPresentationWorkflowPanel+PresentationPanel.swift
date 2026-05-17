@@ -19,7 +19,7 @@ extension UnifiedPresentationWorkflowPanel {
                 totalStudents: students.count,
                 studentsWithUnderstanding: studentsWithUnderstanding,
                 studentsWithNotes: studentsWithNotes,
-                hasGroupObservation: hasGroupObservation
+                hasSequenceObservation: hasSequenceObservation
             )
             .padding(.horizontal, 16)
             .padding(.vertical, 12)

@@ -79,23 +79,23 @@ extension CloudBackupService {
         // Modernized using structured concurrency with timeout support
         let timeoutError = cloudDownloadError("Download timed out for '\(backup.fileName)'", code: 408)
         let noResultError = cloudDownloadError("No task result available", code: 500)
-        return try await withThrowingTaskGroup(of: URL.self) { group in
+        return try await withThrowingTaskGroup(of: URL.self) { sequence in
             // Add the file coordination task
-            group.addTask {
+            sequence.addTask {
                 try await self.coordinateDownload(for: backup)
             }
 
             // Add timeout task using structured concurrency
-            group.addTask {
+            sequence.addTask {
                 try await Task.sleep(for: .seconds(60))
                 throw timeoutError
             }
 
             // Return the first result (either success or timeout)
-            guard let result = try await group.next() else {
+            guard let result = try await sequence.next() else {
                 throw noResultError
             }
-            group.cancelAll() // Cancel the other task
+            sequence.cancelAll() // Cancel the other task
             return result
         }
     }

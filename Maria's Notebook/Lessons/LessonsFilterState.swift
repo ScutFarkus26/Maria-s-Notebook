@@ -9,14 +9,14 @@ import CoreData
 @Observable
 @MainActor
 final class LessonsFilterState {
-    var selectedSubject: String?
-    var selectedGroup: String?
+    var selectedArea: String?
+    var selectedSequence: String?
     var searchText: String = "" {
         didSet {
             scheduleDebounce()
         }
     }
-    var expandedSubjects: Set<String> = []
+    var expandedAreas: Set<String> = []
 
     var sourceFilter: LessonSource? // nil means All
     var personalKindFilter: PersonalLessonKind? // nil means All Types
@@ -52,7 +52,7 @@ final class LessonsFilterState {
     // Load from persisted raw strings (typically stored via SceneStorage in the view)
     // swiftlint:disable:next function_parameter_count
     func loadFromPersisted(
-        subjectRaw: String,
+        areaRaw: String,
         groupRaw: String,
         searchRaw: String,
         expandedRaw: String,
@@ -62,10 +62,10 @@ final class LessonsFilterState {
         needsAttentionRaw: String = "",
         formatFilterRaw: String = ""
     ) {
-        self.selectedSubject = subjectRaw.trimmed().isEmpty ? nil : subjectRaw
-        self.selectedGroup = groupRaw.trimmed().isEmpty ? nil : groupRaw
+        self.selectedArea = areaRaw.trimmed().isEmpty ? nil : areaRaw
+        self.selectedSequence = groupRaw.trimmed().isEmpty ? nil : groupRaw
         self.searchText = searchRaw
-        self.expandedSubjects = LessonsFilterPersistence.deserializeExpandedSubjects(expandedRaw)
+        self.expandedAreas = LessonsFilterPersistence.deserializeExpandedAreas(expandedRaw)
         self.sourceFilter = sourceRaw.trimmed().isEmpty ? nil : LessonSource(rawValue: sourceRaw)
         self.personalKindFilter = personalKindRaw.trimmed().isEmpty
             ? nil : PersonalLessonKind(rawValue: personalKindRaw)
@@ -76,7 +76,7 @@ final class LessonsFilterState {
     }
 
     struct PersistedFilterState {
-        let subjectRaw: String
+        let areaRaw: String
         let groupRaw: String
         let searchRaw: String
         let expandedRaw: String
@@ -90,10 +90,10 @@ final class LessonsFilterState {
     /// Create the raw strings suitable for persistence
     func makePersisted() -> PersistedFilterState {
         PersistedFilterState(
-            subjectRaw: selectedSubject?.trimmed() ?? "",
-            groupRaw: selectedGroup?.trimmed() ?? "",
+            areaRaw: selectedArea?.trimmed() ?? "",
+            groupRaw: selectedSequence?.trimmed() ?? "",
             searchRaw: searchText,
-            expandedRaw: LessonsFilterPersistence.serializeExpandedSubjects(expandedSubjects),
+            expandedRaw: LessonsFilterPersistence.serializeExpandedAreas(expandedAreas),
             sourceRaw: sourceFilter?.rawValue ?? "",
             personalKindRaw: personalKindFilter?.rawValue ?? "",
             hasAttachmentRaw: hasAttachmentFilter ? "true" : "",

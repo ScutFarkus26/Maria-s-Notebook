@@ -1,5 +1,5 @@
 // ParshaBrowseView.swift
-// Column-2 view when the "Parshas" sentinel is selected in the subjects column.
+// Column-2 view when the "Parshas" sentinel is selected in the areas column.
 // Shows the 54 parshas in annual-cycle order; tapping one pushes to the lessons list.
 
 import SwiftUI

@@ -1,7 +1,7 @@
 import SwiftUI
 
 /// Compact, scannable lesson row used in the List browser and search results.
-/// Shows name, subject·group·subheading breadcrumb, and small status indicators.
+/// Shows name, area·sequence·section breadcrumb, and small status indicators.
 struct LessonCompactRow: View {
     let lesson: CDLesson
     var statusCount: Int? = nil
@@ -63,7 +63,7 @@ struct LessonCompactRow: View {
     // MARK: - Helpers
 
     private var breadcrumb: String {
-        [lesson.subject.trimmed(), lesson.group.trimmed(), lesson.subheading.trimmed()]
+        [lesson.area.trimmed(), lesson.sequence.trimmed(), lesson.section.trimmed()]
             .filter { !$0.isEmpty }
             .joined(separator: " · ")
     }

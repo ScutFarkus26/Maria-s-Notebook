@@ -1,46 +1,46 @@
-// GroupRecap.swift
+// SequenceRecap.swift
 // Sendable snapshot types describing every lesson, presentation, work item,
 // and note for each student in the current presentation, scoped to the
-// curriculum group of the lesson the user is currently editing.
+// curriculum sequence of the lesson the user is currently editing.
 //
-// Built on the main actor by GroupRecapResolver and rendered by
-// GroupRecapSection. Values are immutable and Sendable so SwiftUI views
+// Built on the main actor by SequenceRecapResolver and rendered by
+// SequenceRecapSection. Values are immutable and Sendable so SwiftUI views
 // can hold them in @State without dragging in NSManagedObject references.
 
 import Foundation
 
 // MARK: - Top Level
 
-struct GroupRecap: Sendable, Equatable {
-    let groupName: String
-    let subject: String
-    /// All lessons in the group (including the current one), sorted by `orderInGroup` then name.
-    let lessonsInGroup: [GroupRecapLesson]
+struct SequenceRecap: Sendable, Equatable {
+    let sequenceName: String
+    let area: String
+    /// All lessons in the sequence (including the current one), sorted by `orderInSequence` then name.
+    let lessonsInSequence: [SequenceRecapLesson]
     /// One entry per student in the current presentation.
-    let studentEntries: [GroupRecapStudentEntry]
+    let studentEntries: [SequenceRecapStudentEntry]
 }
 
-struct GroupRecapLesson: Sendable, Equatable, Identifiable {
+struct SequenceRecapLesson: Sendable, Equatable, Identifiable {
     let id: UUID                 // CDLesson.id
     let name: String
-    let orderInGroup: Int
+    let orderInSequence: Int
     /// True for the lesson the user is currently editing.
     let isCurrent: Bool
 }
 
 // MARK: - Per-Student
 
-struct GroupRecapStudentEntry: Sendable, Equatable, Identifiable {
+struct SequenceRecapStudentEntry: Sendable, Equatable, Identifiable {
     let id: UUID                 // CDStudent.id
     let studentName: String
-    /// One entry per lesson in the group, in `lessonsInGroup` order.
-    let lessonEntries: [GroupRecapLessonEntry]
-    /// Notes linked to a lesson in the group AND to this student that didn't
+    /// One entry per lesson in the sequence, in `lessonsInSequence` order.
+    let lessonEntries: [SequenceRecapLessonEntry]
+    /// Notes linked to a lesson in the sequence AND to this student that didn't
     /// land in any specific bucket below (defensive catch-all).
-    let orphanNotes: [GroupRecapNote]
+    let orphanNotes: [SequenceRecapNote]
 }
 
-struct GroupRecapLessonEntry: Sendable, Equatable, Identifiable {
+struct SequenceRecapLessonEntry: Sendable, Equatable, Identifiable {
     let id: UUID                 // CDLesson.id (stable per row inside a student)
     let lessonName: String
     let isCurrentLesson: Bool
@@ -55,12 +55,12 @@ struct GroupRecapLessonEntry: Sendable, Equatable, Identifiable {
     let perStudentLessonNotes: String?
 
     /// Every CDLessonAssignment the student was part of for this lesson, newest first.
-    let presentations: [GroupRecapPresentation]
+    let presentations: [SequenceRecapPresentation]
     /// Every CDWorkModel for this (student, lesson), newest first.
-    let workItems: [GroupRecapWorkItem]
+    let workItems: [SequenceRecapWorkItem]
     /// CDNote rows tied to (lessonID, this student) that aren't already attached
     /// to a presentation, work item, or check-in below.
-    let directNotes: [GroupRecapNote]
+    let directNotes: [SequenceRecapNote]
 
     /// True when there's literally nothing to show for this lesson (no presentation,
     /// no work, no notes, no outcome). The view renders "Not yet presented" for these.
@@ -75,7 +75,7 @@ struct GroupRecapLessonEntry: Sendable, Equatable, Identifiable {
 
 // MARK: - Presentations
 
-struct GroupRecapPresentation: Sendable, Equatable, Identifiable {
+struct SequenceRecapPresentation: Sendable, Equatable, Identifiable {
     let id: UUID                 // CDLessonAssignment.id
     let presentedAt: Date?
     let scheduledFor: Date?
@@ -85,12 +85,12 @@ struct GroupRecapPresentation: Sendable, Equatable, Identifiable {
     /// Group-level teacher notes from CDLessonAssignment.notes.
     let groupNotes: String
     /// Free-form CDNote rows whose `lessonAssignment` relationship points at this assignment.
-    let attachedNotes: [GroupRecapNote]
+    let attachedNotes: [SequenceRecapNote]
 }
 
 // MARK: - Work
 
-struct GroupRecapWorkItem: Sendable, Equatable, Identifiable {
+struct SequenceRecapWorkItem: Sendable, Equatable, Identifiable {
     let id: UUID                 // CDWorkModel.id
     let title: String
     let kind: WorkKind?
@@ -100,23 +100,23 @@ struct GroupRecapWorkItem: Sendable, Equatable, Identifiable {
     let completedAt: Date?
     /// Free-form CDNote rows whose `work` relationship points at this work item
     /// (excluding ones attached to a specific check-in below).
-    let attachedNotes: [GroupRecapNote]
+    let attachedNotes: [SequenceRecapNote]
     /// Newest first.
-    let checkIns: [GroupRecapCheckIn]
+    let checkIns: [SequenceRecapCheckIn]
 }
 
-struct GroupRecapCheckIn: Sendable, Equatable, Identifiable {
+struct SequenceRecapCheckIn: Sendable, Equatable, Identifiable {
     let id: UUID                 // CDWorkCheckIn.id
     let date: Date?
     let status: WorkCheckInStatus
     let purpose: String
     /// CDNote rows whose `workCheckIn` relationship points at this check-in.
-    let notes: [GroupRecapNote]
+    let notes: [SequenceRecapNote]
 }
 
 // MARK: - Notes
 
-struct GroupRecapNote: Sendable, Equatable, Identifiable {
+struct SequenceRecapNote: Sendable, Equatable, Identifiable {
     let id: UUID                 // CDNote.id
     let body: String
     let createdAt: Date?

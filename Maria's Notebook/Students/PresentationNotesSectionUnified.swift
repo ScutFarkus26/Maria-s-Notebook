@@ -40,7 +40,7 @@ struct PresentationNotesSectionUnified: View {
                 // Work's lessonID must match lessonAssignment's lessonID
                 guard work.lessonID == presentationLessonID else { return false }
 
-                // Filter by scope to ensure note is relevant to this group
+                // Filter by scope to ensure note is relevant to this sequence
                 switch note.scope {
                 case .all:
                     return true

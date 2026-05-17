@@ -4,27 +4,27 @@ import CoreData
 import OSLog
 
 struct AvailableTrack {
-    let subject: String
-    let group: String
+    let area: String
+    let sequence: String
     let isSequential: Bool
 }
 
-/// Service for managing group-based tracks
+/// Service for managing sequence-based tracks
 @MainActor
 // swiftlint:disable:next type_body_length
-struct GroupTrackService {
+struct SequenceTrackService {
     private static let logger = Logger.lessons
 
     // MARK: - Core Data API (Primary)
 
-    /// Check if a group is marked as a track (Core Data)
+    /// Check if a sequence is marked as a track (Core Data)
     static func isTrack(
-        subject: String,
-        group: String,
+        area: String,
+        sequence: String,
         context: NSManagedObjectContext
     ) -> Bool {
         do {
-            if let track = try cdGetGroupTrack(subject: subject, group: group, context: context) {
+            if let track = try cdGetSequenceTrack(area: area, sequence: sequence, context: context) {
                 return !track.isExplicitlyDisabled
             }
             return true
@@ -33,106 +33,106 @@ struct GroupTrackService {
         }
     }
 
-    /// Get CDGroupTrackEntity for subject and group (Core Data)
-    static func cdGetGroupTrack(
-        subject: String,
-        group: String,
+    /// Get CDSequenceTrackEntity for area and sequence (Core Data)
+    static func cdGetSequenceTrack(
+        area: String,
+        sequence: String,
         context: NSManagedObjectContext
-    ) throws -> CDGroupTrackEntity? {
-        let trimmedSubject = subject.trimmed()
-        let trimmedGroup = group.trimmed()
-        let allTracks = context.safeFetch(CDFetchRequest(CDGroupTrackEntity.self))
+    ) throws -> CDSequenceTrackEntity? {
+        let trimmedArea = area.trimmed()
+        let trimmedSequence = sequence.trimmed()
+        let allTracks = context.safeFetch(CDFetchRequest(CDSequenceTrackEntity.self))
         return allTracks.first(where: { track in
-            track.subject.trimmed().caseInsensitiveCompare(trimmedSubject) == .orderedSame &&
-            track.group.trimmed().caseInsensitiveCompare(trimmedGroup) == .orderedSame
+            track.area.trimmed().caseInsensitiveCompare(trimmedArea) == .orderedSame &&
+            track.sequence.trimmed().caseInsensitiveCompare(trimmedSequence) == .orderedSame
         })
     }
 
-    /// Get or create a CDGroupTrackEntity (Core Data)
-    static func cdGetOrCreateGroupTrack(
-        subject: String,
-        group: String,
+    /// Get or create a CDSequenceTrackEntity (Core Data)
+    static func cdGetOrCreateSequenceTrack(
+        area: String,
+        sequence: String,
         context: NSManagedObjectContext
-    ) throws -> CDGroupTrackEntity {
-        let trimmedSubject = subject.trimmed()
-        let trimmedGroup = group.trimmed()
-        let allTracks = context.safeFetch(CDFetchRequest(CDGroupTrackEntity.self))
+    ) throws -> CDSequenceTrackEntity {
+        let trimmedArea = area.trimmed()
+        let trimmedSequence = sequence.trimmed()
+        let allTracks = context.safeFetch(CDFetchRequest(CDSequenceTrackEntity.self))
         if let existing = allTracks.first(where: { track in
-            track.subject.trimmed().caseInsensitiveCompare(trimmedSubject) == .orderedSame &&
-            track.group.trimmed().caseInsensitiveCompare(trimmedGroup) == .orderedSame
+            track.area.trimmed().caseInsensitiveCompare(trimmedArea) == .orderedSame &&
+            track.sequence.trimmed().caseInsensitiveCompare(trimmedSequence) == .orderedSame
         }) {
             return existing
         }
-        let newGroupTrack = CDGroupTrackEntity(context: context)
-        newGroupTrack.subject = trimmedSubject
-        newGroupTrack.group = trimmedGroup
-        newGroupTrack.isSequential = true
-        newGroupTrack.isExplicitlyDisabled = false
-        return newGroupTrack
+        let newSequenceTrack = CDSequenceTrackEntity(context: context)
+        newSequenceTrack.area = trimmedArea
+        newSequenceTrack.sequence = trimmedSequence
+        newSequenceTrack.isSequential = true
+        newSequenceTrack.isExplicitlyDisabled = false
+        return newSequenceTrack
     }
 
     /// Find or create a CDTrackEntity object (Core Data)
     static func getOrCreateTrack(
-        subject: String,
-        group: String,
+        area: String,
+        sequence: String,
         context: NSManagedObjectContext
     ) throws -> CDTrackEntity {
-        let trimmedSubject = subject.trimmed()
-        let trimmedGroup = group.trimmed()
+        let trimmedArea = area.trimmed()
+        let trimmedSequence = sequence.trimmed()
 
-        guard isTrack(subject: trimmedSubject, group: trimmedGroup, context: context) else {
+        guard isTrack(area: trimmedArea, sequence: trimmedSequence, context: context) else {
             throw NSError(
-                domain: "GroupTrackService", code: 1,
+                domain: "SequenceTrackService", code: 1,
                 userInfo: [NSLocalizedDescriptionKey: "Group is explicitly disabled as a track"]
             )
         }
 
-        let trackTitle = "\(trimmedSubject) — \(trimmedGroup)"
+        let trackTitle = "\(trimmedArea) — \(trimmedSequence)"
         let allTracks = context.safeFetch(CDFetchRequest(CDTrackEntity.self))
 
-        let groupTrack = try? cdGetGroupTrack(subject: trimmedSubject, group: trimmedGroup, context: context)
+        let sequenceTrack = try? cdGetSequenceTrack(area: trimmedArea, sequence: trimmedSequence, context: context)
 
         if let existingTrack = allTracks.first(where: { $0.title.trimmed() == trackTitle }) {
-            if existingTrack.groupTrack == nil, let groupTrack {
-                existingTrack.groupTrack = groupTrack
+            if existingTrack.sequenceTrack == nil, let sequenceTrack {
+                existingTrack.sequenceTrack = sequenceTrack
             }
-            try cdEnsureTrackSteps(for: existingTrack, subject: trimmedSubject, group: trimmedGroup, context: context)
+            try cdEnsureTrackSteps(for: existingTrack, area: trimmedArea, sequence: trimmedSequence, context: context)
             return existingTrack
         }
 
         let newTrack = CDTrackEntity(context: context)
         newTrack.title = trackTitle
-        newTrack.groupTrack = groupTrack
-        try cdEnsureTrackSteps(for: newTrack, subject: trimmedSubject, group: trimmedGroup, context: context)
+        newTrack.sequenceTrack = sequenceTrack
+        try cdEnsureTrackSteps(for: newTrack, area: trimmedArea, sequence: trimmedSequence, context: context)
         return newTrack
     }
 
-    /// Get CDTrackEntity object for a subject/group combination (Core Data)
+    /// Get CDTrackEntity object for a area/sequence combination (Core Data)
     static func cdGetTrack(
-        subject: String,
-        group: String,
+        area: String,
+        sequence: String,
         context: NSManagedObjectContext
     ) throws -> CDTrackEntity? {
-        let trimmedSubject = subject.trimmed()
-        let trimmedGroup = group.trimmed()
-        let trackTitle = "\(trimmedSubject) — \(trimmedGroup)"
+        let trimmedArea = area.trimmed()
+        let trimmedSequence = sequence.trimmed()
+        let trackTitle = "\(trimmedArea) — \(trimmedSequence)"
         let allTracks = context.safeFetch(CDFetchRequest(CDTrackEntity.self))
         return allTracks.first(where: { $0.title.trimmed() == trackTitle })
     }
 
-    /// Ensure TrackSteps exist for all lessons in a subject/group (Core Data)
+    /// Ensure TrackSteps exist for all lessons in a area/sequence (Core Data)
     private static func cdEnsureTrackSteps(
         for track: CDTrackEntity,
-        subject: String,
-        group: String,
+        area: String,
+        sequence: String,
         context: NSManagedObjectContext
     ) throws {
         let allLessons = context.safeFetch(CDFetchRequest(CDLesson.self))
         let matchingLessons = allLessons.filter { lesson in
-            lesson.subject.trimmed().caseInsensitiveCompare(subject) == .orderedSame &&
-            lesson.group.trimmed().caseInsensitiveCompare(group) == .orderedSame
+            lesson.area.trimmed().caseInsensitiveCompare(area) == .orderedSame &&
+            lesson.sequence.trimmed().caseInsensitiveCompare(sequence) == .orderedSame
         }
-        .sorted { Int($0.orderInGroup) < Int($1.orderInGroup) }
+        .sorted { Int($0.orderInSequence) < Int($1.orderInSequence) }
 
         let allSteps = context.safeFetch(CDFetchRequest(CDTrackStepEntity.self))
         let existingSteps = allSteps.filter { $0.track?.id == track.id }
@@ -172,19 +172,19 @@ struct GroupTrackService {
 
     /// Auto-enroll students in a track if the lesson belongs to a track (Core Data)
     @MainActor static func autoEnrollInTrackIfNeeded(
-        lessonSubject: String,
-        lessonGroup: String,
+        lessonArea: String,
+        lessonSequence: String,
         studentIDs: [String],
         context: NSManagedObjectContext,
         saveCoordinator: SaveCoordinator? = nil
     ) {
-        guard isTrack(subject: lessonSubject, group: lessonGroup, context: context) else {
+        guard isTrack(area: lessonArea, sequence: lessonSequence, context: context) else {
             return
         }
 
         let track: CDTrackEntity
         do {
-            track = try getOrCreateTrack(subject: lessonSubject, group: lessonGroup, context: context)
+            track = try getOrCreateTrack(area: lessonArea, sequence: lessonSequence, context: context)
         } catch {
             logger.warning("Failed to get or create track during auto-enroll: \(error.localizedDescription)")
             return
@@ -232,20 +232,20 @@ struct GroupTrackService {
     /// Check if a track is complete for a student (Core Data)
     // swiftlint:disable:next function_body_length
     static func checkAndCompleteTrackIfNeeded(
-        lessonSubject: String,
-        lessonGroup: String,
+        lessonArea: String,
+        lessonSequence: String,
         studentID: String,
         context: NSManagedObjectContext,
         saveCoordinator: SaveCoordinator? = nil
     ) {
-        guard isTrack(subject: lessonSubject, group: lessonGroup, context: context) else {
+        guard isTrack(area: lessonArea, sequence: lessonSequence, context: context) else {
             return
         }
 
         let track: CDTrackEntity
         do {
             guard let fetchedTrack = try cdGetTrack(
-                subject: lessonSubject, group: lessonGroup, context: context
+                area: lessonArea, sequence: lessonSequence, context: context
             ) else {
                 return
             }
@@ -257,8 +257,8 @@ struct GroupTrackService {
 
         let allLessons = context.safeFetch(CDFetchRequest(CDLesson.self))
         let trackLessons = allLessons.filter { l in
-            l.subject.trimmed().caseInsensitiveCompare(lessonSubject.trimmed()) == .orderedSame &&
-            l.group.trimmed().caseInsensitiveCompare(lessonGroup.trimmed()) == .orderedSame
+            l.area.trimmed().caseInsensitiveCompare(lessonArea.trimmed()) == .orderedSame &&
+            l.sequence.trimmed().caseInsensitiveCompare(lessonSequence.trimmed()) == .orderedSame
         }
 
         guard !trackLessons.isEmpty else { return }
@@ -289,12 +289,12 @@ struct GroupTrackService {
         }
     }
 
-    /// Returns all lessons matching the group track's subject and group, sorted by order.
-    static func getLessonsForTrack(track: CDGroupTrackEntity, allLessons: [CDLesson]) -> [CDLesson] {
+    /// Returns all lessons matching the sequence track's area and sequence, sorted by order.
+    static func getLessonsForTrack(track: CDSequenceTrackEntity, allLessons: [CDLesson]) -> [CDLesson] {
         allLessons.filter { lesson in
-            lesson.subject.trimmed().caseInsensitiveCompare(track.subject.trimmed()) == .orderedSame &&
-            lesson.group.trimmed().caseInsensitiveCompare(track.group.trimmed()) == .orderedSame
+            lesson.area.trimmed().caseInsensitiveCompare(track.area.trimmed()) == .orderedSame &&
+            lesson.sequence.trimmed().caseInsensitiveCompare(track.sequence.trimmed()) == .orderedSame
         }
-        .sorted { Int($0.orderInGroup) < Int($1.orderInGroup) }
+        .sorted { Int($0.orderInSequence) < Int($1.orderInSequence) }
     }
 }

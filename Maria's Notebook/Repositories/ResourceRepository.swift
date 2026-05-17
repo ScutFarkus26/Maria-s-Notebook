@@ -64,7 +64,7 @@ struct ResourceRepository: SavingRepository {
         thumbnailData: Data? = nil,
         tags: [String] = [],
         linkedLessonIDs: String = "",
-        linkedSubjects: String = ""
+        linkedAreas: String = ""
     ) -> CDResource {
         let resource = CDResource(context: context)
         resource.title = title
@@ -76,7 +76,7 @@ struct ResourceRepository: SavingRepository {
         resource.thumbnailData = thumbnailData
         resource.tagsArray = tags
         resource.linkedLessonIDs = linkedLessonIDs
-        resource.linkedSubjects = linkedSubjects
+        resource.linkedAreas = linkedAreas
         return resource
     }
 
@@ -91,7 +91,7 @@ struct ResourceRepository: SavingRepository {
         tags: [String]? = nil,
         isFavorite: Bool? = nil,
         linkedLessonIDs: String? = nil,
-        linkedSubjects: String? = nil
+        linkedAreas: String? = nil
     ) -> Bool {
         guard let resource = fetchResource(id: id) else { return false }
 
@@ -101,7 +101,7 @@ struct ResourceRepository: SavingRepository {
         if let tags { resource.tagsArray = tags }
         if let isFavorite { resource.isFavorite = isFavorite }
         if let linkedLessonIDs { resource.linkedLessonIDs = linkedLessonIDs }
-        if let linkedSubjects { resource.linkedSubjects = linkedSubjects }
+        if let linkedAreas { resource.linkedAreas = linkedAreas }
         resource.modifiedAt = Date()
 
         return true

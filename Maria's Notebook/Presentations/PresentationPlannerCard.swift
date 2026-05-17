@@ -44,9 +44,9 @@ struct PresentationPlannerCard: View {
         return "Lesson \(snapshot.lessonID.uuidString.prefix(6))"
     }
 
-    private var subjectColor: Color {
-        if let subject = lessonObject?.subject, !subject.isEmpty {
-            return AppColors.color(forSubject: subject)
+    private var areaColor: Color {
+        if let area = lessonObject?.area, !area.isEmpty {
+            return AppColors.color(forArea: area)
         }
         return .accentColor
     }
@@ -125,7 +125,7 @@ struct PresentationPlannerCard: View {
     private var titleRow: some View {
         HStack(spacing: AppTheme.Spacing.verySmall) {
             Circle()
-                .fill(subjectColor)
+                .fill(areaColor)
                 .frame(width: 8, height: 8)
                 .accessibilityHidden(true)
             Text(lessonName)

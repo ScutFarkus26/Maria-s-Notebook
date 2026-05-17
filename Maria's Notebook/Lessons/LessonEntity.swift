@@ -6,11 +6,11 @@ public class CDLesson: NSManagedObject {
     // MARK: - Core Data Properties
     @NSManaged public var id: UUID?
     @NSManaged public var name: String
-    @NSManaged public var subject: String
-    @NSManaged public var group: String
-    @NSManaged public var orderInGroup: Int64
+    @NSManaged public var area: String
+    @NSManaged public var sequence: String
+    @NSManaged public var orderInSequence: Int64
     @NSManaged public var sortIndex: Int64
-    @NSManaged public var subheading: String
+    @NSManaged public var section: String
     @NSManaged public var writeUp: String
     @NSManaged public var suggestedFollowUpWork: String
     @NSManaged public var materials: String
@@ -44,11 +44,11 @@ public class CDLesson: NSManagedObject {
         self.init(entity: entity, insertInto: context)
         self.id = UUID()
         self.name = ""
-        self.subject = ""
-        self.group = ""
-        self.orderInGroup = 0
+        self.area = ""
+        self.sequence = ""
+        self.orderInSequence = 0
         self.sortIndex = 0
-        self.subheading = ""
+        self.section = ""
         self.writeUp = ""
         self.suggestedFollowUpWork = ""
         self.materials = ""

@@ -9,8 +9,8 @@ struct AppColors {
     }
 
     // swiftlint:disable:next cyclomatic_complexity
-    static func color(forSubject subject: String) -> Color {
-        let key = subject.normalizedForComparison()
+    static func color(forArea area: String) -> Color {
+        let key = area.normalizedForComparison()
 
         // Common explicit mappings for clarity and cross-view consistency
         switch key {
@@ -35,14 +35,14 @@ struct AppColors {
     
     // MARK: - Color Palette
     
-    /// Default color palette for unmapped subjects.
-    /// Colors are selected deterministically based on subject name hash.
+    /// Default color palette for unmapped areas.
+    /// Colors are selected deterministically based on area name hash.
     private static let defaultColorPalette: [Color] = [
         .blue, .purple, .teal, .orange, .pink, .green, .indigo, .brown, .cyan, .mint, .yellow, .red
     ]
     
-    /// Returns a color from the default palette based on the subject key's hash.
-    /// This ensures consistent color assignment for the same subject name.
+    /// Returns a color from the default palette based on the area key's hash.
+    /// This ensures consistent color assignment for the same area name.
     private static func colorFromPalette(for key: String) -> Color {
         let index = abs(key.hashValue) % defaultColorPalette.count
         return defaultColorPalette[index]

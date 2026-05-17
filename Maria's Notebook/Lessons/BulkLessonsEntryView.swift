@@ -5,9 +5,9 @@ import CoreData
 private struct EntryRow: Identifiable, Hashable {
     let id = UUID()
     var name: String = ""
-    var subject: String = ""
-    var group: String = ""
-    var subheading: String = ""
+    var area: String = ""
+    var sequence: String = ""
+    var section: String = ""
     var writeUp: String = ""
 }
 
@@ -15,8 +15,8 @@ private struct EntryRow: Identifiable, Hashable {
 public struct BulkLessonsEntryView: View {
     private static let logger = Logger.lessons
 
-    let defaultSubject: String?
-    let defaultGroup: String?
+    let defaultArea: String?
+    let defaultSequence: String?
     var onDone: (() -> Void)?
 
     @Environment(\.dismiss) private var dismiss
@@ -29,28 +29,28 @@ public struct BulkLessonsEntryView: View {
 
     @State private var rows: [EntryRow] = []
     @State private var selectedRowIDs: Set<UUID> = []
-    @State private var quickSubject: String = ""
-    @State private var quickGroup: String = ""
+    @State private var quickArea: String = ""
+    @State private var quickSequence: String = ""
     @State private var batchSource: LessonSource = .album
     @State private var batchPersonalKind: PersonalLessonKind = .personal
 
     public init(
-        defaultSubject: String? = nil,
-        defaultGroup: String? = nil,
+        defaultArea: String? = nil,
+        defaultSequence: String? = nil,
         onDone: (() -> Void)? = nil
     ) {
-        self.defaultSubject = defaultSubject?.trimmed()
-        self.defaultGroup = defaultGroup?.trimmed()
+        self.defaultArea = defaultArea?.trimmed()
+        self.defaultSequence = defaultSequence?.trimmed()
         self.onDone = onDone
         _rows = State(initialValue: Self.initialRows(
-            count: 10, defaultSubject: self.defaultSubject,
-            defaultGroup: self.defaultGroup
+            count: 10, defaultArea: self.defaultArea,
+            defaultSequence: self.defaultSequence
         ))
     }
 
     private let columnSpacing: CGFloat = 8
     private let selectionColumnWidth: CGFloat = 28
-    private let weights: [CGFloat] = [2, 1, 1, 2, 3] // Name, Subject, Group, Subheading, WriteUp
+    private let weights: [CGFloat] = [2, 1, 1, 2, 3] // Name, Area, Group, Section, WriteUp
 
     private func columnWidths(total: CGFloat) -> [CGFloat] {
         let count = weights.count
@@ -60,7 +60,7 @@ public struct BulkLessonsEntryView: View {
         return weights.map { available * ($0 / sum) }
     }
 
-    private enum FillColumn { case subject, group }
+    private enum FillColumn { case area, sequence }
 
     private func applyFill(_ column: FillColumn, value: String, toSelected: Bool) {
         let trimmed = value.trimmed()
@@ -69,8 +69,8 @@ public struct BulkLessonsEntryView: View {
             let id = rows[i].id
             if toSelected && !selectedRowIDs.contains(id) { continue }
             switch column {
-            case .subject: rows[i].subject = trimmed
-            case .group: rows[i].group = trimmed
+            case .area: rows[i].area = trimmed
+            case .sequence: rows[i].sequence = trimmed
             }
         }
     }
@@ -83,11 +83,11 @@ public struct BulkLessonsEntryView: View {
         }
     }
 
-    private static func initialRows(count: Int, defaultSubject: String?, defaultGroup: String?) -> [EntryRow] {
+    private static func initialRows(count: Int, defaultArea: String?, defaultSequence: String?) -> [EntryRow] {
         (0..<count).map { _ in
             var r = EntryRow()
-            if let s = defaultSubject, !s.isEmpty { r.subject = s }
-            if let g = defaultGroup, !g.isEmpty { r.group = g }
+            if let s = defaultArea, !s.isEmpty { r.area = s }
+            if let g = defaultSequence, !g.isEmpty { r.sequence = g }
             return r
         }
     }
@@ -196,20 +196,20 @@ public struct BulkLessonsEntryView: View {
                 .foregroundStyle(.secondary)
                 .font(AppTheme.ScaledFont.captionSemibold)
             Divider().frame(height: 16)
-            TextField("Subject", text: $quickSubject)
+            TextField("Area", text: $quickArea)
                 .textFieldStyle(.roundedBorder)
                 .frame(width: 180)
-            Button("Selected") { applyFill(.subject, value: quickSubject, toSelected: true) }
+            Button("Selected") { applyFill(.area, value: quickArea, toSelected: true) }
                 .buttonStyle(.bordered)
-            Button("All") { applyFill(.subject, value: quickSubject, toSelected: false) }
+            Button("All") { applyFill(.area, value: quickArea, toSelected: false) }
                 .buttonStyle(.bordered)
             Divider().frame(height: 16)
-            TextField("Group", text: $quickGroup)
+            TextField("Sequence", text: $quickSequence)
                 .textFieldStyle(.roundedBorder)
                 .frame(width: 160)
-            Button("Selected") { applyFill(.group, value: quickGroup, toSelected: true) }
+            Button("Selected") { applyFill(.sequence, value: quickSequence, toSelected: true) }
                 .buttonStyle(.bordered)
-            Button("All") { applyFill(.group, value: quickGroup, toSelected: false) }
+            Button("All") { applyFill(.sequence, value: quickSequence, toSelected: false) }
                 .buttonStyle(.bordered)
             Spacer()
             Button(selectedRowIDs.count == rows.count && !rows.isEmpty ? "Deselect All" : "Select All") {
@@ -247,15 +247,15 @@ public struct BulkLessonsEntryView: View {
                 .font(AppTheme.ScaledFont.captionSemibold)
                 .foregroundStyle(.secondary)
                 .frame(width: widths[0], alignment: .leading)
-            Text("Subject")
+            Text("Area")
                 .font(AppTheme.ScaledFont.captionSemibold)
                 .foregroundStyle(.secondary)
                 .frame(width: widths[1], alignment: .leading)
-            Text("Group")
+            Text("Sequence")
                 .font(AppTheme.ScaledFont.captionSemibold)
                 .foregroundStyle(.secondary)
                 .frame(width: widths[2], alignment: .leading)
-            Text("Subheading")
+            Text("Section")
                 .font(AppTheme.ScaledFont.captionSemibold)
                 .foregroundStyle(.secondary)
                 .frame(width: widths[3], alignment: .leading)
@@ -286,16 +286,16 @@ public struct BulkLessonsEntryView: View {
                       text: $rows.element(id: rowID, default: "", \.name))
                 .textFieldStyle(.roundedBorder)
                 .frame(width: widths[0], alignment: .leading)
-            TextField("Subject",
-                      text: $rows.element(id: rowID, default: "", \.subject))
+            TextField("Area",
+                      text: $rows.element(id: rowID, default: "", \.area))
                 .textFieldStyle(.roundedBorder)
                 .frame(width: widths[1], alignment: .leading)
-            TextField("Group",
-                      text: $rows.element(id: rowID, default: "", \.group))
+            TextField("Sequence",
+                      text: $rows.element(id: rowID, default: "", \.sequence))
                 .textFieldStyle(.roundedBorder)
                 .frame(width: widths[2], alignment: .leading)
-            TextField("Subheading",
-                      text: $rows.element(id: rowID, default: "", \.subheading))
+            TextField("Section",
+                      text: $rows.element(id: rowID, default: "", \.section))
                 .textFieldStyle(.roundedBorder)
                 .frame(width: widths[3], alignment: .leading)
             TextField("Write Up",
@@ -307,12 +307,12 @@ public struct BulkLessonsEntryView: View {
 
     // MARK: - Actions
     private func addRows(_ count: Int) {
-        let newRows = Self.initialRows(count: count, defaultSubject: defaultSubject, defaultGroup: defaultGroup)
+        let newRows = Self.initialRows(count: count, defaultArea: defaultArea, defaultSequence: defaultSequence)
         rows.append(contentsOf: newRows)
     }
 
     private func clearAll() {
-        rows = Self.initialRows(count: 10, defaultSubject: defaultSubject, defaultGroup: defaultGroup)
+        rows = Self.initialRows(count: 10, defaultArea: defaultArea, defaultSequence: defaultSequence)
         selectedRowIDs.removeAll()
     }
 
@@ -321,41 +321,41 @@ public struct BulkLessonsEntryView: View {
         let items = rows.map { r -> EntryRow in
             var copy = r
             copy.name = r.name.trimmed()
-            copy.subject = r.subject.trimmed()
-            copy.group = r.group.trimmed()
-            copy.subheading = r.subheading.trimmed()
+            copy.area = r.area.trimmed()
+            copy.sequence = r.sequence.trimmed()
+            copy.section = r.section.trimmed()
             copy.writeUp = r.writeUp.trimmed()
             return copy
         }.filter { !$0.name.isEmpty }
 
         guard !items.isEmpty else { return }
 
-        // Build a map of max orderInGroup for each subject+group combination from existing lessons
+        // Build a map of max orderInSequence for each area+sequence combination from existing lessons
         let allLessons = repository.fetchLessons()
-        var maxOrderByGroup: [String: Int] = [:]
+        var maxOrderBySequence: [String: Int] = [:]
         for lesson in allLessons {
-            let key = "\(lesson.subject)|\(lesson.group)"
-            let current = maxOrderByGroup[key] ?? -1
-            let order = Int(lesson.orderInGroup)
+            let key = "\(lesson.area)|\(lesson.sequence)"
+            let current = maxOrderBySequence[key] ?? -1
+            let order = Int(lesson.orderInSequence)
             if order > current {
-                maxOrderByGroup[key] = order
+                maxOrderBySequence[key] = order
             }
         }
 
         var insertedLessons: [CDLesson] = []
         for r in items {
-            // Calculate the next orderInGroup for this subject+group
-            let key = "\(r.subject)|\(r.group)"
-            let nextOrder = (maxOrderByGroup[key] ?? -1) + 1
-            maxOrderByGroup[key] = nextOrder
+            // Calculate the next orderInSequence for this area+sequence
+            let key = "\(r.area)|\(r.sequence)"
+            let nextOrder = (maxOrderBySequence[key] ?? -1) + 1
+            maxOrderBySequence[key] = nextOrder
 
             let lesson = repository.createLesson(
                 name: r.name,
-                subject: r.subject,
-                group: r.group,
-                subheading: r.subheading,
+                area: r.area,
+                sequence: r.sequence,
+                section: r.section,
                 writeUp: r.writeUp,
-                orderInGroup: nextOrder,
+                orderInSequence: nextOrder,
                 source: batchSource,
                 personalKind: batchSource == .personal ? batchPersonalKind : nil
             )
@@ -364,26 +364,26 @@ public struct BulkLessonsEntryView: View {
         do {
             try managedObjectContext.save()
 
-            // Automatically create/update CDTrackEntity objects for new subject/group combinations
-            var processedGroups: Set<String> = []
+            // Automatically create/update CDTrackEntity objects for new area/sequence combinations
+            var processedSequences: Set<String> = []
             for lesson in insertedLessons {
-                let subject = lesson.subject.trimmed()
-                let group = lesson.group.trimmed()
-                guard !subject.isEmpty && !group.isEmpty else { continue }
+                let area = lesson.area.trimmed()
+                let sequence = lesson.sequence.trimmed()
+                guard !area.isEmpty && !sequence.isEmpty else { continue }
 
-                let key = "\(subject)|\(group)"
-                guard !processedGroups.contains(key) else { continue }
-                processedGroups.insert(key)
+                let key = "\(area)|\(sequence)"
+                guard !processedSequences.contains(key) else { continue }
+                processedSequences.insert(key)
 
-                if GroupTrackService.isTrack(subject: subject, group: group, context: viewContext) {
+                if SequenceTrackService.isTrack(area: area, sequence: sequence, context: viewContext) {
                     do {
-                        _ = try GroupTrackService.getOrCreateTrack(
-                            subject: subject,
-                            group: group,
+                        _ = try SequenceTrackService.getOrCreateTrack(
+                            area: area,
+                            sequence: sequence,
                             context: viewContext
                         )
                     } catch {
-                        Self.logger.warning("Failed to create/update CDTrackEntity for \(subject)/\(group): \(error)")
+                        Self.logger.warning("Failed to create/update CDTrackEntity for \(area)/\(sequence): \(error)")
                     }
                 }
             }
@@ -400,5 +400,5 @@ public struct BulkLessonsEntryView: View {
 }
 
 #Preview {
-    BulkLessonsEntryView(defaultSubject: "Math", defaultGroup: "Decimal System")
+    BulkLessonsEntryView(defaultArea: "Math", defaultSequence: "Decimal System")
 }

@@ -1,14 +1,14 @@
-// Maria's Notebook/Lessons/ReorderSubheadingsSheet.swift
+// Maria's Notebook/Lessons/ReorderSectionsSheet.swift
 // NEW FILE — add this file to the Lessons folder.
 
 import SwiftUI
 import CoreData
 
-struct ReorderSubheadingsSheet: View {
+struct ReorderSectionsSheet: View {
     @Environment(\.dismiss) private var dismiss
 
-    let subject: String
-    let group: String
+    let area: String
+    let sequence: String
     let lessons: [CDLesson]
 
     @State private var items: [String] = []
@@ -16,11 +16,11 @@ struct ReorderSubheadingsSheet: View {
 
     private var existing: [String] {
         let filtered: [CDLesson] = lessons.filter {
-            $0.subject.caseInsensitiveCompare(subject) == .orderedSame
-                && $0.group.caseInsensitiveCompare(group) == .orderedSame
+            $0.area.caseInsensitiveCompare(area) == .orderedSame
+                && $0.sequence.caseInsensitiveCompare(sequence) == .orderedSame
         }
-        let subheadings: [String] = filtered.map { $0.subheading.trimmed() }
-        let unique: Set<String> = Set(subheadings.filter { !$0.isEmpty })
+        let sections: [String] = filtered.map { $0.section.trimmed() }
+        let unique: Set<String> = Set(sections.filter { !$0.isEmpty })
         return unique.sorted { $0.localizedCaseInsensitiveCompare($1) == .orderedAscending }
     }
 
@@ -37,14 +37,14 @@ struct ReorderSubheadingsSheet: View {
                 .moveDisabled(!isEditing)
 #endif
             }
-            .navigationTitle("Reorder Subheadings")
+            .navigationTitle("Reorder Sections")
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {
                     Button("Cancel") { dismiss() }
                 }
                 ToolbarItem(placement: .confirmationAction) {
                     Button("Save") {
-                        FilterOrderStore.saveSubheadingOrder(items, for: subject, group: group)
+                        FilterOrderStore.saveSectionOrder(items, for: area, sequence: sequence)
                         FilterOrderStore.resetCache()
                         dismiss()
                     }
@@ -62,7 +62,7 @@ struct ReorderSubheadingsSheet: View {
 #endif
             }
             .task {
-                items = FilterOrderStore.loadSubheadingOrder(for: subject, group: group, existing: existing)
+                items = FilterOrderStore.loadSectionOrder(for: area, sequence: sequence, existing: existing)
             }
         }
         .frame(minWidth: 520, minHeight: 520)

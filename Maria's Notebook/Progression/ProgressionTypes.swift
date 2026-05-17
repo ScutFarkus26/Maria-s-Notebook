@@ -54,7 +54,7 @@ enum LessonNodeStatus: Sendable {
 struct LessonProgressionNode: Identifiable {
     let id: UUID
     let lesson: CDLesson
-    let orderInGroup: Int
+    let orderInSequence: Int
     let status: LessonNodeStatus
     let presentedAt: Date?
     let presentationID: UUID?
@@ -77,11 +77,11 @@ struct WorkProgressItem: Identifiable {
 
 // MARK: - Group Summary
 
-/// Summary data for a subject/group card on the landing page.
-struct GroupSummary: Identifiable, Sendable {
+/// Summary data for a area/sequence card on the landing page.
+struct SequenceSummary: Identifiable, Sendable {
     let id: String
-    let subject: String
-    let group: String
+    let area: String
+    let sequence: String
     let lessonCount: Int
     let studentCount: Int
     let activeWorkCount: Int

@@ -1,5 +1,5 @@
 // ProgressDashboardView.swift
-// Top-level view showing all students' progress across subjects and categories.
+// Top-level view showing all students' progress across areas and categories.
 // Design: Linear-inspired clean layout, Things 3 capsule filters, generous whitespace.
 
 import SwiftUI
@@ -146,7 +146,7 @@ struct ProgressDashboardView: View {
             Text("\(totalCategories)")
                 .fontWeight(.semibold)
                 .foregroundStyle(.primary)
-            Text(" active subjects")
+            Text(" active areas")
                 .foregroundStyle(.tertiary)
             Spacer()
         }

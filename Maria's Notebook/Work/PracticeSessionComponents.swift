@@ -274,21 +274,21 @@ struct LessonContextCard: View {
                         Text(lesson.name)
                             .font(AppTheme.ScaledFont.bodySemibold)
 
-                        if !lesson.subject.isEmpty || !lesson.group.isEmpty {
+                        if !lesson.area.isEmpty || !lesson.sequence.isEmpty {
                             HStack(spacing: 6) {
-                                if !lesson.subject.isEmpty {
-                                    Text(lesson.subject)
+                                if !lesson.area.isEmpty {
+                                    Text(lesson.area)
                                         .font(AppTheme.ScaledFont.caption)
                                         .foregroundStyle(.secondary)
                                 }
 
-                                if !lesson.subject.isEmpty && !lesson.group.isEmpty {
+                                if !lesson.area.isEmpty && !lesson.sequence.isEmpty {
                                     Text("•")
                                         .foregroundStyle(.tertiary)
                                 }
 
-                                if !lesson.group.isEmpty {
-                                    Text(lesson.group)
+                                if !lesson.sequence.isEmpty {
+                                    Text(lesson.sequence)
                                         .font(AppTheme.ScaledFont.caption)
                                         .foregroundStyle(.secondary)
                                 }

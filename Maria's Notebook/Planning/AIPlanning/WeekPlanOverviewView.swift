@@ -2,7 +2,7 @@ import SwiftUI
 import CoreData
 
 /// Grid view showing a weekly lesson plan with columns for each weekday.
-/// Cells display compact lesson cards with student initials and subject color coding.
+/// Cells display compact lesson cards with student initials and area color coding.
 struct WeekPlanOverviewView: View {
     let weekPlan: WeekPlan
     var onAcceptRecommendation: ((UUID) -> Void)?
@@ -114,7 +114,7 @@ struct WeekPlanOverviewView: View {
         VStack(alignment: .leading, spacing: 4) {
             HStack(spacing: 4) {
                 Circle()
-                    .fill(AppColors.color(forSubject: rec.subject))
+                    .fill(AppColors.color(forArea: rec.area))
                     .frame(width: 6, height: 6)
                 
                 Text(rec.lessonName)

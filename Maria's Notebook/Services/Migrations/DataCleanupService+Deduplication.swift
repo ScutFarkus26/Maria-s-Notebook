@@ -23,9 +23,9 @@ extension DataCleanupService {
         }
 
         var changed = false
-        for (_, group) in groups {
-            guard group.count > 1 else { continue }
-            guard let canonical = group.sorted(by: { lhs, rhs in
+        for (_, sequence) in groups {
+            guard sequence.count > 1 else { continue }
+            guard let canonical = sequence.sorted(by: { lhs, rhs in
                 let lhsDate = lhs.createdAt ?? Date.distantPast
                 let rhsDate = rhs.createdAt ?? Date.distantPast
                 if lhsDate != rhsDate {
@@ -33,7 +33,7 @@ extension DataCleanupService {
                 }
                 return (lhs.id ?? UUID()).uuidString < (rhs.id ?? UUID()).uuidString
             }).first else { continue }
-            let duplicates = group.filter { $0.id != canonical.id }
+            let duplicates = sequence.filter { $0.id != canonical.id }
 
             if duplicates.contains(where: { $0.needsPractice }) {
                 canonical.needsPractice = true
@@ -193,12 +193,12 @@ extension DataCleanupService {
 
     private static func mergeLesson(canonical: CDLesson, duplicate: CDLesson) {
         if canonical.name.isEmpty { canonical.name = duplicate.name }
-        if canonical.subject.isEmpty { canonical.subject = duplicate.subject }
-        if canonical.group.isEmpty { canonical.group = duplicate.group }
-        if canonical.subheading.isEmpty { canonical.subheading = duplicate.subheading }
+        if canonical.area.isEmpty { canonical.area = duplicate.area }
+        if canonical.sequence.isEmpty { canonical.sequence = duplicate.sequence }
+        if canonical.section.isEmpty { canonical.section = duplicate.section }
         if canonical.writeUp.isEmpty { canonical.writeUp = duplicate.writeUp }
-        if canonical.orderInGroup == 0 && duplicate.orderInGroup != 0 {
-            canonical.orderInGroup = duplicate.orderInGroup
+        if canonical.orderInSequence == 0 && duplicate.orderInSequence != 0 {
+            canonical.orderInSequence = duplicate.orderInSequence
         }
         if canonical.sortIndex == 0 && duplicate.sortIndex != 0 { canonical.sortIndex = duplicate.sortIndex }
         if canonical.pagesFileBookmark == nil { canonical.pagesFileBookmark = duplicate.pagesFileBookmark }
@@ -361,7 +361,7 @@ extension DataCleanupService {
         // CDTrackEntity models
         results["Track"] = deduplicate(CDTrackEntity.self, using: context)
         results["TrackStep"] = deduplicate(CDTrackStepEntity.self, using: context)
-        results["GroupTrack"] = deduplicate(CDGroupTrackEntity.self, using: context)
+        results["SequenceTrack"] = deduplicate(CDSequenceTrackEntity.self, using: context)
         results["StudentTrackEnrollment"] = deduplicate(CDStudentTrackEnrollmentEntity.self, using: context)
 
         // Notes and documents

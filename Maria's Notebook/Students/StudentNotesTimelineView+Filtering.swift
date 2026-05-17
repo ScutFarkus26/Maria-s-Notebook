@@ -74,7 +74,7 @@ extension StudentNotesTimelineList {
         let items = unpinnedItems
         let grouped = items.grouped { monthYearKey(for: $0.date) }
         .mapValues { items in
-            items.sorted { $0.date > $1.date } // Sort items within each group (newest first)
+            items.sorted { $0.date > $1.date } // Sort items within each sequence (newest first)
         }
 
         // Sort groups by date (newest first)

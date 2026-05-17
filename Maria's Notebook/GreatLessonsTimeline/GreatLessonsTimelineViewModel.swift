@@ -27,7 +27,7 @@ final class GreatLessonsTimelineViewModel {
         let query = searchText.lowercased()
         return branches.filter { branch in
             branch.greatLesson.displayName.lowercased().contains(query) ||
-            branch.subjectGroups.contains { $0.subject.lowercased().contains(query) }
+            branch.areaSequences.contains { $0.area.lowercased().contains(query) }
         }
     }
 
@@ -99,18 +99,18 @@ final class GreatLessonsTimelineViewModel {
             let lessons = lessonsByGreatLesson[gl] ?? []
             _ = Set(lessons.compactMap { $0.id })
 
-            // Group by subject → group
+            // Group by area → sequence
             let grouped = Dictionary(grouping: lessons) {
-                "\($0.subject.trimmed())|\($0.group.trimmed())"
+                "\($0.area.trimmed())|\($0.sequence.trimmed())"
             }
 
-            let subjectGroups: [BranchSubjectGroup] = grouped.map { key, groupLessons in
+            let areaSequences: [BranchAreaSequence] = grouped.map { key, groupLessons in
                 let parts = key.split(separator: "|", maxSplits: 1)
-                let subject = parts.count > 0 ? String(parts[0]) : ""
-                let group = parts.count > 1 ? String(parts[1]) : ""
+                let area = parts.count > 0 ? String(parts[0]) : ""
+                let sequence = parts.count > 1 ? String(parts[1]) : ""
 
                 let branchLessons = groupLessons
-                    .sorted { $0.orderInGroup < $1.orderInGroup }
+                    .sorted { $0.orderInSequence < $1.orderInSequence }
                     .compactMap { lesson -> BranchLesson? in
                         guard let id = lesson.id else { return nil }
                         return BranchLesson(
@@ -120,13 +120,13 @@ final class GreatLessonsTimelineViewModel {
                         )
                     }
 
-                return BranchSubjectGroup(
+                return BranchAreaSequence(
                     id: key,
-                    subject: subject,
-                    group: group,
+                    area: area,
+                    sequence: sequence,
                     lessons: branchLessons
                 )
-            }.sorted { ($0.subject, $0.group) < ($1.subject, $1.group) }
+            }.sorted { ($0.area, $0.sequence) < ($1.area, $1.sequence) }
 
             // Per-student progress
             let studentProgress: [StudentBranchProgress] = allStudents.compactMap { student in
@@ -139,7 +139,7 @@ final class GreatLessonsTimelineViewModel {
                 var presented = 0
                 var activeWork = 0
                 var lastDate: Date?
-                var presentedSubjects = Set<String>()
+                var presentedAreas = Set<String>()
 
                 for lesson in lessons {
                     let lessonIDStr = lesson.id?.uuidString ?? ""
@@ -152,7 +152,7 @@ final class GreatLessonsTimelineViewModel {
 
                     if studentAssignment != nil {
                         presented += 1
-                        presentedSubjects.insert(lesson.subject.trimmed())
+                        presentedAreas.insert(lesson.area.trimmed())
                         if let date = studentAssignment?.presentedAt {
                             if lastDate == nil || date > lastDate! {
                                 lastDate = date
@@ -170,9 +170,9 @@ final class GreatLessonsTimelineViewModel {
                 let total = lessons.count
                 let completion = total > 0 ? Double(presented) / Double(total) : 0
 
-                // Find gap subjects (subjects in this branch with no presentations)
-                let branchSubjects = Set(lessons.map { $0.subject.trimmed() })
-                let gaps = branchSubjects.subtracting(presentedSubjects).sorted()
+                // Find gap areas (areas in this branch with no presentations)
+                let branchAreas = Set(lessons.map { $0.area.trimmed() })
+                let gaps = branchAreas.subtracting(presentedAreas).sorted()
 
                 return StudentBranchProgress(
                     id: studentID,
@@ -184,7 +184,7 @@ final class GreatLessonsTimelineViewModel {
                     activeWorkCount: activeWork,
                     lastPresentedAt: lastDate,
                     completionPercentage: completion,
-                    gapSubjects: gaps
+                    gapAreas: gaps
                 )
             }
 
@@ -192,7 +192,7 @@ final class GreatLessonsTimelineViewModel {
                 id: gl.rawValue,
                 greatLesson: gl,
                 totalLessons: lessons.count,
-                subjectGroups: subjectGroups,
+                areaSequences: areaSequences,
                 studentProgress: studentProgress.sorted { $0.completionPercentage > $1.completionPercentage }
             ))
         }
@@ -205,9 +205,9 @@ final class GreatLessonsTimelineViewModel {
     private func fetchAllLessons(context: NSManagedObjectContext) -> [CDLesson] {
         let request = NSFetchRequest<CDLesson>(entityName: "Lesson")
         request.sortDescriptors = [
-            NSSortDescriptor(keyPath: \CDLesson.subject, ascending: true),
-            NSSortDescriptor(keyPath: \CDLesson.group, ascending: true),
-            NSSortDescriptor(keyPath: \CDLesson.orderInGroup, ascending: true)
+            NSSortDescriptor(keyPath: \CDLesson.area, ascending: true),
+            NSSortDescriptor(keyPath: \CDLesson.sequence, ascending: true),
+            NSSortDescriptor(keyPath: \CDLesson.orderInSequence, ascending: true)
         ]
         return context.safeFetch(request)
     }

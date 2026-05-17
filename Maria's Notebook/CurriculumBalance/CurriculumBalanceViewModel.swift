@@ -1,5 +1,5 @@
 // CurriculumBalanceViewModel.swift
-// ViewModel for Curriculum Balance Analytics — computes subject distribution,
+// ViewModel for Curriculum Balance Analytics — computes area distribution,
 // weekly trends, gap analysis, and per-student breakdowns.
 
 import Foundation
@@ -14,9 +14,9 @@ final class CurriculumBalanceViewModel {
 
     // MARK: - Outputs
 
-    private(set) var classroomDistribution: [SubjectDistribution] = []
-    private(set) var weeklyTrends: [SubjectWeeklyTrend] = []
-    private(set) var classroomGaps: [SubjectGap] = []
+    private(set) var classroomDistribution: [AreaDistribution] = []
+    private(set) var weeklyTrends: [AreaWeeklyTrend] = []
+    private(set) var classroomGaps: [AreaGap] = []
     private(set) var studentCards: [StudentBalanceCard] = []
     private(set) var isLoading = false
 
@@ -52,7 +52,7 @@ final class CurriculumBalanceViewModel {
         classroomDistribution.reduce(0) { $0 + $1.count }
     }
 
-    var uniqueSubjectCount: Int {
+    var uniqueAreaCount: Int {
         classroomDistribution.count
     }
 
@@ -71,14 +71,14 @@ final class CurriculumBalanceViewModel {
         )
 
         // --- Classroom-wide distribution ---
-        let bySubject = Dictionary(grouping: records) { $0.subject }
+        let byArea = Dictionary(grouping: records) { $0.area }
         let total = max(records.count, 1)
-        classroomDistribution = bySubject.map { subject, recs in
-            SubjectDistribution(
-                subject: subject,
+        classroomDistribution = byArea.map { area, recs in
+            AreaDistribution(
+                area: area,
                 count: recs.count,
                 percentage: Double(recs.count) / Double(total),
-                color: AppColors.color(forSubject: subject)
+                color: AppColors.color(forArea: area)
             )
         }.sorted { $0.count > $1.count }
 
@@ -86,12 +86,12 @@ final class CurriculumBalanceViewModel {
         weeklyTrends = computeWeeklyTrends(records: records)
 
         // --- Gap analysis ---
-        let avgCount = Double(total) / Double(max(bySubject.count, 1))
+        let avgCount = Double(total) / Double(max(byArea.count, 1))
         classroomGaps = classroomDistribution
             .filter { Double($0.count) < avgCount * 0.5 }  // below 50% of average
             .map { dist in
-                SubjectGap(
-                    subject: dist.subject,
+                AreaGap(
+                    area: dist.area,
                     count: dist.count,
                     classAverage: avgCount,
                     deficit: avgCount - Double(dist.count),
@@ -112,25 +112,25 @@ final class CurriculumBalanceViewModel {
             let recs = recordsByStudent[studentID.uuidString] ?? []
             guard !recs.isEmpty else { return nil }
 
-            let perSubject = Dictionary(grouping: recs) { $0.subject }
+            let perArea = Dictionary(grouping: recs) { $0.area }
             let studentTotal = max(recs.count, 1)
 
-            let dists = perSubject.map { subject, sRecs in
-                SubjectDistribution(
-                    subject: subject,
+            let dists = perArea.map { area, sRecs in
+                AreaDistribution(
+                    area: area,
                     count: sRecs.count,
                     percentage: Double(sRecs.count) / Double(studentTotal),
-                    color: AppColors.color(forSubject: subject)
+                    color: AppColors.color(forArea: area)
                 )
             }.sorted { $0.count > $1.count }
 
             // CDStudent-level gaps
-            let studentAvg = Double(studentTotal) / Double(max(perSubject.count, 1))
+            let studentAvg = Double(studentTotal) / Double(max(perArea.count, 1))
             let gaps = dists
                 .filter { Double($0.count) < studentAvg * 0.5 }
                 .map {
-                    SubjectGap(
-                        subject: $0.subject,
+                    AreaGap(
+                        area: $0.area,
                         count: $0.count,
                         classAverage: studentAvg,
                         deficit: studentAvg - Double($0.count),
@@ -145,7 +145,7 @@ final class CurriculumBalanceViewModel {
                 nickname: student.nickname,
                 level: student.level,
                 totalLessons: recs.count,
-                subjectCounts: dists,
+                areaCounts: dists,
                 gaps: gaps
             )
         }
@@ -153,21 +153,21 @@ final class CurriculumBalanceViewModel {
 
     // MARK: - Weekly Trends Computation
 
-    private func computeWeeklyTrends(records: [LessonAnalyticsService.PresentedRecord]) -> [SubjectWeeklyTrend] {
-        // Group records by (subject, weekStart)
+    private func computeWeeklyTrends(records: [LessonAnalyticsService.PresentedRecord]) -> [AreaWeeklyTrend] {
+        // Group records by (area, weekStart)
         var grouped: [String: [Date: Int]] = [:]
         for record in records {
             let (weekStart, _) = LessonAnalyticsService.schoolWeekRange(for: record.presentedAt)
-            grouped[record.subject, default: [:]][weekStart, default: 0] += 1
+            grouped[record.area, default: [:]][weekStart, default: 0] += 1
         }
 
         // Flatten into array
-        var trends: [SubjectWeeklyTrend] = []
-        for (subject, weekCounts) in grouped {
-            let color = AppColors.color(forSubject: subject)
+        var trends: [AreaWeeklyTrend] = []
+        for (area, weekCounts) in grouped {
+            let color = AppColors.color(forArea: area)
             for (weekStart, count) in weekCounts {
-                trends.append(SubjectWeeklyTrend(
-                    subject: subject,
+                trends.append(AreaWeeklyTrend(
+                    area: area,
                     weekStart: weekStart,
                     count: count,
                     color: color
@@ -175,10 +175,10 @@ final class CurriculumBalanceViewModel {
             }
         }
 
-        // Sort by weekStart then subject for consistent chart rendering
+        // Sort by weekStart then area for consistent chart rendering
         return trends.sorted {
             if $0.weekStart != $1.weekStart { return $0.weekStart < $1.weekStart }
-            return $0.subject < $1.subject
+            return $0.area < $1.area
         }
     }
 }

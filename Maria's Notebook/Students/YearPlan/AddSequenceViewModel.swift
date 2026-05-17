@@ -5,25 +5,25 @@ import CoreData
 @MainActor
 final class AddSequenceViewModel {
     enum SelectionMode: String, CaseIterable {
-        case group = "By Group"
+        case sequence = "By Group"
         case lesson = "By Lesson"
     }
 
-    var selectionMode: SelectionMode = .group
+    var selectionMode: SelectionMode = .sequence
     var selectedLesson: CDLesson?
     var startDate: Date = Date()
     var spacingDays: Int = 3
 
     // Group picker state
-    private(set) var subjects: [String] = []
-    private var allGroupsBySubject: [String: [String]] = [:]
-    var selectedSubject: String?
-    var selectedGroup: String?
-    private(set) var allLessonsPresentedInGroup = false
+    private(set) var areas: [String] = []
+    private var allSequencesByArea: [String: [String]] = [:]
+    var selectedArea: String?
+    var selectedSequence: String?
+    private(set) var allLessonsPresentedInSequence = false
 
-    var availableGroups: [String] {
-        guard let subject = selectedSubject else { return [] }
-        return allGroupsBySubject[subject] ?? []
+    var availableSequences: [String] {
+        guard let area = selectedArea else { return [] }
+        return allSequencesByArea[area] ?? []
     }
 
     private(set) var previewItems: [PreviewItem] = []
@@ -34,38 +34,38 @@ final class AddSequenceViewModel {
         let id: UUID
         let lesson: CDLesson
         let lessonName: String
-        let subject: String
+        let area: String
         let date: Date
         let alreadyExists: Bool
         let orderInSequence: Int
     }
 
-    func loadSubjectsAndGroups(context: NSManagedObjectContext) {
+    func loadAreasAndSequences(context: NSManagedObjectContext) {
         let req = CDFetchRequest(CDLesson.self)
         let allLessons = context.safeFetch(req)
 
         var groupsMap: [String: Set<String>] = [:]
-        for lesson in allLessons where !lesson.subject.isEmpty && !lesson.group.isEmpty {
-            groupsMap[lesson.subject, default: []].insert(lesson.group)
+        for lesson in allLessons where !lesson.area.isEmpty && !lesson.sequence.isEmpty {
+            groupsMap[lesson.area, default: []].insert(lesson.sequence)
         }
-        subjects = groupsMap.keys.sorted()
-        allGroupsBySubject = groupsMap.mapValues { $0.sorted() }
+        areas = groupsMap.keys.sorted()
+        allSequencesByArea = groupsMap.mapValues { $0.sorted() }
     }
 
-    func selectGroup(subject: String, group: String, student: CDStudent, context: NSManagedObjectContext) {
+    func selectSequence(area: String, sequence: String, student: CDStudent, context: NSManagedObjectContext) {
         guard let studentID = student.id else { return }
 
-        // Fetch all lessons in subject+group sorted by order
+        // Fetch all lessons in area+sequence sorted by order
         let lessonReq = CDFetchRequest(CDLesson.self)
         lessonReq.predicate = NSPredicate(
-            format: "subject ==[c] %@ AND group ==[c] %@",
-            subject, group
+            format: "area ==[c] %@ AND sequence ==[c] %@",
+            area, sequence
         )
-        lessonReq.sortDescriptors = [NSSortDescriptor(key: "orderInGroup", ascending: true)]
-        let lessonsInGroup = context.safeFetch(lessonReq)
-        guard !lessonsInGroup.isEmpty else {
+        lessonReq.sortDescriptors = [NSSortDescriptor(key: "orderInSequence", ascending: true)]
+        let lessonsInSequence = context.safeFetch(lessonReq)
+        guard !lessonsInSequence.isEmpty else {
             selectedLesson = nil
-            allLessonsPresentedInGroup = false
+            allLessonsPresentedInSequence = false
             return
         }
 
@@ -78,26 +78,26 @@ final class AddSequenceViewModel {
         let presentedAssignments = context.safeFetch(assignmentReq)
 
         // Build set of lesson IDs this student has been presented
-        let lessonIDsInGroup = Set(lessonsInGroup.compactMap { $0.id?.uuidString })
+        let lessonIDsInSequence = Set(lessonsInSequence.compactMap { $0.id?.uuidString })
         var presentedLessonIDs = Set<String>()
         for assignment in presentedAssignments {
-            guard lessonIDsInGroup.contains(assignment.lessonID) else { continue }
+            guard lessonIDsInSequence.contains(assignment.lessonID) else { continue }
             if assignment.studentUUIDs.contains(studentID) {
                 presentedLessonIDs.insert(assignment.lessonID)
             }
         }
 
         // Find first unpresented lesson
-        if let firstUnpresented = lessonsInGroup.first(where: {
+        if let firstUnpresented = lessonsInSequence.first(where: {
             guard let id = $0.id?.uuidString else { return false }
             return !presentedLessonIDs.contains(id)
         }) {
-            allLessonsPresentedInGroup = false
+            allLessonsPresentedInSequence = false
             selectedLesson = firstUnpresented
         } else {
             // All presented — default to first lesson for re-scheduling
-            allLessonsPresentedInGroup = true
-            selectedLesson = lessonsInGroup.first
+            allLessonsPresentedInSequence = true
+            selectedLesson = lessonsInSequence.first
         }
     }
 
@@ -110,17 +110,17 @@ final class AddSequenceViewModel {
             return
         }
 
-        // Fetch all lessons in the same subject + group
+        // Fetch all lessons in the same area + sequence
         let req = CDFetchRequest(CDLesson.self)
         req.predicate = NSPredicate(
-            format: "subject ==[c] %@ AND group ==[c] %@",
-            lesson.subject, lesson.group
+            format: "area ==[c] %@ AND sequence ==[c] %@",
+            lesson.area, lesson.sequence
         )
-        req.sortDescriptors = [NSSortDescriptor(key: "orderInGroup", ascending: true)]
-        let allInGroup = context.safeFetch(req)
+        req.sortDescriptors = [NSSortDescriptor(key: "orderInSequence", ascending: true)]
+        let allInSequence = context.safeFetch(req)
 
-        // Filter to lessons at or after the selected lesson's orderInGroup
-        let sequence = allInGroup.filter { $0.orderInGroup >= lesson.orderInGroup }
+        // Filter to lessons at or after the selected lesson's orderInSequence
+        let sequence = allInSequence.filter { $0.orderInSequence >= lesson.orderInSequence }
         guard !sequence.isEmpty else {
             previewItems = []
             showsOverflowWarning = false
@@ -159,7 +159,7 @@ final class AddSequenceViewModel {
                 id: lessonInSequence.id ?? UUID(),
                 lesson: lessonInSequence,
                 lessonName: lessonInSequence.name,
-                subject: lessonInSequence.subject,
+                area: lessonInSequence.area,
                 date: currentDate,
                 alreadyExists: false,
                 orderInSequence: index
@@ -176,7 +176,7 @@ final class AddSequenceViewModel {
         guard let studentID = student.id,
               let lesson = selectedLesson else { return }
 
-        let sequenceGroupKey = "\(lesson.subject)::\(lesson.group)"
+        let sequenceKey = "\(lesson.area)::\(lesson.sequence)"
 
         for item in previewItems {
             let entry = CDYearPlanEntry(context: context)
@@ -184,7 +184,7 @@ final class AddSequenceViewModel {
             entry.lessonID = item.id.uuidString
             entry.plannedDate = item.date
             entry.spacingSchoolDays = Int64(spacingDays)
-            entry.sequenceGroupKey = sequenceGroupKey
+            entry.sequenceKey = sequenceKey
             entry.orderInSequence = Int64(item.orderInSequence)
             entry.status = .planned
         }

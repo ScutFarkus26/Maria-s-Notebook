@@ -10,10 +10,10 @@ extension LessonDetailView {
             TextField("Lesson Name", text: $draftName)
                 .textFieldStyle(.roundedBorder)
             HStack(alignment: .top) {
-                ComboBoxField(title: "Subject", text: $draftSubject, options: existingSubjects)
-                ComboBoxField(title: "Group", text: $draftGroup, options: existingGroups)
+                ComboBoxField(title: "Area", text: $draftArea, options: existingAreas)
+                ComboBoxField(title: "Sequence", text: $draftSequence, options: existingSequences)
             }
-            ComboBoxField(title: "Subheading", text: $draftSubheading, options: existingSubheadings)
+            ComboBoxField(title: "Section", text: $draftSection, options: existingSections)
 
             Picker("Source", selection: $draftSource) {
                 ForEach(LessonSource.allCases) { s in
@@ -59,7 +59,7 @@ extension LessonDetailView {
                         Text(o.label).tag(o)
                     }
                 }
-                Text("\"From Group\" uses the group's default setting.")
+                Text("\"From Group\" uses the sequence's default setting.")
                     .font(AppTheme.ScaledFont.caption)
                     .foregroundStyle(.tertiary)
             }

@@ -169,17 +169,17 @@ struct LessonImportPreviewView: View {
     }
 
     private func isPotentialDuplicate(row: LessonCSVImporter.Row) -> Bool {
-        let groupStr = row.group
-        let title = groupStr.isEmpty ? "\(row.name) — \(row.subject)" : "\(row.name) — \(row.subject) • \(groupStr)"
+        let groupStr = row.sequence
+        let title = groupStr.isEmpty ? "\(row.name) — \(row.area)" : "\(row.name) — \(row.area) • \(groupStr)"
         return parsed.potentialDuplicates.contains(title)
     }
 
     private func filteredParsed() -> LessonCSVImporter.Parsed {
         let filteredDuplicateTitles: [String] = includedRows.compactMap { row in
-            let groupStr = row.group
+            let groupStr = row.sequence
             let title = groupStr.isEmpty
-                ? "\(row.name) — \(row.subject)"
-                : "\(row.name) — \(row.subject) • \(groupStr)"
+                ? "\(row.name) — \(row.area)"
+                : "\(row.name) — \(row.area) • \(groupStr)"
             return parsed.potentialDuplicates.contains(title) ? title : nil
         }
         return LessonCSVImporter.Parsed(
@@ -204,12 +204,12 @@ private struct LessonRowView: View {
                     Label("Potential duplicate", systemImage: "exclamationmark.triangle.fill")
                         .labelStyle(.iconOnly)
                         .foregroundStyle(.yellow)
-                        .help("A lesson with the same name/subject/group already exists.")
+                        .help("A lesson with the same name/area/sequence already exists.")
                 }
                 Spacer()
                 HStack(spacing: 8) {
-                    subjectBadge
-                    if let order = row.orderInGroup {
+                    areaBadge
+                    if let order = row.orderInSequence {
                         Text("#\(order)")
                             .font(AppTheme.ScaledFont.captionSmallSemibold)
                             .foregroundStyle(.secondary)
@@ -232,17 +232,17 @@ private struct LessonRowView: View {
                 }
             }
 
-            if !row.group.isEmpty || !row.subheading.isEmpty {
+            if !row.sequence.isEmpty || !row.section.isEmpty {
                 HStack(spacing: 8) {
-                    if !row.group.isEmpty {
-                        Text(row.group)
+                    if !row.sequence.isEmpty {
+                        Text(row.sequence)
                             .font(AppTheme.ScaledFont.captionSemibold)
                             .padding(.horizontal, 8)
                             .padding(.vertical, 4)
                             .background(Capsule().fill(.tint).opacity(UIConstants.OpacityConstants.medium))
                     }
-                    if !row.subheading.isEmpty {
-                        Text(row.subheading)
+                    if !row.section.isEmpty {
+                        Text(row.section)
                             .font(AppTheme.ScaledFont.caption)
                             .foregroundStyle(.secondary)
                     }
@@ -258,10 +258,10 @@ private struct LessonRowView: View {
         }
     }
 
-    private var subjectBadge: some View {
+    private var areaBadge: some View {
         HStack(spacing: 6) {
             Circle().fill(.tint).frame(width: 6, height: 6)
-            Text(row.subject)
+            Text(row.area)
                 .font(AppTheme.ScaledFont.captionSmallSemibold)
                 .foregroundStyle(.tint)
         }
@@ -274,29 +274,29 @@ private struct LessonRowView: View {
 #Preview {
     let rows = [
         LessonCSVImporter.Row(
-            name: "The Story of Numerals", subject: "Math",
-            group: "Introduction", subheading: "",
-            writeUp: "A foundational story.", orderInGroup: nil,
+            name: "The Story of Numerals", area: "Math",
+            sequence: "Introduction", section: "",
+            writeUp: "A foundational story.", orderInSequence: nil,
             materials: "", purpose: "", ageRange: "", teacherNotes: ""
         ),
         LessonCSVImporter.Row(
-            name: "Introduce the Materials", subject: "Math",
-            group: "Wooden Hierarchal Materials", subheading: "",
-            writeUp: "", orderInGroup: nil,
+            name: "Introduce the Materials", area: "Math",
+            sequence: "Wooden Hierarchal Materials", section: "",
+            writeUp: "", orderInSequence: nil,
             materials: "", purpose: "", ageRange: "", teacherNotes: ""
         ),
         LessonCSVImporter.Row(
             name: "Three Period Lesson and Layered Layout",
-            subject: "Math",
-            group: "Wooden Hierarchal Materials", subheading: "",
-            writeUp: "", orderInGroup: nil,
+            area: "Math",
+            sequence: "Wooden Hierarchal Materials", section: "",
+            writeUp: "", orderInSequence: nil,
             materials: "", purpose: "", ageRange: "", teacherNotes: ""
         )
     ]
     let parsed = LessonCSVImporter.Parsed(
         rows: rows, totalRows: rows.count,
         potentialDuplicates: ["The Story of Numerals — Math"],
-        warnings: ["Row 4: Missing required Name or Subject; row skipped."]
+        warnings: ["Row 4: Missing required Name or Area; row skipped."]
     )
     LessonImportPreviewView(parsed: parsed, onCancel: {}, onConfirm: { _ in })
 }

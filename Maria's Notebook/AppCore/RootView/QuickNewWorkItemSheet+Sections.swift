@@ -46,8 +46,8 @@ extension QuickNewWorkItemSheet {
                     VStack(alignment: .leading, spacing: 2) {
                         Text(lesson.name)
                             .font(.subheadline.weight(.bold))
-                        if !lesson.subject.isEmpty {
-                            Text(lesson.subject)
+                        if !lesson.area.isEmpty {
+                            Text(lesson.area)
                                 .font(.caption)
                                 .foregroundStyle(.secondary)
                         }
@@ -115,8 +115,8 @@ extension QuickNewWorkItemSheet {
                         VStack(alignment: .leading, spacing: 2) {
                             Text(lesson.name)
                                 .foregroundStyle(.primary)
-                            if !lesson.subject.isEmpty {
-                                Text("\(lesson.subject) • \(lesson.group)")
+                            if !lesson.area.isEmpty {
+                                Text("\(lesson.area) • \(lesson.sequence)")
                                     .font(.caption)
                                     .foregroundStyle(.secondary)
                             }

@@ -33,18 +33,18 @@ struct CurriculumDataAssembler {
             }
         )
 
-        // Group lessons by subject → group
-        let lessonsBySubject = Dictionary(grouping: allLessons) { $0.subject.trimmed() }
+        // Group lessons by area → sequence
+        let lessonsByArea = Dictionary(grouping: allLessons) { $0.area.trimmed() }
 
-        var subjectMaps: [CurriculumMap.SubjectMap] = []
+        var areaMaps: [CurriculumMap.AreaMap] = []
 
-        for (subject, subjectLessons) in lessonsBySubject.sorted(by: { $0.key < $1.key }) {
-            let lessonsByGroup = Dictionary(grouping: subjectLessons) { $0.group.trimmed() }
+        for (area, areaLessons) in lessonsByArea.sorted(by: { $0.key < $1.key }) {
+            let lessonsBySequence = Dictionary(grouping: areaLessons) { $0.sequence.trimmed() }
 
-            var groupMaps: [CurriculumMap.GroupMap] = []
+            var groupMaps: [CurriculumMap.SequenceMap] = []
 
-            for (group, groupLessons) in lessonsByGroup.sorted(by: { $0.key < $1.key }) {
-                let sortedLessons = groupLessons.sorted { $0.orderInGroup < $1.orderInGroup }
+            for (sequence, groupLessons) in lessonsBySequence.sorted(by: { $0.key < $1.key }) {
+                let sortedLessons = groupLessons.sorted { $0.orderInSequence < $1.orderInSequence }
 
                 var lessonPositions: [CurriculumMap.LessonPosition] = []
                 var completedCount = 0
@@ -78,29 +78,29 @@ struct CurriculumDataAssembler {
                     lessonPositions.append(.init(
                         lessonID: lessonID,
                         lessonName: lesson.name,
-                        orderInGroup: Int(lesson.orderInGroup),
+                        orderInSequence: Int(lesson.orderInSequence),
                         studentStatuses: studentStatuses
                     ))
                 }
 
                 groupMaps.append(.init(
-                    group: group,
+                    sequence: sequence,
                     lessons: lessonPositions,
                     completedCount: completedCount,
                     totalCount: sortedLessons.count
                 ))
             }
 
-            subjectMaps.append(.init(subject: subject, groups: groupMaps))
+            areaMaps.append(.init(area: area, groups: groupMaps))
         }
 
-        return CurriculumMap(subjects: subjectMaps)
+        return CurriculumMap(areas: areaMaps)
     }
 
     // MARK: - Token-Compressed Summary
 
     /// Creates a token-compressed text summary of the curriculum map.
-    /// Uses hierarchical summarization: subject-level overview with frontier-only detail.
+    /// Uses hierarchical summarization: area-level overview with frontier-only detail.
     /// - Parameters:
     ///   - map: The full curriculum map
     ///   - maxTokenBudget: Approximate token budget for the summary
@@ -109,15 +109,15 @@ struct CurriculumDataAssembler {
         var lines: [String] = []
         lines.append("CURRICULUM STATUS:")
 
-        for subject in map.subjects {
-            var subjectLine = "\(subject.subject):"
+        for area in map.areas {
+            var areaLine = "\(area.area):"
             var groupDetails: [String] = []
 
-            for group in subject.groups {
-                let progress = "\(group.completedCount)/\(group.totalCount)"
+            for sequence in area.groups {
+                let progress = "\(sequence.completedCount)/\(sequence.totalCount)"
 
                 // Only show frontier lessons (first not-presented or practicing)
-                let frontierLessons = group.lessons.filter { lesson in
+                let frontierLessons = sequence.lessons.filter { lesson in
                     lesson.studentStatuses.contains { status in
                         status.proficiency == .notPresented
                             || status.proficiency == .practicing
@@ -126,9 +126,9 @@ struct CurriculumDataAssembler {
                 }.prefix(3)
 
                 if frontierLessons.isEmpty {
-                    groupDetails.append("  \(group.group) \(progress) complete")
+                    groupDetails.append("  \(sequence.sequence) \(progress) complete")
                 } else {
-                    var detail = "  \(group.group) \(progress):"
+                    var detail = "  \(sequence.sequence) \(progress):"
                     for lesson in frontierLessons {
                         let studentSummaries = lesson.studentStatuses
                             .filter { $0.proficiency != .proficient }
@@ -144,8 +144,8 @@ struct CurriculumDataAssembler {
                 }
             }
 
-            subjectLine += " \(subject.groups.count) groups"
-            lines.append(subjectLine)
+            areaLine += " \(area.groups.count) groups"
+            lines.append(areaLine)
             lines.append(contentsOf: groupDetails)
         }
 
@@ -165,9 +165,9 @@ struct CurriculumDataAssembler {
     private static func fetchAllLessons(context: NSManagedObjectContext) -> [CDLesson] {
         let request = CDFetchRequest(CDLesson.self)
         request.sortDescriptors = [
-            NSSortDescriptor(key: "subject", ascending: true),
-            NSSortDescriptor(key: "group", ascending: true),
-            NSSortDescriptor(key: "orderInGroup", ascending: true)
+            NSSortDescriptor(key: "area", ascending: true),
+            NSSortDescriptor(key: "sequence", ascending: true),
+            NSSortDescriptor(key: "orderInSequence", ascending: true)
         ]
         return context.safeFetch(request)
     }

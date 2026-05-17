@@ -68,9 +68,9 @@ final class ProgressDashboardViewModel {
         // Index assignments by lessonID
         let assignmentsByLesson = Dictionary(grouping: allAssignments) { $0.lessonID }
 
-        // Group lessons by subject+group
-        let lessonsBySubjectGroup = Dictionary(grouping: allLessons) {
-            SubjectGroupKey(subject: $0.subject.trimmed().lowercased(), group: $0.group.trimmed().lowercased())
+        // Group lessons by area+sequence
+        let lessonsByAreaSequence = Dictionary(grouping: allLessons) {
+            AreaSequenceKey(area: $0.area.trimmed().lowercased(), sequence: $0.sequence.trimmed().lowercased())
         }
 
         // Index open work by studentID+lessonID
@@ -94,16 +94,16 @@ final class ProgressDashboardViewModel {
             guard let studentID = student.id else { continue }
             let studentIDStr = studentID.uuidString
 
-            // Find all (subject, group) pairs where this student has a presented assignment
-            var activePairs = Set<SubjectGroupKey>()
+            // Find all (area, sequence) pairs where this student has a presented assignment
+            var activePairs = Set<AreaSequenceKey>()
             for la in allAssignments where la.presentedAt != nil {
                 guard la.studentIDs.contains(studentIDStr) else { continue }
                 guard let lesson = lessonsByID[la.lessonIDUUID ?? UUID()] else { continue }
-                let key = SubjectGroupKey(
-                    subject: lesson.subject.trimmed().lowercased(),
-                    group: lesson.group.trimmed().lowercased()
+                let key = AreaSequenceKey(
+                    area: lesson.area.trimmed().lowercased(),
+                    sequence: lesson.sequence.trimmed().lowercased()
                 )
-                guard !key.subject.isEmpty, !key.group.isEmpty else { continue }
+                guard !key.area.isEmpty, !key.sequence.isEmpty else { continue }
                 activePairs.insert(key)
             }
 
@@ -111,11 +111,11 @@ final class ProgressDashboardViewModel {
             for la in allAssignments where la.presentedAt == nil {
                 guard la.studentIDs.contains(studentIDStr) else { continue }
                 guard let lesson = lessonsByID[la.lessonIDUUID ?? UUID()] else { continue }
-                let key = SubjectGroupKey(
-                    subject: lesson.subject.trimmed().lowercased(),
-                    group: lesson.group.trimmed().lowercased()
+                let key = AreaSequenceKey(
+                    area: lesson.area.trimmed().lowercased(),
+                    sequence: lesson.sequence.trimmed().lowercased()
                 )
-                guard !key.subject.isEmpty, !key.group.isEmpty else { continue }
+                guard !key.area.isEmpty, !key.sequence.isEmpty else { continue }
                 activePairs.insert(key)
             }
 
@@ -124,10 +124,10 @@ final class ProgressDashboardViewModel {
             var categoryRows: [StudentCategoryProgress] = []
 
             for pairKey in activePairs {
-                guard let lessonsInGroup = lessonsBySubjectGroup[pairKey] else { continue }
-                let sortedLessons = lessonsInGroup.sorted { $0.orderInGroup < $1.orderInGroup }
+                guard let lessonsInSequence = lessonsByAreaSequence[pairKey] else { continue }
+                let sortedLessons = lessonsInSequence.sorted { $0.orderInSequence < $1.orderInSequence }
 
-                // Find the most recently presented lesson for this student in this group
+                // Find the most recently presented lesson for this student in this sequence
                 var bestPresentedLesson: CDLesson?
                 var bestPresentedAt: Date?
                 var bestAssignmentID: UUID?
@@ -158,7 +158,7 @@ final class ProgressDashboardViewModel {
                     previousLesson = nil
                 }
 
-                // Collect open work for this student in this group's lessons
+                // Collect open work for this student in this sequence's lessons
                 var workSummaries: [OpenWorkSummary] = []
                 for lesson in sortedLessons {
                     guard let lessonID = lesson.id else { continue }
@@ -203,22 +203,22 @@ final class ProgressDashboardViewModel {
                     }
                 }
 
-                // Use the original casing from the first lesson in the group for display
-                let displaySubject = sortedLessons.first?.subject.trimmed() ?? pairKey.subject
-                let displayGroup = sortedLessons.first?.group.trimmed() ?? pairKey.group
+                // Use the original casing from the first lesson in the sequence for display
+                let displayArea = sortedLessons.first?.area.trimmed() ?? pairKey.area
+                let displaySequence = sortedLessons.first?.sequence.trimmed() ?? pairKey.sequence
 
                 categoryRows.append(StudentCategoryProgress(
-                    id: "\(studentID)|\(displaySubject)|\(displayGroup)",
-                    subject: displaySubject,
-                    group: displayGroup,
+                    id: "\(studentID)|\(displayArea)|\(displaySequence)",
+                    area: displayArea,
+                    sequence: displaySequence,
                     previousLesson: previousLesson,
                     openWork: workSummaries,
                     nextLesson: nextLessonInfo
                 ))
             }
 
-            // Sort categories: by subject then group
-            categoryRows.sort { ($0.subject, $0.group) < ($1.subject, $1.group) }
+            // Sort categories: by area then sequence
+            categoryRows.sort { ($0.area, $0.sequence) < ($1.area, $1.sequence) }
 
             cards.append(StudentDashboardCard(
                 id: studentID,
@@ -295,9 +295,9 @@ final class ProgressDashboardViewModel {
     private func fetchAllLessons(context: NSManagedObjectContext) -> [CDLesson] {
         let request = NSFetchRequest<CDLesson>(entityName: "Lesson")
         request.sortDescriptors = [
-            NSSortDescriptor(keyPath: \CDLesson.subject, ascending: true),
-            NSSortDescriptor(keyPath: \CDLesson.group, ascending: true),
-            NSSortDescriptor(keyPath: \CDLesson.orderInGroup, ascending: true)
+            NSSortDescriptor(keyPath: \CDLesson.area, ascending: true),
+            NSSortDescriptor(keyPath: \CDLesson.sequence, ascending: true),
+            NSSortDescriptor(keyPath: \CDLesson.orderInSequence, ascending: true)
         ]
         return context.safeFetch(request)
     }
@@ -313,7 +313,7 @@ final class ProgressDashboardViewModel {
 
 // MARK: - Internal Key
 
-private struct SubjectGroupKey: Hashable {
-    let subject: String
-    let group: String
+private struct AreaSequenceKey: Hashable {
+    let area: String
+    let sequence: String
 }

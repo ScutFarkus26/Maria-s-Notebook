@@ -10,9 +10,9 @@ extension PresentationDetailContentView {
     var lessonHeaderSection: some View {
         PresentationHeaderView(
             lessonName: currentLesson?.name ?? "Lesson",
-            subject: currentLesson?.subject ?? "",
-            group: currentLesson?.group ?? "",
-            subjectColor: AppColors.color(forSubject: currentLesson?.subject ?? ""),
+            area: currentLesson?.area ?? "",
+            sequence: currentLesson?.sequence ?? "",
+            areaColor: AppColors.color(forArea: currentLesson?.area ?? ""),
             onTapTitle: lessonHasFile ? ({ openLessonFile() }) : nil
         )
     }
@@ -32,7 +32,7 @@ extension PresentationDetailContentView {
     var studentPillsSection: some View {
         StudentPillsSection(
             students: selectedStudentsList,
-            subjectColor: AppColors.color(forSubject: currentLesson?.subject ?? ""),
+            areaColor: AppColors.color(forArea: currentLesson?.area ?? ""),
             onRemove: { id in vm.selectedStudentIDs.remove(id) },
             onOpenPicker: { vm.showingStudentPickerPopover = true },
             onOpenMove: openMoveStudentsSheet,
@@ -86,8 +86,8 @@ extension PresentationDetailContentView {
 
     @ViewBuilder
     var groupRecapSection: some View {
-        if let recap = vm.groupRecap, !recap.lessonsInGroup.isEmpty {
-            GroupRecapSection(recap: recap)
+        if let recap = vm.groupRecap, !recap.lessonsInSequence.isEmpty {
+            SequenceRecapSection(recap: recap)
         }
     }
 

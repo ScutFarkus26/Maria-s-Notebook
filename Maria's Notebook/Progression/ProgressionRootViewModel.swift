@@ -5,13 +5,13 @@ import Foundation
 import CoreData
 import OSLog
 
-/// Loads subject/group summaries for the Progression landing page.
+/// Loads area/sequence summaries for the Progression landing page.
 @Observable
 @MainActor
 final class ProgressionRootViewModel {
     private static let logger = Logger.app_
 
-    private(set) var groupSummaries: [GroupSummary] = []
+    private(set) var groupSummaries: [SequenceSummary] = []
     private(set) var isLoading = false
 
     // MARK: - Data Loading
@@ -32,29 +32,29 @@ final class ProgressionRootViewModel {
         let presentationsByLesson = Dictionary(grouping: allPresentations) { $0.lessonID }
         let workByLesson = Dictionary(grouping: allWork) { $0.lessonID }
 
-        // Group lessons by subject/group
-        let lessonsByGroup = Dictionary(grouping: allLessons) {
-            SubjectGroupPair(subject: $0.subject.trimmed(), group: $0.group.trimmed())
+        // Group lessons by area/sequence
+        let lessonsBySequence = Dictionary(grouping: allLessons) {
+            AreaSequencePair(area: $0.area.trimmed(), sequence: $0.sequence.trimmed())
         }
 
         let staleThreshold = Calendar.current.date(byAdding: .day, value: -14, to: Date()) ?? Date()
 
-        var summaries: [GroupSummary] = []
+        var summaries: [SequenceSummary] = []
 
-        for (key, lessons) in lessonsByGroup {
-            guard !key.subject.isEmpty, !key.group.isEmpty else { continue }
+        for (key, lessons) in lessonsBySequence {
+            guard !key.area.isEmpty, !key.sequence.isEmpty else { continue }
 
-            let sorted = lessons.sorted { $0.orderInGroup < $1.orderInGroup }
+            let sorted = lessons.sorted { $0.orderInSequence < $1.orderInSequence }
 
-            // Collect presentations and work for this group using pre-indexed dictionaries
+            // Collect presentations and work for this sequence using pre-indexed dictionaries
             var groupPresentations: [CDLessonAssignment] = []
             var groupWork: [CDWorkModel] = []
-            // Also build a lessonID → orderInGroup lookup for this group
+            // Also build a lessonID → orderInSequence lookup for this sequence
             var orderByLessonID: [String: Int] = [:]
 
             for lesson in sorted {
                 let lessonIDStr = lesson.id?.uuidString ?? ""
-                orderByLessonID[lessonIDStr] = Int(lesson.orderInGroup)
+                orderByLessonID[lessonIDStr] = Int(lesson.orderInSequence)
                 if let pres = presentationsByLesson[lessonIDStr] {
                     groupPresentations.append(contentsOf: pres.filter { $0.presentedAt != nil })
                 }
@@ -63,29 +63,29 @@ final class ProgressionRootViewModel {
                 }
             }
 
-            // Collect unique visible students who have presentations in this group
-            var studentIDsInGroup = Set<String>()
+            // Collect unique visible students who have presentations in this sequence
+            var studentIDsInSequence = Set<String>()
             for la in groupPresentations {
                 for sid in la.studentIDs where visibleStudentIDs.contains(sid) {
-                    studentIDsInGroup.insert(sid)
+                    studentIDsInSequence.insert(sid)
                 }
             }
 
-            guard !studentIDsInGroup.isEmpty else { continue }
+            guard !studentIDsInSequence.isEmpty else { continue }
 
-            // Pre-index group work by studentID
+            // Pre-index sequence work by studentID
             let groupWorkByStudent = Dictionary(grouping: groupWork) { $0.studentID }
 
-            // Count active work in the group
+            // Count active work in the sequence
             let activeWorkCount = groupWork.filter { w in
-                studentIDsInGroup.contains(w.studentID) && w.status != .complete
+                studentIDsInSequence.contains(w.studentID) && w.status != .complete
             }.count
 
             // Per-student readiness analysis
             var readyCount = 0
             var needsAttentionCount = 0
 
-            for studentID in studentIDsInGroup {
+            for studentID in studentIDsInSequence {
                 let studentPresentations = groupPresentations.filter { $0.studentIDs.contains(studentID) }
                 let studentWork = groupWorkByStudent[studentID] ?? []
                 let studentActiveWork = studentWork.filter { $0.status != .complete }
@@ -125,12 +125,12 @@ final class ProgressionRootViewModel {
 
             let totalPractice = groupWork.reduce(0) { $0 + $1.practiceCount }
 
-            summaries.append(GroupSummary(
-                id: "\(key.subject)|\(key.group)",
-                subject: key.subject,
-                group: key.group,
+            summaries.append(SequenceSummary(
+                id: "\(key.area)|\(key.sequence)",
+                area: key.area,
+                sequence: key.sequence,
                 lessonCount: sorted.count,
-                studentCount: studentIDsInGroup.count,
+                studentCount: studentIDsInSequence.count,
                 activeWorkCount: activeWorkCount,
                 totalPracticeCount: totalPractice,
                 studentsReadyForNext: readyCount,
@@ -139,7 +139,7 @@ final class ProgressionRootViewModel {
             ))
         }
 
-        groupSummaries = summaries.sorted { ($0.subject, $0.group) < ($1.subject, $1.group) }
+        groupSummaries = summaries.sorted { ($0.area, $0.sequence) < ($1.area, $1.sequence) }
     }
 
     // MARK: - Data Fetching
@@ -147,9 +147,9 @@ final class ProgressionRootViewModel {
     private func fetchAllLessons(context: NSManagedObjectContext) -> [CDLesson] {
         let request = NSFetchRequest<CDLesson>(entityName: "Lesson")
         request.sortDescriptors = [
-            NSSortDescriptor(keyPath: \CDLesson.subject, ascending: true),
-            NSSortDescriptor(keyPath: \CDLesson.group, ascending: true),
-            NSSortDescriptor(keyPath: \CDLesson.orderInGroup, ascending: true)
+            NSSortDescriptor(keyPath: \CDLesson.area, ascending: true),
+            NSSortDescriptor(keyPath: \CDLesson.sequence, ascending: true),
+            NSSortDescriptor(keyPath: \CDLesson.orderInSequence, ascending: true)
         ]
         return context.safeFetch(request)
     }
@@ -172,7 +172,7 @@ final class ProgressionRootViewModel {
 
 // MARK: - Helper
 
-private struct SubjectGroupPair: Hashable {
-    let subject: String
-    let group: String
+private struct AreaSequencePair: Hashable {
+    let area: String
+    let sequence: String
 }

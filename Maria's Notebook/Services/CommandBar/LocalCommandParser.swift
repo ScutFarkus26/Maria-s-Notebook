@@ -8,8 +8,8 @@ import Foundation
 struct LessonData: Sendable {
     let id: UUID
     let name: String
-    let subject: String
-    let group: String
+    let area: String
+    let sequence: String
 }
 
 // MARK: - Local Command Parser
@@ -251,7 +251,7 @@ actor LocalCommandParser {
              MontessoriObservationTags.concentration),
             (["repeat", "again and again", "over and over"],
              MontessoriObservationTags.repetition),
-            (["social", "together", "collaborat", "friend", "peer", "group work"],
+            (["social", "together", "collaborat", "friend", "peer", "sequence work"],
              MontessoriObservationTags.socialInteraction),
             (["independent", "by himself", "by herself", "on her own", "on his own", "alone"],
              MontessoriObservationTags.independence),

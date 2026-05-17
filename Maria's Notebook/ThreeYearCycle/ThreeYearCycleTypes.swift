@@ -117,7 +117,7 @@ struct CycleStudentCard: Identifiable, Sendable {
     let totalLessonsPresented: Int
     let totalLessonsAvailable: Int
     let coveragePercentage: Double
-    let subjectCoverage: [SubjectCoverage]
+    let areaCoverage: [AreaCoverage]
     let paceIndicator: PaceIndicator
 
     var displayName: String { nickname ?? firstName }
@@ -129,11 +129,11 @@ struct CycleStudentCard: Identifiable, Sendable {
     }
 }
 
-// MARK: - Subject Coverage
+// MARK: - Area Coverage
 
-struct SubjectCoverage: Identifiable, Sendable {
+struct AreaCoverage: Identifiable, Sendable {
     let id: String
-    let subject: String
+    let area: String
     let presented: Int
     let total: Int
     let percentage: Double

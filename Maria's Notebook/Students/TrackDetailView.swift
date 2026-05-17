@@ -117,8 +117,8 @@ private struct StepRow: View {
                     Text(lesson.name.isEmpty ? "Untitled Lesson" : lesson.name)
                         .font(.body)
                     
-                    if !lesson.subject.isEmpty || !lesson.group.isEmpty {
-                        Text("\(lesson.subject) · \(lesson.group)")
+                    if !lesson.area.isEmpty || !lesson.sequence.isEmpty {
+                        Text("\(lesson.area) · \(lesson.sequence)")
                             .font(.caption)
                             .foregroundStyle(.secondary)
                     }
@@ -148,8 +148,8 @@ private struct LessonPickerSheet: View {
         }
         return lessons.filter { lesson in
             lesson.name.localizedCaseInsensitiveContains(searchText) ||
-            lesson.subject.localizedCaseInsensitiveContains(searchText) ||
-            lesson.group.localizedCaseInsensitiveContains(searchText)
+            lesson.area.localizedCaseInsensitiveContains(searchText) ||
+            lesson.sequence.localizedCaseInsensitiveContains(searchText)
         }
     }
     
@@ -171,8 +171,8 @@ private struct LessonPickerSheet: View {
                                     .font(.body)
                                     .foregroundStyle(.primary)
                                 
-                                if !lesson.subject.isEmpty || !lesson.group.isEmpty {
-                                    Text("\(lesson.subject) · \(lesson.group)")
+                                if !lesson.area.isEmpty || !lesson.sequence.isEmpty {
+                                    Text("\(lesson.area) · \(lesson.sequence)")
                                         .font(.caption)
                                         .foregroundStyle(.secondary)
                                 }

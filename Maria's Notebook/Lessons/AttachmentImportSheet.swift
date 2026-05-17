@@ -40,13 +40,13 @@ struct AttachmentImportOptionsSheet: View {
                         )
 
                         ScopeOptionButton(
-                            scope: .group,
+                            scope: .sequence,
                             selectedScope: $selectedScope,
                             lesson: lesson
                         )
 
                         ScopeOptionButton(
-                            scope: .subject,
+                            scope: .area,
                             selectedScope: $selectedScope,
                             lesson: lesson
                         )
@@ -112,10 +112,10 @@ struct ScopeOptionButton: View {
         switch scope {
         case .lesson:
             return "Only visible in this lesson"
-        case .group:
-            return "Visible in all lessons in \"\(lesson.group)\""
-        case .subject:
-            return "Visible in all lessons in \"\(lesson.subject)\""
+        case .sequence:
+            return "Visible in all lessons in \"\(lesson.sequence)\""
+        case .area:
+            return "Visible in all lessons in \"\(lesson.area)\""
         }
     }
 

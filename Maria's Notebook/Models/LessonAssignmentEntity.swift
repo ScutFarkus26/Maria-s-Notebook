@@ -12,7 +12,7 @@ public class CDLessonAssignment: NSManagedObject {
     @NSManaged public var scheduledForDay: Date?
     @NSManaged public var presentedAt: Date?
     @NSManaged public var lessonTitleSnapshot: String?
-    @NSManaged public var lessonSubheadingSnapshot: String?
+    @NSManaged public var lessonSectionSnapshot: String?
     @NSManaged public var needsPractice: Bool
     @NSManaged public var needsAnotherPresentation: Bool
     @NSManaged public var followUpWork: String
@@ -43,7 +43,7 @@ public class CDLessonAssignment: NSManagedObject {
         self.scheduledForDay = Date.distantPast
         self.presentedAt = nil
         self.lessonTitleSnapshot = nil
-        self.lessonSubheadingSnapshot = nil
+        self.lessonSectionSnapshot = nil
         self.needsPractice = false
         self.needsAnotherPresentation = false
         self.followUpWork = ""
@@ -181,7 +181,7 @@ extension CDLessonAssignment {
 
         if snapshotLesson, let lesson = self.lesson {
             self.lessonTitleSnapshot = lesson.name
-            self.lessonSubheadingSnapshot = lesson.subheading
+            self.lessonSectionSnapshot = lesson.section
         }
     }
 

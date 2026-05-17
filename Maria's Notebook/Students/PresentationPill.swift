@@ -74,8 +74,8 @@ struct PresentationPill: View {
         return "Lesson \(snapshot.lessonID.uuidString.prefix(6))"
     }
 
-    private var subjectColor: Color {
-        if let subject = lessonObject?.subject { return AppColors.color(forSubject: subject) }
+    private var areaColor: Color {
+        if let area = lessonObject?.area { return AppColors.color(forArea: area) }
         return .accentColor
     }
 
@@ -181,8 +181,8 @@ struct PresentationPill: View {
     private func getExcludedParshaLessonIDs() -> Set<UUID> {
         let normalized = { (s: String) in s.normalizedForComparison() }
         let parshaLessons = lessons.filter { l in
-            let s = normalized(l.subject)
-            let g = normalized(l.group)
+            let s = normalized(l.area)
+            let g = normalized(l.sequence)
             return s == "parsha" || g == "parsha"
         }
         return Set(parshaLessons.compactMap(\.id))
@@ -287,14 +287,14 @@ struct PresentationPill: View {
                         let isAbsent = (chip.status == .absent)
                         let isDoubleBooked = doubleBookedStudentIDs.contains(chip.id)
                         // Removed !isAllSelected check here so that individuals
-                        // are highlighted even if the whole group is in the lesson.
+                        // are highlighted even if the whole sequence is in the lesson.
                         let highlight = !chip.hasHad && !suppressHighlighting
                         ChipView(
                             label: chip.label,
                             isMissing: chip.isMissing,
                             isAbsent: isAbsent,
                             isDoubleBooked: isDoubleBooked,
-                            subjectColor: subjectColor,
+                            areaColor: areaColor,
                             hasHad: chip.hasHad,
                             suppressIndicator: isAllSelected,
                             highlight: highlight,
@@ -366,7 +366,7 @@ struct PresentationPill: View {
     private var pillContent: some View {
         HStack(alignment: .top, spacing: 8) {
             Circle()
-                .fill(subjectColor)
+                .fill(areaColor)
                 .frame(width: 6, height: 6)
                 .padding(.top, 3)
 
@@ -398,12 +398,12 @@ struct PresentationPill: View {
                 .background {
                     Capsule().fill(Color.primary.opacity(UIConstants.OpacityConstants.trace))
                         .overlay {
-                            SubjectGrainBackground(subject: lessonObject?.subject ?? "")
+                            AreaGrainBackground(area: lessonObject?.area ?? "")
                                 .clipShape(Capsule())
                         }
                 }
 
-            let borderColor = subjectColor.opacity(UIConstants.OpacityConstants.accent)
+            let borderColor = areaColor.opacity(UIConstants.OpacityConstants.accent)
             let dragColor = Color.accentColor.opacity(isValidDragTarget ? 0.45 : 0.0)
 
             styledPill

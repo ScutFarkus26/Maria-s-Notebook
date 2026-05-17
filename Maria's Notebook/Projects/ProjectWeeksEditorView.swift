@@ -32,10 +32,10 @@ struct InlineLessonPickerSheet: View {
                             VStack(alignment: .leading, spacing: 2) {
                                 Text(lesson.name.isEmpty ? "Untitled Lesson" : lesson.name)
                                 let subtitle: String = {
-                                    switch (lesson.subject.isEmpty, lesson.group.isEmpty) {
-                                    case (false, false): return "\(lesson.subject) • \(lesson.group)"
-                                    case (false, true): return lesson.subject
-                                    case (true, false): return lesson.group
+                                    switch (lesson.area.isEmpty, lesson.sequence.isEmpty) {
+                                    case (false, false): return "\(lesson.area) • \(lesson.sequence)"
+                                    case (false, true): return lesson.area
+                                    case (true, false): return lesson.sequence
                                     default: return ""
                                     }
                                 }()
@@ -71,8 +71,8 @@ struct InlineLessonPickerSheet: View {
         if q.isEmpty { return lessons }
         return lessons.filter { l in
             l.name.localizedCaseInsensitiveContains(q) ||
-            l.subject.localizedCaseInsensitiveContains(q) ||
-            l.group.localizedCaseInsensitiveContains(q)
+            l.area.localizedCaseInsensitiveContains(q) ||
+            l.sequence.localizedCaseInsensitiveContains(q)
         }
     }
 }

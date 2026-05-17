@@ -1,5 +1,5 @@
 // LessonFrequencyStudentRow.swift
-// Card showing one student's weekly lesson count with subject breakdown.
+// Card showing one student's weekly lesson count with area breakdown.
 // Design follows ProgressDashboardStudentCard: initials circle, level color, card style.
 
 import SwiftUI
@@ -25,8 +25,8 @@ struct LessonFrequencyStudentRow: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 8) {
             headerRow
-            if !card.subjectBreakdown.isEmpty {
-                subjectBreakdownRow
+            if !card.areaBreakdown.isEmpty {
+                areaBreakdownRow
             }
         }
         .padding(.horizontal, 14)
@@ -82,19 +82,19 @@ struct LessonFrequencyStudentRow: View {
         }
     }
 
-    // MARK: - Subject Breakdown
+    // MARK: - Area Breakdown
 
-    private var subjectBreakdownRow: some View {
+    private var areaBreakdownRow: some View {
         FlowLayout(spacing: 6) {
-            ForEach(card.subjectBreakdown) { subject in
+            ForEach(card.areaBreakdown) { area in
                 HStack(spacing: 4) {
                     Circle()
-                        .fill(AppColors.color(forSubject: subject.subject))
+                        .fill(AppColors.color(forArea: area.area))
                         .frame(width: 6, height: 6)
-                    Text(subject.subject)
+                    Text(area.area)
                         .font(.caption2)
                         .foregroundStyle(.secondary)
-                    Text("\(subject.count)")
+                    Text("\(area.count)")
                         .font(.caption2)
                         .fontWeight(.semibold)
                         .foregroundStyle(.primary)
@@ -103,7 +103,7 @@ struct LessonFrequencyStudentRow: View {
                 .padding(.vertical, 4)
                 .background(
                     Capsule(style: .continuous)
-                        .fill(AppColors.color(forSubject: subject.subject).opacity(UIConstants.OpacityConstants.light))
+                        .fill(AppColors.color(forArea: area.area).opacity(UIConstants.OpacityConstants.light))
                 )
             }
         }

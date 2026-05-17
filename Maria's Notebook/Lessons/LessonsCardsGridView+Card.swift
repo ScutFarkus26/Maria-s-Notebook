@@ -11,7 +11,7 @@ extension LessonsCardsGridView {
         case .introduction(let intro):
             IntroductionCard(
                 introduction: intro,
-                subjectColor: selectedSubject.map { AppColors.color(forSubject: $0) } ?? .accentColor,
+                areaColor: selectedArea.map { AppColors.color(forArea: $0) } ?? .accentColor,
                 onTap: { introductionToShow = intro }
             )
         case .lesson(let lesson):

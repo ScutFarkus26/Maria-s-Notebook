@@ -61,9 +61,9 @@ struct LessonAttachmentImporter {
         var score = 0
         
         let lessonName = lesson.name.lowercased()
-        let subject = lesson.subject.lowercased()
-        let group = lesson.group.lowercased()
-        let subheading = lesson.subheading.lowercased()
+        let area = lesson.area.lowercased()
+        let sequence = lesson.sequence.lowercased()
+        let section = lesson.section.lowercased()
         
         for term in searchTerms {
             // Exact word matches in name get highest score
@@ -76,22 +76,22 @@ struct LessonAttachmentImporter {
                 score += 5
             }
             
-            // Subject matches
-            if subject == term {
+            // Area matches
+            if area == term {
                 score += 8
-            } else if subject.contains(term) {
+            } else if area.contains(term) {
                 score += 4
             }
             
             // Group matches
-            if group == term {
+            if sequence == term {
                 score += 6
-            } else if group.contains(term) {
+            } else if sequence.contains(term) {
                 score += 3
             }
             
-            // Subheading matches
-            if subheading.contains(term) {
+            // Section matches
+            if section.contains(term) {
                 score += 2
             }
         }
@@ -143,8 +143,8 @@ struct LessonAttachmentImportSheet: View {
         let lowercased = searchText.lowercased()
         return allLessons.filter { lesson in
             lesson.name.lowercased().contains(lowercased) ||
-            lesson.subject.lowercased().contains(lowercased) ||
-            lesson.group.lowercased().contains(lowercased)
+            lesson.area.lowercased().contains(lowercased) ||
+            lesson.sequence.lowercased().contains(lowercased)
         }
     }
     
@@ -274,9 +274,9 @@ struct LessonAttachmentImportSheet: View {
         // Load all lessons
         let descriptor: NSFetchRequest<CDLesson> = NSFetchRequest(entityName: "Lesson")
         descriptor.sortDescriptors = [
-                NSSortDescriptor(key: "subject", ascending: true),
-                NSSortDescriptor(key: "group", ascending: true),
-                NSSortDescriptor(key: "orderInGroup", ascending: true)
+                NSSortDescriptor(key: "area", ascending: true),
+                NSSortDescriptor(key: "sequence", ascending: true),
+                NSSortDescriptor(key: "orderInSequence", ascending: true)
             ]
         
         do {
@@ -307,17 +307,17 @@ struct LessonSelectionRow: View {
                         .frame(maxWidth: .infinity, alignment: .leading)
                     
                     HStack(spacing: 6) {
-                        if !lesson.subject.isEmpty {
-                            Text(lesson.subject)
+                        if !lesson.area.isEmpty {
+                            Text(lesson.area)
                                 .font(AppTheme.ScaledFont.captionSmall)
                                 .foregroundStyle(.secondary)
                         }
-                        if !lesson.subject.isEmpty && !lesson.group.isEmpty {
+                        if !lesson.area.isEmpty && !lesson.sequence.isEmpty {
                             Text("•")
                                 .foregroundStyle(.secondary)
                         }
-                        if !lesson.group.isEmpty {
-                            Text(lesson.group)
+                        if !lesson.sequence.isEmpty {
+                            Text(lesson.sequence)
                                 .font(AppTheme.ScaledFont.captionSmall)
                                 .foregroundStyle(.secondary)
                         }

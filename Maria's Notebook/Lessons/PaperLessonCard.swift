@@ -15,8 +15,8 @@ struct PaperLessonCard: View {
         lesson.source == .personal
     }
 
-    private var subjectColor: Color {
-        AppColors.color(forSubject: lesson.subject)
+    private var areaColor: Color {
+        AppColors.color(forArea: lesson.area)
     }
 
     /// Paper-like background color - slightly warm/cream tinted
@@ -105,9 +105,9 @@ struct PaperLessonCard: View {
                 }
             }
 
-            // Content preview: Subheading or writeUp excerpt
-            if !lesson.subheading.isEmpty {
-                Text(lesson.subheading)
+            // Content preview: Section or writeUp excerpt
+            if !lesson.section.isEmpty {
+                Text(lesson.section)
                     .font(AppTheme.ScaledFont.captionSemibold)
                     .foregroundStyle(.primary.opacity(UIConstants.OpacityConstants.nearSolid))
                     .lineLimit(2)
@@ -127,8 +127,8 @@ struct PaperLessonCard: View {
             // Bottom row: metadata badges
             HStack(spacing: 8) {
                 VStack(alignment: .leading, spacing: 2) {
-                    if !lesson.group.isEmpty || !lesson.subject.isEmpty {
-                        Text(groupSubjectLine)
+                    if !lesson.sequence.isEmpty || !lesson.area.isEmpty {
+                        Text(groupAreaLine)
                             .font(AppTheme.ScaledFont.captionSmall)
                             .foregroundStyle(.secondary)
                             .lineLimit(1)
@@ -187,11 +187,11 @@ struct PaperLessonCard: View {
         return "Last given \(formatter.localizedString(for: date, relativeTo: Date()))"
     }
 
-    private var groupSubjectLine: String {
-        switch (lesson.subject.isEmpty, lesson.group.isEmpty) {
-        case (false, false): return "\(lesson.subject) \u{2022} \(lesson.group)"
-        case (false, true): return lesson.subject
-        case (true, false): return lesson.group
+    private var groupAreaLine: String {
+        switch (lesson.area.isEmpty, lesson.sequence.isEmpty) {
+        case (false, false): return "\(lesson.area) \u{2022} \(lesson.sequence)"
+        case (false, true): return lesson.area
+        case (true, false): return lesson.sequence
         default: return ""
         }
     }
@@ -239,10 +239,10 @@ struct PaperLessonCard: View {
                     lineWidth: 1
                 )
 
-            // Left accent bar with subject color
+            // Left accent bar with area color
             HStack {
                 Rectangle()
-                    .fill(subjectColor)
+                    .fill(areaColor)
                     .frame(width: 5)
                     .clipShape(
                         UnevenRoundedRectangle(
@@ -301,9 +301,9 @@ struct PaperLessonCard: View {
     let ctx = CoreDataStack.preview.viewContext
     let lesson = CDLesson(context: ctx)
     lesson.name = "Introduction to Decimal System"
-    lesson.subject = "Math"
-    lesson.group = "Number Work"
-    lesson.subheading = "Understanding base-10 and place value concepts"
+    lesson.area = "Math"
+    lesson.sequence = "Number Work"
+    lesson.section = "Understanding base-10 and place value concepts"
     lesson.writeUp = "This foundational presentation introduces students to the decimal system."
 
     return PaperLessonCard(
@@ -319,9 +319,9 @@ struct PaperLessonCard: View {
     let ctx = CoreDataStack.preview.viewContext
     let lesson = CDLesson(context: ctx)
     lesson.name = "Bird Observation Activity"
-    lesson.subject = "Science"
-    lesson.group = "Zoology"
-    lesson.subheading = ""
+    lesson.area = "Science"
+    lesson.sequence = "Zoology"
+    lesson.section = ""
     lesson.writeUp = "A custom observation activity for tracking local bird species in the school garden."
     lesson.source = .personal
     lesson.personalKind = .observation
@@ -339,7 +339,7 @@ struct PaperLessonCard: View {
     let ctx = CoreDataStack.preview.viewContext
     let lesson = CDLesson(context: ctx)
     lesson.name = "Parts of Speech"
-    lesson.subject = "Language"
+    lesson.area = "Language"
 
     return PaperLessonCard(
         lesson: lesson,

@@ -4,8 +4,8 @@ import CoreData
 // MARK: - Summary Section
 struct PresentationSummarySection: View {
     let lessonName: String
-    let subject: String
-    let subjectColor: Color
+    let area: String
+    let areaColor: Color
     let students: [CDStudent]
     let canMoveStudents: Bool
     let onMoveStudents: () -> Void
@@ -14,21 +14,21 @@ struct PresentationSummarySection: View {
     
     var body: some View {
         VStack(spacing: 16) {
-            // Title and subject badge
+            // Title and area badge
             HStack(alignment: .firstTextBaseline, spacing: 10) {
                 Text(lessonName)
                     .font(AppTheme.ScaledFont.titleLarge)
                     .multilineTextAlignment(.center)
                 
-                if !subject.isEmpty {
-                    Text(subject)
+                if !area.isEmpty {
+                    Text(area)
                         .font(AppTheme.ScaledFont.captionSemibold)
                         .padding(.horizontal, 10)
                         .padding(.vertical, 6)
-                        .foregroundStyle(subjectColor)
+                        .foregroundStyle(areaColor)
                         .background(
                             RoundedRectangle(cornerRadius: 16, style: .continuous)
-                                .fill(subjectColor.opacity(UIConstants.OpacityConstants.accent))
+                                .fill(areaColor.opacity(UIConstants.OpacityConstants.accent))
                         )
                 }
             }
@@ -62,7 +62,7 @@ struct PresentationSummarySection: View {
                 ForEach(students, id: \.id) { student in
                     StudentChip(
                         student: student,
-                        subjectColor: subjectColor,
+                        areaColor: areaColor,
                         onRemove: { onRemoveStudent(student) }
                     )
                 }

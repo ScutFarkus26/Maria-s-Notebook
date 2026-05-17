@@ -2,7 +2,7 @@
 //  PlanNextLessonService.swift
 //  Maria's Notebook
 //
-//  Unified service for planning the next lesson in a group/subject sequence.
+//  Unified service for planning the next lesson in a sequence/area sequence.
 //  Consolidates duplicate logic from PlanningWeekViewContent, PlanningActions,
 //  and PresentationDetailActions to ensure consistent behavior.
 //
@@ -10,7 +10,7 @@
 import Foundation
 import CoreData
 
-/// Service for finding and creating the next lesson in a subject/group sequence.
+/// Service for finding and creating the next lesson in a area/sequence sequence.
 /// Ensures consistent duplicate checking and creation logic across all entry points.
 @MainActor
 struct PlanNextLessonService {
@@ -23,30 +23,30 @@ struct PlanNextLessonService {
         case noNextLesson
         case noCurrentLesson
         case currentNotMastered(reason: String)
-        case emptySubjectOrGroup
+        case emptyAreaOrSequence
         case noStudents
     }
 
     // MARK: - Find Next CDLesson
 
-    /// Finds the next lesson in the same subject/group sequence.
+    /// Finds the next lesson in the same area/sequence sequence.
     /// - Parameters:
     ///   - current: The current lesson to find the successor for
     ///   - allLessons: All available lessons to search through
     /// - Returns: The next lesson in the sequence, or nil if none exists
     static func findNextLesson(after current: CDLesson, in allLessons: [CDLesson]) -> CDLesson? {
-        let currentSubject = current.subject.trimmed()
-        let currentGroup = current.group.trimmed()
+        let currentArea = current.area.trimmed()
+        let currentSequence = current.sequence.trimmed()
 
-        guard !currentSubject.isEmpty, !currentGroup.isEmpty else { return nil }
+        guard !currentArea.isEmpty, !currentSequence.isEmpty else { return nil }
 
-        // Find all lessons in the same subject/group, sorted by order
+        // Find all lessons in the same area/sequence, sorted by order
         let candidates = allLessons
             .filter { lesson in
-                lesson.subject.trimmed().caseInsensitiveCompare(currentSubject) == .orderedSame &&
-                lesson.group.trimmed().caseInsensitiveCompare(currentGroup) == .orderedSame
+                lesson.area.trimmed().caseInsensitiveCompare(currentArea) == .orderedSame &&
+                lesson.sequence.trimmed().caseInsensitiveCompare(currentSequence) == .orderedSame
             }
-            .sorted { $0.orderInGroup < $1.orderInGroup }
+            .sorted { $0.orderInSequence < $1.orderInSequence }
 
         // Find the current lesson's position and return the next one
         guard let currentIndex = candidates.firstIndex(where: { $0.id == current.id }),

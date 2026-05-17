@@ -77,7 +77,7 @@ struct SessionWorkAssignmentService {
         work.status = .active
         work.assignedAt = Date()
         work.dueAt = dueDate
-        work.studentID = ""  // Empty - offered to group
+        work.studentID = ""  // Empty - offered to sequence
         work.lessonID = lessonID.uuidString
         work.sourceContextType = .projectSession
         work.sourceContextID = session.id?.uuidString ?? ""
@@ -184,8 +184,8 @@ struct SessionWorkAssignmentService {
         let lesson = CDLesson(context: context)
         lesson.id = UUID()
         lesson.name = name
-        lesson.subject = "Projects"
-        lesson.group = "Project"
+        lesson.area = "Projects"
+        lesson.sequence = "Project"
         return lesson.id!
     }
 }

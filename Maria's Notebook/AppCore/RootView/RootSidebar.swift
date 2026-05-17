@@ -116,7 +116,7 @@ extension RootSidebar {
 
                 sidebarRow(.needsLesson, title: "Needs Lesson", systemImage: "clock.badge.exclamationmark")
 
-                sidebarRow(.smallGroupPlanner, title: "Group Planner", systemImage: "person.3.sequence")
+                sidebarRow(.smallSequencePlanner, title: "Group Planner", systemImage: "person.3.sequence")
 
                 sidebarRow(.planningChecklist, title: "Checklist", systemImage: "list.clipboard")
             }
@@ -325,14 +325,14 @@ extension RootSidebar {
                              title: "Needs Lesson",
                              systemImage: "clock.badge.exclamationmark",
                              hint: "See which students need a lesson based on days since last presentation")
-            iOSSidebarButton(.smallGroupPlanner,
+            iOSSidebarButton(.smallSequencePlanner,
                              title: "Group Planner",
                              systemImage: "person.3.sequence",
-                             hint: "Find ready and almost-ready students for group presentations")
+                             hint: "Find ready and almost-ready students for sequence presentations")
             iOSSidebarButton(.planningChecklist,
                              title: "Checklist",
                              systemImage: "list.clipboard",
-                             hint: "View class subject checklist")
+                             hint: "View class area checklist")
         }
     }
 
@@ -345,7 +345,7 @@ extension RootSidebar {
             iOSSidebarButton(.progressDashboard,
                              title: "Progress Dashboard",
                              systemImage: "person.text.rectangle",
-                             hint: "View per-student progress across all subjects")
+                             hint: "View per-student progress across all areas")
             iOSSidebarButton(.transitionPlanner,
                              title: "Transitions",
                              systemImage: "arrow.right.arrow.left",
@@ -361,7 +361,7 @@ extension RootSidebar {
             iOSSidebarButton(.curriculumBalance,
                              title: "Curriculum Balance",
                              systemImage: SFSymbol.Chart.chartPie,
-                             hint: "Analyze subject distribution and curriculum gaps")
+                             hint: "Analyze area distribution and curriculum gaps")
             iOSSidebarButton(.greatLessonsTimeline,
                              title: "Great Lessons",
                              systemImage: "sparkles",

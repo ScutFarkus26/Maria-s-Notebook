@@ -15,8 +15,8 @@ struct GreatLessonStudentProgressView: View {
                     .padding(.horizontal)
                     .padding(.top, 8)
 
-                // Subject breakdown
-                subjectBreakdown
+                // Area breakdown
+                areaBreakdown
                     .padding(.horizontal)
 
                 Divider()
@@ -61,21 +61,21 @@ struct GreatLessonStudentProgressView: View {
         }
     }
 
-    // MARK: - Subject Breakdown
+    // MARK: - Area Breakdown
 
-    private var subjectBreakdown: some View {
+    private var areaBreakdown: some View {
         VStack(alignment: .leading, spacing: 8) {
-            Text("Subjects & Groups")
+            Text("Areas & Groups")
                 .font(.subheadline)
                 .fontWeight(.semibold)
 
-            ForEach(branch.subjectGroups) { group in
+            ForEach(branch.areaSequences) { sequence in
                 HStack(spacing: 8) {
                     Circle()
-                        .fill(AppColors.color(forSubject: group.subject))
+                        .fill(AppColors.color(forArea: sequence.area))
                         .frame(width: 8, height: 8)
 
-                    Text(group.subject)
+                    Text(sequence.area)
                         .font(.subheadline)
                         .fontWeight(.medium)
 
@@ -83,13 +83,13 @@ struct GreatLessonStudentProgressView: View {
                         .font(.caption2)
                         .foregroundStyle(.quaternary)
 
-                    Text(group.group)
+                    Text(sequence.sequence)
                         .font(.subheadline)
                         .foregroundStyle(.secondary)
 
                     Spacer()
 
-                    Text("\(group.lessons.count) lessons")
+                    Text("\(sequence.lessons.count) lessons")
                         .font(.caption)
                         .foregroundStyle(.tertiary)
                 }
@@ -179,11 +179,11 @@ struct GreatLessonStudentProgressView: View {
             // Progress bar
             progressBar(value: student.completionPercentage)
 
-            // Gap subjects
-            if !student.gapSubjects.isEmpty {
+            // Gap areas
+            if !student.gapAreas.isEmpty {
                 FlowLayout(spacing: 4) {
-                    ForEach(student.gapSubjects, id: \.self) { subject in
-                        Text(subject)
+                    ForEach(student.gapAreas, id: \.self) { area in
+                        Text(area)
                             .font(.system(size: 9))
                             .foregroundStyle(AppColors.warning)
                             .padding(.horizontal, 6)

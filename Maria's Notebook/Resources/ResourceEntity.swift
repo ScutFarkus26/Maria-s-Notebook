@@ -16,7 +16,7 @@ public class CDResource: NSManagedObject {
     @NSManaged public var isFavorite: Bool
     @NSManaged public var lastViewedAt: Date?
     @NSManaged public var linkedLessonIDs: String
-    @NSManaged public var linkedSubjects: String
+    @NSManaged public var linkedAreas: String
     @NSManaged public var createdAt: Date?
     @NSManaged public var modifiedAt: Date?
 
@@ -37,7 +37,7 @@ public class CDResource: NSManagedObject {
         self.isFavorite = false
         self.lastViewedAt = nil
         self.linkedLessonIDs = ""
-        self.linkedSubjects = ""
+        self.linkedAreas = ""
         self.createdAt = Date()
         self.modifiedAt = Date()
     }

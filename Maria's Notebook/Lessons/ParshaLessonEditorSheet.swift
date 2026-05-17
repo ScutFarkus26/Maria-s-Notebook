@@ -139,7 +139,7 @@ struct ParshaLessonEditorSheet: View {
         } else {
             lesson = repo.createLesson(
                 name: trimmedName,
-                subject: "Parsha",
+                area: "Parsha",
                 ageRange: ageRange.trimmed(),
                 teacherNotes: teacherNotes
             )
@@ -186,8 +186,8 @@ private struct DerivedLessonPickerSheet: View {
                                     VStack(alignment: .leading, spacing: 2) {
                                         Text(lesson.name)
                                             .foregroundStyle(.primary)
-                                        if !lesson.subject.isEmpty {
-                                            Text(lesson.subject)
+                                        if !lesson.area.isEmpty {
+                                            Text(lesson.area)
                                                 .font(.caption)
                                                 .foregroundStyle(.secondary)
                                         }

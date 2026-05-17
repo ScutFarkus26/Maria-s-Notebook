@@ -73,7 +73,7 @@ final class InboxSheetViewModel {
 
         let groups = selectedLAs.grouped(by: { $0.lessonIDUUID })
         let currentOrder = orderedUnscheduledLessons.compactMap(\.id)
-        let (consolidatedGroups, deletedIDs) = applyGroupConsolidations(
+        let (consolidatedSequences, deletedIDs) = applySequenceConsolidations(
             groups, currentOrder: currentOrder, lessonAssignments: lessonAssignments, viewContext: viewContext
         )
 
@@ -85,14 +85,14 @@ final class InboxSheetViewModel {
         inboxOrderRaw.wrappedValue = serialized
         onUpdateOrder?(serialized)
 
-        let msg = consolidatedGroups == 1 ? "Consolidated 1 lesson" : "Consolidated \(consolidatedGroups) lessons"
+        let msg = consolidatedSequences == 1 ? "Consolidated 1 lesson" : "Consolidated \(consolidatedSequences) lessons"
         showToast(msg)
 
         selected.removeAll()
         appRouter.refreshPlanningInbox()
     }
 
-    private func applyGroupConsolidations(
+    private func applySequenceConsolidations(
         _ groups: [UUID?: [CDLessonAssignment]],
         currentOrder: [UUID],
         lessonAssignments: [CDLessonAssignment],

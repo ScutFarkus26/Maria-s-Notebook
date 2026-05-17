@@ -180,7 +180,7 @@ struct PresentationDetailContentView: View {
         VStack(spacing: 0) {
             ScrollView {
                 VStack(spacing: 0) {
-                    // 0. Group recap (shown when the lesson belongs to a group with data)
+                    // 0. Group recap (shown when the lesson belongs to a sequence with data)
                     groupRecapSection
                         .padding(.horizontal, 32)
                         .padding(.top, 16)
@@ -235,13 +235,13 @@ struct PresentationDetailContentView: View {
         }
         .onAppear {
             if vm.showLessonPicker { lessonPickerFocused = true }
-            vm.recomputeGroupRecap(currentLesson: currentLesson, students: selectedStudentsList)
+            vm.recomputeSequenceRecap(currentLesson: currentLesson, students: selectedStudentsList)
         }
         .onChange(of: vm.editingLessonID) { _, _ in
-            vm.recomputeGroupRecap(currentLesson: currentLesson, students: selectedStudentsList)
+            vm.recomputeSequenceRecap(currentLesson: currentLesson, students: selectedStudentsList)
         }
         .onChange(of: vm.selectedStudentIDs) { _, _ in
-            vm.recomputeGroupRecap(currentLesson: currentLesson, students: selectedStudentsList)
+            vm.recomputeSequenceRecap(currentLesson: currentLesson, students: selectedStudentsList)
         }
         .onDisappear {
             vm.flushNotesAutosaveIfNeeded()

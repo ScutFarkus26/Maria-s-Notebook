@@ -1,5 +1,5 @@
 // GoingOutCurriculumLinkSection.swift
-// Shows linked curriculum lessons with subject colors.
+// Shows linked curriculum lessons with area colors.
 
 import SwiftUI
 import CoreData
@@ -55,7 +55,7 @@ struct GoingOutCurriculumLinkSection: View {
                     ForEach(linkedLessons, id: \.objectID) { lesson in
                         HStack(spacing: 4) {
                             Circle()
-                                .fill(AppColors.color(forSubject: lesson.subject))
+                                .fill(AppColors.color(forArea: lesson.area))
                                 .frame(width: 6, height: 6)
                             Text(lesson.name)
                                 .font(.caption2)
@@ -75,7 +75,7 @@ struct GoingOutCurriculumLinkSection: View {
                         .padding(.vertical, 4)
                         .background(
                             Capsule(style: .continuous)
-                                .fill(AppColors.color(forSubject: lesson.subject).opacity(UIConstants.OpacityConstants.light))
+                                .fill(AppColors.color(forArea: lesson.area).opacity(UIConstants.OpacityConstants.light))
                         )
                     }
                 }
@@ -135,7 +135,7 @@ private struct LessonPickerList: View {
 
     @FetchRequest(
         sortDescriptors: [
-            NSSortDescriptor(keyPath: \CDLesson.subject, ascending: true),
+            NSSortDescriptor(keyPath: \CDLesson.area, ascending: true),
             NSSortDescriptor(keyPath: \CDLesson.sortIndex, ascending: true)
         ]
     ) private var lessons: FetchedResults<CDLesson>
@@ -148,7 +148,7 @@ private struct LessonPickerList: View {
         let query = searchText.lowercased()
         return all.filter {
             $0.name.lowercased().contains(query) ||
-            $0.subject.lowercased().contains(query)
+            $0.area.lowercased().contains(query)
         }
     }
 
@@ -161,7 +161,7 @@ private struct LessonPickerList: View {
                 } label: {
                     HStack(spacing: 10) {
                         Circle()
-                            .fill(AppColors.color(forSubject: lesson.subject))
+                            .fill(AppColors.color(forArea: lesson.area))
                             .frame(width: 8, height: 8)
 
                         VStack(alignment: .leading, spacing: 1) {
@@ -169,7 +169,7 @@ private struct LessonPickerList: View {
                                 .font(.subheadline)
                                 .foregroundStyle(.primary)
                                 .lineLimit(1)
-                            Text(lesson.subject)
+                            Text(lesson.area)
                                 .font(.caption2)
                                 .foregroundStyle(.secondary)
                         }

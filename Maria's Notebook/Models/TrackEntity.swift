@@ -10,7 +10,7 @@ public class CDTrackEntity: NSManagedObject {
 
     // MARK: - Relationships
     @NSManaged public var enrollments: NSSet?
-    @NSManaged public var groupTrack: CDGroupTrackEntity?
+    @NSManaged public var sequenceTrack: CDSequenceTrackEntity?
     @NSManaged public var steps: NSSet?
 
     // MARK: - Convenience Init

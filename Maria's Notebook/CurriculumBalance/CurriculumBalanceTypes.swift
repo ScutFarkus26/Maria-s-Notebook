@@ -1,6 +1,6 @@
 // CurriculumBalanceTypes.swift
 // Value types for the Curriculum Balance Analytics view.
-// Tracks subject distribution, weekly trends, and gap analysis.
+// Tracks area distribution, weekly trends, and gap analysis.
 
 import Foundation
 import SwiftUI
@@ -41,28 +41,28 @@ enum AnalyticsScope: String, CaseIterable, Identifiable {
     var id: String { rawValue }
 }
 
-/// Subject distribution data point for charts.
-struct SubjectDistribution: Identifiable {
-    var id: String { subject }
-    let subject: String
+/// Area distribution data point for charts.
+struct AreaDistribution: Identifiable {
+    var id: String { area }
+    let area: String
     let count: Int
     let percentage: Double  // 0.0 ... 1.0
     let color: Color
 }
 
-/// Weekly trend data point for a subject.
-struct SubjectWeeklyTrend: Identifiable {
-    var id: String { "\(subject)|\(Int(weekStart.timeIntervalSince1970))" }
-    let subject: String
+/// Weekly trend data point for a area.
+struct AreaWeeklyTrend: Identifiable {
+    var id: String { "\(area)|\(Int(weekStart.timeIntervalSince1970))" }
+    let area: String
     let weekStart: Date
     let count: Int
     let color: Color
 }
 
-/// Gap analysis entry — subject with notably low representation.
-struct SubjectGap: Identifiable {
-    var id: String { subject }
-    let subject: String
+/// Gap analysis entry — area with notably low representation.
+struct AreaGap: Identifiable {
+    var id: String { area }
+    let area: String
     let count: Int
     let classAverage: Double
     let deficit: Double  // how far below average (positive = gap)
@@ -77,8 +77,8 @@ struct StudentBalanceCard: Identifiable {
     let nickname: String?
     let level: CDStudent.Level
     let totalLessons: Int
-    let subjectCounts: [SubjectDistribution]
-    let gaps: [SubjectGap]
+    let areaCounts: [AreaDistribution]
+    let gaps: [AreaGap]
 
     var displayName: String { nickname ?? firstName }
 }

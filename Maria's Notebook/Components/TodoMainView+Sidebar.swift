@@ -11,10 +11,10 @@ extension TodoMainView {
     // iterating all todos and sorting on every body evaluation.
     var allUsedTags: [String] { cachedAllUsedTags }
 
-    /// All sidebar items (top-level tags + group names) in user-defined order.
+    /// All sidebar items (top-level tags + sequence names) in user-defined order.
     /// Items not yet in tagOrder are appended alphabetically.
     var orderedSidebarItems: [String] {
-        // Collect unique sidebar entries: top-level tag strings and group folder names (prefixed with "folder:")
+        // Collect unique sidebar entries: top-level tag strings and sequence folder names (prefixed with "folder:")
         var items: [String] = []
         var seen = Set<String>()
 
@@ -58,9 +58,9 @@ extension TodoMainView {
         allUsedTags.filter { TodoTagHelper.tagPathComponents($0).count <= 1 }
     }
 
-    func nestedTags(forGroup group: String) -> [String] {
+    func nestedTags(forSequence sequence: String) -> [String] {
         let nested = allUsedTags.filter {
-            TodoTagHelper.tagPathComponents($0).count > 1 && TodoTagHelper.rootTagName($0) == group
+            TodoTagHelper.tagPathComponents($0).count > 1 && TodoTagHelper.rootTagName($0) == sequence
         }
         // Sort children by position in tagOrder, then alphabetically
         let orderMap: [String: Int] = Dictionary(uniqueKeysWithValues: tagOrder.enumerated().map { ($1, $0) })
@@ -73,7 +73,7 @@ extension TodoMainView {
         }
     }
 
-    var groupedNestedTags: [(group: String, tags: [String])] {
+    var groupedNestedTags: [(sequence: String, tags: [String])] {
         let nested = allUsedTags.filter { TodoTagHelper.tagPathComponents($0).count > 1 }
         let grouped = Dictionary(grouping: nested, by: { TodoTagHelper.rootTagName($0) })
         return grouped
@@ -82,9 +82,9 @@ extension TodoMainView {
                     TodoTagHelper.leafTagName($0)
                         .localizedCaseInsensitiveCompare(TodoTagHelper.leafTagName($1)) == .orderedAscending
                 }
-                return (group: entry.key, tags: sortedTags)
+                return (sequence: entry.key, tags: sortedTags)
             }
-            .sorted { $0.group.localizedCaseInsensitiveCompare($1.group) == .orderedAscending }
+            .sorted { $0.sequence.localizedCaseInsensitiveCompare($1.sequence) == .orderedAscending }
     }
 
     func persistTagOrder() {
@@ -164,20 +164,20 @@ extension TodoMainView {
                 Section {
                     ForEach(orderedSidebarItems, id: \.self) { item in
                         if item.hasPrefix("folder:") {
-                            let groupName = String(item.dropFirst("folder:".count))
+                            let sequenceName = String(item.dropFirst("folder:".count))
                             DisclosureGroup(
                                 isExpanded: Binding(
-                                    get: { expandedTagGroups.contains(groupName) },
+                                    get: { expandedTagGroups.contains(sequenceName) },
                                     set: { isExpanded in
                                         if isExpanded {
-                                            expandedTagGroups.insert(groupName)
+                                            expandedTagGroups.insert(sequenceName)
                                         } else {
-                                            expandedTagGroups.remove(groupName)
+                                            expandedTagGroups.remove(sequenceName)
                                         }
                                     }
                                 )
                             ) {
-                                ForEach(nestedTags(forGroup: groupName), id: \.self) { childTag in
+                                ForEach(nestedTags(forSequence: sequenceName), id: \.self) { childTag in
                                     tagRow(
                                         tag: childTag,
                                         displayName: TodoTagHelper.leafTagName(childTag),
@@ -188,18 +188,18 @@ extension TodoMainView {
                                 }
                             } label: {
                                 HStack(spacing: 10) {
-                                    Image(systemName: selectedFolder == groupName ? "folder.fill" : "folder")
-                                        .foregroundStyle(selectedFolder == groupName ? Color.accentColor : .secondary)
+                                    Image(systemName: selectedFolder == sequenceName ? "folder.fill" : "folder")
+                                        .foregroundStyle(selectedFolder == sequenceName ? Color.accentColor : .secondary)
                                         .font(.system(size: 12, weight: .semibold))
                                         .frame(width: 10)
 
-                                    Text(groupName)
+                                    Text(sequenceName)
                                         .font(AppTheme.ScaledFont.bodySemibold)
-                                        .foregroundStyle(selectedFolder == groupName ? Color.accentColor : .primary)
+                                        .foregroundStyle(selectedFolder == sequenceName ? Color.accentColor : .primary)
 
                                     Spacer()
 
-                                    if selectedFolder == groupName {
+                                    if selectedFolder == sequenceName {
                                         Image(systemName: "line.3.horizontal.decrease.circle.fill")
                                             .font(.system(size: 13))
                                             .foregroundStyle(Color.accentColor)
@@ -209,13 +209,13 @@ extension TodoMainView {
                                 .contentShape(Rectangle())
                                 .onTapGesture {
                                     adaptiveWithAnimation(.snappy(duration: 0.2)) {
-                                        if selectedFolder == groupName {
+                                        if selectedFolder == sequenceName {
                                             // Deselect folder
                                             selectedFolder = nil
                                             selectedFilter = .inbox
                                         } else {
                                             // Select folder -- show all items with tags in this folder
-                                            selectedFolder = groupName
+                                            selectedFolder = sequenceName
                                             selectedTag = nil
                                             selectedFilter = nil
                                         }
@@ -226,7 +226,7 @@ extension TodoMainView {
                                         Image(systemName: "folder")
                                             .foregroundStyle(.secondary)
                                             .font(.system(size: 12, weight: .semibold))
-                                        Text(groupName)
+                                        Text(sequenceName)
                                             .font(AppTheme.ScaledFont.captionSemibold)
                                     }
                                     .padding(.horizontal, 8)

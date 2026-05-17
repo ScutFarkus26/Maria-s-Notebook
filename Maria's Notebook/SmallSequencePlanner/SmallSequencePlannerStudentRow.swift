@@ -1,10 +1,10 @@
-// SmallGroupPlannerStudentRow.swift
+// SmallSequencePlannerStudentRow.swift
 // Reusable student row with checkbox, initials, name, level badge, and blocking reason capsules.
 
 import SwiftUI
 
-struct SmallGroupPlannerStudentRow: View {
-    let student: GroupStudentStatus
+struct SmallSequencePlannerStudentRow: View {
+    let student: SequenceStudentStatus
     let isSelected: Bool
     let onToggle: () -> Void
     var onConfirmMastery: ((UUID) -> Void)?
@@ -69,7 +69,7 @@ struct SmallGroupPlannerStudentRow: View {
         }
     }
 
-    private func blockingReasonCapsule(_ reason: GroupBlockingReason) -> some View {
+    private func blockingReasonCapsule(_ reason: SequenceBlockingReason) -> some View {
         HStack(spacing: 4) {
             Image(systemName: reason.icon)
                 .font(.system(size: 9))

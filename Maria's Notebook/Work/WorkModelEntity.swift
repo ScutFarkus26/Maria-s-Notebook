@@ -104,7 +104,7 @@ extension CDWorkModel {
         set { sourceContextTypeRaw = newValue?.rawValue }
     }
 
-    /// Check-in style for multi-student work (individual, group, flexible)
+    /// Check-in style for multi-student work (individual, sequence, flexible)
     var checkInStyle: CheckInStyle {
         get { checkInStyleRaw.flatMap { CheckInStyle(rawValue: $0) } ?? .flexible }
         set { checkInStyleRaw = newValue.rawValue }

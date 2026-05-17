@@ -78,12 +78,12 @@ final class ThreeYearCycleViewModel {
         let lessonRequest = CDFetchRequest(CDLesson.self)
         let allLessons = context.safeFetch(lessonRequest)
 
-        // Build lessons-by-subject index
-        var lessonsBySubject: [String: [CDLesson]] = [:]
+        // Build lessons-by-area index
+        var lessonsByArea: [String: [CDLesson]] = [:]
         var lessonIDSet: Set<String> = []
         for lesson in allLessons {
             guard let lid = lesson.id else { continue }
-            lessonsBySubject[lesson.subject, default: []].append(lesson)
+            lessonsByArea[lesson.area, default: []].append(lesson)
             lessonIDSet.insert(lid.uuidString)
         }
         let totalLessonsAvailable = allLessons.count
@@ -107,7 +107,7 @@ final class ThreeYearCycleViewModel {
         }
 
         // Build per-student cards
-        let subjects = Array(lessonsBySubject.keys).sorted()
+        let areas = Array(lessonsByArea.keys).sorted()
 
         studentCards = allStudents.compactMap { student in
             guard let sid = student.id else { return nil }
@@ -120,22 +120,22 @@ final class ThreeYearCycleViewModel {
                 ? Double(presentedCount) / Double(totalLessonsAvailable)
                 : 0.0
 
-            // Per-subject coverage
-            let subjectCoverage: [SubjectCoverage] = subjects.compactMap { subject in
-                guard let lessons = lessonsBySubject[subject] else { return nil }
+            // Per-area coverage
+            let areaCoverage: [AreaCoverage] = areas.compactMap { area in
+                guard let lessons = lessonsByArea[area] else { return nil }
                 let total = lessons.count
                 guard total > 0 else { return nil }
                 let presented = lessons.filter { lesson in
                     guard let lid = lesson.id else { return false }
                     return presentedLessonIDs.contains(lid.uuidString)
                 }.count
-                return SubjectCoverage(
-                    id: subject,
-                    subject: subject,
+                return AreaCoverage(
+                    id: area,
+                    area: area,
                     presented: presented,
                     total: total,
                     percentage: Double(presented) / Double(total),
-                    color: AppColors.color(forSubject: subject)
+                    color: AppColors.color(forArea: area)
                 )
             }
 
@@ -155,7 +155,7 @@ final class ThreeYearCycleViewModel {
                 totalLessonsPresented: presentedCount,
                 totalLessonsAvailable: totalLessonsAvailable,
                 coveragePercentage: coveragePercentage,
-                subjectCoverage: subjectCoverage,
+                areaCoverage: areaCoverage,
                 paceIndicator: pace
             )
         }

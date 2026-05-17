@@ -2,7 +2,7 @@ import SwiftUI
 import CoreData
 
 /// Card view displaying a single AI-generated lesson recommendation.
-/// Shows lesson name, subject tag, student names, confidence badge, and reasoning.
+/// Shows lesson name, area tag, student names, confidence badge, and reasoning.
 /// Provides accept/reject/ask-why actions.
 struct PlanningRecommendationCard: View {
     let recommendation: LessonRecommendation
@@ -33,9 +33,9 @@ struct PlanningRecommendationCard: View {
                         .lineLimit(2)
                     
                     HStack(spacing: 6) {
-                        subjectTag
-                        if !recommendation.group.isEmpty {
-                            Text(recommendation.group)
+                        areaTag
+                        if !recommendation.sequence.isEmpty {
+                            Text(recommendation.sequence)
                                 .font(.caption2)
                                 .foregroundStyle(.secondary)
                         }
@@ -90,14 +90,14 @@ struct PlanningRecommendationCard: View {
     
     // MARK: - Components
     
-    private var subjectTag: some View {
-        Text(recommendation.subject)
+    private var areaTag: some View {
+        Text(recommendation.area)
             .font(.caption2)
             .fontWeight(.medium)
             .padding(.horizontal, 8)
             .padding(.vertical, 3)
-            .background(AppColors.color(forSubject: recommendation.subject).opacity(UIConstants.OpacityConstants.accent), in: Capsule())
-            .foregroundStyle(AppColors.color(forSubject: recommendation.subject))
+            .background(AppColors.color(forArea: recommendation.area).opacity(UIConstants.OpacityConstants.accent), in: Capsule())
+            .foregroundStyle(AppColors.color(forArea: recommendation.area))
     }
     
     private var confidenceBadge: some View {

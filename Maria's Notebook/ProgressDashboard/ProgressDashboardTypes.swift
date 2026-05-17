@@ -17,11 +17,11 @@ struct StudentDashboardCard: Identifiable {
     }
 }
 
-/// A single subject+group row for one student.
+/// A single area+sequence row for one student.
 struct StudentCategoryProgress: Identifiable {
-    let id: String // "\(studentID)|\(subject)|\(group)"
-    let subject: String
-    let group: String
+    let id: String // "\(studentID)|\(area)|\(sequence)"
+    let area: String
+    let sequence: String
     let previousLesson: PreviousLessonSummary?
     let openWork: [OpenWorkSummary]
     let nextLesson: NextLessonInfo?

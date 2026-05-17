@@ -13,8 +13,8 @@ struct LessonRow: View {
 
     /// The style of secondary text to display
     enum SecondaryTextStyle {
-        case subjectAndGroup  // Shows "subject · group"
-        case subheading       // Shows subheading if present
+        case areaAndSequence  // Shows "area · sequence"
+        case section       // Shows section if present
     }
 
     let secondaryTextStyle: SecondaryTextStyle
@@ -30,7 +30,7 @@ struct LessonRow: View {
 
     init(
         lesson: CDLesson,
-        secondaryTextStyle: SecondaryTextStyle = .subheading,
+        secondaryTextStyle: SecondaryTextStyle = .section,
         showTagIcon: Bool = false,
         onViewDetails: (() -> Void)? = nil,
         onCopyName: (() -> Void)? = nil,
@@ -49,18 +49,18 @@ struct LessonRow: View {
             VStack(alignment: .leading, spacing: 3) {
                 Text(lesson.name.isEmpty ? "Untitled Lesson" : lesson.name)
                     .font(.system(.body, design: .rounded).weight(.semibold))
-                    .lineLimit(secondaryTextStyle == .subjectAndGroup ? 1 : nil)
+                    .lineLimit(secondaryTextStyle == .areaAndSequence ? 1 : nil)
                 
                 Group {
                     switch secondaryTextStyle {
-                    case .subjectAndGroup:
-                        Text("\(lesson.subject) · \(lesson.group)")
+                    case .areaAndSequence:
+                        Text("\(lesson.area) · \(lesson.sequence)")
                             .font(.caption)
                             .foregroundStyle(.secondary)
                             .lineLimit(1)
-                    case .subheading:
-                        if !lesson.subheading.isEmpty {
-                            Text(lesson.subheading)
+                    case .section:
+                        if !lesson.section.isEmpty {
+                            Text(lesson.section)
                                 .font(.caption)
                                 .foregroundStyle(.secondary)
                                 .lineLimit(1)
@@ -78,7 +78,7 @@ struct LessonRow: View {
                     .foregroundStyle(.secondary.opacity(0.45))
             }
         }
-        .padding(.vertical, secondaryTextStyle == .subjectAndGroup ? 6 : 2)
+        .padding(.vertical, secondaryTextStyle == .areaAndSequence ? 6 : 2)
         .contentShape(Rectangle())
         .hoverableRow()
         .contextMenu {
@@ -117,7 +117,7 @@ struct LessonRow: View {
             Button {
                 copyLessonInfo()
             } label: {
-                Label("Copy Subject & Group", systemImage: "doc.on.clipboard")
+                Label("Copy Area & Group", systemImage: "doc.on.clipboard")
             }
 
             if let onDelete {
@@ -143,7 +143,7 @@ struct LessonRow: View {
     }
 
     private func copyLessonInfo() {
-        let info = "\(lesson.subject) · \(lesson.group)"
+        let info = "\(lesson.area) · \(lesson.sequence)"
         #if os(macOS)
         NSPasteboard.general.clearContents()
         NSPasteboard.general.setString(info, forType: .string)

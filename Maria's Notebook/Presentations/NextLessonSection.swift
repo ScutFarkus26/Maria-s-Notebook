@@ -165,7 +165,7 @@ struct NextLessonSection: View {
         HStack(spacing: 8) {
             Image(systemName: "checkmark.circle")
                 .foregroundStyle(.tertiary)
-            Text("No next lesson in this group")
+            Text("No next lesson in this sequence")
                 .font(AppTheme.ScaledFont.caption)
                 .foregroundStyle(.tertiary)
         }

@@ -28,7 +28,7 @@ extension BackupEntityImporter {
                 r.tags = dto.tags as NSArray
                 r.isFavorite = dto.isFavorite
                 r.linkedLessonIDs = dto.linkedLessonIDs
-                r.linkedSubjects = dto.linkedSubjects
+                r.linkedAreas = dto.linkedAreas
                 r.lastViewedAt = dto.lastViewedAt
                 r.createdAt = dto.createdAt
                 r.modifiedAt = dto.modifiedAt

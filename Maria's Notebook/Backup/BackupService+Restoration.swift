@@ -444,11 +444,11 @@ extension BackupService {
             )
         }
 
-        if let groupTracks = payload.groupTracks {
-            try BackupEntityImporter.importGroupTracks(
-                groupTracks,
+        if let sequenceTracks = payload.sequenceTracks {
+            try BackupEntityImporter.importSequenceTracks(
+                sequenceTracks,
                 into: viewContext,
-                existingCheck: { try fetchOne(CDGroupTrack.self, id: $0, using: viewContext) }
+                existingCheck: { try fetchOne(CDSequenceTrack.self, id: $0, using: viewContext) }
             )
         }
     }

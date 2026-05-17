@@ -65,9 +65,9 @@ extension LessonPlanningService {
 
         // Readiness summary (very condensed)
         for profile in session.readinessProfiles.prefix(5) {
-            let subjects = profile.subjectReadiness.filter { $0.nextLessonID != nil }.prefix(3)
-            let subjectStr = subjects.map { "\($0.subject):\($0.nextLessonName ?? "?")" }.joined(separator: ", ")
-            lines.append("\(profile.studentName): \(subjectStr)")
+            let areas = profile.areaReadiness.filter { $0.nextLessonID != nil }.prefix(3)
+            let areaStr = areas.map { "\($0.area):\($0.nextLessonName ?? "?")" }.joined(separator: ", ")
+            lines.append("\(profile.studentName): \(areaStr)")
         }
 
         // Include recent messages (condensed)
@@ -84,8 +84,8 @@ extension LessonPlanningService {
         let simplified = recs.map { rec in
             [
                 "lessonName": rec.lessonName,
-                "subject": rec.subject,
-                "group": rec.group,
+                "area": rec.area,
+                "sequence": rec.sequence,
                 "studentNames": rec.studentNames.joined(separator: ", "),
                 "reasoning": rec.reasoning,
                 "confidence": String(format: "%.2f", rec.confidence),
@@ -101,10 +101,10 @@ extension LessonPlanningService {
         return str
     }
 
-    func buildPreferencesString(subjectFilter: String?, extra: String?) -> String? {
+    func buildPreferencesString(areaFilter: String?, extra: String?) -> String? {
         var parts: [String] = []
-        if let subject = subjectFilter {
-            parts.append("Focus on \(subject)")
+        if let area = areaFilter {
+            parts.append("Focus on \(area)")
         }
         if let extra {
             parts.append(extra)
@@ -117,9 +117,9 @@ extension LessonPlanningService {
     func fetchAllLessons() -> [CDLesson] {
         let request = CDFetchRequest(CDLesson.self)
         request.sortDescriptors = [
-            NSSortDescriptor(key: "subject", ascending: true),
-            NSSortDescriptor(key: "group", ascending: true),
-            NSSortDescriptor(key: "orderInGroup", ascending: true)
+            NSSortDescriptor(key: "area", ascending: true),
+            NSSortDescriptor(key: "sequence", ascending: true),
+            NSSortDescriptor(key: "orderInSequence", ascending: true)
         ]
         return managedObjectContext.safeFetch(request)
     }

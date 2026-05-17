@@ -83,7 +83,7 @@ enum BlockingCacheBuilder {
             return nil // No preceding lesson means no prerequisites
         }
 
-        // Find the CDLessonAssignment for the preceding lesson with the same student group
+        // Find the CDLessonAssignment for the preceding lesson with the same student sequence
         let studentIDs = Set(la.resolvedStudentIDs.map(\.uuidString))
 
         guard let precedingLessonID = precedingLesson.id?.uuidString else {
