@@ -22,26 +22,37 @@ extension BackupService {
         password: String?,
         progress: @escaping ProgressCallback
     ) throws -> (envelope: BackupEnvelope, payload: BackupPayload) {
-        progress(0.05, "Reading file\u{2026}")
-        let data = try Data(contentsOf: url)
+        let log = Logger.backup
+        do {
+            progress(0.05, "Reading file\u{2026}")
+            let data = try Data(contentsOf: url)
+            log.info("loadAndDecodeBackup: read \(data.count) bytes from \(url.lastPathComponent, privacy: .public)")
 
-        try validateBackupData(data)
+            try validateBackupData(data)
 
-        let decoder = JSONDecoder()
-        decoder.dateDecodingStrategy = .iso8601
-        let envelope = try decodeEnvelope(from: data, decoder: decoder)
+            let decoder = JSONDecoder()
+            decoder.dateDecodingStrategy = .iso8601
+            let envelope = try decodeEnvelope(from: data, decoder: decoder)
+            log.info("loadAndDecodeBackup: envelope format=\(envelope.formatVersion, privacy: .public)")
 
-        let payloadBytes = try extractPayloadBytes(
-            from: envelope,
-            password: password,
-            progress: progress
-        )
+            let payloadBytes = try extractPayloadBytes(
+                from: envelope,
+                password: password,
+                progress: progress
+            )
+            log.info("loadAndDecodeBackup: extracted \(payloadBytes.count) payload bytes")
 
-        try validateChecksum(payloadBytes, against: envelope.manifest.sha256, progress: progress)
+            try validateChecksum(payloadBytes, against: envelope.manifest.sha256, progress: progress)
 
-        let payload = try decodePayload(from: payloadBytes, decoder: decoder)
+            let payload = try decodePayload(from: payloadBytes, decoder: decoder)
+            log.info("loadAndDecodeBackup: decoded payload with \(payload.lessons.count) lessons")
 
-        return (envelope, payload)
+            return (envelope, payload)
+        } catch {
+            let ns = error as NSError
+            log.error("loadAndDecodeBackup failed: domain=\(ns.domain, privacy: .public) code=\(ns.code) desc=\(ns.localizedDescription, privacy: .public) underlying=\(String(describing: ns.userInfo[NSUnderlyingErrorKey]), privacy: .public)")
+            throw error
+        }
     }
 
     // MARK: - Entity Fetch

@@ -322,6 +322,20 @@ enum BackupServiceHelpers {
             )
         }
     }
+
+    /// Rewrites pre-v16 top-level payload keys to their current spelling so old
+    /// backups remain restorable. Per-entity field renames are handled by the
+    /// DTOs' custom decoders in `BackupTypes+LegacyKeyDecoding.swift`.
+    nonisolated static func renameLegacyPayloadKeys(in data: Data) -> Data {
+        guard
+            let parsed = try? JSONSerialization.jsonObject(with: data, options: [.mutableContainers]),
+            var dict = parsed as? [String: Any]
+        else { return data }
+        if dict["sequenceTracks"] == nil, let legacy = dict.removeValue(forKey: "groupTracks") {
+            dict["sequenceTracks"] = legacy
+        }
+        return (try? JSONSerialization.data(withJSONObject: dict, options: [.sortedKeys])) ?? data
+    }
 }
 
 /// Helper for deduplicating backup payloads

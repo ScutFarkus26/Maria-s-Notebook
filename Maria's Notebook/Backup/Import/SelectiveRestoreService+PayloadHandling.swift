@@ -45,7 +45,8 @@ extension SelectiveRestoreService {
             ])
         }
 
-        return try decoder.decode(BackupPayload.self, from: payloadBytes)
+        let normalized = BackupServiceHelpers.renameLegacyPayloadKeys(in: payloadBytes)
+        return try decoder.decode(BackupPayload.self, from: normalized)
     }
 
     // MARK: - Cache Helpers

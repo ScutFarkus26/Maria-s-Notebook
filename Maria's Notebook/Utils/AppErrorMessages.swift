@@ -132,7 +132,7 @@ enum AppErrorMessages {
                 break
             }
         }
-        return "Couldn't \(operation). Make sure you have enough storage space and try again."
+        return "Couldn't \(operation): \(nsError.localizedDescription) [domain=\(nsError.domain) code=\(nsError.code)]"
     }
 
     /// User-friendly message for calendar/reminder sync failures.

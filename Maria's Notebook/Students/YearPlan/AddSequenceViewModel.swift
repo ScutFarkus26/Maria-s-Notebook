@@ -184,7 +184,7 @@ final class AddSequenceViewModel {
             entry.lessonID = item.id.uuidString
             entry.plannedDate = item.date
             entry.spacingSchoolDays = Int64(spacingDays)
-            entry.sequenceKey = sequenceKey
+            entry.sequenceGroupKey = sequenceKey
             entry.orderInSequence = Int64(item.orderInSequence)
             entry.status = .planned
         }

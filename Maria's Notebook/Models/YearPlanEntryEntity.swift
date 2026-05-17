@@ -8,7 +8,7 @@ public class CDYearPlanEntry: NSManagedObject {
     @NSManaged public var lessonID: String
     @NSManaged public var plannedDate: Date?
     @NSManaged public var spacingSchoolDays: Int64
-    @NSManaged public var sequenceKey: String
+    @NSManaged public var sequenceGroupKey: String
     @NSManaged public var orderInSequence: Int64
     @NSManaged public var statusRaw: String
     @NSManaged public var promotedAssignmentID: String?
@@ -24,7 +24,7 @@ public class CDYearPlanEntry: NSManagedObject {
         self.lessonID = ""
         self.plannedDate = nil
         self.spacingSchoolDays = 3
-        self.sequenceKey = ""
+        self.sequenceGroupKey = ""
         self.orderInSequence = 0
         self.statusRaw = YearPlanEntryStatus.planned.rawValue
         self.promotedAssignmentID = nil

@@ -85,7 +85,7 @@ enum SequenceAutoPopulateService {
                 entry.lessonID = lessonIDStr
                 entry.plannedDate = currentDate
                 entry.spacingSchoolDays = defaultSpacing
-                entry.sequenceKey = sequenceKey
+                entry.sequenceGroupKey = sequenceKey
                 entry.orderInSequence = Int64(index)
 
                 if isFirstEntry {

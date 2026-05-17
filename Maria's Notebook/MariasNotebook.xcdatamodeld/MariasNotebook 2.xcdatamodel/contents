@@ -20,11 +20,11 @@
     <entity name="Lesson" representedClassName="CDLesson" syncable="YES">
         <attribute name="id" optional="YES" attributeType="UUID" usesScalarValueType="NO"/>
         <attribute name="name" attributeType="String" defaultValueString=""/>
-        <attribute name="subject" attributeType="String" defaultValueString=""/>
-        <attribute name="group" attributeType="String" defaultValueString=""/>
-        <attribute name="orderInGroup" attributeType="Integer 64" defaultValueString="0" usesScalarValueType="YES"/>
+        <attribute name="area" attributeType="String" defaultValueString="" renamingIdentifier="subject"/>
+        <attribute name="sequence" attributeType="String" defaultValueString="" renamingIdentifier="group"/>
+        <attribute name="orderInSequence" attributeType="Integer 64" defaultValueString="0" usesScalarValueType="YES" renamingIdentifier="orderInGroup"/>
         <attribute name="sortIndex" attributeType="Integer 64" defaultValueString="0" usesScalarValueType="YES"/>
-        <attribute name="subheading" attributeType="String" defaultValueString=""/>
+        <attribute name="section" attributeType="String" defaultValueString="" renamingIdentifier="subheading"/>
         <attribute name="writeUp" attributeType="String" defaultValueString=""/>
         <attribute name="suggestedFollowUpWork" attributeType="String" defaultValueString=""/>
         <attribute name="materials" attributeType="String" defaultValueString=""/>
@@ -154,7 +154,7 @@
         <attribute name="scheduledForDay" optional="YES" attributeType="Date" usesScalarValueType="NO"/>
         <attribute name="presentedAt" optional="YES" attributeType="Date" usesScalarValueType="NO"/>
         <attribute name="lessonTitleSnapshot" optional="YES" attributeType="String"/>
-        <attribute name="lessonSubheadingSnapshot" optional="YES" attributeType="String"/>
+        <attribute name="lessonSectionSnapshot" optional="YES" attributeType="String" renamingIdentifier="lessonSubheadingSnapshot"/>
         <attribute name="needsPractice" attributeType="Boolean" defaultValueString="NO" usesScalarValueType="YES"/>
         <attribute name="needsAnotherPresentation" attributeType="Boolean" defaultValueString="NO" usesScalarValueType="YES"/>
         <attribute name="followUpWork" attributeType="String" defaultValueString=""/>
@@ -255,14 +255,14 @@
         <attribute name="studentID" optional="YES" attributeType="String"/>
     </entity>
     <!-- ==================== GroupTrack ==================== -->
-    <entity name="GroupTrack" representedClassName="CDGroupTrackEntity" syncable="YES">
+    <entity name="SequenceTrack" representedClassName="CDSequenceTrackEntity" renamingIdentifier="GroupTrack" syncable="YES">
         <attribute name="id" optional="YES" attributeType="UUID" usesScalarValueType="NO"/>
-        <attribute name="subject" attributeType="String" defaultValueString=""/>
-        <attribute name="group" attributeType="String" defaultValueString=""/>
+        <attribute name="area" attributeType="String" defaultValueString="" renamingIdentifier="subject"/>
+        <attribute name="sequence" attributeType="String" defaultValueString="" renamingIdentifier="group"/>
         <attribute name="isSequential" attributeType="Boolean" defaultValueString="YES" usesScalarValueType="YES"/>
         <attribute name="isExplicitlyDisabled" attributeType="Boolean" defaultValueString="NO" usesScalarValueType="YES"/>
         <attribute name="createdAt" optional="YES" attributeType="Date" usesScalarValueType="NO"/>
-        <relationship name="track" optional="YES" maxCount="1" deletionRule="Nullify" destinationEntity="Track" inverseName="groupTrack" inverseEntity="Track"/>
+        <relationship name="track" optional="YES" maxCount="1" deletionRule="Nullify" destinationEntity="Track" inverseName="sequenceTrack" inverseEntity="Track"/>
     </entity>
     <!-- ==================== Issue ==================== -->
     <entity name="Issue" representedClassName="CDIssue" syncable="YES">
@@ -500,7 +500,7 @@
         <attribute name="title" attributeType="String" defaultValueString=""/>
         <attribute name="createdAt" optional="YES" attributeType="Date" usesScalarValueType="NO"/>
         <relationship name="enrollments" optional="YES" toMany="YES" deletionRule="Cascade" destinationEntity="StudentTrackEnrollment" inverseName="track" inverseEntity="StudentTrackEnrollment"/>
-        <relationship name="groupTrack" optional="YES" maxCount="1" deletionRule="Nullify" destinationEntity="GroupTrack" inverseName="track" inverseEntity="GroupTrack"/>
+        <relationship name="sequenceTrack" optional="YES" maxCount="1" deletionRule="Nullify" destinationEntity="SequenceTrack" inverseName="track" inverseEntity="SequenceTrack" renamingIdentifier="groupTrack"/>
         <relationship name="steps" optional="YES" toMany="YES" deletionRule="Cascade" destinationEntity="TrackStep" inverseName="track" inverseEntity="TrackStep"/>
     </entity>
     <!-- ==================== TrackStep ==================== -->
@@ -803,7 +803,7 @@
         <attribute name="isFavorite" attributeType="Boolean" defaultValueString="NO" usesScalarValueType="YES"/>
         <attribute name="lastViewedAt" optional="YES" attributeType="Date" usesScalarValueType="NO"/>
         <attribute name="linkedLessonIDs" attributeType="String" defaultValueString=""/>
-        <attribute name="linkedSubjects" attributeType="String" defaultValueString=""/>
+        <attribute name="linkedAreas" attributeType="String" defaultValueString="" renamingIdentifier="linkedSubjects"/>
         <attribute name="createdAt" optional="YES" attributeType="Date" usesScalarValueType="NO"/>
         <attribute name="modifiedAt" optional="YES" attributeType="Date" usesScalarValueType="NO"/>
     </entity>
@@ -885,10 +885,10 @@
         <attribute name="modifiedAt" optional="YES" attributeType="Date" usesScalarValueType="NO"/>
     </entity>
     <!-- ==================== LessonGroupSettings ==================== -->
-    <entity name="LessonGroupSettings" representedClassName="CDLessonGroupSettings" syncable="YES">
+    <entity name="LessonSequenceSettings" representedClassName="CDLessonSequenceSettings" renamingIdentifier="LessonGroupSettings" syncable="YES">
         <attribute name="id" optional="YES" attributeType="UUID" usesScalarValueType="NO"/>
-        <attribute name="subject" attributeType="String" defaultValueString=""/>
-        <attribute name="group" attributeType="String" defaultValueString=""/>
+        <attribute name="area" attributeType="String" defaultValueString="" renamingIdentifier="subject"/>
+        <attribute name="sequence" attributeType="String" defaultValueString="" renamingIdentifier="group"/>
         <attribute name="requiresPractice" attributeType="Boolean" defaultValueString="YES" usesScalarValueType="YES"/>
         <attribute name="requiresTeacherConfirmation" attributeType="Boolean" defaultValueString="YES" usesScalarValueType="YES"/>
         <attribute name="createdAt" optional="YES" attributeType="Date" usesScalarValueType="NO"/>

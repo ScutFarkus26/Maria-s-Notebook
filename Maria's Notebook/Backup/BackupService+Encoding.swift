@@ -93,12 +93,36 @@ extension BackupService {
     }
 
     func decodePayload(from data: Data, decoder: JSONDecoder) throws -> BackupPayload {
+        let normalized = BackupServiceHelpers.renameLegacyPayloadKeys(in: data)
         do {
-            return try decoder.decode(BackupPayload.self, from: data)
+            return try decoder.decode(BackupPayload.self, from: normalized)
+        } catch let decodingError as DecodingError {
+            let detail = Self.describe(decodingError)
+            throw NSError(domain: "BackupService", code: 1108, userInfo: [
+                NSLocalizedDescriptionKey: "Failed to decode backup payload: \(detail)"
+            ])
         } catch {
             throw NSError(domain: "BackupService", code: 1108, userInfo: [
                 NSLocalizedDescriptionKey: "Failed to decode backup payload: \(error.localizedDescription)"
             ])
+        }
+    }
+
+    private static func describe(_ error: DecodingError) -> String {
+        func pathString(_ path: [CodingKey]) -> String {
+            path.map { $0.intValue.map { "[\($0)]" } ?? ".\($0.stringValue)" }.joined()
+        }
+        switch error {
+        case .keyNotFound(let key, let ctx):
+            return "missing key '\(key.stringValue)' at path '\(pathString(ctx.codingPath))'"
+        case .valueNotFound(let type, let ctx):
+            return "missing value of type \(type) at path '\(pathString(ctx.codingPath))'"
+        case .typeMismatch(let type, let ctx):
+            return "type mismatch expected \(type) at path '\(pathString(ctx.codingPath))' — \(ctx.debugDescription)"
+        case .dataCorrupted(let ctx):
+            return "data corrupted at path '\(pathString(ctx.codingPath))' — \(ctx.debugDescription)"
+        @unknown default:
+            return "unknown decoding error: \(error.localizedDescription)"
         }
     }
 }
