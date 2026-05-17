@@ -28,8 +28,8 @@ enum LessonsDisplayMode: String, CaseIterable, Identifiable {
 
     var displayName: String {
         switch self {
-        case .browse: return "Browse"
-        case .outline: return "Outline"
+        case .browse: return "Cards"
+        case .outline: return "List"
         case .map: return "Map"
         }
     }
@@ -95,7 +95,7 @@ struct LessonsRootView: View {
     // MARK: - Scene Storage
     @SceneStorage("Lessons.selectedSubject") var selectedSubjectRaw: String = ""
     @SceneStorage("Lessons.searchText") var searchTextRaw: String = ""
-    @SceneStorage("Lessons.displayMode") var displayModeRaw: String = LessonsDisplayMode.browse.rawValue
+    @SceneStorage("Lessons.displayMode") var displayModeRaw: String = LessonsDisplayMode.outline.rawValue
     @SceneStorage("Lessons.detailPaneWidth") var detailPaneWidth: Double = 520
     @AppStorage("Lessons.mapSpine") var mapSpineRaw: String = MapSpine.subject.rawValue
 
@@ -109,6 +109,9 @@ struct LessonsRootView: View {
     @State var selectedLessonDetail: CDLesson?
     @State var showingAddLesson = false
     @State var showingBulkEntry = false
+
+    // MARK: - Editing State
+    @State var isEditingSequence: Bool = false
 
     // MARK: - Reordering State
     @State var detailPaneDragStartWidth: CGFloat?
@@ -167,12 +170,16 @@ struct LessonsRootView: View {
     /// Sentinel value for the "Parshas" sidebar entry (parsha-indexed lesson browser)
     static let parshasSentinel = "__parshas__"
 
+    /// Sentinel value for the "All Lessons" sidebar entry (cross-subject browser)
+    static let allLessonsSentinel = "__all__"
+
     var lessonsForSubject: [CDLesson] {
         // Parshas sentinel renders its own column (ParshaBrowseView); the regular lesson
         // list is irrelevant, so skip the fetch entirely.
         if filterState.selectedSubject == Self.parshasSentinel { return [] }
         let hasSearchText = !filterState.debouncedSearchText.trimmed().isEmpty
         let isStoriesView = filterState.selectedSubject == Self.storiesSentinel
+        let isAllLessons  = filterState.selectedSubject == Self.allLessonsSentinel
         // DEDUPLICATION: CloudKit sync can create duplicate records with the same ID.
         // Use uniqueByID to prevent SwiftUI crash on "Duplicate values for key"
         return helper.filteredLessons(
@@ -181,7 +188,7 @@ struct LessonsRootView: View {
             personalKindFilter: filterState.personalKindFilter,
             formatFilter: filterState.formatFilter,
             searchText: filterState.debouncedSearchText,
-            selectedSubject: (hasSearchText || isStoriesView) ? nil : filterState.selectedSubject,
+            selectedSubject: (hasSearchText || isStoriesView || isAllLessons) ? nil : filterState.selectedSubject,
             selectedGroup: nil,
             allLessons: Array(lessons)
         ).uniqueByID
@@ -196,13 +203,28 @@ struct LessonsRootView: View {
     }
 
     var canReorderInOutlineMode: Bool {
-        displayMode == .outline &&
-        filterState.debouncedSearchText.trimmed().isEmpty &&
-        (filterState.selectedSubject?.trimmed().isEmpty == false)
+        guard displayMode == .outline, isEditingSequence else { return false }
+        guard filterState.debouncedSearchText.trimmed().isEmpty else { return false }
+        guard let subject = filterState.selectedSubject,
+              !subject.trimmed().isEmpty,
+              subject != Self.allLessonsSentinel,
+              subject != Self.storiesSentinel else { return false }
+        return true
     }
 
     var canReorder: Bool {
         canReorderInOutlineMode
+    }
+
+    var canShowEditSequenceButton: Bool {
+        guard displayMode == .outline else { return false }
+        guard filterState.debouncedSearchText.trimmed().isEmpty else { return false }
+        guard let subject = filterState.selectedSubject,
+              !subject.trimmed().isEmpty,
+              subject != Self.allLessonsSentinel,
+              subject != Self.storiesSentinel,
+              subject != Self.parshasSentinel else { return false }
+        return true
     }
 
     // MARK: - Body
@@ -319,11 +341,16 @@ struct LessonsRootView: View {
 
     private func handleListSelectionChange(_ newValue: String?) {
         Task { @MainActor in
-            if newValue == LessonsRootView.storiesSentinel {
-                // "All Stories" selected: clear subject, set format to story
+            switch newValue {
+            case LessonsRootView.storiesSentinel:
                 filterState.selectedSubject = newValue
                 filterState.formatFilter = .story
-            } else {
+            case LessonsRootView.allLessonsSentinel, LessonsRootView.parshasSentinel, nil:
+                if filterState.selectedSubject == LessonsRootView.storiesSentinel {
+                    filterState.formatFilter = nil
+                }
+                filterState.selectedSubject = newValue
+            default:
                 // Regular subject selected: clear story filter if it was active from sidebar
                 if filterState.selectedSubject == LessonsRootView.storiesSentinel {
                     filterState.formatFilter = nil
@@ -341,6 +368,7 @@ struct LessonsRootView: View {
                 listSelectedSubject = newValue
             }
             selectedSubjectRaw = newValue ?? ""
+            isEditingSequence = false
             syncReorderableGroups()
         }
     }
@@ -348,6 +376,7 @@ struct LessonsRootView: View {
     private func handleDisplayModeChange(_ newValue: LessonsDisplayMode) {
         Task { @MainActor in
             displayModeRaw = newValue.rawValue
+            isEditingSequence = false
             if newValue == .outline {
                 syncReorderableGroups()
             }
@@ -355,7 +384,7 @@ struct LessonsRootView: View {
                 focusedThread = nil
             }
             #if os(iOS)
-            editMode = newValue == .outline ? .active : .inactive
+            editMode = .inactive
             #endif
         }
     }

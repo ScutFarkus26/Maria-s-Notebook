@@ -34,15 +34,12 @@ extension LessonsRootView {
         List(selection: $listSelectedSubject) {
             Section {
                 Label {
-                    HStack {
-                        Text("Parshas")
-                        Spacer()
-                    }
+                    Text("All Lessons")
                 } icon: {
-                    Image(systemName: "scroll")
-                        .foregroundStyle(.indigo)
+                    Image(systemName: "rectangle.stack")
+                        .foregroundStyle(.blue)
                 }
-                .tag(Self.parshasSentinel)
+                .tag(Self.allLessonsSentinel)
 
                 Label {
                     HStack {
@@ -59,11 +56,24 @@ extension LessonsRootView {
                         .foregroundStyle(.purple)
                 }
                 .tag(Self.storiesSentinel)
+
+                Label {
+                    HStack {
+                        Text("Parshas")
+                        Spacer()
+                    }
+                } icon: {
+                    Image(systemName: "scroll")
+                        .foregroundStyle(.indigo)
+                }
+                .tag(Self.parshasSentinel)
             }
 
-            ForEach(subjects, id: \.self) { subject in
-                SubjectListRow(subject: subject, lessonCount: lessonCountsBySubject[subject] ?? 0)
-                    .tag(subject)
+            Section("Subjects") {
+                ForEach(subjects, id: \.self) { subject in
+                    SubjectListRow(subject: subject, lessonCount: lessonCountsBySubject[subject] ?? 0)
+                        .tag(subject)
+                }
             }
         }
         .listStyle(.sidebar)
@@ -158,13 +168,15 @@ extension LessonsRootView {
 
     private var normalLessonsContentColumn: some View {
         let hasSearchText: Bool = !filterState.debouncedSearchText.trimmed().isEmpty
+        let isAllLessons: Bool = selectedSubject == Self.allLessonsSentinel
         let hasSubject: Bool = selectedSubject.map { !$0.trimmed().isEmpty } ?? false
-        // Filters now apply in both browse and outline modes for consistency.
-        let shouldShowFilters: Bool = hasSubject || hasSearchText
-        let shouldShowLessons: Bool = hasSubject || hasSearchText
-        let navTitle: String = selectedSubject == Self.storiesSentinel
-            ? "All Stories"
-            : (selectedSubject ?? "Lessons")
+        let shouldShowFilters: Bool = hasSubject || hasSearchText || isAllLessons
+        let shouldShowLessons: Bool = hasSubject || hasSearchText || isAllLessons
+        let navTitle: String = {
+            if selectedSubject == Self.storiesSentinel { return "All Stories" }
+            if selectedSubject == Self.allLessonsSentinel { return "All Lessons" }
+            return selectedSubject ?? "Lessons"
+        }()
 
         return VStack(spacing: 0) {
             if shouldShowFilters {
@@ -172,16 +184,25 @@ extension LessonsRootView {
                 Divider()
             }
 
-            lessonsMainArea(shouldShowLessons: shouldShowLessons)
+            lessonsMainArea(shouldShowLessons: shouldShowLessons, hasSearchText: hasSearchText)
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
         }
         .navigationTitle(navTitle)
     }
 
     @ViewBuilder
-    private func lessonsMainArea(shouldShowLessons: Bool) -> some View {
+    private func lessonsMainArea(shouldShowLessons: Bool, hasSearchText: Bool) -> some View {
         if shouldShowLessons {
-            if displayMode == .browse {
+            if hasSearchText {
+                LessonsSearchResultsView(
+                    lessons: filteredLessonsForDisplay,
+                    statusCounts: statusCounts,
+                    lastPresentedDates: lastPresentedDates,
+                    selectedLessonID: selectedLessonDetail?.id,
+                    onSelectLesson: { selectedLessonDetail = $0 },
+                    onScheduleLesson: { lessonToSchedule = $0 }
+                )
+            } else if displayMode == .browse {
                 browseModeLessons
             } else {
                 planModeList
@@ -312,7 +333,8 @@ extension LessonsRootView {
         return outlineViewContent(
             displayGroups: displayGroups,
             lessonsByGroup: lessonsByGroup,
-            allSubheadings: allSubheadings
+            allSubheadings: allSubheadings,
+            isEditing: canReorderInOutlineMode
         )
     }
 
@@ -345,7 +367,8 @@ extension LessonsRootView {
     private func outlineViewContent(
         displayGroups: [String],
         lessonsByGroup: [String: [CDLesson]],
-        allSubheadings: [String: [String]]
+        allSubheadings: [String: [String]],
+        isEditing: Bool
     ) -> some View {
         LessonsOutlineView(
             subject: selectedSubject ?? "",
@@ -353,6 +376,7 @@ extension LessonsRootView {
             lessonsByGroup: lessonsByGroup,
             allSubheadings: allSubheadings,
             selectedLessonID: selectedLessonDetail?.id,
+            isEditing: isEditing,
             onSelectLesson: { selectedLessonDetail = $0 },
             onScheduleLesson: { lessonToSchedule = $0 },
             onMoveToGroup: { moveLessonToGroup(lesson: $0, newGroup: $1) },
@@ -439,6 +463,9 @@ extension LessonsRootView {
             },
             onLocateInMap: { lesson in
                 locateLessonInMap(lesson)
+            },
+            onLocateInSequence: { lesson in
+                switchToOutlineMode(focusing: lesson)
             },
             onSchedule: { lesson in
                 lessonToSchedule = lesson

@@ -11,9 +11,26 @@ extension LessonsRootView {
     var headerTrailingControls: some View {
         HStack(spacing: 12) {
             headerSearchField
+            if canShowEditSequenceButton {
+                editSequenceButton
+            }
             headerModePicker
             headerAddMenu
         }
+    }
+
+    private var editSequenceButton: some View {
+        Button {
+            isEditingSequence.toggle()
+        } label: {
+            Label(
+                isEditingSequence ? "Done" : "Edit Sequence",
+                systemImage: isEditingSequence ? "checkmark" : "arrow.up.arrow.down"
+            )
+        }
+        .buttonStyle(.bordered)
+        .tint(isEditingSequence ? .accentColor : nil)
+        .help(isEditingSequence ? "Finish reordering" : "Reorder lessons and groups")
     }
 
     private var headerSearchField: some View {

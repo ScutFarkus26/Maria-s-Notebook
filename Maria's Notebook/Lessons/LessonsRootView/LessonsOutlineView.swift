@@ -29,6 +29,7 @@ struct LessonsOutlineView: View {
     let lessonsByGroup: [String: [CDLesson]]
     let allSubheadings: [String: [String]]
     let selectedLessonID: UUID?
+    var isEditing: Bool = false
 
     var onSelectLesson: ((CDLesson) -> Void)?
     var onScheduleLesson: ((CDLesson) -> Void)?
@@ -44,13 +45,20 @@ struct LessonsOutlineView: View {
 
     @State private var expandedGroups: Set<String> = []
     @State private var dropTargetSubheading: String?
+
     var body: some View {
         List {
-            ForEach(displayGroups, id: \.self) { group in
-                groupDisclosure(group: group)
-            }
-            .onMove { source, destination in
-                onMoveGroups?(source, destination)
+            if isEditing {
+                ForEach(displayGroups, id: \.self) { group in
+                    groupDisclosure(group: group)
+                }
+                .onMove { source, destination in
+                    onMoveGroups?(source, destination)
+                }
+            } else {
+                ForEach(displayGroups, id: \.self) { group in
+                    groupDisclosure(group: group)
+                }
             }
         }
         .listStyle(.plain)
@@ -102,11 +110,17 @@ struct LessonsOutlineView: View {
                 }
             }
         } else {
-            ForEach(lessons) { lesson in
-                lessonOutlineRow(lesson: lesson, group: group, subheadings: [])
-            }
-            .onMove { source, destination in
-                onMoveLessonsInGroup?(source, destination, group)
+            if isEditing {
+                ForEach(lessons) { lesson in
+                    lessonOutlineRow(lesson: lesson, group: group, subheadings: [])
+                }
+                .onMove { source, destination in
+                    onMoveLessonsInGroup?(source, destination, group)
+                }
+            } else {
+                ForEach(lessons) { lesson in
+                    lessonOutlineRow(lesson: lesson, group: group, subheadings: [])
+                }
             }
         }
     }
@@ -124,27 +138,29 @@ struct LessonsOutlineView: View {
                 .font(.system(.body, design: .rounded, weight: .semibold))
             Spacer()
 
-            if subheadings.hasSubheadings {
+            if isEditing {
+                if subheadings.hasSubheadings {
+                    Button {
+                        onReorderSubheadings?(group)
+                    } label: {
+                        Image(systemName: "arrow.up.arrow.down")
+                            .foregroundStyle(.secondary)
+                            .font(.caption)
+                    }
+                    .buttonStyle(.plain)
+                    .help("Reorder subheadings")
+                }
+
                 Button {
-                    onReorderSubheadings?(group)
+                    onConfigureTrack?(group)
                 } label: {
-                    Image(systemName: "arrow.up.arrow.down")
+                    Image(systemName: "gearshape")
                         .foregroundStyle(.secondary)
                         .font(.caption)
                 }
                 .buttonStyle(.plain)
-                .help("Reorder subheadings")
+                .help("Configure track settings")
             }
-
-            Button {
-                onConfigureTrack?(group)
-            } label: {
-                Image(systemName: "gearshape")
-                    .foregroundStyle(.secondary)
-                    .font(.caption)
-            }
-            .buttonStyle(.plain)
-            .help("Configure track settings")
 
             Text("\(lessons.count)")
                 .font(.caption)
@@ -186,7 +202,7 @@ struct LessonsOutlineView: View {
                 .padding(.horizontal, 4)
         )
         .listRowSeparator(.hidden)
-        .when(!name.isEmpty) { view in
+        .when(!name.isEmpty && isEditing) { view in
             view
                 .draggable(SubheadingTransfer(subject: subject, group: group, name: name))
                 .dropDestination(for: SubheadingTransfer.self) { items, _ in
@@ -206,11 +222,17 @@ struct LessonsOutlineView: View {
                 }
         }
 
-        ForEach(lessons) { lesson in
-            lessonOutlineRow(lesson: lesson, group: group, subheadings: allGroupSubheadings)
-        }
-        .onMove { source, destination in
-            onMoveLessonsInGroup?(source, destination, group)
+        if isEditing {
+            ForEach(lessons) { lesson in
+                lessonOutlineRow(lesson: lesson, group: group, subheadings: allGroupSubheadings)
+            }
+            .onMove { source, destination in
+                onMoveLessonsInGroup?(source, destination, group)
+            }
+        } else {
+            ForEach(lessons) { lesson in
+                lessonOutlineRow(lesson: lesson, group: group, subheadings: allGroupSubheadings)
+            }
         }
     }
 
@@ -222,31 +244,12 @@ struct LessonsOutlineView: View {
         group: String,
         subheadings: [String]
     ) -> some View {
-        let isSelected = selectedLessonID == lesson.id
-        let displayName = lesson.name.isEmpty ? "Untitled Lesson" : lesson.name
-
-        HStack(spacing: 8) {
-            VStack(alignment: .leading, spacing: 2) {
-                Text(displayName)
-                    .font(.system(.body, design: .rounded))
-                    .lineLimit(1)
-                if !lesson.subheading.trimmed().isEmpty {
-                    Text(lesson.subheading)
-                        .font(.caption)
-                        .foregroundStyle(.secondary)
-                        .lineLimit(1)
-                }
-            }
-            Spacer()
-        }
-        .contentShape(Rectangle())
+        LessonCompactRow(
+            lesson: lesson,
+            isSelected: selectedLessonID == lesson.id
+        )
         // simultaneousGesture lets tap-to-select coexist with .onMove drag.
         .simultaneousGesture(TapGesture().onEnded { onSelectLesson?(lesson) })
-        .listRowBackground(
-            RoundedRectangle(cornerRadius: 6)
-                .fill(isSelected ? Color.accentColor.opacity(UIConstants.OpacityConstants.moderate) : Color.clear)
-                .padding(.horizontal, 4)
-        )
         .contextMenu { lessonContextMenu(lesson: lesson, group: group, subheadings: subheadings) }
         .id(lesson.id)
     }
