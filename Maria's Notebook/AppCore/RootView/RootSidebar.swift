@@ -85,6 +85,8 @@ extension RootSidebar {
 
                 sidebarRow(.stories, title: "Stories", systemImage: "books.vertical")
 
+                sidebarRow(.bookClub, title: "Book Club", systemImage: "books.vertical.circle")
+
                 sidebarRow(.planningProjects, title: "Projects", systemImage: SFSymbol.CDDocument.folder)
             }
 
@@ -263,6 +265,10 @@ extension RootSidebar {
                              title: "Stories",
                              systemImage: "books.vertical",
                              hint: "Browse and import story PDFs")
+            iOSSidebarButton(.bookClub,
+                             title: "Book Club",
+                             systemImage: "books.vertical.circle",
+                             hint: "Manage book club packets and run sessions with students")
             iOSSidebarButton(.planningProjects,
                              title: "Projects",
                              systemImage: SFSymbol.CDDocument.folder,

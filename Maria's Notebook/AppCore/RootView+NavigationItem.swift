@@ -18,6 +18,7 @@ extension RootView {
         case meetings
         case lessons
         case stories
+        case bookClub
         case more
         case todos
         case fridayReview
@@ -73,6 +74,7 @@ extension RootView {
             case .meetings:            return ("Meetings", "person.2")
             case .lessons:             return ("Lessons", "book")
             case .stories:             return ("Stories", "books.vertical")
+            case .bookClub:            return ("Book Club", "books.vertical.circle")
             case .more:                return ("More", "ellipsis.circle")
             case .todos:               return ("Todos", "checkmark.circle")
             case .fridayReview:        return ("Friday Review", "checkmark.seal")
@@ -127,7 +129,7 @@ extension RootView {
 
         var isInMoreMenu: Bool {
             switch self {
-            case .lessons, .stories, .supplies, .procedures, .meetings,
+            case .lessons, .stories, .bookClub, .supplies, .procedures, .meetings,
                  .planningChecklist, .planningAgenda, .planningWork,
                  .planningProgression, .planningProjects, .progressDashboard,
                  .lessonFrequency, .curriculumBalance, .greatLessonsTimeline,
@@ -154,6 +156,7 @@ extension RootView {
             case .meetings:          return nil
             case .lessons:           return .albums
             case .stories:           return nil
+            case .bookClub:          return nil
             case .more:              return nil
             case .todos:             return nil
             case .fridayReview:      return nil

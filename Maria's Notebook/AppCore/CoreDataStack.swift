@@ -80,7 +80,8 @@ final class CoreDataStack {
         "ClassroomMembership",
         "PrepChecklist",
         "PrepChecklistItem",
-        "Story"
+        "Story",
+        "BookClubPacket"
     ]
 
     /// Entities stored in the private (per-teacher) store.
@@ -122,7 +123,9 @@ final class CoreDataStack {
         "StudentFocusItem",
         "DayPad",
         "WorkCycleEntry",
-        "WorkCycleSession"
+        "WorkCycleSession",
+        "BookClubSession",
+        "BookClubMeeting"
     ]
 
     // MARK: - Store URLs

@@ -47,6 +47,9 @@ extension CDPrepChecklistItem: Identifiable {}
 extension CDPrepChecklistCompletion: Identifiable {}
 extension CDMeetingWorkReview: Identifiable {}
 extension CDStudentFocusItem: Identifiable {}
+extension CDBookClubPacket: Identifiable {}
+extension CDBookClubSession: Identifiable {}
+extension CDBookClubMeeting: Identifiable {}
 
 // MARK: - CD short name convenience aliases
 

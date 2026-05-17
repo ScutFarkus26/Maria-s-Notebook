@@ -99,7 +99,11 @@ struct BackupEntityRegistry {
         CDYearPlanEntry.self,
         CDLessonGroupSettings.self,
         // Stories
-        CDStory.self
+        CDStory.self,
+        // Book Club
+        CDBookClubPacket.self,
+        CDBookClubSession.self,
+        CDBookClubMeeting.self
     ]
     
     /// Entity type names for progress reporting and error messages
