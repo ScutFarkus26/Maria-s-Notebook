@@ -53,7 +53,7 @@ struct PresentationPlannerCard: View {
 
     private var ageInSchoolDays: Int {
         LessonAgeHelper.schoolDaysSinceCreation(
-            createdAt: snapshot.createdAt ?? Date(),
+            createdAt: snapshot.createdAt,
             asOf: Date(),
             using: viewContext,
             calendar: calendar

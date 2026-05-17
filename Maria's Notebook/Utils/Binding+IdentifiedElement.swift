@@ -1,5 +1,6 @@
 import SwiftUI
 
+@MainActor
 extension Binding where Value: MutableCollection & RangeReplaceableCollection,
                        Value.Element: Identifiable,
                        Value.Index == Int {
@@ -13,11 +14,22 @@ extension Binding where Value: MutableCollection & RangeReplaceableCollection,
         default defaultValue: T,
         _ keyPath: WritableKeyPath<Value.Element, T>
     ) -> Binding<T> {
-        Binding<T>(
-            get: { self.wrappedValue.first(where: { $0.id == id })?[keyPath: keyPath] ?? defaultValue },
+        // nonisolated(unsafe) locals satisfy the @Sendable closure requirements for
+        // Binding(get:set:) while remaining safe — these values are only accessed on
+        // the MainActor, as enforced by the @MainActor extension annotation.
+        nonisolated(unsafe) let capturedSelf = self
+        nonisolated(unsafe) let capturedId = id
+        nonisolated(unsafe) let capturedDefault = defaultValue
+        nonisolated(unsafe) let capturedKeyPath = keyPath
+        return Binding<T>(
+            get: {
+                capturedSelf.wrappedValue
+                    .first(where: { $0.id == capturedId })?[keyPath: capturedKeyPath]
+                    ?? capturedDefault
+            },
             set: { newValue in
-                if let idx = self.wrappedValue.firstIndex(where: { $0.id == id }) {
-                    self.wrappedValue[idx][keyPath: keyPath] = newValue
+                if let idx = capturedSelf.wrappedValue.firstIndex(where: { $0.id == capturedId }) {
+                    capturedSelf.wrappedValue[idx][keyPath: capturedKeyPath] = newValue
                 }
             }
         )

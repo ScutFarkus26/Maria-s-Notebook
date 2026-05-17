@@ -41,49 +41,9 @@ struct PrepChecklistEditorSheet: View {
                 TextField("Checklist name", text: $name)
             }
 
-            Section("Icon") {
-                LazyVGrid(columns: Array(repeating: GridItem(.flexible()), count: 6), spacing: 12) {
-                    ForEach(iconOptions, id: \.self) { option in
-                        Button {
-                            icon = option
-                        } label: {
-                            Image(systemName: option)
-                                .font(.title3)
-                                .frame(width: 36, height: 36)
-                                .background(
-                                    RoundedRectangle(cornerRadius: 8, style: .continuous)
-                                        .fill(icon == option
-                                              ? Color.accentColor.opacity(UIConstants.OpacityConstants.accent)
-                                              : Color.clear)
-                                )
-                        }
-                        .buttonStyle(.plain)
-                    }
-                }
-            }
+            iconPickerSection
 
-            Section("Color") {
-                LazyVGrid(columns: Array(repeating: GridItem(.flexible()), count: 4), spacing: 12) {
-                    ForEach(colorOptions, id: \.hex) { option in
-                        Button {
-                            colorHex = option.hex
-                        } label: {
-                            Circle()
-                                .fill(Color(hex: option.hex) ?? .accentColor)
-                                .frame(width: 32, height: 32)
-                                .overlay(
-                                    Circle()
-                                        .stroke(.white, lineWidth: colorHex == option.hex ? 3 : 0)
-                                )
-                                .overlay(
-                                    Circle()
-                                        .stroke(Color.primary.opacity(UIConstants.OpacityConstants.subtle), lineWidth: 1)
-                                )
-                        }
-                        .buttonStyle(.plain)
-                    }
-                }
-            }
+            colorPickerSection
 
             Section("Schedule") {
                 Picker("Frequency", selection: $scheduleType) {
@@ -135,6 +95,56 @@ struct PrepChecklistEditorSheet: View {
                 colorHex = checklist.colorHex
                 scheduleType = checklist.scheduleType
                 notes = checklist.notes
+            }
+        }
+    }
+
+    // MARK: - Picker Sections
+
+    private var iconPickerSection: some View {
+        Section("Icon") {
+            LazyVGrid(columns: Array(repeating: GridItem(.flexible()), count: 6), spacing: 12) {
+                ForEach(iconOptions, id: \.self) { option in
+                    Button {
+                        icon = option
+                    } label: {
+                        Image(systemName: option)
+                            .font(.title3)
+                            .frame(width: 36, height: 36)
+                            .background(
+                                RoundedRectangle(cornerRadius: 8, style: .continuous)
+                                    .fill(icon == option
+                                          ? Color.accentColor.opacity(UIConstants.OpacityConstants.accent)
+                                          : Color.clear)
+                            )
+                    }
+                    .buttonStyle(.plain)
+                }
+            }
+        }
+    }
+
+    private var colorPickerSection: some View {
+        Section("Color") {
+            LazyVGrid(columns: Array(repeating: GridItem(.flexible()), count: 4), spacing: 12) {
+                ForEach(colorOptions, id: \.hex) { option in
+                    Button {
+                        colorHex = option.hex
+                    } label: {
+                        Circle()
+                            .fill(Color(hex: option.hex) ?? .accentColor)
+                            .frame(width: 32, height: 32)
+                            .overlay(
+                                Circle()
+                                    .stroke(.white, lineWidth: colorHex == option.hex ? 3 : 0)
+                            )
+                            .overlay(
+                                Circle()
+                                    .stroke(Color.primary.opacity(UIConstants.OpacityConstants.subtle), lineWidth: 1)
+                            )
+                    }
+                    .buttonStyle(.plain)
+                }
             }
         }
     }

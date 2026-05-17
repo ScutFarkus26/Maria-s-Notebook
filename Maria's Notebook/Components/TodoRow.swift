@@ -173,42 +173,7 @@ struct TodoRow: View {
                         .lineLimit(1)
                 }
 
-                HStack(spacing: 6) {
-                    if !assignedStudents.isEmpty {
-                        HStack(spacing: 3) {
-                            Image(systemName: "person.fill")
-                                .font(.system(size: 10))
-                            Text(assignedStudents.map(\.firstName).joined(separator: ", "))
-                                .font(AppTheme.ScaledFont.captionSemibold)
-                        }
-                        .foregroundStyle(.blue.opacity(UIConstants.OpacityConstants.prominent))
-                    }
-
-                    if todo.effectiveDate != nil || todo.isSomeday {
-                        TodoDateChip(todo: todo)
-                    }
-
-                    if todo.recurrence != .none {
-                        HStack(spacing: 3) {
-                            Image(systemName: "repeat")
-                                .font(.system(size: 10))
-                            Text(todo.recurrence.shortLabel)
-                                .font(AppTheme.ScaledFont.captionSemibold)
-                        }
-                        .foregroundStyle(.purple.opacity(UIConstants.OpacityConstants.prominent))
-                    }
-
-                    if let progressText = todo.subtasksProgressText {
-                        HStack(spacing: 3) {
-                            Image(systemName: "checklist")
-                                .font(.system(size: 10))
-                            Text(progressText)
-                                .font(AppTheme.ScaledFont.captionSemibold)
-                        }
-                        .foregroundStyle(todo.allSubtasksCompleted ? .green.opacity(UIConstants.OpacityConstants.prominent) : .secondary.opacity(UIConstants.OpacityConstants.half))
-                    }
-                }
-                .padding(.top, 2)
+                badgeRow
             }
 
             Spacer(minLength: 8)
@@ -318,5 +283,45 @@ struct TodoRow: View {
                 Label("Delete", systemImage: "trash")
             }
         }
+    }
+
+    @ViewBuilder
+    private var badgeRow: some View {
+        HStack(spacing: 6) {
+            if !assignedStudents.isEmpty {
+                HStack(spacing: 3) {
+                    Image(systemName: "person.fill")
+                        .font(.system(size: 10))
+                    Text(assignedStudents.map(\.firstName).joined(separator: ", "))
+                        .font(AppTheme.ScaledFont.captionSemibold)
+                }
+                .foregroundStyle(.blue.opacity(UIConstants.OpacityConstants.prominent))
+            }
+
+            if todo.effectiveDate != nil || todo.isSomeday {
+                TodoDateChip(todo: todo)
+            }
+
+            if todo.recurrence != .none {
+                HStack(spacing: 3) {
+                    Image(systemName: "repeat")
+                        .font(.system(size: 10))
+                    Text(todo.recurrence.shortLabel)
+                        .font(AppTheme.ScaledFont.captionSemibold)
+                }
+                .foregroundStyle(.purple.opacity(UIConstants.OpacityConstants.prominent))
+            }
+
+            if let progressText = todo.subtasksProgressText {
+                HStack(spacing: 3) {
+                    Image(systemName: "checklist")
+                        .font(.system(size: 10))
+                    Text(progressText)
+                        .font(AppTheme.ScaledFont.captionSemibold)
+                }
+                .foregroundStyle(todo.allSubtasksCompleted ? .green.opacity(UIConstants.OpacityConstants.prominent) : .secondary.opacity(UIConstants.OpacityConstants.half))
+            }
+        }
+        .padding(.top, 2)
     }
 }

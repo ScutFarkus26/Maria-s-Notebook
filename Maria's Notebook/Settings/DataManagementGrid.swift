@@ -39,6 +39,81 @@ struct DataManagementGrid: View {
     }
 
     var body: some View {
+        contentWithAlerts
+            .sheet(item: $viewModel.operationSummary) { summary in
+                BackupSummaryView(summary: summary)
+            }
+            .onChange(of: viewModel.resultSummary) { _, newValue in
+                if let summary = newValue {
+                    resultMessage = summary
+                    viewModel.resultSummary = nil
+                }
+            }
+            .sheet(item: $viewModel.restorePreviewData) { preview in
+                RestorePreviewView(preview: preview, onCancel: { viewModel.restorePreviewData = nil }, onConfirm: {
+                    Task { await viewModel.performImportConfirmed(viewContext: viewContext) }
+                })
+            }
+            .onAppear {
+                viewModel.loadDefaultFolderName()
+                viewModel.calculateEstimatedBackupSize(viewContext: viewContext)
+                if migrationPrompt == nil {
+                    migrationPrompt = BackupFolderMigration.pendingPrompt()
+                }
+            }
+    }
+
+    // MARK: - Alerts
+
+    private var contentWithAlerts: some View {
+        fileContent
+            .alert(
+                "Can't use that folder",
+                isPresented: Binding(
+                    get: { folderRejection != nil },
+                    set: { if !$0 { folderRejection = nil } }
+                ),
+                presenting: folderRejection
+            ) { _ in
+                Button("OK", role: .cancel) {}
+            } message: { rejection in
+                Text(rejection.errorDescription ?? "")
+            }
+            .alert(
+                "Move backups out of this folder?",
+                isPresented: Binding(
+                    get: { migrationPrompt != nil },
+                    set: { if !$0 { migrationPrompt = nil } }
+                ),
+                presenting: migrationPrompt
+            ) { prompt in
+                Button("Move to iCloud Drive") {
+                    Task {
+                        let result = await BackupFolderMigration.moveBackupsToManagedFolder(from: prompt.suspiciousFolder)
+                        handleMigrationResult(result)
+                    }
+                }
+                Button("Keep using this folder", role: .cancel) {
+                    BackupFolderMigration.dismiss()
+                }
+            } message: { prompt in
+                Text(migrationMessage(for: prompt))
+            }
+            .alert("Error", isPresented: Binding(
+                get: { viewModel.importError != nil },
+                set: { if !$0 { viewModel.importError = nil } }
+            )) {
+                Button("OK", role: .cancel) {}
+            } message: {
+                if let error = viewModel.importError {
+                    Text(error)
+                }
+            }
+    }
+
+    // MARK: - Core Content + File Modifiers
+
+    private var fileContent: some View {
         VStack(spacing: SettingsStyle.groupSpacing) {
             // Progress bar or result banner (inline)
             if isWorking {
@@ -101,69 +176,6 @@ struct DataManagementGrid: View {
                 }
             } catch {
                 Self.logger.warning("Failed to get folder URL: \(error, privacy: .public)")
-            }
-        }
-        .alert(
-            "Can't use that folder",
-            isPresented: Binding(
-                get: { folderRejection != nil },
-                set: { if !$0 { folderRejection = nil } }
-            ),
-            presenting: folderRejection
-        ) { _ in
-            Button("OK", role: .cancel) {}
-        } message: { rejection in
-            Text(rejection.errorDescription ?? "")
-        }
-        .alert(
-            "Move backups out of this folder?",
-            isPresented: Binding(
-                get: { migrationPrompt != nil },
-                set: { if !$0 { migrationPrompt = nil } }
-            ),
-            presenting: migrationPrompt
-        ) { prompt in
-            Button("Move to iCloud Drive") {
-                Task {
-                    let result = await BackupFolderMigration.moveBackupsToManagedFolder(from: prompt.suspiciousFolder)
-                    handleMigrationResult(result)
-                }
-            }
-            Button("Keep using this folder", role: .cancel) {
-                BackupFolderMigration.dismiss()
-            }
-        } message: { prompt in
-            Text(migrationMessage(for: prompt))
-        }
-        .sheet(item: $viewModel.operationSummary) { summary in
-            BackupSummaryView(summary: summary)
-        }
-        .onChange(of: viewModel.resultSummary) { _, newValue in
-            if let summary = newValue {
-                resultMessage = summary
-                viewModel.resultSummary = nil
-            }
-        }
-        .sheet(item: $viewModel.restorePreviewData) { preview in
-            RestorePreviewView(preview: preview, onCancel: { viewModel.restorePreviewData = nil }, onConfirm: {
-                Task { await viewModel.performImportConfirmed(viewContext: viewContext) }
-            })
-        }
-        .alert("Error", isPresented: Binding(
-            get: { viewModel.importError != nil },
-            set: { if !$0 { viewModel.importError = nil } }
-        )) {
-            Button("OK", role: .cancel) {}
-        } message: {
-            if let error = viewModel.importError {
-                Text(error)
-            }
-        }
-        .onAppear {
-            viewModel.loadDefaultFolderName()
-            viewModel.calculateEstimatedBackupSize(viewContext: viewContext)
-            if migrationPrompt == nil {
-                migrationPrompt = BackupFolderMigration.pendingPrompt()
             }
         }
     }

@@ -36,6 +36,92 @@ struct BackupRestoreSectionView: View {
     private var exportDocument: BackupPackageDocument? { viewModel.exportData.map { BackupPackageDocument(data: $0) } }
 
     var body: some View {
+        contentWithAlerts
+            .onChange(of: appRouter.navigationDestination) { _, newValue in
+                if case .createBackup = newValue {
+                    Task { await viewModel.performExport(viewContext: viewContext, encryptBackups: encryptBackups) }
+                    appRouter.clearNavigation()
+                } else if case .restoreBackup = newValue {
+                    showingImporter = true
+                    appRouter.clearNavigation()
+                }
+            }
+            .onAppear {
+                viewModel.loadDefaultFolderName()
+                viewModel.calculateEstimatedBackupSize(viewContext: viewContext)
+                if migrationPrompt == nil {
+                    migrationPrompt = BackupFolderMigration.pendingPrompt()
+                }
+            }
+#if os(iOS)
+            .onChange(of: viewModel.exportData) { _, newValue in
+                showingExporter = (newValue != nil)
+            }
+#endif
+    }
+
+    // MARK: - Alerts and Sheets
+
+    private var contentWithAlerts: some View {
+        coreContent
+            .alert("Error", isPresented: isErrorAlertPresented) {
+                Button("OK", role: .cancel) {}
+            } message: {
+                Text(viewModel.importError ?? "Unknown error")
+            }
+            .alert(
+                "Can't use that folder",
+                isPresented: Binding(
+                    get: { folderRejection != nil },
+                    set: { if !$0 { folderRejection = nil } }
+                ),
+                presenting: folderRejection
+            ) { _ in
+                Button("OK", role: .cancel) {}
+            } message: { rejection in
+                Text(rejection.errorDescription ?? "")
+            }
+            .alert(
+                "Move backups out of this folder?",
+                isPresented: Binding(
+                    get: { migrationPrompt != nil },
+                    set: { if !$0 { migrationPrompt = nil } }
+                ),
+                presenting: migrationPrompt
+            ) { prompt in
+                Button("Move to iCloud Drive") {
+                    Task {
+                        let result = await BackupFolderMigration.moveBackupsToManagedFolder(from: prompt.suspiciousFolder)
+                        handleMigrationResult(result)
+                    }
+                }
+                Button("Keep using this folder", role: .cancel) {
+                    BackupFolderMigration.dismiss()
+                }
+            } message: { prompt in
+                Text(migrationMessage(for: prompt))
+            }
+            .sheet(item: $viewModel.operationSummary) { (summary: BackupOperationSummary) in
+                BackupSummaryView(summary: summary)
+            }
+            .sheet(isPresented: isRestorePreviewPresented) {
+                if let preview = viewModel.restorePreviewData {
+                    RestorePreviewView(
+                        preview: preview,
+                        onCancel: {
+                            viewModel.restorePreviewData = nil
+                        },
+                        onConfirm: {
+                            Task { await viewModel.performImportConfirmed(viewContext: viewContext) }
+                        }
+                    )
+                }
+            }
+    }
+
+    // MARK: - Core Content + File Modifiers
+
+    private var coreContent: some View {
         BackupRestoreSettingsView(
             encryptBackups: $encryptBackups,
             restoreMode: $viewModel.restoreMode,
@@ -77,7 +163,6 @@ struct BackupRestoreSectionView: View {
                 viewModel.loadDefaultFolderName()
             }
         )
-        // MARK: - Exporter
         .fileExporter(
             isPresented: $showingExporter,
             document: exportDocument,
@@ -94,7 +179,6 @@ struct BackupRestoreSectionView: View {
             viewModel.exportData = nil
             viewModel.backupProgress = 0; viewModel.backupMessage = ""
         }
-        // MARK: - Importer (Backup File)
         .fileImporter(
             isPresented: $showingImporter,
             allowedContentTypes: [
@@ -110,7 +194,6 @@ struct BackupRestoreSectionView: View {
                 viewModel.importError = AppErrorMessages.backupMessage(for: error, operation: "open the backup file")
             }
         }
-        // MARK: - Folder Importer (Default Folder)
         .fileImporter(
             isPresented: $showingFolderImporter,
             allowedContentTypes: [.folder],
@@ -119,7 +202,6 @@ struct BackupRestoreSectionView: View {
             Task { @MainActor in
                 switch result {
                 case .success(let urls):
-                    // Fixed: Extract single URL from array
                     if let url = urls.first {
                         let needsAccess = url.startAccessingSecurityScopedResource()
                         defer { if needsAccess { url.stopAccessingSecurityScopedResource() } }
@@ -138,81 +220,6 @@ struct BackupRestoreSectionView: View {
                 }
             }
         }
-        // MARK: - Alerts and Sheets
-        .alert("Error", isPresented: isErrorAlertPresented) {
-            Button("OK", role: .cancel) {}
-        } message: {
-            Text(viewModel.importError ?? "Unknown error")
-        }
-        .alert(
-            "Can't use that folder",
-            isPresented: Binding(
-                get: { folderRejection != nil },
-                set: { if !$0 { folderRejection = nil } }
-            ),
-            presenting: folderRejection
-        ) { _ in
-            Button("OK", role: .cancel) {}
-        } message: { rejection in
-            Text(rejection.errorDescription ?? "")
-        }
-        .alert(
-            "Move backups out of this folder?",
-            isPresented: Binding(
-                get: { migrationPrompt != nil },
-                set: { if !$0 { migrationPrompt = nil } }
-            ),
-            presenting: migrationPrompt
-        ) { prompt in
-            Button("Move to iCloud Drive") {
-                Task {
-                    let result = await BackupFolderMigration.moveBackupsToManagedFolder(from: prompt.suspiciousFolder)
-                    handleMigrationResult(result)
-                }
-            }
-            Button("Keep using this folder", role: .cancel) {
-                BackupFolderMigration.dismiss()
-            }
-        } message: { prompt in
-            Text(migrationMessage(for: prompt))
-        }
-        .sheet(item: $viewModel.operationSummary) { (summary: BackupOperationSummary) in
-            BackupSummaryView(summary: summary)
-        }
-        .sheet(isPresented: isRestorePreviewPresented) {
-            if let preview = viewModel.restorePreviewData {
-                RestorePreviewView(
-                    preview: preview,
-                    onCancel: {
-                        viewModel.restorePreviewData = nil
-                    },
-                    onConfirm: {
-                        Task { await viewModel.performImportConfirmed(viewContext: viewContext) }
-                    }
-                )
-            }
-        }
-        .onChange(of: appRouter.navigationDestination) { _, newValue in
-            if case .createBackup = newValue {
-                Task { await viewModel.performExport(viewContext: viewContext, encryptBackups: encryptBackups) }
-                appRouter.clearNavigation()
-            } else if case .restoreBackup = newValue {
-                showingImporter = true
-                appRouter.clearNavigation()
-            }
-        }
-        .onAppear {
-            viewModel.loadDefaultFolderName()
-            viewModel.calculateEstimatedBackupSize(viewContext: viewContext)
-            if migrationPrompt == nil {
-                migrationPrompt = BackupFolderMigration.pendingPrompt()
-            }
-        }
-#if os(iOS)
-        .onChange(of: viewModel.exportData) { _, newValue in
-            showingExporter = (newValue != nil)
-        }
-#endif
     }
 
     // Extracted Bindings

@@ -98,7 +98,7 @@ struct TodoRowCard: View {
                             }
 
                             if !todo.tagsArray.isEmpty {
-                                fittingTagBadges(todo.tagsArray)
+                                tagBadgeStack
                             }
                         }
                         .padding(.top, 2)
@@ -280,13 +280,13 @@ struct TodoRowCard: View {
     }
 
     @ViewBuilder
-    private func fittingTagBadges(_ tags: [String]) -> some View {
+    private var tagBadgeStack: some View {
         ViewThatFits(in: .horizontal) {
-            ForEach(Array(stride(from: tags.count, through: 1, by: -1)), id: \.self) { visibleCount in
-                tagBadgeRow(tags: tags, visibleCount: visibleCount)
+            ForEach(Array(stride(from: todo.tagsArray.count, through: 1, by: -1)), id: \.self) { visibleCount in
+                tagBadgeRow(tags: todo.tagsArray, visibleCount: visibleCount)
             }
 
-            Text("+\(tags.count)")
+            Text("+\(todo.tagsArray.count)")
                 .font(AppTheme.ScaledFont.captionSmallSemibold)
                 .foregroundStyle(.tertiary)
         }

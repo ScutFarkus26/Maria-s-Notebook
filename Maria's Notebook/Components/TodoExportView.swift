@@ -16,58 +16,7 @@ struct TodoExportView: View {
     var body: some View {
         NavigationStack {
             VStack(spacing: 0) {
-                // Format selection
-                VStack(alignment: .leading, spacing: 16) {
-                    Text("Export Format")
-                        .font(.headline)
-                    
-                    VStack(spacing: 12) {
-                        FormatOption(
-                            format: .text,
-                            title: "Plain Text",
-                            description: "Simple text format, easy to read",
-                            icon: "doc.text",
-                            isSelected: selectedFormat == .text
-                        ) {
-                            selectedFormat = .text
-                            generateExport()
-                        }
-                        
-                        FormatOption(
-                            format: .markdown,
-                            title: "Markdown",
-                            description: "Formatted text with sections and styling",
-                            icon: "doc.richtext",
-                            isSelected: selectedFormat == .markdown
-                        ) {
-                            selectedFormat = .markdown
-                            generateExport()
-                        }
-                        
-                        FormatOption(
-                            format: .csv,
-                            title: "CSV",
-                            description: "Spreadsheet format for Excel/Numbers",
-                            icon: "tablecells",
-                            isSelected: selectedFormat == .csv
-                        ) {
-                            selectedFormat = .csv
-                            generateExport()
-                        }
-                        
-                        FormatOption(
-                            format: .json,
-                            title: "JSON",
-                            description: "Structured data format for developers",
-                            icon: "curlybraces",
-                            isSelected: selectedFormat == .json
-                        ) {
-                            selectedFormat = .json
-                            generateExport()
-                        }
-                    }
-                }
-                .padding()
+                formatSelectionSection
                 
                 Divider()
                 
@@ -132,6 +81,60 @@ struct TodoExportView: View {
         }
     }
     
+    private var formatSelectionSection: some View {
+        VStack(alignment: .leading, spacing: 16) {
+            Text("Export Format")
+                .font(.headline)
+
+            VStack(spacing: 12) {
+                FormatOption(
+                    format: .text,
+                    title: "Plain Text",
+                    description: "Simple text format, easy to read",
+                    icon: "doc.text",
+                    isSelected: selectedFormat == .text
+                ) {
+                    selectedFormat = .text
+                    generateExport()
+                }
+
+                FormatOption(
+                    format: .markdown,
+                    title: "Markdown",
+                    description: "Formatted text with sections and styling",
+                    icon: "doc.richtext",
+                    isSelected: selectedFormat == .markdown
+                ) {
+                    selectedFormat = .markdown
+                    generateExport()
+                }
+
+                FormatOption(
+                    format: .csv,
+                    title: "CSV",
+                    description: "Spreadsheet format for Excel/Numbers",
+                    icon: "tablecells",
+                    isSelected: selectedFormat == .csv
+                ) {
+                    selectedFormat = .csv
+                    generateExport()
+                }
+
+                FormatOption(
+                    format: .json,
+                    title: "JSON",
+                    description: "Structured data format for developers",
+                    icon: "curlybraces",
+                    isSelected: selectedFormat == .json
+                ) {
+                    selectedFormat = .json
+                    generateExport()
+                }
+            }
+        }
+        .padding()
+    }
+
     private func generateExport() {
         switch selectedFormat {
         case .text:
