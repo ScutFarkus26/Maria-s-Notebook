@@ -125,7 +125,8 @@ final class CoreDataStack {
         "WorkCycleEntry",
         "WorkCycleSession",
         "BookClubSession",
-        "BookClubMeeting"
+        "BookClubMeeting",
+        "Initiative"
     ]
 
     // MARK: - Store URLs

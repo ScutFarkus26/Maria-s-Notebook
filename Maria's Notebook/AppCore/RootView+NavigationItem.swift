@@ -29,6 +29,8 @@ extension RootView {
         case planningWork
         case planningProgression
         case planningProjects
+        case planningInitiatives
+        case planningCalendar
         case progressDashboard
         case lessonFrequency
         case curriculumBalance
@@ -83,6 +85,8 @@ extension RootView {
             case .planningWork:        return ("Open Work", "tray.full")
             case .planningProgression: return ("Progression", "chart.line.uptrend.xyaxis")
             case .planningProjects:    return ("Projects", "folder")
+            case .planningInitiatives: return ("Initiatives", "target")
+            case .planningCalendar:    return ("Calendar", "calendar.day.timeline.leading")
             case .progressDashboard:   return ("Progress Dashboard", "person.text.rectangle")
             case .lessonFrequency:     return ("Lesson Frequency", SFSymbol.Chart.chartBar)
             case .curriculumBalance:   return ("Curriculum Balance", SFSymbol.Chart.chartPie)
@@ -131,7 +135,8 @@ extension RootView {
             switch self {
             case .lessons, .stories, .bookClub, .supplies, .procedures, .meetings,
                  .planningChecklist, .planningAgenda, .planningWork,
-                 .planningProgression, .planningProjects, .progressDashboard,
+                 .planningProgression, .planningProjects, .planningInitiatives, .planningCalendar,
+                 .progressDashboard,
                  .lessonFrequency, .curriculumBalance, .greatLessonsTimeline,
                  .goingOut, .parentCommunication, .fridayReview, .workCycle,
                  .classroomJobs, .transitionPlanner, .threeYearCycle, .needsLesson, .smallGroupPlanner,
@@ -161,7 +166,9 @@ extension RootView {
             case .todos:             return nil
             case .fridayReview:      return nil
             case .planningChecklist, .planningAgenda, .planningWork,
-                 .planningProgression, .planningProjects, .progressDashboard,
+                 .planningProgression, .planningProjects,
+                 .planningInitiatives, .planningCalendar,
+                 .progressDashboard,
                  .lessonFrequency, .curriculumBalance, .greatLessonsTimeline,
                  .transitionPlanner, .threeYearCycle, .needsLesson,
                  .smallGroupPlanner:

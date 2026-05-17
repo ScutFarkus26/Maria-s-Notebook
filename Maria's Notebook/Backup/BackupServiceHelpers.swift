@@ -411,6 +411,8 @@ enum BackupPayloadDeduplicator {
         // Format v14+ entity deduplication
         result.meetingWorkReviews = payload.meetingWorkReviews.map { uniqueBy($0) { $0.id } }
         result.studentFocusItems = payload.studentFocusItems.map { uniqueBy($0) { $0.id } }
+        // Format v15+ entity deduplication
+        result.initiatives = payload.initiatives.map { uniqueBy($0) { $0.id } }
 
         return result
     }

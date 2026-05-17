@@ -367,8 +367,34 @@ extension BackupDTOTransformers {
             locationLongitude: t.locationLongitude,
             locationRadius: t.locationRadius,
             notifyOnEntry: t.notifyOnEntry,
-            notifyOnExit: t.notifyOnExit
+            notifyOnExit: t.notifyOnExit,
+            initiativeID: t.initiativeID
         )
+    }
+
+    // MARK: - CDInitiative
+
+    static func toDTO(_ i: CDInitiative) -> InitiativeDTO {
+        let leadTimes = i.leadTimeDaysArray
+        return InitiativeDTO(
+            id: i.id ?? UUID(),
+            title: i.title,
+            notes: i.notes,
+            deadline: i.deadline,
+            completedAt: i.completedAt,
+            area: i.area,
+            colorRaw: i.colorRaw,
+            symbol: i.symbol,
+            orderIndex: Int(i.orderIndex),
+            createdAt: i.createdAt ?? Date(),
+            modifiedAt: i.modifiedAt ?? Date(),
+            notificationIDs: i.notificationIDsArray,
+            leadTimeDays: leadTimes.isEmpty ? nil : leadTimes
+        )
+    }
+
+    static func toDTOs(_ initiatives: [CDInitiative]) -> [InitiativeDTO] {
+        initiatives.map { toDTO($0) }
     }
 
     // MARK: - CDTodoSubtask

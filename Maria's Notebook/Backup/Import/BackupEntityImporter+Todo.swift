@@ -47,6 +47,7 @@ extension BackupEntityImporter {
             t.locationRadius = dto.locationRadius
             t.notifyOnEntry = dto.notifyOnEntry
             t.notifyOnExit = dto.notifyOnExit
+            t.initiativeID = dto.initiativeID
             return t
         })
     }

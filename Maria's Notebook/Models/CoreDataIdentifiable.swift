@@ -50,6 +50,7 @@ extension CDStudentFocusItem: Identifiable {}
 extension CDBookClubPacket: Identifiable {}
 extension CDBookClubSession: Identifiable {}
 extension CDBookClubMeeting: Identifiable {}
+extension CDInitiative: Identifiable {}
 
 // MARK: - CD short name convenience aliases
 

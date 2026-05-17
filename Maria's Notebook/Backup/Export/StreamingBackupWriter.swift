@@ -340,6 +340,9 @@ public final class StreamingBackupWriter {
 
         let noteStudentLinks: [CDNoteStudentLink] = try await streamFetchRaw(CDNoteStudentLink.self, from: viewContext)
         collector.payload.noteStudentLinks = BackupDTOTransformers.toDTOs(noteStudentLinks)
+
+        let initiatives: [CDInitiative] = try await streamFetchRaw(CDInitiative.self, from: viewContext)
+        collector.payload.initiatives = BackupDTOTransformers.toDTOs(initiatives)
     }
 
     // MARK: - Finalization

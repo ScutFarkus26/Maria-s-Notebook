@@ -26,17 +26,19 @@ struct RootDetailContent: View {
     var body: some View {
         Group {
             switch selectedNavItem {
-            case .today, .attendance, .workCycle, .note, .todos, .fridayReview:
+            case .today, .attendance, .workCycle, .note, .fridayReview:
                 dailyContent
             case .students, .meetings, .goingOut, .parentCommunication, .classroomJobs, .more:
                 studentsContent
             case .lessons, .stories, .bookClub, .planningChecklist, .planningAgenda, .planningWork,
                  .planningProgression, .planningProjects, .needsLesson, .smallGroupPlanner:
                 curriculumContent
+            case .todos, .planningInitiatives, .planningCalendar, .perpetualCalendar:
+                planningContent
             case .progressDashboard, .lessonFrequency, .curriculumBalance,
                  .greatLessonsTimeline, .transitionPlanner, .threeYearCycle:
                 progressContent
-            case .supplies, .procedures, .schedules, .perpetualCalendar,
+            case .supplies, .procedures, .schedules,
                  .prepChecklist, .community, .issues, .resourceLibrary:
                 resourcesContent
             case .askAI, .logs, .settings:
@@ -61,9 +63,18 @@ struct RootDetailContent: View {
         case .attendance: AnyView(attendanceContent)
         case .workCycle: AnyView(WorkCycleView())
         case .note: AnyView(noteTabContent)
-        case .todos: AnyView(TodoMainView())
         case .fridayReview: AnyView(FridayReviewView())
         default: AnyView(EmptyView())
+        }
+    }
+
+    @ViewBuilder
+    private var planningContent: some View {
+        switch selectedNavItem {
+        case .todos: TodoMainView()
+        case .planningInitiatives: InitiativesRootView()
+        case .planningCalendar, .perpetualCalendar: PlanningCalendarView()
+        default: EmptyView()
         }
     }
 
@@ -152,7 +163,6 @@ struct RootDetailContent: View {
         case .supplies: SuppliesListView()
         case .procedures: ProceduresListView()
         case .schedules: SchedulesView()
-        case .perpetualCalendar: PerpetualCalendarView()
         case .prepChecklist: PrepChecklistRootView()
         case .community: CommunityMeetingsView()
         case .issues: IssuesListView()

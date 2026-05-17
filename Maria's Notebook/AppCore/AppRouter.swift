@@ -85,6 +85,9 @@ final class AppRouter {
     var checklistFilterSubject: String?
     var checklistFilterGroup: String?
 
+    /// Initiative deep-link target (consumed once by `InitiativesRootView`)
+    var pendingInitiativeID: String?
+
     /// Refresh trigger for planning inbox
     var planningInboxRefreshTrigger: UUID = UUID()
 

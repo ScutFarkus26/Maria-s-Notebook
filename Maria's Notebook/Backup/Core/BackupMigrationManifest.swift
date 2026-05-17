@@ -121,6 +121,17 @@ public enum BackupMigrationManifest {
             ],
             breakingChanges: [],
             migrationNotes: "New optional arrays; older payloads decode these as nil."
+        ),
+        FormatVersionInfo(
+            version: 15,
+            releaseDate: DateComponents(calendar: .current, year: 2026, month: 5, day: 11).date!,
+            description: "Adds CDInitiative entity and CDTodoItem.initiativeID for the Planning section project manager",
+            changes: [
+                "CDInitiative entity for Things-style planning initiatives",
+                "CDTodoItem.initiativeID String FK linking todos to initiatives"
+            ],
+            breakingChanges: [],
+            migrationNotes: "Initiatives is a new optional array; older payloads decode this as nil. CDTodoItem.initiativeID is optional and defaults to nil for older payloads."
         )
     ]
 
@@ -405,7 +416,10 @@ extension BackupMigrationManifest {
 
         // Meeting-Work Integration (v14+)
         PayloadField(name: "meetingWorkReviews", introducedIn: 14, description: "CDMeetingWorkReview records"),
-        PayloadField(name: "studentFocusItems", introducedIn: 14, description: "CDStudentFocusItem records")
+        PayloadField(name: "studentFocusItems", introducedIn: 14, description: "CDStudentFocusItem records"),
+
+        // Planning Initiatives (v15+)
+        PayloadField(name: "initiatives", introducedIn: 15, description: "CDInitiative records")
     ]
 
     public struct PayloadField: Identifiable, Sendable {

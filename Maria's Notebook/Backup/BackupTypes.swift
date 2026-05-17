@@ -15,7 +15,7 @@ public enum BackupFile: Sendable {
     /// Format version 7: Removes legacy WorkPlanItem backup compatibility
     /// Format version 6: Adds compression support (LZFSE)
     /// Format version 5: Enforces checksum validation with deterministic JSON encoding (.sortedKeys)
-    nonisolated public static let formatVersion = 14
+    nonisolated public static let formatVersion = 15
     /// Minimum format version that enforces checksum validation
     nonisolated public static let checksumEnforcedVersion = 5
     /// Format version that introduced compression (backups < this version are uncompressed)
@@ -213,6 +213,7 @@ public struct BackupPayload: Codable, Sendable {
         case calendarNotes, scheduledMeetings
         case classroomMemberships
         case meetingWorkReviews, studentFocusItems
+        case initiatives
         case preferences
     }
 
@@ -330,6 +331,9 @@ public struct BackupPayload: Codable, Sendable {
     // Meeting-Work Integration (format v14+)
     public var meetingWorkReviews: [MeetingWorkReviewDTO]?
     public var studentFocusItems: [StudentFocusItemDTO]?
+
+    // Planning Initiatives (format v15+)
+    public var initiatives: [InitiativeDTO]?
 
     // Lightweight app/user metadata (preferences) as typed dictionary
     public var preferences: PreferencesDTO

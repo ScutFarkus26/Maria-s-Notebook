@@ -53,6 +53,7 @@ struct TodoEditSheet: View {
     @State var locationLongitude: Double?
     @State var notifyOnEntry: Bool
     @State var notifyOnExit: Bool
+    @State var selectedInitiativeID: String?
     @State var isShowingFileImporter = false
     @State var previewingAttachmentURL: URL?
     @State var isShowingMapPicker = false
@@ -99,6 +100,7 @@ struct TodoEditSheet: View {
         _locationLongitude = State(initialValue: todo.locationLongitude != 0 ? todo.locationLongitude : nil)
         _notifyOnEntry = State(initialValue: todo.notifyOnEntry)
         _notifyOnExit = State(initialValue: todo.notifyOnExit)
+        _selectedInitiativeID = State(initialValue: todo.initiativeID)
     }
 
     var selectedStudents: [CDStudent] {

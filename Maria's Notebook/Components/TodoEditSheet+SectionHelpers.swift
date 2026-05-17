@@ -346,6 +346,9 @@ extension TodoEditSheet {
         todo.mood = selectedMood
         todo.reflectionNotes = reflectionNotes.trimmed()
 
+        // Save initiative link
+        todo.initiativeID = selectedInitiativeID
+
         // Save location reminder
         if hasLocationReminder && !locationName.isEmpty {
             todo.locationName = locationName.trimmed()

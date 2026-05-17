@@ -32,8 +32,6 @@ extension RootSidebar {
                 sidebarRow(.prepChecklist, title: "Prep Checklist", systemImage: "checklist.checked")
 
                 sidebarRow(.workCycle, title: "Work Cycle", systemImage: "timer")
-
-                sidebarRow(.todos, title: "Todos", systemImage: SFSymbol.Action.checkmarkCircle)
             }
 
             Section("Students") {
@@ -99,6 +97,12 @@ extension RootSidebar {
             }
 
             Section("Planning") {
+                sidebarRow(.planningCalendar, title: "Calendar", systemImage: "calendar.day.timeline.leading")
+
+                sidebarRow(.planningInitiatives, title: "Initiatives", systemImage: "target")
+
+                sidebarRow(.todos, title: "Todos", systemImage: SFSymbol.Action.checkmarkCircle)
+
                 sidebarRow(.planningAgenda, title: "Presentations", systemImage: SFSymbol.Time.calendar)
 
                 sidebarRow(.planningWork, title: "Open Work", systemImage: "tray.full")
@@ -143,8 +147,6 @@ extension RootSidebar {
                 sidebarRow(.procedures, title: "Procedures", systemImage: SFSymbol.CDDocument.docText)
 
                 sidebarRow(.schedules, title: "Schedules", systemImage: "clock.badge.checkmark")
-
-                sidebarRow(.perpetualCalendar, title: "Calendar", systemImage: "calendar.day.timeline.leading")
             }
 
             Section("System") {
@@ -210,10 +212,6 @@ extension RootSidebar {
                              title: "Work Cycle",
                              systemImage: "timer",
                              hint: "Track student activity during the work cycle")
-            iOSSidebarButton(.todos,
-                             title: "Todos",
-                             systemImage: SFSymbol.Action.checkmarkCircle,
-                             hint: "Manage your personal todos and tasks")
         }
     }
 
@@ -303,6 +301,18 @@ extension RootSidebar {
 
     private var iOSSidebarPlanningSection: some View {
         Section("Planning") {
+            iOSSidebarButton(.planningCalendar,
+                             title: "Calendar",
+                             systemImage: "calendar.day.timeline.leading",
+                             hint: "Year-at-a-glance calendar with Mac events, initiative deadlines, and due todos")
+            iOSSidebarButton(.planningInitiatives,
+                             title: "Initiatives",
+                             systemImage: "target",
+                             hint: "Plan multi-step initiatives with deadlines (e.g. report cards, class trip)")
+            iOSSidebarButton(.todos,
+                             title: "Todos",
+                             systemImage: SFSymbol.Action.checkmarkCircle,
+                             hint: "Manage your personal todos and tasks")
             iOSSidebarButton(.planningAgenda,
                              title: "Presentations",
                              systemImage: SFSymbol.Time.calendar,
@@ -381,10 +391,6 @@ extension RootSidebar {
                              title: "Schedules",
                              systemImage: "clock.badge.checkmark",
                              hint: "View recurring schedules")
-            iOSSidebarButton(.perpetualCalendar,
-                             title: "Calendar",
-                             systemImage: "calendar.day.timeline.leading",
-                             hint: "View perpetual year-at-a-glance calendar")
         }
     }
 

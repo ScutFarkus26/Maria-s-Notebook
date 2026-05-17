@@ -36,6 +36,7 @@ public class CDTodoItemEntity: NSManagedObject {
     @NSManaged public var notifyOnEntry: Bool
     @NSManaged public var notifyOnExit: Bool
     @NSManaged public var tags: NSObject?
+    @NSManaged public var initiativeID: String?
 
     // MARK: - Relationships
     @NSManaged public var subtasks: NSSet?
@@ -75,6 +76,7 @@ public class CDTodoItemEntity: NSManagedObject {
         self.notifyOnEntry = true
         self.notifyOnExit = false
         self.tags = nil
+        self.initiativeID = nil
     }
 }
 

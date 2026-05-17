@@ -33,6 +33,24 @@ public struct TodoItemDTO: Codable, Sendable {
     public var locationRadius: Double
     public var notifyOnEntry: Bool
     public var notifyOnExit: Bool
+    // Initiative link (format v15+)
+    public var initiativeID: String?
+}
+
+public struct InitiativeDTO: Codable, Sendable {
+    public var id: UUID
+    public var title: String
+    public var notes: String
+    public var deadline: Date?
+    public var completedAt: Date?
+    public var area: String?
+    public var colorRaw: String?
+    public var symbol: String?
+    public var orderIndex: Int
+    public var createdAt: Date
+    public var modifiedAt: Date
+    public var notificationIDs: [String]
+    public var leadTimeDays: [Int]?
 }
 
 public struct TodoSubtaskDTO: Codable, Sendable {
