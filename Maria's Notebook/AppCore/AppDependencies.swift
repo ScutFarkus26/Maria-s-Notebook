@@ -166,11 +166,7 @@ final class AppDependencies {
 
     var _backupService: BackupService?
     var _selectiveRestoreService: SelectiveRestoreService?
-    var _cloudBackupService: CloudBackupService?
-    var _incrementalBackupService: IncrementalBackupService?
-    var _backupSharingService: BackupSharingService?
     var _backupTransactionManager: BackupTransactionManager?
-    var _selectiveExportService: SelectiveExportService?
     var _autoBackupManager: AutoBackupManager?
     var _backupCoordinator: BackupCoordinator?
 

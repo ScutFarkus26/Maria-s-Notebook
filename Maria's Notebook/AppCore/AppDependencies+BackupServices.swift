@@ -23,33 +23,6 @@ extension AppDependencies {
         return service
     }
 
-    var cloudBackupService: CloudBackupService {
-        if let service = _cloudBackupService {
-            return service
-        }
-        let service = CloudBackupService(backupService: backupService)
-        _cloudBackupService = service
-        return service
-    }
-
-    var incrementalBackupService: IncrementalBackupService {
-        if let service = _incrementalBackupService {
-            return service
-        }
-        let service = IncrementalBackupService(backupService: backupService)
-        _incrementalBackupService = service
-        return service
-    }
-
-    var backupSharingService: BackupSharingService {
-        if let service = _backupSharingService {
-            return service
-        }
-        let service = BackupSharingService(backupService: backupService)
-        _backupSharingService = service
-        return service
-    }
-
     var backupTransactionManager: BackupTransactionManager {
         if let manager = _backupTransactionManager {
             return manager
@@ -57,15 +30,6 @@ extension AppDependencies {
         let manager = BackupTransactionManager(backupService: backupService)
         _backupTransactionManager = manager
         return manager
-    }
-
-    var selectiveExportService: SelectiveExportService {
-        if let service = _selectiveExportService {
-            return service
-        }
-        let service = SelectiveExportService(backupService: backupService)
-        _selectiveExportService = service
-        return service
     }
 
     var autoBackupManager: AutoBackupManager {
