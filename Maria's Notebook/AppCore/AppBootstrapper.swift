@@ -74,6 +74,14 @@ final class AppBootstrapper {
         DeduplicationCoordinator.shared.persistentContainer = coreDataStack.container
         DeduplicationCoordinator.shared.coreDataStack = coreDataStack
 
+        // 5.6. Start the shared-store orphan guard so any save that
+        // inserts a shared-store entity either triggers auto-create of
+        // the classroom CKShare (if none exists) or attaches the new
+        // record to the existing share. Without this, runtime writes
+        // would poison NSCloudKitMirroringDelegate (NSCocoaErrorDomain
+        // 134060) between bootstrap and the next share-saved event.
+        SharedStoreOrphanGuard.shared.start(coreDataStack: coreDataStack)
+
         // 6. Run heavy migrations and dedup in the background to avoid UI stalls
         // IMPORTANT: Delay background migrations to let the initial SwiftUI render complete.
         // Without this delay, background DB operations compete with @FetchRequest evaluations
@@ -122,6 +130,23 @@ final class AppBootstrapper {
             _ = DataMigrations.deduplicateAllModels(using: coreDataStack.viewContext)
         }
         logger.info("Post-launch: deduplication completed in \(formatSeconds(Date().timeIntervalSince(dedupStart)))")
+
+        // 3.82. Ensure a CKShare exists for the shared store before any
+        // shared-store-writing migration runs. Without this, the
+        // backfill below + SequenceTrackService write orphan records
+        // that poison NSCloudKitMirroringDelegate (NSCocoaErrorDomain
+        // 134060) for the rest of the session. Auto-creating the share
+        // also lets SharedStoreZoneRepair attach the existing orphans
+        // in the same launch.
+        await ClassroomSharingService.ensureShareExistsOnLaunch(coreDataStack: coreDataStack)
+
+        // 3.85. Backfill per-student CDLessonPresentation rows for assignments that were marked
+        // presented via entry points which historically skipped LifecycleService.recordPresentation.
+        // Runs once per device (UserDefaults-guarded); idempotent.
+        // Gated internally on SharedStoreZoneRepair.hasActiveShare.
+        await MainActor.run {
+            DataMigrations.backfillLessonPresentationsFromAssignments(using: coreDataStack.viewContext)
+        }
 
         // 3.9. Data Integrity Repairs (Run on ~10% of launches to reduce startup impact)
         if Int.random(in: 1...10) == 1 {

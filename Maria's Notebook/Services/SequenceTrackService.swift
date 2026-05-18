@@ -15,6 +15,20 @@ struct AvailableTrack {
 struct SequenceTrackService {
     private static let logger = Logger.lessons
 
+    // MARK: - Shared-store guard
+
+    /// True when the context is backed by a two-store CloudKit configuration
+    /// (i.e. there's a store assigned to `CoreDataStack.sharedConfiguration`)
+    /// AND no CKShare exists yet. Writing shared-store entities in this state
+    /// creates orphan records that poison the CloudKit mirroring delegate
+    /// with NSCocoaErrorDomain 134060. Returns `false` for local-only and
+    /// in-memory test stacks (single unified store, no shared configuration).
+    static func shouldDeferSharedStoreWrites(context: NSManagedObjectContext) -> Bool {
+        let stores = context.persistentStoreCoordinator?.persistentStores ?? []
+        let hasSharedStore = stores.contains { $0.configurationName == CoreDataStack.sharedConfiguration }
+        return hasSharedStore && !SharedStoreZoneRepair.shared.hasActiveShare
+    }
+
     // MARK: - Core Data API (Primary)
 
     /// Check if a sequence is marked as a track (Core Data)
@@ -100,6 +114,21 @@ struct SequenceTrackService {
             return existingTrack
         }
 
+        // CDTrackEntity is a shared-store entity. In the two-store CloudKit
+        // configuration, creating it before any CKShare exists produces orphan
+        // records that poison the CloudKit mirroring delegate
+        // (NSCocoaErrorDomain 134060). All call sites already wrap this in
+        // try/catch and treat track creation as best-effort, so throw here
+        // and let them no-op until a share is in place. Local-only / test
+        // stacks have no shared-configured store, so the gate is skipped
+        // there.
+        if shouldDeferSharedStoreWrites(context: context) {
+            throw NSError(
+                domain: "SequenceTrackService", code: 2,
+                userInfo: [NSLocalizedDescriptionKey: "Cannot create track before classroom CKShare exists"]
+            )
+        }
+
         let newTrack = CDTrackEntity(context: context)
         newTrack.title = trackTitle
         newTrack.sequenceTrack = sequenceTrack
@@ -127,14 +156,15 @@ struct SequenceTrackService {
         sequence: String,
         context: NSManagedObjectContext
     ) throws {
-        // Track and TrackStep are shared-store entities. If we're
-        // creating them before a CKShare exists, they'll become
-        // orphans that SharedStoreZoneRepair must attach later. Leave
-        // a breadcrumb so future investigations don't have to guess
-        // where the orphans came from.
-        if !SharedStoreZoneRepair.shared.hasActiveShare {
-            logger.warning("cdEnsureTrackSteps writing to shared store with no active CKShare (area=\(area, privacy: .public), sequence=\(sequence, privacy: .public))")
-        }
+        // CDTrackStepEntity is a shared-store entity. In the two-store
+        // CloudKit configuration, skip creation until a CKShare exists —
+        // otherwise the new step records become orphans that poison the
+        // CloudKit mirroring delegate (NSCocoaErrorDomain 134060). Steps
+        // get back-filled by the auto-create-share path or the orphan-guard
+        // observer the next time getOrCreateTrack runs after a share is in
+        // place. Local-only / test stacks have no shared-configured store,
+        // so the gate is skipped there.
+        guard !shouldDeferSharedStoreWrites(context: context) else { return }
 
         let allLessons = context.safeFetch(CDFetchRequest(CDLesson.self))
         let matchingLessons = allLessons.filter { lesson in
