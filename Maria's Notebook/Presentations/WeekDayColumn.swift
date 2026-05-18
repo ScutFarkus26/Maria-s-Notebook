@@ -81,6 +81,20 @@ struct WeekDayColumn: View {
         scheduledLessonsForDay.count
     }
 
+    private var uniqueStudentCount: Int {
+        var seen = Set<UUID>()
+        for assignment in scheduledLessonsForDay {
+            for id in assignment.studentUUIDs { seen.insert(id) }
+        }
+        return seen.count
+    }
+
+    private var plannedLabel: String {
+        let s = "\(uniqueStudentCount) student" + (uniqueStudentCount == 1 ? "" : "s")
+        let p = "\(plannedCount) presentation" + (plannedCount == 1 ? "" : "s")
+        return "\(s), \(p)"
+    }
+
     var body: some View {
         VStack(alignment: .leading, spacing: 6) {
             // Day header — weekday, date, planned count
@@ -91,7 +105,7 @@ struct WeekDayColumn: View {
                     .font(.headline.weight(.semibold))
                 Spacer()
                 if plannedCount > 0 {
-                    Text("\(plannedCount) planned")
+                    Text(plannedLabel)
                         .font(.caption.weight(.medium))
                         .foregroundStyle(.secondary)
                 }

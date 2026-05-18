@@ -161,23 +161,20 @@ struct PresentationPlannerCard: View {
             return nil
         }()
 
-        return HStack(spacing: 3) {
-            if let dot = indicator {
-                Circle()
-                    .fill(dot)
-                    .frame(width: 5, height: 5)
-            }
-            Text(name)
-                .font(AppTheme.ScaledFont.captionSmallSemibold)
-                .foregroundStyle(isAbsent ? .secondary : .primary)
-                .lineLimit(1)
-        }
-        .padding(.horizontal, 7)
-        .padding(.vertical, 3)
-        .background(
-            Capsule()
-                .fill(Color.primary.opacity(UIConstants.OpacityConstants.veryFaint))
-        )
+        return Text(name)
+            .font(AppTheme.ScaledFont.captionSmallSemibold)
+            .foregroundStyle(isAbsent ? .secondary : .primary)
+            .lineLimit(1)
+            .padding(.horizontal, 7)
+            .padding(.vertical, 3)
+            .background(
+                Capsule()
+                    .fill(Color.primary.opacity(UIConstants.OpacityConstants.veryFaint))
+            )
+            .overlay(
+                Capsule()
+                    .stroke(indicator ?? .clear, lineWidth: indicator == nil ? 0 : 1.5)
+            )
     }
 
     @ViewBuilder

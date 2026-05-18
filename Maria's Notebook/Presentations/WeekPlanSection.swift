@@ -10,6 +10,7 @@ struct WeekPlanSection: View {
     let days: [Date]
     @Binding var startDate: Date
     let isNonSchool: (Date) -> Bool
+    let legend: AnyView
     let onClear: (CDLessonAssignment) -> Void
     let onSelect: (CDLessonAssignment) -> Void
 
@@ -156,6 +157,7 @@ struct WeekPlanSection: View {
                     .buttonStyle(.plain)
                     .help("Unschedule all scheduled lessons and return them to On Deck")
                     Spacer()
+                    legend
                 }
                 .padding(.horizontal, 12)
                 .confirmationDialog(

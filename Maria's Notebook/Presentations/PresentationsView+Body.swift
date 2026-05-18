@@ -54,7 +54,16 @@ extension PresentationsView {
                 syncRecentWindowWithMissWindow()
             }
 
-            updateViewModel()
+            // Debounce the heavy fetch path: a CloudKit import that
+            // touches several entities can fire multiple @FetchRequest
+            // updates back-to-back. Collapse them into a single reload
+            // 200ms after the last change.
+            dependencyDebounceTask?.cancel()
+            dependencyDebounceTask = Task { @MainActor in
+                try? await Task.sleep(for: .milliseconds(200))
+                guard !Task.isCancelled else { return }
+                updateViewModel()
+            }
         }
         .sheet(item: $coordinator.activeSheet) { sheet in
             switch sheet {
@@ -206,37 +215,32 @@ extension PresentationsView {
     }
 
     private var calendarStripView: some View {
-        VStack(spacing: 0) {
-            presentationsLegend
-            WeekPlanSection(
-                days: days,
-                startDate: $startDate,
-                isNonSchool: isNonSchool,
-                onClear: { la in
-                    la.unschedule()
-                    do {
-                        try viewContext.save()
-                    } catch {
-                        Self.logger.warning("Failed to save schedule clear: \(error)")
-                    }
-                },
-                onSelect: { la in
-                    coordinator.showLessonAssignmentDetail(la)
+        WeekPlanSection(
+            days: days,
+            startDate: $startDate,
+            isNonSchool: isNonSchool,
+            legend: AnyView(presentationsLegend),
+            onClear: { la in
+                la.unschedule()
+                do {
+                    try viewContext.save()
+                } catch {
+                    Self.logger.warning("Failed to save schedule clear: \(error)")
                 }
-            )
-        }
+            },
+            onSelect: { la in
+                coordinator.showLessonAssignmentDetail(la)
+            }
+        )
     }
 
     private var presentationsLegend: some View {
         HStack(spacing: 14) {
             legendSwatch(color: .red, label: "Absent")
             legendSwatch(color: AppColors.attention, label: "Scheduled more than once")
-            Spacer()
         }
         .font(.caption2)
         .foregroundStyle(.secondary)
-        .padding(.horizontal, 16)
-        .padding(.vertical, 6)
     }
 
     private func legendSwatch(color: Color, label: String) -> some View {
