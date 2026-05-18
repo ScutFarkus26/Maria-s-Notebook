@@ -18,6 +18,20 @@ extension BackupService {
         password: String?,
         progress: @escaping ProgressCallback
     ) throws -> BackupOperationSummary {
+        let payload = collectPayload(viewContext: viewContext, progress: progress)
+        return try encodeAndWriteExport(
+            payload: payload, to: url, password: password, progress: progress
+        )
+    }
+
+    /// Collects every backup-eligible Core Data entity into a `BackupPayload`.
+    /// Exposed for reuse by the Backup2 module (which serializes the payload
+    /// to AEA-framed NDJSON instead of the legacy JSON envelope). Legacy
+    /// `performExport` is the only other caller.
+    public func collectPayload(
+        viewContext: NSManagedObjectContext,
+        progress: @escaping ProgressCallback = { _, _ in }
+    ) -> BackupPayload {
         var payload = BackupPayload(
             items: [], students: [], lessons: [],
             lessonAssignments: [],
@@ -37,9 +51,7 @@ extension BackupService {
         collectTemplateAndTrackDTOs(into: &payload, using: viewContext, progress: progress)
         collectOrganizationDTOs(into: &payload, using: viewContext, progress: progress)
 
-        return try encodeAndWriteExport(
-            payload: payload, to: url, password: password, progress: progress
-        )
+        return payload
     }
 
     // MARK: - DTO Collection Helpers
