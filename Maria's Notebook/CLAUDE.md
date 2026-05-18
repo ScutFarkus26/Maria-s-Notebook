@@ -166,7 +166,9 @@ These come from Apple's frameworks, not this app — they are not actionable in 
 
 ## Backup System
 
-- Format version: 13
-- Encryption: AES-GCM-256, compression: LZFSE, signing: Ed25519
-- Auto-backup on app quit with configurable retention (default: 10)
-- Entity registry: `BackupEntityRegistry.swift`
+- Format version: 16 (single source of truth: `BackupFile.formatVersion` in `Backup/BackupTypes.swift`)
+- Compression: LZFSE (built into the envelope)
+- Auto-backup on app quit + configurable schedule, retention default 10
+- Restore goes through `BackupTransactionManager.executeImportWithRollback` (safety checkpoint + auto-rollback on failure)
+- `replace` mode uses context-level deletes (NOT `NSBatchDeleteRequest`) so CloudKit mirroring sees proper delete tombstones
+- Entity registry: `Backup/Core/BackupEntityRegistry.swift`

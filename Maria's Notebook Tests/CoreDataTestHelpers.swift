@@ -62,13 +62,13 @@ enum CoreDataTestHelpers {
     static func seedLesson(
         in context: NSManagedObjectContext,
         name: String = "Test Lesson",
-        subject: String = "Math",
-        group: String = "Counting"
+        area: String = "Math",
+        sequence: String = "Counting"
     ) -> CDLesson {
         let lesson = CDLesson(context: context)
         lesson.name = name
-        lesson.subject = subject
-        lesson.group = group
+        lesson.area = area
+        lesson.sequence = sequence
         return lesson
     }
 

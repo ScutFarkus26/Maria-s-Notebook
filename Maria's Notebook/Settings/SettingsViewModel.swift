@@ -30,6 +30,7 @@ final class SettingsViewModel {
     // Internal
     private let dependencies: AppDependencies
     private var backupService: BackupService { dependencies.backupService }
+    private var transactionManager: BackupTransactionManager { dependencies.backupTransactionManager }
     private var pendingImportURL: URL?
     private var exportURL: URL?
     
@@ -81,7 +82,7 @@ final class SettingsViewModel {
 
     // MARK: - Export
     // swiftlint:disable:next function_body_length
-    func performExport(viewContext: NSManagedObjectContext, encryptBackups: Bool) async {
+    func performExport(viewContext: NSManagedObjectContext) async {
         do {
             backupProgress = 0; backupMessage = "Preparing…"; resultSummary = nil
             let tmpName = defaultBackupFilename()
@@ -90,10 +91,13 @@ final class SettingsViewModel {
                 .appendingPathExtension(BackupFile.fileExtension)
             exportURL = tmp
             safeRemoveItem(at: tmp, context: "performExport-cleanup")
+            // password: nil — app-level backup encryption is disabled in the UI.
+            // At-rest protection comes from FileVault / iOS Data Protection / iCloud Drive.
+            // Decryption of legacy `.mtbbackup` files is still supported on import.
             _ = try await backupService.exportBackup(
                 viewContext: viewContext,
                 to: tmp,
-                password: encryptBackups ? "defaultPassword" : nil
+                password: nil
             ) { [weak self] progress, message in
                 self?.backupProgress = progress
                 self?.backupMessage = message
@@ -193,11 +197,15 @@ final class SettingsViewModel {
             importProgress = 0
             importMessage = "Starting…"
             resultSummary = nil
-            let summary = try await backupService.importBackup(
+            // Route through the transaction manager so `.replace` mode gets a safety
+            // checkpoint + automatic rollback on import failure. For `.merge`, the
+            // manager skips the checkpoint (it's best-effort, non-destructive).
+            let summary = try await transactionManager.executeImportWithRollback(
                 viewContext: viewContext,
                 from: url,
                 mode: restoreMode,
-                appRouter: dependencies.appRouter
+                password: nil,
+                shouldCreateCheckpoint: restoreMode == .replace
             ) { [weak self] p, m in
                 self?.importProgress = p
                 self?.importMessage = m

@@ -4,7 +4,6 @@ import Foundation
 
 // swiftlint:disable:next type_body_length
 struct BackupRestoreSettingsView: View {
-    @Binding var encryptBackups: Bool
     @Binding var restoreMode: BackupService.RestoreMode
     @Binding var backupProgress: Double
     @Binding var backupMessage: String
@@ -70,13 +69,9 @@ struct BackupRestoreSettingsView: View {
     private var backupCard: some View {
         CompactCard {
             VStack(alignment: .leading, spacing: AppTheme.Spacing.small + 2) {
-                HStack {
-                    Label("Backup", systemImage: "externaldrive.fill")
-                        .font(.subheadline.weight(.bold))
-                        .foregroundStyle(.blue)
-                    Spacer()
-                    encryptionPill
-                }
+                Label("Backup", systemImage: "externaldrive.fill")
+                    .font(.subheadline.weight(.bold))
+                    .foregroundStyle(.blue)
 
                 HStack {
                     if let size = estimatedBackupSize {
@@ -99,23 +94,6 @@ struct BackupRestoreSettingsView: View {
                 .disabled(isShowingProgress)
             }
         }
-    }
-
-    private var encryptionPill: some View {
-        Button {
-            encryptBackups.toggle()
-        } label: {
-            HStack(spacing: AppTheme.Spacing.statusPillVertical) {
-                Image(systemName: encryptBackups ? "lock.fill" : "lock.open")
-                    .font(.caption2)
-                Text(encryptBackups ? "Encrypted" : "Public")
-                    .font(.caption2)
-            }
-            .padding(.horizontal, AppTheme.Spacing.small)
-            .padding(.vertical, AppTheme.Spacing.statusPillVertical)
-            .background(Capsule().fill(Color.primary.opacity(UIConstants.OpacityConstants.subtle)))
-        }
-        .buttonStyle(.plain)
     }
 
     // MARK: - Restore Card
@@ -331,7 +309,6 @@ private struct CompactCard<Content: View>: View {
 
 #Preview {
     BackupRestoreSettingsView(
-        encryptBackups: .constant(false),
         restoreMode: .constant(.merge),
         backupProgress: .constant(0),
         backupMessage: .constant(""),

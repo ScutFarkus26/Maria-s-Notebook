@@ -204,9 +204,37 @@ final class AutoBackupManager {
         isPerformingBackup = true
         defer { isPerformingBackup = false }
 
-        let backupDir = FileManager.default.urls(for: .documentDirectory, in: .userDomainMask)[0]
-            .appendingPathComponent("Backups/Auto")
+        // Resolve auto-backup directory.
+        // 1) If the user picked a default folder (Settings > Backup > Storage), put auto-backups
+        //    in an `Auto/` subdirectory of that folder so iCloud Drive / Files-app users see them.
+        // 2) Otherwise fall back to `Documents/Backups/Auto`.
+        let (backupDir, securityScopedRoot) = resolveAutoBackupDirectory()
+        if let root = securityScopedRoot, root.startAccessingSecurityScopedResource() {
+            defer { root.stopAccessingSecurityScopedResource() }
+            return await runExport(in: backupDir, trigger: trigger, prefix: prefix, viewContext: viewContext)
+        }
+        return await runExport(in: backupDir, trigger: trigger, prefix: prefix, viewContext: viewContext)
+    }
 
+    /// Returns the directory auto-backups should be written into, plus the security-scoped
+    /// root URL that must be accessed (when the destination is a user-bookmarked folder).
+    private func resolveAutoBackupDirectory() -> (URL, securityScopedRoot: URL?) {
+        if let userFolder = BackupDestination.resolveDefaultFolder() {
+            let auto = userFolder.appendingPathComponent("Auto", isDirectory: true)
+            let needsScope = BackupDestination.resolveBookmarkedFolder() != nil
+            return (auto, needsScope ? userFolder : nil)
+        }
+        let fallback = FileManager.default.urls(for: .documentDirectory, in: .userDomainMask)[0]
+            .appendingPathComponent("Backups/Auto", isDirectory: true)
+        return (fallback, nil)
+    }
+
+    private func runExport(
+        in backupDir: URL,
+        trigger: BackupTrigger,
+        prefix: String,
+        viewContext: NSManagedObjectContext
+    ) async -> BackupResult {
         // Ensure directory exists
         do {
             try FileManager.default.createDirectory(at: backupDir, withIntermediateDirectories: true)

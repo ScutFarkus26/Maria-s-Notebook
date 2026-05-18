@@ -23,7 +23,19 @@ private enum RestoreProgress {
     static let additionalEntities: Double = 0.88
     static let saving: Double = 0.90
     static let denormalizedRepair: Double = 0.92
+    static let cloudSync: Double = 0.96
     static let done: Double = 1.00
+}
+
+/// Outcome of waiting for `NSPersistentCloudKitContainer` to finish the post-restore export.
+enum CloudExportWaitResult: Sendable {
+    /// No CloudKit-backed store, or the wait completed and a `.export` event succeeded.
+    case completed
+    /// `.export` event arrived but reported `succeeded == false`. Carries a localized description
+    /// (not the underlying `Error` — `any Error` doesn't cross task boundaries cleanly).
+    case failed(reason: String?)
+    /// Timed out before any complete `.export` event arrived. Sync is still running in the background.
+    case timedOut
 }
 
 // MARK: - Restore Preview & Import
@@ -112,10 +124,17 @@ extension BackupService {
         progress(RestoreProgress.deduplication, "Deduplicating records\u{2026}")
         payload = deduplicatePayload(payload)
 
+        var replaceWarnings: [String] = []
         if mode == .replace {
             progress(RestoreProgress.clearing, "Clearing existing data\u{2026}")
             appRouter.signalAppDataWillBeReplaced()
-            try deleteAll(viewContext: viewContext)
+            let failedEntities = try deleteAll(viewContext: viewContext)
+            if !failedEntities.isEmpty {
+                replaceWarnings.append(
+                    "Could not clear: \(failedEntities.joined(separator: ", ")). "
+                    + "Stale rows of these types may remain after restore."
+                )
+            }
         }
 
         progress(RestoreProgress.coreEntities, "Importing records\u{2026}")
@@ -160,17 +179,86 @@ extension BackupService {
         applyPreferencesDTO(payload.preferences)
         appRouter.signalAppDataDidRestore()
 
+        // After save, the in-memory model is correct but CloudKit-mirrored stores still need
+        // to upload the new records. Block briefly so users see a definitive "synced" message
+        // when possible; on timeout, surface that sync is continuing in the background.
+        progress(RestoreProgress.cloudSync, "Syncing to iCloud\u{2026}")
+        let cloudResult = await awaitCloudKitExport(viewContext: viewContext, timeout: .seconds(30))
+
+        var warnings = replaceWarnings
+        switch cloudResult {
+        case .completed:
+            break
+        case .failed(let reason):
+            let detail = reason ?? "unknown error"
+            warnings.append("iCloud sync reported a failure: \(detail). Your data is saved locally; check Settings → iCloud to retry.")
+        case .timedOut:
+            warnings.append("iCloud sync is still running in the background. Keep the app open for a moment to finish uploading.")
+        }
+
         let counts = envelope.manifest.entityCounts
         progress(RestoreProgress.done, "Done")
         return BackupOperationSummary(
             kind: .import,
             fileName: url.lastPathComponent,
             formatVersion: envelope.formatVersion,
-            encryptUsed: envelope.payload == nil,
+            encryptUsed: envelope.encryptedPayload != nil,
             createdAt: envelope.createdAt,
             entityCounts: counts,
-            warnings: []
+            warnings: warnings
         )
+    }
+
+    // MARK: - CloudKit Export Wait
+
+    /// Waits for an `NSPersistentCloudKitContainer` `.export` event to complete after a restore.
+    /// Returns immediately if no CloudKit-backed store is attached (e.g., test in-memory stack).
+    private func awaitCloudKitExport(
+        viewContext: NSManagedObjectContext,
+        timeout: Duration
+    ) async -> CloudExportWaitResult {
+        // Skip the wait when there's no CloudKit-mirrored store (in-memory tests, local-only fallback).
+        guard isCloudKitMirrored(viewContext: viewContext) else { return .completed }
+
+        let stream = NotificationCenter.default.notifications(
+            named: NSPersistentCloudKitContainer.eventChangedNotification
+        )
+
+        return await withTaskGroup(of: CloudExportWaitResult.self) { group in
+            group.addTask {
+                for await notification in stream {
+                    guard let event = notification.userInfo?[
+                        NSPersistentCloudKitContainer.eventNotificationUserInfoKey
+                    ] as? NSPersistentCloudKitContainer.Event else { continue }
+                    guard event.type == .export, event.endDate != nil else { continue }
+                    if event.succeeded {
+                        return .completed
+                    } else {
+                        return .failed(reason: event.error?.localizedDescription)
+                    }
+                }
+                return .timedOut
+            }
+            group.addTask {
+                try? await Task.sleep(for: timeout)
+                return .timedOut
+            }
+            let first = await group.next() ?? .timedOut
+            group.cancelAll()
+            return first
+        }
+    }
+
+    /// True when `viewContext` is attached to at least one CloudKit-mirrored persistent store.
+    /// Detects the in-memory test stack and skips the export wait.
+    private func isCloudKitMirrored(viewContext: NSManagedObjectContext) -> Bool {
+        guard let stores = viewContext.persistentStoreCoordinator?.persistentStores else { return false }
+        for store in stores {
+            if store.type == NSInMemoryStoreType { continue }
+            // Any non-memory SQLite store in this app is CloudKit-mirrored by configuration.
+            if store.type == NSSQLiteStoreType { return true }
+        }
+        return false
     }
 
     // MARK: - Import Helpers

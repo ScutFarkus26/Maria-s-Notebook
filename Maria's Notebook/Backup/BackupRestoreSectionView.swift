@@ -24,7 +24,6 @@ struct BackupRestoreSectionView: View {
         // Initialize with default dependencies - will be overridden by environment
         _viewModel = State(wrappedValue: SettingsViewModel(dependencies: AppDependenciesKey.defaultValue))
     }
-    @SyncedAppStorage("Backup.encrypt") private var encryptBackups: Bool = false
 
     // Export / Import state
     @State private var showingExporter = false
@@ -39,7 +38,7 @@ struct BackupRestoreSectionView: View {
         contentWithAlerts
             .onChange(of: appRouter.navigationDestination) { _, newValue in
                 if case .createBackup = newValue {
-                    Task { await viewModel.performExport(viewContext: viewContext, encryptBackups: encryptBackups) }
+                    Task { await viewModel.performExport(viewContext: viewContext) }
                     appRouter.clearNavigation()
                 } else if case .restoreBackup = newValue {
                     showingImporter = true
@@ -123,7 +122,6 @@ struct BackupRestoreSectionView: View {
 
     private var coreContent: some View {
         BackupRestoreSettingsView(
-            encryptBackups: $encryptBackups,
             restoreMode: $viewModel.restoreMode,
             backupProgress: $viewModel.backupProgress,
             backupMessage: $viewModel.backupMessage,
@@ -135,10 +133,7 @@ struct BackupRestoreSectionView: View {
             estimatedBackupSize: viewModel.estimatedBackupSize,
             performExport: {
                 Task {
-                    await viewModel.performExport(
-                        viewContext: viewContext,
-                        encryptBackups: encryptBackups
-                    )
+                    await viewModel.performExport(viewContext: viewContext)
                 }
             },
             presentImporter: {

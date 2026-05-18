@@ -226,6 +226,11 @@ public final class BackupTransactionManager {
             throw TransactionError.noCheckpointExists
         }
 
+        // Drop any partial unsaved changes from the failed import before re-importing
+        // the checkpoint — otherwise those zombie inserts/deletes get re-saved alongside
+        // the restore and corrupt it.
+        viewContext.rollback()
+
         do {
             _ = try await backupService.importBackup(
                 viewContext: viewContext,

@@ -22,7 +22,6 @@ struct DataManagementGrid: View {
         _viewModel = State(wrappedValue: SettingsViewModel(dependencies: AppDependenciesKey.defaultValue))
     }
 
-    @SyncedAppStorage("Backup.encrypt") private var encryptBackups: Bool = false
     @AppStorage(UserDefaultsKeys.autoBackupEnabled) private var autoBackupEnabled = true
     @AppStorage(UserDefaultsKeys.autoBackupRetentionCount) private var autoBackupRetention = 10
 
@@ -233,13 +232,9 @@ struct DataManagementGrid: View {
     private var backupCard: some View {
         CompactGridCard {
             VStack(alignment: .leading, spacing: AppTheme.Spacing.small) {
-                HStack {
-                    Label("Backup", systemImage: "externaldrive.fill")
-                        .font(.subheadline.weight(.bold))
-                        .foregroundStyle(.blue)
-                    Spacer()
-                    encryptionPill
-                }
+                Label("Backup", systemImage: "externaldrive.fill")
+                    .font(.subheadline.weight(.bold))
+                    .foregroundStyle(.blue)
 
                 if let size = viewModel.estimatedBackupSize {
                     Text(formatBytes(size))
@@ -248,7 +243,7 @@ struct DataManagementGrid: View {
                 }
 
                 Button {
-                    Task { await viewModel.performExport(viewContext: viewContext, encryptBackups: encryptBackups) }
+                    Task { await viewModel.performExport(viewContext: viewContext) }
                 } label: {
                     Text("Create Backup")
                         .font(.subheadline.weight(.medium))
@@ -259,21 +254,6 @@ struct DataManagementGrid: View {
                 .disabled(isWorking)
             }
         }
-    }
-
-    private var encryptionPill: some View {
-        Button { encryptBackups.toggle() } label: {
-            HStack(spacing: AppTheme.Spacing.statusPillVertical) {
-                Image(systemName: encryptBackups ? "lock.fill" : "lock.open")
-                Text(encryptBackups ? "Encrypted" : "Public")
-            }
-            .font(.caption2)
-            .padding(.horizontal, AppTheme.Spacing.statusPillHorizontal)
-            .padding(.vertical, AppTheme.Spacing.statusPillVertical)
-            .background(Capsule().fill(encryptBackups ? Color.green.opacity(UIConstants.OpacityConstants.accent) : Color.primary.opacity(UIConstants.OpacityConstants.subtle)))
-            .foregroundStyle(encryptBackups ? .green : .primary)
-        }
-        .buttonStyle(.plain)
     }
 
     // MARK: - Restore Card
