@@ -31,6 +31,7 @@ struct DataManagementGrid: View {
     @State private var resultMessage: String?
     @State private var folderRejection: BackupDestination.FolderRejection?
     @State private var migrationPrompt: BackupFolderMigration.Prompt?
+    @State private var isDropTargeted: Bool = false
 
     private var isWorking: Bool {
         (viewModel.backupProgress > 0 && viewModel.backupProgress < 1.0) ||
@@ -60,6 +61,30 @@ struct DataManagementGrid: View {
                     migrationPrompt = BackupFolderMigration.pendingPrompt()
                 }
             }
+#if os(macOS)
+            // Drag a .mtbbackup file in from Finder to start a restore.
+            // Same code path as the file-picker import.
+            .dropDestination(for: URL.self) { urls, _ in
+                guard let url = urls.first else { return false }
+                Task { @MainActor in
+                    await viewModel.previewImportedURL(viewContext: viewContext, url: url)
+                }
+                return true
+            } isTargeted: { targeted in
+                isDropTargeted = targeted
+            }
+            .overlay {
+                if isDropTargeted {
+                    RoundedRectangle(cornerRadius: 12, style: .continuous)
+                        .strokeBorder(Color.accentColor, lineWidth: 2)
+                        .background(
+                            RoundedRectangle(cornerRadius: 12, style: .continuous)
+                                .fill(Color.accentColor.opacity(0.06))
+                        )
+                        .allowsHitTesting(false)
+                }
+            }
+#endif
     }
 
     // MARK: - Alerts
@@ -284,6 +309,17 @@ struct DataManagementGrid: View {
                         .frame(maxWidth: .infinity)
                 }
                 .buttonStyle(.bordered)
+                .controlSize(.small)
+                .disabled(isWorking)
+
+                Button {
+                    Task { await viewModel.restoreMostRecentAutoBackup(viewContext: viewContext) }
+                } label: {
+                    Label("Restore Latest Auto", systemImage: "clock.arrow.circlepath")
+                        .font(.caption.weight(.medium))
+                        .frame(maxWidth: .infinity)
+                }
+                .buttonStyle(.borderless)
                 .controlSize(.small)
                 .disabled(isWorking)
             }

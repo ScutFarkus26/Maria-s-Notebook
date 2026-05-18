@@ -17,6 +17,7 @@ struct BackupRestoreSettingsView: View {
 
     let performExport: () -> Void
     let presentImporter: () -> Void
+    let restoreMostRecentAutoBackup: () -> Void
     let chooseDefaultFolder: () -> Void
     let openDefaultFolder: () -> Void
     let clearDefaultFolder: () -> Void
@@ -120,6 +121,17 @@ struct BackupRestoreSettingsView: View {
                         .frame(maxWidth: .infinity)
                 }
                 .buttonStyle(.bordered)
+                .controlSize(.small)
+                .disabled(isShowingProgress)
+
+                Button {
+                    restoreMostRecentAutoBackup()
+                } label: {
+                    Label("Restore Latest Auto", systemImage: "clock.arrow.circlepath")
+                        .font(.caption.weight(.medium))
+                        .frame(maxWidth: .infinity)
+                }
+                .buttonStyle(.borderless)
                 .controlSize(.small)
                 .disabled(isShowingProgress)
             }
@@ -320,6 +332,7 @@ private struct CompactCard<Content: View>: View {
         estimatedBackupSize: 1_200_000,
         performExport: {},
         presentImporter: {},
+        restoreMostRecentAutoBackup: {},
         chooseDefaultFolder: {},
         openDefaultFolder: {},
         clearDefaultFolder: {}
@@ -328,3 +341,4 @@ private struct CompactCard<Content: View>: View {
     .frame(width: 500, height: 320)
     .preferredColorScheme(.dark)
 }
+

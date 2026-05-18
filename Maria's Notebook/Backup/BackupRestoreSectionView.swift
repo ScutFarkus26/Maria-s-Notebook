@@ -31,6 +31,7 @@ struct BackupRestoreSectionView: View {
     @State private var showingFolderImporter = false
     @State private var folderRejection: BackupDestination.FolderRejection?
     @State private var migrationPrompt: BackupFolderMigration.Prompt?
+    @State private var isDropTargeted: Bool = false
 
     private var exportDocument: BackupPackageDocument? { viewModel.exportData.map { BackupPackageDocument(data: $0) } }
 
@@ -139,6 +140,11 @@ struct BackupRestoreSectionView: View {
             presentImporter: {
                 showingImporter = true
             },
+            restoreMostRecentAutoBackup: {
+                Task {
+                    await viewModel.restoreMostRecentAutoBackup(viewContext: viewContext)
+                }
+            },
             chooseDefaultFolder: {
                 showingFolderImporter = true
             },
@@ -215,6 +221,30 @@ struct BackupRestoreSectionView: View {
                 }
             }
         }
+#if os(macOS)
+        // Drag-and-drop import: drop a .mtbbackup file from Finder onto the
+        // Data Management section. Same code path as the file-picker import.
+        .dropDestination(for: URL.self) { urls, _ in
+            guard let url = urls.first else { return false }
+            Task { @MainActor in
+                await viewModel.previewImportedURL(viewContext: viewContext, url: url)
+            }
+            return true
+        } isTargeted: { targeted in
+            isDropTargeted = targeted
+        }
+        .overlay {
+            if isDropTargeted {
+                RoundedRectangle(cornerRadius: 12, style: .continuous)
+                    .strokeBorder(Color.accentColor, lineWidth: 2)
+                    .background(
+                        RoundedRectangle(cornerRadius: 12, style: .continuous)
+                            .fill(Color.accentColor.opacity(0.06))
+                    )
+                    .allowsHitTesting(false)
+            }
+        }
+#endif
     }
 
     // Extracted Bindings

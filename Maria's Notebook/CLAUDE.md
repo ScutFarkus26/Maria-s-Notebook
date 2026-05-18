@@ -166,9 +166,10 @@ These come from Apple's frameworks, not this app — they are not actionable in 
 
 ## Backup System
 
-- Format version: 16 (single source of truth: `BackupFile.formatVersion` in `Backup/BackupTypes.swift`)
-- Compression: LZFSE (built into the envelope)
-- Auto-backup on app quit + configurable schedule, retention default 10
-- Restore goes through `BackupTransactionManager.executeImportWithRollback` (safety checkpoint + auto-rollback on failure)
-- `replace` mode uses context-level deletes (NOT `NSBatchDeleteRequest`) so CloudKit mirroring sees proper delete tombstones
-- Entity registry: `Backup/Core/BackupEntityRegistry.swift`
+- **Current write format: v17 (AppleArchive)**. Files start with the AEA `AA01` magic, contain LZFSE-compressed NDJSON entries (one per Core Data entity type, prefixed `private/` or `shared/` to indicate origin store), and include a `manifest.json` first entry with format version + entity counts + origin-store routing.
+- **Legacy read support: v5–v16**. Old `.mtbbackup` files (JSON envelope + LZFSE + SHA256) continue to restore via `BackupService.loadAndDecodeBackup`; the coordinator picks the right decode path automatically from the file's first 4 bytes.
+- Top-level entry point: `Backup2/BackupCoordinator.swift`. UI calls `coordinator.exportBackup`, `coordinator.previewImport`, `coordinator.importBackup`.
+- Auto-backup on app quit + configurable schedule, retention default 10. Honors the user's chosen destination folder.
+- Restore goes through `BackupTransactionManager.executeWithRollback` (safety checkpoint + auto-rollback on failure). Checkpoints are always written in the legacy v16 format.
+- `replace` mode uses context-level deletes (NOT `NSBatchDeleteRequest`) so CloudKit mirroring sees proper delete tombstones.
+- Entity registry: `Backup/Core/BackupEntityRegistry.swift`. Per-entity DTO transformers in `Backup/Export/BackupDTOTransformers*.swift`. Per-entity importers in `Backup/Import/BackupEntityImporter+*.swift` (well-factored static methods, reused by both v17 and legacy decode paths).

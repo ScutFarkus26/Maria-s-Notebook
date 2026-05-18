@@ -163,6 +163,56 @@ final class SettingsViewModel {
         }
     }
 
+    // MARK: - Restore Quick Action
+
+    /// Locates the most recent auto-backup file (across user-chosen folder
+    /// and the legacy Documents/Backups/Auto path) and runs it through the
+    /// preview pipeline. The user still has to confirm in the preview sheet
+    /// before the restore actually happens.
+    /// Returns `true` if a candidate was found and presented; `false` if no
+    /// auto-backup files exist.
+    @discardableResult
+    func restoreMostRecentAutoBackup(viewContext: NSManagedObjectContext) async -> Bool {
+        guard let candidate = findMostRecentAutoBackup() else {
+            importError = "No auto-backups found yet. Open Settings → Backup to enable auto-backups, or use Import to pick a file manually."
+            return false
+        }
+        await previewImportedURL(viewContext: viewContext, url: candidate)
+        return true
+    }
+
+    /// Most-recent-by-mod-date `.mtbbackup` across:
+    ///   1. `<user-folder>/Auto/`  (new Phase 1 location when a folder is picked)
+    ///   2. `Documents/Backups/Auto/`  (legacy fallback)
+    private func findMostRecentAutoBackup() -> URL? {
+        var candidates: [URL] = []
+
+        if let userFolder = BackupDestination.resolveDefaultFolder() {
+            let auto = userFolder.appendingPathComponent("Auto", isDirectory: true)
+            candidates.append(contentsOf: backupFiles(in: auto))
+        }
+        let fallback = FileManager.default.urls(for: .documentDirectory, in: .userDomainMask)[0]
+            .appendingPathComponent("Backups/Auto", isDirectory: true)
+        candidates.append(contentsOf: backupFiles(in: fallback))
+
+        return candidates
+            .max { lhs, rhs in
+                let lhsDate = (try? lhs.resourceValues(forKeys: [.contentModificationDateKey])
+                    .contentModificationDate) ?? .distantPast
+                let rhsDate = (try? rhs.resourceValues(forKeys: [.contentModificationDateKey])
+                    .contentModificationDate) ?? .distantPast
+                return lhsDate < rhsDate
+            }
+    }
+
+    private func backupFiles(in directory: URL) -> [URL] {
+        (try? FileManager.default.contentsOfDirectory(
+            at: directory,
+            includingPropertiesForKeys: [.contentModificationDateKey],
+            options: [.skipsHiddenFiles]
+        ))?.filter { $0.pathExtension == BackupFile.fileExtension } ?? []
+    }
+
     // MARK: - Import / Preview
     func previewImportedURL(viewContext: NSManagedObjectContext, url: URL) async {
         let needsAccess = url.startAccessingSecurityScopedResource()
