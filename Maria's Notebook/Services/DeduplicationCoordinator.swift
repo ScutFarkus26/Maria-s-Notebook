@@ -12,6 +12,11 @@ final class DeduplicationCoordinator {
 
     var persistentContainer: NSPersistentContainer?
 
+    /// CoreDataStack reference used to run SharedStoreZoneRepair after
+    /// each post-import dedup pass. Weak to avoid retain cycles —
+    /// the stack owns this singleton's lifetime indirectly via AppDependencies.
+    weak var coreDataStack: CoreDataStack?
+
     private var debounceTask: Task<Void, Never>?
     private var isRunning = false
 
@@ -54,7 +59,11 @@ final class DeduplicationCoordinator {
             }
 
             await MainActor.run { [weak self] in
-                self?.isRunning = false
+                guard let self else { return }
+                self.isRunning = false
+                if let stack = self.coreDataStack {
+                    Task { await SharedStoreZoneRepair.shared.run(coreDataStack: stack) }
+                }
             }
         }
     }

@@ -152,6 +152,17 @@ At the start of each conversation, before writing or modifying any code, search 
 - Two persistent stores: private (teacher data) + shared (classroom data)
 - Schema changes must be additive-only after CloudKit deployment
 - All models use string-based foreign keys for sync compatibility
+- **Shared-store zone repair:** `SharedStoreZoneRepair` (Services/SharedStoreZoneRepair.swift) detects records in the shared store that aren't assigned to a CKShare zone — these poison `NSCloudKitMirroringDelegate` with `NSCocoaErrorDomain 134060`. It runs at the end of post-launch migrations, after each post-import dedup pass, and when `ClassroomSharingService.isSharing` transitions `false → true`. Lead guides also see a banner + "Repair Sync Errors" button in Settings → Classroom Sharing.
+
+### Console log noise to ignore
+
+These come from Apple's frameworks, not this app — they are not actionable in source:
+
+- `updateTaskRequest called for an already running/updated task com.apple.coredata.cloudkit.activity.export.*` (subsystem `com.apple.BackgroundSystemTasks`, category `BGSTFramework`) — `NSPersistentCloudKitContainer` internals managing background export tasks.
+- `updateTaskRequest failed for com.apple.coredata.cloudkit.activity.export.*` and `Error updating background task request: BGSystemTaskSchedulerErrorDomain Code=3` — same source; benign when sync is otherwise working.
+
+**Filter in Console.app:** exclude subsystem `com.apple.BackgroundSystemTasks`.
+**Noisy Xcode debug runs:** set `OS_ACTIVITY_MODE=disable` in the scheme's environment variables.
 
 ## Backup System
 

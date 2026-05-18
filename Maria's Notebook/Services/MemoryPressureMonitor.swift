@@ -1,7 +1,23 @@
 import Foundation
 import OSLog
+import Darwin
 
 private let logger = Logger.cache
+
+/// Current process resident memory footprint in megabytes, or nil if the
+/// kernel query failed. Used to enrich memory-pressure log lines so the
+/// next investigation doesn't have to guess at process state.
+private func currentMemoryFootprintMB() -> Double? {
+    var info = task_vm_info_data_t()
+    var count = mach_msg_type_number_t(MemoryLayout<task_vm_info_data_t>.size / MemoryLayout<integer_t>.size)
+    let result = withUnsafeMutablePointer(to: &info) { ptr -> kern_return_t in
+        ptr.withMemoryRebound(to: integer_t.self, capacity: Int(count)) { intPtr in
+            task_info(mach_task_self_, task_flavor_t(TASK_VM_INFO), intPtr, &count)
+        }
+    }
+    guard result == KERN_SUCCESS else { return nil }
+    return Double(info.phys_footprint) / (1024.0 * 1024.0)
+}
 
 /// Pressure level reported to the handler
 enum MemoryPressureLevel {
@@ -84,7 +100,8 @@ final class MemoryPressureMonitor {
                     self.lastCriticalResponse = now
                     self.lastPressureLevel = .critical
 
-                    logger.warning("Critical memory pressure - clearing caches aggressively")
+                    let footprint = currentMemoryFootprintMB().map { String(format: "%.1f MB", $0) } ?? "unknown"
+                    logger.warning("Critical memory pressure - clearing caches aggressively (footprint: \(footprint, privacy: .public), event #\(self.pressureEventCount + 1, privacy: .public))")
 
                     self.lastPressureEvent = now
                     self.pressureEventCount += 1
@@ -98,7 +115,8 @@ final class MemoryPressureMonitor {
                     self.lastWarningResponse = now
                     self.lastPressureLevel = .warning
 
-                    logger.info("Memory pressure warning - clearing non-essential caches")
+                    let footprint = currentMemoryFootprintMB().map { String(format: "%.1f MB", $0) } ?? "unknown"
+                    logger.info("Memory pressure warning - clearing non-essential caches (footprint: \(footprint, privacy: .public), event #\(self.pressureEventCount + 1, privacy: .public))")
 
                     self.lastPressureEvent = now
                     self.pressureEventCount += 1

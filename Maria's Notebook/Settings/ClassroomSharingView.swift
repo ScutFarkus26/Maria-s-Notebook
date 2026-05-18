@@ -1,5 +1,6 @@
 import SwiftUI
 import CloudKit
+import CoreData
 import OSLog
 
 /// Settings view for managing classroom sharing.
@@ -13,12 +14,15 @@ struct ClassroomSharingView: View {
     @State private var showingSharingSheet = false
     @State private var showingLeaveConfirmation = false
     @State private var showingStopSharingConfirmation = false
+    @State private var showingUnrecoverableSheet = false
     @State private var errorMessage: String?
 
     private var service: ClassroomSharingService? { sharingService }
+    private var zoneRepair: SharedStoreZoneRepair { dependencies.sharedStoreZoneRepair }
 
     var body: some View {
         VStack(spacing: 12) {
+            syncStatusBanner
             roleGroup
             membersGroup
             actionsGroup
@@ -35,6 +39,99 @@ struct ClassroomSharingView: View {
             let svc = dependencies.classroomSharingService
             sharingService = svc
             try? svc.refreshParticipants()
+        }
+        .sheet(isPresented: $showingUnrecoverableSheet) {
+            unrecoverableOrphansSheet
+        }
+    }
+
+    // MARK: - Sync Status Banner
+
+    @ViewBuilder
+    private var syncStatusBanner: some View {
+        if service?.currentRole == .leadGuide {
+            if service?.isSharing == false, zoneRepair.orphanCount > 0 {
+                bannerCard(
+                    icon: "exclamationmark.triangle.fill",
+                    tint: .orange,
+                    title: "\(zoneRepair.orphanCount) record(s) waiting to sync",
+                    body: "Until you share your classroom, this data stays on this device only. Tap Share Classroom below to enable CloudKit sync."
+                )
+            } else if service?.isSharing == true, !zoneRepair.lastUnrecoverableOrphans.isEmpty {
+                bannerCard(
+                    icon: "exclamationmark.octagon.fill",
+                    tint: .red,
+                    title: "\(zoneRepair.lastUnrecoverableOrphans.count) record(s) failed to sync",
+                    body: "These records couldn't be attached to your classroom share. Tap Repair Sync below to retry."
+                )
+            }
+        }
+    }
+
+    private func bannerCard(icon: String, tint: Color, title: String, body: String) -> some View {
+        HStack(alignment: .top, spacing: 10) {
+            Image(systemName: icon)
+                .font(.title3)
+                .foregroundStyle(tint)
+            VStack(alignment: .leading, spacing: 4) {
+                Text(title)
+                    .font(.subheadline.weight(.semibold))
+                Text(body)
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+            }
+            Spacer(minLength: 0)
+        }
+        .padding(12)
+        .background(
+            RoundedRectangle(cornerRadius: 10, style: .continuous)
+                .fill(tint.opacity(0.12))
+        )
+        .overlay(
+            RoundedRectangle(cornerRadius: 10, style: .continuous)
+                .stroke(tint.opacity(0.4), lineWidth: 1)
+        )
+    }
+
+    // MARK: - Unrecoverable Orphans Sheet
+
+    private var unrecoverableOrphansSheet: some View {
+        NavigationStack {
+            List {
+                Section {
+                    ForEach(zoneRepair.orphansByEntity.sorted(by: { $0.key < $1.key }), id: \.key) { entity, count in
+                        HStack {
+                            Text(entity)
+                            Spacer()
+                            Text("\(count)")
+                                .foregroundStyle(.secondary)
+                        }
+                    }
+                } header: {
+                    Text("Orphans by entity")
+                } footer: {
+                    Text("Last checked: \(zoneRepair.lastRunAt.map { $0.formatted(date: .abbreviated, time: .shortened) } ?? "never")")
+                }
+
+                if !zoneRepair.lastUnrecoverableOrphans.isEmpty {
+                    Section("Unrecoverable record IDs") {
+                        ForEach(zoneRepair.lastUnrecoverableOrphans, id: \.self) { id in
+                            Text(id.uriRepresentation().lastPathComponent)
+                                .font(.caption.monospaced())
+                                .foregroundStyle(.secondary)
+                        }
+                    }
+                }
+            }
+            .navigationTitle("Sync Diagnostics")
+            #if os(iOS)
+            .navigationBarTitleDisplayMode(.inline)
+            #endif
+            .toolbar {
+                ToolbarItem(placement: .confirmationAction) {
+                    Button("Done") { showingUnrecoverableSheet = false }
+                }
+            }
         }
     }
 
@@ -219,6 +316,13 @@ struct ClassroomSharingView: View {
                     CloudSharingSheet(
                         share: share,
                         container: CKContainer.default(),
+                        onShareSaved: {
+                            // Force a synchronous refresh so the
+                            // false→true transition fires and triggers
+                            // SharedStoreZoneRepair without waiting for
+                            // Core Data to surface the new share.
+                            _ = try? svc.fetchExistingShare()
+                        },
                         onDismiss: {
                             showingSharingSheet = false
                             try? svc.refreshParticipants()
@@ -228,6 +332,8 @@ struct ClassroomSharingView: View {
             }
 
             if service?.isSharing == true {
+                repairSyncButton
+
                 Button(role: .destructive) {
                     showingStopSharingConfirmation = true
                 } label: {
@@ -248,6 +354,46 @@ struct ClassroomSharingView: View {
                 } message: {
                     Text("Assistants will lose access to classroom data.")
                 }
+            }
+        }
+    }
+
+    @ViewBuilder
+    private var repairSyncButton: some View {
+        Button {
+            Task {
+                await zoneRepair.run(coreDataStack: dependencies.coreDataStack)
+                if zoneRepair.orphanCount == 0, zoneRepair.lastUnrecoverableOrphans.isEmpty {
+                    ToastService.shared.showSuccess("Sync repair complete")
+                } else if !zoneRepair.lastUnrecoverableOrphans.isEmpty {
+                    showingUnrecoverableSheet = true
+                } else {
+                    ToastService.shared.showInfo("No sync errors detected")
+                }
+            }
+        } label: {
+            HStack {
+                Label("Repair Sync Errors", systemImage: "arrow.triangle.2.circlepath")
+                if zoneRepair.orphanCount > 0 {
+                    Spacer()
+                    Text("\(zoneRepair.orphanCount)")
+                        .font(.caption.weight(.semibold))
+                        .padding(.horizontal, 6)
+                        .padding(.vertical, 2)
+                        .background(.tint.opacity(0.18))
+                        .clipShape(Capsule())
+                }
+            }
+            .frame(maxWidth: .infinity, alignment: .leading)
+        }
+        .buttonStyle(.bordered)
+        .controlSize(.small)
+        .disabled(zoneRepair.repairInProgress)
+        .overlay(alignment: .trailing) {
+            if zoneRepair.repairInProgress {
+                ProgressView()
+                    .controlSize(.small)
+                    .padding(.trailing, 8)
             }
         }
     }

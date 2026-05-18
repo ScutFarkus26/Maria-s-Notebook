@@ -140,6 +140,12 @@ struct PresentationsView: View {
     @State var suggestedLessonID: UUID?
     @State var suggestDismissTask: Task<Void, Never>?
 
+    /// Debounces `updateViewModel()` calls triggered by `viewModelDependencies`
+    /// changes. A single CloudKit import that touches unrelated entities can
+    /// fire several @FetchRequest updates in quick succession — without
+    /// debouncing, each one triggers a full PresentationsViewModel rebuild.
+    @State var dependencyDebounceTask: Task<Void, Never>?
+
     enum MobileViewMode: String, CaseIterable, Sendable {
         case inbox = "Inbox"
         case calendar = "Calendar"

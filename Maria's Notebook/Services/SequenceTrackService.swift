@@ -127,6 +127,15 @@ struct SequenceTrackService {
         sequence: String,
         context: NSManagedObjectContext
     ) throws {
+        // Track and TrackStep are shared-store entities. If we're
+        // creating them before a CKShare exists, they'll become
+        // orphans that SharedStoreZoneRepair must attach later. Leave
+        // a breadcrumb so future investigations don't have to guess
+        // where the orphans came from.
+        if !SharedStoreZoneRepair.shared.hasActiveShare {
+            logger.warning("cdEnsureTrackSteps writing to shared store with no active CKShare (area=\(area, privacy: .public), sequence=\(sequence, privacy: .public))")
+        }
+
         let allLessons = context.safeFetch(CDFetchRequest(CDLesson.self))
         let matchingLessons = allLessons.filter { lesson in
             lesson.area.trimmed().caseInsensitiveCompare(area) == .orderedSame &&

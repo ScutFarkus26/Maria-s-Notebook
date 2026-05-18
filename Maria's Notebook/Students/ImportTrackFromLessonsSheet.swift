@@ -175,6 +175,15 @@ struct ImportTrackFromLessonsSheet: View {
             return nameOrder == .orderedAscending
         }
         
+        // Track and TrackStep live in the shared store. If we're
+        // creating them before a CKShare exists, SharedStoreZoneRepair
+        // will need to attach them once the lead guide shares the
+        // classroom. Log a breadcrumb so the next investigation can
+        // trace the origin.
+        if !SharedStoreZoneRepair.shared.hasActiveShare {
+            Self.logger.warning("Importing track from lessons into shared store with no active CKShare (title=\(title, privacy: .public), steps=\(sortedLessons.count, privacy: .public))")
+        }
+
         // Create new CDTrackEntity
         let newTrack = CDTrackEntity(context: viewContext)
         newTrack.title = title

@@ -11,9 +11,15 @@ import UIKit
 /// Presents the system sharing UI for managing a CKShare.
 /// The caller must provide an existing CKShare (create one via
 /// ClassroomSharingService before presenting this sheet).
+///
+/// `onShareSaved` fires the moment the controller reports a successful
+/// save — distinct from `onDismiss` so callers can synchronously
+/// refresh share state (and trigger SharedStoreZoneRepair) before any
+/// UI-driven dismissal work runs.
 struct CloudSharingSheet: UIViewControllerRepresentable {
     let share: CKShare
     let container: CKContainer
+    var onShareSaved: (() -> Void)? = nil
     let onDismiss: () -> Void
 
     func makeUIViewController(context: Context) -> UICloudSharingController {
@@ -26,13 +32,15 @@ struct CloudSharingSheet: UIViewControllerRepresentable {
     func updateUIViewController(_ uiViewController: UICloudSharingController, context: Context) {}
 
     func makeCoordinator() -> Coordinator {
-        Coordinator(onDismiss: onDismiss)
+        Coordinator(onShareSaved: onShareSaved, onDismiss: onDismiss)
     }
 
     class Coordinator: NSObject, UICloudSharingControllerDelegate {
+        let onShareSaved: (() -> Void)?
         let onDismiss: () -> Void
 
-        init(onDismiss: @escaping () -> Void) {
+        init(onShareSaved: (() -> Void)?, onDismiss: @escaping () -> Void) {
+            self.onShareSaved = onShareSaved
             self.onDismiss = onDismiss
         }
 
@@ -49,6 +57,7 @@ struct CloudSharingSheet: UIViewControllerRepresentable {
 
         func cloudSharingControllerDidSaveShare(_ controller: UICloudSharingController) {
             Logger.app(category: "CloudSharing").info("Share saved successfully")
+            onShareSaved?()
             onDismiss()
         }
 
@@ -65,9 +74,15 @@ import AppKit
 /// SwiftUI wrapper for CloudKit sharing on macOS.
 ///
 /// Uses NSSharingService to present the macOS sharing UI.
+///
+/// `onShareSaved` is accepted for API parity with the iOS variant but
+/// is not invoked on macOS — `NSSharingServicePicker` doesn't expose a
+/// "share saved" signal. Callers should still refresh share state in
+/// `onDismiss`.
 struct CloudSharingSheet: NSViewControllerRepresentable {
     let share: CKShare
     let container: CKContainer
+    var onShareSaved: (() -> Void)? = nil
     let onDismiss: () -> Void
 
     func makeNSViewController(context: Context) -> NSSharingServicePickerViewController {

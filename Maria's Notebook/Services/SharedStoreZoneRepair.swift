@@ -13,46 +13,115 @@ import OSLog
 /// Safe-by-default: when no CKShare exists in the shared store, this
 /// service only logs the orphan count — it never auto-creates a share
 /// or deletes user data.
-enum SharedStoreZoneRepair {
+///
+/// When a CKShare does exist, the service attaches every detected
+/// orphan to it. Re-runs are cheap when the shared store has no orphans
+/// and are triggered from three places:
+///   1. Post-launch migrations (after the final viewContext save)
+///   2. ClassroomSharingService when `isSharing` transitions `false → true`
+///   3. DeduplicationCoordinator after each post-import dedup pass
+@Observable
+@MainActor
+final class SharedStoreZoneRepair {
+
+    static let shared = SharedStoreZoneRepair()
+
     private static let logger = Logger.app(category: "SharedStoreZoneRepair")
 
-    /// Runs the detection-and-repair pass. Idempotent and cheap when the
-    /// shared store has no orphans.
-    @MainActor
+    // MARK: - Observable State
+
+    private(set) var orphanCount: Int = 0
+    private(set) var orphansByEntity: [String: Int] = [:]
+    private(set) var lastUnrecoverableOrphans: [NSManagedObjectID] = []
+    private(set) var lastRunAt: Date?
+    private(set) var repairInProgress: Bool = false
+    private(set) var hasActiveShare: Bool = false
+
+    private init() {}
+
+    // MARK: - Public API
+
+    /// Runs the detection-and-repair pass on the shared singleton.
+    /// Idempotent and cheap when the shared store has no orphans.
     static func runIfNeeded(coreDataStack: CoreDataStack) async {
+        await shared.run(coreDataStack: coreDataStack)
+    }
+
+    /// Instance variant of `runIfNeeded`. Use the static form from call
+    /// sites that don't need to bind to the singleton directly.
+    func run(coreDataStack: CoreDataStack) async {
         guard coreDataStack.isCloudKitActive else { return }
         guard let store = coreDataStack.sharedPersistentStore else { return }
+        guard !repairInProgress else { return }
+
+        repairInProgress = true
+        defer {
+            repairInProgress = false
+            lastRunAt = Date()
+        }
 
         let entityNames = CoreDataStack.sharedEntityNames.sorted()
         let context = coreDataStack.viewContext
-        let orphans = collectOrphans(entityNames: entityNames, in: store, context: context, container: coreDataStack.container)
+        let container = coreDataStack.container
 
-        guard !orphans.isEmpty else { return }
+        let (orphans, perEntity) = collectOrphans(
+            entityNames: entityNames,
+            in: store,
+            context: context,
+            container: container
+        )
 
-        let existingShare: CKShare?
-        do {
-            existingShare = try coreDataStack.container.fetchShares(in: store).first
-        } catch {
-            logger.error("Cannot inspect shares in shared store: \(error.localizedDescription, privacy: .public)")
+        orphanCount = orphans.count
+        orphansByEntity = perEntity
+
+        guard !orphans.isEmpty else {
+            lastUnrecoverableOrphans = []
+            hasActiveShare = (try? container.fetchShares(in: store).first) != nil
             return
         }
 
+        let existingShare: CKShare?
+        do {
+            existingShare = try container.fetchShares(in: store).first
+        } catch {
+            Self.logger.error("Cannot inspect shares in shared store: \(error.localizedDescription, privacy: .public)")
+            return
+        }
+
+        hasActiveShare = (existingShare != nil)
+
         if let share = existingShare {
-            await attachOrphans(orphans, to: share, container: coreDataStack.container)
+            let unrecoverable = await attachOrphans(orphans, to: share, container: container)
+            lastUnrecoverableOrphans = unrecoverable
+
+            // Refresh the orphan picture after the repair pass so the
+            // observable state reflects what remains stuck.
+            let (remaining, remainingByEntity) = collectOrphans(
+                entityNames: entityNames,
+                in: store,
+                context: context,
+                container: container
+            )
+            orphanCount = remaining.count
+            orphansByEntity = remainingByEntity
         } else {
+            lastUnrecoverableOrphans = []
             let count = orphans.count
-            logger.warning("Shared store has \(count, privacy: .public) record(s) outside any CKShare zone, but no CKShare exists yet. CloudKit export will fail until the lead guide runs Settings → Classroom Sharing → Share Classroom.")
+            Self.logger.warning("Shared store has \(count, privacy: .public) record(s) outside any CKShare zone, but no CKShare exists yet. CloudKit export will fail until the lead guide runs Settings → Classroom Sharing → Share Classroom.")
         }
     }
 
-    private static func collectOrphans(
+    // MARK: - Detection
+
+    private func collectOrphans(
         entityNames: [String],
         in store: NSPersistentStore,
         context: NSManagedObjectContext,
         container: NSPersistentCloudKitContainer
-    ) -> [NSManagedObject] {
+    ) -> (orphans: [NSManagedObject], byEntity: [String: Int]) {
         var allObjectIDs: [NSManagedObjectID] = []
         var objectsByID: [NSManagedObjectID: NSManagedObject] = [:]
+        var entityByID: [NSManagedObjectID: String] = [:]
 
         for entityName in entityNames {
             let request = NSFetchRequest<NSManagedObject>(entityName: entityName)
@@ -63,39 +132,74 @@ enum SharedStoreZoneRepair {
                 for obj in objects {
                     allObjectIDs.append(obj.objectID)
                     objectsByID[obj.objectID] = obj
+                    entityByID[obj.objectID] = entityName
                 }
             } catch {
                 let detail = error.localizedDescription
-                logger.warning("Failed to fetch \(entityName, privacy: .public) for zone check: \(detail, privacy: .public)")
+                Self.logger.warning("Failed to fetch \(entityName, privacy: .public) for zone check: \(detail, privacy: .public)")
             }
         }
 
-        guard !allObjectIDs.isEmpty else { return [] }
+        guard !allObjectIDs.isEmpty else { return ([], [:]) }
 
         let inShare: [NSManagedObjectID: CKShare]
         do {
             inShare = try container.fetchShares(matching: allObjectIDs)
         } catch {
-            logger.error("fetchShares(matching:) failed: \(error.localizedDescription, privacy: .public)")
-            return []
+            Self.logger.error("fetchShares(matching:) failed: \(error.localizedDescription, privacy: .public)")
+            return ([], [:])
         }
 
-        return allObjectIDs.compactMap { id in
-            inShare[id] == nil ? objectsByID[id] : nil
+        var orphans: [NSManagedObject] = []
+        var byEntity: [String: Int] = [:]
+        for id in allObjectIDs where inShare[id] == nil {
+            if let obj = objectsByID[id] {
+                orphans.append(obj)
+                let name = entityByID[id] ?? "Unknown"
+                byEntity[name, default: 0] += 1
+            }
         }
+        return (orphans, byEntity)
     }
 
-    private static func attachOrphans(
+    // MARK: - Attachment
+
+    /// Attaches orphans to the share. Tries the batch path first; on
+    /// failure falls back to per-record attachment so a single bad
+    /// record can't block healthy ones. Returns the IDs of records that
+    /// could not be attached.
+    private func attachOrphans(
         _ orphans: [NSManagedObject],
         to share: CKShare,
         container: NSPersistentCloudKitContainer
-    ) async {
-        logger.info("Attaching \(orphans.count, privacy: .public) orphan record(s) to existing classroom share")
+    ) async -> [NSManagedObjectID] {
+        Self.logger.info("Attaching \(orphans.count, privacy: .public) orphan record(s) to existing classroom share")
+
+        // Fast path: batch attach.
         do {
             _ = try await container.share(orphans, to: share)
-            logger.info("Orphan attachment succeeded")
+            Self.logger.info("Orphan attachment succeeded (batch)")
+            return []
         } catch {
-            logger.error("Failed to attach orphans to share: \(error.localizedDescription, privacy: .public)")
+            Self.logger.warning("Batch orphan attach failed: \(error.localizedDescription, privacy: .public). Falling back to per-record attach.")
         }
+
+        // Slow path: per-record attach.
+        var failures: [NSManagedObjectID] = []
+        var successCount = 0
+        for orphan in orphans {
+            do {
+                _ = try await container.share([orphan], to: share)
+                successCount += 1
+            } catch {
+                failures.append(orphan.objectID)
+                let uri = orphan.objectID.uriRepresentation().absoluteString
+                let detail = error.localizedDescription
+                Self.logger.error("Per-record attach failed for \(uri, privacy: .public): \(detail, privacy: .public)")
+            }
+        }
+
+        Self.logger.info("Per-record attach: \(successCount, privacy: .public) succeeded, \(failures.count, privacy: .public) unrecoverable")
+        return failures
     }
 }

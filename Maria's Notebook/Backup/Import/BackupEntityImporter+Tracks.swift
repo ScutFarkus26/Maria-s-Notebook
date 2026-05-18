@@ -34,6 +34,7 @@ extension BackupEntityImporter {
         existingCheck: EntityExistsCheck<CDTrackStepEntity>,
         trackCheck: EntityExistsCheck<CDTrackEntity>
     ) rethrows {
+        var imported = 0
         for dto in dtos {
             if shouldSkipExisting(id: dto.id, existingCheck: existingCheck) { continue }
             let step = CDTrackStepEntity(context: viewContext)
@@ -52,6 +53,13 @@ extension BackupEntityImporter {
                 }
             }
             viewContext.insert(step)
+            imported += 1
+        }
+        if imported > 0 {
+            // TrackStep is a shared-store entity. SharedStoreZoneRepair
+            // will attach these to the CKShare after the import save —
+            // log the count so post-restore zone repair has a baseline.
+            Logger.backup.info("Imported \(imported, privacy: .public) TrackStep record(s) from backup into shared store")
         }
     }
 

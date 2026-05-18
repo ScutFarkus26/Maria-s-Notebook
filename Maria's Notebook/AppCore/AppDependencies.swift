@@ -274,10 +274,18 @@ final class AppDependencies {
         }
         let service = ClassroomSharingService(
             container: coreDataStack.container,
-            context: viewContext
+            context: viewContext,
+            coreDataStack: coreDataStack
         )
         _classroomSharingService = service
         return service
+    }
+
+    /// Singleton accessor for the observable shared-store zone repair
+    /// service. Surfaces orphan counts and unrecoverable records to the
+    /// UI so the lead guide can see when their data isn't syncing.
+    var sharedStoreZoneRepair: SharedStoreZoneRepair {
+        SharedStoreZoneRepair.shared
     }
 
     // MARK: - Router & Coordinators

@@ -72,6 +72,7 @@ final class AppBootstrapper {
 
         // 5.5. Initialize post-sync deduplication coordinator
         DeduplicationCoordinator.shared.persistentContainer = coreDataStack.container
+        DeduplicationCoordinator.shared.coreDataStack = coreDataStack
 
         // 6. Run heavy migrations and dedup in the background to avoid UI stalls
         // IMPORTANT: Delay background migrations to let the initial SwiftUI render complete.
@@ -122,11 +123,6 @@ final class AppBootstrapper {
         }
         logger.info("Post-launch: deduplication completed in \(formatSeconds(Date().timeIntervalSince(dedupStart)))")
 
-        // 3.85. Shared-store zone repair: a record in the shared store
-        // without a CKShare zone poisons the CloudKit mirroring delegate
-        // (NSCocoaErrorDomain 134060) for the rest of the session.
-        await SharedStoreZoneRepair.runIfNeeded(coreDataStack: coreDataStack)
-
         // 3.9. Data Integrity Repairs (Run on ~10% of launches to reduce startup impact)
         if Int.random(in: 1...10) == 1 {
             let integrityStart = Date()
@@ -151,6 +147,13 @@ final class AppBootstrapper {
                 }
             }
         }
+
+        // Shared-store zone repair runs LAST so it sees the final state
+        // of the shared store, including any records written by the
+        // migrations above. A record in the shared store without a
+        // CKShare zone poisons the CloudKit mirroring delegate
+        // (NSCocoaErrorDomain 134060) for the rest of the session.
+        await SharedStoreZoneRepair.runIfNeeded(coreDataStack: coreDataStack)
 
         logger.info("Post-launch migrations finished in \(formatSeconds(Date().timeIntervalSince(start)))")
 

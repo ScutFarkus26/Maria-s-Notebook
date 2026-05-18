@@ -14,6 +14,7 @@ final class ClassroomSharingService {
 
     let container: NSPersistentCloudKitContainer
     private let context: NSManagedObjectContext
+    private let coreDataStack: CoreDataStack?
 
     // MARK: - Observable State
 
@@ -25,9 +26,14 @@ final class ClassroomSharingService {
 
     // MARK: - Initialization
 
-    init(container: NSPersistentCloudKitContainer, context: NSManagedObjectContext) {
+    init(
+        container: NSPersistentCloudKitContainer,
+        context: NSManagedObjectContext,
+        coreDataStack: CoreDataStack? = nil
+    ) {
         self.container = container
         self.context = context
+        self.coreDataStack = coreDataStack
 
         NotificationCenter.default.addObserver(
             self,
@@ -46,12 +52,24 @@ final class ClassroomSharingService {
     // MARK: - Share Lifecycle
 
     /// Fetches the existing CKShare for the shared store, if any.
+    ///
+    /// When `isSharing` transitions from `false → true` (e.g. the lead
+    /// guide just finished the sharing flow), this also kicks off a
+    /// `SharedStoreZoneRepair` pass so any records that were created
+    /// in the shared store before the share existed get attached to the
+    /// new zone instead of failing every subsequent CloudKit export.
     func fetchExistingShare() throws -> CKShare? {
         guard let store = sharedStore else { return nil }
         let shares = try container.fetchShares(in: store)
         let share = shares.first
+        let wasSharing = isSharing
         currentShare = share
         isSharing = share != nil
+
+        if !wasSharing, isSharing, let stack = coreDataStack {
+            Task { await SharedStoreZoneRepair.shared.run(coreDataStack: stack) }
+        }
+
         return share
     }
 
