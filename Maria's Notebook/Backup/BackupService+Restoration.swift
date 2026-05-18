@@ -120,6 +120,42 @@ extension BackupService {
             try loadAndDecodeBackup(from: url, password: password, progress: progress)
         }
 
+        return try await importPayload(
+            payload: loadedPayload,
+            envelopeFormatVersion: envelope.formatVersion,
+            envelopeEncrypted: envelope.encryptedPayload != nil,
+            envelopeCreatedAt: envelope.createdAt,
+            envelopeFileName: url.lastPathComponent,
+            envelopeEntityCounts: envelope.manifest.entityCounts,
+            viewContext: viewContext,
+            mode: mode,
+            appRouter: appRouter,
+            progress: progress
+        )
+    }
+
+    /// Post-decode import path. Shared by:
+    ///   - Legacy `importBackup` (which decodes the v5–v16 envelope then calls this)
+    ///   - `Backup2.BackupCoordinator` for v17 AEA imports (which reconstructs
+    ///     a `BackupPayload` from AEA entries then calls this)
+    /// Centralizing this method means deleteAll, the entity-import dispatch,
+    /// the denormalized-field repair, and the CloudKit-sync wait all share one
+    /// code path across format versions.
+    ///
+    // swiftlint:disable:next function_parameter_count function_body_length
+    func importPayload(
+        payload loadedPayload: BackupPayload,
+        envelopeFormatVersion: Int,
+        envelopeEncrypted: Bool,
+        envelopeCreatedAt: Date,
+        envelopeFileName: String,
+        envelopeEntityCounts: [String: Int],
+        viewContext: NSManagedObjectContext,
+        mode: RestoreMode,
+        appRouter: AppRouter,
+        progress: @escaping ProgressCallback
+    ) async throws -> BackupOperationSummary {
+
         var payload = loadedPayload
         progress(RestoreProgress.deduplication, "Deduplicating records\u{2026}")
         payload = deduplicatePayload(payload)
@@ -196,15 +232,14 @@ extension BackupService {
             warnings.append("iCloud sync is still running in the background. Keep the app open for a moment to finish uploading.")
         }
 
-        let counts = envelope.manifest.entityCounts
         progress(RestoreProgress.done, "Done")
         return BackupOperationSummary(
             kind: .import,
-            fileName: url.lastPathComponent,
-            formatVersion: envelope.formatVersion,
-            encryptUsed: envelope.encryptedPayload != nil,
-            createdAt: envelope.createdAt,
-            entityCounts: counts,
+            fileName: envelopeFileName,
+            formatVersion: envelopeFormatVersion,
+            encryptUsed: envelopeEncrypted,
+            createdAt: envelopeCreatedAt,
+            entityCounts: envelopeEntityCounts,
             warnings: warnings
         )
     }

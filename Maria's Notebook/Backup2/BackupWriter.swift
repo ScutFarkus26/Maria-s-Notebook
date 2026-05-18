@@ -77,30 +77,15 @@ public enum BackupWriter {
 
     // MARK: - Entry Serialization
 
-    /// One entry per non-empty entity array, in registry order. Empty arrays
-    /// are skipped to keep file sizes small.
-    struct Entry: Sendable {
-        let entityName: String
-        let storeName: String     // "private" or "shared"
-        let count: Int
-        let ndjson: Data
-        var archivePath: String { "\(storeName)/\(entityName).ndjson" }
-    }
-
-    private static func serializeEntries(from payload: BackupPayload) -> [Entry] {
+    static func serializeEntries(from payload: BackupPayload) -> [BackupEntityEntry] {
         let encoder = ndjsonEncoder()
-        var entries: [Entry] = []
+        var entries: [BackupEntityEntry] = []
 
         func add<T: Encodable>(_ entityName: String, _ dtos: [T]) {
             guard !dtos.isEmpty else { return }
             do {
-                let ndjson = try encodeNDJSON(dtos, encoder: encoder)
-                entries.append(Entry(
-                    entityName: entityName,
-                    storeName: store(for: entityName),
-                    count: dtos.count,
-                    ndjson: ndjson
-                ))
+                let entry = try makeEntry(entityName: entityName, dtos: dtos, encoder: encoder)
+                entries.append(entry)
             } catch {
                 logger.warning("Failed to encode \(entityName, privacy: .public): \(error.localizedDescription, privacy: .public)")
             }
@@ -181,10 +166,24 @@ public enum BackupWriter {
         add(name, dtos)
     }
 
+    private static func makeEntry<T: Encodable>(
+        entityName: String,
+        dtos: [T],
+        encoder: JSONEncoder
+    ) throws -> BackupEntityEntry {
+        let ndjson = try encodeNDJSON(dtos, encoder: encoder)
+        return BackupEntityEntry(
+            entityName: entityName,
+            storeName: store(for: entityName),
+            count: dtos.count,
+            ndjson: ndjson
+        )
+    }
+
     // MARK: - Manifest
 
     private static func buildManifest(
-        entries: [Entry],
+        entries: [BackupEntityEntry],
         payload: BackupPayload
     ) -> BackupArchiveManifest {
         var counts: [String: Int] = [:]
@@ -254,6 +253,26 @@ public struct BackupArchiveManifest: Codable, Sendable, Equatable {
     public var device: String
     public var entityCounts: [String: Int]
     public var originStores: [String: String]
+}
+
+// MARK: - Entry Type
+
+/// One in-archive entity entry. NDJSON body holds one DTO per line.
+/// Shared between `BackupWriter` (produces entries) and `BackupReader`/
+/// `BackupImporter` (consume entries).
+public struct BackupEntityEntry: Sendable {
+    public let entityName: String
+    public let storeName: String     // "private" or "shared"
+    public let count: Int
+    public let ndjson: Data
+    public var archivePath: String { "\(storeName)/\(entityName).ndjson" }
+
+    public init(entityName: String, storeName: String, count: Int, ndjson: Data) {
+        self.entityName = entityName
+        self.storeName = storeName
+        self.count = count
+        self.ndjson = ndjson
+    }
 }
 
 // MARK: - Preferences serialization
