@@ -2,8 +2,8 @@
 //
 // Thread row used by LessonsScopeMapView: leading colored bar, sequence label,
 // and pills tinted in the area's hue. Default state shows pills as a single
-// horizontal-scrolling row; hover (macOS) or edit mode expands inline so pills
-// wrap across multiple lines.
+// horizontal-scrolling row; clicking the count chevron pins the row open
+// (wrapped multi-line). Edit mode auto-expands every row.
 
 import SwiftUI
 import CoreData
@@ -18,14 +18,15 @@ struct ThreadRow: View {
     var onConfigureTrack: (() -> Void)?
     var onReorderSections: (() -> Void)?
 
-    @State private var isHovered: Bool = false
+    @State private var isPinned: Bool = false
 
     private let labelColumnWidth: CGFloat = 180
     private let collapsedHeight: CGFloat = 38
     private let barWidth: CGFloat = 3
 
-    /// Wrap pills onto multiple lines when hovered or while edit mode is active.
-    private var isExpanded: Bool { isHovered || isEditing }
+    /// Wrap pills onto multiple lines when the user has pinned this row open
+    /// (via the count chevron) or while edit mode is active.
+    private var isExpanded: Bool { isPinned || isEditing }
 
     var body: some View {
         Button(action: onTap) {
@@ -50,12 +51,8 @@ struct ThreadRow: View {
                     editControls
                         .padding(.top, isExpanded ? 5 : 0)
                 } else {
-                    Text("\(lessons.count)")
-                        .font(.system(size: 11, weight: .semibold, design: .rounded))
-                        .foregroundStyle(.secondary)
-                        .monospacedDigit()
-                        .frame(minWidth: 22, alignment: .trailing)
-                        .padding(.top, isExpanded ? 7 : 0)
+                    pinToggleButton
+                        .padding(.top, isExpanded ? 5 : 0)
                 }
             }
             .padding(.horizontal, 8)
@@ -72,11 +69,30 @@ struct ThreadRow: View {
             .contentShape(RoundedRectangle(cornerRadius: 8, style: .continuous))
         }
         .buttonStyle(.plain)
-        .onHover { hovering in
+    }
+
+    /// Count badge that toggles persistent expansion. The chevron + count gives
+    /// the affordance that "more is here"; clicking pins/unpins the row.
+    private var pinToggleButton: some View {
+        Button {
             withAnimation(.spring(response: 0.28, dampingFraction: 0.85)) {
-                isHovered = hovering
+                isPinned.toggle()
             }
+        } label: {
+            HStack(spacing: 3) {
+                Image(systemName: isPinned ? "chevron.up" : "chevron.down")
+                    .font(.system(size: 9, weight: .bold))
+                    .foregroundStyle(.tertiary)
+                Text("\(lessons.count)")
+                    .font(.system(size: 11, weight: .semibold, design: .rounded))
+                    .foregroundStyle(.secondary)
+                    .monospacedDigit()
+            }
+            .frame(minWidth: 30, alignment: .trailing)
+            .contentShape(Rectangle())
         }
+        .buttonStyle(.plain)
+        .help(isPinned ? "Collapse" : "Show all lessons")
     }
 
     private var sectionedGroups: [(String, [CDLesson])] {
