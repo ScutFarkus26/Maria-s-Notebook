@@ -72,7 +72,12 @@ extension AppDependencies {
         if let manager = _autoBackupManager {
             return manager
         }
-        let manager = AutoBackupManager(backupService: backupService)
+        // Lazy provider so the coordinator is created on demand without a
+        // circular dependency at construction time.
+        let manager = AutoBackupManager(
+            backupService: backupService,
+            coordinatorProvider: { [weak self] in self?.backupCoordinator }
+        )
         _autoBackupManager = manager
         return manager
     }

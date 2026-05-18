@@ -367,6 +367,88 @@ final class BackupRestoreModeTests {
     }
 }
 
+// MARK: - Suite 3b: Backup2 (v17 AEA) round-trip
+
+@Suite("Backup2 v17 AEA round-trip")
+@MainActor
+final class Backup2RoundTripTests {
+
+    @Test("v17 AEA file: writes magic bytes, round-trips through reader+importer")
+    func aeaRoundTrip() async throws {
+        // Build a source stack with the standard fixture and export via BackupWriter.
+        let sourceStack = try CoreDataTestHelpers.makeInMemoryStack()
+        let expected = BackupTestUtil.seedBasicFixture(in: sourceStack.viewContext)
+
+        let url = BackupTestUtil.tempBackupURL()
+        defer { BackupTestUtil.cleanup(url) }
+
+        let exportSummary = try BackupWriter.write(
+            viewContext: sourceStack.viewContext,
+            to: url,
+            progress: { _, _ in }
+        )
+        #expect(exportSummary.formatVersion == BackupWriter.formatVersion)
+        #expect(exportSummary.encryptUsed == false)
+        #expect(FileManager.default.fileExists(atPath: url.path))
+
+        // Magic bytes assertion: the file must start with AEA's "AA01" so the
+        // coordinator detects it as a Backup2 file (not legacy JSON envelope).
+        #expect(BackupArchive.isAEAFormat(at: url),
+                "Backup2 export must produce an AEA-framed file (first 4 bytes = AA01)")
+
+        // Round-trip: decode + import into a fresh stack.
+        let decoded = try BackupReader.read(from: url)
+        #expect(decoded.manifest.formatVersion == BackupWriter.formatVersion)
+        #expect(!decoded.entries.isEmpty, "Decoded backup should have at least one entry")
+
+        let destStack = try CoreDataTestHelpers.makeInMemoryStack()
+        _ = try await BackupImporter.importDecoded(
+            decoded,
+            from: url,
+            into: destStack.viewContext,
+            mode: .merge,
+            appRouter: AppRouter.shared,
+            progress: { _, _ in }
+        )
+
+        for (entityName, expectedCount) in expected {
+            let actual = try BackupTestUtil.count(entityName: entityName, in: destStack.viewContext)
+            #expect(
+                actual >= expectedCount,
+                "Entity \(entityName) count mismatch after v17 restore: expected \(expectedCount), got \(actual)"
+            )
+        }
+    }
+
+    @Test("Coordinator: legacy file detection returns false on a v16 envelope")
+    func coordinatorDetectsLegacyFormat() throws {
+        // Construct a minimal legacy-style file (starts with `{`, not "AA01").
+        let url = BackupTestUtil.tempBackupURL()
+        defer { BackupTestUtil.cleanup(url) }
+        try Data("{\"formatVersion\":16}".utf8).write(to: url)
+
+        #expect(!BackupArchive.isAEAFormat(at: url),
+                "Files starting with `{` should be classified as legacy, not AEA")
+    }
+
+    @Test("v17 reader rejects a non-AEA file with a helpful error")
+    func readerRejectsNonAEAFile() throws {
+        let url = BackupTestUtil.tempBackupURL()
+        defer { BackupTestUtil.cleanup(url) }
+        try Data("not a valid backup".utf8).write(to: url)
+
+        var threw = false
+        do {
+            _ = try BackupReader.read(from: url)
+        } catch BackupReader.ReadError.notAEAFormat {
+            threw = true
+        } catch {
+            Issue.record("Reader threw unexpected error type: \(error)")
+        }
+        #expect(threw, "Reader must throw notAEAFormat for files without the AA01 magic")
+    }
+}
+
 // MARK: - Suite 4: On-Disk Verification
 
 @Suite("Existing backup file verification")

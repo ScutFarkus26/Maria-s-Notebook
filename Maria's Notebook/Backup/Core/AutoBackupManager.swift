@@ -76,14 +76,23 @@ final class AutoBackupManager {
     // MARK: - Properties
 
     private let backupService: BackupService
+    private let coordinatorProvider: () -> BackupCoordinator?
     private var scheduledBackupTask: Task<Void, Never>?
     private var viewContext: NSManagedObjectContext?
 
     // MARK: - Initialization
 
-    init(backupService: BackupService) {
+    /// `coordinatorProvider` is a closure so AutoBackupManager can be created
+    /// during early app setup (before AppDependencies fully resolves) without
+    /// a hard circular reference. When the closure returns nil, falls back to
+    /// the legacy `BackupService.exportBackup` path.
+    init(
+        backupService: BackupService,
+        coordinatorProvider: @escaping () -> BackupCoordinator? = { nil }
+    ) {
         self.backupService = backupService
-        
+        self.coordinatorProvider = coordinatorProvider
+
         // Load last scheduled backup date from UserDefaults
         let timestamp = UserDefaults.standard.double(forKey: "AutoBackup.lastScheduledDate")
         if timestamp > 0 {
@@ -249,10 +258,17 @@ final class AutoBackupManager {
         let filename = "\(prefix)-\(timestamp).\(BackupFile.fileExtension)"
         let url = backupDir.appendingPathComponent(filename)
 
-        // Perform export
+        // Perform export — prefer the v17 Backup2 path when the coordinator
+        // is available; fall back to the legacy v16 path during early setup.
         do {
-            _ = try await backupService.exportBackup(viewContext: viewContext, to: url) { _, _ in
-                // Silent progress
+            if let coordinator = coordinatorProvider() {
+                _ = try await coordinator.exportBackup(viewContext: viewContext, to: url) { _, _ in
+                    // Silent progress
+                }
+            } else {
+                _ = try await backupService.exportBackup(viewContext: viewContext, to: url) { _, _ in
+                    // Silent progress
+                }
             }
 
             // Update tracking
