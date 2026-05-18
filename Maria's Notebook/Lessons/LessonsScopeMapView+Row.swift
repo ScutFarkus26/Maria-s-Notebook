@@ -79,15 +79,54 @@ struct ThreadRow: View {
         }
     }
 
+    private var sectionedGroups: [(String, [CDLesson])] {
+        let existing = Array(Set(lessons.map { $0.section.trimmed() }.filter { !$0.isEmpty }))
+            .sorted { $0.localizedCaseInsensitiveCompare($1) == .orderedAscending }
+        let order = FilterOrderStore.loadSectionOrder(for: threadKey.area, sequence: threadKey.sequence, existing: existing)
+        var result: [(String, [CDLesson])] = order.compactMap { name in
+            let group = lessons.filter { $0.section.trimmed().caseInsensitiveCompare(name) == .orderedSame }
+            return group.isEmpty ? nil : (name, group)
+        }
+        let unsectioned = lessons.filter { $0.section.trimmed().isEmpty }
+        if !unsectioned.isEmpty { result.append(("", unsectioned)) }
+        return result
+    }
+
     @ViewBuilder
     private var pillsContainer: some View {
         if isExpanded {
-            FlowLayout(spacing: 5) {
-                ForEach(lessons, id: \.objectID) { lesson in
-                    MiniLessonPill(name: lesson.name, color: color)
+            let groups = sectionedGroups
+            let hasSections = groups.contains(where: { !$0.0.isEmpty })
+
+            if hasSections {
+                VStack(alignment: .leading, spacing: 8) {
+                    ForEach(Array(groups.enumerated()), id: \.offset) { entry in
+                        let sectionName = entry.element.0
+                        let sectionLessons = entry.element.1
+                        VStack(alignment: .leading, spacing: 4) {
+                            if !sectionName.isEmpty {
+                                Text(sectionName.uppercased())
+                                    .font(.system(size: 10, weight: .semibold, design: .rounded))
+                                    .tracking(0.4)
+                                    .foregroundStyle(.secondary)
+                            }
+                            FlowLayout(spacing: 5) {
+                                ForEach(sectionLessons, id: \.objectID) { lesson in
+                                    MiniLessonPill(name: lesson.name, color: color)
+                                }
+                            }
+                        }
+                    }
                 }
+                .padding(.vertical, 5)
+            } else {
+                FlowLayout(spacing: 5) {
+                    ForEach(lessons, id: \.objectID) { lesson in
+                        MiniLessonPill(name: lesson.name, color: color)
+                    }
+                }
+                .padding(.vertical, 5)
             }
-            .padding(.vertical, 5)
         } else {
             ScrollView(.horizontal, showsIndicators: false) {
                 HStack(spacing: 5) {

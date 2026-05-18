@@ -76,20 +76,63 @@ struct LessonsScopeThreadFocusView: View {
         .padding(.vertical, 10)
     }
 
+    private var sectionedGroups: [(String, [CDLesson])] {
+        let sorted = sortedLessons
+        let existing = Array(Set(sorted.map { $0.section.trimmed() }.filter { !$0.isEmpty }))
+            .sorted { $0.localizedCaseInsensitiveCompare($1) == .orderedAscending }
+        let order = FilterOrderStore.loadSectionOrder(for: threadKey.area, sequence: threadKey.sequence, existing: existing)
+        var result: [(String, [CDLesson])] = order.compactMap { name in
+            let group = sorted.filter { $0.section.trimmed().caseInsensitiveCompare(name) == .orderedSame }
+            return group.isEmpty ? nil : (name, group)
+        }
+        let unsectioned = sorted.filter { $0.section.trimmed().isEmpty }
+        if !unsectioned.isEmpty { result.append(("", unsectioned)) }
+        return result
+    }
+
     private var content: some View {
         ScrollView {
             VStack(alignment: .leading, spacing: 16) {
                 titleBlock
-
-                FlowLayout(spacing: 8) {
-                    ForEach(sortedLessons, id: \.objectID) { lesson in
-                        pillView(for: lesson)
-                    }
-                }
+                pillGroups
             }
             .padding(.horizontal, 20)
             .padding(.vertical, 20)
             .frame(maxWidth: .infinity, alignment: .leading)
+        }
+    }
+
+    @ViewBuilder
+    private var pillGroups: some View {
+        let groups = sectionedGroups
+        let hasSections = groups.contains(where: { !$0.0.isEmpty })
+
+        if hasSections {
+            VStack(alignment: .leading, spacing: 16) {
+                ForEach(Array(groups.enumerated()), id: \.offset) { entry in
+                    let sectionName = entry.element.0
+                    let sectionLessons = entry.element.1
+                    VStack(alignment: .leading, spacing: 6) {
+                        if !sectionName.isEmpty {
+                            Text(sectionName.uppercased())
+                                .font(.system(size: 11, weight: .semibold, design: .rounded))
+                                .tracking(0.5)
+                                .foregroundStyle(color.opacity(0.7))
+                        }
+                        FlowLayout(spacing: 8) {
+                            ForEach(sectionLessons, id: \.objectID) { lesson in
+                                pillView(for: lesson)
+                            }
+                        }
+                    }
+                }
+            }
+        } else {
+            FlowLayout(spacing: 8) {
+                ForEach(sortedLessons, id: \.objectID) { lesson in
+                    pillView(for: lesson)
+                }
+            }
         }
     }
 
