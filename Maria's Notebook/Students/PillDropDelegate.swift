@@ -16,6 +16,7 @@ struct PillDropDelegate: DropDelegate {
     let canAccept: () -> Bool
     let onDidMutate: (String) -> Void
     var onMergeReceived: () -> Void = {}
+    var onSourceEmptied: () -> Void = {}
 
     func dropEntered(info: DropInfo) { checkHighlight(info: info) }
 
@@ -65,10 +66,14 @@ struct PillDropDelegate: DropDelegate {
                         target.studentIDs.append(studentIDString)
                     }
                     source.studentIDs.removeAll { $0 == studentIDString }
-                    if source.studentIDs.isEmpty {
+                    let sourceEmptied = source.studentIDs.isEmpty
+                    if sourceEmptied {
                         viewContext.delete(source)
                     }
                     onDidMutate("Move student between lessons")
+                    if sourceEmptied {
+                        onSourceEmptied()
+                    }
                     appRouter.refreshPlanningInbox()
                 }
                 return

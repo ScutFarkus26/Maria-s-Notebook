@@ -55,9 +55,14 @@ struct ConsolidatePresentationsSheet: View {
                 LazyVStack(alignment: .leading, spacing: AppTheme.Spacing.large) {
                     ForEach(duplicateGroups, id: \.lessonID) { group in
                         groupSection(group)
+                            .transition(.asymmetric(
+                                insertion: .opacity,
+                                removal: .scale(scale: 0.92).combined(with: .opacity)
+                            ))
                     }
                 }
                 .padding(AppTheme.Spacing.medium)
+                .animation(.spring(response: 0.4, dampingFraction: 0.78), value: duplicateGroups.map(\.lessonID))
             }
         }
     }
@@ -141,9 +146,14 @@ struct ConsolidatePresentationsSheet: View {
                             duplicateStudentIDs: duplicates
                         )
                         .frame(width: 260)
+                        .transition(.asymmetric(
+                            insertion: .opacity,
+                            removal: .scale(scale: 0.85).combined(with: .opacity)
+                        ))
                     }
                 }
                 .padding(.vertical, AppTheme.Spacing.verySmall)
+                .animation(.spring(response: 0.35, dampingFraction: 0.75), value: group.presentations.compactMap(\.id))
             }
         }
         .padding(AppTheme.Spacing.compact)
@@ -185,7 +195,7 @@ private struct ConsolidateLessonCard: View {
     @Environment(\.appRouter) private var appRouter
     @Environment(SaveCoordinator.self) private var saveCoordinator
 
-    let presentation: CDLessonAssignment
+    @ObservedObject var presentation: CDLessonAssignment
     let lessonID: UUID
     let areaColor: Color
     let students: [UUID: CDStudent]
@@ -248,7 +258,9 @@ private struct ConsolidateLessonCard: View {
             setHighlight: { isDropHighlighted = $0 },
             setMergeHighlight: { _ in },
             canAccept: { isDropHighlighted },
-            onDidMutate: { reason in saveCoordinator.save(viewContext, reason: reason) }
+            onDidMutate: { reason in saveCoordinator.save(viewContext, reason: reason) },
+            onMergeReceived: {},
+            onSourceEmptied: { ToastService.shared.showSuccess("Presentation removed") }
         ))
     }
 
@@ -271,8 +283,10 @@ private struct ConsolidateLessonCard: View {
                         isDuplicate: duplicateStudentIDs.contains(id),
                         onRemove: { remove(studentID: id) }
                     )
+                    .transition(.scale(scale: 0.6).combined(with: .opacity))
                 }
             }
+            .animation(.spring(response: 0.28, dampingFraction: 0.78), value: ids)
         }
     }
 
@@ -283,10 +297,14 @@ private struct ConsolidateLessonCard: View {
         presentation.studentIDs = ids
         presentation.updateDenormalizedKeys()
         presentation.modifiedAt = Date()
-        if ids.isEmpty, let ctx = presentation.managedObjectContext {
+        let didEmpty = ids.isEmpty
+        if didEmpty, let ctx = presentation.managedObjectContext {
             ctx.delete(presentation)
         }
         saveCoordinator.save(viewContext, reason: "Remove student from presentation")
+        if didEmpty {
+            ToastService.shared.showSuccess("Presentation removed")
+        }
         appRouter.refreshPlanningInbox()
     }
 
