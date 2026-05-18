@@ -17,7 +17,7 @@ enum PresentationsFilterChip: String, CaseIterable, Identifiable, Sendable {
         switch self {
         case .all: return "All"
         case .suggestedNext: return "Suggested Next"
-        case .waitingForWork: return "Waiting for Work"
+        case .waitingForWork: return "Brewing"
         case .overdue: return "Overdue"
         case .recentlyMissed: return "Recently Missed"
         }

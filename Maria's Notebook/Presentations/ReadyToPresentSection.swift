@@ -72,9 +72,9 @@ struct ReadyToPresentSection: View {
         case .waitingForWork:
             singleSliceSection(
                 filteredAndSortedBlockedLessons,
-                emptyTitle: "Nothing waiting on work",
-                emptySymbol: "checkmark.circle",
-                emptyDescription: "No blocked presentations right now."
+                emptyTitle: "Nothing brewing",
+                emptySymbol: "hourglass",
+                emptyDescription: "No lessons are waiting on student work right now."
             )
         case .suggestedNext:
             singleSliceSection(
@@ -149,19 +149,21 @@ struct ReadyToPresentSection: View {
     private var blockedSection: some View {
         if !filteredAndSortedBlockedLessons.isEmpty {
             VStack(alignment: .leading, spacing: AppTheme.Spacing.small) {
-                Label("On Deck (Waiting for Work)", systemImage: "hourglass")
+                Label("Brewing", systemImage: "hourglass")
                     .font(.caption.weight(.bold))
                     .foregroundStyle(.secondary)
                     .padding(.horizontal, AppTheme.Spacing.compact)
 
-                ScrollView(.horizontal, showsIndicators: false) {
-                    LazyHStack(spacing: AppTheme.Spacing.small) {
-                        ForEach(filteredAndSortedBlockedLessons, id: \.id) { la in
-                            onDeckCard(la, blockingWork: getBlockingWork(la))
-                        }
+                LazyVGrid(columns: [
+                    GridItem(.flexible(), spacing: AppTheme.Spacing.small),
+                    GridItem(.flexible(), spacing: AppTheme.Spacing.small),
+                    GridItem(.flexible(), spacing: AppTheme.Spacing.small)
+                ], alignment: .leading, spacing: AppTheme.Spacing.small) {
+                    ForEach(filteredAndSortedBlockedLessons, id: \.id) { la in
+                        onDeckCard(la, blockingWork: getBlockingWork(la))
                     }
-                    .padding(.horizontal, AppTheme.Spacing.compact)
                 }
+                .padding(.horizontal, AppTheme.Spacing.compact)
             }
             .padding(.top, AppTheme.Spacing.compact)
         }
@@ -177,14 +179,23 @@ struct ReadyToPresentSection: View {
                 )
                     .padding(.top, AppTheme.Spacing.large + AppTheme.Spacing.medium)
             } else {
-                Text("All planned presentations are waiting on work.")
+                Text("All planned presentations are brewing.")
                     .font(.subheadline)
                     .foregroundStyle(.secondary)
                     .frame(maxWidth: .infinity, alignment: .center)
                     .padding(.top, AppTheme.Spacing.medium + AppTheme.Spacing.xsmall)
             }
         } else {
-            readyGrid
+            VStack(alignment: .leading, spacing: AppTheme.Spacing.small) {
+                Label("Ready", systemImage: "checkmark.circle")
+                    .font(.caption.weight(.bold))
+                    .foregroundStyle(.secondary)
+                    .padding(.horizontal, AppTheme.Spacing.compact)
+                readyGrid
+            }
+            .padding(.top, filteredAndSortedBlockedLessons.isEmpty
+                      ? AppTheme.Spacing.compact
+                      : AppTheme.Spacing.medium + AppTheme.Spacing.small)
         }
     }
 
