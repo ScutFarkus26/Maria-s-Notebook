@@ -133,7 +133,8 @@ struct ReadyToPresentSection: View {
         viewModel.filteredAndSortedReady(
             studentFilter: coordinator.selectedStudentFilter,
             debouncedSearch: filterState.debouncedSearchText,
-            committedFilters: filterState.committedFilters
+            committedFilters: filterState.committedFilters,
+            hideStudentsScheduledToday: filterState.hideStudentsScheduledToday
         )
     }
 
@@ -141,7 +142,8 @@ struct ReadyToPresentSection: View {
         viewModel.filteredAndSortedBlocked(
             studentFilter: coordinator.selectedStudentFilter,
             debouncedSearch: filterState.debouncedSearchText,
-            committedFilters: filterState.committedFilters
+            committedFilters: filterState.committedFilters,
+            hideStudentsScheduledToday: filterState.hideStudentsScheduledToday
         )
     }
 
@@ -303,7 +305,8 @@ extension ReadyToPresentSection {
             to: viewModel.overdueReady(thresholdSchoolDays: 14),
             studentFilter: coordinator.selectedStudentFilter,
             debouncedSearch: filterState.debouncedSearchText,
-            committedFilters: filterState.committedFilters
+            committedFilters: filterState.committedFilters,
+            hideStudentsScheduledToday: filterState.hideStudentsScheduledToday
         )
     }
 
@@ -312,7 +315,8 @@ extension ReadyToPresentSection {
             to: viewModel.recentlyMissed(within: 14),
             studentFilter: coordinator.selectedStudentFilter,
             debouncedSearch: filterState.debouncedSearchText,
-            committedFilters: filterState.committedFilters
+            committedFilters: filterState.committedFilters,
+            hideStudentsScheduledToday: filterState.hideStudentsScheduledToday
         )
     }
 }

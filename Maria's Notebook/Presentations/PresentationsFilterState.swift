@@ -22,6 +22,10 @@ final class PresentationsFilterState {
     /// (unfiltered) state and is what we land on after re-tapping the active chip.
     var selectedChip: PresentationsFilterChip = .all
 
+    /// When true, hide presentations whose students already appear on a
+    /// presentation scheduled for today. Toggled from the header.
+    var hideStudentsScheduledToday: Bool = false
+
     private var debounceTask: Task<Void, Never>?
 
     func updateSearchText(_ new: String) {

@@ -54,6 +54,29 @@ extension PresentationsViewModel {
         return lessons.filter { $0.studentIDs.contains(studentIDString) }
     }
 
+    /// Student IDs that appear on any presentation whose `scheduledForDay`
+    /// matches today's start-of-day. Used by the "Hide Today's Students" toggle.
+    var studentIDsScheduledToday: Set<UUID> {
+        let today = calendar.startOfDay(for: Date())
+        var ids = Set<UUID>()
+        for la in cachedLessonAssignments {
+            guard let day = la.scheduledForDay,
+                  calendar.isDate(day, inSameDayAs: today) else { continue }
+            ids.formUnion(la.resolvedStudentIDs)
+        }
+        return ids
+    }
+
+    private func applyHideScheduledToday(
+        _ lessons: [CDLessonAssignment],
+        hide: Bool
+    ) -> [CDLessonAssignment] {
+        guard hide else { return lessons }
+        let busy = studentIDsScheduledToday
+        guard !busy.isEmpty else { return lessons }
+        return lessons.filter { Set($0.resolvedStudentIDs).isDisjoint(with: busy) }
+    }
+
     private func applyTextFilters(
         _ lessons: [CDLessonAssignment],
         debouncedSearch: String,
@@ -78,16 +101,19 @@ extension PresentationsViewModel {
         to lessons: [CDLessonAssignment],
         studentFilter: UUID?,
         debouncedSearch: String,
-        committedFilters: [String]
+        committedFilters: [String],
+        hideStudentsScheduledToday: Bool = false
     ) -> [CDLessonAssignment] {
         let afterStudent = applyStudentFilter(lessons, studentFilter: studentFilter)
-        return applyTextFilters(afterStudent, debouncedSearch: debouncedSearch, committedFilters: committedFilters)
+        let afterText = applyTextFilters(afterStudent, debouncedSearch: debouncedSearch, committedFilters: committedFilters)
+        return applyHideScheduledToday(afterText, hide: hideStudentsScheduledToday)
     }
 
     func filteredAndSortedReady(
         studentFilter: UUID?,
         debouncedSearch: String,
-        committedFilters: [String]
+        committedFilters: [String],
+        hideStudentsScheduledToday: Bool = false
     ) -> [CDLessonAssignment] {
         let afterStudent = applyStudentFilter(readyLessons, studentFilter: studentFilter)
         let afterText = applyTextFilters(
@@ -95,13 +121,15 @@ extension PresentationsViewModel {
             debouncedSearch: debouncedSearch,
             committedFilters: committedFilters
         )
-        return sortByAge(afterText)
+        let afterToday = applyHideScheduledToday(afterText, hide: hideStudentsScheduledToday)
+        return sortByAge(afterToday)
     }
 
     func filteredAndSortedBlocked(
         studentFilter: UUID?,
         debouncedSearch: String,
-        committedFilters: [String]
+        committedFilters: [String],
+        hideStudentsScheduledToday: Bool = false
     ) -> [CDLessonAssignment] {
         let afterStudent = applyStudentFilter(blockedLessons, studentFilter: studentFilter)
         let afterText = applyTextFilters(
@@ -109,7 +137,8 @@ extension PresentationsViewModel {
             debouncedSearch: debouncedSearch,
             committedFilters: committedFilters
         )
-        return sortByAge(afterText)
+        let afterToday = applyHideScheduledToday(afterText, hide: hideStudentsScheduledToday)
+        return sortByAge(afterToday)
     }
 
     // MARK: - Suggest Next

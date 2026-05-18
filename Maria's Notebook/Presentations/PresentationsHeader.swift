@@ -39,6 +39,22 @@ struct PresentationsHeader: View {
             .buttonStyle(.plain)
             .foregroundStyle(.secondary)
 
+            Button {
+                adaptiveWithAnimation(.easeInOut(duration: 0.15)) {
+                    filterState.hideStudentsScheduledToday.toggle()
+                }
+            } label: {
+                Label(
+                    "Hide Today's Students",
+                    systemImage: filterState.hideStudentsScheduledToday
+                        ? "person.crop.circle.badge.checkmark"
+                        : "person.crop.circle.badge.clock"
+                )
+                .font(AppTheme.ScaledFont.captionSemibold)
+            }
+            .buttonStyle(.plain)
+            .foregroundStyle(filterState.hideStudentsScheduledToday ? Color.accentColor : .secondary)
+
             Button(action: onConsolidate) {
                 Label("Consolidate", systemImage: "arrow.triangle.merge")
                     .font(AppTheme.ScaledFont.captionSemibold)

@@ -192,7 +192,8 @@ extension PresentationsView {
         let candidates = viewModel.filteredAndSortedReady(
             studentFilter: coordinator.selectedStudentFilter,
             debouncedSearch: filterState.debouncedSearchText,
-            committedFilters: filterState.committedFilters
+            committedFilters: filterState.committedFilters,
+            hideStudentsScheduledToday: filterState.hideStudentsScheduledToday
         )
         let all = Array(lessonAssignmentsForChangeDetection)
         guard let suggested = viewModel.suggestedNext(among: candidates, allLessonAssignments: all),
