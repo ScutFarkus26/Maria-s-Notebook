@@ -9,6 +9,7 @@ import SwiftUI
 
 struct SequenceRecapSection: View {
     let recap: SequenceRecap
+    let onUpdateState: (UUID, UUID, LessonPresentationState) -> Void
 
     @State private var isExpanded: Bool = false
 
@@ -18,7 +19,8 @@ struct SequenceRecapSection: View {
                 ForEach(recap.studentEntries) { student in
                     SequenceRecapStudentSection(
                         student: student,
-                        areaColor: AppColors.color(forArea: recap.area)
+                        areaColor: AppColors.color(forArea: recap.area),
+                        onUpdateState: onUpdateState
                     )
                 }
                 if recap.studentEntries.isEmpty {
@@ -73,6 +75,7 @@ struct SequenceRecapSection: View {
 struct SequenceRecapStudentSection: View {
     let student: SequenceRecapStudentEntry
     let areaColor: Color
+    let onUpdateState: (UUID, UUID, LessonPresentationState) -> Void
 
     @State private var isExpanded: Bool = false
 
@@ -80,7 +83,12 @@ struct SequenceRecapStudentSection: View {
         DisclosureGroup(isExpanded: $isExpanded) {
             VStack(alignment: .leading, spacing: 8) {
                 ForEach(student.lessonEntries) { entry in
-                    SequenceRecapLessonRow(entry: entry, areaColor: areaColor)
+                    SequenceRecapLessonRow(
+                        entry: entry,
+                        areaColor: areaColor,
+                        studentID: student.id,
+                        onUpdateState: onUpdateState
+                    )
                 }
                 if !student.orphanNotes.isEmpty {
                     Divider().padding(.vertical, 4)

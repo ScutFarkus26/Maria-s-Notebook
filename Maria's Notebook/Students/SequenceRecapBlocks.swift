@@ -9,13 +9,15 @@ import SwiftUI
 struct SequenceRecapLessonRow: View {
     let entry: SequenceRecapLessonEntry
     let areaColor: Color
+    let studentID: UUID
+    let onUpdateState: (UUID, UUID, LessonPresentationState) -> Void
 
     @State private var isExpanded: Bool = false
 
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {
             Button {
-                if hasDetails {
+                if isExpandable {
                     withAnimation(.easeInOut(duration: 0.2)) {
                         isExpanded.toggle()
                     }
@@ -24,9 +26,9 @@ struct SequenceRecapLessonRow: View {
                 summaryRow
             }
             .buttonStyle(.plain)
-            .disabled(!hasDetails)
+            .disabled(!isExpandable)
 
-            if isExpanded && hasDetails {
+            if isExpanded && isExpandable {
                 detailContent
                     .padding(.top, 8)
                     .padding(.leading, 28)
@@ -50,6 +52,13 @@ struct SequenceRecapLessonRow: View {
             || !entry.workItems.isEmpty
             || !entry.directNotes.isEmpty
             || !(entry.perStudentLessonNotes ?? "").isEmpty
+    }
+
+    /// Non-current rows are always expandable so the user can reach the status picker
+    /// even on lessons with no prior history. The current lesson row keeps its existing
+    /// gating — that lesson is edited via the main form's ProficiencyStateRow.
+    private var isExpandable: Bool {
+        entry.isCurrentLesson ? hasDetails : true
     }
 
     private var summaryRow: some View {
@@ -112,6 +121,56 @@ struct SequenceRecapLessonRow: View {
                 }
             }
         }
+        if !entry.isCurrentLesson {
+            SequenceRecapStatusPicker(
+                currentState: entry.outcomeState ?? .presented
+            ) { newState in
+                onUpdateState(entry.id, studentID, newState)
+            }
+            .padding(.top, 4)
+        }
+    }
+}
+
+// MARK: - Status Picker
+
+/// Compact three-pill picker (Presented / Practicing / Mastered) shown inside an
+/// expanded sibling-lesson row. Drives the per-student CDLessonPresentation state
+/// for any lesson in the sequence — independent of the main edit form.
+struct SequenceRecapStatusPicker: View {
+    let currentState: LessonPresentationState
+    let onSelect: (LessonPresentationState) -> Void
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 6) {
+            Text("Update status")
+                .font(AppTheme.ScaledFont.captionSemibold)
+                .foregroundStyle(.secondary)
+            HStack(spacing: 8) {
+                pill(state: .presented, title: "Presented", icon: "eye.fill", tint: .blue)
+                pill(state: .practicing, title: "Practicing", icon: "arrow.triangle.2.circlepath", tint: .purple)
+                pill(state: .proficient, title: "Mastered", icon: "checkmark.seal.fill", tint: .green)
+            }
+        }
+    }
+
+    private func pill(
+        state: LessonPresentationState,
+        title: String,
+        icon: String,
+        tint: Color
+    ) -> some View {
+        Button {
+            onSelect(state)
+        } label: {
+            StatePill(
+                title: title,
+                systemImage: icon,
+                tint: tint,
+                active: currentState == state
+            )
+        }
+        .buttonStyle(.plain)
     }
 }
 

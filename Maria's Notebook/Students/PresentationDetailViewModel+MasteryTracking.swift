@@ -88,4 +88,60 @@ extension PresentationDetailViewModel {
             }
         }
     }
+
+    // MARK: - Sibling-Lesson Mastery Updates
+
+    /// Updates the mastery state for a single (lesson, student) pair from the Sequence Recap.
+    /// Used to change the status of past lessons in the group directly from the recap UI,
+    /// independent of the current lesson assignment being edited. Persists immediately and
+    /// recomputes the group recap so the badge + progress chip refresh.
+    func updateSiblingLessonProficiencyState(
+        lessonID: String,
+        studentID: String,
+        state: LessonPresentationState,
+        lessons: [CDLesson],
+        currentLesson: CDLesson?,
+        students: [CDStudent]
+    ) {
+        guard !lessonID.isEmpty, !studentID.isEmpty else { return }
+
+        let allLessonPresentations = safeFetch(NSFetchRequest<CDLessonPresentation>(entityName: "LessonPresentation"))
+
+        if let existing = allLessonPresentations.first(where: {
+            $0.lessonID == lessonID && $0.studentID == studentID
+        }) {
+            existing.state = state
+            existing.lastObservedAt = Date()
+            if state == .proficient && existing.masteredAt == nil {
+                existing.masteredAt = Date()
+            } else if state != .proficient {
+                existing.masteredAt = nil
+            }
+        } else {
+            let lp = CDLessonPresentation(context: viewContext)
+            lp.studentID = studentID
+            lp.lessonID = lessonID
+            lp.presentationID = nil
+            lp.state = state
+            lp.presentedAt = Date()
+            lp.lastObservedAt = Date()
+            lp.masteredAt = state == .proficient ? Date() : nil
+        }
+
+        // Track-completion check uses the sibling lesson's own area/sequence,
+        // not the current lessonAssignment.lesson.
+        if state == .proficient,
+           let lesson = lessons.first(where: { $0.id?.uuidString == lessonID }) {
+            SequenceTrackService.checkAndCompleteTrackIfNeeded(
+                lessonArea: lesson.area,
+                lessonSequence: lesson.sequence,
+                studentID: studentID,
+                context: viewContext,
+                saveCoordinator: saveCoordinator
+            )
+        }
+
+        _ = saveCoordinator.save(viewContext, reason: "Updating sibling lesson proficiency state")
+        recomputeSequenceRecap(currentLesson: currentLesson, students: students)
+    }
 }

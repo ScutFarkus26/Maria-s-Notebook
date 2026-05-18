@@ -87,7 +87,16 @@ extension PresentationDetailContentView {
     @ViewBuilder
     var groupRecapSection: some View {
         if let recap = vm.groupRecap, !recap.lessonsInSequence.isEmpty {
-            SequenceRecapSection(recap: recap)
+            SequenceRecapSection(recap: recap) { lessonID, studentID, newState in
+                vm.updateSiblingLessonProficiencyState(
+                    lessonID: lessonID.uuidString,
+                    studentID: studentID.uuidString,
+                    state: newState,
+                    lessons: lessons,
+                    currentLesson: currentLesson,
+                    students: selectedStudentsList
+                )
+            }
         }
     }
 
