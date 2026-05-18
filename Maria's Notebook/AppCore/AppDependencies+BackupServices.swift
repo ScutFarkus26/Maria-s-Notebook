@@ -76,4 +76,20 @@ extension AppDependencies {
         _autoBackupManager = manager
         return manager
     }
+
+    /// Top-level Backup2 entry point. New code (Settings export/import,
+    /// AutoBackupManager) talks to this; it routes v17 AEA files through the
+    /// Backup2 module and legacy `.mtbbackup` files through `backupService`.
+    var backupCoordinator: BackupCoordinator {
+        if let coordinator = _backupCoordinator {
+            return coordinator
+        }
+        let coordinator = BackupCoordinator(
+            backupService: backupService,
+            transactionManager: backupTransactionManager,
+            appRouter: appRouter
+        )
+        _backupCoordinator = coordinator
+        return coordinator
+    }
 }

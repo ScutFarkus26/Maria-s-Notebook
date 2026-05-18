@@ -172,6 +172,7 @@ final class AppDependencies {
     var _backupTransactionManager: BackupTransactionManager?
     var _selectiveExportService: SelectiveExportService?
     var _autoBackupManager: AutoBackupManager?
+    var _backupCoordinator: BackupCoordinator?
 
     // MARK: - Migration Services
 

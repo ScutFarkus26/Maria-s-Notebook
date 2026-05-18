@@ -31,6 +31,7 @@ final class SettingsViewModel {
     private let dependencies: AppDependencies
     private var backupService: BackupService { dependencies.backupService }
     private var transactionManager: BackupTransactionManager { dependencies.backupTransactionManager }
+    private var coordinator: BackupCoordinator { dependencies.backupCoordinator }
     private var pendingImportURL: URL?
     private var exportURL: URL?
     
@@ -91,13 +92,12 @@ final class SettingsViewModel {
                 .appendingPathExtension(BackupFile.fileExtension)
             exportURL = tmp
             safeRemoveItem(at: tmp, context: "performExport-cleanup")
-            // password: nil — app-level backup encryption is disabled in the UI.
+            // Export through Backup2 — produces v17 AEA-framed files.
+            // Legacy `.mtbbackup` decode (v5–v16) is still supported on import.
             // At-rest protection comes from FileVault / iOS Data Protection / iCloud Drive.
-            // Decryption of legacy `.mtbbackup` files is still supported on import.
-            _ = try await backupService.exportBackup(
+            _ = try await coordinator.exportBackup(
                 viewContext: viewContext,
-                to: tmp,
-                password: nil
+                to: tmp
             ) { [weak self] progress, message in
                 self?.backupProgress = progress
                 self?.backupMessage = message
@@ -171,7 +171,9 @@ final class SettingsViewModel {
             importProgress = 0
             importMessage = "Reading file…"
             resultSummary = nil
-            let preview = try await backupService.previewImport(
+            // Coordinator picks the right decode path for the file format
+            // (v17 AEA vs legacy v5–v16 JSON envelope).
+            let preview = try await coordinator.previewImport(
                 viewContext: viewContext,
                 from: url,
                 mode: restoreMode
@@ -198,17 +200,25 @@ final class SettingsViewModel {
             importMessage = "Starting…"
             resultSummary = nil
             // Route through the transaction manager so `.replace` mode gets a safety
-            // checkpoint + automatic rollback on import failure. For `.merge`, the
-            // manager skips the checkpoint (it's best-effort, non-destructive).
-            let summary = try await transactionManager.executeImportWithRollback(
+            // checkpoint + automatic rollback on import failure. The coordinator
+            // detects whether the file is v17 (AEA) or v5–v16 (legacy envelope)
+            // and chooses the right decode path.
+            let coordinatorRef = coordinator
+            let summary = try await transactionManager.executeWithRollback(
                 viewContext: viewContext,
-                from: url,
                 mode: restoreMode,
-                password: nil,
-                shouldCreateCheckpoint: restoreMode == .replace
-            ) { [weak self] p, m in
-                self?.importProgress = p
-                self?.importMessage = m
+                shouldCreateCheckpoint: restoreMode == .replace,
+                progress: { [weak self] p, m in
+                    self?.importProgress = p
+                    self?.importMessage = m
+                }
+            ) { stepProgress in
+                try await coordinatorRef.importBackup(
+                    viewContext: viewContext,
+                    from: url,
+                    mode: self.restoreMode,
+                    progress: stepProgress
+                )
             }
             restorePreviewData = nil
             pendingImportURL = nil

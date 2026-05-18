@@ -113,17 +113,11 @@ public final class BackupTransactionManager {
         }
     }
 
-    // Executes an import operation with automatic rollback on failure.
-    //
-    // - Parameters:
-    //   - viewContext: The model context to import into
-    //   - backupURL: The backup file to import
-    //   - mode: The restore mode (merge or replace)
-    //   - password: Optional decryption password
-    //   - createCheckpoint: Whether to create a checkpoint before import (default: true for replace mode)
-    //   - progress: Progress callback
-    // - Returns: Transaction result with import summary or error details
-    // swiftlint:disable:next function_body_length
+    /// Executes an import operation with automatic rollback on failure.
+    /// Calls the legacy `backupService.importBackup` — kept for callers that
+    /// don't go through the v17 coordinator. New callers (`SettingsViewModel`)
+    /// should use `executeWithRollback(...)` and pass in a coordinator-backed
+    /// closure, so v17 AEA files route through Backup2.
     public func executeImportWithRollback(
         viewContext: NSManagedObjectContext,
         from backupURL: URL,
@@ -132,13 +126,39 @@ public final class BackupTransactionManager {
         shouldCreateCheckpoint createCheckpointOption: Bool? = nil,
         progress: @escaping BackupService.ProgressCallback
     ) async throws -> BackupOperationSummary {
+        try await executeWithRollback(
+            viewContext: viewContext,
+            mode: mode,
+            shouldCreateCheckpoint: createCheckpointOption,
+            progress: progress
+        ) { stepProgress in
+            try await self.backupService.importBackup(
+                viewContext: viewContext,
+                from: backupURL,
+                mode: mode,
+                password: password,
+                progress: stepProgress
+            )
+        }
+    }
 
-        // Determine if we should create a checkpoint
+    /// Wraps a caller-supplied import closure with the safety-checkpoint +
+    /// rollback dance. The closure does the actual import (any format) and
+    /// receives a scaled progress callback covering 15–95%.
+    /// On failure, the checkpoint is restored via the legacy `BackupService`
+    /// path — checkpoints are always written in the legacy envelope format.
+    // swiftlint:disable:next function_body_length
+    public func executeWithRollback(
+        viewContext: NSManagedObjectContext,
+        mode: BackupService.RestoreMode,
+        shouldCreateCheckpoint createCheckpointOption: Bool? = nil,
+        progress: @escaping BackupService.ProgressCallback,
+        importBody: (@escaping BackupService.ProgressCallback) async throws -> BackupOperationSummary
+    ) async throws -> BackupOperationSummary {
+
         let shouldCreateCheckpoint = createCheckpointOption ?? (mode == .replace)
-
         var checkpointURL: URL?
 
-        // Create checkpoint if needed
         if shouldCreateCheckpoint {
             progress(0.0, "Creating safety checkpoint…")
             do {
@@ -146,46 +166,31 @@ public final class BackupTransactionManager {
                     viewContext: viewContext,
                     operationName: "PreImport",
                     progress: { subProgress, message in
-                        // Scale checkpoint progress to 0-15%
                         progress(subProgress * 0.15, message)
                     }
                 )
             } catch {
-                // If checkpoint fails, we still allow the import to proceed
-                // but warn the user
                 Logger.backup.error("Checkpoint creation failed: \(error)")
             }
         }
 
-        // Perform import
         progress(0.15, "Starting import…")
         do {
-            let summary = try await backupService.importBackup(
-                viewContext: viewContext,
-                from: backupURL,
-                mode: mode,
-                password: password,
-                progress: { subProgress, message in
-                    // Scale import progress to 15-95%
-                    progress(0.15 + (subProgress * 0.80), message)
-                }
-            )
+            let summary = try await importBody({ subProgress, message in
+                progress(0.15 + (subProgress * 0.80), message)
+            })
 
-            // Success - clean up checkpoint
             progress(0.95, "Cleaning up…")
             if let checkpointURL {
                 cleanupCheckpoint(at: checkpointURL)
             }
             activeCheckpointURL = nil
-
             progress(1.0, "Import complete")
             return summary
 
         } catch {
-            // Import failed - attempt rollback if we have a checkpoint
             if let checkpointURL {
                 progress(0.96, "Import failed. Attempting rollback…")
-
                 do {
                     try await rollback(
                         viewContext: viewContext,
@@ -194,18 +199,13 @@ public final class BackupTransactionManager {
                             progress(0.96 + (subProgress * 0.04), "Rollback: \(message)")
                         }
                     )
-
-                    // Rollback successful - throw error with checkpoint info
                     throw TransactionError.importFailed(error, checkpointURL: checkpointURL)
-
                 } catch let rollbackError as TransactionError {
                     throw rollbackError
                 } catch {
-                    // Rollback also failed
                     throw TransactionError.rollbackFailed(error)
                 }
             } else {
-                // No checkpoint available
                 throw TransactionError.importFailed(error, checkpointURL: nil)
             }
         }
