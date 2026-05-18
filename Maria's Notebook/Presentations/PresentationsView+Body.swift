@@ -85,6 +85,15 @@ extension PresentationsView {
                     onCancel: { coordinator.dismissSheet() }
                 )
 
+            case .consolidatePresentations:
+                ConsolidatePresentationsSheet(onDismiss: { coordinator.dismissSheet() })
+                #if os(macOS)
+                .presentationSizingFitted()
+                #else
+                .presentationDetents([.large])
+                .presentationDragIndicator(.visible)
+                #endif
+
             case .postPresentation, .unifiedWorkflow, .lessonAssignmentHistory:
                 Text("Sheet not yet implemented")
             }
@@ -174,7 +183,8 @@ extension PresentationsView {
             cachedStudents: viewModel.cachedStudents,
             isSuggestEnabled: !viewModel.readyLessons.isEmpty,
             onSuggestNext: triggerSuggestNext,
-            onFilters: { /* Filters panel: wired in a later phase. */ }
+            onFilters: { /* Filters panel: wired in a later phase. */ },
+            onConsolidate: { coordinator.showConsolidatePresentations() }
         )
     }
 

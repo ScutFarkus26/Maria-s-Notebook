@@ -26,6 +26,7 @@ final class PresentationsCoordinator {
         case postPresentation(CDLessonAssignment)
         case unifiedWorkflow(CDLessonAssignment)
         case lessonAssignmentHistory(CDLesson)
+        case consolidatePresentations
 
         var id: String {
             switch self {
@@ -39,6 +40,8 @@ final class PresentationsCoordinator {
                 return "workflow-\(la.id?.uuidString ?? "nil")"
             case .lessonAssignmentHistory(let lesson):
                 return "lessonAssignHistory-\(lesson.id?.uuidString ?? "nil")"
+            case .consolidatePresentations:
+                return "consolidatePresentations"
             }
         }
     }
@@ -86,6 +89,11 @@ final class PresentationsCoordinator {
     /// Present lesson assignment history
     func showLessonAssignmentHistory(for lesson: CDLesson) {
         activeSheet = .lessonAssignmentHistory(lesson)
+    }
+
+    /// Present consolidate-duplicates sheet
+    func showConsolidatePresentations() {
+        activeSheet = .consolidatePresentations
     }
 
     /// Dismiss currently active sheet

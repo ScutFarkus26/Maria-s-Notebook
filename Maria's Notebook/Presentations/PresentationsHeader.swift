@@ -10,6 +10,7 @@ struct PresentationsHeader: View {
     let isSuggestEnabled: Bool
     let onSuggestNext: () -> Void
     let onFilters: () -> Void
+    let onConsolidate: () -> Void
 
     var body: some View {
         VStack(spacing: AppTheme.Spacing.small) {
@@ -33,6 +34,13 @@ struct PresentationsHeader: View {
 
             Button(action: onFilters) {
                 Label("Filters", systemImage: "line.3.horizontal.decrease.circle")
+                    .font(AppTheme.ScaledFont.captionSemibold)
+            }
+            .buttonStyle(.plain)
+            .foregroundStyle(.secondary)
+
+            Button(action: onConsolidate) {
+                Label("Consolidate", systemImage: "arrow.triangle.merge")
                     .font(AppTheme.ScaledFont.captionSemibold)
             }
             .buttonStyle(.plain)
