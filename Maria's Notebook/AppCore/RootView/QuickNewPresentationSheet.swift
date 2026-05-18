@@ -336,6 +336,16 @@ struct QuickNewPresentationSheet: View {
             lessonAssignment.lessonSectionSnapshot = lesson.section
         }
 
+        do {
+            _ = try LifecycleService.recordPresentation(
+                from: lessonAssignment,
+                presentedAt: presentedAt,
+                modelContext: viewContext
+            )
+        } catch {
+            // Per-student rows missing is non-fatal; the assignment still saves.
+        }
+
         saveCoordinator.save(viewContext, reason: "Quick New Presentation")
         dismiss()
     }

@@ -273,15 +273,26 @@ final class LessonPickerViewModel {
         // CDLessonAssignment is already inserted into context by PresentationFactory.makeDraft
 
         // CDWorkModel flow
-        // If marking as given and practice is requested, explode per-student practice work via LifecycleService
-        if mode == .given && needsPractice {
+        // If marking as given and practice is requested, explode per-student practice work via LifecycleService.
+        // recordPresentationAndExplodeWork internally calls recordPresentation, which upserts CDLessonPresentation rows.
+        // When practice is NOT requested, we still call recordPresentation so per-student mastery rows exist —
+        // otherwise the lesson is invisible in Mastery Dashboard / Sequence Recap / Student Progress views.
+        if mode == .given {
             let presentedDate = AppCalendar.startOfDay(givenAt ?? Date())
             do {
-                _ = try LifecycleService.recordPresentationAndExplodeWork(
-                    from: la,
-                    presentedAt: presentedDate,
-                    modelContext: context
-                )
+                if needsPractice {
+                    _ = try LifecycleService.recordPresentationAndExplodeWork(
+                        from: la,
+                        presentedAt: presentedDate,
+                        modelContext: context
+                    )
+                } else {
+                    _ = try LifecycleService.recordPresentation(
+                        from: la,
+                        presentedAt: presentedDate,
+                        modelContext: context
+                    )
+                }
             } catch {
                 // Ignore errors for now; caller handles thrown save errors later
             }

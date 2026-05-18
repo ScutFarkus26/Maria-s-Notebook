@@ -271,7 +271,15 @@ final class StudentDetailViewModel {
         }
         let presentedDate = AppCalendar.startOfDay(Date())
         if let upcoming = upcomingLessonAssignment(for: lessonID, studentID: studentID) {
-            upcoming.markPresented(at: presentedDate)
+            do {
+                _ = try LifecycleService.recordPresentation(
+                    from: upcoming,
+                    presentedAt: presentedDate,
+                    modelContext: viewContext
+                )
+            } catch {
+                Self.logger.warning("Failed to record presentation: \(error.localizedDescription)")
+            }
             saveCoordinator.save(viewContext, reason: "Recording presentation")
             SequenceTrackService.autoEnrollInTrackIfNeeded(
                 lessonArea: lesson.area,
@@ -289,6 +297,15 @@ final class StudentDetailViewModel {
             )
             la.lesson = lesson
             la.syncSnapshotsFromRelationships()
+            do {
+                _ = try LifecycleService.recordPresentation(
+                    from: la,
+                    presentedAt: presentedDate,
+                    modelContext: viewContext
+                )
+            } catch {
+                Self.logger.warning("Failed to record presentation: \(error.localizedDescription)")
+            }
             if saveCoordinator.save(viewContext, reason: "Recording presentation") {
                 showToast("Presentation recorded")
             }

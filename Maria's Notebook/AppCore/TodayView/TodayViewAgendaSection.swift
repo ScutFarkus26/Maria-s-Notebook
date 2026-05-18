@@ -292,8 +292,12 @@ extension TodayView {
     }
 
     func markLessonPresented(_ sl: CDLessonAssignment) {
-        sl.markPresented()
         do {
+            _ = try LifecycleService.recordPresentation(
+                from: sl,
+                presentedAt: Date(),
+                modelContext: viewContext
+            )
             try viewContext.save()
             viewModel.reload()
             toast("Marked presented")
