@@ -103,9 +103,7 @@ struct BackupEntityRegistry {
         // Book Club
         CDBookClubPacket.self,
         CDBookClubSession.self,
-        CDBookClubMeeting.self,
-        // Initiatives (format v15+)
-        CDInitiative.self
+        CDBookClubMeeting.self
     ]
     
     /// Entity type names for progress reporting and error messages

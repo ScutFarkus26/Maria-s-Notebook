@@ -213,7 +213,6 @@ public struct BackupPayload: Codable, Sendable {
         case calendarNotes, scheduledMeetings
         case classroomMemberships
         case meetingWorkReviews, studentFocusItems
-        case initiatives
         case preferences
     }
 
@@ -331,9 +330,6 @@ public struct BackupPayload: Codable, Sendable {
     // Meeting-Work Integration (format v14+)
     public var meetingWorkReviews: [MeetingWorkReviewDTO]?
     public var studentFocusItems: [StudentFocusItemDTO]?
-
-    // Planning Initiatives (format v15+)
-    public var initiatives: [InitiativeDTO]?
 
     // Lightweight app/user metadata (preferences) as typed dictionary
     public var preferences: PreferencesDTO

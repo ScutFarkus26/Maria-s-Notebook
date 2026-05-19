@@ -5,7 +5,6 @@ import CoreData
 ///  • CDCalendarNote (user notes)
 ///  • PerpetualHolidays (system holidays)
 ///  • CDCalendarEvent (Mac calendar events synced via EventKit)
-///  • CDInitiative deadlines
 ///  • CDTodoItem due dates
 ///  • Parsha labels (Saturdays)
 struct PlanningCalendarView: View {
@@ -24,11 +23,6 @@ struct PlanningCalendarView: View {
     ) private var allEvents: FetchedResults<CDCalendarEvent>
 
     @FetchRequest(
-        sortDescriptors: [NSSortDescriptor(keyPath: \CDInitiative.deadline, ascending: true)],
-        predicate: NSPredicate(format: "completedAt == nil AND deadline != nil")
-    ) private var activeInitiatives: FetchedResults<CDInitiative>
-
-    @FetchRequest(
         sortDescriptors: [NSSortDescriptor(keyPath: \CDTodoItemEntity.dueDate, ascending: true)],
         predicate: NSPredicate(format: "dueDate != nil AND isCompleted == NO")
     ) private var openTodos: FetchedResults<CDTodoItemEntity>
@@ -41,7 +35,6 @@ struct PlanningCalendarView: View {
     @AppStorage("PlanningCalendar.showNotes") private var showNotes: Bool = true
     @AppStorage("PlanningCalendar.showHolidays") private var showHolidays: Bool = true
     @AppStorage("PlanningCalendar.showEvents") private var showEvents: Bool = true
-    @AppStorage("PlanningCalendar.showInitiatives") private var showInitiatives: Bool = true
     @AppStorage("PlanningCalendar.showTodos") private var showTodos: Bool = true
     @AppStorage("PlanningCalendar.showParsha") private var showParsha: Bool = true
 
@@ -69,19 +62,6 @@ struct PlanningCalendarView: View {
             guard let y = comps.year, let m = comps.month, let d = comps.day else { continue }
             let cellID = CellID(year: y, month: m, day: d)
             lookup[cellID, default: []].append(event)
-        }
-        return lookup
-    }
-
-    private var initiativesLookup: [CellID: [CDInitiative]] {
-        var lookup: [CellID: [CDInitiative]] = [:]
-        let cal = AppCalendar.shared
-        for initiative in activeInitiatives {
-            guard let deadline = initiative.deadline else { continue }
-            let comps = cal.dateComponents([.year, .month, .day], from: deadline)
-            guard let y = comps.year, let m = comps.month, let d = comps.day else { continue }
-            let cellID = CellID(year: y, month: m, day: d)
-            lookup[cellID, default: []].append(initiative)
         }
         return lookup
     }
@@ -125,7 +105,6 @@ struct PlanningCalendarView: View {
                 Toggle("Notes", isOn: $showNotes)
                 Toggle("Holidays", isOn: $showHolidays)
                 Toggle("Mac Events", isOn: $showEvents)
-                Toggle("Initiative Deadlines", isOn: $showInitiatives)
                 Toggle("Todo Deadlines", isOn: $showTodos)
                 Toggle("Parsha Labels", isOn: $showParsha)
             }
@@ -154,7 +133,6 @@ struct PlanningCalendarView: View {
         let isHoliday = holiday != nil && !hasUserNote
         let parsha = showParsha ? parshaName(for: cellID) : nil
         let events = showEvents ? (eventsLookup[cellID] ?? []) : []
-        let initiatives = showInitiatives ? (initiativesLookup[cellID] ?? []) : []
         let todos = showTodos ? (todosLookup[cellID] ?? []) : []
 
         VStack(alignment: .leading, spacing: 1) {
@@ -208,20 +186,6 @@ struct PlanningCalendarView: View {
                         .font(.system(size: 9))
                         .foregroundStyle(.secondary)
                         .padding(.horizontal, 8)
-                }
-            }
-
-            if !initiatives.isEmpty {
-                ForEach(initiatives.prefix(2), id: \.objectID) { initiative in
-                    HStack(spacing: 3) {
-                        Image(systemName: initiative.symbol ?? InitiativeSymbol.defaultValue.rawValue)
-                            .font(.system(size: 8))
-                        Text(initiative.title.isEmpty ? "Untitled" : initiative.title)
-                            .font(.system(size: 9, weight: .medium))
-                            .lineLimit(1)
-                    }
-                    .foregroundStyle(InitiativeColor.from(raw: initiative.colorRaw).swiftUIColor)
-                    .padding(.horizontal, 8)
                 }
             }
 

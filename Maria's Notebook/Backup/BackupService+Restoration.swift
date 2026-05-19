@@ -820,14 +820,6 @@ extension BackupService {
                 into: viewContext
             )
         }
-
-        if let initiatives = payload.initiatives {
-            try BackupEntityImporter.importInitiatives(
-                initiatives,
-                into: viewContext,
-                existingCheck: { try fetchOne(CDInitiative.self, id: $0, using: viewContext) }
-            )
-        }
     }
 
     private func repairDenormalizedFields(viewContext: NSManagedObjectContext) throws {

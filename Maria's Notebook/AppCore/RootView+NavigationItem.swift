@@ -29,7 +29,6 @@ extension RootView {
         case planningWork
         case planningProgression
         case planningProjects
-        case planningInitiatives
         case planningCalendar
         case progressDashboard
         case lessonFrequency
@@ -85,7 +84,6 @@ extension RootView {
             case .planningWork:        return ("Open Work", "tray.full")
             case .planningProgression: return ("Progression", "chart.line.uptrend.xyaxis")
             case .planningProjects:    return ("Projects", "folder")
-            case .planningInitiatives: return ("Initiatives", "target")
             case .planningCalendar:    return ("Calendar", "calendar.day.timeline.leading")
             case .progressDashboard:   return ("Progress Dashboard", "person.text.rectangle")
             case .lessonFrequency:     return ("Lesson Frequency", SFSymbol.Chart.chartBar)
@@ -135,7 +133,7 @@ extension RootView {
             switch self {
             case .lessons, .stories, .bookClub, .supplies, .procedures, .meetings,
                  .planningChecklist, .planningAgenda, .planningWork,
-                 .planningProgression, .planningProjects, .planningInitiatives, .planningCalendar,
+                 .planningProgression, .planningProjects, .planningCalendar,
                  .progressDashboard,
                  .lessonFrequency, .curriculumBalance, .greatLessonsTimeline,
                  .goingOut, .parentCommunication, .fridayReview, .workCycle,
@@ -167,7 +165,7 @@ extension RootView {
             case .fridayReview:      return nil
             case .planningChecklist, .planningAgenda, .planningWork,
                  .planningProgression, .planningProjects,
-                 .planningInitiatives, .planningCalendar,
+                 .planningCalendar,
                  .progressDashboard,
                  .lessonFrequency, .curriculumBalance, .greatLessonsTimeline,
                  .transitionPlanner, .threeYearCycle, .needsLesson,

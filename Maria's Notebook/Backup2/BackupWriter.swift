@@ -152,7 +152,6 @@ public enum BackupWriter {
         addOptional("ClassroomMembership", payload.classroomMemberships, add: add)
         addOptional("MeetingWorkReview", payload.meetingWorkReviews, add: add)
         addOptional("StudentFocusItem", payload.studentFocusItems, add: add)
-        addOptional("Initiative", payload.initiatives, add: add)
 
         return entries
     }

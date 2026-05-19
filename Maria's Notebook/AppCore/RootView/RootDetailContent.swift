@@ -33,7 +33,7 @@ struct RootDetailContent: View {
             case .lessons, .stories, .bookClub, .planningChecklist, .planningAgenda, .planningWork,
                  .planningProgression, .planningProjects, .needsLesson, .smallSequencePlanner:
                 curriculumContent
-            case .todos, .planningInitiatives, .planningCalendar, .perpetualCalendar:
+            case .todos, .planningCalendar, .perpetualCalendar:
                 planningContent
             case .progressDashboard, .lessonFrequency, .curriculumBalance,
                  .greatLessonsTimeline, .transitionPlanner, .threeYearCycle:
@@ -72,7 +72,6 @@ struct RootDetailContent: View {
     private var planningContent: some View {
         switch selectedNavItem {
         case .todos: TodoMainView()
-        case .planningInitiatives: InitiativesRootView()
         case .planningCalendar, .perpetualCalendar: PlanningCalendarView()
         default: EmptyView()
         }

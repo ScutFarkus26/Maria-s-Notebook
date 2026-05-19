@@ -468,7 +468,6 @@
         <attribute name="notifyOnEntry" attributeType="Boolean" defaultValueString="YES" usesScalarValueType="YES"/>
         <attribute name="notifyOnExit" attributeType="Boolean" defaultValueString="NO" usesScalarValueType="YES"/>
         <attribute name="tags" optional="YES" attributeType="Transformable" valueTransformerName="NSSecureUnarchiveFromData"/>
-        <attribute name="initiativeID" optional="YES" attributeType="String"/>
         <relationship name="subtasks" optional="YES" toMany="YES" deletionRule="Cascade" destinationEntity="TodoSubtask" inverseName="todo" inverseEntity="TodoSubtask"/>
     </entity>
     <!-- ==================== TodoSubtask ==================== -->
@@ -1041,21 +1040,5 @@
         <attribute name="createdAt" optional="YES" attributeType="Date" usesScalarValueType="NO"/>
         <attribute name="modifiedAt" optional="YES" attributeType="Date" usesScalarValueType="NO"/>
         <relationship name="session" optional="YES" maxCount="1" deletionRule="Nullify" destinationEntity="BookClubSession" inverseName="meetings" inverseEntity="BookClubSession"/>
-    </entity>
-    <!-- ==================== Initiative ==================== -->
-    <entity name="Initiative" representedClassName="CDInitiative" syncable="YES">
-        <attribute name="id" optional="YES" attributeType="UUID" usesScalarValueType="NO"/>
-        <attribute name="title" attributeType="String" defaultValueString=""/>
-        <attribute name="notes" attributeType="String" defaultValueString=""/>
-        <attribute name="deadline" optional="YES" attributeType="Date" usesScalarValueType="NO"/>
-        <attribute name="completedAt" optional="YES" attributeType="Date" usesScalarValueType="NO"/>
-        <attribute name="area" optional="YES" attributeType="String"/>
-        <attribute name="colorRaw" optional="YES" attributeType="String"/>
-        <attribute name="symbol" optional="YES" attributeType="String"/>
-        <attribute name="orderIndex" attributeType="Integer 64" defaultValueString="0" usesScalarValueType="YES"/>
-        <attribute name="createdAt" optional="YES" attributeType="Date" usesScalarValueType="NO"/>
-        <attribute name="modifiedAt" optional="YES" attributeType="Date" usesScalarValueType="NO"/>
-        <attribute name="notificationIDs" optional="YES" attributeType="Transformable" valueTransformerName="NSSecureUnarchiveFromData"/>
-        <attribute name="leadTimeDaysRaw" optional="YES" attributeType="Transformable" valueTransformerName="NSSecureUnarchiveFromData"/>
     </entity>
 </model>

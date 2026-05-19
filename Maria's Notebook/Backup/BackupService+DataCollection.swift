@@ -262,8 +262,6 @@ extension BackupService {
             CDMeetingWorkReview.self, using: viewContext) { BackupDTOTransformers.toDTOs($0) }
         payload.studentFocusItems = fetchAndTransformInBatches(
             CDStudentFocusItem.self, using: viewContext) { BackupDTOTransformers.toDTOs($0) }
-        payload.initiatives = fetchAndTransformInBatches(
-            CDInitiative.self, using: viewContext) { BackupDTOTransformers.toDTOs($0) }
     }
 
     // MARK: - Encode & Write
@@ -411,8 +409,7 @@ extension BackupService {
             "ScheduledMeeting": payload.scheduledMeetings?.count ?? 0,
             "ClassroomMembership": payload.classroomMemberships?.count ?? 0,
             "MeetingWorkReview": payload.meetingWorkReviews?.count ?? 0,
-            "StudentFocusItem": payload.studentFocusItems?.count ?? 0,
-            "Initiative": payload.initiatives?.count ?? 0
+            "StudentFocusItem": payload.studentFocusItems?.count ?? 0
         ]
     }
 

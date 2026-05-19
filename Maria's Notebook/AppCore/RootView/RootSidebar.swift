@@ -99,8 +99,6 @@ extension RootSidebar {
             Section("Planning") {
                 sidebarRow(.planningCalendar, title: "Calendar", systemImage: "calendar.day.timeline.leading")
 
-                sidebarRow(.planningInitiatives, title: "Initiatives", systemImage: "target")
-
                 sidebarRow(.todos, title: "Todos", systemImage: SFSymbol.Action.checkmarkCircle)
 
                 sidebarRow(.planningAgenda, title: "Presentations", systemImage: SFSymbol.Time.calendar)
@@ -304,11 +302,7 @@ extension RootSidebar {
             iOSSidebarButton(.planningCalendar,
                              title: "Calendar",
                              systemImage: "calendar.day.timeline.leading",
-                             hint: "Year-at-a-glance calendar with Mac events, initiative deadlines, and due todos")
-            iOSSidebarButton(.planningInitiatives,
-                             title: "Initiatives",
-                             systemImage: "target",
-                             hint: "Plan multi-step initiatives with deadlines (e.g. report cards, class trip)")
+                             hint: "Year-at-a-glance calendar with Mac events and due todos")
             iOSSidebarButton(.todos,
                              title: "Todos",
                              systemImage: SFSymbol.Action.checkmarkCircle,

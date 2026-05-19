@@ -78,11 +78,6 @@ extension TodoEditSheet {
 
                     Divider()
 
-                    // Initiative Section
-                    initiativeSection
-
-                    Divider()
-
                     // Recurrence Section
                     recurrenceSection
 

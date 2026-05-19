@@ -429,10 +429,7 @@ extension BackupMigrationManifest {
 
         // Meeting-Work Integration (v14+)
         PayloadField(name: "meetingWorkReviews", introducedIn: 14, description: "CDMeetingWorkReview records"),
-        PayloadField(name: "studentFocusItems", introducedIn: 14, description: "CDStudentFocusItem records"),
-
-        // Planning Initiatives (v15+)
-        PayloadField(name: "initiatives", introducedIn: 15, description: "CDInitiative records")
+        PayloadField(name: "studentFocusItems", introducedIn: 14, description: "CDStudentFocusItem records")
     ]
 
     public struct PayloadField: Identifiable, Sendable {

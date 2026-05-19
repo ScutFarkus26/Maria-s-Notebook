@@ -226,8 +226,6 @@ enum BackupImporter {
             payload.meetingWorkReviews = try lines.map { try decoder.decode(MeetingWorkReviewDTO.self, from: $0) }
         case "StudentFocusItem":
             payload.studentFocusItems = try lines.map { try decoder.decode(StudentFocusItemDTO.self, from: $0) }
-        case "Initiative":
-            payload.initiatives = try lines.map { try decoder.decode(InitiativeDTO.self, from: $0) }
 
         default:
             logger.warning("Unknown entity '\(entityName, privacy: .public)' in backup — skipped (likely a newer format version)")
