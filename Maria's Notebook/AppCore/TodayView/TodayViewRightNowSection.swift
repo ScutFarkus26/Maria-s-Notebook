@@ -1,6 +1,6 @@
 // TodayViewRightNowSection.swift
-// Right Now hero — what's next on the agenda, the active work cycle (if any),
-// and a count of work waiting to be checked. Glance-and-go dashboard at the top of Today.
+// Right Now hero — what's next on the agenda and a count of work waiting to be
+// checked. Glance-and-go dashboard at the top of Today.
 
 import SwiftUI
 import CoreData
@@ -21,7 +21,6 @@ extension TodayView {
     private var rightNowContent: some View {
         VStack(alignment: .leading, spacing: 10) {
             rightNowNext
-            rightNowCycle
             rightNowOpenWork
             rightNowEmpty
         }
@@ -35,13 +34,6 @@ extension TodayView {
     }
 
     @ViewBuilder
-    private var rightNowCycle: some View {
-        if let session = activeWorkCycleSessions.first {
-            workCycleRow(session: session)
-        }
-    }
-
-    @ViewBuilder
     private var rightNowOpenWork: some View {
         if openWorkToCheckCount > 0 {
             openWorkRow(count: openWorkToCheckCount)
@@ -50,9 +42,8 @@ extension TodayView {
 
     private var hasNoRightNowContent: Bool {
         let hasNext = nextAgendaItem != nil
-        let hasCycle = activeWorkCycleSessions.first != nil
         let hasOpenWork = openWorkToCheckCount > 0
-        return !hasNext && !hasCycle && !hasOpenWork
+        return !hasNext && !hasOpenWork
     }
 
     @ViewBuilder
@@ -116,36 +107,6 @@ extension TodayView {
         }
         .buttonStyle(.plain)
         .accessibilityLabel("Start next: \(nextUpDescription(for: item))")
-    }
-
-    @ViewBuilder
-    private func workCycleRow(session: CDWorkCycleSession) -> some View {
-        Button {
-            appRouter.selectedNavItem = .workCycle
-        } label: {
-            TimelineView(.periodic(from: .now, by: 60)) { _ in
-                HStack(spacing: 10) {
-                    Image(systemName: session.isActive ? "timer" : "pause.circle")
-                        .font(.system(size: 14))
-                        .foregroundStyle(session.isActive ? .green : .orange)
-                        .frame(width: 22)
-                    VStack(alignment: .leading, spacing: 2) {
-                        Text(session.isActive ? "Work cycle running" : "Work cycle paused")
-                            .font(AppTheme.ScaledFont.calloutSemibold)
-                            .foregroundStyle(.primary)
-                        Text(session.durationFormatted)
-                            .font(AppTheme.ScaledFont.caption)
-                            .foregroundStyle(.secondary)
-                            .monospacedDigit()
-                    }
-                    Spacer()
-                    Image(systemName: "chevron.right")
-                        .font(.caption)
-                        .foregroundStyle(.tertiary)
-                }
-            }
-        }
-        .buttonStyle(.plain)
     }
 
     @ViewBuilder

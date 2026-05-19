@@ -78,8 +78,6 @@ final class CoreDataStack {
         "SampleWork",
         "SampleWorkStep",
         "ClassroomMembership",
-        "PrepChecklist",
-        "PrepChecklistItem",
         "Story",
         "BookClubPacket"
     ]
@@ -118,12 +116,9 @@ final class CoreDataStack {
         "YearPlanEntry",
         "LessonSequenceSettings",
         "ParentCommunication",
-        "PrepChecklistCompletion",
         "MeetingWorkReview",
         "StudentFocusItem",
         "DayPad",
-        "WorkCycleEntry",
-        "WorkCycleSession",
         "BookClubSession",
         "BookClubMeeting"
     ]

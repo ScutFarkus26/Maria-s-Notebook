@@ -10,7 +10,6 @@ extension RootView {
     enum NavigationItem: String, Hashable, Identifiable {
         case today
         case attendance
-        case workCycle
         case note
         case students
         case supplies
@@ -44,7 +43,6 @@ extension RootView {
 
         case perpetualCalendar
 
-        case prepChecklist
         case community
         case schedules
         case issues
@@ -67,7 +65,6 @@ extension RootView {
             switch self {
             case .today:               return ("Today", "sun.max")
             case .attendance:          return ("Attendance", "checklist")
-            case .workCycle:           return ("Work Cycle", "timer")
             case .note:                return ("Note", "square.and.pencil")
             case .students:            return ("Students", "person.3")
             case .supplies:            return ("Supplies", "shippingbox")
@@ -97,7 +94,6 @@ extension RootView {
             case .needsLesson:         return ("Needs Lesson", "clock.badge.exclamationmark")
             case .smallSequencePlanner:   return ("Group Planner", "person.3.sequence")
             case .perpetualCalendar:   return ("Calendar", "calendar.day.timeline.leading")
-            case .prepChecklist:       return ("Prep Checklist", "checklist.checked")
             case .community:           return ("Community", "bubble.left.and.bubble.right")
             case .schedules:           return ("Schedules", "clock.badge.checkmark")
             case .issues:              return ("Issues", "exclamationmark.triangle")
@@ -136,9 +132,9 @@ extension RootView {
                  .planningProgression, .planningProjects, .planningCalendar,
                  .progressDashboard,
                  .lessonFrequency, .curriculumBalance, .greatLessonsTimeline,
-                 .goingOut, .parentCommunication, .fridayReview, .workCycle,
+                 .goingOut, .parentCommunication, .fridayReview,
                  .classroomJobs, .transitionPlanner, .threeYearCycle, .needsLesson, .smallSequencePlanner,
-                 .prepChecklist, .perpetualCalendar,
+                 .perpetualCalendar,
                  .thisWeeksParsha, .parshaCalendar, .parshaAlbumMatches, .parshaCoverage, .parshaTopics,
                  .community, .schedules, .resourceLibrary, .askAI, .logs, .settings:
                 return true
@@ -151,7 +147,6 @@ extension RootView {
             switch self {
             case .today:             return .today
             case .attendance:        return .attendance
-            case .workCycle:          return nil
             case .note:              return nil
             case .students:          return .students
             case .supplies:          return nil
@@ -174,7 +169,6 @@ extension RootView {
             case .goingOut:          return nil
             case .parentCommunication: return nil
             case .classroomJobs:     return nil
-            case .prepChecklist:     return nil
             case .perpetualCalendar: return nil
             case .community:         return .community
             case .schedules:         return nil

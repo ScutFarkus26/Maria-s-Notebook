@@ -26,7 +26,7 @@ struct RootDetailContent: View {
     var body: some View {
         Group {
             switch selectedNavItem {
-            case .today, .attendance, .workCycle, .note, .fridayReview:
+            case .today, .attendance, .note, .fridayReview:
                 dailyContent
             case .students, .meetings, .goingOut, .parentCommunication, .classroomJobs, .more:
                 studentsContent
@@ -39,7 +39,7 @@ struct RootDetailContent: View {
                  .greatLessonsTimeline, .transitionPlanner, .threeYearCycle:
                 progressContent
             case .supplies, .procedures, .schedules,
-                 .prepChecklist, .community, .issues, .resourceLibrary:
+                 .community, .issues, .resourceLibrary:
                 resourcesContent
             case .askAI, .logs, .settings:
                 toolsContent
@@ -61,7 +61,6 @@ struct RootDetailContent: View {
         switch selectedNavItem {
         case .today: AnyView(TodayView(context: viewContext))
         case .attendance: AnyView(attendanceContent)
-        case .workCycle: AnyView(WorkCycleView())
         case .note: AnyView(noteTabContent)
         case .fridayReview: AnyView(FridayReviewView())
         default: AnyView(EmptyView())
@@ -162,7 +161,6 @@ struct RootDetailContent: View {
         case .supplies: SuppliesListView()
         case .procedures: ProceduresListView()
         case .schedules: SchedulesView()
-        case .prepChecklist: PrepChecklistRootView()
         case .community: CommunityMeetingsView()
         case .issues: IssuesListView()
         case .resourceLibrary: ResourceLibraryView()

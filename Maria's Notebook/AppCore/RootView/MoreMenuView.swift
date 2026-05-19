@@ -11,8 +11,6 @@ struct MoreMenuView: View {
         NavigationStack(path: $navigationPath) {
             List {
                 Section("Today") {
-                    moreMenuButton(.prepChecklist)
-                    moreMenuButton(.workCycle)
                     moreMenuButton(.todos)
                 }
 

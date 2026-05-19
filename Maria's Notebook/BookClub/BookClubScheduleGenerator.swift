@@ -81,8 +81,7 @@ enum BookClubScheduleGenerator {
     }
 
     /// Walks forward day-by-day picking dates whose weekday bit is set in `weekdayMask`.
-    /// Bit positions follow the `CDPrepChecklist.weekdayMask` convention:
-    /// bit 1 = Sunday, bit 2 = Monday, …, bit 7 = Saturday (1-indexed shifts).
+    /// Bit positions: bit 1 = Sunday, bit 2 = Monday, …, bit 7 = Saturday (1-indexed shifts).
     private static func customDates(
         startingOnOrAfter date: Date,
         weekdayMask: Int64,

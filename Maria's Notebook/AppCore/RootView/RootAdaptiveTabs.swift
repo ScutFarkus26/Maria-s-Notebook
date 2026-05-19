@@ -39,16 +39,6 @@ struct RootAdaptiveTabs: View {
         // Today / Students / Attendance / Community are primary tabs above and intentionally
         // omitted from these sections to avoid duplicate listings.
         TabSection {
-            Tab(value: RootView.NavigationItem.prepChecklist) {
-                RootDetailContent(selectedNavItem: .prepChecklist)
-            } label: {
-                Label("Prep Checklist", systemImage: "checklist.checked")
-            }
-            Tab(value: RootView.NavigationItem.workCycle) {
-                RootDetailContent(selectedNavItem: .workCycle)
-            } label: {
-                Label("Work Cycle", systemImage: "timer")
-            }
             Tab(value: RootView.NavigationItem.todos) {
                 RootDetailContent(selectedNavItem: .todos)
             } label: {

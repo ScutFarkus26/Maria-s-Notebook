@@ -28,10 +28,6 @@ extension RootSidebar {
                 sidebarRow(.today, title: "Today", systemImage: SFSymbol.Weather.sun)
 
                 sidebarRow(.attendance, title: "Attendance", systemImage: "checklist")
-
-                sidebarRow(.prepChecklist, title: "Prep Checklist", systemImage: "checklist.checked")
-
-                sidebarRow(.workCycle, title: "Work Cycle", systemImage: "timer")
             }
 
             Section("Students") {
@@ -202,14 +198,6 @@ extension RootSidebar {
                              title: "Attendance",
                              systemImage: "checklist",
                              hint: "Track daily student attendance")
-            iOSSidebarButton(.prepChecklist,
-                             title: "Prep Checklist",
-                             systemImage: "checklist.checked",
-                             hint: "Daily classroom environment preparation checklist")
-            iOSSidebarButton(.workCycle,
-                             title: "Work Cycle",
-                             systemImage: "timer",
-                             hint: "Track student activity during the work cycle")
         }
     }
 

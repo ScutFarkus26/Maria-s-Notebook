@@ -72,18 +72,8 @@ struct TodayView: View {
     @AppStorage(UserDefaultsKeys.todayDoneTodayExpanded) var isDoneTodayExpanded: Bool = false
     /// Bumped when a day card is dismissed to force the section to recompute.
     @State var dayCardsRefreshTrigger: Int = 0
-    @State var prepChecklistRemainingCount: Int = 0
     @State var needsLessonCount: Int = 0
 
-    // MARK: - Active Work Cycle Sessions (for Right Now hero)
-    @FetchRequest(
-        sortDescriptors: [NSSortDescriptor(keyPath: \CDWorkCycleSession.startTime, ascending: false)],
-        predicate: NSPredicate(
-            format: "statusRaw == %@ OR statusRaw == %@",
-            CycleStatus.active.rawValue,
-            CycleStatus.paused.rawValue
-        )
-    ) var activeWorkCycleSessions: FetchedResults<CDWorkCycleSession>
     @FetchRequest(
         sortDescriptors: [NSSortDescriptor(keyPath: \CDTodoItem.createdAt, ascending: false)],
         predicate: NSPredicate(format: "isCompleted == NO")
@@ -377,22 +367,10 @@ struct TodayView: View {
         _ = await (reminderSync, calendarSync)
     }
 
-    /// Recomputes counts that drive the day-aware cards (prep remaining, needs-lesson).
+    /// Recomputes counts that drive the day-aware cards (needs-lesson).
     /// Called on appear, refresh, and date change.
     func reloadDerivedCounts() {
-        prepChecklistRemainingCount = computePrepRemainingCount()
         needsLessonCount = computeNeedsLessonCount()
-    }
-
-    private func computePrepRemainingCount() -> Int {
-        let checklists = PrepChecklistService.fetchActiveChecklists(in: viewContext)
-        var totalItems = 0
-        var completedItems = 0
-        for checklist in checklists {
-            totalItems += checklist.itemsArray.count
-            completedItems += PrepChecklistService.fetchTodayCompletions(for: checklist, in: viewContext).count
-        }
-        return max(0, totalItems - completedItems)
     }
 
     private func computeNeedsLessonCount() -> Int {

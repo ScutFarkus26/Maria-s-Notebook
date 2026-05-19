@@ -1,7 +1,7 @@
 // TodayViewDayCardsSection.swift
 // Day-aware top cards — small dismissable banners that surface only when relevant:
-// Friday Review on Fridays, Prep Checklist when items remain in the morning,
-// Needs Lesson when students are overdue. Dismissals are per-date.
+// Friday Review on Fridays, Needs Lesson when students are overdue.
+// Dismissals are per-date.
 
 import SwiftUI
 import CoreData
@@ -10,13 +10,11 @@ extension TodayView {
 
     enum DayCard: String, CaseIterable {
         case fridayReview
-        case prepChecklist
         case needsLesson
 
         var title: String {
             switch self {
             case .fridayReview: return "Friday Review"
-            case .prepChecklist: return "Prep Checklist"
             case .needsLesson: return "Needs Lesson"
             }
         }
@@ -24,7 +22,6 @@ extension TodayView {
         var icon: String {
             switch self {
             case .fridayReview: return "checkmark.seal"
-            case .prepChecklist: return "checklist.checked"
             case .needsLesson: return "clock.badge.exclamationmark"
             }
         }
@@ -32,7 +29,6 @@ extension TodayView {
         var tint: Color {
             switch self {
             case .fridayReview: return .green
-            case .prepChecklist: return .blue
             case .needsLesson: return .orange
             }
         }
@@ -40,7 +36,6 @@ extension TodayView {
         var navItem: RootView.NavigationItem {
             switch self {
             case .fridayReview: return .fridayReview
-            case .prepChecklist: return .prepChecklist
             case .needsLesson: return .needsLesson
             }
         }
@@ -120,14 +115,6 @@ extension TodayView {
             // Sunday = 1, Friday = 6
             guard weekday == 6 else { return nil }
             return "Wrap up the week"
-        case .prepChecklist:
-            // Show only on the actual current day, not on past/future browsing
-            guard Calendar.current.isDateInToday(viewModel.date) else { return nil }
-            let hour = Calendar.current.component(.hour, from: Date())
-            guard hour < 12 else { return nil }
-            let remaining = prepChecklistRemainingCount
-            guard remaining > 0 else { return nil }
-            return "\(remaining) item\(remaining == 1 ? "" : "s") remaining"
         case .needsLesson:
             let count = needsLessonCount
             guard count > 0 else { return nil }

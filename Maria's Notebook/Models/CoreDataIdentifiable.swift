@@ -42,9 +42,6 @@ extension CDWorkCompletionRecord: Identifiable {}
 extension CDWorkStep: Identifiable {}
 extension CDResource: Identifiable {}
 extension CDParentCommunication: Identifiable {}
-extension CDPrepChecklist: Identifiable {}
-extension CDPrepChecklistItem: Identifiable {}
-extension CDPrepChecklistCompletion: Identifiable {}
 extension CDMeetingWorkReview: Identifiable {}
 extension CDStudentFocusItem: Identifiable {}
 extension CDBookClubPacket: Identifiable {}

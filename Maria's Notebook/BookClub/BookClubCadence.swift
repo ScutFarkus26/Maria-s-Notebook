@@ -18,8 +18,7 @@ enum BookClubCadenceKind: String, CaseIterable, Identifiable, Sendable {
 }
 
 /// Fully resolved cadence used by the schedule generator.
-/// `.custom` carries a weekday mask compatible with `CDPrepChecklist.weekdayMask`
-/// — bit 1 = Sunday, bit 2 = Monday, … bit 7 = Saturday.
+/// `.custom` carries a weekday mask — bit 1 = Sunday, bit 2 = Monday, … bit 7 = Saturday.
 enum BookClubCadence: Sendable {
     case weekly(weekday: Int)
     case biweekly(weekday: Int)
