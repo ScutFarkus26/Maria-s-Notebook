@@ -10,6 +10,9 @@ import SwiftUI
 struct SequenceRecapSection: View {
     let recap: SequenceRecap
     let onUpdateState: (UUID, UUID, LessonPresentationState) -> Void
+    let onOpenWork: (UUID) -> Void
+    let onCycleWorkStatus: (UUID, WorkStatus) -> Void
+    let onAddWork: (UUID, UUID, UUID?) -> Void
 
     @State private var isExpanded: Bool = false
 
@@ -20,7 +23,10 @@ struct SequenceRecapSection: View {
                     SequenceRecapStudentSection(
                         student: student,
                         areaColor: AppColors.color(forArea: recap.area),
-                        onUpdateState: onUpdateState
+                        onUpdateState: onUpdateState,
+                        onOpenWork: onOpenWork,
+                        onCycleWorkStatus: onCycleWorkStatus,
+                        onAddWork: onAddWork
                     )
                 }
                 if recap.studentEntries.isEmpty {
@@ -76,6 +82,9 @@ struct SequenceRecapStudentSection: View {
     let student: SequenceRecapStudentEntry
     let areaColor: Color
     let onUpdateState: (UUID, UUID, LessonPresentationState) -> Void
+    let onOpenWork: (UUID) -> Void
+    let onCycleWorkStatus: (UUID, WorkStatus) -> Void
+    let onAddWork: (UUID, UUID, UUID?) -> Void
 
     @State private var isExpanded: Bool = false
 
@@ -87,7 +96,10 @@ struct SequenceRecapStudentSection: View {
                         entry: entry,
                         areaColor: areaColor,
                         studentID: student.id,
-                        onUpdateState: onUpdateState
+                        onUpdateState: onUpdateState,
+                        onOpenWork: onOpenWork,
+                        onCycleWorkStatus: onCycleWorkStatus,
+                        onAddWork: onAddWork
                     )
                 }
                 if !student.orphanNotes.isEmpty {

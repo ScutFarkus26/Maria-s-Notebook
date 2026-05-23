@@ -11,6 +11,9 @@ struct SequenceRecapLessonRow: View {
     let areaColor: Color
     let studentID: UUID
     let onUpdateState: (UUID, UUID, LessonPresentationState) -> Void
+    let onOpenWork: (UUID) -> Void
+    let onCycleWorkStatus: (UUID, WorkStatus) -> Void
+    let onAddWork: (UUID, UUID, UUID?) -> Void
 
     @State private var isExpanded: Bool = false
 
@@ -49,7 +52,7 @@ struct SequenceRecapLessonRow: View {
 
     private var hasDetails: Bool {
         !entry.presentations.isEmpty
-            || !entry.workItems.isEmpty
+            || !entry.unattachedWorkItems.isEmpty
             || !entry.directNotes.isEmpty
             || !(entry.perStudentLessonNotes ?? "").isEmpty
     }
@@ -94,10 +97,15 @@ struct SequenceRecapLessonRow: View {
         if let m = entry.masteredAt { return m }
         if let l = entry.lastObservedAt { return l }
         if let f = entry.firstPresentedAt { return f }
-        return entry.presentations.first?.presentedAt
-            ?? entry.presentations.first?.scheduledFor
-            ?? entry.workItems.first?.completedAt
-            ?? entry.workItems.first?.assignedAt
+        let firstPresentation = entry.presentations.first
+        let firstPresentationWork = firstPresentation?.workItems.first
+        let firstUnattachedWork = entry.unattachedWorkItems.first
+        return firstPresentation?.presentedAt
+            ?? firstPresentation?.scheduledFor
+            ?? firstPresentationWork?.completedAt
+            ?? firstPresentationWork?.assignedAt
+            ?? firstUnattachedWork?.completedAt
+            ?? firstUnattachedWork?.assignedAt
     }
 
     @ViewBuilder
@@ -106,10 +114,38 @@ struct SequenceRecapLessonRow: View {
             DetailLabeledBlock(label: "Lesson notes", text: perStudent)
         }
         ForEach(entry.presentations) { presentation in
-            SequenceRecapPresentationBlock(presentation: presentation)
+            SequenceRecapPresentationBlock(
+                presentation: presentation,
+                lessonID: entry.id,
+                studentID: studentID,
+                onOpenWork: onOpenWork,
+                onCycleWorkStatus: onCycleWorkStatus,
+                onAddWork: onAddWork
+            )
         }
-        ForEach(entry.workItems) { work in
-            SequenceRecapWorkBlock(work: work)
+        if !entry.unattachedWorkItems.isEmpty {
+            VStack(alignment: .leading, spacing: 4) {
+                Text("Other work")
+                    .font(AppTheme.ScaledFont.captionSemibold)
+                    .foregroundStyle(.secondary)
+                ForEach(entry.unattachedWorkItems) { work in
+                    SequenceRecapWorkBlock(
+                        work: work,
+                        onTap: onOpenWork,
+                        onCycleStatus: onCycleWorkStatus
+                    )
+                }
+            }
+        }
+        if entry.presentations.isEmpty && entry.unattachedWorkItems.isEmpty {
+            Button {
+                onAddWork(entry.id, studentID, nil)
+            } label: {
+                Label("Add work", systemImage: "plus.circle")
+                    .font(AppTheme.ScaledFont.captionSmallSemibold)
+                    .foregroundStyle(.tint)
+            }
+            .buttonStyle(.plain)
         }
         if !entry.directNotes.isEmpty {
             VStack(alignment: .leading, spacing: 4) {
@@ -217,6 +253,11 @@ struct SequenceRecapStateBadge: View {
 
 struct SequenceRecapPresentationBlock: View {
     let presentation: SequenceRecapPresentation
+    let lessonID: UUID
+    let studentID: UUID
+    let onOpenWork: (UUID) -> Void
+    let onCycleWorkStatus: (UUID, WorkStatus) -> Void
+    let onAddWork: (UUID, UUID, UUID?) -> Void
 
     var body: some View {
         VStack(alignment: .leading, spacing: 6) {
@@ -245,6 +286,29 @@ struct SequenceRecapPresentationBlock: View {
                         SequenceRecapNoteBlock(note: note)
                     }
                 }
+                .padding(.leading, 22)
+            }
+            if !presentation.workItems.isEmpty {
+                VStack(alignment: .leading, spacing: 4) {
+                    ForEach(presentation.workItems) { work in
+                        SequenceRecapWorkBlock(
+                            work: work,
+                            onTap: onOpenWork,
+                            onCycleStatus: onCycleWorkStatus
+                        )
+                    }
+                }
+                .padding(.leading, 22)
+            }
+            if presentation.state != .draft {
+                Button {
+                    onAddWork(lessonID, studentID, presentation.id)
+                } label: {
+                    Label("Add work", systemImage: "plus.circle")
+                        .font(AppTheme.ScaledFont.captionSmallSemibold)
+                        .foregroundStyle(.tint)
+                }
+                .buttonStyle(.plain)
                 .padding(.leading, 22)
             }
         }
@@ -277,6 +341,8 @@ struct SequenceRecapPresentationBlock: View {
 
 struct SequenceRecapWorkBlock: View {
     let work: SequenceRecapWorkItem
+    let onTap: (UUID) -> Void
+    let onCycleStatus: (UUID, WorkStatus) -> Void
 
     var body: some View {
         VStack(alignment: .leading, spacing: 6) {
@@ -309,25 +375,47 @@ struct SequenceRecapWorkBlock: View {
 
     private var workHeader: some View {
         HStack(spacing: 6) {
-            Image(systemName: work.kind?.iconName ?? "doc")
-                .foregroundStyle(work.kind?.color ?? .secondary)
-            Text(work.title.isEmpty ? "Untitled work" : work.title)
-                .font(AppTheme.ScaledFont.captionSemibold)
-            Spacer(minLength: 0)
-            statusPill
+            Button {
+                onTap(work.id)
+            } label: {
+                HStack(spacing: 6) {
+                    Image(systemName: work.kind?.iconName ?? "doc")
+                        .foregroundStyle(work.kind?.color ?? .secondary)
+                    Text(work.title.isEmpty ? "Untitled work" : work.title)
+                        .font(AppTheme.ScaledFont.captionSemibold)
+                        .foregroundStyle(.primary)
+                    Spacer(minLength: 0)
+                }
+                .contentShape(Rectangle())
+            }
+            .buttonStyle(.plain)
+            statusButton
             if let outcome = work.completionOutcome {
                 outcomePill(outcome: outcome)
             }
         }
     }
 
-    private var statusPill: some View {
-        Text(work.status.displayName)
-            .font(AppTheme.ScaledFont.captionSmallSemibold)
-            .padding(.horizontal, 6)
-            .padding(.vertical, 2)
-            .background(Capsule().fill(work.status.color.opacity(0.18)))
-            .foregroundStyle(work.status.color)
+    private var statusButton: some View {
+        Button {
+            onCycleStatus(work.id, nextStatus(after: work.status))
+        } label: {
+            Text(work.status.displayName)
+                .font(AppTheme.ScaledFont.captionSmallSemibold)
+                .padding(.horizontal, 6)
+                .padding(.vertical, 2)
+                .background(Capsule().fill(work.status.color.opacity(0.18)))
+                .foregroundStyle(work.status.color)
+        }
+        .buttonStyle(.plain)
+    }
+
+    private func nextStatus(after status: WorkStatus) -> WorkStatus {
+        switch status {
+        case .active: return .review
+        case .review: return .complete
+        case .complete: return .active
+        }
     }
 
     private func outcomePill(outcome: CompletionOutcome) -> some View {

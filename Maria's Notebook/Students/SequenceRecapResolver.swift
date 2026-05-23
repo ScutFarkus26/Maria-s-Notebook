@@ -138,13 +138,35 @@ enum SequenceRecapResolver {
         let lessonIDString = lessonInSequence.id.uuidString
         let pairKey = SequenceRecapPairKey(lessonID: lessonIDString, studentID: studentIDString)
 
+        // Partition this pair's CDWorkModel rows by `presentationID`. Anything that
+        // matches a participating assignment is rendered under that presentation;
+        // anything else (presentationID == nil, or pointing at an assignment this
+        // student is no longer part of) falls into the entry-level "unattached" pool.
+        var workByPresentationID: [String: [CDWorkModel]] = [:]
+        var workWithoutPresentation: [CDWorkModel] = []
+        for work in (collected.workByPair[pairKey] ?? []) {
+            if let pid = work.presentationID, !pid.isEmpty {
+                workByPresentationID[pid, default: []].append(work)
+            } else {
+                workWithoutPresentation.append(work)
+            }
+        }
+
         let presentations = buildPresentations(
             studentIDString: studentIDString,
             lessonIDString: lessonIDString,
+            workByPresentationID: &workByPresentationID,
             collected: collected,
             buckets: buckets
         )
-        let workItems = buildWorkItems(pairKey: pairKey, collected: collected, buckets: buckets)
+
+        // Anything left in `workByPresentationID` didn't match a presentation for
+        // this student → surface as unattached so it isn't silently dropped.
+        let leftover = workByPresentationID.values.flatMap { $0 }
+        let unattachedWorkItems = (workWithoutPresentation + leftover)
+            .sorted { sortKey(for: $0) > sortKey(for: $1) }
+            .compactMap { buildWorkItem(work: $0, buckets: buckets) }
+
         let directNotes = (buckets.directNotesByPair[pairKey] ?? [])
             .map { SequenceRecapNote(from: $0) }
             .sorted { ($0.createdAt ?? .distantPast) > ($1.createdAt ?? .distantPast) }
@@ -160,7 +182,7 @@ enum SequenceRecapResolver {
             masteredAt: lp?.masteredAt,
             perStudentLessonNotes: lp?.notes,
             presentations: presentations,
-            workItems: workItems,
+            unattachedWorkItems: unattachedWorkItems,
             directNotes: directNotes
         )
     }
@@ -169,6 +191,7 @@ enum SequenceRecapResolver {
     private static func buildPresentations(
         studentIDString: String,
         lessonIDString: String,
+        workByPresentationID: inout [String: [CDWorkModel]],
         collected: SequenceRecapCollectedData,
         buckets: SequenceRecapNoteBuckets
     ) -> [SequenceRecapPresentation] {
@@ -179,9 +202,14 @@ enum SequenceRecapResolver {
 
         return participating.compactMap { a in
             guard let aid = a.id else { return nil }
-            let attached = (buckets.notesByAssignment[aid.uuidString] ?? [])
+            let aidString = aid.uuidString
+            let attached = (buckets.notesByAssignment[aidString] ?? [])
                 .map { SequenceRecapNote(from: $0) }
                 .sorted { ($0.createdAt ?? .distantPast) > ($1.createdAt ?? .distantPast) }
+            // Drain matching work so any leftovers can be reported as unattached.
+            let workItems = (workByPresentationID.removeValue(forKey: aidString) ?? [])
+                .sorted { sortKey(for: $0) > sortKey(for: $1) }
+                .compactMap { buildWorkItem(work: $0, buckets: buckets) }
             return SequenceRecapPresentation(
                 id: aid,
                 presentedAt: a.presentedAt,
@@ -190,21 +218,9 @@ enum SequenceRecapResolver {
                 needsPractice: a.needsPractice,
                 needsAnotherPresentation: a.needsAnotherPresentation,
                 groupNotes: a.notes,
-                attachedNotes: attached
+                attachedNotes: attached,
+                workItems: workItems
             )
-        }
-    }
-
-    @MainActor
-    private static func buildWorkItems(
-        pairKey: SequenceRecapPairKey,
-        collected: SequenceRecapCollectedData,
-        buckets: SequenceRecapNoteBuckets
-    ) -> [SequenceRecapWorkItem] {
-        let workForPair = (collected.workByPair[pairKey] ?? [])
-            .sorted { sortKey(for: $0) > sortKey(for: $1) }
-        return workForPair.compactMap { work in
-            buildWorkItem(work: work, buckets: buckets)
         }
     }
 

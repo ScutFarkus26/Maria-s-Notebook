@@ -56,8 +56,10 @@ struct SequenceRecapLessonEntry: Sendable, Equatable, Identifiable {
 
     /// Every CDLessonAssignment the student was part of for this lesson, newest first.
     let presentations: [SequenceRecapPresentation]
-    /// Every CDWorkModel for this (student, lesson), newest first.
-    let workItems: [SequenceRecapWorkItem]
+    /// CDWorkModel rows for this (student, lesson) whose `presentationID` doesn't match
+    /// any presentation in `presentations` (manual follow-ups, or work whose parent
+    /// assignment no longer includes this student). Newest first.
+    let unattachedWorkItems: [SequenceRecapWorkItem]
     /// CDNote rows tied to (lessonID, this student) that aren't already attached
     /// to a presentation, work item, or check-in below.
     let directNotes: [SequenceRecapNote]
@@ -67,7 +69,7 @@ struct SequenceRecapLessonEntry: Sendable, Equatable, Identifiable {
     var isEmpty: Bool {
         outcomeState == nil
             && presentations.isEmpty
-            && workItems.isEmpty
+            && unattachedWorkItems.isEmpty
             && directNotes.isEmpty
             && (perStudentLessonNotes ?? "").isEmpty
     }
@@ -86,6 +88,9 @@ struct SequenceRecapPresentation: Sendable, Equatable, Identifiable {
     let groupNotes: String
     /// Free-form CDNote rows whose `lessonAssignment` relationship points at this assignment.
     let attachedNotes: [SequenceRecapNote]
+    /// CDWorkModel rows whose `presentationID` matches this assignment and whose student
+    /// is the recap student. Newest first.
+    let workItems: [SequenceRecapWorkItem]
 }
 
 // MARK: - Work

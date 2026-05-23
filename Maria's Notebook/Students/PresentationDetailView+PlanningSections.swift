@@ -87,16 +87,39 @@ extension PresentationDetailContentView {
     @ViewBuilder
     var groupRecapSection: some View {
         if let recap = vm.groupRecap, !recap.lessonsInSequence.isEmpty {
-            SequenceRecapSection(recap: recap) { lessonID, studentID, newState in
-                vm.updateSiblingLessonProficiencyState(
-                    lessonID: lessonID.uuidString,
-                    studentID: studentID.uuidString,
-                    state: newState,
-                    lessons: lessons,
-                    currentLesson: currentLesson,
-                    students: selectedStudentsList
-                )
-            }
+            SequenceRecapSection(
+                recap: recap,
+                onUpdateState: { lessonID, studentID, newState in
+                    vm.updateSiblingLessonProficiencyState(
+                        lessonID: lessonID.uuidString,
+                        studentID: studentID.uuidString,
+                        state: newState,
+                        lessons: lessons,
+                        currentLesson: currentLesson,
+                        students: selectedStudentsList
+                    )
+                },
+                onOpenWork: { workID in
+                    vm.recapWorkSheetID = workID
+                },
+                onCycleWorkStatus: { workID, newStatus in
+                    vm.cycleRecapWorkStatus(
+                        workID: workID,
+                        to: newStatus,
+                        currentLesson: currentLesson,
+                        students: selectedStudentsList
+                    )
+                },
+                onAddWork: { lessonID, studentID, presentationID in
+                    vm.addRecapWork(
+                        lessonID: lessonID,
+                        studentID: studentID,
+                        presentationID: presentationID,
+                        currentLesson: currentLesson,
+                        students: selectedStudentsList
+                    )
+                }
+            )
         }
     }
 

@@ -228,6 +228,15 @@ struct PresentationDetailContentView: View {
         .sheet(isPresented: $vm.showingMoveStudentsSheet) {
             moveStudentsSheet
         }
+        .sheet(item: $vm.recapWorkSheetID) { workID in
+            WorkDetailView(workID: workID) {
+                vm.recapWorkSheetID = nil
+                vm.recomputeSequenceRecap(
+                    currentLesson: currentLesson,
+                    students: selectedStudentsList
+                )
+            }
+        }
         .onChange(of: vm.showingStudentPickerPopover) { _, isShowing in
             if !isShowing && lessonPickerFocused {
                 lessonPickerFocused = false

@@ -88,6 +88,13 @@ final class SharedStoreOrphanGuard {
         let touchedSharedStore = !insertedEntityNames.isDisjoint(with: CoreDataStack.sharedEntityNames)
         guard touchedSharedStore else { return }
 
+        // If a previous repair attempt hit CloudKit's 10-minute
+        // Share-Export timeout, don't re-arm auto-runs — they'd just block
+        // Core Data's serial queue for another 10 minutes per cycle. The
+        // user can trigger a manual run via Settings → Repair Sync Errors
+        // when CloudKit is healthy again.
+        guard !SharedStoreZoneRepair.isCircuitBreakerOpen else { return }
+
         if SharedStoreZoneRepair.shared.hasActiveShare {
             scheduleRepair(coreDataStack: coreDataStack)
         } else {

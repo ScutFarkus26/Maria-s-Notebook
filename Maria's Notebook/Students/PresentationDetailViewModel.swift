@@ -47,6 +47,11 @@ final class PresentationDetailViewModel {
     /// the editing lesson or roster changes.
     var groupRecap: SequenceRecap?
 
+    /// Set to drive the WorkDetail sheet that opens when a work block in the sequence
+    /// recap is tapped, or when a new work is created from the recap. The host view
+    /// presents `.sheet(item: $vm.recapWorkSheetID)`; clearing it dismisses the sheet.
+    var recapWorkSheetID: UUID?
+
     // MARK: - UI State
     var showLessonPicker: Bool = false
     var showAssignmentComposer: Bool = false

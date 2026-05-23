@@ -8,7 +8,7 @@
          BreakpointExtensionID = "Xcode.Breakpoint.FileBreakpoint">
          <BreakpointContent
             uuid = "75B3C4C7-041D-4BE0-AAB6-62F8F43CC9F0"
-            shouldBeEnabled = "Yes"
+            shouldBeEnabled = "No"
             ignoreCount = "0"
             continueAfterRunningActions = "No"
             filePath = "Maria&apos;s Notebook/AppCore/CloudKitConfigurationService.swift"
