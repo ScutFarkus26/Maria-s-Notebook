@@ -269,6 +269,25 @@ extension CloudKitSyncStatusService {
             )
             CloudKitConfigurationService.storeError(error, retryCount: retryLogic.retryAttempt)
             lastSyncError = "\(typeDescription) failed [\(domainAndCode)]: \(errorDesc)"
+
+            // Detect the catastrophic "mirroring delegate never initialized"
+            // condition. After this fires, NSPersistentCloudKitContainer
+            // permanently refuses to export or import until the process
+            // relaunches with clean local state.
+            //
+            // Two signals:
+            //   1. Setup-event failure — the delegate threw during init
+            //   2. NSCocoaErrorDomain 134421 — "Export encountered an
+            //      unhandled exception while analyzing history in the store"
+            //   3. Underlying message mentions "Never successfully
+            //      initialized" (belt-and-braces)
+            let isSetupFailure = (type == .setup)
+            let is134421 = (nsError.domain == NSCocoaErrorDomain && nsError.code == 134421)
+            let mentionsNeverInitialized = errorDesc.contains("Never successfully initialized")
+            if isSetupFailure || is134421 || mentionsNeverInitialized {
+                mirroringDelegateFailed = true
+                Self.logger.error("CloudKit mirroring delegate marked as failed for this session — Reset Local Cache required")
+            }
         } else {
             let fallbackError = "\(typeDescription) failed: Unknown error"
             Self.logger.error("\(fallbackError)")

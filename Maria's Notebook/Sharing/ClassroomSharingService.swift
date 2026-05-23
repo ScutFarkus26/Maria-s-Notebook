@@ -24,6 +24,12 @@ final class ClassroomSharingService {
     private(set) var shareError: String?
     private(set) var currentShare: CKShare?
 
+    // `@ObservationIgnored nonisolated(unsafe)` so deinit (which is
+    // nonisolated by default on MainActor classes) can release the observer
+    // token without crossing actor isolation. Mutation is confined to init.
+    @ObservationIgnored nonisolated(unsafe) private var remoteChangeObserver: (any NSObjectProtocol)?
+    @ObservationIgnored private var participantRefreshTask: Task<Void, Never>?
+
     // MARK: - Initialization
 
     init(
@@ -42,35 +48,94 @@ final class ClassroomSharingService {
             object: nil
         )
 
+        // Refresh participants when CloudKit delivers a remote change to the
+        // coordinator. Without this, a participant joining via their accept
+        // link wouldn't flip from "Invited" to "Joined" in the UI until the
+        // user manually reopens Settings → Classroom Sharing.
+        remoteChangeObserver = NotificationCenter.default.addObserver(
+            forName: .NSPersistentStoreRemoteChange,
+            object: container.persistentStoreCoordinator,
+            queue: .main
+        ) { [weak self] _ in
+            Task { @MainActor [weak self] in
+                self?.scheduleParticipantRefresh()
+            }
+        }
+
         loadCurrentMembership()
     }
 
     deinit {
+        if let remoteChangeObserver {
+            NotificationCenter.default.removeObserver(remoteChangeObserver)
+        }
         NotificationCenter.default.removeObserver(self)
     }
 
-    // MARK: - Share Lifecycle
+    // MARK: - Internal State Setters
 
-    /// Fetches the existing CKShare for the shared store, if any.
-    ///
-    /// When `isSharing` transitions from `false → true` (e.g. the lead
-    /// guide just finished the sharing flow), this also kicks off a
-    /// `SharedStoreZoneRepair` pass so any records that were created
-    /// in the shared store before the share existed get attached to the
-    /// new zone instead of failing every subsequent CloudKit export.
-    func fetchExistingShare() throws -> CKShare? {
-        guard let store = sharedStore else { return nil }
-        let shares = try container.fetchShares(in: store)
-        let share = shares.first
+    /// Updates observable share state directly. Used by the +AutoCreate
+    /// extension after `container.share(_:to:)` succeeds so we don't have to
+    /// round-trip through a re-fetch (which can throw and leave `currentShare`
+    /// nil even though the share was actually created — causing the sharing
+    /// sheet to present empty).
+    func updateShareState(_ share: CKShare?) {
         let wasSharing = isSharing
         currentShare = share
         isSharing = share != nil
 
         if !wasSharing, isSharing, let stack = coreDataStack {
-            Task { await SharedStoreZoneRepair.shared.run(coreDataStack: stack) }
+            Task { await SharedStoreZoneRepair.runIfNeeded(coreDataStack: stack) }
+        }
+    }
+
+    // MARK: - Share Lifecycle
+
+    /// Fetches the existing CKShare for this device's classroom, if any.
+    ///
+    /// Role-aware lookup: the share's location depends on the user's role.
+    /// - **Lead guide**: their own share lives in the `.private`-scope private
+    ///   store (the canonical sharing pattern requires owner-side shareable
+    ///   data + the CKShare to live in the user's private CloudKit database).
+    /// - **Assistant**: an accepted share lives in the `.shared`-scope shared
+    ///   store, which is exactly what `container.acceptShareInvitations(into:)`
+    ///   targets.
+    ///
+    /// Avoiding the iterate-all-stores approach prevents legacy shares left
+    /// in the wrong store (from the pre-migration era) from being surfaced
+    /// to the UI.
+    ///
+    /// When `isSharing` transitions from `false → true` (e.g. the lead guide
+    /// just finished the sharing flow), this also kicks off a
+    /// `SharedStoreZoneRepair.runIfNeeded` pass so any records that were
+    /// created before the share existed get attached to the new zone. We use
+    /// `runIfNeeded` (not `run`) so the circuit breaker can block the call
+    /// when CloudKit is unhealthy.
+    func fetchExistingShare() throws -> CKShare? {
+        let stores = container.persistentStoreCoordinator.persistentStores
+        let preferredConfig: String
+        switch currentRole {
+        case .leadGuide:
+            preferredConfig = CoreDataStack.privateConfiguration
+        case .assistant:
+            preferredConfig = CoreDataStack.sharedConfiguration
+        }
+        let preferredStore = stores.first { $0.configurationName == preferredConfig }
+
+        var found: CKShare?
+        if let store = preferredStore {
+            found = try container.fetchShares(in: store).first
         }
 
-        return share
+        let wasSharing = isSharing
+        currentShare = found
+        isSharing = found != nil
+
+        if !wasSharing, isSharing, let stack = coreDataStack {
+            Task { await SharedStoreZoneRepair.runIfNeeded(coreDataStack: stack) }
+        }
+
+        return found
     }
 
     /// Refreshes participant list from the current CKShare.
@@ -158,6 +223,21 @@ final class ClassroomSharingService {
             currentRole = membership.role
         } else {
             currentRole = .leadGuide
+        }
+    }
+
+    /// Debounces a participant refresh so a burst of remote-change
+    /// notifications collapses into one refetch.
+    private func scheduleParticipantRefresh() {
+        participantRefreshTask?.cancel()
+        participantRefreshTask = Task { @MainActor [weak self] in
+            do {
+                try await Task.sleep(for: .milliseconds(300))
+            } catch {
+                return
+            }
+            guard let self else { return }
+            try? self.refreshParticipants()
         }
     }
 

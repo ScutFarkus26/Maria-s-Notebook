@@ -7,86 +7,66 @@ extension ClassroomSharingService {
 
     private static let autoCreateLogger = Logger.app(category: "ClassroomSharing")
 
-    /// Best-effort on-launch flow that guarantees a CKShare exists for the
-    /// shared store whenever the user has shared-store data to sync.
+    /// Best-effort flow that guarantees a CKShare exists in the lead guide's
+    /// private store whenever they have classroom data to sync.
     ///
-    /// Without an active CKShare, every record in the shared-store config
-    /// (`databaseScope = .shared`) is an orphan from CloudKit's perspective
-    /// and triggers `NSCocoaErrorDomain 134060` —
+    /// Without an active CKShare, every classroom record is an orphan from
+    /// CloudKit's perspective and triggers `NSCocoaErrorDomain 134060` —
     /// `NSCloudKitMirroringDelegate` then aborts every subsequent
-    /// import/export for the rest of the process. Creating the share here
-    /// (instead of waiting for the user to open
-    /// Settings → Classroom Sharing) lets the lead guide's data sync from
-    /// first launch.
+    /// import/export for the rest of the process. Creating the share lets
+    /// the lead guide's data sync from first launch.
     ///
-    /// Flow:
-    ///   1. Run `SharedStoreZoneRepair` so `hasActiveShare` reflects
-    ///      current CloudKit state (cheap; no-op when there are no
-    ///      orphans).
-    ///   2. If a share already exists → return.
-    ///   3. If the user is already an assistant (accepted someone else's
-    ///      share) → return. We must never auto-create a competing share
-    ///      on an assistant device.
-    ///   4. Pick a seed record from the shared store. If the shared store
-    ///      is empty (fresh install on the lead device) → return; the
-    ///      `SharedStoreOrphanGuard` save observer will re-invoke this
-    ///      flow once the first shared-store record is created.
-    ///   5. Call `container.share([seed], to: nil)` to create the share.
-    ///   6. Create the local lead-guide `CDClassroomMembership` pointing
-    ///      at the new zone, if one doesn't already exist.
-    ///   7. Re-run `SharedStoreZoneRepair` so the already-orphaned
-    ///      records get attached to the new share.
+    /// The actual `container.share(_:to:)` call is dispatched off the
+    /// MainActor via `SharedStoreZoneRepair.createShareOffMain` so the
+    /// well-known 10-minute kernel-ulock wait — which fires when CloudKit
+    /// is unhealthy — blocks a cooperative-pool worker rather than the
+    /// MainActor's runloop. Gated by `SharedStoreZoneRepair.isCircuitBreakerOpen`
+    /// so a recent timeout doesn't re-arm the same hang.
     ///
-    /// All errors are caught and logged — the user can keep working
-    /// offline, and the next launch (or the next save) will retry.
+    /// All errors are caught and logged — the user can keep working offline,
+    /// and the next launch (or the next save) will retry.
     static func ensureShareExistsOnLaunch(coreDataStack: CoreDataStack) async {
         guard coreDataStack.isCloudKitActive else { return }
-        guard let store = coreDataStack.sharedPersistentStore else { return }
-
+        guard let store = coreDataStack.privatePersistentStore else { return }
         let container = coreDataStack.container
 
-        // Step 1: refresh hasActiveShare from CloudKit.
-        await SharedStoreZoneRepair.shared.run(coreDataStack: coreDataStack)
-        if SharedStoreZoneRepair.shared.hasActiveShare { return }
+        // Cheap check: does a share already exist? If so, we're done.
+        if (try? container.fetchShares(in: store).first) != nil { return }
 
-        // Defensive double-check via the container directly — if CloudKit
-        // returned a share through any other path, don't try to create a
-        // second one.
-        if (try? container.fetchShares(in: store).first) != nil {
-            return
-        }
-
-        // Step 3: skip auto-create on devices that have accepted an
-        // external share. The assistant role is created in
-        // `acceptShare(metadata:)` and persists across launches.
+        // Skip on assistant devices — they have an accepted share in the
+        // shared store and must never own a private-store share.
         let context = coreDataStack.viewContext
         let repo = ClassroomRepository(context: context)
         if let membership = repo.fetchCurrentMembership(), membership.role == .assistant {
             return
         }
 
-        // Step 4: find a seed record from the shared store.
-        guard let seed = pickSeedRecord(coreDataStack: coreDataStack, store: store) else {
-            autoCreateLogger.info("Auto-create CKShare skipped — shared store has no records yet")
+        // Honor the circuit breaker — a recent Share-Export timeout means
+        // CloudKit is sick and another attempt here would block for up to
+        // 10 minutes.
+        if SharedStoreZoneRepair.isCircuitBreakerOpen {
+            autoCreateLogger.info("ensureShareExistsOnLaunch: circuit breaker open, deferring auto-create")
             return
         }
 
-        // Step 5: create the share. We pass `to: nil` so the framework
-        // creates a new CKShare + custom zone for us. The share's title
-        // and participant list are left to the existing
-        // Settings → Classroom Sharing flow to populate via
-        // UICloudSharingController.
+        guard let seed = pickSeedRecord(coreDataStack: coreDataStack, store: store) else {
+            autoCreateLogger.info("Auto-create CKShare skipped — private store has no classroom records yet")
+            return
+        }
+        let seedID = seed.objectID
+
         let newShare: CKShare
         do {
-            let result = try await container.share([seed], to: nil)
-            newShare = result.1
+            newShare = try await SharedStoreZoneRepair.createShareOffMain(
+                seedID: seedID,
+                container: container
+            )
             autoCreateLogger.info("Auto-created classroom CKShare in zone \(newShare.recordID.zoneID.zoneName, privacy: .public)")
         } catch {
             autoCreateLogger.error("Auto-create CKShare failed — will retry on next launch: \(error.localizedDescription, privacy: .public)")
             return
         }
 
-        // Step 6: create the local lead-guide membership if missing.
         if repo.fetchCurrentMembership() == nil {
             repo.createMembership(
                 classroomZoneID: newShare.recordID.zoneID.zoneName,
@@ -95,18 +75,14 @@ extension ClassroomSharingService {
             )
             _ = repo.save(reason: "Auto-create classroom membership")
         }
-
-        // Step 7: sweep the pre-existing orphans into the new share.
-        // `runIfNeeded` is idempotent and refreshes `hasActiveShare`.
-        await SharedStoreZoneRepair.shared.run(coreDataStack: coreDataStack)
     }
 
-    /// Picks a deterministic seed record from the shared store to
-    /// initialise the CKShare zone with. Prefers an existing lead-guide
+    /// Picks a deterministic seed record from the lead guide's private store
+    /// to initialise the CKShare zone with. Prefers an existing lead-guide
     /// `CDClassroomMembership` so the share's first record is something
     /// the assistant will immediately see meaningful state for. Falls
-    /// back to any orphaned shared-store record so cold installs with
-    /// only seeded curriculum still produce a share.
+    /// back to any classroom record so cold installs with only seeded
+    /// curriculum still produce a share.
     private static func pickSeedRecord(
         coreDataStack: CoreDataStack,
         store: NSPersistentStore
@@ -119,9 +95,10 @@ extension ClassroomSharingService {
             return membership
         }
 
-        // Second choice: any record in the shared store. Iterate the
-        // entity list in a stable, intentional order so test seeds and
-        // production curriculum produce the same seed across launches.
+        // Second choice: any classroom record in the lead guide's private
+        // store. Iterate the entity list in a stable, intentional order so
+        // test seeds and production curriculum produce the same seed across
+        // launches.
         let preferredOrder = [
             "Lesson", "Student", "Procedure", "Schedule",
             "Track", "SequenceTrack", "Resource", "Story"
@@ -140,5 +117,113 @@ extension ClassroomSharingService {
         }
 
         return nil
+    }
+
+    /// Returns a CKShare ready to hand to `UICloudSharingController` /
+    /// `NSSharingServicePicker`, creating one on demand if the shared
+    /// store doesn't yet have a share.
+    ///
+    /// Mirrors the launch-time `ensureShareExistsOnLaunch` flow but
+    /// surfaces errors so the Settings → Classroom Sharing button can
+    /// show a useful message instead of presenting an empty sheet
+    /// (the symptom when `currentShare` is nil at sheet-present time).
+    func prepareShareForPresentation(coreDataStack: CoreDataStack) async throws -> CKShare {
+        do {
+            if let existing = try fetchExistingShare() {
+                Self.autoCreateLogger.info("prepareShareForPresentation: returning existing share in zone \(existing.recordID.zoneID.zoneName, privacy: .public)")
+                return existing
+            }
+        } catch {
+            Self.autoCreateLogger.error("prepareShareForPresentation: fetchExistingShare threw — \((error as NSError).domain, privacy: .public) \((error as NSError).code, privacy: .public): \(error.localizedDescription, privacy: .public)")
+            throw error
+        }
+
+        guard coreDataStack.isCloudKitActive else {
+            Self.autoCreateLogger.error("prepareShareForPresentation: CloudKit is not active on this device")
+            throw ClassroomShareError.cloudKitInactive
+        }
+        // Seed must come from the .private-scope private store; .shared is
+        // for received shares only.
+        guard let store = coreDataStack.privatePersistentStore else {
+            Self.autoCreateLogger.error("prepareShareForPresentation: private persistent store is unavailable")
+            throw ClassroomShareError.sharedStoreUnavailable
+        }
+
+        let repo = ClassroomRepository(context: coreDataStack.viewContext)
+        if let membership = repo.fetchCurrentMembership(), membership.role == .assistant {
+            Self.autoCreateLogger.error("prepareShareForPresentation: refusing to create share on assistant device")
+            throw ClassroomShareError.assistantCannotCreateShare
+        }
+
+        guard let seed = Self.pickSeedRecord(coreDataStack: coreDataStack, store: store) else {
+            Self.autoCreateLogger.error("prepareShareForPresentation: no seed record available in shared store")
+            throw ClassroomShareError.noSeedRecordAvailable
+        }
+
+        let seedEntity = seed.entity.name ?? "unknown"
+        let seedID = seed.objectID
+        Self.autoCreateLogger.info("prepareShareForPresentation: calling container.share with seed entity=\(seedEntity, privacy: .public)")
+
+        let newShare: CKShare
+        do {
+            // Dispatch the blocking ulock wait to a cooperative-pool worker
+            // so the MainActor stays responsive while CloudKit's Share-Export
+            // task resolves.
+            newShare = try await SharedStoreZoneRepair.createShareOffMain(
+                seedID: seedID,
+                container: container
+            )
+            Self.autoCreateLogger.info("prepareShareForPresentation: container.share succeeded; new zone=\(newShare.recordID.zoneID.zoneName, privacy: .public)")
+        } catch {
+            let ns = error as NSError
+            Self.autoCreateLogger.error("prepareShareForPresentation: container.share failed — domain=\(ns.domain, privacy: .public) code=\(ns.code, privacy: .public) description=\(ns.localizedDescription, privacy: .public) userInfo=\(ns.userInfo, privacy: .public)")
+            // If CloudKit timed out, trip the breaker so subsequent
+            // observational checks bail rather than queuing another 10-minute
+            // hang.
+            if ns.domain == "NSCocoaErrorDomain" && ns.code == 134060 {
+                SharedStoreZoneRepair.tripCircuitBreakerOnTimeout()
+            }
+            throw error
+        }
+
+        if repo.fetchCurrentMembership() == nil {
+            repo.createMembership(
+                classroomZoneID: newShare.recordID.zoneID.zoneName,
+                role: .leadGuide,
+                ownerIdentity: newShare.owner.userIdentity.userRecordID?.recordName ?? "self"
+            )
+            _ = repo.save(reason: "Create classroom share")
+        }
+
+        // Update observable state directly from the share we just created.
+        // We deliberately don't re-fetch via fetchExistingShare here — that
+        // can throw transiently (the share zone may not be queryable for a
+        // brief window after creation) and would silently leave
+        // `currentShare = nil`, presenting an empty sharing sheet.
+        updateShareState(newShare)
+
+        return newShare
+    }
+}
+
+/// Errors thrown by `prepareShareForPresentation` when the lead-guide
+/// can't create or open a classroom share.
+enum ClassroomShareError: LocalizedError {
+    case cloudKitInactive
+    case sharedStoreUnavailable
+    case assistantCannotCreateShare
+    case noSeedRecordAvailable
+
+    var errorDescription: String? {
+        switch self {
+        case .cloudKitInactive:
+            return "iCloud sync isn't active. Turn on iCloud for Maria's Notebook in System Settings and try again."
+        case .sharedStoreUnavailable:
+            return "Shared classroom storage isn't available on this device."
+        case .assistantCannotCreateShare:
+            return "Only the lead guide can share the classroom."
+        case .noSeedRecordAvailable:
+            return "Add a student, lesson, or other classroom record before sharing."
+        }
     }
 }

@@ -406,6 +406,13 @@ extension SettingsView {
 
     // 7. Database
     var databaseSection: some View {
+        VStack(spacing: 12) {
+            DatabaseMaintenanceCard()
+            databaseOverviewGroup
+        }
+    }
+
+    private var databaseOverviewGroup: some View {
         SettingsGroup(title: "Database Overview", systemImage: "chart.bar.xaxis") {
             VStack(spacing: 16) {
                 DatabaseTotalSummary(totalRecords: statsViewModel.totalRecordsCount)

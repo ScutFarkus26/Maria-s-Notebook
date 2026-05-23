@@ -17,6 +17,22 @@ enum AppErrorMessages {
         // Context phrase for embedding in sentences
         let activity = context ?? "completing this action"
 
+        // Honor LocalizedError for app-defined error types (those whose underlying
+        // domain isn't one of the system domains we map below). Bridged system
+        // errors (CKError, NSURLError, NSCocoaError) also conform to LocalizedError
+        // but their `errorDescription` is typically unhelpful — let the domain
+        // switch handle them.
+        let systemDomains: Set<String> = [
+            NSURLErrorDomain,
+            "CKErrorDomain",
+            NSCocoaErrorDomain
+        ]
+        if !systemDomains.contains(nsError.domain),
+           let localized = (error as? LocalizedError)?.errorDescription,
+           !localized.trimmingCharacters(in: .whitespaces).isEmpty {
+            return localized
+        }
+
         switch nsError.domain {
 
         // MARK: Network errors

@@ -137,6 +137,18 @@ enum UserDefaultsKeys {
     // MARK: - Migrations
     static let hasUnifiedNotesMigrationRun = "Migration.unifiedNotes.v1"
     static let pdfFolderMigrationV1Complete = "Migration.pdfFolder.v1"
+    static let classroomStoreMigrationV1Complete = "ClassroomStoreMigration.v1.completed"
+
+    // MARK: - Shared Store Sync Repair
+    static let sharedStoreZoneRepairLastTimeoutAt = "SharedStoreZoneRepair.lastTimeoutAt"
+
+    /// One-shot flag the user sets via Settings → Database → "Reset Local
+    /// Cache". On the next launch, `CoreDataStack.init` checks this flag,
+    /// deletes the on-disk stores (along with their WAL/SHM siblings and
+    /// related migration/sharing flags), then clears it. The container then
+    /// reconstitutes from CloudKit. Used to recover from corrupt persistent
+    /// history that prevents `NSCloudKitMirroringDelegate` from initializing.
+    static let resetLocalCacheOnLaunch = "AppCore.resetLocalCacheOnLaunch"
 
     // MARK: - Settings UI
     static let whatsNewDismissedVersion = "WhatsNew.dismissedVersion"

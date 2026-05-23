@@ -53,6 +53,15 @@ final class CloudKitSyncStatusService {
     /// Whether a retry is currently scheduled.
     var hasPendingRetry: Bool { retryLogic.hasPendingRetry }
 
+    /// True when `NSPersistentCloudKitContainer`'s mirroring delegate failed
+    /// to initialize this session. Triggered by a setup-event failure or
+    /// `NSCocoaErrorDomain 134421` ("Export encountered an unhandled exception
+    /// while analyzing history in the store"). When true, no CloudKit export
+    /// or import can succeed for the rest of the process — the only recovery
+    /// is to reset the local stores and let CloudKit re-download data. The
+    /// "Reset Local Cache" button in Settings → Database performs this.
+    var mirroringDelegateFailed: Bool = false
+
     // MARK: - Specialized Services
 
     let networkMonitor = NetworkMonitoring()

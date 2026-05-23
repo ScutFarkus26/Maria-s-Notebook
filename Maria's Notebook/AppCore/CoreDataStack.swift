@@ -37,15 +37,15 @@ final class CoreDataStack {
     // MARK: - Store Configurations
 
     /// Configuration name for the private (per-teacher) store.
-    static let privateConfiguration = "Private"
+    nonisolated static let privateConfiguration = "Private"
     /// Configuration name for the shared (classroom) store.
-    static let sharedConfiguration = "Shared"
+    nonisolated static let sharedConfiguration = "Shared"
 
     // MARK: - Entity Routing
 
     /// Entities stored in the shared (classroom) store.
     /// These are owned by the lead guide and shared via CKShare with assistants.
-    static let sharedEntityNames: Set<String> = [
+    nonisolated static let sharedEntityNames: Set<String> = [
         "Student",
         "Lesson",
         "LessonAttachment",
@@ -84,7 +84,7 @@ final class CoreDataStack {
 
     /// Entities stored in the private (per-teacher) store.
     /// Each teacher has their own copy of these records.
-    static let privateEntityNames: Set<String> = [
+    nonisolated static let privateEntityNames: Set<String> = [
         "Note",
         "NoteStudentLink",
         "WorkModel",
@@ -174,6 +174,15 @@ final class CoreDataStack {
         let start = Date()
         Self.logger.info("Initializing CoreDataStack (CloudKit: \(enableCloudKit), inMemory: \(inMemory))...")
 
+        // Honor a deferred "Reset Local Cache" request from Settings →
+        // Database. We delete the on-disk stores BEFORE the container is
+        // created so the next loadPersistentStores reconstitutes from
+        // CloudKit. Migration / sharing completion flags are also cleared so
+        // post-launch bootstrap re-runs against the fresh data.
+        if !inMemory, UserDefaults.standard.bool(forKey: UserDefaultsKeys.resetLocalCacheOnLaunch) {
+            Self.performLocalCacheReset()
+        }
+
         let modelName = "MariasNotebook"
         guard let modelURL = Bundle.main.url(forResource: modelName, withExtension: "momd"),
               let cachedModel = NSManagedObjectModel(contentsOf: modelURL) else {
@@ -234,6 +243,17 @@ final class CoreDataStack {
             Self.enableHistoryTracking(desc)
 
             container.persistentStoreDescriptions = [desc]
+        }
+
+        // Pre-clean orphan entity rows from on-disk stores. When entities are dropped
+        // from the model, CloudKit's ANSCKRECORDMETADATA table retains rows pointing at
+        // their old Z_ENT IDs, which makes lightweight migration fail with a UNIQUE
+        // constraint violation. Stripping those rows first lets migration succeed.
+        if !inMemory {
+            for desc in container.persistentStoreDescriptions {
+                guard let url = desc.url, desc.type == NSSQLiteStoreType else { continue }
+                Self.cleanOrphanEntityMetadata(storeURL: url, model: model)
+            }
         }
 
         // Load stores synchronously
@@ -407,16 +427,44 @@ final class CoreDataStack {
     // MARK: - Entity Routing
 
     /// Assigns entities to Private/Shared configurations in the managed object model.
+    ///
+    /// Canonical NSPersistentCloudKitContainer sharing pattern: classroom-level
+    /// entities (Students, Lessons, Tracks, …) live in BOTH configurations so
+    /// they can be routed to either store at runtime.
+    ///
+    /// - On the **lead-guide** device, new classroom records go to the
+    ///   `.private`-scope private store (private.sqlite) — Core Data routes new
+    ///   inserts to the first store that contains the entity, and we order
+    ///   `persistentStoreDescriptions` as `[privateDesc, sharedDesc]`. The
+    ///   lead-guide-owned classroom data must live in `.private` scope for
+    ///   `container.share(_:to:)` to succeed; `.shared` scope is reserved for
+    ///   data the user has accepted *from other users*.
+    /// - On the **assistant** device, accepted classroom shares land in the
+    ///   `.shared`-scope shared store (shared.sqlite) via
+    ///   `container.acceptShareInvitations(into:)`. The same entity types are
+    ///   available there too.
+    ///
+    /// Teacher-private entities (Notes, Work, Attendance, etc.) remain
+    /// exclusive to the Private configuration.
     private static func assignEntitiesToConfigurations(model: NSManagedObjectModel) {
         let allEntities = model.entities
 
         let sharedEntities = allEntities.filter { sharedEntityNames.contains($0.name ?? "") }
-        let privateEntities = allEntities.filter { privateEntityNames.contains($0.name ?? "") }
+        let privateOnlyEntities = allEntities.filter { privateEntityNames.contains($0.name ?? "") }
 
+        // Shared configuration: classroom entities only (receive-shares side).
         model.setEntities(sharedEntities, forConfigurationName: sharedConfiguration)
-        model.setEntities(privateEntities, forConfigurationName: privateConfiguration)
 
-        logger.info("Entity routing: \(privateEntities.count) private, \(sharedEntities.count) shared")
+        // Private configuration: teacher-private + classroom entities. Classroom
+        // entities appearing in both configs is what enables the canonical
+        // two-store sharing pattern.
+        let privateConfigEntities = privateOnlyEntities + sharedEntities
+        model.setEntities(privateConfigEntities, forConfigurationName: privateConfiguration)
+
+        let classroomCount = sharedEntities.count
+        let privateExclusiveCount = privateOnlyEntities.count
+        let privateConfigCount = privateConfigEntities.count
+        logger.info("Entity routing: \(privateConfigCount) in private (\(privateExclusiveCount) exclusive + \(classroomCount) classroom), \(classroomCount) in shared")
     }
 
     /// Validates that all entity names in our routing tables exist in the model.
@@ -451,6 +499,31 @@ final class CoreDataStack {
             if fm.fileExists(atPath: shmURL.path) { try fm.removeItem(at: shmURL) }
         }
         logger.info("Core Data stores reset")
+    }
+
+    /// Performs the "Reset Local Cache" sequence at launch:
+    ///   1. Delete the on-disk persistent stores (so the container will
+    ///      reconstitute from CloudKit on load).
+    ///   2. Clear migration/sharing completion flags so the post-launch
+    ///      bootstrap re-runs against the fresh data set.
+    ///   3. Clear the request flag so we only do this once per request.
+    ///
+    /// Caller must verify `resetLocalCacheOnLaunch` is true before invoking.
+    /// Any errors are logged but not thrown — partial cleanup is still better
+    /// than aborting launch with no fallback.
+    private static func performLocalCacheReset() {
+        logger.warning("Reset Local Cache requested — deleting on-disk stores and clearing migration flags")
+        do {
+            try resetStores()
+        } catch {
+            logger.error("Reset Local Cache: failed to delete stores — \(error.localizedDescription)")
+        }
+        // Re-run one-shot migrations / share auto-create against the fresh
+        // data so the post-refactor state is consistent.
+        let defaults = UserDefaults.standard
+        defaults.removeObject(forKey: UserDefaultsKeys.classroomStoreMigrationV1Complete)
+        defaults.removeObject(forKey: UserDefaultsKeys.sharedStoreZoneRepairLastTimeoutAt)
+        defaults.removeObject(forKey: UserDefaultsKeys.resetLocalCacheOnLaunch)
     }
 }
 

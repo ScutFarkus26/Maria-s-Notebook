@@ -1,0 +1,91 @@
+import SwiftUI
+
+/// Maintenance card for the Settings → Database tab. Exposes "Reset Local
+/// Cache" — the only known recovery path when
+/// `NSPersistentCloudKitContainer`'s mirroring delegate fails to initialize
+/// (`NSCocoaErrorDomain 134421`, "Never successfully initialized").
+///
+/// The actual reset can't run while the container is loaded, so the button
+/// just arms a UserDefaults flag and asks the user to relaunch. On the next
+/// launch, `CoreDataStack.init` sees the flag, deletes the on-disk stores +
+/// migration flags, then clears the flag. The container reconstitutes from
+/// CloudKit.
+struct DatabaseMaintenanceCard: View {
+
+    @State private var showingResetConfirmation = false
+    @State private var showingRelaunchPrompt = false
+
+    private var isResetArmed: Bool {
+        UserDefaults.standard.bool(forKey: UserDefaultsKeys.resetLocalCacheOnLaunch)
+    }
+
+    var body: some View {
+        SettingsGroup(title: "Maintenance", systemImage: "wrench.and.screwdriver.fill") {
+            VStack(alignment: .leading, spacing: 12) {
+                Text("Reset Local Cache")
+                    .font(.subheadline.weight(.semibold))
+
+                Text("Deletes the local Core Data stores and re-downloads everything from iCloud on the next launch. Use this if iCloud sync is stuck (you'll see a red banner in Data & Sync when that happens) or if you're recovering from a corrupted local database.")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+                    .fixedSize(horizontal: false, vertical: true)
+
+                Text("Your data lives in iCloud and is not affected. Local-only data (if any) will be lost.")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+                    .fixedSize(horizontal: false, vertical: true)
+
+                if isResetArmed {
+                    HStack(spacing: 8) {
+                        Image(systemName: "arrow.clockwise.circle.fill")
+                            .foregroundStyle(.orange)
+                        Text("Reset will run when you next launch the app.")
+                            .font(.caption.weight(.medium))
+                            .foregroundStyle(.orange)
+                        Spacer(minLength: 0)
+                        Button("Cancel") {
+                            UserDefaults.standard.removeObject(forKey: UserDefaultsKeys.resetLocalCacheOnLaunch)
+                        }
+                        .font(.caption)
+                        .buttonStyle(.borderless)
+                    }
+                    .padding(8)
+                    .background(
+                        RoundedRectangle(cornerRadius: 8, style: .continuous)
+                            .fill(Color.orange.opacity(0.12))
+                    )
+                } else {
+                    Button(role: .destructive) {
+                        showingResetConfirmation = true
+                    } label: {
+                        Label("Reset Local Cache and Re-sync from iCloud",
+                              systemImage: "arrow.triangle.2.circlepath")
+                            .frame(maxWidth: .infinity)
+                    }
+                    .buttonStyle(.borderedProminent)
+                    .controlSize(.regular)
+                    .tint(.red)
+                }
+            }
+            .frame(maxWidth: .infinity)
+        }
+        .confirmationDialog(
+            "Reset local cache?",
+            isPresented: $showingResetConfirmation,
+            titleVisibility: .visible
+        ) {
+            Button("Reset on Next Launch", role: .destructive) {
+                UserDefaults.standard.set(true, forKey: UserDefaultsKeys.resetLocalCacheOnLaunch)
+                showingRelaunchPrompt = true
+            }
+            Button("Cancel", role: .cancel) { }
+        } message: {
+            Text("On next launch, the app will delete the local Core Data stores and re-download your data from iCloud. This can take several minutes depending on classroom size and network speed.")
+        }
+        .alert("Relaunch the app", isPresented: $showingRelaunchPrompt) {
+            Button("OK", role: .cancel) { }
+        } message: {
+            Text("Quit Maria's Notebook (⌘Q on Mac) and reopen it. The reset will run automatically.")
+        }
+    }
+}

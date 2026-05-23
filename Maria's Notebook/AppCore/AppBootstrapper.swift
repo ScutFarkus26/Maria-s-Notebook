@@ -131,13 +131,23 @@ final class AppBootstrapper {
         }
         logger.info("Post-launch: deduplication completed in \(formatSeconds(Date().timeIntervalSince(dedupStart)))")
 
-        // 3.82. Ensure a CKShare exists for the shared store before any
-        // shared-store-writing migration runs. Without this, the
-        // backfill below + SequenceTrackService write orphan records
-        // that poison NSCloudKitMirroringDelegate (NSCocoaErrorDomain
-        // 134060) for the rest of the session. Auto-creating the share
-        // also lets SharedStoreZoneRepair attach the existing orphans
-        // in the same launch.
+        // 3.81. Migrate classroom records (Students/Lessons/Tracks/…)
+        // out of the .shared-scope shared store and into the .private-scope
+        // private store. Earlier builds wrote them to the wrong store, which
+        // makes container.share(_:to:) fail with NSCocoaErrorDomain 134060
+        // ("objects must be in the correct destination store"). The
+        // canonical NSPersistentCloudKitContainer sharing pattern requires
+        // owner-side shareable data to live in the .private store; .shared
+        // is only for data received from other users via accepted CKShares.
+        // Idempotent + UserDefaults-gated; runs on a background context so
+        // it doesn't block view fetches during launch.
+        await ClassroomStoreMigration.runIfNeeded(coreDataStack: coreDataStack)
+
+        // 3.82. Ensure a CKShare exists for the (now-properly-located)
+        // classroom data so subsequent shared-store writes can sync. The
+        // actual container.share(_:to:) call is dispatched off the MainActor
+        // and is gated by SharedStoreZoneRepair's circuit breaker so a
+        // CloudKit timeout doesn't block launch.
         await ClassroomSharingService.ensureShareExistsOnLaunch(coreDataStack: coreDataStack)
 
         // 3.85. Backfill per-student CDLessonPresentation rows for assignments that were marked

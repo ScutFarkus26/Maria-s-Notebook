@@ -31,6 +31,10 @@ struct CloudKitStatusSettingsView: View {
                     .foregroundStyle(.secondary)
             }
 
+            if syncService.mirroringDelegateFailed {
+                mirroringDelegateFailedBanner
+            }
+
             // Status Indicator Row
             HStack(spacing: 10) {
                 SyncStatusIndicator(health: syncService.syncHealth)
@@ -107,6 +111,36 @@ struct CloudKitStatusSettingsView: View {
                 .cornerRadius(8)
             }
         }
+    }
+
+    /// Banner shown when `NSPersistentCloudKitContainer`'s mirroring delegate
+    /// failed to initialize this session (NSCocoaErrorDomain 134421 or a
+    /// setup-event failure). After this fires, no records sync until the user
+    /// resets the local cache and lets CloudKit re-download data.
+    private var mirroringDelegateFailedBanner: some View {
+        HStack(alignment: .top, spacing: 10) {
+            Image(systemName: "exclamationmark.octagon.fill")
+                .font(.title3)
+                .foregroundStyle(.red)
+            VStack(alignment: .leading, spacing: 4) {
+                Text("iCloud sync is stopped")
+                    .font(.subheadline.weight(.semibold))
+                Text("CloudKit's sync engine couldn't start this session — likely a corrupt local cache. To recover, open the Database tab and tap “Reset Local Cache.” Your data is safe in iCloud and will re-download automatically.")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+                    .fixedSize(horizontal: false, vertical: true)
+            }
+            Spacer(minLength: 0)
+        }
+        .padding(12)
+        .background(
+            RoundedRectangle(cornerRadius: 10, style: .continuous)
+                .fill(Color.red.opacity(0.12))
+        )
+        .overlay(
+            RoundedRectangle(cornerRadius: 10, style: .continuous)
+                .stroke(Color.red.opacity(0.4), lineWidth: 1)
+        )
     }
 
     private var syncDetailsSection: some View {

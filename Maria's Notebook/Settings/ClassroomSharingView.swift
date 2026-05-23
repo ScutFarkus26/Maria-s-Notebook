@@ -16,6 +16,7 @@ struct ClassroomSharingView: View {
     @State private var showingStopSharingConfirmation = false
     @State private var showingUnrecoverableSheet = false
     @State private var errorMessage: String?
+    @State private var isPreparingShare = false
 
     private var service: ClassroomSharingService? { sharingService }
     private var zoneRepair: SharedStoreZoneRepair { dependencies.sharedStoreZoneRepair }
@@ -301,16 +302,23 @@ struct ClassroomSharingView: View {
     private var leadGuideActions: some View {
         VStack(spacing: 8) {
             Button {
-                showingSharingSheet = true
+                Task { await prepareAndPresentSharingSheet() }
             } label: {
-                Label(
-                    service?.isSharing == true ? "Manage Sharing" : "Share Classroom",
-                    systemImage: "square.and.arrow.up"
-                )
-                .frame(maxWidth: .infinity)
+                HStack(spacing: 8) {
+                    if isPreparingShare {
+                        ProgressView()
+                            .controlSize(.small)
+                    }
+                    Label(
+                        service?.isSharing == true ? "Manage Sharing" : "Share Classroom",
+                        systemImage: "square.and.arrow.up"
+                    )
+                    .frame(maxWidth: .infinity)
+                }
             }
             .buttonStyle(.borderedProminent)
             .controlSize(.regular)
+            .disabled(isPreparingShare)
             .sheet(isPresented: $showingSharingSheet) {
                 if let svc = service, let share = svc.currentShare {
                     CloudSharingSheet(
@@ -362,7 +370,10 @@ struct ClassroomSharingView: View {
     private var repairSyncButton: some View {
         Button {
             Task {
-                await zoneRepair.run(coreDataStack: dependencies.coreDataStack)
+                // Manual variant — resets the circuit breaker so user-driven
+                // retries always get a fresh attempt even after a recent
+                // auto-skip.
+                await zoneRepair.runManual(coreDataStack: dependencies.coreDataStack)
                 if zoneRepair.orphanCount == 0, zoneRepair.lastUnrecoverableOrphans.isEmpty {
                     ToastService.shared.showSuccess("Sync repair complete")
                 } else if !zoneRepair.lastUnrecoverableOrphans.isEmpty {
@@ -395,6 +406,26 @@ struct ClassroomSharingView: View {
                     .controlSize(.small)
                     .padding(.trailing, 8)
             }
+        }
+    }
+
+    private func prepareAndPresentSharingSheet() async {
+        guard let svc = service else { return }
+        isPreparingShare = true
+        defer { isPreparingShare = false }
+        do {
+            _ = try await svc.prepareShareForPresentation(coreDataStack: dependencies.coreDataStack)
+            errorMessage = nil
+            showingSharingSheet = true
+        } catch {
+            let ns = error as NSError
+            Logger.app(category: "ClassroomSharing").error("""
+                Share Classroom failed — \
+                domain=\(ns.domain, privacy: .public) \
+                code=\(ns.code, privacy: .public) \
+                description=\(ns.localizedDescription, privacy: .public)
+                """)
+            errorMessage = AppErrorMessages.userMessage(for: error, context: "sharing your classroom")
         }
     }
 
