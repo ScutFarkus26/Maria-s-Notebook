@@ -144,7 +144,7 @@ struct MariasNotebookApp: App {
         // Only bootstrap if the store loaded successfully
         if AppBootstrapping.initError == nil {
             #if os(macOS)
-            appDelegate.setCoreDataStack(coreDataStack)
+            appDelegate.setCoreDataStack(coreDataStack, dependencies: dependencies)
             #endif
             await bootstrapper.bootstrap(coreDataStack: coreDataStack)
 

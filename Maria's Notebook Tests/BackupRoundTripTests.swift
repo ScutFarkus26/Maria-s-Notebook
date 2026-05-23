@@ -420,6 +420,27 @@ final class Backup2RoundTripTests {
         }
     }
 
+    @Test("v17 AEA file verifies successfully through BackupVerification")
+    func aeaVerificationSucceeds() throws {
+        let sourceStack = try CoreDataTestHelpers.makeInMemoryStack()
+        BackupTestUtil.seedBasicFixture(in: sourceStack.viewContext)
+
+        let url = BackupTestUtil.tempBackupURL()
+        defer { BackupTestUtil.cleanup(url) }
+
+        _ = try BackupWriter.write(
+            viewContext: sourceStack.viewContext,
+            to: url,
+            progress: { _, _ in }
+        )
+
+        let result = BackupVerification.verifyBackup(at: url)
+        let info = try result.get()
+        #expect(info.formatVersion == BackupWriter.formatVersion)
+        #expect(info.isCompressed)
+        #expect(info.entityCounts["Student"] ?? 0 >= 2)
+    }
+
     @Test("Coordinator: legacy file detection returns false on a v16 envelope")
     func coordinatorDetectsLegacyFormat() throws {
         // Construct a minimal legacy-style file (starts with `{`, not "AA01").

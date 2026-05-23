@@ -2,13 +2,13 @@
 // Top-level entry point for the Backup2 module. The UI talks to this.
 //
 // Responsibilities:
+//   - Single app-facing entry point for backup and restore work.
 //   - Export: always writes v17 AEA (BackupWriter).
-//   - Import: detects file format via AEA magic bytes, routes to:
-//       * v17 → BackupReader + BackupImporter, wrapped in BackupTransactionManager
-//       * v5–v16 → existing BackupService.importBackup (already wrapped by the
-//         caller through BackupTransactionManager.executeImportWithRollback).
-//   - Estimation + preview: delegated to legacy `BackupService` (the math and
-//     analyzer code don't need to change for v17).
+//   - Import: wraps restore with safety-checkpoint + rollback, then routes to:
+//       * v17 → BackupReader + BackupImporter
+//       * v5–v16 → existing BackupService.importBackup
+//   - Estimation, preview, verification, and status all live here so callers
+//     don't have to know about multiple backup subsystems.
 //
 // This means the UI has one API to learn (`BackupCoordinator`) while the
 // underlying decode path matches the file's format.
@@ -47,6 +47,14 @@ final class BackupCoordinator {
 
     func estimateBackupSize(viewContext: NSManagedObjectContext) -> Int64 {
         backupService.estimateBackupSize(viewContext: viewContext)
+    }
+
+    func backupStatus() -> BackupStatus {
+        BackupVerification.getBackupStatus()
+    }
+
+    func verifyBackup(at url: URL) -> Result<BackupInfo, Error> {
+        BackupVerification.verifyBackup(at: url)
     }
 
     // MARK: - Export
@@ -147,7 +155,27 @@ final class BackupCoordinator {
         mode: BackupService.RestoreMode,
         progress: @escaping BackupService.ProgressCallback
     ) async throws -> BackupOperationSummary {
+        try await transactionManager.executeWithRollback(
+            viewContext: viewContext,
+            mode: mode,
+            shouldCreateCheckpoint: mode == .replace,
+            progress: progress
+        ) { stepProgress in
+            try await self.performImport(
+                viewContext: viewContext,
+                from: url,
+                mode: mode,
+                progress: stepProgress
+            )
+        }
+    }
 
+    private func performImport(
+        viewContext: NSManagedObjectContext,
+        from url: URL,
+        mode: BackupService.RestoreMode,
+        progress: @escaping BackupService.ProgressCallback
+    ) async throws -> BackupOperationSummary {
         if BackupArchive.isAEAFormat(at: url) {
             return try await importAEA(
                 viewContext: viewContext,
@@ -156,10 +184,6 @@ final class BackupCoordinator {
                 progress: progress
             )
         } else {
-            // Legacy v5–v16 path. Already wrapped by callers through
-            // `BackupTransactionManager.executeImportWithRollback`, but this
-            // entry point can also be used directly (and the transaction
-            // manager will be invoked at the SettingsViewModel layer either way).
             return try await backupService.importBackup(
                 viewContext: viewContext,
                 from: url,

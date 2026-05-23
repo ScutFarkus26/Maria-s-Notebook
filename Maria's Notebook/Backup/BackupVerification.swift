@@ -20,72 +20,12 @@ public struct BackupVerification {
                     userInfo: [NSLocalizedDescriptionKey: "Backup file does not exist at path: \(url.path)"]
                 ))
             }
-            
-            // Read file
-            let data = try Data(contentsOf: url)
-            
-            // Decode envelope
-            let decoder = JSONDecoder()
-            decoder.dateDecodingStrategy = .iso8601
-            let envelope: BackupEnvelope
-            do {
-                envelope = try decoder.decode(BackupEnvelope.self, from: data)
-            } catch let decodingError as DecodingError {
-                let errorMessage: String
-                switch decodingError {
-                case .dataCorrupted(let context):
-                    errorMessage = "Backup file is corrupted or invalid JSON. "
-                        + "\(context.debugDescription)"
-                case .keyNotFound(let key, let context):
-                    errorMessage = "Backup file is missing required field "
-                        + "'\(key.stringValue)'. \(context.debugDescription)"
-                case .typeMismatch(let type, let context):
-                    errorMessage = "Backup file has invalid data type. "
-                        + "Expected \(type), but found: "
-                        + "\(context.debugDescription)"
-                case .valueNotFound(let type, let context):
-                    errorMessage = "Backup file is missing required value "
-                        + "of type \(type). \(context.debugDescription)"
-                @unknown default:
-                    errorMessage = "Backup file format error: \(decodingError.localizedDescription)"
-                }
-                throw NSError(
-                    domain: "BackupVerification", code: 2,
-                    userInfo: [NSLocalizedDescriptionKey: errorMessage]
-                )
-            } catch {
-                throw NSError(
-                    domain: "BackupVerification", code: 2,
-                    userInfo: [
-                        NSLocalizedDescriptionKey:
-                            "Failed to decode backup file: "
-                            + "\(error.localizedDescription)"
-                    ]
-                )
+
+            if BackupArchive.isAEAFormat(at: url) {
+                return .success(try verifyAEAFormat(at: url))
             }
-            
-            // Get file attributes
-            let attributes = try FileManager.default.attributesOfItem(atPath: url.path)
-            let fileSize = attributes[.size] as? Int64 ?? 0
-            let modificationDate = attributes[.modificationDate] as? Date ?? Date()
-            
-            let info = BackupInfo(
-                fileName: url.lastPathComponent,
-                filePath: url.path,
-                fileSize: fileSize,
-                createdAt: envelope.createdAt,
-                modifiedAt: modificationDate,
-                formatVersion: envelope.formatVersion,
-                appVersion: envelope.appVersion,
-                appBuild: envelope.appBuild,
-                device: envelope.device,
-                isEncrypted: envelope.encryptedPayload != nil,
-                isCompressed: envelope.compressedPayload != nil || envelope.manifest.compression != nil,
-                entityCounts: envelope.manifest.entityCounts,
-                checksum: envelope.manifest.sha256
-            )
-            
-            return .success(info)
+
+            return .success(try verifyLegacyFormat(at: url))
         } catch {
             return .failure(error)
         }
@@ -148,22 +88,125 @@ public struct BackupVerification {
         let lastBackupKey = "LastBackupTimeInterval"
         let timestamp = UserDefaults.standard.double(forKey: lastBackupKey)
         let lastBackupDate = timestamp > 0 ? Date(timeIntervalSinceReferenceDate: timestamp) : nil
-        
-        // Check for auto-backups
-        let autoBackupDir = FileManager.default.urls(for: .documentDirectory, in: .userDomainMask)[0]
-            .appendingPathComponent("Backups/Auto")
-        let autoBackupExists = FileManager.default.fileExists(atPath: autoBackupDir.path)
-        
-        var mostRecentAutoBackup: URL?
-        if autoBackupExists {
-            mostRecentAutoBackup = findMostRecentBackup(in: autoBackupDir)
+
+        let directories = autoBackupDirectories()
+        let autoBackupDirectoryExists = directories.contains {
+            FileManager.default.fileExists(atPath: $0.path)
         }
-        
+        let mostRecentAutoBackup = directories
+            .compactMap(findMostRecentBackup(in:))
+            .max { lhs, rhs in
+                let lhsDate = (try? lhs.resourceValues(forKeys: [.contentModificationDateKey])
+                    .contentModificationDate) ?? .distantPast
+                let rhsDate = (try? rhs.resourceValues(forKeys: [.contentModificationDateKey])
+                    .contentModificationDate) ?? .distantPast
+                return lhsDate < rhsDate
+            }
+
         return BackupStatus(
             lastBackupDate: lastBackupDate,
-            autoBackupDirectoryExists: autoBackupExists,
+            autoBackupDirectoryExists: autoBackupDirectoryExists,
             mostRecentAutoBackupURL: mostRecentAutoBackup
         )
+    }
+
+    private static func verifyLegacyFormat(at url: URL) throws -> BackupInfo {
+        let data = try Data(contentsOf: url)
+        let decoder = JSONDecoder()
+        decoder.dateDecodingStrategy = .iso8601
+
+        let envelope: BackupEnvelope
+        do {
+            envelope = try decoder.decode(BackupEnvelope.self, from: data)
+        } catch let decodingError as DecodingError {
+            let errorMessage: String
+            switch decodingError {
+            case .dataCorrupted(let context):
+                errorMessage = "Backup file is corrupted or invalid JSON. "
+                    + "\(context.debugDescription)"
+            case .keyNotFound(let key, let context):
+                errorMessage = "Backup file is missing required field "
+                    + "'\(key.stringValue)'. \(context.debugDescription)"
+            case .typeMismatch(let type, let context):
+                errorMessage = "Backup file has invalid data type. "
+                    + "Expected \(type), but found: "
+                    + "\(context.debugDescription)"
+            case .valueNotFound(let type, let context):
+                errorMessage = "Backup file is missing required value "
+                    + "of type \(type). \(context.debugDescription)"
+            @unknown default:
+                errorMessage = "Backup file format error: \(decodingError.localizedDescription)"
+            }
+            throw NSError(
+                domain: "BackupVerification",
+                code: 2,
+                userInfo: [NSLocalizedDescriptionKey: errorMessage]
+            )
+        } catch {
+            throw NSError(
+                domain: "BackupVerification",
+                code: 2,
+                userInfo: [
+                    NSLocalizedDescriptionKey:
+                        "Failed to decode backup file: "
+                        + "\(error.localizedDescription)"
+                ]
+            )
+        }
+
+        let attributes = try FileManager.default.attributesOfItem(atPath: url.path)
+        let fileSize = attributes[.size] as? Int64 ?? 0
+        let modificationDate = attributes[.modificationDate] as? Date ?? Date()
+
+        return BackupInfo(
+            fileName: url.lastPathComponent,
+            filePath: url.path,
+            fileSize: fileSize,
+            createdAt: envelope.createdAt,
+            modifiedAt: modificationDate,
+            formatVersion: envelope.formatVersion,
+            appVersion: envelope.appVersion,
+            appBuild: envelope.appBuild,
+            device: envelope.device,
+            isEncrypted: envelope.encryptedPayload != nil,
+            isCompressed: envelope.compressedPayload != nil || envelope.manifest.compression != nil,
+            entityCounts: envelope.manifest.entityCounts,
+            checksum: envelope.manifest.sha256
+        )
+    }
+
+    private static func verifyAEAFormat(at url: URL) throws -> BackupInfo {
+        let decoded = try BackupReader.read(from: url)
+        let attributes = try FileManager.default.attributesOfItem(atPath: url.path)
+        let fileSize = attributes[.size] as? Int64 ?? 0
+        let modificationDate = attributes[.modificationDate] as? Date ?? Date()
+
+        return BackupInfo(
+            fileName: url.lastPathComponent,
+            filePath: url.path,
+            fileSize: fileSize,
+            createdAt: decoded.manifest.createdAt,
+            modifiedAt: modificationDate,
+            formatVersion: decoded.manifest.formatVersion,
+            appVersion: decoded.manifest.appVersion,
+            appBuild: decoded.manifest.appBuild,
+            device: decoded.manifest.device,
+            isEncrypted: false,
+            isCompressed: true,
+            entityCounts: decoded.manifest.entityCounts,
+            checksum: "AEA/LZFSE archive"
+        )
+    }
+
+    private static func autoBackupDirectories() -> [URL] {
+        var directories: [URL] = []
+        if let userFolder = BackupDestination.resolveDefaultFolder() {
+            directories.append(userFolder.appendingPathComponent("Auto", isDirectory: true))
+        }
+        let fallback = FileManager.default.urls(for: .documentDirectory, in: .userDomainMask)[0]
+            .appendingPathComponent("Backups/Auto", isDirectory: true)
+        directories.append(fallback)
+        return directories
     }
 }
 

@@ -10,10 +10,9 @@ final class AutoBackupAppDelegate: NSObject, NSApplicationDelegate {
     private var coreDataStack: CoreDataStack?
     private var autoBackupManager: AutoBackupManager?
 
-    func setCoreDataStack(_ stack: CoreDataStack) {
+    func setCoreDataStack(_ stack: CoreDataStack, dependencies: AppDependencies) {
         self.coreDataStack = stack
-        // Create AutoBackupManager with BackupService
-        self.autoBackupManager = AutoBackupManager(backupService: BackupService())
+        self.autoBackupManager = dependencies.autoBackupManager
     }
     
     func application(_ application: NSApplication, userDidAcceptCloudKitShareWith metadata: CKShare.Metadata) {

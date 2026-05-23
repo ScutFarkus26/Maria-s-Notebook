@@ -29,8 +29,6 @@ final class SettingsViewModel {
 
     // Internal
     private let dependencies: AppDependencies
-    private var backupService: BackupService { dependencies.backupService }
-    private var transactionManager: BackupTransactionManager { dependencies.backupTransactionManager }
     private var coordinator: BackupCoordinator { dependencies.backupCoordinator }
     private var pendingImportURL: URL?
     private var exportURL: URL?
@@ -67,7 +65,7 @@ final class SettingsViewModel {
     /// Calculates estimated backup size asynchronously
     func calculateEstimatedBackupSize(viewContext: NSManagedObjectContext) {
         Task { @MainActor in
-            estimatedBackupSize = backupService.estimateBackupSize(viewContext: viewContext)
+            estimatedBackupSize = coordinator.estimateBackupSize(viewContext: viewContext)
         }
     }
 
@@ -173,44 +171,12 @@ final class SettingsViewModel {
     /// auto-backup files exist.
     @discardableResult
     func restoreMostRecentAutoBackup(viewContext: NSManagedObjectContext) async -> Bool {
-        guard let candidate = findMostRecentAutoBackup() else {
+        guard let candidate = coordinator.backupStatus().mostRecentAutoBackupURL else {
             importError = "No auto-backups found yet. Open Settings → Backup to enable auto-backups, or use Import to pick a file manually."
             return false
         }
         await previewImportedURL(viewContext: viewContext, url: candidate)
         return true
-    }
-
-    /// Most-recent-by-mod-date `.mtbbackup` across:
-    ///   1. `<user-folder>/Auto/`  (new Phase 1 location when a folder is picked)
-    ///   2. `Documents/Backups/Auto/`  (legacy fallback)
-    private func findMostRecentAutoBackup() -> URL? {
-        var candidates: [URL] = []
-
-        if let userFolder = BackupDestination.resolveDefaultFolder() {
-            let auto = userFolder.appendingPathComponent("Auto", isDirectory: true)
-            candidates.append(contentsOf: backupFiles(in: auto))
-        }
-        let fallback = FileManager.default.urls(for: .documentDirectory, in: .userDomainMask)[0]
-            .appendingPathComponent("Backups/Auto", isDirectory: true)
-        candidates.append(contentsOf: backupFiles(in: fallback))
-
-        return candidates
-            .max { lhs, rhs in
-                let lhsDate = (try? lhs.resourceValues(forKeys: [.contentModificationDateKey])
-                    .contentModificationDate) ?? .distantPast
-                let rhsDate = (try? rhs.resourceValues(forKeys: [.contentModificationDateKey])
-                    .contentModificationDate) ?? .distantPast
-                return lhsDate < rhsDate
-            }
-    }
-
-    private func backupFiles(in directory: URL) -> [URL] {
-        (try? FileManager.default.contentsOfDirectory(
-            at: directory,
-            includingPropertiesForKeys: [.contentModificationDateKey],
-            options: [.skipsHiddenFiles]
-        ))?.filter { $0.pathExtension == BackupFile.fileExtension } ?? []
     }
 
     // MARK: - Import / Preview
@@ -249,26 +215,13 @@ final class SettingsViewModel {
             importProgress = 0
             importMessage = "Starting…"
             resultSummary = nil
-            // Route through the transaction manager so `.replace` mode gets a safety
-            // checkpoint + automatic rollback on import failure. The coordinator
-            // detects whether the file is v17 (AEA) or v5–v16 (legacy envelope)
-            // and chooses the right decode path.
-            let coordinatorRef = coordinator
-            let summary = try await transactionManager.executeWithRollback(
+            let summary = try await coordinator.importBackup(
                 viewContext: viewContext,
-                mode: restoreMode,
-                shouldCreateCheckpoint: restoreMode == .replace,
-                progress: { [weak self] p, m in
-                    self?.importProgress = p
-                    self?.importMessage = m
-                }
-            ) { stepProgress in
-                try await coordinatorRef.importBackup(
-                    viewContext: viewContext,
-                    from: url,
-                    mode: self.restoreMode,
-                    progress: stepProgress
-                )
+                from: url,
+                mode: restoreMode
+            ) { [weak self] p, m in
+                self?.importProgress = p
+                self?.importMessage = m
             }
             restorePreviewData = nil
             pendingImportURL = nil

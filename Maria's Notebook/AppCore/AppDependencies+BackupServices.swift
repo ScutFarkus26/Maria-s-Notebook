@@ -5,7 +5,7 @@ import CoreData
 
 extension AppDependencies {
 
-    var backupService: BackupService {
+    private var backupService: BackupService {
         if let service = _backupService {
             return service
         }
@@ -23,7 +23,7 @@ extension AppDependencies {
         return service
     }
 
-    var backupTransactionManager: BackupTransactionManager {
+    private var backupTransactionManager: BackupTransactionManager {
         if let manager = _backupTransactionManager {
             return manager
         }
@@ -36,19 +36,13 @@ extension AppDependencies {
         if let manager = _autoBackupManager {
             return manager
         }
-        // Lazy provider so the coordinator is created on demand without a
-        // circular dependency at construction time.
-        let manager = AutoBackupManager(
-            backupService: backupService,
-            coordinatorProvider: { [weak self] in self?.backupCoordinator }
-        )
+        let manager = AutoBackupManager(coordinator: backupCoordinator)
         _autoBackupManager = manager
         return manager
     }
 
-    /// Top-level Backup2 entry point. New code (Settings export/import,
-    /// AutoBackupManager) talks to this; it routes v17 AEA files through the
-    /// Backup2 module and legacy `.mtbbackup` files through `backupService`.
+    /// Single app-facing backup entry point. UI and lifecycle code should talk
+    /// to this coordinator rather than mixing legacy and v17 services directly.
     var backupCoordinator: BackupCoordinator {
         if let coordinator = _backupCoordinator {
             return coordinator

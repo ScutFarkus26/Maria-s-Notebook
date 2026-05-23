@@ -3,6 +3,7 @@ import Foundation
 
 /// A view that displays backup status and allows verification of backup files
 struct BackupStatusView: View {
+    @Environment(\.dependencies) private var dependencies
     @State private var backupStatus: BackupStatus?
     @State private var verificationResult: Result<BackupInfo, Error>?
     @State private var isVerifying = false
@@ -164,14 +165,14 @@ struct BackupStatusView: View {
     
     private func loadBackupStatus() {
         Task { @MainActor in
-            backupStatus = BackupVerification.getBackupStatus()
+            backupStatus = dependencies.backupCoordinator.backupStatus()
         }
     }
     
     private func verifyBackup(at url: URL) {
         isVerifying = true
         Task { @MainActor in
-            verificationResult = BackupVerification.verifyBackup(at: url)
+            verificationResult = dependencies.backupCoordinator.verifyBackup(at: url)
             isVerifying = false
         }
     }
