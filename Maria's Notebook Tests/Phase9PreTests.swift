@@ -85,13 +85,6 @@ final class Phase9PreTests {
         #expect(state == .idle || state == .ready || state == .migrating || state == .initializingContainer)
     }
 
-    @Test("BackupService is @MainActor isolated")
-    func backupServiceIsMainActor() {
-        // BackupService is @MainActor — verify it's accessible from MainActor context
-        let service = BackupService()
-        #expect(service != nil)
-    }
-
     // MARK: - BackupPayload is Sendable
 
     @Test("BackupPayload and DTOs are Sendable")

@@ -9,8 +9,8 @@ public enum BackupMigrationManifest {
 
     // MARK: - Format Version History
 
-    /// Complete history of all supported backup format versions (v5–v14).
-    /// Versions prior to v5 are unsupported (no checksum enforcement).
+    /// Historical record of backup format versions that existed before the
+    /// current restore pipeline was simplified to the latest format only.
     public static let versionHistory: [FormatVersionInfo] = [
         FormatVersionInfo(
             version: 5,
@@ -148,8 +148,8 @@ public enum BackupMigrationManifest {
         )
     ]
 
-    /// Minimum legacy envelope version still understood by the internal decoder.
-    public static let minimumSupportedVersion = 5
+    /// The app now accepts only the current backup format for restore.
+    public static let minimumSupportedVersion = BackupFile.formatVersion
 
     /// Current format version
     public static var currentVersion: Int {
@@ -161,11 +161,9 @@ public enum BackupMigrationManifest {
         versionHistory.first { $0.version == version }
     }
 
-    /// Checks if a version is compatible with the legacy envelope decoder.
-    /// Versions v5 through currentVersion are understood by the shared payload
-    /// import path, even though manual restore only accepts the current AEA format.
+    /// Checks whether a backup version matches the current restore format.
     public static func isCompatible(version: Int) -> VersionCompatibility {
-        if version >= minimumSupportedVersion && version <= currentVersion {
+        if version == currentVersion {
             return .compatible
         }
         if version > currentVersion {
@@ -238,10 +236,9 @@ public enum BackupMigrationManifest {
                 return "Backup was created with a newer app version "
                     + "(format v\(version)). Please update the app."
             case .invalid:
-                let min = BackupMigrationManifest.minimumSupportedVersion
                 let max = BackupMigrationManifest.currentVersion
                 return "Unsupported backup format version. "
-                    + "Versions v\(min) through v\(max) are supported."
+                    + "Only version v\(max) is supported for restore."
             }
         }
     }

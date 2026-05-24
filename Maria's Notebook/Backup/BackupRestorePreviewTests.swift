@@ -310,23 +310,9 @@ import Testing
         #expect(result.isCompatible)
     }
 
-    @Test("minimum supported version is compatible")
-    func testMinimumVersionCompatible() {
-        let result = BackupMigrationManifest.isCompatible(version: 5)
-        #expect(result.isCompatible)
-    }
-
-    @Test("all versions v5 through v13 are compatible")
-    func testAllSupportedVersionsCompatible() {
-        for version in 5...BackupFile.formatVersion {
-            let result = BackupMigrationManifest.isCompatible(version: version)
-            #expect(result.isCompatible, "Version \(version) should be compatible")
-        }
-    }
-
-    @Test("version below minimum is invalid")
+    @Test("older versions are invalid")
     func testOldVersionInvalid() {
-        let result = BackupMigrationManifest.isCompatible(version: 4)
+        let result = BackupMigrationManifest.isCompatible(version: BackupFile.formatVersion - 1)
         #expect(!result.isCompatible)
     }
 
@@ -344,23 +330,8 @@ import Testing
     @Test("version history covers all documented versions")
     func testVersionHistoryCompleteness() {
         let documented = Set(BackupMigrationManifest.versionHistory.map(\.version))
-        // Must include minimum and current
-        #expect(documented.contains(BackupMigrationManifest.minimumSupportedVersion))
+        #expect(documented.contains(5))
         #expect(documented.contains(BackupFile.formatVersion))
-    }
-
-    @Test("migration service reports compatibleWithMigration for older versions")
-    func testMigrationServiceCompatibility() async {
-        let service = await BackupMigrationService()
-        let result = await service.isCompatible(backupVersion: 5)
-        #expect(result.canRestore)
-
-        let currentResult = await service.isCompatible(backupVersion: BackupFile.formatVersion)
-        if case .fullyCompatible = currentResult {
-            // expected
-        } else {
-            #expect(Bool(false), "Current version should be fullyCompatible")
-        }
     }
 }
 

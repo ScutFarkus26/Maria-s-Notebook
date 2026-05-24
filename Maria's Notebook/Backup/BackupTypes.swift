@@ -16,12 +16,6 @@ public enum BackupFile: Sendable {
     /// Format version 6: Adds compression support (LZFSE)
     /// Format version 5: Enforces checksum validation with deterministic JSON encoding (.sortedKeys)
     nonisolated public static let formatVersion = 16
-    /// Minimum format version that enforces checksum validation
-    nonisolated public static let checksumEnforcedVersion = 5
-    /// Format version that introduced compression (backups < this version are uncompressed)
-    nonisolated public static let compressionIntroducedVersion = 6
-    /// Compression algorithm constant
-    nonisolated public static let compressionAlgorithm = "lzfse"
 }
 
 // MARK: - PreferencesDTO and PreferenceValueDTO

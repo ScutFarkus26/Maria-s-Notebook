@@ -171,12 +171,9 @@ final class BackupRoundTripTests {
 @MainActor
 final class BackupRegistryCoverageTests {
 
-    @Test("Format version is greater than the checksum-enforcement floor")
+    @Test("Format version remains defined")
     func formatVersionIsCurrent() {
-        // Don't hardcode the current version — format churn shouldn't break the suite.
-        // Verify the invariant that the current version stays above the floor that
-        // enforces checksum validation (v5+).
-        #expect(BackupFile.formatVersion >= BackupFile.checksumEnforcedVersion)
+        #expect(BackupFile.formatVersion > 0)
     }
 
     @Test("Registry contains the user-visible core entity types")
