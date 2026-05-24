@@ -165,53 +165,6 @@ enum BackupServiceHelpers {
     // toDTOs for CDProjectTemplateWeek, CDProjectAssignmentTemplate,
     // CDProjectWeekRoleAssignment removed — entities deprecated.
 
-    // MARK: - Envelope Building
-
-    /// Builds a BackupEnvelope with common configuration
-    static func buildEnvelope(
-        payload: BackupPayload? = nil,
-        encryptedPayload: Data? = nil,
-        compressedPayload: Data? = nil,
-        entityCounts: [String: Int],
-        sha256: String,
-        notes: String? = nil
-    ) -> BackupEnvelope {
-        BackupEnvelope(
-            formatVersion: BackupFile.formatVersion,
-            createdAt: Date(),
-            appBuild: Bundle.main.object(forInfoDictionaryKey: "CFBundleVersion") as? String ?? "",
-            appVersion: Bundle.main.object(forInfoDictionaryKey: "CFBundleShortVersionString") as? String ?? "",
-            device: ProcessInfo.processInfo.hostName,
-            manifest: BackupManifest(
-                entityCounts: entityCounts,
-                sha256: sha256,
-                notes: notes,
-                compression: BackupFile.compressionAlgorithm
-            ),
-            payload: payload,
-            encryptedPayload: encryptedPayload,
-            compressedPayload: compressedPayload
-        )
-    }
-
-    // MARK: - File Operations
-
-    /// Writes encoded envelope data to a URL with atomic write
-    static func writeBackupFile(envelope: BackupEnvelope, to url: URL, encoder: JSONEncoder) throws {
-        let envBytes = try encoder.encode(envelope)
-
-        if FileManager.default.fileExists(atPath: url.path) {
-            do {
-                try FileManager.default.removeItem(at: url)
-            } catch {
-                let name = url.lastPathComponent
-                let desc = error.localizedDescription
-                logger.warning("Failed to remove existing file at \(name, privacy: .public): \(desc, privacy: .public)")
-            }
-        }
-        try envBytes.write(to: url, options: .atomic)
-    }
-
     // MARK: - Entity Filtering
 
     /// Filters entities by student IDs

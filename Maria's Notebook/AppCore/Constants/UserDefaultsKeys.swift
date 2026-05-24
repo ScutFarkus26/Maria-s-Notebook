@@ -25,12 +25,6 @@ enum UserDefaultsKeys {
     static let backupEncryptDefault = "Backup.encryptDefault"  // True = encryption on by default
     static let lastBackupTimeInterval = "lastBackupTimeInterval"
 
-    // MARK: - Cloud Backup
-    static let cloudBackupScheduleEnabled = "CloudBackup.scheduleEnabled"
-    static let cloudBackupScheduleIntervalHours = "CloudBackup.scheduleIntervalHours"
-    static let cloudBackupScheduleRetentionCount = "CloudBackup.scheduleRetentionCount"
-    static let cloudBackupLastDate = "CloudBackup.lastBackupDate"
-
     // MARK: - Auto Backup
     static let autoBackupEnabled = "AutoBackup.enabled"
     static let autoBackupRetentionCount = "AutoBackup.retentionCount"
@@ -135,7 +129,6 @@ enum UserDefaultsKeys {
     static let workCalendarShowPresentations = "WorkCalendar.showPresentations"
 
     // MARK: - Migrations
-    static let hasUnifiedNotesMigrationRun = "Migration.unifiedNotes.v1"
     static let pdfFolderMigrationV1Complete = "Migration.pdfFolder.v1"
     static let classroomStoreMigrationV1Complete = "ClassroomStoreMigration.v1.completed"
 

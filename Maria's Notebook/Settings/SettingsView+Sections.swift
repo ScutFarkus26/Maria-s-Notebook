@@ -163,10 +163,6 @@ extension SettingsView {
 
                     Divider()
 
-                    iCloudBackupToggle
-
-                    Divider()
-
                     // Sync History & Conflict Resolution
                     HStack(spacing: 12) {
                         NavigationLink {
@@ -631,15 +627,4 @@ extension SettingsView {
             Spacer()
         }
     }
-
-    // iCloud Backup Toggle
-    var iCloudBackupToggle: some View {
-        SettingsToggleRow(
-            title: "Enable iCloud Backup",
-            systemImage: "icloud.and.arrow.up",
-            color: .cyan,
-            isOn: $cloudBackupEnabled
-        )
-    }
 }
-

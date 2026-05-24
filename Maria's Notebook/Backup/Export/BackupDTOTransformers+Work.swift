@@ -21,7 +21,6 @@ extension BackupDTOTransformers {
             lastTouchedAt: work.lastTouchedAt,
             dueAt: work.dueAt,
             completionOutcomeRaw: work.completionOutcomeRaw,
-            legacyContractID: work.legacyContractID,
             studentID: work.studentID,
             lessonID: work.lessonID,
             presentationID: work.presentationID,
@@ -32,7 +31,6 @@ extension BackupDTOTransformers {
             sourceContextTypeRaw: work.sourceContextTypeRaw,
             sourceContextID: work.sourceContextID,
             sampleWorkID: work.sampleWorkID,
-            legacyStudentLessonID: work.legacyStudentLessonID,
             checkInStyleRaw: work.checkInStyleRaw,
             restingUntil: work.restingUntil
         )

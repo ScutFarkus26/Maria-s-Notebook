@@ -124,13 +124,11 @@ struct WorkRepository {
         work.lastTouchedAt = nil
         work.dueAt = scheduledDate
         work.completionOutcome = nil
-        work.legacyContractID = nil
 
         // Populate identity fields for UI resolution
         work.studentID = studentID.uuidString
         work.lessonID = lessonID.uuidString
         work.presentationID = presentationID?.uuidString
-        work.legacyStudentLessonID = studentLessonID?.uuidString
 
         // Create participant
         let participant = CDWorkParticipantEntity(context: context)

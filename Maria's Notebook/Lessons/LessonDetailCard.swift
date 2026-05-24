@@ -99,7 +99,6 @@ struct LessonDetailCard: View {
             if let url = resolvedPagesURL, LessonFileStorage.isManagedURL(url) {
                 previousManagedURL = url
             }
-            migrateLegacyLinkedFileIfNeeded()
         }
         .alert("Delete CDLesson?", isPresented: $showDeleteAlert) {
             Button("Delete", role: .destructive) {

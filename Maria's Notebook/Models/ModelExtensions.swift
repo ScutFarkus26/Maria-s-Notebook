@@ -7,19 +7,11 @@ private let logger = Logger.database
 // MARK: - NSManagedObjectContext Extensions
 
 extension NSManagedObjectContext {
-    /// Resolves a CDWorkModel by ID with automatic fallback to legacy contract ID
+    /// Resolves a CDWorkModel by primary ID.
     func resolveWorkModel(from workID: UUID) -> CDWorkModel? {
-        // Try primary ID first
         let primaryRequest = NSFetchRequest<CDWorkModel>(entityName: "WorkModel")
         primaryRequest.predicate = NSPredicate(format: "id == %@", workID as CVarArg)
-        if let model = safeFetchFirst(primaryRequest) {
-            return model
-        }
-
-        // Fallback to legacy contract ID
-        let legacyRequest = NSFetchRequest<CDWorkModel>(entityName: "WorkModel")
-        legacyRequest.predicate = NSPredicate(format: "legacyContractID == %@", workID as CVarArg)
-        return safeFetchFirst(legacyRequest)
+        return safeFetchFirst(primaryRequest)
     }
 }
 

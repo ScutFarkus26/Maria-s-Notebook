@@ -31,7 +31,6 @@ extension BackupEntityImporter {
                 work.lastTouchedAt = dto.lastTouchedAt
                 work.dueAt = dto.dueAt
                 work.completionOutcomeRaw = dto.completionOutcomeRaw
-                work.legacyContractID = dto.legacyContractID
                 work.studentID = dto.studentID
                 work.lessonID = dto.lessonID
                 work.presentationID = dto.presentationID
@@ -41,7 +40,6 @@ extension BackupEntityImporter {
                 work.scheduledReasonRaw = dto.scheduledReasonRaw
                 work.sourceContextTypeRaw = dto.sourceContextTypeRaw
                 work.sourceContextID = dto.sourceContextID
-                work.legacyStudentLessonID = dto.legacyStudentLessonID
                 work.sampleWorkID = dto.sampleWorkID
                 work.checkInStyleRaw = dto.checkInStyleRaw
                 work.restingUntil = dto.restingUntil

@@ -165,7 +165,6 @@ final class AppDependencies {
     // MARK: - Backup Services (backing stores for AppDependencies+BackupServices.swift)
 
     var _backupService: BackupService?
-    var _selectiveRestoreService: SelectiveRestoreService?
     var _backupTransactionManager: BackupTransactionManager?
     var _autoBackupManager: AutoBackupManager?
     var _backupCoordinator: BackupCoordinator?

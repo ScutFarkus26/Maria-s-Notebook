@@ -22,6 +22,26 @@ private enum BackupTestUtil {
     /// No-op progress callback for tests that don't care about UI updates.
     static let noopProgress: BackupService.ProgressCallback = { _, _ in }
 
+    static func writeCurrentBackup(from context: NSManagedObjectContext, to url: URL) throws {
+        _ = try BackupWriter.write(viewContext: context, to: url, progress: noopProgress)
+    }
+
+    static func importCurrentBackup(
+        from url: URL,
+        into context: NSManagedObjectContext,
+        mode: BackupService.RestoreMode
+    ) async throws {
+        let decoded = try BackupReader.read(from: url)
+        _ = try await BackupImporter.importDecoded(
+            decoded,
+            from: url,
+            into: context,
+            mode: mode,
+            appRouter: AppRouter.shared,
+            progress: noopProgress
+        )
+    }
+
     /// Seeds a representative fixture spanning common user-visible entity types.
     /// Returns a snapshot of (entityName -> count) for round-trip comparison.
     @discardableResult
@@ -79,33 +99,18 @@ final class BackupRoundTripTests {
         let url = BackupTestUtil.tempBackupURL()
         defer { BackupTestUtil.cleanup(url) }
 
-        let service = BackupService()
-        let exportSummary = try await service.exportBackup(
-            viewContext: sourceStack.viewContext,
-            to: url,
-            password: nil,
-            progress: BackupTestUtil.noopProgress
-        )
-        #expect(exportSummary.kind == .export)
-        #expect(exportSummary.formatVersion == BackupFile.formatVersion)
-        #expect(exportSummary.encryptUsed == false)
+        try BackupTestUtil.writeCurrentBackup(from: sourceStack.viewContext, to: url)
         #expect(FileManager.default.fileExists(atPath: url.path))
 
-        // Read back the envelope to verify the file is structurally valid.
+        // Verify the file is structurally valid.
         let info = try BackupVerification.verifyBackup(at: url).get()
-        #expect(info.formatVersion == BackupFile.formatVersion)
+        #expect(info.formatVersion == BackupWriter.formatVersion)
         #expect(info.entityCounts["Student"] ?? 0 >= 2)
         #expect(info.entityCounts["Lesson"] ?? 0 >= 2)
 
         // Restore into a FRESH stack (merge into empty == replace).
         let destStack = try CoreDataTestHelpers.makeInMemoryStack()
-        _ = try await service.importBackup(
-            viewContext: destStack.viewContext,
-            from: url,
-            mode: .merge,
-            password: nil,
-            progress: BackupTestUtil.noopProgress
-        )
+        try await BackupTestUtil.importCurrentBackup(from: url, into: destStack.viewContext, mode: .merge)
 
         for (entityName, expectedCount) in expected {
             let actual = try BackupTestUtil.count(entityName: entityName, in: destStack.viewContext)
@@ -116,78 +121,20 @@ final class BackupRoundTripTests {
         }
     }
 
-    @Test("Encrypted backup: wrong password fails, correct password restores")
-    func encryptedRoundTrip() async throws {
+    @Test("Current backup file verifies as compressed archive")
+    func compressedArchive() throws {
         let sourceStack = try CoreDataTestHelpers.makeInMemoryStack()
         BackupTestUtil.seedBasicFixture(in: sourceStack.viewContext)
 
         let url = BackupTestUtil.tempBackupURL()
         defer { BackupTestUtil.cleanup(url) }
 
-        let password = "correct-horse-battery-staple"
-        let service = BackupService()
-        let summary = try await service.exportBackup(
-            viewContext: sourceStack.viewContext,
-            to: url,
-            password: password,
-            progress: BackupTestUtil.noopProgress
-        )
-        #expect(summary.encryptUsed == true)
+        try BackupTestUtil.writeCurrentBackup(from: sourceStack.viewContext, to: url)
 
         let info = try BackupVerification.verifyBackup(at: url).get()
-        #expect(info.isEncrypted == true)
-
-        // Wrong password must fail — verify via do/catch (more lenient than #expect(throws:)
-        // which requires a specific error type).
-        let destStack1 = try CoreDataTestHelpers.makeInMemoryStack()
-        var wrongPasswordThrew = false
-        do {
-            _ = try await service.importBackup(
-                viewContext: destStack1.viewContext,
-                from: url,
-                mode: .merge,
-                password: "wrong-password",
-                progress: BackupTestUtil.noopProgress
-            )
-        } catch {
-            wrongPasswordThrew = true
-        }
-        #expect(wrongPasswordThrew, "Wrong password should have been rejected")
-
-        // Correct password must succeed.
-        let destStack2 = try CoreDataTestHelpers.makeInMemoryStack()
-        _ = try await service.importBackup(
-            viewContext: destStack2.viewContext,
-            from: url,
-            mode: .merge,
-            password: password,
-            progress: BackupTestUtil.noopProgress
-        )
-        let studentCount = try BackupTestUtil.count(entityName: "Student", in: destStack2.viewContext)
-        #expect(studentCount >= 2, "Encrypted restore lost students")
-    }
-
-    @Test("Backup envelope is compressed (LZFSE) in current format version")
-    func compressedEnvelope() async throws {
-        let sourceStack = try CoreDataTestHelpers.makeInMemoryStack()
-        BackupTestUtil.seedBasicFixture(in: sourceStack.viewContext)
-
-        let url = BackupTestUtil.tempBackupURL()
-        defer { BackupTestUtil.cleanup(url) }
-
-        let service = BackupService()
-        _ = try await service.exportBackup(
-            viewContext: sourceStack.viewContext,
-            to: url,
-            password: nil,
-            progress: BackupTestUtil.noopProgress
-        )
-
-        let info = try BackupVerification.verifyBackup(at: url).get()
-        // Format v6+ introduced LZFSE compression; current format is v14.
         #expect(
             info.isCompressed,
-            "Expected compressedPayload or compression manifest on v\(BackupFile.formatVersion) backup"
+            "Expected current backup archive to report compression"
         )
     }
 
@@ -205,22 +152,10 @@ final class BackupRoundTripTests {
         let url = BackupTestUtil.tempBackupURL()
         defer { BackupTestUtil.cleanup(url) }
 
-        let service = BackupService()
-        _ = try await service.exportBackup(
-            viewContext: sourceStack.viewContext,
-            to: url,
-            password: nil,
-            progress: BackupTestUtil.noopProgress
-        )
+        try BackupTestUtil.writeCurrentBackup(from: sourceStack.viewContext, to: url)
 
         let destStack = try CoreDataTestHelpers.makeInMemoryStack()
-        _ = try await service.importBackup(
-            viewContext: destStack.viewContext,
-            from: url,
-            mode: .merge,
-            password: nil,
-            progress: BackupTestUtil.noopProgress
-        )
+        try await BackupTestUtil.importCurrentBackup(from: url, into: destStack.viewContext, mode: .merge)
 
         let request = NSFetchRequest<CDStudent>(entityName: "Student")
         let restored = try destStack.viewContext.fetch(request)
@@ -302,26 +237,14 @@ final class BackupRestoreModeTests {
         let url = BackupTestUtil.tempBackupURL()
         defer { BackupTestUtil.cleanup(url) }
 
-        let service = BackupService()
-        _ = try await service.exportBackup(
-            viewContext: sourceStack.viewContext,
-            to: url,
-            password: nil,
-            progress: BackupTestUtil.noopProgress
-        )
+        try BackupTestUtil.writeCurrentBackup(from: sourceStack.viewContext, to: url)
 
         // Destination starts with one distinct student; merge should not drop it.
         let destStack = try CoreDataTestHelpers.makeInMemoryStack()
         CoreDataTestHelpers.seedStudent(in: destStack.viewContext, firstName: "Marie", lastName: "Curie")
         #expect(CoreDataTestHelpers.save(destStack.viewContext))
 
-        _ = try await service.importBackup(
-            viewContext: destStack.viewContext,
-            from: url,
-            mode: .merge,
-            password: nil,
-            progress: BackupTestUtil.noopProgress
-        )
+        try await BackupTestUtil.importCurrentBackup(from: url, into: destStack.viewContext, mode: .merge)
 
         let total = try BackupTestUtil.count(entityName: "Student", in: destStack.viewContext)
         // 2 seeded + 1 existing (Marie) = 3 minimum. Merge must not wipe the original row.
@@ -336,15 +259,9 @@ final class BackupRestoreModeTests {
         let url = BackupTestUtil.tempBackupURL()
         defer { BackupTestUtil.cleanup(url) }
 
-        let service = BackupService()
-        _ = try await service.exportBackup(
-            viewContext: sourceStack.viewContext,
-            to: url,
-            password: nil,
-            progress: BackupTestUtil.noopProgress
-        )
+        try BackupTestUtil.writeCurrentBackup(from: sourceStack.viewContext, to: url)
 
-        // Corrupt by truncating the last 100 bytes — enough to break JSON envelope.
+        // Corrupt by truncating the last 100 bytes — enough to break the archive.
         var data = try Data(contentsOf: url)
         #expect(data.count > 100)
         data.removeLast(100)
@@ -353,13 +270,7 @@ final class BackupRestoreModeTests {
         let destStack = try CoreDataTestHelpers.makeInMemoryStack()
         var corruptThrew = false
         do {
-            _ = try await service.importBackup(
-                viewContext: destStack.viewContext,
-                from: url,
-                mode: .merge,
-                password: nil,
-                progress: BackupTestUtil.noopProgress
-            )
+            try await BackupTestUtil.importCurrentBackup(from: url, into: destStack.viewContext, mode: .merge)
         } catch {
             corruptThrew = true
         }
@@ -467,70 +378,5 @@ final class Backup2RoundTripTests {
             Issue.record("Reader threw unexpected error type: \(error)")
         }
         #expect(threw, "Reader must throw notAEAFormat for files without the AA01 magic")
-    }
-}
-
-// MARK: - Suite 4: On-Disk Verification
-
-@Suite("Existing backup file verification")
-@MainActor
-final class ExistingBackupFileTests {
-
-    /// Locates the Backups/ directory alongside the Xcode project when running
-    /// tests from the command line. In Xcode-hosted runs the directory may not
-    /// be reachable; in that case the test is skipped with a note.
-    private func findBackupsDirectory() -> URL? {
-        // Strategy: walk up from the bundle URL looking for a `Backups` sibling of the project.
-        var url = Bundle.main.bundleURL
-        for _ in 0..<8 {
-            let candidate = url.appendingPathComponent("Backups")
-            var isDir: ObjCBool = false
-            if FileManager.default.fileExists(atPath: candidate.path, isDirectory: &isDir), isDir.boolValue {
-                return candidate
-            }
-            url = url.deletingLastPathComponent()
-        }
-        // Fall back to a hard-coded absolute path for local dev machines.
-        let hardCoded = URL(fileURLWithPath:
-            "/Users/dannydeberry/Documents/Projects/Apps/Maria's Notebook/Backups"
-        )
-        var isDir: ObjCBool = false
-        if FileManager.default.fileExists(atPath: hardCoded.path, isDirectory: &isDir), isDir.boolValue {
-            return hardCoded
-        }
-        return nil
-    }
-
-    @Test("Most recent .mtbbackup file on disk decodes cleanly")
-    func latestBackupFileDecodes() throws {
-        guard let dir = findBackupsDirectory() else {
-            // No backups directory reachable from this test host — skip silently.
-            // (This can happen when tests run inside a sandboxed CI environment.)
-            return
-        }
-        guard let latest = BackupVerification.findMostRecentBackup(in: dir) else {
-            // Empty backups directory — nothing to verify.
-            return
-        }
-
-        let result = BackupVerification.verifyBackup(at: latest)
-        let info: BackupInfo
-        switch result {
-        case .success(let value):
-            info = value
-        case .failure(let error):
-            Issue.record("Latest backup failed to decode: \(error.localizedDescription) — file: \(latest.lastPathComponent)")
-            return
-        }
-
-        #expect(info.formatVersion >= BackupFile.checksumEnforcedVersion,
-                "Latest backup predates checksum enforcement (v\(info.formatVersion))")
-        #expect(!info.checksum.isEmpty, "Manifest checksum is empty for \(info.fileName)")
-        #expect(info.fileSize > 0)
-
-        // Sanity check: at least ONE recognized entity type should have a non-zero count.
-        let coreEntities = ["Student", "Lesson", "Note", "WorkModel", "AttendanceRecord"]
-        let totalCore = coreEntities.reduce(0) { sum, name in sum + (info.entityCounts[name] ?? 0) }
-        #expect(totalCore > 0, "Latest backup \(info.fileName) has no core entities")
     }
 }

@@ -16,7 +16,6 @@ public class CDWorkModel: NSManagedObject {
     @NSManaged public var lastTouchedAt: Date?
     @NSManaged public var dueAt: Date?
     @NSManaged public var completionOutcomeRaw: String?
-    @NSManaged public var legacyContractID: UUID?
     @NSManaged public var studentID: String
     @NSManaged public var lessonID: String
     @NSManaged public var presentationID: String?
@@ -27,7 +26,6 @@ public class CDWorkModel: NSManagedObject {
     @NSManaged public var sourceContextTypeRaw: String?
     @NSManaged public var sourceContextID: String?
     @NSManaged public var sampleWorkID: String?
-    @NSManaged public var legacyStudentLessonID: String?
     @NSManaged public var checkInStyleRaw: String?
     @NSManaged public var restingUntil: Date?
 
@@ -54,7 +52,6 @@ public class CDWorkModel: NSManagedObject {
         self.lastTouchedAt = nil
         self.dueAt = nil
         self.completionOutcomeRaw = nil
-        self.legacyContractID = nil
         self.studentID = ""
         self.lessonID = ""
         self.presentationID = nil
@@ -65,7 +62,6 @@ public class CDWorkModel: NSManagedObject {
         self.sourceContextTypeRaw = nil
         self.sourceContextID = nil
         self.sampleWorkID = nil
-        self.legacyStudentLessonID = nil
         self.checkInStyleRaw = nil
         self.restingUntil = nil
     }

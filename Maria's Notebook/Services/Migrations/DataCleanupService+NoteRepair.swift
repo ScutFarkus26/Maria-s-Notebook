@@ -73,67 +73,6 @@ extension DataCleanupService {
         }
     }
 
-    /// Create NoteStudentLink records for existing notes with multi-student scope.
-    static func createNoteStudentLinksForExistingNotes(using context: NSManagedObjectContext) {
-        let fetch = CDFetchRequest(CDNote.self)
-        fetch.predicate = NSPredicate(format: "scopeIsAll == NO AND searchIndexStudentID == nil")
-        let notes = context.safeFetch(fetch)
-
-        var createdCount = 0
-
-        for note in notes {
-            guard (note.studentLinks?.count ?? 0) == 0 else { continue }
-            note.syncStudentLinks(in: context)
-            if (note.studentLinks?.count ?? 0) > 0 {
-                createdCount += 1
-            }
-        }
-
-        if createdCount > 0 {
-            context.safeSave()
-        }
-    }
-
-    // MARK: - Note Search Index Backfill
-
-    /// Backfills scopeIsAll and searchIndexStudentID for notes that predate the search index.
-    static func backfillNoteSearchIndex(using context: NSManagedObjectContext) {
-        let flagKey = "Backfill.noteSearchIndex.v1"
-        MigrationFlag.runIfNeeded(key: flagKey) {
-            let notes = context.safeFetch(CDFetchRequest(CDNote.self))
-            var repaired = 0
-
-            for note in notes {
-                let decoded = note.decodeScope() ?? .all
-                let expectedIsAll: Bool
-                let expectedStudentID: UUID?
-
-                switch decoded {
-                case .all:
-                    expectedIsAll = true
-                    expectedStudentID = nil
-                case .student(let id):
-                    expectedIsAll = false
-                    expectedStudentID = id
-                case .students:
-                    expectedIsAll = false
-                    expectedStudentID = nil
-                }
-
-                if note.scopeIsAll != expectedIsAll || note.searchIndexStudentID != expectedStudentID {
-                    note.scopeIsAll = expectedIsAll
-                    note.searchIndexStudentID = expectedStudentID
-                    repaired += 1
-                }
-            }
-
-            if repaired > 0 {
-                context.safeSave()
-                logger.info("Backfilled search index for \(repaired) notes")
-            }
-        }
-    }
-
     // MARK: - Denormalized Field Repair
 
     /// Repairs denormalized scheduledForDay fields to match scheduledFor.

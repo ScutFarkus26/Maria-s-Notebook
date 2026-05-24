@@ -102,20 +102,18 @@ final class Phase7PreTests {
         CoreDataTestHelpers.seedNote(in: ctx, body: "Backup test note")
         CoreDataTestHelpers.save(ctx)
 
-        let service = BackupService()
         let tempURL = FileManager.default.temporaryDirectory
             .appendingPathComponent("phase7_pre_test_\(UUID().uuidString).mtbbackup")
 
         defer { try? FileManager.default.removeItem(at: tempURL) }
 
-        let summary = try await service.exportBackup(
+        let summary = try BackupWriter.write(
             viewContext: ctx,
             to: tempURL,
-            password: nil,
             progress: { _, _ in }
         )
 
-        #expect(summary.formatVersion == 12)
+        #expect(summary.formatVersion == BackupWriter.formatVersion)
         #expect(FileManager.default.fileExists(atPath: tempURL.path))
 
         let fileSize = try FileManager.default.attributesOfItem(atPath: tempURL.path)[.size] as? Int ?? 0
@@ -133,16 +131,14 @@ final class Phase7PreTests {
         CoreDataTestHelpers.save(ctx1)
 
         // Export
-        let service = BackupService()
         let tempURL = FileManager.default.temporaryDirectory
             .appendingPathComponent("phase7_roundtrip_\(UUID().uuidString).mtbbackup")
 
         defer { try? FileManager.default.removeItem(at: tempURL) }
 
-        _ = try await service.exportBackup(
+        _ = try BackupWriter.write(
             viewContext: ctx1,
             to: tempURL,
-            password: nil,
             progress: { _, _ in }
         )
 
@@ -150,11 +146,13 @@ final class Phase7PreTests {
         let stack2 = try CoreDataTestHelpers.makeInMemoryStack()
         let ctx2 = stack2.viewContext
 
-        _ = try await service.importBackup(
-            viewContext: ctx2,
+        let decoded = try BackupReader.read(from: tempURL)
+        _ = try await BackupImporter.importDecoded(
+            decoded,
             from: tempURL,
+            into: ctx2,
             mode: .replace,
-            password: nil,
+            appRouter: AppRouter.shared,
             progress: { _, _ in }
         )
 

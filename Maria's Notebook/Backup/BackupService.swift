@@ -33,16 +33,4 @@ public final class BackupService {
     public func estimateBackupSizeFromCounts(_ counts: [String: Int]) -> Int64 {
         BackupSizeEstimator.estimateFromCounts(counts)
     }
-
-    // MARK: - Export
-    public func exportBackup(
-        viewContext: NSManagedObjectContext,
-        to url: URL,
-        password: String? = nil,
-        progress: @escaping ProgressCallback
-    ) async throws -> BackupOperationSummary {
-        return try withSecurityScopedResource(url) {
-            try performExport(viewContext: viewContext, to: url, password: password, progress: progress)
-        }
-    }
 }

@@ -152,9 +152,8 @@ public enum BackupArchive {
         }
     }
 
-    /// Checks whether a file at `url` is an AEA-formatted backup (Backup2 v17+)
-    /// or a legacy `.mtbbackup` JSON envelope (v5–v16). Reads only the first
-    /// 4 bytes. Returns `true` for AEA, `false` for legacy.
+    /// Checks whether a file at `url` is an AEA-formatted backup (Backup2 v17+).
+    /// Reads only the first 4 bytes. Returns `true` for AEA, `false` otherwise.
     public static func isAEAFormat(at url: URL) -> Bool {
         guard let handle = try? FileHandle(forReadingFrom: url) else { return false }
         defer { try? handle.close() }

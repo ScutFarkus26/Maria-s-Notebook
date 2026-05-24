@@ -148,7 +148,7 @@ public enum BackupMigrationManifest {
         )
     ]
 
-    /// Minimum format version supported for import
+    /// Minimum legacy envelope version still understood by the internal decoder.
     public static let minimumSupportedVersion = 5
 
     /// Current format version
@@ -161,9 +161,9 @@ public enum BackupMigrationManifest {
         versionHistory.first { $0.version == version }
     }
 
-    /// Checks if a version is compatible with current version.
-    /// Versions v5 through currentVersion are supported — newer optional payload
-    /// arrays simply decode as nil when restoring older backups.
+    /// Checks if a version is compatible with the legacy envelope decoder.
+    /// Versions v5 through currentVersion are understood by the shared payload
+    /// import path, even though manual restore only accepts the current AEA format.
     public static func isCompatible(version: Int) -> VersionCompatibility {
         if version >= minimumSupportedVersion && version <= currentVersion {
             return .compatible

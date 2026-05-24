@@ -4,9 +4,8 @@
 // Responsibilities:
 //   - Single app-facing entry point for backup and restore work.
 //   - Export: always writes v17 AEA (BackupWriter).
-//   - Import: wraps restore with safety-checkpoint + rollback, then routes to:
-//       * v17 → BackupReader + BackupImporter
-//       * v5–v16 → existing BackupService.importBackup
+//   - Import: wraps restore with safety-checkpoint + rollback, then routes to
+//     the current v17 path via BackupReader + BackupImporter.
 //   - Estimation, preview, verification, and status all live here so callers
 //     don't have to know about multiple backup subsystems.
 //
@@ -22,13 +21,20 @@ import OSLog
 final class BackupCoordinator {
     private static let logger = Logger.backup
 
+    private enum ImportError: LocalizedError {
+        case legacyManualImportNoLongerSupported
+
+        var errorDescription: String? {
+            switch self {
+            case .legacyManualImportNoLongerSupported:
+                return "Legacy .mtbbackup files are no longer supported for manual import. Import a current backup created by this version of the app."
+            }
+        }
+    }
+
     // Underlying services. BackupService is retained because:
-    //   - `previewImport` reuses its decode path (already handles v5–v16; will
-    //     extend to v17 below by branching on format).
-    //   - `importBackup` is delegated to for legacy `.mtbbackup` files.
-    //   - `estimateBackupSize` is unchanged.
-    //   - `BackupTransactionManager` calls back into `BackupService` for
-    //     checkpoint creation + rollback (legacy format on disk).
+    //   - `estimateBackupSize` still uses its shared payload collection logic.
+    //   - BackupWriter / BackupImporter still reuse shared BackupService helpers.
     private let backupService: BackupService
     private let transactionManager: BackupTransactionManager
     private let appRouter: AppRouter
@@ -83,24 +89,18 @@ final class BackupCoordinator {
     /// Returns the same `RestorePreview` shape the legacy decode path produced.
     /// Branches by file format:
     ///   - v17 AEA: decode + analyze
-    ///   - v5–v16: delegate to legacy `BackupService.previewImport`
+    ///   - non-AEA: reject manual import of legacy backup files
     func previewImport(
         viewContext: NSManagedObjectContext,
         from url: URL,
         mode: BackupService.RestoreMode,
         progress: @escaping BackupService.ProgressCallback
     ) async throws -> RestorePreview {
-        if BackupArchive.isAEAFormat(at: url) {
-            return try previewAEA(viewContext: viewContext, from: url, mode: mode, progress: progress)
-        } else {
-            return try await backupService.previewImport(
-                viewContext: viewContext,
-                from: url,
-                mode: mode,
-                password: nil,
-                progress: progress
-            )
+        guard BackupArchive.isAEAFormat(at: url) else {
+            throw ImportError.legacyManualImportNoLongerSupported
         }
+
+        return try previewAEA(viewContext: viewContext, from: url, mode: mode, progress: progress)
     }
 
     private func previewAEA(
@@ -142,12 +142,8 @@ final class BackupCoordinator {
     // MARK: - Import
 
     /// Performs an import with safety-checkpoint + rollback (via the existing
-    /// `BackupTransactionManager`). Routes the actual import work to either
-    /// the v17 path (AEA) or the legacy path (BackupService) based on file
-    /// format. The rollback path always uses the legacy format because
-    /// `BackupTransactionManager` writes its checkpoints via
-    /// `BackupService.exportBackup` — those are v16 envelopes regardless of
-    /// what the user is importing.
+    /// `BackupTransactionManager`). Routes the actual import work to the v17
+    /// path (AEA) or rejects legacy manual imports.
     @discardableResult
     func importBackup(
         viewContext: NSManagedObjectContext,
@@ -176,23 +172,16 @@ final class BackupCoordinator {
         mode: BackupService.RestoreMode,
         progress: @escaping BackupService.ProgressCallback
     ) async throws -> BackupOperationSummary {
-        if BackupArchive.isAEAFormat(at: url) {
-            return try await importAEA(
-                viewContext: viewContext,
-                from: url,
-                mode: mode,
-                progress: progress
-            )
-        } else {
-            return try await backupService.importBackup(
-                viewContext: viewContext,
-                from: url,
-                mode: mode,
-                password: nil,
-                appRouter: appRouter,
-                progress: progress
-            )
+        guard BackupArchive.isAEAFormat(at: url) else {
+            throw ImportError.legacyManualImportNoLongerSupported
         }
+
+        return try await importAEA(
+            viewContext: viewContext,
+            from: url,
+            mode: mode,
+            progress: progress
+        )
     }
 
     private func importAEA(

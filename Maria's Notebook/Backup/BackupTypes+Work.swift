@@ -34,7 +34,6 @@ public struct WorkModelDTO: Codable, Sendable {
     public var lastTouchedAt: Date?
     public var dueAt: Date?
     public var completionOutcomeRaw: String?
-    public var legacyContractID: UUID?
     // CloudKit-compatible string FKs
     public var studentID: String
     public var lessonID: String
@@ -46,7 +45,6 @@ public struct WorkModelDTO: Codable, Sendable {
     public var sourceContextTypeRaw: String?
     public var sourceContextID: String?
     public var sampleWorkID: String?
-    public var legacyStudentLessonID: String?
     public var checkInStyleRaw: String?
     // Format v14+
     public var restingUntil: Date?

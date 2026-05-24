@@ -47,18 +47,4 @@ enum DataMigrations {
         DataCleanupService.cleanupOrphanedNoteImages(using: context)
     }
 
-    /// Create NoteStudentLink records for existing notes with multi-student scope.
-    static func createNoteStudentLinksForExistingNotes(using context: NSManagedObjectContext) {
-        DataCleanupService.createNoteStudentLinksForExistingNotes(using: context)
-    }
-
-    /// Backfill scopeIsAll and searchIndexStudentID for notes that predate the search index.
-    static func backfillNoteSearchIndex(using context: NSManagedObjectContext) {
-        DataCleanupService.backfillNoteSearchIndex(using: context)
-    }
-
-    /// Backfill student/track relationships on enrollment records for CloudKit zone assignment.
-    static func backfillTrackEnrollmentRelationships(using context: NSManagedObjectContext) {
-        DataCleanupService.backfillTrackEnrollmentRelationships(using: context)
-    }
 }

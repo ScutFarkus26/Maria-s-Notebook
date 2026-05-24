@@ -253,7 +253,6 @@ extension DataCleanupService {
         if canonical.scheduledReasonRaw == nil { canonical.scheduledReasonRaw = duplicate.scheduledReasonRaw }
         if canonical.sourceContextTypeRaw == nil { canonical.sourceContextTypeRaw = duplicate.sourceContextTypeRaw }
         if canonical.sourceContextID == nil { canonical.sourceContextID = duplicate.sourceContextID }
-        if canonical.legacyStudentLessonID == nil { canonical.legacyStudentLessonID = duplicate.legacyStudentLessonID }
 
         var existingParticipantIDs = Set((canonical.participants as? Set<CDWorkParticipantEntity>)?.compactMap(\.id) ?? [])
         mergeNSSetRelationship(

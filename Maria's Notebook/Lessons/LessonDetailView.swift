@@ -196,7 +196,6 @@ struct LessonDetailView: View {
             if let url = resolvedPagesURL, LessonFileStorage.isManagedURL(url) {
                 previousManagedURL = url
             }
-            migrateLegacyLinkedFileIfNeeded()
         }
         .fileImporter(
             isPresented: $showingPagesImporter,

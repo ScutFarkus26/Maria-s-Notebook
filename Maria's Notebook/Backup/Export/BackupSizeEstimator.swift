@@ -121,8 +121,6 @@ enum BackupSizeEstimator {
         viewContext: NSManagedObjectContext,
         compress: Bool = true
     ) async throws -> ActualSizeMeasurement {
-        let backupService = BackupService()
-
         // Create temporary URL for dry-run
         let tempURL = FileManager.default.temporaryDirectory
             .appendingPathComponent("SizeMeasure-\(UUID().uuidString).\(BackupFile.fileExtension)")
@@ -136,11 +134,9 @@ enum BackupSizeEstimator {
             }
         }
 
-        // Perform actual export to measure size
-        _ = try await backupService.exportBackup(
+        _ = try BackupWriter.write(
             viewContext: viewContext,
             to: tempURL,
-            password: nil,
             progress: { _, _ in }
         )
 
@@ -148,20 +144,16 @@ enum BackupSizeEstimator {
         let attributes = try FileManager.default.attributesOfItem(atPath: tempURL.path)
         let fileSize = attributes[.size] as? Int64 ?? 0
 
-        // Read the file to get entity counts
-        let data = try Data(contentsOf: tempURL)
-        let decoder = JSONDecoder()
-        decoder.dateDecodingStrategy = .iso8601
-        let envelope = try decoder.decode(BackupEnvelope.self, from: data)
+        let decoded = try BackupReader.read(from: tempURL)
 
         // Calculate uncompressed size (estimate)
-        let uncompressedEstimate = estimateFromCounts(envelope.manifest.entityCounts)
+        let uncompressedEstimate = estimateFromCounts(decoded.manifest.entityCounts)
         let actualCompressionRatio = fileSize > 0 ? Double(uncompressedEstimate) / Double(fileSize) : 1.0
 
         return ActualSizeMeasurement(
             compressedSize: fileSize,
             uncompressedEstimate: uncompressedEstimate,
-            entityCounts: envelope.manifest.entityCounts,
+            entityCounts: decoded.manifest.entityCounts,
             compressionRatio: actualCompressionRatio,
             measurementDate: Date()
         )

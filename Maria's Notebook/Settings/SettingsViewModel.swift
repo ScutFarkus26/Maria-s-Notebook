@@ -90,8 +90,7 @@ final class SettingsViewModel {
                 .appendingPathExtension(BackupFile.fileExtension)
             exportURL = tmp
             safeRemoveItem(at: tmp, context: "performExport-cleanup")
-            // Export through Backup2 — produces v17 AEA-framed files.
-            // Legacy `.mtbbackup` decode (v5–v16) is still supported on import.
+            // Export through Backup2 — produces the current AEA-framed format.
             // At-rest protection comes from FileVault / iOS Data Protection / iCloud Drive.
             _ = try await coordinator.exportBackup(
                 viewContext: viewContext,
@@ -187,8 +186,7 @@ final class SettingsViewModel {
             importProgress = 0
             importMessage = "Reading file…"
             resultSummary = nil
-            // Coordinator picks the right decode path for the file format
-            // (v17 AEA vs legacy v5–v16 JSON envelope).
+            // Coordinator accepts only the current backup format for manual restore.
             let preview = try await coordinator.previewImport(
                 viewContext: viewContext,
                 from: url,

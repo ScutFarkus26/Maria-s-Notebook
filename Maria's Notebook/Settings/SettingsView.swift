@@ -269,10 +269,6 @@ struct SettingsView: View {
             #endif
         }
     }
-
-    // iCloud Backup Toggle
-    @AppStorage(UserDefaultsKeys.cloudBackupScheduleEnabled) var cloudBackupEnabled = false
-
     // Settings Import
     @State var showingSettingsImporter = false
     @State var settingsImportMessage: String?

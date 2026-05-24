@@ -47,14 +47,9 @@ public final class BackupTransactionManager {
 
     // MARK: - Properties
 
-    private let backupService: BackupService
-    private let codec = BackupCodec()
-    
     // MARK: - Initialization
-    
-    public init(backupService: BackupService) {
-        self.backupService = backupService
-    }
+
+    public init() {}
 
     /// Directory for storing transaction checkpoints
     private var checkpointDirectory: URL {
@@ -99,10 +94,9 @@ public final class BackupTransactionManager {
         let checkpointURL = checkpointDirectory.appendingPathComponent(filename)
 
         do {
-            _ = try await backupService.exportBackup(
+            _ = try BackupWriter.write(
                 viewContext: viewContext,
                 to: checkpointURL,
-                password: nil,
                 progress: progress ?? { _, _ in }
             )
 
@@ -113,40 +107,10 @@ public final class BackupTransactionManager {
         }
     }
 
-    /// Executes an import operation with automatic rollback on failure.
-    /// Calls the legacy `backupService.importBackup` — kept for callers that
-    /// don't go through the v17 coordinator. New callers (`SettingsViewModel`)
-    /// should use `executeWithRollback(...)` and pass in a coordinator-backed
-    /// closure, so v17 AEA files route through Backup2.
-    public func executeImportWithRollback(
-        viewContext: NSManagedObjectContext,
-        from backupURL: URL,
-        mode: BackupService.RestoreMode,
-        password: String? = nil,
-        shouldCreateCheckpoint createCheckpointOption: Bool? = nil,
-        progress: @escaping BackupService.ProgressCallback
-    ) async throws -> BackupOperationSummary {
-        try await executeWithRollback(
-            viewContext: viewContext,
-            mode: mode,
-            shouldCreateCheckpoint: createCheckpointOption,
-            progress: progress
-        ) { stepProgress in
-            try await self.backupService.importBackup(
-                viewContext: viewContext,
-                from: backupURL,
-                mode: mode,
-                password: password,
-                progress: stepProgress
-            )
-        }
-    }
-
     /// Wraps a caller-supplied import closure with the safety-checkpoint +
     /// rollback dance. The closure does the actual import (any format) and
     /// receives a scaled progress callback covering 15–95%.
-    /// On failure, the checkpoint is restored via the legacy `BackupService`
-    /// path — checkpoints are always written in the legacy envelope format.
+    /// On failure, the checkpoint is restored through the current backup flow.
     // swiftlint:disable:next function_body_length
     public func executeWithRollback(
         viewContext: NSManagedObjectContext,
@@ -231,17 +195,11 @@ public final class BackupTransactionManager {
         // the restore and corrupt it.
         viewContext.rollback()
 
-        do {
-            _ = try await backupService.importBackup(
-                viewContext: viewContext,
-                from: checkpointURL,
-                mode: .replace,
-                password: nil,
-                progress: progress
-            )
-        } catch {
-            throw TransactionError.rollbackFailed(error)
-        }
+        try await importCheckpoint(
+            from: checkpointURL,
+            into: viewContext,
+            progress: progress
+        )
     }
 
     /// Rolls back to the most recent active checkpoint.
@@ -330,6 +288,37 @@ public final class BackupTransactionManager {
             try FileManager.default.removeItem(at: url)
         } catch {
             Self.logger.warning("Failed to cleanup checkpoint \(url.lastPathComponent): \(error)")
+        }
+    }
+
+    private func importCheckpoint(
+        from checkpointURL: URL,
+        into viewContext: NSManagedObjectContext,
+        progress: @escaping BackupService.ProgressCallback
+    ) async throws {
+        do {
+            guard BackupArchive.isAEAFormat(at: checkpointURL) else {
+                throw NSError(
+                    domain: "BackupTransactionManager",
+                    code: 3001,
+                    userInfo: [
+                        NSLocalizedDescriptionKey: "Checkpoint is not in the current backup format."
+                    ]
+                )
+            }
+
+            progress(0.05, "Reading checkpoint…")
+            let decoded = try BackupReader.read(from: checkpointURL)
+            _ = try await BackupImporter.importDecoded(
+                decoded,
+                from: checkpointURL,
+                into: viewContext,
+                mode: .replace,
+                appRouter: AppRouter.shared,
+                progress: progress
+            )
+        } catch {
+            throw TransactionError.rollbackFailed(error)
         }
     }
 }

@@ -1,9 +1,8 @@
 // BackupReader.swift
 // Decodes a v17 AEA-framed backup file into a manifest + ordered entries.
 //
-// Reads only v17 files. Legacy `.mtbbackup` files (v5–v16) are detected by
-// the absence of the AEA "AA01" magic and routed by `BackupCoordinator` to
-// the existing `BackupService.importBackup` path instead.
+// Reads only v17 files. Non-AEA files are rejected for manual import; the
+// older envelope path remains only for internal rollback checkpoints.
 
 import Foundation
 import OSLog

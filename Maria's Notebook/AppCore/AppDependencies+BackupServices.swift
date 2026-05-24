@@ -14,20 +14,11 @@ extension AppDependencies {
         return service
     }
 
-    var selectiveRestoreService: SelectiveRestoreService {
-        if let service = _selectiveRestoreService {
-            return service
-        }
-        let service = SelectiveRestoreService(backupService: backupService)
-        _selectiveRestoreService = service
-        return service
-    }
-
     private var backupTransactionManager: BackupTransactionManager {
         if let manager = _backupTransactionManager {
             return manager
         }
-        let manager = BackupTransactionManager(backupService: backupService)
+        let manager = BackupTransactionManager()
         _backupTransactionManager = manager
         return manager
     }

@@ -349,7 +349,6 @@ struct LessonProgressSection: View {
                     Self.logger.warning("Failed to fetch lesson assignment for studentID: \(error)")
                 }
             }
-            practiceWork.legacyStudentLessonID = presentationID.uuidString
             for sid in selectedStudentIDs {
                 let participant = CDWorkParticipantEntity(context: viewContext)
                 participant.studentID = sid.uuidString

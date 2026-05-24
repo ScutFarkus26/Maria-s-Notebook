@@ -1,9 +1,10 @@
 // BackupImporter.swift
 // Imports a decoded v17 AEA backup into Core Data.
 //
-// The strategy: reconstruct a legacy `BackupPayload` struct from the
+// The strategy: reconstruct a `BackupPayload` struct from the
 // decoded NDJSON entries, then hand it to `BackupService.importPayload(...)` —
-// the single shared post-decode import path used by both v5–v16 and v17 flows.
+// the single shared post-decode import path used by the current import flow
+// and the internal checkpoint restore path.
 // This way the entity-import dispatch, deleteAll-for-replace, denormalized
 // field repair, and CloudKit-sync wait all live in one place.
 

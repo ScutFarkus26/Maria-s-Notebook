@@ -58,32 +58,6 @@ extension LessonDetailView {
         return resolvePagesURL()
     }
 
-    func migrateLegacyLinkedFileIfNeeded() {
-        guard lesson.pagesFileRelativePath == nil, lesson.pagesFileBookmark != nil else { return }
-        guard let legacyURL = resolvePagesURL(), !LessonFileStorage.isManagedURL(legacyURL) else { return }
-        Task(priority: .utility) {
-            do {
-                guard let lessonID = lesson.id else { return }
-                let destURL = try LessonFileStorage.importFile(
-                    from: legacyURL,
-                    forLessonWithID: lessonID,
-                    lessonName: lesson.name
-                )
-                let bookmark = try LessonFileStorage.makeBookmark(for: destURL)
-                let rel = try LessonFileStorage.relativePath(forManagedURL: destURL)
-                await MainActor.run {
-                    lesson.pagesFileBookmark = bookmark
-                    lesson.pagesFileRelativePath = rel
-                    resolvedPagesURL = destURL
-                    previousManagedURL = destURL
-                    saveCoordinator.save(viewContext, reason: "Migrate lesson file to managed storage")
-                }
-            } catch {
-                await MainActor.run { importError = AppErrorMessages.importMessage(for: error, fileType: "lesson file") }
-            }
-        }
-    }
-
     func savePagesBookmark(from url: URL) {
 #if os(iOS)
         do {
