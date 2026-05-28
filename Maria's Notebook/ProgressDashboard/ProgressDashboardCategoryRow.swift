@@ -1,211 +1,205 @@
 // ProgressDashboardCategoryRow.swift
-// A single area › sequence row showing previous → next lesson flow with open work.
-// Design: Flighty-inspired departure→arrival flow, Linear's minimal chrome.
+// One sequence row inside a student's subject section.
+//
+// Visual: leading colored bar, sequence label, then a row of lesson pills tinted by the
+// area color. Each pill's fill density / icon overlay encodes its progression status
+// (not started, scheduled, presented, practicing, reviewing, completed).
+// Tapping the row opens the sequence detail sheet.
 
 import SwiftUI
 
 struct ProgressDashboardCategoryRow: View {
-    let category: StudentCategoryProgress
-    var onTapPreviousLesson: (() -> Void)?
-    var onTapNextLesson: (() -> Void)?
-    var onTapWork: ((UUID) -> Void)?
-    var onScheduleNext: (() -> Void)?
+    let sequence: SequenceProgression
+    let areaColor: Color
+    let onTap: () -> Void
 
-    private var areaColor: Color {
-        AppColors.color(forArea: category.area)
-    }
+    @State private var isPinned: Bool = false
+
+    private let labelColumnWidth: CGFloat = 180
+    private let collapsedHeight: CGFloat = 38
+    private let barWidth: CGFloat = 3
 
     var body: some View {
-        HStack(alignment: .top, spacing: 0) {
-            // Leading area color accent bar
-            RoundedRectangle(cornerRadius: 2)
-                .fill(areaColor)
-                .frame(width: 3)
-                .padding(.vertical, 2)
+        Button(action: onTap) {
+            HStack(alignment: isPinned ? .top : .center, spacing: 12) {
+                RoundedRectangle(cornerRadius: 1.5)
+                    .fill(areaColor.opacity(0.85))
+                    .frame(width: barWidth, height: isPinned ? 14 : (collapsedHeight - 12))
+                    .padding(.top, isPinned ? 9 : 0)
 
-            VStack(alignment: .leading, spacing: 8) {
-                categoryHeader
-                lessonFlow
-                workSection
+                Text(sequence.sequence)
+                    .font(.system(size: 13, weight: .medium, design: .rounded))
+                    .foregroundStyle(.primary)
+                    .lineLimit(1)
+                    .frame(width: labelColumnWidth, alignment: .leading)
+                    .padding(.top, isPinned ? 5 : 0)
+
+                pillsContainer
+
+                Spacer(minLength: 8)
+
+                progressBadge
+                    .padding(.top, isPinned ? 5 : 0)
+
+                pinToggleButton
+                    .padding(.top, isPinned ? 5 : 0)
             }
-            .padding(.leading, 10)
+            .padding(.horizontal, 8)
+            .frame(minHeight: collapsedHeight)
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .background(
+                RoundedRectangle(cornerRadius: 8, style: .continuous)
+                    .fill(areaColor.opacity(0.06))
+            )
+            .overlay(
+                RoundedRectangle(cornerRadius: 8, style: .continuous)
+                    .stroke(areaColor.opacity(0.18), lineWidth: 0.5)
+            )
+            .contentShape(RoundedRectangle(cornerRadius: 8, style: .continuous))
         }
-        .padding(.vertical, 10)
+        .buttonStyle(.plain)
+        .help("\(sequence.area) — \(sequence.sequence) · \(sequence.presentedCount)/\(sequence.totalCount) presented")
     }
 
-    // MARK: - Header
-
-    private var categoryHeader: some View {
-        HStack(spacing: 5) {
-            Text(category.area)
-                .fontWeight(.semibold)
-                .foregroundStyle(areaColor)
-
-            Image(systemName: "chevron.right")
-                .font(.caption2)
-                .fontWeight(.bold)
-                .foregroundStyle(areaColor.opacity(UIConstants.OpacityConstants.half))
-
-            Text(category.sequence)
-                .fontWeight(.medium)
-                .foregroundStyle(.secondary)
-        }
-        .font(.caption)
+    /// "X / Y" presented count, color-coded.
+    private var progressBadge: some View {
+        Text("\(sequence.presentedCount)/\(sequence.totalCount)")
+            .font(.system(size: 11, weight: .semibold, design: .rounded))
+            .monospacedDigit()
+            .foregroundStyle(.secondary)
     }
 
-    // MARK: - CDLesson Flow (prev → next)
-
-    private var lessonFlow: some View {
-        HStack(alignment: .top, spacing: 0) {
-            // Previous lesson
-            previousColumn
-                .frame(maxWidth: .infinity, alignment: .leading)
-
-            // Flow arrow
-            Image(systemName: "arrow.right")
-                .font(.caption2)
-                .foregroundStyle(.quaternary)
-                .padding(.horizontal, 8)
-                .padding(.top, 3)
-
-            // Next lesson
-            nextColumn
-                .frame(maxWidth: .infinity, alignment: .leading)
-        }
-    }
-
-    private var previousColumn: some View {
-        Group {
-            if let prev = category.previousLesson {
-                Button {
-                    onTapPreviousLesson?()
-                } label: {
-                    VStack(alignment: .leading, spacing: 2) {
-                        Text(prev.name)
-                            .font(.footnote)
-                            .fontWeight(.medium)
-                            .foregroundStyle(.primary)
-                            .lineLimit(2)
-                        Text(prev.presentedAt, format: .dateTime.month(.abbreviated).day())
-                            .font(.caption2)
-                            .foregroundStyle(.tertiary)
-                    }
-                }
-                .buttonStyle(.plain)
-            } else {
-                Text("No lessons yet")
-                    .font(.footnote)
-                    .foregroundStyle(.quaternary)
+    /// Chevron to pin the row open so all pills wrap onto multiple lines.
+    private var pinToggleButton: some View {
+        Button {
+            withAnimation(.spring(response: 0.28, dampingFraction: 0.85)) {
+                isPinned.toggle()
             }
-        }
-    }
-
-    private var nextColumn: some View {
-        Group {
-            if let next = category.nextLesson {
-                VStack(alignment: .leading, spacing: 4) {
-                    Button {
-                        onTapNextLesson?()
-                    } label: {
-                        VStack(alignment: .leading, spacing: 2) {
-                            Text(next.name)
-                                .font(.footnote)
-                                .fontWeight(.medium)
-                                .foregroundStyle(.primary)
-                                .lineLimit(2)
-                            nextLessonStateBadge(next.state)
-                        }
-                    }
-                    .buttonStyle(.plain)
-
-                    if case .notPlanned = next.state, let onScheduleNext {
-                        Button {
-                            onScheduleNext()
-                        } label: {
-                            Label("Add to Inbox", systemImage: "tray.and.arrow.down")
-                                .font(.caption2)
-                                .fontWeight(.medium)
-                        }
-                        .buttonStyle(.bordered)
-                        .controlSize(.mini)
-                    }
-                }
-            } else {
-                VStack(alignment: .leading, spacing: 2) {
-                    Text("End of sequence")
-                        .font(.footnote)
-                        .foregroundStyle(.quaternary)
-                }
-            }
-        }
-    }
-
-    // MARK: - Work
-
-    @ViewBuilder
-    private var workSection: some View {
-        if !category.openWork.isEmpty {
-            VStack(alignment: .leading, spacing: 4) {
-                ForEach(category.openWork) { work in
-                    Button {
-                        onTapWork?(work.id)
-                    } label: {
-                        workCapsule(work)
-                    }
-                    .buttonStyle(.plain)
-                }
-            }
-        }
-    }
-
-    private func workCapsule(_ work: OpenWorkSummary) -> some View {
-        HStack(spacing: 6) {
-            Circle()
-                .fill(work.kind?.color ?? .gray)
-                .frame(width: 5, height: 5)
-
-            if let kind = work.kind {
-                Text(kind.displayName)
-                    .fontWeight(.medium)
-                    .foregroundStyle(kind.color)
-            }
-
-            Text(work.title)
-                .foregroundStyle(.secondary)
-                .lineLimit(1)
-
-            Spacer(minLength: 4)
-
-            Text("\(work.ageSchoolDays)d")
-                .fontWeight(.medium)
+        } label: {
+            Image(systemName: isPinned ? "chevron.up" : "chevron.down")
+                .font(.system(size: 9, weight: .bold))
                 .foregroundStyle(.tertiary)
+                .frame(minWidth: 18, alignment: .trailing)
+                .contentShape(Rectangle())
         }
-        .font(.caption2)
+        .buttonStyle(.plain)
+        .help(isPinned ? "Collapse" : "Show all lessons")
     }
 
-    // MARK: - State Badge
-
     @ViewBuilder
-    private func nextLessonStateBadge(_ state: NextLessonState) -> some View {
-        switch state {
-        case .notPlanned:
-            Text("Not planned")
-                .font(.caption2)
-                .foregroundStyle(.quaternary)
-        case .inInbox:
-            Label("Inbox", systemImage: "tray")
-                .font(.caption2)
-                .fontWeight(.medium)
-                .foregroundStyle(.blue)
-        case .scheduled(let date):
-            Label {
-                Text(date, format: .dateTime.month(.abbreviated).day())
-            } icon: {
-                Image(systemName: "calendar")
+    private var pillsContainer: some View {
+        if isPinned {
+            FlowLayout(spacing: 5) {
+                ForEach(sequence.pills) { pill in
+                    ProgressionStatusPill(pill: pill, areaColor: areaColor)
+                }
             }
-            .font(.caption2)
-            .fontWeight(.medium)
-            .foregroundStyle(.orange)
+            .padding(.vertical, 5)
+        } else {
+            ScrollView(.horizontal, showsIndicators: false) {
+                HStack(spacing: 5) {
+                    ForEach(sequence.pills) { pill in
+                        ProgressionStatusPill(pill: pill, areaColor: areaColor)
+                    }
+                }
+                .padding(.vertical, 3)
+            }
+        }
+    }
+}
+
+/// Lesson pill whose visual treatment encodes its progression status.
+/// - notStarted: hollow pill, faint tint
+/// - scheduled: dashed border in status color, clock leading icon
+/// - presented: solid area-tinted fill
+/// - practicing: solid fill + pencil leading icon
+/// - reviewing: solid fill + warning leading icon, yellow tint
+/// - completed: solid fill + checkmark leading icon, green tint
+struct ProgressionStatusPill: View {
+    let pill: LessonPillState
+    let areaColor: Color
+
+    var body: some View {
+        HStack(spacing: 4) {
+            if let icon = leadingIcon {
+                Image(systemName: icon)
+                    .font(.system(size: 9, weight: .semibold))
+                    .foregroundStyle(statusForeground)
+            }
+            Text(pill.name)
+                .font(.system(size: 11, weight: .medium, design: .rounded))
+                .foregroundStyle(textColor)
+                .lineLimit(1)
+                .fixedSize(horizontal: true, vertical: false)
+        }
+        .padding(.horizontal, 9)
+        .padding(.vertical, 4)
+        .background(
+            Capsule(style: .continuous)
+                .fill(fillColor)
+        )
+        .overlay(
+            Capsule(style: .continuous)
+                .strokeBorder(strokeColor, style: strokeStyle)
+        )
+        .help("\(pill.name) — \(pill.status.label)")
+        .accessibilityLabel("\(pill.name), \(pill.status.label)")
+    }
+
+    private var leadingIcon: String? {
+        switch pill.status {
+        case .notStarted:   return nil
+        case .scheduled:    return "clock"
+        case .presented:    return nil
+        case .practicing:   return "pencil"
+        case .reviewing:    return "exclamationmark"
+        case .completed:    return "checkmark"
+        }
+    }
+
+    private var fillColor: Color {
+        switch pill.status {
+        case .notStarted:   return Color.gray.opacity(0.06)
+        case .scheduled:    return areaColor.opacity(0.08)
+        case .presented:    return areaColor.opacity(0.22)
+        case .practicing:   return areaColor.opacity(0.30)
+        case .reviewing:    return Color.yellow.opacity(0.25)
+        case .completed:    return Color.green.opacity(0.30)
+        }
+    }
+
+    private var strokeColor: Color {
+        switch pill.status {
+        case .notStarted:   return Color.gray.opacity(0.35)
+        case .scheduled:    return areaColor.opacity(0.65)
+        case .presented:    return areaColor.opacity(0.60)
+        case .practicing:   return areaColor.opacity(0.75)
+        case .reviewing:    return Color.yellow.opacity(0.85)
+        case .completed:    return Color.green.opacity(0.80)
+        }
+    }
+
+    private var strokeStyle: StrokeStyle {
+        switch pill.status {
+        case .scheduled:
+            return StrokeStyle(lineWidth: 0.75, dash: [2.5, 2])
+        default:
+            return StrokeStyle(lineWidth: 0.75)
+        }
+    }
+
+    private var textColor: Color {
+        switch pill.status {
+        case .notStarted:   return .secondary
+        default:            return .primary
+        }
+    }
+
+    private var statusForeground: Color {
+        switch pill.status {
+        case .reviewing:    return Color(.systemOrange)
+        case .completed:    return Color.green
+        default:            return areaColor
         }
     }
 }

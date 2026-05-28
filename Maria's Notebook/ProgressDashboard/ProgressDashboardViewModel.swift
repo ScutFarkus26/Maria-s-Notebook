@@ -1,5 +1,12 @@
 // ProgressDashboardViewModel.swift
-// ViewModel for the Progress Dashboard — loads per-student, per-category progress.
+// Loads per-student progression data for the map-style dashboard.
+//
+// For every enrolled student, finds the subjects (lesson.area) and sequences (lesson.sequence)
+// the student has "started" — meaning at least one of: a presented assignment, a scheduled or
+// draft assignment, or an active (non-complete) work item. Within each sequence, every lesson
+// becomes a pill with its progression status derived the same way StudentAreaProgressionViewModel
+// derives it: presentation present → presented/practicing/reviewing/completed based on work;
+// no presentation but scheduled → scheduled; otherwise → notStarted.
 
 import Foundation
 import CoreData
@@ -12,18 +19,15 @@ final class ProgressDashboardViewModel {
 
     // MARK: - Outputs
 
-    private(set) var studentCards: [StudentDashboardCard] = []
+    private(set) var studentCards: [StudentProgressionCard] = []
     private(set) var isLoading = false
-
-    // Lookup for sheet navigation
-    private(set) var lessonAssignmentsByID: [UUID: CDLessonAssignment] = [:]
 
     // MARK: - Filters
 
     var searchText: String = ""
     var levelFilter: LevelFilter = .all
 
-    var filteredCards: [StudentDashboardCard] {
+    var filteredCards: [StudentProgressionCard] {
         var cards = studentCards
 
         if levelFilter != .all {
@@ -55,241 +59,166 @@ final class ProgressDashboardViewModel {
         let allWork = fetchAllWork(context: context)
 
         let visibleStudents = TestStudentsFilter.filterVisible(allStudents)
-        let today = Date()
 
-        // Pre-index for O(1) lookups
-        let lessonsByID: [UUID: CDLesson] = Dictionary(
-            uniqueKeysWithValues: allLessons.compactMap { lesson in
-                guard let id = lesson.id else { return nil }
-                return (id, lesson)
-            }
+        // Group lessons by area+sequence using display casing.
+        struct AreaSeqKey: Hashable { let area: String; let sequence: String }
+        let lessonsByPair: [AreaSeqKey: [CDLesson]] = Dictionary(
+            grouping: allLessons.filter { !$0.area.trimmed().isEmpty && !$0.sequence.trimmed().isEmpty },
+            by: { AreaSeqKey(area: $0.area.trimmed(), sequence: $0.sequence.trimmed()) }
         )
 
-        // Index assignments by lessonID
-        let assignmentsByLesson = Dictionary(grouping: allAssignments) { $0.lessonID }
-
-        // Group lessons by area+sequence
-        let lessonsByAreaSequence = Dictionary(grouping: allLessons) {
-            AreaSequenceKey(area: $0.area.trimmed().lowercased(), sequence: $0.sequence.trimmed().lowercased())
-        }
-
-        // Index open work by studentID+lessonID
-        let openWork = allWork.filter { $0.status != .complete }
-        let openWorkByStudentLesson = Dictionary(grouping: openWork) {
-            "\($0.studentID)|\($0.lessonID)"
-        }
-
-        // Build lessonAssignmentsByID for sheet navigation
-        var assignmentLookup: [UUID: CDLessonAssignment] = [:]
-        for la in allAssignments {
-            guard let laID = la.id else { continue }
-            assignmentLookup[laID] = la
-        }
-        lessonAssignmentsByID = assignmentLookup
-
-        // Build cards
-        var cards: [StudentDashboardCard] = []
+        // Cards
+        var cards: [StudentProgressionCard] = []
 
         for student in visibleStudents {
             guard let studentID = student.id else { continue }
             let studentIDStr = studentID.uuidString
 
-            // Find all (area, sequence) pairs where this student has a presented assignment
-            var activePairs = Set<AreaSequenceKey>()
-            for la in allAssignments where la.presentedAt != nil {
-                guard la.studentIDs.contains(studentIDStr) else { continue }
-                guard let lesson = lessonsByID[la.lessonIDUUID ?? UUID()] else { continue }
-                let key = AreaSequenceKey(
-                    area: lesson.area.trimmed().lowercased(),
-                    sequence: lesson.sequence.trimmed().lowercased()
-                )
-                guard !key.area.isEmpty, !key.sequence.isEmpty else { continue }
-                activePairs.insert(key)
+            let assignmentsForStudent = allAssignments.filter { $0.studentIDs.contains(studentIDStr) }
+            let workForStudent = allWork.filter { $0.studentID == studentIDStr }
+            let openWorkByLesson = Dictionary(
+                grouping: workForStudent.filter { $0.status != .complete },
+                by: { $0.lessonID }
+            )
+            let workByLesson = Dictionary(grouping: workForStudent) { $0.lessonID }
+
+            // Find every (area, sequence) pair this student is active in.
+            var activePairs = Set<AreaSeqKey>()
+
+            // From assignments (both presented and pending).
+            for la in assignmentsForStudent {
+                guard let lessonIDUUID = la.lessonIDUUID,
+                      let lesson = allLessons.first(where: { $0.id == lessonIDUUID }) else { continue }
+                let area = lesson.area.trimmed()
+                let sequence = lesson.sequence.trimmed()
+                guard !area.isEmpty, !sequence.isEmpty else { continue }
+                activePairs.insert(AreaSeqKey(area: area, sequence: sequence))
             }
 
-            // Also include pairs where student has a draft/scheduled assignment (not yet presented)
-            for la in allAssignments where la.presentedAt == nil {
-                guard la.studentIDs.contains(studentIDStr) else { continue }
-                guard let lesson = lessonsByID[la.lessonIDUUID ?? UUID()] else { continue }
-                let key = AreaSequenceKey(
-                    area: lesson.area.trimmed().lowercased(),
-                    sequence: lesson.sequence.trimmed().lowercased()
-                )
-                guard !key.area.isEmpty, !key.sequence.isEmpty else { continue }
-                activePairs.insert(key)
+            // From open (non-complete) work items.
+            for work in workForStudent where work.status != .complete {
+                guard let lessonIDUUID = UUID(uuidString: work.lessonID),
+                      let lesson = allLessons.first(where: { $0.id == lessonIDUUID }) else { continue }
+                let area = lesson.area.trimmed()
+                let sequence = lesson.sequence.trimmed()
+                guard !area.isEmpty, !sequence.isEmpty else { continue }
+                activePairs.insert(AreaSeqKey(area: area, sequence: sequence))
             }
 
             guard !activePairs.isEmpty else { continue }
 
-            var categoryRows: [StudentCategoryProgress] = []
+            // Build SequenceProgression for every active pair.
+            var sequencesByArea: [String: [SequenceProgression]] = [:]
 
-            for pairKey in activePairs {
-                guard let lessonsInSequence = lessonsByAreaSequence[pairKey] else { continue }
+            for pair in activePairs {
+                guard let lessonsInSequence = lessonsByPair[pair] else { continue }
                 let sortedLessons = lessonsInSequence.sorted { $0.orderInSequence < $1.orderInSequence }
 
-                // Find the most recently presented lesson for this student in this sequence
-                var bestPresentedLesson: CDLesson?
-                var bestPresentedAt: Date?
-                var bestAssignmentID: UUID?
-
-                for lesson in sortedLessons {
-                    guard let lessonID = lesson.id,
-                          let assignments = assignmentsByLesson[lessonID.uuidString] else { continue }
-                    for la in assignments where la.presentedAt != nil {
-                        guard la.studentIDs.contains(studentIDStr) else { continue }
-                        if bestPresentedAt == nil || la.presentedAt! > bestPresentedAt! {
-                            bestPresentedLesson = lesson
-                            bestPresentedAt = la.presentedAt
-                            bestAssignmentID = la.id
-                        }
-                    }
-                }
-
-                let previousLesson: PreviousLessonSummary?
-                if let lesson = bestPresentedLesson, let lessonID = lesson.id, let at = bestPresentedAt, let aID = bestAssignmentID {
-                    previousLesson = PreviousLessonSummary(
-                        id: aID,
-                        lessonID: lessonID,
-                        name: lesson.name,
-                        presentedAt: at,
-                        assignmentID: aID
-                    )
-                } else {
-                    previousLesson = nil
-                }
-
-                // Collect open work for this student in this sequence's lessons
-                var workSummaries: [OpenWorkSummary] = []
+                var pills: [LessonPillState] = []
                 for lesson in sortedLessons {
                     guard let lessonID = lesson.id else { continue }
-                    let key = "\(studentIDStr)|\(lessonID.uuidString)"
-                    guard let workItems = openWorkByStudentLesson[key] else { continue }
-                    for work in workItems {
-                        let age = Self.weekdaysBetween(from: work.assignedAt ?? Date(), to: today)
-                        workSummaries.append(OpenWorkSummary(
-                            id: work.id ?? UUID(),
-                            title: work.title,
-                            kind: work.kind,
-                            status: work.status,
-                            ageSchoolDays: age
-                        ))
+                    let lessonIDStr = lessonID.uuidString
+
+                    let presentation = assignmentsForStudent.first {
+                        $0.lessonID == lessonIDStr && $0.presentedAt != nil
                     }
+                    let scheduledPresentation = assignmentsForStudent.first {
+                        $0.lessonID == lessonIDStr && $0.isScheduled
+                    }
+                    let lessonWork = workByLesson[lessonIDStr] ?? []
+                    let openLessonWork = openWorkByLesson[lessonIDStr] ?? []
+
+                    let status: LessonNodeStatus = Self.resolveStatus(
+                        presentation: presentation,
+                        scheduledPresentation: scheduledPresentation,
+                        lessonWork: lessonWork,
+                        openLessonWork: openLessonWork
+                    )
+
+                    pills.append(LessonPillState(
+                        id: lessonID,
+                        lessonID: lessonID,
+                        name: lesson.name,
+                        status: status,
+                        orderInSequence: Int(lesson.orderInSequence)
+                    ))
                 }
 
-                // Find next lesson
-                let nextLessonInfo: NextLessonInfo?
-                if let prevLesson = bestPresentedLesson {
-                    if let nextLesson = PlanNextLessonService.findNextLesson(after: prevLesson, in: allLessons) {
-                        let nextInfo = Self.resolveNextLessonState(
-                            lesson: nextLesson,
-                            studentIDStr: studentIDStr,
-                            assignmentsByLesson: assignmentsByLesson
-                        )
-                        nextLessonInfo = nextInfo
-                    } else {
-                        nextLessonInfo = nil
-                    }
-                } else {
-                    // No presented lesson yet — check if there's a draft/scheduled for the first lesson
-                    if let firstLesson = sortedLessons.first {
-                        let nextInfo = Self.resolveNextLessonState(
-                            lesson: firstLesson,
-                            studentIDStr: studentIDStr,
-                            assignmentsByLesson: assignmentsByLesson
-                        )
-                        nextLessonInfo = nextInfo
-                    } else {
-                        nextLessonInfo = nil
-                    }
-                }
+                guard !pills.isEmpty else { continue }
 
-                // Use the original casing from the first lesson in the sequence for display
-                let displayArea = sortedLessons.first?.area.trimmed() ?? pairKey.area
-                let displaySequence = sortedLessons.first?.sequence.trimmed() ?? pairKey.sequence
+                let sequenceProgression = SequenceProgression(
+                    id: "\(studentID)|\(pair.area)|\(pair.sequence)",
+                    studentID: studentID,
+                    area: pair.area,
+                    sequence: pair.sequence,
+                    pills: pills
+                )
 
-                categoryRows.append(StudentCategoryProgress(
-                    id: "\(studentID)|\(displayArea)|\(displaySequence)",
-                    area: displayArea,
-                    sequence: displaySequence,
-                    previousLesson: previousLesson,
-                    openWork: workSummaries,
-                    nextLesson: nextLessonInfo
-                ))
+                sequencesByArea[pair.area, default: []].append(sequenceProgression)
             }
 
-            // Sort categories: by area then sequence
-            categoryRows.sort { ($0.area, $0.sequence) < ($1.area, $1.sequence) }
+            // Sort sequences within each subject alphabetically.
+            let subjects: [SubjectProgression] = sequencesByArea
+                .map { area, seqs in
+                    SubjectProgression(
+                        id: "\(studentID)|\(area)",
+                        area: area,
+                        sequences: seqs.sorted {
+                            $0.sequence.localizedCaseInsensitiveCompare($1.sequence) == .orderedAscending
+                        }
+                    )
+                }
+                .sorted { $0.area.localizedCaseInsensitiveCompare($1.area) == .orderedAscending }
 
-            cards.append(StudentDashboardCard(
+            cards.append(StudentProgressionCard(
                 id: studentID,
                 firstName: student.firstName,
                 lastName: student.lastName,
                 nickname: student.nickname,
                 level: student.level,
-                categories: categoryRows
+                subjects: subjects
             ))
         }
 
         studentCards = cards
     }
 
-    // MARK: - Helpers
+    // MARK: - Status Resolution
 
-    private static func resolveNextLessonState(
-        lesson: CDLesson,
-        studentIDStr: String,
-        assignmentsByLesson: [String: [CDLessonAssignment]]
-    ) -> NextLessonInfo {
-        let lessonID = lesson.id ?? UUID()
-        let lessonIDStr = lessonID.uuidString
-        var state: NextLessonState = .notPlanned
-        var assignmentID: UUID?
+    /// Same shape as StudentAreaProgressionViewModel so colors and labels stay consistent.
+    private static func resolveStatus(
+        presentation: CDLessonAssignment?,
+        scheduledPresentation: CDLessonAssignment?,
+        lessonWork: [CDWorkModel],
+        openLessonWork: [CDWorkModel]
+    ) -> LessonNodeStatus {
+        if presentation != nil {
+            let allComplete = !lessonWork.isEmpty && lessonWork.allSatisfy { $0.status == .complete }
+            let hasReview = lessonWork.contains { $0.status == .review }
+            let hasActive = !openLessonWork.isEmpty
 
-        if let assignments = assignmentsByLesson[lessonIDStr] {
-            for la in assignments where la.presentedAt == nil {
-                guard la.studentIDs.contains(studentIDStr) else { continue }
-                if let scheduledDate = la.scheduledFor {
-                    state = .scheduled(scheduledDate)
-                    assignmentID = la.id
-                    break
-                } else {
-                    state = .inInbox
-                    assignmentID = la.id
-                }
+            if allComplete {
+                return .completed
+            } else if hasReview {
+                return .reviewing
+            } else if hasActive {
+                return .practicing
+            } else {
+                return .presented
             }
+        } else if let scheduled = scheduledPresentation, let date = scheduled.scheduledFor {
+            return .scheduled(date)
+        } else {
+            return .notStarted
         }
-
-        return NextLessonInfo(
-            id: lessonID,
-            name: lesson.name,
-            state: state,
-            assignmentID: assignmentID
-        )
-    }
-
-    /// Count weekdays between two dates (simple school-day approximation).
-    private static func weekdaysBetween(from start: Date, to end: Date) -> Int {
-        let calendar = Calendar.current
-        let startDay = calendar.startOfDay(for: start)
-        let endDay = calendar.startOfDay(for: end)
-        guard startDay < endDay else { return 0 }
-
-        var count = 0
-        var current = startDay
-        while current < endDay {
-            let weekday = calendar.component(.weekday, from: current)
-            if weekday != 1 && weekday != 7 { // Not Sunday or Saturday
-                count += 1
-            }
-            current = calendar.date(byAdding: .day, value: 1, to: current)!
-        }
-        return count
     }
 
     // MARK: - Fetching
 
     private func fetchAllStudents(context: NSManagedObjectContext) -> [CDStudent] {
-        context.safeFetch({ let r = NSFetchRequest<CDStudent>(entityName: "Student"); r.sortDescriptors = CDStudent.sortByName; return r }()).filterEnrolled()
+        let request = NSFetchRequest<CDStudent>(entityName: "Student")
+        request.sortDescriptors = CDStudent.sortByName
+        return context.safeFetch(request).filterEnrolled()
     }
 
     private func fetchAllLessons(context: NSManagedObjectContext) -> [CDLesson] {
@@ -309,11 +238,4 @@ final class ProgressDashboardViewModel {
     private func fetchAllWork(context: NSManagedObjectContext) -> [CDWorkModel] {
         context.safeFetch(NSFetchRequest<CDWorkModel>(entityName: "WorkModel"))
     }
-}
-
-// MARK: - Internal Key
-
-private struct AreaSequenceKey: Hashable {
-    let area: String
-    let sequence: String
 }

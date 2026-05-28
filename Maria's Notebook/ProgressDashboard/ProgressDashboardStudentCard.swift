@@ -1,18 +1,15 @@
 // ProgressDashboardStudentCard.swift
-// Card showing one student's active categories with prev/work/next.
-// Design: Initial circle avatar, Things 3-style clean sections.
+// One student's full progression map. Header is the student name + level + counts;
+// body is a list of subject sections, each with a colored uppercase header and the
+// student's sequence rows inside it. The whole card is collapsible from the header.
 
 import SwiftUI
 
 struct ProgressDashboardStudentCard: View {
-    let card: StudentDashboardCard
-    var onTapPreviousLesson: ((UUID) -> Void)?
-    var onTapNextLesson: ((UUID) -> Void)?
-    var onTapWork: ((UUID) -> Void)?
-    /// Called with (lessonID, studentID) to add next lesson to inbox.
-    var onAddToInbox: ((UUID, UUID) -> Void)?
+    let card: StudentProgressionCard
+    let onTapSequence: (SequenceProgression) -> Void
 
-    @State private var isExpanded = true
+    @State private var isExpanded: Bool = true
 
     private var levelColor: Color {
         card.level == .lower ? Color.green : Color.blue
@@ -24,11 +21,19 @@ struct ProgressDashboardStudentCard: View {
         return "\(first)\(last)"
     }
 
+    private var countsSummary: String {
+        let subjectSuffix = card.subjects.count == 1 ? "" : "s"
+        let areaSuffix = card.sequenceCount == 1 ? "" : "s"
+        return "\(card.subjects.count) subject\(subjectSuffix) · \(card.sequenceCount) area\(areaSuffix)"
+    }
+
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {
             headerRow
             if isExpanded {
-                categoryList
+                subjectSections
+                    .padding(.top, 4)
+                    .padding(.bottom, 10)
             }
         }
         .background(
@@ -51,7 +56,6 @@ struct ProgressDashboardStudentCard: View {
             }
         } label: {
             HStack(spacing: 10) {
-                // Initial circle
                 Text(initials)
                     .font(.caption2)
                     .fontWeight(.bold)
@@ -59,10 +63,9 @@ struct ProgressDashboardStudentCard: View {
                     .frame(width: 28, height: 28)
                     .background(levelColor.gradient, in: Circle())
 
-                // Name
                 VStack(alignment: .leading, spacing: 1) {
-                    Text("\(card.firstName) \(card.lastName)")
-                        .font(.subheadline)
+                    Text(card.fullName)
+                        .font(.headline)
                         .fontWeight(.semibold)
                         .foregroundStyle(.primary)
 
@@ -70,12 +73,10 @@ struct ProgressDashboardStudentCard: View {
                         Text(card.level.rawValue)
                             .font(.caption2)
                             .foregroundStyle(.secondary)
-
                         Text("·")
                             .font(.caption2)
                             .foregroundStyle(.quaternary)
-
-                        Text("\(card.categories.count) active")
+                        Text(countsSummary)
                             .font(.caption2)
                             .foregroundStyle(.tertiary)
                     }
@@ -95,46 +96,36 @@ struct ProgressDashboardStudentCard: View {
         .buttonStyle(.plain)
     }
 
-    // MARK: - Categories
+    // MARK: - Subject sections
 
-    private var categoryList: some View {
-        VStack(alignment: .leading, spacing: 0) {
-            ForEach(Array(card.categories.enumerated()), id: \.element.id) { index, category in
-                if index == 0 {
-                    Divider()
-                        .padding(.horizontal, 14)
-                }
+    private var subjectSections: some View {
+        VStack(alignment: .leading, spacing: 14) {
+            ForEach(card.subjects) { subject in
+                subjectSection(subject)
+            }
+        }
+        .padding(.horizontal, 14)
+    }
 
-                ProgressDashboardCategoryRow(
-                    category: category,
-                    onTapPreviousLesson: {
-                        if let assignmentID = category.previousLesson?.assignmentID {
-                            onTapPreviousLesson?(assignmentID)
-                        }
-                    },
-                    onTapNextLesson: {
-                        if let assignmentID = category.nextLesson?.assignmentID {
-                            onTapNextLesson?(assignmentID)
-                        }
-                    },
-                    onTapWork: { workID in
-                        onTapWork?(workID)
-                    },
-                    onScheduleNext: {
-                        if let lessonID = category.nextLesson?.id {
-                            onAddToInbox?(lessonID, card.id)
-                        }
-                    }
-                )
-                .padding(.horizontal, 14)
+    private func subjectSection(_ subject: SubjectProgression) -> some View {
+        let areaColor = AppColors.color(forArea: subject.area)
+        return VStack(alignment: .leading, spacing: 4) {
+            Text(subject.area.uppercased())
+                .font(.system(size: 11, weight: .semibold, design: .rounded))
+                .tracking(0.8)
+                .foregroundStyle(areaColor)
+                .padding(.leading, 2)
+                .padding(.bottom, 2)
 
-                if index < card.categories.count - 1 {
-                    Divider()
-                        .padding(.leading, 27)
-                        .padding(.trailing, 14)
+            VStack(alignment: .leading, spacing: 4) {
+                ForEach(subject.sequences) { sequence in
+                    ProgressDashboardCategoryRow(
+                        sequence: sequence,
+                        areaColor: areaColor,
+                        onTap: { onTapSequence(sequence) }
+                    )
                 }
             }
         }
-        .padding(.bottom, 10)
     }
 }

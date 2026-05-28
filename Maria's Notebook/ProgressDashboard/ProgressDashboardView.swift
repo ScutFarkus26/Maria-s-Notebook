@@ -1,6 +1,9 @@
 // ProgressDashboardView.swift
-// Top-level view showing all students' progress across areas and categories.
-// Design: Linear-inspired clean layout, Things 3 capsule filters, generous whitespace.
+// Per-student progression map: each student is a heading; under each student the subjects
+// they've started (lesson.area); under each subject the area-rows (lesson.sequence) showing
+// where they are in the progression as a row of status pills.
+// Tapping a sequence row opens StudentSequenceDetailSheet with related work, presentations
+// given, and notes for that student in that sequence.
 
 import SwiftUI
 import CoreData
@@ -8,42 +11,33 @@ import CoreData
 struct ProgressDashboardView: View {
     @Environment(\.managedObjectContext) private var viewContext
     @State private var viewModel = ProgressDashboardViewModel()
+    @State private var detailTarget: StudentSequenceDetailTarget?
 
-    // Sheet state
-    @State private var selectedLessonAssignment: CDLessonAssignment?
-    @State private var selectedWorkID: UUID?
+    // Reload on assignment / work mutations.
+    @FetchRequest(sortDescriptors: [NSSortDescriptor(keyPath: \CDLessonAssignment.id, ascending: true)])
+    private var assignmentsForChange: FetchedResults<CDLessonAssignment>
+    @FetchRequest(sortDescriptors: [NSSortDescriptor(keyPath: \CDWorkModel.id, ascending: true)])
+    private var workForChange: FetchedResults<CDWorkModel>
 
-    // Change detection to trigger reload
-    @FetchRequest(sortDescriptors: [NSSortDescriptor(keyPath: \CDLessonAssignment.id, ascending: true)]) private var assignmentsForChange: FetchedResults<CDLessonAssignment>
-
-    private var assignmentChangeToken: Int { assignmentsForChange.count }
+    private var changeToken: Int { assignmentsForChange.count &+ workForChange.count }
 
     var body: some View {
         content
             .navigationTitle("Progress")
             .searchable(text: $viewModel.searchText, prompt: "Search students")
             .onAppear { viewModel.loadData(context: viewContext) }
-            .onChange(of: assignmentChangeToken) { _, _ in
-                viewModel.loadData(context: viewContext)
-            }
-            .sheet(item: $selectedLessonAssignment) { la in
-                PresentationDetailView(lessonAssignment: la) {
-                    selectedLessonAssignment = nil
-                    viewModel.loadData(context: viewContext)
+            .onChange(of: changeToken) { _, _ in viewModel.loadData(context: viewContext) }
+            .sheet(item: $detailTarget) { target in
+                StudentSequenceDetailSheet(target: target) {
+                    detailTarget = nil
                 }
-#if os(macOS)
+                #if os(macOS)
                 .frame(minWidth: 720, minHeight: 640)
                 .presentationSizingFitted()
-#else
+                #else
                 .presentationDetents([.large])
                 .presentationDragIndicator(.visible)
-#endif
-            }
-            .sheet(id: $selectedWorkID) { id in
-                WorkDetailView(workID: id) {
-                    selectedWorkID = nil
-                    viewModel.loadData(context: viewContext)
-                }
+                #endif
             }
     }
 
@@ -64,34 +58,26 @@ struct ProgressDashboardView: View {
     private var scrollContent: some View {
         ScrollView {
             VStack(spacing: 0) {
-                // Capsule filter pills
                 levelFilterRow
                     .padding(.horizontal)
                     .padding(.top, 12)
                     .padding(.bottom, 8)
 
-                // Summary line
                 summaryRow
                     .padding(.horizontal)
                     .padding(.bottom, 16)
 
-                LazyVStack(spacing: 10) {
+                LazyVStack(spacing: 12) {
                     ForEach(viewModel.filteredCards) { card in
-                        ProgressDashboardStudentCard(
-                            card: card,
-                            onTapPreviousLesson: { assignmentID in
-                                selectedLessonAssignment = viewModel.lessonAssignmentsByID[assignmentID]
-                            },
-                            onTapNextLesson: { assignmentID in
-                                selectedLessonAssignment = viewModel.lessonAssignmentsByID[assignmentID]
-                            },
-                            onTapWork: { workID in
-                                selectedWorkID = workID
-                            },
-                            onAddToInbox: { lessonID, studentID in
-                                addToInbox(lessonID: lessonID, studentID: studentID)
-                            }
-                        )
+                        ProgressDashboardStudentCard(card: card) { sequence in
+                            detailTarget = StudentSequenceDetailTarget(
+                                studentID: card.id,
+                                studentName: card.fullName,
+                                area: sequence.area,
+                                sequence: sequence.sequence,
+                                lessonIDs: sequence.pills.map(\.lessonID)
+                            )
+                        }
                     }
                 }
                 .padding(.horizontal)
@@ -126,7 +112,11 @@ struct ProgressDashboardView: View {
                 .padding(.vertical, 6)
                 .background {
                     Capsule(style: .continuous)
-                        .fill(isSelected ? Color.accentColor : Color.primary.opacity(UIConstants.OpacityConstants.veryFaint))
+                        .fill(
+                            isSelected
+                                ? Color.accentColor
+                                : Color.primary.opacity(UIConstants.OpacityConstants.veryFaint)
+                        )
                 }
         }
         .buttonStyle(.plain)
@@ -136,14 +126,14 @@ struct ProgressDashboardView: View {
 
     private var summaryRow: some View {
         let cards = viewModel.filteredCards
-        let totalCategories = cards.reduce(0) { $0 + $1.categories.count }
+        let totalSequences = cards.reduce(0) { $0 + $1.sequenceCount }
         return HStack(spacing: 0) {
             Text("\(cards.count)")
                 .fontWeight(.semibold)
                 .foregroundStyle(.primary)
             Text(" students · ")
                 .foregroundStyle(.tertiary)
-            Text("\(totalCategories)")
+            Text("\(totalSequences)")
                 .fontWeight(.semibold)
                 .foregroundStyle(.primary)
             Text(" active areas")
@@ -153,25 +143,13 @@ struct ProgressDashboardView: View {
         .font(.caption)
     }
 
-    // MARK: - Actions
-
-    private func addToInbox(lessonID: UUID, studentID: UUID) {
-        _ = PresentationFactory.makeDraft(
-            lessonID: lessonID,
-            studentIDs: [studentID],
-            context: viewContext
-        )
-        _ = viewContext.safeSave()
-        viewModel.loadData(context: viewContext)
-    }
-
     // MARK: - Empty State
 
     private var emptyState: some View {
         ContentUnavailableView {
             Label("No Progress Data", systemImage: "person.text.rectangle")
         } description: {
-            Text("Present lessons to students to see their progress here.")
+            Text("Present lessons or assign work to students to see their progress here.")
         }
     }
 }
