@@ -33,7 +33,6 @@ public class CDNote: NSManagedObject {
     @NSManaged public var schoolDayOverrideID: String?
     @NSManaged public var studentTrackEnrollmentID: String?
     @NSManaged public var goingOutID: String?
-    @NSManaged public var transitionPlanID: String?
 
     // MARK: - Same-Store Relationships (Private → Private)
     @NSManaged public var work: CDWorkModel?
@@ -136,7 +135,6 @@ extension CDNote {
         if practiceSession != nil { return "practiceSession" }
         if issue != nil { return "issue" }
         if goingOutID != nil { return "goingOut" }
-        if transitionPlanID != nil { return "transitionPlan" }
         return "general"
     }
 
@@ -222,17 +220,6 @@ extension CDNote {
             return ctx.safeFetchFirst(req)
         }
         set { goingOutID = newValue?.id?.uuidString }
-    }
-
-    var transitionPlan: CDTransitionPlan? {
-        get {
-            guard let transitionPlanID, let ctx = managedObjectContext else { return nil }
-            let req = CDFetchRequest(CDTransitionPlan.self)
-            req.predicate = NSPredicate(format: "id == %@", transitionPlanID)
-            req.fetchLimit = 1
-            return ctx.safeFetchFirst(req)
-        }
-        set { transitionPlanID = newValue?.id?.uuidString }
     }
 }
 

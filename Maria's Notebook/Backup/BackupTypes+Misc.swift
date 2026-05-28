@@ -211,32 +211,6 @@ public struct JobAssignmentDTO: Codable, Sendable {
     public var isCompleted: Bool
 }
 
-// MARK: - Transition Plan DTOs (format v12+)
-
-public struct TransitionPlanDTO: Codable, Sendable {
-    public var id: UUID
-    public var createdAt: Date
-    public var modifiedAt: Date
-    public var studentID: String
-    public var fromLevelRaw: String
-    public var toLevelRaw: String
-    public var statusRaw: String
-    public var targetDate: Date?
-    public var notes: String
-}
-
-public struct TransitionChecklistItemDTO: Codable, Sendable {
-    public var id: UUID
-    public var createdAt: Date
-    public var transitionPlanID: String
-    public var title: String
-    public var categoryRaw: String
-    public var isCompleted: Bool
-    public var completedAt: Date?
-    public var sortOrder: Int
-    public var notes: String
-}
-
 // MARK: - Calendar CDNote DTO (format v12+)
 
 public struct CalendarNoteDTO: Codable, Sendable {

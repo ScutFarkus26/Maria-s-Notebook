@@ -2,7 +2,7 @@ import Foundation
 import CoreData
 import OSLog
 
-// MARK: - CDGoingOut, CDClassroomJob, CDTransitionPlan, CDCalendarNote, CDScheduledMeeting
+// MARK: - CDGoingOut, CDClassroomJob, CDCalendarNote, CDScheduledMeeting
 
 extension BackupEntityImporter {
 
@@ -127,67 +127,6 @@ extension BackupEntityImporter {
                 }
             }
             viewContext.insert(a)
-        }
-    }
-
-    // MARK: - CDTransitionPlan
-
-    static func importTransitionPlans(
-        _ dtos: [TransitionPlanDTO],
-        into viewContext: NSManagedObjectContext,
-        existingCheck: EntityExistsCheck<CDTransitionPlan>
-    ) rethrows {
-        try importSimpleEntities(
-            dtos, into: viewContext,
-            existingCheck: existingCheck,
-            idExtractor: { $0.id },
-            entityBuilder: { dto in
-            let plan = CDTransitionPlan(context: viewContext)
-            plan.id = dto.id
-            plan.studentID = dto.studentID
-            plan.fromLevelRaw = dto.fromLevelRaw
-            plan.toLevelRaw = dto.toLevelRaw
-            plan.statusRaw = (TransitionStatus(rawValue: dto.statusRaw) ?? .notStarted).rawValue
-            plan.targetDate = dto.targetDate
-            plan.notes = dto.notes
-            plan.createdAt = dto.createdAt
-            plan.modifiedAt = dto.modifiedAt
-            return plan
-        })
-    }
-
-    // MARK: - CDTransitionChecklistItem
-
-    static func importTransitionChecklistItems(
-        _ dtos: [TransitionChecklistItemDTO],
-        into viewContext: NSManagedObjectContext,
-        existingCheck: EntityExistsCheck<CDTransitionChecklistItem>,
-        planCheck: EntityExistsCheck<CDTransitionPlan>
-    ) rethrows {
-        for dto in dtos {
-            if shouldSkipExisting(id: dto.id, existingCheck: existingCheck) { continue }
-            let item = CDTransitionChecklistItem(context: viewContext)
-            item.id = dto.id
-            item.transitionPlanID = dto.transitionPlanID
-            item.title = dto.title
-            item.categoryRaw = (ChecklistCategory(rawValue: dto.categoryRaw) ?? .academic).rawValue
-            item.sortOrder = Int64(dto.sortOrder)
-            item.createdAt = dto.createdAt
-            item.isCompleted = dto.isCompleted
-            item.completedAt = dto.completedAt
-            item.notes = dto.notes
-            if let planUUID = UUID(uuidString: dto.transitionPlanID) {
-                do {
-                    if let plan = try planCheck(planUUID) {
-                        item.transitionPlan = plan
-                    }
-                } catch {
-                    Logger.backup.warning(
-                        "Failed to check plan for checklist item: \(error.localizedDescription, privacy: .public)"
-                    )
-                }
-            }
-            viewContext.insert(item)
         }
     }
 

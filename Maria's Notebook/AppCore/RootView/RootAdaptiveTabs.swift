@@ -174,11 +174,6 @@ struct RootAdaptiveTabs: View {
             } label: {
                 Label("Progress Dashboard", systemImage: "person.text.rectangle")
             }
-            Tab(value: RootView.NavigationItem.transitionPlanner) {
-                RootDetailContent(selectedNavItem: .transitionPlanner)
-            } label: {
-                Label("Transitions", systemImage: "arrow.right.arrow.left")
-            }
             Tab(value: RootView.NavigationItem.fridayReview) {
                 RootDetailContent(selectedNavItem: .fridayReview)
             } label: {

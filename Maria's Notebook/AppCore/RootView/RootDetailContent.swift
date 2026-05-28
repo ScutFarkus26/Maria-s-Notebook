@@ -36,7 +36,7 @@ struct RootDetailContent: View {
             case .todos, .planningCalendar, .perpetualCalendar:
                 planningContent
             case .progressDashboard, .lessonFrequency, .curriculumBalance,
-                 .greatLessonsTimeline, .transitionPlanner, .threeYearCycle:
+                 .greatLessonsTimeline, .threeYearCycle:
                 progressContent
             case .supplies, .procedures, .schedules,
                  .community, .issues, .resourceLibrary:
@@ -129,7 +129,7 @@ struct RootDetailContent: View {
         switch selectedNavItem {
         case .progressDashboard, .lessonFrequency, .curriculumBalance:
             progressAnalyticsContent
-        case .greatLessonsTimeline, .transitionPlanner, .threeYearCycle:
+        case .greatLessonsTimeline, .threeYearCycle:
             progressTimelineContent
         default: EmptyView()
         }
@@ -149,7 +149,6 @@ struct RootDetailContent: View {
     private var progressTimelineContent: some View {
         switch selectedNavItem {
         case .greatLessonsTimeline: GreatLessonsTimelineView()
-        case .transitionPlanner: TransitionPlannerRootView()
         case .threeYearCycle: ThreeYearCycleView()
         default: EmptyView()
         }

@@ -72,8 +72,6 @@ final class CoreDataStack {
         "SchoolDayOverride",
         "GoingOut",
         "GoingOutChecklistItem",
-        "TransitionPlan",
-        "TransitionChecklistItem",
         "CalendarNote",
         "SampleWork",
         "SampleWorkStep",
@@ -180,6 +178,12 @@ final class CoreDataStack {
         // CloudKit. Migration / sharing completion flags are also cleared so
         // post-launch bootstrap re-runs against the fresh data.
         if !inMemory, UserDefaults.standard.bool(forKey: UserDefaultsKeys.resetLocalCacheOnLaunch) {
+            let defaults = UserDefaults.standard
+            let armedAt = defaults.string(forKey: UserDefaultsKeys.resetLocalCacheArmedAt) ?? "unknown"
+            let source = defaults.string(forKey: UserDefaultsKeys.resetLocalCacheArmedSource) ?? "unknown"
+            Self.logger.warning(
+                "Consuming pending local cache reset before store load. source=\(source, privacy: .public), armedAt=\(armedAt, privacy: .public)"
+            )
             Self.performLocalCacheReset()
         }
 
@@ -512,7 +516,12 @@ final class CoreDataStack {
     /// Any errors are logged but not thrown — partial cleanup is still better
     /// than aborting launch with no fallback.
     private static func performLocalCacheReset() {
-        logger.warning("Reset Local Cache requested — deleting on-disk stores and clearing migration flags")
+        let defaults = UserDefaults.standard
+        let armedAt = defaults.string(forKey: UserDefaultsKeys.resetLocalCacheArmedAt) ?? "unknown"
+        let source = defaults.string(forKey: UserDefaultsKeys.resetLocalCacheArmedSource) ?? "unknown"
+        logger.warning(
+            "Reset Local Cache requested — deleting on-disk stores and clearing migration flags. source=\(source, privacy: .public), armedAt=\(armedAt, privacy: .public)"
+        )
         do {
             try resetStores()
         } catch {
@@ -520,10 +529,11 @@ final class CoreDataStack {
         }
         // Re-run one-shot migrations / share auto-create against the fresh
         // data so the post-refactor state is consistent.
-        let defaults = UserDefaults.standard
         defaults.removeObject(forKey: UserDefaultsKeys.classroomStoreMigrationV1Complete)
         defaults.removeObject(forKey: UserDefaultsKeys.sharedStoreZoneRepairLastTimeoutAt)
         defaults.removeObject(forKey: UserDefaultsKeys.resetLocalCacheOnLaunch)
+        defaults.removeObject(forKey: UserDefaultsKeys.resetLocalCacheArmedAt)
+        defaults.removeObject(forKey: UserDefaultsKeys.resetLocalCacheArmedSource)
     }
 }
 

@@ -36,7 +36,6 @@ extension RootView {
         case goingOut
         case parentCommunication
         case classroomJobs
-        case transitionPlanner
         case threeYearCycle
         case needsLesson
         case smallSequencePlanner
@@ -89,7 +88,6 @@ extension RootView {
             case .goingOut:            return ("Going Out", "figure.walk")
             case .parentCommunication: return ("Parent Comms", "envelope")
             case .classroomJobs:       return ("Jobs", "person.2.badge.gearshape")
-            case .transitionPlanner:   return ("Transitions", "arrow.right.arrow.left")
             case .threeYearCycle:      return ("Three-Year Cycle", "chart.bar.doc.horizontal")
             case .needsLesson:         return ("Needs Lesson", "clock.badge.exclamationmark")
             case .smallSequencePlanner:   return ("Group Planner", "person.3.sequence")
@@ -133,7 +131,7 @@ extension RootView {
                  .progressDashboard,
                  .lessonFrequency, .curriculumBalance, .greatLessonsTimeline,
                  .goingOut, .parentCommunication, .fridayReview,
-                 .classroomJobs, .transitionPlanner, .threeYearCycle, .needsLesson, .smallSequencePlanner,
+                 .classroomJobs, .threeYearCycle, .needsLesson, .smallSequencePlanner,
                  .perpetualCalendar,
                  .thisWeeksParsha, .parshaCalendar, .parshaAlbumMatches, .parshaCoverage, .parshaTopics,
                  .community, .schedules, .resourceLibrary, .askAI, .logs, .settings:
@@ -163,7 +161,7 @@ extension RootView {
                  .planningCalendar,
                  .progressDashboard,
                  .lessonFrequency, .curriculumBalance, .greatLessonsTimeline,
-                 .transitionPlanner, .threeYearCycle, .needsLesson,
+                 .threeYearCycle, .needsLesson,
                  .smallSequencePlanner:
                 return .planning
             case .goingOut:          return nil

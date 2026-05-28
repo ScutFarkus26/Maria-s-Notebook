@@ -121,9 +121,6 @@ extension UnifiedNoteEditor {
         case .goingOut(let goingOut):
             note.goingOut = goingOut
 
-        case .transitionPlan(let plan):
-            note.transitionPlan = plan
-
         case .general:
             break
         }

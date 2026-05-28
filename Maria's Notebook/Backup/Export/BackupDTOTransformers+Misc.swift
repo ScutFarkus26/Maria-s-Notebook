@@ -670,46 +670,6 @@ extension BackupDTOTransformers {
         assignments.map { toDTO($0) }
     }
 
-    // MARK: - CDTransitionPlan
-
-    static func toDTO(_ plan: CDTransitionPlan) -> TransitionPlanDTO {
-        TransitionPlanDTO(
-            id: plan.id ?? UUID(),
-            createdAt: plan.createdAt ?? Date(),
-            modifiedAt: plan.modifiedAt ?? Date(),
-            studentID: plan.studentID,
-            fromLevelRaw: plan.fromLevelRaw,
-            toLevelRaw: plan.toLevelRaw,
-            statusRaw: plan.statusRaw,
-            targetDate: plan.targetDate,
-            notes: plan.notes
-        )
-    }
-
-    static func toDTOs(_ plans: [CDTransitionPlan]) -> [TransitionPlanDTO] {
-        plans.map { toDTO($0) }
-    }
-
-    // MARK: - CDTransitionChecklistItem
-
-    static func toDTO(_ item: CDTransitionChecklistItem) -> TransitionChecklistItemDTO {
-        TransitionChecklistItemDTO(
-            id: item.id ?? UUID(),
-            createdAt: item.createdAt ?? Date(),
-            transitionPlanID: item.transitionPlanID,
-            title: item.title,
-            categoryRaw: item.categoryRaw,
-            isCompleted: item.isCompleted,
-            completedAt: item.completedAt,
-            sortOrder: Int(item.sortOrder),
-            notes: item.notes
-        )
-    }
-
-    static func toDTOs(_ items: [CDTransitionChecklistItem]) -> [TransitionChecklistItemDTO] {
-        items.map { toDTO($0) }
-    }
-
     // MARK: - CDCalendarNote
 
     static func toDTO(_ note: CDCalendarNote) -> CalendarNoteDTO {

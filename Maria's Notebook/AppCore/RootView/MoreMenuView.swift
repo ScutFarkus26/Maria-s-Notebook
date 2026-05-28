@@ -42,7 +42,6 @@ struct MoreMenuView: View {
                 Section("Insights") {
                     moreMenuButton(.planningProgression)
                     moreMenuButton(.progressDashboard)
-                    moreMenuButton(.transitionPlanner)
                     moreMenuButton(.fridayReview)
                     moreMenuButton(.lessonFrequency)
                     moreMenuButton(.curriculumBalance)

@@ -111,12 +111,6 @@ enum BackupPreviewAnalyzer {
         assign("GoingOutChecklistItem", payload.goingOutChecklistItems?.count ?? 0, 0, count(CDGoingOutChecklistItem.self))
         assign("ClassroomJob", payload.classroomJobs?.count ?? 0, 0, count(CDClassroomJob.self))
         assign("JobAssignment", payload.jobAssignments?.count ?? 0, 0, count(CDJobAssignment.self))
-        assign("TransitionPlan", payload.transitionPlans?.count ?? 0, 0, count(CDTransitionPlan.self))
-        assign(
-            "TransitionChecklistItem",
-            payload.transitionChecklistItems?.count ?? 0, 0,
-            count(CDTransitionChecklistItem.self)
-        )
         assign("CalendarNote", payload.calendarNotes?.count ?? 0, 0, count(CDCalendarNote.self))
         assign("ScheduledMeeting", payload.scheduledMeetings?.count ?? 0, 0, count(CDScheduledMeeting.self))
     }

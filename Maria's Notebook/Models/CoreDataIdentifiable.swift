@@ -36,8 +36,6 @@ extension CDSupply: Identifiable {}
 extension CDDocument: Identifiable {}
 extension CDProposedSolutionEntity: Identifiable {}
 extension CDCommunityAttachmentEntity: Identifiable {}
-extension CDTransitionChecklistItem: Identifiable {}
-extension CDTransitionPlan: Identifiable {}
 extension CDWorkCompletionRecord: Identifiable {}
 extension CDWorkStep: Identifiable {}
 extension CDResource: Identifiable {}

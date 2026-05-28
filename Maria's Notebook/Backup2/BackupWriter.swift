@@ -145,8 +145,6 @@ public enum BackupWriter {
         addOptional("GoingOutChecklistItem", payload.goingOutChecklistItems, add: add)
         addOptional("ClassroomJob", payload.classroomJobs, add: add)
         addOptional("JobAssignment", payload.jobAssignments, add: add)
-        addOptional("TransitionPlan", payload.transitionPlans, add: add)
-        addOptional("TransitionChecklistItem", payload.transitionChecklistItems, add: add)
         addOptional("CalendarNote", payload.calendarNotes, add: add)
         addOptional("ScheduledMeeting", payload.scheduledMeetings, add: add)
         addOptional("ClassroomMembership", payload.classroomMemberships, add: add)

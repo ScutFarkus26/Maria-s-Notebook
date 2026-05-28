@@ -59,7 +59,6 @@ struct UnifiedNoteEditor: View {
         case reminder(CDReminder)
         case schoolDayOverride(CDSchoolDayOverride)
         case goingOut(CDGoingOut)
-        case transitionPlan(CDTransitionPlan)
     }
 
     // MARK: - Properties

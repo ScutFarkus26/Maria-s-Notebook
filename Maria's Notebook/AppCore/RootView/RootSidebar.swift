@@ -120,8 +120,6 @@ extension RootSidebar {
 
                 sidebarRow(.progressDashboard, title: "Progress Dashboard", systemImage: "person.text.rectangle")
 
-                sidebarRow(.transitionPlanner, title: "Transitions", systemImage: "arrow.right.arrow.left")
-
                 sidebarRow(.fridayReview, title: "Friday Review", systemImage: "checkmark.seal")
 
                 sidebarRow(.lessonFrequency, title: "Lesson Frequency", systemImage: SFSymbol.Chart.chartBar)
@@ -328,10 +326,6 @@ extension RootSidebar {
                              title: "Progress Dashboard",
                              systemImage: "person.text.rectangle",
                              hint: "View per-student progress across all areas")
-            iOSSidebarButton(.transitionPlanner,
-                             title: "Transitions",
-                             systemImage: "arrow.right.arrow.left",
-                             hint: "Plan and track student transitions between levels")
             iOSSidebarButton(.fridayReview,
                              title: "Friday Review",
                              systemImage: "checkmark.seal",

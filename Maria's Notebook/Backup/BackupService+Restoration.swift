@@ -672,23 +672,6 @@ extension BackupService {
             )
         }
 
-        if let transitionPlans = payload.transitionPlans {
-            try BackupEntityImporter.importTransitionPlans(
-                transitionPlans,
-                into: viewContext,
-                existingCheck: { try fetchOne(CDTransitionPlan.self, id: $0, using: viewContext) }
-            )
-        }
-
-        if let transitionItems = payload.transitionChecklistItems {
-            try BackupEntityImporter.importTransitionChecklistItems(
-                transitionItems,
-                into: viewContext,
-                existingCheck: { try fetchOne(CDTransitionChecklistItem.self, id: $0, using: viewContext) },
-                planCheck: { try fetchOne(CDTransitionPlan.self, id: $0, using: viewContext) }
-            )
-        }
-
         if let calendarNotes = payload.calendarNotes {
             try BackupEntityImporter.importCalendarNotes(
                 calendarNotes,

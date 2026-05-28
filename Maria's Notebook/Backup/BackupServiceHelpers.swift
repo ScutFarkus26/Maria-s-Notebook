@@ -371,8 +371,6 @@ enum BackupPayloadDeduplicator {
         result.goingOutChecklistItems = payload.goingOutChecklistItems.map { uniqueBy($0) { $0.id } }
         result.classroomJobs = payload.classroomJobs.map { uniqueBy($0) { $0.id } }
         result.jobAssignments = payload.jobAssignments.map { uniqueBy($0) { $0.id } }
-        result.transitionPlans = payload.transitionPlans.map { uniqueBy($0) { $0.id } }
-        result.transitionChecklistItems = payload.transitionChecklistItems.map { uniqueBy($0) { $0.id } }
         result.calendarNotes = payload.calendarNotes.map { uniqueBy($0) { $0.id } }
         result.scheduledMeetings = payload.scheduledMeetings.map { uniqueBy($0) { $0.id } }
         // Format v14+ entity deduplication

@@ -6,7 +6,7 @@ public enum BackupFile: Sendable {
     nonisolated public static let fileExtension = "mtbbackup"
     /// Format version 14: Adds CDMeetingWorkReview, CDStudentFocusItem, CDWorkModel.restingUntil
     /// Format version 13: Adds CDClassroomMembership backup coverage
-    /// Format version 12: Adds CDGoingOut, CDClassroomJob, CDTransitionPlan, CDCalendarNote,
+    /// Format version 12: Adds CDGoingOut, CDClassroomJob, CDCalendarNote,
     /// CDScheduledMeeting backup coverage
     /// Format version 11: Adds CDWorkModel/CDPlanningRecommendation/CDResource/CDNoteStudentLink;
     /// removes LegacyPresentation backward compatibility
@@ -116,7 +116,6 @@ public struct BackupPayload: Codable, Sendable {
         case planningRecommendations, resources, noteStudentLinks
         case goingOuts, goingOutChecklistItems
         case classroomJobs, jobAssignments
-        case transitionPlans, transitionChecklistItems
         case calendarNotes, scheduledMeetings
         case classroomMemberships
         case meetingWorkReviews, studentFocusItems
@@ -220,10 +219,6 @@ public struct BackupPayload: Codable, Sendable {
     // Classroom Jobs (format v12+)
     public var classroomJobs: [ClassroomJobDTO]?
     public var jobAssignments: [JobAssignmentDTO]?
-
-    // Transition Plans (format v12+)
-    public var transitionPlans: [TransitionPlanDTO]?
-    public var transitionChecklistItems: [TransitionChecklistItemDTO]?
 
     // Calendar Notes (format v12+)
     public var calendarNotes: [CalendarNoteDTO]?

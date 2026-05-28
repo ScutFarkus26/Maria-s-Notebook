@@ -52,7 +52,6 @@ final class Phase7PreTests {
             "Resource",
             "GoingOut", "GoingOutChecklistItem",
             "ClassroomJob", "JobAssignment",
-            "TransitionPlan", "TransitionChecklistItem",
             "ScheduledMeeting"
             // AlbumSequenceOrder & AlbumSequenceUIState removed — no entity in .xcdatamodeld
         ]

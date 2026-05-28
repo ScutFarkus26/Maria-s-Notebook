@@ -85,7 +85,6 @@
         <attribute name="schoolDayOverrideID" optional="YES" attributeType="String"/>
         <attribute name="studentTrackEnrollmentID" optional="YES" attributeType="String"/>
         <attribute name="goingOutID" optional="YES" attributeType="String"/>
-        <attribute name="transitionPlanID" optional="YES" attributeType="String"/>
         <relationship name="work" optional="YES" maxCount="1" deletionRule="Nullify" destinationEntity="WorkModel" inverseName="unifiedNotes" inverseEntity="WorkModel"/>
         <relationship name="lessonAssignment" optional="YES" maxCount="1" deletionRule="Nullify" destinationEntity="LessonAssignment" inverseName="unifiedNotes" inverseEntity="LessonAssignment"/>
         <relationship name="attendanceRecord" optional="YES" maxCount="1" deletionRule="Nullify" destinationEntity="AttendanceRecord" inverseName="notes" inverseEntity="AttendanceRecord"/>
@@ -689,32 +688,6 @@
         <attribute name="weekStartDate" optional="YES" attributeType="Date" usesScalarValueType="NO"/>
         <attribute name="isCompleted" attributeType="Boolean" defaultValueString="NO" usesScalarValueType="YES"/>
         <relationship name="job" optional="YES" maxCount="1" deletionRule="Nullify" destinationEntity="ClassroomJob" inverseName="assignments" inverseEntity="ClassroomJob"/>
-    </entity>
-    <!-- ==================== TransitionPlan ==================== -->
-    <entity name="TransitionPlan" representedClassName="CDTransitionPlan" syncable="YES">
-        <attribute name="id" optional="YES" attributeType="UUID" usesScalarValueType="NO"/>
-        <attribute name="createdAt" optional="YES" attributeType="Date" usesScalarValueType="NO"/>
-        <attribute name="modifiedAt" optional="YES" attributeType="Date" usesScalarValueType="NO"/>
-        <attribute name="studentID" attributeType="String" defaultValueString=""/>
-        <attribute name="fromLevelRaw" attributeType="String" defaultValueString="Lower Elementary"/>
-        <attribute name="toLevelRaw" attributeType="String" defaultValueString="Upper Elementary"/>
-        <attribute name="statusRaw" attributeType="String" defaultValueString="notStarted"/>
-        <attribute name="targetDate" optional="YES" attributeType="Date" usesScalarValueType="NO"/>
-        <attribute name="notes" attributeType="String" defaultValueString=""/>
-        <relationship name="checklistItems" optional="YES" toMany="YES" deletionRule="Cascade" destinationEntity="TransitionChecklistItem" inverseName="transitionPlan" inverseEntity="TransitionChecklistItem"/>
-    </entity>
-    <!-- ==================== TransitionChecklistItem ==================== -->
-    <entity name="TransitionChecklistItem" representedClassName="CDTransitionChecklistItem" syncable="YES">
-        <attribute name="id" optional="YES" attributeType="UUID" usesScalarValueType="NO"/>
-        <attribute name="createdAt" optional="YES" attributeType="Date" usesScalarValueType="NO"/>
-        <attribute name="transitionPlanID" attributeType="String" defaultValueString=""/>
-        <attribute name="title" attributeType="String" defaultValueString=""/>
-        <attribute name="categoryRaw" attributeType="String" defaultValueString="academic"/>
-        <attribute name="isCompleted" attributeType="Boolean" defaultValueString="NO" usesScalarValueType="YES"/>
-        <attribute name="completedAt" optional="YES" attributeType="Date" usesScalarValueType="NO"/>
-        <attribute name="sortOrder" attributeType="Integer 64" defaultValueString="0" usesScalarValueType="YES"/>
-        <attribute name="notes" attributeType="String" defaultValueString=""/>
-        <relationship name="transitionPlan" optional="YES" maxCount="1" deletionRule="Nullify" destinationEntity="TransitionPlan" inverseName="checklistItems" inverseEntity="TransitionPlan"/>
     </entity>
     <!-- ==================== Project ==================== -->
     <entity name="Project" representedClassName="CDProject" syncable="YES">

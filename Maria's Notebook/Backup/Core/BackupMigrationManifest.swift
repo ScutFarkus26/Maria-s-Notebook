@@ -90,11 +90,10 @@ public enum BackupMigrationManifest {
         FormatVersionInfo(
             version: 12,
             releaseDate: DateComponents(calendar: .current, year: 2026, month: 3, day: 5).date!,
-            description: "Adds Going Out, Classroom Jobs, Transition Plans, Calendar Notes, and more",
+            description: "Adds Going Out, Classroom Jobs, Calendar Notes, and more",
             changes: [
                 "CDGoingOut and CDGoingOutChecklistItem",
                 "CDClassroomJob and CDJobAssignment",
-                "CDTransitionPlan and CDTransitionChecklistItem",
                 "CDCalendarNote, CDScheduledMeeting"
             ],
             breakingChanges: [],
@@ -416,8 +415,6 @@ extension BackupMigrationManifest {
         PayloadField(name: "goingOutChecklistItems", introducedIn: 12, description: "CDGoingOutChecklistItem records"),
         PayloadField(name: "classroomJobs", introducedIn: 12, description: "CDClassroomJob records"),
         PayloadField(name: "jobAssignments", introducedIn: 12, description: "CDJobAssignment records"),
-        PayloadField(name: "transitionPlans", introducedIn: 12, description: "CDTransitionPlan records"),
-        PayloadField(name: "transitionChecklistItems", introducedIn: 12, description: "CDTransitionChecklistItem records"),
         PayloadField(name: "calendarNotes", introducedIn: 12, description: "CDCalendarNote records"),
         PayloadField(name: "scheduledMeetings", introducedIn: 12, description: "CDScheduledMeeting records"),
 

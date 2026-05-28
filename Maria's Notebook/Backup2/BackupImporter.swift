@@ -213,10 +213,6 @@ enum BackupImporter {
             payload.classroomJobs = try lines.map { try decoder.decode(ClassroomJobDTO.self, from: $0) }
         case "JobAssignment":
             payload.jobAssignments = try lines.map { try decoder.decode(JobAssignmentDTO.self, from: $0) }
-        case "TransitionPlan":
-            payload.transitionPlans = try lines.map { try decoder.decode(TransitionPlanDTO.self, from: $0) }
-        case "TransitionChecklistItem":
-            payload.transitionChecklistItems = try lines.map { try decoder.decode(TransitionChecklistItemDTO.self, from: $0) }
         case "CalendarNote":
             payload.calendarNotes = try lines.map { try decoder.decode(CalendarNoteDTO.self, from: $0) }
         case "ScheduledMeeting":

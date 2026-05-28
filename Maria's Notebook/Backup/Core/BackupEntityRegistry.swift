@@ -83,9 +83,6 @@ struct BackupEntityRegistry {
         // Classroom Jobs
         CDClassroomJob.self,
         CDJobAssignment.self,
-        // Transition Plans
-        CDTransitionPlan.self,
-        CDTransitionChecklistItem.self,
         // Calendar Notes
         CDCalendarNote.self,
         // Scheduled Meetings

@@ -220,10 +220,6 @@ extension BackupService {
             CDClassroomJob.self, using: viewContext) { BackupDTOTransformers.toDTOs($0) }
         payload.jobAssignments = fetchAndTransformInBatches(
             CDJobAssignment.self, using: viewContext) { BackupDTOTransformers.toDTOs($0) }
-        payload.transitionPlans = fetchAndTransformInBatches(
-            CDTransitionPlan.self, using: viewContext) { BackupDTOTransformers.toDTOs($0) }
-        payload.transitionChecklistItems = fetchAndTransformInBatches(
-            CDTransitionChecklistItem.self, using: viewContext) { BackupDTOTransformers.toDTOs($0) }
 
         progress(
             BackupProgress.progress(for: .collecting, subProgress: 0.90),
