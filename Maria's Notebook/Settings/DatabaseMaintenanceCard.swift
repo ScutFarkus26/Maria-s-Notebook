@@ -1,4 +1,5 @@
 import SwiftUI
+import OSLog
 
 /// Maintenance card for the Settings → Database tab. Exposes "Reset Local
 /// Cache" — the only known recovery path when
@@ -11,6 +12,7 @@ import SwiftUI
 /// migration flags, then clears the flag. The container reconstitutes from
 /// CloudKit.
 struct DatabaseMaintenanceCard: View {
+    private static let logger = Logger.app(category: "DatabaseMaintenance")
 
     @State private var showingResetConfirmation = false
     @State private var showingRelaunchPrompt = false
@@ -44,7 +46,7 @@ struct DatabaseMaintenanceCard: View {
                             .foregroundStyle(.orange)
                         Spacer(minLength: 0)
                         Button("Cancel") {
-                            UserDefaults.standard.removeObject(forKey: UserDefaultsKeys.resetLocalCacheOnLaunch)
+                            clearPendingResetRequest()
                         }
                         .font(.caption)
                         .buttonStyle(.borderless)
@@ -75,7 +77,7 @@ struct DatabaseMaintenanceCard: View {
             titleVisibility: .visible
         ) {
             Button("Reset on Next Launch", role: .destructive) {
-                UserDefaults.standard.set(true, forKey: UserDefaultsKeys.resetLocalCacheOnLaunch)
+                armResetRequest(source: "Settings.DatabaseMaintenanceCard")
                 showingRelaunchPrompt = true
             }
             Button("Cancel", role: .cancel) { }
@@ -87,5 +89,28 @@ struct DatabaseMaintenanceCard: View {
         } message: {
             Text("Quit Maria's Notebook (⌘Q on Mac) and reopen it. The reset will run automatically.")
         }
+    }
+
+    private func armResetRequest(source: String) {
+        let armedAt = Date.now.ISO8601Format()
+        let defaults = UserDefaults.standard
+        defaults.set(true, forKey: UserDefaultsKeys.resetLocalCacheOnLaunch)
+        defaults.set(armedAt, forKey: UserDefaultsKeys.resetLocalCacheArmedAt)
+        defaults.set(source, forKey: UserDefaultsKeys.resetLocalCacheArmedSource)
+        Self.logger.warning(
+            "Local cache reset armed. source=\(source, privacy: .public), armedAt=\(armedAt, privacy: .public)"
+        )
+    }
+
+    private func clearPendingResetRequest() {
+        let defaults = UserDefaults.standard
+        let armedAt = defaults.string(forKey: UserDefaultsKeys.resetLocalCacheArmedAt) ?? "unknown"
+        let source = defaults.string(forKey: UserDefaultsKeys.resetLocalCacheArmedSource) ?? "unknown"
+        defaults.removeObject(forKey: UserDefaultsKeys.resetLocalCacheOnLaunch)
+        defaults.removeObject(forKey: UserDefaultsKeys.resetLocalCacheArmedAt)
+        defaults.removeObject(forKey: UserDefaultsKeys.resetLocalCacheArmedSource)
+        Self.logger.info(
+            "Cleared pending local cache reset. source=\(source, privacy: .public), armedAt=\(armedAt, privacy: .public)"
+        )
     }
 }

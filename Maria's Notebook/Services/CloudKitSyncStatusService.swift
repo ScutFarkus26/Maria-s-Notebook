@@ -62,6 +62,13 @@ final class CloudKitSyncStatusService {
     /// "Reset Local Cache" button in Settings → Database performs this.
     var mirroringDelegateFailed: Bool = false
 
+    /// True while `NSPersistentCloudKitContainer` is performing its initial
+    /// `setup` or `import` of data from iCloud. Drives the "Syncing from iCloud…"
+    /// overlay so a freshly launched or freshly signed-in device shows progress
+    /// instead of an empty-looking screen. Apple notes the first import on a new
+    /// device "can take minutes, or longer" (TN3163).
+    var isImportingFromCloud: Bool = false
+
     // MARK: - Specialized Services
 
     let networkMonitor = NetworkMonitoring()

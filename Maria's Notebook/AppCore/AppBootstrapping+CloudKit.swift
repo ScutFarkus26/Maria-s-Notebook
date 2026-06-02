@@ -10,8 +10,10 @@ extension AppBootstrapping {
     ///
     /// Fallback chain:
     /// 1. CloudKit-enabled two-store stack (private + shared)
-    /// 2. Local-only two-store stack (no CloudKit sync)
-    /// 3. In-memory stack (last resort — data is not persisted)
+    /// 2. Local cached two-store stack using the existing private/shared sqlite files,
+    ///    but without CloudKit mirroring
+    /// 3. Local-only unified store
+    /// 4. In-memory stack (last resort — data is not persisted)
     // swiftlint:disable:next cyclomatic_complexity function_body_length
     static func createCoreDataStack() throws -> CoreDataStack {
         let logger = Logger.app(category: "Container")
@@ -59,21 +61,45 @@ extension AppBootstrapping {
             }
         }
 
-        // Attempt 2: Local-only stack (no CloudKit)
+        // Attempt 2: preserve the existing private/shared cache but disable CloudKit.
+        // This keeps the app usable with the last successfully downloaded data.
+        do {
+            let stack = try CoreDataStack(
+                enableCloudKit: false,
+                inMemory: false,
+                preserveSplitStoreLayout: true
+            )
+            let elapsed = String(format: "%.3f", Date().timeIntervalSince(containerStart))
+            logger.warning("CloudKit unavailable; using cached local split stores in \(elapsed)s")
+            UserDefaults.standard.set(false, forKey: UserDefaultsKeys.cloudKitActive)
+            UserDefaults.standard.set(false, forKey: UserDefaultsKeys.ephemeralSessionFlag)
+            UserDefaults.standard.set(
+                "iCloud sync is temporarily unavailable. Using your last downloaded local data.",
+                forKey: UserDefaultsKeys.lastStoreErrorDescription
+            )
+            return stack
+        } catch {
+            logger.error("Cached split-store fallback failed: \(error)")
+        }
+
+        // Attempt 3: Local-only unified store (no CloudKit)
         do {
             let stack = try CoreDataStack(enableCloudKit: false, inMemory: false)
             let elapsed = String(format: "%.3f", Date().timeIntervalSince(containerStart))
             logger.info("Local Core Data stack created in \(elapsed)s")
             UserDefaults.standard.set(false, forKey: UserDefaultsKeys.cloudKitActive)
             UserDefaults.standard.set(false, forKey: UserDefaultsKeys.ephemeralSessionFlag)
-            UserDefaults.standard.removeObject(forKey: UserDefaultsKeys.lastStoreErrorDescription)
+            UserDefaults.standard.set(
+                "iCloud sync is unavailable, so the app started with a separate local fallback store.",
+                forKey: UserDefaultsKeys.lastStoreErrorDescription
+            )
             return stack
         } catch {
             logger.error("Local stack failed: \(error)")
             DatabaseInitializationService.handleDatabaseInitError(error)
         }
 
-        // Attempt 3: In-memory fallback (allows error UI to render)
+        // Attempt 4: In-memory fallback (allows error UI to render)
         logger.error("Falling back to in-memory stack")
         let stack = try CoreDataStack(enableCloudKit: false, inMemory: true)
         let errorDesc = "Persistent storage failed. Using temporary in-memory store."

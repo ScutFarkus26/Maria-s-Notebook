@@ -168,7 +168,15 @@ final class CoreDataStack {
     /// - Parameters:
     ///   - enableCloudKit: Whether to enable CloudKit sync. Defaults to the user's preference.
     ///   - inMemory: If true, uses in-memory stores (for testing/fallback).
-    init(enableCloudKit: Bool = true, inMemory: Bool = false) throws {
+    ///   - preserveSplitStoreLayout: If true while CloudKit is disabled, keeps using
+    ///     the existing private/shared store files instead of switching to the unified
+    ///     local-only store. This lets the app continue using the last cached data set
+    ///     when CloudKit initialization fails at launch.
+    init(
+        enableCloudKit: Bool = true,
+        inMemory: Bool = false,
+        preserveSplitStoreLayout: Bool = false
+    ) throws {
         let start = Date()
         Self.logger.info("Initializing CoreDataStack (CloudKit: \(enableCloudKit), inMemory: \(inMemory))...")
 
@@ -204,7 +212,7 @@ final class CoreDataStack {
         // Assign entities to configurations BEFORE creating the container.
         // NSPersistentCloudKitContainer's init creates an NSPersistentStoreCoordinator,
         // which makes the model immutable — so all setEntities calls must happen first.
-        if enableCloudKit && !inMemory {
+        if (enableCloudKit || preserveSplitStoreLayout) && !inMemory {
             Self.assignEntitiesToConfigurations(model: model)
         }
 
@@ -226,6 +234,23 @@ final class CoreDataStack {
             Self.enableHistoryTracking(sharedDesc)
             Self.configureCloudKit(privateDescription: privateDesc, sharedDescription: sharedDesc)
             isCloudKitActive = true
+
+            container.persistentStoreDescriptions = [privateDesc, sharedDesc]
+        } else if preserveSplitStoreLayout && !inMemory {
+            // Degraded local-cached mode: keep using the existing private/shared store
+            // files without CloudKit mirroring so the user can open the last known local
+            // cache immediately when CloudKit startup is unhealthy.
+            let privateDesc = Self.makeStoreDescription(
+                url: Self.privateStoreURL(),
+                configuration: Self.privateConfiguration
+            )
+            let sharedDesc = Self.makeStoreDescription(
+                url: Self.sharedStoreURL(),
+                configuration: Self.sharedConfiguration
+            )
+
+            Self.enableHistoryTracking(privateDesc)
+            Self.enableHistoryTracking(sharedDesc)
 
             container.persistentStoreDescriptions = [privateDesc, sharedDesc]
         } else {

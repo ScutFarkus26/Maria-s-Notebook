@@ -71,6 +71,7 @@ extension CloudKitSyncStatusService {
             isSyncing = false
             pendingSyncCount = 0
         }
+        isImportingFromCloud = false
 
         let isEnabled = UserDefaults.standard.object(
             forKey: UserDefaultsKeys.enableCloudKitSync
@@ -197,6 +198,9 @@ extension CloudKitSyncStatusService {
                 syncStartTime = Date()
             }
             currentOperation = "CloudKit event in progress"
+            if type == .setup || type == .import {
+                isImportingFromCloud = true
+            }
             updateSyncHealth()
             return
         }
@@ -209,6 +213,9 @@ extension CloudKitSyncStatusService {
         @unknown default: typeDescription = "Unknown"
         }
         currentOperation = nil
+        if type == .setup || type == .import {
+            isImportingFromCloud = false
+        }
 
         if succeeded {
             handleSuccessfulCloudKitEvent(type: type, typeDescription: typeDescription)

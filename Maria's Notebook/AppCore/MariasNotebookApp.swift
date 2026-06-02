@@ -105,6 +105,7 @@ struct MariasNotebookApp: App {
                 .environment(\.dependencies, dependencies)
                 .environment(saveCoordinator)
                 .environment(restoreCoordinator)
+                .syncingFromICloudOverlay()
         }
     }
 
