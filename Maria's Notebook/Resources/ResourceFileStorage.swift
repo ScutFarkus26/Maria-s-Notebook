@@ -108,6 +108,11 @@ enum ResourceFileStorage {
         }
     }
 
+    /// Returns a sanitized filename stem suitable for exported resource documents.
+    static func sanitizedExportFilename(_ title: String?) -> String {
+        sanitizeFilenameComponent(title, fallback: "Resource")
+    }
+
     /// Deletes the file at the given URL if it is inside the managed directory.
     static func deleteIfManaged(_ url: URL) throws {
         let fm = FileManager.default

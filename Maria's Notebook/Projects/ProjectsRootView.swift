@@ -40,7 +40,10 @@ struct ProjectsRootView: View {
 
     private var filteredClubs: [CDProject] {
         if searchText.isEmpty { return clubs }
-        return clubs.filter { $0.title.localizedCaseInsensitiveContains(searchText) }
+        return clubs.filter { club in
+            club.title.localizedCaseInsensitiveContains(searchText) ||
+            (club.bookTitle ?? "").localizedCaseInsensitiveContains(searchText)
+        }
     }
 
     // MARK: - Body
@@ -82,8 +85,8 @@ struct ProjectsRootView: View {
             Text(
                 """
                 Are you sure you want to delete "\(club.title)"? \
-                This will permanently remove all sessions, \
-                deliverables, and assignments associated with \
+                This will permanently remove all check-ins, \
+                follow-ups, and assignments associated with \
                 this project.
                 """
             )
@@ -150,7 +153,7 @@ struct ProjectsRootView: View {
             ContentUnavailableView(
                 "No Selection",
                 systemImage: "book",
-                description: Text("Select a project from the sidebar to view details.")
+                description: Text("Select a project to view students, lessons, progress, and next steps.")
             )
         }
     }
@@ -273,10 +276,15 @@ struct ProjectSidebarRow: View {
                 // Member count as secondary text
                 let memberCount = club.memberStudentIDsArray.count
                 HStack(spacing: AppTheme.Spacing.xsmall) {
-                    Circle().fill(projectColor).frame(width: 6, height: 6)
-                    Text("\(memberCount) \(memberCount == 1 ? "member" : "members")")
+                    Circle().fill(club.isActive ? projectColor : AppColors.success).frame(width: 6, height: 6)
+                    Text("\(memberCount) \(memberCount == 1 ? "student" : "students")")
                         .font(AppTheme.ScaledFont.captionSmallSemibold)
                         .foregroundStyle(.secondary)
+                    if !club.isActive {
+                        Text("Completed")
+                            .font(AppTheme.ScaledFont.captionSmallSemibold)
+                            .foregroundStyle(AppColors.success)
+                    }
                 }
             }
 

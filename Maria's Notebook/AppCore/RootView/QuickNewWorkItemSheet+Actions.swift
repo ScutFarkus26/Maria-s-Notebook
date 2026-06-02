@@ -9,6 +9,7 @@ extension QuickNewWorkItemSheet {
     // MARK: - Save
 
     func saveWorkItem(andOpen: Bool) {
+        guard !isSaving else { return }
         guard let lessonID = selectedLessonID,
               !selectedStudentIDs.isEmpty else { return }
         isSaving = true

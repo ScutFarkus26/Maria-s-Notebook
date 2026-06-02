@@ -1,3 +1,4 @@
+import OSLog
 import SwiftUI
 import CoreData
 
@@ -10,7 +11,7 @@ extension ProjectSessionDetailView {
     @ViewBuilder
     var choiceModeContent: some View {
         // Offered works section
-        Section("Offered Works") {
+        Section("Offered Follow-Ups") {
             ForEach(offeredWorks, id: \.objectID) { work in
                 offeredWorkRow(work)
             }
@@ -18,7 +19,7 @@ extension ProjectSessionDetailView {
             Button {
                 showAddWorkSheet = true
             } label: {
-                Label("Add Work Offer", systemImage: "plus.circle.fill")
+                Label("Add Follow-Up Offer", systemImage: "plus.circle.fill")
             }
         }
 
@@ -34,7 +35,7 @@ extension ProjectSessionDetailView {
     func offeredWorkRow(_ work: CDWorkModel) -> some View {
         VStack(alignment: .leading, spacing: 6) {
             HStack {
-                Text(work.title.isEmpty ? "Untitled" : work.title)
+                Text(work.title.isEmpty ? "Untitled follow-up" : work.title)
                     .font(.headline)
                 Spacer()
                 let count = work.selectedStudentIDs.count
@@ -113,9 +114,9 @@ extension ProjectSessionDetailView {
     var uniformModeContent: some View {
         if groupedByStudent.isEmpty {
             ContentUnavailableView(
-                "No Work",
+                "No Follow-Ups",
                 systemImage: "doc.text",
-                description: Text("No work items are linked to this session.")
+                description: Text("No follow-up work is linked to this check-in.")
             )
         } else {
             ForEach(groupedByStudent, id: \.id) { bucket in
@@ -129,66 +130,207 @@ extension ProjectSessionDetailView {
     }
 
     @ViewBuilder
-    // swiftlint:disable:next function_body_length
     func workRow(_ work: CDWorkModel) -> some View {
-        VStack(alignment: .leading, spacing: 8) {
-            HStack(alignment: .firstTextBaseline) {
-                // Title (Role) - Display only
-                TextField("Title", text: Binding(
-                    get: { work.scheduledNote ?? "" },
-                    set: { _ in }
+        ProjectWorkProgressRow(
+            work: work,
+            lesson: UUID(uuidString: work.lessonID).flatMap { lessonsByID[$0] },
+            onChangeLesson: { showLessonPickerForWork = work },
+            onEditStep: { step in editStep(for: work, step: step) },
+            onSave: { reason in saveProjectSession(reason: reason) }
+        )
+    }
+}
+
+private struct ProjectWorkProgressRow: View {
+    @Environment(\.managedObjectContext) private var modelContext
+    @Environment(SaveCoordinator.self) private var saveCoordinator
+    @ObservedObject var work: CDWorkModel
+
+    let lesson: CDLesson?
+    let onChangeLesson: () -> Void
+    let onEditStep: (CDWorkStep?) -> Void
+    let onSave: (String) -> Void
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 10) {
+            HStack(alignment: .firstTextBaseline, spacing: AppTheme.Spacing.small) {
+                TextField("Follow-up", text: Binding(
+                    get: { work.title },
+                    set: { work.title = $0 }
                 ))
                 .textFieldStyle(.roundedBorder)
-                .disabled(true)
+                .onSubmit { persist(reason: "Rename Project Follow-Up") }
 
-                Spacer()
-
-                // Status Picker - Display only
-                Picker("Status", selection: Binding(
+                Picker("Progress", selection: Binding(
                     get: { work.status },
-                    set: { _ in }
+                    set: { updateStatus($0) }
                 )) {
-                    Text("Active").tag(WorkStatus.active)
-                    Text("Review").tag(WorkStatus.review)
-                    Text("Complete").tag(WorkStatus.complete)
+                    ForEach(WorkStatus.allCases) { status in
+                        Label(status.displayName, systemImage: status.iconName).tag(status)
+                    }
                 }
                 .pickerStyle(.menu)
                 .labelsHidden()
-                .disabled(true)
-
-                // Due Date - Display only
-                if let dueAt = work.dueAt {
-                    DatePicker("Due", selection: .constant(dueAt), displayedComponents: .date)
-                        .labelsHidden()
-                        .disabled(true)
-                } else {
-                    Text("No due date")
-                        .font(.caption)
-                        .foregroundStyle(.secondary)
-                }
             }
 
-            // Linked CDLesson display
             HStack(spacing: 8) {
-                if let l = lessonsByID[uuidString: work.lessonID] {
-                    Text("Linked: \(l.name)")
+                if let lesson {
+                    Label("Linked: \(lesson.name)", systemImage: SFSymbol.Education.bookClosed)
                         .font(.caption)
                         .foregroundStyle(.secondary)
+                        .lineLimit(1)
                 } else {
-                    Text("No lesson linked")
+                    Label("No lesson linked", systemImage: SFSymbol.Education.bookClosed)
                         .font(.caption)
                         .foregroundStyle(.secondary)
                 }
                 Spacer()
                 Button {
-                    showLessonPickerForWork = work
+                    onChangeLesson()
                 } label: {
                     Label("Change Lesson", systemImage: "book")
                 }
                 .buttonStyle(.borderless)
                 .font(.caption)
             }
+
+            ProjectWorkNoteField(work: work, onSave: onSave)
+
+            VStack(alignment: .leading, spacing: AppTheme.Spacing.xsmall) {
+                HStack {
+                    Label("Steps", systemImage: "list.bullet.clipboard")
+                        .font(AppTheme.ScaledFont.captionSemibold)
+                        .foregroundStyle(.secondary)
+                    Spacer()
+                    Button {
+                        onEditStep(nil)
+                    } label: {
+                        Label("Add Step", systemImage: "plus.circle.fill")
+                    }
+                    .buttonStyle(.borderless)
+                    .font(.caption)
+                }
+
+                if work.orderedSteps.isEmpty {
+                    Text("No steps yet")
+                        .font(AppTheme.ScaledFont.caption)
+                        .foregroundStyle(.secondary)
+                } else {
+                    ForEach(work.orderedSteps, id: \.objectID) { step in
+                        ProjectStepInlineRow(
+                            step: step,
+                            onToggle: { toggleStep(step) },
+                            onEdit: { onEditStep(step) }
+                        )
+                    }
+                }
+            }
         }
         .padding(.vertical, 6)
+        .onDisappear { persist(reason: "Save Project Follow-Up") }
+    }
+
+    private func updateStatus(_ status: WorkStatus) {
+        let wasComplete = work.status == .complete
+        work.status = status
+        work.lastTouchedAt = Date()
+
+        if status == .complete, work.completedAt == nil {
+            work.completedAt = Date()
+        } else if wasComplete, status != .complete {
+            work.completedAt = nil
+        }
+
+        persist(reason: "Update Project Progress")
+    }
+
+    private func toggleStep(_ step: CDWorkStep) {
+        let service = CDWorkStepServiceImpl(context: modelContext)
+        do {
+            try service.toggleCompletion(step)
+            persist(reason: "Update Project Step")
+        } catch {
+            Logger.projects.warning("Failed to toggle project step: \(error)")
+        }
+    }
+
+    private func persist(reason: String) {
+        work.lastTouchedAt = Date()
+        onSave(reason)
+    }
+}
+
+private struct ProjectWorkNoteField: View {
+    @ObservedObject var work: CDWorkModel
+    let onSave: (String) -> Void
+    @Environment(\.managedObjectContext) private var modelContext
+    @State private var text: String
+
+    init(work: CDWorkModel, onSave: @escaping (String) -> Void) {
+        self.work = work
+        self.onSave = onSave
+        _text = State(initialValue: work.latestUnifiedNoteText)
+    }
+
+    var body: some View {
+        TextField("Observation, question, or next step", text: $text, axis: .vertical)
+            .lineLimit(2...5)
+            .textFieldStyle(.roundedBorder)
+            .onSubmit { persist() }
+            .onDisappear { persist() }
+    }
+
+    private func persist() {
+        let trimmed = text.trimmed()
+        guard trimmed != work.latestUnifiedNoteText.trimmed() else { return }
+        work.setLegacyNoteText(trimmed.isEmpty ? nil : trimmed, in: modelContext)
+        work.lastTouchedAt = Date()
+        onSave("Save Project Observation")
+    }
+}
+
+private struct ProjectStepInlineRow: View {
+    @ObservedObject var step: CDWorkStep
+    let onToggle: () -> Void
+    let onEdit: () -> Void
+
+    var body: some View {
+        HStack(spacing: AppTheme.Spacing.small) {
+            Button(action: onToggle) {
+                Image(systemName: step.iconName)
+                    .foregroundStyle(step.statusColor)
+                    .font(.system(size: 18, weight: .semibold))
+            }
+            .buttonStyle(.plain)
+
+            VStack(alignment: .leading, spacing: AppTheme.Spacing.xxsmall) {
+                Text(step.title.isEmpty ? "Untitled step" : step.title)
+                    .font(AppTheme.ScaledFont.bodySemibold)
+                    .strikethrough(step.isCompleted)
+                    .foregroundStyle(step.isCompleted ? .secondary : .primary)
+                if !step.instructions.isEmpty {
+                    Text(step.instructions)
+                        .font(AppTheme.ScaledFont.caption)
+                        .foregroundStyle(.secondary)
+                        .lineLimit(2)
+                }
+                if !step.notes.isEmpty {
+                    Text(step.notes)
+                        .font(AppTheme.ScaledFont.caption)
+                        .foregroundStyle(.secondary)
+                        .lineLimit(2)
+                }
+            }
+
+            Spacer()
+
+            Button(action: onEdit) {
+                Image(systemName: "pencil")
+            }
+            .buttonStyle(.borderless)
+        }
+        .padding(AppTheme.Spacing.small)
+        .background(Color.primary.opacity(UIConstants.OpacityConstants.trace))
+        .cornerRadius(UIConstants.CornerRadius.small)
     }
 }

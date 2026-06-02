@@ -124,7 +124,7 @@ struct OpenWorkGrid: View {
 
     // MARK: - Derived items
     private struct WorkGridItem: Identifiable {
-        let id = UUID()
+        let id: NSManagedObjectID
         let workID: UUID
         let work: CDWorkModel
         let title: String
@@ -183,7 +183,7 @@ struct OpenWorkGrid: View {
             let meta = metadata(for: w)
             let attention = needsAttention(for: w)
             return WorkGridItem(
-                workID: w.id ?? UUID(), work: w, title: title,
+                id: w.objectID, workID: w.id ?? UUID(), work: w, title: title,
                 student: student, needsAttention: attention, metadata: meta
             )
         }

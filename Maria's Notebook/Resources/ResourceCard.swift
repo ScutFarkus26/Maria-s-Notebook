@@ -4,6 +4,9 @@ import SwiftUI
 struct ResourceCard: View {
     let resource: CDResource
     let onTap: () -> Void
+    var onViewDetails: (() -> Void)?
+    var onOpen: (() -> Void)?
+    var onPrint: (() -> Void)?
     let onDelete: () -> Void
     var onRename: (() -> Void)?
     var onChangeCategory: (() -> Void)?
@@ -69,8 +72,22 @@ struct ResourceCard: View {
         .contentShape(Rectangle())
         .onTapGesture(perform: onTap)
         .contextMenu {
-            Button(action: onTap) {
-                Label("View Details", systemImage: "eye")
+            if let onOpen {
+                Button(action: onOpen) {
+                    Label("Open", systemImage: "arrow.up.forward.square")
+                }
+            }
+
+            if let onPrint {
+                Button(action: onPrint) {
+                    Label("Print", systemImage: "printer")
+                }
+            }
+
+            if let onViewDetails {
+                Button(action: onViewDetails) {
+                    Label("View Details", systemImage: "eye")
+                }
             }
 
             if let onRename {

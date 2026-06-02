@@ -68,7 +68,7 @@ struct WorksAgendaView: View {
         )
     }
 
-    @State var sortMode: WorkAgendaSortMode = .lesson
+    @State var sortMode: WorkAgendaSortMode = .student
     @State var searchText: String = ""
     @State var debouncedSearchText: String = ""
     @State var searchDebounceTask: Task<Void, Never>?

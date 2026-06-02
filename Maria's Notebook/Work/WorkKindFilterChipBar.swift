@@ -33,6 +33,11 @@ struct WorkKindFilterChipBar: View {
     }
 
     private func toggle(_ kind: WorkKind) {
+        if allActive {
+            visibleKinds = [kind]
+            return
+        }
+
         if visibleKinds.contains(kind) {
             guard visibleKinds.count > 1 else { return }
             visibleKinds.remove(kind)

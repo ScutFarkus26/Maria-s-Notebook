@@ -8,6 +8,8 @@ struct AddLessonView: View {
     // Optional defaults to prefill when adding from a filtered Albums view
     let defaultArea: String?
     let defaultSequence: String?
+    let defaultSection: String?
+    let onLessonCreated: ((CDLesson) -> Void)?
 
     @Environment(\.dismiss) private var dismiss
     @Environment(\.managedObjectContext) private var viewContext
@@ -34,9 +36,16 @@ struct AddLessonView: View {
     @State private var lessonFormat: LessonFormat = .standard
     @State private var parentStoryID: UUID?
 
-    init(defaultArea: String? = nil, defaultSequence: String? = nil) {
+    init(
+        defaultArea: String? = nil,
+        defaultSequence: String? = nil,
+        defaultSection: String? = nil,
+        onLessonCreated: ((CDLesson) -> Void)? = nil
+    ) {
         self.defaultArea = defaultArea?.trimmed()
         self.defaultSequence = defaultSequence?.trimmed()
+        self.defaultSection = defaultSection?.trimmed()
+        self.onLessonCreated = onLessonCreated
     }
 
     var body: some View {
@@ -63,6 +72,7 @@ struct AddLessonView: View {
         .onAppear {
             if area.trimmed().isEmpty, let d = defaultArea, !d.isEmpty { area = d }
             if sequence.trimmed().isEmpty, let g = defaultSequence, !g.isEmpty { sequence = g }
+            if section.trimmed().isEmpty, let s = defaultSection, !s.isEmpty { section = s }
         }
         .saveErrorAlert()
     }
@@ -215,6 +225,7 @@ struct AddLessonView: View {
         }
 
         if repository.save(reason: "Adding lesson") {
+            onLessonCreated?(newLesson)
             dismiss()
         }
     }

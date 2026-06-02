@@ -68,7 +68,7 @@ extension WorksAgendaView {
 
     func openWorksFiltered() -> [CDWorkModel] {
         // Filter open work in memory (anything NOT .complete)
-        var works = Array(openWork)
+        var works = Array(openWork).uniqueByID
 
         // Hide scheduled work if enabled
         if hideScheduled {

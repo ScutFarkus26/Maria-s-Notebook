@@ -14,6 +14,7 @@ struct NewProjectSessionSheet: View {
 
     @State private var meetingDate: Date = Date()
     @State private var chapterOrPages: String = ""
+    @State private var agendaItems: [String] = [""]
 
     // Assignment mode state
     @State private var assignmentMode: SessionAssignmentMode = .uniform
@@ -49,12 +50,14 @@ struct NewProjectSessionSheet: View {
     var body: some View {
         ScrollView {
             VStack(alignment: .leading, spacing: 16) {
-                Text("New Session")
+                Text("New Project Check-In")
                     .font(.title2).fontWeight(.semibold)
 
-                DatePicker("Meeting Date", selection: $meetingDate, displayedComponents: .date)
-                TextField("Chapter/Pages (optional)", text: $chapterOrPages)
+                DatePicker("Check-In Date", selection: $meetingDate, displayedComponents: .date)
+                TextField("Focus, lesson, or material", text: $chapterOrPages)
                     .textFieldStyle(.roundedBorder)
+
+                agendaItemsSection
 
                 Divider()
 
@@ -78,6 +81,48 @@ struct NewProjectSessionSheet: View {
         .presentationDetents([.medium, .large])
         .presentationDragIndicator(.visible)
     #endif
+    }
+
+    // MARK: - Questions and Next Steps
+
+    private var agendaItemsSection: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            Text("Questions, Observations, Next Steps")
+                .font(.headline)
+
+            ForEach(agendaItems.indices, id: \.self) { index in
+                HStack(alignment: .top) {
+                    TextField("Question, observation, or next step", text: $agendaItems[index], axis: .vertical)
+                        .lineLimit(1...3)
+                        .textFieldStyle(.roundedBorder)
+
+                    Button {
+                        removeAgendaItem(at: index)
+                    } label: {
+                        Image(systemName: "minus.circle.fill")
+                            .foregroundStyle(AppColors.destructive)
+                    }
+                    .buttonStyle(.plain)
+                    .disabled(agendaItems.count == 1 && agendaItems[index].trimmed().isEmpty)
+                }
+            }
+
+            Button {
+                agendaItems.append("")
+            } label: {
+                Label("Add Next Step", systemImage: "plus.circle.fill")
+            }
+            .buttonStyle(.plain)
+        }
+    }
+
+    private func removeAgendaItem(at index: Int) {
+        guard agendaItems.indices.contains(index) else { return }
+        if agendaItems.count == 1 {
+            agendaItems[0] = ""
+        } else {
+            agendaItems.remove(at: index)
+        }
     }
 
     // MARK: - Assignment Mode Section
@@ -175,7 +220,8 @@ struct NewProjectSessionSheet: View {
         let session = CDProjectSession(context: managedObjectContext)
         session.projectID = club.id?.uuidString ?? ""
         session.meetingDate = AppCalendar.startOfDay(meetingDate)
-        session.chapterOrPages = chapterOrPages.isEmpty ? nil : chapterOrPages
+        session.chapterOrPages = chapterOrPages.trimmed().isEmpty ? nil : chapterOrPages.trimmed()
+        session.agendaItems = agendaItems.map { $0.trimmed() }.filter { !$0.isEmpty }
         session.assignmentMode = assignmentMode
         session.minSelections = assignmentMode == .choice ? Int64(minSelections) : 0
         session.maxSelections = assignmentMode == .choice ? Int64(maxSelections) : 0
@@ -221,10 +267,16 @@ struct NewProjectSessionSheet: View {
                 lessonID: lessonUUID,
                 sessionID: session.id ?? UUID(),
                 scheduledDate: scheduledDay,
-                title: "\(club.title): Individual Work",
-                instructions: "See session notes."
+                title: "\(club.title): Follow-Up",
+                instructions: defaultFollowUpInstructions
             )
         }
+    }
+
+    private var defaultFollowUpInstructions: String {
+        let items = agendaItems.map { $0.trimmed() }.filter { !$0.isEmpty }
+        guard !items.isEmpty else { return "See project check-in notes." }
+        return items.joined(separator: "\n")
     }
 
     // swiftlint:disable:next function_parameter_count

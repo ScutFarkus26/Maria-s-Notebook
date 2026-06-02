@@ -118,13 +118,11 @@ struct ResourceDetailView: View {
                                 Label("Share", systemImage: "square.and.arrow.up")
                             }
 
-                            #if os(iOS)
                             Button {
                                 printResource()
                             } label: {
                                 Label("Print", systemImage: "printer")
                             }
-                            #endif
                         }
 
                         Divider()
@@ -467,38 +465,12 @@ struct ResourceDetailView: View {
     }
 
     private func openInDefaultApp() {
-        guard !resource.fileRelativePath.isEmpty else { return }
-        do {
-            let url = try ResourceFileStorage.resolve(relativePath: resource.fileRelativePath)
-            #if os(macOS)
-            NSWorkspace.shared.open(url)
-            #else
-            // On iOS, create a temporary copy and use UIApplication to open
-            if let pdfData = try? Data(contentsOf: url) {
-                let tempURL = FileManager.default.temporaryDirectory
-                    .appendingPathComponent(resource.title.isEmpty ? "CDResource.pdf" : "\(resource.title).pdf")
-                try? pdfData.write(to: tempURL)
-                UIApplication.shared.open(tempURL)
-            }
-            #endif
-        } catch {
-            Self.logger.warning("Failed to open PDF: \(error, privacy: .public)")
-        }
+        ResourceDocumentActions.open(resource)
     }
 
-    #if os(iOS)
     private func printResource() {
-        guard let url = resolvedFileURL,
-              let data = try? Data(contentsOf: url) else { return }
-        let printController = UIPrintInteractionController.shared
-        printController.printingItem = data
-        let printInfo = UIPrintInfo(dictionary: nil)
-        printInfo.jobName = resource.title
-        printInfo.outputType = .general
-        printController.printInfo = printInfo
-        printController.present(animated: true)
+        ResourceDocumentActions.print(resource)
     }
-    #endif
 
     private func deleteResource() {
         viewContext.delete(resource)

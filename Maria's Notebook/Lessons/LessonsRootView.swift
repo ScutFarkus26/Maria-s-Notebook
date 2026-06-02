@@ -51,6 +51,13 @@ struct SectionReorderItem: Identifiable {
     let sequence: String
 }
 
+/// Drives the Add Lesson sheet. `source` carries the "insert after" lesson when entry
+/// came from a pill's context menu (otherwise nil for a plain "Add Lesson" action).
+struct AddLessonContext: Identifiable {
+    let id = UUID()
+    let source: CDLesson?
+}
+
 // MARK: - LessonsRootView
 
 struct LessonsRootView: View {
@@ -81,8 +88,11 @@ struct LessonsRootView: View {
     @State var trackSettingsItem: TrackSettingsItem?
     @State var reorderSectionsItem: SectionReorderItem?
     @State var selectedLessonDetail: CDLesson?
-    @State var showingAddLesson = false
     @State var showingBulkEntry = false
+    /// Non-nil ⇒ the Add Lesson sheet is presented. Using `.sheet(item:)` guarantees the
+    /// source lesson (when present) is captured before the sheet content evaluates,
+    /// which is why this isn't split into a separate `Bool` + `CDLesson?` pair.
+    @State var addLessonContext: AddLessonContext?
 
     // MARK: - Editing State
     @State var isEditingMap: Bool = false
@@ -157,9 +167,7 @@ struct LessonsRootView: View {
     }
 
     var canReorder: Bool {
-        guard isEditingMap else { return false }
-        guard filterState.debouncedSearchText.trimmed().isEmpty else { return false }
-        return true
+        filterState.debouncedSearchText.trimmed().isEmpty
     }
 
     var canShowEditMapButton: Bool {
@@ -184,7 +192,18 @@ struct LessonsRootView: View {
         .sheet(item: $reorderSectionsItem) { item in
             ReorderSectionsSheet(area: item.area, sequence: item.sequence, lessons: Array(lessons))
         }
-        .sheet(isPresented: $showingAddLesson) { AddLessonView(defaultArea: selectedArea) }
+        .sheet(item: $addLessonContext) { context in
+            AddLessonView(
+                defaultArea: context.source?.area ?? selectedArea,
+                defaultSequence: context.source?.sequence,
+                defaultSection: context.source?.section,
+                onLessonCreated: { newLesson in
+                    if let source = context.source {
+                        insertLessonAfter(newLesson: newLesson, after: source)
+                    }
+                }
+            )
+        }
         .sheet(isPresented: $showingBulkEntry) { BulkLessonsEntryView(defaultArea: selectedArea) }
     }
 

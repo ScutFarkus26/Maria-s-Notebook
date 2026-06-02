@@ -80,7 +80,7 @@ extension LessonsRootView {
     private var headerAddMenu: some View {
         Menu {
             Button {
-                showingAddLesson = true
+                addLessonContext = AddLessonContext(source: nil)
             } label: {
                 Label("New Lesson", systemImage: "plus.circle")
             }

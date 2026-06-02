@@ -19,6 +19,18 @@ struct LessonTransfer: Codable, Transferable {
     }
 }
 
+// MARK: - Section drag-drop payload
+
+struct ThreadSectionTransfer: Codable, Transferable {
+    let area: String
+    let sequence: String
+    let section: String
+
+    static var transferRepresentation: some TransferRepresentation {
+        CodableRepresentation(contentType: .data)
+    }
+}
+
 // MARK: - LessonsScopeThreadFocusView
 
 struct LessonsScopeThreadFocusView: View {
@@ -32,11 +44,16 @@ struct LessonsScopeThreadFocusView: View {
     var onMoveLessonEarlier: ((CDLesson) -> Void)?
     var onMoveLessonLater: ((CDLesson) -> Void)?
     var onMoveLessonToSequence: ((CDLesson, String) -> Void)?
+    /// Right-click → insert a new lesson directly after the source lesson, with area,
+    /// sequence, and section pre-filled from the source.
+    var onCreateLessonAfter: ((CDLesson) -> Void)?
     /// Drag-reorder callback. Source IndexSet and destination index match SwiftUI's
     /// `.onMove` convention so it can call `moveLessonsInArea` directly.
     var onReorderLessons: ((IndexSet, Int) -> Void)?
 
     @State private var dropTargetLessonID: UUID?
+    @State private var dropTargetSection: String?
+    @State private var sectionOrderVersion: Int = 0
 
     private var color: Color {
         AppColors.color(forArea: threadKey.area)
@@ -47,6 +64,7 @@ struct LessonsScopeThreadFocusView: View {
     }
 
     var body: some View {
+        let _ = sectionOrderVersion
         VStack(alignment: .leading, spacing: 0) {
             header
             Divider()
@@ -65,12 +83,6 @@ struct LessonsScopeThreadFocusView: View {
             .foregroundStyle(.secondary)
 
             Spacer()
-
-            if isEditing {
-                Text("Drag pills to reorder")
-                    .font(.system(size: 11, weight: .medium, design: .rounded))
-                    .foregroundStyle(.secondary)
-            }
         }
         .padding(.horizontal, 16)
         .padding(.vertical, 10)
@@ -110,21 +122,7 @@ struct LessonsScopeThreadFocusView: View {
         if hasSections {
             VStack(alignment: .leading, spacing: 16) {
                 ForEach(Array(groups.enumerated()), id: \.offset) { entry in
-                    let sectionName = entry.element.0
-                    let sectionLessons = entry.element.1
-                    VStack(alignment: .leading, spacing: 6) {
-                        if !sectionName.isEmpty {
-                            Text(sectionName.uppercased())
-                                .font(.system(size: 11, weight: .semibold, design: .rounded))
-                                .tracking(0.5)
-                                .foregroundStyle(color.opacity(0.7))
-                        }
-                        FlowLayout(spacing: 8) {
-                            ForEach(sectionLessons, id: \.objectID) { lesson in
-                                pillView(for: lesson)
-                            }
-                        }
-                    }
+                    sectionGroupView(name: entry.element.0, lessons: entry.element.1)
                 }
             }
         } else {
@@ -134,6 +132,76 @@ struct LessonsScopeThreadFocusView: View {
                 }
             }
         }
+    }
+
+    @ViewBuilder
+    private func sectionGroupView(name sectionName: String, lessons sectionLessons: [CDLesson]) -> some View {
+        let isNamed = !sectionName.isEmpty
+        let isDropTarget = isNamed && (dropTargetSection?.caseInsensitiveCompare(sectionName) == .orderedSame)
+
+        VStack(alignment: .leading, spacing: 6) {
+            if isNamed {
+                Text(sectionName.uppercased())
+                    .font(.system(size: 11, weight: .semibold, design: .rounded))
+                    .tracking(0.5)
+                    .foregroundStyle(color.opacity(0.7))
+                    .padding(.vertical, 2)
+                    .contentShape(Rectangle())
+                    .draggable(ThreadSectionTransfer(
+                        area: threadKey.area,
+                        sequence: threadKey.sequence,
+                        section: sectionName
+                    ))
+                    .help("Drag to reorder section")
+            }
+            FlowLayout(spacing: 8) {
+                ForEach(sectionLessons, id: \.objectID) { lesson in
+                    pillView(for: lesson)
+                }
+            }
+        }
+        .overlay(
+            RoundedRectangle(cornerRadius: 8, style: .continuous)
+                .stroke(Color.accentColor.opacity(isDropTarget ? 0.6 : 0), lineWidth: 1.5)
+                .padding(-6)
+        )
+        .when(isNamed) { view in
+            view.dropDestination(for: ThreadSectionTransfer.self) { items, _ in
+                handleSectionDrop(items: items, onto: sectionName)
+            } isTargeted: { isTargeted in
+                if isTargeted {
+                    dropTargetSection = sectionName
+                } else if dropTargetSection?.caseInsensitiveCompare(sectionName) == .orderedSame {
+                    dropTargetSection = nil
+                }
+            }
+        }
+    }
+
+    private func handleSectionDrop(items: [ThreadSectionTransfer], onto targetSection: String) -> Bool {
+        defer { dropTargetSection = nil }
+        guard let item = items.first,
+              item.area.caseInsensitiveCompare(threadKey.area) == .orderedSame,
+              item.sequence.caseInsensitiveCompare(threadKey.sequence) == .orderedSame,
+              item.section.caseInsensitiveCompare(targetSection) != .orderedSame
+        else { return false }
+
+        let names = sectionedGroups.map { $0.0 }.filter { !$0.isEmpty }
+        guard let srcIdx = names.firstIndex(where: {
+            $0.caseInsensitiveCompare(item.section) == .orderedSame
+        }), let dstIdx = names.firstIndex(where: {
+            $0.caseInsensitiveCompare(targetSection) == .orderedSame
+        }) else { return false }
+
+        var newOrder = names
+        let moved = newOrder.remove(at: srcIdx)
+        let insertIdx = srcIdx < dstIdx ? dstIdx - 1 : dstIdx
+        newOrder.insert(moved, at: insertIdx)
+
+        FilterOrderStore.saveSectionOrder(newOrder, for: threadKey.area, sequence: threadKey.sequence)
+        FilterOrderStore.resetCache()
+        sectionOrderVersion &+= 1
+        return true
     }
 
     @ViewBuilder
@@ -159,7 +227,7 @@ struct LessonsScopeThreadFocusView: View {
             Capsule(style: .continuous)
                 .stroke(Color.accentColor.opacity(isDropTarget ? 0.8 : 0), lineWidth: 1.5)
         )
-        .when(isEditing && lesson.id != nil) { view in
+        .when(lesson.id != nil) { view in
             view
                 .draggable(LessonTransfer(lessonID: lesson.id!))
                 .dropDestination(for: LessonTransfer.self) { items, _ in
@@ -197,6 +265,15 @@ struct LessonsScopeThreadFocusView: View {
             onSelectLesson(lesson)
         } label: {
             Label("Open Card", systemImage: "doc.text")
+        }
+
+        if let onCreateLessonAfter {
+            Divider()
+            Button {
+                onCreateLessonAfter(lesson)
+            } label: {
+                Label("New Lesson After", systemImage: "plus")
+            }
         }
 
         if isEditing {

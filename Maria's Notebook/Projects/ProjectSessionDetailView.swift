@@ -18,15 +18,6 @@ struct ProjectSessionDetailView: View {
         NSSortDescriptor(keyPath: \CDStudent.firstName, ascending: true),
         NSSortDescriptor(keyPath: \CDStudent.lastName, ascending: true)
     ]) private var studentsRaw: FetchedResults<CDStudent>
-    // DEDUPLICATION: CloudKit sync can create duplicate records with the same ID.
-    // Filter out test students when setting is disabled
-    private var students: [CDStudent] {
-        TestStudentsFilter.filterVisible(
-            Array(studentsRaw).uniqueByID.filterEnrolled(),
-            show: showTestStudents,
-            namesRaw: testStudentNamesRaw
-        )
-    }
     @FetchRequest(sortDescriptors: [NSSortDescriptor(keyPath: \CDLesson.name, ascending: true)]) private var lessons: FetchedResults<CDLesson>
 
     // NEW: Query all work models to filter locally
@@ -35,6 +26,21 @@ struct ProjectSessionDetailView: View {
     @State var showLessonPickerForWork: CDWorkModel?
     @State var showSelectionSheetForStudent: String?
     @State var showAddWorkSheet: Bool = false
+    @State var stepEditorTarget: StepEditorTarget?
+    @State private var sessionNotesText: String
+
+    init(session: CDProjectSession) {
+        self.session = session
+        _sessionNotesText = State(initialValue: session.latestUnifiedNoteText)
+    }
+
+    var students: [CDStudent] {
+        TestStudentsFilter.filterVisible(
+            Array(studentsRaw).uniqueByID.filterEnrolled(),
+            show: showTestStudents,
+            namesRaw: testStudentNamesRaw
+        )
+    }
 
     // Use uniquingKeysWith to handle CloudKit sync duplicates
     var studentsByID: [UUID: CDStudent] {
@@ -153,8 +159,10 @@ struct ProjectSessionDetailView: View {
                         return vm
                     }()
                 ) { chosenID in
-                    if chosenID != nil {
-                        // CDWorkModel is writable but editing is disabled for now
+                    if let chosenID {
+                        targetWork.lessonID = chosenID.uuidString
+                        targetWork.lastTouchedAt = Date()
+                        saveProjectSession(reason: "Link Project Lesson")
                     }
                 }
             }
@@ -162,16 +170,30 @@ struct ProjectSessionDetailView: View {
         .sheet(isPresented: $showAddWorkSheet) {
             AddWorkOfferSheet(session: session)
         }
+        .sheet(item: $stepEditorTarget) { target in
+            WorkStepEditorSheet(work: target.work, existingStep: target.step) {
+                saveProjectSession(reason: "Save Project Step")
+            }
+        }
     }
 
     private var sessionGroupBox: some View {
         GroupBox {
             VStack(alignment: .leading, spacing: 12) {
-                TextField("Chapter/Pages", text: Binding(
+                TextField("Focus, lesson, or material", text: Binding(
                     get: { session.chapterOrPages ?? "" },
-                    set: { session.chapterOrPages = $0.isEmpty ? nil : $0 }
+                    set: { session.chapterOrPages = $0.trimmed().isEmpty ? nil : $0 }
                 ))
                 .textFieldStyle(.roundedBorder)
+
+                VStack(alignment: .leading, spacing: 8) {
+                    Text("Guide Observations")
+                        .font(.headline)
+                    TextField("Observation notes", text: $sessionNotesText, axis: .vertical)
+                        .lineLimit(3...6)
+                        .textFieldStyle(.roundedBorder)
+                        .onSubmit { saveSessionNotes() }
+                }
 
                 agendaItemsEditor
             }
@@ -179,21 +201,18 @@ struct ProjectSessionDetailView: View {
         }
         .padding(.horizontal)
         .onDisappear {
-            do {
-                try modelContext.save()
-            } catch {
-                ProjectSessionDetailView.logger.warning("Failed to save session on disappear: \(error)")
-            }
+            saveSessionNotes()
+            saveProjectSession(reason: "Save Project Check-In")
         }
     }
 
     private var agendaItemsEditor: some View {
         VStack(alignment: .leading, spacing: 8) {
-            Text("Agenda Items")
+            Text("Student Questions & Next Steps")
                 .font(.headline)
             ForEach(Array(session.agendaItems.enumerated()), id: \.offset) { index, _ in
                 HStack {
-                    TextField("Agenda item", text: Binding(
+                    TextField("Question, observation, or next step", text: Binding(
                         get: {
                             session.agendaItems.indices.contains(index)
                                 ? session.agendaItems[index] : ""
@@ -205,18 +224,15 @@ struct ProjectSessionDetailView: View {
                                 session.agendaItems = items
                             }
                         }
-                    ))
+                    ), axis: .vertical)
+                    .lineLimit(1...3)
                     .textFieldStyle(.roundedBorder)
                     Button(role: .destructive) {
                         var items = session.agendaItems
                         if items.indices.contains(index) {
                             items.remove(at: index)
                             session.agendaItems = items
-                            do {
-                                try modelContext.save()
-                            } catch {
-                                Self.logger.warning("Failed to save after removing agenda item: \(error)")
-                            }
+                            saveProjectSession(reason: "Remove Project Next Step")
                         }
                     } label: {
                         Image(systemName: "minus.circle.fill")
@@ -229,14 +245,9 @@ struct ProjectSessionDetailView: View {
                 var items = session.agendaItems
                 items.append("")
                 session.agendaItems = items
-                do {
-                    try modelContext.save()
-                } catch {
-                    let desc: String = error.localizedDescription
-                    Self.logger.error("Failed to save after adding agenda item: \(desc, privacy: .public)")
-                }
+                saveProjectSession(reason: "Add Project Next Step")
             } label: {
-                Label("Add Item", systemImage: "plus.circle.fill")
+                Label("Add Next Step", systemImage: "plus.circle.fill")
             }
             .buttonStyle(.plain)
         }
@@ -263,7 +274,37 @@ struct ProjectSessionDetailView: View {
             }
         }
     }
-    
+
+    func editStep(for work: CDWorkModel, step: CDWorkStep?) {
+        stepEditorTarget = StepEditorTarget(work: work, step: step)
+    }
+
+    func saveProjectSession(reason: String) {
+        session.project?.modifiedAt = Date()
+        saveCoordinator.save(modelContext, reason: reason)
+    }
+
+    private func saveSessionNotes() {
+        let trimmed = sessionNotesText.trimmed()
+        if trimmed != session.latestUnifiedNoteText.trimmed() {
+            session.setLegacyNoteText(trimmed.isEmpty ? nil : trimmed, in: modelContext)
+        }
+    }
+
+    struct StepEditorTarget: Identifiable {
+        let id: String
+        let work: CDWorkModel
+        let step: CDWorkStep?
+
+        init(work: CDWorkModel, step: CDWorkStep?) {
+            self.work = work
+            self.step = step
+            let workID = work.objectID.uriRepresentation().absoluteString
+            let stepID = step?.objectID.uriRepresentation().absoluteString ?? "new"
+            self.id = "\(workID)-\(stepID)"
+        }
+    }
+
     private struct WorkIDWrapper: Identifiable {
         let id: UUID
     }
@@ -271,5 +312,4 @@ struct ProjectSessionDetailView: View {
     private struct StudentIDWrapper: Identifiable {
         let id: String
     }
-
 }

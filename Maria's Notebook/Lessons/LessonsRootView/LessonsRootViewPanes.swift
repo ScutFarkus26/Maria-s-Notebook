@@ -66,6 +66,9 @@ extension LessonsRootView {
                 onMoveLessonToSequence: { lesson, targetSequence in
                     moveLessonToSequence(lesson: lesson, newSequence: targetSequence)
                 },
+                onCreateLessonAfter: { lesson in
+                    addLessonContext = AddLessonContext(source: lesson)
+                },
                 onReorderLessons: { source, destination in
                     let groupLessons = lessonsForSequence(focusedThread.sequence, ungroupedLabel: "Ungrouped")
                     moveLessonsInArea(from: source, to: destination, in: groupLessons)

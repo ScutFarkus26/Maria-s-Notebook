@@ -27,12 +27,16 @@ struct ProjectEditorSheet: View {
     @State private var title: String = ""
     @State private var bookTitle: String = ""
     @State private var selectedMemberIDs: Set<String> = []
+    @State private var isActive: Bool = true
+    @State private var isSaving: Bool = false
+    @State private var studentSearchText: String = ""
 
     init(club: CDProject?) {
         self.club = club
         _title = State(initialValue: club?.title ?? "")
         _bookTitle = State(initialValue: club?.bookTitle ?? "")
         _selectedMemberIDs = State(initialValue: Set(club?.memberStudentIDsArray ?? []))
+        _isActive = State(initialValue: club?.isActive ?? true)
     }
 
     var body: some View {
@@ -41,19 +45,33 @@ struct ProjectEditorSheet: View {
                 .font(.title2).fontWeight(.semibold)
 
             Group {
-                TextField("Title", text: $title)
+                TextField("Project title", text: $title)
                     .textFieldStyle(.roundedBorder)
-                TextField("Book/Area (optional)", text: $bookTitle)
+                TextField("Guiding question or lesson seed", text: $bookTitle)
                     .textFieldStyle(.roundedBorder)
+                Toggle("Active project", isOn: $isActive)
+                    .toggleStyle(.checkboxOrSwitch)
             }
 
             // Members
             VStack(alignment: .leading, spacing: 8) {
-                Text("Members").font(.headline)
+                HStack {
+                    Text("Students Working on This").font(.headline)
+                    Spacer()
+                    if !selectedMemberIDs.isEmpty {
+                        Text("\(selectedMemberIDs.count) selected")
+                            .font(AppTheme.ScaledFont.captionSemibold)
+                            .foregroundStyle(.secondary)
+                    }
+                }
+
+                SearchField("Search students", text: $studentSearchText)
+
                 ScrollView {
                     LazyVStack(alignment: .leading, spacing: 6) {
-                        ForEach(students) { s in
-                            let sid = (s.id ?? UUID()).uuidString
+                        ForEach(filteredSelectableStudents, id: \.id) { entry in
+                            let s = entry.student
+                            let sid = entry.id.uuidString
                             HStack {
                                 Toggle(isOn: Binding(
                                     get: { selectedMemberIDs.contains(sid) },
@@ -63,6 +81,14 @@ struct ProjectEditorSheet: View {
                                 }
                                 .toggleStyle(.checkboxOrSwitch)
                             }
+                        }
+
+                        if filteredSelectableStudents.isEmpty {
+                            Text("No students match this search.")
+                                .font(AppTheme.ScaledFont.caption)
+                                .foregroundStyle(.secondary)
+                                .frame(maxWidth: .infinity, alignment: .leading)
+                                .padding(.vertical, AppTheme.Spacing.small)
                         }
                     }
                 }
@@ -74,7 +100,7 @@ struct ProjectEditorSheet: View {
                 Button("Cancel") { dismiss() }
                 Button("Save") { save() }
                     .buttonStyle(.borderedProminent)
-                    .disabled(!isValid)
+                    .disabled(!isValid || isSaving)
             }
         }
         .padding(16)
@@ -89,26 +115,57 @@ struct ProjectEditorSheet: View {
 
     private var isValid: Bool { !title.trimmed().isEmpty }
 
+    private var selectableStudents: [(id: UUID, student: CDStudent)] {
+        students.compactMap { student in
+            guard let id = student.id else { return nil }
+            return (id, student)
+        }
+    }
+
+    private var filteredSelectableStudents: [(id: UUID, student: CDStudent)] {
+        let query = studentSearchText.normalizedForComparison()
+        guard !query.isEmpty else { return selectableStudents }
+
+        return selectableStudents.filter { entry in
+            let student = entry.student
+            let values = [
+                student.firstName,
+                student.lastName,
+                student.fullName,
+                StudentFormatter.displayName(for: student),
+                student.level.rawValue
+            ]
+            return values.contains { $0.normalizedForComparison().contains(query) }
+        }
+    }
+
     private func toggleMember(_ id: String, _ add: Bool) {
         if add { selectedMemberIDs.insert(id) } else { _ = selectedMemberIDs.remove(id) }
     }
 
     private func save() {
+        guard !isSaving else { return }
         let trimmedTitle = title.trimmed()
         guard !trimmedTitle.isEmpty else { return }
         let bt = bookTitle.trimmed()
+        let memberIDs = Array(selectedMemberIDs).sorted()
+        isSaving = true
 
         if let club {
             // Update existing
             club.title = trimmedTitle
             club.bookTitle = bt.isEmpty ? nil : bt
-            club.memberStudentIDsArray = Array(selectedMemberIDs)
+            club.memberStudentIDsArray = memberIDs
+            club.isActive = isActive
+            club.modifiedAt = Date()
         } else {
             // Create new
             let newClub = CDProject(context: modelContext)
             newClub.title = trimmedTitle
             newClub.bookTitle = bt.isEmpty ? nil : bt
-            newClub.memberStudentIDsArray = Array(selectedMemberIDs)
+            newClub.memberStudentIDsArray = memberIDs
+            newClub.isActive = isActive
+            newClub.modifiedAt = Date()
         }
 
         saveCoordinator.save(modelContext, reason: "Save Project")

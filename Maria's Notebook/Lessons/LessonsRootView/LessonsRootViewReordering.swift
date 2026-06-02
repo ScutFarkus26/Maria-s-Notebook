@@ -83,7 +83,9 @@ extension LessonsRootView {
         }
 
         let ungroupedLabel: String = "Ungrouped"
-        let displaySequences: [String] = reorderableSequences
+        let displaySequences: [String] = reorderableSequences.isEmpty
+            ? helper.groups(for: area, lessons: Array(lessons))
+            : reorderableSequences
         let allLessonsInOrder: [CDLesson] = collectOrderedLessons(
             displaySequences: displaySequences,
             ungroupedLabel: ungroupedLabel
@@ -240,6 +242,38 @@ extension LessonsRootView {
         }
 
         rebuildSortIndexForArea()
+    }
+
+    // MARK: - Insert CDLesson After Another
+
+    /// Repositions a newly-created lesson to sit immediately after `source` in its sequence,
+    /// then renumbers `orderInSequence` so the new lesson lands exactly where the user expects.
+    @MainActor
+    func insertLessonAfter(newLesson: CDLesson, after source: CDLesson) {
+        guard let sourceID = source.id, let newID = newLesson.id, sourceID != newID else { return }
+
+        let ungroupedLabel = "Ungrouped"
+        let sequenceLabel: String = source.sequence.trimmed().isEmpty ? ungroupedLabel : source.sequence
+
+        // `lessonsForSequence` is backed by `@FetchRequest`-derived state; the just-created
+        // lesson may or may not be present yet. Filter it out and re-insert positionally so
+        // we get the right order either way.
+        var inSequence: [CDLesson] = lessonsForSequence(sequenceLabel, ungroupedLabel: ungroupedLabel)
+            .filter { $0.id != newID }
+
+        guard let srcIdx = inSequence.firstIndex(where: { $0.id == sourceID }) else { return }
+
+        inSequence.insert(newLesson, at: srcIdx + 1)
+
+        for (idx, lesson) in inSequence.enumerated() {
+            lesson.orderInSequence = Int64(idx)
+        }
+
+        do {
+            try viewContext.save()
+        } catch {
+            logger.error("Failed to save lesson after insert-after: \(error)")
+        }
     }
 
     // MARK: - Move CDLesson to Different Section

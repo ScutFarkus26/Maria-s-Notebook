@@ -35,8 +35,16 @@ public class CDProject: NSManagedObject {
 extension CDProject {
     /// Access memberStudentIDs as a Swift [String] array
     var memberStudentIDsArray: [String] {
-        get { (memberStudentIDs as? [String]) ?? [] }
-        set { memberStudentIDs = newValue as NSArray }
+        get {
+            if let ids = memberStudentIDs as? [String] {
+                return ids
+            }
+            if let ids = memberStudentIDs as? NSArray {
+                return ids.compactMap { $0 as? String }
+            }
+            return []
+        }
+        set { memberStudentIDs = Array(Set(newValue)).sorted() as NSArray }
     }
 
     /// Convenience computed property to get memberStudentIDs as UUIDs
