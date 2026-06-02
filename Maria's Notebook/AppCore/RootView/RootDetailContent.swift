@@ -28,7 +28,7 @@ struct RootDetailContent: View {
             switch selectedNavItem {
             case .today, .attendance, .note, .fridayReview:
                 dailyContent
-            case .students, .meetings, .goingOut, .parentCommunication, .classroomJobs, .more:
+            case .students, .meetings, .goingOut, .more:
                 studentsContent
             case .lessons, .stories, .bookClub, .planningChecklist, .planningAgenda, .planningWork,
                  .planningProgression, .planningProjects, .needsLesson, .smallSequencePlanner:
@@ -39,7 +39,7 @@ struct RootDetailContent: View {
                  .greatLessonsTimeline, .threeYearCycle:
                 progressContent
             case .supplies, .procedures, .schedules,
-                 .community, .issues, .resourceLibrary:
+                 .community, .resourceLibrary:
                 resourcesContent
             case .askAI, .logs, .settings:
                 toolsContent
@@ -47,12 +47,6 @@ struct RootDetailContent: View {
                 ThisWeeksParshaView()
             case .parshaCalendar:
                 ParshaCalendarView()
-            case .parshaAlbumMatches:
-                ParshaAlbumSuggestionsView()
-            case .parshaCoverage:
-                ParshaCoverageView()
-            case .parshaTopics:
-                ParshaTopicBrowserView()
             }
         }
     }
@@ -82,8 +76,6 @@ struct RootDetailContent: View {
         case .students: StudentsRootView()
         case .meetings: MeetingsWorkflowView()
         case .goingOut: GoingOutRootView()
-        case .parentCommunication: ParentCommunicationRootView()
-        case .classroomJobs: ClassroomJobsRootView()
         case .more: MoreMenuView()
         default: EmptyView()
         }
@@ -161,7 +153,6 @@ struct RootDetailContent: View {
         case .procedures: ProceduresListView()
         case .schedules: SchedulesView()
         case .community: CommunityMeetingsView()
-        case .issues: IssuesListView()
         case .resourceLibrary: ResourceLibraryView()
         default: EmptyView()
         }

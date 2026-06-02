@@ -49,16 +49,10 @@ extension RootSidebar {
                 sidebarRow(.meetings, title: "Meetings", systemImage: SFSymbol.People.person2)
 
                 sidebarRow(.goingOut, title: "Going Out", systemImage: "figure.walk")
-
-                sidebarRow(.parentCommunication, title: "Parent Comms", systemImage: "envelope")
             }
 
             Section("Classroom") {
                 sidebarRow(.community, title: "Community", systemImage: "bubble.left.and.bubble.right")
-
-                sidebarRow(.classroomJobs, title: "Jobs", systemImage: "person.2.badge.gearshape")
-
-                sidebarRow(.issues, title: "Issues", systemImage: "exclamationmark.triangle")
             }
 
             Section("Curriculum") {
@@ -87,9 +81,6 @@ extension RootSidebar {
             Section("Parsha") {
                 sidebarRow(.thisWeeksParsha, title: "This Week’s Parsha", systemImage: "book.closed")
                 sidebarRow(.parshaCalendar, title: "Parsha Calendar", systemImage: "calendar")
-                sidebarRow(.parshaAlbumMatches, title: "Album Matches", systemImage: "sparkles")
-                sidebarRow(.parshaCoverage, title: "Coverage", systemImage: "square.grid.2x2.fill")
-                sidebarRow(.parshaTopics, title: "Topics", systemImage: "tag.fill")
             }
 
             Section("Planning") {
@@ -213,10 +204,6 @@ extension RootSidebar {
                              title: "Going Out",
                              systemImage: "figure.walk",
                              hint: "Plan and track student going-out excursions")
-            iOSSidebarButton(.parentCommunication,
-                             title: "Parent Comms",
-                             systemImage: "envelope",
-                             hint: "Draft and track parent communications")
         }
     }
 
@@ -226,14 +213,6 @@ extension RootSidebar {
                              title: "Community",
                              systemImage: "bubble.left.and.bubble.right",
                              hint: "View community meetings and topics")
-            iOSSidebarButton(.classroomJobs,
-                             title: "Jobs",
-                             systemImage: "person.2.badge.gearshape",
-                             hint: "Manage classroom job rotation board")
-            iOSSidebarButton(.issues,
-                             title: "Issues",
-                             systemImage: "exclamationmark.triangle",
-                             hint: "Track and resolve classroom issues")
         }
     }
 
@@ -268,18 +247,6 @@ extension RootSidebar {
                              title: "Parsha Calendar",
                              systemImage: "calendar",
                              hint: "Annual calendar of every Shabbat and its parsha for the current Hebrew year")
-            iOSSidebarButton(.parshaAlbumMatches,
-                             title: "Album Matches",
-                             systemImage: "sparkles",
-                             hint: "AI-suggested album lessons whose themes connect to each parsha")
-            iOSSidebarButton(.parshaCoverage,
-                             title: "Coverage",
-                             systemImage: "square.grid.2x2.fill",
-                             hint: "See which parshas have lessons and which still need them")
-            iOSSidebarButton(.parshaTopics,
-                             title: "Topics",
-                             systemImage: "tag.fill",
-                             hint: "Browse parshas by topic — pick a theme to see which parshas mention it")
         }
     }
 

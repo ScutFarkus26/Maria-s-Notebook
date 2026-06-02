@@ -59,28 +59,8 @@ struct RootAdaptiveTabs: View {
             } label: {
                 Label("Going Out", systemImage: "figure.walk")
             }
-            Tab(value: RootView.NavigationItem.parentCommunication) {
-                RootDetailContent(selectedNavItem: .parentCommunication)
-            } label: {
-                Label("Parent Comms", systemImage: "envelope")
-            }
         } header: {
             Text("Students")
-        }
-
-        TabSection {
-            Tab(value: RootView.NavigationItem.classroomJobs) {
-                RootDetailContent(selectedNavItem: .classroomJobs)
-            } label: {
-                Label("Jobs", systemImage: "person.2.badge.gearshape")
-            }
-            Tab(value: RootView.NavigationItem.issues) {
-                RootDetailContent(selectedNavItem: .issues)
-            } label: {
-                Label("Issues", systemImage: "exclamationmark.triangle")
-            }
-        } header: {
-            Text("Classroom")
         }
 
         TabSection {
@@ -113,21 +93,6 @@ struct RootAdaptiveTabs: View {
                 RootDetailContent(selectedNavItem: .parshaCalendar)
             } label: {
                 Label("Parsha Calendar", systemImage: "calendar")
-            }
-            Tab(value: RootView.NavigationItem.parshaAlbumMatches) {
-                RootDetailContent(selectedNavItem: .parshaAlbumMatches)
-            } label: {
-                Label("Album Matches", systemImage: "sparkles")
-            }
-            Tab(value: RootView.NavigationItem.parshaCoverage) {
-                RootDetailContent(selectedNavItem: .parshaCoverage)
-            } label: {
-                Label("Coverage", systemImage: "square.grid.2x2.fill")
-            }
-            Tab(value: RootView.NavigationItem.parshaTopics) {
-                RootDetailContent(selectedNavItem: .parshaTopics)
-            } label: {
-                Label("Topics", systemImage: "tag.fill")
             }
         } header: {
             Text("Parsha")

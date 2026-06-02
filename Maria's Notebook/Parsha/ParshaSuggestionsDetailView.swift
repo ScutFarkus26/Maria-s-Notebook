@@ -1,101 +1,9 @@
-// ParshaAlbumSuggestionsView.swift
-// Top-level browser for AI-suggested album-lesson matches across all parshas.
-// Each parsha shows whether suggestions are cached; tapping opens a detail view
-// where you can generate (or refresh) and tag matches inline.
+// ParshaSuggestionsDetailView.swift
+// Detail view for managing AI-generated album-lesson suggestions for a single parsha.
+// Used by This Week's Parsha to drill into the cached suggestions list.
 
 import SwiftUI
 import CoreData
-
-struct ParshaAlbumSuggestionsView: View {
-    @Environment(\.managedObjectContext) private var viewContext
-    @Environment(\.dependencies) private var dependencies
-
-    @State private var cachedSuggestionsByKey: [String: CachedParshaSuggestions] = [:]
-    @State private var selectedParshaKey: String?
-
-    var body: some View {
-        NavigationStack {
-            List {
-                Section {
-                    if !AnthropicAPIClient.hasAPIKey() {
-                        apiKeyMissingNotice
-                    }
-                    Text("AI scans your album lessons and suggests which ones thematically connect to each parsha — useful for finding non-obvious links beyond manual tagging.")
-                        .font(AppTheme.ScaledFont.caption)
-                        .foregroundStyle(.secondary)
-                }
-                Section {
-                    ForEach(HebrewParshaService.allParshaKeys, id: \.self) { key in
-                        NavigationLink(value: key) {
-                            ParshaSuggestionsListRow(
-                                parshaKey: key,
-                                suggestionCount: cachedSuggestionsByKey[key]?.suggestions.count ?? 0,
-                                generatedAt: cachedSuggestionsByKey[key]?.generatedAt
-                            )
-                        }
-                    }
-                }
-            }
-            .navigationTitle("Album Matches")
-            .onAppear { reloadCache() }
-            .navigationDestination(for: String.self) { key in
-                ParshaSuggestionsDetailView(parshaKey: key) {
-                    reloadCache()
-                }
-            }
-            .navigationDestination(for: CDLesson.self) { lesson in
-                LessonDetailView(lesson: lesson, onSave: { _ in })
-            }
-        }
-    }
-
-    private var apiKeyMissingNotice: some View {
-        VStack(alignment: .leading, spacing: AppTheme.Spacing.xsmall) {
-            Label("AI not configured", systemImage: "exclamationmark.triangle.fill")
-                .font(AppTheme.ScaledFont.bodySemibold)
-                .foregroundStyle(.orange)
-            Text("Add an Anthropic API key in Settings → AI to enable suggestions.")
-                .font(AppTheme.ScaledFont.caption)
-                .foregroundStyle(.secondary)
-        }
-        .padding(.vertical, AppTheme.Spacing.xxsmall)
-    }
-
-    private func reloadCache() {
-        cachedSuggestionsByKey = ParshaSuggestionService.allCachedSuggestions()
-    }
-}
-
-private struct ParshaSuggestionsListRow: View {
-    let parshaKey: String
-    let suggestionCount: Int
-    let generatedAt: Date?
-
-    var body: some View {
-        HStack {
-            VStack(alignment: .leading, spacing: AppTheme.Spacing.xxsmall) {
-                Text(HebrewParshaService.displayName(forKey: parshaKey))
-                    .font(AppTheme.ScaledFont.bodySemibold)
-                    .foregroundStyle(.primary)
-                if let generatedAt {
-                    Text("\(suggestionCount) suggestion\(suggestionCount == 1 ? "" : "s") · \(generatedAt.formatted(date: .abbreviated, time: .omitted))")
-                        .font(AppTheme.ScaledFont.caption)
-                        .foregroundStyle(.secondary)
-                } else {
-                    Text("No suggestions yet")
-                        .font(AppTheme.ScaledFont.caption)
-                        .foregroundStyle(.secondary)
-                }
-            }
-            Spacer()
-            if suggestionCount > 0 {
-                Image(systemName: "sparkles")
-                    .foregroundStyle(Color.accentColor)
-            }
-        }
-        .padding(.vertical, AppTheme.Spacing.xxsmall)
-    }
-}
 
 struct ParshaSuggestionsDetailView: View {
     let parshaKey: String
@@ -205,13 +113,12 @@ struct ParshaSuggestionsDetailView: View {
     }
 
     private func handleTagged() {
-        // Re-read cache and refresh
         cached = service.cachedSuggestions(forParshaKey: parshaKey)
         onChange()
     }
 }
 
-struct SuggestionRow: View {
+private struct SuggestionRow: View {
     let suggestion: ParshaSuggestion
     let parshaKey: String
     let onTagged: () -> Void

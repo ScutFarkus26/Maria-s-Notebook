@@ -34,8 +34,6 @@ extension RootView {
         case curriculumBalance
         case greatLessonsTimeline
         case goingOut
-        case parentCommunication
-        case classroomJobs
         case threeYearCycle
         case needsLesson
         case smallSequencePlanner
@@ -44,7 +42,6 @@ extension RootView {
 
         case community
         case schedules
-        case issues
         case resourceLibrary
         case askAI
         case logs
@@ -52,9 +49,6 @@ extension RootView {
 
         case thisWeeksParsha
         case parshaCalendar
-        case parshaAlbumMatches
-        case parshaCoverage
-        case parshaTopics
 
         var id: Self { self }
 
@@ -86,24 +80,18 @@ extension RootView {
             case .curriculumBalance:   return ("Curriculum Balance", SFSymbol.Chart.chartPie)
             case .greatLessonsTimeline: return ("Great Lessons", "sparkles")
             case .goingOut:            return ("Going Out", "figure.walk")
-            case .parentCommunication: return ("Parent Comms", "envelope")
-            case .classroomJobs:       return ("Jobs", "person.2.badge.gearshape")
             case .threeYearCycle:      return ("Three-Year Cycle", "chart.bar.doc.horizontal")
             case .needsLesson:         return ("Needs Lesson", "clock.badge.exclamationmark")
             case .smallSequencePlanner:   return ("Group Planner", "person.3.sequence")
             case .perpetualCalendar:   return ("Calendar", "calendar.day.timeline.leading")
             case .community:           return ("Community", "bubble.left.and.bubble.right")
             case .schedules:           return ("Schedules", "clock.badge.checkmark")
-            case .issues:              return ("Issues", "exclamationmark.triangle")
             case .resourceLibrary:     return ("Resources", "tray.2")
             case .askAI:               return ("Ask AI", "bubble.left.and.text.bubble.right")
             case .logs:                return ("Logs", "list.bullet")
             case .settings:            return ("Settings", "gear")
             case .thisWeeksParsha:     return ("This Week’s Parsha", "book.closed")
             case .parshaCalendar:      return ("Parsha Calendar", "calendar")
-            case .parshaAlbumMatches:  return ("Album Matches", "sparkles")
-            case .parshaCoverage:      return ("Parsha Coverage", "square.grid.2x2.fill")
-            case .parshaTopics:        return ("Topics", "tag.fill")
             }
         }
 
@@ -130,10 +118,10 @@ extension RootView {
                  .planningProgression, .planningProjects, .planningCalendar,
                  .progressDashboard,
                  .lessonFrequency, .curriculumBalance, .greatLessonsTimeline,
-                 .goingOut, .parentCommunication, .fridayReview,
-                 .classroomJobs, .threeYearCycle, .needsLesson, .smallSequencePlanner,
+                 .goingOut, .fridayReview,
+                 .threeYearCycle, .needsLesson, .smallSequencePlanner,
                  .perpetualCalendar,
-                 .thisWeeksParsha, .parshaCalendar, .parshaAlbumMatches, .parshaCoverage, .parshaTopics,
+                 .thisWeeksParsha, .parshaCalendar,
                  .community, .schedules, .resourceLibrary, .askAI, .logs, .settings:
                 return true
             default:
@@ -165,21 +153,15 @@ extension RootView {
                  .smallSequencePlanner:
                 return .planning
             case .goingOut:          return nil
-            case .parentCommunication: return nil
-            case .classroomJobs:     return nil
             case .perpetualCalendar: return nil
             case .community:         return .community
             case .schedules:         return nil
-            case .issues:            return nil
             case .resourceLibrary:   return nil
             case .askAI:             return nil
             case .logs:              return .logs
             case .settings:          return .settings
             case .thisWeeksParsha:     return nil
             case .parshaCalendar:      return nil
-            case .parshaAlbumMatches:  return nil
-            case .parshaCoverage:      return nil
-            case .parshaTopics:        return nil
             }
         }
     }

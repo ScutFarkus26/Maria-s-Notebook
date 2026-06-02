@@ -17,12 +17,6 @@ struct MoreMenuView: View {
                 Section("Students") {
                     moreMenuButton(.meetings)
                     moreMenuButton(.goingOut)
-                    moreMenuButton(.parentCommunication)
-                }
-
-                Section("Classroom") {
-                    moreMenuButton(.classroomJobs)
-                    moreMenuButton(.issues)
                 }
 
                 Section("Curriculum") {
