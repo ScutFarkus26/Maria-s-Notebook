@@ -45,6 +45,12 @@ extension BackupService {
         for type in BackupEntityRegistry.allTypes {
             let entityName = String(describing: type).replacingOccurrences(of: "CD", with: "")
 
+            // Never clear a type the restore can't repopulate. These entities are
+            // listed in allTypes for schema completeness but have no importer, so
+            // deleting them in replace mode would permanently destroy data the
+            // backup never captured (e.g. Stories, Book Club, Year Plan, Day Pads).
+            guard !BackupEntityRegistry.notYetBackedUpEntityNames.contains(entityName) else { continue }
+
             // Skip types whose entity doesn't exist in the model (legacy renames, deprecations).
             guard model?.entitiesByName[entityName] != nil else { continue }
 

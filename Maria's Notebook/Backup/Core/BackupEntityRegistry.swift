@@ -102,7 +102,26 @@ struct BackupEntityRegistry {
         CDBookClubSession.self,
         CDBookClubMeeting.self
     ]
-    
+
+    /// Entity types listed in `allTypes` for schema completeness but NOT yet
+    /// round-tripped by the backup: they have no DTO transformer, no importer,
+    /// and `BackupService+DataCollection` does not collect them.
+    ///
+    /// Replace-mode restore (`deleteAll`) MUST skip these — clearing a type the
+    /// restore can't repopulate would permanently delete the user's data, and
+    /// because the deletes emit CloudKit tombstones, propagate that loss to
+    /// every device. Remove a type from this set only once it has a DTO + an
+    /// importer and is collected during export.
+    static let notYetBackedUpEntityNames: Set<String> = [
+        "DayPad",
+        "YearPlanEntry",
+        "LessonSequenceSettings",
+        "Story",
+        "BookClubPacket",
+        "BookClubSession",
+        "BookClubMeeting"
+    ]
+
     /// Entity type names for progress reporting and error messages
     static func entityName(for type: NSManagedObject.Type) -> String {
         String(describing: type)
