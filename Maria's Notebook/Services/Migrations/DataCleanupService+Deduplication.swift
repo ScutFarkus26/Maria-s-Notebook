@@ -52,7 +52,13 @@ extension DataCleanupService {
                 }
             }
 
-            for d in duplicates { context.delete(d) }
+            for d in duplicates {
+                // Re-parent the duplicate's notes onto the survivor first —
+                // unifiedNotes is a Cascade relationship, so a raw delete would
+                // destroy any observation notes attached to the duplicate draft.
+                mergeLessonAssignment(canonical: canonical, duplicate: d)
+                context.delete(d)
+            }
             changed = true
         }
 
@@ -408,6 +414,91 @@ extension DataCleanupService {
         )
     }
 
+    // MARK: - Child-Preserving Merges for Cascade-Owning Entities
+    //
+    // These entities own Note (and MeetingWorkReview) children through Cascade
+    // delete rules. The generic id-based `deduplicate(_:)` keeps the first row
+    // and deletes the rest; without re-parenting first, Core Data cascade-
+    // deletes the duplicate's children — silently destroying an observation
+    // note that happened to attach to a non-canonical CloudKit duplicate. Each
+    // merge re-points the duplicate's children onto the survivor before it is
+    // deleted, mirroring how `mergeWorkModel`/`mergeNote` already protect their
+    // children.
+
+    private static func mergeLessonAssignment(canonical: CDLessonAssignment, duplicate: CDLessonAssignment) {
+        var existingNoteIDs = Set((canonical.unifiedNotes as? Set<CDNote>)?.compactMap(\.id) ?? [])
+        mergeNSSetRelationship(
+            from: duplicate.unifiedNotes,
+            addTo: canonical,
+            relationshipKey: "unifiedNotes",
+            existingIDs: &existingNoteIDs,
+            setter: { (note: CDNote) in note.lessonAssignment = canonical }
+        )
+    }
+
+    private static func mergeWorkCheckIn(canonical: CDWorkCheckIn, duplicate: CDWorkCheckIn) {
+        var existingNoteIDs = Set((canonical.notes as? Set<CDNote>)?.compactMap(\.id) ?? [])
+        mergeNSSetRelationship(
+            from: duplicate.notes,
+            addTo: canonical,
+            relationshipKey: "notes",
+            existingIDs: &existingNoteIDs,
+            setter: { (note: CDNote) in note.workCheckIn = canonical }
+        )
+    }
+
+    private static func mergeWorkCompletionRecord(canonical: CDWorkCompletionRecord, duplicate: CDWorkCompletionRecord) {
+        var existingNoteIDs = Set((canonical.notes as? Set<CDNote>)?.compactMap(\.id) ?? [])
+        mergeNSSetRelationship(
+            from: duplicate.notes,
+            addTo: canonical,
+            relationshipKey: "notes",
+            existingIDs: &existingNoteIDs,
+            setter: { (note: CDNote) in note.workCompletionRecord = canonical }
+        )
+    }
+
+    private static func mergeProjectSession(canonical: CDProjectSession, duplicate: CDProjectSession) {
+        var existingNoteIDs = Set((canonical.noteItems as? Set<CDNote>)?.compactMap(\.id) ?? [])
+        mergeNSSetRelationship(
+            from: duplicate.noteItems,
+            addTo: canonical,
+            relationshipKey: "noteItems",
+            existingIDs: &existingNoteIDs,
+            setter: { (note: CDNote) in note.projectSession = canonical }
+        )
+    }
+
+    private static func mergeStudentMeeting(canonical: CDStudentMeeting, duplicate: CDStudentMeeting) {
+        var existingNoteIDs = Set((canonical.notes as? Set<CDNote>)?.compactMap(\.id) ?? [])
+        mergeNSSetRelationship(
+            from: duplicate.notes,
+            addTo: canonical,
+            relationshipKey: "notes",
+            existingIDs: &existingNoteIDs,
+            setter: { (note: CDNote) in note.studentMeeting = canonical }
+        )
+        var existingReviewIDs = Set((canonical.workReviews as? Set<CDMeetingWorkReview>)?.compactMap(\.id) ?? [])
+        mergeNSSetRelationship(
+            from: duplicate.workReviews,
+            addTo: canonical,
+            relationshipKey: "workReviews",
+            existingIDs: &existingReviewIDs,
+            setter: { (review: CDMeetingWorkReview) in review.meeting = canonical }
+        )
+    }
+
+    private static func mergeReminder(canonical: CDReminder, duplicate: CDReminder) {
+        var existingNoteIDs = Set((canonical.noteItems as? Set<CDNote>)?.compactMap(\.id) ?? [])
+        mergeNSSetRelationship(
+            from: duplicate.noteItems,
+            addTo: canonical,
+            relationshipKey: "noteItems",
+            existingIDs: &existingNoteIDs,
+            setter: { (note: CDNote) in note.reminder = canonical }
+        )
+    }
+
     // MARK: - Deduplicate All Models
 
     /// Deduplicates all model types in the database.
@@ -418,20 +509,20 @@ extension DataCleanupService {
         // Core models
         results["Student"] = deduplicateStudentsStrong(using: context)
         results["Lesson"] = deduplicateLessonsStrong(using: context)
-        results["LessonAssignment"] = deduplicate(CDLessonAssignment.self, using: context)
+        results["LessonAssignment"] = deduplicate(CDLessonAssignment.self, using: context, merge: mergeLessonAssignment)
         results["LessonPresentation"] = deduplicateLessonPresentationsStrong(using: context)
 
         // Work-related models
         results["WorkModel"] = deduplicateWorkModelsStrong(using: context)
-        results["WorkCheckIn"] = deduplicate(CDWorkCheckIn.self, using: context)
-        results["WorkCompletionRecord"] = deduplicate(CDWorkCompletionRecord.self, using: context)
+        results["WorkCheckIn"] = deduplicate(CDWorkCheckIn.self, using: context, merge: mergeWorkCheckIn)
+        results["WorkCompletionRecord"] = deduplicate(CDWorkCompletionRecord.self, using: context, merge: mergeWorkCompletionRecord)
         results["WorkParticipantEntity"] = deduplicate(CDWorkParticipantEntity.self, using: context)
         results["WorkStep"] = deduplicate(CDWorkStep.self, using: context)
 
         // CDProject models
         results["Project"] = deduplicate(CDProject.self, using: context)
         results["ProjectRole"] = deduplicate(CDProjectRole.self, using: context)
-        results["ProjectSession"] = deduplicate(CDProjectSession.self, using: context)
+        results["ProjectSession"] = deduplicate(CDProjectSession.self, using: context, merge: mergeProjectSession)
         // ProjectAssignmentTemplate, ProjectTemplateWeek, and ProjectWeekRoleAssignment
         // deduplication removed — these entities are deprecated
 
@@ -449,7 +540,7 @@ extension DataCleanupService {
 
         // Attendance and calendar
         results["AttendanceRecord"] = deduplicateAttendanceRecordsStrong(using: context)
-        results["StudentMeeting"] = deduplicate(CDStudentMeeting.self, using: context)
+        results["StudentMeeting"] = deduplicate(CDStudentMeeting.self, using: context, merge: mergeStudentMeeting)
         results["MeetingTemplate"] = deduplicate(CDMeetingTemplateEntity.self, using: context)
         results["CalendarEvent"] = deduplicate(CDCalendarEvent.self, using: context)
         results["NonSchoolDay"] = deduplicate(CDNonSchoolDay.self, using: context)
@@ -461,7 +552,7 @@ extension DataCleanupService {
         results["CommunityAttachment"] = deduplicate(CDCommunityAttachmentEntity.self, using: context)
 
         // Other models
-        results["Reminder"] = deduplicate(CDReminder.self, using: context)
+        results["Reminder"] = deduplicate(CDReminder.self, using: context, merge: mergeReminder)
         results["TodoItem"] = deduplicate(CDTodoItemEntity.self, using: context)
         results["TodoSubtask"] = deduplicate(CDTodoSubtaskEntity.self, using: context)
 
