@@ -293,7 +293,14 @@ struct LessonsRootView: View {
         Task { @MainActor in
             selectedAreaRaw = newValue ?? ""
             isEditingMap = false
-            focusedThread = nil
+            // Preserve the drilled-in thread when this area change is a side-effect of
+            // selecting it: onSelectThread / locateLessonInMap set `selectedArea`
+            // alongside `focusedThread`, and clearing the focus here would bounce the
+            // user back to the area instead of opening the sequence they tapped.
+            // Only drop the focus when the area genuinely changed away from it.
+            if focusedThread?.area != newValue {
+                focusedThread = nil
+            }
             syncReorderableSequences()
         }
     }
