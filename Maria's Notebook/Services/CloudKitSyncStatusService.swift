@@ -91,6 +91,10 @@ final class CloudKitSyncStatusService {
     var pendingSaveTask: Task<Void, Never>?
     var pendingStoreChangeTask: Task<Void, Never>?
 
+    /// Debounce that clears `isImportingFromCloud` once CloudKit import activity
+    /// goes quiet. (Re)armed by `noteCloudImportActivity()`.
+    var cloudImportDebounceTask: Task<Void, Never>?
+
     /// Pending sync count - tracks how many saves are waiting for CloudKit confirmation
     var pendingSyncCount: Int = 0
 

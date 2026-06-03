@@ -71,6 +71,7 @@ extension CloudKitSyncStatusService {
             isSyncing = false
             pendingSyncCount = 0
         }
+        cloudImportDebounceTask?.cancel()
         isImportingFromCloud = false
 
         let isEnabled = UserDefaults.standard.object(
@@ -99,6 +100,32 @@ extension CloudKitSyncStatusService {
         }
     }
 
+    /// Marks CloudKit import activity as ongoing and (re)arms a debounce that
+    /// clears `isImportingFromCloud` after a short quiet period.
+    ///
+    /// `NSPersistentCloudKitContainer` posts only a single, near-instant `import`
+    /// event, but the records it pulls keep streaming into the store for much
+    /// longer — Apple notes a first import "can take minutes, or longer" (TN3163) —
+    /// generating a continuous flow of `NSPersistentStoreRemoteChange` notifications.
+    /// Clearing the flag on the brief event boundary made the "Syncing from iCloud…"
+    /// overlay flash for a single frame (or never paint at all). Keeping it set
+    /// until that activity quiets keeps the overlay visible for the whole import.
+    func noteCloudImportActivity() {
+        isImportingFromCloud = true
+        cloudImportDebounceTask?.cancel()
+        cloudImportDebounceTask = Task { [weak self] in
+            do {
+                try await Task.sleep(for: .seconds(5))
+                guard !Task.isCancelled else { return }
+            } catch {
+                return  // cancelled by newer activity
+            }
+            await MainActor.run { [weak self] in
+                self?.isImportingFromCloud = false
+            }
+        }
+    }
+
     func handleRemoteChange() {
         // A remote change was received from CloudKit - this confirms sync is working
         SyncEventLogger.shared.log("cloudkit", status: "success", message: "Remote changes received")
@@ -117,6 +144,12 @@ extension CloudKitSyncStatusService {
         // Persist
         UserDefaults.standard.set(now.timeIntervalSince1970, forKey: UserDefaultsKeys.cloudKitLastSuccessfulSyncDate)
         UserDefaults.standard.removeObject(forKey: UserDefaultsKeys.cloudKitLastSyncError)
+
+        // If an import is in flight, this remote change is part of its incoming
+        // stream — keep the "Syncing from iCloud…" overlay alive until it quiets.
+        if isImportingFromCloud {
+            noteCloudImportActivity()
+        }
 
         updateSyncHealth()
     }
@@ -199,7 +232,7 @@ extension CloudKitSyncStatusService {
             }
             currentOperation = "CloudKit event in progress"
             if type == .setup || type == .import {
-                isImportingFromCloud = true
+                noteCloudImportActivity()
             }
             updateSyncHealth()
             return
@@ -213,8 +246,12 @@ extension CloudKitSyncStatusService {
         @unknown default: typeDescription = "Unknown"
         }
         currentOperation = nil
+        // Don't clear `isImportingFromCloud` on the event boundary — the brief
+        // event is finished but the record stream it started keeps arriving.
+        // Re-arm the debounce so the overlay rides the incoming changes and
+        // clears only once they actually quiet.
         if type == .setup || type == .import {
-            isImportingFromCloud = false
+            noteCloudImportActivity()
         }
 
         if succeeded {
