@@ -51,6 +51,29 @@ extension RootSidebar {
                 sidebarRow(.goingOut, title: "Going Out", systemImage: "figure.walk")
             }
 
+            Section("Planning") {
+                sidebarRow(.planningCalendar, title: "Calendar", systemImage: "calendar.day.timeline.leading")
+
+                sidebarRow(.todos, title: "Todos", systemImage: SFSymbol.Action.checkmarkCircle)
+
+                sidebarRow(.planningAgenda, title: "Presentations", systemImage: SFSymbol.Time.calendar)
+
+                sidebarRow(.planningWork, title: "Open Work", systemImage: "tray.full")
+                .contextMenu {
+                    Button {
+                        appRouter.requestNewWork()
+                    } label: {
+                        Label("New Work…", systemImage: SFSymbol.Action.plusCircle)
+                    }
+                }
+
+                sidebarRow(.needsLesson, title: "Needs Lesson", systemImage: "clock.badge.exclamationmark")
+
+                sidebarRow(.smallSequencePlanner, title: "Group Planner", systemImage: "person.3.sequence")
+
+                sidebarRow(.planningChecklist, title: "Checklist", systemImage: "list.clipboard")
+            }
+
             Section("Classroom") {
                 sidebarRow(.community, title: "Community", systemImage: "bubble.left.and.bubble.right")
             }
@@ -81,29 +104,6 @@ extension RootSidebar {
             Section("Parsha") {
                 sidebarRow(.thisWeeksParsha, title: "This Week’s Parsha", systemImage: "book.closed")
                 sidebarRow(.parshaCalendar, title: "Parsha Calendar", systemImage: "calendar")
-            }
-
-            Section("Planning") {
-                sidebarRow(.planningCalendar, title: "Calendar", systemImage: "calendar.day.timeline.leading")
-
-                sidebarRow(.todos, title: "Todos", systemImage: SFSymbol.Action.checkmarkCircle)
-
-                sidebarRow(.planningAgenda, title: "Presentations", systemImage: SFSymbol.Time.calendar)
-
-                sidebarRow(.planningWork, title: "Open Work", systemImage: "tray.full")
-                .contextMenu {
-                    Button {
-                        appRouter.requestNewWork()
-                    } label: {
-                        Label("New Work…", systemImage: SFSymbol.Action.plusCircle)
-                    }
-                }
-
-                sidebarRow(.needsLesson, title: "Needs Lesson", systemImage: "clock.badge.exclamationmark")
-
-                sidebarRow(.smallSequencePlanner, title: "Group Planner", systemImage: "person.3.sequence")
-
-                sidebarRow(.planningChecklist, title: "Checklist", systemImage: "list.clipboard")
             }
 
             Section("Insights") {
@@ -154,10 +154,10 @@ extension RootSidebar {
         List {
             iOSSidebarTodaySection
             iOSSidebarStudentsSection
+            iOSSidebarPlanningSection
             iOSSidebarClassroomSection
             iOSSidebarCurriculumSection
             iOSSidebarParshaSection
-            iOSSidebarPlanningSection
             iOSSidebarInsightsSection
             iOSSidebarResourcesSection
             iOSSidebarSystemSection

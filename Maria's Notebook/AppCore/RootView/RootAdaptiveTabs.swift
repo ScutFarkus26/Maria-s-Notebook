@@ -64,6 +64,36 @@ struct RootAdaptiveTabs: View {
         }
 
         TabSection {
+            Tab(value: RootView.NavigationItem.planningAgenda) {
+                RootDetailContent(selectedNavItem: .planningAgenda)
+            } label: {
+                Label("Presentations", systemImage: "calendar")
+            }
+            Tab(value: RootView.NavigationItem.planningWork) {
+                RootDetailContent(selectedNavItem: .planningWork)
+            } label: {
+                Label("Open Work", systemImage: "tray.full")
+            }
+            Tab(value: RootView.NavigationItem.needsLesson) {
+                RootDetailContent(selectedNavItem: .needsLesson)
+            } label: {
+                Label("Needs Lesson", systemImage: "clock.badge.exclamationmark")
+            }
+            Tab(value: RootView.NavigationItem.smallSequencePlanner) {
+                RootDetailContent(selectedNavItem: .smallSequencePlanner)
+            } label: {
+                Label("Group Planner", systemImage: "person.3.sequence")
+            }
+            Tab(value: RootView.NavigationItem.planningChecklist) {
+                RootDetailContent(selectedNavItem: .planningChecklist)
+            } label: {
+                Label("Checklist", systemImage: "list.clipboard")
+            }
+        } header: {
+            Text("Planning")
+        }
+
+        TabSection {
             Tab(value: RootView.NavigationItem.lessons) {
                 RootDetailContent(selectedNavItem: .lessons)
             } label: {
@@ -96,36 +126,6 @@ struct RootAdaptiveTabs: View {
             }
         } header: {
             Text("Parsha")
-        }
-
-        TabSection {
-            Tab(value: RootView.NavigationItem.planningAgenda) {
-                RootDetailContent(selectedNavItem: .planningAgenda)
-            } label: {
-                Label("Presentations", systemImage: "calendar")
-            }
-            Tab(value: RootView.NavigationItem.planningWork) {
-                RootDetailContent(selectedNavItem: .planningWork)
-            } label: {
-                Label("Open Work", systemImage: "tray.full")
-            }
-            Tab(value: RootView.NavigationItem.needsLesson) {
-                RootDetailContent(selectedNavItem: .needsLesson)
-            } label: {
-                Label("Needs Lesson", systemImage: "clock.badge.exclamationmark")
-            }
-            Tab(value: RootView.NavigationItem.smallSequencePlanner) {
-                RootDetailContent(selectedNavItem: .smallSequencePlanner)
-            } label: {
-                Label("Group Planner", systemImage: "person.3.sequence")
-            }
-            Tab(value: RootView.NavigationItem.planningChecklist) {
-                RootDetailContent(selectedNavItem: .planningChecklist)
-            } label: {
-                Label("Checklist", systemImage: "list.clipboard")
-            }
-        } header: {
-            Text("Planning")
         }
 
         TabSection {
