@@ -18,46 +18,29 @@ enum DatabaseInitializationService {
 
     // MARK: - Store URL
 
-    /// Returns the URL for the Core Data store file.
+    /// Returns the URL of the primary on-disk store (the private store).
+    ///
+    /// This is used only by the error-diagnostics export so it can report a
+    /// real, existing store file. The actual reset path uses
+    /// `CoreDataStack.resetStores()`, which removes every store. This used to
+    /// return a single `SwiftData.store` path — a leftover from the
+    /// pre-Core-Data migration that never exists on disk.
     static func storeFileURL() -> URL {
-        let fm = FileManager.default
-        let appSupport: URL
-        do {
-            appSupport = try fm.url(
-                for: .applicationSupportDirectory,
-                in: .userDomainMask,
-                appropriateFor: nil,
-                create: true
-            )
-        } catch {
-            logger.warning("Failed to get application support directory: \(error)")
-            return fm.temporaryDirectory.appendingPathComponent("SwiftData.store", isDirectory: false)
-        }
-        let bundleID = Bundle.main.bundleIdentifier ?? "MariasNotebook"
-        let containerDir = appSupport.appendingPathComponent(bundleID, isDirectory: true)
-        do {
-            try fm.createDirectory(at: containerDir, withIntermediateDirectories: true)
-        } catch {
-            logger.warning("Failed to create container directory: \(error)")
-        }
-        return containerDir.appendingPathComponent("SwiftData.store", isDirectory: false)
+        CoreDataStack.privateStoreURL()
     }
 
     // MARK: - Reset Operations
 
-    /// Deletes the persistent store file/package.
+    /// Deletes the on-disk persistent stores.
     /// This only deletes local data on this device and does NOT delete CloudKit data.
     static func resetPersistentStore() throws {
-        let url = storeFileURL()
-        let fm = FileManager.default
-
-        guard fm.fileExists(atPath: url.path) else {
-            return
-        }
-
-        if fm.fileExists(atPath: url.path) {
-            try fm.removeItem(at: url)
-        }
+        // Delegate to the canonical reset, which removes the real
+        // private/shared/unified SQLite stores plus their WAL/SHM companions.
+        // This previously deleted a single "SwiftData.store" file — a leftover
+        // from the pre-Core-Data migration that never exists on disk — so the
+        // user-facing "Reset Local Database" recovery silently did nothing,
+        // leaving users stuck on the database-error screen.
+        try CoreDataStack.resetStores()
     }
 
     #if DEBUG

@@ -11,7 +11,7 @@ import OSLog
 /// NSPersistentCloudKitContainer handles sync, offline queuing, and conflict resolution automatically.
 @MainActor
 final class CoreDataStack {
-    private static let logger = Logger.app(category: "CoreDataStack")
+    nonisolated private static let logger = Logger.app(category: "CoreDataStack")
 
     // MARK: - Active Model
 
@@ -124,7 +124,7 @@ final class CoreDataStack {
     // MARK: - Store URLs
 
     /// Directory for Core Data store files.
-    static func storeDirectory() -> URL {
+    nonisolated static func storeDirectory() -> URL {
         let fm = FileManager.default
         let appSupport: URL
         do {
@@ -148,16 +148,16 @@ final class CoreDataStack {
         return dir
     }
 
-    static func privateStoreURL() -> URL {
+    nonisolated static func privateStoreURL() -> URL {
         storeDirectory().appendingPathComponent("private.sqlite")
     }
 
-    static func sharedStoreURL() -> URL {
+    nonisolated static func sharedStoreURL() -> URL {
         storeDirectory().appendingPathComponent("shared.sqlite")
     }
 
     /// Unified store URL for local-only mode (single store, all entities).
-    static func unifiedStoreURL() -> URL {
+    nonisolated static func unifiedStoreURL() -> URL {
         storeDirectory().appendingPathComponent("unified.sqlite")
     }
 
@@ -519,7 +519,7 @@ final class CoreDataStack {
     // MARK: - Store Reset
 
     /// Deletes both Core Data store files and their WAL/SHM companions.
-    static func resetStores() throws {
+    nonisolated static func resetStores() throws {
         let fm = FileManager.default
         for url in [privateStoreURL(), sharedStoreURL(), unifiedStoreURL()] {
             guard fm.fileExists(atPath: url.path) else { continue }
