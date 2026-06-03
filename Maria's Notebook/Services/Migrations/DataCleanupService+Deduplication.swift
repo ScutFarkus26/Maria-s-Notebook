@@ -167,6 +167,79 @@ extension DataCleanupService {
         deduplicate(CDNote.self, using: context, merge: mergeNote)
     }
 
+    /// Semantic deduplication for attendance records.
+    ///
+    /// Unlike the generic id-based `deduplicate(_:)`, this collapses records that
+    /// represent the *same logical fact* — one student's attendance on one calendar
+    /// day — even when they carry different `id` UUIDs. Repeated CloudKit re-imports
+    /// can create several such rows (each a distinct CloudKit record) for a single
+    /// student/day, which the id-based pass cannot detect because every row has a
+    /// unique id.
+    ///
+    /// For each (studentID, day) group it keeps the record with the lowest `id`
+    /// string — deterministic, so every device converges on the same survivor —
+    /// folds any real attendance mark (non-`unmarked` status + absence reason) from
+    /// the duplicates into the survivor so nothing is lost, re-points the
+    /// duplicates' notes to the survivor (the `notes` relationship is Cascade-delete,
+    /// so moving them first prevents note loss), then deletes the duplicates. The
+    /// context-level deletes produce proper CloudKit delete tombstones.
+    @discardableResult
+    static func deduplicateAttendanceRecordsStrong(using context: NSManagedObjectContext) -> Int {
+        let fetch = CDFetchRequest(CDAttendanceRecord.self)
+        let all: [CDAttendanceRecord]
+        do {
+            all = try context.fetch(fetch)
+        } catch {
+            logger.warning("Failed to fetch attendance records for dedup: \(error.localizedDescription)")
+            return 0
+        }
+        guard !all.isEmpty else { return 0 }
+
+        let calendar = Calendar.current
+
+        // Group by (studentID, normalized calendar day). Records missing a
+        // studentID or date can't be safely matched, so leave them untouched.
+        var groups: [String: [CDAttendanceRecord]] = [:]
+        for record in all {
+            guard !record.studentID.isEmpty, let date = record.date else { continue }
+            let dayStart = calendar.startOfDay(for: date)
+            let key = "\(record.studentID)|\(dayStart.timeIntervalSinceReferenceDate)"
+            groups[key, default: []].append(record)
+        }
+
+        var deletedCount = 0
+        for (_, group) in groups where group.count > 1 {
+            // Deterministic survivor: lowest id string, so all devices agree.
+            let sorted = group.sorted { ($0.id?.uuidString ?? "") < ($1.id?.uuidString ?? "") }
+            guard let canonical = sorted.first else { continue }
+
+            for duplicate in sorted.dropFirst() {
+                // Preserve a real attendance mark if the survivor is still unmarked.
+                if canonical.status == .unmarked && duplicate.status != .unmarked {
+                    canonical.status = duplicate.status
+                    canonical.absenceReason = duplicate.absenceReason
+                }
+
+                // Re-point notes before deletion. `notes` is Cascade-delete, so
+                // deleting the duplicate without moving its notes would destroy
+                // them. Setting the inverse moves each note to the survivor.
+                if let dupeNotes = duplicate.notes?.allObjects as? [CDNote] {
+                    for note in dupeNotes {
+                        note.attendanceRecord = canonical
+                    }
+                }
+
+                context.delete(duplicate)
+                deletedCount += 1
+            }
+        }
+
+        if deletedCount > 0 {
+            context.safeSave()
+        }
+        return deletedCount
+    }
+
     private static func mergeStudent(canonical: CDStudent, duplicate: CDStudent) {
         if canonical.firstName.isEmpty { canonical.firstName = duplicate.firstName }
         if canonical.lastName.isEmpty { canonical.lastName = duplicate.lastName }
@@ -370,7 +443,7 @@ extension DataCleanupService {
         results["Document"] = deduplicate(CDDocument.self, using: context)
 
         // Attendance and calendar
-        results["AttendanceRecord"] = deduplicate(CDAttendanceRecord.self, using: context)
+        results["AttendanceRecord"] = deduplicateAttendanceRecordsStrong(using: context)
         results["StudentMeeting"] = deduplicate(CDStudentMeeting.self, using: context)
         results["MeetingTemplate"] = deduplicate(CDMeetingTemplateEntity.self, using: context)
         results["CalendarEvent"] = deduplicate(CDCalendarEvent.self, using: context)
