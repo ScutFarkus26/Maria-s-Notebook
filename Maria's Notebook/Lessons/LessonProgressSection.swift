@@ -320,6 +320,13 @@ struct LessonProgressSection: View {
             practiceWork.title = "Practice: \(lesson?.name ?? "Lesson")"
             practiceWork.kind = .practiceLesson
             practiceWork.studentLessonID = presentationID
+            // The blocking / related-work layer keys off presentationID (the
+            // string form), not studentLessonID — see CDLessonAssignment
+            // .fetchRelatedWork and BlockingCacheBuilder. presentationID here is
+            // the CDLessonAssignment id. Without this, "Add Practice" work
+            // neither blocks the next sequence lesson nor appears under the
+            // presentation's related work.
+            practiceWork.presentationID = presentationID.uuidString
             practiceWork.createdAt = Date()
             // Set identity fields
             if let lessonID = lesson?.id {
