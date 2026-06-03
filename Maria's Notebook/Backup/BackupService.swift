@@ -16,8 +16,6 @@ public final class BackupService {
         public var id: String { rawValue }
     }
 
-    let codec = BackupCodec()
-
     public init() {}
 
     // MARK: - Size Estimation
