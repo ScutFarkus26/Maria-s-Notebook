@@ -43,14 +43,13 @@ enum CloudExportWaitResult: Sendable {
 extension BackupService {
     private static let logger = Logger.backup
 
+    // swiftlint:disable:next function_parameter_count function_body_length
     /// Post-decode import path. Shared by:
     ///   - `Backup2.BackupCoordinator` for v17 AEA imports (which reconstructs
     ///     a `BackupPayload` from AEA entries then calls this)
     /// Centralizing this method means deleteAll, the entity-import dispatch,
     /// the denormalized-field repair, and the CloudKit-sync wait all share one
     /// code path across format versions.
-    ///
-    // swiftlint:disable:next function_parameter_count function_body_length
     func importPayload(
         payload loadedPayload: BackupPayload,
         envelopeFormatVersion: Int,
@@ -135,9 +134,15 @@ extension BackupService {
             break
         case .failed(let reason):
             let detail = reason ?? "unknown error"
-            warnings.append("iCloud sync reported a failure: \(detail). Your data is saved locally; check Settings → iCloud to retry.")
+            warnings.append(
+                "iCloud sync reported a failure: \(detail). " +
+                "Your data is saved locally; check Settings → iCloud to retry."
+            )
         case .timedOut:
-            warnings.append("iCloud sync is still running in the background. Keep the app open for a moment to finish uploading.")
+            warnings.append(
+                "iCloud sync is still running in the background. " +
+                "Keep the app open for a moment to finish uploading."
+            )
         }
 
         progress(RestoreProgress.done, "Done")
@@ -714,7 +719,9 @@ extension BackupService {
     }
 
     private func repairDenormalizedFields(viewContext: NSManagedObjectContext) throws {
-        let assignmentsForRepair = try viewContext.fetch(NSFetchRequest<CDLessonAssignment>(entityName: "LessonAssignment"))
+        let assignmentsForRepair = try viewContext.fetch(
+            NSFetchRequest<CDLessonAssignment>(entityName: "LessonAssignment")
+        )
         var repairedCount = 0
         for la in assignmentsForRepair {
             let correct = la.scheduledFor.map { AppCalendar.startOfDay($0) } ?? Date.distantPast

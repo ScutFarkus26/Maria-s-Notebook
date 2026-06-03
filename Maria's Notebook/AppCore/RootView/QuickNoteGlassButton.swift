@@ -69,7 +69,12 @@ struct QuickNoteGlassButton: View {
             Circle()
                 .fill(
                     AngularGradient(
-                        colors: [.cyan.opacity(UIConstants.OpacityConstants.muted), .pink.opacity(UIConstants.OpacityConstants.muted), .mint.opacity(UIConstants.OpacityConstants.muted), .cyan.opacity(UIConstants.OpacityConstants.muted)],
+                        colors: [
+                            .cyan.opacity(UIConstants.OpacityConstants.muted),
+                            .pink.opacity(UIConstants.OpacityConstants.muted),
+                            .mint.opacity(UIConstants.OpacityConstants.muted),
+                            .cyan.opacity(UIConstants.OpacityConstants.muted)
+                        ],
                         center: .center
                     )
                 )
@@ -125,8 +130,14 @@ struct QuickNoteGlassButton: View {
                         .fill(
                             LinearGradient(
                                 colors: isPieMenuExpanded
-                                    ? [.pink.opacity(UIConstants.OpacityConstants.almostOpaque), .orange.opacity(UIConstants.OpacityConstants.almostOpaque)]
-                                    : [.blue.opacity(UIConstants.OpacityConstants.almostOpaque), .teal.opacity(UIConstants.OpacityConstants.nearSolid)],
+                                    ? [
+                                        .pink.opacity(UIConstants.OpacityConstants.almostOpaque),
+                                        .orange.opacity(UIConstants.OpacityConstants.almostOpaque)
+                                    ]
+                                    : [
+                                        .blue.opacity(UIConstants.OpacityConstants.almostOpaque),
+                                        .teal.opacity(UIConstants.OpacityConstants.nearSolid)
+                                    ],
                                 startPoint: .topLeading,
                                 endPoint: .bottomTrailing
                             )
@@ -157,8 +168,14 @@ struct QuickNoteGlassButton: View {
                         .fill(
                             LinearGradient(
                                 colors: isPieMenuExpanded
-                                    ? [.pink.opacity(UIConstants.OpacityConstants.almostOpaque), .orange.opacity(UIConstants.OpacityConstants.almostOpaque)]
-                                    : [.blue.opacity(UIConstants.OpacityConstants.almostOpaque), .teal.opacity(UIConstants.OpacityConstants.nearSolid)],
+                                    ? [
+                                        .pink.opacity(UIConstants.OpacityConstants.almostOpaque),
+                                        .orange.opacity(UIConstants.OpacityConstants.almostOpaque)
+                                    ]
+                                    : [
+                                        .blue.opacity(UIConstants.OpacityConstants.almostOpaque),
+                                        .teal.opacity(UIConstants.OpacityConstants.nearSolid)
+                                    ],
                                 startPoint: .topLeading,
                                 endPoint: .bottomTrailing
                             )

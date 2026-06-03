@@ -273,8 +273,7 @@ public struct BulkLessonsEntryView: View {
     private func editorRow(rowID: UUID, widths: [CGFloat]) -> some View {
         HStack(spacing: columnSpacing) {
             Button {
-                if selectedRowIDs.contains(rowID) { selectedRowIDs.remove(rowID) }
-                else { selectedRowIDs.insert(rowID) }
+                if selectedRowIDs.contains(rowID) { selectedRowIDs.remove(rowID) } else { selectedRowIDs.insert(rowID) }
             } label: {
                 Image(systemName: selectedRowIDs.contains(rowID) ? "checkmark.circle.fill" : "circle")
                     .foregroundStyle(selectedRowIDs.contains(rowID) ? Color.accentColor : Color.secondary)

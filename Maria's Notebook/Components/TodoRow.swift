@@ -319,7 +319,11 @@ struct TodoRow: View {
                     Text(progressText)
                         .font(AppTheme.ScaledFont.captionSemibold)
                 }
-                .foregroundStyle(todo.allSubtasksCompleted ? .green.opacity(UIConstants.OpacityConstants.prominent) : .secondary.opacity(UIConstants.OpacityConstants.half))
+                .foregroundStyle(
+                    todo.allSubtasksCompleted
+                        ? .green.opacity(UIConstants.OpacityConstants.prominent)
+                        : .secondary.opacity(UIConstants.OpacityConstants.half)
+                )
             }
         }
         .padding(.top, 2)

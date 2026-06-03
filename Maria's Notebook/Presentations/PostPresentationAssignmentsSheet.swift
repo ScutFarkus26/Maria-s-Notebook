@@ -46,7 +46,10 @@ struct PostPresentationAssignmentsSheet: View {
         self.onCancel = onCancel
         // Use uniquingKeysWith to handle potential duplicates from CloudKit sync
         _entries = State(initialValue: Dictionary(
-            deduped.compactMap { guard let id = $0.id else { return nil }; return (id, AssignmentEntry(studentID: id, text: "", schedule: nil)) },
+            deduped.compactMap { s -> (UUID, AssignmentEntry)? in
+                guard let id = s.id else { return nil }
+                return (id, AssignmentEntry(studentID: id, text: "", schedule: nil))
+            },
             uniquingKeysWith: { first, _ in first }
         ))
     }
@@ -77,7 +80,10 @@ struct PostPresentationAssignmentsSheet: View {
                 }
             }
             .padding(8)
-            .background(RoundedRectangle(cornerRadius: 8).fill(Color.primary.opacity(UIConstants.OpacityConstants.trace)))
+            .background(
+                RoundedRectangle(cornerRadius: 8)
+                    .fill(Color.primary.opacity(UIConstants.OpacityConstants.trace))
+            )
 
             // Per-student entries
             List {

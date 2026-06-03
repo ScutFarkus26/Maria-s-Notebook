@@ -402,7 +402,11 @@ final class WorkDetailViewModel {
         saveCoordinator.save(modelContext)
     }
     
-    func deleteWork(modelContext: NSManagedObjectContext, saveCoordinator: SaveCoordinator, onDeleted: @escaping () -> Void) {
+    func deleteWork(
+        modelContext: NSManagedObjectContext,
+        saveCoordinator: SaveCoordinator,
+        onDeleted: @escaping () -> Void
+    ) {
         guard let work else { return }
         
         modelContext.delete(work)

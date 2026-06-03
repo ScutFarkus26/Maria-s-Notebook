@@ -64,6 +64,7 @@ struct LessonsScopeThreadFocusView: View {
     }
 
     var body: some View {
+        // swiftlint:disable:next redundant_discardable_let
         let _ = sectionOrderVersion
         VStack(alignment: .leading, spacing: 0) {
             header
@@ -92,7 +93,9 @@ struct LessonsScopeThreadFocusView: View {
         let sorted = sortedLessons
         let existing = Array(Set(sorted.map { $0.section.trimmed() }.filter { !$0.isEmpty }))
             .sorted { $0.localizedCaseInsensitiveCompare($1) == .orderedAscending }
-        let order = FilterOrderStore.loadSectionOrder(for: threadKey.area, sequence: threadKey.sequence, existing: existing)
+        let order = FilterOrderStore.loadSectionOrder(
+            for: threadKey.area, sequence: threadKey.sequence, existing: existing
+        )
         var result: [(String, [CDLesson])] = order.compactMap { name in
             let group = sorted.filter { $0.section.trimmed().caseInsensitiveCompare(name) == .orderedSame }
             return group.isEmpty ? nil : (name, group)
@@ -211,15 +214,16 @@ struct LessonsScopeThreadFocusView: View {
         AppPillButton(
             isSelected: false,
             selectionStyle: .accentOutline,
-            action: { onSelectLesson(lesson) }
-        ) {
-            HStack(spacing: 6) {
-                Circle()
-                    .fill(color)
-                    .frame(width: 8, height: 8)
-                Text(lesson.name)
+            action: { onSelectLesson(lesson) },
+            label: {
+                HStack(spacing: 6) {
+                    Circle()
+                        .fill(color)
+                        .frame(width: 8, height: 8)
+                    Text(lesson.name)
+                }
             }
-        }
+        )
         .contextMenu {
             pillContextMenu(for: lesson)
         }

@@ -165,7 +165,11 @@ final class ProgressionRootViewModel {
     }
 
     private func fetchAllStudents(context: NSManagedObjectContext) -> [CDStudent] {
-        let descriptor = { let r = NSFetchRequest<CDStudent>(entityName: "Student"); r.sortDescriptors = CDStudent.sortByName; return r }()
+        let descriptor: NSFetchRequest<CDStudent> = {
+            let r = NSFetchRequest<CDStudent>(entityName: "Student")
+            r.sortDescriptors = CDStudent.sortByName
+            return r
+        }()
         return context.safeFetch(descriptor)
     }
 }

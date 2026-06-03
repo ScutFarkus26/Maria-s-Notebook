@@ -162,7 +162,10 @@ final class SharedStoreZoneRepair {
         } else {
             lastUnrecoverableOrphans = []
             let count = orphans.count
-            Self.logger.warning("Private store has \(count, privacy: .public) classroom record(s) outside any CKShare zone, but no CKShare exists yet. CloudKit export will fail until the lead guide runs Settings → Classroom Sharing → Share Classroom.")
+            let msg = "Private store has \(count) classroom record(s) outside any CKShare " +
+                "zone, but no CKShare exists yet. CloudKit export will fail until the lead " +
+                "guide runs Settings → Classroom Sharing → Share Classroom."
+            Self.logger.warning("\(msg, privacy: .public)")
         }
     }
 
@@ -191,7 +194,8 @@ final class SharedStoreZoneRepair {
                 }
             } catch {
                 let detail = error.localizedDescription
-                Self.logger.warning("Failed to fetch \(entityName, privacy: .public) for zone check: \(detail, privacy: .public)")
+                let warnMsg = "Failed to fetch \(entityName) for zone check: \(detail)"
+                Self.logger.warning("\(warnMsg, privacy: .public)")
             }
         }
 
@@ -243,7 +247,8 @@ final class SharedStoreZoneRepair {
     ) async -> [NSManagedObjectID] {
         let chunkSize = 200
         let orphanIDs = orphans.map(\.objectID)
-        Self.logger.info("Attaching \(orphanIDs.count, privacy: .public) orphan record(s) in chunks of \(chunkSize, privacy: .public)")
+        let attachMsg = "Attaching \(orphanIDs.count) orphan record(s) in chunks of \(chunkSize)"
+        Self.logger.info("\(attachMsg, privacy: .public)")
 
         var failures: [NSManagedObjectID] = []
         var successCount = 0
@@ -256,10 +261,15 @@ final class SharedStoreZoneRepair {
             do {
                 try await Self.shareOffMain(chunkIDs: chunkIDs, share: share, container: container)
                 successCount += chunkIDs.count
-                Self.logger.info("Chunk \(chunkIndex + 1, privacy: .public)/\(chunkCount, privacy: .public): attached \(chunkIDs.count, privacy: .public) record(s) (running total: \(successCount, privacy: .public)/\(orphanIDs.count, privacy: .public))")
+                let chunkMsg = "Chunk \(chunkIndex + 1)/\(chunkCount): attached \(chunkIDs.count)" +
+                    " record(s) (running total: \(successCount)/\(orphanIDs.count))"
+                Self.logger.info("\(chunkMsg, privacy: .public)")
             } catch {
                 let ns = error as NSError
-                Self.logger.warning("Chunk \(chunkIndex + 1, privacy: .public)/\(chunkCount, privacy: .public) batch attach failed: domain=\(ns.domain, privacy: .public) code=\(ns.code, privacy: .public) description=\(ns.localizedDescription, privacy: .public) userInfo=\(ns.userInfo, privacy: .public). Falling back to per-record for this chunk.")
+                let failMsg = "Chunk \(chunkIndex + 1)/\(chunkCount) batch attach failed: " +
+                    "domain=\(ns.domain) code=\(ns.code) description=\(ns.localizedDescription)" +
+                    " userInfo=\(ns.userInfo). Falling back to per-record for this chunk."
+                Self.logger.warning("\(failMsg, privacy: .public)")
 
                 // If the failure looks like CloudKit's 10-minute Share-Export
                 // timeout (134060 with no specific in-store cross-store user
@@ -267,12 +277,16 @@ final class SharedStoreZoneRepair {
                 // don't burn another 10-minute ulock wait per remaining
                 // record. The user can retry via the Repair button.
                 if ns.domain == "NSCocoaErrorDomain" && ns.code == 134060 {
-                    Self.logger.error("SharedStoreZoneRepair: tripping circuit breaker after Share-Export timeout — manual Repair will be required")
+                    let cbMsg = "SharedStoreZoneRepair: tripping circuit breaker after " +
+                        "Share-Export timeout — manual Repair will be required"
+                    Self.logger.error("\(cbMsg, privacy: .public)")
                     Self.trippedCircuitBreaker()
                     // Mark remaining records as failures and exit early.
                     let remaining = Array(orphanIDs[start..<orphanIDs.count])
                     failures.append(contentsOf: remaining)
-                    Self.logger.info("Orphan attachment aborted: \(successCount, privacy: .public) succeeded, \(failures.count, privacy: .public) deferred (circuit breaker)")
+                    let abortMsg = "Orphan attachment aborted: \(successCount) succeeded," +
+                        " \(failures.count) deferred (circuit breaker)"
+                    Self.logger.info("\(abortMsg, privacy: .public)")
                     return failures
                 }
 
@@ -284,7 +298,10 @@ final class SharedStoreZoneRepair {
                         failures.append(orphanID)
                         let uri = orphanID.uriRepresentation().absoluteString
                         let pns = error as NSError
-                        Self.logger.error("Per-record attach failed for \(uri, privacy: .public): domain=\(pns.domain, privacy: .public) code=\(pns.code, privacy: .public) description=\(pns.localizedDescription, privacy: .public) userInfo=\(pns.userInfo, privacy: .public)")
+                        let errMsg = "Per-record attach failed for \(uri): " +
+                            "domain=\(pns.domain) code=\(pns.code)" +
+                            " description=\(pns.localizedDescription) userInfo=\(pns.userInfo)"
+                        Self.logger.error("\(errMsg, privacy: .public)")
                     }
                 }
             }
@@ -294,7 +311,8 @@ final class SharedStoreZoneRepair {
             await Task.yield()
         }
 
-        Self.logger.info("Orphan attachment complete: \(successCount, privacy: .public) succeeded, \(failures.count, privacy: .public) unrecoverable")
+        let completeMsg = "Orphan attachment complete: \(successCount) succeeded, \(failures.count) unrecoverable"
+        Self.logger.info("\(completeMsg, privacy: .public)")
         return failures
     }
 

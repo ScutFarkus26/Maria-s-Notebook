@@ -5,7 +5,7 @@ struct AppSearchView: View {
     @Environment(\.dismiss) private var dismiss
     @State private var searchText = ""
     @State private var results: [SearchResult] = []
-    @State private var selectedTypes: Set<SearchableEntityType>? = nil
+    @State private var selectedTypes: Set<SearchableEntityType>?
 
     private let searchIndex = SearchIndexService.shared
 

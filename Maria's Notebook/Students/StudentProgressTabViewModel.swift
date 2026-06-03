@@ -43,7 +43,9 @@ final class StudentProgressTabViewModel {
         let studentIDString = student.id?.uuidString ?? ""
 
         // Fetch all needed data
-        let enrollmentDescriptor: NSFetchRequest<CDStudentTrackEnrollmentEntity> = NSFetchRequest(entityName: "StudentTrackEnrollment")
+        let enrollmentDescriptor: NSFetchRequest<CDStudentTrackEnrollmentEntity> = NSFetchRequest(
+            entityName: "StudentTrackEnrollment"
+        )
         enrollmentDescriptor.sortDescriptors = [NSSortDescriptor(key: "createdAt", ascending: false)]
         let allEnrollments = context.safeFetch(enrollmentDescriptor)
 
@@ -86,7 +88,10 @@ final class StudentProgressTabViewModel {
             $0.studentID == studentIDString && $0.kind == .report && $0.status != .complete
         }
         // Use uniquingKeysWith to handle CloudKit sync duplicates
-        tracksByID = Dictionary(allTracks.compactMap { t in t.id.map { ($0.uuidString, t) } }, uniquingKeysWith: { first, _ in first })
+        tracksByID = Dictionary(
+            allTracks.compactMap { t in t.id.map { ($0.uuidString, t) } },
+            uniquingKeysWith: { first, _ in first }
+        )
     }
 
     // MARK: - CDTrackEntity Stats Computation
@@ -267,7 +272,11 @@ final class StudentProgressTabViewModel {
 
     // MARK: - Auto-Complete CDTrackEntity
 
-    func autoCompleteTrackIfNeeded(enrollment: CDStudentTrackEnrollmentEntity, progress: TrackProgress, context: NSManagedObjectContext) {
+    func autoCompleteTrackIfNeeded(
+        enrollment: CDStudentTrackEnrollmentEntity,
+        progress: TrackProgress,
+        context: NSManagedObjectContext
+    ) {
         if progress.isComplete && enrollment.isActive {
             enrollment.isActive = false
             do {

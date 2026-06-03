@@ -34,7 +34,9 @@ extension CDNote {
             return true
         }
 
-        if let note = legacyNotes.sorted(by: { ($0.updatedAt ?? .distantPast) > ($1.updatedAt ?? .distantPast) }).first {
+        if let note = legacyNotes
+            .sorted(by: { ($0.updatedAt ?? .distantPast) > ($1.updatedAt ?? .distantPast) })
+            .first {
             if note.body == trimmed { return false }
             note.body = trimmed
             note.updatedAt = Date()
@@ -244,7 +246,9 @@ extension CDNote {
     static func latestNote(in notes: [CDNote], preferredReporter: String? = nil) -> CDNote? {
         if let preferredReporter {
             let preferred = notes.filter { $0.reportedBy == preferredReporter }
-            if let newest = preferred.sorted(by: { ($0.updatedAt ?? .distantPast) > ($1.updatedAt ?? .distantPast) }).first {
+            if let newest = preferred
+                .sorted(by: { ($0.updatedAt ?? .distantPast) > ($1.updatedAt ?? .distantPast) })
+                .first {
                 return newest
             }
         }

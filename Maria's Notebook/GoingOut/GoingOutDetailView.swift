@@ -273,7 +273,10 @@ struct GoingOutDetailView: View {
                     .foregroundStyle(.tertiary)
                     .padding(.vertical, 4)
             } else {
-                ForEach(linkedNotes.sorted { ($0.createdAt ?? .distantPast) > ($1.createdAt ?? .distantPast) }, id: \.objectID) { note in
+                ForEach(
+                    linkedNotes.sorted { ($0.createdAt ?? .distantPast) > ($1.createdAt ?? .distantPast) },
+                    id: \.objectID
+                ) { note in
                     VStack(alignment: .leading, spacing: 4) {
                         Text(note.body)
                             .font(.caption)

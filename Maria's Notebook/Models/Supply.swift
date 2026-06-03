@@ -35,4 +35,3 @@ enum SupplyCategory: String, Codable, CaseIterable, Identifiable, Sendable {
         }
     }
 }
-

@@ -1,5 +1,4 @@
 // Maria's Notebook/Lessons/LessonsViewModel.swift
-// swiftlint:disable file_length
 
 import Foundation
 import OSLog
@@ -8,7 +7,6 @@ import CoreData
 /// Provides filtering and ordering utilities for Lessons screens.
 /// Methods here are pure functions and do not mutate external state.
 @MainActor
-// swiftlint:disable:next type_body_length
 struct LessonsViewModel {
     private static let logger = Logger.lessons
     // MARK: - Public API
@@ -87,8 +85,10 @@ struct LessonsViewModel {
         // Personal kind filter
         let isPersonalSourceFilter = sourceFilter == .personal || sourceFilter == nil
         if let personalKindFilterRaw = personalKindFilter?.rawValue, isPersonalSourceFilter {
-            subpredicates.append(NSPredicate(format: "sourceRaw == %@ AND (personalKindRaw == %@ OR (personalKindRaw == nil AND %@ == %@))",
-                "personal", personalKindFilterRaw, personalKindFilterRaw, "personal"))
+            subpredicates.append(NSPredicate(
+                format: "sourceRaw == %@ AND (personalKindRaw == %@ OR (personalKindRaw == nil AND %@ == %@))",
+                "personal", personalKindFilterRaw, personalKindFilterRaw, "personal"
+            ))
         }
 
         // Area filter

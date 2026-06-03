@@ -307,7 +307,11 @@ extension DataCleanupService {
         if (canonical.notes ?? "").isEmpty { canonical.notes = duplicate.notes }
     }
 
-    private static func mergeWorkModel(canonical: CDWorkModel, duplicate: CDWorkModel, context: NSManagedObjectContext) {
+    private static func mergeWorkModel(
+        canonical: CDWorkModel,
+        duplicate: CDWorkModel,
+        context: NSManagedObjectContext
+    ) {
         if canonical.title.isEmpty { canonical.title = duplicate.title }
         let dupNoteText = duplicate.latestUnifiedNoteText.trimmed()
         if canonical.latestUnifiedNoteText.trimmed().isEmpty && !dupNoteText.isEmpty {
@@ -327,7 +331,8 @@ extension DataCleanupService {
         if canonical.sourceContextTypeRaw == nil { canonical.sourceContextTypeRaw = duplicate.sourceContextTypeRaw }
         if canonical.sourceContextID == nil { canonical.sourceContextID = duplicate.sourceContextID }
 
-        var existingParticipantIDs = Set((canonical.participants as? Set<CDWorkParticipantEntity>)?.compactMap(\.id) ?? [])
+        let rawParticipants = canonical.participants as? Set<CDWorkParticipantEntity>
+        var existingParticipantIDs = Set(rawParticipants?.compactMap(\.id) ?? [])
         mergeNSSetRelationship(
             from: duplicate.participants,
             addTo: canonical,

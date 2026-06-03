@@ -28,4 +28,3 @@ extension CDSchoolDayOverride {
         return (try? ctx.fetch(req)) ?? []
     }
 }
-

@@ -83,7 +83,11 @@ class TodoNotificationService {
     }
 
     /// Reschedule notification if reminder date changes (Core Data)
-    func rescheduleNotification(for todo: CDTodoItemEntity, newDate: Date, context: NSManagedObjectContext) async throws {
+    func rescheduleNotification(
+        for todo: CDTodoItemEntity,
+        newDate: Date,
+        context: NSManagedObjectContext
+    ) async throws {
         try await scheduleNotification(for: todo, at: newDate, context: context)
     }
 

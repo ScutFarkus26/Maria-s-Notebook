@@ -64,7 +64,10 @@ extension PracticeSessionCard {
             )
             .overlay(
                 RoundedRectangle(cornerRadius: 12)
-                    .strokeBorder(session.isGroupSession ? Color.blue.opacity(UIConstants.OpacityConstants.semi) : Color.clear, lineWidth: 1)
+                    .strokeBorder(
+                        session.isGroupSession ? Color.blue.opacity(UIConstants.OpacityConstants.semi) : Color.clear,
+                        lineWidth: 1
+                    )
             )
         })
         .buttonStyle(.plain)
@@ -172,7 +175,10 @@ extension PracticeSessionCard {
         )
         .overlay(
             RoundedRectangle(cornerRadius: 16)
-                .strokeBorder(session.isGroupSession ? Color.blue.opacity(UIConstants.OpacityConstants.semi) : Color.clear, lineWidth: 1.5)
+                .strokeBorder(
+                    session.isGroupSession ? Color.blue.opacity(UIConstants.OpacityConstants.semi) : Color.clear,
+                    lineWidth: 1.5
+                )
         )
     }
 

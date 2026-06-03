@@ -44,7 +44,10 @@ extension WorksAgendaView {
         if !neededLessonIDs.isEmpty {
             let all: [CDLesson] = viewContext.safeFetch(NSFetchRequest<CDLesson>(entityName: "Lesson"))
             let filtered = all.filter { neededLessonIDs.contains($0.id ?? UUID()) }
-            lessonsByIDCache = Dictionary(filtered.compactMap { guard let id = $0.id else { return nil }; return (id, $0) }, uniquingKeysWith: { first, _ in first })
+            lessonsByIDCache = Dictionary(
+                filtered.compactMap { guard let id = $0.id else { return nil }; return (id, $0) },
+                uniquingKeysWith: { first, _ in first }
+            )
         } else {
             lessonsByIDCache = [:]
         }
@@ -58,7 +61,10 @@ extension WorksAgendaView {
                 filtered, show: showTestStudents,
                 namesRaw: testStudentNamesRaw
             ).uniqueByID
-            studentsByIDCache = Dictionary(visible.compactMap { guard let id = $0.id else { return nil }; return (id, $0) }, uniquingKeysWith: { first, _ in first })
+            studentsByIDCache = Dictionary(
+                visible.compactMap { guard let id = $0.id else { return nil }; return (id, $0) },
+                uniquingKeysWith: { first, _ in first }
+            )
         } else {
             studentsByIDCache = [:]
         }

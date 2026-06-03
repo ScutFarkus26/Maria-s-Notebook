@@ -20,7 +20,10 @@ struct PresentationQuickActionsView: View {
     @FetchRequest(sortDescriptors: [NSSortDescriptor(keyPath: \CDLesson.name, ascending: true)], animation: .default)
     private var lessons: FetchedResults<CDLesson>
 
-    @FetchRequest(sortDescriptors: [NSSortDescriptor(keyPath: \CDStudent.firstName, ascending: true)], animation: .default)
+    @FetchRequest(
+        sortDescriptors: [NSSortDescriptor(keyPath: \CDStudent.firstName, ascending: true)],
+        animation: .default
+    )
     private var studentsAllRaw: FetchedResults<CDStudent>
     // DEDUPLICATION: CloudKit sync can create duplicate records with the same ID.
     // Filter out test students when setting is disabled
@@ -31,7 +34,10 @@ struct PresentationQuickActionsView: View {
         )
     }
 
-    @FetchRequest(sortDescriptors: [NSSortDescriptor(keyPath: \CDLessonAssignment.createdAt, ascending: true)], animation: .default)
+    @FetchRequest(
+        sortDescriptors: [NSSortDescriptor(keyPath: \CDLessonAssignment.createdAt, ascending: true)],
+        animation: .default
+    )
     private var lessonAssignmentsAll: FetchedResults<CDLessonAssignment>
 
     let lessonAssignment: CDLessonAssignment
@@ -138,7 +144,9 @@ struct PresentationQuickActionsView: View {
                                 )
                             } else {
                                 _ = PresentationFactory.makeDraft(
-                                    lessonID: nextID, studentIDs: lessonAssignment.resolvedStudentIDs, context: viewContext
+                                    lessonID: nextID,
+                                    studentIDs: lessonAssignment.resolvedStudentIDs,
+                                    context: viewContext
                                 )
                             }
                             saveCoordinator.save(viewContext, reason: "Planning next lesson")
@@ -201,7 +209,11 @@ struct PresentationQuickActionsView: View {
                                 let reviewRaw = WorkStatus.review.rawValue
                                 let followRaw = WorkKind.followUpAssignment.rawValue
                                 let fetch: NSFetchRequest<CDWorkModel> = NSFetchRequest(entityName: "WorkModel")
-                                fetch.predicate = NSPredicate(format: "studentID == %@ AND lessonID == %@ AND (statusRaw == %@ OR statusRaw == %@) AND kindRaw == %@", sid, lidString, activeRaw, reviewRaw, followRaw)
+                                fetch.predicate = NSPredicate(
+                                    format: "studentID == %@ AND lessonID == %@ " +
+                                        "AND (statusRaw == %@ OR statusRaw == %@) AND kindRaw == %@",
+                                    sid, lidString, activeRaw, reviewRaw, followRaw
+                                )
                                 let exists = viewContext.safeFetchFirst(fetch) != nil
                                 if !exists {
                                     // Create CDWorkModel
@@ -322,7 +334,9 @@ struct PresentationQuickActionsView: View {
             if !exists {
                 let currentLesson = UUID(uuidString: lessonAssignment.lessonID)
                     .flatMap { lid in lessons.first(where: { $0.id == lid }) }
-                let currentStudents = studentsAll.filter { s in s.id.map { lessonAssignment.resolvedStudentIDs.contains($0) } ?? false }
+                let currentStudents = studentsAll.filter { s in
+                    s.id.map { lessonAssignment.resolvedStudentIDs.contains($0) } ?? false
+                }
                 if let currentLesson {
                     _ = PresentationFactory.makeDraft(
                         lesson: currentLesson, students: currentStudents, context: viewContext
@@ -351,7 +365,10 @@ struct PresentationQuickActionsView: View {
             let reviewRaw = WorkStatus.review.rawValue
             let practiceRaw = WorkKind.practiceLesson.rawValue
             let fetch: NSFetchRequest<CDWorkModel> = NSFetchRequest(entityName: "WorkModel")
-            fetch.predicate = NSPredicate(format: "studentID == %@ AND lessonID == %@ AND (statusRaw == %@ OR statusRaw == %@) AND kindRaw == %@", sid, lidString, activeRaw, reviewRaw, practiceRaw)
+            fetch.predicate = NSPredicate(
+                format: "studentID == %@ AND lessonID == %@ AND (statusRaw == %@ OR statusRaw == %@) AND kindRaw == %@",
+                sid, lidString, activeRaw, reviewRaw, practiceRaw
+            )
             let exists = viewContext.safeFetchFirst(fetch) != nil
             if !exists {
                 // Create CDWorkModel

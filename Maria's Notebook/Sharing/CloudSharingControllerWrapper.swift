@@ -19,7 +19,7 @@ import UIKit
 struct CloudSharingSheet: UIViewControllerRepresentable {
     let share: CKShare
     let container: CKContainer
-    var onShareSaved: (() -> Void)? = nil
+    var onShareSaved: (() -> Void)?
     let onDismiss: () -> Void
 
     func makeUIViewController(context: Context) -> UICloudSharingController {
@@ -82,7 +82,7 @@ import AppKit
 struct CloudSharingSheet: NSViewControllerRepresentable {
     let share: CKShare
     let container: CKContainer
-    var onShareSaved: (() -> Void)? = nil
+    var onShareSaved: (() -> Void)?
     let onDismiss: () -> Void
 
     func makeNSViewController(context: Context) -> NSSharingServicePickerViewController {

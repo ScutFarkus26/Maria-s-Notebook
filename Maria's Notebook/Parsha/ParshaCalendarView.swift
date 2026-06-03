@@ -83,7 +83,8 @@ struct ParshaCalendarView: View {
                                     parshaKey: entry.parshaKey,
                                     festivalName: entry.festivalName,
                                     lessonCount: entry.parshaKey.flatMap { lessonCountsByParsha[$0] } ?? 0,
-                                    isCurrentWeek: Calendar(identifier: .gregorian).isDate(entry.date, inSameDayAs: currentShabbat)
+                                    isCurrentWeek: Calendar(identifier: .gregorian)
+                                        .isDate(entry.date, inSameDayAs: currentShabbat)
                                 )
                             }
                         }

@@ -112,7 +112,8 @@ struct StudentTrackDetailView: View {
         let lessonIDStrings = Set(trackLessons.compactMap { $0.id?.uuidString })
         let allPresentations: [CDLessonPresentation]
         do {
-            allPresentations = try viewContext.fetch(NSFetchRequest<CDLessonPresentation>(entityName: "LessonPresentation"))
+            let req = NSFetchRequest<CDLessonPresentation>(entityName: "LessonPresentation")
+            allPresentations = try viewContext.fetch(req)
         } catch {
             Self.logger.warning("Failed to fetch LessonPresentations: \(error)")
             allPresentations = []
@@ -141,7 +142,11 @@ struct StudentTrackDetailView: View {
                 Circle()
                     .fill(
                         RadialGradient(
-                            colors: [.yellow.opacity(UIConstants.OpacityConstants.semi), .yellow.opacity(UIConstants.OpacityConstants.hint), .clear],
+                            colors: [
+                                .yellow.opacity(UIConstants.OpacityConstants.semi),
+                                .yellow.opacity(UIConstants.OpacityConstants.hint),
+                                .clear
+                            ],
                             center: .center,
                             startRadius: 20,
                             endRadius: 60
@@ -180,7 +185,10 @@ struct StudentTrackDetailView: View {
             RoundedRectangle(cornerRadius: 20, style: .continuous)
                 .fill(
                     LinearGradient(
-                        colors: [.yellow.opacity(UIConstants.OpacityConstants.light), .orange.opacity(UIConstants.OpacityConstants.hint)],
+                        colors: [
+                            .yellow.opacity(UIConstants.OpacityConstants.light),
+                            .orange.opacity(UIConstants.OpacityConstants.hint)
+                        ],
                         startPoint: .topLeading,
                         endPoint: .bottomTrailing
                     )
@@ -190,7 +198,10 @@ struct StudentTrackDetailView: View {
             RoundedRectangle(cornerRadius: 20)
                 .strokeBorder(
                     LinearGradient(
-                        colors: [.yellow.opacity(UIConstants.OpacityConstants.semi), .orange.opacity(UIConstants.OpacityConstants.moderate)],
+                        colors: [
+                            .yellow.opacity(UIConstants.OpacityConstants.semi),
+                            .orange.opacity(UIConstants.OpacityConstants.moderate)
+                        ],
                         startPoint: .topLeading,
                         endPoint: .bottomTrailing
                     ),

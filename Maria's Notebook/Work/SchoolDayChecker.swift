@@ -96,7 +96,10 @@ enum SchoolDayChecker {
 
     // MARK: - Private Helpers
 
-    private nonisolated static func hasNonSchoolDayRecord(for day: Date, using context: NSManagedObjectContext) -> Bool {
+    private nonisolated static func hasNonSchoolDayRecord(
+        for day: Date,
+        using context: NSManagedObjectContext
+    ) -> Bool {
         let request = CDFetchRequest(CDNonSchoolDay.self)
         request.predicate = NSPredicate(format: "date == %@", day as NSDate)
         request.fetchLimit = 1

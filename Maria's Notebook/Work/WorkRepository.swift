@@ -8,10 +8,6 @@ struct WorkRepository {
 
     let context: NSManagedObjectContext
 
-    init(context: NSManagedObjectContext) {
-        self.context = context
-    }
-
     // Deprecated ModelContext init removed - no longer needed with Core Data.
 
     // MARK: - CDTrackEntity Linking Helper

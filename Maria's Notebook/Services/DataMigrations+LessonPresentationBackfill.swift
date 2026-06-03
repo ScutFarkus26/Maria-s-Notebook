@@ -58,16 +58,18 @@ extension DataMigrations {
                 )
                 processed += 1
             } catch {
+                let assignmentID = la.id?.uuidString ?? "nil"
+                let errDesc = error.localizedDescription
                 logger.warning(
-                    "Backfill: recordPresentation failed for assignment \(la.id?.uuidString ?? "nil", privacy: .public): \(error.localizedDescription)"
+                    "Backfill: recordPresentation failed for assignment \(assignmentID, privacy: .public): \(errDesc)"
                 )
             }
         }
 
         UserDefaults.standard.set(true, forKey: key)
         let elapsed = Date().timeIntervalSince(start)
-        logger.info(
-            "Backfill: lesson presentations — processed \(processed), skipped \(skipped) (no presentedAt), in \(String(format: "%.2f", elapsed))s"
-        )
+        let elapsedStr = String(format: "%.2f", elapsed)
+        let summary = "processed \(processed), skipped \(skipped) (no presentedAt), in \(elapsedStr)s"
+        logger.info("Backfill: lesson presentations — \(summary)")
     }
 }

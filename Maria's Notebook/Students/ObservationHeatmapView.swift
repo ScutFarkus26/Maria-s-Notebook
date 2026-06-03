@@ -7,7 +7,10 @@ import OSLog
 struct ObservationHeatmapView: View {
     private static let logger = Logger.students
     @Environment(\.managedObjectContext) private var viewContext
-    @FetchRequest(sortDescriptors: [NSSortDescriptor(keyPath: \CDStudent.firstName, ascending: true), NSSortDescriptor(keyPath: \CDStudent.lastName, ascending: true)])
+    @FetchRequest(sortDescriptors: [
+        NSSortDescriptor(keyPath: \CDStudent.firstName, ascending: true),
+        NSSortDescriptor(keyPath: \CDStudent.lastName, ascending: true)
+    ])
     private var allStudentsRaw: FetchedResults<CDStudent>
     // DEDUPLICATION: CloudKit sync can create duplicate records with the same ID.
     private var allStudents: [CDStudent] { Array(allStudentsRaw).uniqueByID }
@@ -118,7 +121,8 @@ struct ObservationHeatmapView: View {
         let allMeetings = (try? context.fetch(NSFetchRequest<CDStudentMeeting>(entityName: "StudentMeeting"))) ?? []
         let allWorkModels = (try? context.fetch(NSFetchRequest<CDWorkModel>(entityName: "WorkModel"))) ?? []
         let allNotes = (try? context.fetch(NSFetchRequest<CDNote>(entityName: "Note"))) ?? []
-        let allAssignments = (try? context.fetch(NSFetchRequest<CDLessonAssignment>(entityName: "LessonAssignment"))) ?? []
+        let allAssignments =
+            (try? context.fetch(NSFetchRequest<CDLessonAssignment>(entityName: "LessonAssignment"))) ?? []
 
         buildMeetingLookup(from: allMeetings, into: &lookups)
         for work in allWorkModels {

@@ -81,7 +81,8 @@ struct TodoRowCard: View {
                             .lineLimit(1)
                     }
 
-                    if todo.effectiveDate != nil || todo.isSomeday || !todo.tagsArray.isEmpty || todo.recurrence != .none {
+                    if todo.effectiveDate != nil || todo.isSomeday ||
+                        !todo.tagsArray.isEmpty || todo.recurrence != .none {
                         HStack(spacing: 6) {
                             if todo.effectiveDate != nil || todo.isSomeday {
                                 TodoDateChip(todo: todo)
@@ -115,7 +116,11 @@ struct TodoRowCard: View {
                         Text(progressText)
                             .font(AppTheme.ScaledFont.captionSemibold)
                     }
-                    .foregroundStyle(todo.allSubtasksCompleted ? .green.opacity(UIConstants.OpacityConstants.prominent) : .secondary.opacity(UIConstants.OpacityConstants.half))
+                    .foregroundStyle(
+                        todo.allSubtasksCompleted
+                            ? .green.opacity(UIConstants.OpacityConstants.prominent)
+                            : .secondary.opacity(UIConstants.OpacityConstants.half)
+                    )
                 }
             }
             .padding(.trailing, 16)
@@ -235,7 +240,8 @@ struct TodoRowCard: View {
             do {
                 try viewContext.save()
             } catch {
-                Self.logger.error("Failed to save todo completion state: \(error.localizedDescription, privacy: .public)")
+                let msg = "Failed to save todo completion state: \(error.localizedDescription)"
+                Self.logger.error("\(msg, privacy: .public)")
             }
         }
         .accessibilityAction(named: Text("Edit")) {

@@ -47,6 +47,9 @@ enum StudentsDataLoader {
     /// - Returns: Dictionary mapping lesson ID to CDLesson
     static func loadLessons(context: NSManagedObjectContext) -> [UUID: CDLesson] {
         let all = context.safeFetch(NSFetchRequest<CDLesson>(entityName: "Lesson"))
-        return Dictionary(all.compactMap { guard let id = $0.id else { return nil }; return (id, $0) }, uniquingKeysWith: { first, _ in first })
+        return Dictionary(
+            all.compactMap { guard let id = $0.id else { return nil }; return (id, $0) },
+            uniquingKeysWith: { first, _ in first }
+        )
     }
 }

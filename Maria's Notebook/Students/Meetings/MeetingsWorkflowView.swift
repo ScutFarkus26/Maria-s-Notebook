@@ -114,7 +114,8 @@ struct MeetingsWorkflowView: View {
         }
 
         // Add any students not yet in the ordered list (alphabetically)
-        for student in students where student.id.map({ studentsNeedingMeetingSet.contains($0) && !addedIDs.contains($0) }) ?? false {
+        for student in students
+        where student.id.map({ studentsNeedingMeetingSet.contains($0) && !addedIDs.contains($0) }) ?? false {
             result.append(student)
         }
 

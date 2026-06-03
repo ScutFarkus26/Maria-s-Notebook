@@ -3,7 +3,6 @@ import CoreData
 import OSLog
 
 // Sheet for adding or editing a CDSampleWorkEntity and its template steps.
-// swiftlint:disable:next type_body_length
 struct SampleWorkEditorSheet: View {
     private static let logger = Logger.lessons
 

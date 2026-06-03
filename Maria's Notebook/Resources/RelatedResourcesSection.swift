@@ -7,7 +7,9 @@ struct RelatedResourcesSection: View {
     let lessonID: UUID
     let lessonArea: String
 
-    @FetchRequest(sortDescriptors: [NSSortDescriptor(keyPath: \CDResource.title, ascending: true)]) private var allResources: FetchedResults<CDResource>
+    @FetchRequest(sortDescriptors: [
+        NSSortDescriptor(keyPath: \CDResource.title, ascending: true)
+    ]) private var allResources: FetchedResults<CDResource>
     @State private var selectedResource: CDResource?
 
     private var relatedResources: [CDResource] {

@@ -83,7 +83,9 @@ struct LessonJourneyTimeline: View {
 
     @ViewBuilder
     private func presentationCard(_ presentation: CDLessonAssignment) -> some View {
-        let statusText: String = presentation.isPresented ? "Presented" : presentation.isScheduled ? "Scheduled" : "Draft"
+        let statusText: String = presentation.isPresented
+            ? "Presented"
+            : presentation.isScheduled ? "Scheduled" : "Draft"
         let students: [CDStudent] = presentation.fetchStudents(from: viewContext)
 
         VStack(alignment: .leading, spacing: 10) {
@@ -273,7 +275,7 @@ struct LessonJourneyTimeline: View {
     let stack = CoreDataStack.preview
     let context = stack.viewContext
     let lesson = CDLesson(context: context)
-    let _ = { lesson.name = "Long Division"; lesson.area = "Math"; lesson.sequence = "Operations" }()
+    _ = { lesson.name = "Long Division"; lesson.area = "Math"; lesson.sequence = "Operations" }()
 
     return ScrollView {
         VStack(spacing: 20) {

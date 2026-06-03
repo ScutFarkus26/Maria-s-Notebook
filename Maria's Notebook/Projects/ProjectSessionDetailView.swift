@@ -18,7 +18,8 @@ struct ProjectSessionDetailView: View {
         NSSortDescriptor(keyPath: \CDStudent.firstName, ascending: true),
         NSSortDescriptor(keyPath: \CDStudent.lastName, ascending: true)
     ]) private var studentsRaw: FetchedResults<CDStudent>
-    @FetchRequest(sortDescriptors: [NSSortDescriptor(keyPath: \CDLesson.name, ascending: true)]) private var lessons: FetchedResults<CDLesson>
+    @FetchRequest(sortDescriptors: [NSSortDescriptor(keyPath: \CDLesson.name, ascending: true)])
+    private var lessons: FetchedResults<CDLesson>
 
     // NEW: Query all work models to filter locally
     @FetchRequest(sortDescriptors: []) private var allWorkModels: FetchedResults<CDWorkModel>

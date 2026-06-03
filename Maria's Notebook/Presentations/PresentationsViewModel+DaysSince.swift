@@ -29,7 +29,12 @@ extension PresentationsViewModel {
             $0.isGiven && !excludedLessonIDs.contains($0.resolvedLessonID)
         }
 
-        let lessonsByID: [UUID: CDLesson] = Dictionary(uniqueKeysWithValues: lessons.compactMap { lesson in guard let id = lesson.id else { return nil }; return (id, lesson) })
+        let lessonsByID: [UUID: CDLesson] = Dictionary(
+            uniqueKeysWithValues: lessons.compactMap { lesson in
+                guard let id = lesson.id else { return nil }
+                return (id, lesson)
+            }
+        )
 
         let (lastDateByStudent, lastLessonIDByStudent) = buildLastLessonData(from: given)
 

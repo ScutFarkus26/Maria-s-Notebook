@@ -6,8 +6,10 @@ import CoreData
 struct ResourceTagPicker: View {
     @Binding var selectedTags: [String]
 
-    @FetchRequest(sortDescriptors: [NSSortDescriptor(keyPath: \CDResource.title, ascending: true)]) private var allResources: FetchedResults<CDResource>
-    @FetchRequest(sortDescriptors: [NSSortDescriptor(keyPath: \CDTodoItemEntity.createdAt, ascending: false)]) private var allTodos: FetchedResults<CDTodoItemEntity>
+    @FetchRequest(sortDescriptors: [NSSortDescriptor(keyPath: \CDResource.title, ascending: true)])
+    private var allResources: FetchedResults<CDResource>
+    @FetchRequest(sortDescriptors: [NSSortDescriptor(keyPath: \CDTodoItemEntity.createdAt, ascending: false)])
+    private var allTodos: FetchedResults<CDTodoItemEntity>
 
     @State private var searchText = ""
     @State private var isShowingNewTag = false

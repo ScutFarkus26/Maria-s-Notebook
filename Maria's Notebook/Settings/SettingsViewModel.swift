@@ -171,7 +171,8 @@ final class SettingsViewModel {
     @discardableResult
     func restoreMostRecentAutoBackup(viewContext: NSManagedObjectContext) async -> Bool {
         guard let candidate = coordinator.backupStatus().mostRecentAutoBackupURL else {
-            importError = "No auto-backups found yet. Open Settings → Backup to enable auto-backups, or use Import to pick a file manually."
+            importError = "No auto-backups found yet. Open Settings → Backup to enable auto-backups, " +
+                "or use Import to pick a file manually."
             return false
         }
         await previewImportedURL(viewContext: viewContext, url: candidate)

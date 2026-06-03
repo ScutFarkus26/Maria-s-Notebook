@@ -126,7 +126,12 @@ struct PresentationPill: View {
 
     /// Helper to check if a specific date has a non-school day entry.
     private func hasNonSchoolDay(for day: Date) -> Bool {
-        let descriptor = { let r = NSFetchRequest<CDNonSchoolDay>(entityName: "NonSchoolDay"); r.predicate = NSPredicate(format: "date == %@", day as CVarArg); r.fetchLimit = 1; return r }()
+        let descriptor = {
+            let r = NSFetchRequest<CDNonSchoolDay>(entityName: "NonSchoolDay")
+            r.predicate = NSPredicate(format: "date == %@", day as CVarArg)
+            r.fetchLimit = 1
+            return r
+        }()
         do {
             return try !viewContext.fetch(descriptor).isEmpty
         } catch {
@@ -137,7 +142,12 @@ struct PresentationPill: View {
 
     /// Helper to check if a specific date has a school day override entry.
     private func hasSchoolDayOverride(for day: Date) -> Bool {
-        let descriptor = { let r = NSFetchRequest<CDSchoolDayOverride>(entityName: "SchoolDayOverride"); r.predicate = NSPredicate(format: "date == %@", day as CVarArg); r.fetchLimit = 1; return r }()
+        let descriptor = {
+            let r = NSFetchRequest<CDSchoolDayOverride>(entityName: "SchoolDayOverride")
+            r.predicate = NSPredicate(format: "date == %@", day as CVarArg)
+            r.fetchLimit = 1
+            return r
+        }()
         do {
             return try !viewContext.fetch(descriptor).isEmpty
         } catch {
@@ -191,7 +201,10 @@ struct PresentationPill: View {
     /// Helper to fetch presented LessonAssignments within a date range.
     private func fetchPresentedLessonAssignments(from start: Date, to endExclusive: Date) -> [CDLessonAssignment] {
         let presentedRaw = LessonAssignmentState.presented.rawValue
-        let predicate = NSPredicate(format: "stateRaw == %@ AND presentedAt != nil AND presentedAt >= %@ AND presentedAt < %@", presentedRaw, start as CVarArg, endExclusive as CVarArg)
+        let predicate = NSPredicate(
+            format: "stateRaw == %@ AND presentedAt != nil AND presentedAt >= %@ AND presentedAt < %@",
+            presentedRaw, start as CVarArg, endExclusive as CVarArg
+        )
         do {
             let request: NSFetchRequest<CDLessonAssignment> = NSFetchRequest(entityName: "LessonAssignment")
             request.predicate = predicate
@@ -480,7 +493,12 @@ struct PresentationPill: View {
 
     /// Helper to fetch a CDLessonAssignment by ID.
     private func fetchLessonAssignment(by id: UUID) -> CDLessonAssignment? {
-        let descriptor = { let r = NSFetchRequest<CDLessonAssignment>(entityName: "LessonAssignment"); r.predicate = NSPredicate(format: "id == %@", id as CVarArg); r.fetchLimit = 1; return r }()
+        let descriptor = {
+            let r = NSFetchRequest<CDLessonAssignment>(entityName: "LessonAssignment")
+            r.predicate = NSPredicate(format: "id == %@", id as CVarArg)
+            r.fetchLimit = 1
+            return r
+        }()
         do {
             return try viewContext.fetch(descriptor).first
         } catch {

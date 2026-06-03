@@ -27,7 +27,8 @@ final class BackupCoordinator {
         var errorDescription: String? {
             switch self {
             case .legacyManualImportNoLongerSupported:
-                return "Legacy .mtbbackup files are no longer supported for manual import. Import a current backup created by this version of the app."
+                return "Legacy .mtbbackup files are no longer supported for manual import. " +
+                    "Import a current backup created by this version of the app."
             }
         }
     }

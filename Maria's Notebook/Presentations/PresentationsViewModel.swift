@@ -284,7 +284,11 @@ final class PresentationsViewModel {
         workModels: [CDWorkModel],
         inboxOrderRaw: String,
         missWindow: PresentationsMissWindow
-    ) -> (ready: [CDLessonAssignment], blocked: [CDLessonAssignment], blockingResultsMap: [UUID: BlockingAlgorithmEngine.BlockingCheckResult]) {
+    ) -> (
+        ready: [CDLessonAssignment],
+        blocked: [CDLessonAssignment],
+        blockingResultsMap: [UUID: BlockingAlgorithmEngine.BlockingCheckResult]
+    ) {
         let allUnscheduled = lessonAssignments.filter { $0.scheduledFor == nil && !$0.isGiven }
         let blockingResults = BlockingAlgorithmEngine.checkBlocking(
             forBatch: allUnscheduled,
@@ -296,7 +300,9 @@ final class PresentationsViewModel {
         var blocked: [CDLessonAssignment] = []
         for la in allUnscheduled {
             let result = la.id.flatMap { blockingResults[$0] }
-                ?? BlockingAlgorithmEngine.BlockingCheckResult(isBlocked: false, prereqOpenCount: 0, perStudentReadiness: [:])
+                ?? BlockingAlgorithmEngine.BlockingCheckResult(
+                    isBlocked: false, prereqOpenCount: 0, perStudentReadiness: [:]
+                )
             if result.isBlocked { blocked.append(la) } else { ready.append(la) }
         }
         var ordered = InboxOrderStore.orderedUnscheduled(from: ready, orderRaw: inboxOrderRaw)

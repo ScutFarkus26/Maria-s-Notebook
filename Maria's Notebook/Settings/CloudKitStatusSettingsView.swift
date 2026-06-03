@@ -125,7 +125,12 @@ struct CloudKitStatusSettingsView: View {
             VStack(alignment: .leading, spacing: 4) {
                 Text("iCloud sync is stopped")
                     .font(.subheadline.weight(.semibold))
-                Text("CloudKit's sync engine couldn't start this session — likely a corrupt local cache. To recover, open the Database tab and tap “Reset Local Cache.” Your data is safe in iCloud and will re-download automatically.")
+                Text(
+                    "CloudKit's sync engine couldn't start this session — likely a corrupt " +
+                    "local cache. To recover, open the Database tab and tap " +
+                    "\u{201C}Reset Local Cache.\u{201D} Your data is safe in iCloud and will " +
+                    "re-download automatically."
+                )
                     .font(.caption)
                     .foregroundStyle(.secondary)
                     .fixedSize(horizontal: false, vertical: true)

@@ -235,7 +235,6 @@ public struct ScheduledMeetingDTO: Codable, Sendable {
     public var isGroupMeeting: Bool?
 }
 
-
 // MARK: - Classroom Membership DTO (format v13+)
 
 public struct ClassroomMembershipDTO: Codable, Sendable {

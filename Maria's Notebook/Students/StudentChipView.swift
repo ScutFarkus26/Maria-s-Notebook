@@ -46,7 +46,11 @@ struct ChipView: View {
         .padding(.vertical, 4)
         .background(
             Capsule()
-                .fill(isMissing ? Color.primary.opacity(UIConstants.OpacityConstants.veryFaint) : areaColor.opacity(isAbsent ? 0.06 : 0.15))
+                .fill(
+                    isMissing
+                        ? Color.primary.opacity(UIConstants.OpacityConstants.veryFaint)
+                        : areaColor.opacity(isAbsent ? 0.06 : 0.15)
+                )
         )
         .overlay(
             Capsule().stroke(

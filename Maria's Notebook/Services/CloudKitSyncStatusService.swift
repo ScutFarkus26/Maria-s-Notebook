@@ -229,7 +229,8 @@ final class CloudKitSyncStatusService {
         } catch {
             lastSyncError = AppErrorMessages.userMessage(for: error, context: "syncing with iCloud")
             UserDefaults.standard.set(lastSyncError, forKey: UserDefaultsKeys.cloudKitLastSyncError)
-            SyncEventLogger.shared.log("cloudkit", status: "error", message: error.localizedDescription)  // Keep raw for logs
+            // Keep raw for logs
+            SyncEventLogger.shared.log("cloudkit", status: "error", message: error.localizedDescription)
             isSyncing = false
             lastOperation = "Manual sync failed"
             lastOperationDate = Date()

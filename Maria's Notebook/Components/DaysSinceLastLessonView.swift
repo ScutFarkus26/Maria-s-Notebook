@@ -7,7 +7,10 @@ struct DaysSinceLastLessonView: View {
     @Environment(\.managedObjectContext) private var viewContext
     @Environment(\.calendar) private var calendar
 
-    @FetchRequest(sortDescriptors: [NSSortDescriptor(keyPath: \CDLessonAssignment.presentedAt, ascending: false), NSSortDescriptor(keyPath: \CDLessonAssignment.createdAt, ascending: false)]) private var allLessonAssignments: FetchedResults<CDLessonAssignment>
+    @FetchRequest(sortDescriptors: [
+        NSSortDescriptor(keyPath: \CDLessonAssignment.presentedAt, ascending: false),
+        NSSortDescriptor(keyPath: \CDLessonAssignment.createdAt, ascending: false)
+    ]) private var allLessonAssignments: FetchedResults<CDLessonAssignment>
 
     @FetchRequest(sortDescriptors: []) private var lessons: FetchedResults<CDLesson>
 

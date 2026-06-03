@@ -148,7 +148,10 @@ extension ClassAreaChecklistViewModel {
             if !sequence.studentIDs.contains(studentIDString) {
                 sequence.studentIDs.append(studentIDString)
                 SequenceTrackService.autoEnrollInTrackIfNeeded(
-                    lessonArea: lesson.area, lessonSequence: lesson.sequence, studentIDs: [studentIDString], context: context
+                    lessonArea: lesson.area,
+                    lessonSequence: lesson.sequence,
+                    studentIDs: [studentIDString],
+                    context: context
                 )
             }
         } else {
@@ -159,7 +162,10 @@ extension ClassAreaChecklistViewModel {
                 context: context
             )
             SequenceTrackService.autoEnrollInTrackIfNeeded(
-                lessonArea: lesson.area, lessonSequence: lesson.sequence, studentIDs: [studentIDString], context: context
+                lessonArea: lesson.area,
+                lessonSequence: lesson.sequence,
+                studentIDs: [studentIDString],
+                context: context
             )
         }
     }
@@ -209,7 +215,10 @@ extension ClassAreaChecklistViewModel {
             if !sequence.studentIDs.contains(studentIDString) {
                 sequence.studentIDs.append(studentIDString)
                 SequenceTrackService.autoEnrollInTrackIfNeeded(
-                    lessonArea: lesson.area, lessonSequence: lesson.sequence, studentIDs: [studentIDString], context: context
+                    lessonArea: lesson.area,
+                    lessonSequence: lesson.sequence,
+                    studentIDs: [studentIDString],
+                    context: context
                 )
             }
         } else {
@@ -220,7 +229,10 @@ extension ClassAreaChecklistViewModel {
                 context: context
             )
             SequenceTrackService.autoEnrollInTrackIfNeeded(
-                lessonArea: lesson.area, lessonSequence: lesson.sequence, studentIDs: [studentIDString], context: context
+                lessonArea: lesson.area,
+                lessonSequence: lesson.sequence,
+                studentIDs: [studentIDString],
+                context: context
             )
         }
     }

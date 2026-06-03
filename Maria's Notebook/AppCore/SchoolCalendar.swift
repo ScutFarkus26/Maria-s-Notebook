@@ -10,7 +10,10 @@ struct SchoolCalendar {
     }
 
     /// Returns a precomputed set of non-school days in the given range.
-    static func precomputedNonSchoolSet(in range: Range<Date>, using context: NSManagedObjectContext) async -> Set<Date> {
+    static func precomputedNonSchoolSet(
+        in range: Range<Date>,
+        using context: NSManagedObjectContext
+    ) async -> Set<Date> {
         await SchoolCalendarService.shared.precomputedNonSchoolSet(in: range, using: context)
     }
 

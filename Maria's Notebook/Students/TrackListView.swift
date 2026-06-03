@@ -17,7 +17,10 @@ struct TrackListView: View {
     @State private var navigationPath = NavigationPath()
     
     // Query all lessons to count them per sequence
-    @FetchRequest(sortDescriptors: [NSSortDescriptor(keyPath: \CDLesson.area, ascending: true), NSSortDescriptor(keyPath: \CDLesson.sequence, ascending: true)])
+    @FetchRequest(sortDescriptors: [
+        NSSortDescriptor(keyPath: \CDLesson.area, ascending: true),
+        NSSortDescriptor(keyPath: \CDLesson.sequence, ascending: true)
+    ])
     private var allLessons: FetchedResults<CDLesson>
     
     // Get all sequence tracks

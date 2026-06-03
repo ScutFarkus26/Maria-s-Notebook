@@ -126,50 +126,59 @@ enum BackupFetchHelpers {
         using context: NSManagedObjectContext
     ) throws -> T? {
         if type == CDStudent.self {
-            let descriptor = { let r = NSFetchRequest<CDStudent>(entityName: "Student"); r.predicate = NSPredicate(format: "id == %@", id as CVarArg); return r }()
+            let descriptor: NSFetchRequest<CDStudent> = NSFetchRequest(entityName: "Student")
+            descriptor.predicate = NSPredicate(format: "id == %@", id as CVarArg)
             descriptor.fetchLimit = 1
             return try context.fetch(descriptor).first as? T
         }
         if type == CDLesson.self {
-            let descriptor = { let r = NSFetchRequest<CDLesson>(entityName: "Lesson"); r.predicate = NSPredicate(format: "id == %@", id as CVarArg); return r }()
+            let descriptor: NSFetchRequest<CDLesson> = NSFetchRequest(entityName: "Lesson")
+            descriptor.predicate = NSPredicate(format: "id == %@", id as CVarArg)
             descriptor.fetchLimit = 1
             return try context.fetch(descriptor).first as? T
         }
         // LegacyPresentation removed — fully migrated to CDLessonAssignment
         if type == CDWorkModel.self {
-            let descriptor = { let r = NSFetchRequest<CDWorkModel>(entityName: "WorkModel"); r.predicate = NSPredicate(format: "id == %@", id as CVarArg); return r }()
+            let descriptor: NSFetchRequest<CDWorkModel> = NSFetchRequest(entityName: "WorkModel")
+            descriptor.predicate = NSPredicate(format: "id == %@", id as CVarArg)
             descriptor.fetchLimit = 1
             return try context.fetch(descriptor).first as? T
         }
         // WorkPlanItem removed in Phase 6 - migrated to CDWorkCheckIn
         if type == CDNote.self {
-            let descriptor = { let r = NSFetchRequest<CDNote>(entityName: "Note"); r.predicate = NSPredicate(format: "id == %@", id as CVarArg); return r }()
+            let descriptor: NSFetchRequest<CDNote> = NSFetchRequest(entityName: "Note")
+            descriptor.predicate = NSPredicate(format: "id == %@", id as CVarArg)
             descriptor.fetchLimit = 1
             return try context.fetch(descriptor).first as? T
         }
         if type == CDNonSchoolDay.self {
-            let descriptor = { let r = NSFetchRequest<CDNonSchoolDay>(entityName: "NonSchoolDay"); r.predicate = NSPredicate(format: "id == %@", id as CVarArg); return r }()
+            let descriptor: NSFetchRequest<CDNonSchoolDay> = NSFetchRequest(entityName: "NonSchoolDay")
+            descriptor.predicate = NSPredicate(format: "id == %@", id as CVarArg)
             descriptor.fetchLimit = 1
             return try context.fetch(descriptor).first as? T
         }
         if type == CDSchoolDayOverride.self {
-            let descriptor = { let r = NSFetchRequest<CDSchoolDayOverride>(entityName: "SchoolDayOverride"); r.predicate = NSPredicate(format: "id == %@", id as CVarArg); return r }()
+            let descriptor: NSFetchRequest<CDSchoolDayOverride> = NSFetchRequest(entityName: "SchoolDayOverride")
+            descriptor.predicate = NSPredicate(format: "id == %@", id as CVarArg)
             descriptor.fetchLimit = 1
             return try context.fetch(descriptor).first as? T
         }
         if type == CDStudentMeeting.self {
-            let descriptor = { let r = NSFetchRequest<CDStudentMeeting>(entityName: "StudentMeeting"); r.predicate = NSPredicate(format: "id == %@", id as CVarArg); return r }()
+            let descriptor: NSFetchRequest<CDStudentMeeting> = NSFetchRequest(entityName: "StudentMeeting")
+            descriptor.predicate = NSPredicate(format: "id == %@", id as CVarArg)
             descriptor.fetchLimit = 1
             return try context.fetch(descriptor).first as? T
         }
         // Removed: CDPresentation (now uses CDLessonAssignment)
         if type == CDCommunityTopicEntity.self {
-            let descriptor = { let r = NSFetchRequest<CDCommunityTopicEntity>(entityName: "CommunityTopic"); r.predicate = NSPredicate(format: "id == %@", id as CVarArg); return r }()
+            let descriptor: NSFetchRequest<CDCommunityTopicEntity> = NSFetchRequest(entityName: "CommunityTopic")
+            descriptor.predicate = NSPredicate(format: "id == %@", id as CVarArg)
             descriptor.fetchLimit = 1
             return try context.fetch(descriptor).first as? T
         }
         if type == CDProposedSolutionEntity.self {
-            let descriptor = { let r = NSFetchRequest<CDProposedSolutionEntity>(entityName: "ProposedSolution"); r.predicate = NSPredicate(format: "id == %@", id as CVarArg); return r }()
+            let descriptor: NSFetchRequest<CDProposedSolutionEntity> = NSFetchRequest(entityName: "ProposedSolution")
+            descriptor.predicate = NSPredicate(format: "id == %@", id as CVarArg)
             descriptor.fetchLimit = 1
             return try context.fetch(descriptor).first as? T
         }
@@ -182,32 +191,42 @@ enum BackupFetchHelpers {
         using context: NSManagedObjectContext
     ) throws -> T? {
         if type == CDCommunityAttachmentEntity.self {
-            let descriptor = { let r = NSFetchRequest<CDCommunityAttachmentEntity>(entityName: "CommunityAttachment"); r.predicate = NSPredicate(format: "id == %@", id as CVarArg); return r }()
+            let descriptor: NSFetchRequest<CDCommunityAttachmentEntity> = NSFetchRequest(
+                entityName: "CommunityAttachment"
+            )
+            descriptor.predicate = NSPredicate(format: "id == %@", id as CVarArg)
             descriptor.fetchLimit = 1
             return try context.fetch(descriptor).first as? T
         }
         if type == CDAttendanceRecord.self {
-            let descriptor = { let r = NSFetchRequest<CDAttendanceRecord>(entityName: "AttendanceRecord"); r.predicate = NSPredicate(format: "id == %@", id as CVarArg); return r }()
+            let descriptor: NSFetchRequest<CDAttendanceRecord> = NSFetchRequest(entityName: "AttendanceRecord")
+            descriptor.predicate = NSPredicate(format: "id == %@", id as CVarArg)
             descriptor.fetchLimit = 1
             return try context.fetch(descriptor).first as? T
         }
         if type == CDWorkCompletionRecord.self {
-            let descriptor = { let r = NSFetchRequest<CDWorkCompletionRecord>(entityName: "WorkCompletionRecord"); r.predicate = NSPredicate(format: "id == %@", id as CVarArg); return r }()
+            let descriptor: NSFetchRequest<CDWorkCompletionRecord> = NSFetchRequest(
+                entityName: "WorkCompletionRecord"
+            )
+            descriptor.predicate = NSPredicate(format: "id == %@", id as CVarArg)
             descriptor.fetchLimit = 1
             return try context.fetch(descriptor).first as? T
         }
         if type == CDProject.self {
-            let descriptor = { let r = NSFetchRequest<CDProject>(entityName: "Project"); r.predicate = NSPredicate(format: "id == %@", id as CVarArg); return r }()
+            let descriptor: NSFetchRequest<CDProject> = NSFetchRequest(entityName: "Project")
+            descriptor.predicate = NSPredicate(format: "id == %@", id as CVarArg)
             descriptor.fetchLimit = 1
             return try context.fetch(descriptor).first as? T
         }
         if type == CDProjectSession.self {
-            let descriptor = { let r = NSFetchRequest<CDProjectSession>(entityName: "ProjectSession"); r.predicate = NSPredicate(format: "id == %@", id as CVarArg); return r }()
+            let descriptor: NSFetchRequest<CDProjectSession> = NSFetchRequest(entityName: "ProjectSession")
+            descriptor.predicate = NSPredicate(format: "id == %@", id as CVarArg)
             descriptor.fetchLimit = 1
             return try context.fetch(descriptor).first as? T
         }
         if type == CDProjectRole.self {
-            let descriptor = { let r = NSFetchRequest<CDProjectRole>(entityName: "ProjectRole"); r.predicate = NSPredicate(format: "id == %@", id as CVarArg); return r }()
+            let descriptor: NSFetchRequest<CDProjectRole> = NSFetchRequest(entityName: "ProjectRole")
+            descriptor.predicate = NSPredicate(format: "id == %@", id as CVarArg)
             descriptor.fetchLimit = 1
             return try context.fetch(descriptor).first as? T
         }

@@ -4,8 +4,8 @@ import SwiftUI
 /// Shows name, area·sequence·section breadcrumb, and small status indicators.
 struct LessonCompactRow: View {
     let lesson: CDLesson
-    var statusCount: Int? = nil
-    var lastPresentedDate: Date? = nil
+    var statusCount: Int?
+    var lastPresentedDate: Date?
     var isSelected: Bool = false
 
     var body: some View {
@@ -71,8 +71,8 @@ struct LessonCompactRow: View {
     private func relativeAgeString(for date: Date) -> String {
         let interval = Date().timeIntervalSince(date)
         let days = Int(interval / 86_400)
-        if days < 1  { return "today" }
-        if days < 7  { return "\(days)d" }
+        if days < 1 { return "today" }
+        if days < 7 { return "\(days)d" }
         let weeks = days / 7
         if weeks < 5 { return "\(weeks)w" }
         let months = days / 30

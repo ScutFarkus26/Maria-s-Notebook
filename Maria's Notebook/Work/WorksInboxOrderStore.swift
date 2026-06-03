@@ -25,7 +25,9 @@ enum WorksInboxOrderStore {
         // Append any missing works by createdAt ascending (older first)
         let missing = base.compactMap(\.id).filter { !order.contains($0) }
         let missingSet = Set(missing)
-        let missingWorks = base.filter { $0.id.map { missingSet.contains($0) } ?? false }.sorted { ($0.createdAt ?? .distantPast) < ($1.createdAt ?? .distantPast) }
+        let missingWorks = base
+            .filter { $0.id.map { missingSet.contains($0) } ?? false }
+            .sorted { ($0.createdAt ?? .distantPast) < ($1.createdAt ?? .distantPast) }
         order.append(contentsOf: missingWorks.compactMap(\.id))
 
         // Use uniquingKeysWith to handle potential duplicates

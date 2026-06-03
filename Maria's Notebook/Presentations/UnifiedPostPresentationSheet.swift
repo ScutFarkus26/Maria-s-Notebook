@@ -71,7 +71,8 @@ struct UnifiedPostPresentationSheet: View {
     @Environment(\.dismiss) private var dismiss
     @Environment(\.managedObjectContext) private var viewContext
 
-    @FetchRequest(sortDescriptors: [NSSortDescriptor(keyPath: \CDLesson.sortIndex, ascending: true)]) private var lessons: FetchedResults<CDLesson>
+    @FetchRequest(sortDescriptors: [NSSortDescriptor(keyPath: \CDLesson.sortIndex, ascending: true)])
+    private var lessons: FetchedResults<CDLesson>
     @FetchRequest(sortDescriptors: []) private var lessonAssignments: FetchedResults<CDLessonAssignment>
 
     #if os(iOS)

@@ -32,7 +32,8 @@ public enum BackupReader {
             case .manifestMalformed(let reason):
                 return "Backup manifest is malformed: \(reason)"
             case .unsupportedFormatVersion(let found, let supported):
-                return "Backup format version \(found) is not supported by this app (supported: v\(supported.lowerBound)–v\(supported.upperBound))."
+                return "Backup format version \(found) is not supported by this app " +
+                    "(supported: v\(supported.lowerBound)–v\(supported.upperBound))."
             case .entryPathInvalid(let path):
                 return "Backup entry has an unexpected path: '\(path)' (expected '<store>/<EntityName>.ndjson')."
             }
@@ -79,7 +80,8 @@ public enum BackupReader {
             )
         }
 
-        logger.info("BackupReader decoded v\(manifest.formatVersion, privacy: .public) backup with \(entries.count) entity entries")
+        let readerMsg = "BackupReader decoded v\(manifest.formatVersion) backup with \(entries.count) entity entries"
+        logger.info("\(readerMsg, privacy: .public)")
         return DecodedBackup(manifest: manifest, entries: entries, preferences: preferences)
     }
 

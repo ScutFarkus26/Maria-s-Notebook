@@ -52,7 +52,8 @@ enum StudentsFilterService {
         let today = cal.startOfDay(for: now)
 
         let todaysPresent = attendanceRecords.filter { rec in
-            guard let d = rec.date else { return false }; return cal.isDate(d, inSameDayAs: today) && (rec.status == .present || rec.status == .tardy)
+            guard let d = rec.date else { return false }
+            return cal.isDate(d, inSameDayAs: today) && (rec.status == .present || rec.status == .tardy)
         }
 
         // CloudKit compatibility: Convert String studentIDs to UUIDs

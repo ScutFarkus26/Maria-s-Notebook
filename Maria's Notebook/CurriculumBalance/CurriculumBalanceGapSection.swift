@@ -77,7 +77,11 @@ struct CurriculumBalanceGapSection: View {
             .padding(.horizontal, 8)
             .background(
                 RoundedRectangle(cornerRadius: UIConstants.CornerRadius.small, style: .continuous)
-                    .fill(onGapTapped != nil ? Color.primary.opacity(UIConstants.OpacityConstants.veryFaint) : Color.clear)
+                    .fill(
+                        onGapTapped != nil
+                            ? Color.primary.opacity(UIConstants.OpacityConstants.veryFaint)
+                            : Color.clear
+                    )
             )
         }
         .buttonStyle(.plain)

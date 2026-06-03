@@ -52,7 +52,8 @@ enum AppErrorMessages {
         case "CKErrorDomain":
             switch nsError.code {
             case 1: // CKError.internalError
-                return "iCloud is temporarily unavailable. Your changes are saved locally and will sync when iCloud recovers."
+                return "iCloud is temporarily unavailable. Your changes are saved locally and " +
+                    "will sync when iCloud recovers."
             case 6: // CKError.notAuthenticated
                 return "No iCloud account found. Sign in to iCloud in Settings to sync your data."
             case 9: // CKError.quotaExceeded
@@ -155,7 +156,8 @@ enum AppErrorMessages {
     static func syncMessage(for error: Error, service: String) -> String {
         let nsError = error as NSError
         if nsError.domain == "EKErrorDomain" || nsError.domain == "EventKit" {
-            return "\(service) sync couldn't complete. Check that the app has permission in Settings \u{2192} Privacy & Security."
+            return "\(service) sync couldn't complete. " +
+                "Check that the app has permission in Settings \u{2192} Privacy & Security."
         }
         return userMessage(for: error, context: "syncing \(service.lowercased())")
     }

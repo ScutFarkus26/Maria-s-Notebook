@@ -4,7 +4,9 @@ import CoreData
 /// Main view for managing classroom supplies
 struct SuppliesListView: View {
     @Environment(\.managedObjectContext) var viewContext
-    @FetchRequest(sortDescriptors: [NSSortDescriptor(keyPath: \CDSupply.name, ascending: true)]) var supplies: FetchedResults<CDSupply>
+    @FetchRequest(sortDescriptors: [
+        NSSortDescriptor(keyPath: \CDSupply.name, ascending: true)
+    ]) var supplies: FetchedResults<CDSupply>
 
     @State var searchText = ""
     @State private var selectedCategory: SupplyCategory?

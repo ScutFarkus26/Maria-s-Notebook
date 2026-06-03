@@ -119,12 +119,14 @@ struct MasteryDashboardView: View {
     // MARK: - Data Loading
 
     private func loadData() {
-        let sortedSteps = ((track.steps?.allObjects as? [CDTrackStepEntity]) ?? []).sorted(by: { $0.orderIndex < $1.orderIndex })
+        let sortedSteps = ((track.steps?.allObjects as? [CDTrackStepEntity]) ?? [])
+            .sorted(by: { $0.orderIndex < $1.orderIndex })
         self.steps = sortedSteps
 
         let trackID = track.id?.uuidString ?? ""
-        let enrollments = viewContext.safeFetch(NSFetchRequest<CDStudentTrackEnrollmentEntity>(entityName: "StudentTrackEnrollment"))
-            .filter { $0.trackID == trackID }
+        let enrollments = viewContext.safeFetch(
+            NSFetchRequest<CDStudentTrackEnrollmentEntity>(entityName: "StudentTrackEnrollment")
+        ).filter { $0.trackID == trackID }
 
         let allStudents = viewContext.safeFetch(NSFetchRequest<CDStudent>(entityName: "Student"))
         let studentsByID = Dictionary(uniqueKeysWithValues: allStudents.compactMap { s -> (String, CDStudent)? in
@@ -132,7 +134,9 @@ struct MasteryDashboardView: View {
             return (id.uuidString, s)
         })
 
-        let allPresentations = viewContext.safeFetch(NSFetchRequest<CDLessonPresentation>(entityName: "LessonPresentation"))
+        let allPresentations = viewContext.safeFetch(
+            NSFetchRequest<CDLessonPresentation>(entityName: "LessonPresentation")
+        )
         let presentationsByStudent = Dictionary(grouping: allPresentations) { $0.studentID }
 
         var rows: [MasteryStudentRow] = []

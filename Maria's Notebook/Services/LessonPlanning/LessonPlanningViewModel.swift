@@ -143,7 +143,10 @@ final class LessonPlanningViewModel {
                 currentStep = .presentingPlan
             } catch {
                 Self.logger.warning("Follow-up failed: \(error)")
-                messages.append(PlanningMessage(role: .system, content: "Error: \(AppErrorMessages.aiMessage(for: error))"))
+                messages.append(PlanningMessage(
+                    role: .system,
+                    content: "Error: \(AppErrorMessages.aiMessage(for: error))"
+                ))
                 currentStep = .awaitingInput
             }
             isLoading = false
@@ -231,7 +234,11 @@ final class LessonPlanningViewModel {
     
     // MARK: - Private Pipeline Methods
     
-    private func planForStudent(_ studentID: UUID, service: LessonPlanningService, context: NSManagedObjectContext) async throws {
+    private func planForStudent(
+        _ studentID: UUID,
+        service: LessonPlanningService,
+        context: NSManagedObjectContext
+    ) async throws {
         let students = fetchStudents(context: context)
         guard let student = students.first(where: { $0.id == studentID }) else {
             throw PlanningError.studentNotFound

@@ -120,7 +120,10 @@ extension StudentNotesViewModel {
     ) -> [UnifiedNoteItem] {
         let primaryFetch: NSFetchRequest<CDNote> = NSFetchRequest(entityName: "Note")
         if let studentID = student.id {
-            primaryFetch.predicate = NSPredicate(format: "scopeIsAll == YES OR searchIndexStudentID == %@", studentID as CVarArg)
+            primaryFetch.predicate = NSPredicate(
+                format: "scopeIsAll == YES OR searchIndexStudentID == %@",
+                studentID as CVarArg
+            )
         } else {
             primaryFetch.predicate = NSPredicate(format: "scopeIsAll == YES")
         }

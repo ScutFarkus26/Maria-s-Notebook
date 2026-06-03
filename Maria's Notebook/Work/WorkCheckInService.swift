@@ -15,10 +15,6 @@ import CoreData
 struct WorkCheckInService: WorkCheckInServiceProtocol {
     let context: NSManagedObjectContext
 
-    init(context: NSManagedObjectContext) {
-        self.context = context
-    }
-
     // Deprecated ModelContext init removed - no longer needed with Core Data.
 
     // MARK: - Creation

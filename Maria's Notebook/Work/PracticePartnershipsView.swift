@@ -442,7 +442,9 @@ struct PracticePartnershipsSummaryCard: View {
         let session = CDPracticeSession(context: ctx)
         session.date = Date().addingTimeInterval(Double(-i * 86400))
         session.duration = 1800
-        session.studentIDsArray = i % 2 == 0 ? [danny.id?.uuidString ?? "", mary.id?.uuidString ?? ""] : [danny.id?.uuidString ?? ""]
+        session.studentIDsArray = i % 2 == 0
+            ? [danny.id?.uuidString ?? "", mary.id?.uuidString ?? ""]
+            : [danny.id?.uuidString ?? ""]
         session.workItemIDsArray = [work1.id?.uuidString ?? ""]
         session.sharedNotes = "Practice session \(i + 1)"
         session.location = "Classroom"

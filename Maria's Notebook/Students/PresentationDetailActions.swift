@@ -99,7 +99,9 @@ final class PresentationDetailActions {
         #if DEBUG
         switch result {
         case .success(let presentation):
-            Self.logger.info("Successfully created next lesson (ID: \(presentation.id?.uuidString ?? "nil", privacy: .public))")
+            Self.logger.info(
+                "Successfully created next lesson (ID: \(presentation.id?.uuidString ?? "nil", privacy: .public))"
+            )
         case .alreadyExists:
             Self.logger.warning("Next lesson already exists in inbox")
         case .noNextLesson:
@@ -181,7 +183,10 @@ final class PresentationDetailActions {
         } else {
             let newLA = PresentationFactory.makeDraft(
                 lesson: currentLesson,
-                students: studentsAll.filter { guard let sid = $0.id else { return false }; return targetSet.contains(sid) },
+                students: studentsAll.filter {
+                    guard let sid = $0.id else { return false }
+                    return targetSet.contains(sid)
+                },
                 context: context
             )
             _ = newLA // Core Data auto-inserts into context

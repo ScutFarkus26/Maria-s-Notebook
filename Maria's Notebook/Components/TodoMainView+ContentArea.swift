@@ -328,7 +328,10 @@ extension TodoMainView {
             .font(.system(size: 13, weight: .semibold))
             .foregroundStyle(config.color)
             .frame(width: 26, height: 26)
-            .background(config.color.opacity(UIConstants.OpacityConstants.accent), in: RoundedRectangle(cornerRadius: 7, style: .continuous))
+            .background(
+                config.color.opacity(UIConstants.OpacityConstants.accent),
+                in: RoundedRectangle(cornerRadius: 7, style: .continuous)
+            )
     }
 
     func sectionIconConfig(for title: String) -> (icon: String, color: Color) {

@@ -81,7 +81,11 @@ extension QuickPracticeSessionSheet {
             .padding(.horizontal, 12)
             .background(
                 RoundedRectangle(cornerRadius: 8)
-                    .fill(selectedPartnerIDs.contains(studentID) ? Color.blue.opacity(UIConstants.OpacityConstants.light) : Color.clear)
+                    .fill(
+                        selectedPartnerIDs.contains(studentID)
+                            ? Color.blue.opacity(UIConstants.OpacityConstants.light)
+                            : Color.clear
+                    )
             )
         }
         .buttonStyle(.plain)

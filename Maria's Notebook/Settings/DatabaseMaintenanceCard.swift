@@ -27,7 +27,11 @@ struct DatabaseMaintenanceCard: View {
                 Text("Reset Local Cache")
                     .font(.subheadline.weight(.semibold))
 
-                Text("Deletes the local Core Data stores and re-downloads everything from iCloud on the next launch. Use this if iCloud sync is stuck (you'll see a red banner in Data & Sync when that happens) or if you're recovering from a corrupted local database.")
+                Text(
+                    "Deletes the local Core Data stores and re-downloads everything from iCloud on the next launch. " +
+                    "Use this if iCloud sync is stuck (you'll see a red banner in Data & Sync when that happens) " +
+                    "or if you're recovering from a corrupted local database."
+                )
                     .font(.caption)
                     .foregroundStyle(.secondary)
                     .fixedSize(horizontal: false, vertical: true)
@@ -82,7 +86,10 @@ struct DatabaseMaintenanceCard: View {
             }
             Button("Cancel", role: .cancel) { }
         } message: {
-            Text("On next launch, the app will delete the local Core Data stores and re-download your data from iCloud. This can take several minutes depending on classroom size and network speed.")
+            Text(
+                "On next launch, the app will delete the local Core Data stores and re-download your data " +
+                "from iCloud. This can take several minutes depending on classroom size and network speed."
+            )
         }
         .alert("Relaunch the app", isPresented: $showingRelaunchPrompt) {
             Button("OK", role: .cancel) { }

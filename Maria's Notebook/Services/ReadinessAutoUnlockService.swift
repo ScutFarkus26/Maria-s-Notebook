@@ -23,7 +23,9 @@ enum ReadinessAutoUnlockService {
         // Find the next lesson in the sequence
         let allLessons = context.safeFetch(CDFetchRequest(CDLesson.self))
         guard let currentLesson = allLessons.first(where: { $0.id == lessonID }) else { return }
-        guard let nextLesson = PlanNextLessonService.findNextLesson(after: currentLesson, in: allLessons) else { return }
+        guard let nextLesson = PlanNextLessonService.findNextLesson(
+            after: currentLesson, in: allLessons
+        ) else { return }
         guard let nextLessonID = nextLesson.id else { return }
 
         // Find any draft/scheduled assignments for the next lesson that include this student

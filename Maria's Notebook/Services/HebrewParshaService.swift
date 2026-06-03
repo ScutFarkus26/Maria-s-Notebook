@@ -424,20 +424,20 @@ enum HebrewParshaService {
     /// combinations (e.g. non-leap with Rosh Hashanah on Tuesday and a complete year).
     private static let diasporaCombinedPairsByYearType: [String: Set<Int>] = [
         // Non-leap
-        "020":  [21, 26, 28, 31, 41, 50],         // RH=Mon, Incomplete
+        "020": [21, 26, 28, 31, 41, 50],         // RH=Mon, Incomplete
         "0220": [21, 26, 28, 31, 38, 41, 50],     // RH=Mon, Complete
         "0310": [21, 26, 28, 31, 38, 41, 50],     // RH=Tue, Regular  (= 0220)
         "0510": [21, 26, 28, 31, 41],             // RH=Thu, Regular
-        "052":  [26, 28, 31, 41],                 // RH=Thu, Complete
-        "070":  [21, 26, 28, 31, 41],             // RH=Sat, Incomplete
-        "072":  [21, 26, 28, 31, 41, 50],         // RH=Sat, Complete
+        "052": [26, 28, 31, 41],                 // RH=Thu, Complete
+        "070": [21, 26, 28, 31, 41],             // RH=Sat, Incomplete
+        "072": [21, 26, 28, 31, 41, 50],         // RH=Sat, Complete
         // Leap
         "1200": [38, 41, 50],                     // RH=Mon, Incomplete
         "1220": [41],                             // RH=Mon, Complete
         "1310": [41],                             // RH=Tue, Regular  (= 1220)
-        "150":  [],                               // RH=Thu, Incomplete
-        "152":  [50],                             // RH=Thu, Complete
-        "170":  [41, 50],                         // RH=Sat, Incomplete
+        "150": [],                               // RH=Thu, Incomplete
+        "152": [50],                             // RH=Thu, Complete
+        "170": [41, 50],                         // RH=Sat, Incomplete
         "1720": [38, 41, 50]                      // RH=Sat, Complete
     ]
 

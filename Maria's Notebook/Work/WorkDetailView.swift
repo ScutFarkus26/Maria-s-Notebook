@@ -18,7 +18,8 @@ struct WorkDetailView: View {
     #if DEBUG
     @FetchRequest(sortDescriptors: []) private var lessonAssignments: FetchedResults<CDLessonAssignment>
     #endif
-    @FetchRequest(sortDescriptors: [NSSortDescriptor(keyPath: \CDWorkCheckIn.date, ascending: false)]) var checkIns: FetchedResults<CDWorkCheckIn>
+    @FetchRequest(sortDescriptors: [NSSortDescriptor(keyPath: \CDWorkCheckIn.date, ascending: false)])
+    var checkIns: FetchedResults<CDWorkCheckIn>
     @FetchRequest(sortDescriptors: []) private var allPracticeSessions: FetchedResults<CDPracticeSession>
     // PERF: allLessons and allLessonAssignments moved into WorkDetailViewModel.loadWork()
     // to avoid loading entire tables via @Query. The ViewModel fetches only what's needed.
@@ -135,7 +136,10 @@ struct WorkDetailView: View {
                     nextPresentationStatusSection
 
                     if viewModel.status == .complete { completionSection() }
-                    if let work = viewModel.work, !((work.steps?.allObjects as? [CDWorkStep]) ?? []).isEmpty || viewModel.workKind == .report {
+                    let hasSteps = viewModel.work.map {
+                        !($0.steps?.allObjects as? [CDWorkStep] ?? []).isEmpty
+                    } ?? false
+                    if hasSteps || viewModel.workKind == .report {
                         stepsSection()
                     }
                     if !practiceSessions.isEmpty { practiceOverviewSection() }

@@ -7,7 +7,11 @@ enum WorkCompletionBackfill {
     /// Iterate through participants and ensure a corresponding
     /// `CDWorkCompletionRecord` exists for each participant that has `completedAt`.
     /// The operation is idempotent and safe to call multiple times.
-    static func backfill(for workID: UUID, participants: [CDWorkParticipantEntity], in context: NSManagedObjectContext) throws {
+    static func backfill(
+        for workID: UUID,
+        participants: [CDWorkParticipantEntity],
+        in context: NSManagedObjectContext
+    ) throws {
         for p in participants {
             guard let completed = p.completedAt else { continue }
             guard let studentUUID = UUID(uuidString: p.studentID) else { continue }

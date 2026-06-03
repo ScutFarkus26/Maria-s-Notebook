@@ -109,7 +109,9 @@ extension TodoListPanel {
 
                 let nextDueDate: Date?
                 if todo.recurrence == .custom, todo.customIntervalDays > 0 {
-                    nextDueDate = Calendar.current.date(byAdding: .day, value: Int(todo.customIntervalDays), to: baseDate)
+                    nextDueDate = Calendar.current.date(
+                        byAdding: .day, value: Int(todo.customIntervalDays), to: baseDate
+                    )
                 } else {
                     nextDueDate = todo.recurrence.nextDate(after: baseDate)
                 }

@@ -62,7 +62,7 @@ public class CDLessonAssignment: NSManagedObject {
 
 // MARK: - State Enum
 
-/// Lifecycle states for a presentation.
+// Lifecycle states for a presentation.
 
 // MARK: - Computed Properties
 
@@ -227,7 +227,8 @@ extension CDLessonAssignment {
     override public var debugDescription: String {
         let studentCount = studentIDs.count
         let prefix = lessonID.prefix(8)
-        return "Presentation(id=\(id?.uuidString ?? "nil"), state=\(state.rawValue), lessonID=\(prefix)..., students=\(studentCount))"
+        let idStr = id?.uuidString ?? "nil"
+        return "Presentation(id=\(idStr), state=\(state.rawValue), lessonID=\(prefix)..., students=\(studentCount))"
     }
 }
 #endif

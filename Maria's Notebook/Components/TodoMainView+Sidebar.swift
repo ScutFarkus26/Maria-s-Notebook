@@ -189,7 +189,9 @@ extension TodoMainView {
                             } label: {
                                 HStack(spacing: 10) {
                                     Image(systemName: selectedFolder == sequenceName ? "folder.fill" : "folder")
-                                        .foregroundStyle(selectedFolder == sequenceName ? Color.accentColor : .secondary)
+                                        .foregroundStyle(
+                                            selectedFolder == sequenceName ? Color.accentColor : .secondary
+                                        )
                                         .font(.system(size: 12, weight: .semibold))
                                         .frame(width: 10)
 

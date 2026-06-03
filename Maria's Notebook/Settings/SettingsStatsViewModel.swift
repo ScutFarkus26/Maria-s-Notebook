@@ -200,8 +200,9 @@ class SettingsStatsViewModel {
         }
     }
     
+    // CDNote: NSManagedObjectContext access is assumed to be fast for counts,
+    // keeping this synchronous on MainActor is safe.
     /// Load count for a model type
-    /// CDNote: NSManagedObjectContext access is assumed to be fast for counts, keeping this synchronous on MainActor is safe.
     private func loadCount<T: NSManagedObject>(
         for type: T.Type,
         context: NSManagedObjectContext

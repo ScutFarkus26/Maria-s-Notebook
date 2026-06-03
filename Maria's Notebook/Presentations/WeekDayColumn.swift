@@ -399,7 +399,12 @@ private struct WeekDayColumnDropDelegate: DropDelegate {
     private func applyWorkPlanItemDrop(id: UUID, locationY: CGFloat) {
         // Phase 6: WorkPlanItem removed from schema - migrated to CDWorkCheckIn
         // Fetch the CDWorkCheckIn
-        let descriptor = { let r = NSFetchRequest<CDWorkCheckIn>(entityName: "WorkCheckIn"); r.predicate = NSPredicate(format: "id == %@", id as CVarArg); r.fetchLimit = 1; return r }()
+        let descriptor = {
+            let r = NSFetchRequest<CDWorkCheckIn>(entityName: "WorkCheckIn")
+            r.predicate = NSPredicate(format: "id == %@", id as CVarArg)
+            r.fetchLimit = 1
+            return r
+        }()
         guard let item = {
             do {
                 return try viewContext.fetch(descriptor).first
@@ -415,7 +420,12 @@ private struct WeekDayColumnDropDelegate: DropDelegate {
 
         // Also update the associated CDWorkModel's dueAt
         if let workID = UUID(uuidString: item.workID) {
-            let workDescriptor = { let r = NSFetchRequest<CDWorkModel>(entityName: "WorkModel"); r.predicate = NSPredicate(format: "id == %@", workID as CVarArg); r.fetchLimit = 1; return r }()
+            let workDescriptor = {
+                let r = NSFetchRequest<CDWorkModel>(entityName: "WorkModel")
+                r.predicate = NSPredicate(format: "id == %@", workID as CVarArg)
+                r.fetchLimit = 1
+                return r
+            }()
             do {
                 if let work = try viewContext.fetch(workDescriptor).first {
                     work.dueAt = normalized

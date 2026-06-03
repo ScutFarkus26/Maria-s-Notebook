@@ -61,9 +61,11 @@ extension ClassroomSharingService {
                 seedID: seedID,
                 container: container
             )
-            autoCreateLogger.info("Auto-created classroom CKShare in zone \(newShare.recordID.zoneID.zoneName, privacy: .public)")
+            let zoneName = newShare.recordID.zoneID.zoneName
+            autoCreateLogger.info("Auto-created classroom CKShare in zone \(zoneName, privacy: .public)")
         } catch {
-            autoCreateLogger.error("Auto-create CKShare failed — will retry on next launch: \(error.localizedDescription, privacy: .public)")
+            let msg = "Auto-create CKShare failed — will retry on next launch: \(error.localizedDescription)"
+            autoCreateLogger.error("\(msg, privacy: .public)")
             return
         }
 
@@ -130,11 +132,17 @@ extension ClassroomSharingService {
     func prepareShareForPresentation(coreDataStack: CoreDataStack) async throws -> CKShare {
         do {
             if let existing = try fetchExistingShare() {
-                Self.autoCreateLogger.info("prepareShareForPresentation: returning existing share in zone \(existing.recordID.zoneID.zoneName, privacy: .public)")
+                let zone = existing.recordID.zoneID.zoneName
+                Self.autoCreateLogger.info(
+                    "prepareShareForPresentation: returning existing share in zone \(zone, privacy: .public)"
+                )
                 return existing
             }
         } catch {
-            Self.autoCreateLogger.error("prepareShareForPresentation: fetchExistingShare threw — \((error as NSError).domain, privacy: .public) \((error as NSError).code, privacy: .public): \(error.localizedDescription, privacy: .public)")
+            let ns = error as NSError
+            let errMsg = "prepareShareForPresentation: fetchExistingShare threw — " +
+                "\(ns.domain) \(ns.code): \(ns.localizedDescription)"
+            Self.autoCreateLogger.error("\(errMsg, privacy: .public)")
             throw error
         }
 
@@ -162,7 +170,8 @@ extension ClassroomSharingService {
 
         let seedEntity = seed.entity.name ?? "unknown"
         let seedID = seed.objectID
-        Self.autoCreateLogger.info("prepareShareForPresentation: calling container.share with seed entity=\(seedEntity, privacy: .public)")
+        let shareMsg = "prepareShareForPresentation: calling container.share with seed entity=\(seedEntity)"
+        Self.autoCreateLogger.info("\(shareMsg, privacy: .public)")
 
         let newShare: CKShare
         do {
@@ -173,10 +182,16 @@ extension ClassroomSharingService {
                 seedID: seedID,
                 container: container
             )
-            Self.autoCreateLogger.info("prepareShareForPresentation: container.share succeeded; new zone=\(newShare.recordID.zoneID.zoneName, privacy: .public)")
+            let newZone = newShare.recordID.zoneID.zoneName
+            Self.autoCreateLogger.info(
+                "prepareShareForPresentation: container.share succeeded; new zone=\(newZone, privacy: .public)"
+            )
         } catch {
             let ns = error as NSError
-            Self.autoCreateLogger.error("prepareShareForPresentation: container.share failed — domain=\(ns.domain, privacy: .public) code=\(ns.code, privacy: .public) description=\(ns.localizedDescription, privacy: .public) userInfo=\(ns.userInfo, privacy: .public)")
+            let failMsg = "prepareShareForPresentation: container.share failed — " +
+                "domain=\(ns.domain) code=\(ns.code) description=\(ns.localizedDescription) " +
+                "userInfo=\(ns.userInfo)"
+            Self.autoCreateLogger.error("\(failMsg, privacy: .public)")
             // If CloudKit timed out, trip the breaker so subsequent
             // observational checks bail rather than queuing another 10-minute
             // hang.

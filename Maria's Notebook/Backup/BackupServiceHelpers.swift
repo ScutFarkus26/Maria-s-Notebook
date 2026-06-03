@@ -1,4 +1,3 @@
-// swiftlint:disable file_length
 // BackupServiceHelpers.swift
 // Shared utilities for backup services
 
@@ -8,7 +7,6 @@ import OSLog
 
 /// Shared helper utilities for backup operations
 @MainActor
-// swiftlint:disable:next type_body_length
 enum BackupServiceHelpers {
     private static let logger = Logger.backup
 

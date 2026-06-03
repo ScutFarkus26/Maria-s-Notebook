@@ -225,7 +225,11 @@ extension InboxSheetViewModel {
         )
 
         // Remove the student from the source
-        let sourceDescriptor = { let r = NSFetchRequest<CDLessonAssignment>(entityName: "LessonAssignment"); r.predicate = NSPredicate(format: "id == %@", sourceID as CVarArg); return r }()
+        let sourceDescriptor = {
+            let r = NSFetchRequest<CDLessonAssignment>(entityName: "LessonAssignment")
+            r.predicate = NSPredicate(format: "id == %@", sourceID as CVarArg)
+            return r
+        }()
         if let src = viewContext.safeFetchFirst(sourceDescriptor) {
             let studentIDString = studentID.uuidString
             src.studentIDs.removeAll { $0 == studentIDString }
@@ -264,8 +268,18 @@ extension InboxSheetViewModel {
         }) {
             return existing
         }
-        let lessonFetch = { let r = NSFetchRequest<CDLesson>(entityName: "Lesson"); r.predicate = NSPredicate(format: "id == %@", lessonID as CVarArg); r.fetchLimit = 1; return r }()
-        let studentFetch = { let r = NSFetchRequest<CDStudent>(entityName: "Student"); r.predicate = NSPredicate(format: "id == %@", studentID as CVarArg); r.fetchLimit = 1; return r }()
+        let lessonFetch = {
+            let r = NSFetchRequest<CDLesson>(entityName: "Lesson")
+            r.predicate = NSPredicate(format: "id == %@", lessonID as CVarArg)
+            r.fetchLimit = 1
+            return r
+        }()
+        let studentFetch = {
+            let r = NSFetchRequest<CDStudent>(entityName: "Student")
+            r.predicate = NSPredicate(format: "id == %@", studentID as CVarArg)
+            r.fetchLimit = 1
+            return r
+        }()
         let lessonObj = safeFetchFirst(lessonFetch, viewContext: viewContext, context: "findOrCreateInboxLA-lesson")
         let studentObj = safeFetchFirst(
             studentFetch, viewContext: viewContext, context: "findOrCreateInboxLA-student"
@@ -318,7 +332,11 @@ extension InboxSheetViewModel {
         // If scheduled, clear scheduledFor
         if la.scheduledFor != nil {
             let targetId = droppedId
-            let laDescriptor = { let r = NSFetchRequest<CDLessonAssignment>(entityName: "LessonAssignment"); r.predicate = NSPredicate(format: "id == %@", targetId as CVarArg); return r }()
+            let laDescriptor = {
+                let r = NSFetchRequest<CDLessonAssignment>(entityName: "LessonAssignment")
+                r.predicate = NSPredicate(format: "id == %@", targetId as CVarArg)
+                return r
+            }()
             if let lesson = viewContext.safeFetchFirst(laDescriptor) {
                 lesson.scheduledFor = nil
                 saveCoordinator.save(viewContext, reason: "Clearing scheduled date")

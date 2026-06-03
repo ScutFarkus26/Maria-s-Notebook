@@ -2,7 +2,8 @@ import Foundation
 import CoreData
 
 enum LessonsReorderService {
-    /// Reorders lessons within a subset and writes sequential orderInSequence values. Calls save on the provided context.
+    /// Reorders lessons within a subset and writes sequential orderInSequence values.
+    /// Calls save on the provided context.
     /// - Parameters:
     ///   - movingLesson: The lesson being moved
     ///   - fromIndex: Original index within the subset

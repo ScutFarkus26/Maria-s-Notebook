@@ -76,7 +76,10 @@ public class CDDevelopmentSnapshotEntity: NSManagedObject {
 
 // MARK: - Computed Properties (JSON Array Accessors)
 extension CDDevelopmentSnapshotEntity {
-    private static let logger = Logger(subsystem: Bundle.main.bundleIdentifier ?? "MariasNotebook", category: "DevelopmentSnapshotEntity")
+    private static let logger = Logger(
+        subsystem: Bundle.main.bundleIdentifier ?? "MariasNotebook",
+        category: "DevelopmentSnapshotEntity"
+    )
 
     var keyStrengths: [String] {
         get { Self.decodeStringArray(from: keyStrengthsData) }

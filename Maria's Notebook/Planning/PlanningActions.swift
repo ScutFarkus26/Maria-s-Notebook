@@ -34,7 +34,11 @@ enum PlanningActions {
     }
 
     /// Push all scheduled lessons that include at least one absent student to the next school day.
-    static func pushLessonsWithAbsentStudents(in days: [Date], calendar: Calendar, context: NSManagedObjectContext) async {
+    static func pushLessonsWithAbsentStudents(
+        in days: [Date],
+        calendar: Calendar,
+        context: NSManagedObjectContext
+    ) async {
         guard let firstDay = days.first else { return }
         let start = calendar.startOfDay(for: firstDay)
         let lastDay = days.last ?? firstDay

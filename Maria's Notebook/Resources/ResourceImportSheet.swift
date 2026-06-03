@@ -8,7 +8,8 @@ struct ResourceImportSheet: View {
     @Environment(\.managedObjectContext) private var viewContext
     @Environment(\.dismiss) private var dismiss
 
-    @FetchRequest(sortDescriptors: [NSSortDescriptor(keyPath: \CDLesson.name, ascending: true)]) private var allLessons: FetchedResults<CDLesson>
+    @FetchRequest(sortDescriptors: [NSSortDescriptor(keyPath: \CDLesson.name, ascending: true)])
+    private var allLessons: FetchedResults<CDLesson>
 
     @State private var title = ""
     @State private var selectedCategory: ResourceCategory = .other

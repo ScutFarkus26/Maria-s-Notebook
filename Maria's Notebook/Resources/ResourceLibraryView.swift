@@ -17,7 +17,8 @@ import UniformTypeIdentifiers
 /// Displays resources organized by category with search, filter, and grid/list toggle.
 struct ResourceLibraryView: View {
     @Environment(\.managedObjectContext) var viewContext
-    @FetchRequest(sortDescriptors: [NSSortDescriptor(keyPath: \CDResource.createdAt, ascending: false)]) var allResources: FetchedResults<CDResource>
+    @FetchRequest(sortDescriptors: [NSSortDescriptor(keyPath: \CDResource.createdAt, ascending: false)])
+    var allResources: FetchedResults<CDResource>
 
     @State var searchText = ""
     @State var selectedCategory: ResourceCategory?

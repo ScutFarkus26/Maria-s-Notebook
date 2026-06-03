@@ -90,7 +90,9 @@ extension ReminderSyncService {
                 syncedCount += 1
             } else {
                 // Create new reminder
-                let newReminder = createCDReminder(from: data, calendarID: targetCalendar.calendarIdentifier, context: context)
+                let newReminder = createCDReminder(
+                    from: data, calendarID: targetCalendar.calendarIdentifier, context: context
+                )
                 _ = newReminder // already inserted via init(context:)
                 syncedCount += 1
             }
@@ -178,7 +180,9 @@ extension ReminderSyncService {
         context.safeFetch(CDFetchRequest(CDReminder.self))
     }
 
-    func createCDReminder(from data: ReminderSyncData, calendarID: String, context: NSManagedObjectContext) -> CDReminder {
+    func createCDReminder(
+        from data: ReminderSyncData, calendarID: String, context: NSManagedObjectContext
+    ) -> CDReminder {
         let reminder = CDReminder(context: context)
         reminder.title = data.title
         reminder.notes = data.notes

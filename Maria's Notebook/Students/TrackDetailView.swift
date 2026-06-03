@@ -11,7 +11,8 @@ struct TrackDetailView: View {
     @Environment(\.managedObjectContext) private var viewContext
     @ObservedObject var track: CDTrackEntity
     @State private var showingLessonPicker = false
-    @FetchRequest(sortDescriptors: [NSSortDescriptor(keyPath: \CDLesson.name, ascending: true)]) private var allLessons: FetchedResults<CDLesson>
+    @FetchRequest(sortDescriptors: [NSSortDescriptor(keyPath: \CDLesson.name, ascending: true)])
+    private var allLessons: FetchedResults<CDLesson>
     
     private var orderedSteps: [CDTrackStep] {
         let steps = (track.steps as? Set<CDTrackStep>) ?? []
@@ -140,7 +141,8 @@ private struct LessonPickerSheet: View {
     let onSelect: (UUID?) -> Void
     
     @State private var searchText: String = ""
-    @FetchRequest(sortDescriptors: [NSSortDescriptor(keyPath: \CDLesson.name, ascending: true)]) private var lessons: FetchedResults<CDLesson>
+    @FetchRequest(sortDescriptors: [NSSortDescriptor(keyPath: \CDLesson.name, ascending: true)])
+    private var lessons: FetchedResults<CDLesson>
     
     private var filteredLessons: [CDLesson] {
         if searchText.isEmpty {

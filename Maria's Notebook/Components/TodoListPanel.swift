@@ -3,8 +3,10 @@ import CoreData
 
 struct TodoListPanel: View {
     @Environment(\.dismiss) private var dismiss
-    @FetchRequest(sortDescriptors: [NSSortDescriptor(keyPath: \CDTodoItem.orderIndex, ascending: true)]) var todos: FetchedResults<CDTodoItem>
-    @FetchRequest(sortDescriptors: [NSSortDescriptor(keyPath: \CDStudent.firstName, ascending: true)]) private var studentsRaw: FetchedResults<CDStudent>
+    @FetchRequest(sortDescriptors: [NSSortDescriptor(keyPath: \CDTodoItem.orderIndex, ascending: true)])
+    var todos: FetchedResults<CDTodoItem>
+    @FetchRequest(sortDescriptors: [NSSortDescriptor(keyPath: \CDStudent.firstName, ascending: true)])
+    private var studentsRaw: FetchedResults<CDStudent>
     @AppStorage(UserDefaultsKeys.generalShowTestStudents) private var showTestStudents: Bool = false
     @AppStorage(UserDefaultsKeys.generalTestStudentNames)
     private var testStudentNamesRaw: String = "Danny De Berry,Lil Dan D"

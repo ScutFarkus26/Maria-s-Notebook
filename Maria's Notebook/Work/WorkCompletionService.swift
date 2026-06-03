@@ -28,7 +28,11 @@ enum WorkCompletionService {
     }
 
     /// Fetch the latest (most recent) completion record for a given work + student.
-    static func latest(for workID: UUID, studentID: UUID, in context: NSManagedObjectContext) throws -> CDWorkCompletionRecord? {
+    static func latest(
+        for workID: UUID,
+        studentID: UUID,
+        in context: NSManagedObjectContext
+    ) throws -> CDWorkCompletionRecord? {
         try records(for: workID, studentID: studentID, in: context).first
     }
 

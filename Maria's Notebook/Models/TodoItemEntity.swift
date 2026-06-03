@@ -141,7 +141,11 @@ extension CDTodoItemEntity {
     var isDueThisWeek: Bool {
         guard let dueDate, !isCompleted else { return false }
         let now = Date()
-        guard let weekEnd = Calendar.current.date(byAdding: .day, value: 7, to: Calendar.current.startOfDay(for: now)) else { return false }
+        guard let weekEnd = Calendar.current.date(
+            byAdding: .day,
+            value: 7,
+            to: Calendar.current.startOfDay(for: now)
+        ) else { return false }
         return dueDate >= Calendar.current.startOfDay(for: now) && dueDate < weekEnd
     }
 

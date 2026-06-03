@@ -267,7 +267,10 @@ struct TemplateCard: View {
                                 .fontWeight(.medium)
                                 .padding(.horizontal, 6)
                                 .padding(.vertical, 2)
-                                .background(Capsule().fill(AppColors.success.opacity(UIConstants.OpacityConstants.accent)))
+                                .background(
+                                    Capsule()
+                                        .fill(AppColors.success.opacity(UIConstants.OpacityConstants.accent))
+                                )
                                 .foregroundStyle(AppColors.success)
                         }
                     }

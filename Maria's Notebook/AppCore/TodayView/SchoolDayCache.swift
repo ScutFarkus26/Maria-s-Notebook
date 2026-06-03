@@ -35,7 +35,11 @@ class SchoolDayCache {
         // Fetch all NonSchoolDay records in the window
         do {
             let fetchRequest: NSFetchRequest<CDNonSchoolDay> = CDFetchRequest(CDNonSchoolDay.self)
-            fetchRequest.predicate = NSPredicate(format: "date >= %@ AND date < %@", startOfWindow as NSDate, endOfWindow as NSDate)
+            fetchRequest.predicate = NSPredicate(
+                format: "date >= %@ AND date < %@",
+                startOfWindow as NSDate,
+                endOfWindow as NSDate
+            )
             let nonSchoolDays = try viewContext.fetch(fetchRequest)
             cachedNonSchoolDays = Set(nonSchoolDays.compactMap { $0.date.map { AppCalendar.startOfDay($0) } })
         } catch {
@@ -45,7 +49,11 @@ class SchoolDayCache {
         // Fetch all SchoolDayOverride records in the window
         do {
             let fetchRequest: NSFetchRequest<CDSchoolDayOverride> = CDFetchRequest(CDSchoolDayOverride.self)
-            fetchRequest.predicate = NSPredicate(format: "date >= %@ AND date < %@", startOfWindow as NSDate, endOfWindow as NSDate)
+            fetchRequest.predicate = NSPredicate(
+                format: "date >= %@ AND date < %@",
+                startOfWindow as NSDate,
+                endOfWindow as NSDate
+            )
             let overrides = try viewContext.fetch(fetchRequest)
             cachedSchoolDayOverrides = Set(overrides.compactMap { $0.date.map { AppCalendar.startOfDay($0) } })
         } catch {

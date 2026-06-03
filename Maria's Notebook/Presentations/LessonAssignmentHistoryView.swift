@@ -41,7 +41,11 @@ struct LessonAssignmentHistoryView: View {
     // DEDUPLICATION: CloudKit sync can create duplicate records with the same ID.
     // Filter out test students when setting is disabled
     var students: [CDStudent] {
-        TestStudentsFilter.filterVisible(Array(studentsRaw).uniqueByID, show: showTestStudents, namesRaw: testStudentNamesRaw)
+        TestStudentsFilter.filterVisible(
+            Array(studentsRaw).uniqueByID,
+            show: showTestStudents,
+            namesRaw: testStudentNamesRaw
+        )
     }
 
     // Double deduplication ensures no crashes even with CloudKit sync race conditions
@@ -50,10 +54,14 @@ struct LessonAssignmentHistoryView: View {
     }
 
     // Fetch Notes that are attached to a lesson assignment
-    @FetchRequest(sortDescriptors: [NSSortDescriptor(keyPath: \CDNote.createdAt, ascending: false)]) var recentNotes: FetchedResults<CDNote>
+    @FetchRequest(sortDescriptors: [NSSortDescriptor(keyPath: \CDNote.createdAt, ascending: false)])
+    var recentNotes: FetchedResults<CDNote>
 
     // Use @Query for change detection only - track count for efficient change detection
-    @FetchRequest(sortDescriptors: [NSSortDescriptor(keyPath: \CDLessonAssignment.presentedAt, ascending: false)], predicate: NSPredicate(format: "stateRaw == \"presented\""))
+    @FetchRequest(
+        sortDescriptors: [NSSortDescriptor(keyPath: \CDLessonAssignment.presentedAt, ascending: false)],
+        predicate: NSPredicate(format: "stateRaw == \"presented\"")
+    )
     var allAssignmentsForChangeDetection: FetchedResults<CDLessonAssignment>
 
     @State var selectedAssignment: CDLessonAssignment?
@@ -99,10 +107,16 @@ struct LessonAssignmentHistoryView: View {
     // Maps for quick lookup
     // Use uniquingKeysWith to handle CloudKit sync duplicates
     var lessonsByID: [UUID: CDLesson] {
-        Dictionary(lessons.compactMap { guard let id = $0.id else { return nil }; return (id, $0) }, uniquingKeysWith: { first, _ in first })
+        Dictionary(
+            lessons.compactMap { guard let id = $0.id else { return nil }; return (id, $0) },
+            uniquingKeysWith: { first, _ in first }
+        )
     }
     var studentsByID: [UUID: CDStudent] {
-        Dictionary(safeStudents.compactMap { guard let id = $0.id else { return nil }; return (id, $0) }, uniquingKeysWith: { first, _ in first })
+        Dictionary(
+            safeStudents.compactMap { guard let id = $0.id else { return nil }; return (id, $0) },
+            uniquingKeysWith: { first, _ in first }
+        )
     }
 
     // Available areas from lessons (sorted, non-empty only)

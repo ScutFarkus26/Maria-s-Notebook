@@ -1,4 +1,3 @@
-// swiftlint:disable file_length
 import OSLog
 import SwiftUI
 import CoreData

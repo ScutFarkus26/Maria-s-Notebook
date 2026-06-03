@@ -192,7 +192,8 @@ struct TodoDetailView: View {
 
     @ViewBuilder
     private var subtasksSection: some View {
-        let viewSubs: [CDTodoSubtaskEntity] = ((todo.subtasks as? Set<CDTodoSubtaskEntity>) ?? []).sorted { $0.orderIndex < $1.orderIndex }
+        let viewSubs: [CDTodoSubtaskEntity] = ((todo.subtasks as? Set<CDTodoSubtaskEntity>) ?? [])
+            .sorted { $0.orderIndex < $1.orderIndex }
         if !viewSubs.isEmpty {
             detailSection("Checklist", icon: "checklist") {
                 VStack(alignment: .leading, spacing: 2) {

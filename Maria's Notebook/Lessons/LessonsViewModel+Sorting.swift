@@ -32,7 +32,9 @@ extension LessonsViewModel {
         )
         let descriptor = NSFetchRequest<CDLesson>(entityName: "Lesson")
         if let predicate { descriptor.predicate = predicate }
-        descriptor.sortDescriptors = lessonSortDescriptors(selectedSequence: selectedSequence, selectedArea: selectedArea)
+        descriptor.sortDescriptors = lessonSortDescriptors(
+            selectedSequence: selectedSequence, selectedArea: selectedArea
+        )
 
         var fetched = viewContext.safeFetch(descriptor)
         if let area = selectedArea?.trimmed(), !area.isEmpty, query.isEmpty {
@@ -82,9 +84,23 @@ extension LessonsViewModel {
     // MARK: - Sort Descriptors
 
     func lessonSortDescriptors(selectedSequence: String?, selectedArea: String?) -> [NSSortDescriptor] {
-        if selectedSequence != nil { return [NSSortDescriptor(key: "orderInSequence", ascending: true), NSSortDescriptor(key: "name", ascending: true)] }
-        if selectedArea != nil { return [NSSortDescriptor(key: "sortIndex", ascending: true), NSSortDescriptor(key: "name", ascending: true)] }
-        return [NSSortDescriptor(key: "area", ascending: true), NSSortDescriptor(key: "sortIndex", ascending: true), NSSortDescriptor(key: "name", ascending: true)]
+        if selectedSequence != nil {
+            return [
+                NSSortDescriptor(key: "orderInSequence", ascending: true),
+                NSSortDescriptor(key: "name", ascending: true)
+            ]
+        }
+        if selectedArea != nil {
+            return [
+                NSSortDescriptor(key: "sortIndex", ascending: true),
+                NSSortDescriptor(key: "name", ascending: true)
+            ]
+        }
+        return [
+            NSSortDescriptor(key: "area", ascending: true),
+            NSSortDescriptor(key: "sortIndex", ascending: true),
+            NSSortDescriptor(key: "name", ascending: true)
+        ]
     }
 
     // MARK: - Scoping & Caching

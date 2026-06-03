@@ -326,7 +326,12 @@ struct LessonProgressSection: View {
                 practiceWork.lessonID = lessonID.uuidString
             } else {
                 // Try to get lessonID from the CDLessonAssignment
-                let descriptor: NSFetchRequest<CDLessonAssignment> = { let r = NSFetchRequest<CDLessonAssignment>(entityName: "LessonAssignment"); r.predicate = NSPredicate(format: "id == %@", presentationID as CVarArg); r.fetchLimit = 1; return r }()
+                let descriptor: NSFetchRequest<CDLessonAssignment> = {
+                    let r = NSFetchRequest<CDLessonAssignment>(entityName: "LessonAssignment")
+                    r.predicate = NSPredicate(format: "id == %@", presentationID as CVarArg)
+                    r.fetchLimit = 1
+                    return r
+                }()
                 do {
                     if let la = try viewContext.fetch(descriptor).first {
                         practiceWork.lessonID = la.lessonID
@@ -339,7 +344,12 @@ struct LessonProgressSection: View {
                 practiceWork.studentID = firstStudentID.uuidString
             } else {
                 // Try to get studentID from the CDLessonAssignment
-                let descriptor: NSFetchRequest<CDLessonAssignment> = { let r = NSFetchRequest<CDLessonAssignment>(entityName: "LessonAssignment"); r.predicate = NSPredicate(format: "id == %@", presentationID as CVarArg); r.fetchLimit = 1; return r }()
+                let descriptor: NSFetchRequest<CDLessonAssignment> = {
+                    let r = NSFetchRequest<CDLessonAssignment>(entityName: "LessonAssignment")
+                    r.predicate = NSPredicate(format: "id == %@", presentationID as CVarArg)
+                    r.fetchLimit = 1
+                    return r
+                }()
                 do {
                     if let la = try viewContext.fetch(descriptor).first,
                        let firstStudentID = la.resolvedStudentIDs.first {
@@ -376,7 +386,9 @@ struct LessonProgressSection: View {
             context: viewContext
         )
         newLA.lesson = lesson
-        newLA.studentIDs = studentsAll.compactMap { selectedStudentIDs.contains($0.id ?? UUID()) ? $0.id?.uuidString : nil }
+        newLA.studentIDs = studentsAll.compactMap {
+            selectedStudentIDs.contains($0.id ?? UUID()) ? $0.id?.uuidString : nil
+        }
         newLA.syncSnapshotsFromRelationships()
 
         do {
@@ -414,7 +426,9 @@ struct LessonProgressSection: View {
                 context: viewContext
             )
             newLA.lesson = lessonsAll.first(where: { $0.id == nextID })
-            newLA.studentIDs = studentsAll.compactMap { sameStudents.contains($0.id ?? UUID()) ? $0.id?.uuidString : nil }
+            newLA.studentIDs = studentsAll.compactMap {
+                sameStudents.contains($0.id ?? UUID()) ? $0.id?.uuidString : nil
+            }
             newLA.syncSnapshotsFromRelationships()
             do {
                 try viewContext.save()

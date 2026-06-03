@@ -44,7 +44,9 @@ struct PracticeSessionsListView: View {
             let calendar = Calendar.current
             let weekStart = calendar.dateInterval(of: .weekOfYear, for: Date())?.start ?? Date()
             let weekEnd = calendar.date(byAdding: .day, value: 7, to: weekStart) ?? Date()
-            sessions = sessions.filter { ($0.date ?? Date.distantPast) >= weekStart && ($0.date ?? Date.distantPast) < weekEnd }
+            sessions = sessions.filter {
+                ($0.date ?? Date.distantPast) >= weekStart && ($0.date ?? Date.distantPast) < weekEnd
+            }
         }
 
         // Apply student filter
@@ -233,7 +235,11 @@ struct PracticeSessionsListView: View {
                             .padding(.vertical, 6)
                             .background(
                                 Capsule()
-                                    .fill(selectedStudent == nil ? Color.accentColor : Color.primary.opacity(UIConstants.OpacityConstants.light))
+                                    .fill(
+                                        selectedStudent == nil
+                                            ? Color.accentColor
+                                            : Color.primary.opacity(UIConstants.OpacityConstants.light)
+                                    )
                             )
                         }
                         .buttonStyle(.plain)
@@ -269,7 +275,11 @@ struct PracticeSessionsListView: View {
             .padding(.vertical, 6)
             .background(
                 Capsule()
-                    .fill(selectedFilter == filter ? Color.blue : Color.primary.opacity(UIConstants.OpacityConstants.light))
+                    .fill(
+                        selectedFilter == filter
+                            ? Color.blue
+                            : Color.primary.opacity(UIConstants.OpacityConstants.light)
+                    )
             )
         }
         .buttonStyle(.plain)
@@ -296,7 +306,11 @@ struct PracticeSessionsListView: View {
             .padding(.vertical, 6)
             .background(
                 Capsule()
-                    .fill(selectedStudent == student.id ? Color.accentColor : Color.primary.opacity(UIConstants.OpacityConstants.light))
+                    .fill(
+                        selectedStudent == student.id
+                            ? Color.accentColor
+                            : Color.primary.opacity(UIConstants.OpacityConstants.light)
+                    )
             )
         }
         .buttonStyle(.plain)
@@ -391,7 +405,9 @@ struct PracticeSessionsListView: View {
         let session = CDPracticeSession(context: ctx)
         session.date = Date().addingTimeInterval(Double(-i * 86400))
         session.duration = Double((15 + i * 5) * 60)
-        session.studentIDsArray = isGroup ? [danny.id?.uuidString ?? "", mary.id?.uuidString ?? ""] : [danny.id?.uuidString ?? ""]
+        session.studentIDsArray = isGroup
+            ? [danny.id?.uuidString ?? "", mary.id?.uuidString ?? ""]
+            : [danny.id?.uuidString ?? ""]
         session.workItemIDsArray = [work1.id?.uuidString ?? ""]
         session.sharedNotes = isGroup ? "Great teamwork! Both students improving." : "Making steady progress."
         session.location = i % 2 == 0 ? "Classroom" : "Small table"

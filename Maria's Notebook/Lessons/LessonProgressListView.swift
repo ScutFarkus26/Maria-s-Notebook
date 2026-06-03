@@ -5,7 +5,11 @@ import CoreData
 // swiftlint:disable:next type_body_length
 struct LessonProgressListView: View {
     @Environment(\.managedObjectContext) private var viewContext
-    @FetchRequest(sortDescriptors: [NSSortDescriptor(keyPath: \CDLesson.area, ascending: true), NSSortDescriptor(keyPath: \CDLesson.sequence, ascending: true), NSSortDescriptor(keyPath: \CDLesson.orderInSequence, ascending: true)])
+    @FetchRequest(sortDescriptors: [
+        NSSortDescriptor(keyPath: \CDLesson.area, ascending: true),
+        NSSortDescriptor(keyPath: \CDLesson.sequence, ascending: true),
+        NSSortDescriptor(keyPath: \CDLesson.orderInSequence, ascending: true)
+    ])
     private var allLessons: FetchedResults<CDLesson>
     
     @State private var selectedLesson: CDLesson?
@@ -132,7 +136,11 @@ struct LessonProgressListView: View {
                                 .padding(.vertical, 8)
                                 .background(
                                     Capsule()
-                                        .fill(selectedArea == nil ? Color.accentColor : Color.primary.opacity(UIConstants.OpacityConstants.subtle))
+                                        .fill(
+                                            selectedArea == nil
+                                                ? Color.accentColor
+                                                : Color.primary.opacity(UIConstants.OpacityConstants.subtle)
+                                        )
                                 )
                         }
                         .buttonStyle(.plain)

@@ -217,7 +217,10 @@ struct WorkAgendaDayColumn: View {
                             GroupedWorkCheckInPill(sequence: sequence) {
                                 if let onSequenceTap { onSequenceTap(sequence) } else { onPillTap(sequence.primary) }
                             }
-                            .draggable(UnifiedCalendarDragPayload.workCheckIn(sequence.primary.id ?? UUID()).stringRepresentation) {
+                            .draggable(
+                                UnifiedCalendarDragPayload.workCheckIn(sequence.primary.id ?? UUID())
+                                    .stringRepresentation
+                            ) {
                                 GroupedWorkCheckInPill(sequence: sequence)
                                     .opacity(UIConstants.OpacityConstants.almostOpaque)
                             }
@@ -225,7 +228,10 @@ struct WorkAgendaDayColumn: View {
                             WorkCheckInPill(checkIn: sequence.primary, isDulled: false) {
                                 onPillTap(sequence.primary)
                             }
-                            .draggable(UnifiedCalendarDragPayload.workCheckIn(sequence.primary.id ?? UUID()).stringRepresentation) {
+                            .draggable(
+                                UnifiedCalendarDragPayload.workCheckIn(sequence.primary.id ?? UUID())
+                                    .stringRepresentation
+                            ) {
                                 WorkCheckInPill(checkIn: sequence.primary, isDulled: false)
                                     .opacity(UIConstants.OpacityConstants.almostOpaque)
                             }

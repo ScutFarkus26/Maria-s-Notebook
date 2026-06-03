@@ -66,7 +66,10 @@ extension LessonAssignmentHistoryView {
                 }
                 .padding(.horizontal, 10)
                 .padding(.vertical, 6)
-                .background(RoundedRectangle(cornerRadius: 8, style: .continuous).fill(Color.primary.opacity(UIConstants.OpacityConstants.hint)))
+                .background(
+                    RoundedRectangle(cornerRadius: 8, style: .continuous)
+                        .fill(Color.primary.opacity(UIConstants.OpacityConstants.hint))
+                )
             }
 
             // Area Menu (multi-select)
@@ -96,7 +99,10 @@ extension LessonAssignmentHistoryView {
                 }
                 .padding(.horizontal, 10)
                 .padding(.vertical, 6)
-                .background(RoundedRectangle(cornerRadius: 8, style: .continuous).fill(Color.primary.opacity(UIConstants.OpacityConstants.hint)))
+                .background(
+                    RoundedRectangle(cornerRadius: 8, style: .continuous)
+                        .fill(Color.primary.opacity(UIConstants.OpacityConstants.hint))
+                )
             }
 
             Spacer()

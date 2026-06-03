@@ -42,7 +42,11 @@ struct LifecycleService {
 
     // MARK: - Fetch Helpers
 
-    static func fetchWorkModel(presentationID: String, studentID: String, context: NSManagedObjectContext) throws -> CDWorkModel? {
+    static func fetchWorkModel(
+        presentationID: String,
+        studentID: String,
+        context: NSManagedObjectContext
+    ) throws -> CDWorkModel? {
         // PERFORMANCE: Use predicate to filter at database level instead of loading all records
         let request = CDFetchRequest(CDWorkModel.self)
         request.predicate = NSPredicate(format: "presentationID == %@ AND studentID == %@", presentationID, studentID)

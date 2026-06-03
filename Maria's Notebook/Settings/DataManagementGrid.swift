@@ -113,7 +113,8 @@ struct DataManagementGrid: View {
             ) { prompt in
                 Button("Move to iCloud Drive") {
                     Task {
-                        let result = await BackupFolderMigration.moveBackupsToManagedFolder(from: prompt.suspiciousFolder)
+                        let result = await BackupFolderMigration
+                            .moveBackupsToManagedFolder(from: prompt.suspiciousFolder)
                         handleMigrationResult(result)
                     }
                 }
@@ -249,7 +250,10 @@ struct DataManagementGrid: View {
         }
         .padding(.horizontal, AppTheme.Spacing.small + 2)
         .padding(.vertical, AppTheme.Spacing.sm)
-        .background(RoundedRectangle(cornerRadius: AppTheme.Spacing.small).fill(color.opacity(UIConstants.OpacityConstants.light)))
+        .background(
+            RoundedRectangle(cornerRadius: AppTheme.Spacing.small)
+                .fill(color.opacity(UIConstants.OpacityConstants.light))
+        )
     }
 
     // MARK: - Backup Card

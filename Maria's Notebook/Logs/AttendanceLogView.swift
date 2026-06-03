@@ -269,7 +269,10 @@ struct AttendanceLogView: View {
                 .padding(.horizontal, 10)
                 .padding(.vertical, 6)
                 .frame(minHeight: 44)
-                .background(RoundedRectangle(cornerRadius: 8, style: .continuous).fill(Color.primary.opacity(UIConstants.OpacityConstants.hint)))
+                .background(
+                    RoundedRectangle(cornerRadius: 8, style: .continuous)
+                        .fill(Color.primary.opacity(UIConstants.OpacityConstants.hint))
+                )
             }
 
             // Status Menu (multi-select)
@@ -300,7 +303,10 @@ struct AttendanceLogView: View {
                 .padding(.horizontal, 10)
                 .padding(.vertical, 6)
                 .frame(minHeight: 44)
-                .background(RoundedRectangle(cornerRadius: 8, style: .continuous).fill(Color.primary.opacity(UIConstants.OpacityConstants.hint)))
+                .background(
+                    RoundedRectangle(cornerRadius: 8, style: .continuous)
+                        .fill(Color.primary.opacity(UIConstants.OpacityConstants.hint))
+                )
             }
 
             // Date Range Menu
@@ -323,7 +329,10 @@ struct AttendanceLogView: View {
                 .padding(.horizontal, 10)
                 .padding(.vertical, 6)
                 .frame(minHeight: 44)
-                .background(RoundedRectangle(cornerRadius: 8, style: .continuous).fill(Color.primary.opacity(UIConstants.OpacityConstants.hint)))
+                .background(
+                    RoundedRectangle(cornerRadius: 8, style: .continuous)
+                        .fill(Color.primary.opacity(UIConstants.OpacityConstants.hint))
+                )
             }
 
             Spacer()

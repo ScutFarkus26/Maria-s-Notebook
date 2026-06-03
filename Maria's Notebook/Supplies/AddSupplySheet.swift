@@ -102,7 +102,11 @@ struct AddSupplySheet: View {
                         }
                         .padding(.horizontal, 12)
                         .padding(.vertical, 8)
-                        .background(category == cat ? Color.accentColor.opacity(UIConstants.OpacityConstants.accent) : Color.primary.opacity(UIConstants.OpacityConstants.hint))
+                        .background(
+                            category == cat
+                                ? Color.accentColor.opacity(UIConstants.OpacityConstants.accent)
+                                : Color.primary.opacity(UIConstants.OpacityConstants.hint)
+                        )
                         .foregroundStyle(category == cat ? Color.accentColor : .primary)
                         .clipShape(Capsule())
                     }

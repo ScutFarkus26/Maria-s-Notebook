@@ -1,4 +1,3 @@
-// swiftlint:disable file_length
 import Foundation
 import CoreData
 import OSLog
@@ -269,7 +268,6 @@ struct SequenceTrackService {
     }
 
     /// Check if a track is complete for a student (Core Data)
-    // swiftlint:disable:next function_body_length
     static func checkAndCompleteTrackIfNeeded(
         lessonArea: String,
         lessonSequence: String,
@@ -307,7 +305,10 @@ struct SequenceTrackService {
 
         let trackLessonIDs = Set(trackLessons.compactMap { $0.id?.uuidString })
         let proficientLessonIDs = Set(studentPresentations
-            .filter { $0.stateRaw == LessonPresentationState.proficient.rawValue && trackLessonIDs.contains($0.lessonID) }
+            .filter {
+                $0.stateRaw == LessonPresentationState.proficient.rawValue
+                    && trackLessonIDs.contains($0.lessonID)
+            }
             .map(\.lessonID))
 
         let allProficient = trackLessonIDs.isSubset(of: proficientLessonIDs)

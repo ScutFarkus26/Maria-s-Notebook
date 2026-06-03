@@ -71,9 +71,13 @@ struct PracticeSessionCard: View {
     lesson.name = "Long Division"
 
     let work1 = CDWorkModel(context: ctx)
-    work1.title = "Practice Long Division"; work1.studentID = danny.id?.uuidString ?? ""; work1.lessonID = lesson.id?.uuidString ?? ""
+    work1.title = "Practice Long Division"
+    work1.studentID = danny.id?.uuidString ?? ""
+    work1.lessonID = lesson.id?.uuidString ?? ""
     let work2 = CDWorkModel(context: ctx)
-    work2.title = "Practice Long Division"; work2.studentID = mary.id?.uuidString ?? ""; work2.lessonID = lesson.id?.uuidString ?? ""
+    work2.title = "Practice Long Division"
+    work2.studentID = mary.id?.uuidString ?? ""
+    work2.lessonID = lesson.id?.uuidString ?? ""
 
     let groupSession = CDPracticeSession(context: ctx)
     groupSession.date = Date(); groupSession.duration = 1800

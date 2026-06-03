@@ -146,7 +146,10 @@ enum ProcedureService {
 
     /// Fetches related procedures for a given procedure
     @MainActor
-    static func fetchRelatedProcedures(for procedure: CDProcedure, in context: NSManagedObjectContext) -> [CDProcedure] {
+    static func fetchRelatedProcedures(
+        for procedure: CDProcedure,
+        in context: NSManagedObjectContext
+    ) -> [CDProcedure] {
         let relatedIDs = procedure.relatedProcedureIDs
         guard !relatedIDs.isEmpty else { return [] }
 

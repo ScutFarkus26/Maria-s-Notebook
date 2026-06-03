@@ -59,7 +59,9 @@ extension BackupEntityImporter {
             // TrackStep is a shared-store entity. SharedStoreZoneRepair
             // will attach these to the CKShare after the import save —
             // log the count so post-restore zone repair has a baseline.
-            Logger.backup.info("Imported \(imported, privacy: .public) TrackStep record(s) from backup into shared store")
+            Logger.backup.info(
+                "Imported \(imported, privacy: .public) TrackStep record(s) from backup into shared store"
+            )
         }
     }
 

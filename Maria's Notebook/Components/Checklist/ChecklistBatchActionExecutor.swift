@@ -144,7 +144,11 @@ enum ChecklistBatchActionExecutor {
 
     // MARK: - Private Helpers
 
-    private static func toggleScheduledNoRecompute(student: CDStudent, lesson: CDLesson, context: NSManagedObjectContext) {
+    private static func toggleScheduledNoRecompute(
+        student: CDStudent,
+        lesson: CDLesson,
+        context: NSManagedObjectContext
+    ) {
         let lessonIDString = lesson.id?.uuidString ?? ""
         let studentIDString = student.cloudKitKey
 

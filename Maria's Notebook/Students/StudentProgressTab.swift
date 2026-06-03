@@ -243,7 +243,13 @@ struct StudentProgressTab: View {
                 enrollmentCardHeader(enrollment: enrollment, track: track, progress: progress, color: trackColor)
                 enrollmentCardProgress(progress: progress, color: trackColor)
                 enrollmentCardNextItem(progress: progress, color: trackColor)
-                enrollmentCardActivity(enrollment: enrollment, track: track, stats: stats, progress: progress, color: trackColor)
+                enrollmentCardActivity(
+                    enrollment: enrollment,
+                    track: track,
+                    stats: stats,
+                    progress: progress,
+                    color: trackColor
+                )
                 enrollmentCardNotes(enrollment: enrollment, color: trackColor)
                 enrollmentCardClassLink(track: track, color: trackColor)
             }
@@ -256,7 +262,12 @@ struct StudentProgressTab: View {
     }
 
     @ViewBuilder
-    private func enrollmentCardHeader(enrollment: CDStudentTrackEnrollmentEntity, track: CDTrackEntity, progress: StudentProgressTabViewModel.TrackProgress, color: Color) -> some View {
+    private func enrollmentCardHeader(
+        enrollment: CDStudentTrackEnrollmentEntity,
+        track: CDTrackEntity,
+        progress: StudentProgressTabViewModel.TrackProgress,
+        color: Color
+    ) -> some View {
         let subtitle: String = enrollment.startedAt.map {
             "Started \($0.formatted(.relative(presentation: .named)))"
         } ?? "Enrolled \((enrollment.createdAt ?? Date()).formatted(.relative(presentation: .named)))"
@@ -274,7 +285,10 @@ struct StudentProgressTab: View {
     }
 
     @ViewBuilder
-    private func enrollmentCardProgress(progress: StudentProgressTabViewModel.TrackProgress, color: Color) -> some View {
+    private func enrollmentCardProgress(
+        progress: StudentProgressTabViewModel.TrackProgress,
+        color: Color
+    ) -> some View {
         if progress.totalSteps > 0 {
             VStack(alignment: .leading, spacing: 12) {
                 ProgressStatsSection(
@@ -293,7 +307,10 @@ struct StudentProgressTab: View {
     }
 
     @ViewBuilder
-    private func enrollmentCardNextItem(progress: StudentProgressTabViewModel.TrackProgress, color: Color) -> some View {
+    private func enrollmentCardNextItem(
+        progress: StudentProgressTabViewModel.TrackProgress,
+        color: Color
+    ) -> some View {
         if let lesson = progress.currentLesson, progress.totalSteps > 0 {
             Divider().padding(.vertical, AppTheme.Spacing.xsmall)
             NextItemBanner(
@@ -308,7 +325,13 @@ struct StudentProgressTab: View {
     }
 
     @ViewBuilder
-    private func enrollmentCardActivity(enrollment: CDStudentTrackEnrollmentEntity, track: CDTrackEntity, stats: StudentProgressTabViewModel.TrackStats, progress: StudentProgressTabViewModel.TrackProgress, color: Color) -> some View { // swiftlint:disable:this function_parameter_count
+    private func enrollmentCardActivity(
+        enrollment: CDStudentTrackEnrollmentEntity,
+        track: CDTrackEntity,
+        stats: StudentProgressTabViewModel.TrackStats,
+        progress: StudentProgressTabViewModel.TrackProgress,
+        color: Color
+    ) -> some View {
         if stats.totalActivity > 0 {
             Divider().padding(.vertical, AppTheme.Spacing.xsmall)
             activityStatsContent(enrollment: enrollment, track: track, stats: stats, color: color)
@@ -317,7 +340,12 @@ struct StudentProgressTab: View {
         }
     }
 
-    private func activityStatsContent(enrollment: CDStudentTrackEnrollmentEntity, track: CDTrackEntity, stats: StudentProgressTabViewModel.TrackStats, color: Color) -> some View {
+    private func activityStatsContent(
+        enrollment: CDStudentTrackEnrollmentEntity,
+        track: CDTrackEntity,
+        stats: StudentProgressTabViewModel.TrackStats,
+        color: Color
+    ) -> some View {
         VStack(alignment: .leading, spacing: 12) {
             ActivityStatsRow(totalActivity: stats.totalActivity, color: color)
             activityFilterButtons(enrollment: enrollment, track: track, stats: stats)
@@ -325,10 +353,19 @@ struct StudentProgressTab: View {
         }
     }
 
-    private func activityFilterButtons(enrollment: CDStudentTrackEnrollmentEntity, track: CDTrackEntity, stats: StudentProgressTabViewModel.TrackStats) -> some View {
+    private func activityFilterButtons(
+        enrollment: CDStudentTrackEnrollmentEntity,
+        track: CDTrackEntity,
+        stats: StudentProgressTabViewModel.TrackStats
+    ) -> some View {
         HStack(spacing: 12) {
             Button { filterSheet = .presentations(enrollment, track) } label: {
-                ProgressStatBadge(count: stats.presentationCount, label: "Presentations", icon: "person.2.fill", color: .orange)
+                ProgressStatBadge(
+                    count: stats.presentationCount,
+                    label: "Presentations",
+                    icon: "person.2.fill",
+                    color: .orange
+                )
             }
             .buttonStyle(.plain)
             .disabled(stats.presentationCount == 0)

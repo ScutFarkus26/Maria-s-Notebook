@@ -12,7 +12,8 @@ struct ResourceDetailView: View {
 
     @ObservedObject var resource: CDResource
 
-    @FetchRequest(sortDescriptors: [NSSortDescriptor(keyPath: \CDLesson.name, ascending: true)]) private var allLessons: FetchedResults<CDLesson>
+    @FetchRequest(sortDescriptors: [NSSortDescriptor(keyPath: \CDLesson.name, ascending: true)])
+    private var allLessons: FetchedResults<CDLesson>
 
     @State private var isEditing = false
     @State private var editTitle = ""

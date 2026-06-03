@@ -23,7 +23,8 @@ enum ObservationsDataLoader {
         var allItems: [UnifiedObservationItem] = []
 
         do {
-            let noteFetch = { let r = NSFetchRequest<CDNote>(entityName: "Note"); r.sortDescriptors = [NSSortDescriptor(keyPath: \CDNote.createdAt, ascending: false)]; return r }()
+            let noteFetch: NSFetchRequest<CDNote> = NSFetchRequest(entityName: "Note")
+            noteFetch.sortDescriptors = [NSSortDescriptor(keyPath: \CDNote.createdAt, ascending: false)]
             let notes: [CDNote] = try context.fetch(noteFetch)
             for note in notes {
                 // Skip notes with empty body and no image (e.g., leftover from check-in migrations)

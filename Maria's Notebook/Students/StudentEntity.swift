@@ -80,4 +80,3 @@ extension CDStudent {
         return (try? ctx.fetch(req)) ?? []
     }
 }
-

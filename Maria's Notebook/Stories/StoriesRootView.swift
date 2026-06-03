@@ -128,7 +128,10 @@ struct StoriesRootView: View {
                     .foregroundStyle(.secondary)
                     .multilineTextAlignment(.center)
                 if !StoryAnalyzer.isAIEnabled {
-                    Text("Apple Intelligence isn't available — you'll fill in titles, themes, and grade levels by hand.")
+                    Text(
+                        "Apple Intelligence isn't available " +
+                        "— you'll fill in titles, themes, and grade levels by hand."
+                    )
                         .font(.caption)
                         .foregroundStyle(.secondary)
                         .multilineTextAlignment(.center)

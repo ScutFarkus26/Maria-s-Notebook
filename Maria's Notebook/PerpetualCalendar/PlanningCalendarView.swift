@@ -125,7 +125,9 @@ struct PlanningCalendarView: View {
 
     @ViewBuilder
     private func planningDayCell(cellID: CellID, isToday: Bool, isNonSchool: Bool) -> some View {
-        let holiday = showHolidays ? PerpetualHolidays.holiday(month: cellID.month, day: cellID.day, year: cellID.year) : nil
+        let holiday = showHolidays
+            ? PerpetualHolidays.holiday(month: cellID.month, day: cellID.day, year: cellID.year)
+            : nil
         let note = showNotes ? notesLookup[cellID] : nil
         let displayText = note?.text ?? holiday ?? ""
         let isEditing = editingCell == cellID
@@ -149,7 +151,10 @@ struct PlanningCalendarView: View {
             HStack(spacing: 4) {
                 Text("\(cellID.day)")
                     .font(.system(.caption, design: .rounded).monospacedDigit())
-                    .foregroundStyle(isToday ? Color.white : (isNonSchool ? Color.red.opacity(UIConstants.OpacityConstants.half) : Color.secondary))
+                    .foregroundStyle(
+                        isToday ? Color.white :
+                            (isNonSchool ? Color.red.opacity(UIConstants.OpacityConstants.half) : Color.secondary)
+                    )
                     .frame(width: 22, height: 22)
                     .background { if isToday { Circle().fill(Color.accentColor) } }
 

@@ -98,7 +98,10 @@ final class StudentAnalysisService {
     }
 
     /// Compares two snapshots to show progress over time
-    func compareSnapshots(earlier: CDDevelopmentSnapshotEntity, later: CDDevelopmentSnapshotEntity) -> ProgressComparison {
+    func compareSnapshots(
+        earlier: CDDevelopmentSnapshotEntity,
+        later: CDDevelopmentSnapshotEntity
+    ) -> ProgressComparison {
         var improvements: [String] = []
         var regressions: [String] = []
         var newMilestones: [String] = []

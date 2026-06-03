@@ -19,7 +19,11 @@ private struct LegacyKey: CodingKey {
 }
 
 private extension KeyedDecodingContainer where Key == LegacyKey {
-    func decode<T: Decodable>(_ type: T.Type, primary: String, legacy: String) throws -> T where T: ExpressibleByStringLiteral {
+    func decode<T: Decodable>(
+        _ type: T.Type,
+        primary: String,
+        legacy: String
+    ) throws -> T where T: ExpressibleByStringLiteral {
         if let v = try decodeIfPresent(type, forKey: LegacyKey(primary)) { return v }
         if let v = try decodeIfPresent(type, forKey: LegacyKey(legacy)) { return v }
         return "" as! T // swiftlint:disable:this force_cast
@@ -80,15 +84,24 @@ extension LessonAssignmentDTO {
         self.lessonID = try c.decode(String.self, forKey: LegacyKey("lessonID"))
         self.studentIDs = try c.decodeIfPresent([String].self, forKey: LegacyKey("studentIDs")) ?? []
         self.lessonTitleSnapshot = try c.decodeIfPresent(String.self, forKey: LegacyKey("lessonTitleSnapshot"))
-        self.lessonSectionSnapshot = try c.decodeOptionalString(primary: "lessonSectionSnapshot", legacy: "lessonSubheadingSnapshot")
+        self.lessonSectionSnapshot = try c.decodeOptionalString(
+            primary: "lessonSectionSnapshot",
+            legacy: "lessonSubheadingSnapshot"
+        )
         self.needsPractice = try c.decodeIfPresent(Bool.self, forKey: LegacyKey("needsPractice")) ?? false
-        self.needsAnotherPresentation = try c.decodeIfPresent(Bool.self, forKey: LegacyKey("needsAnotherPresentation")) ?? false
+        self.needsAnotherPresentation = try c.decodeIfPresent(
+            Bool.self,
+            forKey: LegacyKey("needsAnotherPresentation")
+        ) ?? false
         self.followUpWork = try c.decodeIfPresent(String.self, forKey: LegacyKey("followUpWork")) ?? ""
         self.notes = try c.decodeIfPresent(String.self, forKey: LegacyKey("notes")) ?? ""
         self.trackID = try c.decodeIfPresent(String.self, forKey: LegacyKey("trackID"))
         self.trackStepID = try c.decodeIfPresent(String.self, forKey: LegacyKey("trackStepID"))
         self.migratedFromLegacyID = try c.decodeIfPresent(String.self, forKey: LegacyKey("migratedFromLegacyID"))
-        self.migratedFromPresentationID = try c.decodeIfPresent(String.self, forKey: LegacyKey("migratedFromPresentationID"))
+        self.migratedFromPresentationID = try c.decodeIfPresent(
+            String.self,
+            forKey: LegacyKey("migratedFromPresentationID")
+        )
     }
 }
 

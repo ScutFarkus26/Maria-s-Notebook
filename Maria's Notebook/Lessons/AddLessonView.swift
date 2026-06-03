@@ -219,7 +219,9 @@ struct AddLessonView: View {
                         context: viewContext
                     )
                 } catch {
-                    Self.logger.warning("Failed to create/update CDTrackEntity for \(areaTrimmed)/\(groupTrimmed): \(error)")
+                    let trackMsg = "Failed to create/update CDTrackEntity " +
+                        "for \(areaTrimmed)/\(groupTrimmed): \(error)"
+                    Self.logger.warning("\(trackMsg, privacy: .public)")
                 }
             }
         }

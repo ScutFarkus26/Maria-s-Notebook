@@ -115,7 +115,7 @@ struct ReportGeneratorService {
 
     // MARK: - Generate PDF
 
-    /// Enhanced PDF generation with optional AI narrative, attendance, and mastery data.
+    // Enhanced PDF generation with optional AI narrative, attendance, and mastery data.
     // swiftlint:disable:next function_body_length
     func generatePDF(
         student: CDStudent,
@@ -544,7 +544,9 @@ extension ReportGeneratorService {
     }
 
     private func appendGroupedNotesText(to result: NSMutableAttributedString, notes: [CDNote], style: ReportStyle) {
-        let groupedNotes: [(String, [CDNote])] = style.groupsByCategory ? groupNotesByCategory(notes) : [("Notes", notes)]
+        let groupedNotes: [(String, [CDNote])] = style.groupsByCategory
+            ? groupNotesByCategory(notes)
+            : [("Notes", notes)]
         for (categoryName, categoryNotes) in groupedNotes {
             if style.groupsByCategory && !categoryNotes.isEmpty {
                 // swiftlint:disable:next line_length

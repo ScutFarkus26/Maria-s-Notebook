@@ -111,7 +111,6 @@ public final class BackupTransactionManager {
     /// rollback dance. The closure does the actual import (any format) and
     /// receives a scaled progress callback covering 15–95%.
     /// On failure, the checkpoint is restored through the current backup flow.
-    // swiftlint:disable:next function_body_length
     public func executeWithRollback(
         viewContext: NSManagedObjectContext,
         mode: BackupService.RestoreMode,

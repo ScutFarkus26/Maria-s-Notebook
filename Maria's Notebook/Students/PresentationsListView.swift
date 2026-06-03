@@ -33,13 +33,17 @@ struct PresentationsListView: View {
     private var testStudentNamesRaw: String = "Danny De Berry,Lil Dan D"
 
     // OPTIMIZATION: Use lightweight query for change detection only
-    @FetchRequest(sortDescriptors: [NSSortDescriptor(keyPath: \CDLessonAssignment.id, ascending: true)]) private var allLessonAssignments: FetchedResults<CDLessonAssignment>
+    @FetchRequest(
+        sortDescriptors: [NSSortDescriptor(keyPath: \CDLessonAssignment.id, ascending: true)]
+    ) private var allLessonAssignments: FetchedResults<CDLessonAssignment>
     @FetchRequest(sortDescriptors: []) private var lessons: FetchedResults<CDLesson>
     @FetchRequest(sortDescriptors: []) private var studentsRaw: FetchedResults<CDStudent>
     // DEDUPLICATION: CloudKit sync can create duplicate records with the same ID.
     // Filter out test students when setting is disabled
     var students: [CDStudent] {
-        TestStudentsFilter.filterVisible(Array(studentsRaw).uniqueByID, show: showTestStudents, namesRaw: testStudentNamesRaw)
+        TestStudentsFilter.filterVisible(
+            Array(studentsRaw).uniqueByID, show: showTestStudents, namesRaw: testStudentNamesRaw
+        )
     }
 
     @State var selectedLessonID: UUID?

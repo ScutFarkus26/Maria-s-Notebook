@@ -7,7 +7,9 @@ struct TodoTemplatesView: View {
     private static let logger = Logger.todos
     @Environment(\.dismiss) private var dismiss
     @Environment(\.managedObjectContext) private var viewContext
-    @FetchRequest(sortDescriptors: [NSSortDescriptor(keyPath: \CDTodoTemplate.name, ascending: true)]) private var templates: FetchedResults<CDTodoTemplate>
+    @FetchRequest(sortDescriptors: [
+        NSSortDescriptor(keyPath: \CDTodoTemplate.name, ascending: true)
+    ]) private var templates: FetchedResults<CDTodoTemplate>
     
     @State private var editingTemplate: CDTodoTemplate?
     @State private var showingCreateSheet = false
@@ -235,7 +237,9 @@ private struct TodoTemplateEditSheet: View {
     private static let logger = Logger.todos
     @Environment(\.dismiss) private var dismiss
     @Environment(\.managedObjectContext) private var viewContext
-    @FetchRequest(sortDescriptors: [NSSortDescriptor(keyPath: \CDStudent.firstName, ascending: true)]) private var studentsRaw: FetchedResults<CDStudent>
+    @FetchRequest(sortDescriptors: [
+        NSSortDescriptor(keyPath: \CDStudent.firstName, ascending: true)
+    ]) private var studentsRaw: FetchedResults<CDStudent>
     private var students: [CDStudent] { studentsRaw.filterEnrolled() }
     
     let template: CDTodoTemplate?

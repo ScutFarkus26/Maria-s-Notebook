@@ -124,20 +124,23 @@ public enum BackupMigrationManifest {
         FormatVersionInfo(
             version: 15,
             releaseDate: DateComponents(calendar: .current, year: 2026, month: 5, day: 11).date!,
-            description: "Adds CDInitiative entity and CDTodoItem.initiativeID for the Planning section project manager",
+            description: "Adds CDInitiative entity and CDTodoItem.initiativeID " +
+                "for the Planning section project manager",
             changes: [
                 "CDInitiative entity for Things-style planning initiatives",
                 "CDTodoItem.initiativeID String FK linking todos to initiatives"
             ],
             breakingChanges: [],
-            migrationNotes: "Initiatives is a new optional array; older payloads decode this as nil. CDTodoItem.initiativeID is optional and defaults to nil for older payloads."
+            migrationNotes: "Initiatives is a new optional array; older payloads decode this as nil. " +
+                "CDTodoItem.initiativeID is optional and defaults to nil for older payloads."
         ),
         FormatVersionInfo(
             version: 16,
             releaseDate: DateComponents(calendar: .current, year: 2026, month: 5, day: 17).date!,
             description: "Renames lesson hierarchy from subject/group/subheading to area/sequence/section",
             changes: [
-                "CDLesson.subject -> area, CDLesson.group -> sequence, CDLesson.subheading -> section, CDLesson.orderInGroup -> orderInSequence",
+                "CDLesson.subject -> area, CDLesson.group -> sequence, " +
+                    "CDLesson.subheading -> section, CDLesson.orderInGroup -> orderInSequence",
                 "GroupTrack entity renamed to SequenceTrack; LessonGroupSettings renamed to LessonSequenceSettings",
                 "CDLessonAssignment.lessonSubheadingSnapshot -> lessonSectionSnapshot",
                 "Backup payload key groupTracks -> sequenceTracks"
@@ -360,7 +363,11 @@ extension BackupMigrationManifest {
         PayloadField(name: "attendance", introducedIn: 5, description: "Attendance records"),
         PayloadField(name: "workCompletions", introducedIn: 5, description: "Work completion records"),
         PayloadField(name: "projects", introducedIn: 5, description: "CDProject entities for sequence work"),
-        PayloadField(name: "projectAssignmentTemplates", introducedIn: 5, description: "CDProject assignment templates"),
+        PayloadField(
+            name: "projectAssignmentTemplates",
+            introducedIn: 5,
+            description: "CDProject assignment templates"
+        ),
         PayloadField(name: "projectSessions", introducedIn: 5, description: "CDProject session records"),
         PayloadField(name: "projectRoles", introducedIn: 5, description: "CDProject role definitions"),
         PayloadField(name: "projectTemplateWeeks", introducedIn: 5, description: "CDProject weekly templates"),
@@ -384,11 +391,19 @@ extension BackupMigrationManifest {
         PayloadField(name: "calendarEvents", introducedIn: 8, description: "CDCalendarEvent records"),
         PayloadField(name: "tracks", introducedIn: 8, description: "CDTrackEntity records"),
         PayloadField(name: "trackSteps", introducedIn: 8, description: "CDTrackStepEntity records"),
-        PayloadField(name: "studentTrackEnrollments", introducedIn: 8, description: "CDStudentTrackEnrollmentEntity records"),
+        PayloadField(
+            name: "studentTrackEnrollments",
+            introducedIn: 8,
+            description: "CDStudentTrackEnrollmentEntity records"
+        ),
         PayloadField(name: "sequenceTracks", introducedIn: 8, description: "CDSequenceTrack records"),
         PayloadField(name: "documents", introducedIn: 8, description: "CDDocument metadata"),
         PayloadField(name: "supplies", introducedIn: 8, description: "CDSupply records"),
-        PayloadField(name: "supplyTransactions", introducedIn: 8, description: "CDSupplyTransaction records (deprecated, ignored on import)"),
+        PayloadField(
+            name: "supplyTransactions",
+            introducedIn: 8,
+            description: "CDSupplyTransaction records (deprecated, ignored on import)"
+        ),
         PayloadField(name: "procedures", introducedIn: 8, description: "CDProcedure records"),
         PayloadField(name: "schedules", introducedIn: 8, description: "CDSchedule records"),
         PayloadField(name: "scheduleSlots", introducedIn: 8, description: "CDScheduleSlot records"),
@@ -406,7 +421,11 @@ extension BackupMigrationManifest {
 
         // Work models, planning, resources (v11+)
         PayloadField(name: "workModels", introducedIn: 11, description: "CDWorkModel parent entity"),
-        PayloadField(name: "planningRecommendations", introducedIn: 11, description: "CDPlanningRecommendation records"),
+        PayloadField(
+            name: "planningRecommendations",
+            introducedIn: 11,
+            description: "CDPlanningRecommendation records"
+        ),
         PayloadField(name: "resources", introducedIn: 11, description: "CDResource records"),
         PayloadField(name: "noteStudentLinks", introducedIn: 11, description: "CDNoteStudentLink junction records"),
 

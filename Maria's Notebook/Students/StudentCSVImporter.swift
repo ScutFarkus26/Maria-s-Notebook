@@ -226,7 +226,11 @@ enum StudentCSVImporter {
     }
 
     // swiftlint:disable:next cyclomatic_complexity function_body_length
-    static func commit(parsed: Parsed, into context: NSManagedObjectContext, existingStudents: [CDStudent]) throws -> Summary {
+    static func commit(
+        parsed: Parsed,
+        into context: NSManagedObjectContext,
+        existingStudents: [CDStudent]
+    ) throws -> Summary {
         var inserted = 0
         var updated = 0
         // Index existing by duplicate key and by name-only key

@@ -29,7 +29,8 @@ struct QuickNoteSheet: View {
         )
     }
 
-    @FetchRequest(sortDescriptors: [NSSortDescriptor(keyPath: \CDLesson.id, ascending: true)]) private var lessons: FetchedResults<CDLesson>
+    @FetchRequest(sortDescriptors: [NSSortDescriptor(keyPath: \CDLesson.id, ascending: true)])
+    private var lessons: FetchedResults<CDLesson>
     private var selectedLesson: CDLesson? {
         guard let id = viewModel.selectedLessonID else { return nil }
         return lessons.first { $0.id == id }
@@ -112,7 +113,10 @@ struct QuickNoteSheet: View {
                         Label("Custom Tags", systemImage: "tag")
                             .font(.caption).foregroundStyle(.secondary)
 
-                        let quickTagSet = Set(MontessoriObservationTags.allTags + DevelopmentalCharacteristic.allCases.map(\.tag))
+                        let quickTagSet = Set(
+                            MontessoriObservationTags.allTags +
+                            DevelopmentalCharacteristic.allCases.map(\.tag)
+                        )
                         let customTags = viewModel.tags.filter { !quickTagSet.contains($0) }
 
                         FlowLayout(spacing: 4) {
@@ -456,7 +460,9 @@ struct QuickNoteSheet: View {
                             .fontWeight(.bold)
                     }
                 }
-                .foregroundStyle(showQuickTags ? Color.accentColor : (viewModel.tags.isEmpty ? Color.primary : Color.blue))
+                .foregroundStyle(
+                    showQuickTags ? Color.accentColor : (viewModel.tags.isEmpty ? Color.primary : Color.blue)
+                )
                 .font(AppTheme.ScaledFont.titleMedium)
             }
             .simultaneousGesture(LongPressGesture().onEnded { _ in

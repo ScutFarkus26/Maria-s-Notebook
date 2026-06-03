@@ -303,12 +303,23 @@ extension LessonsRootView {
             logger.warning("Failed to fetch students: \(error)")
             allStudents = []
         }
-        let students = allStudents.filter { guard let sid = $0.id else { return false }; return studentIDs.contains(sid) }
+        let students = allStudents.filter {
+            guard let sid = $0.id else { return false }
+            return studentIDs.contains(sid)
+        }
 
         let lessonIDString = lesson.id?.uuidString ?? ""
         let draftRaw = LessonAssignmentState.draft.rawValue
-        let existingPredicate = NSPredicate(format: "lessonID == %@ AND stateRaw == %@", lessonIDString as CVarArg, draftRaw as CVarArg)
-        let existingDescriptor = { let r = NSFetchRequest<CDLessonAssignment>(entityName: "LessonAssignment"); r.predicate = existingPredicate; return r }()
+        let existingPredicate = NSPredicate(
+            format: "lessonID == %@ AND stateRaw == %@",
+            lessonIDString as CVarArg,
+            draftRaw as CVarArg
+        )
+        let existingDescriptor = {
+            let r = NSFetchRequest<CDLessonAssignment>(entityName: "LessonAssignment")
+            r.predicate = existingPredicate
+            return r
+        }()
         let existingAssignments: [CDLessonAssignment]
         do {
             existingAssignments = try viewContext.fetch(existingDescriptor)

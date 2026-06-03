@@ -227,14 +227,15 @@ final class SmallSequencePlannerViewModel {
                                 ))
                             }
                         } else {
-                            for work in relatedWork {
-                                if !BlockingAlgorithmEngine.isWorkComplete(work: work, requiredStudentIDs: [studentID]) {
-                                    reasons.append(.needsPracticeCompletion(
-                                        workTitle: work.title,
-                                        workID: work.id ?? UUID(),
-                                        daysSinceAssigned: daysSince(work.createdAt)
-                                    ))
-                                }
+                            for work in relatedWork
+                                where !BlockingAlgorithmEngine.isWorkComplete(
+                                    work: work, requiredStudentIDs: [studentID]
+                                ) {
+                                reasons.append(.needsPracticeCompletion(
+                                    workTitle: work.title,
+                                    workID: work.id ?? UUID(),
+                                    daysSinceAssigned: daysSince(work.createdAt)
+                                ))
                             }
                         }
                     }

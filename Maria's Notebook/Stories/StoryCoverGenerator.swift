@@ -98,7 +98,9 @@ enum StoryCoverGenerator {
                 )
                 logger.info("Using Claude-refined cover prompt: \(prompt, privacy: .public)")
             } catch {
-                logger.warning("Claude prompt refinement failed; using heuristic. \(error.localizedDescription, privacy: .public)")
+                logger.warning(
+                    "Claude prompt refinement failed; using heuristic. \(error.localizedDescription, privacy: .public)"
+                )
                 prompt = buildHeuristicPrompt(title: title, themes: themes)
             }
         } else {
@@ -210,7 +212,10 @@ enum StoryCoverGenerator {
             }
         } catch {
             let message = friendlyMessage(for: error)
-            logger.warning("Generation failed (style=\(String(describing: style), privacy: .public)): \(message, privacy: .public)")
+            let styleDesc = String(describing: style)
+            logger.warning(
+                "Generation failed (style=\(styleDesc, privacy: .public)): \(message, privacy: .public)"
+            )
             throw StoryCoverGeneratorError.generationFailed(message)
         }
 

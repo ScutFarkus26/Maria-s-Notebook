@@ -24,9 +24,13 @@ struct UnifiedPresentationWorkflowPanel: View {
     @Environment(\.managedObjectContext) var viewContext
     @Environment(SaveCoordinator.self) var saveCoordinator
 
-    @FetchRequest(sortDescriptors: [NSSortDescriptor(keyPath: \CDLesson.sortIndex, ascending: true)]) var lessons: FetchedResults<CDLesson>
+    @FetchRequest(sortDescriptors: [
+        NSSortDescriptor(keyPath: \CDLesson.sortIndex, ascending: true)
+    ]) var lessons: FetchedResults<CDLesson>
     @FetchRequest(sortDescriptors: []) var lessonAssignments: FetchedResults<CDLessonAssignment>
-    @FetchRequest(sortDescriptors: [NSSortDescriptor(keyPath: \CDWorkModel.createdAt, ascending: false)]) var allWorkModels: FetchedResults<CDWorkModel>
+    @FetchRequest(sortDescriptors: [
+        NSSortDescriptor(keyPath: \CDWorkModel.createdAt, ascending: false)
+    ]) var allWorkModels: FetchedResults<CDWorkModel>
 
     #if os(iOS)
     @Environment(\.horizontalSizeClass) private var horizontalSizeClass

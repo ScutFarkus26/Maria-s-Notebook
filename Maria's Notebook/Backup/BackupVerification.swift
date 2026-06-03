@@ -9,7 +9,6 @@ public struct BackupVerification {
     
     // Verifies a backup file by attempting to read and decode its envelope
     // Returns information about the backup if valid, or an error if invalid
-    // swiftlint:disable:next function_body_length
     public static func verifyBackup(at url: URL) -> Result<BackupInfo, Error> {
         do {
             // Check file exists
@@ -30,7 +29,8 @@ public struct BackupVerification {
                 code: 2,
                 userInfo: [
                     NSLocalizedDescriptionKey:
-                        "Legacy .mtbbackup files are no longer supported. Verify or import a current backup created by this version of the app."
+                        "Legacy .mtbbackup files are no longer supported. " +
+                        "Verify or import a current backup created by this version of the app."
                 ]
             ))
         } catch {

@@ -37,7 +37,10 @@ public class CDCommunityTopicEntity: NSManagedObject {
 
 // MARK: - Computed Properties
 extension CDCommunityTopicEntity {
-    private static let logger = Logger(subsystem: Bundle.main.bundleIdentifier ?? "MariasNotebook", category: "CommunityTopicEntity")
+    private static let logger = Logger(
+        subsystem: Bundle.main.bundleIdentifier ?? "MariasNotebook",
+        category: "CommunityTopicEntity"
+    )
 
     /// Alias for broughtBy (preferred UI name)
     var raisedBy: String {

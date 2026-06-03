@@ -49,7 +49,7 @@ struct PracticeSessionSheet: View {
     @State private var relatedLesson: CDLesson?
     
     private var repository: PracticeSessionRepository {
-        PracticeSessionRepository(context: viewContext) // swiftlint:disable:this deprecated
+        PracticeSessionRepository(context: viewContext)
     }
     
     // Co-learner student IDs (students who had the lesson together)
@@ -201,7 +201,9 @@ struct PracticeSessionSheet: View {
                     showRemoveButton: selectedStudents.count > 1,
                     onRemove: {
                         if let sid = student.id { selectedStudentIDs.remove(sid) }
-                        if let work = selectedWorkItems.first(where: { $0.studentID == (student.id?.uuidString ?? "") }) {
+                        if let work = selectedWorkItems.first(
+                            where: { $0.studentID == (student.id?.uuidString ?? "") }
+                        ) {
                             if let wid = work.id { selectedWorkItemIDs.remove(wid) }
                         }
                     }

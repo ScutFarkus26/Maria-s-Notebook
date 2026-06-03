@@ -101,7 +101,10 @@ extension LessonAssignmentHistoryView {
             // Display notes inline if present
             if let notesSet = la.unifiedNotes, let notes = notesSet.allObjects as? [CDNote], !notes.isEmpty {
                 VStack(alignment: .leading, spacing: 6) {
-                    ForEach(notes.sorted { ($0.createdAt ?? .distantPast) > ($1.createdAt ?? .distantPast) }, id: \.objectID) { note in
+                    ForEach(
+                        notes.sorted { ($0.createdAt ?? .distantPast) > ($1.createdAt ?? .distantPast) },
+                        id: \.objectID
+                    ) { note in
                         noteRow(note)
                     }
                 }

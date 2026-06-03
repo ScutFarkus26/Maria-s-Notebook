@@ -43,11 +43,23 @@ final class SchoolDayCalculationCache {
         let endDay = calendar.startOfDay(for: end)
         
         // Fetch all non-school days in range
-        let nonSchoolFetch: NSFetchRequest<CDNonSchoolDay> = NSFetchRequest<CDNonSchoolDay>(entityName: "NonSchoolDay")
-        nonSchoolFetch.predicate = NSPredicate(format: "date >= %@ AND date <= %@", startDay as NSDate, endDay as NSDate)
+        let nonSchoolFetch: NSFetchRequest<CDNonSchoolDay> = NSFetchRequest<CDNonSchoolDay>(
+            entityName: "NonSchoolDay"
+        )
+        nonSchoolFetch.predicate = NSPredicate(
+            format: "date >= %@ AND date <= %@",
+            startDay as NSDate,
+            endDay as NSDate
+        )
 
-        let overridesFetch: NSFetchRequest<CDSchoolDayOverride> = NSFetchRequest<CDSchoolDayOverride>(entityName: "SchoolDayOverride")
-        overridesFetch.predicate = NSPredicate(format: "date >= %@ AND date <= %@", startDay as NSDate, endDay as NSDate)
+        let overridesFetch: NSFetchRequest<CDSchoolDayOverride> = NSFetchRequest<CDSchoolDayOverride>(
+            entityName: "SchoolDayOverride"
+        )
+        overridesFetch.predicate = NSPredicate(
+            format: "date >= %@ AND date <= %@",
+            startDay as NSDate,
+            endDay as NSDate
+        )
 
         let nonSchoolDays: [CDNonSchoolDay]
         let overrides: [CDSchoolDayOverride]
@@ -94,7 +106,12 @@ final class SchoolDayCalculationCache {
     
     /// Calculate school days between two dates using cached data
     /// Returns cached result if available, otherwise computes and caches
-    func schoolDaysBetween(start: Date, end: Date, using context: NSManagedObjectContext, calendar: Calendar = .current) -> Int {
+    func schoolDaysBetween(
+        start: Date,
+        end: Date,
+        using context: NSManagedObjectContext,
+        calendar: Calendar = .current
+    ) -> Int {
         let startDay = calendar.startOfDay(for: start)
         let endDay = calendar.startOfDay(for: end)
         

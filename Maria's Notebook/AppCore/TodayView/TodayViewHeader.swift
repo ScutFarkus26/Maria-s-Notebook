@@ -153,7 +153,9 @@ extension TodayView {
                     .fixedSize()
             }
             .padding(8)
-            .background(RoundedRectangle(cornerRadius: 10).fill(Color.primary.opacity(UIConstants.OpacityConstants.hint)))
+            .background(
+                RoundedRectangle(cornerRadius: 10).fill(Color.primary.opacity(UIConstants.OpacityConstants.hint))
+            )
         }
         .buttonStyle(.plain)
     }

@@ -6,6 +6,15 @@ disabled_rules:
 
 opt_in_rules: []
 
+# "master"/"mastery" are core Montessori pedagogy terms (a student achieves
+# mastery of a lesson), so drop "master" from the flagged set. The genuinely
+# non-inclusive terms are still caught.
+inclusive_language:
+  override_terms:
+    - slave
+    - whitelist
+    - blacklist
+
 included:
   - .
 

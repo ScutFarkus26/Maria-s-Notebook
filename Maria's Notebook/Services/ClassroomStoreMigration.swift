@@ -80,7 +80,9 @@ enum ClassroomStoreMigration {
         let repo = ClassroomRepository(context: coreDataStack.viewContext)
         if let membership = repo.fetchCurrentMembership(), membership.role == .assistant {
             UserDefaults.standard.set(true, forKey: completedKey)
-            logger.info("ClassroomStoreMigration: skipping on assistant device — classroom data correctly lives in shared store")
+            logger.info(
+                "ClassroomStoreMigration: skipping on assistant device — classroom data correctly lives in shared store"
+            )
             return
         }
 
@@ -141,7 +143,9 @@ enum ClassroomStoreMigration {
                     perEntityCounts[entityName] = records.count
                 }
             } catch {
-                logger.error("ClassroomStoreMigration: fetch failed for \(entityName, privacy: .public) — \(error.localizedDescription, privacy: .public)")
+                logger.error(
+                    "ClassroomStoreMigration: fetch failed for \(entityName, privacy: .public) — \(error.localizedDescription, privacy: .public)"
+                )
             }
         }
 
@@ -165,9 +169,13 @@ enum ClassroomStoreMigration {
             )
             if privateClassroomCount > 0 {
                 UserDefaults.standard.set(true, forKey: completedKey)
-                logger.info("ClassroomStoreMigration: shared store empty, private store has \(privateClassroomCount, privacy: .public) classroom record(s); marking complete")
+                logger.info(
+                    "ClassroomStoreMigration: shared store empty, private store has \(privateClassroomCount, privacy: .public) classroom record(s); marking complete"
+                )
             } else {
-                logger.info("ClassroomStoreMigration: both stores empty — will retry next launch after CloudKit sync settles")
+                logger.info(
+                    "ClassroomStoreMigration: both stores empty — will retry next launch after CloudKit sync settles"
+                )
             }
             return
         }
@@ -188,9 +196,15 @@ enum ClassroomStoreMigration {
             // it means a future contributor added a cross-config relationship
             // without expanding this migration to handle it.
             #if DEBUG
-            fatalError("ClassroomStoreMigration: a classroom-entity relationship targets an entity outside the classroom set. Expand CoreDataStack.sharedEntityNames to cover it, or restructure the relationship.")
+            fatalError(
+                "ClassroomStoreMigration: a classroom-entity relationship targets an entity outside " +
+                "the classroom set. Expand CoreDataStack.sharedEntityNames to cover it, " +
+                "or restructure the relationship."
+            )
             #else
-            logger.error("ClassroomStoreMigration: dropped one or more cross-config relationships during rewire; rolling back to avoid silent data loss")
+            logger.error(
+                "ClassroomStoreMigration: dropped one or more cross-config relationships during rewire; rolling back to avoid silent data loss"
+            )
             context.rollback()
             return
             #endif
@@ -205,20 +219,28 @@ enum ClassroomStoreMigration {
         do {
             try context.save()
             let elapsed = String(format: "%.2f", Date().timeIntervalSince(start))
-            logger.info("ClassroomStoreMigration: migrated \(totalCloned, privacy: .public) record(s) shared→private in \(elapsed, privacy: .public)s; per-entity=\(perEntityCounts, privacy: .public)")
+            logger.info(
+                "ClassroomStoreMigration: migrated \(totalCloned, privacy: .public) record(s) shared→private in \(elapsed, privacy: .public)s; per-entity=\(perEntityCounts, privacy: .public)"
+            )
 
             // Phase 5: verify shared store is now empty of classroom
             // records. Don't mark complete if anything was left behind — the
             // next launch will retry to sweep them in.
-            let remainingInShared = countClassroomRecords(in: sharedStore, context: context, entityNames: entityNames)
+            let remainingInShared = countClassroomRecords(
+                in: sharedStore, context: context, entityNames: entityNames
+            )
             if remainingInShared > 0 {
-                logger.error("ClassroomStoreMigration: \(remainingInShared, privacy: .public) record(s) remain in shared store after migration — not marking complete, will retry next launch")
+                logger.error(
+                    "ClassroomStoreMigration: \(remainingInShared, privacy: .public) record(s) remain in shared store after migration — not marking complete, will retry next launch"
+                )
                 return
             }
             UserDefaults.standard.set(true, forKey: completedKey)
         } catch {
             let ns = error as NSError
-            logger.error("ClassroomStoreMigration: save failed — domain=\(ns.domain, privacy: .public) code=\(ns.code, privacy: .public) description=\(ns.localizedDescription, privacy: .public). Rolling back.")
+            logger.error(
+                "ClassroomStoreMigration: save failed — domain=\(ns.domain, privacy: .public) code=\(ns.code, privacy: .public) description=\(ns.localizedDescription, privacy: .public). Rolling back."
+            )
             context.rollback()
         }
     }
@@ -287,7 +309,9 @@ enum ClassroomStoreMigration {
                         newSet.add(mapped)
                     } else {
                         dropped = true
-                        logger.warning("ClassroomStoreMigration: relationship \(name, privacy: .public) on \(old.entity.name ?? "?", privacy: .public) targets non-classroom entity \(item.entity.name ?? "?", privacy: .public)")
+                        logger.warning(
+                            "ClassroomStoreMigration: relationship \(name, privacy: .public) on \(old.entity.name ?? "?", privacy: .public) targets non-classroom entity \(item.entity.name ?? "?", privacy: .public)"
+                        )
                     }
                 }
                 new.setValue(newSet, forKey: name)
@@ -297,7 +321,9 @@ enum ClassroomStoreMigration {
                         new.setValue(mapped, forKey: name)
                     } else {
                         dropped = true
-                        logger.warning("ClassroomStoreMigration: relationship \(name, privacy: .public) on \(old.entity.name ?? "?", privacy: .public) targets non-classroom entity \(oldTarget.entity.name ?? "?", privacy: .public)")
+                        logger.warning(
+                            "ClassroomStoreMigration: relationship \(name, privacy: .public) on \(old.entity.name ?? "?", privacy: .public) targets non-classroom entity \(oldTarget.entity.name ?? "?", privacy: .public)"
+                        )
                     }
                 }
             }

@@ -57,8 +57,13 @@ struct PresentationRepository: SavingRepository {
 
     /// Fetch scheduled LessonAssignments for a date range
     func fetchScheduled(from startDate: Date, to endDate: Date) -> [CDLessonAssignment] {
-        fetchLessonAssignments(
-            predicate: NSPredicate(format: "scheduledForDay >= %@ AND scheduledForDay < %@", startDate as NSDate, endDate as NSDate),
+        let pred = NSPredicate(
+            format: "scheduledForDay >= %@ AND scheduledForDay < %@",
+            startDate as NSDate,
+            endDate as NSDate
+        )
+        return fetchLessonAssignments(
+            predicate: pred,
             sortBy: [NSSortDescriptor(key: "scheduledForDay", ascending: true)]
         )
     }
@@ -95,7 +100,9 @@ struct PresentationRepository: SavingRepository {
         studentIDs: [UUID],
         scheduledFor: Date
     ) -> CDLessonAssignment {
-        PresentationFactory.makeScheduled(lessonID: lessonID, studentIDs: studentIDs, scheduledFor: scheduledFor, context: context)
+        PresentationFactory.makeScheduled(
+            lessonID: lessonID, studentIDs: studentIDs, scheduledFor: scheduledFor, context: context
+        )
     }
 
     /// Create a scheduled CDLessonAssignment with relationship objects
@@ -105,7 +112,9 @@ struct PresentationRepository: SavingRepository {
         students: [CDStudent],
         scheduledFor: Date
     ) -> CDLessonAssignment {
-        PresentationFactory.makeScheduled(lesson: lesson, students: students, scheduledFor: scheduledFor, context: context)
+        PresentationFactory.makeScheduled(
+            lesson: lesson, students: students, scheduledFor: scheduledFor, context: context
+        )
     }
 
     /// Create a presented CDLessonAssignment
@@ -115,7 +124,9 @@ struct PresentationRepository: SavingRepository {
         studentIDs: [UUID],
         presentedAt: Date = Date()
     ) -> CDLessonAssignment {
-        PresentationFactory.makePresented(lessonID: lessonID, studentIDs: studentIDs, presentedAt: presentedAt, context: context)
+        PresentationFactory.makePresented(
+            lessonID: lessonID, studentIDs: studentIDs, presentedAt: presentedAt, context: context
+        )
     }
 
     /// Create a presented CDLessonAssignment with relationship objects
@@ -125,7 +136,9 @@ struct PresentationRepository: SavingRepository {
         students: [CDStudent],
         presentedAt: Date = Date()
     ) -> CDLessonAssignment {
-        PresentationFactory.makePresented(lesson: lesson, students: students, presentedAt: presentedAt, context: context)
+        PresentationFactory.makePresented(
+            lesson: lesson, students: students, presentedAt: presentedAt, context: context
+        )
     }
 
     // MARK: - Update

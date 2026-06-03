@@ -145,7 +145,12 @@ struct ScopeOptionButton: View {
             )
             .overlay(
                 RoundedRectangle(cornerRadius: 8)
-                    .strokeBorder(isSelected ? Color.accentColor : Color.secondary.opacity(UIConstants.OpacityConstants.moderate), lineWidth: 1.5)
+                    .strokeBorder(
+                        isSelected
+                            ? Color.accentColor
+                            : Color.secondary.opacity(UIConstants.OpacityConstants.moderate),
+                        lineWidth: 1.5
+                    )
             )
         })
         .buttonStyle(.plain)

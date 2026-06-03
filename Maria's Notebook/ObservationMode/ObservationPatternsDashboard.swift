@@ -83,7 +83,11 @@ struct ObservationPatternsDashboard: View {
                 .padding(.vertical, 6)
                 .background {
                     Capsule(style: .continuous)
-                        .fill(isSelected ? Color.accentColor : Color.primary.opacity(UIConstants.OpacityConstants.veryFaint))
+                        .fill(
+                            isSelected
+                                ? Color.accentColor
+                                : Color.primary.opacity(UIConstants.OpacityConstants.veryFaint)
+                        )
                 }
         }
         .buttonStyle(.plain)
@@ -315,7 +319,11 @@ final class ObservationPatternsViewModel {
         let allObservationTags = MontessoriObservationTags.allTags + DevelopmentalCharacteristic.allTags
         let range = timeRange.dateRange(from: Date())
 
-        let descriptor = { let r = NSFetchRequest<CDNote>(entityName: "Note"); r.sortDescriptors = [NSSortDescriptor(keyPath: \CDNote.createdAt, ascending: false)]; return r }()
+        let descriptor = {
+            let r = NSFetchRequest<CDNote>(entityName: "Note")
+            r.sortDescriptors = [NSSortDescriptor(keyPath: \CDNote.createdAt, ascending: false)]
+            return r
+        }()
         let observationNotes = context.safeFetch(descriptor).filter { note in
             guard let createdAt = note.createdAt else { return false }
             let tags = (note.tags as? [String]) ?? []
@@ -331,7 +339,11 @@ final class ObservationPatternsViewModel {
         tagCounts = computeTagCounts(from: observationNotes, allTags: allObservationTags)
 
         let students = TestStudentsFilter.filterVisible(
-            context.safeFetch({ let r = NSFetchRequest<CDStudent>(entityName: "Student"); r.sortDescriptors = CDStudent.sortByName; return r }()).filterEnrolled()
+            context.safeFetch({
+                let r = NSFetchRequest<CDStudent>(entityName: "Student")
+                r.sortDescriptors = CDStudent.sortByName
+                return r
+            }()).filterEnrolled()
         )
         let observationMap = buildStudentObservationMap(from: observationNotes)
         let summaries = buildStudentSummaries(

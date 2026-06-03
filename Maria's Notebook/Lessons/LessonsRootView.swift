@@ -67,7 +67,11 @@ struct LessonsRootView: View {
     @Environment(SaveCoordinator.self) var saveCoordinator
 
     // MARK: - Data Query
-    @FetchRequest(sortDescriptors: [NSSortDescriptor(keyPath: \CDLesson.area, ascending: true), NSSortDescriptor(keyPath: \CDLesson.sortIndex, ascending: true), NSSortDescriptor(keyPath: \CDLesson.orderInSequence, ascending: true)])
+    @FetchRequest(sortDescriptors: [
+        NSSortDescriptor(keyPath: \CDLesson.area, ascending: true),
+        NSSortDescriptor(keyPath: \CDLesson.sortIndex, ascending: true),
+        NSSortDescriptor(keyPath: \CDLesson.orderInSequence, ascending: true)
+    ])
     var lessons: FetchedResults<CDLesson>
 
     // MARK: - UI State
@@ -188,7 +192,9 @@ struct LessonsRootView: View {
         .onChange(of: filterState.selectedArea) { _, newValue in handleAreaChange(newValue) }
         .onChange(of: filterState.searchText) { _, newValue in handleSearchTextChange(newValue) }
         .sheet(item: $lessonToSchedule) { lesson in lessonScheduleSheet(lesson) }
-        .sheet(item: $trackSettingsItem) { item in SequenceTrackSettingsSheet(area: item.area, sequence: item.sequence) }
+        .sheet(item: $trackSettingsItem) { item in
+            SequenceTrackSettingsSheet(area: item.area, sequence: item.sequence)
+        }
         .sheet(item: $reorderSectionsItem) { item in
             ReorderSectionsSheet(area: item.area, sequence: item.sequence, lessons: Array(lessons))
         }

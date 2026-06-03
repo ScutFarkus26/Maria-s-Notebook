@@ -309,7 +309,9 @@ struct QuickNoteLessonPicker: View {
     var onDone: (() -> Void)?
 
     @State private var searchText: String = ""
-    @FetchRequest(sortDescriptors: [NSSortDescriptor(keyPath: \CDLesson.name, ascending: true)]) private var lessons: FetchedResults<CDLesson>
+    @FetchRequest(
+        sortDescriptors: [NSSortDescriptor(keyPath: \CDLesson.name, ascending: true)]
+    ) private var lessons: FetchedResults<CDLesson>
     @Environment(\.dismiss) private var dismiss
 
     private var filteredLessons: [CDLesson] {

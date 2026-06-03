@@ -9,7 +9,8 @@ import CoreData
 struct TodoMainView: View {
     private static let logger = Logger.todos
     @Environment(\.managedObjectContext) var viewContext
-    @FetchRequest(sortDescriptors: [NSSortDescriptor(keyPath: \CDTodoItem.createdAt, ascending: false)]) var allTodos: FetchedResults<CDTodoItem>
+    @FetchRequest(sortDescriptors: [NSSortDescriptor(keyPath: \CDTodoItem.createdAt, ascending: false)])
+    var allTodos: FetchedResults<CDTodoItem>
 
     @State var selectedFilter: TodoListFilter? = .inbox
     @State var searchText = ""

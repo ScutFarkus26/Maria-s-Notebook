@@ -342,7 +342,7 @@ struct PDFKitView: NSViewRepresentable {
 #Preview {
     let stack = CoreDataStack.preview
     let student = CDStudent(context: stack.viewContext)
-    let _ = { student.firstName = "Test"; student.lastName = "Student" }()
+    _ = { student.firstName = "Test"; student.lastName = "Student" }()
     return ReportGeneratorView(student: student)
         .previewEnvironment(using: stack)
 }

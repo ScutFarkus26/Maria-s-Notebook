@@ -53,10 +53,16 @@ struct LessonAssignmentDetailSheet: View, Identifiable {
 
     // Use uniquingKeysWith to handle CloudKit sync duplicates
     private var lessonsByID: [UUID: CDLesson] {
-        Dictionary(lessons.compactMap { guard let id = $0.id else { return nil }; return (id, $0) }, uniquingKeysWith: { first, _ in first })
+        Dictionary(
+            lessons.compactMap { guard let id = $0.id else { return nil }; return (id, $0) },
+            uniquingKeysWith: { first, _ in first }
+        )
     }
     private var studentsByID: [UUID: CDStudent] {
-        Dictionary(students.compactMap { guard let id = $0.id else { return nil }; return (id, $0) }, uniquingKeysWith: { first, _ in first })
+        Dictionary(
+            students.compactMap { guard let id = $0.id else { return nil }; return (id, $0) },
+            uniquingKeysWith: { first, _ in first }
+        )
     }
 
     private func title(for la: CDLessonAssignment) -> String {
@@ -153,7 +159,12 @@ struct LessonAssignmentDetailSheet: View, Identifiable {
         .task { @MainActor in
             isLoading = true
             let targetID = assignmentID
-            let descriptor = { let r = NSFetchRequest<CDLessonAssignment>(entityName: "LessonAssignment"); r.predicate = NSPredicate(format: "id == %@", targetID as CVarArg); r.fetchLimit = 1; return r }()
+            let descriptor = {
+                let r = NSFetchRequest<CDLessonAssignment>(entityName: "LessonAssignment")
+                r.predicate = NSPredicate(format: "id == %@", targetID as CVarArg)
+                r.fetchLimit = 1
+                return r
+            }()
             if let fetched = viewContext.safeFetchFirst(descriptor) {
                 self.assignment = fetched
             } else {
@@ -420,7 +431,12 @@ struct LessonAssignmentDetailSheet: View, Identifiable {
         
         // Reload the assignment to reflect changes
         let targetID = assignmentID
-        let descriptor = { let r = NSFetchRequest<CDLessonAssignment>(entityName: "LessonAssignment"); r.predicate = NSPredicate(format: "id == %@", targetID as CVarArg); r.fetchLimit = 1; return r }()
+        let descriptor = {
+            let r = NSFetchRequest<CDLessonAssignment>(entityName: "LessonAssignment")
+            r.predicate = NSPredicate(format: "id == %@", targetID as CVarArg)
+            r.fetchLimit = 1
+            return r
+        }()
         if let refreshed = viewContext.safeFetchFirst(descriptor) {
             self.assignment = refreshed
         }

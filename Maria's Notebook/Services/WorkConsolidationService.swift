@@ -39,7 +39,9 @@ struct WorkConsolidationService {
             groupsConsolidated += 1
             totalMerged += (sequence.count - 1)
 
-            guard let canonical = sequence.min(by: { ($0.createdAt ?? .distantPast) < ($1.createdAt ?? .distantPast) }) else {
+            guard let canonical = sequence.min(
+                by: { ($0.createdAt ?? .distantPast) < ($1.createdAt ?? .distantPast) }
+            ) else {
                 errors.append("Failed to find canonical work in sequence")
                 continue
             }

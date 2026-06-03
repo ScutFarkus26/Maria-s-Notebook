@@ -28,7 +28,10 @@ struct JiggleModifier: ViewModifier {
                 content
                     .overlay(
                         RoundedRectangle(cornerRadius: 10)
-                            .stroke(Color.secondary.opacity(UIConstants.OpacityConstants.muted), style: StrokeStyle(lineWidth: 1.5, dash: [5, 4]))
+                            .stroke(
+                                Color.secondary.opacity(UIConstants.OpacityConstants.muted),
+                                style: StrokeStyle(lineWidth: 1.5, dash: [5, 4])
+                            )
                     )
             } else {
                 content

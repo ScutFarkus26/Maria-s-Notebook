@@ -92,7 +92,10 @@ struct ParshaSuggestionsDetailView: View {
         }
         if !AnthropicAPIClient.hasAPIKey() {
             Section {
-                Label("Add an Anthropic API key in Settings → AI to enable suggestions.", systemImage: "exclamationmark.triangle.fill")
+                Label(
+                    "Add an Anthropic API key in Settings → AI to enable suggestions.",
+                    systemImage: "exclamationmark.triangle.fill"
+                )
                     .font(AppTheme.ScaledFont.caption)
                     .foregroundStyle(.orange)
             }

@@ -303,7 +303,10 @@ final class PostPresentationFormViewModel {
             } else {
                 guard let nextLessonID = nextLesson.id else { return }
                 // Create new scheduled assignment
-                let relatedStudents = allStudents.filter { guard let id = $0.id else { return false }; return studentIDs.contains(id) }
+                let relatedStudents = allStudents.filter {
+                    guard let id = $0.id else { return false }
+                    return studentIDs.contains(id)
+                }
                 let nextLessonObj = allLessons.first(where: { $0.id != nil && $0.id == nextLessonID })
                 if let nextLessonObj {
                     _ = PresentationFactory.makeScheduled(

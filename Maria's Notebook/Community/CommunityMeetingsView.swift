@@ -5,7 +5,9 @@ struct CommunityMeetingsView: View {
     @Environment(\.managedObjectContext) private var viewContext
     @Environment(SaveCoordinator.self) private var saveCoordinator
 
-    @FetchRequest(sortDescriptors: [NSSortDescriptor(keyPath: \CDCommunityTopicEntity.createdAt, ascending: false)]) private var topics: FetchedResults<CDCommunityTopicEntity>
+    @FetchRequest(
+        sortDescriptors: [NSSortDescriptor(keyPath: \CDCommunityTopicEntity.createdAt, ascending: false)]
+    ) private var topics: FetchedResults<CDCommunityTopicEntity>
 
     @State private var showingAdd = false
     @State private var selectedTopic: CDCommunityTopicEntity?

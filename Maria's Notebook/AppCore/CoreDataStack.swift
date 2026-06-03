@@ -189,9 +189,9 @@ final class CoreDataStack {
             let defaults = UserDefaults.standard
             let armedAt = defaults.string(forKey: UserDefaultsKeys.resetLocalCacheArmedAt) ?? "unknown"
             let source = defaults.string(forKey: UserDefaultsKeys.resetLocalCacheArmedSource) ?? "unknown"
-            Self.logger.warning(
-                "Consuming pending local cache reset before store load. source=\(source, privacy: .public), armedAt=\(armedAt, privacy: .public)"
-            )
+            let resetMsg = "Consuming pending local cache reset before store load. " +
+                "source=\(source), armedAt=\(armedAt)"
+            Self.logger.warning("\(resetMsg, privacy: .public)")
             Self.performLocalCacheReset()
         }
 
@@ -493,7 +493,10 @@ final class CoreDataStack {
         let classroomCount = sharedEntities.count
         let privateExclusiveCount = privateOnlyEntities.count
         let privateConfigCount = privateConfigEntities.count
-        logger.info("Entity routing: \(privateConfigCount) in private (\(privateExclusiveCount) exclusive + \(classroomCount) classroom), \(classroomCount) in shared")
+        let routingMsg = "Entity routing: \(privateConfigCount) in private " +
+            "(\(privateExclusiveCount) exclusive + \(classroomCount) classroom), " +
+            "\(classroomCount) in shared"
+        logger.info("\(routingMsg, privacy: .public)")
     }
 
     /// Validates that all entity names in our routing tables exist in the model.
@@ -544,9 +547,9 @@ final class CoreDataStack {
         let defaults = UserDefaults.standard
         let armedAt = defaults.string(forKey: UserDefaultsKeys.resetLocalCacheArmedAt) ?? "unknown"
         let source = defaults.string(forKey: UserDefaultsKeys.resetLocalCacheArmedSource) ?? "unknown"
-        logger.warning(
-            "Reset Local Cache requested — deleting on-disk stores and clearing migration flags. source=\(source, privacy: .public), armedAt=\(armedAt, privacy: .public)"
-        )
+        let cacheResetMsg = "Reset Local Cache requested — deleting on-disk stores " +
+            "and clearing migration flags. source=\(source), armedAt=\(armedAt)"
+        logger.warning("\(cacheResetMsg, privacy: .public)")
         do {
             try resetStores()
         } catch {

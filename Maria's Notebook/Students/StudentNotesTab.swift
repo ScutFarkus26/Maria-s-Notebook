@@ -21,7 +21,10 @@ struct StudentNotesTab: View {
         } else {
             predicate = NSPredicate(format: "scopeIsAll == YES")
         }
-        _notes = FetchRequest(sortDescriptors: [NSSortDescriptor(keyPath: \CDNote.updatedAt, ascending: false)], predicate: predicate)
+        _notes = FetchRequest(
+            sortDescriptors: [NSSortDescriptor(keyPath: \CDNote.updatedAt, ascending: false)],
+            predicate: predicate
+        )
     }
 
     var body: some View {

@@ -65,7 +65,10 @@ struct ThisWeeksParshaView: View {
             Label(festival.map { "Shabbat \($0)" } ?? "No weekly parsha", systemImage: "book.closed")
         } description: {
             if let festival {
-                Text("\(shabbat.formatted(date: .long, time: .omitted)) coincides with \(festival), so a festival reading replaces the weekly parsha.")
+                Text(
+                    "\(shabbat.formatted(date: .long, time: .omitted)) coincides with \(festival), " +
+                    "so a festival reading replaces the weekly parsha."
+                )
             } else {
                 Text("No weekly parsha is read on \(shabbat.formatted(date: .long, time: .omitted)).")
             }
@@ -343,7 +346,10 @@ private struct ParshaContentList: View {
             }
             .padding(.vertical, AppTheme.Spacing.xxsmall)
         } else {
-            Label("Add an Anthropic API key in Settings → AI to enable suggestions.", systemImage: "exclamationmark.triangle.fill")
+            Label(
+                "Add an Anthropic API key in Settings → AI to enable suggestions.",
+                systemImage: "exclamationmark.triangle.fill"
+            )
                 .font(AppTheme.ScaledFont.caption)
                 .foregroundStyle(.orange)
         }

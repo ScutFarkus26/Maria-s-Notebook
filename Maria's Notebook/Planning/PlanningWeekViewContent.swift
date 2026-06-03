@@ -61,8 +61,11 @@ struct PlanningWeekViewContent: View {
         let presentedRaw = LessonAssignmentState.presented.rawValue
 
         let descriptor: NSFetchRequest<CDLessonAssignment> = NSFetchRequest(entityName: "LessonAssignment")
+        let predicateFormat = "stateRaw != %@ AND " +
+            "((scheduledForDay >= %@ AND scheduledForDay < %@) OR " +
+            "(scheduledFor >= %@ AND scheduledFor < %@))"
         descriptor.predicate = NSPredicate(
-            format: "stateRaw != %@ AND ((scheduledForDay >= %@ AND scheduledForDay < %@) OR (scheduledFor >= %@ AND scheduledFor < %@))",
+            format: predicateFormat,
             presentedRaw, weekStart as CVarArg, weekEnd as CVarArg, weekStart as CVarArg, weekEnd as CVarArg
         )
         descriptor.sortDescriptors = [
@@ -231,7 +234,9 @@ struct PlanningWeekViewContent: View {
 
         // 1) Explicit non-school day wins
         do {
-            let nsDescriptor = { let r = NSFetchRequest<CDNonSchoolDay>(entityName: "NonSchoolDay"); r.predicate = NSPredicate(format: "date == %@", day as CVarArg); r.fetchLimit = 1; return r }()
+            let nsDescriptor: NSFetchRequest<CDNonSchoolDay> = NSFetchRequest(entityName: "NonSchoolDay")
+            nsDescriptor.predicate = NSPredicate(format: "date == %@", day as CVarArg)
+            nsDescriptor.fetchLimit = 1
             let nonSchoolDays: [CDNonSchoolDay] = try viewContext.fetch(nsDescriptor)
             if !nonSchoolDays.isEmpty { return true }
         } catch {
@@ -245,7 +250,9 @@ struct PlanningWeekViewContent: View {
 
         // 3) Weekend override makes it a school day
         do {
-            let ovDescriptor = { let r = NSFetchRequest<CDSchoolDayOverride>(entityName: "SchoolDayOverride"); r.predicate = NSPredicate(format: "date == %@", day as CVarArg); r.fetchLimit = 1; return r }()
+            let ovDescriptor: NSFetchRequest<CDSchoolDayOverride> = NSFetchRequest(entityName: "SchoolDayOverride")
+            ovDescriptor.predicate = NSPredicate(format: "date == %@", day as CVarArg)
+            ovDescriptor.fetchLimit = 1
             let overrides: [CDSchoolDayOverride] = try viewContext.fetch(ovDescriptor)
             if !overrides.isEmpty { return false }
         } catch {

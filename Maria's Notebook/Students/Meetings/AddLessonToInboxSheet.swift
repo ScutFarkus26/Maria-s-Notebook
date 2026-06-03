@@ -10,7 +10,10 @@ struct AddLessonToInboxSheet: View {
     @Environment(\.managedObjectContext) private var viewContext
     @Environment(SaveCoordinator.self) private var saveCoordinator
     
-    @FetchRequest(sortDescriptors: [NSSortDescriptor(keyPath: \CDLesson.area, ascending: true), NSSortDescriptor(keyPath: \CDLesson.sortIndex, ascending: true)])
+    @FetchRequest(sortDescriptors: [
+        NSSortDescriptor(keyPath: \CDLesson.area, ascending: true),
+        NSSortDescriptor(keyPath: \CDLesson.sortIndex, ascending: true)
+    ])
     private var allLessons: FetchedResults<CDLesson>
     
     @State private var selectedLessonID: UUID?

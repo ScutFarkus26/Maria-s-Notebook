@@ -81,7 +81,10 @@ struct TodoTodayRow: View {
                         Text(todo.title)
                             .font(AppTheme.ScaledFont.callout)
                             .foregroundStyle(todo.isCompleted ? .tertiary : .primary)
-                            .strikethrough(todo.isCompleted, color: Color.secondary.opacity(UIConstants.OpacityConstants.half))
+                            .strikethrough(
+                                todo.isCompleted,
+                                color: Color.secondary.opacity(UIConstants.OpacityConstants.half)
+                            )
                             .lineLimit(2)
 
                         HStack(spacing: 8) {

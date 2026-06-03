@@ -109,7 +109,13 @@ extension PresentationsListView {
             .padding(.top, 8)
     }
 
-    private func filterButton(icon: String, title: String, color: Color, isSelected: Bool, filterValue: String) -> some View {
+    private func filterButton(
+        icon: String,
+        title: String,
+        color: Color,
+        isSelected: Bool,
+        filterValue: String
+    ) -> some View {
         SidebarFilterButton(icon: icon, title: title, color: color, isSelected: isSelected) {
             adaptiveWithAnimation(.spring(response: 0.35, dampingFraction: 0.85, blendDuration: 0.1)) {
                 presentationsFilterRaw = filterValue

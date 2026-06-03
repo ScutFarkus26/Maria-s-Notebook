@@ -22,7 +22,8 @@ struct ScheduleEditorSheet: View {
     @Environment(\.dismiss) private var dismiss
     @Environment(\.managedObjectContext) private var viewContext
 
-    @FetchRequest(sortDescriptors: [NSSortDescriptor(keyPath: \CDStudent.firstName, ascending: true)]) private var studentsRaw: FetchedResults<CDStudent>
+    @FetchRequest(sortDescriptors: [NSSortDescriptor(keyPath: \CDStudent.firstName, ascending: true)])
+    private var studentsRaw: FetchedResults<CDStudent>
     private var students: [CDStudent] { studentsRaw.filterEnrolled() }
 
     // Form state

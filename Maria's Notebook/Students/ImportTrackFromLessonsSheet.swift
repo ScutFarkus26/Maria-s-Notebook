@@ -181,7 +181,9 @@ struct ImportTrackFromLessonsSheet: View {
         // classroom. Log a breadcrumb so the next investigation can
         // trace the origin.
         if !SharedStoreZoneRepair.shared.hasActiveShare {
-            Self.logger.warning("Importing track from lessons into shared store with no active CKShare (title=\(title, privacy: .public), steps=\(sortedLessons.count, privacy: .public))")
+            let warnMsg = "Importing track from lessons into shared store with no active CKShare " +
+                "(title=\(title), steps=\(sortedLessons.count))"
+            Self.logger.warning("\(warnMsg, privacy: .public)")
         }
 
         // Create new CDTrackEntity

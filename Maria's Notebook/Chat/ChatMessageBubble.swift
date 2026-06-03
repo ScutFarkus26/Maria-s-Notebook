@@ -93,7 +93,10 @@ struct ChatMessageBubble: View {
         LinearGradient(
             colors: isUser
                 ? [Color.clear]
-                : [Color.purple.opacity(UIConstants.OpacityConstants.accent), Color.blue.opacity(UIConstants.OpacityConstants.light)],
+                : [
+                    Color.purple.opacity(UIConstants.OpacityConstants.accent),
+                    Color.blue.opacity(UIConstants.OpacityConstants.light)
+                ],
             startPoint: .topLeading,
             endPoint: .bottomTrailing
         )

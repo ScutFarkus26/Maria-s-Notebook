@@ -26,7 +26,8 @@ final class BookClubPacketsViewModel {
                 return false
             }
 
-            if let themeFilter, !packet.themesArray.contains(where: { $0.caseInsensitiveCompare(themeFilter) == .orderedSame }) {
+            if let themeFilter,
+               !packet.themesArray.contains(where: { $0.caseInsensitiveCompare(themeFilter) == .orderedSame }) {
                 return false
             }
 

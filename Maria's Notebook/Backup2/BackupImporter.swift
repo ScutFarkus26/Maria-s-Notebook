@@ -55,7 +55,6 @@ enum BackupImporter {
     /// assigning into the corresponding `BackupPayload` field. Entries whose
     /// entityName isn't recognized are logged and skipped (forward-compat with
     /// future format versions that add new entity types).
-    // swiftlint:disable:next function_body_length cyclomatic_complexity
     static func reconstructPayload(
         from decoded: BackupReader.DecodedBackup
     ) throws -> BackupPayload {
@@ -97,9 +96,9 @@ enum BackupImporter {
 
     // MARK: - Per-Entity Dispatch
 
-    /// Decodes `lines` as `[DTO]` and assigns into the right `payload` field.
-    /// Unknown entity names are logged (forward-compat) — not thrown — so a
-    /// backup made by a future app version partially imports rather than fails.
+    // Decodes `lines` as `[DTO]` and assigns into the right `payload` field.
+    // Unknown entity names are logged (forward-compat) — not thrown — so a
+    // backup made by a future app version partially imports rather than fails.
     // swiftlint:disable:next function_body_length cyclomatic_complexity
     private static func assign(
         entityName: String,
@@ -172,7 +171,9 @@ enum BackupImporter {
         case "TrackStep":
             payload.trackSteps = try lines.map { try decoder.decode(TrackStepDTO.self, from: $0) }
         case "StudentTrackEnrollment":
-            payload.studentTrackEnrollments = try lines.map { try decoder.decode(StudentTrackEnrollmentDTO.self, from: $0) }
+            payload.studentTrackEnrollments = try lines.map {
+                try decoder.decode(StudentTrackEnrollmentDTO.self, from: $0)
+            }
         case "SequenceTrack":
             payload.sequenceTracks = try lines.map { try decoder.decode(SequenceTrackDTO.self, from: $0) }
         case "Document":
@@ -190,7 +191,9 @@ enum BackupImporter {
         case "IssueAction":
             payload.issueActions = try lines.map { try decoder.decode(IssueActionDTO.self, from: $0) }
         case "DevelopmentSnapshot":
-            payload.developmentSnapshots = try lines.map { try decoder.decode(DevelopmentSnapshotDTO.self, from: $0) }
+            payload.developmentSnapshots = try lines.map {
+                try decoder.decode(DevelopmentSnapshotDTO.self, from: $0)
+            }
         case "TodoItem":
             payload.todoItems = try lines.map { try decoder.decode(TodoItemDTO.self, from: $0) }
         case "TodoSubtask":
@@ -200,7 +203,9 @@ enum BackupImporter {
         case "TodayAgendaOrder":
             payload.todayAgendaOrders = try lines.map { try decoder.decode(TodayAgendaOrderDTO.self, from: $0) }
         case "PlanningRecommendation":
-            payload.planningRecommendations = try lines.map { try decoder.decode(PlanningRecommendationDTO.self, from: $0) }
+            payload.planningRecommendations = try lines.map {
+                try decoder.decode(PlanningRecommendationDTO.self, from: $0)
+            }
         case "Resource":
             payload.resources = try lines.map { try decoder.decode(ResourceDTO.self, from: $0) }
         case "NoteStudentLink":
@@ -208,7 +213,9 @@ enum BackupImporter {
         case "GoingOut":
             payload.goingOuts = try lines.map { try decoder.decode(GoingOutDTO.self, from: $0) }
         case "GoingOutChecklistItem":
-            payload.goingOutChecklistItems = try lines.map { try decoder.decode(GoingOutChecklistItemDTO.self, from: $0) }
+            payload.goingOutChecklistItems = try lines.map {
+                try decoder.decode(GoingOutChecklistItemDTO.self, from: $0)
+            }
         case "ClassroomJob":
             payload.classroomJobs = try lines.map { try decoder.decode(ClassroomJobDTO.self, from: $0) }
         case "JobAssignment":
@@ -225,7 +232,9 @@ enum BackupImporter {
             payload.studentFocusItems = try lines.map { try decoder.decode(StudentFocusItemDTO.self, from: $0) }
 
         default:
-            logger.warning("Unknown entity '\(entityName, privacy: .public)' in backup — skipped (likely a newer format version)")
+            logger.warning(
+                "Unknown entity '\(entityName, privacy: .public)' in backup — skipped (likely a newer format version)"
+            )
         }
     }
 }

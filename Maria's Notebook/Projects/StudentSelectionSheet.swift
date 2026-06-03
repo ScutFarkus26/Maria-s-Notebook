@@ -111,7 +111,11 @@ struct StudentSelectionSheet: View {
             HStack(alignment: .top, spacing: 12) {
                 Image(systemName: isSelected ? "checkmark.circle.fill" : "circle")
                     .font(.title2)
-                    .foregroundStyle(isSelected ? Color.blue : (canToggle ? Color.secondary : Color.gray.opacity(UIConstants.OpacityConstants.semi)))
+                    .foregroundStyle(
+                        isSelected
+                            ? Color.blue
+                            : (canToggle ? Color.secondary : Color.gray.opacity(UIConstants.OpacityConstants.semi))
+                    )
 
                 VStack(alignment: .leading, spacing: 4) {
                     Text(work.title.isEmpty ? "Untitled" : work.title)
@@ -141,7 +145,11 @@ struct StudentSelectionSheet: View {
             .padding(12)
             .background(
                 RoundedRectangle(cornerRadius: 8)
-                    .fill(isSelected ? Color.blue.opacity(UIConstants.OpacityConstants.light) : Color.secondary.opacity(UIConstants.OpacityConstants.hint))
+                    .fill(
+                        isSelected
+                            ? Color.blue.opacity(UIConstants.OpacityConstants.light)
+                            : Color.secondary.opacity(UIConstants.OpacityConstants.hint)
+                    )
             )
             .overlay(
                 RoundedRectangle(cornerRadius: 8)

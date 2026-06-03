@@ -20,7 +20,10 @@ extension WorkDetailView {
                     Circle()
                         .fill(
                             LinearGradient(
-                                colors: [viewModel.workKind.color.opacity(UIConstants.OpacityConstants.heavy), viewModel.workKind.color],
+                                colors: [
+                                    viewModel.workKind.color.opacity(UIConstants.OpacityConstants.heavy),
+                                    viewModel.workKind.color
+                                ],
                                 startPoint: .topLeading,
                                 endPoint: .bottomTrailing
                             )

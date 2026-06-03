@@ -168,8 +168,12 @@ struct BirthdayStudentCard: View {
             ForEach(0..<16, id: \.self) { _ in
                 Circle()
                     .fill(
-                        [Color.white.opacity(UIConstants.OpacityConstants.statusBg), .yellow.opacity(UIConstants.OpacityConstants.statusBg),
-                         .mint.opacity(UIConstants.OpacityConstants.statusBg), .cyan.opacity(UIConstants.OpacityConstants.statusBg)].randomElement()!
+                        [
+                            Color.white.opacity(UIConstants.OpacityConstants.statusBg),
+                            .yellow.opacity(UIConstants.OpacityConstants.statusBg),
+                            .mint.opacity(UIConstants.OpacityConstants.statusBg),
+                            .cyan.opacity(UIConstants.OpacityConstants.statusBg)
+                        ].randomElement()!
                     )
                     .frame(width: CGFloat(Int.random(in: 4...8)), height: CGFloat(Int.random(in: 4...8)))
                     .offset(x: CGFloat(Int.random(in: -140...140)), y: CGFloat(Int.random(in: -60...60)))

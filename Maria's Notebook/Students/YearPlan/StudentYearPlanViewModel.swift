@@ -84,7 +84,12 @@ final class StudentYearPlanViewModel {
                 day: cal.component(.day, from: date)
             )
             cellLookup[cellID, default: []].append(
-                YearPlanCalendarItem(id: assignmentID, lessonID: assignment.lessonID, date: date, kind: .assignment(assignment))
+                YearPlanCalendarItem(
+                    id: assignmentID,
+                    lessonID: assignment.lessonID,
+                    date: date,
+                    kind: .assignment(assignment)
+                )
             )
         }
 

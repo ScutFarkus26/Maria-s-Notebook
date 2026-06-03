@@ -9,7 +9,8 @@ struct MeetingTemplateManagementView: View {
     private static let logger = Logger.settings
     @Environment(\.managedObjectContext) private var viewContext
     @Environment(\.managedObjectContext) private var managedObjectContext
-    @FetchRequest(sortDescriptors: [NSSortDescriptor(keyPath: \CDMeetingTemplate.sortOrder, ascending: true)]) private var templates: FetchedResults<CDMeetingTemplate>
+    @FetchRequest(sortDescriptors: [NSSortDescriptor(keyPath: \CDMeetingTemplate.sortOrder, ascending: true)])
+    private var templates: FetchedResults<CDMeetingTemplate>
 
     @State private var showingAddSheet = false
     @State private var editingTemplate: CDMeetingTemplate?
@@ -71,7 +72,10 @@ struct MeetingTemplateManagementView: View {
                         .padding()
                         .background(
                             RoundedRectangle(cornerRadius: 10, style: .continuous)
-                                .stroke(Color.primary.opacity(UIConstants.OpacityConstants.light), style: StrokeStyle(lineWidth: 1, dash: [5]))
+                                .stroke(
+                                    Color.primary.opacity(UIConstants.OpacityConstants.light),
+                                    style: StrokeStyle(lineWidth: 1, dash: [5])
+                                )
                         )
                     } else {
                         ForEach(customTemplates) { template in
@@ -178,7 +182,9 @@ private struct MeetingTemplateCardRow: View {
                                 .fontWeight(.medium)
                                 .padding(.horizontal, 6)
                                 .padding(.vertical, 2)
-                                .background(Capsule().fill(AppColors.success.opacity(UIConstants.OpacityConstants.accent)))
+                                .background(
+                                    Capsule().fill(AppColors.success.opacity(UIConstants.OpacityConstants.accent))
+                                )
                                 .foregroundStyle(AppColors.success)
                         }
                     }
@@ -266,7 +272,9 @@ private struct MeetingTemplatePreviewSheet: View {
                                 .font(.subheadline.weight(.medium))
                                 .padding(.horizontal, 12)
                                 .padding(.vertical, 6)
-                                .background(Capsule().fill(AppColors.success.opacity(UIConstants.OpacityConstants.accent)))
+                                .background(
+                                    Capsule().fill(AppColors.success.opacity(UIConstants.OpacityConstants.accent))
+                                )
                                 .foregroundStyle(AppColors.success)
                         }
                         Spacer()

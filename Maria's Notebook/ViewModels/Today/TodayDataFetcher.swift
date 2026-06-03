@@ -80,7 +80,8 @@ enum TodayDataFetcher {
             let presentedState = LessonAssignmentState.presented.rawValue
             let presentedRequest = CDFetchRequest(CDLessonAssignment.self)
             presentedRequest.predicate = NSPredicate(
-                format: "stateRaw == %@ AND presentedAt >= %@ AND presentedAt < %@ AND (scheduledForDay < %@ OR scheduledForDay >= %@)",
+                format: "stateRaw == %@ AND presentedAt >= %@ AND presentedAt < %@ " +
+                    "AND (scheduledForDay < %@ OR scheduledForDay >= %@)",
                 presentedState, day as NSDate, nextDay as NSDate,
                 day as NSDate, nextDay as NSDate
             )

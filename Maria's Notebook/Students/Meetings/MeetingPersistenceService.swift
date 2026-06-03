@@ -95,7 +95,9 @@ enum MeetingPersistenceService {
     ///   - context: Managed object context
     /// - Returns: The created CDStudentMeeting, or nil if data was empty
     @discardableResult
-    static func saveToHistory(studentID: UUID, data: CurrentMeetingData, context: NSManagedObjectContext) -> CDStudentMeeting? {
+    static func saveToHistory(
+        studentID: UUID, data: CurrentMeetingData, context: NSManagedObjectContext
+    ) -> CDStudentMeeting? {
         let trimmedReflection = data.reflectionText.trimmed()
         let trimmedFocus = data.focusText.trimmed()
         let trimmedRequests = data.requestsText.trimmed()
@@ -131,7 +133,9 @@ enum MeetingPersistenceService {
     ///   - studentID: CDStudent ID
     ///   - existingMeetings: Existing SwiftData meetings (to check if migration needed)
     ///   - context: Model context
-    static func migrateHistoryIfNeeded(studentID: UUID, existingMeetings: [CDStudentMeeting], context: NSManagedObjectContext) {
+    static func migrateHistoryIfNeeded(
+        studentID: UUID, existingMeetings: [CDStudentMeeting], context: NSManagedObjectContext
+    ) {
         // If we already have SwiftData meetings for this student, skip migration
         if !existingMeetings.isEmpty { return }
 

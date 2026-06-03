@@ -209,7 +209,11 @@ public final class ConflictResolutionService {
 
         for dto in dtos {
             let dtoID = dto.id
-            let descriptor = { let r = NSFetchRequest<CDStudent>(entityName: "Student"); r.predicate = NSPredicate(format: "id == %@", dtoID as CVarArg); return r }()
+            let descriptor = {
+                let r = NSFetchRequest<CDStudent>(entityName: "Student")
+                r.predicate = NSPredicate(format: "id == %@", dtoID as CVarArg)
+                return r
+            }()
             descriptor.fetchLimit = 1
             let existing: CDStudent?
             do {
@@ -243,7 +247,11 @@ public final class ConflictResolutionService {
 
         for dto in dtos {
             let dtoID = dto.id
-            let descriptor = { let r = NSFetchRequest<CDLesson>(entityName: "Lesson"); r.predicate = NSPredicate(format: "id == %@", dtoID as CVarArg); return r }()
+            let descriptor = {
+                let r = NSFetchRequest<CDLesson>(entityName: "Lesson")
+                r.predicate = NSPredicate(format: "id == %@", dtoID as CVarArg)
+                return r
+            }()
             descriptor.fetchLimit = 1
             let existing: CDLesson?
             do {
@@ -277,7 +285,11 @@ public final class ConflictResolutionService {
 
         for dto in dtos {
             let dtoID = dto.id
-            let descriptor = { let r = NSFetchRequest<CDNote>(entityName: "Note"); r.predicate = NSPredicate(format: "id == %@", dtoID as CVarArg); return r }()
+            let descriptor = {
+                let r = NSFetchRequest<CDNote>(entityName: "Note")
+                r.predicate = NSPredicate(format: "id == %@", dtoID as CVarArg)
+                return r
+            }()
             descriptor.fetchLimit = 1
             let existing: CDNote?
             do {
@@ -314,7 +326,11 @@ public final class ConflictResolutionService {
 
         for dto in dtos {
             let dtoID = dto.id
-            let descriptor = { let r = NSFetchRequest<CDProject>(entityName: "Project"); r.predicate = NSPredicate(format: "id == %@", dtoID as CVarArg); return r }()
+            let descriptor = {
+                let r = NSFetchRequest<CDProject>(entityName: "Project")
+                r.predicate = NSPredicate(format: "id == %@", dtoID as CVarArg)
+                return r
+            }()
             descriptor.fetchLimit = 1
             let existing: CDProject?
             do {
@@ -344,13 +360,18 @@ public final class ConflictResolutionService {
 
     private func updateStudent(_ dto: StudentDTO, in viewContext: NSManagedObjectContext) throws {
         let dtoID = dto.id
-        let descriptor = { let r = NSFetchRequest<CDStudent>(entityName: "Student"); r.predicate = NSPredicate(format: "id == %@", dtoID as CVarArg); return r }()
+        let descriptor = {
+            let r = NSFetchRequest<CDStudent>(entityName: "Student")
+            r.predicate = NSPredicate(format: "id == %@", dtoID as CVarArg)
+            return r
+        }()
         descriptor.fetchLimit = 1
         let student: CDStudent?
         do {
             student = try viewContext.fetch(descriptor).first
         } catch {
-            Self.logger.error("Failed to fetch student: \(error.localizedDescription, privacy: .public)")
+            let msg = "Failed to fetch student: \(error.localizedDescription)"
+            Self.logger.error("\(msg, privacy: .public)")
             return
         }
         guard let student else { return }
@@ -366,12 +387,18 @@ public final class ConflictResolutionService {
 
     private func updateLesson(_ dto: LessonDTO, in viewContext: NSManagedObjectContext) throws {
         let dtoID = dto.id
-        let descriptor = { let r = NSFetchRequest<CDLesson>(entityName: "Lesson"); r.predicate = NSPredicate(format: "id == %@", dtoID as CVarArg); r.fetchLimit = 1; return r }()
+        let descriptor = {
+            let r = NSFetchRequest<CDLesson>(entityName: "Lesson")
+            r.predicate = NSPredicate(format: "id == %@", dtoID as CVarArg)
+            r.fetchLimit = 1
+            return r
+        }()
         let lesson: CDLesson?
         do {
             lesson = try viewContext.fetch(descriptor).first
         } catch {
-            Self.logger.error("Failed to fetch lesson: \(error.localizedDescription, privacy: .public)")
+            let msg = "Failed to fetch lesson: \(error.localizedDescription)"
+            Self.logger.error("\(msg, privacy: .public)")
             return
         }
         guard let lesson else { return }
@@ -389,12 +416,18 @@ public final class ConflictResolutionService {
 
     private func updateNote(_ dto: NoteDTO, in viewContext: NSManagedObjectContext) throws {
         let dtoID = dto.id
-        let descriptor = { let r = NSFetchRequest<CDNote>(entityName: "Note"); r.predicate = NSPredicate(format: "id == %@", dtoID as CVarArg); r.fetchLimit = 1; return r }()
+        let descriptor = {
+            let r = NSFetchRequest<CDNote>(entityName: "Note")
+            r.predicate = NSPredicate(format: "id == %@", dtoID as CVarArg)
+            r.fetchLimit = 1
+            return r
+        }()
         let note: CDNote?
         do {
             note = try viewContext.fetch(descriptor).first
         } catch {
-            Self.logger.error("Failed to fetch note: \(error.localizedDescription, privacy: .public)")
+            let msg = "Failed to fetch note: \(error.localizedDescription)"
+            Self.logger.error("\(msg, privacy: .public)")
             return
         }
         guard let note else { return }
@@ -414,12 +447,18 @@ public final class ConflictResolutionService {
 
     private func updateProject(_ dto: ProjectDTO, in viewContext: NSManagedObjectContext) throws {
         let dtoID = dto.id
-        let descriptor = { let r = NSFetchRequest<CDProject>(entityName: "Project"); r.predicate = NSPredicate(format: "id == %@", dtoID as CVarArg); r.fetchLimit = 1; return r }()
+        let descriptor = {
+            let r = NSFetchRequest<CDProject>(entityName: "Project")
+            r.predicate = NSPredicate(format: "id == %@", dtoID as CVarArg)
+            r.fetchLimit = 1
+            return r
+        }()
         let project: CDProject?
         do {
             project = try viewContext.fetch(descriptor).first
         } catch {
-            Self.logger.error("Failed to fetch project: \(error.localizedDescription, privacy: .public)")
+            let msg = "Failed to fetch project: \(error.localizedDescription)"
+            Self.logger.error("\(msg, privacy: .public)")
             return
         }
         guard let project else { return }

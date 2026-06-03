@@ -294,11 +294,15 @@ struct StudentsView: View {
     /// Called when SwiftData saves, so we detect inserts/deletes without materializing objects.
     private func refreshChangeTokens() {
         do {
-            let attendanceCount = try viewContext.count(for: NSFetchRequest<CDAttendanceRecord>(entityName: "AttendanceRecord"))
+            let attendanceCount = try viewContext.count(
+                for: NSFetchRequest<CDAttendanceRecord>(entityName: "AttendanceRecord")
+            )
             if attendanceCount != attendanceChangeToken {
                 attendanceChangeToken = attendanceCount
             }
-            let presentationCount = try viewContext.count(for: NSFetchRequest<CDLessonAssignment>(entityName: "LessonAssignment"))
+            let presentationCount = try viewContext.count(
+                for: NSFetchRequest<CDLessonAssignment>(entityName: "LessonAssignment")
+            )
             if presentationCount != presentationChangeToken {
                 presentationChangeToken = presentationCount
             }

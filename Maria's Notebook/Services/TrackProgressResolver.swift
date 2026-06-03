@@ -14,7 +14,9 @@ struct TrackProgressResolver {
     /// - studentID matches
     /// - (masteredAt != nil OR state == .proficient)
     /// - (trackStepID matches step.id OR lessonID matches step.lessonTemplateID)
-    static func proficientCount(track: CDTrackEntity, studentID: String, lessonPresentations: [CDLessonPresentation]) -> Int {
+    static func proficientCount(
+        track: CDTrackEntity, studentID: String, lessonPresentations: [CDLessonPresentation]
+    ) -> Int {
         let steps = ((track.steps?.allObjects as? [CDTrackStepEntity]) ?? []).sorted { $0.orderIndex < $1.orderIndex }
         
         return steps.filter { step in
@@ -23,7 +25,9 @@ struct TrackProgressResolver {
     }
     
     /// Returns the first unmastered step in the track, or nil if all steps are mastered.
-    static func currentStep(track: CDTrackEntity, studentID: String, lessonPresentations: [CDLessonPresentation]) -> CDTrackStepEntity? {
+    static func currentStep(
+        track: CDTrackEntity, studentID: String, lessonPresentations: [CDLessonPresentation]
+    ) -> CDTrackStepEntity? {
         let steps = ((track.steps?.allObjects as? [CDTrackStepEntity]) ?? []).sorted { $0.orderIndex < $1.orderIndex }
         
         return steps.first { step in

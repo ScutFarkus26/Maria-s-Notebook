@@ -63,8 +63,13 @@ extension CoreDataStack {
             // 2. Ensure the data table exists so Core Data's DROP TABLE step has something to drop
             let tableName = "Z\(name.uppercased())"
             if !tableExists(db: db, name: tableName) {
-                cleanupLogger.info("Recreating empty stub table \(tableName, privacy: .public) so Core Data migration can drop it")
-                execute(db: db, "CREATE TABLE \"\(tableName)\" (Z_PK INTEGER PRIMARY KEY, Z_ENT INTEGER, Z_OPT INTEGER)")
+                cleanupLogger.info(
+                    "Recreating empty stub table \(tableName, privacy: .public) so Core Data migration can drop it"
+                )
+                execute(
+                    db: db,
+                    "CREATE TABLE \"\(tableName)\" (Z_PK INTEGER PRIMARY KEY, Z_ENT INTEGER, Z_OPT INTEGER)"
+                )
             }
         }
         execute(db: db, "COMMIT")
@@ -85,7 +90,9 @@ extension CoreDataStack {
                 return Set(hashes.keys)
             }
         } catch {
-            cleanupLogger.warning("Could not read store metadata for \(storeURL.lastPathComponent, privacy: .public): \(error.localizedDescription, privacy: .public)")
+            cleanupLogger.warning(
+                "Could not read store metadata for \(storeURL.lastPathComponent, privacy: .public): \(error.localizedDescription, privacy: .public)"
+            )
         }
         return []
     }

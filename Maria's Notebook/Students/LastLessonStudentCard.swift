@@ -69,7 +69,10 @@ struct LastLessonStudentCard: View {
         ZStack {
             Circle()
                 .fill(LinearGradient(
-                    colors: [.white.opacity(UIConstants.OpacityConstants.semi), .white.opacity(UIConstants.OpacityConstants.light)],
+                    colors: [
+                        .white.opacity(UIConstants.OpacityConstants.semi),
+                        .white.opacity(UIConstants.OpacityConstants.light)
+                    ],
                     startPoint: .topLeading, endPoint: .bottomTrailing
                 ))
                 .overlay(Circle().stroke(Color.white.opacity(UIConstants.OpacityConstants.quarter), lineWidth: 2))

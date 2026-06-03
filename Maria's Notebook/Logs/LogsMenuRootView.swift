@@ -118,7 +118,10 @@ struct LogsSidebarRow: View {
                 Circle()
                     .fill(
                         RadialGradient(
-                            gradient: Gradient(colors: [mode.color.opacity(UIConstants.OpacityConstants.heavy), mode.color]),
+                            gradient: Gradient(colors: [
+                                mode.color.opacity(UIConstants.OpacityConstants.heavy),
+                                mode.color
+                            ]),
                             center: .center,
                             startRadius: 8,
                             endRadius: 24

@@ -51,7 +51,10 @@ struct BookClubPacketDetailView: View {
             Button("Delete", role: .destructive) { deletePacket() }
             Button("Cancel", role: .cancel) {}
         } message: {
-            Text("The PDF and all packet details will be removed. Sessions referencing this packet will remain but lose their link.")
+            Text(
+                "The PDF and all packet details will be removed. " +
+                "Sessions referencing this packet will remain but lose their link."
+            )
         }
     }
 
@@ -177,7 +180,10 @@ struct BookClubPacketDetailView: View {
     private var readingItemsSection: some View {
         VStack(alignment: .leading, spacing: 8) {
             sectionLabel("Reading items")
-            Text("These chapter splits are copied into each new club session. Edit dates and assignments per session later.")
+            Text(
+                "These chapter splits are copied into each new club session. " +
+                "Edit dates and assignments per session later."
+            )
                 .font(.caption)
                 .foregroundStyle(.secondary)
             VStack(spacing: 6) {

@@ -11,7 +11,9 @@ struct ProjectsRootView: View {
     @Environment(SaveCoordinator.self) private var saveCoordinator
 
     // MARK: - Data
-    @FetchRequest(sortDescriptors: [NSSortDescriptor(keyPath: \CDProject.createdAt, ascending: false)]) private var clubsRaw: FetchedResults<CDProject>
+    @FetchRequest(
+        sortDescriptors: [NSSortDescriptor(keyPath: \CDProject.createdAt, ascending: false)]
+    ) private var clubsRaw: FetchedResults<CDProject>
     private var clubs: [CDProject] { Array(clubsRaw).uniqueByID }
     
     // OPTIMIZATION: Removed unfiltered queries - deletion logic uses targeted FetchDescriptor
@@ -164,7 +166,6 @@ struct ProjectsRootView: View {
         ((club.sessions?.allObjects as? [CDProjectSession]) ?? []).compactMap(\.meetingDate).max()
     }
 
-    // swiftlint:disable:next cyclomatic_complexity function_body_length
     private func deleteClub(_ club: CDProject) {
         // OPTIMIZATION: Use targeted filtering instead of loading all records upfront
         // SwiftData predicates can't compare captured UUID values, so we fetch and filter

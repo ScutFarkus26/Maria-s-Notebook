@@ -15,10 +15,16 @@ struct QuickNewPresentationSheet: View {
     @AppStorage(UserDefaultsKeys.generalTestStudentNames)
     private var testStudentNamesRaw: String = "Danny De Berry,Lil Dan D"
 
-    @FetchRequest(sortDescriptors: [NSSortDescriptor(keyPath: \CDLesson.area, ascending: true), NSSortDescriptor(keyPath: \CDLesson.sortIndex, ascending: true)])
+    @FetchRequest(sortDescriptors: [
+        NSSortDescriptor(keyPath: \CDLesson.area, ascending: true),
+        NSSortDescriptor(keyPath: \CDLesson.sortIndex, ascending: true)
+    ])
     private var allLessons: FetchedResults<CDLesson>
 
-    @FetchRequest(sortDescriptors: [NSSortDescriptor(keyPath: \CDStudent.lastName, ascending: true), NSSortDescriptor(keyPath: \CDStudent.firstName, ascending: true)])
+    @FetchRequest(sortDescriptors: [
+        NSSortDescriptor(keyPath: \CDStudent.lastName, ascending: true),
+        NSSortDescriptor(keyPath: \CDStudent.firstName, ascending: true)
+    ])
     private var allStudentsRaw: FetchedResults<CDStudent>
     // DEDUPLICATION: CloudKit sync can create duplicate records with the same ID.
     // Filter out test students when setting is disabled

@@ -46,9 +46,16 @@ final class StudentsViewModel {
         case .manual:
             return [NSSortDescriptor(key: "manualOrder", ascending: true)]
         case .alphabetical:
-            return [NSSortDescriptor(key: "firstName", ascending: true), NSSortDescriptor(key: "lastName", ascending: true), NSSortDescriptor(key: "manualOrder", ascending: true)]
+            return [
+                NSSortDescriptor(key: "firstName", ascending: true),
+                NSSortDescriptor(key: "lastName", ascending: true),
+                NSSortDescriptor(key: "manualOrder", ascending: true)
+            ]
         case .age:
-            return [NSSortDescriptor(key: "birthday", ascending: false), NSSortDescriptor(key: "manualOrder", ascending: true)]
+            return [
+                NSSortDescriptor(key: "birthday", ascending: false),
+                NSSortDescriptor(key: "manualOrder", ascending: true)
+            ]
         case .birthday:
             return [NSSortDescriptor(key: "manualOrder", ascending: true)]
         }

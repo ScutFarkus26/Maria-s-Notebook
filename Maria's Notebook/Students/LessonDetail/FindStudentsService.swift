@@ -44,7 +44,10 @@ enum FindStudentsService {
             .compactMap(\.birthday)
 
         // Candidates are students NOT already in the presentation
-        let candidates = allStudents.filter { guard let id = $0.id else { return true }; return !existingStudentIDs.contains(id) }
+        let candidates = allStudents.filter {
+            guard let id = $0.id else { return true }
+            return !existingStudentIDs.contains(id)
+        }
 
         var neverReceived: [CandidateStudent] = []
         var redundantlyScheduled: [CandidateStudent] = []

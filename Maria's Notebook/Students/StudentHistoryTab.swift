@@ -9,7 +9,9 @@ struct StudentHistoryTab: View {
 
     @Environment(\.managedObjectContext) private var viewContext
 
-    @FetchRequest(sortDescriptors: [NSSortDescriptor(keyPath: \CDStudentTrackEnrollmentEntity.createdAt, ascending: false)])
+    @FetchRequest(sortDescriptors: [
+        NSSortDescriptor(keyPath: \CDStudentTrackEnrollmentEntity.createdAt, ascending: false)
+    ])
     private var allEnrollments: FetchedResults<CDStudentTrackEnrollmentEntity>
 
     @FetchRequest(sortDescriptors: [NSSortDescriptor(keyPath: \CDTrackEntity.title, ascending: true)])
@@ -23,7 +25,10 @@ struct StudentHistoryTab: View {
 
     // Use uniquingKeysWith to handle CloudKit sync duplicates
     private var tracksByID: [String: CDTrackEntity] {
-        Dictionary(allTracks.compactMap { t in t.id.map { ($0.uuidString, t) } }, uniquingKeysWith: { first, _ in first })
+        Dictionary(
+            allTracks.compactMap { t in t.id.map { ($0.uuidString, t) } },
+            uniquingKeysWith: { first, _ in first }
+        )
     }
 
     /// Deduplicated finished enrollments - keeps only one enrollment per track TITLE (not ID)
@@ -182,7 +187,11 @@ struct StudentHistoryTab: View {
         )
     }
 
-    private func finishedTrackCard(enrollment: CDStudentTrackEnrollmentEntity, track: CDTrackEntity, colorIndex: Int) -> some View {
+    private func finishedTrackCard(
+        enrollment: CDStudentTrackEnrollmentEntity,
+        track: CDTrackEntity,
+        colorIndex: Int
+    ) -> some View {
         let accentColor = celebrationColors[colorIndex % celebrationColors.count]
 
         return HStack(alignment: .center, spacing: 14) {
@@ -231,7 +240,10 @@ struct StudentHistoryTab: View {
             RoundedRectangle(cornerRadius: 16, style: .continuous)
                 .fill(
                     LinearGradient(
-                        colors: [accentColor.opacity(UIConstants.OpacityConstants.subtle), accentColor.opacity(UIConstants.OpacityConstants.whisper)],
+                        colors: [
+                            accentColor.opacity(UIConstants.OpacityConstants.subtle),
+                            accentColor.opacity(UIConstants.OpacityConstants.whisper)
+                        ],
                         startPoint: .topLeading,
                         endPoint: .bottomTrailing
                     )

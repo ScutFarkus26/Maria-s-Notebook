@@ -13,7 +13,8 @@ struct ProjectLessonPickerSheet: View {
     var onChosen: (UUID?) -> Void
 
     @State private var search: String = ""
-    @FetchRequest(sortDescriptors: [NSSortDescriptor(keyPath: \CDLesson.name, ascending: true)]) private var lessons: FetchedResults<CDLesson>
+    @FetchRequest(sortDescriptors: [NSSortDescriptor(keyPath: \CDLesson.name, ascending: true)])
+    private var lessons: FetchedResults<CDLesson>
 
     init(viewModel: LessonPickerViewModel, onChosen: @escaping (UUID?) -> Void) {
         self.viewModel = viewModel
@@ -99,7 +100,10 @@ struct AddWorkOfferSheet: View {
                     .foregroundStyle(.secondary)
                 TextEditor(text: $instructions)
                     .frame(minHeight: 80)
-                    .overlay(RoundedRectangle(cornerRadius: 8).stroke(Color.secondary.opacity(UIConstants.OpacityConstants.moderate)))
+                    .overlay(
+                        RoundedRectangle(cornerRadius: 8)
+                            .stroke(Color.secondary.opacity(UIConstants.OpacityConstants.moderate))
+                    )
             }
 
             DatePicker("Due Date", selection: $dueDate, displayedComponents: .date)

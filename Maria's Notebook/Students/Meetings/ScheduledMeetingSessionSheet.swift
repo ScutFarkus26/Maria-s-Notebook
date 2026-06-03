@@ -12,7 +12,11 @@ struct ScheduledMeetingSessionSheet: View {
 
     @Environment(\.managedObjectContext) private var viewContext
 
-    @FetchRequest(sortDescriptors: [NSSortDescriptor(keyPath: \CDStudent.firstName, ascending: true), NSSortDescriptor(keyPath: \CDStudent.lastName, ascending: true)]) private var allStudents: FetchedResults<CDStudent>
+    @FetchRequest(sortDescriptors: [
+        NSSortDescriptor(keyPath: \CDStudent.firstName, ascending: true),
+        NSSortDescriptor(keyPath: \CDStudent.lastName, ascending: true)
+    ])
+    private var allStudents: FetchedResults<CDStudent>
 
     @FetchRequest(sortDescriptors: [NSSortDescriptor(keyPath: \CDWorkModel.createdAt, ascending: false)])
     private var allWorkModels: FetchedResults<CDWorkModel>

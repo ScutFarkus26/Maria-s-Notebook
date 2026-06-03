@@ -14,7 +14,10 @@ struct SchedulePresentationSheet: View {
     @AppStorage(UserDefaultsKeys.generalTestStudentNames)
     private var testStudentNamesRaw: String = "Danny De Berry,Lil Dan D"
 
-    @FetchRequest(sortDescriptors: [NSSortDescriptor(keyPath: \CDStudent.firstName, ascending: true), NSSortDescriptor(keyPath: \CDStudent.lastName, ascending: true)])
+    @FetchRequest(sortDescriptors: [
+        NSSortDescriptor(keyPath: \CDStudent.firstName, ascending: true),
+        NSSortDescriptor(keyPath: \CDStudent.lastName, ascending: true)
+    ])
     private var allStudentsRaw: FetchedResults<CDStudent>
     // DEDUPLICATION: CloudKit sync can create duplicate records with the same ID.
     // Filter out test students when setting is disabled
@@ -93,7 +96,10 @@ struct SchedulePresentationSheet: View {
                                     }
                                     .padding(.horizontal, 8)
                                     .padding(.vertical, 4)
-                                    .background(Capsule().fill(Color.accentColor.opacity(UIConstants.OpacityConstants.accent)))
+                                    .background(
+                                        Capsule()
+                                            .fill(Color.accentColor.opacity(UIConstants.OpacityConstants.accent))
+                                    )
                                 }
                             }
                             .padding(.vertical, 4)

@@ -7,7 +7,10 @@ import CoreData
 // MARK: - Template Picker View
 
 struct TemplatePickerView: View {
-    @FetchRequest(sortDescriptors: [NSSortDescriptor(keyPath: \CDNoteTemplate.sortOrder, ascending: true), NSSortDescriptor(keyPath: \CDNoteTemplate.title, ascending: true)]) var templates: FetchedResults<CDNoteTemplate>
+    @FetchRequest(sortDescriptors: [
+        NSSortDescriptor(keyPath: \CDNoteTemplate.sortOrder, ascending: true),
+        NSSortDescriptor(keyPath: \CDNoteTemplate.title, ascending: true)
+    ]) var templates: FetchedResults<CDNoteTemplate>
 
     let onSelect: (CDNoteTemplate) -> Void
 

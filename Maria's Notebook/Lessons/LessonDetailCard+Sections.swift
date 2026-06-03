@@ -77,7 +77,6 @@ extension LessonDetailCard {
         .padding(.top, 4)
     }
 
-    // swiftlint:disable:next function_body_length
     @ViewBuilder
     var bottomBar: some View {
         HStack(spacing: 12) {
@@ -253,7 +252,9 @@ extension LessonDetailCard {
                             saveCoordinator.save(viewContext, reason: "Import lesson Pages file")
                         }
                     } catch {
-                        await MainActor.run { importError = AppErrorMessages.importMessage(for: error, fileType: "lesson file") }
+                        await MainActor.run {
+                            importError = AppErrorMessages.importMessage(for: error, fileType: "lesson file")
+                        }
                     }
                 }
             }

@@ -41,7 +41,8 @@ struct TagPicker: View {
     @Environment(\.managedObjectContext) private var viewContext
     @FetchRequest(sortDescriptors: CDStudent.sortByName)private var studentsRaw: FetchedResults<CDStudent>
     private var students: [CDStudent] { Array(studentsRaw).uniqueByID.filterEnrolled() }
-    @FetchRequest(sortDescriptors: [NSSortDescriptor(keyPath: \CDTodoItem.createdAt, ascending: false)]) private var allTodos: FetchedResults<CDTodoItem>
+    @FetchRequest(sortDescriptors: [NSSortDescriptor(keyPath: \CDTodoItem.createdAt, ascending: false)])
+    private var allTodos: FetchedResults<CDTodoItem>
     @State private var isShowingCustomTagSheet = false
     @State private var searchText = ""
     @State private var pendingNewTagName = ""

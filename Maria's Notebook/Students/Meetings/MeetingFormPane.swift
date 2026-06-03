@@ -97,7 +97,12 @@ struct MeetingFormPane: View {
                 }
 
                 // Form fields
-                meetingField(title: "Student Reflection", text: $reflectionText, placeholder: reflectionPlaceholder, hints: reflectionHints)
+                meetingField(
+                    title: "Student Reflection",
+                    text: $reflectionText,
+                    placeholder: reflectionPlaceholder,
+                    hints: reflectionHints
+                )
 
                 // Focus checklist (replaces free-text focus field)
                 FocusChecklistView(

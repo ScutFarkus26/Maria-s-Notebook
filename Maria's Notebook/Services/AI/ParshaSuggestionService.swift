@@ -70,7 +70,9 @@ final class ParshaSuggestionService {
 
         // Build a compact, indexed digest. We send numeric indices and let Claude
         // respond with indices to avoid UUID hallucination.
-        let digestEntries: [(index: Int, lesson: CDLesson)] = albumLessons.prefix(400).enumerated().map { ($0.offset + 1, $0.element) }
+        let digestEntries: [(index: Int, lesson: CDLesson)] = albumLessons.prefix(400)
+            .enumerated()
+            .map { ($0.offset + 1, $0.element) }
         let digestText = digestEntries.map { entry in
             let lesson = entry.lesson
             let purpose = String(lesson.purpose.trimmed().prefix(120))

@@ -96,7 +96,10 @@ struct PlanningRecommendationCard: View {
             .fontWeight(.medium)
             .padding(.horizontal, 8)
             .padding(.vertical, 3)
-            .background(AppColors.color(forArea: recommendation.area).opacity(UIConstants.OpacityConstants.accent), in: Capsule())
+            .background(
+                AppColors.color(forArea: recommendation.area).opacity(UIConstants.OpacityConstants.accent),
+                in: Capsule()
+            )
             .foregroundStyle(AppColors.color(forArea: recommendation.area))
     }
     

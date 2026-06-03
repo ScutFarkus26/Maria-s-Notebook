@@ -15,9 +15,12 @@ struct PresentationsView: View {
     // The ViewModel handles all actual data loading with targeted fetches
     @FetchRequest(sortDescriptors: [NSSortDescriptor(keyPath: \CDLessonAssignment.id, ascending: true)])
     var lessonAssignmentsForChangeDetection: FetchedResults<CDLessonAssignment>
-    @FetchRequest(sortDescriptors: [NSSortDescriptor(keyPath: \CDLesson.id, ascending: true)]) private var lessonsForChangeDetection: FetchedResults<CDLesson>
-    @FetchRequest(sortDescriptors: [NSSortDescriptor(keyPath: \CDStudent.id, ascending: true)]) private var studentsForChangeDetection: FetchedResults<CDStudent>
-    @FetchRequest(sortDescriptors: [NSSortDescriptor(keyPath: \CDWorkModel.id, ascending: true)]) private var workModelsForChangeDetection: FetchedResults<CDWorkModel>
+    @FetchRequest(sortDescriptors: [NSSortDescriptor(keyPath: \CDLesson.id, ascending: true)])
+    private var lessonsForChangeDetection: FetchedResults<CDLesson>
+    @FetchRequest(sortDescriptors: [NSSortDescriptor(keyPath: \CDStudent.id, ascending: true)])
+    private var studentsForChangeDetection: FetchedResults<CDStudent>
+    @FetchRequest(sortDescriptors: [NSSortDescriptor(keyPath: \CDWorkModel.id, ascending: true)])
+    private var workModelsForChangeDetection: FetchedResults<CDWorkModel>
 
     struct LessonAssignmentChangeKey: Hashable {
         let id: UUID

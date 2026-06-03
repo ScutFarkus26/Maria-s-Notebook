@@ -167,7 +167,11 @@ struct PaperLessonCard: View {
                     .padding(.horizontal, 6)
                     .padding(.vertical, 3)
                     .background(Capsule().fill(AppColors.warning.opacity(UIConstants.OpacityConstants.accent)))
-                    .overlay(Capsule().stroke(AppColors.warning.opacity(UIConstants.OpacityConstants.muted), lineWidth: 0.5))
+                    .overlay(
+                        Capsule().stroke(
+                            AppColors.warning.opacity(UIConstants.OpacityConstants.muted), lineWidth: 0.5
+                        )
+                    )
                     .foregroundStyle(AppColors.warning)
                 }
             }

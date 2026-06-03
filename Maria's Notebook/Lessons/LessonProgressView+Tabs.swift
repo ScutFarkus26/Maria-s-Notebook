@@ -25,7 +25,6 @@ extension LessonProgressView {
     }
 
     @ViewBuilder
-    // swiftlint:disable:next function_body_length
     func presentationRow(_ presentation: Presentation) -> some View {
         VStack(alignment: .leading, spacing: AppTheme.Spacing.compact) {
             presentationRowHeader(presentation)
@@ -62,7 +61,9 @@ extension LessonProgressView {
             }
 
             VStack(alignment: .leading, spacing: AppTheme.Spacing.xxsmall + 1) {
-                let statusText: String = presentation.isPresented ? "Presented" : presentation.isScheduled ? "Scheduled" : "Draft"
+                let statusText: String = presentation.isPresented
+                    ? "Presented"
+                    : presentation.isScheduled ? "Scheduled" : "Draft"
                 Text(statusText)
                     .font(AppTheme.ScaledFont.bodySemibold)
 

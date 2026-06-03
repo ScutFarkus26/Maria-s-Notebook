@@ -251,7 +251,11 @@ struct AttendanceCard: View {
         .padding(.horizontal, AppTheme.Spacing.medium)
         .contentShape(Rectangle())
         .accessibilityElement(children: .combine)
-        .accessibilityLabel("\(displayName), \(statusLabel)\(status == .absent && absenceReason != .none ? ", \(absenceReason.displayName)" : "")\(hasNote ? ", has note" : "")")
+        .accessibilityLabel(
+            "\(displayName), \(statusLabel)" +
+            "\(status == .absent && absenceReason != .none ? ", \(absenceReason.displayName)" : "")" +
+            "\(hasNote ? ", has note" : "")"
+        )
         .accessibilityAddTraits(isEditing ? .isButton : [])
     }
 

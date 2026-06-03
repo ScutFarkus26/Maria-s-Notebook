@@ -110,7 +110,8 @@ enum PresentationAssignmentService {
         // Check if check-in already exists
         let existingCheckIns = (work.checkIns?.allObjects as? [CDWorkCheckIn]) ?? []
         let hasCheckIn = existingCheckIns.contains { checkIn in
-            AppCalendar.startOfDay(checkIn.date ?? Date()) == normalized && checkIn.statusRaw == WorkCheckInStatus.scheduled.rawValue
+            AppCalendar.startOfDay(checkIn.date ?? Date()) == normalized &&
+                checkIn.statusRaw == WorkCheckInStatus.scheduled.rawValue
         }
 
         if !hasCheckIn {

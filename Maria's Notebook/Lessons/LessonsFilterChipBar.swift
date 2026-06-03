@@ -145,10 +145,17 @@ struct FilterChip: View {
             .padding(.horizontal, 12)
             .padding(.vertical, 6)
             .background(
-                Capsule().fill(isActive ? activeColor.opacity(UIConstants.OpacityConstants.accent) : Color.primary.opacity(UIConstants.OpacityConstants.veryFaint))
+                Capsule().fill(
+                    isActive
+                        ? activeColor.opacity(UIConstants.OpacityConstants.accent)
+                        : Color.primary.opacity(UIConstants.OpacityConstants.veryFaint)
+                )
             )
             .overlay(
-                Capsule().stroke(isActive ? activeColor.opacity(UIConstants.OpacityConstants.half) : Color.clear, lineWidth: 1)
+                Capsule().stroke(
+                    isActive ? activeColor.opacity(UIConstants.OpacityConstants.half) : Color.clear,
+                    lineWidth: 1
+                )
             )
             .foregroundStyle(isActive ? activeColor : .secondary)
         }

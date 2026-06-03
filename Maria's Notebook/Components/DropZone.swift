@@ -30,7 +30,12 @@ struct DropZone: View {
 
         // 1) Explicit non-school day wins
         do {
-            let nsDescriptor = { let r = NSFetchRequest<CDNonSchoolDay>(entityName: "NonSchoolDay"); r.predicate = NSPredicate(format: "date == %@", day as CVarArg); r.fetchLimit = 1; return r }()
+            let nsDescriptor = {
+                let r = NSFetchRequest<CDNonSchoolDay>(entityName: "NonSchoolDay")
+                r.predicate = NSPredicate(format: "date == %@", day as CVarArg)
+                r.fetchLimit = 1
+                return r
+            }()
             let nonSchoolDays: [CDNonSchoolDay] = try viewContext.fetch(nsDescriptor)
             if !nonSchoolDays.isEmpty { return true }
         } catch {
@@ -44,7 +49,12 @@ struct DropZone: View {
 
         // 3) Weekend override makes it a school day
         do {
-            let ovDescriptor = { let r = NSFetchRequest<CDSchoolDayOverride>(entityName: "SchoolDayOverride"); r.predicate = NSPredicate(format: "date == %@", day as CVarArg); r.fetchLimit = 1; return r }()
+            let ovDescriptor = {
+                let r = NSFetchRequest<CDSchoolDayOverride>(entityName: "SchoolDayOverride")
+                r.predicate = NSPredicate(format: "date == %@", day as CVarArg)
+                r.fetchLimit = 1
+                return r
+            }()
             let overrides: [CDSchoolDayOverride] = try viewContext.fetch(ovDescriptor)
             if !overrides.isEmpty { return false }
         } catch {

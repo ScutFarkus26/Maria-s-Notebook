@@ -6,8 +6,10 @@ import OSLog
 struct SchedulesView: View {
     private static let logger = Logger.schedules
     @Environment(\.managedObjectContext) private var viewContext
-    @FetchRequest(sortDescriptors: [NSSortDescriptor(keyPath: \CDSchedule.name, ascending: true)]) private var schedules: FetchedResults<CDSchedule>
-    @FetchRequest(sortDescriptors: [NSSortDescriptor(keyPath: \CDStudent.firstName, ascending: true)]) private var studentsRaw: FetchedResults<CDStudent>
+    @FetchRequest(sortDescriptors: [NSSortDescriptor(keyPath: \CDSchedule.name, ascending: true)])
+    private var schedules: FetchedResults<CDSchedule>
+    @FetchRequest(sortDescriptors: [NSSortDescriptor(keyPath: \CDStudent.firstName, ascending: true)])
+    private var studentsRaw: FetchedResults<CDStudent>
     private var students: [CDStudent] { studentsRaw.filterEnrolled() }
 
     @State private var showingAddSheet = false

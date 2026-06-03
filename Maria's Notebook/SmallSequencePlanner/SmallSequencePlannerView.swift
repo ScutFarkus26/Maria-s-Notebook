@@ -285,7 +285,10 @@ struct SmallSequencePlannerView: View {
         ContentUnavailableView {
             Label("No Group Opportunities", systemImage: "person.3.sequence")
         } description: {
-            Text("No students are ready or almost ready for lessons in this sequence. Try a different area or sequence.")
+            Text(
+                "No students are ready or almost ready for lessons in this sequence. " +
+                "Try a different area or sequence."
+            )
         }
         .padding(.top, 40)
     }

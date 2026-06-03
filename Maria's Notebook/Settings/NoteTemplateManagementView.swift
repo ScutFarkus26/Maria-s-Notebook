@@ -5,12 +5,12 @@ import SwiftUI
 import CoreData
 import OSLog
 
-
 struct NoteTemplateManagementView: View {
     private static let logger = Logger.settings
     @Environment(\.managedObjectContext) private var viewContext
     @Environment(\.managedObjectContext) private var managedObjectContext
-    @FetchRequest(sortDescriptors: [NSSortDescriptor(keyPath: \CDNoteTemplate.sortOrder, ascending: true)]) private var templates: FetchedResults<CDNoteTemplate>
+    @FetchRequest(sortDescriptors: [NSSortDescriptor(keyPath: \CDNoteTemplate.sortOrder, ascending: true)])
+    private var templates: FetchedResults<CDNoteTemplate>
 
     @State private var showingAddSheet = false
     @State private var editingTemplate: CDNoteTemplate?
@@ -71,7 +71,10 @@ struct NoteTemplateManagementView: View {
                         .padding()
                         .background(
                             RoundedRectangle(cornerRadius: 10, style: .continuous)
-                                .stroke(Color.primary.opacity(UIConstants.OpacityConstants.light), style: StrokeStyle(lineWidth: 1, dash: [5]))
+                                .stroke(
+                                    Color.primary.opacity(UIConstants.OpacityConstants.light),
+                                    style: StrokeStyle(lineWidth: 1, dash: [5])
+                                )
                         )
                     } else {
                         ForEach(customTemplates) { template in

@@ -101,7 +101,9 @@ final class MemoryPressureMonitor {
                     self.lastPressureLevel = .critical
 
                     let footprint = currentMemoryFootprintMB().map { String(format: "%.1f MB", $0) } ?? "unknown"
-                    logger.warning("Critical memory pressure - clearing caches aggressively (footprint: \(footprint, privacy: .public), event #\(self.pressureEventCount + 1, privacy: .public))")
+                    let criticalMsg = "Critical memory pressure - clearing caches aggressively " +
+                        "(footprint: \(footprint), event #\(self.pressureEventCount + 1))"
+                    logger.warning("\(criticalMsg, privacy: .public)")
 
                     self.lastPressureEvent = now
                     self.pressureEventCount += 1
@@ -116,7 +118,9 @@ final class MemoryPressureMonitor {
                     self.lastPressureLevel = .warning
 
                     let footprint = currentMemoryFootprintMB().map { String(format: "%.1f MB", $0) } ?? "unknown"
-                    logger.info("Memory pressure warning - clearing non-essential caches (footprint: \(footprint, privacy: .public), event #\(self.pressureEventCount + 1, privacy: .public))")
+                    let warningMsg = "Memory pressure warning - clearing non-essential caches " +
+                        "(footprint: \(footprint), event #\(self.pressureEventCount + 1))"
+                    logger.info("\(warningMsg, privacy: .public)")
 
                     self.lastPressureEvent = now
                     self.pressureEventCount += 1

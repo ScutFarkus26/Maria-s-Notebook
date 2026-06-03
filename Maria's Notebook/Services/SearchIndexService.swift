@@ -54,7 +54,9 @@ final class SearchIndexService {
 
         isReady = true
         let elapsed = Date().timeIntervalSince(start)
-        Self.logger.info("Search index built: \(self.resultsById.count) entities, \(self.index.count) tokens in \(String(format: "%.2f", elapsed))s")
+        let indexMsg = "Search index built: \(self.resultsById.count) entities, " +
+            "\(self.index.count) tokens in \(String(format: "%.2f", elapsed))s"
+        Self.logger.info("\(indexMsg, privacy: .public)")
     }
 
     // Deprecated SwiftData rebuildIndex(container:) removed - use rebuildIndex(context:) with NSManagedObjectContext.

@@ -330,7 +330,9 @@ extension CloudKitSyncStatusService {
             let mentionsNeverInitialized = errorDesc.contains("Never successfully initialized")
             if isSetupFailure || is134421 || mentionsNeverInitialized {
                 mirroringDelegateFailed = true
-                Self.logger.error("CloudKit mirroring delegate marked as failed for this session — Reset Local Cache required")
+                Self.logger.error(
+                    "CloudKit mirroring delegate marked as failed for this session — Reset Local Cache required"
+                )
             }
         } else {
             let fallbackError = "\(typeDescription) failed: Unknown error"

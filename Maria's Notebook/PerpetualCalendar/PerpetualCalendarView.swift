@@ -5,7 +5,11 @@ import CoreData
 
 struct PerpetualCalendarView: View {
     @Environment(\.managedObjectContext) private var viewContext
-    @FetchRequest(sortDescriptors: [NSSortDescriptor(keyPath: \CDCalendarNote.year, ascending: true), NSSortDescriptor(keyPath: \CDCalendarNote.month, ascending: true), NSSortDescriptor(keyPath: \CDCalendarNote.day, ascending: true)]) private var allNotes: FetchedResults<CDCalendarNote>
+    @FetchRequest(sortDescriptors: [
+        NSSortDescriptor(keyPath: \CDCalendarNote.year, ascending: true),
+        NSSortDescriptor(keyPath: \CDCalendarNote.month, ascending: true),
+        NSSortDescriptor(keyPath: \CDCalendarNote.day, ascending: true)
+    ]) private var allNotes: FetchedResults<CDCalendarNote>
 
     @State private var editingCell: CellID?
     @State private var editText: String = ""
@@ -96,7 +100,11 @@ private extension PerpetualCalendarView {
             HStack(spacing: 4) {
                 Text("\(cellID.day)")
                     .font(.system(.caption, design: .rounded).monospacedDigit())
-                    .foregroundStyle(isToday ? Color.white : (isNonSchool ? Color.red.opacity(UIConstants.OpacityConstants.half) : Color.secondary))
+                    .foregroundStyle(
+                        isToday
+                            ? Color.white
+                            : (isNonSchool ? Color.red.opacity(UIConstants.OpacityConstants.half) : Color.secondary)
+                    )
                     .frame(width: 22, height: 22)
                     .background {
                         if isToday {

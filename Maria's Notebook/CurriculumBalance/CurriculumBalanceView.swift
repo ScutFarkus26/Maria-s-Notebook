@@ -12,7 +12,9 @@ struct CurriculumBalanceView: View {
     @State private var selectedGapAreaName: String?
 
     // Change detection to trigger reload when assignments change
-    @FetchRequest(sortDescriptors: [NSSortDescriptor(keyPath: \CDLessonAssignment.id, ascending: true)]) private var assignmentsForChange: FetchedResults<CDLessonAssignment>
+    @FetchRequest(
+        sortDescriptors: [NSSortDescriptor(keyPath: \CDLessonAssignment.id, ascending: true)]
+    ) private var assignmentsForChange: FetchedResults<CDLessonAssignment>
 
     private var assignmentChangeToken: Int { assignmentsForChange.count }
 
@@ -104,7 +106,10 @@ struct CurriculumBalanceView: View {
                 .padding(.vertical, 6)
                 .background {
                     Capsule(style: .continuous)
-                        .fill(isSelected ? Color.accentColor : Color.primary.opacity(UIConstants.OpacityConstants.veryFaint))
+                        .fill(
+                            isSelected ? Color.accentColor
+                                : Color.primary.opacity(UIConstants.OpacityConstants.veryFaint)
+                        )
                 }
         }
         .buttonStyle(.plain)
@@ -222,7 +227,10 @@ struct CurriculumBalanceView: View {
                 .padding(.vertical, 6)
                 .background {
                     Capsule(style: .continuous)
-                        .fill(isSelected ? Color.accentColor : Color.primary.opacity(UIConstants.OpacityConstants.veryFaint))
+                        .fill(
+                            isSelected ? Color.accentColor
+                                : Color.primary.opacity(UIConstants.OpacityConstants.veryFaint)
+                        )
                 }
         }
         .buttonStyle(.plain)

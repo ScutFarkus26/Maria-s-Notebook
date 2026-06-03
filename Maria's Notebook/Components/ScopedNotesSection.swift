@@ -149,7 +149,10 @@ struct ScopedNotesSection: View {
                 HStack {
                     Picker("Scope", selection: $scopeChoice) {
                         Text("All").tag(ScopeChoice.all)
-                        ForEach(availableStudents.sorted(by: StudentSortComparator.byFirstName), id: \.objectID) { student in
+                        ForEach(
+                            availableStudents.sorted(by: StudentSortComparator.byFirstName),
+                            id: \.objectID
+                        ) { student in
                             if let studentID = student.id {
                                 Text(displayName(for: student))
                                     .tag(ScopeChoice.student(studentID))

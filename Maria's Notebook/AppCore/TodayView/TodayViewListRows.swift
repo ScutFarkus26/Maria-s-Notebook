@@ -36,7 +36,9 @@ struct ReminderListRow: View {
 
     private var checkboxView: some View {
         let borderColor: Color = reminder.isCompleted ? .clear : .secondary.opacity(UIConstants.OpacityConstants.muted)
-        let fillColor: Color = reminder.isCompleted ? Color.accentColor.opacity(UIConstants.OpacityConstants.accent) : .clear
+        let fillColor: Color = reminder.isCompleted
+            ? Color.accentColor.opacity(UIConstants.OpacityConstants.accent)
+            : .clear
 
         return Circle()
             .strokeBorder(borderColor, lineWidth: 1.5)
@@ -61,7 +63,10 @@ struct ReminderListRow: View {
                     Text(reminder.title)
                         .font(AppTheme.ScaledFont.callout)
                         .foregroundStyle(reminder.isCompleted ? .tertiary : .primary)
-                        .strikethrough(reminder.isCompleted, color: Color.secondary.opacity(UIConstants.OpacityConstants.half))
+                        .strikethrough(
+                            reminder.isCompleted,
+                            color: Color.secondary.opacity(UIConstants.OpacityConstants.half)
+                        )
                     if let dueDate = reminder.dueDate {
                         Text(dueDate, style: .time)
                             .font(AppTheme.ScaledFont.caption)

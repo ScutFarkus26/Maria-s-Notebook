@@ -6,12 +6,15 @@ import os
 
 extension LifecycleService {
 
-    /// Synchronizes student progress by updating CDLessonPresentation records from CDLessonAssignment and CDWorkModel data.
+    /// Synchronizes student progress by updating CDLessonPresentation records from
+    /// CDLessonAssignment and CDWorkModel data.
     /// This ensures all presented/completed lessons are properly tracked in the progress system.
     /// - Parameters:
     ///   - context: The NSManagedObjectContext to operate on
     /// - Returns: A tuple with counts of (presentations created/updated, presentations marked as proficient)
-    static func syncAllStudentProgress(context: NSManagedObjectContext) throws -> (presentationsUpdated: Int, proficient: Int) {
+    static func syncAllStudentProgress(
+        context: NSManagedObjectContext
+    ) throws -> (presentationsUpdated: Int, proficient: Int) {
         // 1. Fetch presented lesson assignments
         let presentedRaw = LessonAssignmentState.presented.rawValue
         let laRequest = CDFetchRequest(CDLessonAssignment.self)

@@ -113,10 +113,14 @@ struct StudentMeetingsTab: View {
     // MARK: - Computed helpers for contracts and lessons (delegated to MeetingWorkSnapshotHelper)
 
     // Use uniquingKeysWith to handle CloudKit sync duplicates
-    var lessonsByID: [UUID: CDLesson] { Dictionary(lessons.compactMap { l in l.id.map { ($0, l) } }, uniquingKeysWith: { first, _ in first }) }
+    var lessonsByID: [UUID: CDLesson] {
+        Dictionary(lessons.compactMap { l in l.id.map { ($0, l) } }, uniquingKeysWith: { first, _ in first })
+    }
 
     private var workStats: MeetingWorkSnapshotHelper.WorkStats {
-        guard let studentID = student.id else { return MeetingWorkSnapshotHelper.WorkStats(open: [], overdue: [], recentCompleted: []) }
+        guard let studentID = student.id else {
+            return MeetingWorkSnapshotHelper.WorkStats(open: [], overdue: [], recentCompleted: [])
+        }
         return MeetingWorkSnapshotHelper.computeWorkStats(
             for: studentID,
             allWorkModels: Array(allWorkModels),

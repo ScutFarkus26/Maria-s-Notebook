@@ -15,7 +15,10 @@ struct SequenceTrackDetailView: View {
     /// Optional student to show progress for. If nil, shows track structure only.
     var student: CDStudent?
 
-    @FetchRequest(sortDescriptors: [NSSortDescriptor(keyPath: \CDLesson.area, ascending: true), NSSortDescriptor(keyPath: \CDLesson.orderInSequence, ascending: true)])
+    @FetchRequest(sortDescriptors: [
+        NSSortDescriptor(keyPath: \CDLesson.area, ascending: true),
+        NSSortDescriptor(keyPath: \CDLesson.orderInSequence, ascending: true)
+    ])
     private var allLessons: FetchedResults<CDLesson>
 
     @FetchRequest(sortDescriptors: []) private var allLessonPresentations: FetchedResults<CDLessonPresentation>
@@ -187,7 +190,10 @@ struct SequenceTrackDetailView: View {
                             }
                         }
                         .frame(height: 8)
-                        .background(Color.gray.opacity(UIConstants.OpacityConstants.moderate), in: RoundedRectangle(cornerRadius: 4))
+                        .background(
+                            Color.gray.opacity(UIConstants.OpacityConstants.moderate),
+                            in: RoundedRectangle(cornerRadius: 4)
+                        )
                     }
                 }
             }
@@ -253,7 +259,10 @@ private struct LessonStepRow: View {
                 Text(lesson.name.isEmpty ? "Untitled Lesson" : lesson.name)
                     .font(.body)
                     .foregroundStyle(progressState == .proficient ? .secondary : .primary)
-                    .strikethrough(progressState == .proficient, color: .secondary.opacity(UIConstants.OpacityConstants.half))
+                    .strikethrough(
+                        progressState == .proficient,
+                        color: .secondary.opacity(UIConstants.OpacityConstants.half)
+                    )
 
                 if !lesson.section.isEmpty {
                     Text(lesson.section)

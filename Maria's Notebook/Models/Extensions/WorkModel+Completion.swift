@@ -5,7 +5,10 @@ import CoreData
 @MainActor
 extension CDWorkModel {
     /// Returns all completion records for this work (optionally filtered by student).
-    func completionRecords(for studentID: UUID? = nil, in context: NSManagedObjectContext) throws -> [CDWorkCompletionRecord] {
+    func completionRecords(
+        for studentID: UUID? = nil,
+        in context: NSManagedObjectContext
+    ) throws -> [CDWorkCompletionRecord] {
         try WorkCompletionService.records(for: self.id ?? UUID(), studentID: studentID, in: context)
     }
 

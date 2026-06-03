@@ -19,7 +19,10 @@ struct CommandBarSheet: View {
     // MARK: - Data
 
     @FetchRequest(sortDescriptors: CDStudent.sortByName)private var allStudents: FetchedResults<CDStudent>
-    @FetchRequest(sortDescriptors: [NSSortDescriptor(keyPath: \CDLesson.area, ascending: true), NSSortDescriptor(keyPath: \CDLesson.name, ascending: true)]) private var allLessons: FetchedResults<CDLesson>
+    @FetchRequest(sortDescriptors: [
+        NSSortDescriptor(keyPath: \CDLesson.area, ascending: true),
+        NSSortDescriptor(keyPath: \CDLesson.name, ascending: true)
+    ]) private var allLessons: FetchedResults<CDLesson>
 
     @AppStorage(UserDefaultsKeys.generalShowTestStudents) private var showTestStudents: Bool = false
     @AppStorage(UserDefaultsKeys.generalTestStudentNames)
@@ -159,7 +162,10 @@ struct CommandBarSheet: View {
                             }
                             .padding(.vertical, 8)
                             .padding(.horizontal, 12)
-                            .background(Color.secondary.opacity(UIConstants.OpacityConstants.veryFaint), in: RoundedRectangle(cornerRadius: 8))
+                            .background(
+                            Color.secondary.opacity(UIConstants.OpacityConstants.veryFaint),
+                            in: RoundedRectangle(cornerRadius: 8)
+                        )
                         }
                         .buttonStyle(.plain)
                     }
@@ -185,7 +191,10 @@ struct CommandBarSheet: View {
                         }
                         .padding(.vertical, 8)
                         .padding(.horizontal, 12)
-                        .background(Color.secondary.opacity(UIConstants.OpacityConstants.veryFaint), in: RoundedRectangle(cornerRadius: 8))
+                        .background(
+                            Color.secondary.opacity(UIConstants.OpacityConstants.veryFaint),
+                            in: RoundedRectangle(cornerRadius: 8)
+                        )
                     }
                     .buttonStyle(.plain)
                 }
@@ -345,7 +354,10 @@ extension CommandBarSheet {
             Spacer()
         }
         .padding(16)
-        .background(Color.secondary.opacity(UIConstants.OpacityConstants.veryFaint), in: RoundedRectangle(cornerRadius: 12))
+        .background(
+            Color.secondary.opacity(UIConstants.OpacityConstants.veryFaint),
+            in: RoundedRectangle(cornerRadius: 12)
+        )
         .padding(.horizontal, 16)
     }
 

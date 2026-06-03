@@ -63,7 +63,10 @@ struct WorkPresentationStatusService {
     }
 
     /// Finds the next presentation status for a work item
-    static func findNextPresentationStatus(for work: CDWorkModel, context: NSManagedObjectContext) -> PresentationStatus {
+    static func findNextPresentationStatus(
+        for work: CDWorkModel,
+        context: NSManagedObjectContext
+    ) -> PresentationStatus {
         guard UUID(uuidString: work.lessonID) != nil,
               UUID(uuidString: work.studentID) != nil else {
             return .notFound

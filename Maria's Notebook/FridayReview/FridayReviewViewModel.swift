@@ -223,7 +223,8 @@ final class FridayReviewViewModel {
 
         let request = CDFetchRequest(CDWorkModel.self)
         request.predicate = NSPredicate(
-            format: "(statusRaw == %@ OR statusRaw == %@) AND (lastTouchedAt < %@ OR (lastTouchedAt == nil AND createdAt < %@))",
+            format: "(statusRaw == %@ OR statusRaw == %@) AND " +
+                "(lastTouchedAt < %@ OR (lastTouchedAt == nil AND createdAt < %@))",
             WorkStatus.active.rawValue, WorkStatus.review.rawValue,
             staleThreshold as NSDate, staleThreshold as NSDate
         )

@@ -15,7 +15,6 @@ import UIKit
 /// - Handles migration from UserDefaults to KVS on first launch
 @Observable
 @MainActor
-// swiftlint:disable:next type_body_length
 public final class SyncedPreferencesStore {
     public static let shared = SyncedPreferencesStore()
 

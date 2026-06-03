@@ -424,8 +424,14 @@ struct ProgressStatBadge: View {
         }
         .padding(.horizontal, 10)
         .padding(.vertical, 6)
-        .background(RoundedRectangle(cornerRadius: 8, style: .continuous).fill(color.opacity(UIConstants.OpacityConstants.light)))
-        .overlay(RoundedRectangle(cornerRadius: 8, style: .continuous).stroke(color.opacity(UIConstants.OpacityConstants.moderate), lineWidth: 1))
+        .background(
+            RoundedRectangle(cornerRadius: 8, style: .continuous)
+                .fill(color.opacity(UIConstants.OpacityConstants.light))
+        )
+        .overlay(
+            RoundedRectangle(cornerRadius: 8, style: .continuous)
+                .stroke(color.opacity(UIConstants.OpacityConstants.moderate), lineWidth: 1)
+        )
     }
 }
 
@@ -470,7 +476,10 @@ struct NotesPreviewSection: View {
         }
         .padding(.vertical, 8)
         .padding(.horizontal, 12)
-        .background(RoundedRectangle(cornerRadius: 10, style: .continuous).fill(color.opacity(UIConstants.OpacityConstants.subtle)))
+        .background(
+            RoundedRectangle(cornerRadius: 10, style: .continuous)
+                .fill(color.opacity(UIConstants.OpacityConstants.subtle))
+        )
     }
 }
 

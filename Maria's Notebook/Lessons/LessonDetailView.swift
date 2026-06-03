@@ -230,7 +230,9 @@ struct LessonDetailView: View {
                             saveCoordinator.save(viewContext, reason: "Import lesson Pages file")
                         }
                     } catch {
-                        await MainActor.run { importError = AppErrorMessages.importMessage(for: error, fileType: "lesson file") }
+                        await MainActor.run {
+                            importError = AppErrorMessages.importMessage(for: error, fileType: "lesson file")
+                        }
                     }
                 }
             case .failure(let error):

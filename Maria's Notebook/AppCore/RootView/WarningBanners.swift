@@ -37,11 +37,15 @@ struct EphemeralStoreWarningBanner: View {
     }
 
     private var backgroundColor: AnyShapeStyle {
-        isInMemoryMode ? AnyShapeStyle(Color.red.opacity(UIConstants.OpacityConstants.light)) : AnyShapeStyle(.ultraThinMaterial)
+        isInMemoryMode
+            ? AnyShapeStyle(Color.red.opacity(UIConstants.OpacityConstants.light))
+            : AnyShapeStyle(.ultraThinMaterial)
     }
 
     private var borderColor: Color {
-        isInMemoryMode ? Color.red.opacity(UIConstants.OpacityConstants.semi) : Color.primary.opacity(UIConstants.OpacityConstants.light)
+        isInMemoryMode
+            ? Color.red.opacity(UIConstants.OpacityConstants.semi)
+            : Color.primary.opacity(UIConstants.OpacityConstants.light)
     }
 
     var body: some View {

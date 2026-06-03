@@ -187,7 +187,10 @@ struct GreatLessonsTimelineView: View {
         ContentUnavailableView {
             Label("No Lessons", systemImage: "sparkles")
         } description: {
-            Text("Add lessons to your curriculum to see how they connect to the Five Great Lessons of cosmic education.")
+            Text(
+                "Add lessons to your curriculum to see how they connect to " +
+                "the Five Great Lessons of cosmic education."
+            )
         }
     }
 }

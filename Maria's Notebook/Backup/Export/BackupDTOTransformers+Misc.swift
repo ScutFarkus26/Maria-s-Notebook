@@ -2,7 +2,8 @@
 import Foundation
 import CoreData
 
-// MARK: - Misc Transformers (Calendar, Todo, CDTrackEntity, CDSupply, CDSchedule, CDIssue, CDProcedure, CDDocument, etc.)
+// MARK: - Misc Transformers
+// (Calendar, Todo, CDTrackEntity, CDSupply, CDSchedule, CDIssue, CDProcedure, CDDocument, etc.)
 
 extension BackupDTOTransformers {
 

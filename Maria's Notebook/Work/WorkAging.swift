@@ -206,7 +206,9 @@ enum WorkAgingPolicy {
         }
         
         let workCheckIns = checkIns ?? ((work.checkIns?.allObjects as? [CDWorkCheckIn]) ?? [])
-        return workCheckIns.contains { $0.status == .scheduled && AppCalendar.startOfDay($0.date ?? .distantPast) == today }
+        return workCheckIns.contains {
+            $0.status == .scheduled && AppCalendar.startOfDay($0.date ?? .distantPast) == today
+        }
     }
 
     /// Check if work is upcoming (due in 1-2 days). Returns false while work is resting.

@@ -105,7 +105,11 @@ extension PresentationsViewModel {
         hideStudentsScheduledToday: Bool = false
     ) -> [CDLessonAssignment] {
         let afterStudent = applyStudentFilter(lessons, studentFilter: studentFilter)
-        let afterText = applyTextFilters(afterStudent, debouncedSearch: debouncedSearch, committedFilters: committedFilters)
+        let afterText = applyTextFilters(
+            afterStudent,
+            debouncedSearch: debouncedSearch,
+            committedFilters: committedFilters
+        )
         return applyHideScheduledToday(afterText, hide: hideStudentsScheduledToday)
     }
 

@@ -170,7 +170,10 @@ struct PresentationStudentRow: View {
                     .font(AppTheme.ScaledFont.captionSmallSemibold)
                     .padding(.horizontal, 8)
                     .padding(.vertical, 4)
-                    .background(Capsule(style: .continuous).fill(Color.accentColor.opacity(UIConstants.OpacityConstants.subtle)))
+                    .background(
+                        Capsule(style: .continuous)
+                            .fill(Color.accentColor.opacity(UIConstants.OpacityConstants.subtle))
+                    )
                     .foregroundStyle(Color.accentColor)
                 }
                 .buttonStyle(.plain)

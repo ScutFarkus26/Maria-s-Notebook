@@ -364,7 +364,9 @@ extension TodoEditSheet {
                 isSchedulingNotification = true
                 do {
                     if let ctx = todo.managedObjectContext {
-                        try await TodoNotificationService.shared.scheduleNotification(for: todo, at: reminderDate, context: ctx)
+                        try await TodoNotificationService.shared.scheduleNotification(
+                            for: todo, at: reminderDate, context: ctx
+                        )
                     }
                 } catch {
                     Self.logger.error("Failed to schedule notification: \(error)")

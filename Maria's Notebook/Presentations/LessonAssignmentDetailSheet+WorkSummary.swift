@@ -35,7 +35,10 @@ extension LessonAssignmentDetailSheet {
                         .padding(.vertical, 6)
                         .background(
                             Capsule()
-                                .fill((stats.completed == stats.total ? Color.green : Color.secondary).opacity(UIConstants.OpacityConstants.light))
+                                .fill(
+                                    (stats.completed == stats.total ? Color.green : Color.secondary)
+                                        .opacity(UIConstants.OpacityConstants.light)
+                                )
                         )
                     }
                 }

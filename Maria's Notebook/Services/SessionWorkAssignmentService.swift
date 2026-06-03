@@ -9,12 +9,6 @@ struct SessionWorkAssignmentService {
 
     let context: NSManagedObjectContext
 
-    // MARK: - Core Data Init
-
-    init(context: NSManagedObjectContext) {
-        self.context = context
-    }
-
     // Deprecated ModelContext init removed - no longer needed with Core Data.
 
     // MARK: - Uniform Mode

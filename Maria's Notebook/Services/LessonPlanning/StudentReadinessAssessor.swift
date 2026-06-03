@@ -198,7 +198,10 @@ struct StudentReadinessAssessor {
         return progress
     }
 
-    private static func determineProficiency(activeWork: [CDWorkModel], completedWork: [CDWorkModel]) -> ProficiencySignal {
+    private static func determineProficiency(
+        activeWork: [CDWorkModel],
+        completedWork: [CDWorkModel]
+    ) -> ProficiencySignal {
         if let latest = completedWork.max(by: {
             ($0.completedAt ?? .distantPast) < ($1.completedAt ?? .distantPast)
         }) {
@@ -293,7 +296,10 @@ extension StudentReadinessAssessor {
         return context.safeFetch(request)
     }
 
-    private static func fetchRecentPracticeSessions(context: NSManagedObjectContext, daysBefore: Int) -> [CDPracticeSession] {
+    private static func fetchRecentPracticeSessions(
+        context: NSManagedObjectContext,
+        daysBefore: Int
+    ) -> [CDPracticeSession] {
         let cutoff = Calendar.current.date(byAdding: .day, value: -daysBefore, to: Date()) ?? Date()
         let request = CDFetchRequest(CDPracticeSession.self)
         request.predicate = NSPredicate(format: "date >= %@", cutoff as NSDate)

@@ -233,7 +233,6 @@ struct LessonAttachmentsSection: View {
         }
     }
     
-    // swiftlint:disable:next function_body_length
     private func handleFileImport(result: Result<[URL], Error>) {
         switch result {
         case .success(let urls):

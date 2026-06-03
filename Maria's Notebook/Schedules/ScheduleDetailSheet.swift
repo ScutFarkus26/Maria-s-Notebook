@@ -9,7 +9,8 @@ struct ScheduleDetailSheet: View {
     let schedule: CDSchedule
     let onEdit: (CDSchedule) -> Void
 
-    @FetchRequest(sortDescriptors: [NSSortDescriptor(keyPath: \CDStudent.firstName, ascending: true)]) private var studentsRaw: FetchedResults<CDStudent>
+    @FetchRequest(sortDescriptors: [NSSortDescriptor(keyPath: \CDStudent.firstName, ascending: true)])
+    private var studentsRaw: FetchedResults<CDStudent>
     private var students: [CDStudent] { studentsRaw.filterEnrolled() }
 
     private var studentLookup: [String: CDStudent] {

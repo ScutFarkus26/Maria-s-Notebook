@@ -314,7 +314,11 @@ struct StudentFilterChip: View {
             .padding(.vertical, 6)
             .background(
                 RoundedRectangle(cornerRadius: 16)
-                    .fill(isSelected ? color.opacity(UIConstants.OpacityConstants.moderate) : Color.primary.opacity(UIConstants.OpacityConstants.veryFaint))
+                    .fill(
+                        isSelected
+                            ? color.opacity(UIConstants.OpacityConstants.moderate)
+                            : Color.primary.opacity(UIConstants.OpacityConstants.veryFaint)
+                    )
             )
             .overlay(
                 RoundedRectangle(cornerRadius: 16)

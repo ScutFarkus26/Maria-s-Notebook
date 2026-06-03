@@ -105,7 +105,10 @@ struct PieMenuSegment: View {
                 .fill(
                     LinearGradient(
                         colors: isHighlighted
-                            ? [action.gradientColors[0].opacity(UIConstants.OpacityConstants.barelyTransparent), action.gradientColors[1].opacity(UIConstants.OpacityConstants.barelyTransparent)]
+                            ? [
+                                action.gradientColors[0].opacity(UIConstants.OpacityConstants.barelyTransparent),
+                                action.gradientColors[1].opacity(UIConstants.OpacityConstants.barelyTransparent)
+                            ]
                             : [action.gradientColors[0].opacity(0.55), action.gradientColors[1].opacity(0.55)],
                         startPoint: .topLeading,
                         endPoint: .bottomTrailing
@@ -114,7 +117,9 @@ struct PieMenuSegment: View {
 
             slice
                 .strokeBorder(
-                    isHighlighted ? Color.white.opacity(UIConstants.OpacityConstants.barelyTransparent) : Color.white.opacity(UIConstants.OpacityConstants.statusBg),
+                    isHighlighted
+                        ? Color.white.opacity(UIConstants.OpacityConstants.barelyTransparent)
+                        : Color.white.opacity(UIConstants.OpacityConstants.statusBg),
                     lineWidth: isHighlighted ? 2.4 : 1.2
                 )
 

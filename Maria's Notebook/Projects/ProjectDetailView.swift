@@ -134,7 +134,10 @@ struct ProjectDetailView: View {
             HStack(alignment: .top) {
                 VStack(alignment: .leading, spacing: AppTheme.Spacing.xsmall) {
                     HStack(spacing: AppTheme.Spacing.small) {
-                        Label(club.isActive ? "Active Project" : "Completed Project", systemImage: club.isActive ? "sparkle.magnifyingglass" : "checkmark.seal.fill")
+                        Label(
+                            club.isActive ? "Active Project" : "Completed Project",
+                            systemImage: club.isActive ? "sparkle.magnifyingglass" : "checkmark.seal.fill"
+                        )
                             .font(AppTheme.ScaledFont.captionSemibold)
                             .foregroundStyle(club.isActive ? AppColors.info : AppColors.success)
                     }
@@ -155,7 +158,10 @@ struct ProjectDetailView: View {
                     Button {
                         toggleProjectActive()
                     } label: {
-                        Label(club.isActive ? "Mark Complete" : "Reopen", systemImage: club.isActive ? "checkmark.circle" : "arrow.counterclockwise")
+                        Label(
+                            club.isActive ? "Mark Complete" : "Reopen",
+                            systemImage: club.isActive ? "checkmark.circle" : "arrow.counterclockwise"
+                        )
                     }
                     .buttonStyle(.bordered)
 
@@ -185,11 +191,34 @@ struct ProjectDetailView: View {
     }
 
     private var dashboardMetrics: some View {
-        LazyVGrid(columns: [GridItem(.adaptive(minimum: 150), spacing: AppTheme.Spacing.small)], spacing: AppTheme.Spacing.small) {
-            ProjectMetricTile(title: "Students", value: "\(club.memberStudentIDsArray.count)", systemImage: SFSymbol.People.person2, color: AppColors.info)
-            ProjectMetricTile(title: "Lessons", value: "\(linkedLessons.count)", systemImage: SFSymbol.Education.bookClosed, color: AppColors.success)
-            ProjectMetricTile(title: "Follow-Ups", value: "\(openFollowUps.count)", systemImage: "arrow.uturn.forward.circle", color: AppColors.warning)
-            ProjectMetricTile(title: "Questions", value: "\(openQuestions.count)", systemImage: "questionmark.bubble", color: AppColors.attention)
+        LazyVGrid(
+            columns: [GridItem(.adaptive(minimum: 150), spacing: AppTheme.Spacing.small)],
+            spacing: AppTheme.Spacing.small
+        ) {
+            ProjectMetricTile(
+                title: "Students",
+                value: "\(club.memberStudentIDsArray.count)",
+                systemImage: SFSymbol.People.person2,
+                color: AppColors.info
+            )
+            ProjectMetricTile(
+                title: "Lessons",
+                value: "\(linkedLessons.count)",
+                systemImage: SFSymbol.Education.bookClosed,
+                color: AppColors.success
+            )
+            ProjectMetricTile(
+                title: "Follow-Ups",
+                value: "\(openFollowUps.count)",
+                systemImage: "arrow.uturn.forward.circle",
+                color: AppColors.warning
+            )
+            ProjectMetricTile(
+                title: "Questions",
+                value: "\(openQuestions.count)",
+                systemImage: "questionmark.bubble",
+                color: AppColors.attention
+            )
         }
     }
 
@@ -199,7 +228,10 @@ struct ProjectDetailView: View {
                 Text("No lessons linked yet")
                     .foregroundStyle(.secondary)
             } else {
-                LazyVGrid(columns: [GridItem(.adaptive(minimum: 220), spacing: AppTheme.Spacing.small)], spacing: AppTheme.Spacing.small) {
+                LazyVGrid(
+                    columns: [GridItem(.adaptive(minimum: 220), spacing: AppTheme.Spacing.small)],
+                    spacing: AppTheme.Spacing.small
+                ) {
                     ForEach(linkedLessons, id: \.objectID) { lesson in
                         VStack(alignment: .leading, spacing: AppTheme.Spacing.xxsmall) {
                             Text(lesson.name)
@@ -227,7 +259,10 @@ struct ProjectDetailView: View {
                     .foregroundStyle(.secondary)
             } else {
                 VStack(spacing: AppTheme.Spacing.small) {
-                    ForEach(club.memberStudentIDsArray.sorted { studentName(for: $0) < studentName(for: $1) }, id: \.self) { sid in
+                    ForEach(
+                        club.memberStudentIDsArray.sorted { studentName(for: $0) < studentName(for: $1) },
+                        id: \.self
+                    ) { sid in
                         ProjectStudentProgressRow(
                             studentName: studentName(for: sid),
                             works: workModels(forStudentID: sid)

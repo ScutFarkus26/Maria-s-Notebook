@@ -274,7 +274,8 @@ final class LessonPickerViewModel {
 
         // CDWorkModel flow
         // If marking as given and practice is requested, explode per-student practice work via LifecycleService.
-        // recordPresentationAndExplodeWork internally calls recordPresentation, which upserts CDLessonPresentation rows.
+        // recordPresentationAndExplodeWork internally calls recordPresentation, which upserts
+        // CDLessonPresentation rows.
         // When practice is NOT requested, we still call recordPresentation so per-student mastery rows exist —
         // otherwise the lesson is invisible in Mastery Dashboard / Sequence Recap / Student Progress views.
         if mode == .given {
@@ -321,7 +322,8 @@ final class LessonPickerViewModel {
             for studentID in selectedIDs {
                 let sidString = studentID.uuidString
                 let exists = allWorkModels.contains { work in
-                    let hasStudent = ((work.participants?.allObjects as? [CDWorkParticipantEntity]) ?? []).contains { $0.studentID == sidString }
+                    let hasStudent = ((work.participants?.allObjects as? [CDWorkParticipantEntity]) ?? [])
+                        .contains { $0.studentID == sidString }
                     guard hasStudent else { return false }
                     // Check if work is for this lesson via lessonID
                     guard work.lessonID == lessonIDString else { return false }
@@ -358,7 +360,8 @@ final class LessonPickerViewModel {
                 let followRaw = WorkKind.followUpAssignment.rawValue
                 let followUpRequest = CDFetchRequest(CDWorkModel.self)
                 followUpRequest.predicate = NSPredicate(
-                    format: "studentID == %@ AND lessonID == %@ AND (statusRaw == %@ OR statusRaw == %@) AND kindRaw == %@",
+                    format: "studentID == %@ AND lessonID == %@ AND " +
+                        "(statusRaw == %@ OR statusRaw == %@) AND kindRaw == %@",
                     sid, lidString, activeRaw, reviewRaw, followRaw
                 )
                 followUpRequest.fetchLimit = 1

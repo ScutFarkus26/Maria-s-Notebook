@@ -8,7 +8,9 @@ import QuickLookUI
 
 struct TodoEditSheet: View {
     @Environment(\.dismiss) var dismiss
-    @FetchRequest(sortDescriptors: [NSSortDescriptor(keyPath: \CDStudent.firstName, ascending: true)]) var studentsRaw: FetchedResults<CDStudent>
+    @FetchRequest(sortDescriptors: [
+        NSSortDescriptor(keyPath: \CDStudent.firstName, ascending: true)
+    ]) var studentsRaw: FetchedResults<CDStudent>
     @AppStorage(UserDefaultsKeys.generalShowTestStudents) var showTestStudents: Bool = false
     @AppStorage(UserDefaultsKeys.generalTestStudentNames) var testStudentNamesRaw: String = "Danny De Berry,Lil Dan D"
 

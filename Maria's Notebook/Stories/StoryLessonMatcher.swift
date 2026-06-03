@@ -73,7 +73,9 @@ enum StoryLessonMatcher {
             do {
                 return try await rerankWithClaude(story: story, candidates: candidates)
             } catch {
-                logger.warning("Claude rerank failed, falling back to embedding ranking. \(error.localizedDescription, privacy: .public)")
+                logger.warning(
+                    "Claude rerank failed, falling back to embedding ranking. \(error.localizedDescription, privacy: .public)"
+                )
                 return fallbackMatches(from: candidates)
             }
         }

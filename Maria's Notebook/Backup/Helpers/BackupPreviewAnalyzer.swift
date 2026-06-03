@@ -76,11 +76,13 @@ enum BackupPreviewAnalyzer {
         let model = viewContext.persistentStoreCoordinator?.managedObjectModel
         func count<T: NSManagedObject>(_ type: T.Type) -> Int {
             // Skip types whose entity doesn't exist in the Core Data model (e.g. legacy stubs)
-            guard model?.entitiesByName.values.contains(where: { $0.managedObjectClassName == NSStringFromClass(T.self) }) == true else {
+            guard model?.entitiesByName.values
+                .contains(where: { $0.managedObjectClassName == NSStringFromClass(T.self) }) == true else {
                 return 0
             }
             do {
-                return try viewContext.fetch(NSFetchRequest<T>(entityName: T.entity().name ?? String(describing: T.self))).count
+                let entityName = T.entity().name ?? String(describing: T.self)
+                return try viewContext.fetch(NSFetchRequest<T>(entityName: entityName)).count
             } catch {
                 logger.warning("Failed to count \(T.self): \(error)")
                 return 0
@@ -108,7 +110,12 @@ enum BackupPreviewAnalyzer {
         assign("ProjectWeekRoleAssignment", payload.projectWeekRoleAssignments.count, 0, 0) // Deprecated
         // Format v12+ entities
         assign("GoingOut", payload.goingOuts?.count ?? 0, 0, count(CDGoingOut.self))
-        assign("GoingOutChecklistItem", payload.goingOutChecklistItems?.count ?? 0, 0, count(CDGoingOutChecklistItem.self))
+        assign(
+            "GoingOutChecklistItem",
+            payload.goingOutChecklistItems?.count ?? 0,
+            0,
+            count(CDGoingOutChecklistItem.self)
+        )
         assign("ClassroomJob", payload.classroomJobs?.count ?? 0, 0, count(CDClassroomJob.self))
         assign("JobAssignment", payload.jobAssignments?.count ?? 0, 0, count(CDJobAssignment.self))
         assign("CalendarNote", payload.calendarNotes?.count ?? 0, 0, count(CDCalendarNote.self))
@@ -221,7 +228,11 @@ enum BackupPreviewAnalyzer {
         assignCounts("SchoolDayOverride", items: payload.schoolDayOverrides, type: CDSchoolDayOverride.self) { $0.id }
         assignCounts("StudentMeeting", items: payload.studentMeetings, type: CDStudentMeeting.self) { $0.id }
         assignCounts("CommunityTopic", items: payload.communityTopics, type: CDCommunityTopicEntity.self) { $0.id }
-        assignCounts("ProposedSolution", items: payload.proposedSolutions, type: CDProposedSolutionEntity.self) { $0.id }
+        assignCounts(
+            "ProposedSolution",
+            items: payload.proposedSolutions,
+            type: CDProposedSolutionEntity.self
+        ) { $0.id }
     }
 
     private static func analyzeFilteredEntityMerge(
@@ -239,7 +250,10 @@ enum BackupPreviewAnalyzer {
             return (new.count, existing.count)
         }
 
-        let attachmentCounts = countFiltered(payload.communityAttachments, type: CDCommunityAttachmentEntity.self) { $0.id }
+        let attachmentCounts = countFiltered(
+            payload.communityAttachments,
+            type: CDCommunityAttachmentEntity.self
+        ) { $0.id }
         assign("CommunityAttachment", attachmentCounts.ins, attachmentCounts.sk, 0)
 
         let attendanceCounts = countFiltered(payload.attendance, type: CDAttendanceRecord.self) { $0.id }

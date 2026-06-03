@@ -62,7 +62,8 @@ public enum BackupWriter {
         }
 
         progress(1.0, "Backup complete")
-        logger.info("BackupWriter wrote v\(formatVersion, privacy: .public) backup with \(entries.count) entity entries")
+        let writeMsg = "BackupWriter wrote v\(formatVersion) backup with \(entries.count) entity entries"
+        logger.info("\(writeMsg, privacy: .public)")
 
         return BackupOperationSummary(
             kind: .export,
@@ -87,7 +88,8 @@ public enum BackupWriter {
                 let entry = try makeEntry(entityName: entityName, dtos: dtos, encoder: encoder)
                 entries.append(entry)
             } catch {
-                logger.warning("Failed to encode \(entityName, privacy: .public): \(error.localizedDescription, privacy: .public)")
+                let encodeMsg = "Failed to encode \(entityName): \(error.localizedDescription)"
+                logger.warning("\(encodeMsg, privacy: .public)")
             }
         }
 

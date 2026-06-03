@@ -87,7 +87,11 @@ final class StudentDetailViewModel {
         // CDNote: Must use stateRaw (stored property) not state (computed property) in predicates
         let proficientStateRaw = LessonPresentationState.proficient.rawValue
         let descriptor: NSFetchRequest<CDLessonPresentation> = NSFetchRequest(entityName: "LessonPresentation")
-        descriptor.predicate = NSPredicate(format: "studentID == %@ AND stateRaw == %@", studentIDString, proficientStateRaw)
+        descriptor.predicate = NSPredicate(
+            format: "studentID == %@ AND stateRaw == %@",
+            studentIDString,
+            proficientStateRaw
+        )
         let proficientPresentations = safeFetch(descriptor, context: viewContext)
 
         proficientLessonIDs = Set(
@@ -98,7 +102,10 @@ final class StudentDetailViewModel {
     // MARK: - Public API
     func updateData(lessons: [CDLesson], lessonAssignments: [CDLessonAssignment]) {
         // DEDUPLICATION: CloudKit sync can create duplicate records with the same ID.
-        lessonsByID = Dictionary(lessons.uniqueByID.compactMap { l in l.id.map { ($0, l) } }, uniquingKeysWith: { first, _ in first })
+        lessonsByID = Dictionary(
+            lessons.uniqueByID.compactMap { l in l.id.map { ($0, l) } },
+            uniquingKeysWith: { first, _ in first }
+        )
         lessonAssignmentsByID = Dictionary(
             lessonAssignments.uniqueByID.compactMap { la in la.id.map { ($0, la) } },
             uniquingKeysWith: { first, _ in first }
@@ -253,8 +260,15 @@ final class StudentDetailViewModel {
         let studentIDString = student.id?.uuidString ?? ""
         let lessonIDString = lesson.id?.uuidString ?? ""
         let presented = lessonAssignmentsByID.values
-            .filter { $0.lessonID == lessonIDString && $0.studentIDs.contains(studentIDString) && $0.isPresented }
-            .sorted { ($0.presentedAt ?? $0.createdAt ?? .distantPast) > ($1.presentedAt ?? $1.createdAt ?? .distantPast) }
+            .filter {
+                $0.lessonID == lessonIDString
+                    && $0.studentIDs.contains(studentIDString)
+                    && $0.isPresented
+            }
+            .sorted {
+                ($0.presentedAt ?? $0.createdAt ?? .distantPast)
+                    > ($1.presentedAt ?? $1.createdAt ?? .distantPast)
+            }
         if let la = presented.first {
             selectedLessonAssignmentForDetail = la
         } else {
@@ -438,13 +452,22 @@ final class StudentDetailViewModel {
     }
 
     /// Ensure work exists for a lesson, creating CDWorkModel if needed
-    func ensureWork(for lesson: CDLesson, lessonAssignment: CDLessonAssignment?, viewContext: NSManagedObjectContext) -> CDWorkModel? {
+    func ensureWork(
+        for lesson: CDLesson,
+        lessonAssignment: CDLessonAssignment?,
+        viewContext: NSManagedObjectContext
+    ) -> CDWorkModel? {
         let presentationIDString = lessonAssignment?.id?.uuidString
         let activeRaw = WorkStatus.active.rawValue
         let reviewRaw = WorkStatus.review.rawValue
 
         let descriptor: NSFetchRequest<CDWorkModel> = NSFetchRequest(entityName: "WorkModel")
-        descriptor.predicate = NSPredicate(format: "presentationID == %@ AND (statusRaw == %@ OR statusRaw == %@)", presentationIDString ?? "", activeRaw, reviewRaw)
+        descriptor.predicate = NSPredicate(
+            format: "presentationID == %@ AND (statusRaw == %@ OR statusRaw == %@)",
+            presentationIDString ?? "",
+            activeRaw,
+            reviewRaw
+        )
         let limitedDescriptor = descriptor
         limitedDescriptor.fetchLimit = 1
         let existingWork = safeFetch(limitedDescriptor, context: viewContext).first
@@ -468,7 +491,12 @@ final class StudentDetailViewModel {
             cdContext.safeSave()
             // Re-fetch as SwiftData CDWorkModel (both contexts share the same SQLite store)
             let workID = cdWork.id ?? UUID()
-            let refetch = { let r = NSFetchRequest<CDWorkModel>(entityName: "WorkModel"); r.predicate = NSPredicate(format: "id == %@", workID as CVarArg); r.fetchLimit = 1; return r }()
+            let refetch: NSFetchRequest<CDWorkModel> = {
+                let r = NSFetchRequest<CDWorkModel>(entityName: "WorkModel")
+                r.predicate = NSPredicate(format: "id == %@", workID as CVarArg)
+                r.fetchLimit = 1
+                return r
+            }()
             return try? viewContext.fetch(refetch).first
         } catch {
             return nil
@@ -477,7 +505,12 @@ final class StudentDetailViewModel {
 
     /// Fetch a CDWorkModel by ID
     func fetchWork(by id: UUID, viewContext: NSManagedObjectContext) -> CDWorkModel? {
-        let descriptor = { let r = NSFetchRequest<CDWorkModel>(entityName: "WorkModel"); r.predicate = NSPredicate(format: "id == %@", id as CVarArg); r.fetchLimit = 1; return r }()
+        let descriptor: NSFetchRequest<CDWorkModel> = {
+            let r = NSFetchRequest<CDWorkModel>(entityName: "WorkModel")
+            r.predicate = NSPredicate(format: "id == %@", id as CVarArg)
+            r.fetchLimit = 1
+            return r
+        }()
         return safeFetch(descriptor, context: viewContext).first
     }
 }

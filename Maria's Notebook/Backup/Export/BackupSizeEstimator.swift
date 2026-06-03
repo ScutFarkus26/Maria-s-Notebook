@@ -182,12 +182,16 @@ enum BackupSizeEstimator {
 
     // MARK: - Private Helpers
 
-    private static func safeFetchCount<T: NSManagedObject>(_ type: T.Type, using context: NSManagedObjectContext) -> Int {
+    private static func safeFetchCount<T: NSManagedObject>(
+        _ type: T.Type, using context: NSManagedObjectContext
+    ) -> Int {
         // Guard: skip types whose entity doesn't exist in the Core Data model.
         // T.fetchRequest() produces entity name '' for unregistered types, which throws
         // an unrecoverable ObjC NSException that Swift catch cannot intercept.
         let model = context.persistentStoreCoordinator?.managedObjectModel
-        guard model?.entitiesByName.values.contains(where: { $0.managedObjectClassName == NSStringFromClass(T.self) }) == true else {
+        guard model?.entitiesByName.values.contains(where: {
+            $0.managedObjectClassName == NSStringFromClass(T.self)
+        }) == true else {
             return 0
         }
         let descriptor = NSFetchRequest<T>(entityName: T.entity().name ?? String(describing: T.self))

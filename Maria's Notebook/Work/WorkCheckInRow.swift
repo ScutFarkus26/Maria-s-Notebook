@@ -92,7 +92,10 @@ struct WorkCheckInRow: View {
         let notesList = (checkIn.notes?.allObjects as? [CDNote]) ?? []
         VStack(alignment: .leading, spacing: 4) {
             if !notesList.isEmpty {
-                ForEach(notesList.sorted { ($0.createdAt ?? .distantPast) > ($1.createdAt ?? .distantPast) }, id: \.id) { note in
+                ForEach(
+                    notesList.sorted { ($0.createdAt ?? .distantPast) > ($1.createdAt ?? .distantPast) },
+                    id: \.id
+                ) { note in
                     HStack(alignment: .firstTextBaseline, spacing: 4) {
                         Text("Notes:")
                             .font(AppTheme.ScaledFont.captionSemibold)

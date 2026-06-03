@@ -298,7 +298,10 @@ struct GroupedCheckInDetailSheet: View {
 
                 ScrollView {
                     VStack(spacing: 1) {
-                        ForEach(Array(zip(sequence.checkIns, sequence.studentNames)), id: \.0.id) { checkIn, studentName in
+                        ForEach(
+                            Array(zip(sequence.checkIns, sequence.studentNames)),
+                            id: \.0.id
+                        ) { checkIn, studentName in
                             studentRow(checkIn: checkIn, studentName: studentName)
                         }
                     }

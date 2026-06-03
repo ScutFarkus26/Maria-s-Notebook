@@ -61,7 +61,10 @@ struct SmallSequencePlannerLessonDetail: View {
             }
             Button("Cancel", role: .cancel) { }
         } message: {
-            Text("Create a presentation of \(candidate.lessonName) for \(selectedCount) student\(selectedCount == 1 ? "" : "s")?")
+            Text(
+                "Create a presentation of \(candidate.lessonName) for " +
+                "\(selectedCount) student\(selectedCount == 1 ? "" : "s")?"
+            )
         }
     }
 
@@ -133,7 +136,10 @@ struct SmallSequencePlannerLessonDetail: View {
         HStack(spacing: 8) {
             Image(systemName: "lightbulb.fill")
                 .foregroundStyle(AppColors.warning)
-            Text("\(candidate.almostReadyCount) student\(candidate.almostReadyCount == 1 ? "" : "s") could join with catch-up")
+            Text(
+                "\(candidate.almostReadyCount) " +
+                "student\(candidate.almostReadyCount == 1 ? "" : "s") could join with catch-up"
+            )
                 .font(.caption)
                 .foregroundStyle(.secondary)
             Spacer()

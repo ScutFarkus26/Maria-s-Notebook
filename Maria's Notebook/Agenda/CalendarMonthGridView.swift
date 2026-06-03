@@ -178,7 +178,9 @@ private struct DayCell: View {
                                 .fill(
                                     isNS
                                         ? Color.red.opacity(UIConstants.OpacityConstants.accent)
-                                        : (isToday(d) ? Color.primary.opacity(UIConstants.OpacityConstants.veryFaint) : Color.clear)
+                                        : (isToday(d)
+                                            ? Color.primary.opacity(UIConstants.OpacityConstants.veryFaint)
+                                            : Color.clear)
                                 )
                         )
                 })

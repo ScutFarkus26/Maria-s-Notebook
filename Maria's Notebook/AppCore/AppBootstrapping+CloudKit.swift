@@ -14,7 +14,7 @@ extension AppBootstrapping {
     ///    but without CloudKit mirroring
     /// 3. Local-only unified store
     /// 4. In-memory stack (last resort — data is not persisted)
-    // swiftlint:disable:next cyclomatic_complexity function_body_length
+    // swiftlint:disable:next function_body_length
     static func createCoreDataStack() throws -> CoreDataStack {
         let logger = Logger.app(category: "Container")
         let useInMemory = UserDefaults.standard.bool(forKey: UserDefaultsKeys.useInMemoryStoreOnce)

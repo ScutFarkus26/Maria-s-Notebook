@@ -98,7 +98,11 @@ enum LessonCSVImporter {
     }
 
     /// Commit parsed rows by inserting new CDLesson objects; updates existing lessons if duplicates found.
-    static func commit(parsed: Parsed, into context: NSManagedObjectContext, existingLessons: [CDLesson]) throws -> Int {
+    static func commit(
+        parsed: Parsed,
+        into context: NSManagedObjectContext,
+        existingLessons: [CDLesson]
+    ) throws -> Int {
         var byKey: [String: CDLesson] = [:]
         var maxOrderBySequence: [String: Int] = [:]
         for lesson in existingLessons {
@@ -159,7 +163,9 @@ extension LessonCSVImporter {
             "sequence": ["sequence", "category"],
             "section": ["section", "subtitle"],
             "writeup": ["writeup", "write up", "notes", "description"],
-            "sequenceorder": ["sequenceorder", "sequence order", "order", "sequence position", "sequenceindex", "sequence index"],
+            "sequenceorder": [
+                "sequenceorder", "sequence order", "order", "sequence position", "sequenceindex", "sequence index"
+            ],
             "materials": ["materials", "material"],
             "purpose": ["purpose", "objective", "learning objective"],
             "agerange": ["agerange", "age range", "age", "ages"],
@@ -232,7 +238,11 @@ extension LessonCSVImporter {
         return changed
     }
 
-    private static func nextInsertOrder(sequenceKey: String, explicit: Int?, maxOrderBySequence: inout [String: Int]) -> Int {
+    private static func nextInsertOrder(
+        sequenceKey: String,
+        explicit: Int?,
+        maxOrderBySequence: inout [String: Int]
+    ) -> Int {
         if let order = explicit {
             let current = maxOrderBySequence[sequenceKey] ?? -1
             if order > current { maxOrderBySequence[sequenceKey] = order }

@@ -104,7 +104,10 @@ struct LessonsScopeMapView: View {
                     }
                     .overlay(
                         RoundedRectangle(cornerRadius: 8, style: .continuous)
-                            .stroke(Color.accentColor.opacity(dropTargetSequence == row.key.sequence ? 0.6 : 0), lineWidth: 1.5)
+                            .stroke(
+                                Color.accentColor.opacity(dropTargetSequence == row.key.sequence ? 0.6 : 0),
+                                lineWidth: 1.5
+                            )
                     )
                 }
             }

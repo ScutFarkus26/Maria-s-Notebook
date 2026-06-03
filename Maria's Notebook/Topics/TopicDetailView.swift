@@ -145,7 +145,10 @@ private struct TopicBasicsSection: View {
                 Text("Issue")
                     .font(.caption).foregroundStyle(.secondary)
                 TextEditor(text: $issue).frame(minHeight: 120)
-                    .overlay(RoundedRectangle(cornerRadius: 8).stroke(Color.primary.opacity(UIConstants.OpacityConstants.medium)))
+                    .overlay(
+                        RoundedRectangle(cornerRadius: 8)
+                            .stroke(Color.primary.opacity(UIConstants.OpacityConstants.medium))
+                    )
             }
         }
     }
@@ -179,7 +182,10 @@ private struct TagsSection: View {
                                 Text(tag)
                                     .font(.caption.weight(.semibold))
                                     .padding(.horizontal, 8).padding(.vertical, 4)
-                                    .background(Capsule().fill(Color.accentColor.opacity(UIConstants.OpacityConstants.medium)))
+                                    .background(
+                                        Capsule()
+                                            .fill(Color.accentColor.opacity(UIConstants.OpacityConstants.medium))
+                                    )
                             }
                         }
                     }
@@ -201,7 +207,10 @@ private struct ResolutionSection: View {
                 if addressed {
                     DatePicker("Addressed Date", selection: $addressedDate, displayedComponents: .date)
                     TextEditor(text: $resolution).frame(minHeight: 80)
-                        .overlay(RoundedRectangle(cornerRadius: 8).stroke(Color.primary.opacity(UIConstants.OpacityConstants.medium)))
+                        .overlay(
+                            RoundedRectangle(cornerRadius: 8)
+                                .stroke(Color.primary.opacity(UIConstants.OpacityConstants.medium))
+                        )
                 }
             }
         }
@@ -255,7 +264,10 @@ private struct ProposedSolutionsSection: View {
                             }
                         }
                         .padding(8)
-                        .background(RoundedRectangle(cornerRadius: 8).fill(Color.primary.opacity(UIConstants.OpacityConstants.trace)))
+                        .background(
+                            RoundedRectangle(cornerRadius: 8)
+                                .fill(Color.primary.opacity(UIConstants.OpacityConstants.trace))
+                        )
                     }
                 }
 
@@ -266,7 +278,10 @@ private struct ProposedSolutionsSection: View {
                 TextField("Proposed by (optional)", text: $newSolutionProposedBy)
                     .textFieldStyle(.roundedBorder)
                 TextEditor(text: $newSolutionDetails).frame(minHeight: 80)
-                    .overlay(RoundedRectangle(cornerRadius: 8).stroke(Color.primary.opacity(UIConstants.OpacityConstants.medium)))
+                    .overlay(
+                        RoundedRectangle(cornerRadius: 8)
+                            .stroke(Color.primary.opacity(UIConstants.OpacityConstants.medium))
+                    )
 
                 HStack {
                     Spacer()
@@ -303,7 +318,10 @@ private struct AttachmentsSection: View {
                             } label: { Image(systemName: "ellipsis.circle").foregroundStyle(.secondary) }
                         }
                         .padding(8)
-                        .background(RoundedRectangle(cornerRadius: 8).fill(Color.primary.opacity(UIConstants.OpacityConstants.trace)))
+                        .background(
+                            RoundedRectangle(cornerRadius: 8)
+                                .fill(Color.primary.opacity(UIConstants.OpacityConstants.trace))
+                        )
                     }
                 }
 
@@ -337,14 +355,19 @@ private struct MeetingNotesSection: View {
                 if notes.isEmpty {
                     Text("No notes yet.").foregroundStyle(.secondary)
                 } else {
-                    let sortedNotes: [CDNote] = notes.sorted { ($0.createdAt ?? .distantPast) < ($1.createdAt ?? .distantPast) }
+                    let sortedNotes: [CDNote] = notes.sorted {
+                        ($0.createdAt ?? .distantPast) < ($1.createdAt ?? .distantPast)
+                    }
                     ForEach(sortedNotes) { n in
                         HStack(alignment: .top, spacing: 8) {
                             if let reporterName = n.reporterName, !reporterName.trimmed().isEmpty {
                                 Text(reporterName).font(.caption.weight(.semibold))
                                     .padding(.horizontal, 8)
                                     .padding(.vertical, 2)
-                                    .background(Capsule().fill(Color.blue.opacity(UIConstants.OpacityConstants.medium)))
+                                    .background(
+                                        Capsule()
+                                            .fill(Color.blue.opacity(UIConstants.OpacityConstants.medium))
+                                    )
                             }
                             Text(n.body).font(.subheadline)
                             Spacer()
@@ -355,7 +378,10 @@ private struct MeetingNotesSection: View {
                             } label: { Image(systemName: "ellipsis.circle").foregroundStyle(.secondary) }
                         }
                         .padding(8)
-                        .background(RoundedRectangle(cornerRadius: 8).fill(Color.primary.opacity(UIConstants.OpacityConstants.trace)))
+                        .background(
+                            RoundedRectangle(cornerRadius: 8)
+                                .fill(Color.primary.opacity(UIConstants.OpacityConstants.trace))
+                        )
                     }
                 }
 
@@ -364,7 +390,10 @@ private struct MeetingNotesSection: View {
                 TextField("Speaker (optional)", text: $newNoteSpeaker)
                     .textFieldStyle(.roundedBorder)
                 TextEditor(text: $newNoteContent).frame(minHeight: 80)
-                    .overlay(RoundedRectangle(cornerRadius: 8).stroke(Color.primary.opacity(UIConstants.OpacityConstants.medium)))
+                    .overlay(
+                        RoundedRectangle(cornerRadius: 8)
+                            .stroke(Color.primary.opacity(UIConstants.OpacityConstants.medium))
+                    )
 
                 HStack {
                     Spacer()

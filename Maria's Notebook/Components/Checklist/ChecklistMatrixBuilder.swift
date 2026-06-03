@@ -73,7 +73,8 @@ enum ChecklistMatrixBuilder {
                 let studentLAs = lasForLesson.filter { $0.studentIDs.contains(studentKey) }
                 let worksForLesson = worksByLessonID[lessonIDString] ?? []
                 let studentWorks = worksForLesson.filter { work in
-                    ((work.participants?.allObjects as? [CDWorkParticipantEntity]) ?? []).contains { $0.studentID == studentKey }
+                    let participants = (work.participants?.allObjects as? [CDWorkParticipantEntity]) ?? []
+                    return participants.contains { $0.studentID == studentKey }
                 }
 
                 // Compute blocking reason for empty/scheduled cells
@@ -124,7 +125,7 @@ enum ChecklistMatrixBuilder {
         lasByLessonID: [String: [CDLessonAssignment]],
         worksByLessonID: [String: [CDWorkModel]]
     ) -> BlockingReason {
-        guard let rules, (rules.requiresPractice || rules.requiresTeacherConfirmation) else {
+        guard let rules, rules.requiresPractice || rules.requiresTeacherConfirmation else {
             return .none
         }
 
@@ -143,7 +144,8 @@ enum ChecklistMatrixBuilder {
         if rules.requiresPractice {
             let precedingWorks = worksByLessonID[precedingIDStr] ?? []
             let studentWorks = precedingWorks.filter { work in
-                ((work.participants?.allObjects as? [CDWorkParticipantEntity]) ?? []).contains { $0.studentID == studentKey }
+                let participants = (work.participants?.allObjects as? [CDWorkParticipantEntity]) ?? []
+                return participants.contains { $0.studentID == studentKey }
             }
             let allComplete = !studentWorks.isEmpty && studentWorks.allSatisfy { $0.status == WorkStatus.complete }
             if studentWorks.isEmpty || !allComplete {

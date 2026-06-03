@@ -56,7 +56,8 @@ struct ClassroomSharingView: View {
                     icon: "exclamationmark.triangle.fill",
                     tint: .orange,
                     title: "\(zoneRepair.orphanCount) record(s) waiting to sync",
-                    body: "Until you share your classroom, this data stays on this device only. Tap Share Classroom below to enable CloudKit sync."
+                    body: "Until you share your classroom, this data stays on this device only. " +
+                        "Tap Share Classroom below to enable CloudKit sync."
                 )
             } else if service?.isSharing == true, !zoneRepair.lastUnrecoverableOrphans.isEmpty {
                 bannerCard(
@@ -111,7 +112,10 @@ struct ClassroomSharingView: View {
                 } header: {
                     Text("Orphans by entity")
                 } footer: {
-                    Text("Last checked: \(zoneRepair.lastRunAt.map { $0.formatted(date: .abbreviated, time: .shortened) } ?? "never")")
+                    Text(
+                        "Last checked: " +
+                        (zoneRepair.lastRunAt.map { $0.formatted(date: .abbreviated, time: .shortened) } ?? "never")
+                    )
                 }
 
                 if !zoneRepair.lastUnrecoverableOrphans.isEmpty {

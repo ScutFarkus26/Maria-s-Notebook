@@ -29,7 +29,9 @@ enum AppPill {
         case .accentOutline:
             return AnyShapeStyle(Color.primary.opacity(UIConstants.OpacityConstants.veryFaint))
         case .accentFill:
-            return AnyShapeStyle(isSelected ? Color.accentColor : Color.primary.opacity(UIConstants.OpacityConstants.subtle))
+            return AnyShapeStyle(
+                isSelected ? Color.accentColor : Color.primary.opacity(UIConstants.OpacityConstants.subtle)
+            )
         }
     }
 
