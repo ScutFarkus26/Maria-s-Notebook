@@ -1,4 +1,3 @@
-// swiftlint:disable file_length
 // StudentDetailViewModel.swift
 // View model for StudentDetailView. Manages caches, selections, and derived summaries.
 // Behavior-preserving cleanup: comments and MARKs only.
@@ -13,7 +12,6 @@ import CoreData
 /// All methods maintain existing behavior; this refactor adds structure and docs only.
 @Observable
 @MainActor
-// swiftlint:disable:next type_body_length
 final class StudentDetailViewModel {
     private static let logger = Logger.students
 
@@ -31,9 +29,6 @@ final class StudentDetailViewModel {
     /// Lessons that this student has mastered (based on CDLessonPresentation.state == .proficient)
     private(set) var proficientLessonIDs: Set<UUID> = []
     private(set) var plannedLessonIDs: Set<UUID> = []
-
-    private(set) var workModelsForStudent: [CDWorkModel] = []
-    private(set) var workSummary: WorkSummary = .empty
 
     // MARK: - UI State
     // UI selection and toast state moved from the view
@@ -136,32 +131,6 @@ final class StudentDetailViewModel {
         plannedLessonIDs = Set(nextLessonsForStudent.map(\.lessonID))
     }
 
-    func updateWorkModels(_ workModels: [CDWorkModel]) {
-        // Set and compute summary
-        self.workModelsForStudent = workModels
-        self.workSummary = Self.computeWorkSummary(workModels: workModels)
-    }
-
-    private static func computeWorkSummary(workModels: [CDWorkModel]) -> WorkSummary {
-        var practice = Set<UUID>()
-        var follow = Set<UUID>()
-        var pending = Set<UUID>()
-
-        for work in workModels where work.status != .complete {
-            guard let lid = UUID(uuidString: work.lessonID) else { continue }
-            if let k = work.kind {
-                switch k {
-                case .practiceLesson: practice.insert(lid)
-                case .followUpAssignment: follow.insert(lid)
-                case .research, .report: break
-                }
-            }
-            // Loose pending: no dueAt means pending
-            if work.dueAt == nil { pending.insert(lid) }
-        }
-        return WorkSummary(practiceLessonIDs: practice, followUpLessonIDs: follow, pendingLessonIDs: pending)
-    }
-
     // MARK: - Error Handling Helpers
 
     private func safeFetch<T>(
@@ -179,158 +148,10 @@ final class StudentDetailViewModel {
         }
     }
 
-    // MARK: - Types
-    struct WorkSummary {
-        let practiceLessonIDs: Set<UUID>
-        let followUpLessonIDs: Set<UUID>
-        let pendingLessonIDs: Set<UUID>
-
-        static let empty = WorkSummary(
-            practiceLessonIDs: [],
-            followUpLessonIDs: [],
-            pendingLessonIDs: []
-        )
-    }
-
     // MARK: - UI Actions moved from View
     func showToast(_ message: String) {
         // Delegate to centralized ToastService
         dependencies.toastService.showInfo(message)
-    }
-
-    func latestLessonAssignment(for lessonID: UUID, studentID: UUID) -> CDLessonAssignment? {
-        let matches = lessonAssignmentsByID.values.filter {
-            $0.resolvedLessonID == lessonID && $0.resolvedStudentIDs.contains(studentID)
-        }
-        return matches.sorted { lhs, rhs in
-            let lDate = lhs.presentedAt ?? lhs.scheduledFor ?? lhs.createdAt ?? .distantPast
-            let rDate = rhs.presentedAt ?? rhs.scheduledFor ?? rhs.createdAt ?? .distantPast
-            return lDate > rDate
-        }.first
-    }
-
-    func upcomingLessonAssignment(for lessonID: UUID, studentID: UUID) -> CDLessonAssignment? {
-        let matches = lessonAssignmentsByID.values.filter {
-            $0.resolvedLessonID == lessonID
-                && $0.resolvedStudentIDs.contains(studentID)
-                && !$0.isPresented
-        }
-        return matches.sorted { lhs, rhs in
-            switch (lhs.scheduledFor, rhs.scheduledFor) {
-            case let (l?, r?):
-                return l < r
-            case (nil, nil):
-                return (lhs.createdAt ?? .distantPast) < (rhs.createdAt ?? .distantPast)
-            case (nil, _?):
-                return false
-            case (_?, nil):
-                return true
-            }
-        }.first
-    }
-
-    func ensureLessonAssignment(
-        for lesson: CDLesson, viewContext: NSManagedObjectContext,
-        saveCoordinator: SaveCoordinator
-    ) -> CDLessonAssignment {
-        if let lessonID = lesson.id, let studentID = student.id,
-           let existing = latestLessonAssignment(for: lessonID, studentID: studentID) {
-            return existing
-        }
-        let created = PresentationFactory.makeDraft(
-            lessonID: lesson.id ?? UUID(),
-            studentIDs: [student.id ?? UUID()],
-            context: viewContext
-        )
-        saveCoordinator.save(viewContext, reason: "Creating lesson assignment")
-        return created
-    }
-
-    func openPlan(for lesson: CDLesson, viewContext: NSManagedObjectContext) {
-        if let lessonID = lesson.id, let studentID = student.id,
-           let la = upcomingLessonAssignment(for: lessonID, studentID: studentID) {
-            selectedLessonAssignmentForDetail = la
-        } else {
-            selectedLessonForGive = lesson
-            giveStartGiven = false
-        }
-    }
-
-    func openProficient(for lesson: CDLesson, viewContext: NSManagedObjectContext) {
-        let studentIDString = student.id?.uuidString ?? ""
-        let lessonIDString = lesson.id?.uuidString ?? ""
-        let presented = lessonAssignmentsByID.values
-            .filter {
-                $0.lessonID == lessonIDString
-                    && $0.studentIDs.contains(studentIDString)
-                    && $0.isPresented
-            }
-            .sorted {
-                ($0.presentedAt ?? $0.createdAt ?? .distantPast)
-                    > ($1.presentedAt ?? $1.createdAt ?? .distantPast)
-            }
-        if let la = presented.first {
-            selectedLessonAssignmentForDetail = la
-        } else {
-            selectedLessonForGive = lesson
-            giveStartGiven = true
-        }
-    }
-
-    func togglePresented(for lesson: CDLesson, viewContext: NSManagedObjectContext, saveCoordinator: SaveCoordinator) {
-        guard let lessonID = lesson.id, let studentID = student.id else { return }
-        if presentedLessonIDs.contains(lessonID) {
-            openProficient(for: lesson, viewContext: viewContext)
-            return
-        }
-        let presentedDate = AppCalendar.startOfDay(Date())
-        if let upcoming = upcomingLessonAssignment(for: lessonID, studentID: studentID) {
-            do {
-                _ = try LifecycleService.recordPresentation(
-                    from: upcoming,
-                    presentedAt: presentedDate,
-                    modelContext: viewContext
-                )
-            } catch {
-                Self.logger.warning("Failed to record presentation: \(error.localizedDescription)")
-            }
-            saveCoordinator.save(viewContext, reason: "Recording presentation")
-            SequenceTrackService.autoEnrollInTrackIfNeeded(
-                lessonArea: lesson.area,
-                lessonSequence: lesson.sequence,
-                studentIDs: [studentID.uuidString],
-                context: viewContext,
-                saveCoordinator: saveCoordinator
-            )
-        } else {
-            let la = PresentationFactory.makePresented(
-                lessonID: lessonID,
-                studentIDs: [studentID],
-                presentedAt: presentedDate,
-                context: viewContext
-            )
-            la.lesson = lesson
-            la.syncSnapshotsFromRelationships()
-            do {
-                _ = try LifecycleService.recordPresentation(
-                    from: la,
-                    presentedAt: presentedDate,
-                    modelContext: viewContext
-                )
-            } catch {
-                Self.logger.warning("Failed to record presentation: \(error.localizedDescription)")
-            }
-            if saveCoordinator.save(viewContext, reason: "Recording presentation") {
-                showToast("Presentation recorded")
-            }
-            SequenceTrackService.autoEnrollInTrackIfNeeded(
-                lessonArea: lesson.area,
-                lessonSequence: lesson.sequence,
-                studentIDs: [studentID.uuidString],
-                context: viewContext,
-                saveCoordinator: saveCoordinator
-            )
-        }
     }
 
     // MARK: - Business Logic (moved from View)
@@ -399,118 +220,4 @@ final class StudentDetailViewModel {
         return newLA
     }
 
-    /// Create or reuse a non-presented lesson assignment
-    func createOrReuseUpcomingLessonAssignment(
-        for lesson: CDLesson, viewContext: NSManagedObjectContext,
-        saveCoordinator: SaveCoordinator
-    ) -> CDLessonAssignment {
-        let lessonID = lesson.id ?? UUID()
-        let studentID = student.id ?? UUID()
-        if let existing = lessonAssignments.first(where: {
-            $0.resolvedLessonID == lessonID &&
-            !$0.isPresented &&
-            Set($0.resolvedStudentIDs) == Set([studentID])
-        }) {
-            return existing
-        }
-
-        let newLA = PresentationFactory.makeDraft(lessonID: lessonID, studentIDs: [studentID], context: viewContext)
-        newLA.lesson = lesson
-        saveCoordinator.save(viewContext, reason: "Creating lesson assignment")
-
-        return newLA
-    }
-
-    /// Log a presentation for a lesson
-    func logPresentation(
-        for lesson: CDLesson, viewContext: NSManagedObjectContext,
-        saveCoordinator: SaveCoordinator
-    ) -> CDLessonAssignment {
-        let lessonID = lesson.id ?? UUID()
-        let studentID = student.id ?? UUID()
-        let presentedDate = AppCalendar.startOfDay(Date())
-        let newLA = PresentationFactory.makePresented(
-            lessonID: lessonID,
-            studentIDs: [studentID],
-            presentedAt: presentedDate,
-            context: viewContext
-        )
-        newLA.lesson = lesson
-        newLA.syncSnapshotsFromRelationships()
-        viewContext.insert(newLA)
-        saveCoordinator.save(viewContext, reason: "Logging presentation")
-
-        SequenceTrackService.autoEnrollInTrackIfNeeded(
-            lessonArea: lesson.area,
-            lessonSequence: lesson.sequence,
-            studentIDs: [studentID.uuidString],
-            context: viewContext,
-            saveCoordinator: saveCoordinator
-        )
-
-        return newLA
-    }
-
-    /// Ensure work exists for a lesson, creating CDWorkModel if needed
-    func ensureWork(
-        for lesson: CDLesson,
-        lessonAssignment: CDLessonAssignment?,
-        viewContext: NSManagedObjectContext
-    ) -> CDWorkModel? {
-        let presentationIDString = lessonAssignment?.id?.uuidString
-        let activeRaw = WorkStatus.active.rawValue
-        let reviewRaw = WorkStatus.review.rawValue
-
-        let descriptor: NSFetchRequest<CDWorkModel> = NSFetchRequest(entityName: "WorkModel")
-        descriptor.predicate = NSPredicate(
-            format: "presentationID == %@ AND (statusRaw == %@ OR statusRaw == %@)",
-            presentationIDString ?? "",
-            activeRaw,
-            reviewRaw
-        )
-        let limitedDescriptor = descriptor
-        limitedDescriptor.fetchLimit = 1
-        let existingWork = safeFetch(limitedDescriptor, context: viewContext).first
-
-        if let existing = existingWork {
-            return existing
-        }
-
-        let cdContext = AppBootstrapping.getSharedCoreDataStack().viewContext
-        let repository = WorkRepository(context: cdContext)
-        do {
-            guard let studentID = student.id, let lessonID = lesson.id else { return nil }
-            let cdWork = try repository.createWork(
-                studentID: studentID,
-                lessonID: lessonID,
-                title: nil,
-                kind: nil,
-                presentationID: lessonAssignment?.id,
-                scheduledDate: nil
-            )
-            cdContext.safeSave()
-            // Re-fetch as SwiftData CDWorkModel (both contexts share the same SQLite store)
-            let workID = cdWork.id ?? UUID()
-            let refetch: NSFetchRequest<CDWorkModel> = {
-                let r = NSFetchRequest<CDWorkModel>(entityName: "WorkModel")
-                r.predicate = NSPredicate(format: "id == %@", workID as CVarArg)
-                r.fetchLimit = 1
-                return r
-            }()
-            return try? viewContext.fetch(refetch).first
-        } catch {
-            return nil
-        }
-    }
-
-    /// Fetch a CDWorkModel by ID
-    func fetchWork(by id: UUID, viewContext: NSManagedObjectContext) -> CDWorkModel? {
-        let descriptor: NSFetchRequest<CDWorkModel> = {
-            let r = NSFetchRequest<CDWorkModel>(entityName: "WorkModel")
-            r.predicate = NSPredicate(format: "id == %@", id as CVarArg)
-            r.fetchLimit = 1
-            return r
-        }()
-        return safeFetch(descriptor, context: viewContext).first
-    }
 }
