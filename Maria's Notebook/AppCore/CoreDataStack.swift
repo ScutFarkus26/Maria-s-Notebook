@@ -391,6 +391,10 @@ final class CoreDataStack {
     // MARK: - Remote Change Handling
 
     private func handleRemoteChangeNotification() {
+        // A remote (CloudKit) change merged in — invalidate school-day caches so
+        // calendar-dependent counts and navigation don't show stale values.
+        // Posting unconditionally is cheap; the caches rebuild lazily on next use.
+        NotificationCenter.default.post(name: .schoolDayDataDidChange, object: nil)
         guard let processor = historyProcessor else { return }
         Task {
             await processor.processRemoteChanges()

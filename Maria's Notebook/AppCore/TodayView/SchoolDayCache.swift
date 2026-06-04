@@ -12,7 +12,19 @@ class SchoolDayCache {
     var cachedSchoolDayOverrides: Set<Date> = []
     var cachedYearRange: ClosedRange<Int>?
 
+    /// The school-day data version this cache was built against. When the global
+    /// version moves ahead (a calendar edit or CloudKit sync), the cache is stale
+    /// and re-fetches on its next use.
+    private var dataVersion: Int = SchoolDayDataVersion.current
+
     func cacheSchoolDayData(for date: Date, viewContext: NSManagedObjectContext) {
+        // If school-day data changed since we last fetched (a local edit or a
+        // CloudKit sync), drop the cached window so we re-fetch below.
+        if dataVersion != SchoolDayDataVersion.current {
+            dataVersion = SchoolDayDataVersion.current
+            cachedYearRange = nil
+        }
+
         let cal = AppCalendar.shared
         let year = cal.component(.year, from: date)
         let yearRange = (year - 1)...(year + 1)

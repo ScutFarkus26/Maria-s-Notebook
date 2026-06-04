@@ -37,6 +37,18 @@ public final class SchoolCalendarService {
         monthSets.removeValue(forKey: key)
     }
 
+    /// Clears the entire month cache. Use when school-day data may have changed
+    /// in bulk (a CloudKit sync or a restore) rather than at a single known date.
+    public func invalidateCache() {
+        monthSets.removeAll()
+    }
+
+    /// Announces that school-day data changed so cached school-day calculations
+    /// get invalidated. Call after any edit to non-school days / weekend overrides.
+    static func notifySchoolDayDataChanged() {
+        NotificationCenter.default.post(name: .schoolDayDataDidChange, object: nil)
+    }
+
     private func setForMonth(_ date: Date, using context: NSManagedObjectContext) async -> Set<Date> {
         let key = monthKey(for: date)
         if let cached = monthSets[key] {
@@ -146,6 +158,7 @@ public final class SchoolCalendarService {
             }
             // Save is handled by caller or autosave - no immediate save needed
             invalidateMonthCache(for: day)
+            Self.notifySchoolDayDataChanged()
             return becameNonSchool
         } else {
             // Weekday logic
@@ -167,6 +180,7 @@ public final class SchoolCalendarService {
             }
             // Save is handled by caller or autosave - no immediate save needed
             invalidateMonthCache(for: day)
+            Self.notifySchoolDayDataChanged()
             return isNowNonSchool
         }
     }
@@ -212,5 +226,37 @@ public final class SchoolCalendarService {
         if distPrev < distNext { return prev }
         // On tie or next closer, prefer next
         return next
+    }
+}
+
+// MARK: - Change Notification
+
+extension Notification.Name {
+    /// Posted when school-day data (explicit non-school days or weekend
+    /// overrides) changes — via a local edit or a CloudKit sync. Observers
+    /// invalidate any cached school-day calculations. See
+    /// `AppDependencies.invalidateSchoolDayCaches()`.
+    static let schoolDayDataDidChange = Notification.Name("schoolDayDataDidChange")
+}
+
+/// Monotonic version stamp, bumped whenever school-day data changes. Lets
+/// lightweight per-instance caches (e.g. `SchoolDayCache`) detect staleness
+/// lazily on their next use, without each one registering a notification
+/// observer (which would accumulate for short-lived instances).
+///
+/// Thread-safe and nonisolated so caches can read it from any context —
+/// including non-MainActor callers such as `TodayNavigationService`.
+enum SchoolDayDataVersion {
+    private static let lock = NSLock()
+    nonisolated(unsafe) private static var _current = 0
+
+    static var current: Int {
+        lock.lock(); defer { lock.unlock() }
+        return _current
+    }
+
+    static func bump() {
+        lock.lock(); defer { lock.unlock() }
+        _current += 1
     }
 }

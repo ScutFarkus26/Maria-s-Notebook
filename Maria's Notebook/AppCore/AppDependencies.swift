@@ -57,8 +57,21 @@ final class AppDependencies {
 
     // MARK: - Initialization
 
+    @ObservationIgnored
+    private var schoolDayChangeObserver: (any NSObjectProtocol)?
+
     init(coreDataStack: CoreDataStack) {
         self.coreDataStack = coreDataStack
+
+        // Invalidate cached school-day calculations whenever the underlying
+        // calendar data changes — a local edit or a CloudKit sync. This is the
+        // app-wide consumer of `.schoolDayDataDidChange`.
+        schoolDayChangeObserver = NotificationCenter.default.addObserver(
+            forName: .schoolDayDataDidChange, object: nil, queue: .main
+        ) { [weak self] _ in
+            guard let self else { return }
+            Task { @MainActor in self.invalidateSchoolDayCaches() }
+        }
     }
 
     // MARK: - Core Services
@@ -375,14 +388,24 @@ final class AppDependencies {
 
     /// Called when system memory pressure is detected.
     /// Clears caches proportionally to the pressure level to avoid termination.
+    /// Clears every retained school-day cache and bumps the data-version stamp
+    /// that lightweight per-instance caches (`SchoolDayCache`) check. Called on
+    /// memory pressure and whenever the underlying calendar data changes (a local
+    /// edit or a CloudKit sync), so calendar-dependent counts never go stale.
+    func invalidateSchoolDayCaches() {
+        SchoolDayCalculationCache.shared.invalidate()
+        _schoolDayLookupCache?.invalidate()
+        _schoolCalendarService?.invalidateCache()
+        SchoolDayDataVersion.bump()
+    }
+
     private func handleMemoryPressure(level: MemoryPressureLevel) {
         // Always: clear the in-memory image cache (NSCache).
         // NSCache auto-evicts under pressure, but an explicit call ensures it happens now.
         ImageCache.shared.removeAllObjects()
 
         // Always: invalidate school day calculation caches (dictionary-based, no auto-eviction)
-        SchoolDayCalculationCache.shared.invalidate()
-        _schoolDayLookupCache?.invalidate()
+        invalidateSchoolDayCaches()
 
         // Notify ViewModels and other components so they can drop their own dictionary caches
         NotificationCenter.default.post(
