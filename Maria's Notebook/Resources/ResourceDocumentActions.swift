@@ -110,6 +110,7 @@ enum ResourceDocumentActions {
     }
 
     #if os(iOS)
+    @MainActor
     private static func activePresentationContext() -> (window: UIWindow, presenter: UIViewController)? {
         guard
             let scene = UIApplication.shared.connectedScenes
