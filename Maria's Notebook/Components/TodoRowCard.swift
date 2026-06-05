@@ -11,11 +11,19 @@ struct TodoRowCard: View {
 
     @ObservedObject var todo: CDTodoItem
     @Environment(\.managedObjectContext) private var viewContext
+    @Environment(SaveCoordinator.self) private var saveCoordinator
     let onSelect: () -> Void
     let onEdit: () -> Void
     let onDelete: () -> Void
 
     @State private var checkboxScale: CGFloat = 1.0
+
+    /// Persists a reschedule/date change via `SaveCoordinator` (which surfaces a
+    /// "Couldn't Save" alert on failure). Extracted from `body` so the swipe and
+    /// "Move to…" menu actions don't inflate the view body's type-check time.
+    private func persist() {
+        saveCoordinator.save(viewContext, reason: "Reschedule to-do")
+    }
 
     var body: some View {
         Button {
@@ -147,7 +155,7 @@ struct TodoRowCard: View {
             Button {
                 todo.scheduledDate = AppCalendar.startOfDay(Date())
                 todo.isSomeday = false
-                try? viewContext.save()
+                persist()
             } label: {
                 Label("Today", systemImage: "star.fill")
             }
@@ -156,7 +164,7 @@ struct TodoRowCard: View {
             Button {
                 todo.scheduledDate = AppCalendar.addingDays(1, to: AppCalendar.startOfDay(Date()))
                 todo.isSomeday = false
-                try? viewContext.save()
+                persist()
             } label: {
                 Label("Tomorrow", systemImage: "sunrise")
             }
@@ -165,7 +173,7 @@ struct TodoRowCard: View {
             Button {
                 todo.scheduledDate = nextMonday()
                 todo.isSomeday = false
-                try? viewContext.save()
+                persist()
             } label: {
                 Label("+1 Week", systemImage: "calendar.badge.plus")
             }
@@ -190,28 +198,28 @@ struct TodoRowCard: View {
                 Button {
                     todo.scheduledDate = AppCalendar.startOfDay(Date())
                     todo.isSomeday = false
-                    try? viewContext.save()
+                    persist()
                 } label: {
                     Label("Today", systemImage: "star.fill")
                 }
                 Button {
                     todo.scheduledDate = AppCalendar.addingDays(1, to: AppCalendar.startOfDay(Date()))
                     todo.isSomeday = false
-                    try? viewContext.save()
+                    persist()
                 } label: {
                     Label("Tomorrow", systemImage: "sunrise")
                 }
                 Button {
                     todo.scheduledDate = nextMonday()
                     todo.isSomeday = false
-                    try? viewContext.save()
+                    persist()
                 } label: {
                     Label("Next Week", systemImage: "calendar.badge.plus")
                 }
                 Button {
                     todo.scheduledDate = nil
                     todo.isSomeday = true
-                    try? viewContext.save()
+                    persist()
                 } label: {
                     Label("Someday", systemImage: "moon.zzz")
                 }
@@ -220,7 +228,7 @@ struct TodoRowCard: View {
                     todo.scheduledDate = nil
                     todo.dueDate = nil
                     todo.isSomeday = false
-                    try? viewContext.save()
+                    persist()
                 } label: {
                     Label("Remove Date", systemImage: "xmark.circle")
                 }

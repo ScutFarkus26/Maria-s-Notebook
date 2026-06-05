@@ -10,6 +10,7 @@ import CoreData
 struct TodoDetailView: View {
     @ObservedObject var todo: CDTodoItem
     @Environment(\.managedObjectContext) private var viewContext
+    @Environment(SaveCoordinator.self) private var saveCoordinator
     @FetchRequest(sortDescriptors: CDStudent.sortByName)private var allStudentsRaw: FetchedResults<CDStudent>
     @AppStorage(UserDefaultsKeys.generalShowTestStudents) private var showTestStudents: Bool = false
     @AppStorage(UserDefaultsKeys.generalTestStudentNames)
@@ -88,7 +89,7 @@ struct TodoDetailView: View {
                 adaptiveWithAnimation(.snappy(duration: 0.2)) {
                     todo.isCompleted.toggle()
                     todo.completedAt = todo.isCompleted ? Date() : nil
-                    try? viewContext.save()
+                    saveCoordinator.save(viewContext, reason: "Update to-do")
                 }
             } label: {
                 Image(systemName: todo.isCompleted ? "checkmark.circle.fill" : "circle")
