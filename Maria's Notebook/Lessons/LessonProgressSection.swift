@@ -301,7 +301,11 @@ struct LessonProgressSection: View {
     // swiftlint:disable:next function_body_length
     private func addPracticeIfNeeded() {
         let hasPracticeWork: Bool = {
+            // Targeted fetch by studentLessonID instead of loading every WorkModel
+            // and scanning in memory. The practice-kind check stays in Swift so we
+            // don't depend on the raw enum string in the predicate.
             let descriptor = NSFetchRequest<CDWorkModel>(entityName: "WorkModel")
+            descriptor.predicate = NSPredicate(format: "studentLessonID == %@", presentationID as CVarArg)
             let works: [CDWorkModel]
             do {
                 works = try viewContext.fetch(descriptor)
@@ -309,11 +313,7 @@ struct LessonProgressSection: View {
                 Self.logger.warning("Failed to fetch work: \(error)")
                 works = []
             }
-            return works.contains { work in
-                // Check using kind
-                let isPractice = (work.kind ?? .research) == .practiceLesson
-                return work.studentLessonID == presentationID && isPractice
-            }
+            return works.contains { ($0.kind ?? .research) == .practiceLesson }
         }()
         if !hasPracticeWork {
             let practiceWork = CDWorkModel(context: viewContext)
