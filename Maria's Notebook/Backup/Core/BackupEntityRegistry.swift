@@ -110,17 +110,13 @@ struct BackupEntityRegistry {
     /// Replace-mode restore (`deleteAll`) MUST skip these — clearing a type the
     /// restore can't repopulate would permanently delete the user's data, and
     /// because the deletes emit CloudKit tombstones, propagate that loss to
-    /// every device. Remove a type from this set only once it has a DTO + an
-    /// importer and is collected during export.
-    static let notYetBackedUpEntityNames: Set<String> = [
-        "DayPad",
-        "YearPlanEntry",
-        "LessonSequenceSettings",
-        "Story",
-        "BookClubPacket",
-        "BookClubSession",
-        "BookClubMeeting"
-    ]
+    /// every device. Add a type here only while it lacks a DTO + importer; remove
+    /// it once it round-trips so replace mode clears and restores it normally.
+    ///
+    /// Currently empty: every type in `allTypes` is fully backed up and restored
+    /// (DayPad, YearPlanEntry, LessonSequenceSettings, Story, and Book Club were
+    /// added to backup coverage in format v18).
+    static let notYetBackedUpEntityNames: Set<String> = []
 
     /// Entity type names for progress reporting and error messages
     static func entityName(for type: NSManagedObject.Type) -> String {

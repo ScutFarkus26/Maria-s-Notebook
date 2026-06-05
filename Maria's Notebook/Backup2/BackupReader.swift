@@ -42,7 +42,9 @@ public enum BackupReader {
 
     /// Supported v17+ range. Bump the upper bound when we add a new format
     /// version (and keep the reader backward-compatible for the lower bound).
-    public static let supportedFormatVersions: ClosedRange<Int> = 17...17
+    /// v18 adds Stories/Book Club/Year Plan/Day Pad NDJSON entries; v17 files
+    /// still read (the new entries are simply absent).
+    public static let supportedFormatVersions: ClosedRange<Int> = 17...18
 
     // MARK: - Public API
 

@@ -147,6 +147,20 @@ public enum BackupMigrationManifest {
             ],
             breakingChanges: ["Pre-v16 backups will not restore; payload keys and entity names changed."],
             migrationNotes: "Destructive rename of lesson hierarchy; the local store is wiped at upgrade time."
+        ),
+        FormatVersionInfo(
+            version: 18,
+            releaseDate: DateComponents(calendar: .current, year: 2026, month: 6, day: 3).date!,
+            description: "Adds backup coverage for Stories, Book Club, Year Plan, and Day Pads",
+            changes: [
+                "CDDayPad (per-date scratchpad)",
+                "CDYearPlanEntry and CDLessonSequenceSettings (year planning + progression)",
+                "CDStory (Stories library)",
+                "CDBookClubPacket, CDBookClubSession, CDBookClubMeeting (Book Club)"
+            ],
+            breakingChanges: [],
+            migrationNotes: "New optional NDJSON entries on the v17 AEA format; older readers skip " +
+                "unknown entities. Binary blobs (PDFs, thumbnails, covers) are excluded by design."
         )
     ]
 
@@ -442,7 +456,24 @@ extension BackupMigrationManifest {
 
         // Meeting-Work Integration (v14+)
         PayloadField(name: "meetingWorkReviews", introducedIn: 14, description: "CDMeetingWorkReview records"),
-        PayloadField(name: "studentFocusItems", introducedIn: 14, description: "CDStudentFocusItem records")
+        PayloadField(name: "studentFocusItems", introducedIn: 14, description: "CDStudentFocusItem records"),
+
+        // Stories, Book Club, Year Plan, Day Pads (v18+)
+        PayloadField(name: "dayPads", introducedIn: 18, description: "CDDayPad records"),
+        PayloadField(name: "yearPlanEntries", introducedIn: 18, description: "CDYearPlanEntry records"),
+        PayloadField(
+            name: "lessonSequenceSettings",
+            introducedIn: 18,
+            description: "CDLessonSequenceSettings records"
+        ),
+        PayloadField(name: "stories", introducedIn: 18, description: "CDStory records (PDF/image blobs excluded)"),
+        PayloadField(
+            name: "bookClubPackets",
+            introducedIn: 18,
+            description: "CDBookClubPacket records (PDF/image blobs excluded)"
+        ),
+        PayloadField(name: "bookClubSessions", introducedIn: 18, description: "CDBookClubSession records"),
+        PayloadField(name: "bookClubMeetings", introducedIn: 18, description: "CDBookClubMeeting records")
     ]
 
     public struct PayloadField: Identifiable, Sendable {

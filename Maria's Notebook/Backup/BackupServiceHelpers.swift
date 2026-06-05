@@ -371,9 +371,21 @@ enum BackupPayloadDeduplicator {
         result.jobAssignments = payload.jobAssignments.map { uniqueBy($0) { $0.id } }
         result.calendarNotes = payload.calendarNotes.map { uniqueBy($0) { $0.id } }
         result.scheduledMeetings = payload.scheduledMeetings.map { uniqueBy($0) { $0.id } }
+        // Format v13+ entity deduplication
+        // (classroomMemberships was previously omitted here, so the dedup pass at
+        // the start of importPayload silently dropped it on every restore.)
+        result.classroomMemberships = payload.classroomMemberships.map { uniqueBy($0) { $0.id } }
         // Format v14+ entity deduplication
         result.meetingWorkReviews = payload.meetingWorkReviews.map { uniqueBy($0) { $0.id } }
         result.studentFocusItems = payload.studentFocusItems.map { uniqueBy($0) { $0.id } }
+        // Format v18+ entity deduplication
+        result.dayPads = payload.dayPads.map { uniqueBy($0) { $0.id } }
+        result.yearPlanEntries = payload.yearPlanEntries.map { uniqueBy($0) { $0.id } }
+        result.lessonSequenceSettings = payload.lessonSequenceSettings.map { uniqueBy($0) { $0.id } }
+        result.stories = payload.stories.map { uniqueBy($0) { $0.id } }
+        result.bookClubPackets = payload.bookClubPackets.map { uniqueBy($0) { $0.id } }
+        result.bookClubSessions = payload.bookClubSessions.map { uniqueBy($0) { $0.id } }
+        result.bookClubMeetings = payload.bookClubMeetings.map { uniqueBy($0) { $0.id } }
 
         return result
     }

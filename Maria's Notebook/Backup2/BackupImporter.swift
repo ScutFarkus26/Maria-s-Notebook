@@ -231,6 +231,24 @@ enum BackupImporter {
         case "StudentFocusItem":
             payload.studentFocusItems = try lines.map { try decoder.decode(StudentFocusItemDTO.self, from: $0) }
 
+        // Format v18+ extensions
+        case "DayPad":
+            payload.dayPads = try lines.map { try decoder.decode(DayPadDTO.self, from: $0) }
+        case "YearPlanEntry":
+            payload.yearPlanEntries = try lines.map { try decoder.decode(YearPlanEntryDTO.self, from: $0) }
+        case "LessonSequenceSettings":
+            payload.lessonSequenceSettings = try lines.map {
+                try decoder.decode(LessonSequenceSettingsDTO.self, from: $0)
+            }
+        case "Story":
+            payload.stories = try lines.map { try decoder.decode(StoryDTO.self, from: $0) }
+        case "BookClubPacket":
+            payload.bookClubPackets = try lines.map { try decoder.decode(BookClubPacketDTO.self, from: $0) }
+        case "BookClubSession":
+            payload.bookClubSessions = try lines.map { try decoder.decode(BookClubSessionDTO.self, from: $0) }
+        case "BookClubMeeting":
+            payload.bookClubMeetings = try lines.map { try decoder.decode(BookClubMeetingDTO.self, from: $0) }
+
         default:
             logger.warning(
                 "Unknown entity '\(entityName, privacy: .public)' in backup — skipped (likely a newer format version)"

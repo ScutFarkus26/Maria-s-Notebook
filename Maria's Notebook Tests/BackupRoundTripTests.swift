@@ -77,6 +77,20 @@ private enum BackupTestUtil {
         let request = NSFetchRequest<NSFetchRequestResult>(entityName: entityName)
         return try context.count(for: request)
     }
+
+    /// Fetches a single entity of `type` by its `id` (the app's String/UUID primary key).
+    static func fetchByID<T: NSManagedObject>(
+        _ type: T.Type,
+        _ id: UUID?,
+        entityName: String,
+        in context: NSManagedObjectContext
+    ) throws -> T? {
+        guard let id else { return nil }
+        let request = NSFetchRequest<T>(entityName: entityName)
+        request.predicate = NSPredicate(format: "id == %@", id as CVarArg)
+        request.fetchLimit = 1
+        return try context.fetch(request).first
+    }
 }
 
 // MARK: - Suite 1: End-to-End Round Trip with Real Core Data
@@ -375,5 +389,173 @@ final class Backup2RoundTripTests {
             Issue.record("Reader threw unexpected error type: \(error)")
         }
         #expect(threw, "Reader must throw notAEAFormat for files without the AA01 magic")
+    }
+
+    /// Round-trips the seeded `ctx` through the full v18 serialization layer —
+    /// `collectPayload` (export) -> NDJSON entries -> `reconstructPayload`
+    /// (decode/dispatch) -> the shared `importPayload` -> a fresh in-memory stack
+    /// (merge into empty == replace). Returns the destination stack (kept alive by
+    /// the caller so its `viewContext` stays valid through assertions).
+    ///
+    /// This deliberately bypasses the AppleArchive (`.mtbbackup`) file container so
+    /// the per-entity DTO/transformer/importer logic is verifiable even where
+    /// AppleArchive file I/O is unavailable. The container framing itself is
+    /// entity-agnostic and is covered by `aeaRoundTrip`.
+    private static func roundTripV18(_ ctx: NSManagedObjectContext) async throws -> CoreDataStack {
+        let service = BackupService()
+        let payload = service.collectPayload(viewContext: ctx)
+        let entries = BackupWriter.serializeEntries(from: payload)
+        let manifest = BackupArchiveManifest(
+            formatVersion: BackupWriter.formatVersion, createdAt: Date(),
+            appVersion: "", appBuild: "", device: "", entityCounts: [:], originStores: [:]
+        )
+        let decoded = BackupReader.DecodedBackup(
+            manifest: manifest, entries: entries, preferences: payload.preferences
+        )
+        let reconstructed = try BackupImporter.reconstructPayload(from: decoded)
+
+        let destStack = try CoreDataTestHelpers.makeInMemoryStack()
+        _ = try await service.importPayload(
+            payload: reconstructed,
+            envelopeFormatVersion: BackupWriter.formatVersion,
+            envelopeEncrypted: false,
+            envelopeCreatedAt: Date(),
+            envelopeFileName: "v18-roundtrip",
+            envelopeEntityCounts: manifest.entityCounts,
+            viewContext: destStack.viewContext,
+            mode: .merge,
+            appRouter: AppRouter.shared,
+            progress: { _, _ in }
+        )
+        return destStack
+    }
+
+    @Test("v18: Day Pad, Year Plan, and Lesson Sequence Settings round-trip")
+    func v18PlanningEntitiesRoundTrip() async throws {
+        let sourceStack = try CoreDataTestHelpers.makeInMemoryStack()
+        let ctx = sourceStack.viewContext
+
+        // Whole-second date so it survives ISO8601 (second-precision) encoding.
+        let dayPadDay = Date(timeIntervalSince1970: 1_700_000_000)
+        let dayPad = CDDayPad(context: ctx, day: dayPadDay)
+        dayPad.body = "Refill the bead cabinet"
+        let dayPadID = dayPad.id
+
+        let yearPlan = CDYearPlanEntry(context: ctx)
+        let studentID = UUID().uuidString
+        yearPlan.studentID = studentID
+        yearPlan.lessonID = UUID().uuidString
+        yearPlan.spacingSchoolDays = 5
+        yearPlan.orderInSequence = 2
+        yearPlan.statusRaw = YearPlanEntryStatus.promoted.rawValue
+        let yearPlanID = yearPlan.id
+
+        let settings = CDLessonSequenceSettings(context: ctx)
+        settings.area = "Mathematics"
+        settings.sequence = "Decimal System"
+        settings.requiresPractice = false
+        settings.requiresTeacherConfirmation = true
+        let settingsID = settings.id
+
+        #expect(CoreDataTestHelpers.save(ctx))
+        let destStack = try await Self.roundTripV18(ctx)
+        let dctx = destStack.viewContext
+
+        let pad = try #require(try BackupTestUtil.fetchByID(CDDayPad.self, dayPadID, entityName: "DayPad", in: dctx))
+        #expect(pad.body == "Refill the bead cabinet")
+        #expect(pad.day == dayPadDay)
+
+        let plan = try #require(
+            try BackupTestUtil.fetchByID(CDYearPlanEntry.self, yearPlanID, entityName: "YearPlanEntry", in: dctx)
+        )
+        #expect(plan.studentID == studentID)
+        #expect(plan.spacingSchoolDays == 5)
+        #expect(plan.orderInSequence == 2)
+        #expect(plan.statusRaw == YearPlanEntryStatus.promoted.rawValue)
+
+        let restoredSettings = try #require(
+            try BackupTestUtil.fetchByID(
+                CDLessonSequenceSettings.self, settingsID, entityName: "LessonSequenceSettings", in: dctx
+            )
+        )
+        #expect(restoredSettings.area == "Mathematics")
+        #expect(restoredSettings.requiresPractice == false)
+        #expect(restoredSettings.requiresTeacherConfirmation == true)
+    }
+
+    @Test("v18: Story round-trips themes + path; binary blobs excluded")
+    func v18StoryRoundTrip() async throws {
+        let sourceStack = try CoreDataTestHelpers.makeInMemoryStack()
+        let ctx = sourceStack.viewContext
+
+        let story = CDStory(context: ctx)
+        story.title = "The Great Lesson"
+        story.summary = "An origin story"
+        story.themesArray = ["cosmos", "gratitude"]
+        story.pdfFileRelativePath = "Stories/great-lesson.pdf"
+        story.pageCount = 12
+        story.thumbnailData = Data([0x01, 0x02, 0x03])
+        let storyID = story.id
+
+        #expect(CoreDataTestHelpers.save(ctx))
+        let destStack = try await Self.roundTripV18(ctx)
+        let dctx = destStack.viewContext
+
+        let restored = try #require(try BackupTestUtil.fetchByID(CDStory.self, storyID, entityName: "Story", in: dctx))
+        #expect(restored.title == "The Great Lesson")
+        #expect(restored.themesArray == ["cosmos", "gratitude"])
+        #expect(restored.pdfFileRelativePath == "Stories/great-lesson.pdf")
+        #expect(restored.pageCount == 12)
+        #expect(restored.thumbnailData == nil, "Binary blobs must be excluded from backups")
+    }
+
+    @Test("v18: Book Club packet/session/meeting round-trip; meeting -> session re-wired")
+    func v18BookClubRoundTrip() async throws {
+        let sourceStack = try CoreDataTestHelpers.makeInMemoryStack()
+        let ctx = sourceStack.viewContext
+
+        let packet = CDBookClubPacket(context: ctx)
+        packet.title = "Charlotte's Web"
+        packet.themesArray = ["friendship"]
+        packet.packetPDFRelativePath = "BookClub/charlottes-web.pdf"
+        let packetID = packet.id
+
+        let session = CDBookClubSession(context: ctx)
+        session.packetID = (packetID ?? UUID()).uuidString
+        session.displayName = "Fall Book Club"
+        session.statusRaw = BookClubSessionStatus.planned.rawValue
+        let sessionID = session.id
+
+        let meeting = CDBookClubMeeting(context: ctx)
+        meeting.sessionID = (sessionID ?? UUID()).uuidString
+        meeting.ordinal = 1
+        meeting.readingLabel = "Chapters 1-3"
+        let meetingID = meeting.id
+
+        #expect(CoreDataTestHelpers.save(ctx))
+        let destStack = try await Self.roundTripV18(ctx)
+        let dctx = destStack.viewContext
+
+        let restoredPacket = try #require(
+            try BackupTestUtil.fetchByID(CDBookClubPacket.self, packetID, entityName: "BookClubPacket", in: dctx)
+        )
+        #expect(restoredPacket.title == "Charlotte's Web")
+        #expect(restoredPacket.themesArray == ["friendship"])
+
+        let restoredSession = try #require(
+            try BackupTestUtil.fetchByID(CDBookClubSession.self, sessionID, entityName: "BookClubSession", in: dctx)
+        )
+        #expect(restoredSession.displayName == "Fall Book Club")
+
+        let restoredMeeting = try #require(
+            try BackupTestUtil.fetchByID(CDBookClubMeeting.self, meetingID, entityName: "BookClubMeeting", in: dctx)
+        )
+        #expect(restoredMeeting.readingLabel == "Chapters 1-3")
+        // The session relationship (inverse of BookClubSession.meetings) must be re-wired.
+        #expect(restoredMeeting.session?.id == sessionID, "Meeting -> session relationship was not restored")
+        #expect(
+            restoredSession.orderedMeetings.contains { $0.id == meetingID },
+            "Session -> meetings inverse was not populated"
+        )
     }
 }

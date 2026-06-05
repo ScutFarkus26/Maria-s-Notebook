@@ -20,9 +20,12 @@ import OSLog
 public enum BackupWriter {
     private static let logger = Logger.backup
 
-    /// Format version produced by this writer. Bumped from the legacy v16
-    /// (JSON envelope) to v17 (AEA-framed NDJSON).
-    public static let formatVersion: Int = 17
+    /// Format version produced by this writer.
+    /// - v17: AEA-framed NDJSON (replaced the legacy v16 JSON envelope).
+    /// - v18: Adds backup coverage for CDDayPad, CDYearPlanEntry,
+    ///   CDLessonSequenceSettings, CDStory, CDBookClubPacket, CDBookClubSession,
+    ///   CDBookClubMeeting. Purely additive NDJSON entries — v17 readers skip them.
+    public static let formatVersion: Int = 18
 
     // MARK: - Public API
 
@@ -152,6 +155,15 @@ public enum BackupWriter {
         addOptional("ClassroomMembership", payload.classroomMemberships, add: add)
         addOptional("MeetingWorkReview", payload.meetingWorkReviews, add: add)
         addOptional("StudentFocusItem", payload.studentFocusItems, add: add)
+
+        // Format v18+ extensions
+        addOptional("DayPad", payload.dayPads, add: add)
+        addOptional("YearPlanEntry", payload.yearPlanEntries, add: add)
+        addOptional("LessonSequenceSettings", payload.lessonSequenceSettings, add: add)
+        addOptional("Story", payload.stories, add: add)
+        addOptional("BookClubPacket", payload.bookClubPackets, add: add)
+        addOptional("BookClubSession", payload.bookClubSessions, add: add)
+        addOptional("BookClubMeeting", payload.bookClubMeetings, add: add)
 
         return entries
     }

@@ -112,6 +112,7 @@ extension BackupService {
         progress(RestoreProgress.additionalEntities, "Importing recommendations, resources & links\u{2026}")
         try importAdditionalEntities(from: payload, into: viewContext)
         try importV12Entities(from: payload, into: viewContext)
+        try importV18Entities(from: payload, into: viewContext)
 
         progress(RestoreProgress.saving, "Saving\u{2026}")
         try viewContext.save()
@@ -714,6 +715,71 @@ extension BackupService {
             BackupEntityImporter.importStudentFocusItems(
                 studentFocusItems,
                 into: viewContext
+            )
+        }
+    }
+
+    /// v18+ entities: Stories, Book Club, Year Plan, Lesson Sequence Settings, Day Pads.
+    /// Book Club is imported packet -> session -> meeting so meetings can re-wire
+    /// their `session` relationship against sessions already in the context.
+    private func importV18Entities(
+        from payload: BackupPayload,
+        into viewContext: NSManagedObjectContext
+    ) throws {
+        if let dayPads = payload.dayPads {
+            try BackupEntityImporter.importDayPads(
+                dayPads,
+                into: viewContext,
+                existingCheck: { try fetchOne(CDDayPad.self, id: $0, using: viewContext) }
+            )
+        }
+
+        if let yearPlanEntries = payload.yearPlanEntries {
+            try BackupEntityImporter.importYearPlanEntries(
+                yearPlanEntries,
+                into: viewContext,
+                existingCheck: { try fetchOne(CDYearPlanEntry.self, id: $0, using: viewContext) }
+            )
+        }
+
+        if let sequenceSettings = payload.lessonSequenceSettings {
+            try BackupEntityImporter.importLessonSequenceSettings(
+                sequenceSettings,
+                into: viewContext,
+                existingCheck: { try fetchOne(CDLessonSequenceSettings.self, id: $0, using: viewContext) }
+            )
+        }
+
+        if let stories = payload.stories {
+            try BackupEntityImporter.importStories(
+                stories,
+                into: viewContext,
+                existingCheck: { try fetchOne(CDStory.self, id: $0, using: viewContext) }
+            )
+        }
+
+        if let packets = payload.bookClubPackets {
+            try BackupEntityImporter.importBookClubPackets(
+                packets,
+                into: viewContext,
+                existingCheck: { try fetchOne(CDBookClubPacket.self, id: $0, using: viewContext) }
+            )
+        }
+
+        if let sessions = payload.bookClubSessions {
+            try BackupEntityImporter.importBookClubSessions(
+                sessions,
+                into: viewContext,
+                existingCheck: { try fetchOne(CDBookClubSession.self, id: $0, using: viewContext) }
+            )
+        }
+
+        if let meetings = payload.bookClubMeetings {
+            try BackupEntityImporter.importBookClubMeetings(
+                meetings,
+                into: viewContext,
+                existingCheck: { try fetchOne(CDBookClubMeeting.self, id: $0, using: viewContext) },
+                sessionCheck: { try fetchOne(CDBookClubSession.self, id: $0, using: viewContext) }
             )
         }
     }

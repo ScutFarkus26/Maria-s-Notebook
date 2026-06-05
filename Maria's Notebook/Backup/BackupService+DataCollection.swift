@@ -36,6 +36,7 @@ extension BackupService {
         collectWorkTrackingDTOs(into: &payload, using: viewContext, progress: progress)
         collectTemplateAndTrackDTOs(into: &payload, using: viewContext, progress: progress)
         collectOrganizationDTOs(into: &payload, using: viewContext, progress: progress)
+        collectV18DTOs(into: &payload, using: viewContext, progress: progress)
 
         return payload
     }
@@ -246,6 +247,33 @@ extension BackupService {
             CDStudentFocusItem.self, using: viewContext) { BackupDTOTransformers.toDTOs($0) }
     }
 
+    /// Collects the format v18 entity types: Stories, Book Club, Year Plan,
+    /// Lesson Sequence Settings, and Day Pads.
+    private func collectV18DTOs(
+        into payload: inout BackupPayload,
+        using viewContext: NSManagedObjectContext,
+        progress: @escaping ProgressCallback
+    ) {
+        progress(
+            BackupProgress.progress(for: .collecting, subProgress: 0.97),
+            "Collecting stories, book club & year plan\u{2026}"
+        )
+        payload.dayPads = fetchAndTransformInBatches(
+            CDDayPad.self, using: viewContext) { BackupDTOTransformers.toDTOs($0) }
+        payload.yearPlanEntries = fetchAndTransformInBatches(
+            CDYearPlanEntry.self, using: viewContext) { BackupDTOTransformers.toDTOs($0) }
+        payload.lessonSequenceSettings = fetchAndTransformInBatches(
+            CDLessonSequenceSettings.self, using: viewContext) { BackupDTOTransformers.toDTOs($0) }
+        payload.stories = fetchAndTransformInBatches(
+            CDStory.self, using: viewContext) { BackupDTOTransformers.toDTOs($0) }
+        payload.bookClubPackets = fetchAndTransformInBatches(
+            CDBookClubPacket.self, using: viewContext) { BackupDTOTransformers.toDTOs($0) }
+        payload.bookClubSessions = fetchAndTransformInBatches(
+            CDBookClubSession.self, using: viewContext) { BackupDTOTransformers.toDTOs($0) }
+        payload.bookClubMeetings = fetchAndTransformInBatches(
+            CDBookClubMeeting.self, using: viewContext) { BackupDTOTransformers.toDTOs($0) }
+    }
+
     // MARK: - Batched Fetch Utilities
 
     /// Modern batched fetch that processes entities in memory-efficient chunks.
@@ -300,16 +328,22 @@ extension BackupService {
         // Without this, T.fetchRequest() throws an unrecoverable ObjC NSException
         // when the persistent stores haven't fully loaded (e.g. during pre-migration backup).
         let typeName = String(describing: T.self)
-        guard context.persistentStoreCoordinator != nil else {
+        guard let coordinator = context.persistentStoreCoordinator else {
             Self.logger.warning(
                 "Skipping fetch for \(typeName, privacy: .public) — no persistent store coordinator"
             )
             return []
         }
 
-        // Guard: ensure the entity actually exists in the Core Data model.
-        let model = context.persistentStoreCoordinator?.managedObjectModel
-        if model?.entitiesByName.values.first(where: { $0.managedObjectClassName == NSStringFromClass(T.self) }) == nil {
+        // Resolve the entity NAME from THIS context's model rather than the
+        // `T.entity()` class method (which also serves as the "entity exists" guard).
+        // When more than one NSManagedObjectModel is loaded in the process (e.g. a
+        // test host app's stack alongside an in-memory test stack), `T.entity().name`
+        // can return nil — and a fetch keyed on the class name ("CDStudent") instead
+        // of the entity name ("Student") raises an uncaught NSException. The
+        // per-coordinator model lookup is unambiguous.
+        guard let entityName = coordinator.managedObjectModel.entitiesByName.values
+            .first(where: { $0.managedObjectClassName == NSStringFromClass(T.self) })?.name else {
             Self.logger.info(
                 "Skipping fetch for \(typeName, privacy: .public) — no entity in model"
             )
@@ -322,7 +356,7 @@ extension BackupService {
         while true {
             // Fetch, transform, and release in one autoreleasepool
             let dtos: [DTO]? = autoreleasepool {
-                let descriptor = NSFetchRequest<T>(entityName: T.entity().name ?? String(describing: T.self))
+                let descriptor = NSFetchRequest<T>(entityName: entityName)
                 descriptor.fetchOffset = offset
                 descriptor.fetchLimit = batchSize
 

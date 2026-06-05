@@ -120,6 +120,8 @@ public struct BackupPayload: Codable, Sendable {
         case calendarNotes, scheduledMeetings
         case classroomMemberships
         case meetingWorkReviews, studentFocusItems
+        case dayPads, yearPlanEntries, lessonSequenceSettings
+        case stories, bookClubPackets, bookClubSessions, bookClubMeetings
         case preferences
     }
 
@@ -233,6 +235,15 @@ public struct BackupPayload: Codable, Sendable {
     // Meeting-Work Integration (format v14+)
     public var meetingWorkReviews: [MeetingWorkReviewDTO]?
     public var studentFocusItems: [StudentFocusItemDTO]?
+
+    // Stories, Book Club, Year Plan, Day Pads (format v18+)
+    public var dayPads: [DayPadDTO]?
+    public var yearPlanEntries: [YearPlanEntryDTO]?
+    public var lessonSequenceSettings: [LessonSequenceSettingsDTO]?
+    public var stories: [StoryDTO]?
+    public var bookClubPackets: [BookClubPacketDTO]?
+    public var bookClubSessions: [BookClubSessionDTO]?
+    public var bookClubMeetings: [BookClubMeetingDTO]?
 
     // Lightweight app/user metadata (preferences) as typed dictionary
     public var preferences: PreferencesDTO
