@@ -80,7 +80,10 @@ final class LessonPlanningViewModel {
     /// Configure with dependencies (called from view's onAppear)
     @available(*, deprecated, message: "Use Core Data overload")
     func configure(modelContext: NSManagedObjectContext, mcpClient: MCPClientProtocol) {
-        let coreDataContext = MainActor.assumeIsolated { AppBootstrapping.getSharedCoreDataStack().viewContext }
+        // The method is @MainActor-isolated (the whole view model is), so the
+        // @MainActor `getSharedCoreDataStack()` is callable directly — no need for
+        // `assumeIsolated`, which would trap if the isolation assumption ever broke.
+        let coreDataContext = AppBootstrapping.getSharedCoreDataStack().viewContext
         self.configure(context: coreDataContext, mcpClient: mcpClient)
     }
     

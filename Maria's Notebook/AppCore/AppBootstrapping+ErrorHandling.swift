@@ -62,10 +62,21 @@ extension AppBootstrapping {
                 _sharedCoreDataStack = fallbackStack
                 return fallbackStack
             } catch {
-                fatalError(
-                    "CRITICAL: Cannot create any Core Data stack, including fallback. "
-                    + "System failure: \(errorDesc)"
+                // Even the in-memory fallback failed (e.g. the compiled model is
+                // missing/corrupt). Rather than crash-loop with no UI, launch into
+                // the database-error screen backed by an empty, always-constructible
+                // stack. The error was already recorded via DatabaseErrorCoordinator.
+                Logger.app(category: "Container").fault(
+                    "CRITICAL: no real Core Data stack could be created; using empty fallback. \(errorDesc, privacy: .public)"
                 )
+                UserDefaults.standard.set(true, forKey: UserDefaultsKeys.ephemeralSessionFlag)
+                UserDefaults.standard.set(
+                    unexpectedError.localizedDescription,
+                    forKey: UserDefaultsKeys.lastStoreErrorDescription
+                )
+                let fallbackStack = CoreDataStack.makeEmptyFallback()
+                _sharedCoreDataStack = fallbackStack
+                return fallbackStack
             }
         }
     }

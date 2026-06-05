@@ -18,7 +18,23 @@ final class CoreDataStack {
     /// The managed object model used by the current stack.
     /// Used by `CDFetchRequest` to resolve entity names safely in multi-store configurations,
     /// avoiding the "Multiple NSEntityDescriptions" ambiguity with `NSManagedObject.entity()`.
-    nonisolated(unsafe) static private(set) var activeModel: NSManagedObjectModel?
+    ///
+    /// Lock-guarded: `CDFetchRequest` reads this off the main actor while stack
+    /// initializations write it, so all access goes through `activeModelLock` to
+    /// avoid an unsynchronized data race on the mutable static.
+    nonisolated static var activeModel: NSManagedObjectModel? {
+        activeModelLock.lock()
+        defer { activeModelLock.unlock() }
+        return _activeModel
+    }
+    nonisolated(unsafe) private static var _activeModel: NSManagedObjectModel?
+    nonisolated private static let activeModelLock = NSLock()
+
+    nonisolated private static func setActiveModel(_ model: NSManagedObjectModel?) {
+        activeModelLock.lock()
+        defer { activeModelLock.unlock() }
+        _activeModel = model
+    }
 
     // MARK: - Container
 
@@ -32,7 +48,10 @@ final class CoreDataStack {
     private(set) var historyProcessor: PersistentHistoryProcessor?
 
     /// Token for the remote change notification observer.
-    private var remoteChangeObserver: (any NSObjectProtocol)?
+    /// `nonisolated(unsafe)` so the (nonisolated) `deinit` can read it to remove
+    /// the observer — it is written once during init and read once at deinit, with
+    /// no concurrent access, so the unchecked annotation is safe here.
+    nonisolated(unsafe) private var remoteChangeObserver: (any NSObjectProtocol)?
 
     // MARK: - Store Configurations
 
@@ -204,7 +223,7 @@ final class CoreDataStack {
         // pollute the cached instance. NSManagedObjectModel(contentsOf:) can return
         // a cached object, and calling setEntities on it would affect subsequent inits.
         let model = cachedModel.copy() as! NSManagedObjectModel  // swiftlint:disable:this force_cast
-        Self.activeModel = model
+        Self.setActiveModel(model)
 
         // Validate that all entities in our routing tables exist in the model
         Self.validateEntityRouting(model: model)
@@ -329,6 +348,16 @@ final class CoreDataStack {
         Self.logger.info("CoreDataStack initialized in \(elapsed)s")
     }
 
+    deinit {
+        // The production stack lives for the whole process, but launch-time
+        // fallbacks and tests create throwaway stacks; without this they leak a
+        // main-queue observer that keeps firing remote-change handlers on a dead
+        // stack. Reading `remoteChangeObserver` here is safe (see its declaration).
+        if let remoteChangeObserver {
+            NotificationCenter.default.removeObserver(remoteChangeObserver)
+        }
+    }
+
     // MARK: - View Context Configuration
 
     private func configureViewContext() {
@@ -341,6 +370,33 @@ final class CoreDataStack {
         ctx.transactionAuthor = PersistentHistoryProcessor.transactionAuthor
         // Disable autosave — we use explicit saves via SaveCoordinator
         // (Mirrors the existing SwiftData behavior where autosave was disabled)
+    }
+
+    // MARK: - Empty Fallback
+
+    /// Builds a minimal, always-constructible stack from an empty in-code model and
+    /// an in-memory store. Used only as an absolute last resort when even the normal
+    /// in-memory fallback can't be created (e.g. the compiled `.momd` is missing or
+    /// corrupt), so the app can still launch into the database-error UI instead of
+    /// crashing. Has no entities — callers must already be in an error state.
+    static func makeEmptyFallback() -> CoreDataStack {
+        CoreDataStack(emptyFallback: ())
+    }
+
+    private init(emptyFallback: Void) {
+        let model = NSManagedObjectModel()
+        Self.setActiveModel(model)
+        let fallbackContainer = NSPersistentCloudKitContainer(
+            name: "MariasNotebookFallback",
+            managedObjectModel: model
+        )
+        let desc = NSPersistentStoreDescription(url: URL(fileURLWithPath: "/dev/null/fallback"))
+        desc.type = NSInMemoryStoreType
+        fallbackContainer.persistentStoreDescriptions = [desc]
+        fallbackContainer.loadPersistentStores { _, _ in }
+        container = fallbackContainer
+        isCloudKitActive = false
+        configureViewContext()
     }
 
     // MARK: - Background Context
