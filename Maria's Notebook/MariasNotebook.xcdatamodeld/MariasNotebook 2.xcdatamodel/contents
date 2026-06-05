@@ -15,6 +15,13 @@
         <attribute name="dateWithdrawn" optional="YES" attributeType="Date" usesScalarValueType="NO"/>
         <attribute name="modifiedAt" optional="YES" attributeType="Date" usesScalarValueType="NO"/>
         <relationship name="trackEnrollments" optional="YES" toMany="YES" deletionRule="Cascade" destinationEntity="StudentTrackEnrollment" inverseName="student" inverseEntity="StudentTrackEnrollment"/>
+        <fetchIndex name="byName">
+            <fetchIndexElement property="firstName" type="Binary" order="ascending"/>
+            <fetchIndexElement property="lastName" type="Binary" order="ascending"/>
+        </fetchIndex>
+        <fetchIndex name="byEnrollmentStatusRaw">
+            <fetchIndexElement property="enrollmentStatusRaw" type="Binary" order="ascending"/>
+        </fetchIndex>
     </entity>
     <!-- ==================== Lesson ==================== -->
     <entity name="Lesson" representedClassName="CDLesson" syncable="YES">
@@ -97,6 +104,15 @@
         <relationship name="practiceSession" optional="YES" maxCount="1" deletionRule="Nullify" destinationEntity="PracticeSession" inverseName="notes" inverseEntity="PracticeSession"/>
         <relationship name="issue" optional="YES" maxCount="1" deletionRule="Nullify" destinationEntity="Issue" inverseName="notes" inverseEntity="Issue"/>
         <relationship name="studentLinks" optional="YES" toMany="YES" deletionRule="Cascade" destinationEntity="NoteStudentLink" inverseName="note" inverseEntity="NoteStudentLink"/>
+        <fetchIndex name="byCreatedAt">
+            <fetchIndexElement property="createdAt" type="Binary" order="ascending"/>
+        </fetchIndex>
+        <fetchIndex name="byLessonID">
+            <fetchIndexElement property="lessonID" type="Binary" order="ascending"/>
+        </fetchIndex>
+        <fetchIndex name="bySearchIndexStudentID">
+            <fetchIndexElement property="searchIndexStudentID" type="Binary" order="ascending"/>
+        </fetchIndex>
     </entity>
     <!-- ==================== NoteStudentLink ==================== -->
     <entity name="NoteStudentLink" representedClassName="NoteStudentLink" syncable="YES">
@@ -143,6 +159,16 @@
         <attribute name="lastObservedAt" optional="YES" attributeType="Date" usesScalarValueType="NO"/>
         <attribute name="masteredAt" optional="YES" attributeType="Date" usesScalarValueType="NO"/>
         <attribute name="notes" optional="YES" attributeType="String"/>
+        <fetchIndex name="byStudentLesson">
+            <fetchIndexElement property="studentID" type="Binary" order="ascending"/>
+            <fetchIndexElement property="lessonID" type="Binary" order="ascending"/>
+        </fetchIndex>
+        <fetchIndex name="byLessonID">
+            <fetchIndexElement property="lessonID" type="Binary" order="ascending"/>
+        </fetchIndex>
+        <fetchIndex name="byStateRaw">
+            <fetchIndexElement property="stateRaw" type="Binary" order="ascending"/>
+        </fetchIndex>
     </entity>
     <!-- ==================== LessonAssignment (Presentation) ==================== -->
     <entity name="LessonAssignment" representedClassName="CDLessonAssignment" syncable="YES">
@@ -169,6 +195,18 @@
         <attribute name="migratedFromPresentationID" optional="YES" attributeType="String"/>
         <attribute name="_confirmedStudentIDsData" optional="YES" attributeType="Binary"/>
         <relationship name="unifiedNotes" optional="YES" toMany="YES" deletionRule="Cascade" destinationEntity="Note" inverseName="lessonAssignment" inverseEntity="Note"/>
+        <fetchIndex name="byStateRaw">
+            <fetchIndexElement property="stateRaw" type="Binary" order="ascending"/>
+        </fetchIndex>
+        <fetchIndex name="byScheduledForDay">
+            <fetchIndexElement property="scheduledForDay" type="Binary" order="ascending"/>
+        </fetchIndex>
+        <fetchIndex name="byLessonID">
+            <fetchIndexElement property="lessonID" type="Binary" order="ascending"/>
+        </fetchIndex>
+        <fetchIndex name="byCreatedAt">
+            <fetchIndexElement property="createdAt" type="Binary" order="ascending"/>
+        </fetchIndex>
     </entity>
     <!-- ==================== CalendarEvent ==================== -->
     <entity name="CalendarEvent" representedClassName="CDCalendarEvent" syncable="YES">
@@ -182,6 +220,13 @@
         <attribute name="eventKitEventID" optional="YES" attributeType="String"/>
         <attribute name="eventKitCalendarID" optional="YES" attributeType="String"/>
         <attribute name="lastSyncedAt" optional="YES" attributeType="Date" usesScalarValueType="NO"/>
+        <fetchIndex name="byStartDate">
+            <fetchIndexElement property="startDate" type="Binary" order="ascending"/>
+        </fetchIndex>
+        <fetchIndex name="byDateRange">
+            <fetchIndexElement property="startDate" type="Binary" order="ascending"/>
+            <fetchIndexElement property="endDate" type="Binary" order="ascending"/>
+        </fetchIndex>
     </entity>
     <!-- ==================== CommunityTopic ==================== -->
     <entity name="CommunityTopic" representedClassName="CommunityTopicEntity" syncable="YES">
@@ -543,6 +588,18 @@
         <relationship name="checkIns" optional="YES" toMany="YES" deletionRule="Cascade" destinationEntity="WorkCheckIn" inverseName="work" inverseEntity="WorkCheckIn"/>
         <relationship name="steps" optional="YES" toMany="YES" deletionRule="Cascade" destinationEntity="WorkStep" inverseName="work" inverseEntity="WorkStep"/>
         <relationship name="unifiedNotes" optional="YES" toMany="YES" deletionRule="Cascade" destinationEntity="Note" inverseName="work" inverseEntity="Note"/>
+        <fetchIndex name="byStatusRaw">
+            <fetchIndexElement property="statusRaw" type="Binary" order="ascending"/>
+        </fetchIndex>
+        <fetchIndex name="byStudentID">
+            <fetchIndexElement property="studentID" type="Binary" order="ascending"/>
+        </fetchIndex>
+        <fetchIndex name="byCreatedAt">
+            <fetchIndexElement property="createdAt" type="Binary" order="ascending"/>
+        </fetchIndex>
+        <fetchIndex name="byCompletedAt">
+            <fetchIndexElement property="completedAt" type="Binary" order="ascending"/>
+        </fetchIndex>
     </entity>
     <!-- ==================== WorkStep ==================== -->
     <entity name="WorkStep" representedClassName="CDWorkStep" syncable="YES">
@@ -566,6 +623,15 @@
         <attribute name="studentInitiated" attributeType="Boolean" defaultValueString="NO" usesScalarValueType="YES"/>
         <relationship name="work" optional="YES" maxCount="1" deletionRule="Nullify" destinationEntity="WorkModel" inverseName="checkIns" inverseEntity="WorkModel"/>
         <relationship name="notes" optional="YES" toMany="YES" deletionRule="Cascade" destinationEntity="Note" inverseName="workCheckIn" inverseEntity="Note"/>
+        <fetchIndex name="byWorkID">
+            <fetchIndexElement property="workID" type="Binary" order="ascending"/>
+        </fetchIndex>
+        <fetchIndex name="byStatusRaw">
+            <fetchIndexElement property="statusRaw" type="Binary" order="ascending"/>
+        </fetchIndex>
+        <fetchIndex name="byDate">
+            <fetchIndexElement property="date" type="Binary" order="ascending"/>
+        </fetchIndex>
     </entity>
     <!-- ==================== WorkParticipantEntity ==================== -->
     <entity name="WorkParticipantEntity" representedClassName="CDWorkParticipantEntity" syncable="YES">
@@ -635,6 +701,13 @@
         <attribute name="statusRaw" attributeType="String" defaultValueString="unmarked"/>
         <attribute name="absenceReasonRaw" attributeType="String" defaultValueString="none"/>
         <relationship name="notes" optional="YES" toMany="YES" deletionRule="Cascade" destinationEntity="Note" inverseName="attendanceRecord" inverseEntity="Note"/>
+        <fetchIndex name="byDate">
+            <fetchIndexElement property="date" type="Binary" order="ascending"/>
+        </fetchIndex>
+        <fetchIndex name="byStudentDate">
+            <fetchIndexElement property="studentID" type="Binary" order="ascending"/>
+            <fetchIndexElement property="date" type="Binary" order="ascending"/>
+        </fetchIndex>
     </entity>
     <!-- ==================== GoingOut ==================== -->
     <entity name="GoingOut" representedClassName="CDGoingOut" syncable="YES">
