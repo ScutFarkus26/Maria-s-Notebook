@@ -110,7 +110,7 @@ final class OpenAIAPIClient {
 
     private func buildHTTPError(statusCode: Int, data: Data) -> OpenAIAPIError {
         let raw = String(data: data, encoding: .utf8) ?? ""
-        Self.logger.debug("OpenAI HTTP \(statusCode, privacy: .public): \(raw, privacy: .public)")
+        Self.logger.debug("OpenAI HTTP \(statusCode, privacy: .public): \(raw, privacy: .private)")
 
         let serverMessage: String
         if let body = try? JSONSerialization.jsonObject(with: data) as? [String: Any],

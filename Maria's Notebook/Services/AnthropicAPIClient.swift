@@ -163,10 +163,6 @@ final class AnthropicAPIClient: MCPClientProtocol {
         Self.logger.debug(
             "Making request to \(self.baseURL, privacy: .public) with model \(resolvedModel, privacy: .public)"
         )
-        Self.logger.debug(
-            // swiftlint:disable:next line_length
-            "API Key length: \(self.apiKey.count, privacy: .public), starts with: \(self.apiKey.prefix(7), privacy: .private)"
-        )
 
         let messages: [[String: String]] = [["role": "user", "content": prompt]]
         let config = ClaudeRequestConfig(
