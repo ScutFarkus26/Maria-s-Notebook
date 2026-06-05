@@ -4,6 +4,24 @@ import CoreData
 import SwiftUI
 import OSLog
 
+// MARK: - Restore Errors
+
+/// Error thrown when a `.replace` restore cannot fully clear existing data.
+/// It propagates through `BackupTransactionManager.executeWithRollback`, which
+/// rolls back to the safety checkpoint — returning the user to their pre-restore
+/// state instead of leaving a half-cleared store.
+private enum RestoreClearError: LocalizedError {
+    case replaceClearIncomplete([String])
+
+    var errorDescription: String? {
+        switch self {
+        case .replaceClearIncomplete(let names):
+            return "Restore was stopped because existing \(names.joined(separator: ", ")) "
+                + "could not be cleared. Your data was returned to its previous state \u{2014} please try again."
+        }
+    }
+}
+
 // MARK: - Import Progress Steps
 
 /// Named progress milestones for backup restoration, replacing inline magic numbers.
@@ -67,16 +85,17 @@ extension BackupService {
         progress(RestoreProgress.deduplication, "Deduplicating records\u{2026}")
         payload = deduplicatePayload(payload)
 
-        var replaceWarnings: [String] = []
         if mode == .replace {
             progress(RestoreProgress.clearing, "Clearing existing data\u{2026}")
             appRouter.signalAppDataWillBeReplaced()
             let failedEntities = try deleteAll(viewContext: viewContext)
             if !failedEntities.isEmpty {
-                replaceWarnings.append(
-                    "Could not clear: \(failedEntities.joined(separator: ", ")). "
-                    + "Stale rows of these types may remain after restore."
-                )
+                // Replace mode must fully clear the store before importing. If some
+                // types couldn't be cleared, abort so the transaction manager rolls
+                // back to the safety checkpoint instead of importing on top of a
+                // half-cleared store. The checkpoint is guaranteed for .replace, so
+                // the user is returned to their pre-restore state.
+                throw RestoreClearError.replaceClearIncomplete(failedEntities)
             }
         }
 
@@ -129,7 +148,7 @@ extension BackupService {
         progress(RestoreProgress.cloudSync, "Syncing to iCloud\u{2026}")
         let cloudResult = await awaitCloudKitExport(viewContext: viewContext, timeout: .seconds(30))
 
-        var warnings = replaceWarnings
+        var warnings: [String] = []
         switch cloudResult {
         case .completed:
             break

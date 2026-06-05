@@ -116,6 +116,7 @@ public final class BackupTransactionManager {
         mode: BackupService.RestoreMode,
         shouldCreateCheckpoint createCheckpointOption: Bool? = nil,
         progress: @escaping BackupService.ProgressCallback,
+        makeCheckpoint: ((NSManagedObjectContext, BackupService.ProgressCallback) async throws -> URL)? = nil,
         importBody: (@escaping BackupService.ProgressCallback) async throws -> BackupOperationSummary
     ) async throws -> BackupOperationSummary {
 
@@ -125,15 +126,24 @@ public final class BackupTransactionManager {
         if shouldCreateCheckpoint {
             progress(0.0, "Creating safety checkpoint…")
             do {
-                checkpointURL = try await self.createCheckpoint(
-                    viewContext: viewContext,
-                    operationName: "PreImport",
-                    progress: { subProgress, message in
-                        progress(subProgress * 0.15, message)
-                    }
-                )
+                // A failed checkpoint leaves no recovery point. The import that
+                // follows can be destructive (.replace deletes all existing data
+                // first), so we MUST abort rather than proceed — deleting with no
+                // way back is the one outcome to avoid at all costs. The checkpoint
+                // maker is injectable so this safety path can be tested.
+                let checkpointMaker = makeCheckpoint ?? { context, checkpointProgress in
+                    try await self.createCheckpoint(
+                        viewContext: context,
+                        operationName: "PreImport",
+                        progress: checkpointProgress
+                    )
+                }
+                checkpointURL = try await checkpointMaker(viewContext) { subProgress, message in
+                    progress(subProgress * 0.15, message)
+                }
             } catch {
-                Logger.backup.error("Checkpoint creation failed: \(error)")
+                Logger.backup.error("Checkpoint creation failed \u{2014} aborting before destructive import: \(error)")
+                throw error
             }
         }
 
