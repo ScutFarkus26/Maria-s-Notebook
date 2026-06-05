@@ -167,7 +167,7 @@ final class AppBootstrapper {
             logger.info("Post-launch: integrity repairs completed in \(intElapsed)")
         }
 
-        await MigrationRunner.runIfNeeded(context: coreDataStack.viewContext)
+        await MigrationRunner.runIfNeeded(coreDataStack: coreDataStack)
 
         await PDFFolderMigrationService.runIfNeeded(coreDataStack: coreDataStack)
 
