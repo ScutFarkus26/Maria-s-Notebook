@@ -58,7 +58,11 @@ extension NSManagedObjectContext {
             try save()
             return true
         } catch {
-            Self.logger.error("Failed to save context: \(error.localizedDescription)")
+            // A failed save means user data didn't persist — make it loud. `.fault`
+            // survives release log capture (unlike `.error`), so silently-swallowed
+            // saves are at least visible. UI-facing call sites should prefer
+            // `SaveCoordinator`, which surfaces a "Couldn't Save" alert to the user.
+            Self.logger.fault("Failed to save context: \(error.localizedDescription)")
             return false
         }
     }
