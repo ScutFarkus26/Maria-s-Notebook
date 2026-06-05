@@ -125,10 +125,10 @@ extension TodayView {
     // MARK: - Dismissal
 
     private func cardDismissalKey(_ card: DayCard) -> String {
-        let formatter = DateFormatter()
-        formatter.dateFormat = "yyyy-MM-dd"
-        formatter.calendar = Calendar.current
-        let dayString = formatter.string(from: viewModel.date)
+        // Use the shared static formatter instead of allocating a DateFormatter on
+        // every call — DateFormatter creation is one of the most expensive Foundation
+        // operations, and this runs per day-card on the app's most-visited screen.
+        let dayString = DateFormatters.isoDateLocal.string(from: viewModel.date)
         return "\(UserDefaultsKeys.todayDayCardDismissedPrefix)\(dayString).\(card.rawValue)"
     }
 
