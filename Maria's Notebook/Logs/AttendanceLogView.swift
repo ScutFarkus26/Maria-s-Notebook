@@ -39,7 +39,7 @@ struct AttendanceLogView: View {
     // Filter state
     @State private var selectedStudentIDs: Set<UUID> = []
     @State private var selectedStatuses: Set<AttendanceStatus> = []
-    @State private var selectedDateRange: DateRangeFilter = .allTime
+    @State private var selectedDateRange: DateRangeFilter = .thisMonth
     @State private var customStartDate: Date = Calendar.current.date(byAdding: .month, value: -1, to: Date()) ?? Date()
     @State private var customEndDate: Date = Date()
     @State private var searchText: String = ""
@@ -408,6 +408,26 @@ struct AttendanceLogView: View {
             }
         }
         .searchable(text: $searchText)
+        .onAppear { applyDateRangePredicate() }
+        .onChange(of: selectedDateRange) { _, _ in applyDateRangePredicate() }
+        .onChange(of: customStartDate) { _, _ in applyDateRangePredicate() }
+        .onChange(of: customEndDate) { _, _ in applyDateRangePredicate() }
+    }
+
+    // MARK: - Fetch Predicate
+
+    /// Narrows the attendance fetch to the selected date range so the store returns
+    /// only the visible window (index-backed by the AttendanceRecord `byDate` index)
+    /// instead of loading every record ever created. A nil range (All Time) clears it.
+    private func applyDateRangePredicate() {
+        if let bounds = dateRangeBounds {
+            allRecords.nsPredicate = NSPredicate(
+                format: "date >= %@ AND date < %@",
+                bounds.start as NSDate, bounds.end as NSDate
+            )
+        } else {
+            allRecords.nsPredicate = nil
+        }
     }
 
     // MARK: - Row
