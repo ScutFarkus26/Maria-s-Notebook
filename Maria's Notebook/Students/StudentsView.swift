@@ -1,3 +1,4 @@
+import Combine
 import CoreData
 import OSLog
 import SwiftUI
@@ -253,7 +254,13 @@ struct StudentsView: View {
             .onChange(of: lessonChangeToken) { _, _ in
                 reloadDataAsync()
             }
-            .onReceive(NotificationCenter.default.publisher(for: .NSManagedObjectContextDidSave)) { _ in
+            // Debounce: many saves can fire in bursts (bulk edits, CloudKit merge
+            // batches). Coalesce them so the three count() fetches in
+            // refreshChangeTokens run once the dust settles, not per save.
+            .onReceive(
+                NotificationCenter.default.publisher(for: .NSManagedObjectContextDidSave)
+                    .debounce(for: .milliseconds(300), scheduler: RunLoop.main)
+            ) { _ in
                 refreshChangeTokens()
             }
             .onChange(of: uniqueStudentIDs) { _, _ in
