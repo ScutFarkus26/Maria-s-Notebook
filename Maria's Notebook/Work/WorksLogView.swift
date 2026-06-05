@@ -7,7 +7,15 @@ struct WorksLogView: View {
     @AppStorage(UserDefaultsKeys.generalTestStudentNames)
     private var testStudentNamesRaw: String = "Danny De Berry,Lil Dan D"
 
-    @FetchRequest(sortDescriptors: [NSSortDescriptor(keyPath: \CDWorkModel.createdAt, ascending: false)])
+    @FetchRequest(fetchRequest: {
+        let request = NSFetchRequest<CDWorkModel>(entityName: "WorkModel")
+        request.sortDescriptors = [NSSortDescriptor(keyPath: \CDWorkModel.createdAt, ascending: false)]
+        request.fetchBatchSize = 50
+        // Prefetch unifiedNotes so latestUnifiedNoteText doesn't fault the relationship
+        // per row (N+1) when filtering/searching the works list.
+        request.relationshipKeyPathsForPrefetching = ["unifiedNotes"]
+        return request
+    }())
     private var allWorks: FetchedResults<CDWorkModel>
 
     @FetchRequest(sortDescriptors: []) private var lessons: FetchedResults<CDLesson>
