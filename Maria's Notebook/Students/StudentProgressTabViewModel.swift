@@ -20,6 +20,9 @@ final class StudentProgressTabViewModel {
     private(set) var activeProjects: [CDProject] = []
     private(set) var activeReports: [CDWorkModel] = []
     private(set) var tracksByID: [String: CDTrackEntity] = [:]
+    /// Per-enrollment stats/progress, precomputed once in loadData so the view
+    /// doesn't recompute them for every enrollment on every render.
+    private(set) var statsByEnrollment: [UUID: (stats: TrackStats, progress: TrackProgress)] = [:]
 
     // MARK: - Private State
     private var studentID: UUID?
@@ -92,6 +95,19 @@ final class StudentProgressTabViewModel {
             allTracks.compactMap { t in t.id.map { ($0.uuidString, t) } },
             uniquingKeysWith: { first, _ in first }
         )
+
+        // Precompute per-enrollment stats/progress once, instead of recomputing
+        // them for every enrollment on every view render.
+        var computed: [UUID: (stats: TrackStats, progress: TrackProgress)] = [:]
+        for enrollment in activeEnrollments {
+            guard let enrollmentID = enrollment.id,
+                  let track = tracksByID[enrollment.trackID] else { continue }
+            computed[enrollmentID] = (
+                stats: trackStats(for: enrollment, track: track),
+                progress: trackProgress(for: track)
+            )
+        }
+        statsByEnrollment = computed
     }
 
     // MARK: - CDTrackEntity Stats Computation

@@ -234,8 +234,11 @@ struct StudentProgressTab: View {
     // MARK: - Enrollment Card
     @ViewBuilder
     private func enrollmentCard(enrollment: CDStudentTrackEnrollmentEntity, track: CDTrackEntity) -> some View {
-        let stats = viewModel.trackStats(for: enrollment, track: track)
-        let progress = viewModel.trackProgress(for: track)
+        // Read precomputed stats/progress; fall back to on-demand compute if the
+        // cache isn't populated yet (e.g. before loadData runs).
+        let cached = enrollment.id.flatMap { viewModel.statsByEnrollment[$0] }
+        let stats = cached?.stats ?? viewModel.trackStats(for: enrollment, track: track)
+        let progress = cached?.progress ?? viewModel.trackProgress(for: track)
         let trackColor: Color = viewModel.trackColor(for: track.title)
 
         ProgressCardContainer(color: trackColor, isActive: enrollment.isActive) {
