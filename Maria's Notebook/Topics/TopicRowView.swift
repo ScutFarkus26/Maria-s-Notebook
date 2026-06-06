@@ -4,34 +4,20 @@ import CoreData
 struct TopicRowView: View {
     let topic: CDCommunityTopicEntity
     let onSelect: () -> Void
-    
-    @Environment(\.managedObjectContext) private var viewContext
-    @State private var solutionCount: Int?
 
     var body: some View {
         topicCard
-            .task(id: topic.id) {
-                if solutionCount == nil {
-                    do {
-                        guard let tid = topic.id else {
-                            solutionCount = 0
-                            return
-                        }
-                        let descriptor = CDFetchRequest(CDProposedSolutionEntity.self)
-                        descriptor.predicate = NSPredicate(format: "topic.id == %@", tid as CVarArg)
-                        let items = try viewContext.fetch(descriptor)
-                        solutionCount = items.count
-                    } catch {
-                        solutionCount = 0
-                    }
-                }
-            }
             .onTapGesture(perform: onSelect)
     }
 
     private var topicCard: some View {
         let isResolved: Bool = topic.isResolved
-        let count: Int = solutionCount ?? 0
+        // Read the count straight off the (prefetched) relationship instead of
+        // firing a per-row CDProposedSolutionEntity fetch. The parent renders
+        // every row eagerly, so the old `.task` fetch was an N+1 over the list;
+        // CommunityMeetingsView now prefetches `proposedSolutions` so this hits
+        // the row cache.
+        let count: Int = topic.proposedSolutions?.count ?? 0
         let raisedBy: String = topic.raisedBy.trimmed()
 
         return HStack(alignment: .top, spacing: 16) {

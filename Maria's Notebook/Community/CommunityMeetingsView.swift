@@ -5,9 +5,18 @@ struct CommunityMeetingsView: View {
     @Environment(\.managedObjectContext) private var viewContext
     @Environment(SaveCoordinator.self) private var saveCoordinator
 
-    @FetchRequest(
-        sortDescriptors: [NSSortDescriptor(keyPath: \CDCommunityTopicEntity.createdAt, ascending: false)]
-    ) private var topics: FetchedResults<CDCommunityTopicEntity>
+    @FetchRequest(fetchRequest: {
+        let request = NSFetchRequest<CDCommunityTopicEntity>(entityName: "CommunityTopic")
+        request.sortDescriptors = [NSSortDescriptor(keyPath: \CDCommunityTopicEntity.createdAt, ascending: false)]
+        request.fetchBatchSize = 50
+        // Prefetch proposedSolutions so each TopicRowView's solution count — and
+        // the search filter below, which reads proposedSolutions per topic —
+        // resolves from the row cache in one batched query instead of faulting
+        // the relationship per row (N+1).
+        request.relationshipKeyPathsForPrefetching = ["proposedSolutions"]
+        return request
+    }())
+    private var topics: FetchedResults<CDCommunityTopicEntity>
 
     @State private var showingAdd = false
     @State private var selectedTopic: CDCommunityTopicEntity?
