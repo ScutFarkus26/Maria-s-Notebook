@@ -8,7 +8,9 @@ enum AIModelOption: String, CaseIterable, Identifiable {
     case appleOnDevice = "apple-on-device"
     case ollamaLocal = "ollama-local"
     case claudeSonnet = "claude-sonnet-4-20250514"
-    case claudeHaiku = "claude-haiku-4-20250414"
+    // Use the rolling alias (matches Stories' working usage). The previous
+    // "claude-haiku-4-20250414" was not a real model ID and 404'd when selected.
+    case claudeHaiku = "claude-haiku-4-5"
 
     var id: String { rawValue }
 
@@ -18,7 +20,7 @@ enum AIModelOption: String, CaseIterable, Identifiable {
         case .appleOnDevice: return "Apple On-Device"
         case .ollamaLocal: return "Ollama"
         case .claudeSonnet: return "Claude Sonnet 4"
-        case .claudeHaiku: return "Claude Haiku 4"
+        case .claudeHaiku: return "Claude Haiku 4.5"
         }
     }
 
