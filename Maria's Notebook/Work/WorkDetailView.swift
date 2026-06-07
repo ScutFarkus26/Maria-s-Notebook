@@ -76,10 +76,17 @@ struct WorkDetailView: View {
 
         let workIDString = workID.uuidString
         let scheduledStatus = WorkCheckInStatus.scheduled.rawValue
-        _checkIns = FetchRequest(
-            sortDescriptors: [NSSortDescriptor(keyPath: \CDWorkCheckIn.date, ascending: false)],
-            predicate: NSPredicate(format: "workID == %@ AND statusRaw == %@", workIDString, scheduledStatus)
-        )
+        _checkIns = FetchRequest(fetchRequest: {
+            let request = NSFetchRequest<CDWorkCheckIn>(entityName: "WorkCheckIn")
+            request.sortDescriptors = [NSSortDescriptor(keyPath: \CDWorkCheckIn.date, ascending: false)]
+            request.predicate = NSPredicate(
+                format: "workID == %@ AND statusRaw == %@", workIDString, scheduledStatus
+            )
+            // Prefetch notes so each check-in row's note text reads from the row
+            // cache instead of faulting the relationship per row (N+1).
+            request.relationshipKeyPathsForPrefetching = ["notes"]
+            return request
+        }())
         #if DEBUG
         // FetchRequest for peer works - will filter by lessonID after work is loaded
         _peerWorks = FetchRequest(sortDescriptors: [])

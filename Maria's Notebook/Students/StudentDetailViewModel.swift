@@ -166,6 +166,9 @@ final class StudentDetailViewModel {
         descriptor.predicate = predicate
         descriptor.sortDescriptors = [NSSortDescriptor(keyPath: \CDWorkModel.createdAt, ascending: false)]
         descriptor.fetchLimit = 500 // Reasonable limit for incomplete work per student
+        // Prefetch unifiedNotes so StudentOverviewTab's needsAttention/latestNoteDate
+        // reads each work's notes from the row cache instead of faulting per row (N+1).
+        descriptor.relationshipKeyPathsForPrefetching = ["unifiedNotes"]
         return safeFetch(descriptor, context: viewContext)
     }
 

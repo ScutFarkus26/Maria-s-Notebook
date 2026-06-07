@@ -5,10 +5,15 @@ struct OpenWorkListView: View {
     @Environment(\.managedObjectContext) private var viewContext
 
     // OPTIMIZATION: Query only open works at database level instead of loading all and filtering in memory
-    @FetchRequest(
-        sortDescriptors: [NSSortDescriptor(keyPath: \CDWorkModel.createdAt, ascending: false)],
-        predicate: NSPredicate(format: "statusRaw != %@", "complete")
-    ) private var openWorks: FetchedResults<CDWorkModel>
+    @FetchRequest(fetchRequest: {
+        let request = NSFetchRequest<CDWorkModel>(entityName: "WorkModel")
+        request.sortDescriptors = [NSSortDescriptor(keyPath: \CDWorkModel.createdAt, ascending: false)]
+        request.predicate = NSPredicate(format: "statusRaw != %@", "complete")
+        // Prefetch participants so each row's participant badge reads from the row
+        // cache instead of faulting the relationship per row (N+1).
+        request.relationshipKeyPathsForPrefetching = ["participants"]
+        return request
+    }()) private var openWorks: FetchedResults<CDWorkModel>
 
     @FetchRequest(sortDescriptors: []) private var lessons: FetchedResults<CDLesson>
     @FetchRequest(sortDescriptors: []) private var lessonAssignments: FetchedResults<CDLessonAssignment>

@@ -21,6 +21,9 @@ extension LessonAssignmentHistoryView {
                 NSSortDescriptor(keyPath: \CDLessonAssignment.presentedAt, ascending: false),
                 NSSortDescriptor(keyPath: \CDLessonAssignment.createdAt, ascending: false)
             ]
+        // Prefetch unifiedNotes so each history row reads its notes from the row
+        // cache instead of faulting the relationship per row (N+1).
+        descriptor.relationshipKeyPathsForPrefetching = ["unifiedNotes"]
         if let limit {
             descriptor.fetchLimit = limit
         }
@@ -44,6 +47,7 @@ extension LessonAssignmentHistoryView {
                 NSSortDescriptor(keyPath: \CDLessonAssignment.createdAt, ascending: false)
             ]
         descriptor.fetchLimit = currentCount + Self.loadMoreCount
+        descriptor.relationshipKeyPathsForPrefetching = ["unifiedNotes"]
         let newResults = viewContext.safeFetch(descriptor)
         loadedAssignments = newResults
         // If we got fewer results than requested, we've loaded all available

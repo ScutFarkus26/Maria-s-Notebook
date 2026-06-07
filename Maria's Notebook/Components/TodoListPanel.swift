@@ -3,7 +3,14 @@ import CoreData
 
 struct TodoListPanel: View {
     @Environment(\.dismiss) private var dismiss
-    @FetchRequest(sortDescriptors: [NSSortDescriptor(keyPath: \CDTodoItem.orderIndex, ascending: true)])
+    @FetchRequest(fetchRequest: {
+        let request = NSFetchRequest<CDTodoItem>(entityName: "TodoItem")
+        request.sortDescriptors = [NSSortDescriptor(keyPath: \CDTodoItem.orderIndex, ascending: true)]
+        // Prefetch subtasks so each TodoRow's progress/count reads from the row
+        // cache instead of faulting the relationship per row (N+1).
+        request.relationshipKeyPathsForPrefetching = ["subtasks"]
+        return request
+    }())
     var todos: FetchedResults<CDTodoItem>
     @FetchRequest(sortDescriptors: [NSSortDescriptor(keyPath: \CDStudent.firstName, ascending: true)])
     private var studentsRaw: FetchedResults<CDStudent>
