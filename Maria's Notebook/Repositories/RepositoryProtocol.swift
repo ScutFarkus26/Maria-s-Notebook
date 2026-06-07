@@ -34,12 +34,9 @@ extension SavingRepository {
         if let coordinator = saveCoordinator {
             return coordinator.save(context, reason: reason)
         }
-        do {
-            try context.save()
-            return true
-        } catch {
-            return false
-        }
+        // No coordinator (e.g. tests / detached contexts): fall back to safeSave
+        // so a failure is logged loudly (.fault) instead of silently dropped.
+        return context.safeSave()
     }
 
     /// Save changes and show a success toast.
@@ -52,12 +49,10 @@ extension SavingRepository {
         if let coordinator = saveCoordinator {
             return coordinator.saveWithToast(context, successMessage: successMessage, reason: reason)
         }
-        do {
-            try context.save()
-            ToastService.shared.showSuccess(successMessage)
-            return true
-        } catch {
-            return false
-        }
+        // No coordinator: safeSave still logs a failure loudly (.fault). Only
+        // show the success toast when the save actually persisted.
+        guard context.safeSave() else { return false }
+        ToastService.shared.showSuccess(successMessage)
+        return true
     }
 }

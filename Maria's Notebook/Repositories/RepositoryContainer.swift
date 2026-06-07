@@ -94,11 +94,8 @@ struct RepositoryContainer {
         if let coordinator = saveCoordinator {
             return coordinator.save(context, reason: reason)
         }
-        do {
-            try context.save()
-            return true
-        } catch {
-            return false
-        }
+        // No coordinator: fall back to safeSave so failures are logged loudly
+        // (.fault) instead of silently dropped.
+        return context.safeSave()
     }
 }
