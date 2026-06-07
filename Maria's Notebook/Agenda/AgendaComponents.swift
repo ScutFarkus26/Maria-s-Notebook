@@ -23,58 +23,59 @@ struct AgendaShellView<Sidebar: View, Header: View, Content: View>: View {
     var body: some View {
         #if os(iOS)
         if horizontalSizeClass == .compact {
-            VStack(spacing: 0) {
-                // Compact top bar with Sidebar trigger
-                HStack(spacing: 12) {
-                    Button {
-                        showSidebarSheet = true
-                    } label: {
-                        Label("Inbox", systemImage: "tray.full")
-                            .font(.callout.weight(.semibold))
-                    }
-                    .buttonStyle(.plain)
-                    Spacer()
-                }
-                .padding(.horizontal, 16)
-                .padding(.vertical, 8)
-                .background(.bar)
-
-                Divider()
-
-                VStack(spacing: 0) {
-                    header()
-                    Divider()
-                    content()
-                }
-                .frame(maxWidth: .infinity, maxHeight: .infinity)
-            }
-            .sheet(isPresented: $showSidebarSheet) {
-                NavigationStack {
-                    sidebar()
-                        .navigationTitle("Inbox")
-                        .toolbar {
-                            ToolbarItem(placement: .cancellationAction) {
-                                Button("Close") { showSidebarSheet = false }
-                            }
-                        }
-                }
-                .presentationDetents([.medium, .large])
-                .presentationDragIndicator(.visible)
-            }
+            compactLayout
         } else {
-            HStack(spacing: 0) {
-                sidebar()
-                    .frame(width: 280)
-                Divider()
-                VStack(spacing: 0) {
-                    header()
-                    Divider()
-                    content()
-                }
-                .frame(maxWidth: .infinity, maxHeight: .infinity)
-            }
+            splitLayout
         }
         #else
+        splitLayout
+        #endif
+    }
+
+    #if os(iOS)
+    private var compactLayout: some View {
+        VStack(spacing: 0) {
+            // Compact top bar with Sidebar trigger
+            HStack(spacing: 12) {
+                Button {
+                    showSidebarSheet = true
+                } label: {
+                    Label("Inbox", systemImage: "tray.full")
+                        .font(.callout.weight(.semibold))
+                }
+                .buttonStyle(.plain)
+                Spacer()
+            }
+            .padding(.horizontal, 16)
+            .padding(.vertical, 8)
+            .background(.bar)
+
+            Divider()
+
+            VStack(spacing: 0) {
+                header()
+                Divider()
+                content()
+            }
+            .frame(maxWidth: .infinity, maxHeight: .infinity)
+        }
+        .sheet(isPresented: $showSidebarSheet) {
+            NavigationStack {
+                sidebar()
+                    .navigationTitle("Inbox")
+                    .toolbar {
+                        ToolbarItem(placement: .cancellationAction) {
+                            Button("Close") { showSidebarSheet = false }
+                        }
+                    }
+            }
+            .presentationDetents([.medium, .large])
+            .presentationDragIndicator(.visible)
+        }
+    }
+    #endif
+
+    private var splitLayout: some View {
         HStack(spacing: 0) {
             sidebar()
                 .frame(width: 280)
@@ -86,7 +87,6 @@ struct AgendaShellView<Sidebar: View, Header: View, Content: View>: View {
             }
             .frame(maxWidth: .infinity, maxHeight: .infinity)
         }
-        #endif
     }
 }
 
@@ -96,9 +96,9 @@ struct AgendaWeekHeaderView<Actions: View>: View {
     let onPrev: () -> Void
     let onNext: () -> Void
     let onToday: () -> Void
-    
+
     let actions: () -> Actions
-    
+
     init(
         startDate: Date,
         days: [Date],

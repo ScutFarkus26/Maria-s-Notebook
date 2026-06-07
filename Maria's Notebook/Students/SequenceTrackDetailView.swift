@@ -51,23 +51,31 @@ struct SequenceTrackDetailView: View {
         }
 
         // No record exists = default behavior = sequential track
-        // Filter and sort lessons for this sequence manually
-        let settings = effectiveTrackSettings
-        let filtered = Array(allLessons).filter { lesson in
-            lesson.area.trimmed().caseInsensitiveCompare(area.trimmed()) == .orderedSame &&
-            lesson.sequence.trimmed().caseInsensitiveCompare(sequence.trimmed()) == .orderedSame
-        }
+        return manuallyOrderedLessons()
+    }
 
-        return filtered.sorted { lhs, rhs in
-            if settings.isSequential {
-                // Sequential: respect orderInSequence
-                if lhs.orderInSequence != rhs.orderInSequence {
-                    return lhs.orderInSequence < rhs.orderInSequence
-                }
-            }
-            // Fallback to name for stable ordering
-            return lhs.name.localizedCaseInsensitiveCompare(rhs.name) == .orderedAscending
+    /// Fallback ordering when no `CDSequenceTrack` record exists: filter the lessons
+    /// for this area+sequence and sort them. Extracted from `lessons` so the
+    /// filter/sort closures don't inflate that property's type-check time.
+    private func manuallyOrderedLessons() -> [CDLesson] {
+        let sequential = effectiveTrackSettings.isSequential
+        return Array(allLessons)
+            .filter { matchesAreaSequence($0) }
+            .sorted { lessonOrdered($0, before: $1, sequential: sequential) }
+    }
+
+    /// True when `lesson` belongs to this view's area + sequence (case-insensitive).
+    private func matchesAreaSequence(_ lesson: CDLesson) -> Bool {
+        lesson.area.trimmed().caseInsensitiveCompare(area.trimmed()) == .orderedSame
+            && lesson.sequence.trimmed().caseInsensitiveCompare(sequence.trimmed()) == .orderedSame
+    }
+
+    /// Sort order for the manual fallback: sequential by `orderInSequence`, then by name.
+    private func lessonOrdered(_ lhs: CDLesson, before rhs: CDLesson, sequential: Bool) -> Bool {
+        if sequential, lhs.orderInSequence != rhs.orderInSequence {
+            return lhs.orderInSequence < rhs.orderInSequence
         }
+        return lhs.name.localizedCaseInsensitiveCompare(rhs.name) == .orderedAscending
     }
 
     /// Progress state for each lesson for the given student

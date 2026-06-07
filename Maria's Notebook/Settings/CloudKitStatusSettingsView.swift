@@ -125,12 +125,7 @@ struct CloudKitStatusSettingsView: View {
             VStack(alignment: .leading, spacing: 4) {
                 Text("iCloud sync is stopped")
                     .font(.subheadline.weight(.semibold))
-                Text(
-                    "CloudKit's sync engine couldn't start this session — likely a corrupt " +
-                    "local cache. To recover, open the Database tab and tap " +
-                    "\u{201C}Reset Local Cache.\u{201D} Your data is safe in iCloud and will " +
-                    "re-download automatically."
-                )
+                Text(mirroringDelegateFailedMessage)
                     .font(.caption)
                     .foregroundStyle(.secondary)
                     .fixedSize(horizontal: false, vertical: true)
@@ -146,6 +141,15 @@ struct CloudKitStatusSettingsView: View {
             RoundedRectangle(cornerRadius: 10, style: .continuous)
                 .stroke(Color.red.opacity(0.4), lineWidth: 1)
         )
+    }
+
+    /// Recovery message shown in `mirroringDelegateFailedBanner`. Kept as a typed
+    /// `String` so the multi-part concatenation type-checks outside the view body.
+    private var mirroringDelegateFailedMessage: String {
+        "CloudKit's sync engine couldn't start this session — likely a corrupt " +
+        "local cache. To recover, open the Database tab and tap " +
+        "\u{201C}Reset Local Cache.\u{201D} Your data is safe in iCloud and will " +
+        "re-download automatically."
     }
 
     private var syncDetailsSection: some View {

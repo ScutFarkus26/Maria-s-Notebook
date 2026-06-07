@@ -271,7 +271,7 @@ final class TodayViewModel {
         let notesResult = TodayDataFetcher.fetchRecentNotes(context: context, errorCollector: errorCollector)
         let missingStudentIDs = notesResult.neededStudentIDs.subtracting(recentNoteStudentsByID.keys)
         var updatedRecentNoteStudents = recentNoteStudentsByID
-        
+
         // PERFORMANCE: Batch fetch all missing students in a single query instead of N queries
         if !missingStudentIDs.isEmpty {
             let studentRequest = CDFetchRequest(CDStudent.self)
@@ -376,47 +376,52 @@ extension TodayViewModel: Equatable {
     /// }
     /// ```
     static func == (lhs: TodayViewModel, rhs: TodayViewModel) -> Bool {
-        // Compare inputs that trigger reloads
-        guard lhs.date == rhs.date,
-              lhs.levelFilter == rhs.levelFilter else {
-            return false
-        }
+        lhs.inputsMatch(rhs)
+            && lhs.listIDsMatch(rhs)
+            && lhs.listCountsMatch(rhs)
+            && lhs.attendanceMatches(rhs)
+        // Cache internals (studentsByID, lessonsByID, workByID, etc.) are intentionally
+        // not compared — they don't directly affect rendering.
+    }
 
-        // Pre-compute ID comparisons with explicit types to help the type checker
-        let lessonsMatch: Bool = lhs.todaysLessons.count == rhs.todaysLessons.count
-            && lhs.todaysLessons.map(\.id) == rhs.todaysLessons.map(\.id)
-        let workMatch: Bool = lhs.completedWork.count == rhs.completedWork.count
-            && lhs.completedWork.map(\.id) == rhs.completedWork.map(\.id)
-        let remindersMatch: Bool = lhs.todaysReminders.count == rhs.todaysReminders.count
-            && lhs.todaysReminders.map(\.id) == rhs.todaysReminders.map(\.id)
-        let calendarMatch: Bool = lhs.todaysCalendarEvents.count == rhs.todaysCalendarEvents.count
-            && lhs.todaysCalendarEvents.map(\.id) == rhs.todaysCalendarEvents.map(\.id)
-        let meetingsMatch: Bool = lhs.scheduledMeetings.count == rhs.scheduledMeetings.count
-            && lhs.scheduledMeetings.map(\.id) == rhs.scheduledMeetings.map(\.id)
-            && lhs.completedMeetings.count == rhs.completedMeetings.count
-            && lhs.completedMeetings.map(\.id) == rhs.completedMeetings.map(\.id)
-        let notesMatch: Bool = lhs.recentNotes.count == rhs.recentNotes.count
-            && lhs.recentNotes.map(\.id) == rhs.recentNotes.map(\.id)
+    /// Inputs that trigger reloads.
+    private func inputsMatch(_ other: TodayViewModel) -> Bool {
+        date == other.date && levelFilter == other.levelFilter
+    }
 
-        guard lessonsMatch, workMatch, remindersMatch, calendarMatch, meetingsMatch, notesMatch,
-              lhs.overdueSchedule.count == rhs.overdueSchedule.count,
-              lhs.todaysSchedule.count == rhs.todaysSchedule.count,
-              lhs.staleFollowUps.count == rhs.staleFollowUps.count,
-              lhs.overdueReminders.count == rhs.overdueReminders.count,
-              lhs.anytimeReminders.count == rhs.anytimeReminders.count else {
-            return false
-        }
+    /// Identity comparison of the rendered collections (count + element ids).
+    private func listIDsMatch(_ other: TodayViewModel) -> Bool {
+        let lessonsMatch: Bool = todaysLessons.count == other.todaysLessons.count
+            && todaysLessons.map(\.id) == other.todaysLessons.map(\.id)
+        let workMatch: Bool = completedWork.count == other.completedWork.count
+            && completedWork.map(\.id) == other.completedWork.map(\.id)
+        let remindersMatch: Bool = todaysReminders.count == other.todaysReminders.count
+            && todaysReminders.map(\.id) == other.todaysReminders.map(\.id)
+        let calendarMatch: Bool = todaysCalendarEvents.count == other.todaysCalendarEvents.count
+            && todaysCalendarEvents.map(\.id) == other.todaysCalendarEvents.map(\.id)
+        let meetingsMatch: Bool = scheduledMeetings.count == other.scheduledMeetings.count
+            && scheduledMeetings.map(\.id) == other.scheduledMeetings.map(\.id)
+            && completedMeetings.count == other.completedMeetings.count
+            && completedMeetings.map(\.id) == other.completedMeetings.map(\.id)
+        let notesMatch: Bool = recentNotes.count == other.recentNotes.count
+            && recentNotes.map(\.id) == other.recentNotes.map(\.id)
+        return lessonsMatch && workMatch && remindersMatch
+            && calendarMatch && meetingsMatch && notesMatch
+    }
 
-        // Compare attendance summary
-        guard lhs.attendanceSummary == rhs.attendanceSummary,
-              lhs.absentToday == rhs.absentToday,
-              lhs.leftEarlyToday == rhs.leftEarlyToday else {
-            return false
-        }
+    /// Counts of the remaining rendered collections.
+    private func listCountsMatch(_ other: TodayViewModel) -> Bool {
+        overdueSchedule.count == other.overdueSchedule.count
+            && todaysSchedule.count == other.todaysSchedule.count
+            && staleFollowUps.count == other.staleFollowUps.count
+            && overdueReminders.count == other.overdueReminders.count
+            && anytimeReminders.count == other.anytimeReminders.count
+    }
 
-        // Don't compare cache internals (studentsByID, lessonsByID, workByID, etc.)
-        // as they don't directly affect rendering
-
-        return true
+    /// Attendance summary affecting the header.
+    private func attendanceMatches(_ other: TodayViewModel) -> Bool {
+        attendanceSummary == other.attendanceSummary
+            && absentToday == other.absentToday
+            && leftEarlyToday == other.leftEarlyToday
     }
 }

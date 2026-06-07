@@ -16,19 +16,7 @@ struct RatingLevelSelector: View {
 
             HStack(spacing: 12) {
                 ForEach(1...5, id: \.self) { level in
-                    Button {
-                        selectedLevel = (selectedLevel == level) ? nil : level
-                    } label: {
-                        Circle()
-                            .fill(color.opacity(selectedLevel == level ? 1.0 : 0.2))
-                            .frame(width: 32, height: 32)
-                            .overlay(
-                                Text("\(level)")
-                                    .font(AppTheme.ScaledFont.captionSemibold)
-                                    .foregroundStyle(selectedLevel == level ? .white : color)
-                            )
-                    }
-                    .buttonStyle(.plain)
+                    levelButton(level)
                 }
 
                 if let level = selectedLevel {
@@ -38,6 +26,22 @@ struct RatingLevelSelector: View {
                 }
             }
         }
+    }
+
+    private func levelButton(_ level: Int) -> some View {
+        Button {
+            selectedLevel = (selectedLevel == level) ? nil : level
+        } label: {
+            Circle()
+                .fill(color.opacity(selectedLevel == level ? 1.0 : 0.2))
+                .frame(width: 32, height: 32)
+                .overlay(
+                    Text("\(level)")
+                        .font(AppTheme.ScaledFont.captionSemibold)
+                        .foregroundStyle(selectedLevel == level ? .white : color)
+                )
+        }
+        .buttonStyle(.plain)
     }
 }
 

@@ -150,25 +150,30 @@ struct StudentsCardsGridView: View {
         #endif
     }
 
+    @ViewBuilder
+    private func studentCell(_ student: CDStudent) -> some View {
+        let studentID = student.id ?? UUID()
+        let isDragging = isManualMode && draggingStudentID == studentID
+        let isHover = hoverTargetID == studentID
+
+        addCardGestures(
+            cardContent(for: student)
+                .modifier(CardMotion(id: studentID, ns: gridNamespace))
+                .overlay(combinedOverlay(isDragging: isDragging, isHover: isHover))
+                .disableAnimation(when: draggingStudentID != nil)
+                .contentShape(Rectangle())
+                .when(isManualMode) { view in
+                    view.background(itemFrameBackground(for: studentID))
+                }
+            , for: student
+        )
+    }
+
     var body: some View {
         ScrollView {
             LazyVGrid(columns: columns, alignment: .leading, spacing: 24) {
                 ForEach(uniqueStudents, id: \.objectID) { student in
-                    let studentID = student.id ?? UUID()
-                    let isDragging = isManualMode && draggingStudentID == studentID
-                    let isHover = hoverTargetID == studentID
-
-                    addCardGestures(
-                        cardContent(for: student)
-                            .modifier(CardMotion(id: studentID, ns: gridNamespace))
-                            .overlay(combinedOverlay(isDragging: isDragging, isHover: isHover))
-                            .disableAnimation(when: draggingStudentID != nil)
-                            .contentShape(Rectangle())
-                            .when(isManualMode) { view in
-                                view.background(itemFrameBackground(for: studentID))
-                            }
-                        , for: student
-                    )
+                    studentCell(student)
                 }
             }
             .adaptiveAnimation(gridAnimation, value: idList)

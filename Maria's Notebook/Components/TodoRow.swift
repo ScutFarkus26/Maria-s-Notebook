@@ -133,29 +133,7 @@ struct TodoRow: View {
                 Spacer().frame(width: 12)
             }
 
-            // Checkbox
-            Button {
-                adaptiveWithAnimation(.spring(response: 0.35, dampingFraction: 0.6)) {
-                    checkboxScale = 0.8
-                }
-                Task {
-                    try? await Task.sleep(for: .milliseconds(100))
-                    adaptiveWithAnimation(.spring(response: 0.35, dampingFraction: 0.5)) {
-                        checkboxScale = 1.0
-                        onToggle()
-                    }
-                }
-            } label: {
-                Image(systemName: todo.isCompleted ? "checkmark.circle.fill" : "circle")
-                    .font(.system(size: 24, weight: .light))
-                    .foregroundStyle(todo.isCompleted ? .secondary : .tertiary)
-                    .contentTransition(.symbolEffect(.replace))
-                    .scaleEffect(checkboxScale)
-            }
-            .buttonStyle(.plain)
-            #if os(iOS)
-            .sensoryFeedback(.success, trigger: todo.isCompleted)
-            #endif
+            checkboxButton
 
             Spacer().frame(width: 12)
 
@@ -181,46 +159,8 @@ struct TodoRow: View {
         .padding(.trailing, 12)
         .padding(.vertical, 10)
         .opacity(todo.isCompleted ? 0.5 : 1.0)
-        .swipeActions(edge: .trailing, allowsFullSwipe: true) {
-            Button(role: .destructive) {
-                onDelete()
-            } label: {
-                Label("Delete", systemImage: "trash")
-            }
-
-            Button {
-                onEdit()
-            } label: {
-                Label("Edit", systemImage: "pencil")
-            }
-            .tint(.blue)
-        }
-        .swipeActions(edge: .leading, allowsFullSwipe: true) {
-            Button {
-                onToggle()
-            } label: {
-                Label(todo.isCompleted ? "Incomplete" : "Complete",
-                      systemImage: todo.isCompleted ? "arrow.uturn.backward" : "checkmark")
-            }
-            .tint(todo.isCompleted ? .orange : .green)
-
-            Button {
-                todo.scheduledDate = AppCalendar.startOfDay(Date())
-                todo.isSomeday = false
-            } label: {
-                Label("Today", systemImage: "star.fill")
-            }
-            .tint(.orange)
-
-            Button {
-                let tomorrow = Calendar.current.date(byAdding: .day, value: 1, to: Date()) ?? Date()
-                todo.scheduledDate = AppCalendar.startOfDay(tomorrow)
-                todo.isSomeday = false
-            } label: {
-                Label("Tomorrow", systemImage: "sunrise")
-            }
-            .tint(.orange.opacity(UIConstants.OpacityConstants.heavy))
-        }
+        .swipeActions(edge: .trailing, allowsFullSwipe: true) { trailingSwipeActions }
+        .swipeActions(edge: .leading, allowsFullSwipe: true) { leadingSwipeActions }
         .contentShape(Rectangle())
         .onTapGesture {
             onEdit()
@@ -234,54 +174,126 @@ struct TodoRow: View {
         .accessibilityAction(named: Text("Delete")) {
             onDelete()
         }
-        .contextMenu {
-            Button { onEdit() } label: {
-                Label("Edit", systemImage: "pencil")
+        .contextMenu { rowContextMenu }
+    }
+
+    private var checkboxButton: some View {
+        Button {
+            adaptiveWithAnimation(.spring(response: 0.35, dampingFraction: 0.6)) {
+                checkboxScale = 0.8
+            }
+            Task {
+                try? await Task.sleep(for: .milliseconds(100))
+                adaptiveWithAnimation(.spring(response: 0.35, dampingFraction: 0.5)) {
+                    checkboxScale = 1.0
+                    onToggle()
+                }
+            }
+        } label: {
+            Image(systemName: todo.isCompleted ? "checkmark.circle.fill" : "circle")
+                .font(.system(size: 24, weight: .light))
+                .foregroundStyle(todo.isCompleted ? .secondary : .tertiary)
+                .contentTransition(.symbolEffect(.replace))
+                .scaleEffect(checkboxScale)
+        }
+        .buttonStyle(.plain)
+        #if os(iOS)
+        .sensoryFeedback(.success, trigger: todo.isCompleted)
+        #endif
+    }
+
+    @ViewBuilder
+    private var trailingSwipeActions: some View {
+        Button(role: .destructive) {
+            onDelete()
+        } label: {
+            Label("Delete", systemImage: "trash")
+        }
+
+        Button {
+            onEdit()
+        } label: {
+            Label("Edit", systemImage: "pencil")
+        }
+        .tint(.blue)
+    }
+
+    @ViewBuilder
+    private var leadingSwipeActions: some View {
+        Button {
+            onToggle()
+        } label: {
+            Label(todo.isCompleted ? "Incomplete" : "Complete",
+                  systemImage: todo.isCompleted ? "arrow.uturn.backward" : "checkmark")
+        }
+        .tint(todo.isCompleted ? .orange : .green)
+
+        Button {
+            todo.scheduledDate = AppCalendar.startOfDay(Date())
+            todo.isSomeday = false
+        } label: {
+            Label("Today", systemImage: "star.fill")
+        }
+        .tint(.orange)
+
+        Button {
+            let tomorrow = Calendar.current.date(byAdding: .day, value: 1, to: Date()) ?? Date()
+            todo.scheduledDate = AppCalendar.startOfDay(tomorrow)
+            todo.isSomeday = false
+        } label: {
+            Label("Tomorrow", systemImage: "sunrise")
+        }
+        .tint(.orange.opacity(UIConstants.OpacityConstants.heavy))
+    }
+
+    @ViewBuilder
+    private var rowContextMenu: some View {
+        Button { onEdit() } label: {
+            Label("Edit", systemImage: "pencil")
+        }
+        Divider()
+        Menu("Move to...") {
+            Button {
+                todo.scheduledDate = AppCalendar.startOfDay(Date())
+                todo.isSomeday = false
+            } label: {
+                Label("Today", systemImage: "star.fill")
+            }
+            Button {
+                let tomorrow = Calendar.current.date(byAdding: .day, value: 1, to: Date()) ?? Date()
+                todo.scheduledDate = AppCalendar.startOfDay(tomorrow)
+                todo.isSomeday = false
+            } label: {
+                Label("Tomorrow", systemImage: "sunrise")
+            }
+            Button {
+                let cal = Calendar.current
+                let weekday = cal.component(.weekday, from: Date())
+                let daysUntilMonday = weekday == 1 ? 1 : (9 - weekday)
+                let nextMon = cal.date(byAdding: .day, value: daysUntilMonday, to: Date()) ?? Date()
+                todo.scheduledDate = AppCalendar.startOfDay(nextMon)
+                todo.isSomeday = false
+            } label: {
+                Label("Next Week", systemImage: "calendar.badge.plus")
             }
             Divider()
-            Menu("Move to...") {
-                Button {
-                    todo.scheduledDate = AppCalendar.startOfDay(Date())
-                    todo.isSomeday = false
-                } label: {
-                    Label("Today", systemImage: "star.fill")
-                }
-                Button {
-                    let tomorrow = Calendar.current.date(byAdding: .day, value: 1, to: Date()) ?? Date()
-                    todo.scheduledDate = AppCalendar.startOfDay(tomorrow)
-                    todo.isSomeday = false
-                } label: {
-                    Label("Tomorrow", systemImage: "sunrise")
-                }
-                Button {
-                    let cal = Calendar.current
-                    let weekday = cal.component(.weekday, from: Date())
-                    let daysUntilMonday = weekday == 1 ? 1 : (9 - weekday)
-                    let nextMon = cal.date(byAdding: .day, value: daysUntilMonday, to: Date()) ?? Date()
-                    todo.scheduledDate = AppCalendar.startOfDay(nextMon)
-                    todo.isSomeday = false
-                } label: {
-                    Label("Next Week", systemImage: "calendar.badge.plus")
-                }
-                Divider()
-                Button {
-                    todo.isSomeday = true
-                    todo.scheduledDate = nil
-                } label: {
-                    Label("Someday", systemImage: "moon.zzz")
-                }
-                Button {
-                    todo.scheduledDate = nil
-                    todo.dueDate = nil
-                    todo.isSomeday = false
-                } label: {
-                    Label("Remove Date", systemImage: "calendar.badge.minus")
-                }
+            Button {
+                todo.isSomeday = true
+                todo.scheduledDate = nil
+            } label: {
+                Label("Someday", systemImage: "moon.zzz")
             }
-            Divider()
-            Button(role: .destructive) { onDelete() } label: {
-                Label("Delete", systemImage: "trash")
+            Button {
+                todo.scheduledDate = nil
+                todo.dueDate = nil
+                todo.isSomeday = false
+            } label: {
+                Label("Remove Date", systemImage: "calendar.badge.minus")
             }
+        }
+        Divider()
+        Button(role: .destructive) { onDelete() } label: {
+            Label("Delete", systemImage: "trash")
         }
     }
 

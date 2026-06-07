@@ -329,20 +329,21 @@ struct PresentationPill: View {
             if isMergeTargeted {
                 Capsule()
                     .stroke(Color.accentColor.opacity(UIConstants.OpacityConstants.almostOpaque), lineWidth: 2)
-                    .overlay(
-                        Text("Merge")
-                            .font(.caption.weight(.semibold))
-                            .foregroundStyle(Color.accentColor)
-                            .padding(.horizontal, 8)
-                            .padding(.vertical, 4)
-                            .background(
-                                Capsule().fill(Color.accentColor.opacity(UIConstants.OpacityConstants.accent))
-                            )
-                            .padding(6),
-                        alignment: .topTrailing
-                    )
+                    .overlay(mergeBadge, alignment: .topTrailing)
             }
         }
+    }
+
+    private var mergeBadge: some View {
+        Text("Merge")
+            .font(.caption.weight(.semibold))
+            .foregroundStyle(Color.accentColor)
+            .padding(.horizontal, 8)
+            .padding(.vertical, 4)
+            .background(
+                Capsule().fill(Color.accentColor.opacity(UIConstants.OpacityConstants.accent))
+            )
+            .padding(6)
     }
 
     @ViewBuilder

@@ -20,21 +20,25 @@ extension UnifiedNoteEditor {
                 Spacer()
             }
 
-            ScrollView(.horizontal, showsIndicators: false) {
-                HStack(spacing: AppTheme.Spacing.small) {
-                    ForEach(Array(detectedStudentIDs), id: \.self) { studentID in
-                        if let student: CDStudent = students.first(where: { $0.id == studentID }) {
-                            detectedStudentButton(studentID: studentID, student: student)
-                        }
-                    }
-                }
-                .padding(.vertical, AppTheme.Spacing.xxsmall)
-            }
+            detectedStudentsScroll
         }
         .frame(minHeight: 44)
         .opacity(detectedStudentIDs.isEmpty ? 0 : 1)
         .adaptiveAnimation(.easeInOut(duration: UIConstants.AnimationDuration.quick), value: detectedStudentIDs)
         .accessibilityHidden(detectedStudentIDs.isEmpty)
+    }
+
+    private var detectedStudentsScroll: some View {
+        ScrollView(.horizontal, showsIndicators: false) {
+            HStack(spacing: AppTheme.Spacing.small) {
+                ForEach(Array(detectedStudentIDs), id: \.self) { studentID in
+                    if let student: CDStudent = students.first(where: { $0.id == studentID }) {
+                        detectedStudentButton(studentID: studentID, student: student)
+                    }
+                }
+            }
+            .padding(.vertical, AppTheme.Spacing.xxsmall)
+        }
     }
 
     private func detectedStudentButton(studentID: UUID, student: CDStudent) -> some View {

@@ -68,50 +68,64 @@ struct LessonsScopeMapView: View {
 
             VStack(alignment: .leading, spacing: 4) {
                 ForEach(section.rows) { row in
-                    let hasSect = hasMultipleSections(row: row)
-                    ThreadRow(
-                        threadKey: row.key,
-                        lessons: row.lessons,
-                        color: AppColors.color(forArea: row.key.area),
-                        isEditing: isEditing,
-                        hasSections: hasSect,
-                        onTap: { onSelectThread(row.key) },
-                        onConfigureTrack: { onConfigureTrack?(row.key) },
-                        onReorderSections: { onReorderSections?(row.key) }
-                    )
-                    .when(isEditing && !row.key.area.isEmpty) { view in
-                        view
-                            .draggable(SequenceTransfer(area: row.key.area, sequence: row.key.sequence))
-                            .dropDestination(for: SequenceTransfer.self) { items, _ in
-                                guard let item = items.first,
-                                      item.area == row.key.area,
-                                      item.sequence != row.key.sequence
-                                else { return false }
-                                let rowSequences = section.rows.map { $0.key.sequence }
-                                guard let srcIdx = rowSequences.firstIndex(of: item.sequence),
-                                      let dstIdx = rowSequences.firstIndex(of: row.key.sequence)
-                                else { return false }
-                                let adjustedDst = dstIdx > srcIdx ? dstIdx + 1 : dstIdx
-                                onMoveSequences?(IndexSet(integer: srcIdx), adjustedDst, row.key.area)
-                                return true
-                            } isTargeted: { isTargeted in
-                                if isTargeted {
-                                    dropTargetSequence = row.key.sequence
-                                } else if dropTargetSequence == row.key.sequence {
-                                    dropTargetSequence = nil
-                                }
-                            }
-                    }
-                    .overlay(
-                        RoundedRectangle(cornerRadius: 8, style: .continuous)
-                            .stroke(
-                                Color.accentColor.opacity(dropTargetSequence == row.key.sequence ? 0.6 : 0),
-                                lineWidth: 1.5
-                            )
-                    )
+                    threadRow(row, in: section)
                 }
             }
         }
+    }
+
+    @ViewBuilder
+    private func threadRow(_ row: ThreadRowData, in section: MapSection) -> some View {
+        ThreadRow(
+            threadKey: row.key,
+            lessons: row.lessons,
+            color: AppColors.color(forArea: row.key.area),
+            isEditing: isEditing,
+            hasSections: hasMultipleSections(row: row),
+            onTap: { onSelectThread(row.key) },
+            onConfigureTrack: { onConfigureTrack?(row.key) },
+            onReorderSections: { onReorderSections?(row.key) }
+        )
+        .when(isEditing && !row.key.area.isEmpty) { view in
+            view
+                .draggable(SequenceTransfer(area: row.key.area, sequence: row.key.sequence))
+                .dropDestination(for: SequenceTransfer.self) { items, _ in
+                    handleSequenceDrop(items, row: row, in: section)
+                } isTargeted: { isTargeted in
+                    if isTargeted {
+                        dropTargetSequence = row.key.sequence
+                    } else if dropTargetSequence == row.key.sequence {
+                        dropTargetSequence = nil
+                    }
+                }
+        }
+        .overlay(
+            RoundedRectangle(cornerRadius: 8, style: .continuous)
+                .stroke(
+                    Color.accentColor.opacity(dropTargetSequence == row.key.sequence ? 0.6 : 0),
+                    lineWidth: 1.5
+                )
+        )
+    }
+
+    /// Reorders sequences within an area when one `ThreadRow` is dropped onto another.
+    /// Extracted from the drop view builder so `threadRow` type-checks quickly.
+    private func handleSequenceDrop(
+        _ items: [SequenceTransfer],
+        row: ThreadRowData,
+        in section: MapSection
+    ) -> Bool {
+        guard let item = items.first,
+              item.area == row.key.area,
+              item.sequence != row.key.sequence
+        else { return false }
+        let rowSequences = section.rows.map { $0.key.sequence }
+        guard let srcIdx = rowSequences.firstIndex(of: item.sequence),
+              let dstIdx = rowSequences.firstIndex(of: row.key.sequence)
+        else { return false }
+        let adjustedDst = dstIdx > srcIdx ? dstIdx + 1 : dstIdx
+        onMoveSequences?(IndexSet(integer: srcIdx), adjustedDst, row.key.area)
+        return true
     }
 
     @ViewBuilder

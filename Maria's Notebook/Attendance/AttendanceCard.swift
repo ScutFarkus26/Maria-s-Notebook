@@ -67,14 +67,14 @@ struct AttendanceCard: View {
                 .font(AppTheme.ScaledFont.titleSmall)
                 .lineLimit(1)
                 .truncationMode(.tail)
-            
+
             // Visual indicator that a note exists
             if hasNote {
                 Image(systemName: "note.text")
                     .font(.caption)
                     .foregroundStyle(.secondary)
             }
-            
+
             Spacer(minLength: 0)
             // Small note icon at far right (only when no note exists and editing)
             if !hasNote && isEditing {
@@ -107,7 +107,7 @@ struct AttendanceCard: View {
         // Clicking the note opens the editor only if editing, otherwise static display
         if hasNote {
             let noteContent = resolvedNote
-            
+
             if isEditing {
                 Button {
                     noteToEdit = noteContent.object
@@ -217,46 +217,53 @@ struct AttendanceCard: View {
 
             Spacer(minLength: 0)
 
-            // Trailing: note indicator or add-note button
-            if hasNote {
-                let noteContent = resolvedNote
-                if isEditing {
-                    Button {
-                        noteToEdit = noteContent.object
-                        showingNoteEditor = true
-                    } label: {
-                        Image(systemName: "note.text")
-                            .font(.subheadline)
-                            .foregroundStyle(.secondary)
-                    }
-                    .buttonStyle(.plain)
-                } else {
-                    Image(systemName: "note.text")
-                        .font(.subheadline)
-                        .foregroundStyle(.secondary)
-                }
-            } else if isEditing {
-                Button {
-                    noteToEdit = nil
-                    showingNoteEditor = true
-                } label: {
-                    Image(systemName: "square.and.pencil")
-                        .font(.subheadline)
-                        .foregroundStyle(.tertiary)
-                }
-                .buttonStyle(.plain)
-            }
+            compactTrailingNote
         }
         .padding(.vertical, AppTheme.Spacing.small)
         .padding(.horizontal, AppTheme.Spacing.medium)
         .contentShape(Rectangle())
         .accessibilityElement(children: .combine)
-        .accessibilityLabel(
-            "\(displayName), \(statusLabel)" +
-            "\(status == .absent && absenceReason != .none ? ", \(absenceReason.displayName)" : "")" +
-            "\(hasNote ? ", has note" : "")"
-        )
+        .accessibilityLabel(compactAccessibilityLabel)
         .accessibilityAddTraits(isEditing ? .isButton : [])
+    }
+
+    @ViewBuilder
+    private var compactTrailingNote: some View {
+        // Trailing: note indicator or add-note button
+        if hasNote {
+            let noteContent = resolvedNote
+            if isEditing {
+                Button {
+                    noteToEdit = noteContent.object
+                    showingNoteEditor = true
+                } label: {
+                    Image(systemName: "note.text")
+                        .font(.subheadline)
+                        .foregroundStyle(.secondary)
+                }
+                .buttonStyle(.plain)
+            } else {
+                Image(systemName: "note.text")
+                    .font(.subheadline)
+                    .foregroundStyle(.secondary)
+            }
+        } else if isEditing {
+            Button {
+                noteToEdit = nil
+                showingNoteEditor = true
+            } label: {
+                Image(systemName: "square.and.pencil")
+                    .font(.subheadline)
+                    .foregroundStyle(.tertiary)
+            }
+            .buttonStyle(.plain)
+        }
+    }
+
+    private var compactAccessibilityLabel: String {
+        "\(displayName), \(statusLabel)" +
+        "\(status == .absent && absenceReason != .none ? ", \(absenceReason.displayName)" : "")" +
+        "\(hasNote ? ", has note" : "")"
     }
 
     @ViewBuilder
@@ -306,41 +313,7 @@ struct AttendanceCard: View {
             if hSizeClass != .compact && isEditing { onTap() }
         }
 #endif
-        .contextMenu {
-            if isEditing {
-                Button {
-                    noteToEdit = resolvedNote.object
-                    showingNoteEditor = true
-                } label: {
-                    Label("Note…", systemImage: "square.and.pencil")
-                }
-
-                // Absence reason options (only show when status is absent)
-                if status == .absent, let onSetAbsenceReason = onSetAbsenceReason {
-                    Divider()
-
-                    Button {
-                        onSetAbsenceReason(.sick)
-                    } label: {
-                        Label("Mark as Sick", systemImage: "cross.case.fill")
-                    }
-
-                    Button {
-                        onSetAbsenceReason(.vacation)
-                    } label: {
-                        Label("Mark as Vacation", systemImage: "beach.umbrella.fill")
-                    }
-
-                    if absenceReason != .none {
-                        Button {
-                            onSetAbsenceReason(.none)
-                        } label: {
-                            Label("Clear Reason", systemImage: "xmark.circle")
-                        }
-                    }
-                }
-            }
-        }
+        .contextMenu { cardContextMenu }
         .accessibilityElement(children: .combine)
         .accessibilityLabel("\(student.fullName), \(statusLabel)")
         .accessibilityValue(hasNote ? "Has note" : "No note")
@@ -358,6 +331,43 @@ struct AttendanceCard: View {
                         showingNoteEditor = false
                     }
                 )
+            }
+        }
+    }
+
+    @ViewBuilder
+    private var cardContextMenu: some View {
+        if isEditing {
+            Button {
+                noteToEdit = resolvedNote.object
+                showingNoteEditor = true
+            } label: {
+                Label("Note…", systemImage: "square.and.pencil")
+            }
+
+            // Absence reason options (only show when status is absent)
+            if status == .absent, let onSetAbsenceReason = onSetAbsenceReason {
+                Divider()
+
+                Button {
+                    onSetAbsenceReason(.sick)
+                } label: {
+                    Label("Mark as Sick", systemImage: "cross.case.fill")
+                }
+
+                Button {
+                    onSetAbsenceReason(.vacation)
+                } label: {
+                    Label("Mark as Vacation", systemImage: "beach.umbrella.fill")
+                }
+
+                if absenceReason != .none {
+                    Button {
+                        onSetAbsenceReason(.none)
+                    } label: {
+                        Label("Clear Reason", systemImage: "xmark.circle")
+                    }
+                }
             }
         }
     }

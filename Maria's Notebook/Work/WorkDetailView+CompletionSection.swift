@@ -171,7 +171,6 @@ extension WorkDetailView {
     }
 
     @ViewBuilder
-    // swiftlint:disable:next function_body_length
     func presentationContextSection() -> some View {
         if let presentation = viewModel.relatedPresentation {
             DetailSectionCard(
@@ -180,127 +179,139 @@ extension WorkDetailView {
                 accentColor: .indigo
             ) {
                 VStack(spacing: 14) {
-                    // Presentation date info
-                    HStack(spacing: 12) {
-                        ZStack {
-                            Circle()
-                                .fill(Color.indigo.opacity(UIConstants.OpacityConstants.light))
-                                .frame(width: 44, height: 44)
-
-                            Image(systemName: presentation.isPresented ? "calendar.badge.checkmark" : "calendar")
-                                .font(.system(size: 18, weight: .semibold))
-                                .foregroundStyle(.indigo)
-                        }
-
-                        VStack(alignment: .leading, spacing: 3) {
-                            let statusText = presentation.isPresented
-                                ? "Presented"
-                                : presentation.isScheduled ? "Scheduled" : "Draft"
-                            Text(statusText)
-                                .font(AppTheme.ScaledFont.bodySemibold)
-
-                            if let date = presentation.presentedAt ?? presentation.scheduledFor {
-                                Text(date.formatted(date: .abbreviated, time: .omitted))
-                                    .font(AppTheme.ScaledFont.caption)
-                                    .foregroundStyle(.secondary)
-                            }
-                        }
-
-                        Spacer()
-                    }
-                    .padding(AppTheme.Spacing.compact)
-                    .background(
-                        RoundedRectangle(cornerRadius: 10)
-                            .fill(Color.indigo.opacity(UIConstants.OpacityConstants.veryFaint))
-                    )
-
-                    // Presentation flags
-                    if presentation.needsPractice
-                        || presentation.needsAnotherPresentation
-                        || !presentation.followUpWork.isEmpty {
-                        VStack(spacing: 8) {
-                            if presentation.needsPractice {
-                                FlagRow(icon: "arrow.counterclockwise", text: "Needs Practice", color: .orange)
-                            }
-
-                            if presentation.needsAnotherPresentation {
-                                FlagRow(icon: "repeat", text: "Needs Re-presentation", color: .red)
-                            }
-
-                            if !presentation.followUpWork.isEmpty {
-                                VStack(alignment: .leading, spacing: 6) {
-                                    HStack(spacing: 6) {
-                                        Image(systemName: "list.clipboard")
-                                            .font(.system(size: 14, weight: .medium))
-                                        Text("Follow-up Work")
-                                            .font(AppTheme.ScaledFont.captionSemibold)
-                                    }
-                                    .foregroundStyle(.blue)
-
-                                    Text(presentation.followUpWork)
-                                        .font(AppTheme.ScaledFont.caption)
-                                        .foregroundStyle(.secondary)
-                                }
-                                .padding(AppTheme.Spacing.small)
-                                .frame(maxWidth: .infinity, alignment: .leading)
-                                .background(
-                                    RoundedRectangle(cornerRadius: UIConstants.CornerRadius.small)
-                                        .fill(Color.blue.opacity(UIConstants.OpacityConstants.faint))
-                                )
-                            }
-                        }
-                    }
-
-                    // Presentation notes
-                    if !presentation.notes.isEmpty {
-                        VStack(alignment: .leading, spacing: 6) {
-                            HStack(spacing: 6) {
-                                Image(systemName: "note.text")
-                                    .font(.system(size: 14, weight: .medium))
-                                Text("Presentation Notes")
-                                    .font(AppTheme.ScaledFont.captionSemibold)
-                            }
-                            .foregroundStyle(.purple)
-
-                            Text(presentation.notes)
-                                .font(AppTheme.ScaledFont.caption)
-                                .foregroundStyle(.secondary)
-                        }
-                        .padding(AppTheme.Spacing.small)
-                        .frame(maxWidth: .infinity, alignment: .leading)
-                        .background(
-                            RoundedRectangle(cornerRadius: UIConstants.CornerRadius.small)
-                                .fill(Color.purple.opacity(UIConstants.OpacityConstants.faint))
-                        )
-                    }
-
-                    // Students in presentation (if multiple)
-                    let students = presentation.fetchStudents(from: modelContext)
-                    if students.count > 1 {
-                        VStack(alignment: .leading, spacing: 8) {
-                            HStack(spacing: 6) {
-                                Image(systemName: "person.2.fill")
-                                    .font(.system(size: 14, weight: .medium))
-                                Text("Also presented to:")
-                                    .font(AppTheme.ScaledFont.captionSemibold)
-                            }
-                            .foregroundStyle(AppColors.success)
-
-                            ForEach(students.filter { $0.id?.uuidString != viewModel.work?.studentID }) { student in
-                                Text("\u{2022} \(StudentFormatter.displayName(for: student))")
-                                    .font(AppTheme.ScaledFont.caption)
-                                    .foregroundStyle(.secondary)
-                            }
-                        }
-                        .padding(AppTheme.Spacing.small)
-                        .frame(maxWidth: .infinity, alignment: .leading)
-                        .background(
-                            RoundedRectangle(cornerRadius: UIConstants.CornerRadius.small)
-                                .fill(Color.green.opacity(UIConstants.OpacityConstants.faint))
-                        )
-                    }
+                    presentationDateRow(presentation)
+                    presentationFlags(presentation)
+                    presentationNotes(presentation)
+                    presentationStudents(presentation)
                 }
             }
+        }
+    }
+
+    private func presentationDateRow(_ presentation: CDLessonAssignment) -> some View {
+        HStack(spacing: 12) {
+            ZStack {
+                Circle()
+                    .fill(Color.indigo.opacity(UIConstants.OpacityConstants.light))
+                    .frame(width: 44, height: 44)
+
+                Image(systemName: presentation.isPresented ? "calendar.badge.checkmark" : "calendar")
+                    .font(.system(size: 18, weight: .semibold))
+                    .foregroundStyle(.indigo)
+            }
+
+            VStack(alignment: .leading, spacing: 3) {
+                let statusText = presentation.isPresented
+                    ? "Presented"
+                    : presentation.isScheduled ? "Scheduled" : "Draft"
+                Text(statusText)
+                    .font(AppTheme.ScaledFont.bodySemibold)
+
+                if let date = presentation.presentedAt ?? presentation.scheduledFor {
+                    Text(date.formatted(date: .abbreviated, time: .omitted))
+                        .font(AppTheme.ScaledFont.caption)
+                        .foregroundStyle(.secondary)
+                }
+            }
+
+            Spacer()
+        }
+        .padding(AppTheme.Spacing.compact)
+        .background(
+            RoundedRectangle(cornerRadius: 10)
+                .fill(Color.indigo.opacity(UIConstants.OpacityConstants.veryFaint))
+        )
+    }
+
+    @ViewBuilder
+    private func presentationFlags(_ presentation: CDLessonAssignment) -> some View {
+        if presentation.needsPractice
+            || presentation.needsAnotherPresentation
+            || !presentation.followUpWork.isEmpty {
+            VStack(spacing: 8) {
+                if presentation.needsPractice {
+                    FlagRow(icon: "arrow.counterclockwise", text: "Needs Practice", color: .orange)
+                }
+
+                if presentation.needsAnotherPresentation {
+                    FlagRow(icon: "repeat", text: "Needs Re-presentation", color: .red)
+                }
+
+                if !presentation.followUpWork.isEmpty {
+                    VStack(alignment: .leading, spacing: 6) {
+                        HStack(spacing: 6) {
+                            Image(systemName: "list.clipboard")
+                                .font(.system(size: 14, weight: .medium))
+                            Text("Follow-up Work")
+                                .font(AppTheme.ScaledFont.captionSemibold)
+                        }
+                        .foregroundStyle(.blue)
+
+                        Text(presentation.followUpWork)
+                            .font(AppTheme.ScaledFont.caption)
+                            .foregroundStyle(.secondary)
+                    }
+                    .padding(AppTheme.Spacing.small)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .background(
+                        RoundedRectangle(cornerRadius: UIConstants.CornerRadius.small)
+                            .fill(Color.blue.opacity(UIConstants.OpacityConstants.faint))
+                    )
+                }
+            }
+        }
+    }
+
+    @ViewBuilder
+    private func presentationNotes(_ presentation: CDLessonAssignment) -> some View {
+        if !presentation.notes.isEmpty {
+            VStack(alignment: .leading, spacing: 6) {
+                HStack(spacing: 6) {
+                    Image(systemName: "note.text")
+                        .font(.system(size: 14, weight: .medium))
+                    Text("Presentation Notes")
+                        .font(AppTheme.ScaledFont.captionSemibold)
+                }
+                .foregroundStyle(.purple)
+
+                Text(presentation.notes)
+                    .font(AppTheme.ScaledFont.caption)
+                    .foregroundStyle(.secondary)
+            }
+            .padding(AppTheme.Spacing.small)
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .background(
+                RoundedRectangle(cornerRadius: UIConstants.CornerRadius.small)
+                    .fill(Color.purple.opacity(UIConstants.OpacityConstants.faint))
+            )
+        }
+    }
+
+    @ViewBuilder
+    private func presentationStudents(_ presentation: CDLessonAssignment) -> some View {
+        let students = presentation.fetchStudents(from: modelContext)
+        if students.count > 1 {
+            VStack(alignment: .leading, spacing: 8) {
+                HStack(spacing: 6) {
+                    Image(systemName: "person.2.fill")
+                        .font(.system(size: 14, weight: .medium))
+                    Text("Also presented to:")
+                        .font(AppTheme.ScaledFont.captionSemibold)
+                }
+                .foregroundStyle(AppColors.success)
+
+                ForEach(students.filter { $0.id?.uuidString != viewModel.work?.studentID }) { student in
+                    Text("\u{2022} \(StudentFormatter.displayName(for: student))")
+                        .font(AppTheme.ScaledFont.caption)
+                        .foregroundStyle(.secondary)
+                }
+            }
+            .padding(AppTheme.Spacing.small)
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .background(
+                RoundedRectangle(cornerRadius: UIConstants.CornerRadius.small)
+                    .fill(Color.green.opacity(UIConstants.OpacityConstants.faint))
+            )
         }
     }
 
