@@ -1,9 +1,7 @@
-// swiftlint:disable file_length
 import SwiftUI
 import CoreData
 import OSLog
 
-// swiftlint:disable:next type_body_length
 struct ObservationHeatmapView: View {
     private static let logger = Logger.students
     @Environment(\.managedObjectContext) private var viewContext
@@ -50,37 +48,6 @@ struct ObservationHeatmapView: View {
                 QuickNoteSheet()
             }
         }
-    }
-    
-    private func calculateObservations() {
-        var observations: [StudentObservation] = []
-        
-        for student in allStudents {
-            let mostRecentDate = findMostRecentNoteDate(for: student)
-            let daysSince = calculateDaysSince(date: mostRecentDate)
-            
-            observations.append(StudentObservation(
-                student: student,
-                daysSinceLastObservation: daysSince,
-                mostRecentDate: mostRecentDate
-            ))
-        }
-        
-        // Sort: Red (most days) at top, then Yellow, then Green
-        observations.sort { lhs, rhs in
-            // First sort by observation status (Red > Yellow > Green)
-            let lhsStatus = observationStatus(for: lhs.daysSinceLastObservation)
-            let rhsStatus = observationStatus(for: rhs.daysSinceLastObservation)
-            
-            if lhsStatus != rhsStatus {
-                return lhsStatus.rawValue > rhsStatus.rawValue
-            }
-            
-            // If same status, sort by days (more days = higher priority)
-            return lhs.daysSinceLastObservation > rhs.daysSinceLastObservation
-        }
-        
-        studentObservations = observations
     }
     
     private func calculateObservationsAsync() {
@@ -234,74 +201,6 @@ struct ObservationHeatmapView: View {
         }
     }
 
-    /// Per-student fetch version (used by synchronous `calculateObservations`).
-    private func findMostRecentNoteDate(for student: CDStudent) -> Date? {
-        var mostRecentDate: Date?
-        let studentIDString = student.id?.uuidString ?? ""
-
-        // 1) CDStudent-scoped notes
-        mostRecentDate = findMostRecentStudentScopedNoteDate(for: student)
-
-        // 2) CDLessonAssignment notes
-        mostRecentDate = findMostRecentPresentationNoteDate(
-            studentIDString: studentIDString, current: mostRecentDate
-        )
-
-        // 3) CDStudentMeeting records
-        mostRecentDate = findMostRecentMeetingDate(
-            studentIDString: studentIDString, current: mostRecentDate
-        )
-
-        return mostRecentDate
-    }
-
-    private func findMostRecentStudentScopedNoteDate(for student: CDStudent) -> Date? {
-        let noteDesc = NSFetchRequest<CDNote>(entityName: "Note")
-        let allNotes = (try? viewContext.fetch(noteDesc)) ?? []
-        var mostRecent: Date?
-        for note in allNotes {
-            guard case .student(let id) = note.scope, id == student.id else { continue }
-            let noteDate = max(note.updatedAt ?? .distantPast, note.createdAt ?? .distantPast)
-            if mostRecent == nil || noteDate > mostRecent! { mostRecent = noteDate }
-        }
-        return mostRecent
-    }
-
-    private func findMostRecentPresentationNoteDate(
-        studentIDString: String, current: Date?
-    ) -> Date? {
-        let fetch: NSFetchRequest<CDNote> = NSFetchRequest(entityName: "Note")
-        fetch.predicate = NSPredicate(format: "lessonAssignment != nil")
-        let notes = (try? viewContext.fetch(fetch)) ?? []
-        var mostRecent = current
-        for note in notes {
-            guard let pres = note.lessonAssignment,
-                  pres.studentIDs.contains(studentIDString) else { continue }
-            let noteDate = max(note.updatedAt ?? .distantPast, note.createdAt ?? .distantPast)
-            if mostRecent == nil || noteDate > mostRecent! { mostRecent = noteDate }
-        }
-        return mostRecent
-    }
-
-    private func findMostRecentMeetingDate(studentIDString: String, current: Date?) -> Date? {
-        let fetch: NSFetchRequest<CDStudentMeeting> = NSFetchRequest(entityName: "StudentMeeting")
-        fetch.predicate = NSPredicate(format: "studentID == %@", studentIDString as CVarArg)
-        fetch.sortDescriptors = [NSSortDescriptor(keyPath: \CDStudentMeeting.date, ascending: false)]
-        let meetings = (try? viewContext.fetch(fetch)) ?? []
-        var mostRecent = current
-        for meeting in meetings {
-            let hasContent = !meeting.reflection.trimmed().isEmpty ||
-                            !meeting.focus.trimmed().isEmpty ||
-                            !meeting.requests.trimmed().isEmpty ||
-                            !meeting.guideNotes.trimmed().isEmpty
-            if hasContent {
-                let meetingDate = meeting.date ?? .distantPast
-                if mostRecent == nil || meetingDate > mostRecent! { mostRecent = meetingDate }
-            }
-        }
-        return mostRecent
-    }
-    
     private func calculateDaysSince(date: Date?) -> Int {
         guard let date else {
             // No observation found - return a large number to indicate never observed
