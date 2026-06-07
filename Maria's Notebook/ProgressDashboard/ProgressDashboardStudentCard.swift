@@ -22,9 +22,11 @@ struct ProgressDashboardStudentCard: View {
     }
 
     private var countsSummary: String {
-        let subjectSuffix = card.subjects.count == 1 ? "" : "s"
-        let areaSuffix = card.sequenceCount == 1 ? "" : "s"
-        return "\(card.subjects.count) subject\(subjectSuffix) · \(card.sequenceCount) area\(areaSuffix)"
+        let subjectCount = card.subjects.count
+        let areaCount = card.sequenceCount  // reduce over subjects — read once
+        let subjectSuffix = subjectCount == 1 ? "" : "s"
+        let areaSuffix = areaCount == 1 ? "" : "s"
+        return "\(subjectCount) subject\(subjectSuffix) · \(areaCount) area\(areaSuffix)"
     }
 
     var body: some View {
