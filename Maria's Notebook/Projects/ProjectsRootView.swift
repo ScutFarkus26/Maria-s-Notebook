@@ -11,9 +11,15 @@ struct ProjectsRootView: View {
     @Environment(SaveCoordinator.self) private var saveCoordinator
 
     // MARK: - Data
-    @FetchRequest(
-        sortDescriptors: [NSSortDescriptor(keyPath: \CDProject.createdAt, ascending: false)]
-    ) private var clubsRaw: FetchedResults<CDProject>
+    @FetchRequest(fetchRequest: {
+        let request = NSFetchRequest<CDProject>(entityName: "Project")
+        request.sortDescriptors = [NSSortDescriptor(keyPath: \CDProject.createdAt, ascending: false)]
+        // Prefetch sessions so lastSessionDate(for:) reads each club's relationship
+        // from the row cache instead of faulting it per sidebar row (N+1).
+        request.relationshipKeyPathsForPrefetching = ["sessions"]
+        return request
+    }())
+    private var clubsRaw: FetchedResults<CDProject>
     private var clubs: [CDProject] { Array(clubsRaw).uniqueByID }
     
     // OPTIMIZATION: Removed unfiltered queries - deletion logic uses targeted FetchDescriptor
