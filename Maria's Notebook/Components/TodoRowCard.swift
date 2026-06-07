@@ -179,69 +179,7 @@ struct TodoRowCard: View {
             }
             .tint(.purple)
         }
-        .contextMenu {
-            Button {
-                onEdit()
-            } label: {
-                Label("Edit", systemImage: "pencil")
-            }
-
-            Button {
-                togglePriority()
-            } label: {
-                Label("Change Priority", systemImage: "flag")
-            }
-
-            Divider()
-
-            Menu("Move to...") {
-                Button {
-                    todo.scheduledDate = AppCalendar.startOfDay(Date())
-                    todo.isSomeday = false
-                    persist()
-                } label: {
-                    Label("Today", systemImage: "star.fill")
-                }
-                Button {
-                    todo.scheduledDate = AppCalendar.addingDays(1, to: AppCalendar.startOfDay(Date()))
-                    todo.isSomeday = false
-                    persist()
-                } label: {
-                    Label("Tomorrow", systemImage: "sunrise")
-                }
-                Button {
-                    todo.scheduledDate = nextMonday()
-                    todo.isSomeday = false
-                    persist()
-                } label: {
-                    Label("Next Week", systemImage: "calendar.badge.plus")
-                }
-                Button {
-                    todo.scheduledDate = nil
-                    todo.isSomeday = true
-                    persist()
-                } label: {
-                    Label("Someday", systemImage: "moon.zzz")
-                }
-                Divider()
-                Button {
-                    todo.scheduledDate = nil
-                    todo.dueDate = nil
-                    todo.isSomeday = false
-                    persist()
-                } label: {
-                    Label("Remove Date", systemImage: "xmark.circle")
-                }
-            }
-
-            Divider()
-
-            Button(role: .destructive) {
-                onDelete()
-            } label: {
-                Label("Delete", systemImage: "trash")
-            }
-        }
+        .contextMenu { rowContextMenu }
         .accessibilityAction(named: Text(todo.isCompleted ? "Mark Incomplete" : "Mark Complete")) {
             todo.isCompleted.toggle()
             todo.completedAt = todo.isCompleted ? Date() : nil
@@ -257,6 +195,71 @@ struct TodoRowCard: View {
         }
         .accessibilityAction(named: Text("Delete")) {
             onDelete()
+        }
+    }
+
+    @ViewBuilder
+    private var rowContextMenu: some View {
+        Button {
+            onEdit()
+        } label: {
+            Label("Edit", systemImage: "pencil")
+        }
+
+        Button {
+            togglePriority()
+        } label: {
+            Label("Change Priority", systemImage: "flag")
+        }
+
+        Divider()
+
+        Menu("Move to...") {
+            Button {
+                todo.scheduledDate = AppCalendar.startOfDay(Date())
+                todo.isSomeday = false
+                persist()
+            } label: {
+                Label("Today", systemImage: "star.fill")
+            }
+            Button {
+                todo.scheduledDate = AppCalendar.addingDays(1, to: AppCalendar.startOfDay(Date()))
+                todo.isSomeday = false
+                persist()
+            } label: {
+                Label("Tomorrow", systemImage: "sunrise")
+            }
+            Button {
+                todo.scheduledDate = nextMonday()
+                todo.isSomeday = false
+                persist()
+            } label: {
+                Label("Next Week", systemImage: "calendar.badge.plus")
+            }
+            Button {
+                todo.scheduledDate = nil
+                todo.isSomeday = true
+                persist()
+            } label: {
+                Label("Someday", systemImage: "moon.zzz")
+            }
+            Divider()
+            Button {
+                todo.scheduledDate = nil
+                todo.dueDate = nil
+                todo.isSomeday = false
+                persist()
+            } label: {
+                Label("Remove Date", systemImage: "xmark.circle")
+            }
+        }
+
+        Divider()
+
+        Button(role: .destructive) {
+            onDelete()
+        } label: {
+            Label("Delete", systemImage: "trash")
         }
     }
 
