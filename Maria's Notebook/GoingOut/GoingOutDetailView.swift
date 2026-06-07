@@ -10,6 +10,20 @@ struct GoingOutDetailView: View {
     @State private var showingEditor = false
     @State private var showingNoteEditor = false
 
+    // Notes linked to this going-out (cross-store inverse via goingOutID). A
+    // scoped @FetchRequest fetches once and stays reactive, replacing the
+    // computed property that re-ran the fetch on every body render.
+    @FetchRequest private var observationNotes: FetchedResults<CDNote>
+
+    init(goingOut: CDGoingOut) {
+        _goingOut = ObservedObject(wrappedValue: goingOut)
+        let goingOutIDString = (goingOut.id ?? UUID()).uuidString
+        _observationNotes = FetchRequest(
+            sortDescriptors: [NSSortDescriptor(keyPath: \CDNote.createdAt, ascending: false)],
+            predicate: NSPredicate(format: "goingOutID == %@", goingOutIDString)
+        )
+    }
+
     var body: some View {
         ScrollView {
             VStack(alignment: .leading, spacing: 16) {
@@ -241,9 +255,12 @@ struct GoingOutDetailView: View {
         .cardStyle()
     }
 
-    // MARK: - Observation Notes Section
+}
 
-    private var observationNotesSection: some View {
+// MARK: - Observation Notes Section
+
+extension GoingOutDetailView {
+    fileprivate var observationNotesSection: some View {
         VStack(alignment: .leading, spacing: 8) {
             HStack {
                 Text("Observation Notes")
@@ -266,7 +283,7 @@ struct GoingOutDetailView: View {
                 .buttonStyle(.plain)
             }
 
-            let linkedNotes = goingOut.observationNotes
+            let linkedNotes = Array(observationNotes)
             if linkedNotes.isEmpty {
                 Text("No observation notes yet")
                     .font(.caption)
