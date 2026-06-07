@@ -63,7 +63,13 @@ struct DropZone: View {
         return true
     }
 
-    private var isNonSchool: Bool { isNonSchoolDaySync(day) }
+    @State private var isNonSchool: Bool = false
+
+    /// Reading the version is cheap; the Core Data fetch in `isNonSchoolDaySync`
+    /// runs only when the day or school-day data changes — not on every render.
+    /// DropZone re-renders continuously while dragging, so the old computed
+    /// property hit Core Data on every frame.
+    private var schoolDayKey: String { "\(day.timeIntervalSinceReferenceDate)#\(SchoolDayDataVersion.current)" }
 
     private var scheduledLessonsForSlot: [CDLessonAssignment] {
         allLessonAssignments.filter { la in
@@ -142,6 +148,7 @@ struct DropZone: View {
                 }
             )
         }
+        .task(id: schoolDayKey) { isNonSchool = isNonSchoolDaySync(day) }
         .coordinateSpace(name: zoneSpaceID)
         .onPreferenceChange(PillFramePreference.self) { frames in
             Task { @MainActor in

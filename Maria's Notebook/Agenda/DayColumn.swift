@@ -87,6 +87,12 @@ struct DayColumn: View {
         }
     }
 
+    @State private var isNonSchool: Bool = false
+
+    /// Reading the version is cheap; the Core Data fetch in `isNonSchoolDaySync`
+    /// runs only when the day or school-day data changes — not on every render.
+    private var schoolDayKey: String { "\(day.timeIntervalSinceReferenceDate)#\(SchoolDayDataVersion.current)" }
+
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {
             HStack(alignment: .firstTextBaseline, spacing: 8) {
@@ -95,7 +101,7 @@ struct DayColumn: View {
                 Text(dayNumber)
                     .font(AppTheme.ScaledFont.header)
 
-                if isNonSchoolDaySync(day) {
+                if isNonSchool {
                     Text("No School")
                         .font(AppTheme.ScaledFont.captionSmallSemibold)
                         .padding(.horizontal, 6)
@@ -153,6 +159,7 @@ struct DayColumn: View {
         .onAppear {
             AppCalendar.adopt(timeZoneFrom: calendar)
         }
+        .task(id: schoolDayKey) { isNonSchool = isNonSchoolDaySync(day) }
         .padding(.bottom, 12)
     }
 
