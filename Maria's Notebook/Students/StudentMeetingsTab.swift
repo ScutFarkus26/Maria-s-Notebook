@@ -34,19 +34,26 @@ struct StudentMeetingsTab: View {
     @FetchRequest(sortDescriptors: [NSSortDescriptor(keyPath: \CDLessonAssignment.presentedAt, ascending: false)])
     var allLessonAssignments: FetchedResults<CDLessonAssignment>
 
-    // Query all meetings; we'll filter by studentID
-    @FetchRequest(sortDescriptors: [NSSortDescriptor(keyPath: \CDStudentMeeting.date, ascending: false)])
-    private var meetingItemsRaw: FetchedResults<CDStudentMeeting>
+    // Meetings for this student only — scoped at the fetch level in init.
+    @FetchRequest private var meetingItemsRaw: FetchedResults<CDStudentMeeting>
 
     // Query meeting templates to get active template for placeholders
     @FetchRequest(sortDescriptors: [NSSortDescriptor(keyPath: \CDMeetingTemplate.sortOrder, ascending: true)])
     var meetingTemplates: FetchedResults<CDMeetingTemplate>
 
-    // CloudKit compatibility: Convert UUID to String for comparison
-    var meetingItems: [CDStudentMeeting] {
+    init(student: CDStudent) {
+        self.student = student
+        // Scope the meetings fetch to this student instead of fetching every
+        // meeting in the classroom and filtering in memory on each render.
         let studentIDString = student.id?.uuidString ?? ""
-        return meetingItemsRaw.filter { $0.studentID == studentIDString }
+        _meetingItemsRaw = FetchRequest(
+            sortDescriptors: [NSSortDescriptor(keyPath: \CDStudentMeeting.date, ascending: false)],
+            predicate: NSPredicate(format: "studentID == %@", studentIDString)
+        )
     }
+
+    // Already scoped to this student at the fetch level (see init).
+    var meetingItems: [CDStudentMeeting] { Array(meetingItemsRaw) }
 
     // Get the active meeting template for placeholder prompts
     private var activeTemplate: CDMeetingTemplate? {
