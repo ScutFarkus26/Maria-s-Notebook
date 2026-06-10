@@ -215,31 +215,6 @@ struct SubtaskRow: View {
     }
 }
 
-// MARK: - Todo CDStudent Chip
-struct TodoStudentChip: View {
-    let student: CDStudent
-    let onRemove: () -> Void
-
-    var body: some View {
-        HStack(spacing: 6) {
-            Text(student.firstName)
-                .font(AppTheme.ScaledFont.bodySemibold)
-
-            Button {
-                onRemove()
-            } label: {
-                Image(systemName: "xmark.circle.fill")
-                    .font(.system(size: 14))
-            }
-            .buttonStyle(.plain)
-        }
-        .padding(.horizontal, 12)
-        .padding(.vertical, 6)
-        .background(Color.accentColor.opacity(UIConstants.OpacityConstants.accent))
-        .foregroundStyle(Color.accentColor)
-        .clipShape(Capsule())
-    }
-}
 // MARK: - URL Identifiable Conformance
 
 extension URL: @retroactive Identifiable {

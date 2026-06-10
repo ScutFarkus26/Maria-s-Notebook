@@ -94,43 +94,13 @@ extension UnifiedNoteEditor {
     }
 
     private var selectedStudentsScroll: some View {
-        ScrollView(.horizontal, showsIndicators: false) {
-            HStack(spacing: AppTheme.Spacing.small) {
-                ForEach(Array(selectedStudentIDs), id: \.self) { studentID in
-                    if let student: CDStudent = students.first(where: { $0.id == studentID }) {
-                        selectedStudentChip(studentID: studentID, student: student)
-                    }
-                }
+        SelectedStudentChipsRow(
+            students: Array(selectedStudentIDs).compactMap { id in students.first { $0.id == id } },
+            label: { displayName(for: $0) },
+            onRemove: { student in
+                if let id = student.id { selectedStudentIDs.remove(id) }
             }
-            .padding(.vertical, AppTheme.Spacing.xxsmall)
-        }
-    }
-
-    private func selectedStudentChip(studentID: UUID, student: CDStudent) -> some View {
-        let studentName: String = displayName(for: student)
-        return HStack(spacing: AppTheme.Spacing.xsmall) {
-            Text(studentName)
-                .font(AppTheme.ScaledFont.caption.weight(.medium))
-            Button {
-                selectedStudentIDs.remove(studentID)
-            } label: {
-                Image(systemName: "xmark.circle.fill")
-                    .font(.scaledRounded(.caption2, weight: .semibold))
-            }
-            .buttonStyle(.plain)
-            .foregroundStyle(.secondary)
-            .accessibilityLabel("Remove \(studentName)")
-        }
-        .padding(.horizontal, AppTheme.Spacing.small + AppTheme.Spacing.xxsmall)
-        .padding(.vertical, AppTheme.Spacing.verySmall)
-        .foregroundStyle(.primary)
-        .background(
-            Capsule()
-                .fill(Color.accentColor.opacity(UIConstants.OpacityConstants.accent))
         )
-        .accessibilityElement(children: .combine)
-        .accessibilityLabel("\(studentName), selected")
-        .accessibilityHint("Contains remove button")
     }
 
     private var addStudentButton: some View {

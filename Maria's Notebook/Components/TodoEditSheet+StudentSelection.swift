@@ -65,17 +65,15 @@ extension TodoEditSheet {
     @ViewBuilder
     var selectedStudentsChips: some View {
         if !selectedStudents.isEmpty {
-            ScrollView(.horizontal, showsIndicators: false) {
-                HStack(spacing: 8) {
-                    ForEach(selectedStudents) { student in
-                        TodoStudentChip(student: student) {
-                            adaptiveWithAnimation(.spring(response: 0.25, dampingFraction: 0.85)) {
-                                if let id = student.id { selectedStudentIDs.remove(id.uuidString) }
-                            }
-                        }
-                    }
+            SelectedStudentChipsRow(
+                students: selectedStudents,
+                label: { $0.firstName },
+                font: AppTheme.ScaledFont.bodySemibold,
+                textColor: Color.accentColor
+            ) { student in
+                adaptiveWithAnimation(.spring(response: 0.25, dampingFraction: 0.85)) {
+                    if let id = student.id { selectedStudentIDs.remove(id.uuidString) }
                 }
-                .padding(.vertical, 2)
             }
         }
     }
