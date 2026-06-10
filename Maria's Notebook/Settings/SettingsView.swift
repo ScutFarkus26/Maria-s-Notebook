@@ -272,6 +272,7 @@ struct SettingsView: View {
     // Settings Import
     @State var showingSettingsImporter = false
     @State var settingsImportMessage: String?
+    @State var settingsExportMessage: String?
 }
 
 // MARK: - Apple Intelligence Status Row

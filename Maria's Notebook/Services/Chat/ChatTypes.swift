@@ -1,4 +1,5 @@
 import Foundation
+import OSLog
 
 // MARK: - Chat Message
 
@@ -67,8 +68,12 @@ struct ChatSession: Codable {
 
     /// Save session to UserDefaults.
     func save() {
-        guard let data = try? JSONEncoder().encode(self) else { return }
-        UserDefaults.standard.set(data, forKey: Self.storageKey)
+        do {
+            let data = try JSONEncoder().encode(self)
+            UserDefaults.standard.set(data, forKey: Self.storageKey)
+        } catch {
+            Logger.ai.error("Failed to save chat session: \(error.localizedDescription, privacy: .public)")
+        }
     }
 
     /// Load a previously saved session from UserDefaults. Returns nil if none exists or is older than 24 hours.

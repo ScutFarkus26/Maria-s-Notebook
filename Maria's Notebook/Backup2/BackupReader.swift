@@ -65,7 +65,13 @@ public enum BackupReader {
             case "manifest.json":
                 manifest = try decodeManifest(from: data)
             case "preferences.json":
-                preferences = try? decodePreferences(from: data)
+                do {
+                    preferences = try decodePreferences(from: data)
+                } catch {
+                    let msg = "Backup preferences entry failed to decode; " +
+                        "restore will keep current settings: \(error.localizedDescription)"
+                    logger.warning("\(msg, privacy: .public)")
+                }
             default:
                 if let entry = try parseEntityEntry(path: path, ndjson: data) {
                     entries.append(entry)

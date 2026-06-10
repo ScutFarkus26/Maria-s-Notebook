@@ -128,13 +128,31 @@ extension SettingsView {
                 .controlSize(.small)
             }
         }
+        .alert("Settings Export", isPresented: Binding(
+            get: { settingsExportMessage != nil },
+            set: { if !$0 { settingsExportMessage = nil } }
+        )) {
+            Button("OK", role: .cancel) {}
+        } message: {
+            if let msg = settingsExportMessage {
+                Text(msg)
+            }
+        }
     }
 
     @MainActor private func exportSettingsToFile() {
-        guard let data = SettingsExportService.exportSettings() else { return }
+        guard let data = SettingsExportService.exportSettings() else {
+            settingsExportMessage = "Could not prepare settings for export."
+            return
+        }
         let tempURL = FileManager.default.temporaryDirectory
             .appendingPathComponent("marias-notebook-settings.json")
-        try? data.write(to: tempURL)
+        do {
+            try data.write(to: tempURL)
+        } catch {
+            settingsExportMessage = AppErrorMessages.userMessage(for: error, context: "exporting settings")
+            return
+        }
         #if os(macOS)
         NSWorkspace.shared.activateFileViewerSelecting([tempURL])
         #else
