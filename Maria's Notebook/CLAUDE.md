@@ -16,8 +16,11 @@ Maria's Notebook is a comprehensive teacher planning and classroom management ap
 # Open project
 open "Maria's Notebook.xcodeproj"
 
-# Build from command line
-xcodebuild -project "Maria's Notebook.xcodeproj" -scheme "Maria's Notebook" -destination "platform=iOS Simulator,name=iPhone 16"
+# Build from command line (iPhone 16 simulators no longer ship with current Xcode)
+xcodebuild -project "Maria's Notebook.xcodeproj" -scheme "Maria's Notebook" -destination "platform=iOS Simulator,name=iPhone 17,OS=26.5" build
+
+# Run unit tests
+xcodebuild test -project "Maria's Notebook.xcodeproj" -scheme "Maria's Notebook" -destination "platform=iOS Simulator,name=iPhone 17,OS=26.5"
 ```
 
 ## Project Structure
