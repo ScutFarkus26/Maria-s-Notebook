@@ -76,24 +76,12 @@ class SchoolDayCache {
     }
 
     func isNonSchoolDay(_ date: Date) -> Bool {
-        let day = AppCalendar.startOfDay(date)
-        let cal = AppCalendar.shared
-
-        // 1) Explicit non-school day wins (check cache)
-        if cachedNonSchoolDays.contains(day) {
-            return true
-        }
-
-        // 2) Weekends are non-school by default (Sunday=1, Saturday=7)
-        let weekday = cal.component(.weekday, from: day)
-        let isWeekend = (weekday == 1 || weekday == 7)
-        guard isWeekend else { return false }
-
-        // 3) Weekend override makes it a school day (check cache)
-        if cachedSchoolDayOverrides.contains(day) {
-            return false
-        }
-
-        return true
+        // The rule lives in SchoolDayChecker (the canonical implementation);
+        // this class only contributes the cached record sets.
+        SchoolDayChecker.isNonSchoolDay(
+            date,
+            nonSchoolDayDates: cachedNonSchoolDays,
+            overrideDates: cachedSchoolDayOverrides
+        )
     }
 }

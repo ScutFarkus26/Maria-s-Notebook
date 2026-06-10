@@ -5,7 +5,6 @@ import OSLog
 /// Thread-safe cache for school day calculations to avoid repeated database queries during rendering
 @MainActor
 final class SchoolDayCalculationCache {
-    private static let logger = Logger.calendar_
     static let shared = SchoolDayCalculationCache()
     
     private struct CacheKey: Hashable {
@@ -27,7 +26,9 @@ final class SchoolDayCalculationCache {
         lastCacheRefresh = nil
     }
     
-    /// Preload non-school days for a date range to enable fast lookups
+    /// Preload non-school days for a date range to enable fast lookups.
+    /// The set itself is built by `SchoolDayChecker` (the canonical rules);
+    /// this class only contributes the caching.
     func preloadNonSchoolDays(
         from start: Date,
         to end: Date,
@@ -38,69 +39,16 @@ final class SchoolDayCalculationCache {
         if let lastRefresh = lastCacheRefresh, Date().timeIntervalSince(lastRefresh) < cacheValidityDuration {
             return // Cache is still valid
         }
-        
+
         let startDay = calendar.startOfDay(for: start)
         let endDay = calendar.startOfDay(for: end)
-        
-        // Fetch all non-school days in range
-        let nonSchoolFetch: NSFetchRequest<CDNonSchoolDay> = NSFetchRequest<CDNonSchoolDay>(
-            entityName: "NonSchoolDay"
-        )
-        nonSchoolFetch.predicate = NSPredicate(
-            format: "date >= %@ AND date <= %@",
-            startDay as NSDate,
-            endDay as NSDate
-        )
+        guard let endExclusive = calendar.date(byAdding: .day, value: 1, to: endDay) else { return }
 
-        let overridesFetch: NSFetchRequest<CDSchoolDayOverride> = NSFetchRequest<CDSchoolDayOverride>(
-            entityName: "SchoolDayOverride"
+        nonSchoolDaysCache = SchoolDayChecker.nonSchoolDaySet(
+            in: startDay..<endExclusive,
+            using: context,
+            calendar: calendar
         )
-        overridesFetch.predicate = NSPredicate(
-            format: "date >= %@ AND date <= %@",
-            startDay as NSDate,
-            endDay as NSDate
-        )
-
-        let nonSchoolDays: [CDNonSchoolDay]
-        let overrides: [CDSchoolDayOverride]
-        do {
-            nonSchoolDays = try context.fetch(nonSchoolFetch)
-        } catch {
-            Self.logger.warning("Failed to fetch non-school days: \(error)")
-            nonSchoolDays = []
-        }
-        do {
-            overrides = try context.fetch(overridesFetch)
-        } catch {
-            Self.logger.warning("Failed to fetch school day overrides: \(error)")
-            overrides = []
-        }
-        let overrideDates = Set(overrides.map { $0.date ?? .distantPast })
-        
-        // Build cache of non-school days
-        var result: Set<Date> = []
-        
-        // Add explicit non-school days
-        for day in nonSchoolDays {
-            result.insert(day.date ?? .distantPast)
-        }
-        
-        // Add weekends (unless overridden)
-        var cursor = startDay
-        var iterations = 0
-        let maxIterations = 10000 // ~27 years of days
-        while cursor <= endDay && iterations < maxIterations {
-            iterations += 1
-            let weekday = calendar.component(.weekday, from: cursor)
-            let isWeekend = (weekday == 1 || weekday == 7)
-            if isWeekend && !overrideDates.contains(cursor) {
-                result.insert(cursor)
-            }
-            guard let next = calendar.date(byAdding: .day, value: 1, to: cursor), next > cursor else { break }
-            cursor = next
-        }
-        
-        nonSchoolDaysCache = result
         lastCacheRefresh = Date()
     }
     

@@ -7,7 +7,6 @@ import OSLog
 /// Converted to @MainActor to align with NSManagedObjectContext thread requirements in Swift 6.
 @MainActor
 public final class SchoolCalendarService {
-    private static let logger = Logger.calendar_
     public static let shared = SchoolCalendarService()
 
     // MARK: - State
@@ -71,55 +70,17 @@ public final class SchoolCalendarService {
 
     /// Returns a precomputed set of non-school days in the given range.
     /// Weekends are included by default; weekend overrides are removed; explicit non-school days are included.
+    ///
+    /// Delegates to the canonical rules in `SchoolDayChecker`. This also fixed
+    /// a precedence divergence: this method used to apply weekend overrides
+    /// *after* explicit NonSchoolDay records, letting an override turn an
+    /// explicit non-school date back into a school day — the opposite of every
+    /// other school-day code path.
     public func precomputedNonSchoolSet(
         in range: Range<Date>,
         using context: NSManagedObjectContext
     ) async -> Set<Date> {
-        let start = cal.startOfDay(for: range.lowerBound)
-        let end = cal.startOfDay(for: range.upperBound)
-
-        // Fetch Core Data models directly (we are on MainActor)
-        let nsFetchRequest: NSFetchRequest<CDNonSchoolDay> = NSFetchRequest<CDNonSchoolDay>(entityName: "NonSchoolDay")
-        nsFetchRequest.predicate = NSPredicate(format: "date >= %@ AND date < %@", start as NSDate, end as NSDate)
-        let ovFetchRequest: NSFetchRequest<CDSchoolDayOverride> =
-            NSFetchRequest<CDSchoolDayOverride>(entityName: "SchoolDayOverride")
-        ovFetchRequest.predicate = NSPredicate(format: "date >= %@ AND date < %@", start as NSDate, end as NSDate)
-        let ns: [CDNonSchoolDay]
-        let ovs: [CDSchoolDayOverride]
-        do {
-            ns = try context.fetch(nsFetchRequest)
-        } catch {
-            Self.logger.warning("Failed to fetch non-school days: \(error)")
-            ns = []
-        }
-        do {
-            ovs = try context.fetch(ovFetchRequest)
-        } catch {
-            Self.logger.warning("Failed to fetch school day overrides: \(error)")
-            ovs = []
-        }
-        
-        let nonSchoolDates = ns.map { $0.date ?? .distantPast }
-        let overrideDates = ovs.map { $0.date ?? .distantPast }
-
-        var result = Set<Date>(nonSchoolDates.map { cal.startOfDay(for: $0) })
-
-        // Add weekends in range by default
-        var d = start
-        while d < end {
-            let wd = cal.component(.weekday, from: d)
-            if wd == 1 || wd == 7 { // Sunday or Saturday
-                result.insert(d)
-            }
-            guard let next = cal.date(byAdding: .day, value: 1, to: d) else { break }
-            d = next
-        }
-
-        // Remove weekend overrides (weekend becomes a school day)
-        for ovDate in overrideDates {
-            result.remove(cal.startOfDay(for: ovDate))
-        }
-        return result
+        SchoolDayChecker.nonSchoolDaySet(in: range, using: context, calendar: cal)
     }
 
     /// Returns the set of non-school days in the given range (same as `precomputedNonSchoolSet`).
