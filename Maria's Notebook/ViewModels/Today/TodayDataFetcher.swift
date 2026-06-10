@@ -154,6 +154,10 @@ enum TodayDataFetcher {
             )
             workRequest.sortDescriptors = [NSSortDescriptor(keyPath: \CDWorkModel.createdAt, ascending: false)]
             workRequest.fetchLimit = 1000 // Reasonable limit for active work items
+            // TodayScheduleBuilder reads work.checkIns (all statuses) per item for
+            // last-touch aging; prefetch the relationship so that loop doesn't
+            // fault one round-trip per work model.
+            workRequest.relationshipKeyPathsForPrefetching = ["checkIns"]
             let workItems = try context.fetch(workRequest)
 
             // Collect student/lesson IDs from work

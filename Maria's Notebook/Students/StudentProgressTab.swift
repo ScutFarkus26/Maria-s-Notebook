@@ -482,45 +482,37 @@ private struct TrackFilteredListSheet: View {
 
     @Environment(\.managedObjectContext) private var viewContext
 
+    @State private var data: TrackFilteredListData?
+
     var body: some View {
         let params = extractParams()
-        let (enrollment, track, filterType) = (params.enrollment, params.track, params.filterType)
 
-        // Fetch data on-demand
-        let allLessonAssignments: [CDLessonAssignment] = {
-            let r: NSFetchRequest<CDLessonAssignment> = NSFetchRequest(entityName: "LessonAssignment")
-            r.sortDescriptors = [NSSortDescriptor(key: "presentedAt", ascending: false)]
-            return viewContext.safeFetch(r)
-        }()
-
-        let allWorkModels: [CDWorkModel] = {
-            let r: NSFetchRequest<CDWorkModel> = NSFetchRequest(entityName: "WorkModel")
-            r.sortDescriptors = [NSSortDescriptor(key: "createdAt", ascending: false)]
-            return viewContext.safeFetch(r)
-        }()
-
-        let allNotes: [CDNote] = {
-            let r: NSFetchRequest<CDNote> = NSFetchRequest(entityName: "Note")
-            r.sortDescriptors = [NSSortDescriptor(key: "updatedAt", ascending: false)]
-            return viewContext.safeFetch(r)
-        }()
-
-        let allLessons: [CDLesson] = {
-            let r: NSFetchRequest<CDLesson> = NSFetchRequest(entityName: "Lesson")
-            r.sortDescriptors = [NSSortDescriptor(key: "name", ascending: true)]
-            return viewContext.safeFetch(r)
-        }()
-
-        TrackFilteredListView(
-            enrollment: enrollment,
-            track: track,
-            filterType: filterType,
-            allLessonAssignments: allLessonAssignments,
-            allWorkModels: allWorkModels,
-            allNotes: allNotes,
-            allLessons: allLessons,
-            onDismiss: onDismiss
-        )
+        Group {
+            if let data {
+                TrackFilteredListView(
+                    enrollment: params.enrollment,
+                    track: params.track,
+                    filterType: params.filterType,
+                    allLessonAssignments: data.lessonAssignments,
+                    allWorkModels: data.workModels,
+                    allNotes: data.notes,
+                    allLessons: data.lessons,
+                    onDismiss: onDismiss
+                )
+            } else {
+                ProgressView()
+            }
+        }
+        .task {
+            // Fetch once, scoped to this enrollment + track, instead of
+            // re-running four whole-table fetches on every body evaluation.
+            data = TrackFilteredListLoader.load(
+                enrollment: params.enrollment,
+                track: params.track,
+                filterType: params.filterType,
+                context: viewContext
+            )
+        }
         .studentDetailSheetSizing()
     }
 
