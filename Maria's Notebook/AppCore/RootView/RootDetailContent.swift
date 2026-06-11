@@ -73,7 +73,7 @@ struct RootDetailContent: View {
     @ViewBuilder
     private var studentsContent: some View {
         switch selectedNavItem {
-        case .students: StudentsRootView()
+        case .students: StudentsView()
         case .meetings: MeetingsWorkflowView()
         case .goingOut: GoingOutRootView()
         case .more: MoreMenuView()

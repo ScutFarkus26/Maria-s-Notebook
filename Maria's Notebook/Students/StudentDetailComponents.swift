@@ -94,8 +94,11 @@ struct WithdrawnBanner: View {
 
 struct StudentInfoRows: View {
     let student: CDStudent
+    /// Two-column layout for wide panes (macOS / iPad regular) so label-value
+    /// pairs don't stretch across the full detail width.
+    var useGrid: Bool = false
     @Environment(\.managedObjectContext) private var viewContext
-    
+
     private var formattedBirthday: String {
         DateFormatters.longDate.string(from: student.birthday ?? Date())
     }
@@ -103,30 +106,49 @@ struct StudentInfoRows: View {
     private var ageDescription: String {
         AgeUtils.verboseAgeString(for: student.birthday ?? Date())
     }
-    
+
     private var attendanceInfoRow: some View {
         AttendanceInfoRow(student: student)
     }
 
     var body: some View {
-        VStack(spacing: 14) {
-            InfoRowView(icon: "person", title: "Nickname", value: student.nickname ?? "-")
-            InfoRowView(icon: "calendar", title: "Birthday", value: formattedBirthday)
-            if let ds = student.dateStarted {
-                InfoRowView(
-                    icon: "calendar.badge.clock", title: "Start Date",
-                    value: DateFormatters.longDate.string(from: ds)
-                )
+        Group {
+            if useGrid {
+                // Adaptive: two columns only when each cell gets >=380pt, so labels
+                // like "Florida Grade Equivalent" never wrap (narrow iPad panes get one column).
+                LazyVGrid(
+                    columns: [GridItem(.adaptive(minimum: 380, maximum: .infinity), spacing: 40)],
+                    alignment: .leading,
+                    spacing: 14
+                ) {
+                    rowsContent
+                }
+            } else {
+                VStack(spacing: 14) {
+                    rowsContent
+                }
             }
-            InfoRowView(icon: "gift", title: "Age", value: ageDescription)
-            InfoRowView(
-                icon: "graduationcap", title: "Florida Grade Equivalent",
-                value: FloridaGradeCalculator.grade(for: student.birthday ?? Date()).displayString
-            )
-            DaysSinceLastLessonView(student: student)
-            attendanceInfoRow
         }
         .padding(.horizontal, AppTheme.Spacing.small)
+    }
+
+    @ViewBuilder
+    private var rowsContent: some View {
+        InfoRowView(icon: "person", title: "Nickname", value: student.nickname ?? "-")
+        InfoRowView(icon: "calendar", title: "Birthday", value: formattedBirthday)
+        if let ds = student.dateStarted {
+            InfoRowView(
+                icon: "calendar.badge.clock", title: "Start Date",
+                value: DateFormatters.longDate.string(from: ds)
+            )
+        }
+        InfoRowView(icon: "gift", title: "Age", value: ageDescription)
+        InfoRowView(
+            icon: "graduationcap", title: "Florida Grade Equivalent",
+            value: FloridaGradeCalculator.grade(for: student.birthday ?? Date()).displayString
+        )
+        DaysSinceLastLessonView(student: student)
+        attendanceInfoRow
     }
 }
 

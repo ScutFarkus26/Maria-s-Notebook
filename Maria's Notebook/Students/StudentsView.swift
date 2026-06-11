@@ -6,11 +6,14 @@ import UniformTypeIdentifiers
 
 private let logger = Logger.students
 
-// Top-level view for managing and browsing students with a unified sidebar.
-// swiftlint:disable:next type_body_length
+// Top-level view for managing and browsing students.
+//
+// One NavigationSplitView spine on every platform:
+// - Sidebar: roster list with search, scope chips, sort-contextual rows,
+//   and a collapsible Withdrawn section.
+// - Detail: the selected student inline (pushed on iPhone), or the card-grid
+//   browser when the grid view style is active and nothing is selected.
 struct StudentsView: View {
-    @Binding var mode: StudentMode
-
     @Environment(\.managedObjectContext) var viewContext
     @Environment(\.appRouter) private var appRouter
     @Environment(\.calendar) var calendar
@@ -18,7 +21,7 @@ struct StudentsView: View {
     @Environment(\.horizontalSizeClass) var horizontalSizeClass
     #endif
 
-    // OPTIMIZATION: Students always needed in roster mode, so keep @Query
+    // OPTIMIZATION: Students always needed, so keep @FetchRequest
     @FetchRequest(sortDescriptors: []) var students: FetchedResults<CDStudent>
 
     // DEDUPLICATION: CloudKit sync can create duplicate records with the same ID.
@@ -32,22 +35,22 @@ struct StudentsView: View {
     @State private var presentationChangeToken: Int = 0
     @State private var lessonChangeToken: Int = 0
 
-    // OPTIMIZATION: Cache data loaded on-demand based on mode and filters (moved to ViewModel)
+    // OPTIMIZATION: Cache data loaded on-demand based on filters (moved to ViewModel)
     @State var viewModel = StudentsViewModel()
 
-    // MARK: - App Storage for Roster Mode
+    // MARK: - Persisted Display Options
     @AppStorage(UserDefaultsKeys.studentsViewSortOrder) var studentsSortOrderRaw: String = "alphabetical"
     @AppStorage(UserDefaultsKeys.studentsViewSelectedFilter) var studentsFilterRaw: String = "all"
+    @AppStorage(UserDefaultsKeys.studentsViewStyle) var studentsViewStyleRaw: String = "list"
     @AppStorage(UserDefaultsKeys.generalShowTestStudents) var showTestStudents: Bool = false
     @AppStorage(UserDefaultsKeys.generalTestStudentNames) var testStudentNamesRaw: String = "Danny De Berry,Lil Dan D"
 
-    // MARK: - State for Roster Mode
+    // MARK: - State
     @State var searchText: String = ""
     @State var showingAddStudent = false
     @State var selectedStudentID: UUID?
-    @State var selectedStudentForSheet: CDStudent?
-    @State private var isShowingSaveError: Bool = false
-    @State private var saveErrorMessage: String = ""
+    @State var isWithdrawnExpanded = false
+    @State private var columnVisibility: NavigationSplitViewVisibility = .all
 
     // MARK: - State for CSV Import
     @State var showingStudentCSVImporter: Bool = false
@@ -62,228 +65,142 @@ struct StudentsView: View {
 
     // MARK: - Body
 
-    // MARK: - macOS Mode-Specific Content (no NavigationStack wrapper)
-    #if os(macOS)
-    @ViewBuilder
-    private var macOSModeContent: some View {
-        switch mode {
-        case .age, .birthday:
-            rosterGridContent
-        case .roster, .withdrawn:
-            HStack(spacing: 0) {
-                threePaneSidebar
-                    .frame(width: 360)
-                Divider()
-                threePaneContent
-                    .frame(maxWidth: .infinity)
-            }
-        }
-    }
-    #endif
-
-    private var mainContent: some View {
-        #if os(macOS)
-        // macOS: Single NavigationStack with switching content for smooth transitions
-        NavigationStack {
-            VStack(spacing: 0) {
-                ViewHeader(title: "Students") {
-                    modePickerContent
-
-                    Spacer()
-                        .frame(width: 24)
-
-                    addStudentButton
-                }
-                Divider()
-                macOSModeContent
-            }
-        }
-        #else
-        iOSMainContent
-        #endif
-    }
-
-    #if os(iOS)
-    @ViewBuilder
-    private var iOSMainContent: some View {
-        if shouldUseGridView {
-            iOSGridLayout
-        } else if mode == .roster || mode == .withdrawn {
-            iOSRosterLayout
-        }
-    }
-
-    private var iOSGridLayout: some View {
-        NavigationStack {
-            Group {
-                if horizontalSizeClass == .compact {
-                    placeholderContentForMode
-                } else {
-                    rosterGridContent
-                }
-            }
-            .toolbar {
-                iOSToolbarContent
-            }
-            .navigationTitle("Students")
-            .inlineNavigationTitle()
-        }
-    }
-
-    @ViewBuilder
-    private var iOSRosterLayout: some View {
-        if horizontalSizeClass == .compact {
-            iOSCompactRosterLayout
-        } else {
-            iOSRegularRosterLayout
-        }
-    }
-
-    private var iOSCompactRosterLayout: some View {
-        NavigationStack {
-            VStack(spacing: 0) {
-                SearchField("Search students", text: $searchText)
-                    .padding(.horizontal, 16)
-                    .padding(.vertical, 8)
-                    .onSubmit {
-                        if let first = filteredStudents.first {
-                            selectedStudentForSheet = first
-                        }
-                    }
-                rosterListContent
-            }
-            .navigationTitle("Students")
-            .inlineNavigationTitle()
-            .listStyle(.plain)
-            .toolbar {
-                toolbarContent
-            }
-        }
-    }
-
-    private var iOSRegularRosterLayout: some View {
-        NavigationStack {
-            HStack(spacing: 0) {
-                threePaneSidebar
-                    .frame(width: 360)
-                Divider()
-                threePaneContent
-                    .frame(maxWidth: .infinity)
-            }
-            .navigationTitle("Students")
-            .inlineNavigationTitle()
-            .toolbar {
-                toolbarContent
-            }
-        }
-    }
-    #endif
-
-    // Helper to break up complex view builder expression
-    private var contentWithSheetsAndAlerts: some View {
-        mainContent
-            .sheet(isPresented: $showingAddStudent) {
-                AddStudentView()
-                    .presentationSizingFitted()
-            }
-            .modifier(SaveErrorAlert(isPresented: $isShowingSaveError, message: saveErrorMessage))
-            .alert(item: $importAlert) { alert in
-                Alert(title: Text(alert.title), message: Text(alert.message), dismissButton: .default(Text("OK")))
-            }
-            .modifier(CSVImportSheets(
-                showingImporter: $showingStudentCSVImporter,
-                showingMappingSheet: $showingMappingSheet,
-                mappingHeaders: mappingHeaders,
-                pendingParsedImport: $pendingParsedImport,
-                pendingFileURL: $pendingFileURL,
-                onFileImport: handleFileImport,
-                onMappingCancel: {
-                    showingMappingSheet = false
-                    pendingFileURL = nil
-                },
-                onMappingConfirm: handleMappingConfirm,
-                onImportCancel: {
-                    pendingParsedImport = nil
-                    pendingFileURL = nil
-                },
-                onImportConfirm: handleImportCommit
-            ))
-            .sheet(item: $selectedStudentForSheet, onDismiss: {}, content: { student in
-                StudentDetailView(student: student)
-                    .id(student.id)
-                #if os(macOS)
-                    .frame(minWidth: 860, minHeight: 640)
-                    .presentationSizingFitted()
-                #else
-                    .presentationDetents([.large])
-                    .presentationDragIndicator(.visible)
-                #endif
-            })
-    }
-
     var body: some View {
-        contentWithSheetsAndAlerts
-            .onChange(of: appRouter.navigationDestination) { _, destination in
-                handleNavigationDestinationChange(destination)
-            }
-#if os(iOS)
-            .onAppear {
-                if horizontalSizeClass == .compact { mode = .roster }
-            }
-#endif
-            .task {
-                refreshChangeTokens()
-                ensureInitialManualOrderIfNeeded()
-                await loadDataOnDemand()
-            }
-            .onChange(of: mode) { oldMode, newMode in
-                handleModeChange(oldMode: oldMode, newMode: newMode)
-            }
-            .onChange(of: studentsSortOrderRaw) { _, _ in
-                reloadDataAsync()
-            }
-            .onChange(of: studentsFilterRaw) { _, _ in
-                reloadDataAsync()
-            }
-            .onChange(of: attendanceChangeToken) { _, _ in
-                reloadDataAsync()
-            }
-            .onChange(of: presentationChangeToken) { _, _ in
-                reloadDataAsync()
-            }
-            .onChange(of: lessonChangeToken) { _, _ in
-                reloadDataAsync()
-            }
-            // Debounce: many saves can fire in bursts (bulk edits, CloudKit merge
-            // batches). Coalesce them so the three count() fetches in
-            // refreshChangeTokens run once the dust settles, not per save.
-            .onReceive(
-                NotificationCenter.default.publisher(for: .NSManagedObjectContextDidSave)
-                    .debounce(for: .milliseconds(300), scheduler: RunLoop.main)
-            ) { _ in
-                refreshChangeTokens()
-            }
-            .onChange(of: uniqueStudentIDs) { _, _ in
-                ensureInitialManualOrderIfNeeded()
-                if viewModel.repairManualOrderUniquenessIfNeeded(uniqueStudents) {
-                    do {
-                        try viewContext.save()
-                    } catch {
-                        logger.warning("Failed to save after repairing manual order uniqueness: \(error)")
-                    }
+        NavigationSplitView(columnVisibility: $columnVisibility) {
+            sidebarColumn
+        } detail: {
+            detailColumn
+        }
+        .navigationSplitViewStyle(.balanced)
+        .sheet(isPresented: $showingAddStudent) {
+            AddStudentView()
+                .presentationSizingFitted()
+        }
+        .alert(item: $importAlert) { alert in
+            Alert(title: Text(alert.title), message: Text(alert.message), dismissButton: .default(Text("OK")))
+        }
+        .modifier(CSVImportSheets(
+            showingImporter: $showingStudentCSVImporter,
+            showingMappingSheet: $showingMappingSheet,
+            mappingHeaders: mappingHeaders,
+            pendingParsedImport: $pendingParsedImport,
+            pendingFileURL: $pendingFileURL,
+            onFileImport: handleFileImport,
+            onMappingCancel: {
+                showingMappingSheet = false
+                pendingFileURL = nil
+            },
+            onMappingConfirm: handleMappingConfirm,
+            onImportCancel: {
+                pendingParsedImport = nil
+                pendingFileURL = nil
+            },
+            onImportConfirm: handleImportCommit
+        ))
+        .onChange(of: appRouter.navigationDestination) { _, destination in
+            handleNavigationDestinationChange(destination)
+        }
+        .task {
+            refreshChangeTokens()
+            ensureInitialManualOrderIfNeeded()
+            loadDataOnDemand()
+        }
+        .onChange(of: studentsSortOrderRaw) { _, _ in
+            reloadDataAsync()
+        }
+        .onChange(of: studentsFilterRaw) { _, _ in
+            reloadDataAsync()
+        }
+        .onChange(of: attendanceChangeToken) { _, _ in
+            reloadDataAsync()
+        }
+        .onChange(of: presentationChangeToken) { _, _ in
+            reloadDataAsync()
+        }
+        .onChange(of: lessonChangeToken) { _, _ in
+            reloadDataAsync()
+        }
+        // Debounce: many saves can fire in bursts (bulk edits, CloudKit merge
+        // batches). Coalesce them so the three count() fetches in
+        // refreshChangeTokens run once the dust settles, not per save.
+        .onReceive(
+            NotificationCenter.default.publisher(for: .NSManagedObjectContextDidSave)
+                .debounce(for: .milliseconds(300), scheduler: RunLoop.main)
+        ) { _ in
+            refreshChangeTokens()
+        }
+        .onChange(of: uniqueStudentIDs) { _, _ in
+            ensureInitialManualOrderIfNeeded()
+            if viewModel.repairManualOrderUniquenessIfNeeded(uniqueStudents) {
+                do {
+                    try viewContext.save()
+                } catch {
+                    logger.warning("Failed to save after repairing manual order uniqueness: \(error)")
                 }
             }
+        }
     }
 
-    // MARK: - Logic Helpers
+    // MARK: - Detail Column
+
+    private var selectedStudent: CDStudent? {
+        guard let id = selectedStudentID else { return nil }
+        return uniqueStudents.first { $0.id == id }
+    }
+
+    @ViewBuilder
+    private var detailColumn: some View {
+        if let student = selectedStudent {
+            StudentDetailView(student: student, isInline: true, onDone: { selectedStudentID = nil })
+                .id(student.id)
+                .navigationTitle(student.fullName)
+                .inlineNavigationTitle()
+                .toolbar { detailToolbar }
+        } else if viewStyle == .grid {
+            gridBrowser
+        } else {
+            SelectStudentEmptyState()
+        }
+    }
+
+    /// Full-width card grid shown in the detail area when nothing is selected
+    /// and the grid view style is active. Cards follow the current sort:
+    /// birthday sort shows birthday cards, age sort shows age cards.
+    private var gridBrowser: some View {
+        StudentsCardsGridView(
+            students: filteredStudents,
+            isBirthdayMode: sortOrder == .birthday,
+            isAgeMode: sortOrder == .age,
+            isLastLessonMode: false,
+            lastLessonDays: [:],
+            isManualMode: false,
+            onTapStudent: { student in selectedStudentID = student.id },
+            onReorder: { _, _, _, _ in }
+        )
+        .navigationTitle("Students")
+        .inlineNavigationTitle()
+    }
+
+    @ToolbarContentBuilder
+    private var detailToolbar: some ToolbarContent {
+        if viewStyle == .grid {
+            ToolbarItem(placement: .primaryAction) {
+                Button {
+                    selectedStudentID = nil
+                } label: {
+                    Label("All Students", systemImage: "square.grid.2x2")
+                }
+                .help("Back to all students")
+            }
+        }
+    }
 
     // MARK: - On-Demand Data Loading
 
-    /// Loads data on-demand based on current mode and filters
+    /// Loads attendance and lesson-age caches based on current filters
     @MainActor
-    private func loadDataOnDemand() async {
+    private func loadDataOnDemand() {
         viewModel.loadDataOnDemand(
-            mode: mode,
             viewContext: viewContext,
             calendar: calendar,
             students: uniqueStudents
@@ -293,7 +210,7 @@ struct StudentsView: View {
     /// Helper to reload data asynchronously (reduces duplication in onChange handlers)
     private func reloadDataAsync() {
         Task { @MainActor in
-            await loadDataOnDemand()
+            loadDataOnDemand()
         }
     }
 
@@ -341,7 +258,7 @@ struct StudentsView: View {
     }
 
     func handleManualReorder(from source: IndexSet, to destination: Int) {
-        guard effectiveSortOrder == .manual, let fromIndex = source.first else { return }
+        guard sortOrder == .manual, let fromIndex = source.first else { return }
         let movingStudent = filteredStudents[fromIndex]
         let newAllIDs = viewModel.mergeReorderedSubsetIntoAll(
             movingID: movingStudent.id ?? UUID(),
@@ -358,48 +275,19 @@ struct StudentsView: View {
         }
     }
 
-    // MARK: - Navigation and Lifecycle Helpers
+    // MARK: - Navigation Helpers
 
     private func handleNavigationDestinationChange(_ destination: AppRouter.NavigationDestination?) {
         guard let destination else { return }
         if case .newStudent = destination {
-            mode = .roster
             showingAddStudent = true
             appRouter.clearNavigation()
         } else if case .importStudents = destination {
-            mode = .roster
             showingStudentCSVImporter = true
             appRouter.clearNavigation()
         } else if case .openStudentDetail(let studentID) = destination {
-            mode = .roster
             selectedStudentID = studentID
             appRouter.clearNavigation()
         }
-    }
-
-    private func handleModeChange(oldMode: StudentMode, newMode: StudentMode) {
-        let specialModes: [StudentMode] = [.age, .birthday]
-        let specialSortOrders = ["age", "birthday"]
-
-        // Automatically set sort order and filter when switching modes
-        switch newMode {
-        case .age:
-            studentsSortOrderRaw = "age"
-        case .birthday:
-            studentsSortOrderRaw = "birthday"
-        case .withdrawn:
-            studentsFilterRaw = "withdrawn"
-            studentsSortOrderRaw = "alphabetical"
-        case .roster where specialModes.contains(oldMode) && specialSortOrders.contains(studentsSortOrderRaw):
-            // When switching back to roster from special modes, default to alphabetical
-            studentsSortOrderRaw = "alphabetical"
-        case .roster where oldMode == .withdrawn:
-            // When switching back from withdrawn mode, reset filter to all
-            studentsFilterRaw = "all"
-        default:
-            break
-        }
-
-        reloadDataAsync()
     }
 }

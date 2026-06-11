@@ -9,6 +9,9 @@ struct StudentDetailView: View {
 
     // MARK: - Inputs
     let student: CDStudent
+    /// True when shown inside the students split view detail column
+    /// (no sheet sizing; Done clears the selection via onDone).
+    var isInline: Bool = false
     var onDone: (() -> Void)?
 
     // MARK: - Environment
@@ -171,8 +174,7 @@ struct StudentDetailView: View {
     }
     
     var body: some View {
-        mainContent
-        .studentDetailMainSizing()
+        sizedContent
         .safeAreaInset(edge: .bottom) {
             StudentDetailBottomBar(
                 isEditing: isEditing,
@@ -245,6 +247,11 @@ struct StudentDetailView: View {
     }
 
     @ViewBuilder
+    private var sizedContent: some View {
+        if isInline { mainContent } else { mainContent.studentDetailMainSizing() }
+    }
+
+    @ViewBuilder
     private var mainContent: some View {
         VStack(spacing: 0) {
             headerRow
@@ -271,8 +278,9 @@ struct StudentDetailView: View {
         }
     }
 
-    init(student: CDStudent, onDone: (() -> Void)? = nil) {
+    init(student: CDStudent, isInline: Bool = false, onDone: (() -> Void)? = nil) {
         self.student = student
+        self.isInline = isInline
         self.onDone = onDone
         _vm = State(wrappedValue: StudentDetailViewModel(
             student: student, dependencies: AppDependenciesKey.defaultValue

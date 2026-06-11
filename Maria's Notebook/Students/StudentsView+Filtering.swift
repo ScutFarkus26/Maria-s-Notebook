@@ -19,14 +19,27 @@ extension StudentsView {
         switch studentsFilterRaw {
         case "upper": return .upper
         case "lower": return .lower
-        case "presentNow": return .presentNow
-        case "presentToday": return .presentNow
-        case "withdrawn": return .withdrawn
-        default: return .all
+        case "presentNow", "presentToday": return .presentNow
+        default:
+            // Includes the legacy "withdrawn" value — withdrawn students now
+            // live in their own list section instead of behind a filter.
+            return .all
         }
     }
 
-    var levelFilters: [StudentsFilter] { [.upper, .lower] }
+    var viewStyle: StudentsViewStyle {
+        StudentsViewStyle(rawValue: studentsViewStyleRaw) ?? .list
+    }
+
+    /// Whether the list/grid view-style toggle is shown (regular widths only —
+    /// on iPhone the detail column is only visible when a student is pushed).
+    var showsViewStyleToggle: Bool {
+        #if os(iOS)
+        horizontalSizeClass == .regular
+        #else
+        true
+        #endif
+    }
 
     var hiddenTestStudentIDs: Set<UUID> {
         viewModel.hiddenTestStudentIDs(
@@ -45,29 +58,24 @@ extension StudentsView {
 
     var presentNowCount: Int { presentNowIDs.count }
 
+    /// Count of enrolled (non-withdrawn) students, respecting the test-student toggle.
+    var enrolledCount: Int {
+        let hidden = hiddenTestStudentIDs
+        return uniqueStudents.filter { student in
+            guard student.isEnrolled else { return false }
+            guard let id = student.id else { return true }
+            return !hidden.contains(id)
+        }.count
+    }
+
     // OPTIMIZATION: Use cached version instead of recomputing on every view update
     var daysSinceLastLessonByStudent: [UUID: Int] { viewModel.cachedDaysSinceLastLesson }
 
-    // Computed property to get effective sort order based on mode
-    var effectiveSortOrder: SortOrder {
-        switch mode {
-        case .age:
-            return .age
-        case .birthday:
-            return .birthday
-        case .roster:
-            return sortOrder
-        case .withdrawn:
-            return .alphabetical
-        }
-    }
-
     var filteredStudents: [CDStudent] {
-        let currentSortOrder = effectiveSortOrder
         let base = viewModel.filteredStudents(
             viewContext: viewContext,
             filter: selectedFilter,
-            sortOrder: currentSortOrder,
+            sortOrder: sortOrder,
             searchString: searchText,
             presentNowIDs: presentNowIDs,
             showTestStudents: showTestStudents,
@@ -79,21 +87,17 @@ extension StudentsView {
         return base.uniqueByID
     }
 
-    // MARK: - Grid View Support
-
-    var shouldUseGridView: Bool {
-        mode == .age || mode == .birthday
+    /// Withdrawn students for the collapsible section at the bottom of the roster.
+    /// Searching the roster also matches withdrawn students.
+    var withdrawnStudents: [CDStudent] {
+        viewModel.filteredStudents(
+            viewContext: viewContext,
+            filter: .withdrawn,
+            sortOrder: .alphabetical,
+            searchString: searchText,
+            presentNowIDs: nil,
+            showTestStudents: showTestStudents,
+            testStudentNames: testStudentNamesRaw
+        ).uniqueByID
     }
-
-    #if DEBUG
-    // Temporary helper to check for duplicate IDs (debug only)
-    func checkForDuplicateIDs(in students: [CDStudent]) {
-        let uniqueIDs = Set(students.map(\.id))
-        if uniqueIDs.count != students.count {
-            Logger.students.warning(
-                "Found \(students.count - uniqueIDs.count, privacy: .public) duplicate student ID(s)"
-            )
-        }
-    }
-    #endif
 }

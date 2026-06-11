@@ -26,8 +26,21 @@ struct StudentOverviewTab: View {
     
     @Environment(\.managedObjectContext) private var viewContext
     @Environment(\.calendar) private var calendar
-    
+    #if os(iOS)
+    @Environment(\.horizontalSizeClass) private var horizontalSizeClass
+    #endif
+
     @State private var cachedAgeSchoolDays: [UUID: Int] = [:]
+
+    /// Wide panes (macOS / iPad regular) get the dense layout: leading header,
+    /// two-column info grid, capped content width. Compact keeps the centered look.
+    private var isRegularWidth: Bool {
+        #if os(macOS)
+        true
+        #else
+        horizontalSizeClass == .regular
+        #endif
+    }
     
     private func lessonName(for work: CDWorkModel) -> String {
         lessonsByID[uuidString: work.lessonID]?.name ?? "Lesson"
@@ -94,8 +107,9 @@ struct StudentOverviewTab: View {
 
     var body: some View {
         VStack(spacing: 0) {
-            StudentHeaderView(student: student)
-                .padding(.top, 36)
+            StudentHeaderView(student: student, layout: isRegularWidth ? .leading : .centered)
+                .padding(.top, isRegularWidth ? 12 : 36)
+                .padding(.bottom, isRegularWidth ? 20 : 0)
             if isEditing {
                 StudentEditForm(
                     draftFirstName: $draftFirstName,
@@ -111,7 +125,7 @@ struct StudentOverviewTab: View {
                 if student.isWithdrawn {
                     WithdrawnBanner(dateWithdrawn: student.dateWithdrawn)
                 }
-                StudentInfoRows(student: student)
+                StudentInfoRows(student: student, useGrid: isRegularWidth)
                 
                 Divider()
                     .padding(.top, AppTheme.Spacing.small)
@@ -171,6 +185,9 @@ struct StudentOverviewTab: View {
                 NextLessonsSection(snapshots: nextLessonsForStudent, lessonsByID: lessonsByID)
             }
         }
+        // Cap content width so labels and values don't drift apart on wide windows.
+        .frame(maxWidth: 960)
+        .frame(maxWidth: .infinity)
         .task(id: workCache.map(\.objectID)) {
             await precomputeAgeValues()
         }

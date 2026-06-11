@@ -4,7 +4,7 @@
 import SwiftUI
 import CoreData
 
-// MARK: - Empty State View
+// MARK: - Empty State Views
 
 /// Reusable empty state for when no students are present
 struct NoStudentsEmptyState: View {
@@ -26,8 +26,6 @@ struct NoStudentsEmptyState: View {
     }
 }
 
-// MARK: - Select CDStudent Empty State
-
 /// Reusable empty state for when no student is selected
 struct SelectStudentEmptyState: View {
     var body: some View {
@@ -39,149 +37,49 @@ struct SelectStudentEmptyState: View {
     }
 }
 
-// MARK: - Sort and Filter Controls
-
-/// Compact sort and filter controls for sidebar/toolbar
-struct SortFilterControls: View {
-    @Binding var sortOrderRaw: String
-    @Binding var filterRaw: String
-    let effectiveSortOrder: SortOrder
-    let selectedFilter: StudentsFilter
-    let showEditButton: Bool
+/// Shown when the "Here" filter is active but no attendance has been taken today.
+struct NoAttendanceEmptyState: View {
+    let onShowAll: () -> Void
 
     var body: some View {
-        HStack(spacing: 12) {
-            // Sort Order Menu
-            sortMenu
-
-            // Filter Menu
-            filterMenu
-
-            Spacer()
-
-            // Edit button (iOS only, manual sort mode)
-            #if os(iOS)
-            if showEditButton {
-                EditButton()
-                    .controlSize(.small)
+        ContentUnavailableView {
+            Label("No One Marked Present", systemImage: "checkmark.circle")
+        } description: {
+            Text("Take attendance to see who's here today.")
+        } actions: {
+            Button("Show All Students") {
+                onShowAll()
             }
-            #endif
         }
-    }
-
-    private var sortMenu: some View {
-        Menu {
-            Button {
-                adaptiveWithAnimation { sortOrderRaw = "alphabetical" }
-            } label: {
-                Label("A–Z", systemImage: "textformat.abc")
-                if effectiveSortOrder == .alphabetical {
-                    Image(systemName: "checkmark")
-                }
-            }
-            Button {
-                adaptiveWithAnimation { sortOrderRaw = "manual" }
-            } label: {
-                Label("Manual", systemImage: "arrow.up.arrow.down")
-                if effectiveSortOrder == .manual {
-                    Image(systemName: "checkmark")
-                }
-            }
-        } label: {
-            HStack(spacing: 4) {
-                Image(systemName: "arrow.up.arrow.down")
-                Text("Sort")
-            }
-            .font(AppTheme.ScaledFont.captionSemibold)
-        }
-        .buttonStyle(.bordered)
-        .controlSize(.small)
-    }
-
-    private var filterMenu: some View {
-        Menu {
-            Button {
-                adaptiveWithAnimation { filterRaw = "all" }
-            } label: {
-                Label("All", systemImage: "person.3.fill")
-                if selectedFilter == .all {
-                    Image(systemName: "checkmark")
-                }
-            }
-            Button {
-                adaptiveWithAnimation { filterRaw = "presentNow" }
-            } label: {
-                Label("Present Now", systemImage: "checkmark.circle.fill")
-                if selectedFilter == .presentNow {
-                    Image(systemName: "checkmark")
-                }
-            }
-            Button {
-                adaptiveWithAnimation { filterRaw = "upper" }
-            } label: {
-                Label("Upper", systemImage: "circle.fill")
-                if selectedFilter == .upper {
-                    Image(systemName: "checkmark")
-                }
-            }
-            Button {
-                adaptiveWithAnimation { filterRaw = "lower" }
-            } label: {
-                Label("Lower", systemImage: "circle.fill")
-                if selectedFilter == .lower {
-                    Image(systemName: "checkmark")
-                }
-            }
-        } label: {
-            HStack(spacing: 4) {
-                Image(systemName: "line.3.horizontal.decrease.circle")
-                Text("Filter")
-            }
-            .font(AppTheme.ScaledFont.captionSemibold)
-        }
-        .buttonStyle(.bordered)
-        .controlSize(.small)
     }
 }
 
-// MARK: - Mode Picker
+// MARK: - Add Student Menu
 
-/// Segmented picker for selecting student view mode
-struct StudentModePicker: View {
-    @Binding var mode: StudentMode
-
-    var body: some View {
-        Picker("Mode", selection: $mode) {
-            Label("Roster", systemImage: "person.3").tag(StudentMode.roster)
-            Label("Ages", systemImage: "calendar").tag(StudentMode.age)
-            Label("Birthday", systemImage: "gift").tag(StudentMode.birthday)
-            Label("Withdrawn", systemImage: "person.badge.minus").tag(StudentMode.withdrawn)
-        }
-        .pickerStyle(.segmented)
-        .labelsHidden()
-    }
-}
-
-// MARK: - Add CDStudent Button
-
-/// Reusable add student button with CSV import context menu
-struct AddStudentButton: View {
+/// Add-student menu with the CSV import surfaced as a visible menu item
+/// (instead of hiding it behind a context menu on the plus button).
+struct AddStudentMenu: View {
     let onAddStudent: () -> Void
     let onImportCSV: () -> Void
 
     var body: some View {
-        Button {
-            onAddStudent()
-        } label: {
-            Label("Add Student", systemImage: "plus.circle.fill")
-        }
-        .keyboardShortcut("n", modifiers: [.command])
-        .contextMenu {
+        Menu {
+            Button {
+                onAddStudent()
+            } label: {
+                Label("New Student", systemImage: "person.badge.plus")
+            }
+            .keyboardShortcut("n", modifiers: [.command])
+
+            Divider()
+
             Button {
                 onImportCSV()
             } label: {
                 Label("Import Students from CSV…", systemImage: "arrow.down.doc")
             }
+        } label: {
+            Label("Add Student", systemImage: "plus")
         }
     }
 }

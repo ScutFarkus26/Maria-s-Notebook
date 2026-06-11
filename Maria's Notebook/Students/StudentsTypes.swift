@@ -9,6 +9,12 @@ enum SortOrder: Hashable {
     case birthday
 }
 
+// View style for the students roster detail area (list+detail vs. card grid browser)
+enum StudentsViewStyle: String {
+    case list
+    case grid
+}
+
 // Shared logical filter for the students list (used by StudentsView and StudentsViewModel)
 enum StudentsFilter: Hashable {
     case all
@@ -44,6 +50,27 @@ enum StudentsFilter: Hashable {
             return .green
         case .withdrawn:
             return .gray
+        }
+    }
+
+    /// Short label used by the scope chips above the roster list.
+    var chipTitle: String {
+        switch self {
+        case .presentNow:
+            return "Here"
+        default:
+            return title
+        }
+    }
+
+    /// Raw value persisted in AppStorage for the roster filter.
+    var storageValue: String {
+        switch self {
+        case .all: return "all"
+        case .upper: return "upper"
+        case .lower: return "lower"
+        case .presentNow: return "presentNow"
+        case .withdrawn: return "withdrawn"
         }
     }
 }

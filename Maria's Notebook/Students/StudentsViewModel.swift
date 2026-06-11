@@ -195,17 +195,21 @@ final class StudentsViewModel {
 
     // MARK: - Data Loading
     func loadDataOnDemand(
-        mode: StudentMode,
         viewContext: NSManagedObjectContext,
         calendar: Calendar,
         students: [CDStudent]
     ) {
-        // Load today's attendance records for roster view
+        // Load today's attendance records for the present-now filter and row indicators
         let today = calendar.startOfDay(for: Date())
         let tomorrow = calendar.date(byAdding: .day, value: 1, to: today) ?? today
         let descriptor: NSFetchRequest<CDAttendanceRecord> = NSFetchRequest(entityName: "AttendanceRecord")
         descriptor.predicate = NSPredicate(format: "date >= %@ AND date < %@", today as CVarArg, tomorrow as CVarArg)
         cachedAttendanceRecords = viewContext.safeFetch(descriptor)
+
+        // Days-since-last-lesson feeds the row accessory in A–Z/manual sort
+        cachedDaysSinceLastLesson = computeDaysSinceLastLessonCache(
+            for: students, using: viewContext, calendar: calendar
+        )
         lastLoadTimestamp = Date()
     }
     

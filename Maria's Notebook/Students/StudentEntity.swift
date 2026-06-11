@@ -60,6 +60,20 @@ extension CDStudent {
         "\(firstName) \(lastName)"
     }
 
+    /// Uppercased initials for avatar display (e.g. "JD" for John Doe).
+    var initials: String {
+        let parts = fullName.split(separator: " ")
+        if parts.count >= 2 {
+            let first = parts.first?.first.map(String.init) ?? ""
+            let last = parts.last?.first.map(String.init) ?? ""
+            return (first + last).uppercased()
+        } else if let first = fullName.first {
+            return String(first).uppercased()
+        } else {
+            return "?"
+        }
+    }
+
     /// Access nextLessons as a Swift [String] array
     var nextLessonsArray: [String] {
         get { (nextLessons as? [String]) ?? [] }

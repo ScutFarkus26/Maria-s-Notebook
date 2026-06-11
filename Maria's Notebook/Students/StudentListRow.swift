@@ -6,29 +6,20 @@ import AppKit
 import UIKit
 #endif
 
-/// A row component for displaying a student in a list view.
-/// Shows the student's avatar (initials), name, and optional status badge based on sort mode.
-/// Includes "fun" visuals matching the card designs: birthday cakes, age displays, and lesson status badges.
+/// A row component for displaying a student in the roster list.
+/// Shows the level-colored avatar with a present-today indicator, the student's
+/// name, and a trailing accessory that follows the active sort: next birthday
+/// (with countdown), quarter-rounded age, or days since the last lesson.
 struct StudentListRow: View {
     let student: CDStudent
     let sortOrder: SortOrder
     let daysSinceLastLesson: Int?
-
-    // MARK: - Context Menu Actions (optional)
-    var onViewDetails: (() -> Void)?
-    var onDelete: (() -> Void)?
-    #if os(macOS)
-    var onOpenInNewWindow: (() -> Void)?
-    #endif
+    var isPresentToday: Bool = false
 
     @Environment(\.calendar) private var calendar
 
-    private var levelColor: Color {
-        AppColors.color(forLevel: student.level)
-    }
-    
     // MARK: - Birthday Computations
-    
+
     private var nextBirthdayDate: Date {
         let today = Date()
         let comps = calendar.dateComponents([.month, .day], from: student.birthday ?? Date())
@@ -48,30 +39,152 @@ struct StudentListRow: View {
         }
         return next ?? this
     }
-    
+
+    private var daysUntilNextBirthday: Int {
+        let start = calendar.startOfDay(for: Date())
+        let target = calendar.startOfDay(for: nextBirthdayDate)
+        return calendar.dateComponents([.day], from: start, to: target).day ?? 0
+    }
+
     private var birthdayDateString: String {
         DateFormatters.shortMonthDay.string(from: nextBirthdayDate)
     }
-    
+
     // MARK: - Age Computations
-    
-    private var ageQuarter: (years: Int, months: Int) {
-        AgeUtils.quarterRoundedAgeComponents(birthday: student.birthday ?? Date())
-    }
-    
+
     private var ageDisplayString: String {
-        let y = ageQuarter.years
-        let m = ageQuarter.months
-        switch m {
-        case 0: return "\(y)"
-        case 3: return "\(y) 1/4"
-        case 6: return "\(y) 1/2"
-        case 9: return "\(y) 3/4"
-        default: return "\(y)"
+        let quarter = AgeUtils.quarterRoundedAgeComponents(birthday: student.birthday ?? Date())
+        switch quarter.months {
+        case 3: return "\(quarter.years) 1/4"
+        case 6: return "\(quarter.years) 1/2"
+        case 9: return "\(quarter.years) 3/4"
+        default: return "\(quarter.years)"
         }
     }
-    
-    // MARK: - Trailing Badge/Status
+
+    // MARK: - Body
+
+    var body: some View {
+        HStack(spacing: 12) {
+            StudentAvatarView(student: student, size: 40)
+                .overlay(alignment: .bottomTrailing) {
+                    if isPresentToday {
+                        Circle()
+                            .fill(.green)
+                            .frame(width: 11, height: 11)
+                            .overlay(Circle().stroke(.background, lineWidth: 1.5))
+                            .accessibilityHidden(true)
+                    }
+                }
+
+            Text(student.fullName)
+                .font(AppTheme.ScaledFont.bodySemibold)
+                .foregroundStyle(student.isWithdrawn ? .secondary : .primary)
+                .lineLimit(1)
+                .truncationMode(.tail)
+                // In a squeezed column the name must win over the trailing accessory.
+                .layoutPriority(1)
+
+            Spacer(minLength: 8)
+
+            trailingAccessory
+                .accessibilityHidden(true)
+        }
+        .padding(.vertical, 6)
+        .padding(.horizontal, 8)
+        .contentShape(Rectangle())
+        .hoverableRow()
+        .accessibilityElement(children: .combine)
+        .accessibilityLabel(accessibilityDescription)
+        .contextMenu {
+            #if os(macOS)
+            Button {
+                if let id = student.id { openStudentInNewWindow(id) }
+            } label: {
+                Label("Open in New Window", systemImage: "uiwindow.split.2x1")
+            }
+
+            Divider()
+            #endif
+
+            Button {
+                copyStudentName()
+            } label: {
+                Label("Copy Name", systemImage: "doc.on.doc")
+            }
+        }
+    }
+
+    // MARK: - Trailing Accessory
+
+    @ViewBuilder
+    private var trailingAccessory: some View {
+        switch sortOrder {
+        case .birthday:
+            birthdayAccessory
+        case .age:
+            Text(ageDisplayString)
+                .font(AppTheme.ScaledFont.captionSemibold)
+                .foregroundStyle(.secondary)
+        case .alphabetical, .manual:
+            lessonAccessory
+        }
+    }
+
+    @ViewBuilder
+    private var birthdayAccessory: some View {
+        let days = daysUntilNextBirthday
+        let isSoon = days <= 7
+        HStack(spacing: 4) {
+            if isSoon {
+                Image(systemName: "gift")
+                    .font(.system(size: 11, weight: .semibold))
+            }
+            Text(days == 0 ? "Today!" : "\(birthdayDateString) · \(days)d")
+        }
+        .font(isSoon ? AppTheme.ScaledFont.captionSemibold : AppTheme.ScaledFont.caption)
+        .foregroundStyle(isSoon ? Color.orange : Color.secondary)
+        .lineLimit(1)
+    }
+
+    @ViewBuilder
+    private var lessonAccessory: some View {
+        if let days = daysSinceLastLesson {
+            if days >= 0 {
+                HStack(spacing: 3) {
+                    Image(systemName: "book.closed")
+                        .font(.system(size: 10, weight: .medium))
+                    Text(days == 0 ? "Today" : "\(days)d")
+                }
+                .font(AppTheme.ScaledFont.caption)
+                .foregroundStyle(.secondary)
+                .lineLimit(1)
+            } else {
+                Text("No lessons")
+                    .font(AppTheme.ScaledFont.caption)
+                    .foregroundStyle(.tertiary)
+                    .lineLimit(1)
+            }
+        }
+    }
+
+    // MARK: - Helpers
+
+    private var accessibilityDescription: String {
+        var parts = [student.fullName]
+        if isPresentToday { parts.append("present today") }
+        switch sortOrder {
+        case .birthday:
+            parts.append("birthday \(birthdayDateString)")
+        case .age:
+            parts.append("age \(ageDisplayString)")
+        case .alphabetical, .manual:
+            if let days = daysSinceLastLesson, days >= 0 {
+                parts.append("\(days) days since last lesson")
+            }
+        }
+        return parts.joined(separator: ", ")
+    }
 
     private func copyStudentName() {
         #if os(macOS)
@@ -80,63 +193,6 @@ struct StudentListRow: View {
         #else
         UIPasteboard.general.string = student.fullName
         #endif
-    }
-
-    var body: some View {
-        HStack(spacing: 12) {
-            // Avatar circle with initials
-            StudentAvatarView(student: student, size: 40)
-
-            // Name only
-            Text(student.fullName)
-                .font(AppTheme.ScaledFont.bodySemibold)
-                .foregroundStyle(.primary)
-
-            Spacer()
-        }
-        .padding(.vertical, 6)
-        .padding(.horizontal, 8)
-        .contentShape(Rectangle())
-        .hoverableRow()
-        .contextMenu {
-            if let onViewDetails {
-                Button {
-                    onViewDetails()
-                } label: {
-                    Label("View Details", systemImage: "person.text.rectangle")
-                }
-            }
-
-            #if os(macOS)
-            Button {
-                if let onOpenInNewWindow {
-                    onOpenInNewWindow()
-                } else {
-                    if let id = student.id { openStudentInNewWindow(id) }
-                }
-            } label: {
-                Label("Open in New Window", systemImage: "uiwindow.split.2x1")
-            }
-            #endif
-
-            Divider()
-
-            Button {
-                copyStudentName()
-            } label: {
-                Label("Copy Name", systemImage: "doc.on.doc")
-            }
-
-            if let onDelete {
-                Divider()
-
-                Button(role: .destructive) {
-                    onDelete()
-                } label: {
-                    Label("Delete", systemImage: "trash")
-                }
-            }
-        }
     }
 }
 
@@ -150,7 +206,7 @@ struct StudentListRow: View {
     student.level = .upper
 
     return List {
-        StudentListRow(student: student, sortOrder: .alphabetical, daysSinceLastLesson: nil)
+        StudentListRow(student: student, sortOrder: .alphabetical, daysSinceLastLesson: 12, isPresentToday: true)
         StudentListRow(student: student, sortOrder: .birthday, daysSinceLastLesson: nil)
         StudentListRow(student: student, sortOrder: .age, daysSinceLastLesson: nil)
     }

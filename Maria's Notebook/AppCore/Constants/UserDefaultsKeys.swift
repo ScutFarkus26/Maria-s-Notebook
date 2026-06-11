@@ -113,9 +113,9 @@ enum UserDefaultsKeys {
     // MARK: - Students
     static let studentDetailViewActiveTab = "StudentDetailView.activeTab"
     static let meetingsWorkflowDaysSinceThreshold = "MeetingsWorkflow.daysSinceThreshold"
-    static let studentsRootViewMode = "StudentsRootView.mode"
     static let studentsViewSortOrder = "StudentsView.sortOrder"
     static let studentsViewSelectedFilter = "StudentsView.selectedFilter"
+    static let studentsViewStyle = "StudentsView.viewStyle"
 
     // MARK: - Checklist
     static let checklistSelectedArea = "Checklist.selectedArea"
