@@ -3,8 +3,6 @@ KEEP ME
 
 This DragPayload is used for string-based student drag/drop (e.g., "STUDENT_TO_INBOX:")
 in Planning views like InboxSheetView and AgendaSlot.
-It is separate from the typed PlanningDragItem in PlanningDND.swift, which is used for
-work/check-in drag & drop in WorksPlanningView.
 */
 
 import Foundation
