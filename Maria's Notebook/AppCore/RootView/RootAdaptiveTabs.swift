@@ -129,40 +129,10 @@ struct RootAdaptiveTabs: View {
         }
 
         TabSection {
-            Tab(value: RootView.NavigationItem.planningProgression) {
-                RootDetailContent(selectedNavItem: .planningProgression)
-            } label: {
-                Label("Progression", systemImage: "chart.line.uptrend.xyaxis")
-            }
             Tab(value: RootView.NavigationItem.progressDashboard) {
                 RootDetailContent(selectedNavItem: .progressDashboard)
             } label: {
                 Label("Progress Dashboard", systemImage: "person.text.rectangle")
-            }
-            Tab(value: RootView.NavigationItem.fridayReview) {
-                RootDetailContent(selectedNavItem: .fridayReview)
-            } label: {
-                Label("Friday Review", systemImage: "checkmark.seal")
-            }
-            Tab(value: RootView.NavigationItem.lessonFrequency) {
-                RootDetailContent(selectedNavItem: .lessonFrequency)
-            } label: {
-                Label("Lesson Frequency", systemImage: SFSymbol.Chart.chartBar)
-            }
-            Tab(value: RootView.NavigationItem.curriculumBalance) {
-                RootDetailContent(selectedNavItem: .curriculumBalance)
-            } label: {
-                Label("Curriculum Balance", systemImage: SFSymbol.Chart.chartPie)
-            }
-            Tab(value: RootView.NavigationItem.greatLessonsTimeline) {
-                RootDetailContent(selectedNavItem: .greatLessonsTimeline)
-            } label: {
-                Label("Great Lessons", systemImage: "sparkles")
-            }
-            Tab(value: RootView.NavigationItem.threeYearCycle) {
-                RootDetailContent(selectedNavItem: .threeYearCycle)
-            } label: {
-                Label("Three-Year Cycle", systemImage: "chart.bar.doc.horizontal")
             }
         } header: {
             Text("Insights")

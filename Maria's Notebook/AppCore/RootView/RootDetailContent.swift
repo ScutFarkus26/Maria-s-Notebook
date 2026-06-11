@@ -26,17 +26,16 @@ struct RootDetailContent: View {
     var body: some View {
         Group {
             switch selectedNavItem {
-            case .today, .attendance, .note, .fridayReview:
+            case .today, .attendance, .note:
                 dailyContent
             case .students, .meetings, .goingOut, .more:
                 studentsContent
             case .lessons, .stories, .bookClub, .planningChecklist, .planningAgenda, .planningWork,
-                 .planningProgression, .planningProjects, .needsLesson, .smallSequencePlanner:
+                 .planningProjects, .needsLesson, .smallSequencePlanner:
                 curriculumContent
             case .todos, .planningCalendar, .perpetualCalendar:
                 planningContent
-            case .progressDashboard, .lessonFrequency, .curriculumBalance,
-                 .greatLessonsTimeline, .threeYearCycle:
+            case .progressDashboard:
                 progressContent
             case .supplies, .procedures, .schedules,
                  .community, .resourceLibrary:
@@ -56,7 +55,6 @@ struct RootDetailContent: View {
         case .today: AnyView(TodayView(context: viewContext))
         case .attendance: AnyView(attendanceContent)
         case .note: AnyView(noteTabContent)
-        case .fridayReview: AnyView(FridayReviewView())
         default: AnyView(EmptyView())
         }
     }
@@ -86,7 +84,7 @@ struct RootDetailContent: View {
         switch selectedNavItem {
         case .lessons, .stories, .bookClub, .planningChecklist, .planningAgenda, .planningWork:
             curriculumPlanningContent
-        case .planningProgression, .planningProjects, .needsLesson, .smallSequencePlanner:
+        case .planningProjects, .needsLesson, .smallSequencePlanner:
             curriculumAdvancedContent
         default: EmptyView()
         }
@@ -108,7 +106,6 @@ struct RootDetailContent: View {
     @ViewBuilder
     private var curriculumAdvancedContent: some View {
         switch selectedNavItem {
-        case .planningProgression: ProgressionRootView()
         case .planningProjects: ProjectsRootView()
         case .needsLesson: NeedsLessonView()
         case .smallSequencePlanner: SmallSequencePlannerView()
@@ -119,29 +116,7 @@ struct RootDetailContent: View {
     @ViewBuilder
     private var progressContent: some View {
         switch selectedNavItem {
-        case .progressDashboard, .lessonFrequency, .curriculumBalance:
-            progressAnalyticsContent
-        case .greatLessonsTimeline, .threeYearCycle:
-            progressTimelineContent
-        default: EmptyView()
-        }
-    }
-
-    @ViewBuilder
-    private var progressAnalyticsContent: some View {
-        switch selectedNavItem {
         case .progressDashboard: ProgressDashboardView()
-        case .lessonFrequency: LessonFrequencyView()
-        case .curriculumBalance: CurriculumBalanceView()
-        default: EmptyView()
-        }
-    }
-
-    @ViewBuilder
-    private var progressTimelineContent: some View {
-        switch selectedNavItem {
-        case .greatLessonsTimeline: GreatLessonsTimelineView()
-        case .threeYearCycle: ThreeYearCycleView()
         default: EmptyView()
         }
     }

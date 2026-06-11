@@ -20,21 +20,15 @@ extension RootView {
         case bookClub
         case more
         case todos
-        case fridayReview
 
         // Planning Sub-items
         case planningChecklist
         case planningAgenda
         case planningWork
-        case planningProgression
         case planningProjects
         case planningCalendar
         case progressDashboard
-        case lessonFrequency
-        case curriculumBalance
-        case greatLessonsTimeline
         case goingOut
-        case threeYearCycle
         case needsLesson
         case smallSequencePlanner
 
@@ -68,19 +62,13 @@ extension RootView {
             case .bookClub:            return ("Book Club", "books.vertical.circle")
             case .more:                return ("More", "ellipsis.circle")
             case .todos:               return ("Todos", "checkmark.circle")
-            case .fridayReview:        return ("Friday Review", "checkmark.seal")
             case .planningChecklist:   return ("Checklist", "list.clipboard")
             case .planningAgenda:      return ("Presentations", "calendar")
             case .planningWork:        return ("Open Work", "tray.full")
-            case .planningProgression: return ("Progression", "chart.line.uptrend.xyaxis")
             case .planningProjects:    return ("Projects", "folder")
             case .planningCalendar:    return ("Calendar", "calendar.day.timeline.leading")
             case .progressDashboard:   return ("Progress Dashboard", "person.text.rectangle")
-            case .lessonFrequency:     return ("Lesson Frequency", SFSymbol.Chart.chartBar)
-            case .curriculumBalance:   return ("Curriculum Balance", SFSymbol.Chart.chartPie)
-            case .greatLessonsTimeline: return ("Great Lessons", "sparkles")
             case .goingOut:            return ("Going Out", "figure.walk")
-            case .threeYearCycle:      return ("Three-Year Cycle", "chart.bar.doc.horizontal")
             case .needsLesson:         return ("Needs Lesson", "clock.badge.exclamationmark")
             case .smallSequencePlanner:   return ("Group Planner", "person.3.sequence")
             case .perpetualCalendar:   return ("Calendar", "calendar.day.timeline.leading")
@@ -115,11 +103,10 @@ extension RootView {
             switch self {
             case .lessons, .stories, .bookClub, .supplies, .procedures, .meetings,
                  .planningChecklist, .planningAgenda, .planningWork,
-                 .planningProgression, .planningProjects, .planningCalendar,
+                 .planningProjects, .planningCalendar,
                  .progressDashboard,
-                 .lessonFrequency, .curriculumBalance, .greatLessonsTimeline,
-                 .goingOut, .fridayReview,
-                 .threeYearCycle, .needsLesson, .smallSequencePlanner,
+                 .goingOut,
+                 .needsLesson, .smallSequencePlanner,
                  .perpetualCalendar,
                  .thisWeeksParsha, .parshaCalendar,
                  .community, .schedules, .resourceLibrary, .askAI, .logs, .settings:
@@ -143,13 +130,11 @@ extension RootView {
             case .bookClub:          return nil
             case .more:              return nil
             case .todos:             return nil
-            case .fridayReview:      return nil
             case .planningChecklist, .planningAgenda, .planningWork,
-                 .planningProgression, .planningProjects,
+                 .planningProjects,
                  .planningCalendar,
                  .progressDashboard,
-                 .lessonFrequency, .curriculumBalance, .greatLessonsTimeline,
-                 .threeYearCycle, .needsLesson,
+                 .needsLesson,
                  .smallSequencePlanner:
                 return .planning
             case .goingOut:          return nil

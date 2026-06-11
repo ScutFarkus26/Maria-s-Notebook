@@ -1,7 +1,6 @@
 // TodayViewDayCardsSection.swift
 // Day-aware top cards — small dismissable banners that surface only when relevant:
-// Friday Review on Fridays, Needs Lesson when students are overdue.
-// Dismissals are per-date.
+// Needs Lesson when students are overdue. Dismissals are per-date.
 
 import SwiftUI
 import CoreData
@@ -9,33 +8,28 @@ import CoreData
 extension TodayView {
 
     enum DayCard: String, CaseIterable {
-        case fridayReview
         case needsLesson
 
         var title: String {
             switch self {
-            case .fridayReview: return "Friday Review"
             case .needsLesson: return "Needs Lesson"
             }
         }
 
         var icon: String {
             switch self {
-            case .fridayReview: return "checkmark.seal"
             case .needsLesson: return "clock.badge.exclamationmark"
             }
         }
 
         var tint: Color {
             switch self {
-            case .fridayReview: return .green
             case .needsLesson: return .orange
             }
         }
 
         var navItem: RootView.NavigationItem {
             switch self {
-            case .fridayReview: return .fridayReview
             case .needsLesson: return .needsLesson
             }
         }
@@ -110,11 +104,6 @@ extension TodayView {
 
     private func subtitleIfActive(_ card: DayCard) -> String? {
         switch card {
-        case .fridayReview:
-            let weekday = Calendar.current.component(.weekday, from: viewModel.date)
-            // Sunday = 1, Friday = 6
-            guard weekday == 6 else { return nil }
-            return "Wrap up the week"
         case .needsLesson:
             let count = needsLessonCount
             guard count > 0 else { return nil }

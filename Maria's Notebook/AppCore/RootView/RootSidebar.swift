@@ -107,19 +107,7 @@ extension RootSidebar {
             }
 
             Section("Insights") {
-                sidebarRow(.planningProgression, title: "Progression", systemImage: SFSymbol.Chart.chartLine)
-
                 sidebarRow(.progressDashboard, title: "Progress Dashboard", systemImage: "person.text.rectangle")
-
-                sidebarRow(.fridayReview, title: "Friday Review", systemImage: "checkmark.seal")
-
-                sidebarRow(.lessonFrequency, title: "Lesson Frequency", systemImage: SFSymbol.Chart.chartBar)
-
-                sidebarRow(.curriculumBalance, title: "Curriculum Balance", systemImage: SFSymbol.Chart.chartPie)
-
-                sidebarRow(.greatLessonsTimeline, title: "Great Lessons", systemImage: "sparkles")
-
-                sidebarRow(.threeYearCycle, title: "Three-Year Cycle", systemImage: "chart.bar.doc.horizontal")
             }
 
             Section("Resources") {
@@ -285,34 +273,10 @@ extension RootSidebar {
 
     private var iOSSidebarInsightsSection: some View {
         Section("Insights") {
-            iOSSidebarButton(.planningProgression,
-                             title: "Progression",
-                             systemImage: SFSymbol.Chart.chartLine,
-                             hint: "View student progression through curriculum")
             iOSSidebarButton(.progressDashboard,
                              title: "Progress Dashboard",
                              systemImage: "person.text.rectangle",
                              hint: "View per-student progress across all areas")
-            iOSSidebarButton(.fridayReview,
-                             title: "Friday Review",
-                             systemImage: "checkmark.seal",
-                             hint: "Review the week and prepare Monday priorities")
-            iOSSidebarButton(.lessonFrequency,
-                             title: "Lesson Frequency",
-                             systemImage: SFSymbol.Chart.chartBar,
-                             hint: "View weekly lesson frequency per student")
-            iOSSidebarButton(.curriculumBalance,
-                             title: "Curriculum Balance",
-                             systemImage: SFSymbol.Chart.chartPie,
-                             hint: "Analyze area distribution and curriculum gaps")
-            iOSSidebarButton(.greatLessonsTimeline,
-                             title: "Great Lessons",
-                             systemImage: "sparkles",
-                             hint: "View lesson progress mapped to the Five Great Lessons")
-            iOSSidebarButton(.threeYearCycle,
-                             title: "Three-Year Cycle",
-                             systemImage: "chart.bar.doc.horizontal",
-                             hint: "View student progress across the three-year Montessori cycle")
         }
     }
 

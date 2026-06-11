@@ -22,7 +22,6 @@ enum UserDefaultsKeys {
     
     // MARK: - Backup
     static let backupEncrypt = "Backup.encrypt"
-    static let backupEncryptDefault = "Backup.encryptDefault"  // True = encryption on by default
     static let lastBackupTimeInterval = "lastBackupTimeInterval"
 
     // MARK: - Auto Backup
@@ -30,22 +29,7 @@ enum UserDefaultsKeys {
     static let autoBackupRetentionCount = "AutoBackup.retentionCount"
     static let autoBackupScheduledEnabled = "AutoBackup.scheduledEnabled"
     static let autoBackupIntervalHours = "AutoBackup.intervalHours"
-    static let autoBackupLastScheduledDate = "AutoBackup.lastScheduledDate"
 
-    // MARK: - Incremental Backup
-    static let incrementalBackupLastDate = "IncrementalBackup.lastDate"
-    static let incrementalBackupLastID = "IncrementalBackup.lastID"
-
-    // MARK: - Backup Integrity
-    static let backupIntegrityAutoVerifyEnabled = "BackupIntegrity.autoVerifyEnabled"
-    static let backupIntegrityWarningDaysThreshold = "BackupIntegrity.warningDaysThreshold"
-
-    // MARK: - Backup Notifications
-    static let backupNotificationsEnabled = "BackupNotifications.enabled"
-    static let backupNotificationsShowSuccess = "BackupNotifications.showSuccess"
-    static let backupNotificationsShowFailure = "BackupNotifications.showFailure"
-    static let backupNotificationsShowHealthWarnings = "BackupNotifications.showHealthWarnings"
-    
     // MARK: - Attendance
     static let attendanceEmailEnabled = "AttendanceEmail.enabled"
     static let attendanceEmailTo = "AttendanceEmail.to"
@@ -69,9 +53,6 @@ enum UserDefaultsKeys {
     // MARK: - General
     static let generalShowTestStudents = "General.showTestStudents"
     static let generalTestStudentNames = "General.testStudentNames"
-    
-    // MARK: - CDReminder Sync
-    static let reminderSyncSyncListName = "ReminderSync.syncListName"
     
     // MARK: - Debug
     static let debugSimulateDatabaseInitFailure = "DEBUG_SimulateDatabaseInitFailure"
@@ -144,10 +125,6 @@ enum UserDefaultsKeys {
     static let resetLocalCacheOnLaunch = "AppCore.resetLocalCacheOnLaunch"
     static let resetLocalCacheArmedAt = "AppCore.resetLocalCacheArmedAt"
     static let resetLocalCacheArmedSource = "AppCore.resetLocalCacheArmedSource"
-
-    // MARK: - Settings UI
-    static let whatsNewDismissedVersion = "WhatsNew.dismissedVersion"
-    static let backupAgeWarningDays = "BackupAge.warningDays"
 
     // MARK: - Today
     static let todayDayPadExpanded = "Today.dayPadExpanded"

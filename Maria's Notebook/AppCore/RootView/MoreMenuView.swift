@@ -34,13 +34,7 @@ struct MoreMenuView: View {
                 }
 
                 Section("Insights") {
-                    moreMenuButton(.planningProgression)
                     moreMenuButton(.progressDashboard)
-                    moreMenuButton(.fridayReview)
-                    moreMenuButton(.lessonFrequency)
-                    moreMenuButton(.curriculumBalance)
-                    moreMenuButton(.greatLessonsTimeline)
-                    moreMenuButton(.threeYearCycle)
                 }
 
                 Section("Resources") {

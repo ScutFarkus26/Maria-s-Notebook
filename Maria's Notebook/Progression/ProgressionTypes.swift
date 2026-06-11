@@ -74,19 +74,3 @@ struct WorkProgressItem: Identifiable {
     let lastCheckIn: CDWorkCheckIn?
     let nextCheckIn: CDWorkCheckIn?
 }
-
-// MARK: - Group Summary
-
-/// Summary data for a area/sequence card on the landing page.
-struct SequenceSummary: Identifiable, Sendable {
-    let id: String
-    let area: String
-    let sequence: String
-    let lessonCount: Int
-    let studentCount: Int
-    let activeWorkCount: Int
-    let totalPracticeCount: Int
-    let studentsReadyForNext: Int
-    let studentsNeedingAttention: Int
-    let furthestLessonName: String?
-}
