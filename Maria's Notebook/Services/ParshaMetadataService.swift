@@ -27,13 +27,6 @@ struct ParshaMetadata: Decodable, Sendable {
     }
 }
 
-/// One row in the inverse-topic index: a topic and the parsha keys that mention it.
-struct ParshaTopicEntry: Sendable, Identifiable {
-    let topic: String
-    let parshaKeys: [String]
-    var id: String { topic }
-}
-
 @MainActor
 enum ParshaMetadataService {
 
@@ -75,23 +68,4 @@ enum ParshaMetadataService {
         metadataByKey[key]
     }
 
-    /// All topics across all single parshas, indexed by topic with the parshas that mention it.
-    /// Combined parshiot are excluded to keep the index dedup'd. Topics are alphabetized; parsha
-    /// keys within each entry are in annual-cycle order.
-    static let allTopicsIndexed: [ParshaTopicEntry] = {
-        var index: [String: Set<String>] = [:]
-        for (key, metadata) in metadataByKey where !combinedKeys.contains(key) {
-            for topic in metadata.topics {
-                index[topic, default: []].insert(key)
-            }
-        }
-        let cycleOrder = HebrewParshaService.allParshaKeys
-        let cycleIndex = Dictionary(uniqueKeysWithValues: cycleOrder.enumerated().map { ($1, $0) })
-        return index
-            .map { (topic, keys) -> ParshaTopicEntry in
-                let sorted = keys.sorted { (cycleIndex[$0] ?? Int.max) < (cycleIndex[$1] ?? Int.max) }
-                return ParshaTopicEntry(topic: topic, parshaKeys: sorted)
-            }
-            .sorted { $0.topic.localizedCaseInsensitiveCompare($1.topic) == .orderedAscending }
-    }()
 }

@@ -46,19 +46,3 @@ enum CommunicationType: String, CaseIterable, Identifiable, Sendable {
         }
     }
 }
-
-enum CommunicationTab: String, CaseIterable, Identifiable, Sendable {
-    case drafts
-    case sent
-    case templates
-
-    var id: String { rawValue }
-
-    var displayName: String {
-        switch self {
-        case .drafts: return "Drafts"
-        case .sent: return "Sent"
-        case .templates: return "Templates"
-        }
-    }
-}

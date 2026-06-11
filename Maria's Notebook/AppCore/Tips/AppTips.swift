@@ -38,23 +38,6 @@ struct PullToRefreshTip: Tip {
     }
 }
 
-/// macOS-only tip for keyboard shortcuts
-struct KeyboardShortcutsTip: Tip {
-    var id: String { "keyboard-shortcuts-tip" }
-
-    var title: Text {
-        Text("Keyboard Shortcuts")
-    }
-
-    var message: Text? {
-        Text("Press \u{2318}? to see all available keyboard shortcuts.")
-    }
-
-    var image: Image? {
-        Image(systemName: "keyboard")
-    }
-}
-
 /// Tip shown in the work detail view explaining the lifecycle
 struct WorkLifecycleTip: Tip {
     var id: String { "work-lifecycle-tip" }

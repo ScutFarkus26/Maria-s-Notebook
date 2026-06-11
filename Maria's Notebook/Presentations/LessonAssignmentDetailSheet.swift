@@ -390,58 +390,6 @@ struct LessonAssignmentDetailSheet: View, Identifiable {
             )
         }
     }
-    
-    @MainActor
-    private func updatePresentation(
-        status: UnifiedPostPresentationSheet.PresentationStatus,
-        entries: [UnifiedPostPresentationSheet.StudentEntry],
-        groupObservation: String
-    ) {
-        guard let la = assignment else { return }
-        
-        // Update presentation state
-        switch status {
-        case .justPresented:
-            la.state = .presented
-            la.presentedAt = Date()
-            la.needsAnotherPresentation = false
-        case .previouslyPresented:
-            la.state = .presented
-            la.needsAnotherPresentation = false
-        case .needsAnother:
-            la.state = .scheduled
-            la.needsAnotherPresentation = true
-        }
-        
-        // Update notes with sequence observation
-        if !groupObservation.isEmpty {
-            if la.notes.isEmpty {
-                la.notes = groupObservation
-            } else {
-                la.notes += "\n\n" + groupObservation
-            }
-        }
-        
-        // Save changes
-        do {
-            try viewContext.save()
-        } catch {
-            Self.logger.warning("Failed to save presentation updates: \(error)")
-        }
-        
-        // Reload the assignment to reflect changes
-        let targetID = assignmentID
-        let descriptor = {
-            let r = NSFetchRequest<CDLessonAssignment>(entityName: "LessonAssignment")
-            r.predicate = NSPredicate(format: "id == %@", targetID as CVarArg)
-            r.fetchLimit = 1
-            return r
-        }()
-        if let refreshed = viewContext.safeFetchFirst(descriptor) {
-            self.assignment = refreshed
-        }
-        reloadNotes()
-    }
 
     private func close() {
         if let onDone { onDone() } else { dismiss() }

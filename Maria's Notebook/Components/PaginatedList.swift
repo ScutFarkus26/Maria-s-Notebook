@@ -95,22 +95,6 @@ struct LoadMoreButton: View {
     }
 }
 
-// MARK: - Load More Trigger
-
-/// An invisible view that triggers loading more items when it appears on screen.
-/// Place this at the end of your list for automatic infinite scroll.
-struct LoadMoreTrigger: View {
-    let action: () -> Void
-
-    var body: some View {
-        Color.clear
-            .frame(height: 1)
-            .onAppear {
-                action()
-            }
-    }
-}
-
 // MARK: - Paginated List Footer
 
 /// A footer view showing pagination status and load more button.

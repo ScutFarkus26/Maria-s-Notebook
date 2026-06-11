@@ -20,14 +20,6 @@ protocol Service: AnyObject {
     init(context: NSManagedObjectContext)
 }
 
-// MARK: - Lifecycle-Aware Services
-
-/// Services that need to respond to application lifecycle events
-protocol LifecycleAwareService: Service {
-    func onAppWillResignActive() async
-    func onAppDidBecomeActive() async
-}
-
 // MARK: - Cacheable Services
 
 /// Services that maintain in-memory caches

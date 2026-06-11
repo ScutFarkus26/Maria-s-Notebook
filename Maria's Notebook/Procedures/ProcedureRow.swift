@@ -56,37 +56,6 @@ struct ProcedureRow: View {
     }
 }
 
-/// A compact row for procedure lists without card styling
-struct ProcedureCompactRow: View {
-    let procedure: CDProcedure
-
-    var body: some View {
-        HStack(spacing: 10) {
-            Image.safeSymbol(procedure.displayIcon)
-                .foregroundStyle(.accent)
-                .frame(width: 24)
-
-            VStack(alignment: .leading, spacing: 2) {
-                Text(procedure.title)
-                    .lineLimit(1)
-
-                if !procedure.summary.isEmpty {
-                    Text(procedure.summary)
-                        .font(.caption)
-                        .foregroundStyle(.secondary)
-                        .lineLimit(1)
-                }
-            }
-
-            Spacer()
-
-            Image(systemName: "chevron.right")
-                .font(.caption)
-                .foregroundStyle(.tertiary)
-        }
-    }
-}
-
 #Preview {
     let stack = CoreDataStack.preview
     let ctx = stack.viewContext

@@ -2,21 +2,6 @@ import SwiftUI
 import CoreData
 import UniformTypeIdentifiers
 
-/// View modifier for save error alert
-struct SaveErrorAlert: ViewModifier {
-    @Binding var isPresented: Bool
-    let message: String
-
-    func body(content: Content) -> some View {
-        content
-            .alert("Save Failed", isPresented: $isPresented) {
-                Button("OK", role: .cancel) {}
-            } message: {
-                Text(message)
-            }
-    }
-}
-
 /// View modifier for CSV import sheets and file importer
 struct CSVImportSheets: ViewModifier {
     @Binding var showingImporter: Bool

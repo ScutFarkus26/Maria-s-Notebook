@@ -1,7 +1,6 @@
 import SwiftUI
 import CoreData
 
-// swiftlint:disable:next type_body_length
 struct TodoRow: View {
     let todo: CDTodoItem
     let students: [CDStudent]
@@ -11,19 +10,6 @@ struct TodoRow: View {
 
     private var assignedStudents: [CDStudent] {
         students.filter { todo.studentIDsArray.contains($0.id?.uuidString ?? "") }
-    }
-
-    private func formatDueDate(_ date: Date) -> String {
-        let calendar = Calendar.current
-        if calendar.isDateInToday(date) {
-            return "Today"
-        } else if calendar.isDateInTomorrow(date) {
-            return "Tomorrow"
-        } else if calendar.isDate(date, equalTo: Date(), toGranularity: .weekOfYear) {
-            return DateFormatters.weekdayFull.string(from: date)
-        } else {
-            return DateFormatters.shortDate.string(from: date)
-        }
     }
 
     private func priorityColor(_ priority: TodoPriority) -> Color {
@@ -46,76 +32,6 @@ struct TodoRow: View {
         } else {
             return "\(mins)m"
         }
-    }
-
-    private func formatReminderBadge(_ date: Date) -> String {
-        let calendar = Calendar.current
-        if calendar.isDateInToday(date) {
-            return DateFormatters.shortTime.string(from: date)
-        } else if calendar.isDateInTomorrow(date) {
-            return "Tomorrow"
-        } else {
-            return DateFormatters.shortMonthDay.string(from: date)
-        }
-    }
-
-    private func formatTodoAsText(_ todo: CDTodoItem) -> String {
-        var text = "\u{1F4CB} \(todo.title)\n"
-
-        // Priority
-        if todo.priority != .none {
-            let priorityEmoji = todo.priority == .high
-                ? "\u{1F534}" : todo.priority == .medium ? "\u{1F7E0}" : "\u{1F535}"
-            text += "\(priorityEmoji) Priority: \(todo.priority.rawValue)\n"
-        }
-
-        // Due date
-        if let dueDate = todo.dueDate {
-            text += "\u{1F4C5} Due: \(DateFormatters.mediumDate.string(from: dueDate))\n"
-        }
-
-        // Assigned students
-        if !assignedStudents.isEmpty {
-            let names = assignedStudents.map(\.firstName).joined(separator: ", ")
-            text += "\u{1F465} Assigned to: \(names)\n"
-        }
-
-        // CDReminder
-        if let reminderDate = todo.reminderDate {
-            text += "\u{1F514} CDReminder: \(DateFormatters.mediumDateTime.string(from: reminderDate))\n"
-        }
-
-        // Time estimate
-        if todo.estimatedMinutes > 0 {
-            text += "\u{23F1}\u{FE0F} Estimated time: \(formatTimeEstimate(Int(todo.estimatedMinutes)))\n"
-        }
-
-        // Mood
-        if let mood = todo.mood {
-            text += "\(mood.emoji) Mood: \(mood.rawValue)\n"
-        }
-
-        // Reflection
-        if !todo.reflectionNotes.isEmpty {
-            text += "\u{1F4AD} Reflection: \(todo.reflectionNotes)\n"
-        }
-
-        // Subtasks
-        let shareSubs = (todo.subtasks?.allObjects as? [CDTodoSubtaskEntity]) ?? []
-        if !shareSubs.isEmpty {
-            text += "\n\u{2705} Subtasks (\(shareSubs.filter(\.isCompleted).count)/\(shareSubs.count)):\n"
-            for subtask in shareSubs.sorted(by: { $0.orderIndex < $1.orderIndex }) {
-                let checkbox = subtask.isCompleted ? "\u{2611}\u{FE0F}" : "\u{2610}"
-                text += "  \(checkbox) \(subtask.title)\n"
-            }
-        }
-
-        // Notes
-        if !todo.notes.isEmpty {
-            text += "\n\u{1F4DD} Notes:\n\(todo.notes)\n"
-        }
-
-        return text
     }
 
     @State private var checkboxScale: CGFloat = 1.0

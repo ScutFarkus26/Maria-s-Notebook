@@ -354,28 +354,3 @@ struct AreaGrainPill<Content: View>: View {
             .clipShape(Capsule())
     }
 }
-
-// MARK: - Convenience Wrapper
-
-/// Quick area pill with a leading color dot and text label.
-struct AreaGrainLabel: View {
-    let area: String
-    let title: String
-
-    private var areaColor: Color {
-        AppColors.color(forArea: area)
-    }
-
-    var body: some View {
-        AreaGrainPill(area: area) {
-            HStack(spacing: 8) {
-                Circle()
-                    .fill(areaColor)
-                    .frame(width: 6, height: 6)
-                Text(title)
-                    .font(AppTheme.ScaledFont.captionSemibold)
-                    .foregroundStyle(.primary)
-            }
-        }
-    }
-}

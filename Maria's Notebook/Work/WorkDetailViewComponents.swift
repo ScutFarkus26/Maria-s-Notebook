@@ -61,32 +61,6 @@ struct PracticeStatsCalculator {
     }
 }
 
-// MARK: - Work Check-In Row (Phase 6: renamed from WorkPlanItemRow)
-
-struct WorkPlanItemRow: View {
-    let item: CDWorkCheckIn
-    let onDelete: () -> Void
-    
-    var body: some View {
-        HStack(spacing: 12) {
-            DateBadge(date: item.date ?? Date())
-            
-            VStack(alignment: .leading, spacing: 4) {
-                PurposeLabel(purpose: item.purpose)
-            }
-            
-            Spacer()
-            
-            DeleteButton(color: .red, action: onDelete)
-        }
-        .padding(12)
-        .background(
-            RoundedRectangle(cornerRadius: 12)
-                .fill(Color.primary.opacity(UIConstants.OpacityConstants.whisper))
-        )
-    }
-}
-
 // MARK: - Date Badge
 
 private struct DateBadge: View {

@@ -41,6 +41,3 @@ enum LessonAssignmentState: String, Codable, CaseIterable, Sendable {
 /// Public alias for the unified presentation model.
 /// Use this in code for cleaner semantics - "Presentation" is what teachers call it.
 typealias Presentation = CDLessonAssignment
-
-/// Public alias for presentation state.
-typealias PresentationState = LessonAssignmentState

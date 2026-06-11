@@ -32,33 +32,6 @@ struct StudentChip: View {
     }
 }
 
-// MARK: - CDStudent Selection Row
-struct StudentSelectionRow: View {
-    let student: CDStudent
-    let isSelected: Bool
-    let onToggle: () -> Void
-    
-    var body: some View {
-        Button {
-            onToggle()
-        } label: {
-            HStack(spacing: 8) {
-                Image(systemName: isSelected ? "checkmark.circle.fill" : "circle")
-                    .foregroundStyle(isSelected ? Color.accentColor : Color.secondary)
-                
-                Text(StudentFormatter.displayName(for: student))
-                    .foregroundStyle(.primary)
-                
-                Spacer(minLength: 0)
-            }
-            .contentShape(Rectangle())
-            .padding(.vertical, 6)
-            .padding(.horizontal, 6)
-        }
-        .buttonStyle(.plain)
-    }
-}
-
 // MARK: - Move Students Sheet
 struct MoveStudentsSheet: View {
     let lessonName: String
@@ -170,21 +143,6 @@ struct MoveStudentRow: View {
 }
 
 // MARK: - Banner Views
-struct PlannedLessonBanner: View {
-    var body: some View {
-        Text("Next lesson added to Ready to Schedule")
-            .font(AppTheme.ScaledFont.captionSemibold)
-            .padding(.horizontal, 12)
-            .padding(.vertical, 8)
-            .background(
-                RoundedRectangle(cornerRadius: 10, style: .continuous)
-                    .fill(Color.green.opacity(UIConstants.OpacityConstants.barelyTransparent))
-            )
-            .foregroundStyle(.white)
-            .shadow(color: Color.black.opacity(UIConstants.OpacityConstants.moderate), radius: 6, x: 0, y: 3)
-            .padding(.top, 8)
-    }
-}
 
 struct MovedStudentsBanner: View {
     let studentNames: [String]

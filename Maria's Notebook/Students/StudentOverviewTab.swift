@@ -92,18 +92,6 @@ struct StudentOverviewTab: View {
         // Use cached value to avoid repeated database queries during rendering
         return cachedAgeSchoolDays[work.id ?? UUID()] ?? 0
     }
-    
-    private func metadata(for work: CDWorkModel) -> String {
-        var parts: [String] = []
-        switch work.status {
-        case .active: parts.append("Practice")
-        case .review: parts.append("Follow-Up")
-        case .complete: parts.append("Completed")
-        }
-        let age = ageDays(for: work)
-        parts.append("\(age)d")
-        return parts.joined(separator: " • ")
-    }
 
     var body: some View {
         VStack(spacing: 0) {

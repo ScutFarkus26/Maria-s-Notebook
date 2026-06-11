@@ -49,13 +49,6 @@ public struct InboxSheetView: View {
     self.onUpdateOrder = onUpdateOrder
   }
 
-  private func monday(for date: Date) -> Date {
-    let start = calendar.startOfDay(for: date)
-    let weekday = calendar.component(.weekday, from: start)
-    let daysToSubtract = (weekday + 5) % 7
-    return calendar.date(byAdding: .day, value: -daysToSubtract, to: start) ?? start
-  }
-
   public var body: some View {
     VStack(alignment: .leading, spacing: 0) {
       inboxHeader

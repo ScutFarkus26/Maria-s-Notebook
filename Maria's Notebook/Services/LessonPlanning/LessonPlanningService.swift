@@ -26,11 +26,6 @@ final class LessonPlanningService {
         self.config = AIConfigurationResolver(for: .lessonPlanning)
     }
 
-    @available(*, deprecated, message: "Use Core Data overload")
-    convenience init(modelContext: NSManagedObjectContext, mcpClient: MCPClientProtocol) {
-        self.init(context: modelContext, mcpClient: mcpClient)
-    }
-
     // MARK: - Public API
 
     /// Suggests next lessons for a single student.

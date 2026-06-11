@@ -2,12 +2,6 @@ import Foundation
 import CoreData
 import OSLog
 
-/// Errors that can occur during lifecycle operations
-enum LifecycleError: Error {
-    case invalidLessonID(String)
-    case invalidStudentID(String)
-}
-
 @MainActor
 struct LifecycleService {
     static let logger = Logger.lifecycle

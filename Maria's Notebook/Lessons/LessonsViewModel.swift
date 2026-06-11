@@ -48,17 +48,6 @@ struct LessonsViewModel {
         }
     }
 
-    private func indexForSequence(
-        _ sequence: String,
-        inArea area: String,
-        cache: inout [String: [String: Int]],
-        lessons: [CDLesson]
-    ) -> Int {
-        let key = norm(area)
-        if cache[key] == nil { cache[key] = sequenceIndex(for: area, lessons: lessons) }
-        return cache[key]?[norm(sequence)] ?? Int.max
-    }
-
     // MARK: - Predicate Building
     
     func buildLessonPredicate(

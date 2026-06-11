@@ -276,60 +276,6 @@ struct SectionHeaderView: View {
     }
 }
 
-// MARK: - Filter Chip
-
-/// A reusable filter chip component (for category filters, etc.)
-struct StudentFilterChip: View {
-    let label: String
-    let icon: String?
-    let color: Color
-    let isSelected: Bool
-    let action: () -> Void
-
-    init(
-        label: String,
-        icon: String? = nil,
-        color: Color = .secondary,
-        isSelected: Bool,
-        action: @escaping () -> Void
-    ) {
-        self.label = label
-        self.icon = icon
-        self.color = color
-        self.isSelected = isSelected
-        self.action = action
-    }
-
-    var body: some View {
-        Button(action: action) {
-            HStack(spacing: 4) {
-                if let icon {
-                    Image(systemName: icon)
-                        .font(.caption)
-                }
-                Text(label)
-                    .font(.caption)
-            }
-            .padding(.horizontal, 10)
-            .padding(.vertical, 6)
-            .background(
-                RoundedRectangle(cornerRadius: 16)
-                    .fill(
-                        isSelected
-                            ? color.opacity(UIConstants.OpacityConstants.moderate)
-                            : Color.primary.opacity(UIConstants.OpacityConstants.veryFaint)
-                    )
-            )
-            .overlay(
-                RoundedRectangle(cornerRadius: 16)
-                    .strokeBorder(isSelected ? color : Color.clear, lineWidth: 1)
-            )
-            .foregroundStyle(isSelected ? color : .secondary)
-        }
-        .buttonStyle(.plain)
-    }
-}
-
 // MARK: - Bullet Point Row
 
 /// A simple bullet point row for lists

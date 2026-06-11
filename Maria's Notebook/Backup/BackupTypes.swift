@@ -249,12 +249,6 @@ public struct BackupPayload: Codable, Sendable {
     public var preferences: PreferencesDTO
 }
 
-// MARK: - UI Summary Helper
-public struct BackupSummary: Codable, Hashable, Sendable {
-    public var totalCount: Int
-    public var countsByEntity: [String: Int]
-}
-
 // MARK: - BackupOperationSummary
 public struct BackupOperationSummary: Identifiable, Sendable {
     public enum Kind: Sendable, Equatable {

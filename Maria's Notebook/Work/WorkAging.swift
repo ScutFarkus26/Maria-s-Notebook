@@ -276,27 +276,4 @@ enum WorkAgingPolicy {
 }
 
 #if DEBUG
-// Lightweight debug helper for console verification
-enum WorkAgingDebug {
-    static func describe(
-        work: CDWorkModel,
-        using context: NSManagedObjectContext,
-        checkIns: [CDWorkCheckIn]? = nil,
-        notes: [CDNote]? = nil
-    ) -> String {
-        let last = WorkAgingPolicy.lastMeaningfulTouchDate(for: work, checkIns: checkIns, notes: notes)
-        let days = WorkAgingPolicy.daysSinceLastTouch(
-            for: work, using: context,
-            checkIns: checkIns, notes: notes
-        )
-        let bucket = WorkAgingPolicy.agingBucket(
-            for: work, using: context,
-            checkIns: checkIns, notes: notes
-        )
-        let schedulingLast = WorkAgingPolicy.lastSchedulingActionDate(for: work, checkIns: checkIns)
-        let overdue = WorkAgingPolicy.isOverdue(work, checkIns: checkIns, lastTouch: schedulingLast)
-        let lastStr = DateFormatters.mediumDate.string(from: last)
-        return "[school-days] last=\(lastStr) days=\(days) bucket=\(bucket) overdue=\(overdue)"
-    }
-}
 #endif

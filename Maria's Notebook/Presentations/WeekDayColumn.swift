@@ -395,53 +395,6 @@ private struct WeekDayColumnDropDelegate: DropDelegate {
         }
     }
 
-    @MainActor
-    private func applyWorkPlanItemDrop(id: UUID, locationY: CGFloat) {
-        // Phase 6: WorkPlanItem removed from schema - migrated to CDWorkCheckIn
-        // Fetch the CDWorkCheckIn
-        let descriptor = {
-            let r = NSFetchRequest<CDWorkCheckIn>(entityName: "WorkCheckIn")
-            r.predicate = NSPredicate(format: "id == %@", id as CVarArg)
-            r.fetchLimit = 1
-            return r
-        }()
-        guard let item = {
-            do {
-                return try viewContext.fetch(descriptor).first
-            } catch {
-                Self.logger.warning("Failed to fetch work check-in: \(error)")
-                return nil
-            }
-        }() else { return }
-
-        // Update its date to this day
-        let normalized = AppCalendar.startOfDay(day)
-        item.date = normalized
-
-        // Also update the associated CDWorkModel's dueAt
-        if let workID = UUID(uuidString: item.workID) {
-            let workDescriptor = {
-                let r = NSFetchRequest<CDWorkModel>(entityName: "WorkModel")
-                r.predicate = NSPredicate(format: "id == %@", workID as CVarArg)
-                r.fetchLimit = 1
-                return r
-            }()
-            do {
-                if let work = try viewContext.fetch(workDescriptor).first {
-                    work.dueAt = normalized
-                }
-            } catch {
-                Self.logger.warning("Failed to fetch associated work model: \(error)")
-            }
-        }
-
-        do {
-            try viewContext.save()
-        } catch {
-            Self.logger.warning("Failed to save work item schedule: \(error)")
-        }
-    }
-
     private func baseDateForDay(day: Date, calendar: Calendar) -> Date {
         let startOfDay = calendar.startOfDay(for: day)
         return calendar.date(byAdding: .hour, value: 9, to: startOfDay) ?? startOfDay

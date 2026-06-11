@@ -17,16 +17,6 @@ extension CoreDataStack {
     }()
 }
 
-/// Helper utilities for creating preview containers.
-@MainActor
-enum PreviewEnvironment {
-    /// Creates a preview Core Data stack.
-    /// - Returns: A CoreDataStack configured for previews
-    static func previewStack() -> CoreDataStack {
-        CoreDataStack.preview
-    }
-}
-
 extension View {
     /// Apply a standard preview environment:
     /// - A shared in-memory Core Data stack for the app's schema

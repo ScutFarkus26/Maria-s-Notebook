@@ -27,11 +27,6 @@ enum DayPeriod: CaseIterable, Hashable, Sendable {
     }
 }
 
-struct DayKey: Hashable {
-    let dayStart: Date
-    let period: DayPeriod
-}
-
 struct ScheduledItem: Identifiable, Hashable {
     let work: CDWorkModel
     let checkIn: CDWorkCheckIn

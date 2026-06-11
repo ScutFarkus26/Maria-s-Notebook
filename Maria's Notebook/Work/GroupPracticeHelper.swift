@@ -49,38 +49,6 @@ struct SequencePracticeBadge: View {
     }
 }
 
-/// Quick action button to start sequence practice
-struct QuickSequencePracticeButton: View {
-    let work: CDWorkModel
-    let availablePartners: [CDWorkModel]
-    @Binding var showPracticeSessionSheet: Bool
-
-    var body: some View {
-        Button {
-            showPracticeSessionSheet = true
-        } label: {
-            HStack(spacing: 6) {
-                Image(systemName: "person.2.fill")
-                    .font(.system(size: 12, weight: .medium))
-                Text("Group")
-                    .font(AppTheme.ScaledFont.captionSemibold)
-                if !availablePartners.isEmpty {
-                    Text("(\(availablePartners.count))")
-                        .font(AppTheme.ScaledFont.captionSemibold)
-                }
-            }
-            .foregroundStyle(.white)
-            .padding(.horizontal, 10)
-            .padding(.vertical, 6)
-            .background(
-                Capsule()
-                    .fill(Color.blue)
-            )
-        }
-        .buttonStyle(.plain)
-    }
-}
-
 /// Extension to WorkCard to add sequence practice indicators
 extension View {
     /// Adds a sequence practice badge overlay if partners are available

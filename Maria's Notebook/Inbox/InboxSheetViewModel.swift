@@ -354,19 +354,6 @@ extension InboxSheetViewModel {
 
     // MARK: - Error Handling Helpers
 
-    private func safeFetch<T>(
-        _ descriptor: NSFetchRequest<T>,
-        viewContext: NSManagedObjectContext,
-        context: String = #function
-    ) -> [T] {
-        do {
-            return try viewContext.fetch(descriptor)
-        } catch {
-            Self.logger.warning("Failed to fetch \(T.self, privacy: .public) in \(context, privacy: .public): \(error)")
-            return []
-        }
-    }
-
     private func safeFetchFirst<T>(
         _ descriptor: NSFetchRequest<T>,
         viewContext: NSManagedObjectContext,

@@ -2,12 +2,6 @@ import Foundation
 import CoreData
 import OSLog
 
-struct AvailableTrack {
-    let area: String
-    let sequence: String
-    let isSequential: Bool
-}
-
 /// Service for managing sequence-based tracks
 @MainActor
 // swiftlint:disable:next type_body_length

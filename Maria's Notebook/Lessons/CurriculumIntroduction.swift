@@ -57,14 +57,3 @@ struct CurriculumIntroduction: Codable, Identifiable, Equatable {
         return "\(area) Album"
     }
 }
-
-/// Container for storing multiple introductions
-struct CurriculumIntroductionLibrary: Codable {
-    var introductions: [CurriculumIntroduction]
-    var version: Int
-
-    init(introductions: [CurriculumIntroduction] = [], version: Int = 1) {
-        self.introductions = introductions
-        self.version = version
-    }
-}

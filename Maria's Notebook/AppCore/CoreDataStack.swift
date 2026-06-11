@@ -472,18 +472,6 @@ final class CoreDataStack {
         return desc
     }
 
-    private static func makeInMemoryDescription(
-        configuration: String
-    ) -> NSPersistentStoreDescription {
-        // Each in-memory store needs a unique URL, otherwise Core Data rejects
-        // the second store with "Can't add the same store twice".
-        let url = URL(fileURLWithPath: "/dev/null").appendingPathComponent(configuration)
-        let desc = NSPersistentStoreDescription(url: url)
-        desc.type = NSInMemoryStoreType
-        desc.configuration = configuration
-        return desc
-    }
-
     private static func enableHistoryTracking(_ description: NSPersistentStoreDescription) {
         description.setOption(true as NSNumber, forKey: NSPersistentHistoryTrackingKey)
         description.setOption(true as NSNumber, forKey: NSPersistentStoreRemoteChangeNotificationPostOptionKey)
