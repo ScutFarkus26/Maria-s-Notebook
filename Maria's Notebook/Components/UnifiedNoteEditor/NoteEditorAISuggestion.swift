@@ -67,19 +67,18 @@ extension UnifiedNoteEditor {
             self.proposedTags = suggestedTags
             self.proposedStudentIDs = Array(Set(ids))
             self.showingSuggestionSheet = true
-        } catch let error as LanguageModelSession.GenerationError {
+        } catch let error as LanguageModelError {
             switch error {
-            case .assetsUnavailable:
-                self.suggestionError = "Apple Intelligence model is not available."
-                    + " It may be downloading — please try again later."
             case .rateLimited:
                 self.suggestionError = "Too many requests. Please wait a moment and try again."
-            case .exceededContextWindowSize:
+            case .contextSizeExceeded:
                 self.suggestionError = "The note is too long for on-device processing. Try with a shorter note."
             case .unsupportedLanguageOrLocale:
                 self.suggestionError = "This language is not supported by Apple Intelligence."
             case .refusal:
                 self.suggestionError = "The request could not be processed due to content restrictions."
+            case .timeout:
+                self.suggestionError = "The request timed out. Please try again."
             default:
                 self.suggestionError = "Apple Intelligence encountered an unexpected issue. Try again."
             }

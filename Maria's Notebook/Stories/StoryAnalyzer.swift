@@ -155,7 +155,7 @@ enum StoryAnalyzer {
             return result
         } catch is TimeoutError {
             throw StoryAnalyzerError.timedOut
-        } catch let error as LanguageModelSession.GenerationError {
+        } catch let error as LanguageModelError {
             logger.warning("Story analysis generation error: \(String(describing: error), privacy: .public)")
             throw StoryAnalyzerError.generationFailed(message: userMessage(for: error))
         } catch {
@@ -221,11 +221,9 @@ enum StoryAnalyzer {
 
     #if ENABLE_FOUNDATION_MODELS && canImport(FoundationModels)
     @available(macOS 26.0, iOS 26.0, *)
-    private static func userMessage(for error: LanguageModelSession.GenerationError) -> String {
+    private static func userMessage(for error: LanguageModelError) -> String {
         switch error {
-        case .assetsUnavailable:
-            return "Apple Intelligence assets are not available right now."
-        case .exceededContextWindowSize:
+        case .contextSizeExceeded:
             return "The story is too long for the on-device model."
         case .rateLimited:
             return "Apple Intelligence is busy. Try again in a moment."

@@ -72,8 +72,8 @@ final class LocalModelClient: MCPClientProtocol {
                 options: .init(temperature: temperature)
             )
             return response.content
-        } catch let error as LanguageModelSession.GenerationError {
-            throw LocalModelError.fromGeneration(error)
+        } catch let error as LanguageModelError {
+            throw LocalModelError.fromLanguageModel(error)
         }
     }
 
@@ -113,8 +113,8 @@ final class LocalModelClient: MCPClientProtocol {
             return text
         } catch let error as LocalModelError {
             throw error
-        } catch let error as LanguageModelSession.GenerationError {
-            throw LocalModelError.fromGeneration(error)
+        } catch let error as LanguageModelError {
+            throw LocalModelError.fromLanguageModel(error)
         } catch {
             throw LocalModelError.invalidJSON
         }
@@ -164,10 +164,10 @@ enum LocalModelError: Error, LocalizedError {
         }
     }
 
-    /// Maps FoundationModels.GenerationError to LocalModelError.
-    static func fromGeneration(_ error: LanguageModelSession.GenerationError) -> LocalModelError {
+    /// Maps FoundationModels.LanguageModelError to LocalModelError.
+    static func fromLanguageModel(_ error: LanguageModelError) -> LocalModelError {
         switch error {
-        case .exceededContextWindowSize:
+        case .contextSizeExceeded:
             return .contextTooLarge
         case .rateLimited:
             return .rateLimited

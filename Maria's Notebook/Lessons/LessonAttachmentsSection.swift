@@ -354,7 +354,6 @@ struct LessonAttachmentsSection: View {
         }
     }
 
-    // swiftlint:disable:next function_body_length
     private func handleDrop(providers: [NSItemProvider]) -> Bool {
         guard let provider = providers.first else {
             Self.logger.error("No provider")
@@ -363,66 +362,32 @@ struct LessonAttachmentsSection: View {
 
         // Debug: log all available type identifiers
         Self.logger.debug("Available type identifiers: \(provider.registeredTypeIdentifiers.joined(separator: ", "))")
-        
-        // Try multiple type identifiers that might work
-        let typeIdentifiers = [
-            "public.file-url",
-            UTType.fileURL.identifier,
-            "public.url",
-            UTType.url.identifier,
-            "public.data"
-        ]
-        
-        var foundType: String?
-        for typeId in typeIdentifiers where provider.hasItemConformingToTypeIdentifier(typeId) {
-            Self.logger.info("Found conforming type: \(typeId)")
-            foundType = typeId
-            break
-        }
-        
-        guard let typeIdentifier = foundType else {
+
+        guard provider.canLoadObject(ofClass: URL.self) else {
             Self.logger.error("No compatible type found")
             return false
         }
-        
+
         // Load the file URL asynchronously - don't block!
         let logger = Self.logger
-        provider.loadItem(forTypeIdentifier: typeIdentifier, options: nil) { item, error in
+        _ = provider.loadObject(ofClass: URL.self) { url, error in
             if let error {
                 logger.error("Drop error: \(error)")
                 return
-            }
-
-            logger.debug("Received item type: \(String(describing: type(of: item)))")
-
-            var url: URL?
-
-            // Handle different data types
-            if let urlItem = item as? URL {
-                url = urlItem
-                logger.info("Got URL directly: \(urlItem.path)")
-            } else if let data = item as? Data {
-                url = URL(dataRepresentation: data, relativeTo: nil)
-                logger.info("Got URL from Data: \(url?.path ?? "nil")")
-            } else if let string = item as? String {
-                url = URL(string: string)
-                logger.info("Got URL from String: \(url?.path ?? "nil")")
-            } else {
-                logger.error("Unknown item type: \(String(describing: type(of: item)))")
             }
 
             guard let fileURL = url else {
                 logger.error("Failed to get URL from dropped item")
                 return
             }
-            
+
             // Import on main thread
             Task { @MainActor in
                 self.selectedScope = .lesson
                 self.handleFileImport(result: .success([fileURL]))
             }
         }
-        
+
         // Return true immediately to accept the drop
         return true
     }

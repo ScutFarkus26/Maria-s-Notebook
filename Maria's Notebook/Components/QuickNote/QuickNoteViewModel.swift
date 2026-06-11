@@ -204,13 +204,14 @@ class QuickNoteViewModel {
                     }
 
                     // Reset flag after a delay to allow onChange to complete
-                    Task { [weak self] in
+                    // (strong self: holds the VM for at most 100ms and guarantees the flag resets)
+                    Task { [self] in
                         do {
                             try await Task.sleep(for: .milliseconds(100))
                         } catch {
                             // Task was cancelled, ignored
                         }
-                        self?.isApplyingReplacements = false
+                        self.isApplyingReplacements = false
                     }
                 } else {
                     // No changes, reset flag immediately
@@ -365,7 +366,7 @@ class QuickNoteViewModel {
                     self.bodyText = response.content
                     self.isProcessingAI = false
                 }
-            } catch let error as LanguageModelSession.GenerationError {
+            } catch let error as LanguageModelError {
                 self.aiError = Self.userMessage(for: error)
                 self.isProcessingAI = false
             } catch {
@@ -382,20 +383,18 @@ class QuickNoteViewModel {
     
     #if canImport(FoundationModels)
     @available(macOS 26.0, iOS 26.0, *)
-    static func userMessage(for error: LanguageModelSession.GenerationError) -> String {
+    static func userMessage(for error: LanguageModelError) -> String {
         switch error {
-        case .assetsUnavailable:
-            return "Apple Intelligence model is not available. It may be downloading — please try again later."
         case .rateLimited:
             return "Too many requests. Please wait a moment and try again."
-        case .exceededContextWindowSize:
+        case .contextSizeExceeded:
             return "The text is too long for on-device processing. Try with a shorter note."
         case .unsupportedLanguageOrLocale:
             return "This language is not supported by Apple Intelligence."
         case .refusal:
             return "The request could not be processed due to content restrictions."
-        case .concurrentRequests:
-            return "Another AI request is already in progress. Please wait."
+        case .timeout:
+            return "The request timed out. Please try again."
         default:
             return "Apple Intelligence encountered an unexpected issue. Try again."
         }

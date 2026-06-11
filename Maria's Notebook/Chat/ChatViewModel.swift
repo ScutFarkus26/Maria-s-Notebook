@@ -139,7 +139,7 @@ final class ChatViewModel {
         streamingContent = ""
         pendingEscalation = nil
 
-        Task {
+        Task { [self] in
             do {
                 let fullResponse = try await service.sendMessageStreaming(
                     text,
@@ -205,7 +205,7 @@ final class ChatViewModel {
         streamingContent = ""
         errorMessage = nil
 
-        Task {
+        Task { [self] in
             do {
                 _ = try await service.escalateToCloud(
                     originalQuestion: escalation.originalQuestion,

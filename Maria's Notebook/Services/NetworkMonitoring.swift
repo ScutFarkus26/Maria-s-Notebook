@@ -37,8 +37,8 @@ final class NetworkMonitoring {
                 return
             }
             networkChangeContinuation = continuation
-            continuation.onTermination = { @Sendable _ in
-                Task { @MainActor [weak self] in
+            continuation.onTermination = { @Sendable [weak self] _ in
+                Task { @MainActor in
                     self?.networkChangeContinuation = nil
                 }
             }

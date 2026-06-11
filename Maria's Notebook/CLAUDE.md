@@ -7,20 +7,23 @@ Maria's Notebook is a comprehensive teacher planning and classroom management ap
 **Tech Stack:**
 - Swift 6.0 / SwiftUI
 - Core Data + NSPersistentCloudKitContainer (two-store architecture)
-- iOS 26.0+ / macOS 26.0+
-- Xcode 16+
+- iOS 27.0+ / macOS 27.0+ / visionOS 27.0+ (27.0 SDKs are beta until the fall GM)
+- Xcode 27.0 beta+ (currently `~/Downloads/Xcode-beta.app`; `/Applications/Xcode.app` is still 26.5)
 
 ## Build & Run
 
 ```bash
-# Open project
-open "Maria's Notebook.xcodeproj"
+# Open project (in the 27-beta Xcode)
+open -a "$HOME/Downloads/Xcode-beta.app" "Maria's Notebook.xcodeproj"
 
-# Build from command line (iPhone 16 simulators no longer ship with current Xcode)
-xcodebuild -project "Maria's Notebook.xcodeproj" -scheme "Maria's Notebook" -destination "platform=iOS Simulator,name=iPhone 17,OS=26.5" build
+# Build from command line — needs the 27.0 SDKs, so point DEVELOPER_DIR at the beta
+# (drop the prefix once Xcode 27 GM replaces /Applications/Xcode.app in the fall)
+DEVELOPER_DIR="$HOME/Downloads/Xcode-beta.app/Contents/Developer" \
+  xcodebuild -project "Maria's Notebook.xcodeproj" -scheme "Maria's Notebook" -destination "platform=iOS Simulator,name=iPhone 17,OS=27.0" build
 
 # Run unit tests
-xcodebuild test -project "Maria's Notebook.xcodeproj" -scheme "Maria's Notebook" -destination "platform=iOS Simulator,name=iPhone 17,OS=26.5"
+DEVELOPER_DIR="$HOME/Downloads/Xcode-beta.app/Contents/Developer" \
+  xcodebuild test -project "Maria's Notebook.xcodeproj" -scheme "Maria's Notebook" -destination "platform=iOS Simulator,name=iPhone 17,OS=27.0"
 ```
 
 ## Project Structure
@@ -60,9 +63,8 @@ Maria's Notebook/
 ├── Sharing/          # CloudKit sharing (classroom collaboration)
 ├── Backup/           # Backup & restore functionality
 ├── Settings/         # App configuration
-├── Tests/            # In-app test suites
 ├── Docs/             # Documentation
-└── MariasNotebook.xcdatamodeld/ # Core Data model (60 entities)
+└── MariasNotebook.xcdatamodeld/ # Core Data model (76 entities)
 ```
 
 ## Architecture
@@ -71,7 +73,7 @@ Maria's Notebook/
 - **Views** — SwiftUI views using `@FetchRequest` for data binding
 - **ViewModels** — `@Observable @MainActor` classes for complex state
 - **Services** — Business logic operations (50+ services)
-- **Models** — `NSManagedObject` subclasses with `CD` prefix (60 entities)
+- **Models** — `NSManagedObject` subclasses with `CD` prefix (76 entities)
 
 **Concurrency:** Swift 6.0 strict concurrency throughout:
 - `@Observable` on all ViewModels and stateful services (zero `ObservableObject`)
@@ -88,7 +90,7 @@ NSPersistentCloudKitContainer (CoreDataStack.swift)
 
 ## Data Model
 
-**60 entities** defined in `MariasNotebook.xcdatamodeld`.
+**76 entities** defined in `MariasNotebook.xcdatamodeld`.
 
 **Core Models:**
 
@@ -136,7 +138,7 @@ NSPersistentCloudKitContainer (CoreDataStack.swift)
 ## Auto-Research
 
 At the start of each conversation, before writing or modifying any code, search the web for Apple's current documentation on the frameworks relevant to the task (Swift, SwiftUI, Core Data, CloudKit, Combine, Foundation, etc.). Focus on:
-- **API currency:** Identify any APIs this project uses that Apple has deprecated or replaced. When a newer API exists, use it — but respect the project's deployment target (iOS 26.0+ / macOS 26.0+).
+- **API currency:** Identify any APIs this project uses that Apple has deprecated or replaced. When a newer API exists, use it — but respect the project's deployment target (iOS 27.0+ / macOS 27.0+).
 - **Correct signatures and types:** Verify method signatures, parameter types, return types, and property wrappers against current docs. Do not guess or rely on training data — confirm from the source.
 - **Apple-recommended patterns:** Follow Apple's documented patterns for concurrency (`async/await`, `@Sendable`, actors), data flow (`@Observable`, `@Environment`, `@FetchRequest`), and lifecycle (`@main`, scene phases, background tasks).
 - **Warning elimination:** Treat every compiler warning as a bug. If Apple's docs show a warning-free way to accomplish something, use that approach. Pay special attention to: strict concurrency warnings, deprecated API usage, implicit `self` captures, unused variables/results, and `Sendable` conformance.
@@ -147,7 +149,7 @@ At the start of each conversation, before writing or modifying any code, search 
 - All code must pass SwiftLint (see `.swiftlint.yml`). A hook runs it automatically after edits.
 - Follow Swift 6.0 strict concurrency rules — no shortcuts, no `@unchecked Sendable` unless absolutely necessary and documented.
 - Follow Apple Core Data + CloudKit conventions.
-- Use platform-appropriate APIs for the deployment target. Do not use availability checks (`if #available`) for APIs that are baseline at iOS 26.0+.
+- Use platform-appropriate APIs for the deployment target. Do not use availability checks (`if #available`) for APIs that are baseline at iOS 27.0+.
 
 ## CloudKit Notes
 
@@ -156,6 +158,11 @@ At the start of each conversation, before writing or modifying any code, search 
 - Schema changes must be additive-only after CloudKit deployment
 - All models use string-based foreign keys for sync compatibility
 - **Shared-store zone repair:** `SharedStoreZoneRepair` (Services/SharedStoreZoneRepair.swift) detects records in the shared store that aren't assigned to a CKShare zone — these poison `NSCloudKitMirroringDelegate` with `NSCocoaErrorDomain 134060`. It runs at the end of post-launch migrations, after each post-import dedup pass, and when `ClassroomSharingService.isSharing` transitions `false → true`. Lead guides also see a banner + "Repair Sync Errors" button in Settings → Classroom Sharing.
+
+### Known beta-SDK build warnings (Xcode 27 beta 1)
+
+- `@Generable` macro expansions reference the deprecated `GenerationError.decodingFailure` internally. The warning comes from Apple's macro-generated code, not project source, and cannot be fixed here — re-check on each new Xcode 27 seed and drop this note once Apple fixes the macro.
+- `SpeechRecognitionService.installRecognitionTap` suppresses the `installTap` deprecation via Swift 6.4's `@diagnose` attribute: the refined replacement (`installAudioTap`) delivers `AVReadOnlyAudioPCMBuffer`, which `SFSpeechAudioBufferRecognitionRequest.append` cannot accept in beta 1. Re-check each seed and migrate when Speech catches up.
 
 ### Console log noise to ignore
 

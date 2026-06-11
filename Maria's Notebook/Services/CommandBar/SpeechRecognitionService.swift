@@ -80,9 +80,7 @@ final class SpeechRecognitionService {
         let inputNode = audioEngine.inputNode
         let recordingFormat = inputNode.outputFormat(forBus: 0)
 
-        inputNode.installTap(onBus: 0, bufferSize: 1024, format: recordingFormat) { buffer, _ in
-            request.append(buffer)
-        }
+        installRecognitionTap(on: inputNode, request: request, format: recordingFormat)
 
         recognitionTask = speechRecognizer.recognitionTask(with: request) { [weak self] result, error in
             Task { @MainActor [weak self] in
@@ -117,6 +115,21 @@ final class SpeechRecognitionService {
             Self.logger.warning("Failed to start audio engine: \(error)")
             self.error = "Failed to start recording."
             stopRecording()
+        }
+    }
+
+    /// Installs the audio tap using the pre-iOS-27 API. The Swift-refined replacement
+    /// (`installAudioTap`) delivers `AVReadOnlyAudioPCMBuffer`, which
+    /// `SFSpeechAudioBufferRecognitionRequest.append` cannot accept as of Xcode 27 beta 1.
+    /// Re-evaluate on each beta seed and migrate once Speech consumes read-only buffers.
+    @diagnose(DeprecatedDeclaration, as: ignored, reason: "Speech cannot consume the iOS 27 replacement tap API yet")
+    private func installRecognitionTap(
+        on inputNode: AVAudioInputNode,
+        request: SFSpeechAudioBufferRecognitionRequest,
+        format: AVAudioFormat
+    ) {
+        inputNode.installTap(onBus: 0, bufferSize: 1024, format: format) { buffer, _ in
+            request.append(buffer)
         }
     }
 

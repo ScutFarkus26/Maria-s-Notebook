@@ -236,7 +236,7 @@ struct AppleIntelligenceSheet: View {
             adaptiveWithAnimation {
                 editorText = response.content
             }
-        } catch let error as LanguageModelSession.GenerationError {
+        } catch let error as LanguageModelError {
             let message = userMessage(for: error)
             generationError = message
             editorText = context + "\n\n[Error: \(message)]"
@@ -264,20 +264,18 @@ struct AppleIntelligenceSheet: View {
         }
     }
     
-    private func userMessage(for error: LanguageModelSession.GenerationError) -> String {
+    private func userMessage(for error: LanguageModelError) -> String {
         switch error {
-        case .assetsUnavailable:
-            return "Apple Intelligence model is not available. It may be downloading — please try again later."
         case .rateLimited:
             return "Too many requests. Please wait a moment and try again."
-        case .exceededContextWindowSize:
+        case .contextSizeExceeded:
             return "The data is too large for on-device processing. Try selecting fewer notes."
         case .unsupportedLanguageOrLocale:
             return "This language is not supported by Apple Intelligence."
         case .refusal:
             return "The request could not be processed due to content restrictions."
-        case .concurrentRequests:
-            return "Another AI request is already in progress. Please wait."
+        case .timeout:
+            return "The request timed out. Please try again."
         default:
             return "Apple Intelligence encountered an unexpected issue. Try again."
         }

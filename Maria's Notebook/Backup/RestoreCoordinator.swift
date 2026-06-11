@@ -14,14 +14,15 @@ final class RestoreCoordinator {
     }
     
     private func observeAppRouter() {
-        Task { @MainActor in
+        Task { @MainActor [weak self] in
+            guard let self else { return }
             withObservationTracking {
                 // CDTrackEntity changes to appRouter properties
-                _ = appRouter.appDataWillBeReplaced
-                _ = appRouter.appDataDidRestore
-            } onChange: {
+                _ = self.appRouter.appDataWillBeReplaced
+                _ = self.appRouter.appDataDidRestore
+            } onChange: { [weak self] in
                 // When changes occur, update our state and re-observe
-                Task { @MainActor [weak self] in
+                Task { @MainActor in
                     guard let self else { return }
                     if self.appRouter.appDataWillBeReplaced {
                         self.isRestoring = true
