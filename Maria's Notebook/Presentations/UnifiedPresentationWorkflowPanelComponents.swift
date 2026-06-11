@@ -94,7 +94,6 @@ extension View {
 // MARK: - Animation Extensions
 
 extension Animation {
-    static let workflowToggle = Animation.easeInOut(duration: 0.15)
     static let workflowSelection = Animation.spring(response: 0.3, dampingFraction: 0.7)
 }
 
@@ -102,8 +101,6 @@ extension Animation {
 
 extension Font {
     static let workflowFieldLabel = Font.system(size: AppTheme.FontSize.caption, weight: .semibold, design: .rounded)
-    static let workflowBody = Font.system(size: AppTheme.FontSize.body, weight: .bold, design: .rounded)
-    static let workflowBodyMedium = Font.system(size: AppTheme.FontSize.body, weight: .medium, design: .rounded)
     static let workflowCaption = Font.system(size: AppTheme.FontSize.caption, design: .rounded)
     static let workflowCallout = Font.system(size: AppTheme.FontSize.callout, weight: .medium, design: .rounded)
 }

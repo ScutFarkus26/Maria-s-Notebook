@@ -61,9 +61,6 @@ extension AppTheme {
         /// 3pt - Vertical padding for status pills
         nonisolated static let statusPillVertical: CGFloat = 3
         
-        /// 12pt - Standard card padding
-        nonisolated static let cardPadding: CGFloat = 12
-        
         /// 16pt - Spacing between sections
         nonisolated static let sectionSpacing: CGFloat = 16
     }

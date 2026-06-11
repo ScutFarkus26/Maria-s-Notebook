@@ -2,7 +2,7 @@
 
 Date: 2026-06-10. Tree state: mid-refactor working tree (uncommitted module deletions), builds cleanly.
 
-> **Status update (2026-06-10, later):** Sections 1 and 2 have been **executed** — all 108 files deleted, build verified green (Xcode 27 beta toolchain) after each batch. Sections 3–6 remain open.
+> **Status update (2026-06-10, later):** Sections 1 and 2 have been **executed** — all 108 files deleted, build verified green (Xcode 27 beta toolchain) after each batch. The re-scan's **second wave (14 more files) is also deleted**, and **section 4 is executed** (153 of 156 unused constants removed; 3 multi-line declarations skipped: `payloadFields`/`projectChanges` in BackupMigrationManifest.swift and `allTopicsIndexed` in ParshaMetadataService.swift). Sections 3, 5, and 6 remain open. Constant removals in `UserDefaultsKeys.swift` are left uncommitted because that file also carries in-flight refactor edits.
 Method: whole-repo token index (1,142 app + 18 test Swift files, comments stripped, string literals kept as references; pbxproj/plists/xcdatamodel counted as reference sources), Swift-aware exclusions (`@main`, AppIntents, Core Data `CD*` classes, SDK delegate witnesses, preview providers), then per-candidate adversarial verification of every dead-file claim plus precision sampling of the symbol categories.
 Definition used: a file/symbol is *dead* when nothing outside its own file references it (a `#Preview` inside the same file does not count).
 

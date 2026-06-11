@@ -134,13 +134,6 @@ enum DateFormatters {
         return formatter
     }()
 
-    /// Short month, day, and year, locale-sensitive (e.g., "Mar 13, 2026")
-    static let shortMonthDayYear: DateFormatter = {
-        let formatter = DateFormatter()
-        formatter.setLocalizedDateFormatFromTemplate("MMMdyyyy")
-        return formatter
-    }()
-
     /// Local ISO date string for internal keys, e.g. "2024-01-15" in the device timezone
     static let isoDateLocal: DateFormatter = {
         let formatter = DateFormatter()

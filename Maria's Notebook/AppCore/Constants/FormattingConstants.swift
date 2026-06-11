@@ -16,17 +16,6 @@ enum FormattingConstants {
     /// Three decimal places for precision timing (e.g., "0.123")
     static let threeDecimal = "%.3f"
     
-    /// No decimal places (e.g., "42")
-    static let noDecimal = "%.0f"
-    
-    // MARK: - Date/Time Formatting
-    
-    /// Four-digit year with zero padding (e.g., "2024")
-    static let fourDigitYear = "%04d"
-    
-    /// Two-digit month with zero padding (e.g., "03")
-    static let twoDigitMonth = "%02d"
-    
     // MARK: - Hash/Hex Formatting
     
     /// Two-digit hex format with zero padding (e.g., "0f")

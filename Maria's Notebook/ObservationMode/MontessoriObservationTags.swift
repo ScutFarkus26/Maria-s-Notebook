@@ -56,15 +56,6 @@ enum MontessoriObservationTags {
         culturalExploration
     ]
 
-    /// Normalization indicator tags specifically (subset of allTags)
-    static let normalizationIndicators: [String] = [
-        concentration,
-        loveOfOrder,
-        loveOfWork,
-        attachmentToReality,
-        selfDiscipline
-    ]
-
     /// Check if a given tag is a Montessori observation tag (including curriculum domains)
     static func isObservationTag(_ tag: String) -> Bool {
         let name = TagHelper.tagName(tag)

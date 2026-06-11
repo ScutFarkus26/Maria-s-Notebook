@@ -164,9 +164,6 @@ public enum BackupMigrationManifest {
         )
     ]
 
-    /// The app now accepts only the current backup format for restore.
-    public static let minimumSupportedVersion = BackupFile.formatVersion
-
     /// Current format version
     public static var currentVersion: Int {
         BackupFile.formatVersion
@@ -267,37 +264,6 @@ extension BackupMigrationManifest {
     /// Documents entity schemas across format versions (v5–v14)
     public enum EntitySchemaChanges {
 
-        // MARK: - CDStudent
-
-        public static let studentChanges: [EntityChange] = [
-            EntityChange(
-                version: 6, entity: "Student",
-                change: "Fields: id, firstName, lastName, birthday, "
-                    + "level, dateStarted, nextLessons, manualOrder"
-            )
-        ]
-
-        // MARK: - CDLesson
-
-        public static let lessonChanges: [EntityChange] = [
-            EntityChange(
-                version: 6, entity: "Lesson",
-                change: "Fields: id, name, area, sequence, "
-                    + "orderInSequence, section, writeUp, "
-                    + "pagesFileRelativePath"
-            )
-        ]
-
-        // MARK: - CDNote
-
-        public static let noteChanges: [EntityChange] = [
-            EntityChange(
-                version: 6, entity: "Note",
-                change: "Fields: id, createdAt, updatedAt, body, "
-                    + "isPinned, scope (JSON), lessonID, imagePath"
-            )
-        ]
-
         // MARK: - CDProject
 
         public static let projectChanges: [EntityChange] = [
@@ -333,16 +299,6 @@ extension BackupMigrationManifest {
                 change: "Fields: id, createdAt, projectID, title, "
                     + "instructions, isShared, "
                     + "defaultLinkedLessonID"
-            )
-        ]
-
-        // MARK: - Attendance
-
-        public static let attendanceChanges: [EntityChange] = [
-            EntityChange(
-                version: 6, entity: "AttendanceRecord",
-                change: "Fields: id, studentID, date, status, "
-                    + "absenceReason, note"
             )
         ]
 

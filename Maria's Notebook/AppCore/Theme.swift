@@ -194,14 +194,6 @@ enum AppTheme {
             y: 6
         )
         
-        /// Elevated shadow for floating elements
-        static let elevated = ShadowStyle(
-            color: .black.opacity(0.15),
-            radius: 16,
-            x: 0,
-            y: 8
-        )
-        
         /// Strong shadow for modals and overlays
         static let strong = ShadowStyle(
             color: .black.opacity(UIConstants.OpacityConstants.moderate),
@@ -293,7 +285,5 @@ enum AppTheme {
         /// Wide tracking for uppercase section labels / overline text (#12)
         nonisolated static let overline: CGFloat = 0.8
 
-        /// Extra wide tracking for very small uppercase labels
-        nonisolated static let wideUppercase: CGFloat = 1.0
     }
 }

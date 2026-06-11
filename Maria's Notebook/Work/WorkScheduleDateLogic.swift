@@ -31,8 +31,6 @@ struct WorkScheduleDates: Equatable {
 /// Centralized logic for computing and labeling schedule dates for work items.
 /// Always normalize using AppCalendar.startOfDay(_:) to match Planning/Agenda.
 enum WorkScheduleDateLogic {
-    /// Consistent primary label used across the app when referring to the calendar date.
-    static let primaryLabel: String = "Calendar"
 
     /// Compute schedule dates from a collection of check-ins.
     /// - Parameter items: All check-ins relevant to a single work item.

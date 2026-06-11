@@ -11,12 +11,8 @@ enum UIConstants {
     static let gridColumnSpacing: CGFloat = 24
     static let dayColumnSpacing: CGFloat = 14
 
-    static let dayHeaderApproxHeight: CGFloat = 40
-    static let labelHeight: CGFloat = 18
     static let minDropZoneTotalHeight: CGFloat = 220
 
-    static let dropZoneCornerRadius: CGFloat = 18
-    static let dropZoneStrokeDash: [CGFloat] = [6, 6]
     static let dropZoneInnerPadding: CGFloat = 12
 
     static let ageIndicatorWidth: CGFloat = 3
@@ -24,7 +20,6 @@ enum UIConstants {
     static let morningHour: Int = 9
     static let afternoonHour: Int = 14
 
-    static let planningWindowDays: Int = 5
     static let planningNavigationStepSchoolDays: Int = 7
 
     static let scheduleSpacingSeconds: Int = 1
@@ -157,8 +152,6 @@ enum UIConstants {
         /// 24pt - Large icon size
         static let iconSizeLarge: CGFloat = 24
         
-        /// 32pt - Extra large icon size
-        static let iconSizeXLarge: CGFloat = 32
     }
     
     // MARK: - Corner Radius
@@ -177,8 +170,6 @@ enum UIConstants {
         /// 16pt - Extra large corner radius
         nonisolated static let extraLarge: CGFloat = 16
         
-        /// 20pt - Extra extra large corner radius
-        nonisolated static let xxLarge: CGFloat = 20
     }
     
     // MARK: - Stroke & Border Widths
@@ -208,11 +199,6 @@ enum UIConstants {
         /// 2 lines - Double line of text
         static let double: Int = 2
         
-        /// 3 lines - Triple line of text
-        static let triple: Int = 3
-        
-        /// 4 lines - Quad line of text
-        static let quad: Int = 4
     }
     
     // MARK: - Z-Index
@@ -228,22 +214,12 @@ enum UIConstants {
         /// 10 - Overlay layer
         static let overlay: Double = 10
         
-        /// 100 - Modal layer
-        static let modal: Double = 100
-        
-        /// 1000 - Top-most layer (alerts, tooltips)
-        static let topmost: Double = 1000
     }
     
     // MARK: - Animation Durations
     
     /// Standardized animation timing
     enum AnimationDuration {
-        /// 0s - Instant (no animation)
-        static let instant: Double = 0
-        
-        /// 0.1s - Very fast animations
-        static let veryFast: Double = 0.1
         
         /// 0.15s - Fast animations
         static let fast: Double = 0.15
@@ -257,8 +233,6 @@ enum UIConstants {
         /// 0.3s - Normal animations
         static let normal: Double = 0.3
         
-        /// 0.5s - Slow animations
-        static let slow: Double = 0.5
     }
     
     // MARK: - Spring Animations
@@ -271,12 +245,6 @@ enum UIConstants {
         /// Bouncy spring: response 0.3, damping 0.7
         static let bouncy = Animation.spring(response: 0.3, dampingFraction: 0.7)
         
-        /// Smooth spring: response 0.35, damping 0.9
-        static let smooth = Animation.spring(response: 0.35, dampingFraction: 0.9)
-        
-        /// Interactive spring: response 0.16, damping 0.85
-        static let interactive = Animation.interactiveSpring(response: 0.16, dampingFraction: 0.85)
-        
         /// Gentle spring: response 0.35, damping 0.85, blend 0.1
         static let gentle = Animation.spring(response: 0.35, dampingFraction: 0.85, blendDuration: 0.1)
     }
@@ -285,8 +253,6 @@ enum UIConstants {
     
     /// Standardized delay durations for UI operations
     enum TimingDelay {
-        /// 100ms - Very short delay
-        static let veryShort: UInt64 = 100_000_000  // nanoseconds
         
         /// 200ms - Short delay
         static let short: UInt64 = 200_000_000
@@ -306,9 +272,6 @@ enum UIConstants {
         /// 1.5s - Toast/message duration
         static let toast: UInt64 = 1_500_000_000
         
-        /// 2s - Short message display
-        static let shortMessage: UInt64 = 2_000_000_000
-        
         /// 3s - Standard message display
         static let message: UInt64 = 3_000_000_000
     }
@@ -317,22 +280,7 @@ enum UIConstants {
     
     /// Standardized limits for data fetching and display
     enum DataLimit {
-        // Date windows (in days)
-        static let recentDays: Int = 7
-        static let monthDays: Int = 30
-        static let quarterDays: Int = 90
-        static let yearDays: Int = 365
-        static let twoYearDays: Int = 730
         
-        // Fetch limits
-        static let smallBatch: Int = 100
-        static let mediumBatch: Int = 500
-        static let largeBatch: Int = 1000
-        
-        // UI limits
-        static let maxBackupRetention: Int = 50
-        static let maxStepperValue: Int = 60
-        static let maxWarningDays: Int = 30
     }
     
     // MARK: - Stroke Patterns
@@ -341,12 +289,6 @@ enum UIConstants {
     enum StrokePattern {
         /// [6, 6] - Standard dashed line
         static let dashed: [CGFloat] = [6, 6]
-        
-        /// [6, 4] - Tight dashed line
-        static let dashedTight: [CGFloat] = [6, 4]
-        
-        /// [4, 4] - Small dashed line
-        static let dashedSmall: [CGFloat] = [4, 4]
         
         /// [5] - Single dash
         static let single: [CGFloat] = [5]
