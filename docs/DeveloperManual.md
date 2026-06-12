@@ -1160,8 +1160,6 @@ Multiple planning views:
 | Checklist | Class-wide subject tracking |
 | Open Work | All active work items |
 | Projects | Project-based learning management |
-| Progression | Long-term curriculum mapping |
-| Curriculum Balance | Subject coverage analysis |
 | Classroom Jobs | Job rotation management |
 
 ## Inbox Module

@@ -511,17 +511,9 @@ A view of all active work items across all students. Filter by student, subject,
 
 A class-wide checklist view organized by subject and group. See at a glance which students have received which lessons. Check off items as you go — useful for weekly or monthly planning.
 
-## Progression
+## Progress Dashboard
 
-Visual tracking of where every student stands in the curriculum. Shows subject cards with completion percentages. Tap into any group to see each student's status: not started, active, in review, or mastered.
-
-## Curriculum Balance
-
-A pie chart showing how your lesson time is distributed across subjects. Helps you ensure a balanced Montessori curriculum and identify areas that may need more attention.
-
-## Lesson Frequency
-
-A chart showing how often each lesson has been presented. Identify under-taught lessons that need more focus or over-taught ones where you can move on.
+A per-student progression map across the curriculum. Each student's card shows where they stand by subject area; tap a category to open the sequence detail — what's been presented, what's mastered, and what comes next.
 
 ---
 
@@ -590,15 +582,13 @@ Log individual work sessions:
 
 ---
 
-# Progression & Tracks
-
-## Tracks
+# Tracks
 
 A **track** is a defined curriculum path — a sequence of lessons and skills a student moves through over time. Tracks help you ensure students progress systematically.
 
 ### Setting Up Tracks
 
-In Settings or from the Progression area, you can create tracks with:
+When creating a track, you define:
 
 - Track name (e.g., "Math: Counting to Multiplication")
 - Steps — The ordered sequence of lessons or milestones
@@ -606,7 +596,7 @@ In Settings or from the Progression area, you can create tracks with:
 
 ### Monitoring Progress
 
-The Progression view shows each student's position in their enrolled tracks. You can see who's ahead, who's on pace, and who may need additional support.
+The Progress Dashboard and each student's Progress tab show the student's position in their enrolled tracks. You can see who's ahead, who's on pace, and who may need additional support.
 
 ## Group Tracks
 
@@ -788,9 +778,9 @@ Don't try to remember every follow-up. When you record a presentation with "Need
 
 Every time you observe a student working, log a quick check-in on their work item. Over time, these build a detailed picture of each student's journey — invaluable for parent conferences and progress reports.
 
-## Review Progression Weekly
+## Review Progress Weekly
 
-Set aside time each week (perhaps Friday afternoon) to open the Progression view and see where each student stands. This helps you plan the next week's presentations and ensures no student falls behind.
+Set aside time each week (perhaps Friday afternoon) to open the Progress Dashboard and see where each student stands. This helps you plan the next week's presentations and ensures no student falls behind.
 
 ## Back Up Regularly
 
