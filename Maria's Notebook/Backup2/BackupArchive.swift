@@ -1,10 +1,11 @@
 // BackupArchive.swift
-// Thin Swift wrapper around AppleArchive (AEA) for v17 backup files.
+// Thin Swift wrapper around AppleArchive for v17+ backup files.
 //
-// The Backup2 module writes one AEA-framed file per backup:
+// The Backup2 module writes one LZFSE-compressed Apple Archive per backup:
 //
-//     [AppleArchive container — first 4 bytes are "AA01"]
-//       Entries (LZFSE-compressed, blockwise SHA-256 integrity):
+//     [Apple Archive compressed container — first 4 bytes are "pbz" + algorithm
+//      byte, e.g. "pbzE" for LZFSE]
+//       Entries:
 //         manifest.json
 //         private/Note.ndjson
 //         private/AttendanceRecord.ndjson
@@ -13,10 +14,10 @@
 //         …
 //
 // Each entry is a regular file inside the archive. NDJSON entries hold one
-// JSON DTO per line (one Core Data row each). The first 4 bytes of any file
-// produced by Backup2 are AEA's "AA01" magic — used by BackupReader to choose
-// between AEA decode and legacy `.mtbbackup` decode (legacy files start with
-// `{` from their JSON envelope).
+// JSON DTO per line (one Core Data row each). The container magic is used by
+// BackupReader to choose between Backup2 decode and legacy `.mtbbackup` decode
+// (legacy files start with `{` from their JSON envelope). There is no AEA
+// encryption layer; see isAEAFormat(at:) for the accepted magics.
 //
 // API is closure-based: the file/stream lifetime is bounded to the closure so
 // the C-pointer-backed AppleArchive classes never escape and we don't need an
@@ -152,13 +153,22 @@ public enum BackupArchive {
         }
     }
 
-    /// Checks whether a file at `url` is an AEA-formatted backup (Backup2 v17+).
-    /// Reads only the first 4 bytes. Returns `true` for AEA, `false` otherwise.
+    /// Checks whether a file at `url` is a Backup2 (v17+) archive.
+    /// Reads only the first 4 bytes.
+    ///
+    /// `write(to:body:)` stacks an Apple Archive encode stream inside an LZFSE
+    /// compression stream, so the bytes that reach disk carry the Apple Archive
+    /// compressed-container magic `pbz` + algorithm byte (e.g. "pbzE") — NOT the
+    /// Apple *Encrypted* Archive magic "AA01" (no AEA encryption layer is used).
+    /// "AA01" is still accepted defensively. Matching only "AA01" here once made
+    /// every gate (read/verify/import) reject the app's own current backups and
+    /// fall through to the legacy decoder, which rejected them too.
     public static func isAEAFormat(at url: URL) -> Bool {
         guard let handle = try? FileHandle(forReadingFrom: url) else { return false }
         defer { try? handle.close() }
         guard let prefix = try? handle.read(upToCount: 4), prefix.count == 4 else { return false }
-        return prefix == Data([0x41, 0x41, 0x30, 0x31]) // "AA01"
+        if prefix == Data([0x41, 0x41, 0x30, 0x31]) { return true }       // "AA01" (AEA)
+        return prefix.prefix(3) == Data([0x70, 0x62, 0x7A])               // "pbz" + algorithm byte
     }
 
     // MARK: - Header Helpers
