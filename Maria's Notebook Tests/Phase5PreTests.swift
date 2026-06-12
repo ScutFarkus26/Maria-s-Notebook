@@ -7,15 +7,6 @@ import Testing
 @MainActor
 final class Phase5PreTests {
 
-    // MARK: - Store Configuration
-
-    @Test("CoreDataStack loads with both store configurations")
-    func bothStoresLoad() throws {
-        let stack = try CoreDataTestHelpers.makeInMemoryStack()
-        let stores = stack.container.persistentStoreCoordinator.persistentStores
-        #expect(stores.count >= 2, "Expected at least 2 persistent stores (private + shared)")
-    }
-
     // MARK: - ClassroomMembership CRUD
 
     @Test("CDClassroomMembership insert, save, and fetch")

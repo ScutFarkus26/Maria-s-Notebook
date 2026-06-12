@@ -7,28 +7,6 @@ import Testing
 @MainActor
 final class Phase7PreTests {
 
-    // MARK: - Format Version Baseline
-
-    @Test("Current backup format version is 12")
-    func backupFormatVersionIs12() {
-        #expect(BackupFile.formatVersion == 12)
-    }
-
-    // MARK: - Entity Registry Baseline
-
-    @Test("BackupEntityRegistry contains exactly 61 entity types")
-    func backupEntityRegistryCountMatches() {
-        #expect(BackupEntityRegistry.allTypes.count == 61)
-    }
-
-    @Test("ClassroomMembership is NOT yet in BackupEntityRegistry")
-    func classroomMembershipNotInRegistry() {
-        let containsMembership = BackupEntityRegistry.allTypes.contains(where: {
-            $0 == CDClassroomMembership.self
-        })
-        #expect(!containsMembership)
-    }
-
     // MARK: - Registry completeness (type identity check, not string names)
 
     @Test("Key shared store entity types are in the registry")

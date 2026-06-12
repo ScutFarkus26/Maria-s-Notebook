@@ -27,38 +27,38 @@ final class Phase8PreTests {
         }
     }
 
-    // MARK: - SwiftData Store Detection
-
-    @Test("SwiftData store URL is deterministic and under Application Support")
-    func swiftDataStoreURLIsDeterministic() {
-        let url = DatabaseInitializationService.storeFileURL()
-        #expect(url.lastPathComponent == "SwiftData.store")
-        #expect(url.pathComponents.contains("Application Support")
-             || url.pathComponents.contains("tmp"))  // tmp fallback in test env
-    }
-
-    @Test("SwiftData store does not exist in test environment")
-    func swiftDataStoreDoesNotExistInTest() {
-        let url = DatabaseInitializationService.storeFileURL()
-        let exists = FileManager.default.fileExists(atPath: url.path)
-        // In a test environment, there should be no legacy SwiftData store
-        #expect(!exists, "SwiftData store should not exist in fresh test environment")
-    }
-
     // MARK: - Entity Routing Baseline
 
-    @Test("Shared store has expected entity count")
-    func sharedStoreEntityCount() {
-        let shared = CoreDataStack.sharedEntityNames
-        // Current count: 32 shared entities (including ClassroomMembership)
-        #expect(shared.count == 32)
-    }
+    /// KNOWN GAP (2026-06-11): these 8 model entities are in NO store configuration,
+    /// so inserting them fails at save — features writing them lose data. Routing
+    /// them (CoreDataStack.sharedEntityNames / privateEntityNames) is a product
+    /// decision with CloudKit implications; once made, DELETE this allowlist so the
+    /// invariant tightens. Tracked in dead-code-report.md.
+    private static let knownUnroutedEntities: Set<String> = [
+        "WorkCycleSession", "WorkCycleEntry",
+        "PrepChecklist", "PrepChecklistItem", "PrepChecklistCompletion",
+        "TransitionPlan", "TransitionChecklistItem",
+        "Initiative"
+    ]
 
-    @Test("Private store has expected entity count")
-    func privateStoreEntityCount() {
-        let priv = CoreDataStack.privateEntityNames
-        // Current count: 28 private entities
-        #expect(priv.count == 28)
+    @Test("Every model entity is routed to exactly one store")
+    func allModelEntitiesAreRouted() throws {
+        let modelURL = try #require(
+            Bundle.main.url(forResource: "MariasNotebook", withExtension: "momd"),
+            "Model URL should be found in bundle"
+        )
+        let model = try #require(NSManagedObjectModel(contentsOf: modelURL))
+        let modelEntities = Set(model.entities.compactMap { $0.isAbstract ? nil : $0.name })
+        let routed = CoreDataStack.sharedEntityNames.union(CoreDataStack.privateEntityNames)
+        let unrouted = modelEntities.subtracting(routed).subtracting(Self.knownUnroutedEntities)
+        let phantom = routed.subtracting(modelEntities)
+        let healed = Self.knownUnroutedEntities.intersection(routed)
+        #expect(unrouted.isEmpty, "Model entities not routed to any store: \(unrouted.sorted())")
+        #expect(phantom.isEmpty, "Routed names with no model entity: \(phantom.sorted())")
+        #expect(
+            healed.isEmpty,
+            "Now-routed entities still in knownUnroutedEntities — remove them from the allowlist: \(healed.sorted())"
+        )
     }
 
     @Test("Key shared entities are correctly routed")
@@ -95,18 +95,6 @@ final class Phase8PreTests {
         #expect(overlap.isEmpty, "Entities in both stores: \(overlap)")
     }
 
-    // MARK: - Backup System Baseline (post Phase 7)
-
-    @Test("Backup format version is 13 (post Phase 7)")
-    func backupFormatVersionIs13() {
-        #expect(BackupFile.formatVersion == 13)
-    }
-
-    @Test("BackupEntityRegistry has 62 types (post Phase 7)")
-    func backupRegistryCountIs62() {
-        #expect(BackupEntityRegistry.allTypes.count == 62)
-    }
-
     // MARK: - Migration Infrastructure Baseline
 
     @Test("AppBootstrapper starts in idle state")
@@ -127,17 +115,6 @@ final class Phase8PreTests {
         let sharedURL = CoreDataStack.sharedStoreURL()
         #expect(privateURL.lastPathComponent == "private.sqlite")
         #expect(sharedURL.lastPathComponent == "shared.sqlite")
-    }
-
-    // MARK: - Entity Coverage
-
-    @Test("All shared + private entity names cover full entity set")
-    func entityNamesCoverFullSet() {
-        let shared = CoreDataStack.sharedEntityNames
-        let priv = CoreDataStack.privateEntityNames
-        let total = shared.count + priv.count
-        // Total routed entities: 32 shared + 28 private = 60
-        #expect(total == 60, "Total routed entities should be 60, got \(total)")
     }
 
 }

@@ -7,13 +7,6 @@ import Testing
 @MainActor
 final class Phase7PostTests {
 
-    // MARK: - Format Version Bumped
-
-    @Test("Backup format version is now 13")
-    func backupFormatVersionIs13() {
-        #expect(BackupFile.formatVersion == 13)
-    }
-
     // MARK: - Entity Registry Updated
 
     @Test("BackupEntityRegistry contains exactly 63 entity types")

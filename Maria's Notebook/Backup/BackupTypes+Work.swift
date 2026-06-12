@@ -2,23 +2,6 @@ import Foundation
 
 // MARK: - Work DTOs
 
-public struct WorkParticipantDTO: Codable, Sendable {
-    public var studentID: UUID
-    public var completedAt: Date?
-}
-
-/// Legacy DTO — retained for backward compatibility with older backup files.
-public struct WorkDTO: Codable, Sendable {
-    public var id: UUID
-    public var title: String
-    public var studentIDs: [UUID]
-    public var workType: String
-    public var assignmentUUID: UUID?
-    public var createdAt: Date
-    public var completedAt: Date?
-    public var participants: [WorkParticipantDTO]
-}
-
 /// Modern DTO that captures all CDWorkModel fields (format v11+).
 public struct WorkModelDTO: Codable, Sendable {
     public var id: UUID
