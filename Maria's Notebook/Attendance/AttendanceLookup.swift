@@ -5,20 +5,6 @@ import CoreData
 
 extension NSManagedObjectContext {
 
-    /// Returns the attendance status for a student on a specific date, if a record exists.
-    /// The date is normalized to start-of-day for matching.
-    func attendanceStatus(for studentID: UUID, on date: Date) -> AttendanceStatus? {
-        let day = date.normalizedDay()
-        let studentIDString = studentID.uuidString
-        let request = CDFetchRequest(CDAttendanceRecord.self)
-        request.predicate = NSPredicate(
-            format: "studentID == %@ AND date == %@",
-            studentIDString, day as NSDate
-        )
-        request.fetchLimit = 1
-        return safeFetchFirst(request)?.status
-    }
-
     /// Returns a dictionary of attendance statuses keyed by student ID for the given date.
     /// This performs a single fetch for the day and filters in-memory for the provided IDs.
     /// Handles duplicate records by keeping the first occurrence for each student ID.

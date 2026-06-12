@@ -33,12 +33,6 @@ enum ClassroomPermissions {
         canWrite(entityName: entityName, role: role)
     }
 
-    /// Entity names the assistant role is allowed to write.
-    static func assistantWritableEntityNames() -> Set<String> {
-        let enabledCategories = SharingPreferences.assistantWritableCategories()
-        return Set(enabledCategories.flatMap(\.entityNames))
-    }
-
     /// Whether the given role can manage sharing (invite/remove participants).
     static func canManageSharing(
         role: CDClassroomMembership.ClassroomRole

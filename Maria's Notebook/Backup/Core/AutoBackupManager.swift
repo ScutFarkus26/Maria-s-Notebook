@@ -160,33 +160,6 @@ final class AutoBackupManager {
         _ = await performBackup(viewContext: viewContext, trigger: .appQuit, prefix: "AutoBackup")
     }
 
-    // MARK: - Pre-Destructive Backup
-
-    /// Creates a backup before a potentially destructive operation
-    /// - Parameters:
-    ///   - viewContext: The SwiftData model context
-    ///   - operationName: Name of the operation (for filename)
-    /// - Returns: URL of the created backup, or nil if backup failed
-    func createPreDestructiveBackup(
-        viewContext: NSManagedObjectContext,
-        operationName: String
-    ) async -> URL? {
-        let sanitizedName = operationName
-            .replacingOccurrences(of: " ", with: "_")
-            .replacingOccurrences(of: "/", with: "-")
-
-        let result = await performBackup(
-            viewContext: viewContext,
-            trigger: .preDestructive,
-            prefix: "PreOp-\(sanitizedName)"
-        )
-
-        if case .success(_, let url) = result {
-            return url
-        }
-        return nil
-    }
-
     // MARK: - Core Backup Logic
 
     private func performBackup(

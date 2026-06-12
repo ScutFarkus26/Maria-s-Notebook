@@ -40,16 +40,6 @@ extension View {
 // When targeting iOS 26+, consider replacing CardBackgroundModifier backgrounds
 // with the new .glassEffect() modifier for the Liquid Glass design language.
 
-@available(iOS 26, macOS 26, *)
-extension View {
-    /// Apply a Liquid Glass card background for iOS 26+.
-    /// This is a stub for future adoption of Apple's Liquid Glass design language.
-    func cardBackgroundGlass() -> some View {
-        // TODO: Replace with .glassEffect() when building with Xcode 26 SDK
-        self.cardBackground()
-    }
-}
-
 #Preview {
     VStack(spacing: 16) {
         Text("Default Card")

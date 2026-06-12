@@ -133,27 +133,6 @@ public enum AttendanceEmail {
         return components.url
     }
 
-    /// Convenience to build a mailto: URL using current
-    /// preferences and a generated subject/body.
-    public static func mailtoURLForCurrentPrefs(
-        present: [String],
-        tardy: [String],
-        absent: [String],
-        date: Date = Date(),
-        calendar: Calendar = .current
-    ) -> URL? {
-        let to = parseRecipients(from: storedToAddress())
-        let subject = makeSubject(for: date, calendar: calendar)
-        let body = makeBody(
-            present: present,
-            tardy: tardy,
-            absent: absent,
-            date: date,
-            calendar: calendar
-        )
-        return makeMailtoURL(to: to, subject: subject, body: body)
-    }
-
     #if os(iOS)
     /// Creates a prefilled mail composer using current preferences.
     /// - Important: Check `AttendanceEmail.isAvailable` before
@@ -240,42 +219,6 @@ public enum AttendanceEmail {
         return NSWorkspace.shared.open(url)
     }
 
-    /// Tries to send via Mail share service; if unavailable,
-    /// opens a mailto: fallback.
-    /// - Returns: true if either the share service succeeded or
-    ///   the fallback URL was opened; false otherwise.
-    /// - Important: This does not change existing behavior
-    ///   unless you call it from your UI.
-    public static func sendOrFallbackUsingMailAppForCurrentPrefs(
-        present: [String],
-        tardy: [String],
-        absent: [String],
-        date: Date = Date(),
-        calendar: Calendar = .current,
-        completion: @escaping (Bool) -> Void
-    ) {
-        if NSSharingService(named: .composeEmail) != nil {
-            sendUsingMailAppForCurrentPrefs(
-                present: present,
-                tardy: tardy,
-                absent: absent,
-                date: date,
-                calendar: calendar,
-                completion: completion
-            )
-        } else {
-            let opened = openMailtoFallbackForCurrentPrefs(
-                present: present,
-                tardy: tardy,
-                absent: absent,
-                date: date,
-                calendar: calendar
-            )
-            Task { @MainActor in
-                completion(opened)
-            }
-        }
-    }
     #endif
 }
 
@@ -396,9 +339,6 @@ public struct MailComposerView: UIViewControllerRepresentable {
 
 // MARK: - macOS Mail Sender Helper
 
-/// Helper for composing email via the system Mail service on macOS.
-/// - CDNote: Uses NSSharingService(.composeEmail). Completion
-///   reflects success/failure callbacks provided by the service.
 #if os(macOS)
 @MainActor
 public enum MacOSMailSender {

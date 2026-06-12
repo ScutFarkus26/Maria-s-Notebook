@@ -211,16 +211,6 @@ extension CDPracticeSession {
         }
     }
 
-    /// Adds a work item to the practice session if not already present
-    func addWorkItem(_ workItemID: UUID) {
-        let idString = workItemID.uuidString
-        var ids = workItemIDsArray
-        if !ids.contains(idString) {
-            ids.append(idString)
-            workItemIDsArray = ids
-        }
-    }
-
     /// Removes a student from the practice session
     func removeStudent(_ studentID: UUID) {
         let idString = studentID.uuidString
@@ -229,13 +219,6 @@ extension CDPracticeSession {
         studentIDsArray = ids
     }
 
-    /// Removes a work item from the practice session
-    func removeWorkItem(_ workItemID: UUID) {
-        let idString = workItemID.uuidString
-        var ids = workItemIDsArray
-        ids.removeAll { $0 == idString }
-        workItemIDsArray = ids
-    }
 }
 
 // MARK: - Generated Accessors for To-Many Relationships

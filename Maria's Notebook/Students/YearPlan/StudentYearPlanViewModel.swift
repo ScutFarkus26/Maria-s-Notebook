@@ -96,18 +96,8 @@ final class StudentYearPlanViewModel {
         itemsByCell = cellLookup
     }
 
-    func lessonFor(_ entry: CDYearPlanEntry) -> CDLesson? {
-        lessonsByID[entry.lessonID]
-    }
-
     func removeEntry(_ entry: CDYearPlanEntry, context: NSManagedObjectContext) {
         context.delete(entry)
-        context.safeSave()
-    }
-
-    func rescheduleEntry(_ entry: CDYearPlanEntry, to newDate: Date, context: NSManagedObjectContext) {
-        entry.plannedDate = AppCalendar.startOfDay(newDate)
-        entry.modifiedAt = Date()
         context.safeSave()
     }
 

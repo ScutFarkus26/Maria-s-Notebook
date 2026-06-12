@@ -38,26 +38,6 @@ enum SupplyService {
         return filtered
     }
 
-    /// Fetches supplies grouped by category
-    @MainActor
-    static func fetchSuppliesGroupedByCategory(
-        in context: NSManagedObjectContext,
-        searchText: String = ""
-    ) -> [(category: SupplyCategory, supplies: [CDSupply])] {
-        let allSupplies = fetchSupplies(in: context, searchText: searchText)
-
-        // Group by category
-        let grouped = Dictionary(grouping: allSupplies) { $0.category }
-
-        // Sort categories by their display order and filter out empty ones
-        return SupplyCategory.allCases.compactMap { category in
-            guard let supplies = grouped[category], !supplies.isEmpty else {
-                return nil
-            }
-            return (category: category, supplies: supplies)
-        }
-    }
-
     /// Creates a new supply
     @MainActor
     static func createSupply(

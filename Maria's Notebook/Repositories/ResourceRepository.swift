@@ -39,18 +39,6 @@ struct ResourceRepository: SavingRepository {
         fetchResources(predicate: NSPredicate(format: "categoryRaw == %@", category))
     }
 
-    func fetchFavorites() -> [CDResource] {
-        fetchResources(predicate: NSPredicate(format: "isFavorite == YES"))
-    }
-
-    func fetchRecents(limit: Int = 20) -> [CDResource] {
-        let request = CDFetchRequest(CDResource.self)
-        request.predicate = NSPredicate(format: "lastViewedAt != nil")
-        request.sortDescriptors = [NSSortDescriptor(key: "lastViewedAt", ascending: false)]
-        request.fetchLimit = limit
-        return context.safeFetch(request)
-    }
-
     // MARK: - Create
 
     @discardableResult
@@ -81,31 +69,6 @@ struct ResourceRepository: SavingRepository {
     }
 
     // MARK: - Update
-
-    @discardableResult
-    func updateResource(
-        id: UUID,
-        title: String? = nil,
-        category: ResourceCategory? = nil,
-        descriptionText: String? = nil,
-        tags: [String]? = nil,
-        isFavorite: Bool? = nil,
-        linkedLessonIDs: String? = nil,
-        linkedAreas: String? = nil
-    ) -> Bool {
-        guard let resource = fetchResource(id: id) else { return false }
-
-        if let title { resource.title = title }
-        if let category { resource.category = category }
-        if let descriptionText { resource.descriptionText = descriptionText }
-        if let tags { resource.tagsArray = tags }
-        if let isFavorite { resource.isFavorite = isFavorite }
-        if let linkedLessonIDs { resource.linkedLessonIDs = linkedLessonIDs }
-        if let linkedAreas { resource.linkedAreas = linkedAreas }
-        resource.modifiedAt = Date()
-
-        return true
-    }
 
     func markViewed(id: UUID) {
         guard let resource = fetchResource(id: id) else { return }

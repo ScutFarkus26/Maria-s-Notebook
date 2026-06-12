@@ -71,26 +71,6 @@ final class PresentationsCoordinator {
         activeSheet = .lessonAssignmentDetail(lessonAssignment)
     }
 
-    /// Present schedule presentation sheet
-    func showSchedulePresentation(for lesson: CDLesson) {
-        activeSheet = .schedulePresentationFor(lesson)
-    }
-
-    /// Present post-presentation workflow
-    func showPostPresentation(_ lessonAssignment: CDLessonAssignment) {
-        activeSheet = .postPresentation(lessonAssignment)
-    }
-
-    /// Present unified presentation workflow
-    func showUnifiedWorkflow(_ lessonAssignment: CDLessonAssignment) {
-        activeSheet = .unifiedWorkflow(lessonAssignment)
-    }
-
-    /// Present lesson assignment history
-    func showLessonAssignmentHistory(for lesson: CDLesson) {
-        activeSheet = .lessonAssignmentHistory(lesson)
-    }
-
     /// Present consolidate-duplicates sheet
     func showConsolidatePresentations() {
         activeSheet = .consolidatePresentations

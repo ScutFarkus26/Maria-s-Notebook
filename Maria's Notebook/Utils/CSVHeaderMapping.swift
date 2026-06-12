@@ -38,20 +38,6 @@ enum CSVHeaderMapping {
         return result
     }
     
-    /// Validates that required headers are present in the mapping.
-    /// - Parameters:
-    ///   - mapping: Header mapping dictionary
-    ///   - requiredKeys: Array of required canonical keys
-    /// - Throws: CSVImportError if required keys are missing
-    static func validateRequired(
-        mapping: [String: Int],
-        requiredKeys: [String]
-    ) throws {
-        let missing = requiredKeys.filter { mapping[$0] == nil }
-        if !missing.isEmpty {
-            throw CSVImportError.missingRequiredHeaders(missing)
-        }
-    }
 }
 
 /// Common CSV import errors

@@ -177,16 +177,6 @@ final class ReminderSyncService {
         return calendars.map { ReminderListInfo(identifier: $0.calendarIdentifier, name: $0.title) }
     }
 
-    /// Get all available Reminders lists (legacy, returns names only)
-    func getAvailableReminderLists() -> [String] {
-        guard hasFullAccess else {
-            return []
-        }
-
-        let calendars = eventStore.calendars(for: .reminder)
-        return calendars.map(\.title)
-    }
-
     // MARK: - Private Helpers
 
     func findReminderList(named name: String) -> EKCalendar? {

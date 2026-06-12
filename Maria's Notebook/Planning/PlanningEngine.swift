@@ -39,10 +39,6 @@ enum PlanningEngine {
         day.formatted(Date.FormatStyle().day())
     }
 
-    static func dayShortLabel(_ day: Date) -> String {
-        day.formatted(Date.FormatStyle().weekday(.abbreviated).day())
-    }
-
     static func dateForSlot(day: Date, period: DayPeriod, calendar: Calendar) -> Date {
         let startOfDay = AppCalendar.startOfDay(day)
         return calendar.date(byAdding: .hour, value: period.baseHour, to: startOfDay) ?? startOfDay

@@ -129,11 +129,6 @@ extension ObservationsView {
         }
     }
 
-    func summarizeSelected(as mode: SummaryMode) {
-        let bodies = filteredItems.filter { selectedItemIDs.contains($0.id) }.map(\.body)
-        startStreamingSummary(bodies: bodies, mode: mode)
-    }
-
     // MARK: - AI Scope Analysis
 
     /// Unique context strings from the current filtered items, for the "By Context" menu.

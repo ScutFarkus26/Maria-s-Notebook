@@ -39,16 +39,4 @@ enum PresentationProgressHelper {
         isPresented && !isJustPresentedActive(isPresented: isPresented, givenAt: givenAt, calendar: calendar)
     }
 
-    /// Determines if the "Needs Another Presentation" state is active.
-    ///
-    /// - Parameters:
-    ///   - needsAnotherPresentation: Whether another presentation is needed
-    ///   - isPresented: Whether the lesson is presented
-    /// - Returns: True if needs another and not presented
-    static func isNeedsAnotherActive(
-        needsAnotherPresentation: Bool,
-        isPresented: Bool
-    ) -> Bool {
-        needsAnotherPresentation && !isPresented
-    }
 }

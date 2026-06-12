@@ -36,11 +36,6 @@ struct FilterOrderStore {
         return result
     }
 
-    static func saveAreaOrder(_ order: [String]) {
-        cachedAreaOrder = order
-        shared.defaults.set(order, forKey: areaOrderKey)
-    }
-
     // MARK: Groups (Tracks)
 
     static func loadSequenceOrder(for area: String, existing: [String]) -> [String] {
@@ -87,11 +82,6 @@ struct FilterOrderStore {
         cachedAreaOrder = nil
         cachedSequenceOrders.removeAll()
         cachedSectionOrders.removeAll()
-    }
-
-    static func useDefaults(_ defaults: UserDefaults) {
-        shared = FilterOrderStore(defaults: defaults)
-        resetCache()
     }
 
     // MARK: Merge helper

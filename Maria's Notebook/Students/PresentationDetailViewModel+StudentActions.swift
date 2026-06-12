@@ -78,34 +78,4 @@ extension PresentationDetailViewModel {
         }
     }
 
-    // MARK: - Schedule Next CDLesson
-
-    /// Schedules a new presentation for the next lesson in the sequence
-    func scheduleNextLessonToInbox(
-        studentsAll: [CDStudent],
-        lessonAssignmentsAll: [CDLessonAssignment],
-        lessons: [CDLesson]
-    ) {
-        guard let next = nextLessonInSequence(from: lessons) else { return }
-        guard !selectedStudentIDs.isEmpty else { return }
-
-        let sameStudents = Set(selectedStudentIDs)
-
-        // Avoid duplicates
-        let exists = lessonAssignmentsAll.contains { la in
-            la.resolvedLessonID == next.id && Set(la.resolvedStudentIDs) == sameStudents && !la.isPresented
-        }
-        if exists { return }
-
-        let newLA = PresentationFactory.makeDraft(
-            lessonID: next.id ?? UUID(),
-            studentIDs: Array(sameStudents),
-            context: viewContext
-        )
-        newLA.lesson = next
-        newLA.lessonTitleSnapshot = next.name
-        newLA.lessonSectionSnapshot = next.section
-        saveCoordinator.save(viewContext, reason: "Scheduling next lesson")
-        PresentationDetailUtilities.notifyInboxRefresh()
-    }
 }

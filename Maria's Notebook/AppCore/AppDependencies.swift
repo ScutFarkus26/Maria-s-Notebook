@@ -1,4 +1,3 @@
-// swiftlint:disable file_length
 import Foundation
 import CoreData
 import SwiftUI
@@ -327,48 +326,6 @@ final class AppDependencies {
         let coordinator = RestoreCoordinator()
         _restoreCoordinator = coordinator
         return coordinator
-    }
-
-    // MARK: - Preloading
-
-    /// Preload presentations data in the background for instant navigation.
-    /// Call this early in the app lifecycle (e.g., from RootView.onAppear) to warm up the cache.
-    /// Safe to call - will silently fail if the database is not ready yet.
-    /// - Parameters:
-    ///   - inboxOrderRaw: Current inbox order preference
-    ///   - missWindow: Current miss window setting
-    ///   - showTestStudents: Whether to show test students
-    ///   - testStudentNamesRaw: Test student names preference
-    func preloadPresentationsData(
-        calendar: Calendar,
-        inboxOrderRaw: String,
-        missWindow: PresentationsMissWindow,
-        showTestStudents: Bool,
-        testStudentNamesRaw: String
-    ) {
-        // Don't preload immediately - wait a moment for the database to initialize
-        // This prevents crashes when accessing ModelContext too early in the app lifecycle
-        Task { @MainActor in
-            // Additional delay to ensure SwiftData is fully initialized
-            // CloudKit initialization can take several seconds
-            do {
-                try await Task.sleep(for: .seconds(1))
-            } catch {
-                Self.logger.warning("Failed to sleep for presentation preload: \(error)")
-                return
-            }
-
-            // Safely update the presentations view model in the background
-            // If this fails, it will be loaded normally when the user navigates to Presentations
-            presentationsViewModel.update(
-                viewContext: viewContext,
-                calendar: calendar,
-                inboxOrderRaw: inboxOrderRaw,
-                missWindow: missWindow,
-                showTestStudents: showTestStudents,
-                testStudentNamesRaw: testStudentNamesRaw
-            )
-        }
     }
 
     // MARK: - Testing Support

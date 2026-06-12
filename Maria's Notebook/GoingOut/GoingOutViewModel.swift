@@ -62,28 +62,6 @@ final class GoingOutViewModel {
 
     // MARK: - CRUD
 
-    @discardableResult
-    func createGoingOut(
-        context: NSManagedObjectContext,
-        title: String,
-        purpose: String = "",
-        destination: String = "",
-        proposedDate: Date? = nil,
-        studentIDs: [UUID] = []
-    ) -> CDGoingOut {
-        let goingOut = CDGoingOut(context: context)
-        goingOut.id = UUID()
-        goingOut.title = title
-        goingOut.purpose = purpose
-        goingOut.destination = destination
-        goingOut.proposedDate = proposedDate
-        goingOut.studentIDsArray = studentIDs.map(\.uuidString)
-        goingOut.createdAt = Date()
-        context.safeSave()
-        loadData(context: context)
-        return goingOut
-    }
-
     func updateStatus(_ goingOut: CDGoingOut, to newStatus: GoingOutStatus, context: NSManagedObjectContext) {
         goingOut.status = newStatus
         if newStatus == .completed {

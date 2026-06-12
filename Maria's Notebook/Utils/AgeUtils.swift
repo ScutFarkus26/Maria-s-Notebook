@@ -222,13 +222,4 @@ struct AgeUtils {
         }
     }
 
-    /// Returns a half-year age string like "7" or "8 1/2".
-    /// If under 1 year, returns "1/2" when appropriate, otherwise "0".
-    static func halfYearAgeString(for birthday: Date, today: Date = Date(), calendar: Calendar = .current) -> String {
-        let age = halfYearRoundedAgeComponents(birthday: birthday, today: today, calendar: calendar)
-        if age.years == 0 {
-            return age.hasHalf ? "1/2" : "0"
-        }
-        return age.hasHalf ? "\(age.years) 1/2" : "\(age.years)"
-    }
 }

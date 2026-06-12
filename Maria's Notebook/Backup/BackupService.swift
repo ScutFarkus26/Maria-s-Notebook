@@ -26,9 +26,4 @@ public final class BackupService {
         BackupSizeEstimator.estimateBackupSize(viewContext: viewContext)
     }
 
-    /// Estimates backup size from entity counts dictionary.
-    /// Delegates to BackupSizeEstimator for the actual calculation.
-    public func estimateBackupSizeFromCounts(_ counts: [String: Int]) -> Int64 {
-        BackupSizeEstimator.estimateFromCounts(counts)
-    }
 }

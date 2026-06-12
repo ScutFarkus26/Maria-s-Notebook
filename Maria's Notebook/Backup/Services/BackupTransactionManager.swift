@@ -45,8 +45,6 @@ public final class BackupTransactionManager {
         public let error: Error?
     }
 
-    // MARK: - Properties
-
     // MARK: - Initialization
 
     public init() {}
@@ -211,26 +209,6 @@ public final class BackupTransactionManager {
         )
     }
 
-    /// Rolls back to the most recent active checkpoint.
-    ///
-    /// - Parameters:
-    ///   - viewContext: The model context to restore
-    ///   - progress: Progress callback
-    public func rollbackToActiveCheckpoint(
-        viewContext: NSManagedObjectContext,
-        progress: @escaping BackupService.ProgressCallback
-    ) async throws {
-        guard let checkpointURL = activeCheckpointURL else {
-            throw TransactionError.noCheckpointExists
-        }
-
-        try await rollback(
-            viewContext: viewContext,
-            from: checkpointURL,
-            progress: progress
-        )
-    }
-
     /// Lists all available checkpoints.
     ///
     /// - Returns: Array of checkpoint URLs sorted by date (newest first)
@@ -270,24 +248,6 @@ public final class BackupTransactionManager {
                 }
                 return date1 > date2
             }
-    }
-
-    /// Cleans up old checkpoints, keeping only the most recent ones.
-    ///
-    /// - Parameter keepCount: Number of checkpoints to keep (default: 3)
-    public func cleanupOldCheckpoints(keepCount: Int = 3) {
-        let checkpoints = listCheckpoints()
-
-        if checkpoints.count > keepCount {
-            let toDelete = checkpoints.suffix(from: keepCount)
-            for url in toDelete {
-                do {
-                    try FileManager.default.removeItem(at: url)
-                } catch {
-                    Self.logger.warning("Failed to delete old checkpoint \(url.lastPathComponent): \(error)")
-                }
-            }
-        }
     }
 
     // MARK: - Private Helpers

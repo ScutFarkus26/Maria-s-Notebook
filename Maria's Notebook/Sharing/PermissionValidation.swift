@@ -12,18 +12,3 @@ enum PermissionError: LocalizedError {
         }
     }
 }
-
-extension NSManagedObjectContext {
-    /// Validates that the current user's role has permission to save all pending changes.
-    /// Call before `save()` to enforce permissions at the data layer.
-    func validatePermissionsBeforeSave(role: CDClassroomMembership.ClassroomRole) throws {
-        guard role != .leadGuide else { return }
-
-        for object in insertedObjects.union(updatedObjects) {
-            let entityName = object.entity.name ?? ""
-            guard ClassroomPermissions.canWrite(entityName: entityName, role: role) else {
-                throw PermissionError.insufficientRole(entityName: entityName, role: role)
-            }
-        }
-    }
-}

@@ -73,26 +73,6 @@ struct AttendanceRepository: SavingRepository {
         }
     }
 
-    /// Create a new CDAttendanceRecord
-    @discardableResult
-    func createRecord(
-        studentID: UUID,
-        date: Date,
-        status: AttendanceStatus = .unmarked,
-        absenceReason: AbsenceReason = .none,
-        note: String? = nil
-    ) -> CDAttendanceRecord {
-        let record = CDAttendanceRecord(context: context)
-        record.studentID = studentID.uuidString
-        record.date = date.normalizedDay()
-        record.status = status
-        record.absenceReason = absenceReason
-        if let note {
-            record.setLegacyNoteText(note, in: context)
-        }
-        return record
-    }
-
     // MARK: - Update
 
     /// Update status for a record

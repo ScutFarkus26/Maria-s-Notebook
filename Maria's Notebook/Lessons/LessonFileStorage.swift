@@ -315,23 +315,6 @@ public enum LessonFileStorage {
             fileType: resolvedExtension.lowercased()
         )
     }
-    
-    /// Searches for attachments matching a keyword across areas, groups, or specific lessons.
-    /// - Parameters:
-    ///   - keyword: Search term to match against filenames and notes
-    ///   - area: Optional area filter
-    ///   - sequence: Optional sequence filter (requires area to be set)
-    /// - Returns: Array of matching attachments
-    static func searchAttachments(
-        keyword: String,
-        area: String? = nil,
-        sequence: String? = nil
-    ) throws -> [CDLessonAttachment] {
-        // This is a placeholder for future implementation
-        // Would require access to NSManagedObjectContext to query all attachments
-        // For now, return empty array
-        return []
-    }
 
     // MARK: - Private Helpers
 

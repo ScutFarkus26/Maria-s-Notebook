@@ -38,49 +38,6 @@ struct PlanningFeedbackTracker {
         Self.logger.info("Recorded \(decision.rawValue) decision for \(recommendation.lessonName)")
     }
 
-    /// Links an accepted recommendation to its created CDLessonAssignment.
-    static func linkToPresentation(
-        recommendationID: UUID,
-        presentationID: UUID,
-        context: NSManagedObjectContext
-    ) {
-        let request = CDFetchRequest(CDPlanningRecommendation.self)
-        request.predicate = NSPredicate(format: "id == %@", recommendationID as CVarArg)
-
-        guard let record = context.safeFetch(request).first else {
-            Self.logger.warning("CDPlanningRecommendation not found for linking: \(recommendationID)")
-            return
-        }
-
-        record.presentationID = presentationID.uuidString
-        record.modifiedAt = Date()
-    }
-
-    /// Records the outcome after a recommendation was applied.
-    static func recordOutcome(
-        recommendationID: UUID,
-        outcome: RecommendationOutcome,
-        context: NSManagedObjectContext
-    ) {
-        let request = CDFetchRequest(CDPlanningRecommendation.self)
-        request.predicate = NSPredicate(format: "id == %@", recommendationID as CVarArg)
-
-        guard let record = context.safeFetch(request).first else { return }
-        record.outcomeRaw = outcome.rawValue
-    }
-
-    // MARK: - Calibration Data (Core Data)
-
-    /// Fetches calibration data summarizing past teacher decisions for prompt enrichment.
-    /// Returns a string suitable for including in planning prompts.
-    static func calibrationSummary(context: NSManagedObjectContext) -> String? {
-        let request = CDFetchRequest(CDPlanningRecommendation.self)
-        request.sortDescriptors = [NSSortDescriptor(key: "createdAt", ascending: false)]
-        let records = context.safeFetch(request)
-        guard !records.isEmpty else { return nil }
-        return buildCalibrationSummary(from: records)
-    }
-
     // MARK: - Shared Helpers
 
     // Deprecated SwiftData methods removed - use Core Data overloads.

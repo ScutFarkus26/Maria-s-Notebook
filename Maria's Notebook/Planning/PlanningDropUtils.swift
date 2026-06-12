@@ -19,17 +19,7 @@ enum PlanningDropUtils {
         }
         return ordered.count
     }
-    
-    static func reorderIDs(current: [UUID], moving: UUID, insertionIndex: Int) -> [UUID] {
-        var ids = current
-        if let currentIndex = ids.firstIndex(of: moving) {
-            ids.remove(at: currentIndex)
-        }
-        let boundedIndex = max(0, min(insertionIndex, ids.count))
-        ids.insert(moving, at: boundedIndex)
-        return ids
-    }
-    
+
     // MARK: - Time Assignment
     @MainActor static func assignSequentialTimes(
         ids: [UUID],

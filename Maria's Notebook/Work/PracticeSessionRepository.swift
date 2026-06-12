@@ -73,43 +73,6 @@ struct PracticeSessionRepository {
         return context.safeFetch(request)
     }
 
-    /// Fetches sequence practice sessions (2+ students)
-    func fetchGroupSessions() -> [CDPracticeSession] {
-        let allSessions = fetchAll()
-        return allSessions.filter { session in
-            let ids = (session.studentIDs as? [String]) ?? []
-            return ids.count >= 2
-        }
-    }
-
-    /// Fetches solo practice sessions (1 student)
-    func fetchSoloSessions() -> [CDPracticeSession] {
-        let allSessions = fetchAll()
-        return allSessions.filter { session in
-            let ids = (session.studentIDs as? [String]) ?? []
-            return ids.count == 1
-        }
-    }
-
-    /// Fetches practice partnerships for a student (who they practiced with most)
-    func fetchPartnerships(forStudentID studentID: UUID) -> [(partnerID: UUID, sessionCount: Int)] {
-        let sessions = fetch(forStudentID: studentID)
-        var partnerCounts: [UUID: Int] = [:]
-
-        for session in sessions {
-            let ids = (session.studentIDs as? [String]) ?? []
-            guard ids.count >= 2 else { continue }
-            for partnerIDString in ids where partnerIDString != studentID.uuidString {
-                if let partnerID = UUID(uuidString: partnerIDString) {
-                    partnerCounts[partnerID, default: 0] += 1
-                }
-            }
-        }
-
-        return partnerCounts.map { ($0.key, $0.value) }
-            .sorted { $0.1 > $1.1 }
-    }
-
     /// Fetches a specific practice session by ID
     func fetch(byID id: UUID) -> CDPracticeSession? {
         let request = CDFetchRequest(CDPracticeSession.self)

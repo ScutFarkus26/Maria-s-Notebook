@@ -101,14 +101,6 @@ extension CDLessonAssignment {
         }
     }
 
-    /// Remove proficiency confirmation for a student.
-    func unconfirmStudent(_ studentID: UUID) {
-        var ids = confirmedStudentIDs
-        ids.removeAll { $0 == studentID.uuidString }
-        confirmedStudentIDs = ids
-        modifiedAt = Date()
-    }
-
     /// Convenience accessor for lessonID as UUID.
     var lessonIDUUID: UUID? {
         get { UUID(uuidString: lessonID) }

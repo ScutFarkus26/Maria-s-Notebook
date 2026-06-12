@@ -249,30 +249,6 @@ enum WorkAgingPolicy {
         }
     }
     
-    /// Determine urgency bucket for a work item. Returns `.none` while work is resting.
-    nonisolated static func urgencyBucket(
-        for work: CDWorkModel,
-        using context: NSManagedObjectContext,
-        checkIns: [CDWorkCheckIn]? = nil,
-        notes: [CDNote]? = nil
-    ) -> UrgencyBucket {
-        if let until = work.restingUntil, until > AppCalendar.startOfDay(Date()) {
-            return .none
-        }
-        if isStale(work, using: context, checkIns: checkIns, notes: notes) {
-            return .stale
-        }
-        if isOverdue(work, checkIns: checkIns) {
-            return .overdue
-        }
-        if isDueToday(work, checkIns: checkIns) {
-            return .today
-        }
-        if isUpcoming(work, checkIns: checkIns) {
-            return .upcoming
-        }
-        return .none
-    }
 }
 
 #if DEBUG

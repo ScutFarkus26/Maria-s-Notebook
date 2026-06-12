@@ -97,16 +97,6 @@ final class SaveCoordinator {
         return success
     }
 
-    /// Perform a save and show an info toast if it succeeds.
-    @discardableResult
-    func saveWithInfoToast(_ context: NSManagedObjectContext, infoMessage: String, reason: String? = nil) -> Bool {
-        let success = save(context, reason: reason)
-        if success {
-            toastService.showInfo(infoMessage)
-        }
-        return success
-    }
-
     // Legacy SwiftData overloads removed — primary methods already accept NSManagedObjectContext.
 
     /// Clear any previously captured error state and dismiss the alert.

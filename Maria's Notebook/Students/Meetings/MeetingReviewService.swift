@@ -6,36 +6,6 @@ import OSLog
 enum MeetingReviewService {
     private static let logger = Logger.students
 
-    /// Creates a new work review record linking a meeting to a work item.
-    @discardableResult
-    static func createReview(
-        meetingID: UUID,
-        workID: UUID,
-        noteText: String,
-        context: NSManagedObjectContext
-    ) -> CDMeetingWorkReview {
-        let review = CDMeetingWorkReview(context: context)
-        review.meetingIDUUID = meetingID
-        review.workIDUUID = workID
-        review.noteText = noteText
-        review.createdAt = Date()
-
-        // Wire up the relationship if the meeting exists
-        let request = NSFetchRequest<CDStudentMeeting>(entityName: "StudentMeeting")
-        request.predicate = NSPredicate(format: "id == %@", meetingID as CVarArg)
-        request.fetchLimit = 1
-        if let meeting = try? context.fetch(request).first {
-            review.meeting = meeting
-        }
-
-        return review
-    }
-
-    /// Updates the note text on an existing review.
-    static func updateReviewNote(_ review: CDMeetingWorkReview, noteText: String) {
-        review.noteText = noteText
-    }
-
     /// Fetches all work reviews for a given meeting.
     static func fetchReviews(
         meetingID: UUID,

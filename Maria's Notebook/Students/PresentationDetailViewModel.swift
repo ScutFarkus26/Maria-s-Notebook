@@ -271,12 +271,6 @@ final class PresentationDetailViewModel {
         return nowGiven
     }
 
-    /// A lightweight save for autosaving notes or minor updates
-    func saveImmediate(studentsAll: [CDStudent], lessons: [CDLesson], calendar: Calendar) {
-        applyEditsToModel(studentsAll: studentsAll, lessons: lessons, calendar: calendar)
-        saveCoordinator.save(viewContext, reason: "Auto-saving lesson assignment")
-    }
-
     /// Deletes the lesson assignment
     func delete(onDone: (() -> Void)? = nil) {
         let id = lessonAssignment.id ?? UUID()

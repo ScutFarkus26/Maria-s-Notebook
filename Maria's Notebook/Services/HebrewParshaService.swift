@@ -138,25 +138,6 @@ enum HebrewParshaService {
         "nitzavim-vayelech": ["nitzavim", "vayelech"]
     ]
 
-    /// Returns the next Shabbat on or after `from` whose reading matches `targetKey`,
-    /// either directly or because the target is one half of a combined parsha read on
-    /// that Shabbat. Walks up to 70 weeks ahead.
-    static func nextShabbat(forParshaKey targetKey: String, from: Date = Date()) -> Date? {
-        let gregorian = Calendar(identifier: .gregorian)
-        var current = shabbatOfWeek(containing: from, calendar: gregorian)
-        for _ in 0..<70 {
-            if let actual = parshaKey(forShabbat: current) {
-                if actual == targetKey { return current }
-                if let parts = combinedKeyComponents[actual], parts.contains(targetKey) {
-                    return current
-                }
-            }
-            guard let next = gregorian.date(byAdding: .day, value: 7, to: current) else { return nil }
-            current = next
-        }
-        return nil
-    }
-
     /// Returns every Shabbat in the Hebrew year containing `date`, paired with its parsha
     /// key (nil on festival-displaced Shabbatot) and the festival name (when displaced).
     /// Walks from the first sedra Shabbat after Simchat Torah through next Rosh Hashanah.

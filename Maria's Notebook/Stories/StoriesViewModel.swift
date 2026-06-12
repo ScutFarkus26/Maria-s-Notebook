@@ -53,8 +53,4 @@ struct StoriesViewModel {
         return ordered.sorted { $0.localizedCaseInsensitiveCompare($1) == .orderedAscending }
     }
 
-    /// Returns the predefined grade-band filter buckets.
-    func gradeBands() -> [StoryGradeBand] {
-        StoryGradeBand.filterBuckets
-    }
 }

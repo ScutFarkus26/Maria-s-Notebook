@@ -108,15 +108,4 @@ struct UnlockNextLessonService {
 
     // Deprecated SwiftData bridge methods removed - no longer needed with Core Data.
 
-    /// Gets the name of the next lesson (for UI display)
-    static func getNextLessonName(
-        after currentLessonID: UUID,
-        lessons: [CDLesson]
-    ) -> String? {
-        guard let currentLesson = lessons.first(where: { $0.id == currentLessonID }),
-              let nextLesson = PlanNextLessonService.findNextLesson(after: currentLesson, in: lessons) else {
-            return nil
-        }
-        return nextLesson.name
-    }
 }

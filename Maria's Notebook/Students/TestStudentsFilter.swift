@@ -20,14 +20,6 @@ enum TestStudentsFilter {
         return Set(tokens)
     }
 
-    /// Returns true if the given student should be hidden.
-    static func isHidden(_ student: CDStudent, show: Bool? = nil, namesRaw: String? = nil) -> Bool {
-        let set = normalizedHiddenNames(show: show, namesRaw: namesRaw)
-        guard !set.isEmpty else { return false }
-        let name = student.fullName.normalizedForComparison()
-        return set.contains(name)
-    }
-
     /// Filters out hidden students from the provided list.
     static func filterVisible(_ students: [CDStudent], show: Bool? = nil, namesRaw: String? = nil) -> [CDStudent] {
         let set = normalizedHiddenNames(show: show, namesRaw: namesRaw)

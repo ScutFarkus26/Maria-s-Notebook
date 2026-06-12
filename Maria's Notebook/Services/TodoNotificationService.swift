@@ -23,12 +23,6 @@ class TodoNotificationService {
         }
     }
 
-    /// Check current notification authorization status
-    func checkAuthorizationStatus() async -> UNAuthorizationStatus {
-        let settings = await UNUserNotificationCenter.current().notificationSettings()
-        return settings.authorizationStatus
-    }
-
     // MARK: - Core Data Notification Methods
 
     /// Schedule a notification for a Core Data todo item
@@ -82,19 +76,4 @@ class TodoNotificationService {
         context.safeSave()
     }
 
-    /// Reschedule notification if reminder date changes (Core Data)
-    func rescheduleNotification(
-        for todo: CDTodoItemEntity,
-        newDate: Date,
-        context: NSManagedObjectContext
-    ) async throws {
-        try await scheduleNotification(for: todo, at: newDate, context: context)
-    }
-
-    // MARK: - Helper Methods
-
-    /// Get all pending notifications for debugging
-    func getPendingNotifications() async -> [UNNotificationRequest] {
-        return await UNUserNotificationCenter.current().pendingNotificationRequests()
-    }
 }

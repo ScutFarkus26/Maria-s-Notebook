@@ -72,12 +72,6 @@ extension View {
         self.modifier(SheetSizingModifier(preset: preset, allowMediumDetent: allowMediumDetent))
     }
 
-    /// Applies flexible sheet sizing that allows medium detent on iOS (iPhone-friendly for quick edits)
-    /// On macOS, uses the standard preset sizing
-    func flexibleSheetSizing(_ preset: SheetSizePreset = .medium) -> some View {
-        self.modifier(SheetSizingModifier(preset: preset, allowMediumDetent: true))
-    }
-
     /// Legacy method - applies large sheet sizing (720×640 on macOS)
     @ViewBuilder
     func largeSheetSizing() -> some View {

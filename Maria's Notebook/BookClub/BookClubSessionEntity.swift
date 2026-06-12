@@ -86,10 +86,4 @@ extension CDBookClubSession {
         ]
     }
 
-    static func fetchByPacket(_ packetID: UUID, in context: NSManagedObjectContext) -> [CDBookClubSession] {
-        let request: NSFetchRequest<CDBookClubSession> = NSFetchRequest(entityName: "BookClubSession")
-        request.predicate = NSPredicate(format: "packetID == %@", packetID.uuidString)
-        request.sortDescriptors = defaultSortDescriptors()
-        return context.safeFetch(request)
-    }
 }

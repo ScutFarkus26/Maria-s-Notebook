@@ -97,60 +97,6 @@ final class StudentAnalysisService {
         return try await mcpClient.generateText(prompt: prompt, temperature: 0.7)
     }
 
-    /// Compares two snapshots to show progress over time
-    func compareSnapshots(
-        earlier: CDDevelopmentSnapshotEntity,
-        later: CDDevelopmentSnapshotEntity
-    ) -> ProgressComparison {
-        var improvements: [String] = []
-        var regressions: [String] = []
-        var newMilestones: [String] = []
-
-        // Compare independence levels
-        let earlierIndependence = earlier.independenceLevel
-        let laterIndependence = later.independenceLevel
-        if earlierIndependence > 0 && laterIndependence > 0 {
-            if laterIndependence > earlierIndependence {
-                improvements.append("Independence increased from \(earlierIndependence) to \(laterIndependence)")
-            } else if laterIndependence < earlierIndependence {
-                regressions.append("Independence decreased from \(earlierIndependence) to \(laterIndependence)")
-            }
-        }
-
-        // Compare practice quality
-        let earlierQuality = earlier.averagePracticeQuality
-        let laterQuality = later.averagePracticeQuality
-        if earlierQuality > 0 && laterQuality > 0 {
-            if laterQuality > earlierQuality {
-                let earlierStr = String(format: FormattingConstants.singleDecimal, earlierQuality)
-                let laterStr = String(format: FormattingConstants.singleDecimal, laterQuality)
-                improvements.append("Practice quality improved from \(earlierStr) to \(laterStr)")
-            } else if laterQuality < earlierQuality {
-                let earlierStr = String(format: FormattingConstants.singleDecimal, earlierQuality)
-                let laterStr = String(format: FormattingConstants.singleDecimal, laterQuality)
-                regressions.append("Practice quality decreased from \(earlierStr) to \(laterStr)")
-            }
-        }
-
-        // Find new milestones
-        let earlierMilestones = Set(earlier.developmentalMilestones)
-        let laterMilestones = Set(later.developmentalMilestones)
-        newMilestones = Array(laterMilestones.subtracting(earlierMilestones))
-
-        // Find new strengths
-        let earlierStrengths = Set(earlier.keyStrengths)
-        let laterStrengths = Set(later.keyStrengths)
-        let emergingStrengths = Array(laterStrengths.subtracting(earlierStrengths))
-
-        return ProgressComparison(
-            improvements: improvements,
-            regressions: regressions,
-            newMilestones: newMilestones,
-            emergingStrengths: emergingStrengths,
-            timeSpan: (later.generatedAt ?? Date()).timeIntervalSince(earlier.generatedAt ?? Date())
-        )
-    }
-
     // MARK: - Private Helpers
 
     private func gatherStudentData(student: CDStudent, since: Date) async throws -> StudentDataPackage {

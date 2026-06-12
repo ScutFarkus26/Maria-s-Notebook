@@ -483,16 +483,4 @@ extension UnifiedPresentationWorkflowPanel {
         workDrafts[studentID] = drafts
     }
 
-    func syncAssignmentToWorkDraft(studentID: UUID, assignment: String) {
-        let trimmedAssignment = assignment.trimmed()
-
-        if workDrafts[studentID]?.isEmpty ?? true {
-            if !trimmedAssignment.isEmpty {
-                let draft = createWorkDraft(for: studentID, title: trimmedAssignment)
-                workDrafts[studentID, default: []].append(draft)
-            }
-        } else if let firstIndex = workDrafts[studentID]?.indices.first {
-            workDrafts[studentID]?[firstIndex].title = trimmedAssignment
-        }
-    }
 }

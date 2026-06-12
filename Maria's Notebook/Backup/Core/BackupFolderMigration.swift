@@ -41,11 +41,6 @@ enum BackupFolderMigration {
         UserDefaults.standard.set(true, forKey: dismissedKey)
     }
 
-    /// Re-enable the prompt (used in tests; not wired into UI).
-    static func resetDismissal() {
-        UserDefaults.standard.removeObject(forKey: dismissedKey)
-    }
-
     /// Moves all `.mtbbackup` files from the suspicious folder into the
     /// managed iCloud folder, then clears the bookmark. Originals are
     /// deleted only after each copy succeeds; if copying fails for a file,

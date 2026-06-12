@@ -249,19 +249,6 @@ final class DataQueryService {
 
     // MARK: - Cache Management
 
-    /// Invalidate all caches.
-    func invalidateAllCaches() {
-        studentsCache = nil
-        lessonsCache = nil
-        studentsByIDCache = nil
-    }
-
-    /// Invalidate just the students cache.
-    func invalidateStudentsCache() {
-        studentsCache = nil
-        studentsByIDCache = nil
-    }
-
     /// Invalidate just the lessons cache.
     func invalidateLessonsCache() {
         lessonsCache = nil

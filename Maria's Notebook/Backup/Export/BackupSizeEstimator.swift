@@ -109,56 +109,6 @@ enum BackupSizeEstimator {
 
     // MARK: - Actual Size Measurement
 
-    /// Measures the actual backup size by performing a dry-run export.
-    /// This provides accurate size instead of estimation.
-    ///
-    /// - Parameters:
-    ///   - viewContext: The model context to backup
-    ///   - compress: Whether to apply compression
-    /// - Returns: The actual size in bytes
-    @MainActor
-    static func measureActualSize(
-        viewContext: NSManagedObjectContext,
-        compress: Bool = true
-    ) async throws -> ActualSizeMeasurement {
-        // Create temporary URL for dry-run
-        let tempURL = FileManager.default.temporaryDirectory
-            .appendingPathComponent("SizeMeasure-\(UUID().uuidString).\(BackupFile.fileExtension)")
-
-        defer {
-            // Clean up temp file
-            do {
-                try FileManager.default.removeItem(at: tempURL)
-            } catch {
-                logger.warning("Failed to remove temp file: \(error)")
-            }
-        }
-
-        _ = try BackupWriter.write(
-            viewContext: viewContext,
-            to: tempURL,
-            progress: { _, _ in }
-        )
-
-        // Get actual file size
-        let attributes = try FileManager.default.attributesOfItem(atPath: tempURL.path)
-        let fileSize = attributes[.size] as? Int64 ?? 0
-
-        let decoded = try BackupReader.read(from: tempURL)
-
-        // Calculate uncompressed size (estimate)
-        let uncompressedEstimate = estimateFromCounts(decoded.manifest.entityCounts)
-        let actualCompressionRatio = fileSize > 0 ? Double(uncompressedEstimate) / Double(fileSize) : 1.0
-
-        return ActualSizeMeasurement(
-            compressedSize: fileSize,
-            uncompressedEstimate: uncompressedEstimate,
-            entityCounts: decoded.manifest.entityCounts,
-            compressionRatio: actualCompressionRatio,
-            measurementDate: Date()
-        )
-    }
-
     /// Result of actual size measurement
     struct ActualSizeMeasurement: Sendable {
         let compressedSize: Int64

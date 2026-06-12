@@ -49,16 +49,6 @@ struct ReminderRepository: SavingRepository {
         fetchReminders(predicate: NSPredicate(format: "isCompleted == NO"))
     }
 
-    /// Fetch reminders due today or overdue
-    func fetchDueToday(calendar: Calendar = .current) -> [CDReminder] {
-        let endOfDay = calendar.date(byAdding: .day, value: 1, to: calendar.startOfDay(for: Date())) ?? Date()
-        let allIncomplete = fetchIncompleteReminders()
-        return allIncomplete.filter { reminder in
-            guard let dueDate = reminder.dueDate else { return false }
-            return dueDate < endOfDay
-        }
-    }
-
     /// Fetch reminder by EventKit ID (for sync)
     func fetchReminder(byEventKitID eventKitID: String) -> CDReminder? {
         let request = CDFetchRequest(CDReminder.self)
@@ -66,56 +56,7 @@ struct ReminderRepository: SavingRepository {
         return context.safeFetchFirst(request)
     }
 
-    // MARK: - Create
-
-    /// Create a new CDReminder
-    @discardableResult
-    func createReminder(
-        title: String,
-        notes: String? = nil,
-        dueDate: Date? = nil,
-        eventKitReminderID: String? = nil,
-        eventKitCalendarID: String? = nil
-    ) -> CDReminder {
-        let reminder = CDReminder(context: context)
-        reminder.title = title
-        reminder.dueDate = dueDate
-        reminder.eventKitReminderID = eventKitReminderID
-        reminder.eventKitCalendarID = eventKitCalendarID
-        if eventKitReminderID != nil {
-            reminder.notes = notes
-        } else {
-            reminder.setLegacyNoteText(notes, in: context)
-        }
-        return reminder
-    }
-
     // MARK: - Update
-
-    /// Update an existing CDReminder's properties
-    @discardableResult
-    func updateReminder(
-        id: UUID,
-        title: String? = nil,
-        notes: String? = nil,
-        dueDate: Date? = nil
-    ) -> Bool {
-        guard let reminder = fetchReminder(id: id) else { return false }
-
-        if let title { reminder.title = title }
-        if let notes {
-            if reminder.eventKitReminderID != nil {
-                reminder.notes = notes.isEmpty ? nil : notes
-            } else {
-                reminder.notes = nil
-                reminder.setLegacyNoteText(notes, in: context)
-            }
-        }
-        if let dueDate { reminder.dueDate = dueDate }
-        reminder.updatedAt = Date()
-
-        return true
-    }
 
     /// Mark a reminder as completed
     @discardableResult
@@ -133,12 +74,4 @@ struct ReminderRepository: SavingRepository {
         return true
     }
 
-    // MARK: - Delete
-
-    /// Delete a CDReminder by ID
-    func deleteReminder(id: UUID) throws {
-        guard let reminder = fetchReminder(id: id) else { return }
-        context.delete(reminder)
-        try context.save()
-    }
 }

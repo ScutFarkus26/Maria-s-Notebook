@@ -27,19 +27,4 @@ enum SharingPreferences {
         NSUbiquitousKeyValueStore.default.synchronize()
     }
 
-    /// Whether a specific category is enabled for assistants.
-    static func isCategoryEnabled(_ category: SharingPermissionCategory) -> Bool {
-        assistantWritableCategories().contains(category)
-    }
-
-    /// Toggle a specific category for assistants.
-    static func toggleCategory(_ category: SharingPermissionCategory) {
-        var current = assistantWritableCategories()
-        if current.contains(category) {
-            current.remove(category)
-        } else {
-            current.insert(category)
-        }
-        setAssistantWritableCategories(current)
-    }
 }

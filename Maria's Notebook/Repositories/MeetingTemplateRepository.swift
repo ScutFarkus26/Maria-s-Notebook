@@ -54,11 +54,6 @@ struct MeetingTemplateRepository: SavingRepository {
         fetchTemplates(predicate: NSPredicate(format: "isBuiltIn == NO"))
     }
 
-    /// Fetch the currently active template
-    func fetchActiveTemplate() -> CDMeetingTemplateEntity? {
-        fetchTemplates(predicate: NSPredicate(format: "isActive == YES")).first
-    }
-
     // MARK: - Create
 
     /// Create a new MeetingTemplate

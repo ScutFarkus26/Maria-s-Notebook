@@ -26,19 +26,4 @@ enum CSVDuplicateDetection {
         return false
     }
     
-    /// Builds duplicate key sets from an array of items with IDs.
-    /// - Parameters:
-    ///   - items: Array of items to extract keys from
-    ///   - fullKeyExtractor: Function to extract full key from item
-    ///   - nameKeyExtractor: Function to extract name-only key from item
-    /// - Returns: Tuple of (fullKeys, nameKeys) sets
-    static func buildKeySets<T>(
-        from items: [T],
-        fullKeyExtractor: (T) -> String,
-        nameKeyExtractor: (T) -> String
-    ) -> (fullKeys: Set<String>, nameKeys: Set<String>) {
-        let fullKeys = Set(items.map(fullKeyExtractor))
-        let nameKeys = Set(items.map(nameKeyExtractor))
-        return (fullKeys, nameKeys)
-    }
 }

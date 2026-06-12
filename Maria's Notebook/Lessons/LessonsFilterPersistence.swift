@@ -11,7 +11,4 @@ struct LessonsFilterPersistence {
         return Set(raw.split(separator: "|").map { String($0) })
     }
 
-    static func normalizeAreaKey(_ area: String) -> String {
-        area.normalizedForComparison()
-    }
 }

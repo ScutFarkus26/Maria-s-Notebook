@@ -58,27 +58,6 @@ enum ProcedureService {
         }
     }
 
-    /// Gets summary statistics for procedures
-    @MainActor
-    static func getProcedureStats(in context: NSManagedObjectContext) -> ProcedureStats {
-        let request = CDFetchRequest(CDProcedure.self)
-        let procedures = context.safeFetch(request)
-
-        let total = procedures.count
-        let byCategory = Dictionary(grouping: procedures) { $0.category }
-            .mapValues { $0.count }
-
-        // Find recently updated (within last 30 days)
-        let thirtyDaysAgo = Calendar.current.date(byAdding: .day, value: -30, to: Date()) ?? Date()
-        let recentlyUpdated = procedures.filter { ($0.modifiedAt ?? .distantPast) >= thirtyDaysAgo }.count
-
-        return ProcedureStats(
-            totalProcedures: total,
-            byCategory: byCategory,
-            recentlyUpdated: recentlyUpdated
-        )
-    }
-
     /// Creates a new procedure
     @MainActor @discardableResult
     // swiftlint:disable:next function_parameter_count
@@ -133,15 +112,6 @@ enum ProcedureService {
     static func deleteProcedure(_ procedure: CDProcedure, in context: NSManagedObjectContext) {
         context.delete(procedure)
         context.safeSave()
-    }
-
-    /// Fetches a procedure by ID
-    @MainActor
-    static func fetchProcedure(byID id: UUID, in context: NSManagedObjectContext) -> CDProcedure? {
-        let request = CDFetchRequest(CDProcedure.self)
-        request.predicate = NSPredicate(format: "id == %@", id as CVarArg)
-        request.fetchLimit = 1
-        return context.safeFetch(request).first
     }
 
     /// Fetches related procedures for a given procedure

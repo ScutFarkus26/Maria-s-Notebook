@@ -26,28 +26,7 @@ enum PerformanceLogger {
         
         return result
     }
-    
-    /// Measures the duration of an async block and logs it with a screen name and item count.
-    /// - Parameters:
-    ///   - screenName: Name of the screen/component being measured
-    ///   - itemCount: Number of items returned from the query
-    ///   - operation: Async block to measure
-    /// - Returns: The result of the operation
-    @discardableResult
-    static func measureAsync<T>(
-        screenName: String,
-        itemCount: Int? = nil,
-        operation: () async throws -> T
-    ) async rethrows -> T {
-        let startTime = Date()
-        let result = try await operation()
-        let duration = Date().timeIntervalSince(startTime)
-        
-        log(screenName: screenName, itemCount: itemCount, duration: duration)
-        
-        return result
-    }
-    
+
     /// Logs performance metrics for a screen/operation.
     /// - Parameters:
     ///   - screenName: Name of the screen/component

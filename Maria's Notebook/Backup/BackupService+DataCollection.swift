@@ -276,46 +276,6 @@ extension BackupService {
 
     // MARK: - Batched Fetch Utilities
 
-    /// Modern batched fetch that processes entities in memory-efficient chunks.
-    /// Uses FetchDescriptor with offset/limit instead of loading everything at once.
-    /// The autoreleasepool ensures each batch is released before fetching the next.
-    func safeFetchInBatches<T: NSManagedObject>(
-        _ type: T.Type,
-        using context: NSManagedObjectContext,
-        batchSize: Int = 1000
-    ) -> [T] {
-        var allEntities: [T] = []
-        var offset = 0
-
-        while true {
-            // Use autoreleasepool to release each batch's memory after processing
-            let batch: [T]? = autoreleasepool {
-                let descriptor = NSFetchRequest<T>(entityName: T.entity().name ?? String(describing: T.self))
-                descriptor.fetchOffset = offset
-                descriptor.fetchLimit = batchSize
-                do {
-                    return try context.fetch(descriptor)
-                } catch {
-                    let typeName = String(describing: T.self)
-                    let desc = error.localizedDescription
-                    Self.logger.warning(
-                        "Batch fetch failed \(typeName, privacy: .public): \(desc, privacy: .public)"
-                    )
-                    return nil
-                }
-            }
-
-            guard let fetchedBatch = batch, !fetchedBatch.isEmpty else { break }
-            allEntities.append(contentsOf: fetchedBatch)
-
-            // Stop if we got fewer results than requested (end of data)
-            if fetchedBatch.count < batchSize { break }
-            offset += batchSize
-        }
-
-        return allEntities
-    }
-
     /// Modern fetch-and-transform pattern that converts entities to DTOs in batches.
     /// This reduces peak memory usage by not holding both models and DTOs simultaneously.
     func fetchAndTransformInBatches<T: NSManagedObject, DTO>(

@@ -50,29 +50,6 @@ struct PresentationRepository: SavingRepository {
         fetchLessonAssignments(predicate: NSPredicate(format: "lessonID == %@", lessonID.uuidString))
     }
 
-    /// Fetch inbox items (draft or scheduled but not yet presented)
-    func fetchInboxItems() -> [CDLessonAssignment] {
-        fetchLessonAssignments(predicate: NSPredicate(format: "stateRaw == %@ OR stateRaw == %@", "draft", "scheduled"))
-    }
-
-    /// Fetch scheduled LessonAssignments for a date range
-    func fetchScheduled(from startDate: Date, to endDate: Date) -> [CDLessonAssignment] {
-        let pred = NSPredicate(
-            format: "scheduledForDay >= %@ AND scheduledForDay < %@",
-            startDate as NSDate,
-            endDate as NSDate
-        )
-        return fetchLessonAssignments(
-            predicate: pred,
-            sortBy: [NSSortDescriptor(key: "scheduledForDay", ascending: true)]
-        )
-    }
-
-    /// Fetch active (not yet presented) LessonAssignments
-    func fetchActiveAssignments() -> [CDLessonAssignment] {
-        fetchLessonAssignments(predicate: NSPredicate(format: "stateRaw != %@", "presented"))
-    }
-
     // MARK: - Create (using PresentationFactory)
 
     /// Create a draft CDLessonAssignment
@@ -167,39 +144,4 @@ struct PresentationRepository: SavingRepository {
         return true
     }
 
-    /// Update notes for a CDLessonAssignment
-    @discardableResult
-    func updateNotes(id: UUID, notes: String) -> Bool {
-        guard let la = fetchLessonAssignment(id: id) else { return false }
-        la.notes = notes
-        la.modifiedAt = Date()
-        return true
-    }
-
-    /// Update follow-up flags
-    @discardableResult
-    func updateFollowUp(
-        id: UUID,
-        needsPractice: Bool? = nil,
-        needsAnotherPresentation: Bool? = nil,
-        followUpWork: String? = nil
-    ) -> Bool {
-        guard let la = fetchLessonAssignment(id: id) else { return false }
-
-        if let needsPractice { la.needsPractice = needsPractice }
-        if let needsAnotherPresentation { la.needsAnotherPresentation = needsAnotherPresentation }
-        if let followUpWork { la.followUpWork = followUpWork }
-
-        la.modifiedAt = Date()
-        return true
-    }
-
-    // MARK: - Delete
-
-    /// Delete a CDLessonAssignment by ID
-    func deleteLessonAssignment(id: UUID) throws {
-        guard let la = fetchLessonAssignment(id: id) else { return }
-        context.delete(la)
-        try context.save()
-    }
 }

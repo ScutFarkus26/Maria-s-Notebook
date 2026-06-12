@@ -66,27 +66,6 @@ extension CDWorkModel {
         }
     }
 
-    /// Fetches all practice sessions that include this work item
-    func fetchPracticeSessions(from context: NSManagedObjectContext) -> [CDPracticeSession] {
-        let workIDString = id?.uuidString ?? ""
-        guard !workIDString.isEmpty else { return [] }
-
-        // Fetch all practice sessions and filter in memory
-        // Core Data predicates don't support contains() on Transformable arrays
-        let request = NSFetchRequest<CDPracticeSession>(entityName: "PracticeSession")
-        request.sortDescriptors = [NSSortDescriptor(keyPath: \CDPracticeSession.date, ascending: false)]
-
-        let allSessions: [CDPracticeSession]
-        do {
-            allSessions = try context.fetch(request)
-        } catch {
-            logger.warning("Failed to fetch practice sessions: \(error.localizedDescription)")
-            return []
-        }
-        return allSessions.filter { session in
-            session.workItemIDsArray.contains(workIDString)
-        }
-    }
 }
 
 // MARK: - Presentation (CDLessonAssignment) Extensions
@@ -304,26 +283,6 @@ extension CDPracticeSession {
         }
     }
 
-    /// Fetches the common lesson if all work items are for the same lesson
-    func fetchCommonLesson(from context: NSManagedObjectContext) -> CDLesson? {
-        let workItems = fetchWorkItems(from: context)
-        guard !workItems.isEmpty else { return nil }
-
-        let lessonIDs = Set(workItems.map(\.lessonID))
-        guard lessonIDs.count == 1,
-              let lessonID = lessonIDs.first,
-              let uuid = UUID(uuidString: lessonID) else { return nil }
-
-        let request = NSFetchRequest<CDLesson>(entityName: "Lesson")
-        request.predicate = NSPredicate(format: "id == %@", uuid as CVarArg)
-
-        do {
-            return try context.fetch(request).first
-        } catch {
-            logger.warning("Failed to fetch common lesson: \(error.localizedDescription)")
-            return nil
-        }
-    }
 }
 
 // MARK: - Supporting Types

@@ -123,29 +123,6 @@ final class PostPresentationFormViewModel {
         bulkAssignment = ""
     }
 
-    /// Returns final entries as array with default dates applied to entries with assignments.
-    func getFinalEntries() -> [StudentEntry] {
-        var finalEntries = entries
-
-        // Apply default dates to entries with assignments
-        for (id, entry) in finalEntries {
-            var updated = entry
-
-            if !entry.assignment.isEmpty {
-                if defaultCheckInEnabled && entry.checkInDate == nil {
-                    updated.checkInDate = defaultCheckInDate
-                }
-                if defaultDueEnabled && entry.dueDate == nil {
-                    updated.dueDate = defaultDueDate
-                }
-            }
-
-            finalEntries[id] = updated
-        }
-
-        return Array(finalEntries.values)
-    }
-
     /// Unlocks next lessons for selected students.
     func unlockNextLessonsIfNeeded(
         lessonID: UUID,

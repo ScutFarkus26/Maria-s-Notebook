@@ -425,25 +425,6 @@ final class CoreDataStack {
         }
     }
 
-    // MARK: - CloudKit Sharing
-
-    /// Fetches all CKShares in the shared store.
-    func fetchSharesInSharedStore() throws -> [CKShare] {
-        guard let store = sharedPersistentStore else { return [] }
-        return try container.fetchShares(in: store)
-    }
-
-    /// Accepts a share invitation, routing data to the shared store.
-    func acceptShareInvitation(_ metadata: CKShare.Metadata) async throws {
-        guard let store = sharedPersistentStore else {
-            throw CoreDataStackError.storeLoadFailed(
-                NSError(domain: "CoreDataStack", code: -1,
-                        userInfo: [NSLocalizedDescriptionKey: "Shared store not found"])
-            )
-        }
-        try await container.acceptShareInvitations(from: [metadata], into: store)
-    }
-
     // MARK: - Remote Change Handling
 
     private func handleRemoteChangeNotification() {

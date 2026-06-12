@@ -93,8 +93,4 @@ extension Array where Element == LessonsGridItem {
         compactMap { $0.asIntroduction }
     }
 
-    /// Sorts items so introductions come before lessons.
-    func sortedWithIntroductionsFirst() -> [LessonsGridItem] {
-        sorted { $0.sortKey < $1.sortKey }
-    }
 }

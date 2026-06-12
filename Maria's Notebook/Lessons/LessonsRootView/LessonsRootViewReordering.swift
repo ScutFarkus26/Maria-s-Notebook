@@ -48,24 +48,6 @@ extension LessonsRootView {
         FilterOrderStore.resetCache()
     }
 
-    // MARK: - Move Group Up/Down
-
-    @MainActor
-    func moveSequenceUpDown(sequence: String, direction: Int, in groups: [String]) {
-        guard let area = selectedArea, !area.trimmed().isEmpty else { return }
-        guard let index = groups.firstIndex(of: sequence) else { return }
-
-        let target = index + direction
-        guard target >= 0, target < groups.count else { return }
-
-        var reordered = groups
-        reordered.swapAt(index, target)
-
-        reorderableSequences = reordered
-        FilterOrderStore.saveSequenceOrder(reordered, for: area)
-        FilterOrderStore.resetCache()
-    }
-
     // MARK: - Move Lessons in Area
 
     @MainActor
@@ -198,52 +180,6 @@ extension LessonsRootView {
         rebuildSortIndexForArea()
     }
 
-    // MARK: - Reorder Section by Drag
-
-    /// Move a section block within its sequence. Persists the new section order via
-    /// `FilterOrderStore` (so Plan/Cards/List views update) and rewrites `orderInSequence`
-    /// on the affected lessons so flat views (Browse) reflect the same order.
-    @MainActor
-    func reorderSectionByDrag(sequence: String, source: String, target: String) {
-        guard let area = selectedArea, !area.trimmed().isEmpty else { return }
-        guard source != target else { return }
-
-        let groupLessons = lessonsForSequence(sequence, ungroupedLabel: "Ungrouped")
-        let existingNonEmpty: [String] = Array(Set(
-            groupLessons.map { $0.section.trimmed() }.filter { !$0.isEmpty }
-        )).sorted { $0.localizedCaseInsensitiveCompare($1) == .orderedAscending }
-
-        var order = FilterOrderStore.loadSectionOrder(for: area, sequence: sequence, existing: existingNonEmpty)
-        order.removeAll { $0 == source }
-        if let targetIdx = order.firstIndex(of: target) {
-            order.insert(source, at: targetIdx)
-        } else {
-            order.append(source)
-        }
-
-        FilterOrderStore.saveSectionOrder(order, for: area, sequence: sequence)
-        FilterOrderStore.resetCache()
-
-        // Propagate to flat views: rewrite orderInSequence so lessons under the moved
-        // section sit contiguously in the new position. Within each section,
-        // preserve current orderInSequence sort.
-        let bySection = Dictionary(grouping: groupLessons) { $0.section.trimmed() }
-        var idx: Int64 = 0
-        let fullOrder: [String] = order + (bySection.keys.contains("") ? [""] : [])
-        for sh in fullOrder {
-            let lessons = (bySection[sh] ?? []).sorted { lhs, rhs in
-                if lhs.orderInSequence != rhs.orderInSequence { return lhs.orderInSequence < rhs.orderInSequence }
-                return lhs.name.localizedCaseInsensitiveCompare(rhs.name) == .orderedAscending
-            }
-            for lesson in lessons {
-                lesson.orderInSequence = idx
-                idx += 1
-            }
-        }
-
-        rebuildSortIndexForArea()
-    }
-
     // MARK: - Insert CDLesson After Another
 
     /// Repositions a newly-created lesson to sit immediately after `source` in its sequence,
@@ -273,19 +209,6 @@ extension LessonsRootView {
             try viewContext.save()
         } catch {
             logger.error("Failed to save lesson after insert-after: \(error)")
-        }
-    }
-
-    // MARK: - Move CDLesson to Different Section
-
-    @MainActor
-    func moveLessonToSection(lesson: CDLesson, newSection: String) {
-        lesson.section = newSection
-
-        do {
-            try viewContext.save()
-        } catch {
-            logger.error("Failed to save lesson section change: \(error)")
         }
     }
 

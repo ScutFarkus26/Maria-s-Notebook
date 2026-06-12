@@ -4,18 +4,6 @@ import CoreData
 // WorkCompletionService is @MainActor, so we must isolate these convenience methods to MainActor as well.
 @MainActor
 extension CDWorkModel {
-    /// Returns all completion records for this work (optionally filtered by student).
-    func completionRecords(
-        for studentID: UUID? = nil,
-        in context: NSManagedObjectContext
-    ) throws -> [CDWorkCompletionRecord] {
-        try WorkCompletionService.records(for: self.id ?? UUID(), studentID: studentID, in: context)
-    }
-
-    /// Returns the latest completion record for a given student.
-    func latestCompletion(for studentID: UUID, in context: NSManagedObjectContext) throws -> CDWorkCompletionRecord? {
-        try WorkCompletionService.latest(for: self.id ?? UUID(), studentID: studentID, in: context)
-    }
 
     /// Whether the given student has completed this work at least once.
     func isCompleted(by studentID: UUID, in context: NSManagedObjectContext) throws -> Bool {

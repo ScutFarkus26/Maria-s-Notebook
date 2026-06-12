@@ -65,10 +65,4 @@ public struct KeychainStore: Sendable {
         }
     }
 
-    public static func generateSymmetricKeyBytes(length: Int = 32) -> Data {
-        var bytes = [UInt8](repeating: 0, count: length)
-        let result = SecRandomCopyBytes(kSecRandomDefault, bytes.count, &bytes)
-        precondition(result == errSecSuccess, "Failed to generate random bytes")
-        return Data(bytes)
-    }
 }

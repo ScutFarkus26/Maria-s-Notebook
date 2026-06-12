@@ -56,10 +56,4 @@ enum MontessoriObservationTags {
         culturalExploration
     ]
 
-    /// Check if a given tag is a Montessori observation tag (including curriculum domains)
-    static func isObservationTag(_ tag: String) -> Bool {
-        let name = TagHelper.tagName(tag)
-        let combined = allTags + curriculumDomainTags
-        return combined.contains { TagHelper.tagName($0) == name }
-    }
 }

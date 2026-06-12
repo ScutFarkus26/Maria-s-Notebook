@@ -35,13 +35,7 @@ final class SyncRetryLogic {
         retryTask?.cancel()
         retryTask = nil
     }
-    
-    /// Cancel any pending retry operations
-    func cancelRetry() {
-        retryTask?.cancel()
-        retryTask = nil
-    }
-    
+
     /// Schedules a retry with exponential backoff
     /// - Parameters:
     ///   - canRetry: Closure to check if retry conditions are met (network, iCloud, etc.)

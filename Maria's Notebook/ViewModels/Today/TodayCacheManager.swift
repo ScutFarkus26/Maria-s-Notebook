@@ -37,36 +37,6 @@ final class TodayCacheManager {
 
     // MARK: - Update Methods
 
-    /// Updates the students cache with new values.
-    func updateStudents(_ students: [UUID: CDStudent]) {
-        studentsByID = students
-        cachedDuplicateFirstNames = nil
-    }
-
-    /// Merges additional students into the cache.
-    func mergeStudents(_ students: [CDStudent]) {
-        for student in students {
-            if let studentID = student.id {
-                studentsByID[studentID] = student
-            }
-        }
-        cachedDuplicateFirstNames = nil
-    }
-
-    /// Updates the lessons cache with new values.
-    func updateLessons(_ lessons: [UUID: CDLesson]) {
-        lessonsByID = lessons
-    }
-
-    /// Merges additional lessons into the cache.
-    func mergeLessons(_ lessons: [CDLesson]) {
-        for lesson in lessons {
-            if let lessonID = lesson.id {
-                lessonsByID[lessonID] = lesson
-            }
-        }
-    }
-
     /// Updates the work cache with new values.
     func updateWork(_ work: [UUID: CDWorkModel]) {
         workByID = work

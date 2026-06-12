@@ -11,46 +11,6 @@ struct SessionWorkAssignmentService {
 
     // Deprecated ModelContext init removed - no longer needed with Core Data.
 
-    // MARK: - Uniform Mode
-
-    /// Creates a work item assigned to all project members (uniform mode)
-    @discardableResult
-    func createUniformWork(
-        session: CDProjectSession,
-        memberStudentIDs: [String],
-        title: String,
-        instructions: String,
-        dueDate: Date?
-    ) throws -> CDWorkModel {
-        let lessonID = resolveGenericProjectLessonID()
-
-        let work = CDWorkModel(context: context)
-        work.id = UUID()
-        work.title = title
-        work.kind = .followUpAssignment
-        work.createdAt = Date()
-        work.status = .active
-        work.assignedAt = Date()
-        work.dueAt = dueDate
-        work.studentID = memberStudentIDs.first ?? ""
-        work.lessonID = lessonID.uuidString
-        work.sourceContextType = .projectSession
-        work.sourceContextID = session.id?.uuidString ?? ""
-
-        // Create participants for all members
-        for idString in memberStudentIDs {
-            guard let uuid = UUID(uuidString: idString) else { continue }
-            let participant = CDWorkParticipantEntity(context: context)
-            participant.studentID = uuid.uuidString
-            participant.work = work
-        }
-
-        if !instructions.trimmed().isEmpty {
-            work.setLegacyNoteText(instructions, in: context)
-        }
-        return work
-    }
-
     // MARK: - Choice Mode
 
     /// Creates an offered work (no participants yet) for choice mode
@@ -127,40 +87,6 @@ struct SessionWorkAssignmentService {
         let request = CDFetchRequest(CDWorkModel.self)
         request.predicate = NSPredicate(format: "sourceContextID == %@", sessionID)
         return context.safeFetch(request)
-    }
-
-    /// Gets offered (unselected) works for a session
-    func offeredWorksForSession(_ session: CDProjectSession) -> [CDWorkModel] {
-        worksForSession(session).filter(\.isOffered)
-    }
-
-    /// Gets works selected by a specific student in a session
-    func worksSelectedByStudent(_ studentID: String, in session: CDProjectSession) -> [CDWorkModel] {
-        worksForSession(session).filter { work in
-            let participants = (work.participants as? Set<CDWorkParticipantEntity>) ?? []
-            return participants.contains { $0.studentID == studentID }
-        }
-    }
-
-    /// Checks selection status for a student in a session
-    func selectionStatus(for studentID: String, in session: CDProjectSession, works: [CDWorkModel]) -> SelectionStatus {
-        let studentWorks = works.filter { work in
-            let participants = (work.participants as? Set<CDWorkParticipantEntity>) ?? []
-            return participants.contains { $0.studentID == studentID }
-        }
-        let count = studentWorks.count
-        let min = session.minSelections
-        let max = session.maxSelections
-
-        let minInt = Int(min)
-        let maxInt = Int(max)
-        if count < minInt {
-            return .needsMore(selected: count, minimum: minInt)
-        } else if maxInt > 0 && count >= maxInt {
-            return .complete(selected: count)
-        } else {
-            return .inProgress(selected: count, minimum: minInt, maximum: maxInt)
-        }
     }
 
     // Deprecated SwiftData adapter overloads removed - typealiases now point to CD types directly.

@@ -70,18 +70,6 @@ final class SearchIndexService {
         }
     }
 
-    func removeResult(id: UUID) {
-        guard let result = resultsById.removeValue(forKey: id) else { return }
-        for (token, var set) in index {
-            set.remove(result)
-            if set.isEmpty {
-                index.removeValue(forKey: token)
-            } else {
-                index[token] = set
-            }
-        }
-    }
-
     // MARK: - Search
 
     func search(

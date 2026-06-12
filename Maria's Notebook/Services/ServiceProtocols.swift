@@ -29,11 +29,6 @@ protocol CacheableService: Service {
 
 // MARK: - Default Implementations
 
-extension Service {
-    func onAppWillResignActive() async {}
-    func onAppDidBecomeActive() async {}
-}
-
 extension CacheableService {
     func clearCache() async {}
 }

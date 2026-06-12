@@ -11,12 +11,6 @@ import Foundation
 final class CloudKitConfiguration {
     
     // MARK: - CloudKit Container
-    
-    /// Returns the CloudKit container identifier from entitlements
-    /// This must match the container ID in the entitlements file
-    static func getCloudKitContainerID() -> String? {
-        CloudKitConfigurationService.getContainerID()
-    }
 
     /// Returns a summary of CloudKit sync status
     static func getCloudKitStatus() -> CloudKitConfigurationService.Status {

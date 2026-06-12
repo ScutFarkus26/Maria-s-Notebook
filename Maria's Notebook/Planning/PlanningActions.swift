@@ -6,13 +6,6 @@ import CoreData
 enum PlanningActions {
     private static let logger = Logger.planning
 
-    static func moveToInbox(_ la: CDLessonAssignment, context: NSManagedObjectContext) {
-        la.scheduledFor = nil
-        la.stateRaw = LessonAssignmentState.draft.rawValue
-        la.modifiedAt = Date()
-        Task { @MainActor in context.safeSave() }
-    }
-
     static func planNextLesson(
         for la: CDLessonAssignment,
         lessons: [CDLesson],

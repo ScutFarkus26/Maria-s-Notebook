@@ -26,66 +26,6 @@ final class DatabaseAnalysisService {
 
     // Deprecated ModelContext convenience init removed - no longer needed with Core Data.
 
-    // MARK: - Public API
-
-    /// Runs a full classroom analysis within the given time window.
-    func analyzeClassroom(
-        timeWindow: AnalysisTimeWindow = .thisSemester,
-        question: String? = nil,
-        onProgress: ((AnalysisProgress) -> Void)? = nil
-    ) async throws -> ClassroomAnalysisResult {
-        mcpClient.configureForFeature(.backgroundTasks)
-
-        // Step 1: Serialize
-        onProgress?(.serializing)
-        let snapshot = serializeDatabase(timeWindow: timeWindow)
-
-        // Step 2: Determine chunk size based on selected model
-        let isLocal = AIFeatureArea.backgroundTasks.resolvedModel().isLocal
-        let tokenBudget = isLocal ? 3_000 : 100_000
-
-        // Step 3: Chunk
-        let chunks = ChunkSplitter.split(snapshot, tokenBudget: tokenBudget)
-        Self.logger.info("Database analysis: \(chunks.count) chunks, tokenBudget=\(tokenBudget)")
-
-        if chunks.isEmpty {
-            return ClassroomAnalysisResult(
-                summary: "No data found in the selected time window.",
-                studentHighlights: [],
-                classroomTrends: [],
-                actionItems: [],
-                dataGaps: ["No records found for the selected period."]
-            )
-        }
-
-        // Step 4: Map — analyze each chunk
-        var partialResults: [String] = []
-        for (index, chunk) in chunks.enumerated() {
-            onProgress?(.analyzing(chunk: index + 1, total: chunks.count))
-
-            let prompt = buildChunkPrompt(chunk: chunk, index: index, total: chunks.count, question: question)
-            let result = try await mcpClient.generateStructuredJSON(
-                prompt: prompt,
-                systemMessage: AIPrompts.chatAssistant,
-                temperature: 0.3,
-                maxTokens: 2048
-            )
-            partialResults.append(result)
-        }
-
-        // Step 5: Reduce — synthesize
-        onProgress?(.synthesizing)
-        let synthesisPrompt = buildSynthesisPrompt(partials: partialResults, question: question)
-        let finalJSON = try await mcpClient.generateStructuredJSON(
-            prompt: synthesisPrompt,
-            systemMessage: AIPrompts.chatAssistant,
-            temperature: 0.3,
-            maxTokens: 4096
-        )
-
-        return try parseResult(from: finalJSON)
-    }
-
     // MARK: - Serialization
 
     private func serializeDatabase(timeWindow: AnalysisTimeWindow) -> DatabaseSnapshot {

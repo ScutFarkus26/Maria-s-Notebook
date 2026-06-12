@@ -25,25 +25,4 @@ enum BackupCountHelpers {
         return (insert: insertCount, skip: skipCount)
     }
 
-    /// Creates a helper function for checking entity existence by ID.
-    /// - Parameters:
-    ///   - type: The NSManagedObject type
-    ///   - context: The NSManagedObjectContext to check against
-    ///   - fetchOne: Function to fetch a single entity by ID
-    /// - Returns: A function that checks if an item with the given ID exists
-    static func makeExistsChecker<T: NSManagedObject>(
-        type: T.Type,
-        context: NSManagedObjectContext,
-        fetchOne: @escaping (T.Type, _ id: UUID, _ using: NSManagedObjectContext) throws -> T?
-    ) -> (UUID) -> Bool {
-        return { id in
-            do {
-                let result = try fetchOne(type, id, context)
-                return result != nil
-            } catch {
-                logger.warning("Failed to check existence for \(type, privacy: .public): \(error, privacy: .public)")
-                return false
-            }
-        }
-    }
 }

@@ -49,32 +49,6 @@ final class LessonsFilterState {
         }
     }
 
-    // Load from persisted raw strings (typically stored via SceneStorage in the view)
-    // swiftlint:disable:next function_parameter_count
-    func loadFromPersisted(
-        areaRaw: String,
-        groupRaw: String,
-        searchRaw: String,
-        expandedRaw: String,
-        sourceRaw: String,
-        personalKindRaw: String,
-        hasAttachmentRaw: String = "",
-        needsAttentionRaw: String = "",
-        formatFilterRaw: String = ""
-    ) {
-        self.selectedArea = areaRaw.trimmed().isEmpty ? nil : areaRaw
-        self.selectedSequence = groupRaw.trimmed().isEmpty ? nil : groupRaw
-        self.searchText = searchRaw
-        self.expandedAreas = LessonsFilterPersistence.deserializeExpandedAreas(expandedRaw)
-        self.sourceFilter = sourceRaw.trimmed().isEmpty ? nil : LessonSource(rawValue: sourceRaw)
-        self.personalKindFilter = personalKindRaw.trimmed().isEmpty
-            ? nil : PersonalLessonKind(rawValue: personalKindRaw)
-        self.hasAttachmentFilter = hasAttachmentRaw == "true"
-        self.needsAttentionFilter = needsAttentionRaw == "true"
-        self.formatFilter = formatFilterRaw.trimmed().isEmpty
-            ? nil : LessonFormat(rawValue: formatFilterRaw)
-    }
-
     struct PersistedFilterState {
         let areaRaw: String
         let groupRaw: String
@@ -87,18 +61,4 @@ final class LessonsFilterState {
         let formatFilterRaw: String
     }
 
-    /// Create the raw strings suitable for persistence
-    func makePersisted() -> PersistedFilterState {
-        PersistedFilterState(
-            areaRaw: selectedArea?.trimmed() ?? "",
-            groupRaw: selectedSequence?.trimmed() ?? "",
-            searchRaw: searchText,
-            expandedRaw: LessonsFilterPersistence.serializeExpandedAreas(expandedAreas),
-            sourceRaw: sourceFilter?.rawValue ?? "",
-            personalKindRaw: personalKindFilter?.rawValue ?? "",
-            hasAttachmentRaw: hasAttachmentFilter ? "true" : "",
-            needsAttentionRaw: needsAttentionFilter ? "true" : "",
-            formatFilterRaw: formatFilter?.rawValue ?? ""
-        )
-    }
 }

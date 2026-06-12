@@ -8,18 +8,4 @@ struct AgendaSchoolDayRules {
         return PlanningEngine.firstSchoolDay(onOrAfter: today, calendar: calendar, isNonSchoolDay: isNonSchoolDay)
     }
 
-    static func movedStart(
-        bySchoolDays delta: Int,
-        from start: Date,
-        calendar: Calendar,
-        isNonSchoolDay: (Date) -> Bool
-    ) -> Date {
-        let startDay = AppCalendar.startOfDay(start)
-        return PlanningEngine.moveBySchoolDays(
-            from: startDay,
-            days: delta,
-            calendar: calendar,
-            isNonSchoolDay: isNonSchoolDay
-        )
-    }
 }

@@ -44,40 +44,6 @@ enum YearPlanPromotionService {
         }
     }
 
-    /// Manual promotion from Year Plan UI.
-    /// Creates a new assignment and links it to the entry.
-    @discardableResult
-    static func promote(
-        entry: CDYearPlanEntry,
-        student: CDStudent,
-        context: NSManagedObjectContext
-    ) -> CDLessonAssignment? {
-        guard let lessonID = UUID(uuidString: entry.lessonID),
-              let studentID = student.id else { return nil }
-
-        let assignment: CDLessonAssignment
-        if let date = entry.plannedDate, date >= AppCalendar.startOfDay(Date()) {
-            assignment = PresentationFactory.makeScheduled(
-                lessonID: lessonID,
-                studentIDs: [studentID],
-                scheduledFor: date,
-                context: context
-            )
-        } else {
-            assignment = PresentationFactory.makeDraft(
-                lessonID: lessonID,
-                studentIDs: [studentID],
-                context: context
-            )
-        }
-
-        entry.status = .promoted
-        entry.promotedAssignmentID = assignment.id?.uuidString
-        entry.modifiedAt = Date()
-
-        return assignment
-    }
-
     /// Returns the earliest planned date across all matching Year Plan entries for the
     /// given lesson + students. Read-only — does not promote.
     /// Used to pre-fill the Schedule date picker so the teacher sees the planned date

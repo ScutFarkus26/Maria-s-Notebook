@@ -263,354 +263,141 @@ A further **151 types** are referenced only within their own file (internal plum
 
 Caveat for `UserDefaultsKeys`: this verifies the Swift *constant* is unreferenced. If a preference was ever written on users' devices, the stored value simply becomes orphaned data — harmless.
 
-## 5. Uncalled methods in live files (210 flagged, ~90% precision)
-
-Methods never referenced anywhere in the codebase. Sample-verified at 22/24 precision; the known false-positive class is SDK delegate witnesses (e.g. `cloudSharingController*` in CloudSharingControllerWrapper, `imagePickerControllerDidCancel`) — methods the OS calls. Skim before deleting; anything named after a delegate callback stays.
-
-**Maria's Notebook/AppCore/Theme+ViewModifiers.swift** (18):
-  `displayTracking`:26, `overlineStyle`:31, `badgeTracking`:40, `pageTitleStyle`:54, `majorSectionHeaderStyle`:61, `rowTitleStyle`:67, `rowSubtitleStyle`:74, `metadataStyle`:81, `chartHighlightStyle`:91, `chartDimmedStyle`:99, `denseGridStyle`:107, `tabularNumberStyle`:114, `formLabelStyle`:126, `formValueStyle`:133, `mutedHeavyStyle`:141, `deemphasizedStyle`:149, `fontHierarchy`:182, `shifted`:190
-
-**Maria's Notebook/Repositories/ProjectRepository.swift** (7):
-  `fetchActiveProjects`:48, `createProject`:56, `updateProject`:74, `deleteProject`:94, `fetchSessions`:110, `createSession`:122, `updateSession`:144
-
-**Maria's Notebook/Repositories/PresentationRepository.swift** (6):
-  `fetchInboxItems`:54, `fetchScheduled`:59, `fetchActiveAssignments`:72, `updateNotes`:172, `updateFollowUp`:181, `deleteLessonAssignment`:200
-
-**Maria's Notebook/AppCore/AppRouter.swift** (5):
-  `requestOpenAttendance`:141, `requestQuickActions`:156, `navigateToTab`:178, `setStudentsMode`:183, `clearPlanLessonRequest`:198
-
-**Maria's Notebook/AppCore/CloudKitConfigurationService.swift** (4):
-  `clearErrorLog`:237, `getErrorSummary`:242, `markActive`:257, `markInactive`:264
-
-**Maria's Notebook/Backup/BackupServiceHelpers.swift** (4):
-  `filterByStudents`:169, `filterByDateRange`:178, `filterByProjects`:191, `renameLegacyPayloadKeys`:280
-
-**Maria's Notebook/Presentations/PresentationsCoordinator.swift** (4):
-  `showSchedulePresentation`:75, `showPostPresentation`:80, `showUnifiedWorkflow`:85, `showLessonAssignmentHistory`:90
-
-**Maria's Notebook/Repositories/ReminderRepository.swift** (4):
-  `fetchDueToday`:53, `createReminder`:73, `updateReminder`:97, `deleteReminder`:139
-
-**Maria's Notebook/Services/SessionWorkAssignmentService.swift** (4):
-  `createUniformWork`:18, `offeredWorksForSession`:133, `worksSelectedByStudent`:138, `selectionStatus`:146
-
-**Maria's Notebook/Sharing/CloudSharingControllerWrapper.swift** (4):
-  `cloudSharingController`:47, `itemTitle`:54, `cloudSharingControllerDidSaveShare`:58, `cloudSharingControllerDidStopSharing`:64
-
-**Maria's Notebook/ViewModels/Today/TodayCacheManager.swift** (4):
-  `updateStudents`:41, `mergeStudents`:47, `updateLessons`:57, `mergeLessons`:62
-
-**Maria's Notebook/Attendance/AttendanceEmail.swift** (3):
-  `mailtoURLForCurrentPrefs`:138, `sendOrFallbackUsingMailAppForCurrentPrefs`:249, `mailComposeController`:385
-
-**Maria's Notebook/Lessons/LessonsRootView/LessonsRootViewReordering.swift** (3):
-  `moveSequenceUpDown`:54, `reorderSectionByDrag`:207, `moveLessonToSection`:282
-
-**Maria's Notebook/Repositories/MeetingRepository.swift** (3):
-  `fetchIncompleteMeetings`:53, `createMeeting`:69, `updateMeeting`:93
-
-**Maria's Notebook/Repositories/ResourceRepository.swift** (3):
-  `fetchFavorites`:42, `fetchRecents`:46, `updateResource`:86
-
-**Maria's Notebook/Services/LessonPlanning/PlanningFeedbackTracker.swift** (3):
-  `linkToPresentation`:42, `recordOutcome`:60, `calibrationSummary`:76
-
-**Maria's Notebook/Utils/View+PlatformStyles.swift** (3):
-  `sheetPresentation`:73, `platformTapGesture`:109, `macOSFocusable`:122
-
-**Maria's Notebook/AppCore/CoreDataStack.swift** (2):
-  `fetchSharesInSharedStore`:431, `acceptShareInvitation`:437
-
-**Maria's Notebook/Backup/Services/BackupTransactionManager.swift** (2):
-  `rollbackToActiveCheckpoint`:219, `cleanupOldCheckpoints`:278
-
-**Maria's Notebook/Components/FilterOrderStore.swift** (2):
-  `saveAreaOrder`:39, `useDefaults`:92
-
-**Maria's Notebook/Components/QuickNote/QuickNoteComponents+Chips.swift** (2):
-  `imagePickerController`:63, `imagePickerControllerDidCancel`:72
-
-**Maria's Notebook/Components/TodoEditSheet.swift** (2):
-  `numberOfPreviewItems`:262, `previewController`:263
-
-**Maria's Notebook/Components/UnifiedNoteEditor/SmartTextEditor.swift** (2):
-  `textViewDidChange`:47, `textDidChange`:142
-
-**Maria's Notebook/Lessons/LessonOrderMigration.swift** (2):
-  `normalizeSortIndices`:77, `normalizeOrderInSequence`:106
-
-**Maria's Notebook/Lessons/LessonsFilterState.swift** (2):
-  `loadFromPersisted`:54, `makePersisted`:91
-
-**Maria's Notebook/Lessons/LessonsPresentationHistoryProvider.swift** (2):
-  `fetchLastPresentedDates`:16, `fetchPresentationCounts`:56
-
-**Maria's Notebook/Lessons/LessonsViewModel.swift** (2):
-  `ensureInitialOrderInSequenceIfNeeded`:142, `computeLessonStatusInfo`:201
-
-**Maria's Notebook/Models/Extensions/WorkModel+Completion.swift** (2):
-  `completionRecords`:8, `latestCompletion`:16
-
-**Maria's Notebook/Models/ModelExtensions.swift** (2):
-  `fetchPracticeSessions`:70, `fetchCommonLesson`:308
-
-**Maria's Notebook/Repositories/LessonRepository.swift** (2):
-  `fetchRootStories`:62, `updateLesson`:117
-
-**Maria's Notebook/Repositories/NoteRepository.swift** (2):
-  `fetchNotesForStudent`:49, `createNote`:76
-
-**Maria's Notebook/Repositories/StudentRepository.swift** (2):
-  `withdrawStudent`:104, `reenrollStudent`:113
-
-**Maria's Notebook/Services/AIReportService.swift** (2):
-  `generateNarrative`:40, `gatherReportData`:71
-
-**Maria's Notebook/Services/DataQueryService.swift** (2):
-  `invalidateAllCaches`:253, `invalidateStudentsCache`:260
-
-**Maria's Notebook/Services/ProcedureService.swift** (2):
-  `getProcedureStats`:63, `fetchProcedure`:140
-
-**Maria's Notebook/Services/TodoNotificationService.swift** (2):
-  `rescheduleNotification`:86, `getPendingNotifications`:97
-
-**Maria's Notebook/Sharing/SharingPreferences.swift** (2):
-  `isCategoryEnabled`:31, `toggleCategory`:36
-
-**Maria's Notebook/Students/Meetings/MeetingReviewService.swift** (2):
-  `createReview`:11, `updateReviewNote`:35
-
-**Maria's Notebook/Students/YearPlan/StudentYearPlanViewModel.swift** (2):
-  `lessonFor`:99, `rescheduleEntry`:108
-
-**Maria's Notebook/Utils/Date+Normalization.swift** (2):
-  `isBeforeDay`:22, `isAfterDay`:29
-
-**Maria's Notebook/Utils/PrintUtils.swift** (2):
-  `printView`:56, `exportImageToPDFAndOpen`:63
-
-**Maria's Notebook/Utils/StringFallbacks.swift** (2):
-  `valueOrFallback`:12, `trimmedValueOrNil`:36
-
-**Maria's Notebook/Utils/ValidationHelpers.swift** (2):
-  `validateNotNil`:25, `validateRange`:41
-
-**Maria's Notebook/Work/GroupPracticeHelper.swift** (2):
-  `hasSequencePracticeOpportunity`:21, `groupPracticeBadge`:87
-
-**Maria's Notebook/Work/PracticeSessionEntity.swift** (2):
-  `addWorkItem`:215, `removeWorkItem`:233
-
-**Maria's Notebook/Work/PracticeSessionRepository.swift** (2):
-  `fetchGroupSessions`:77, `fetchSoloSessions`:86
-
-**Maria's Notebook/Work/WorksPlanningViewModel.swift** (2):
-  `computeSchoolDays`:38, `resetToFirstSchoolDay`:63
-
-**Maria's Notebook/AppCore/AppDependencies.swift** (1):
-  `preloadPresentationsData`:342
-
-**Maria's Notebook/AppCore/AutoBackupAppDelegate.swift** (1):
-  `applicationWillTerminate`:25
-
-**Maria's Notebook/AppCore/CloudKitConfiguration.swift** (1):
-  `getCloudKitContainerID`:17
-
-**Maria's Notebook/AppCore/DatabaseInitializationService.swift** (1):
-  `handleCriticalDatabaseInitError`:91
-
-**Maria's Notebook/AppCore/PreviewEnvironment.swift** (1):
-  `previewStack`:25
-
-**Maria's Notebook/AppCore/TodayView/TodayViewHelpers.swift** (1):
-  `updateAttendanceStatus`:157
-
-**Maria's Notebook/Attendance/AttendanceLookup.swift** (1):
-  `attendanceStatus`:10
-
-**Maria's Notebook/Backup/BackupService+DataCollection.swift** (1):
-  `safeFetchInBatches`:282
-
-**Maria's Notebook/Backup/BackupService.swift** (1):
-  `estimateBackupSizeFromCounts`:31
-
-**Maria's Notebook/Backup/Core/AutoBackupManager.swift** (1):
-  `createPreDestructiveBackup`:170
-
-**Maria's Notebook/Backup/Core/BackupFolderMigration.swift** (1):
-  `resetDismissal`:45
-
-**Maria's Notebook/Backup/Export/BackupSizeEstimator.swift** (1):
-  `measureActualSize`:120
-
-**Maria's Notebook/Backup/SaveCoordinator.swift** (1):
-  `saveWithInfoToast`:102
-
-**Maria's Notebook/BookClub/BookClubSessionEntity.swift** (1):
-  `fetchByPacket`:89
-
-**Maria's Notebook/Components/Modifiers/CardBackgroundModifier.swift** (1):
-  `cardBackgroundGlass`:47
-
-**Maria's Notebook/Components/ObservationsView+AI.swift** (1):
-  `summarizeSelected`:132
-
-**Maria's Notebook/Components/ObservationsView+List.swift** (1):
-  `contextForNote`:218
-
-**Maria's Notebook/Components/View+LargeSheetSizing.swift** (1):
-  `flexibleSheetSizing`:77
-
-**Maria's Notebook/GoingOut/GoingOutViewModel.swift** (1):
-  `createGoingOut`:66
-
-**Maria's Notebook/Lessons/LessonAttachmentImporter.swift** (1):
-  `getRecentLessons`:103
-
-**Maria's Notebook/Lessons/LessonFileStorage.swift** (1):
-  `searchAttachments`:325
-
-**Maria's Notebook/Lessons/LessonsFilterPersistence.swift** (1):
-  `normalizeAreaKey`:14
-
-**Maria's Notebook/Lessons/LessonsGridItem.swift** (1):
-  `sortedWithIntroductionsFirst`:97
-
-**Maria's Notebook/Models/Extensions/Presentation+Resolved.swift** (1):
-  `wasMigratedFromOldPresentation`:88
-
-**Maria's Notebook/Models/LessonAssignmentEntity.swift** (1):
-  `unconfirmStudent`:105
-
-**Maria's Notebook/Models/Protocols/DenormalizedSchedulable.swift** (1):
-  `normalizeDenormalizedFields`:50
-
-**Maria's Notebook/ObservationMode/MontessoriObservationTags.swift** (1):
-  `isObservationTag`:69
-
-**Maria's Notebook/Planning/PlanningActions.swift** (1):
-  `moveToInbox`:9
-
-**Maria's Notebook/Planning/PlanningDropUtils.swift** (1):
-  `reorderIDs`:23
-
-**Maria's Notebook/Presentations/PostPresentationFormViewModel.swift** (1):
-  `getFinalEntries`:127
-
-**Maria's Notebook/Presentations/PresentationsView+Body.swift** (1):
-  `unresolvedWorkCount`:326
-
-**Maria's Notebook/Presentations/UnifiedPresentationWorkflowPanel+WorkCreation.swift** (1):
-  `syncAssignmentToWorkDraft`:486
-
-**Maria's Notebook/Repositories/AttendanceRepository.swift** (1):
-  `createRecord`:78
-
-**Maria's Notebook/Repositories/MeetingTemplateRepository.swift** (1):
-  `fetchActiveTemplate`:58
-
-**Maria's Notebook/Services/AI/ParshaSuggestionService.swift** (1):
-  `canRefresh`:54
-
-**Maria's Notebook/Services/DatabaseAnalysisService.swift** (1):
-  `analyzeClassroom`:32
-
-**Maria's Notebook/Services/HebrewParshaService.swift** (1):
-  `nextShabbat`:144
-
-**Maria's Notebook/Services/ImportCommitService.swift** (1):
-  `commitLessons`:18
-
-**Maria's Notebook/Services/Migrations/DataCleanupService.swift** (1):
-  `runAllCleanupOperations`:16
-
-**Maria's Notebook/Services/NetworkMonitoring.swift** (1):
-  `stopNetworkMonitoring`:49
-
-**Maria's Notebook/Services/PlanNextLessonService.swift** (1):
-  `existsActive`:80
-
-**Maria's Notebook/Services/ReminderSyncService.swift** (1):
-  `getAvailableReminderLists`:181
-
-**Maria's Notebook/Services/SearchIndexService.swift** (1):
-  `removeResult`:73
-
-**Maria's Notebook/Services/StudentAnalysisService.swift** (1):
-  `compareSnapshots`:101
-
-**Maria's Notebook/Services/SupplyService.swift** (1):
-  `fetchSuppliesGroupedByCategory`:43
-
-**Maria's Notebook/Services/SyncRetryLogic.swift** (1):
-  `cancelRetry`:40
-
-**Maria's Notebook/Services/UnlockNextLessonService.swift** (1):
-  `getNextLessonName`:112
-
-**Maria's Notebook/Services/YearPlanPromotionService.swift** (1):
-  `promote`:50
-
-**Maria's Notebook/Settings/SettingsModifiers.swift** (1):
-  `settingsHighlight`:30
-
-**Maria's Notebook/Sharing/ClassroomPermissions.swift** (1):
-  `assistantWritableEntityNames`:37
-
-**Maria's Notebook/Sharing/PermissionValidation.swift** (1):
-  `validatePermissionsBeforeSave`:19
-
-**Maria's Notebook/Stories/StoriesViewModel.swift** (1):
-  `gradeBands`:57
-
-**Maria's Notebook/Students/LessonDetail/PresentationProgressHelper.swift** (1):
-  `isNeedsAnotherActive`:48
-
-**Maria's Notebook/Students/PresentationDetailActions.swift** (1):
-  `toggleWorkCompletion`:200
-
-**Maria's Notebook/Students/PresentationDetailViewModel+StudentActions.swift** (1):
-  `scheduleNextLessonToInbox`:84
-
-**Maria's Notebook/Students/PresentationDetailViewModel.swift** (1):
-  `saveImmediate`:275
-
-**Maria's Notebook/Students/StudentNotesViewModel.swift** (1):
-  `loadMoreIfNeeded`:54
-
-**Maria's Notebook/Utils/AgeUtils.swift** (1):
-  `halfYearAgeString`:227
-
-**Maria's Notebook/Utils/BackupCountHelpers.swift** (1):
-  `makeExistsChecker`:34
-
-**Maria's Notebook/Utils/CSVDuplicateDetection.swift** (1):
-  `buildKeySets`:35
-
-**Maria's Notebook/Utils/CSVHeaderMapping.swift** (1):
-  `validateRequired`:46
-
-**Maria's Notebook/Utils/Collection+Extensions.swift** (1):
-  `dictionaryByID`:7
-
-**Maria's Notebook/Utils/KeychainStore.swift** (1):
-  `generateSymmetricKeyBytes`:68
-
-**Maria's Notebook/Utils/NotesHelpers.swift** (1):
-  `notesVisible`:53
-
-**Maria's Notebook/Utils/PerformanceLogger.swift** (1):
-  `measureAsync`:37
-
-**Maria's Notebook/Work/WorkAging.swift** (1):
-  `urgencyBucket`:253
-
-**Maria's Notebook/Work/WorkDetailView+Sheets.swift** (1):
-  `workDetailSheet`:9
-
-**Maria's Notebook/Work/WorkDetailViewModel.swift** (1):
-  `categoryColor`:426
+## 5. Uncalled methods — EXECUTED 2026-06-11 (201 deleted, 12 system-invoked kept)
+
+Every method below has zero references repo-wide. Each was examined in context by a verification agent (containing type's protocol conformances checked, including extension conformances).
+
+### Keep — system-invoked (12)
+
+- `applicationWillTerminate` — Maria's Notebook/AppCore/AutoBackupAppDelegate.swift:25 — App delegate — quit-time auto-backup hook
+- `mailComposeController` — Maria's Notebook/Attendance/AttendanceEmail.swift:385 — MFMailComposeViewControllerDelegate — mail sheet callback
+- `imagePickerController` — Maria's Notebook/Components/QuickNote/QuickNoteComponents+Chips.swift:63 — UIImagePickerControllerDelegate — photo picker callback
+- `imagePickerControllerDidCancel` — Maria's Notebook/Components/QuickNote/QuickNoteComponents+Chips.swift:72 — UIImagePickerControllerDelegate — photo picker callback
+- `numberOfPreviewItems` — Maria's Notebook/Components/TodoEditSheet.swift:262 — QLPreviewControllerDataSource — attachment preview callback
+- `previewController` — Maria's Notebook/Components/TodoEditSheet.swift:263 — QLPreviewControllerDataSource — attachment preview callback
+- `textViewDidChange` — Maria's Notebook/Components/UnifiedNoteEditor/SmartTextEditor.swift:47 — UITextViewDelegate — iOS text editor callback
+- `textDidChange` — Maria's Notebook/Components/UnifiedNoteEditor/SmartTextEditor.swift:142 — NSTextViewDelegate — macOS text editor callback
+- `cloudSharingController` — Maria's Notebook/Sharing/CloudSharingControllerWrapper.swift:47 — UICloudSharingControllerDelegate — share sheet callback
+- `itemTitle` — Maria's Notebook/Sharing/CloudSharingControllerWrapper.swift:54 — UICloudSharingControllerDelegate — share sheet callback
+- `cloudSharingControllerDidSaveShare` — Maria's Notebook/Sharing/CloudSharingControllerWrapper.swift:58 — UICloudSharingControllerDelegate — share sheet callback
+- `cloudSharingControllerDidStopSharing` — Maria's Notebook/Sharing/CloudSharingControllerWrapper.swift:64 — UICloudSharingControllerDelegate — share sheet callback
+
+### Deleted (201)
+
+Notable subgroups worth a deliberate glance: the repository layer loses unused CRUD surface (ProjectRepository 7, PresentationRepository 6, ReminderRepository 4, MeetingRepository 3 — delete unless you want the symmetric API kept for upcoming features); `AIReportService.generateNarrative`/`gatherReportData` mean the AI report feature is currently UNREACHABLE from any UI; `BackupTransactionManager.rollbackToActiveCheckpoint` is a manual-rollback API the automatic rollback path does not use; Theme+ViewModifiers loses 18 unused styling helpers.
+
+- Maria's Notebook/Agenda/AgendaComponents.swift — `movedStart`:11
+- Maria's Notebook/AppCore/AppDependencies.swift — `preloadPresentationsData`:342
+- Maria's Notebook/AppCore/AppRouter.swift — `requestOpenAttendance`:141, `requestQuickActions`:156, `navigateToTab`:178, `setStudentsMode`:183, `clearPlanLessonRequest`:198
+- Maria's Notebook/AppCore/CloudKitConfiguration.swift — `getCloudKitContainerID`:17
+- Maria's Notebook/AppCore/CloudKitConfigurationService.swift — `clearErrorLog`:237, `getErrorSummary`:242, `markActive`:257, `markInactive`:264
+- Maria's Notebook/AppCore/CoreDataStack.swift — `fetchSharesInSharedStore`:431, `acceptShareInvitation`:437
+- Maria's Notebook/AppCore/DatabaseInitializationService.swift — `handleCriticalDatabaseInitError`:91
+- Maria's Notebook/AppCore/Theme+ViewModifiers.swift — `displayTracking`:26, `overlineStyle`:31, `badgeTracking`:40, `pageTitleStyle`:54, `majorSectionHeaderStyle`:61, `rowTitleStyle`:67, `rowSubtitleStyle`:74, `metadataStyle`:81, `chartHighlightStyle`:91, `chartDimmedStyle`:99, `denseGridStyle`:107, `tabularNumberStyle`:114, `formLabelStyle`:126, `formValueStyle`:133, `mutedHeavyStyle`:141, `deemphasizedStyle`:149, `fontHierarchy`:182, `shifted`:190
+- Maria's Notebook/AppCore/TodayView/TodayViewHelpers.swift — `updateAttendanceStatus`:157
+- Maria's Notebook/Attendance/AttendanceEmail.swift — `mailtoURLForCurrentPrefs`:138, `sendOrFallbackUsingMailAppForCurrentPrefs`:249
+- Maria's Notebook/Attendance/AttendanceLookup.swift — `attendanceStatus`:10
+- Maria's Notebook/Backup/BackupService+DataCollection.swift — `safeFetchInBatches`:282
+- Maria's Notebook/Backup/BackupService.swift — `estimateBackupSizeFromCounts`:31
+- Maria's Notebook/Backup/BackupServiceHelpers.swift — `filterByStudents`:169, `filterByDateRange`:178, `filterByProjects`:191, `renameLegacyPayloadKeys`:280
+- Maria's Notebook/Backup/Core/AutoBackupManager.swift — `createPreDestructiveBackup`:170
+- Maria's Notebook/Backup/Core/BackupFolderMigration.swift — `resetDismissal`:45
+- Maria's Notebook/Backup/Export/BackupSizeEstimator.swift — `measureActualSize`:120
+- Maria's Notebook/Backup/SaveCoordinator.swift — `saveWithInfoToast`:102
+- Maria's Notebook/Backup/Services/BackupTransactionManager.swift — `rollbackToActiveCheckpoint`:219, `cleanupOldCheckpoints`:278
+- Maria's Notebook/BookClub/BookClubSessionEntity.swift — `fetchByPacket`:89
+- Maria's Notebook/Components/FilterOrderStore.swift — `saveAreaOrder`:39, `useDefaults`:92
+- Maria's Notebook/Components/Modifiers/CardBackgroundModifier.swift — `cardBackgroundGlass`:47
+- Maria's Notebook/Components/ObservationsView+AI.swift — `summarizeSelected`:132
+- Maria's Notebook/Components/ObservationsView+List.swift — `contextForNote`:218
+- Maria's Notebook/Components/View+LargeSheetSizing.swift — `flexibleSheetSizing`:77
+- Maria's Notebook/GoingOut/GoingOutViewModel.swift — `createGoingOut`:66
+- Maria's Notebook/Lessons/LessonFileStorage.swift — `searchAttachments`:325
+- Maria's Notebook/Lessons/LessonOrderMigration.swift — `normalizeSortIndices`:77, `normalizeOrderInSequence`:106
+- Maria's Notebook/Lessons/LessonsFilterPersistence.swift — `normalizeAreaKey`:14
+- Maria's Notebook/Lessons/LessonsFilterState.swift — `loadFromPersisted`:54, `makePersisted`:91
+- Maria's Notebook/Lessons/LessonsGridItem.swift — `sortedWithIntroductionsFirst`:97
+- Maria's Notebook/Lessons/LessonsPresentationHistoryProvider.swift — `fetchLastPresentedDates`:16, `fetchPresentationCounts`:56
+- Maria's Notebook/Lessons/LessonsRootView/LessonsRootViewReordering.swift — `moveSequenceUpDown`:54, `reorderSectionByDrag`:207, `moveLessonToSection`:282
+- Maria's Notebook/Lessons/LessonsViewModel.swift — `ensureInitialOrderInSequenceIfNeeded`:131, `computeLessonStatusInfo`:190
+- Maria's Notebook/Models/Extensions/Presentation+Resolved.swift — `wasMigratedFromOldPresentation`:88
+- Maria's Notebook/Models/Extensions/WorkModel+Completion.swift — `completionRecords`:8, `latestCompletion`:16
+- Maria's Notebook/Models/LessonAssignmentEntity.swift — `unconfirmStudent`:105
+- Maria's Notebook/Models/ModelExtensions.swift — `fetchPracticeSessions`:70, `fetchCommonLesson`:308
+- Maria's Notebook/Models/Protocols/DenormalizedSchedulable.swift — `normalizeDenormalizedFields`:50
+- Maria's Notebook/ObservationMode/MontessoriObservationTags.swift — `isObservationTag`:60
+- Maria's Notebook/Planning/PlanningActions.swift — `moveToInbox`:9
+- Maria's Notebook/Planning/PlanningDropUtils.swift — `reorderIDs`:23
+- Maria's Notebook/Planning/PlanningEngine.swift — `dayShortLabel`:42
+- Maria's Notebook/Presentations/PostPresentationFormViewModel.swift — `getFinalEntries`:127
+- Maria's Notebook/Presentations/PresentationsCoordinator.swift — `showSchedulePresentation`:75, `showPostPresentation`:80, `showUnifiedWorkflow`:85, `showLessonAssignmentHistory`:90
+- Maria's Notebook/Presentations/PresentationsView+Body.swift — `unresolvedWorkCount`:326
+- Maria's Notebook/Presentations/UnifiedPresentationWorkflowPanel+WorkCreation.swift — `syncAssignmentToWorkDraft`:486
+- Maria's Notebook/Repositories/AttendanceRepository.swift — `createRecord`:78
+- Maria's Notebook/Repositories/LessonRepository.swift — `fetchRootStories`:62, `updateLesson`:117
+- Maria's Notebook/Repositories/MeetingRepository.swift — `fetchIncompleteMeetings`:53, `createMeeting`:69, `updateMeeting`:93
+- Maria's Notebook/Repositories/MeetingTemplateRepository.swift — `fetchActiveTemplate`:58
+- Maria's Notebook/Repositories/NoteRepository.swift — `fetchNotesForStudent`:49, `createNote`:76
+- Maria's Notebook/Repositories/PresentationRepository.swift — `fetchInboxItems`:54, `fetchScheduled`:59, `fetchActiveAssignments`:72, `updateNotes`:172, `updateFollowUp`:181, `deleteLessonAssignment`:200
+- Maria's Notebook/Repositories/ProjectRepository.swift — `fetchActiveProjects`:48, `createProject`:56, `updateProject`:74, `deleteProject`:94, `fetchSessions`:110, `createSession`:122, `updateSession`:144
+- Maria's Notebook/Repositories/ReminderRepository.swift — `fetchDueToday`:53, `createReminder`:73, `updateReminder`:97, `deleteReminder`:139
+- Maria's Notebook/Repositories/ResourceRepository.swift — `fetchFavorites`:42, `fetchRecents`:46, `updateResource`:86
+- Maria's Notebook/Repositories/StudentRepository.swift — `withdrawStudent`:104, `reenrollStudent`:113
+- Maria's Notebook/Services/AI/ParshaSuggestionService.swift — `canRefresh`:54
+- Maria's Notebook/Services/AIReportService.swift — `generateNarrative`:40, `gatherReportData`:71
+- Maria's Notebook/Services/DataQueryService.swift — `invalidateAllCaches`:253, `invalidateStudentsCache`:260
+- Maria's Notebook/Services/DatabaseAnalysisService.swift — `analyzeClassroom`:32
+- Maria's Notebook/Services/HebrewParshaService.swift — `nextShabbat`:144
+- Maria's Notebook/Services/ImportCommitService.swift — `commitLessons`:18
+- Maria's Notebook/Services/LessonPlanning/PlanningFeedbackTracker.swift — `linkToPresentation`:42, `recordOutcome`:60, `calibrationSummary`:76
+- Maria's Notebook/Services/Migrations/DataCleanupService.swift — `runAllCleanupOperations`:16
+- Maria's Notebook/Services/NetworkMonitoring.swift — `stopNetworkMonitoring`:49
+- Maria's Notebook/Services/PlanNextLessonService.swift — `existsActive`:80
+- Maria's Notebook/Services/ProcedureService.swift — `getProcedureStats`:63, `fetchProcedure`:140
+- Maria's Notebook/Services/ReminderSyncService.swift — `getAvailableReminderLists`:181
+- Maria's Notebook/Services/SearchIndexService.swift — `removeResult`:73
+- Maria's Notebook/Services/ServiceProtocols.swift — `onAppWillResignActive`:33, `onAppDidBecomeActive`:34
+- Maria's Notebook/Services/SessionWorkAssignmentService.swift — `createUniformWork`:18, `offeredWorksForSession`:133, `worksSelectedByStudent`:138, `selectionStatus`:146
+- Maria's Notebook/Services/StudentAnalysisService.swift — `compareSnapshots`:101
+- Maria's Notebook/Services/SupplyService.swift — `fetchSuppliesGroupedByCategory`:43
+- Maria's Notebook/Services/SyncRetryLogic.swift — `cancelRetry`:40
+- Maria's Notebook/Services/TodoNotificationService.swift — `checkAuthorizationStatus`:27, `rescheduleNotification`:86, `getPendingNotifications`:97
+- Maria's Notebook/Services/UnlockNextLessonService.swift — `getNextLessonName`:112
+- Maria's Notebook/Services/YearPlanPromotionService.swift — `promote`:50
+- Maria's Notebook/Settings/SettingsModifiers.swift — `settingsHighlight`:30
+- Maria's Notebook/Sharing/ClassroomPermissions.swift — `assistantWritableEntityNames`:37
+- Maria's Notebook/Sharing/PermissionValidation.swift — `validatePermissionsBeforeSave`:19
+- Maria's Notebook/Sharing/SharingPreferences.swift — `isCategoryEnabled`:31, `toggleCategory`:36
+- Maria's Notebook/Stories/StoriesViewModel.swift — `gradeBands`:57
+- Maria's Notebook/Students/LessonDetail/PresentationProgressHelper.swift — `isNeedsAnotherActive`:48
+- Maria's Notebook/Students/Meetings/MeetingReviewService.swift — `createReview`:11, `updateReviewNote`:35
+- Maria's Notebook/Students/PresentationDetailActions.swift — `planNextLessonInSequence`:126, `toggleWorkCompletion`:200
+- Maria's Notebook/Students/PresentationDetailViewModel+StudentActions.swift — `scheduleNextLessonToInbox`:84
+- Maria's Notebook/Students/PresentationDetailViewModel.swift — `saveImmediate`:275
+- Maria's Notebook/Students/StudentNotesViewModel.swift — `loadMoreIfNeeded`:54
+- Maria's Notebook/Students/TestStudentsFilter.swift — `isHidden`:24
+- Maria's Notebook/Students/YearPlan/StudentYearPlanViewModel.swift — `lessonFor`:99, `rescheduleEntry`:108
+- Maria's Notebook/Utils/AgeUtils.swift — `halfYearAgeString`:227
+- Maria's Notebook/Utils/BackupCountHelpers.swift — `makeExistsChecker`:34
+- Maria's Notebook/Utils/CSVDuplicateDetection.swift — `buildKeySets`:35
+- Maria's Notebook/Utils/CSVHeaderMapping.swift — `validateRequired`:46
+- Maria's Notebook/Utils/Collection+Extensions.swift — `dictionaryByID`:7
+- Maria's Notebook/Utils/Date+Normalization.swift — `isBeforeDay`:22, `isAfterDay`:29
+- Maria's Notebook/Utils/Double+Formatting.swift — `formatAsPercentage`:21
+- Maria's Notebook/Utils/KeychainStore.swift — `generateSymmetricKeyBytes`:68
+- Maria's Notebook/Utils/NotesHelpers.swift — `notesVisible`:53
+- Maria's Notebook/Utils/PerformanceLogger.swift — `measureAsync`:37
+- Maria's Notebook/Utils/StringFallbacks.swift — `valueOrFallback`:12, `trimmedValueOrNil`:36
+- Maria's Notebook/Utils/View+PlatformStyles.swift — `sheetPresentation`:73, `platformTapGesture`:109, `macOSFocusable`:122
+- Maria's Notebook/ViewModels/GiveLessonViewModel.swift — `toggleMode`:156
+- Maria's Notebook/ViewModels/Today/TodayCacheManager.swift — `updateStudents`:41, `mergeStudents`:47, `updateLessons`:57, `mergeLessons`:62
+- Maria's Notebook/Work/GroupPracticeHelper.swift — `hasSequencePracticeOpportunity`:21, `groupPracticeBadge`:55
+- Maria's Notebook/Work/PracticeSessionEntity.swift — `addWorkItem`:215, `removeWorkItem`:233
+- Maria's Notebook/Work/PracticeSessionRepository.swift — `fetchGroupSessions`:77, `fetchSoloSessions`:86, `fetchPartnerships`:95
+- Maria's Notebook/Work/WorkAging.swift — `urgencyBucket`:253
+- Maria's Notebook/Work/WorkCheckInBadge.swift — `checkInCounts`:13
+- Maria's Notebook/Work/WorkDetailView+Sheets.swift — `workDetailSheet`:9
+- Maria's Notebook/Work/WorkDetailViewModel.swift — `categoryColor`:426
 
 ## 6. Small items
 

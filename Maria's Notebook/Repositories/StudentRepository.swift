@@ -99,24 +99,6 @@ struct StudentRepository: SavingRepository {
         return true
     }
 
-    /// Withdraw a student
-    @discardableResult
-    func withdrawStudent(id: UUID, date: Date = Date()) -> Bool {
-        guard let student = fetchStudent(id: id) else { return false }
-        student.enrollmentStatus = .withdrawn
-        student.dateWithdrawn = date
-        return true
-    }
-
-    /// Re-enroll a withdrawn student
-    @discardableResult
-    func reenrollStudent(id: UUID) -> Bool {
-        guard let student = fetchStudent(id: id) else { return false }
-        student.enrollmentStatus = .enrolled
-        student.dateWithdrawn = nil
-        return true
-    }
-
     // MARK: - Delete
 
     /// Delete a CDStudent by ID

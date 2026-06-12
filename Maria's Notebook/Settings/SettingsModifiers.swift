@@ -26,12 +26,6 @@ struct SearchHighlightModifier: ViewModifier {
     }
 }
 
-extension View {
-    func settingsHighlight(searchText: String, label: String) -> some View {
-        modifier(SearchHighlightModifier(searchText: searchText, label: label))
-    }
-}
-
 // MARK: - Breadcrumb Modifier
 
 /// Adds a breadcrumb subtitle to the toolbar on compact layouts

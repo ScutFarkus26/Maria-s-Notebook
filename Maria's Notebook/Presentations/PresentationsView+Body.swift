@@ -321,15 +321,4 @@ extension PresentationsView {
         )
     }
 
-    // MARK: - Helper Functions
-
-    static func unresolvedWorkCount(
-        forPresentationID pid: String, studentIDs: [String], allWork: [CDWorkModel]
-    ) -> Int {
-        return allWork.filter { w in
-            w.presentationID == pid &&
-            studentIDs.contains(w.studentID) &&
-            w.statusRaw != "complete"
-        }.count
-    }
 }

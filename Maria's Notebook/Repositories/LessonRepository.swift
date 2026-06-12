@@ -58,12 +58,6 @@ struct LessonRepository: SavingRepository {
         fetchLessons(predicate: NSPredicate(format: "area == %@ AND sequence == %@", area, sequence))
     }
 
-    /// Fetch all root story lessons (stories with no parent)
-    func fetchRootStories() -> [CDLesson] {
-        let storyRaw = LessonFormat.story.rawValue
-        return fetchLessons(predicate: NSPredicate(format: "lessonFormatRaw == %@ AND parentStoryID == nil", storyRaw))
-    }
-
     /// Fetch child stories that branch off a given parent story
     func fetchChildStories(parentID: UUID) -> [CDLesson] {
         fetchLessons(predicate: NSPredicate(format: "parentStoryID == %@", parentID.uuidString))
@@ -109,50 +103,6 @@ struct LessonRepository: SavingRepository {
         lesson.lessonFormat = lessonFormat
         lesson.parentStoryID = parentStoryID
         return lesson
-    }
-
-    // MARK: - Update
-
-    @discardableResult
-    func updateLesson(
-        id: UUID,
-        name: String? = nil,
-        area: String? = nil,
-        sequence: String? = nil,
-        section: String? = nil,
-        writeUp: String? = nil,
-        orderInSequence: Int? = nil,
-        sortIndex: Int? = nil,
-        defaultWorkKind: WorkKind? = nil,
-        materials: String? = nil,
-        purpose: String? = nil,
-        ageRange: String? = nil,
-        teacherNotes: String? = nil,
-        prerequisiteLessonIDs: String? = nil,
-        relatedLessonIDs: String? = nil,
-        lessonFormat: LessonFormat? = nil,
-        parentStoryID: String?? = nil
-    ) -> Bool {
-        guard let lesson = fetchLesson(id: id) else { return false }
-
-        if let name { lesson.name = name }
-        if let area { lesson.area = area }
-        if let sequence { lesson.sequence = sequence }
-        if let section { lesson.section = section }
-        if let writeUp { lesson.writeUp = writeUp }
-        if let orderInSequence { lesson.orderInSequence = Int64(orderInSequence) }
-        if let sortIndex { lesson.sortIndex = Int64(sortIndex) }
-        if let defaultWorkKind { lesson.defaultWorkKind = defaultWorkKind }
-        if let materials { lesson.materials = materials }
-        if let purpose { lesson.purpose = purpose }
-        if let ageRange { lesson.ageRange = ageRange }
-        if let teacherNotes { lesson.teacherNotes = teacherNotes }
-        if let prerequisiteLessonIDs { lesson.prerequisiteLessonIDs = prerequisiteLessonIDs }
-        if let relatedLessonIDs { lesson.relatedLessonIDs = relatedLessonIDs }
-        if let lessonFormat { lesson.lessonFormat = lessonFormat }
-        if let parentStoryID { lesson.parentStoryID = parentStoryID }
-
-        return true
     }
 
     // MARK: - Delete

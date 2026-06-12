@@ -233,36 +233,9 @@ enum CloudKitConfigurationService {
         }
     }
 
-    /// Clears the error log history
-    static func clearErrorLog() {
-        UserDefaults.standard.removeObject(forKey: UserDefaultsKeys.cloudKitErrorLog)
-    }
-
-    /// Returns a summary of recent errors by category
-    static func getErrorSummary() -> [ErrorCategory: Int] {
-        let logs = getErrorLogs()
-        var summary: [ErrorCategory: Int] = [:]
-        for log in logs {
-            summary[log.category, default: 0] += 1
-        }
-        return summary
-    }
-
     /// Clears any stored CloudKit error.
     static func clearError() {
         UserDefaults.standard.removeObject(forKey: UserDefaultsKeys.cloudKitLastErrorDescription)
     }
 
-    /// Marks CloudKit as active and clears any previous error.
-    static func markActive() {
-        UserDefaults.standard.set(true, forKey: UserDefaultsKeys.cloudKitActive)
-        clearError()
-        logger.info("CloudKit marked as active")
-    }
-
-    /// Marks CloudKit as inactive.
-    static func markInactive() {
-        UserDefaults.standard.set(false, forKey: UserDefaultsKeys.cloudKitActive)
-        logger.info("CloudKit marked as inactive")
-    }
 }

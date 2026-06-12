@@ -214,19 +214,4 @@ extension ObservationsView {
         )
     }
 
-    // swiftlint:disable:next cyclomatic_complexity
-    func contextForNote(_ note: CDNote) -> UnifiedNoteEditor.NoteContext {
-        if let lesson = note.lesson { return .lesson(lesson) }
-        if let work = note.work { return .work(work) }
-        if let pres = note.lessonAssignment { return .presentation(pres) }
-        if let attendanceRecord = note.attendanceRecord { return .attendance(attendanceRecord) }
-        if let workCheckIn = note.workCheckIn { return .workCheckIn(workCheckIn) }
-        if let workCompletion = note.workCompletionRecord { return .workCompletion(workCompletion) }
-        if let studentMeeting = note.studentMeeting { return .studentMeeting(studentMeeting) }
-        if let projectSession = note.projectSession { return .projectSession(projectSession) }
-        if let communityTopic = note.communityTopic { return .communityTopic(communityTopic) }
-        if let reminder = note.reminder { return .reminder(reminder) }
-        if let schoolDayOverride = note.schoolDayOverride { return .schoolDayOverride(schoolDayOverride) }
-        return .general
-    }
 }

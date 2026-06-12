@@ -122,41 +122,6 @@ final class PresentationDetailActions {
         }
     }
 
-    // swiftlint:disable:next function_parameter_count
-    func planNextLessonInSequence(
-        next: CDLesson,
-        selectedStudentIDs: Set<UUID>,
-        studentsAll: [CDStudent],
-        lessons: [CDLesson],
-        lessonAssignmentsAll: [CDLessonAssignment],
-        context: NSManagedObjectContext
-    ) -> Bool {
-        // Fetch LessonAssignments for duplicate checking (service now expects CDLessonAssignment)
-        let lessonAssignments: [CDLessonAssignment]
-        do {
-            lessonAssignments = try context.fetch(NSFetchRequest<CDLessonAssignment>(entityName: "LessonAssignment"))
-        } catch {
-            Self.logger.warning("Failed to fetch LessonAssignments: \(error)")
-            lessonAssignments = []
-        }
-
-        let result = PlanNextLessonService.planLesson(
-            next,
-            forStudents: selectedStudentIDs,
-            allStudents: studentsAll,
-            allLessons: lessons,
-            existingLessonAssignments: lessonAssignments,
-            context: context
-        )
-
-        if case .success = result {
-            context.safeSave()
-            PresentationDetailUtilities.notifyInboxRefresh()
-            return true
-        }
-        return false
-    }
-
     func moveStudentsToInbox(
         currentLesson: CDLesson,
         studentsToMove: Set<UUID>,
@@ -195,27 +160,6 @@ final class PresentationDetailActions {
         context.safeSave()
         PresentationDetailUtilities.notifyInboxRefresh()
         return movedStudentNames
-    }
-
-    func toggleWorkCompletion(_ work: CDWorkModel, studentID: UUID, context: NSManagedObjectContext) {
-        if work.isStudentCompleted(studentID) {
-            // Un-complete: Remove from participant (historical records preserved)
-            if let participant = work.participant(for: studentID) {
-                participant.completedAt = nil
-            }
-        } else {
-            // Complete: Use WorkCompletionService for proper historical tracking
-            do {
-                try WorkCompletionService.markCompleted(workID: work.id ?? UUID(), studentID: studentID, in: context)
-                // Also update participant for backwards compatibility
-                if let participant = work.participant(for: studentID) {
-                    participant.completedAt = Date()
-                }
-            } catch {
-                Self.logger.warning("Error marking work complete: \(error)")
-            }
-        }
-        context.safeSave()
     }
 
     func nextLessonInSequence(from current: CDLesson?, lessons: [CDLesson]) -> CDLesson? {

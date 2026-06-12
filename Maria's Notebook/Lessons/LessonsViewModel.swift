@@ -128,48 +128,6 @@ struct LessonsViewModel {
         let id: String
     }
 
-    func ensureInitialOrderInSequenceIfNeeded(_ lessons: [CDLesson]) -> Bool {
-        var changed = false
-        func norm(_ s: String) -> String { s.trimmed().lowercased() }
-        var buckets: [String: [CDLesson]] = [:]
-        for l in lessons {
-            let key = norm(l.area) + "|" + norm(l.sequence)
-            buckets[key, default: []].append(l)
-        }
-
-        for (_, arr) in buckets {
-            guard !arr.isEmpty else { continue }
-            let allZero = arr.allSatisfy { $0.orderInSequence == 0 }
-            if allZero {
-                let sorted = arr.sorted { lhs, rhs in
-                    lhs.name.localizedCaseInsensitiveCompare(rhs.name) == .orderedAscending
-                }
-                for (idx, l) in sorted.enumerated() where l.orderInSequence != Int64(idx) {
-                    l.orderInSequence = Int64(idx); changed = true
-                }
-                continue
-            }
-            var seen = Set<Int64>()
-            var duplicates: [CDLesson] = []
-            for l in arr.sorted(by: { $0.orderInSequence < $1.orderInSequence }) {
-                if seen.contains(l.orderInSequence) {
-                    duplicates.append(l)
-                } else {
-                    seen.insert(l.orderInSequence)
-                }
-            }
-            if !duplicates.isEmpty {
-                var maxOrder = seen.max() ?? -1
-                for l in duplicates {
-                    maxOrder += 1
-                    if l.orderInSequence != maxOrder { l.orderInSequence = maxOrder; changed = true }
-                }
-            }
-        }
-
-        return changed
-    }
-    
 }
 
 // MARK: - CDLesson Status
@@ -185,53 +143,6 @@ extension LessonsViewModel {
         let lastActivityDate: Date?
         let isStale: Bool
         let isOverdue: Bool
-    }
-
-    static func computeLessonStatusInfo(
-        lesson: CDLesson,
-        lessonAssignments: [CDLessonAssignment],
-        workModels: [CDWorkModel],
-        viewContext: NSManagedObjectContext,
-        schoolDayCache: SchoolDayLookupCache? = nil
-    ) -> LessonStatusInfo {
-        let lessonIDString = lesson.id?.uuidString ?? ""
-        let lasForLesson = lessonAssignments.filter { $0.lessonID == lessonIDString }
-        let isPresented = lasForLesson.contains { $0.isPresented }
-        let laIDs = Set(lasForLesson.compactMap(\.id))
-        let workForLesson = workModels.filter { work in
-            work.lessonID == lessonIDString || laIDs.contains(work.studentLessonID ?? UUID())
-        }
-        let activeWork = workForLesson.filter { $0.completedAt == nil }
-
-        let lastActivity = computeLastActivityDate(
-            lasForLesson: lasForLesson, workForLesson: workForLesson, isPresented: isPresented
-        )
-        let (isStale, isOverdue) = computeWorkFlags(activeWork: activeWork, viewContext: viewContext)
-
-        let status: LessonStatus
-        if isStale || isOverdue {
-            status = .stalled
-        } else if !activeWork.isEmpty {
-            status = .practicing
-        } else if isPresented {
-            status = .presented
-        } else {
-            status = .ready
-        }
-
-        let resolvedCache: SchoolDayLookupCache
-        if let schoolDayCache {
-            resolvedCache = schoolDayCache
-        } else {
-            resolvedCache = SchoolDayLookupCache()
-            resolvedCache.preload(using: viewContext)
-        }
-        let ageString = formatAgeString(from: lastActivity, schoolDayCache: resolvedCache)
-
-        return LessonStatusInfo(
-            status: status, ageString: ageString,
-            lastActivityDate: lastActivity, isStale: isStale, isOverdue: isOverdue
-        )
     }
 
     private static func computeLastActivityDate(

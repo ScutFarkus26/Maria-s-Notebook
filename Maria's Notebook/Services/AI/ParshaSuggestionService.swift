@@ -49,13 +49,6 @@ final class ParshaSuggestionService {
         Self.allCachedSuggestions()[key]
     }
 
-    /// Whether at least `refreshIntervalSeconds` have elapsed since the cache entry for
-    /// `key` was generated. Returns true if no cache exists.
-    func canRefresh(parshaKey: String, now: Date = Date()) -> Bool {
-        guard let cached = cachedSuggestions(forParshaKey: parshaKey) else { return true }
-        return now.timeIntervalSince(cached.generatedAt) >= Self.refreshIntervalSeconds
-    }
-
     /// Generates fresh AI suggestions for the parsha. Throws on network/parse error.
     func generateSuggestions(forParshaKey parshaKey: String) async throws -> CachedParshaSuggestions {
         let albumLessons = fetchAlbumLessons()

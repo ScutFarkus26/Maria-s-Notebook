@@ -51,13 +51,6 @@ final class StudentNotesViewModel {
         hasMoreItems = displayedItemCount < items.count
     }
 
-    func loadMoreIfNeeded() {
-        guard hasMoreItems else { return }
-        let newCount = min(displayedItemCount + pageSize, items.count)
-        displayedItemCount = newCount
-        hasMoreItems = newCount < items.count
-    }
-
     // MARK: - Fetch
     func fetchAllNotes() {
         let studentIDString = student.id?.uuidString ?? ""

@@ -75,20 +75,6 @@ struct PlanNextLessonService {
         }
     }
 
-    /// Checks if a CDLessonAssignment already exists that hasn't been given yet.
-    /// This is a less strict check - the lesson may be scheduled but not yet presented.
-    static func existsActive(
-        lessonID: UUID,
-        studentIDs: Set<UUID>,
-        in existingLessonAssignments: [CDLessonAssignment]
-    ) -> Bool {
-        existingLessonAssignments.contains { la in
-            la.lessonIDUUID == lessonID &&
-            Set(la.studentUUIDs) == studentIDs &&
-            la.presentedAt == nil
-        }
-    }
-
     // MARK: - Core Data Plan Next CDLesson
 
     /// Plans the next lesson in the sequence for the given CDLessonAssignment.

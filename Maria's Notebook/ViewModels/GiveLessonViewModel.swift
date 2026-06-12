@@ -152,13 +152,7 @@ final class LessonPickerViewModel {
     }
     
     // MARK: - Actions
-    
-    func toggleMode() {
-        adaptiveWithAnimation(.easeInOut) {
-            mode = (mode == .plan ? .given : .plan)
-        }
-    }
-    
+
     func toggleStudentSelection(_ studentID: UUID) {
         adaptiveWithAnimation(.spring(response: 0.25, dampingFraction: 0.85)) {
             if selectedStudentIDs.contains(studentID) {

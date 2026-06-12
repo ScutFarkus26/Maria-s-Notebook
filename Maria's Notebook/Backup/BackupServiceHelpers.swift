@@ -76,9 +76,6 @@ enum BackupServiceHelpers {
         }
     }
 
-    /// WorkPlanItem removed in Phase 6 - no longer backed up
-    /// Old backups with WorkPlanItems are converted to WorkCheckIns on import
-
     /// Converts an array of AttendanceRecords to AttendanceRecordDTOs
     static func toDTOs(_ attendance: [CDAttendanceRecord]) -> [AttendanceRecordDTO] {
         attendance.compactMap { a in
@@ -163,39 +160,6 @@ enum BackupServiceHelpers {
     // toDTOs for CDProjectTemplateWeek, CDProjectAssignmentTemplate,
     // CDProjectWeekRoleAssignment removed — entities deprecated.
 
-    // MARK: - Entity Filtering
-
-    /// Filters entities by student IDs
-    static func filterByStudents<T>(_ entities: [T], studentIDs: Set<UUID>?, studentIDExtractor: (T) -> UUID?) -> [T] {
-        guard let studentIDs else { return entities }
-        return entities.filter { entity in
-            guard let sid = studentIDExtractor(entity) else { return false }
-            return studentIDs.contains(sid)
-        }
-    }
-
-    /// Filters entities by date range
-    static func filterByDateRange<T>(
-        _ entities: [T],
-        dateRange: ClosedRange<Date>?,
-        dateExtractor: (T) -> Date?
-    ) -> [T] {
-        guard let range = dateRange else { return entities }
-        return entities.filter { entity in
-            guard let date = dateExtractor(entity) else { return true }
-            return range.contains(date)
-        }
-    }
-
-    /// Filters entities by project IDs
-    static func filterByProjects<T>(_ entities: [T], projectIDs: Set<UUID>?, projectIDExtractor: (T) -> UUID?) -> [T] {
-        guard let projectIDs else { return entities }
-        return entities.filter { entity in
-            guard let pid = projectIDExtractor(entity) else { return false }
-            return projectIDs.contains(pid)
-        }
-    }
-
     // MARK: - Simple DTO Conversions
 
     static func toDTOs(_ nonSchoolDays: [CDNonSchoolDay]) -> [NonSchoolDayDTO] {
@@ -274,19 +238,6 @@ enum BackupServiceHelpers {
         }
     }
 
-    /// Rewrites pre-v16 top-level payload keys to their current spelling so old
-    /// backups remain restorable. Per-entity field renames are handled by the
-    /// DTOs' custom decoders in `BackupTypes+LegacyKeyDecoding.swift`.
-    nonisolated static func renameLegacyPayloadKeys(in data: Data) -> Data {
-        guard
-            let parsed = try? JSONSerialization.jsonObject(with: data, options: [.mutableContainers]),
-            var dict = parsed as? [String: Any]
-        else { return data }
-        if dict["sequenceTracks"] == nil, let legacy = dict.removeValue(forKey: "groupTracks") {
-            dict["sequenceTracks"] = legacy
-        }
-        return (try? JSONSerialization.data(withJSONObject: dict, options: [.sortedKeys])) ?? data
-    }
 }
 
 /// Helper for deduplicating backup payloads

@@ -423,15 +423,6 @@ final class WorkDetailViewModel {
         relatedLesson?.name ?? "Unknown CDLesson"
     }
     
-    func categoryColor(_ category: String) -> Color {
-        switch category.lowercased() {
-        case "observation": return .blue
-        case "practice": return .green
-        case "follow-up": return .orange
-        case "general": return .gray
-        default: return .purple
-        }
-    }
 }
 
 // MARK: - Peer Context Types

@@ -153,46 +153,6 @@ extension TodayView {
         }
     }
 
-    /// Updates attendance status for a student
-    func updateAttendanceStatus(for studentID: UUID, to status: AttendanceStatus) {
-        let store = CDAttendanceStore(context: viewContext, calendar: calendar)
-        let day = AppCalendar.startOfDay(viewModel.date)
-
-        // Fetch or create the attendance record
-        do {
-            let fetchRequest: NSFetchRequest<CDAttendanceRecord> =
-                NSFetchRequest<CDAttendanceRecord>(entityName: "AttendanceRecord")
-            fetchRequest.predicate = NSPredicate(
-                format: "studentID == %@ AND date == %@", studentID.uuidString, day as NSDate
-            )
-            fetchRequest.fetchLimit = 1
-
-            let records = try viewContext.fetch(fetchRequest)
-            if let record = records.first {
-                // Update existing record
-                store.updateStatus(record, to: status)
-            } else {
-                // Create new record if it doesn't exist
-                // Verify student exists (should be in studentsByID cache)
-                guard viewModel.studentsByID[studentID] != nil else {
-                    return
-                }
-                let record = CDAttendanceRecord(context: viewContext)
-                record.studentID = studentID.uuidString
-                record.date = day
-                record.status = status
-            }
-
-            // Save changes
-            try viewContext.save()
-
-            // Reload the view model to reflect changes
-            viewModel.reload()
-        } catch {
-            // Error updating attendance status - continue silently
-        }
-    }
-
     // MARK: - CDReminder Actions
 
     /// Toggles the completion status of a reminder

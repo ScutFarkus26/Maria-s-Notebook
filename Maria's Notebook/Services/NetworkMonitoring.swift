@@ -44,15 +44,7 @@ final class NetworkMonitoring {
             }
         }
     }
-    
-    /// Stop network monitoring
-    func stopNetworkMonitoring() {
-        networkMonitor?.cancel()
-        networkMonitor = nil
-        pendingNetworkTask?.cancel()
-        pendingNetworkTask = nil
-    }
-    
+
     // MARK: - Private Methods
     
     private func startNetworkMonitoring() {

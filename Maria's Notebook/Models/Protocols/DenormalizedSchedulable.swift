@@ -45,15 +45,6 @@ protocol DenormalizedSchedulable: AnyObject {
 // MARK: - Default Implementations
 
 extension DenormalizedSchedulable {
-    /// Syncs `scheduledForDay` to match `scheduledFor`, using start-of-day normalization.
-    /// Call after any change to `scheduledFor` to keep the denormalized field in sync.
-    func normalizeDenormalizedFields() {
-        if let s = scheduledFor {
-            scheduledForDay = AppCalendar.startOfDay(s)
-        } else {
-            scheduledForDay = Date.distantPast
-        }
-    }
 
     /// Rebuilds `studentGroupKeyPersisted` from sorted resolved student UUIDs.
     /// Call after any change to the student set to keep the denormalized key in sync.

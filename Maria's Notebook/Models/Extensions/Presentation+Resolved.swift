@@ -81,15 +81,6 @@ extension Presentation {
     }
 }
 
-// MARK: - Migration Helpers
-
-extension Presentation {
-    /// Check if this presentation was migrated from an old Presentation with the given ID.
-    func wasMigratedFromOldPresentation(id: UUID) -> Bool {
-        migratedFromPresentationID == id.uuidString
-    }
-}
-
 // MARK: - CDTrackEntity Integration
 
 extension Presentation {

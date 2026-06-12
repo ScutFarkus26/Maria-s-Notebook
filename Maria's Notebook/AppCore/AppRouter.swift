@@ -136,12 +136,7 @@ final class AppRouter {
     func requestNewWork() {
         navigationDestination = .newWork
     }
-    
-    /// Request to open attendance
-    func requestOpenAttendance() {
-        navigationDestination = .openAttendance
-    }
-    
+
     /// Request to open student detail
     func requestOpenStudentDetail(_ studentID: UUID) {
         navigationDestination = .openStudentDetail(studentID)
@@ -151,12 +146,7 @@ final class AppRouter {
     func requestBackfillIsPresented() {
         navigationDestination = .backfillIsPresented
     }
-    
-    /// Request to show quick actions
-    func requestQuickActions() {
-        navigationDestination = .quickActions
-    }
-    
+
     /// Request to plan lesson for student on date
     func requestPlanLessonForStudentOnDate(studentID: UUID, date: Date) {
         planLessonRequest = PlanLessonRequest(studentID: studentID, date: date)
@@ -173,17 +163,7 @@ final class AppRouter {
         checklistFilterSequence = sequence
         selectedNavItem = .planningChecklist
     }
-    
-    /// Navigate to a specific tab (legacy - kept for backward compatibility)
-    func navigateToTab(_ tab: RootView.Tab) {
-        selectedTab = tab
-    }
-    
-    /// Set students mode
-    func setStudentsMode(_ mode: String) {
-        studentsMode = mode
-    }
-    
+
     /// Trigger planning inbox refresh
     func refreshPlanningInbox() {
         planningInboxRefreshTrigger = UUID()
@@ -193,12 +173,7 @@ final class AppRouter {
     func clearNavigation() {
         navigationDestination = nil
     }
-    
-    /// Clear plan lesson request
-    func clearPlanLessonRequest() {
-        planLessonRequest = nil
-    }
-    
+
     /// Signal that app data will be replaced
     func signalAppDataWillBeReplaced() {
         appDataWillBeReplaced = true
