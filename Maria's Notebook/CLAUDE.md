@@ -57,7 +57,6 @@ Maria's Notebook/
 ├── Resources/        # Educational resources
 ├── Supplies/         # Supply inventory
 ├── Topics/           # Educational topics
-├── TransitionPlanner/# Transition planning
 ├── PerpetualCalendar/# Calendar notes
 │
 ├── Sharing/          # CloudKit sharing (classroom collaboration)

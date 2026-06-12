@@ -29,11 +29,13 @@ final class Phase8PreTests {
 
     // MARK: - Entity Routing Baseline
 
-    /// KNOWN GAP (2026-06-11): these 8 model entities are in NO store configuration,
-    /// so inserting them fails at save — features writing them lose data. Routing
-    /// them (CoreDataStack.sharedEntityNames / privateEntityNames) is a product
-    /// decision with CloudKit implications; once made, DELETE this allowlist so the
-    /// invariant tightens. Tracked in dead-code-report.md.
+    /// Tombstone entities (2026-06-11): these belong to features Danny removed
+    /// end-to-end (Transition Planner, Work Cycle, Prep Checklists, Initiatives).
+    /// No code references their CD* classes. They stay in the Core Data model
+    /// because the CloudKit schema is additive-only — removing entities triggers
+    /// re-mirroring and the "empty DB on launch" bug — and they are intentionally
+    /// routed to NO store. If one of these names ever becomes routed again
+    /// (feature revived), the test below flags it so this list gets pruned.
     private static let knownUnroutedEntities: Set<String> = [
         "WorkCycleSession", "WorkCycleEntry",
         "PrepChecklist", "PrepChecklistItem", "PrepChecklistCompletion",
