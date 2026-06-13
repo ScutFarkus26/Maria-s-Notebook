@@ -82,13 +82,23 @@ enum BackupServiceHelpers {
                 isPinned: n.isPinned,
                 scope: scopeString,
                 lessonID: n.lesson?.id,
+                workID: n.work?.id,
                 imagePath: n.imagePath,
                 includeInReport: n.includeInReport,
                 reportedBy: n.reportedBy,
                 reporterName: n.reporterName,
                 communityTopicID: n.communityTopicID,
                 schoolDayOverrideID: n.schoolDayOverrideID,
-                studentTrackEnrollmentID: n.studentTrackEnrollmentID
+                studentTrackEnrollmentID: n.studentTrackEnrollmentID,
+                lessonAssignmentID: n.lessonAssignment?.id,
+                attendanceRecordID: n.attendanceRecord?.id,
+                workCheckInID: n.workCheckIn?.id,
+                workCompletionRecordID: n.workCompletionRecord?.id,
+                studentMeetingID: n.studentMeeting?.id,
+                projectSessionID: n.projectSession?.id,
+                reminderID: n.reminder?.id,
+                practiceSessionID: n.practiceSession?.id,
+                issueID: n.issue?.id
             )
         }
     }

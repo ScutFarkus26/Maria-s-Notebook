@@ -78,6 +78,49 @@ extension BackupEntityImporter {
         }
     }
 
+    /// Relinks a note's context relationships after all entities are imported.
+    ///
+    /// Notes import early, but most of their relationship targets (work,
+    /// check-ins, meetings, issues, etc.) import in later phases — so they can't
+    /// be resolved at note-import time. This runs as a final pass, once every
+    /// target type is in the store, and wires them up by id.
+    @MainActor
+    static func relinkNoteRelationships(_ dtos: [NoteDTO], index: BackupEntityIndex) throws {
+        for dto in dtos {
+            guard let note = try index.related(CDNote.self, id: dto.id) else { continue }
+            if let id = dto.workID {
+                note.work = try index.related(CDWorkModel.self, id: id)
+            }
+            if let id = dto.lessonAssignmentID {
+                note.lessonAssignment = try index.related(CDLessonAssignment.self, id: id)
+            }
+            if let id = dto.attendanceRecordID {
+                note.attendanceRecord = try index.related(CDAttendanceRecord.self, id: id)
+            }
+            if let id = dto.workCheckInID {
+                note.workCheckIn = try index.related(CDWorkCheckIn.self, id: id)
+            }
+            if let id = dto.workCompletionRecordID {
+                note.workCompletionRecord = try index.related(CDWorkCompletionRecord.self, id: id)
+            }
+            if let id = dto.studentMeetingID {
+                note.studentMeeting = try index.related(CDStudentMeeting.self, id: id)
+            }
+            if let id = dto.projectSessionID {
+                note.projectSession = try index.related(CDProjectSession.self, id: id)
+            }
+            if let id = dto.reminderID {
+                note.reminder = try index.related(CDReminder.self, id: id)
+            }
+            if let id = dto.practiceSessionID {
+                note.practiceSession = try index.related(CDPracticeSession.self, id: id)
+            }
+            if let id = dto.issueID {
+                note.issue = try index.related(CDIssue.self, id: id)
+            }
+        }
+    }
+
     // MARK: - CDNote Templates
 
     static func importNoteTemplates(

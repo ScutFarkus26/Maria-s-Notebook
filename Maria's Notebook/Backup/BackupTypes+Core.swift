@@ -197,6 +197,17 @@ public struct NoteDTO: Codable, Sendable {
     public var communityTopicID: String?
     public var schoolDayOverrideID: String?
     public var studentTrackEnrollmentID: String?
+    // Relationship targets, relinked in a post-import pass (their entities are
+    // imported in later phases, so they can't be resolved at note-import time).
+    public var lessonAssignmentID: UUID?
+    public var attendanceRecordID: UUID?
+    public var workCheckInID: UUID?
+    public var workCompletionRecordID: UUID?
+    public var studentMeetingID: UUID?
+    public var projectSessionID: UUID?
+    public var reminderID: UUID?
+    public var practiceSessionID: UUID?
+    public var issueID: UUID?
 }
 
 public struct NonSchoolDayDTO: Codable, Sendable {

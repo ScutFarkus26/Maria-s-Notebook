@@ -204,6 +204,15 @@ final class BackupRoundTripTests {
         assignment.manuallyUnblocked = true
         let assignmentID = assignment.id
 
+        // The note's context relationships (relinked in a post-import pass).
+        let work = CoreDataTestHelpers.seedWorkModel(
+            in: ctx, title: "Linked work", studentID: UUID(), lessonID: UUID()
+        )
+        work.id = UUID()
+        let workID = work.id
+        note.lessonAssignment = assignment
+        note.work = work
+
         #expect(CoreDataTestHelpers.save(ctx))
 
         let url = BackupTestUtil.tempBackupURL()
@@ -230,6 +239,11 @@ final class BackupRoundTripTests {
             "Restored lesson assignment not found"
         )
         #expect(restoredAssignment.manuallyUnblocked, "manuallyUnblocked must survive the backup round-trip")
+        #expect(
+            restoredNote.lessonAssignment?.id == assignmentID,
+            "note → lessonAssignment relationship must be relinked on restore"
+        )
+        #expect(restoredNote.work?.id == workID, "note → work relationship must be relinked on restore")
     }
 
     @Test("Lesson and Student audited fields survive a full backup round-trip")

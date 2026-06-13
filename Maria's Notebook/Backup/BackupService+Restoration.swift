@@ -138,6 +138,11 @@ extension BackupService {
         try importV12Entities(from: payload, into: viewContext, index: index)
         try importV18Entities(from: payload, into: viewContext, index: index)
 
+        // Notes import early, but many of their relationship targets (work,
+        // check-ins, meetings, etc.) import in later phases — relink them now
+        // that every target type is in the store.
+        try BackupEntityImporter.relinkNoteRelationships(payload.notes, index: index)
+
         // Subscribe to CloudKit export events BEFORE saving — a fast export
         // could otherwise complete between save() and subscription, leaving
         // the user staring at a 30-second timeout for an event that already
