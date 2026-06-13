@@ -3,14 +3,14 @@
 //
 // Responsibilities:
 //   - Single app-facing entry point for backup and restore work.
-//   - Export: always writes v17 AEA (BackupWriter).
+//   - Export: always writes v19 encrypted archives (BackupWriter).
 //   - Import: wraps restore with safety-checkpoint + rollback, then routes to
-//     the current v17 path via BackupReader + BackupImporter.
+//     the current decode path via BackupImporter.
 //   - Estimation, preview, verification, and status all live here so callers
 //     don't have to know about multiple backup subsystems.
 //
-// This means the UI has one API to learn (`BackupCoordinator`) while the
-// underlying decode path matches the file's format.
+// Archive decode/encode runs off the main actor (see BackupWriter/
+// BackupImporter); only Core Data work and UI signaling happen on main.
 
 import Foundation
 import CoreData
@@ -66,9 +66,9 @@ final class BackupCoordinator {
 
     // MARK: - Export
 
-    /// Exports a v17 AEA backup. Synchronous on the inside (writes are
-    /// I/O-bound and not CPU-heavy for normal-sized datasets) but exposed as
-    /// `async` so callers can `await` and receive progress on the main actor.
+    /// Exports a v19 encrypted backup. Payload collection happens on the main
+    /// actor (Core Data); encoding, encryption, write, and verification run
+    /// off-main inside BackupWriter.
     @discardableResult
     func exportBackup(
         viewContext: NSManagedObjectContext,
@@ -78,7 +78,7 @@ final class BackupCoordinator {
         let needsAccess = url.startAccessingSecurityScopedResource()
         defer { if needsAccess { url.stopAccessingSecurityScopedResource() } }
 
-        return try BackupWriter.write(
+        return try await BackupWriter.write(
             viewContext: viewContext,
             to: url,
             progress: progress
@@ -89,42 +89,34 @@ final class BackupCoordinator {
 
     /// Returns the same `RestorePreview` shape the legacy decode path produced.
     /// Branches by file format:
-    ///   - v17 AEA: decode + analyze
-    ///   - non-AEA: reject manual import of legacy backup files
+    ///   - v17+ archive: decode + analyze
+    ///   - anything else: reject manual import of legacy backup files
     func previewImport(
         viewContext: NSManagedObjectContext,
         from url: URL,
         mode: BackupService.RestoreMode,
         progress: @escaping BackupService.ProgressCallback
     ) async throws -> RestorePreview {
-        guard BackupArchive.isAEAFormat(at: url) else {
+        guard BackupArchive.isBackupArchive(at: url) else {
             throw ImportError.legacyManualImportNoLongerSupported
         }
 
-        return try previewAEA(viewContext: viewContext, from: url, mode: mode, progress: progress)
-    }
+        let needsAccess = url.startAccessingSecurityScopedResource()
+        defer { if needsAccess { url.stopAccessingSecurityScopedResource() } }
 
-    private func previewAEA(
-        viewContext: NSManagedObjectContext,
-        from url: URL,
-        mode: BackupService.RestoreMode,
-        progress: @escaping BackupService.ProgressCallback
-    ) throws -> RestorePreview {
         progress(0.10, "Reading backup\u{2026}")
-        let decoded = try BackupReader.read(from: url)
+        let archive = try await BackupImporter.decodeArchive(at: url)
 
         progress(0.50, "Analyzing\u{2026}")
-        let payload = try BackupImporter.reconstructPayload(from: decoded)
+        // One ID-set fetch per entity type instead of one fetch per record —
+        // the index is built lazily for only the types the payload contains.
+        let idIndex = EntityIDIndexCache(context: viewContext)
         let analysis = BackupPreviewAnalyzer.analyze(
-            payload: payload,
+            payload: archive.payload,
             viewContext: viewContext,
             mode: mode,
-            entityExists: { [self] type, id in
-                do {
-                    return (try self.backupService.fetchOne(type, id: id, using: viewContext)) != nil
-                } catch {
-                    return false
-                }
+            entityExists: { type, id in
+                idIndex.exists(type, id: id)
             }
         )
 
@@ -136,15 +128,15 @@ final class BackupCoordinator {
             entityDeletes: analysis.deletes,
             totalInserts: analysis.totalInserts,
             totalDeletes: analysis.totalDeletes,
-            warnings: analysis.warnings
+            warnings: analysis.warnings + archive.warnings
         )
     }
 
     // MARK: - Import
 
     /// Performs an import with safety-checkpoint + rollback (via the existing
-    /// `BackupTransactionManager`). Routes the actual import work to the v17
-    /// path (AEA) or rejects legacy manual imports.
+    /// `BackupTransactionManager`). Routes the actual import work to the
+    /// current decode path or rejects legacy manual imports.
     @discardableResult
     func importBackup(
         viewContext: NSManagedObjectContext,
@@ -173,32 +165,18 @@ final class BackupCoordinator {
         mode: BackupService.RestoreMode,
         progress: @escaping BackupService.ProgressCallback
     ) async throws -> BackupOperationSummary {
-        guard BackupArchive.isAEAFormat(at: url) else {
+        guard BackupArchive.isBackupArchive(at: url) else {
             throw ImportError.legacyManualImportNoLongerSupported
         }
 
-        return try await importAEA(
-            viewContext: viewContext,
-            from: url,
-            mode: mode,
-            progress: progress
-        )
-    }
-
-    private func importAEA(
-        viewContext: NSManagedObjectContext,
-        from url: URL,
-        mode: BackupService.RestoreMode,
-        progress: @escaping BackupService.ProgressCallback
-    ) async throws -> BackupOperationSummary {
         let needsAccess = url.startAccessingSecurityScopedResource()
         defer { if needsAccess { url.stopAccessingSecurityScopedResource() } }
 
-        progress(0.10, "Reading v17 archive\u{2026}")
-        let decoded = try BackupReader.read(from: url)
+        progress(0.10, "Reading archive\u{2026}")
+        let archive = try await BackupImporter.decodeArchive(at: url)
 
         return try await BackupImporter.importDecoded(
-            decoded,
+            archive,
             from: url,
             into: viewContext,
             mode: mode,

@@ -63,8 +63,8 @@ extension BackupService {
 
     // swiftlint:disable:next function_parameter_count function_body_length
     /// Post-decode import path. Shared by:
-    ///   - `Backup2.BackupCoordinator` for v17 AEA imports (which reconstructs
-    ///     a `BackupPayload` from AEA entries then calls this)
+    ///   - `Backup2.BackupCoordinator` for archive imports (which reconstructs
+    ///     a `BackupPayload` from archive entries then calls this)
     /// Centralizing this method means deleteAll, the entity-import dispatch,
     /// the denormalized-field repair, and the CloudKit-sync wait all share one
     /// code path across format versions.
@@ -99,39 +99,53 @@ extension BackupService {
             }
         }
 
+        // One fetch per entity type instead of one fetch per record. Built
+        // lazily so child-type lookups see parents inserted earlier in this
+        // same restore (see BackupEntityIndex).
+        let index = BackupEntityIndex(context: viewContext)
+
         progress(RestoreProgress.coreEntities, "Importing records\u{2026}")
-        try importCoreEntities(from: payload, into: viewContext)
-        try importCalendarAndRecordEntities(from: payload, into: viewContext)
-        try importProjectEntities(from: payload, into: viewContext)
+        try importCoreEntities(from: payload, into: viewContext, index: index)
+        try importCalendarAndRecordEntities(from: payload, into: viewContext, index: index)
+        try importProjectEntities(from: payload, into: viewContext, index: index)
 
         progress(RestoreProgress.workTracking, "Importing work tracking\u{2026}")
-        try importWorkTrackingEntities(from: payload, into: viewContext)
+        try importWorkTrackingEntities(from: payload, into: viewContext, index: index)
 
         progress(RestoreProgress.lessonExtras, "Importing lesson extras\u{2026}")
-        try importLessonExtras(from: payload, into: viewContext)
+        try importLessonExtras(from: payload, into: viewContext, index: index)
 
         progress(RestoreProgress.templates, "Importing templates\u{2026}")
-        try importTemplateEntities(from: payload, into: viewContext)
+        try importTemplateEntities(from: payload, into: viewContext, index: index)
 
         progress(RestoreProgress.tracks, "Importing tracks\u{2026}")
-        try importTrackEntities(from: payload, into: viewContext)
+        try importTrackEntities(from: payload, into: viewContext, index: index)
 
         progress(RestoreProgress.documentsSupplies, "Importing documents & supplies\u{2026}")
-        try importDocumentEntities(from: payload, into: viewContext)
+        try importDocumentEntities(from: payload, into: viewContext, index: index)
 
         progress(RestoreProgress.schedules, "Importing schedules\u{2026}")
-        try importScheduleEntities(from: payload, into: viewContext)
+        try importScheduleEntities(from: payload, into: viewContext, index: index)
 
         progress(RestoreProgress.issues, "Importing issues\u{2026}")
-        try importIssueEntities(from: payload, into: viewContext)
+        try importIssueEntities(from: payload, into: viewContext, index: index)
 
         progress(RestoreProgress.snapshotsTodos, "Importing snapshots & todos\u{2026}")
-        try importSnapshotAndTodoEntities(from: payload, into: viewContext)
+        try importSnapshotAndTodoEntities(from: payload, into: viewContext, index: index)
 
         progress(RestoreProgress.additionalEntities, "Importing recommendations, resources & links\u{2026}")
-        try importAdditionalEntities(from: payload, into: viewContext)
-        try importV12Entities(from: payload, into: viewContext)
-        try importV18Entities(from: payload, into: viewContext)
+        try importAdditionalEntities(from: payload, into: viewContext, index: index)
+        try importV12Entities(from: payload, into: viewContext, index: index)
+        try importV18Entities(from: payload, into: viewContext, index: index)
+
+        // Subscribe to CloudKit export events BEFORE saving — a fast export
+        // could otherwise complete between save() and subscription, leaving
+        // the user staring at a 30-second timeout for an event that already
+        // fired.
+        let cloudExportWait = Task {
+            await awaitCloudKitExport(viewContext: viewContext, timeout: .seconds(30))
+        }
+        defer { cloudExportWait.cancel() }
 
         progress(RestoreProgress.saving, "Saving\u{2026}")
         try viewContext.save()
@@ -146,7 +160,7 @@ extension BackupService {
         // to upload the new records. Block briefly so users see a definitive "synced" message
         // when possible; on timeout, surface that sync is continuing in the background.
         progress(RestoreProgress.cloudSync, "Syncing to iCloud\u{2026}")
-        let cloudResult = await awaitCloudKitExport(viewContext: viewContext, timeout: .seconds(30))
+        let cloudResult = await cloudExportWait.value
 
         var warnings: [String] = []
         switch cloudResult {
@@ -233,104 +247,107 @@ extension BackupService {
 
     private func importCoreEntities(
         from payload: BackupPayload,
-        into viewContext: NSManagedObjectContext
+        into viewContext: NSManagedObjectContext,
+        index: BackupEntityIndex
     ) throws {
         _ = try BackupEntityImporter.importStudents(
             payload.students,
             into: viewContext,
-            existingCheck: { try fetchOne(CDStudent.self, id: $0, using: viewContext) }
+            existingCheck: { try index.find(CDStudent.self, id: $0) }
         )
 
         try BackupEntityImporter.importLessons(
             payload.lessons,
             into: viewContext,
-            existingCheck: { try fetchOne(CDLesson.self, id: $0, using: viewContext) }
+            existingCheck: { try index.find(CDLesson.self, id: $0) }
         )
 
         try BackupEntityImporter.importCommunityTopics(
             payload.communityTopics,
             into: viewContext,
-            existingCheck: { try fetchOne(CDCommunityTopicEntity.self, id: $0, using: viewContext) }
+            existingCheck: { try index.find(CDCommunityTopicEntity.self, id: $0) }
         )
 
         try BackupEntityImporter.importLessonAssignments(
             payload.lessonAssignments,
             into: viewContext,
-            existingCheck: { try fetchOne(CDLessonAssignment.self, id: $0, using: viewContext) },
-            lessonCheck: { try fetchOne(CDLesson.self, id: $0, using: viewContext) }
+            existingCheck: { try index.find(CDLessonAssignment.self, id: $0) },
+            lessonCheck: { try index.related(CDLesson.self, id: $0) }
         )
 
         try BackupEntityImporter.importNotes(
             payload.notes,
             into: viewContext,
-            existingCheck: { try fetchOne(CDNote.self, id: $0, using: viewContext) },
-            lessonCheck: { try fetchOne(CDLesson.self, id: $0, using: viewContext) }
+            existingCheck: { try index.find(CDNote.self, id: $0) },
+            lessonCheck: { try index.related(CDLesson.self, id: $0) }
         )
     }
 
     private func importCalendarAndRecordEntities(
         from payload: BackupPayload,
-        into viewContext: NSManagedObjectContext
+        into viewContext: NSManagedObjectContext,
+        index: BackupEntityIndex
     ) throws {
         try BackupEntityImporter.importNonSchoolDays(
             payload.nonSchoolDays,
             into: viewContext,
-            existingCheck: { try fetchOne(CDNonSchoolDay.self, id: $0, using: viewContext) }
+            existingCheck: { try index.find(CDNonSchoolDay.self, id: $0) }
         )
 
         try BackupEntityImporter.importSchoolDayOverrides(
             payload.schoolDayOverrides,
             into: viewContext,
-            existingCheck: { try fetchOne(CDSchoolDayOverride.self, id: $0, using: viewContext) }
+            existingCheck: { try index.find(CDSchoolDayOverride.self, id: $0) }
         )
 
         try BackupEntityImporter.importStudentMeetings(
             payload.studentMeetings,
             into: viewContext,
-            existingCheck: { try fetchOne(CDStudentMeeting.self, id: $0, using: viewContext) }
+            existingCheck: { try index.find(CDStudentMeeting.self, id: $0) }
         )
 
         try BackupEntityImporter.importProposedSolutions(
             payload.proposedSolutions,
             into: viewContext,
-            existingCheck: { try fetchOne(CDProposedSolutionEntity.self, id: $0, using: viewContext) },
-            topicCheck: { try fetchOne(CDCommunityTopicEntity.self, id: $0, using: viewContext) }
+            existingCheck: { try index.find(CDProposedSolutionEntity.self, id: $0) },
+            topicCheck: { try index.related(CDCommunityTopicEntity.self, id: $0) }
         )
 
         try BackupEntityImporter.importCommunityAttachments(
             payload.communityAttachments,
             into: viewContext,
-            existingCheck: { try fetchOne(CDCommunityAttachmentEntity.self, id: $0, using: viewContext) },
-            topicCheck: { try fetchOne(CDCommunityTopicEntity.self, id: $0, using: viewContext) }
+            existingCheck: { try index.find(CDCommunityAttachmentEntity.self, id: $0) },
+            topicCheck: { try index.related(CDCommunityTopicEntity.self, id: $0) }
         )
 
         try BackupEntityImporter.importAttendanceRecords(
             payload.attendance,
             into: viewContext,
-            existingCheck: { try fetchOne(CDAttendanceRecord.self, id: $0, using: viewContext) }
+            existingCheck: { try index.find(CDAttendanceRecord.self, id: $0) }
         )
 
         try BackupEntityImporter.importWorkCompletionRecords(
             payload.workCompletions,
             into: viewContext,
-            existingCheck: { try fetchOne(CDWorkCompletionRecord.self, id: $0, using: viewContext) }
+            existingCheck: { try index.find(CDWorkCompletionRecord.self, id: $0) }
         )
     }
 
     private func importProjectEntities(
         from payload: BackupPayload,
-        into viewContext: NSManagedObjectContext
+        into viewContext: NSManagedObjectContext,
+        index: BackupEntityIndex
     ) throws {
         try BackupEntityImporter.importProjects(
             payload.projects,
             into: viewContext,
-            existingCheck: { try fetchOne(CDProject.self, id: $0, using: viewContext) }
+            existingCheck: { try index.find(CDProject.self, id: $0) }
         )
 
         try BackupEntityImporter.importProjectRoles(
             payload.projectRoles,
             into: viewContext,
-            existingCheck: { try fetchOne(CDProjectRole.self, id: $0, using: viewContext) }
+            existingCheck: { try index.find(CDProjectRole.self, id: $0) }
         )
 
         // Import of CDProjectTemplateWeek, CDProjectAssignmentTemplate, and
@@ -339,20 +356,21 @@ extension BackupService {
         try BackupEntityImporter.importProjectSessions(
             payload.projectSessions,
             into: viewContext,
-            existingCheck: { try fetchOne(CDProjectSession.self, id: $0, using: viewContext) }
+            existingCheck: { try index.find(CDProjectSession.self, id: $0) }
         )
     }
 
     private func importWorkTrackingEntities(
         from payload: BackupPayload,
-        into viewContext: NSManagedObjectContext
+        into viewContext: NSManagedObjectContext,
+        index: BackupEntityIndex
     ) throws {
         // CDWorkModel must be imported first — child entities reference it
         if let workModels = payload.workModels {
             try BackupEntityImporter.importWorkModels(
                 workModels,
                 into: viewContext,
-                existingCheck: { try fetchOne(CDWorkModel.self, id: $0, using: viewContext) }
+                existingCheck: { try index.find(CDWorkModel.self, id: $0) }
             )
         }
 
@@ -360,8 +378,8 @@ extension BackupService {
             try BackupEntityImporter.importWorkCheckIns(
                 workCheckIns,
                 into: viewContext,
-                existingCheck: { try fetchOne(CDWorkCheckIn.self, id: $0, using: viewContext) },
-                workCheck: { try fetchOne(CDWorkModel.self, id: $0, using: viewContext) }
+                existingCheck: { try index.find(CDWorkCheckIn.self, id: $0) },
+                workCheck: { try index.related(CDWorkModel.self, id: $0) }
             )
         }
 
@@ -369,8 +387,8 @@ extension BackupService {
             try BackupEntityImporter.importWorkSteps(
                 workSteps,
                 into: viewContext,
-                existingCheck: { try fetchOne(CDWorkStep.self, id: $0, using: viewContext) },
-                workCheck: { try fetchOne(CDWorkModel.self, id: $0, using: viewContext) }
+                existingCheck: { try index.find(CDWorkStep.self, id: $0) },
+                workCheck: { try index.related(CDWorkModel.self, id: $0) }
             )
         }
 
@@ -378,8 +396,8 @@ extension BackupService {
             try BackupEntityImporter.importWorkParticipants(
                 workParticipants,
                 into: viewContext,
-                existingCheck: { try fetchOne(CDWorkParticipantEntity.self, id: $0, using: viewContext) },
-                workCheck: { try fetchOne(CDWorkModel.self, id: $0, using: viewContext) }
+                existingCheck: { try index.find(CDWorkParticipantEntity.self, id: $0) },
+                workCheck: { try index.related(CDWorkModel.self, id: $0) }
             )
         }
 
@@ -387,21 +405,22 @@ extension BackupService {
             try BackupEntityImporter.importPracticeSessions(
                 practiceSessions,
                 into: viewContext,
-                existingCheck: { try fetchOne(CDPracticeSession.self, id: $0, using: viewContext) }
+                existingCheck: { try index.find(CDPracticeSession.self, id: $0) }
             )
         }
     }
 
     private func importLessonExtras(
         from payload: BackupPayload,
-        into viewContext: NSManagedObjectContext
+        into viewContext: NSManagedObjectContext,
+        index: BackupEntityIndex
     ) throws {
         if let lessonAttachments = payload.lessonAttachments {
             try BackupEntityImporter.importLessonAttachments(
                 lessonAttachments,
                 into: viewContext,
-                existingCheck: { try fetchOne(CDLessonAttachment.self, id: $0, using: viewContext) },
-                lessonCheck: { try fetchOne(CDLesson.self, id: $0, using: viewContext) }
+                existingCheck: { try index.find(CDLessonAttachment.self, id: $0) },
+                lessonCheck: { try index.related(CDLesson.self, id: $0) }
             )
         }
 
@@ -409,7 +428,7 @@ extension BackupService {
             try BackupEntityImporter.importLessonPresentations(
                 lessonPresentations,
                 into: viewContext,
-                existingCheck: { try fetchOne(CDLessonPresentation.self, id: $0, using: viewContext) }
+                existingCheck: { try index.find(CDLessonPresentation.self, id: $0) }
             )
         }
 
@@ -417,8 +436,8 @@ extension BackupService {
             try BackupEntityImporter.importSampleWorks(
                 sampleWorks,
                 into: viewContext,
-                existingCheck: { try fetchOne(CDSampleWork.self, id: $0, using: viewContext) },
-                lessonCheck: { try fetchOne(CDLesson.self, id: $0, using: viewContext) }
+                existingCheck: { try index.find(CDSampleWork.self, id: $0) },
+                lessonCheck: { try index.related(CDLesson.self, id: $0) }
             )
         }
 
@@ -426,21 +445,22 @@ extension BackupService {
             try BackupEntityImporter.importSampleWorkSteps(
                 sampleWorkSteps,
                 into: viewContext,
-                existingCheck: { try fetchOne(CDSampleWorkStep.self, id: $0, using: viewContext) },
-                sampleWorkCheck: { try fetchOne(CDSampleWork.self, id: $0, using: viewContext) }
+                existingCheck: { try index.find(CDSampleWorkStep.self, id: $0) },
+                sampleWorkCheck: { try index.related(CDSampleWork.self, id: $0) }
             )
         }
     }
 
     private func importTemplateEntities(
         from payload: BackupPayload,
-        into viewContext: NSManagedObjectContext
+        into viewContext: NSManagedObjectContext,
+        index: BackupEntityIndex
     ) throws {
         if let noteTemplates = payload.noteTemplates {
             try BackupEntityImporter.importNoteTemplates(
                 noteTemplates,
                 into: viewContext,
-                existingCheck: { try fetchOne(CDNoteTemplate.self, id: $0, using: viewContext) }
+                existingCheck: { try index.find(CDNoteTemplate.self, id: $0) }
             )
         }
 
@@ -448,7 +468,7 @@ extension BackupService {
             try BackupEntityImporter.importMeetingTemplates(
                 meetingTemplates,
                 into: viewContext,
-                existingCheck: { try fetchOne(CDMeetingTemplate.self, id: $0, using: viewContext) }
+                existingCheck: { try index.find(CDMeetingTemplate.self, id: $0) }
             )
         }
 
@@ -456,7 +476,7 @@ extension BackupService {
             try BackupEntityImporter.importReminders(
                 reminders,
                 into: viewContext,
-                existingCheck: { try fetchOne(CDReminder.self, id: $0, using: viewContext) }
+                existingCheck: { try index.find(CDReminder.self, id: $0) }
             )
         }
 
@@ -464,20 +484,21 @@ extension BackupService {
             try BackupEntityImporter.importCalendarEvents(
                 calendarEvents,
                 into: viewContext,
-                existingCheck: { try fetchOne(CDCalendarEvent.self, id: $0, using: viewContext) }
+                existingCheck: { try index.find(CDCalendarEvent.self, id: $0) }
             )
         }
     }
 
     private func importTrackEntities(
         from payload: BackupPayload,
-        into viewContext: NSManagedObjectContext
+        into viewContext: NSManagedObjectContext,
+        index: BackupEntityIndex
     ) throws {
         if let tracks = payload.tracks {
             try BackupEntityImporter.importTracks(
                 tracks,
                 into: viewContext,
-                existingCheck: { try fetchOne(CDTrackEntity.self, id: $0, using: viewContext) }
+                existingCheck: { try index.find(CDTrackEntity.self, id: $0) }
             )
         }
 
@@ -485,8 +506,8 @@ extension BackupService {
             try BackupEntityImporter.importTrackSteps(
                 trackSteps,
                 into: viewContext,
-                existingCheck: { try fetchOne(CDTrackStepEntity.self, id: $0, using: viewContext) },
-                trackCheck: { try fetchOne(CDTrackEntity.self, id: $0, using: viewContext) }
+                existingCheck: { try index.find(CDTrackStepEntity.self, id: $0) },
+                trackCheck: { try index.related(CDTrackEntity.self, id: $0) }
             )
         }
 
@@ -494,9 +515,9 @@ extension BackupService {
             try BackupEntityImporter.importStudentTrackEnrollments(
                 enrollments,
                 into: viewContext,
-                existingCheck: { try fetchOne(CDStudentTrackEnrollmentEntity.self, id: $0, using: viewContext) },
-                studentCheck: { try fetchOne(CDStudent.self, id: $0, using: viewContext) },
-                trackCheck: { try fetchOne(CDTrackEntity.self, id: $0, using: viewContext) }
+                existingCheck: { try index.find(CDStudentTrackEnrollmentEntity.self, id: $0) },
+                studentCheck: { try index.related(CDStudent.self, id: $0) },
+                trackCheck: { try index.related(CDTrackEntity.self, id: $0) }
             )
         }
 
@@ -504,21 +525,22 @@ extension BackupService {
             try BackupEntityImporter.importSequenceTracks(
                 sequenceTracks,
                 into: viewContext,
-                existingCheck: { try fetchOne(CDSequenceTrack.self, id: $0, using: viewContext) }
+                existingCheck: { try index.find(CDSequenceTrack.self, id: $0) }
             )
         }
     }
 
     private func importDocumentEntities(
         from payload: BackupPayload,
-        into viewContext: NSManagedObjectContext
+        into viewContext: NSManagedObjectContext,
+        index: BackupEntityIndex
     ) throws {
         if let documents = payload.documents {
             try BackupEntityImporter.importDocuments(
                 documents,
                 into: viewContext,
-                existingCheck: { try fetchOne(CDDocument.self, id: $0, using: viewContext) },
-                studentCheck: { try fetchOne(CDStudent.self, id: $0, using: viewContext) }
+                existingCheck: { try index.find(CDDocument.self, id: $0) },
+                studentCheck: { try index.related(CDStudent.self, id: $0) }
             )
         }
 
@@ -526,7 +548,7 @@ extension BackupService {
             try BackupEntityImporter.importSupplies(
                 supplies,
                 into: viewContext,
-                existingCheck: { try fetchOne(CDSupply.self, id: $0, using: viewContext) }
+                existingCheck: { try index.find(CDSupply.self, id: $0) }
             )
         }
 
@@ -534,20 +556,21 @@ extension BackupService {
             try BackupEntityImporter.importProcedures(
                 procedures,
                 into: viewContext,
-                existingCheck: { try fetchOne(CDProcedure.self, id: $0, using: viewContext) }
+                existingCheck: { try index.find(CDProcedure.self, id: $0) }
             )
         }
     }
 
     private func importScheduleEntities(
         from payload: BackupPayload,
-        into viewContext: NSManagedObjectContext
+        into viewContext: NSManagedObjectContext,
+        index: BackupEntityIndex
     ) throws {
         if let schedules = payload.schedules {
             try BackupEntityImporter.importSchedules(
                 schedules,
                 into: viewContext,
-                existingCheck: { try fetchOne(CDSchedule.self, id: $0, using: viewContext) }
+                existingCheck: { try index.find(CDSchedule.self, id: $0) }
             )
         }
 
@@ -555,21 +578,22 @@ extension BackupService {
             try BackupEntityImporter.importScheduleSlots(
                 scheduleSlots,
                 into: viewContext,
-                existingCheck: { try fetchOne(CDScheduleSlot.self, id: $0, using: viewContext) },
-                scheduleCheck: { try fetchOne(CDSchedule.self, id: $0, using: viewContext) }
+                existingCheck: { try index.find(CDScheduleSlot.self, id: $0) },
+                scheduleCheck: { try index.related(CDSchedule.self, id: $0) }
             )
         }
     }
 
     private func importIssueEntities(
         from payload: BackupPayload,
-        into viewContext: NSManagedObjectContext
+        into viewContext: NSManagedObjectContext,
+        index: BackupEntityIndex
     ) throws {
         if let issues = payload.issues {
             try BackupEntityImporter.importIssues(
                 issues,
                 into: viewContext,
-                existingCheck: { try fetchOne(CDIssue.self, id: $0, using: viewContext) }
+                existingCheck: { try index.find(CDIssue.self, id: $0) }
             )
         }
 
@@ -577,21 +601,22 @@ extension BackupService {
             try BackupEntityImporter.importIssueActions(
                 issueActions,
                 into: viewContext,
-                existingCheck: { try fetchOne(CDIssueAction.self, id: $0, using: viewContext) },
-                issueCheck: { try fetchOne(CDIssue.self, id: $0, using: viewContext) }
+                existingCheck: { try index.find(CDIssueAction.self, id: $0) },
+                issueCheck: { try index.related(CDIssue.self, id: $0) }
             )
         }
     }
 
     private func importSnapshotAndTodoEntities(
         from payload: BackupPayload,
-        into viewContext: NSManagedObjectContext
+        into viewContext: NSManagedObjectContext,
+        index: BackupEntityIndex
     ) throws {
         if let snapshots = payload.developmentSnapshots {
             try BackupEntityImporter.importDevelopmentSnapshots(
                 snapshots,
                 into: viewContext,
-                existingCheck: { try fetchOne(CDDevelopmentSnapshotEntity.self, id: $0, using: viewContext) }
+                existingCheck: { try index.find(CDDevelopmentSnapshotEntity.self, id: $0) }
             )
         }
 
@@ -599,7 +624,7 @@ extension BackupService {
             try BackupEntityImporter.importTodoItems(
                 todoItems,
                 into: viewContext,
-                existingCheck: { try fetchOne(CDTodoItem.self, id: $0, using: viewContext) }
+                existingCheck: { try index.find(CDTodoItem.self, id: $0) }
             )
         }
 
@@ -607,8 +632,8 @@ extension BackupService {
             try BackupEntityImporter.importTodoSubtasks(
                 todoSubtasks,
                 into: viewContext,
-                existingCheck: { try fetchOne(CDTodoSubtask.self, id: $0, using: viewContext) },
-                todoCheck: { try fetchOne(CDTodoItem.self, id: $0, using: viewContext) }
+                existingCheck: { try index.find(CDTodoSubtask.self, id: $0) },
+                todoCheck: { try index.related(CDTodoItem.self, id: $0) }
             )
         }
 
@@ -616,7 +641,7 @@ extension BackupService {
             try BackupEntityImporter.importTodoTemplates(
                 todoTemplates,
                 into: viewContext,
-                existingCheck: { try fetchOne(CDTodoTemplate.self, id: $0, using: viewContext) }
+                existingCheck: { try index.find(CDTodoTemplate.self, id: $0) }
             )
         }
 
@@ -624,20 +649,21 @@ extension BackupService {
             try BackupEntityImporter.importTodayAgendaOrders(
                 agendaOrders,
                 into: viewContext,
-                existingCheck: { try fetchOne(CDTodayAgendaOrder.self, id: $0, using: viewContext) }
+                existingCheck: { try index.find(CDTodayAgendaOrder.self, id: $0) }
             )
         }
     }
 
     private func importAdditionalEntities(
         from payload: BackupPayload,
-        into viewContext: NSManagedObjectContext
+        into viewContext: NSManagedObjectContext,
+        index: BackupEntityIndex
     ) throws {
         if let recommendations = payload.planningRecommendations {
             try BackupEntityImporter.importPlanningRecommendations(
                 recommendations,
                 into: viewContext,
-                existingCheck: { try fetchOne(CDPlanningRecommendation.self, id: $0, using: viewContext) }
+                existingCheck: { try index.find(CDPlanningRecommendation.self, id: $0) }
             )
         }
 
@@ -645,7 +671,7 @@ extension BackupService {
             try BackupEntityImporter.importResources(
                 resources,
                 into: viewContext,
-                existingCheck: { try fetchOne(CDResource.self, id: $0, using: viewContext) }
+                existingCheck: { try index.find(CDResource.self, id: $0) }
             )
         }
 
@@ -653,21 +679,22 @@ extension BackupService {
             try BackupEntityImporter.importNoteStudentLinks(
                 noteStudentLinks,
                 into: viewContext,
-                existingCheck: { try fetchOne(CDNoteStudentLink.self, id: $0, using: viewContext) },
-                noteCheck: { try fetchOne(CDNote.self, id: $0, using: viewContext) }
+                existingCheck: { try index.find(CDNoteStudentLink.self, id: $0) },
+                noteCheck: { try index.related(CDNote.self, id: $0) }
             )
         }
     }
 
     private func importV12Entities(
         from payload: BackupPayload,
-        into viewContext: NSManagedObjectContext
+        into viewContext: NSManagedObjectContext,
+        index: BackupEntityIndex
     ) throws {
         if let goingOuts = payload.goingOuts {
             try BackupEntityImporter.importGoingOuts(
                 goingOuts,
                 into: viewContext,
-                existingCheck: { try fetchOne(CDGoingOut.self, id: $0, using: viewContext) }
+                existingCheck: { try index.find(CDGoingOut.self, id: $0) }
             )
         }
 
@@ -675,8 +702,8 @@ extension BackupService {
             try BackupEntityImporter.importGoingOutChecklistItems(
                 goingOutItems,
                 into: viewContext,
-                existingCheck: { try fetchOne(CDGoingOutChecklistItem.self, id: $0, using: viewContext) },
-                goingOutCheck: { try fetchOne(CDGoingOut.self, id: $0, using: viewContext) }
+                existingCheck: { try index.find(CDGoingOutChecklistItem.self, id: $0) },
+                goingOutCheck: { try index.related(CDGoingOut.self, id: $0) }
             )
         }
 
@@ -684,7 +711,7 @@ extension BackupService {
             try BackupEntityImporter.importClassroomJobs(
                 classroomJobs,
                 into: viewContext,
-                existingCheck: { try fetchOne(CDClassroomJob.self, id: $0, using: viewContext) }
+                existingCheck: { try index.find(CDClassroomJob.self, id: $0) }
             )
         }
 
@@ -692,8 +719,8 @@ extension BackupService {
             try BackupEntityImporter.importJobAssignments(
                 jobAssignments,
                 into: viewContext,
-                existingCheck: { try fetchOne(CDJobAssignment.self, id: $0, using: viewContext) },
-                jobCheck: { try fetchOne(CDClassroomJob.self, id: $0, using: viewContext) }
+                existingCheck: { try index.find(CDJobAssignment.self, id: $0) },
+                jobCheck: { try index.related(CDClassroomJob.self, id: $0) }
             )
         }
 
@@ -701,7 +728,7 @@ extension BackupService {
             try BackupEntityImporter.importCalendarNotes(
                 calendarNotes,
                 into: viewContext,
-                existingCheck: { try fetchOne(CDCalendarNote.self, id: $0, using: viewContext) }
+                existingCheck: { try index.find(CDCalendarNote.self, id: $0) }
             )
         }
 
@@ -709,7 +736,7 @@ extension BackupService {
             try BackupEntityImporter.importScheduledMeetings(
                 scheduledMeetings,
                 into: viewContext,
-                existingCheck: { try fetchOne(CDScheduledMeeting.self, id: $0, using: viewContext) }
+                existingCheck: { try index.find(CDScheduledMeeting.self, id: $0) }
             )
         }
 
@@ -718,7 +745,7 @@ extension BackupService {
             try BackupEntityImporter.importClassroomMemberships(
                 memberships,
                 into: viewContext,
-                existingCheck: { try fetchOne(CDClassroomMembership.self, id: $0, using: viewContext) }
+                existingCheck: { try index.find(CDClassroomMembership.self, id: $0) }
             )
         }
 
@@ -743,13 +770,14 @@ extension BackupService {
     /// their `session` relationship against sessions already in the context.
     private func importV18Entities(
         from payload: BackupPayload,
-        into viewContext: NSManagedObjectContext
+        into viewContext: NSManagedObjectContext,
+        index: BackupEntityIndex
     ) throws {
         if let dayPads = payload.dayPads {
             try BackupEntityImporter.importDayPads(
                 dayPads,
                 into: viewContext,
-                existingCheck: { try fetchOne(CDDayPad.self, id: $0, using: viewContext) }
+                existingCheck: { try index.find(CDDayPad.self, id: $0) }
             )
         }
 
@@ -757,7 +785,7 @@ extension BackupService {
             try BackupEntityImporter.importYearPlanEntries(
                 yearPlanEntries,
                 into: viewContext,
-                existingCheck: { try fetchOne(CDYearPlanEntry.self, id: $0, using: viewContext) }
+                existingCheck: { try index.find(CDYearPlanEntry.self, id: $0) }
             )
         }
 
@@ -765,7 +793,7 @@ extension BackupService {
             try BackupEntityImporter.importLessonSequenceSettings(
                 sequenceSettings,
                 into: viewContext,
-                existingCheck: { try fetchOne(CDLessonSequenceSettings.self, id: $0, using: viewContext) }
+                existingCheck: { try index.find(CDLessonSequenceSettings.self, id: $0) }
             )
         }
 
@@ -773,7 +801,7 @@ extension BackupService {
             try BackupEntityImporter.importStories(
                 stories,
                 into: viewContext,
-                existingCheck: { try fetchOne(CDStory.self, id: $0, using: viewContext) }
+                existingCheck: { try index.find(CDStory.self, id: $0) }
             )
         }
 
@@ -781,7 +809,7 @@ extension BackupService {
             try BackupEntityImporter.importBookClubPackets(
                 packets,
                 into: viewContext,
-                existingCheck: { try fetchOne(CDBookClubPacket.self, id: $0, using: viewContext) }
+                existingCheck: { try index.find(CDBookClubPacket.self, id: $0) }
             )
         }
 
@@ -789,7 +817,7 @@ extension BackupService {
             try BackupEntityImporter.importBookClubSessions(
                 sessions,
                 into: viewContext,
-                existingCheck: { try fetchOne(CDBookClubSession.self, id: $0, using: viewContext) }
+                existingCheck: { try index.find(CDBookClubSession.self, id: $0) }
             )
         }
 
@@ -797,8 +825,8 @@ extension BackupService {
             try BackupEntityImporter.importBookClubMeetings(
                 meetings,
                 into: viewContext,
-                existingCheck: { try fetchOne(CDBookClubMeeting.self, id: $0, using: viewContext) },
-                sessionCheck: { try fetchOne(CDBookClubSession.self, id: $0, using: viewContext) }
+                existingCheck: { try index.find(CDBookClubMeeting.self, id: $0) },
+                sessionCheck: { try index.related(CDBookClubSession.self, id: $0) }
             )
         }
     }

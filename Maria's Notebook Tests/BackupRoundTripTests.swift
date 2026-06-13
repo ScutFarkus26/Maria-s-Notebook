@@ -22,8 +22,8 @@ private enum BackupTestUtil {
     /// No-op progress callback for tests that don't care about UI updates.
     static let noopProgress: BackupService.ProgressCallback = { _, _ in }
 
-    static func writeCurrentBackup(from context: NSManagedObjectContext, to url: URL) throws {
-        _ = try BackupWriter.write(viewContext: context, to: url, progress: noopProgress)
+    static func writeCurrentBackup(from context: NSManagedObjectContext, to url: URL) async throws {
+        _ = try await BackupWriter.write(viewContext: context, to: url, progress: noopProgress)
     }
 
     static func importCurrentBackup(
@@ -31,9 +31,9 @@ private enum BackupTestUtil {
         into context: NSManagedObjectContext,
         mode: BackupService.RestoreMode
     ) async throws {
-        let decoded = try BackupReader.read(from: url)
+        let archive = try await BackupImporter.decodeArchive(at: url)
         _ = try await BackupImporter.importDecoded(
-            decoded,
+            archive,
             from: url,
             into: context,
             mode: mode,
@@ -113,7 +113,7 @@ final class BackupRoundTripTests {
         let url = BackupTestUtil.tempBackupURL()
         defer { BackupTestUtil.cleanup(url) }
 
-        try BackupTestUtil.writeCurrentBackup(from: sourceStack.viewContext, to: url)
+        try await BackupTestUtil.writeCurrentBackup(from: sourceStack.viewContext, to: url)
         #expect(FileManager.default.fileExists(atPath: url.path))
 
         // Verify the file is structurally valid.
@@ -135,20 +135,24 @@ final class BackupRoundTripTests {
         }
     }
 
-    @Test("Current backup file verifies as compressed archive")
-    func compressedArchive() throws {
+    @Test("Current backup file verifies as compressed, encrypted archive")
+    func compressedArchive() async throws {
         let sourceStack = try CoreDataTestHelpers.makeInMemoryStack()
         BackupTestUtil.seedBasicFixture(in: sourceStack.viewContext)
 
         let url = BackupTestUtil.tempBackupURL()
         defer { BackupTestUtil.cleanup(url) }
 
-        try BackupTestUtil.writeCurrentBackup(from: sourceStack.viewContext, to: url)
+        try await BackupTestUtil.writeCurrentBackup(from: sourceStack.viewContext, to: url)
 
         let info = try BackupVerification.verifyBackup(at: url).get()
         #expect(
             info.isCompressed,
             "Expected current backup archive to report compression"
+        )
+        #expect(
+            info.isEncrypted,
+            "Expected current backup archive to report encryption (v19 AEA)"
         )
     }
 
@@ -166,7 +170,7 @@ final class BackupRoundTripTests {
         let url = BackupTestUtil.tempBackupURL()
         defer { BackupTestUtil.cleanup(url) }
 
-        try BackupTestUtil.writeCurrentBackup(from: sourceStack.viewContext, to: url)
+        try await BackupTestUtil.writeCurrentBackup(from: sourceStack.viewContext, to: url)
 
         let destStack = try CoreDataTestHelpers.makeInMemoryStack()
         try await BackupTestUtil.importCurrentBackup(from: url, into: destStack.viewContext, mode: .merge)
@@ -248,7 +252,7 @@ final class BackupRestoreModeTests {
         let url = BackupTestUtil.tempBackupURL()
         defer { BackupTestUtil.cleanup(url) }
 
-        try BackupTestUtil.writeCurrentBackup(from: sourceStack.viewContext, to: url)
+        try await BackupTestUtil.writeCurrentBackup(from: sourceStack.viewContext, to: url)
 
         // Destination starts with one distinct student; merge should not drop it.
         let destStack = try CoreDataTestHelpers.makeInMemoryStack()
@@ -270,7 +274,7 @@ final class BackupRestoreModeTests {
         let url = BackupTestUtil.tempBackupURL()
         defer { BackupTestUtil.cleanup(url) }
 
-        try BackupTestUtil.writeCurrentBackup(from: sourceStack.viewContext, to: url)
+        try await BackupTestUtil.writeCurrentBackup(from: sourceStack.viewContext, to: url)
 
         // Corrupt by truncating the last 100 bytes — enough to break the archive.
         var data = try Data(contentsOf: url)
@@ -289,14 +293,14 @@ final class BackupRestoreModeTests {
     }
 }
 
-// MARK: - Suite 3b: Backup2 (v17 AEA) round-trip
+// MARK: - Suite 3b: Backup2 archive round-trip (v19 encrypted)
 
-@Suite("Backup2 v17 AEA round-trip")
+@Suite("Backup2 archive round-trip")
 @MainActor
 final class Backup2RoundTripTests {
 
-    @Test("v17 AEA file: writes magic bytes, round-trips through reader+importer")
-    func aeaRoundTrip() async throws {
+    @Test("v19 file: encrypted AA01 container, round-trips through reader+importer")
+    func archiveRoundTrip() async throws {
         // Build a source stack with the standard fixture and export via BackupWriter.
         let sourceStack = try CoreDataTestHelpers.makeInMemoryStack()
         let expected = BackupTestUtil.seedBasicFixture(in: sourceStack.viewContext)
@@ -304,28 +308,29 @@ final class Backup2RoundTripTests {
         let url = BackupTestUtil.tempBackupURL()
         defer { BackupTestUtil.cleanup(url) }
 
-        let exportSummary = try BackupWriter.write(
+        let exportSummary = try await BackupWriter.write(
             viewContext: sourceStack.viewContext,
             to: url,
             progress: { _, _ in }
         )
         #expect(exportSummary.formatVersion == BackupWriter.formatVersion)
-        #expect(exportSummary.encryptUsed == false)
+        #expect(exportSummary.encryptUsed == true)
         #expect(FileManager.default.fileExists(atPath: url.path))
 
-        // Magic bytes assertion: the file must start with AEA's "AA01" so the
-        // coordinator detects it as a Backup2 file (not legacy JSON envelope).
-        #expect(BackupArchive.isAEAFormat(at: url),
-                "Backup2 export must produce an AEA-framed file (first 4 bytes = AA01)")
+        // Magic bytes: v19 files are genuine Apple Encrypted Archives ("AEA1").
+        #expect(BackupArchive.isBackupArchive(at: url),
+                "Export must produce a readable backup archive")
+        #expect(BackupArchive.isEncryptedArchive(at: url),
+                "v19 export must produce an encrypted AEA container (first 4 bytes = AEA1)")
 
         // Round-trip: decode + import into a fresh stack.
-        let decoded = try BackupReader.read(from: url)
-        #expect(decoded.manifest.formatVersion == BackupWriter.formatVersion)
-        #expect(!decoded.entries.isEmpty, "Decoded backup should have at least one entry")
+        let archive = try await BackupImporter.decodeArchive(at: url)
+        #expect(archive.manifest.formatVersion == BackupWriter.formatVersion)
+        #expect(archive.warnings.isEmpty, "Clean archive should decode without warnings")
 
         let destStack = try CoreDataTestHelpers.makeInMemoryStack()
         _ = try await BackupImporter.importDecoded(
-            decoded,
+            archive,
             from: url,
             into: destStack.viewContext,
             mode: .merge,
@@ -337,20 +342,20 @@ final class Backup2RoundTripTests {
             let actual = try BackupTestUtil.count(entityName: entityName, in: destStack.viewContext)
             #expect(
                 actual >= expectedCount,
-                "Entity \(entityName) count mismatch after v17 restore: expected \(expectedCount), got \(actual)"
+                "Entity \(entityName) count mismatch after restore: expected \(expectedCount), got \(actual)"
             )
         }
     }
 
-    @Test("v17 AEA file verifies successfully through BackupVerification")
-    func aeaVerificationSucceeds() throws {
+    @Test("v19 file verifies successfully through BackupVerification")
+    func archiveVerificationSucceeds() async throws {
         let sourceStack = try CoreDataTestHelpers.makeInMemoryStack()
         BackupTestUtil.seedBasicFixture(in: sourceStack.viewContext)
 
         let url = BackupTestUtil.tempBackupURL()
         defer { BackupTestUtil.cleanup(url) }
 
-        _ = try BackupWriter.write(
+        _ = try await BackupWriter.write(
             viewContext: sourceStack.viewContext,
             to: url,
             progress: { _, _ in }
@@ -360,22 +365,23 @@ final class Backup2RoundTripTests {
         let info = try result.get()
         #expect(info.formatVersion == BackupWriter.formatVersion)
         #expect(info.isCompressed)
+        #expect(info.isEncrypted)
         #expect(info.entityCounts["Student"] ?? 0 >= 2)
     }
 
     @Test("Coordinator: legacy file detection returns false on a v16 envelope")
     func coordinatorDetectsLegacyFormat() throws {
-        // Construct a minimal legacy-style file (starts with `{`, not "AA01").
+        // Construct a minimal legacy-style file (starts with `{`, not an archive magic).
         let url = BackupTestUtil.tempBackupURL()
         defer { BackupTestUtil.cleanup(url) }
         try Data("{\"formatVersion\":16}".utf8).write(to: url)
 
-        #expect(!BackupArchive.isAEAFormat(at: url),
-                "Files starting with `{` should be classified as legacy, not AEA")
+        #expect(!BackupArchive.isBackupArchive(at: url),
+                "Files starting with `{` should be classified as legacy, not archive")
     }
 
-    @Test("v17 reader rejects a non-AEA file with a helpful error")
-    func readerRejectsNonAEAFile() throws {
+    @Test("Reader rejects a non-archive file with a helpful error")
+    func readerRejectsNonArchiveFile() throws {
         let url = BackupTestUtil.tempBackupURL()
         defer { BackupTestUtil.cleanup(url) }
         try Data("not a valid backup".utf8).write(to: url)
@@ -383,12 +389,12 @@ final class Backup2RoundTripTests {
         var threw = false
         do {
             _ = try BackupReader.read(from: url)
-        } catch BackupReader.ReadError.notAEAFormat {
+        } catch BackupReader.ReadError.notArchiveFormat {
             threw = true
         } catch {
             Issue.record("Reader threw unexpected error type: \(error)")
         }
-        #expect(threw, "Reader must throw notAEAFormat for files without the AA01 magic")
+        #expect(threw, "Reader must throw notArchiveFormat for files without a known magic")
     }
 
     /// Round-trips the seeded `ctx` through the full v18 serialization layer —
@@ -404,7 +410,7 @@ final class Backup2RoundTripTests {
     private static func roundTripV18(_ ctx: NSManagedObjectContext) async throws -> CoreDataStack {
         let service = BackupService()
         let payload = service.collectPayload(viewContext: ctx)
-        let entries = BackupWriter.serializeEntries(from: payload)
+        let entries = try BackupWriter.serializeEntries(from: payload)
         let manifest = BackupArchiveManifest(
             formatVersion: BackupWriter.formatVersion, createdAt: Date(),
             appVersion: "", appBuild: "", device: "", entityCounts: [:], originStores: [:]
@@ -412,7 +418,8 @@ final class Backup2RoundTripTests {
         let decoded = BackupReader.DecodedBackup(
             manifest: manifest, entries: entries, preferences: payload.preferences
         )
-        let reconstructed = try BackupImporter.reconstructPayload(from: decoded)
+        let (reconstructed, reconstructWarnings) = BackupImporter.reconstructPayload(from: decoded)
+        #expect(reconstructWarnings.isEmpty, "Round-trip should decode without warnings")
 
         let destStack = try CoreDataTestHelpers.makeInMemoryStack()
         _ = try await service.importPayload(

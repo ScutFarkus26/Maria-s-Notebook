@@ -7,8 +7,10 @@ import OSLog
 public struct BackupVerification {
     private static let logger = Logger.backup
     
-    // Verifies a backup file by attempting to read and decode its envelope
-    // Returns information about the backup if valid, or an error if invalid
+    // Verifies a backup file by streaming the whole archive: the manifest must
+    // decode, every entity entry must parse, and per-entry NDJSON row counts
+    // must match the manifest. Full container integrity (decrypt/decompress)
+    // without JSON-decoding every record or holding the payload in memory.
     public static func verifyBackup(at url: URL) -> Result<BackupInfo, Error> {
         do {
             // Check file exists
@@ -20,8 +22,8 @@ public struct BackupVerification {
                 ))
             }
 
-            if BackupArchive.isAEAFormat(at: url) {
-                return .success(try verifyAEAFormat(at: url))
+            if BackupArchive.isBackupArchive(at: url) {
+                return .success(try verifyArchive(at: url))
             }
 
             return .failure(NSError(
@@ -117,26 +119,46 @@ public struct BackupVerification {
         )
     }
 
-    private static func verifyAEAFormat(at url: URL) throws -> BackupInfo {
-        let decoded = try BackupReader.read(from: url)
+    private static func verifyArchive(at url: URL) throws -> BackupInfo {
+        let verification = try BackupReader.verifyStructure(at: url)
+        let manifest = verification.manifest
+
+        // The manifest's promised per-entity counts must match what's actually
+        // in the file — a truncated or tampered archive fails here.
+        for (entityName, expected) in manifest.entityCounts {
+            let actual = verification.entryLineCounts[entityName] ?? 0
+            guard actual == expected else {
+                throw NSError(
+                    domain: "BackupVerification",
+                    code: 3,
+                    userInfo: [
+                        NSLocalizedDescriptionKey:
+                            "Backup is damaged: \(entityName) promises \(expected) records " +
+                            "but the file contains \(actual)."
+                    ]
+                )
+            }
+        }
+
         let attributes = try FileManager.default.attributesOfItem(atPath: url.path)
         let fileSize = attributes[.size] as? Int64 ?? 0
         let modificationDate = attributes[.modificationDate] as? Date ?? Date()
+        let isEncrypted = BackupArchive.isEncryptedArchive(at: url)
 
         return BackupInfo(
             fileName: url.lastPathComponent,
             filePath: url.path,
             fileSize: fileSize,
-            createdAt: decoded.manifest.createdAt,
+            createdAt: manifest.createdAt,
             modifiedAt: modificationDate,
-            formatVersion: decoded.manifest.formatVersion,
-            appVersion: decoded.manifest.appVersion,
-            appBuild: decoded.manifest.appBuild,
-            device: decoded.manifest.device,
-            isEncrypted: false,
+            formatVersion: manifest.formatVersion,
+            appVersion: manifest.appVersion,
+            appBuild: manifest.appBuild,
+            device: manifest.device,
+            isEncrypted: isEncrypted,
             isCompressed: true,
-            entityCounts: decoded.manifest.entityCounts,
-            checksum: "AEA/LZFSE archive"
+            entityCounts: manifest.entityCounts,
+            checksum: isEncrypted ? "AEA (AES-CTR + HMAC)" : "LZFSE archive"
         )
     }
 

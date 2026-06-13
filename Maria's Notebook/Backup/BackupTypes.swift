@@ -264,6 +264,20 @@ public struct BackupOperationSummary: Identifiable, Sendable {
     public let createdAt: Date
     public let entityCounts: [String: Int]
     public let warnings: [String]
+
+    /// Copy with extra warnings appended — used to surface decode-time skips
+    /// in the summary the UI shows after an import.
+    public func appending(warnings extra: [String]) -> BackupOperationSummary {
+        BackupOperationSummary(
+            kind: kind,
+            fileName: fileName,
+            formatVersion: formatVersion,
+            encryptUsed: encryptUsed,
+            createdAt: createdAt,
+            entityCounts: entityCounts,
+            warnings: warnings + extra
+        )
+    }
 }
 
 // MARK: - RestorePreview (for Restore Preview UI)

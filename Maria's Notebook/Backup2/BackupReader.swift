@@ -1,10 +1,13 @@
 // BackupReader.swift
-// Decodes a v17 AEA-framed backup file into a manifest + ordered entries.
+// Decodes a v17+ backup file into a manifest + ordered entries.
 //
-// Reads only v17 files. Non-AEA files are rejected for manual import; the
-// older envelope path remains only for internal rollback checkpoints.
+// Reads encrypted v19 archives ("AA01") and plain v17/v18 archives ("pbz*").
+// The legacy v5–v16 JSON-envelope decoder no longer exists anywhere in the
+// app; pre-v17 files cannot be read (see the external recovery recipe in the
+// project docs if one ever needs to be recovered).
 
 import Foundation
+import CryptoKit
 import OSLog
 
 public enum BackupReader {
@@ -16,8 +19,16 @@ public enum BackupReader {
         public let preferences: PreferencesDTO?
     }
 
+    /// Result of a structural verification pass: the decoded manifest plus
+    /// the actual NDJSON row count found in each entity entry. Streaming —
+    /// entry bodies are counted and discarded, never accumulated.
+    public struct StructureVerification: Sendable {
+        public let manifest: BackupArchiveManifest
+        public let entryLineCounts: [String: Int]
+    }
+
     public enum ReadError: LocalizedError {
-        case notAEAFormat
+        case notArchiveFormat
         case manifestMissing
         case manifestMalformed(reason: String)
         case unsupportedFormatVersion(found: Int, supported: ClosedRange<Int>)
@@ -25,42 +36,53 @@ public enum BackupReader {
 
         public var errorDescription: String? {
             switch self {
-            case .notAEAFormat:
-                return "Backup file is not a v17 AppleArchive — legacy decoder should handle this."
+            case .notArchiveFormat:
+                return "Backup file is not a supported archive \u{2014} files from app versions " +
+                    "before the v17 format cannot be imported."
             case .manifestMissing:
                 return "Backup is missing its manifest entry."
             case .manifestMalformed(let reason):
                 return "Backup manifest is malformed: \(reason)"
             case .unsupportedFormatVersion(let found, let supported):
                 return "Backup format version \(found) is not supported by this app " +
-                    "(supported: v\(supported.lowerBound)–v\(supported.upperBound))."
+                    "(supported: v\(supported.lowerBound)\u{2013}v\(supported.upperBound))."
             case .entryPathInvalid(let path):
                 return "Backup entry has an unexpected path: '\(path)' (expected '<store>/<EntityName>.ndjson')."
             }
         }
     }
 
-    /// Supported v17+ range. Bump the upper bound when we add a new format
+    /// Supported format range. Bump the upper bound when we add a new format
     /// version (and keep the reader backward-compatible for the lower bound).
-    /// v18 adds Stories/Book Club/Year Plan/Day Pad NDJSON entries; v17 files
-    /// still read (the new entries are simply absent).
-    public static let supportedFormatVersions: ClosedRange<Int> = 17...18
+    /// v19 wraps the same entries in an encrypted AEA container; v18 added
+    /// Stories/Book Club/Year Plan/Day Pad entries; v17/v18 files still read
+    /// (plain compressed container, new entries simply absent).
+    public static let supportedFormatVersions: ClosedRange<Int> = 17...19
 
     // MARK: - Public API
 
-    /// Reads a v17 AEA backup file fully into memory. Returns the manifest,
-    /// preferences (if present), and one entry per non-empty entity NDJSON
-    /// payload.
+    /// Reads a backup file fully into memory using the app's Keychain key for
+    /// encrypted archives. Returns the manifest, preferences (if present),
+    /// and one entry per non-empty entity NDJSON payload.
     public static func read(from url: URL) throws -> DecodedBackup {
-        guard BackupArchive.isAEAFormat(at: url) else {
-            throw ReadError.notAEAFormat
+        try read(from: url) { try BackupEncryptionKeyStore.requireKey() }
+    }
+
+    /// As `read(from:)`, with an injectable key provider (only invoked for
+    /// encrypted archives — plain v17/v18 files never touch the Keychain).
+    public static func read(
+        from url: URL,
+        keyProvider: () throws -> SymmetricKey
+    ) throws -> DecodedBackup {
+        guard BackupArchive.isBackupArchive(at: url) else {
+            throw ReadError.notArchiveFormat
         }
 
         var manifest: BackupArchiveManifest?
         var preferences: PreferencesDTO?
         var entries: [BackupEntityEntry] = []
 
-        try BackupArchive.read(from: url) { path, data in
+        try BackupArchive.read(from: url, encryptionKey: keyProvider) { path, data in
             switch path {
             case "manifest.json":
                 manifest = try decodeManifest(from: data)
@@ -91,6 +113,54 @@ public enum BackupReader {
         let readerMsg = "BackupReader decoded v\(manifest.formatVersion) backup with \(entries.count) entity entries"
         logger.info("\(readerMsg, privacy: .public)")
         return DecodedBackup(manifest: manifest, entries: entries, preferences: preferences)
+    }
+
+    /// Streams the whole archive, decoding only the manifest and counting the
+    /// NDJSON rows in each entity entry. This validates container integrity
+    /// (full decrypt/decompress pass) and per-entity record counts without
+    /// JSON-decoding every row or holding entry bodies in memory.
+    ///
+    /// Used by `BackupVerification` for user-initiated checks (uses the app's
+    /// Keychain key for encrypted archives).
+    public static func verifyStructure(at url: URL) throws -> StructureVerification {
+        try verifyStructure(at: url) { try BackupEncryptionKeyStore.requireKey() }
+    }
+
+    /// As `verifyStructure(at:)`, with an injectable key provider. Used by
+    /// `BackupWriter` for post-write verification.
+    public static func verifyStructure(
+        at url: URL,
+        keyProvider: () throws -> SymmetricKey
+    ) throws -> StructureVerification {
+        guard BackupArchive.isBackupArchive(at: url) else {
+            throw ReadError.notArchiveFormat
+        }
+
+        var manifest: BackupArchiveManifest?
+        var lineCounts: [String: Int] = [:]
+
+        try BackupArchive.read(from: url, encryptionKey: keyProvider) { path, data in
+            switch path {
+            case "manifest.json":
+                manifest = try decodeManifest(from: data)
+            case "preferences.json":
+                break
+            default:
+                if let entry = try parseEntityEntry(path: path, ndjson: data) {
+                    lineCounts[entry.entityName] = entry.count
+                }
+            }
+            return true
+        }
+
+        guard let manifest else { throw ReadError.manifestMissing }
+        guard supportedFormatVersions.contains(manifest.formatVersion) else {
+            throw ReadError.unsupportedFormatVersion(
+                found: manifest.formatVersion,
+                supported: supportedFormatVersions
+            )
+        }
+        return StructureVerification(manifest: manifest, entryLineCounts: lineCounts)
     }
 
     // MARK: - Decode Helpers

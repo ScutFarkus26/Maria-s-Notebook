@@ -9,6 +9,7 @@ import AppKit
 /// Manages automatic backups including:
 /// - Backups on app quit
 /// - Scheduled interval backups while app is running
+/// - Background (iOS scene-phase / BGProcessingTask) backups
 /// - Pre-destructive operation backups
 @Observable
 @MainActor
@@ -52,11 +53,15 @@ final class AutoBackupManager {
     enum BackupResult {
         case success(Date, URL)
         case failure(Date, Error)
+        /// No persistent-history transactions since the last auto-backup —
+        /// nothing new to protect, so no file was written.
+        case skippedNoChanges(Date)
 
         var date: Date {
             switch self {
             case .success(let date, _): return date
             case .failure(let date, _): return date
+            case .skippedNoChanges(let date): return date
             }
         }
 
@@ -71,11 +76,13 @@ final class AutoBackupManager {
         case scheduled = "Scheduled"
         case preDestructive = "PreDestructive"
         case manual = "Manual"
+        case background = "Background"
     }
 
     // MARK: - Properties
 
     private let coordinator: BackupCoordinator
+    private let changeTracker = BackupChangeTracker()
     private var scheduledBackupTask: Task<Void, Never>?
     private var viewContext: NSManagedObjectContext?
 
@@ -160,6 +167,16 @@ final class AutoBackupManager {
         _ = await performBackup(viewContext: viewContext, trigger: .appQuit, prefix: "AutoBackup")
     }
 
+    // MARK: - Background Backup (iOS scene phase + BGProcessingTask)
+
+    /// Automatic backup when the app moves to the background (iOS/iPadOS) or
+    /// a background processing task fires. Change-gated like every other
+    /// automatic trigger, so an untouched dataset costs nothing.
+    func performBackgroundBackup(viewContext: NSManagedObjectContext) async {
+        guard isEnabled else { return }
+        _ = await performBackup(viewContext: viewContext, trigger: .background, prefix: "AutoBackup")
+    }
+
     // MARK: - Core Backup Logic
 
     private func performBackup(
@@ -178,6 +195,23 @@ final class AutoBackupManager {
 
         isPerformingBackup = true
         defer { isPerformingBackup = false }
+
+        // Skip automatic backups when persistent history shows no transactions
+        // since the last one — nothing new to protect. Manual and
+        // pre-destructive backups always run. A skipped scheduled backup still
+        // advances the schedule clock, otherwise the timer loop would retry
+        // in a tight spin.
+        let automaticTriggers: Set<BackupTrigger> = [.appQuit, .scheduled, .background]
+        if automaticTriggers.contains(trigger),
+           !changeTracker.hasChangesSinceLastBackup(in: viewContext) {
+            Self.logger.info(
+                "Auto-backup (\(trigger.rawValue, privacy: .public)) skipped \u{2014} no changes since last backup"
+            )
+            if trigger == .scheduled {
+                markScheduledBackupPerformed()
+            }
+            return .skippedNoChanges(Date())
+        }
 
         // Resolve auto-backup directory.
         // 1) If the user picked a default folder (Settings > Backup > Storage), put auto-backups
@@ -229,10 +263,12 @@ final class AutoBackupManager {
                 // Silent progress
             }
 
+            // New change-detection baseline: the data just backed up.
+            changeTracker.recordBackupPoint(context: viewContext)
+
             // Update tracking
             if trigger == .scheduled {
-                lastScheduledBackupDate = Date()
-                UserDefaults.standard.set(Date().timeIntervalSinceReferenceDate, forKey: "AutoBackup.lastScheduledDate")
+                markScheduledBackupPerformed()
             }
 
             // Cleanup old backups (Retention Policy)
@@ -250,7 +286,10 @@ final class AutoBackupManager {
 
             return result
         } catch {
-            Self.logger.debug("Backup failed (\(trigger.rawValue)): \(error.localizedDescription)")
+            // A failed auto-backup is a data-protection gap, not a debug detail.
+            Self.logger.error(
+                "Backup failed (\(trigger.rawValue, privacy: .public)): \(error.localizedDescription, privacy: .public)"
+            )
 
             let result = BackupResult.failure(Date(), error)
             lastBackupResult = result
@@ -264,6 +303,14 @@ final class AutoBackupManager {
 
             return result
         }
+    }
+
+    private func markScheduledBackupPerformed() {
+        lastScheduledBackupDate = Date()
+        UserDefaults.standard.set(
+            Date().timeIntervalSinceReferenceDate,
+            forKey: "AutoBackup.lastScheduledDate"
+        )
     }
 
     private func cleanupOldBackups(in dir: URL, keeping count: Int) {

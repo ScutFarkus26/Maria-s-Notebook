@@ -4,17 +4,30 @@ import CoreData
 import CloudKit
 import SwiftUI
 
-/// AppDelegate to handle automatic backups on app termination
+/// AppDelegate that performs the automatic backup before the app quits.
+///
+/// Uses the supported AppKit mechanism for async work at quit:
+/// `applicationShouldTerminate` returns `.terminateLater`, the backup runs as
+/// a normal main-actor task, and `reply(toApplicationShouldTerminate:)`
+/// resumes termination when it finishes (or when the safety timeout fires).
+/// This replaces a semaphore + RunLoop polling loop that blocked the main
+/// thread and only let the backup task run during half its duty cycle.
 @MainActor
 final class AutoBackupAppDelegate: NSObject, NSApplicationDelegate {
+    /// How long quit may be delayed for the backup before we let the app
+    /// terminate anyway. Change-gated backups of an idle dataset return in
+    /// milliseconds; this bound only matters for large exports.
+    private static let quitBackupTimeout: Duration = .seconds(25)
+
     private var coreDataStack: CoreDataStack?
     private var autoBackupManager: AutoBackupManager?
+    private var didReplyToTermination = false
 
     func setCoreDataStack(_ stack: CoreDataStack, dependencies: AppDependencies) {
         self.coreDataStack = stack
         self.autoBackupManager = dependencies.autoBackupManager
     }
-    
+
     func application(_ application: NSApplication, userDidAcceptCloudKitShareWith metadata: CKShare.Metadata) {
         NotificationCenter.default.post(
             name: .didAcceptCloudKitShare,
@@ -22,34 +35,33 @@ final class AutoBackupAppDelegate: NSObject, NSApplicationDelegate {
         )
     }
 
-    func applicationWillTerminate(_ notification: Notification) {
-        // Perform automatic backup before app quits
+    func applicationShouldTerminate(_ sender: NSApplication) -> NSApplication.TerminateReply {
         guard let coreDataStack,
-              let autoBackupManager = autoBackupManager else { return }
+              let autoBackupManager,
+              autoBackupManager.enabled else { return .terminateNow }
 
         let viewContext = coreDataStack.viewContext
-        
-        // Run backup on main thread (app is quitting, blocking is acceptable)
-        // Since AutoBackupManager is @MainActor, we need to run this on the main thread
-        // Use RunLoop to process the async task while waiting
-        let semaphore = DispatchSemaphore(value: 0)
-        
+        didReplyToTermination = false
+
         Task { @MainActor in
             await autoBackupManager.performBackupOnQuit(viewContext: viewContext)
-            semaphore.signal()
+            self.replyToTerminationOnce(sender)
         }
-        
-        // Wait up to 30 seconds for backup to complete, processing RunLoop events
-        // Use 1.0 second intervals to reduce CPU usage while still processing RunLoop events
-        let timeout = Date().addingTimeInterval(30)
-        let checkInterval: TimeInterval = 1.0
-        while semaphore.wait(timeout: .now() + checkInterval) == .timedOut {
-            if Date() > timeout {
-                break // Timeout reached
-            }
-            // Process RunLoop events to allow backup task to progress
-            RunLoop.current.run(until: Date(timeIntervalSinceNow: checkInterval))
+
+        // Safety net: never hold the quit hostage to a hung backup.
+        Task { @MainActor in
+            try? await Task.sleep(for: Self.quitBackupTimeout)
+            self.replyToTerminationOnce(sender)
         }
+
+        return .terminateLater
+    }
+
+    /// AppKit must receive exactly one reply per `.terminateLater`.
+    private func replyToTerminationOnce(_ application: NSApplication) {
+        guard !didReplyToTermination else { return }
+        didReplyToTermination = true
+        application.reply(toApplicationShouldTerminate: true)
     }
 }
 #endif

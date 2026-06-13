@@ -22,6 +22,7 @@ struct MariasNotebookApp: App {
     // MARK: - State Objects
 
     @AppStorage("hasCompletedOnboarding") private var hasCompletedOnboarding = false
+    @Environment(\.scenePhase) private var scenePhase
     @State private var bootstrapper = AppBootstrapper.shared
     @State private var appRouter = AppRouter.shared
     @State private var databaseErrorCoordinator = DatabaseErrorCoordinator.shared
@@ -50,6 +51,11 @@ struct MariasNotebookApp: App {
         _dependencies = State(wrappedValue: deps)
         _saveCoordinator = State(wrappedValue: SaveCoordinator(toastService: deps.toastService))
         _restoreCoordinator = State(wrappedValue: RestoreCoordinator(appRouter: deps.appRouter))
+
+        #if os(iOS)
+        // BGTaskScheduler handlers must be registered before launch finishes.
+        BackupBackgroundTaskManager.register(dependencies: deps, coreDataStack: stack)
+        #endif
     }
 
     // MARK: - Computed Properties
@@ -164,7 +170,35 @@ struct MariasNotebookApp: App {
             // PERFORMANCE: Start memory pressure monitoring
             // This allows the app to proactively clear caches before being terminated
             _ = dependencies.memoryPressureMonitor
+
+            // Start the interval auto-backup loop (no-op unless the user
+            // enabled scheduled backups). This also hands the manager its
+            // context so toggling the setting later can restart the loop.
+            dependencies.autoBackupManager.startScheduledBackups(viewContext: coreDataStack.viewContext)
         }
+    }
+
+    // MARK: - Scene Phase
+
+    /// iOS/iPadOS auto-backup trigger: the app rarely "quits" on iOS, so the
+    /// move to the background is the data-protection moment. The backup is
+    /// change-gated (persistent history), so idle backgrounding costs nothing.
+    private func handleScenePhaseChange(_ phase: ScenePhase) {
+        #if os(iOS)
+        guard phase == .background,
+              bootstrapper.state == .ready,
+              AppBootstrapping.initError == nil else { return }
+
+        let assertion = BackgroundTaskAssertion()
+        assertion.begin(named: "AutoBackup")
+        Task { @MainActor in
+            await BackupBackgroundTaskManager.schedule()
+            await dependencies.autoBackupManager.performBackgroundBackup(
+                viewContext: coreDataStack.viewContext
+            )
+            assertion.end()
+        }
+        #endif
     }
 
     // MARK: - Scene
@@ -173,6 +207,9 @@ struct MariasNotebookApp: App {
         WindowGroup("", id: "mainWindow") {
             mainWindowContent
             .task { await performStartupBootstrap() }
+            .onChange(of: scenePhase) { _, newPhase in
+                handleScenePhaseChange(newPhase)
+            }
             #if os(macOS)
             .modifier(OpenWindowOnNotificationModifier())
             #endif

@@ -92,7 +92,7 @@ public final class BackupTransactionManager {
         let checkpointURL = checkpointDirectory.appendingPathComponent(filename)
 
         do {
-            _ = try BackupWriter.write(
+            _ = try await BackupWriter.write(
                 viewContext: viewContext,
                 to: checkpointURL,
                 progress: progress ?? { _, _ in }
@@ -266,7 +266,7 @@ public final class BackupTransactionManager {
         progress: @escaping BackupService.ProgressCallback
     ) async throws {
         do {
-            guard BackupArchive.isAEAFormat(at: checkpointURL) else {
+            guard BackupArchive.isBackupArchive(at: checkpointURL) else {
                 throw NSError(
                     domain: "BackupTransactionManager",
                     code: 3001,
@@ -277,9 +277,9 @@ public final class BackupTransactionManager {
             }
 
             progress(0.05, "Reading checkpoint…")
-            let decoded = try BackupReader.read(from: checkpointURL)
+            let archive = try await BackupImporter.decodeArchive(at: checkpointURL)
             _ = try await BackupImporter.importDecoded(
-                decoded,
+                archive,
                 from: checkpointURL,
                 into: viewContext,
                 mode: .replace,

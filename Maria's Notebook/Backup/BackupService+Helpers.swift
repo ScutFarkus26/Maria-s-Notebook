@@ -7,12 +7,6 @@ import OSLog
 extension BackupService {
     private static let logger = Logger.backup
 
-    // MARK: - Entity Fetch
-
-    func fetchOne<T: NSManagedObject>(_ type: T.Type, id: UUID, using context: NSManagedObjectContext) throws -> T? {
-        return try BackupFetchHelper.fetchOne(type, id: id, using: context)
-    }
-
     // MARK: - Preferences (delegated to BackupPreferencesService)
 
     func buildPreferencesDTO() -> PreferencesDTO {
@@ -39,20 +33,25 @@ extension BackupService {
         viewContext: NSManagedObjectContext,
         pageSize: Int = 500
     ) throws -> [String] {
-        let model = viewContext.persistentStoreCoordinator?.managedObjectModel
         var failedEntities: [String] = []
 
         for type in BackupEntityRegistry.allTypes {
-            let entityName = String(describing: type).replacingOccurrences(of: "CD", with: "")
+            // Resolve the MODEL entity name by matching the managed-object class,
+            // not by stripping "CD" from the Swift type name. Several classes are
+            // @objc-renamed (e.g. CDCommunityTopicEntity -> model "CommunityTopic"),
+            // so naive stripping produced names absent from the model — and those
+            // types were then silently skipped here, leaving replace-mode restores
+            // without clearing them.
+            guard let entityName = BackupFetchHelper.entityName(for: type, in: viewContext) else {
+                // Type isn't in the loaded model (legacy rename/deprecation) — nothing to clear.
+                continue
+            }
 
             // Never clear a type the restore can't repopulate. These entities are
             // listed in allTypes for schema completeness but have no importer, so
             // deleting them in replace mode would permanently destroy data the
-            // backup never captured (e.g. Stories, Book Club, Year Plan, Day Pads).
+            // backup never captured.
             guard !BackupEntityRegistry.notYetBackedUpEntityNames.contains(entityName) else { continue }
-
-            // Skip types whose entity doesn't exist in the model (legacy renames, deprecations).
-            guard model?.entitiesByName[entityName] != nil else { continue }
 
             do {
                 try deletePagedForEntity(
