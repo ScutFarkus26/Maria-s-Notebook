@@ -338,7 +338,7 @@ extension InboxSheetViewModel {
                 return r
             }()
             if let lesson = viewContext.safeFetchFirst(laDescriptor) {
-                lesson.scheduledFor = nil
+                lesson.unschedule()
                 saveCoordinator.save(viewContext, reason: "Clearing scheduled date")
             }
         }

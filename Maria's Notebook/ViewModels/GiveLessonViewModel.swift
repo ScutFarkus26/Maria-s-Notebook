@@ -253,11 +253,9 @@ final class LessonPickerViewModel {
         if mode == .given {
             la.markPresented(at: givenAt ?? Date())
         } else if let date = scheduledFor {
-            la.scheduledFor = date
-            la.stateRaw = LessonAssignmentState.scheduled.rawValue
+            la.schedule(for: date)
         } else {
-            la.scheduledFor = nil
-            la.stateRaw = LessonAssignmentState.draft.rawValue
+            la.unschedule()
         }
 
         // Set snapshots for display

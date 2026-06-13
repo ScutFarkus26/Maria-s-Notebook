@@ -54,13 +54,13 @@ extension PresentationsViewModel {
         return lessons.filter { $0.studentIDs.contains(studentIDString) }
     }
 
-    /// Student IDs that appear on any presentation whose `scheduledForDay`
+    /// Student IDs that appear on any presentation whose `scheduledFor`
     /// matches today's start-of-day. Used by the "Hide Today's Students" toggle.
     var studentIDsScheduledToday: Set<UUID> {
         let today = calendar.startOfDay(for: Date())
         var ids = Set<UUID>()
         for la in cachedLessonAssignments {
-            guard let day = la.scheduledForDay,
+            guard let day = la.scheduledFor,
                   calendar.isDate(day, inSameDayAs: today) else { continue }
             ids.formUnion(la.resolvedStudentIDs)
         }
@@ -245,7 +245,7 @@ extension PresentationsViewModel {
     }
 
     /// Presentations scheduled in the last `daysBack` days where at least one
-    /// assigned student was absent on `scheduledForDay` and the presentation
+    /// assigned student was absent on its scheduled day and the presentation
     /// has not been given. Uses one batched attendance fetch per affected day.
     func recentlyMissed(within daysBack: Int = 14) -> [CDLessonAssignment] {
         guard let viewContext else { return [] }
@@ -253,14 +253,14 @@ extension PresentationsViewModel {
         guard let cutoff = calendar.date(byAdding: .day, value: -daysBack, to: today) else { return [] }
 
         let candidates = cachedLessonAssignments.filter { la in
-            guard !la.isGiven, let scheduledDay = la.scheduledForDay else { return false }
+            guard !la.isGiven, let scheduledDay = la.scheduledFor else { return false }
             let day = calendar.startOfDay(for: scheduledDay)
             return day >= cutoff && day <= today
         }
         guard !candidates.isEmpty else { return [] }
 
         let grouped = Dictionary(grouping: candidates) { la -> Date in
-            calendar.startOfDay(for: la.scheduledForDay ?? Date())
+            calendar.startOfDay(for: la.scheduledFor ?? Date())
         }
 
         var missed: [CDLessonAssignment] = []

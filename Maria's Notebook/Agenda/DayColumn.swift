@@ -173,10 +173,8 @@ struct DayColumn: View {
     private var dayLessonAssignments: [CDLessonAssignment] {
         let (start, end) = AppCalendar.dayRange(for: normalizedDay)
         return weekLessonAssignments.filter { la in
-            // Match either the denormalized day field or the exact scheduled time
-            if let day = la.scheduledForDay, day >= start && day < end { return true }
-            if let scheduled = la.scheduledFor, scheduled >= start && scheduled < end { return true }
-            return false
+            guard let scheduled = la.scheduledFor else { return false }
+            return scheduled >= start && scheduled < end
         }
     }
 
@@ -185,11 +183,6 @@ struct DayColumn: View {
         var acc: [UUID] = []
         for la in dayLessonAssignments {
             guard !la.isGiven else { continue }
-            // Prefer denormalized day if available; fall back to exact scheduled time.
-            if let day = la.scheduledForDay, day >= start && day < end {
-                acc.append(contentsOf: la.resolvedStudentIDs)
-                continue
-            }
             if let scheduled = la.scheduledFor, scheduled >= start && scheduled < end {
                 acc.append(contentsOf: la.resolvedStudentIDs)
             }

@@ -68,7 +68,7 @@ enum TodayDataFetcher {
             // Fetch lessons scheduled for this day
             let byDayRequest = CDFetchRequest(CDLessonAssignment.self)
             byDayRequest.predicate = NSPredicate(
-                format: "scheduledForDay >= %@ AND scheduledForDay < %@",
+                format: "scheduledFor >= %@ AND scheduledFor < %@",
                 day as NSDate, nextDay as NSDate
             )
             byDayRequest.relationshipKeyPathsForPrefetching = ["lesson", "students"]
@@ -81,7 +81,7 @@ enum TodayDataFetcher {
             let presentedRequest = CDFetchRequest(CDLessonAssignment.self)
             presentedRequest.predicate = NSPredicate(
                 format: "stateRaw == %@ AND presentedAt >= %@ AND presentedAt < %@ " +
-                    "AND (scheduledForDay < %@ OR scheduledForDay >= %@)",
+                    "AND (scheduledFor == nil OR scheduledFor < %@ OR scheduledFor >= %@)",
                 presentedState, day as NSDate, nextDay as NSDate,
                 day as NSDate, nextDay as NSDate
             )
@@ -98,8 +98,8 @@ enum TodayDataFetcher {
 
             // Stable sort
             dayLessons.sort { lhs, rhs in
-                let lhsDay = lhs.scheduledForDay ?? .distantPast
-                let rhsDay = rhs.scheduledForDay ?? .distantPast
+                let lhsDay = lhs.scheduledFor ?? .distantPast
+                let rhsDay = rhs.scheduledFor ?? .distantPast
                 if lhsDay != rhsDay {
                     return lhsDay < rhsDay
                 }

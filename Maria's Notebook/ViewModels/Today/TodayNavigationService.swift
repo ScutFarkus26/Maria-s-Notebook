@@ -154,7 +154,7 @@ enum TodayNavigationService {
         do {
             let request = CDFetchRequest(CDLessonAssignment.self)
             request.predicate = NSPredicate(
-                format: "scheduledForDay >= %@ AND scheduledForDay < %@",
+                format: "scheduledFor >= %@ AND scheduledFor < %@",
                 day as NSDate, nextDay as NSDate
             )
             let lessons = try context.fetch(request)

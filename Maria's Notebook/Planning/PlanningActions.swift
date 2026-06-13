@@ -80,8 +80,7 @@ enum PlanningActions {
                 second: comps.second ?? 0,
                 of: nextDay
             ) {
-                la.scheduledFor = newDate
-                la.modifiedAt = Date()
+                la.schedule(for: newDate, using: calendar)
                 changed = true
             }
         }
@@ -115,8 +114,7 @@ enum PlanningActions {
                 second: comps.second ?? 0,
                 of: nextDay
             ) {
-                la.scheduledFor = newDate
-                la.modifiedAt = Date()
+                la.schedule(for: newDate, using: calendar)
                 changed = true
             }
         }

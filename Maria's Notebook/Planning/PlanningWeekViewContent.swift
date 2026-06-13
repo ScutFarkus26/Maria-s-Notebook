@@ -61,15 +61,13 @@ struct PlanningWeekViewContent: View {
         let presentedRaw = LessonAssignmentState.presented.rawValue
 
         let descriptor: NSFetchRequest<CDLessonAssignment> = NSFetchRequest(entityName: "LessonAssignment")
-        let predicateFormat = "stateRaw != %@ AND " +
-            "((scheduledForDay >= %@ AND scheduledForDay < %@) OR " +
-            "(scheduledFor >= %@ AND scheduledFor < %@))"
+        let predicateFormat = "stateRaw != %@ AND scheduledFor >= %@ AND scheduledFor < %@"
         descriptor.predicate = NSPredicate(
             format: predicateFormat,
-            presentedRaw, weekStart as CVarArg, weekEnd as CVarArg, weekStart as CVarArg, weekEnd as CVarArg
+            presentedRaw, weekStart as CVarArg, weekEnd as CVarArg
         )
         descriptor.sortDescriptors = [
-                NSSortDescriptor(key: "scheduledForDay", ascending: true),
+                NSSortDescriptor(key: "scheduledFor", ascending: true),
                 NSSortDescriptor(key: "createdAt", ascending: true)
             ]
         descriptor.relationshipKeyPathsForPrefetching = ["lesson", "students"]
@@ -287,7 +285,7 @@ struct PlanningWeekViewContent: View {
 
         let descriptor: NSFetchRequest<CDLessonAssignment> = NSFetchRequest(entityName: "LessonAssignment")
         descriptor.predicate = NSPredicate(format: "stateRaw == %@", scheduledRaw as CVarArg)
-        descriptor.sortDescriptors = [NSSortDescriptor(key: "scheduledForDay", ascending: true)]
+        descriptor.sortDescriptors = [NSSortDescriptor(key: "scheduledFor", ascending: true)]
         descriptor.fetchLimit = 1
 
         if let nextUp = viewContext.safeFetchFirst(descriptor),

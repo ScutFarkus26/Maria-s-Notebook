@@ -142,8 +142,13 @@ extension CDLessonAssignment {
 extension CDLessonAssignment {
     /// Schedules this presentation for a specific date.
     func schedule(for date: Date, using calendar: Calendar = AppCalendar.shared) {
-        self.scheduledFor = date
-        self.scheduledForDay = calendar.startOfDay(for: date)
+        // Lessons are scheduled by day, not time — snap to start-of-day so `scheduledFor`
+        // is the single source of truth. `scheduledForDay` is kept as an identical mirror
+        // here (the one place that writes it) for CloudKit/backup compatibility; all app
+        // reads and predicates use `scheduledFor` directly.
+        let day = calendar.startOfDay(for: date)
+        self.scheduledFor = day
+        self.scheduledForDay = day
         self.state = .scheduled
         self.modifiedAt = Date()
     }

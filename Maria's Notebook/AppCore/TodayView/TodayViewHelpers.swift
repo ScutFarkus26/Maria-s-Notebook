@@ -209,7 +209,7 @@ extension TodayView {
             let fetchRequest: NSFetchRequest<CDLessonAssignment> =
                 NSFetchRequest<CDLessonAssignment>(entityName: "LessonAssignment")
             fetchRequest.predicate = NSPredicate(
-                format: "scheduledForDay >= %@ AND scheduledForDay < %@", dayStart as NSDate, dayEnd as NSDate
+                format: "scheduledFor >= %@ AND scheduledFor < %@", dayStart as NSDate, dayEnd as NSDate
             )
             fetchRequest.sortDescriptors = [NSSortDescriptor(keyPath: \CDLessonAssignment.id, ascending: true)]
             let lessons = try viewContext.fetch(fetchRequest)

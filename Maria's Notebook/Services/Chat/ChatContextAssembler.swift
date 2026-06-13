@@ -412,9 +412,10 @@ final class ChatContextAssembler {
         } else {
             let request = CDFetchRequest(CDLessonAssignment.self)
             request.predicate = NSPredicate(format: "stateRaw == %@", stateRaw)
-            request.sortDescriptors = [NSSortDescriptor(key: "scheduledForDay", ascending: true)]
+            request.sortDescriptors = [NSSortDescriptor(key: "scheduledFor", ascending: true)]
             return context.safeFetch(request).filter { pres in
-                guard let day = pres.scheduledForDay else { return false }
+                guard let scheduled = pres.scheduledFor else { return false }
+                let day = AppCalendar.startOfDay(scheduled)
                 return day >= startDate && day <= endDate
             }
         }

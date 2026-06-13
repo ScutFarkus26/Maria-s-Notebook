@@ -219,10 +219,10 @@ final class DataQueryService {
     func fetchLessonAssignments(from startDate: Date, to endDate: Date) -> [CDLessonAssignment] {
         let request = CDFetchRequest(CDLessonAssignment.self)
         request.predicate = NSPredicate(
-            format: "scheduledForDay >= %@ AND scheduledForDay < %@",
+            format: "scheduledFor >= %@ AND scheduledFor < %@",
             startDate as NSDate, endDate as NSDate
         )
-        request.sortDescriptors = [NSSortDescriptor(key: "scheduledForDay", ascending: true)]
+        request.sortDescriptors = [NSSortDescriptor(key: "scheduledFor", ascending: true)]
         return context.safeFetch(request)
     }
 

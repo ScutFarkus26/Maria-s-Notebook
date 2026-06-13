@@ -156,7 +156,7 @@ extension CDLesson {
 
         let request = NSFetchRequest<CDLessonAssignment>(entityName: "LessonAssignment")
         request.predicate = NSPredicate(format: "lessonID == %@", lessonIDString)
-        request.sortDescriptors = [NSSortDescriptor(keyPath: \CDLessonAssignment.scheduledForDay, ascending: false)]
+        request.sortDescriptors = [NSSortDescriptor(keyPath: \CDLessonAssignment.scheduledFor, ascending: false)]
 
         do {
             return try context.fetch(request)

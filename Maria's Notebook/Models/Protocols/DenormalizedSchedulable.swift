@@ -8,7 +8,8 @@ import Foundation
 ///
 /// Conforming types must expose their stored properties and relationship data through the
 /// required properties. The protocol extension then provides:
-/// - `normalizeDenormalizedFields()` — syncs `scheduledForDay` from `scheduledFor`
+/// - scheduling denormalization (`scheduledForDay`) is maintained by `CDLessonAssignment`'s
+///   `schedule(for:)` / `unschedule()` setters, which mirror it from `scheduledFor`
 /// - `updateDenormalizedKeys()` — rebuilds `studentGroupKeyPersisted` from resolved UUIDs
 /// - `syncSnapshotsFromRelationships()` — copies relationship data into string-based fields
 /// - `resolvedLessonID` — falls back from relationship to stored string ID
