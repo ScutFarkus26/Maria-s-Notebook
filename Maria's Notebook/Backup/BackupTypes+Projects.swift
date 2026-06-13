@@ -8,6 +8,7 @@ public struct ProjectDTO: Codable, Sendable {
     public var title: String
     public var bookTitle: String?
     public var memberStudentIDs: [String]
+    public var isActive: Bool?
 }
 
 public struct ProjectAssignmentTemplateDTO: Codable, Sendable {
@@ -28,6 +29,9 @@ public struct ProjectSessionDTO: Codable, Sendable {
     public var chapterOrPages: String?
     public var agendaItemsJSON: String
     public var templateWeekID: UUID?
+    public var assignmentModeRaw: String?
+    public var minSelections: Int?
+    public var maxSelections: Int?
 }
 
 public struct ProjectRoleDTO: Codable, Sendable {

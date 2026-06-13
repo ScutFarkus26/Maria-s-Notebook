@@ -33,6 +33,7 @@ public struct TodoItemDTO: Codable, Sendable {
     public var locationRadius: Double
     public var notifyOnEntry: Bool
     public var notifyOnExit: Bool
+    public var moodRaw: String?
 }
 
 public struct TodoSubtaskDTO: Codable, Sendable {

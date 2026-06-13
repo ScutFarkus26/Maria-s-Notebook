@@ -23,6 +23,7 @@ extension BackupEntityImporter {
                 project.title = dto.title
                 project.bookTitle = dto.bookTitle
                 project.memberStudentIDsArray = dto.memberStudentIDs
+                project.isActive = dto.isActive ?? true
                 return project
             }
         )
@@ -77,6 +78,9 @@ extension BackupEntityImporter {
                 session.chapterOrPages = dto.chapterOrPages
                 session.agendaItemsJSON = dto.agendaItemsJSON
                 session.templateWeekID = dto.templateWeekID?.uuidString
+                if let v = dto.assignmentModeRaw { session.assignmentModeRaw = v }
+                if let v = dto.minSelections { session.minSelections = Int64(v) }
+                if let v = dto.maxSelections { session.maxSelections = Int64(v) }
                 return session
             }
         )

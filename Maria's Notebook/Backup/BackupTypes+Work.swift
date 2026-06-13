@@ -89,6 +89,7 @@ public struct WorkCheckInDTO: Codable, Sendable {
     public var date: Date
     public var statusRaw: String
     public var purpose: String
+    public var studentInitiated: Bool?
 }
 
 public struct WorkStepDTO: Codable, Sendable {

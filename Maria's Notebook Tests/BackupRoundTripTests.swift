@@ -281,6 +281,79 @@ final class BackupRoundTripTests {
         #expect(rs.enrollmentStatusRaw == "withdrawn", "enrollment status must survive the round-trip")
         #expect(rs.dateWithdrawn != nil, "dateWithdrawn must survive the round-trip")
     }
+
+    @Test("Project, session, todo, and check-in audited fields survive a full round-trip")
+    func projectTodoAndCheckInFieldsAreRestored() async throws {
+        let sourceStack = try CoreDataTestHelpers.makeInMemoryStack()
+        let ctx = sourceStack.viewContext
+
+        let project = CDProject(context: ctx)
+        project.id = UUID()
+        project.title = "Charlotte's Web"
+        project.isActive = false   // non-default (default is true) so a surviving value is meaningful
+        let projectID = project.id
+
+        let session = CDProjectSession(context: ctx)
+        session.id = UUID()
+        session.projectID = (projectID ?? UUID()).uuidString
+        session.meetingDate = Date(timeIntervalSince1970: 1_700_000_000)
+        session.assignmentModeRaw = "choice"
+        session.minSelections = 2
+        session.maxSelections = 5
+        let sessionID = session.id
+
+        let todo = CDTodoItem(context: ctx)
+        todo.id = UUID()
+        todo.title = "Prep beads"
+        todo.moodRaw = "focused"
+        let todoID = todo.id
+
+        let work = CoreDataTestHelpers.seedWorkModel(in: ctx, title: "W", studentID: UUID(), lessonID: UUID())
+        let checkIn = CDWorkCheckIn(context: ctx)
+        checkIn.id = UUID()
+        checkIn.workID = (work.id ?? UUID()).uuidString
+        checkIn.date = Date(timeIntervalSince1970: 1_700_000_000)
+        checkIn.statusRaw = "scheduled"
+        checkIn.purpose = "Due Date"
+        checkIn.studentInitiated = true
+        let checkInID = checkIn.id
+
+        #expect(CoreDataTestHelpers.save(ctx))
+
+        let url = BackupTestUtil.tempBackupURL()
+        defer { BackupTestUtil.cleanup(url) }
+        try await BackupTestUtil.writeCurrentBackup(from: ctx, to: url)
+
+        let destStack = try CoreDataTestHelpers.makeInMemoryStack()
+        try await BackupTestUtil.importCurrentBackup(from: url, into: destStack.viewContext, mode: .merge)
+        let dctx = destStack.viewContext
+
+        let rp = try #require(
+            try BackupTestUtil.fetchByID(CDProject.self, projectID, entityName: "Project", in: dctx),
+            "Restored project not found"
+        )
+        #expect(!rp.isActive, "Project.isActive must survive the round-trip")
+
+        let rss = try #require(
+            try BackupTestUtil.fetchByID(CDProjectSession.self, sessionID, entityName: "ProjectSession", in: dctx),
+            "Restored project session not found"
+        )
+        #expect(rss.assignmentModeRaw == "choice", "assignmentModeRaw must survive the round-trip")
+        #expect(rss.minSelections == 2, "minSelections must survive the round-trip")
+        #expect(rss.maxSelections == 5, "maxSelections must survive the round-trip")
+
+        let rt = try #require(
+            try BackupTestUtil.fetchByID(CDTodoItem.self, todoID, entityName: "TodoItem", in: dctx),
+            "Restored todo not found"
+        )
+        #expect(rt.moodRaw == "focused", "moodRaw must survive the round-trip")
+
+        let rc = try #require(
+            try BackupTestUtil.fetchByID(CDWorkCheckIn.self, checkInID, entityName: "WorkCheckIn", in: dctx),
+            "Restored work check-in not found"
+        )
+        #expect(rc.studentInitiated, "studentInitiated must survive the round-trip")
+    }
 }
 
 // MARK: - Suite 2: Registry Coverage

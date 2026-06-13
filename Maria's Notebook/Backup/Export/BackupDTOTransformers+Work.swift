@@ -44,7 +44,8 @@ extension BackupDTOTransformers {
             workID: checkIn.workID,
             date: checkIn.date ?? Date(),
             statusRaw: checkIn.statusRaw,
-            purpose: checkIn.purpose
+            purpose: checkIn.purpose,
+            studentInitiated: checkIn.studentInitiated
         )
     }
 

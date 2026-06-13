@@ -134,7 +134,8 @@ enum BackupServiceHelpers {
                 createdAt: c.createdAt ?? Date(),
                 title: c.title,
                 bookTitle: c.bookTitle,
-                memberStudentIDs: c.memberStudentIDsArray
+                memberStudentIDs: c.memberStudentIDsArray,
+                isActive: c.isActive
             )
         }
     }
@@ -153,7 +154,10 @@ enum BackupServiceHelpers {
                 meetingDate: sMeetingDate,
                 chapterOrPages: s.chapterOrPages,
                 agendaItemsJSON: s.agendaItemsJSON,
-                templateWeekID: templateWeekIDUUID
+                templateWeekID: templateWeekIDUUID,
+                assignmentModeRaw: s.assignmentModeRaw,
+                minSelections: Int(s.minSelections),
+                maxSelections: Int(s.maxSelections)
             )
         }
     }
