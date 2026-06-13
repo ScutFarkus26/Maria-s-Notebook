@@ -22,7 +22,8 @@ enum DataMigrations {
         DataCleanupService.deduplicateDraftLessonAssignments(using: context)
     }
 
-    /// Repairs denormalized scheduledForDay fields to match scheduledFor.
+    /// Normalizes lesson scheduling to the day-only model (snaps `scheduledFor` to
+    /// start-of-day and mirrors `scheduledForDay`).
     static func repairDenormalizedScheduledForDay(using context: NSManagedObjectContext) async {
         await DataCleanupService.repairDenormalizedScheduledForDay(using: context)
     }

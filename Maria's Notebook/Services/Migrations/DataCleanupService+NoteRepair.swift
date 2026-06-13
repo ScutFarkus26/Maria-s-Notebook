@@ -75,7 +75,10 @@ extension DataCleanupService {
 
     // MARK: - Denormalized Field Repair
 
-    /// Repairs denormalized scheduledForDay fields to match scheduledFor.
+    /// Normalizes lesson scheduling to the day-only model: snaps any leftover time on
+    /// `scheduledFor` to start-of-day and mirrors it into `scheduledForDay`. Runs at launch,
+    /// so lessons scheduled before the day-only change lose their stray time component
+    /// without waiting to be edited. Idempotent — a no-op once the data is normalized.
     static func repairDenormalizedScheduledForDay(using context: NSManagedObjectContext) async {
         let fetch = CDFetchRequest(CDLessonAssignment.self)
         let assignments = context.safeFetch(fetch)
@@ -84,9 +87,15 @@ extension DataCleanupService {
         for (index, la) in assignments.enumerated() {
             if index % 100 == 0 { await Task.yield() }
 
-            let correct = la.scheduledFor.map { AppCalendar.startOfDay($0) } ?? Date.distantPast
-            if la.scheduledForDay != correct {
-                la.scheduledForDay = correct
+            if let scheduled = la.scheduledFor {
+                let day = AppCalendar.startOfDay(scheduled)
+                if la.scheduledFor != day || la.scheduledForDay != day {
+                    la.scheduledFor = day
+                    la.scheduledForDay = day
+                    repaired += 1
+                }
+            } else if la.scheduledForDay != Date.distantPast {
+                la.scheduledForDay = Date.distantPast
                 repaired += 1
             }
         }
