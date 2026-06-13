@@ -299,6 +299,9 @@ struct NewProjectSessionSheet: View {
                 presentationID: nil,
                 scheduledDate: scheduledDate
             )
+            // Link the work to its originating project session so it appears under that
+            // project/session — the Projects views filter work by sourceContextID.
+            workModel.sourceContextID = sessionID.uuidString
 
             if !instructions.isEmpty {
                 workModel.setLegacyNoteText(instructions, in: managedObjectContext)
