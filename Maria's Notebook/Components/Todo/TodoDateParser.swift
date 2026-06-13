@@ -183,25 +183,29 @@ struct TodoDateParser {
         return months[str]
     }
 
-    /// Find the next occurrence of a given weekday (1=Sun ... 7=Sat).
+    /// Find the next occurrence of a given weekday (1=Sun ... 7=Sat) after `date`.
+    /// When `skipThisWeek` is true ("next Monday"), returns that weekday in the calendar
+    /// week *following* `date`'s week rather than the nearest upcoming occurrence.
     private static func nextWeekday(_ weekday: Int, after date: Date, skipThisWeek: Bool = false) -> Date? {
+        // Nearest upcoming occurrence (tomorrow through 7 days out). Every weekday occurs
+        // exactly once in any 7-day window, so this always resolves.
         var current = calendar.date(byAdding: .day, value: 1, to: date) ?? date
-        if skipThisWeek {
-            // Jump to next week first
-            current = calendar.date(byAdding: .weekOfYear, value: 1, to: date) ?? date
-            // Then find the target weekday in that week
-            let currentWeekday = calendar.component(.weekday, from: current)
-            let diff = (weekday - currentWeekday + 7) % 7
-            return calendar.date(byAdding: .day, value: diff, to: current)
-        }
-        // Find the nearest upcoming occurrence
+        var coming: Date?
         for _ in 0..<7 {
             if calendar.component(.weekday, from: current) == weekday {
-                return current
+                coming = current
+                break
             }
             current = calendar.date(byAdding: .day, value: 1, to: current) ?? current
         }
-        return current
+        guard let upcoming = coming else { return nil }
+
+        // "next X" means the X in the following calendar week. If the nearest occurrence is
+        // still in this week (e.g. "next Friday" said on a Wednesday), push it forward a week.
+        if skipThisWeek, calendar.isDate(upcoming, equalTo: date, toGranularity: .weekOfYear) {
+            return calendar.date(byAdding: .day, value: 7, to: upcoming)
+        }
+        return upcoming
     }
 
     /// Resolve a month/day to the next occurrence (this year or next).
