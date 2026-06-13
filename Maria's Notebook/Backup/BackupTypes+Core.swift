@@ -117,6 +117,10 @@ public struct LessonAssignmentDTO: Codable, Sendable {
     public var trackStepID: String?
     public var migratedFromLegacyID: String?
     public var migratedFromPresentationID: String?
+    /// User flag: a presentation manually unblocked despite the blocking rules. Restored so
+    /// the blocking engine doesn't silently re-block it after import. Optional for
+    /// compatibility with older backups that predate this field.
+    public var manuallyUnblocked: Bool?
 
     public init(
         id: UUID,
@@ -136,7 +140,8 @@ public struct LessonAssignmentDTO: Codable, Sendable {
         trackID: String?,
         trackStepID: String?,
         migratedFromLegacyID: String?,
-        migratedFromPresentationID: String?
+        migratedFromPresentationID: String?,
+        manuallyUnblocked: Bool? = nil
     ) {
         self.id = id
         self.createdAt = createdAt
@@ -156,6 +161,7 @@ public struct LessonAssignmentDTO: Codable, Sendable {
         self.trackStepID = trackStepID
         self.migratedFromLegacyID = migratedFromLegacyID
         self.migratedFromPresentationID = migratedFromPresentationID
+        self.manuallyUnblocked = manuallyUnblocked
     }
 }
 
@@ -171,6 +177,10 @@ public struct NoteDTO: Codable, Sendable {
     public var lessonID: UUID?
     public var workID: UUID?
     public var imagePath: String?
+    // Restored fields (optional for compatibility with older backups that predate them).
+    public var includeInReport: Bool?
+    public var reportedBy: String?
+    public var reporterName: String?
 }
 
 public struct NonSchoolDayDTO: Codable, Sendable {

@@ -181,6 +181,54 @@ final class BackupRoundTripTests {
         let matchedStudent = try #require(match, "Restored student not found by name")
         #expect(matchedStudent.id == expectedID, "Student ID changed during round-trip")
     }
+
+    @Test("Report flags and manual-unblock survive a full backup round-trip")
+    func reportRelevantFlagsAreRestored() async throws {
+        let sourceStack = try CoreDataTestHelpers.makeInMemoryStack()
+        let ctx = sourceStack.viewContext
+
+        // A note flagged for the report, with author attribution.
+        let note = CoreDataTestHelpers.seedNote(in: ctx, body: "Ada mastered the bead chain")
+        note.id = UUID()
+        note.includeInReport = true
+        note.reportedBy = "assistant-123"
+        note.reporterName = "Ms. Frizzle"
+        let noteID = note.id
+
+        // A manually-unblocked lesson assignment.
+        let assignment = CDLessonAssignment(context: ctx)
+        assignment.lessonID = UUID().uuidString
+        assignment.studentIDs = [UUID().uuidString]
+        assignment.stateRaw = LessonAssignmentState.draft.rawValue
+        assignment.manuallyUnblocked = true
+        let assignmentID = assignment.id
+
+        #expect(CoreDataTestHelpers.save(ctx))
+
+        let url = BackupTestUtil.tempBackupURL()
+        defer { BackupTestUtil.cleanup(url) }
+        try await BackupTestUtil.writeCurrentBackup(from: ctx, to: url)
+
+        let destStack = try CoreDataTestHelpers.makeInMemoryStack()
+        try await BackupTestUtil.importCurrentBackup(from: url, into: destStack.viewContext, mode: .merge)
+        let dctx = destStack.viewContext
+
+        let restoredNote = try #require(
+            try BackupTestUtil.fetchByID(CDNote.self, noteID, entityName: "Note", in: dctx),
+            "Restored note not found"
+        )
+        #expect(restoredNote.includeInReport, "includeInReport must survive the backup round-trip")
+        #expect(restoredNote.reportedBy == "assistant-123", "reportedBy must survive the round-trip")
+        #expect(restoredNote.reporterName == "Ms. Frizzle", "reporterName must survive the round-trip")
+
+        let restoredAssignment = try #require(
+            try BackupTestUtil.fetchByID(
+                CDLessonAssignment.self, assignmentID, entityName: "LessonAssignment", in: dctx
+            ),
+            "Restored lesson assignment not found"
+        )
+        #expect(restoredAssignment.manuallyUnblocked, "manuallyUnblocked must survive the backup round-trip")
+    }
 }
 
 // MARK: - Suite 2: Registry Coverage

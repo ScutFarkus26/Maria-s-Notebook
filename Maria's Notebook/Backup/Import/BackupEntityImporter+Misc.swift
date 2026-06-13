@@ -46,6 +46,9 @@ extension BackupEntityImporter {
             note.needsFollowUp = dto.needsFollowUp ?? false
             note.imagePath = dto.imagePath
             note.isPinned = dto.isPinned
+            note.includeInReport = dto.includeInReport ?? false
+            note.reportedBy = dto.reportedBy
+            note.reporterName = dto.reporterName
 
             if let data = dto.scope.data(using: .utf8) {
                 do {

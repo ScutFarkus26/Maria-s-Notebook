@@ -155,6 +155,7 @@ extension BackupEntityImporter {
             assignment.notes = dto.notes
             assignment.trackID = dto.trackID
             assignment.trackStepID = dto.trackStepID
+            assignment.manuallyUnblocked = dto.manuallyUnblocked ?? false
 
             // Update modifiedAt
             assignment.modifiedAt = dto.modifiedAt

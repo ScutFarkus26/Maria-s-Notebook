@@ -56,7 +56,8 @@ extension BackupDTOTransformers {
             trackID: assignment.trackID,
             trackStepID: assignment.trackStepID,
             migratedFromLegacyID: assignment.migratedFromStudentLessonID,
-            migratedFromPresentationID: assignment.migratedFromPresentationID
+            migratedFromPresentationID: assignment.migratedFromPresentationID,
+            manuallyUnblocked: assignment.manuallyUnblocked
         )
     }
 

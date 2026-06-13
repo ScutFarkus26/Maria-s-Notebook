@@ -102,7 +102,10 @@ extension BackupDTOTransformers {
             tags: tagsArray.isEmpty ? nil : tagsArray,
             needsFollowUp: note.needsFollowUp ? true : nil,
             lessonID: note.lesson?.id,
-            imagePath: note.imagePath
+            imagePath: note.imagePath,
+            includeInReport: note.includeInReport,
+            reportedBy: note.reportedBy,
+            reporterName: note.reporterName
         )
     }
 
