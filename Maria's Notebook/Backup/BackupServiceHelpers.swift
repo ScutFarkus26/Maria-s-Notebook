@@ -27,7 +27,10 @@ enum BackupServiceHelpers {
                 nextLessons: s.nextLessonUUIDs,
                 manualOrder: Int(s.manualOrder),
                 createdAt: nil,
-                updatedAt: nil
+                updatedAt: nil,
+                nickname: s.nickname,
+                enrollmentStatusRaw: s.enrollmentStatusRaw,
+                dateWithdrawn: s.dateWithdrawn
             )
         }
     }
@@ -46,7 +49,15 @@ enum BackupServiceHelpers {
                 writeUp: l.writeUp,
                 createdAt: nil,
                 updatedAt: nil,
-                pagesFileRelativePath: l.pagesFileRelativePath
+                pagesFileRelativePath: l.pagesFileRelativePath,
+                parshaKey: l.parshaKey,
+                greatLessonRaw: l.greatLessonRaw,
+                lessonFormatRaw: l.lessonFormatRaw,
+                sortIndex: Int(l.sortIndex),
+                derivedFromLessonID: l.derivedFromLessonID,
+                parentStoryID: l.parentStoryID,
+                requiresPracticeOverride: l.requiresPracticeOverride,
+                requiresConfirmationOverride: l.requiresConfirmationOverride
             )
         }
     }
@@ -74,7 +85,10 @@ enum BackupServiceHelpers {
                 imagePath: n.imagePath,
                 includeInReport: n.includeInReport,
                 reportedBy: n.reportedBy,
-                reporterName: n.reporterName
+                reporterName: n.reporterName,
+                communityTopicID: n.communityTopicID,
+                schoolDayOverrideID: n.schoolDayOverrideID,
+                studentTrackEnrollmentID: n.studentTrackEnrollmentID
             )
         }
     }

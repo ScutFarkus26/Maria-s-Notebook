@@ -67,6 +67,16 @@ extension LessonDTO {
         self.teacherNotes = try c.decodeIfPresent(String.self, forKey: LegacyKey("teacherNotes"))
         self.prerequisiteLessonIDs = try c.decodeIfPresent(String.self, forKey: LegacyKey("prerequisiteLessonIDs"))
         self.relatedLessonIDs = try c.decodeIfPresent(String.self, forKey: LegacyKey("relatedLessonIDs"))
+        self.parshaKey = try c.decodeIfPresent(String.self, forKey: LegacyKey("parshaKey"))
+        self.greatLessonRaw = try c.decodeIfPresent(String.self, forKey: LegacyKey("greatLessonRaw"))
+        self.lessonFormatRaw = try c.decodeIfPresent(String.self, forKey: LegacyKey("lessonFormatRaw"))
+        self.sortIndex = try c.decodeIfPresent(Int.self, forKey: LegacyKey("sortIndex"))
+        self.derivedFromLessonID = try c.decodeIfPresent(String.self, forKey: LegacyKey("derivedFromLessonID"))
+        self.parentStoryID = try c.decodeIfPresent(String.self, forKey: LegacyKey("parentStoryID"))
+        self.requiresPracticeOverride = try c.decodeIfPresent(String.self, forKey: LegacyKey("requiresPracticeOverride"))
+        self.requiresConfirmationOverride = try c.decodeIfPresent(
+            String.self, forKey: LegacyKey("requiresConfirmationOverride")
+        )
     }
 }
 

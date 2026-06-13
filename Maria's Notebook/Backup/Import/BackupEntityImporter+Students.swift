@@ -30,6 +30,9 @@ extension BackupEntityImporter {
             student.dateStarted = dto.dateStarted
             student.nextLessons = dto.nextLessons.map(\.uuidString) as NSArray
             student.manualOrder = Int64(dto.manualOrder)
+            student.nickname = dto.nickname
+            if let v = dto.enrollmentStatusRaw { student.enrollmentStatusRaw = v }
+            student.dateWithdrawn = dto.dateWithdrawn
             viewContext.insert(student)
             studentsByID[student.id ?? dto.id] = student
         }

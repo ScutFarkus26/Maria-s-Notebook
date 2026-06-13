@@ -41,6 +41,14 @@ extension BackupEntityImporter {
             if let v = dto.teacherNotes { lesson.teacherNotes = v }
             if let v = dto.prerequisiteLessonIDs { lesson.prerequisiteLessonIDs = v }
             if let v = dto.relatedLessonIDs { lesson.relatedLessonIDs = v }
+            lesson.parshaKey = dto.parshaKey
+            lesson.greatLessonRaw = dto.greatLessonRaw
+            if let v = dto.lessonFormatRaw { lesson.lessonFormatRaw = v }
+            if let v = dto.sortIndex { lesson.sortIndex = Int64(v) }
+            lesson.derivedFromLessonID = dto.derivedFromLessonID
+            lesson.parentStoryID = dto.parentStoryID
+            if let v = dto.requiresPracticeOverride { lesson.requiresPracticeOverride = v }
+            if let v = dto.requiresConfirmationOverride { lesson.requiresConfirmationOverride = v }
             return lesson
         })
     }

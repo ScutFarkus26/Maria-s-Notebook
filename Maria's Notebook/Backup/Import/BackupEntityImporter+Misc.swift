@@ -49,6 +49,9 @@ extension BackupEntityImporter {
             note.includeInReport = dto.includeInReport ?? false
             note.reportedBy = dto.reportedBy
             note.reporterName = dto.reporterName
+            note.communityTopicID = dto.communityTopicID
+            note.schoolDayOverrideID = dto.schoolDayOverrideID
+            note.studentTrackEnrollmentID = dto.studentTrackEnrollmentID
 
             if let data = dto.scope.data(using: .utf8) {
                 do {

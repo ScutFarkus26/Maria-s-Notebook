@@ -19,6 +19,10 @@ public struct StudentDTO: Codable, Sendable {
     public var manualOrder: Int
     public var createdAt: Date?
     public var updatedAt: Date?
+    // Restored fields (optional for compatibility with older backups that predate them).
+    public var nickname: String?
+    public var enrollmentStatusRaw: String?
+    public var dateWithdrawn: Date?
 }
 
 public struct LessonDTO: Codable, Sendable {
@@ -45,6 +49,15 @@ public struct LessonDTO: Codable, Sendable {
     public var teacherNotes: String?
     public var prerequisiteLessonIDs: String?
     public var relatedLessonIDs: String?
+    // Restored fields (optional for compatibility with older backups that predate them).
+    public var parshaKey: String?
+    public var greatLessonRaw: String?
+    public var lessonFormatRaw: String?
+    public var sortIndex: Int?
+    public var derivedFromLessonID: String?
+    public var parentStoryID: String?
+    public var requiresPracticeOverride: String?
+    public var requiresConfirmationOverride: String?
 }
 
 public struct SampleWorkDTO: Codable, Sendable {
@@ -181,6 +194,9 @@ public struct NoteDTO: Codable, Sendable {
     public var includeInReport: Bool?
     public var reportedBy: String?
     public var reporterName: String?
+    public var communityTopicID: String?
+    public var schoolDayOverrideID: String?
+    public var studentTrackEnrollmentID: String?
 }
 
 public struct NonSchoolDayDTO: Codable, Sendable {

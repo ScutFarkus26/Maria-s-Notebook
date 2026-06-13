@@ -193,6 +193,7 @@ final class BackupRoundTripTests {
         note.includeInReport = true
         note.reportedBy = "assistant-123"
         note.reporterName = "Ms. Frizzle"
+        note.communityTopicID = "topic-xyz"
         let noteID = note.id
 
         // A manually-unblocked lesson assignment.
@@ -220,6 +221,7 @@ final class BackupRoundTripTests {
         #expect(restoredNote.includeInReport, "includeInReport must survive the backup round-trip")
         #expect(restoredNote.reportedBy == "assistant-123", "reportedBy must survive the round-trip")
         #expect(restoredNote.reporterName == "Ms. Frizzle", "reporterName must survive the round-trip")
+        #expect(restoredNote.communityTopicID == "topic-xyz", "note context link must survive the round-trip")
 
         let restoredAssignment = try #require(
             try BackupTestUtil.fetchByID(
@@ -228,6 +230,56 @@ final class BackupRoundTripTests {
             "Restored lesson assignment not found"
         )
         #expect(restoredAssignment.manuallyUnblocked, "manuallyUnblocked must survive the backup round-trip")
+    }
+
+    @Test("Lesson and Student audited fields survive a full backup round-trip")
+    func lessonAndStudentFieldsAreRestored() async throws {
+        let sourceStack = try CoreDataTestHelpers.makeInMemoryStack()
+        let ctx = sourceStack.viewContext
+
+        let lesson = CoreDataTestHelpers.seedLesson(in: ctx, name: "Parshat Noach Study")
+        lesson.id = UUID()
+        lesson.parshaKey = "noach"
+        lesson.greatLessonRaw = "secondGreatLesson"
+        lesson.lessonFormatRaw = "story"
+        lesson.sortIndex = 7
+        lesson.requiresPracticeOverride = "required"
+        let lessonID = lesson.id
+
+        let student = CoreDataTestHelpers.seedStudent(in: ctx, firstName: "Eli", lastName: "Cohen")
+        student.id = UUID()
+        student.nickname = "Eli"
+        student.enrollmentStatusRaw = "withdrawn"
+        student.dateWithdrawn = Date(timeIntervalSince1970: 1_700_000_000)
+        let studentID = student.id
+
+        #expect(CoreDataTestHelpers.save(ctx))
+
+        let url = BackupTestUtil.tempBackupURL()
+        defer { BackupTestUtil.cleanup(url) }
+        try await BackupTestUtil.writeCurrentBackup(from: ctx, to: url)
+
+        let destStack = try CoreDataTestHelpers.makeInMemoryStack()
+        try await BackupTestUtil.importCurrentBackup(from: url, into: destStack.viewContext, mode: .merge)
+        let dctx = destStack.viewContext
+
+        let rl = try #require(
+            try BackupTestUtil.fetchByID(CDLesson.self, lessonID, entityName: "Lesson", in: dctx),
+            "Restored lesson not found"
+        )
+        #expect(rl.parshaKey == "noach", "parshaKey must survive the round-trip")
+        #expect(rl.greatLessonRaw == "secondGreatLesson", "greatLessonRaw must survive")
+        #expect(rl.lessonFormatRaw == "story", "lessonFormatRaw must survive")
+        #expect(rl.sortIndex == 7, "sortIndex must survive")
+        #expect(rl.requiresPracticeOverride == "required", "requiresPracticeOverride must survive")
+
+        let rs = try #require(
+            try BackupTestUtil.fetchByID(CDStudent.self, studentID, entityName: "Student", in: dctx),
+            "Restored student not found"
+        )
+        #expect(rs.nickname == "Eli", "nickname must survive the round-trip")
+        #expect(rs.enrollmentStatusRaw == "withdrawn", "enrollment status must survive the round-trip")
+        #expect(rs.dateWithdrawn != nil, "dateWithdrawn must survive the round-trip")
     }
 }
 
