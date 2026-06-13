@@ -14,6 +14,8 @@ final class SchoolDayCalculationCache {
     
     private var cache: [CacheKey: Int] = [:]
     private var nonSchoolDaysCache: Set<Date> = []
+    /// The day range currently covered by `nonSchoolDaysCache` (start ..< end-exclusive).
+    private var cachedRange: Range<Date>?
     private var lastCacheRefresh: Date?
     private let cacheValidityDuration: TimeInterval = 300 // 5 minutes
     
@@ -23,6 +25,7 @@ final class SchoolDayCalculationCache {
     func invalidate() {
         cache.removeAll()
         nonSchoolDaysCache.removeAll()
+        cachedRange = nil
         lastCacheRefresh = nil
     }
     
@@ -35,20 +38,34 @@ final class SchoolDayCalculationCache {
         using context: NSManagedObjectContext,
         calendar: Calendar = .current
     ) {
-        // Check if cache needs refresh
-        if let lastRefresh = lastCacheRefresh, Date().timeIntervalSince(lastRefresh) < cacheValidityDuration {
-            return // Cache is still valid
-        }
-
         let startDay = calendar.startOfDay(for: start)
         let endDay = calendar.startOfDay(for: end)
         guard let endExclusive = calendar.date(byAdding: .day, value: 1, to: endDay) else { return }
+        let requested = startDay..<endExclusive
+
+        // Reuse the cache only if it is fresh AND already covers the requested range.
+        // A time-only check would reuse a set loaded for a *different* range, counting
+        // weekends/holidays outside the loaded window as school days.
+        let isFresh = lastCacheRefresh.map { Date().timeIntervalSince($0) < cacheValidityDuration } ?? false
+        if isFresh, let cached = cachedRange,
+           cached.lowerBound <= requested.lowerBound, requested.upperBound <= cached.upperBound {
+            return // Fresh and fully covers the requested range
+        }
+
+        // Load a window covering both the requested range and any still-fresh cached range,
+        // so coverage never shrinks within the validity window.
+        var loadRange = requested
+        if isFresh, let cached = cachedRange {
+            loadRange = min(cached.lowerBound, requested.lowerBound)
+                ..< max(cached.upperBound, requested.upperBound)
+        }
 
         nonSchoolDaysCache = SchoolDayChecker.nonSchoolDaySet(
-            in: startDay..<endExclusive,
+            in: loadRange,
             using: context,
             calendar: calendar
         )
+        cachedRange = loadRange
         lastCacheRefresh = Date()
     }
     
