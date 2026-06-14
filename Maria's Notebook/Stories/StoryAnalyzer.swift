@@ -20,6 +20,7 @@ struct StoryAnalysisResult: Sendable {
 enum StoryAnalyzerError: LocalizedError {
     case aiUnavailable
     case insufficientText
+    case unreadablePDF
     case generationFailed(message: String)
     case timedOut
 
@@ -29,6 +30,8 @@ enum StoryAnalyzerError: LocalizedError {
             return "Apple Intelligence is unavailable on this device."
         case .insufficientText:
             return "Couldn't read enough text from the PDF to analyze."
+        case .unreadablePDF:
+            return "Couldn't read this PDF's pages."
         case .generationFailed(let message):
             return message
         case .timedOut:
@@ -67,17 +70,32 @@ struct StoryAnalysisAI {
 enum StoryAnalyzer {
     private static let logger = Logger.stories
     private static let maxPagesToRead = 10
-    private static let maxCharacters = 12_000
     private static let analysisTimeout: Duration = .seconds(30)
+    // Image understanding is slower than text: a few rendered pages cost far
+    // more tokens than a text excerpt, so give the visual path extra headroom.
+    private static let visualAnalysisTimeout: Duration = .seconds(90)
+    private static let maxPagesToRender = 3
+    private static let renderedPageMaxDimension: CGFloat = 1_024
+    // Headroom for instructions, the generation schema, and the response.
+    private static let promptTokenReserve = 1_500
 
     /// True if on-device AI analysis is available right now.
     static var isAIEnabled: Bool {
         #if ENABLE_FOUNDATION_MODELS && canImport(FoundationModels)
-        if #available(macOS 26.0, iOS 26.0, *) {
-            return SystemLanguageModel.default.isAvailable
-        }
-        #endif
+        return SystemLanguageModel.default.isAvailable
+        #else
         return false
+        #endif
+    }
+
+    /// True if the on-device model can analyze page images (scanned/picture books).
+    static var isVisualAnalysisEnabled: Bool {
+        #if ENABLE_FOUNDATION_MODELS && canImport(FoundationModels)
+        let model = SystemLanguageModel.default
+        return model.isAvailable && model.capabilities.contains(.vision)
+        #else
+        return false
+        #endif
     }
 
     /// Extracts up to the first 10 pages of text from a PDF.
@@ -105,23 +123,19 @@ enum StoryAnalyzer {
         return digest.map { String(format: "%02x", $0) }.joined()
     }
 
-    /// Truncates extracted text to a model-friendly size.
-    static func truncate(_ text: String) -> String {
-        guard text.count > maxCharacters else { return text }
-        return String(text.prefix(maxCharacters))
-    }
-
     /// True if a hunk of extracted text has enough content for the LLM to reason about.
     static func hasUsableText(_ text: String) -> Bool {
         text.count >= 200
     }
 
+    private static let textInstructions = "You are a children's-literature librarian. "
+        + "Read the supplied story excerpt and extract structured metadata. "
+        + "Choose grade levels conservatively. "
+        + "Themes should be lowercase single words or two-word phrases."
+
     /// Runs AI analysis on the supplied text. Throws a typed error on failure.
     static func analyze(text: String) async throws -> StoryAnalysisResult {
         #if ENABLE_FOUNDATION_MODELS && canImport(FoundationModels)
-        guard #available(macOS 26.0, iOS 26.0, *) else {
-            throw StoryAnalyzerError.aiUnavailable
-        }
         guard SystemLanguageModel.default.isAvailable else {
             throw StoryAnalyzerError.aiUnavailable
         }
@@ -129,12 +143,12 @@ enum StoryAnalyzer {
             throw StoryAnalyzerError.insufficientText
         }
 
-        let prompt = truncate(text)
-        let instructions = "You are a children's-literature librarian. "
-            + "Read the supplied story excerpt and extract structured metadata. "
-            + "Choose grade levels conservatively. "
-            + "Themes should be lowercase single words or two-word phrases."
-        let session = LanguageModelSession(instructions: instructions)
+        // Clamp the excerpt to what actually fits the model's context window,
+        // measured in real tokens rather than guessed from character counts.
+        let budget = TokenBudget()
+        let maxInputTokens = max(1_000, budget.contextSize - promptTokenReserve)
+        let prompt = await budget.prefix(of: text, fittingTokens: maxInputTokens)
+        let session = LanguageModelSession(instructions: textInstructions)
 
         do {
             let result: StoryAnalysisResult = try await withTimeout(analysisTimeout) {
@@ -142,15 +156,7 @@ enum StoryAnalyzer {
                     to: "Analyze this story excerpt:\n\n\(prompt)",
                     generating: StoryAnalysisAI.self
                 )
-                let content = response.content
-                return StoryAnalysisResult(
-                    title: cleanTitle(content.title),
-                    summary: content.summary.trimmingCharacters(in: .whitespacesAndNewlines),
-                    themes: cleanThemes(content.themes),
-                    gradeMin: content.gradeMin.asStoryGrade,
-                    gradeMax: content.gradeMax.asStoryGrade,
-                    modelVersion: "FoundationModels.system"
-                )
+                return makeResult(from: response.content, modelVersion: "FoundationModels.system")
             }
             return result
         } catch is TimeoutError {
@@ -165,6 +171,97 @@ enum StoryAnalyzer {
         #else
         throw StoryAnalyzerError.aiUnavailable
         #endif
+    }
+
+    /// Analyzes a story from rendered page images — for scanned PDFs and picture
+    /// books where text extraction comes up empty. Renders the first pages and
+    /// asks the vision-capable on-device model to read them directly.
+    static func analyzeVisually(url: URL) async throws -> StoryAnalysisResult {
+        #if ENABLE_FOUNDATION_MODELS && canImport(FoundationModels)
+        guard isVisualAnalysisEnabled else {
+            throw StoryAnalyzerError.aiUnavailable
+        }
+
+        let instructions = "You are a children's-literature librarian. "
+            + "You are shown the first pages of a story (cover first). "
+            + "Read any visible text and use the illustrations to extract structured metadata. "
+            + "Choose grade levels conservatively. "
+            + "Themes should be lowercase single words or two-word phrases."
+
+        do {
+            // Page images and attachments aren't Sendable, so everything from
+            // rendering to the request is built inside the timeout task; only
+            // the (Sendable) file URL is captured.
+            let result: StoryAnalysisResult = try await withTimeout(visualAnalysisTimeout) {
+                let images = renderPageImages(from: url)
+                guard !images.isEmpty else {
+                    throw StoryAnalyzerError.unreadablePDF
+                }
+                let session = LanguageModelSession(instructions: instructions)
+                let attachments = images.map { Attachment($0) }
+                let response = try await session.respond(generating: StoryAnalysisAI.self) {
+                    "Analyze the story shown on these pages:"
+                    attachments
+                }
+                return makeResult(from: response.content, modelVersion: "FoundationModels.system+vision")
+            }
+            return result
+        } catch is TimeoutError {
+            throw StoryAnalyzerError.timedOut
+        } catch let error as StoryAnalyzerError {
+            throw error
+        } catch let error as LanguageModelError {
+            logger.warning("Visual story analysis generation error: \(String(describing: error), privacy: .public)")
+            throw StoryAnalyzerError.generationFailed(message: userMessage(for: error))
+        } catch {
+            logger.warning("Visual story analysis failed: \(error.localizedDescription, privacy: .public)")
+            throw StoryAnalyzerError.generationFailed(message: error.localizedDescription)
+        }
+        #else
+        throw StoryAnalyzerError.aiUnavailable
+        #endif
+    }
+
+    #if ENABLE_FOUNDATION_MODELS && canImport(FoundationModels)
+    private static func makeResult(
+        from content: StoryAnalysisAI,
+        modelVersion: String
+    ) -> StoryAnalysisResult {
+        StoryAnalysisResult(
+            title: cleanTitle(content.title),
+            summary: content.summary.trimmingCharacters(in: .whitespacesAndNewlines),
+            themes: cleanThemes(content.themes),
+            gradeMin: content.gradeMin.asStoryGrade,
+            gradeMax: content.gradeMax.asStoryGrade,
+            modelVersion: modelVersion
+        )
+    }
+    #endif
+
+    /// Renders the first pages of a PDF to bitmaps sized for the model.
+    private static func renderPageImages(from url: URL) -> [CGImage] {
+        guard let document = PDFDocument(url: url) else { return [] }
+        let count = Swift.min(document.pageCount, maxPagesToRender)
+        var images: [CGImage] = []
+        for index in 0..<count {
+            guard let page = document.page(at: index) else { continue }
+            let bounds = page.bounds(for: .mediaBox)
+            guard bounds.width > 0, bounds.height > 0 else { continue }
+            let scale = renderedPageMaxDimension / Swift.max(bounds.width, bounds.height)
+            let size = CGSize(width: bounds.width * scale, height: bounds.height * scale)
+            let thumbnail = page.thumbnail(of: size, for: .mediaBox)
+            #if os(macOS)
+            var rect = CGRect(origin: .zero, size: thumbnail.size)
+            if let cgImage = thumbnail.cgImage(forProposedRect: &rect, context: nil, hints: nil) {
+                images.append(cgImage)
+            }
+            #else
+            if let cgImage = thumbnail.cgImage {
+                images.append(cgImage)
+            }
+            #endif
+        }
+        return images
     }
 
     // MARK: - Cleaning

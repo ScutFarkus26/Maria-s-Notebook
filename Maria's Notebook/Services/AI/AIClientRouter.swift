@@ -3,7 +3,7 @@
 //  Maria's Notebook
 //
 //  Routes AI requests to the appropriate provider based on per-feature model selection.
-//  Supports: Apple Intelligence, Ollama, and Claude API.
+//  Supports: Apple Intelligence (on-device), Apple Private Cloud Compute, and Claude API.
 //  Implements MCPClientProtocol so it can be injected anywhere the protocol is used.
 //
 
@@ -12,9 +12,9 @@ import OSLog
 
 /// Routes AI requests based on the user's per-feature model selection.
 ///
-/// Supports three routing strategies:
-/// - **Direct**: Route to a specific provider (Claude, Apple Intelligence, Ollama)
-/// - **Local First (Auto)**: Cascade through local providers, fall back to Claude
+/// Supports two routing strategies:
+/// - **Direct**: Route to a specific provider (Claude, Apple on-device, Apple Private Cloud)
+/// - **Apple First (Auto)**: On-device first, Private Cloud Compute next, Claude as final fallback
 ///
 /// Usage:
 /// ```swift
@@ -28,17 +28,25 @@ final class AIClientRouter: MCPClientProtocol {
     // MARK: - Provider Clients
 
     let anthropicClient: AnthropicAPIClient
-    let ollamaClient: OllamaClient
 
     #if ENABLE_FOUNDATION_MODELS && canImport(FoundationModels)
-    @available(macOS 26.0, iOS 26.0, *)
     private var _localClient: LocalModelClient?
 
-    @available(macOS 26.0, iOS 26.0, *)
+    /// Apple's on-device model (Apple Intelligence).
     var localClient: LocalModelClient {
         if let c = _localClient { return c }
         let c = LocalModelClient()
         _localClient = c
+        return c
+    }
+
+    private var _privateCloudClient: PrivateCloudModelClient?
+
+    /// Apple's server-side model on Private Cloud Compute.
+    var privateCloudClient: PrivateCloudModelClient {
+        if let c = _privateCloudClient { return c }
+        let c = PrivateCloudModelClient()
+        _privateCloudClient = c
         return c
     }
     #endif
@@ -47,12 +55,8 @@ final class AIClientRouter: MCPClientProtocol {
     /// Set before each call by the calling service via `configureForFeature(_:)`.
     var activeFeatureArea: AIFeatureArea = .chat
 
-    init(
-        anthropicClient: AnthropicAPIClient = AnthropicAPIClient(),
-        ollamaClient: OllamaClient = OllamaClient()
-    ) {
+    init(anthropicClient: AnthropicAPIClient = AnthropicAPIClient()) {
         self.anthropicClient = anthropicClient
-        self.ollamaClient = ollamaClient
     }
 
     // MARK: - Routing
@@ -60,7 +64,7 @@ final class AIClientRouter: MCPClientProtocol {
     private enum Route {
         case claude(String)        // model ID
         case appleOnDevice
-        case ollamaLocal
+        case applePrivateCloud
         case localFirstAuto        // cascade
     }
 
@@ -71,8 +75,8 @@ final class AIClientRouter: MCPClientProtocol {
             return .claude(model.rawValue)
         case .appleOnDevice:
             return .appleOnDevice
-        case .ollamaLocal:
-            return .ollamaLocal
+        case .applePrivateCloud:
+            return .applePrivateCloud
         case .localFirstAuto:
             return .localFirstAuto
         }
@@ -145,7 +149,7 @@ final class AIClientRouter: MCPClientProtocol {
     // MARK: - MCPClientProtocol — searchKnowledgeBase
 
     func searchKnowledgeBase(query: String, domain: String) async throws -> [KnowledgeBaseResult] {
-        // Always use Claude for knowledge base (local models have none)
+        // Always use Claude for knowledge base (Apple models have none)
         try await anthropicClient.searchKnowledgeBase(query: query, domain: domain)
     }
 
@@ -207,48 +211,44 @@ final class AIClientRouter: MCPClientProtocol {
         case .appleOnDevice:
             return try await callAppleIntelligence(work)
 
-        case .ollamaLocal:
-            Self.logger.debug("Routing to Ollama for \(self.activeFeatureArea.rawValue)")
-            return try await work(ollamaClient)
+        case .applePrivateCloud:
+            return try await callApplePrivateCloud(work)
 
         case .localFirstAuto:
             return try await localFirstCascade(work)
         }
     }
 
-    /// Tries local providers in order (best quality first), falls back to Claude.
-    /// For non-chat features, auto-validates and escalates to Claude if the local response is inadequate.
+    /// Tries Apple's models in order (on-device, then Private Cloud Compute), falls back to Claude.
     /// For chat, returns the local response as-is (escalation is handled by the ChatViewModel UI).
     private func localFirstCascade<T>(_ work: (MCPClientProtocol) async throws -> T) async throws -> T {
-        // 1. Ollama (best local quality with 7B+ models)
-        if await ollamaClient.isAvailable {
+        #if ENABLE_FOUNDATION_MODELS && canImport(FoundationModels)
+        // 1. Apple Intelligence on-device (fastest, fully private, free)
+        if localClient.isAvailable {
             do {
-                Self.logger.debug("Local-first: trying Ollama for \(self.activeFeatureArea.rawValue)")
-                return try await work(ollamaClient)
-            } catch let error as OllamaError {
-                Self.logger.info("Ollama failed (\(error.localizedDescription)), trying next provider")
+                Self.logger.debug("Apple-first: trying on-device for \(self.activeFeatureArea.rawValue)")
+                return try await work(localClient)
+            } catch let error as LocalModelError {
+                Self.logger.info("On-device failed (\(error.localizedDescription)), trying next provider")
             }
         }
 
-        // 2. Apple Intelligence
-        #if ENABLE_FOUNDATION_MODELS && canImport(FoundationModels)
-        if #available(macOS 26.0, iOS 26.0, *) {
-            if localClient.isAvailable {
-                do {
-                    Self.logger.debug("Local-first: trying Apple Intelligence for \(self.activeFeatureArea.rawValue)")
-                    return try await work(localClient)
-                } catch let error as LocalModelError {
-                    Self.logger.info(
-                        "Apple Intelligence failed (\(error.localizedDescription)), falling back to Claude"
-                    )
-                }
+        // 2. Private Cloud Compute (larger context, still private, no API key)
+        if privateCloudClient.isAvailable {
+            do {
+                Self.logger.debug("Apple-first: trying Private Cloud Compute for \(self.activeFeatureArea.rawValue)")
+                return try await work(privateCloudClient)
+            } catch let error as LocalModelError {
+                Self.logger.info(
+                    "Private Cloud Compute failed (\(error.localizedDescription)), falling back to Claude"
+                )
             }
         }
         #endif
 
         // 3. Claude (final fallback)
         Self.logger.debug(
-            "Local-first: all local providers unavailable, routing to Claude for \(self.activeFeatureArea.rawValue)"
+            "Apple-first: all Apple providers unavailable, routing to Claude for \(self.activeFeatureArea.rawValue)"
         )
         return try await work(anthropicClient)
     }
@@ -257,12 +257,20 @@ final class AIClientRouter: MCPClientProtocol {
 
     private func callAppleIntelligence<T>(_ work: (MCPClientProtocol) async throws -> T) async throws -> T {
         #if ENABLE_FOUNDATION_MODELS && canImport(FoundationModels)
-        if #available(macOS 26.0, iOS 26.0, *) {
-            Self.logger.debug("Routing to Apple Intelligence for \(self.activeFeatureArea.rawValue)")
-            return try await work(localClient)
-        }
-        #endif
+        Self.logger.debug("Routing to Apple Intelligence for \(self.activeFeatureArea.rawValue)")
+        return try await work(localClient)
+        #else
         throw LocalModelError.unavailable("Apple Intelligence is not available in this build.")
+        #endif
+    }
+
+    private func callApplePrivateCloud<T>(_ work: (MCPClientProtocol) async throws -> T) async throws -> T {
+        #if ENABLE_FOUNDATION_MODELS && canImport(FoundationModels)
+        Self.logger.debug("Routing to Private Cloud Compute for \(self.activeFeatureArea.rawValue)")
+        return try await work(privateCloudClient)
+        #else
+        throw LocalModelError.unavailable("Private Cloud Compute is not available in this build.")
+        #endif
     }
 
 }

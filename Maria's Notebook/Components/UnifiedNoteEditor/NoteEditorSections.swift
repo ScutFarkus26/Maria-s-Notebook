@@ -60,7 +60,7 @@ extension UnifiedNoteEditor {
                 .foregroundStyle(.secondary)
             Spacer()
 #if ENABLE_FOUNDATION_MODELS && canImport(FoundationModels)
-            if !bodyText.trimmed().isEmpty {
+            if !bodyText.trimmed().isEmpty || imagePath != nil {
                 Button {
                     Task { await suggestTagsAndScope() }
                 } label: {
@@ -198,6 +198,9 @@ extension UnifiedNoteEditor {
             #endif
             photoPickerButton
             photoPreview
+            #if ENABLE_FOUNDATION_MODELS && canImport(FoundationModels)
+            describePhotoButton  // defined in NoteEditorAISuggestion.swift
+            #endif
             Spacer()
         }
     }
@@ -208,21 +211,7 @@ extension UnifiedNoteEditor {
             showingCamera = true
         } label: {
             Label("Take Photo", systemImage: "camera.fill")
-                .font(AppTheme.ScaledFont.body)
-                .foregroundStyle(.primary)
-                .padding(.horizontal, AppTheme.Spacing.compact)
-                .padding(.vertical, AppTheme.Spacing.small)
-                .background(
-                    RoundedRectangle(cornerRadius: UIConstants.CornerRadius.medium, style: .continuous)
-                        .fill(cardBackgroundColor)
-                )
-                .overlay(
-                    RoundedRectangle(cornerRadius: UIConstants.CornerRadius.medium, style: .continuous)
-                        .stroke(
-                            Color.secondary.opacity(UIConstants.OpacityConstants.light),
-                            lineWidth: UIConstants.StrokeWidth.thin
-                        )
-                )
+                .photoActionChipStyle(background: cardBackgroundColor)
         }
     }
     #endif
@@ -230,21 +219,7 @@ extension UnifiedNoteEditor {
     var photoPickerButton: some View {
         PhotosPicker(selection: $selectedPhoto, matching: .images) {
             Label("Choose Photo", systemImage: "photo.on.rectangle")
-                .font(AppTheme.ScaledFont.body)
-                .foregroundStyle(.primary)
-                .padding(.horizontal, AppTheme.Spacing.compact)
-                .padding(.vertical, AppTheme.Spacing.small)
-                .background(
-                    RoundedRectangle(cornerRadius: UIConstants.CornerRadius.medium, style: .continuous)
-                        .fill(cardBackgroundColor)
-                )
-                .overlay(
-                    RoundedRectangle(cornerRadius: UIConstants.CornerRadius.medium, style: .continuous)
-                        .stroke(
-                            Color.secondary.opacity(UIConstants.OpacityConstants.light),
-                            lineWidth: UIConstants.StrokeWidth.thin
-                        )
-                )
+                .photoActionChipStyle(background: cardBackgroundColor)
         }
     }
 

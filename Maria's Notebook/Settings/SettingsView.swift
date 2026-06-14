@@ -280,23 +280,39 @@ struct SettingsView: View {
 #if ENABLE_FOUNDATION_MODELS && canImport(FoundationModels)
 import FoundationModels
 
-@available(macOS 26.0, iOS 26.0, *)
 struct AppleIntelligenceStatusRow: View {
-    private let client = LocalModelClient()
+    private let onDevice = LocalModelClient()
+    private let privateCloud = PrivateCloudModelClient()
 
     var body: some View {
+        VStack(alignment: .leading, spacing: AppTheme.Spacing.small) {
+            statusLine(
+                label: "On-Device",
+                available: onDevice.isAvailable,
+                reason: onDevice.unavailabilityReason
+            )
+            Divider()
+            statusLine(
+                label: "Private Cloud Compute",
+                available: privateCloud.isAvailable,
+                reason: privateCloud.unavailabilityReason
+            )
+        }
+    }
+
+    private func statusLine(label: String, available: Bool, reason: String) -> some View {
         HStack(spacing: AppTheme.Spacing.small) {
-            Image(systemName: client.isAvailable ? "checkmark.circle.fill" : "xmark.circle.fill")
-                .foregroundStyle(client.isAvailable ? AppColors.success : AppColors.warning)
+            Image(systemName: available ? "checkmark.circle.fill" : "xmark.circle.fill")
+                .foregroundStyle(available ? AppColors.success : AppColors.warning)
                 .font(.subheadline)
 
             VStack(alignment: .leading, spacing: 2) {
-                Text(client.isAvailable ? "Available" : "Not Available")
+                Text("\(label): \(available ? "Available" : "Not Available")")
                     .font(AppTheme.ScaledFont.bodySemibold)
-                    .foregroundStyle(client.isAvailable ? AppColors.success : AppColors.warning)
+                    .foregroundStyle(available ? AppColors.success : AppColors.warning)
 
-                if !client.isAvailable {
-                    Text(client.unavailabilityReason)
+                if !available {
+                    Text(reason)
                         .font(AppTheme.ScaledFont.captionSmall)
                         .foregroundStyle(.secondary)
                 }

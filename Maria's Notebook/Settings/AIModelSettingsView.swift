@@ -6,7 +6,7 @@ import SwiftUI
 enum AIModelOption: String, CaseIterable, Identifiable {
     case localFirstAuto = "local-first-auto"
     case appleOnDevice = "apple-on-device"
-    case ollamaLocal = "ollama-local"
+    case applePrivateCloud = "apple-private-cloud"
     case claudeSonnet = "claude-sonnet-4-20250514"
     // Use the rolling alias (matches Stories' working usage). The previous
     // "claude-haiku-4-20250414" was not a real model ID and 404'd when selected.
@@ -16,9 +16,9 @@ enum AIModelOption: String, CaseIterable, Identifiable {
 
     var displayName: String {
         switch self {
-        case .localFirstAuto: return "Local First (Auto)"
+        case .localFirstAuto: return "Apple First (Auto)"
         case .appleOnDevice: return "Apple On-Device"
-        case .ollamaLocal: return "Ollama"
+        case .applePrivateCloud: return "Apple Private Cloud"
         case .claudeSonnet: return "Claude Sonnet 4"
         case .claudeHaiku: return "Claude Haiku 4.5"
         }
@@ -26,9 +26,9 @@ enum AIModelOption: String, CaseIterable, Identifiable {
 
     var subtitle: String {
         switch self {
-        case .localFirstAuto: return "Best local model first, Claude if needed"
+        case .localFirstAuto: return "On-device first, Private Cloud for big jobs, Claude if needed"
         case .appleOnDevice: return "Apple Intelligence, private"
-        case .ollamaLocal: return "Local Ollama server"
+        case .applePrivateCloud: return "Apple's server model — private, no API key, larger jobs"
         case .claudeSonnet: return "Balanced speed & quality"
         case .claudeHaiku: return "Fastest, less nuanced"
         }
@@ -38,7 +38,7 @@ enum AIModelOption: String, CaseIterable, Identifiable {
         switch self {
         case .localFirstAuto: return "arrow.triangle.branch"
         case .appleOnDevice: return "apple.logo"
-        case .ollamaLocal: return "server.rack"
+        case .applePrivateCloud: return "lock.icloud"
         case .claudeSonnet: return "bolt.circle"
         case .claudeHaiku: return "hare"
         }
@@ -54,13 +54,17 @@ enum AIModelOption: String, CaseIterable, Identifiable {
 
     /// Whether this model requires Apple Intelligence to be available.
     var requiresAppleIntelligence: Bool {
-        self == .appleOnDevice || self == .localFirstAuto
+        switch self {
+        case .appleOnDevice, .applePrivateCloud, .localFirstAuto: return true
+        default: return false
+        }
     }
 
-    /// Whether this is a local-only model option.
-    var isLocal: Bool {
+    /// Whether this option keeps data inside Apple's privacy boundary
+    /// (on-device, or Private Cloud Compute which is stateless and verifiable).
+    var isPrivate: Bool {
         switch self {
-        case .appleOnDevice, .ollamaLocal, .localFirstAuto: return true
+        case .appleOnDevice, .applePrivateCloud, .localFirstAuto: return true
         default: return false
         }
     }

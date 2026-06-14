@@ -318,11 +318,6 @@ extension SettingsView {
                 appleIntelligenceStatus
             }
 
-            SettingsGroup(title: "Ollama", systemImage: "server.rack") {
-                OllamaSettingsView()
-                    .frame(maxWidth: .infinity)
-            }
-
             SettingsGroup(title: "Claude API Key", systemImage: "key.fill") {
                 VStack(spacing: 12) {
                     HStack {

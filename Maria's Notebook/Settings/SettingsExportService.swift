@@ -53,10 +53,6 @@ enum SettingsExportService {
               store: .userDefaults, type: .string),
         .init(jsonKey: "aiModelBackgroundTasks", storeKey: UserDefaultsKeys.aiModelBackgroundTasks,
               store: .userDefaults, type: .string),
-        .init(jsonKey: "ollamaBaseURL", storeKey: UserDefaultsKeys.ollamaBaseURL,
-              store: .userDefaults, type: .string),
-        .init(jsonKey: "ollamaModelName", storeKey: UserDefaultsKeys.ollamaModelName,
-              store: .userDefaults, type: .string),
         // CDLesson Planning
         .init(jsonKey: "lessonPlanningTimeout", storeKey: UserDefaultsKeys.lessonPlanningTimeout,
               store: .userDefaults, type: .int),

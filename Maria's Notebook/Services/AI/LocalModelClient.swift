@@ -135,9 +135,80 @@ final class LocalModelClient: MCPClientProtocol {
         [] // On-device model has no external knowledge base
     }
 
-    // sendConversation and streamConversation use the protocol default
-    // implementations (message flattening), which works for on-device models
-    // where true multi-turn is not critical.
+    // MARK: - Chat with notebook tools ("ask your notebook")
+
+    // Answers conversational questions with notebook lookup tools attached, so the
+    // model can search the teacher's own notes/lessons/students while answering —
+    // fully on-device.
+
+    // swiftlint:disable:next function_parameter_count
+    func sendConversation(
+        messages: [[String: String]],
+        systemMessage: String?,
+        temperature: Double,
+        maxTokens: Int,
+        model: String?,
+        timeout: TimeInterval?
+    ) async throws -> String {
+        guard isAvailable else {
+            throw LocalModelError.unavailable(unavailabilityReason)
+        }
+        let session = LanguageModelSession(
+            tools: NotebookTools.chatTools(),
+            instructions: systemMessage ?? AIPrompts.chatAssistant
+        )
+        do {
+            let response = try await session.respond(
+                to: Self.flatten(messages),
+                options: .init(temperature: temperature)
+            )
+            return response.content
+        } catch let error as LanguageModelError {
+            throw LocalModelError.fromLanguageModel(error)
+        }
+    }
+
+    // swiftlint:disable:next function_parameter_count
+    func streamConversation(
+        messages: [[String: String]],
+        systemMessage: String?,
+        temperature: Double,
+        maxTokens: Int,
+        model: String?,
+        timeout: TimeInterval?,
+        onDelta: @escaping @Sendable (String) -> Void
+    ) async throws -> String {
+        guard isAvailable else {
+            throw LocalModelError.unavailable(unavailabilityReason)
+        }
+        let session = LanguageModelSession(
+            tools: NotebookTools.chatTools(),
+            instructions: systemMessage ?? AIPrompts.chatAssistant
+        )
+        do {
+            let stream = session.streamResponse(
+                to: Self.flatten(messages),
+                options: .init(temperature: temperature)
+            )
+            // Snapshots are cumulative; emit only the new suffix as the delta.
+            var emitted = ""
+            for try await snapshot in stream {
+                let full = snapshot.content
+                if full.count > emitted.count {
+                    onDelta(String(full.dropFirst(emitted.count)))
+                    emitted = full
+                }
+            }
+            return emitted
+        } catch let error as LanguageModelError {
+            throw LocalModelError.fromLanguageModel(error)
+        }
+    }
+
+    private static func flatten(_ messages: [[String: String]]) -> String {
+        messages.map { "\($0["role"] ?? "user"): \($0["content"] ?? "")" }
+            .joined(separator: "\n\n")
+    }
 }
 
 // MARK: - Errors

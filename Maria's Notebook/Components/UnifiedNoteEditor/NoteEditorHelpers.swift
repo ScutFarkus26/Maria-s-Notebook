@@ -316,3 +316,27 @@ extension UnifiedNoteEditor {
         }
     }
 }
+
+// MARK: - Photo Action Chip Style
+
+extension View {
+    /// Shared pill styling for the photo action buttons (Take Photo / Choose Photo).
+    nonisolated func photoActionChipStyle(background: Color) -> some View {
+        self
+            .font(AppTheme.ScaledFont.body)
+            .foregroundStyle(.primary)
+            .padding(.horizontal, AppTheme.Spacing.compact)
+            .padding(.vertical, AppTheme.Spacing.small)
+            .background(
+                RoundedRectangle(cornerRadius: UIConstants.CornerRadius.medium, style: .continuous)
+                    .fill(background)
+            )
+            .overlay(
+                RoundedRectangle(cornerRadius: UIConstants.CornerRadius.medium, style: .continuous)
+                    .stroke(
+                        Color.secondary.opacity(UIConstants.OpacityConstants.light),
+                        lineWidth: UIConstants.StrokeWidth.thin
+                    )
+            )
+    }
+}

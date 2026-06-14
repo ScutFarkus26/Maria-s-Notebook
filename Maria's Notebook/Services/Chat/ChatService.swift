@@ -176,27 +176,21 @@ final class ChatService {
         Optimized question:
         """
 
-        // Try to optimize locally; fall back to the original question if local model is unavailable
+        // Try to optimize locally; fall back to the original question if the on-device model is unavailable
         var optimizedQuestion = originalQuestion
         do {
             let localOptimized: String
-            if await router.ollamaClient.isAvailable {
-                localOptimized = try await router.ollamaClient.generateText(
+            #if ENABLE_FOUNDATION_MODELS && canImport(FoundationModels)
+            if router.localClient.isAvailable {
+                localOptimized = try await router.localClient.generateText(
                     prompt: optimizationPrompt, temperature: 0.3
                 )
             } else {
-                #if ENABLE_FOUNDATION_MODELS && canImport(FoundationModels)
-                if #available(macOS 26.0, iOS 26.0, *), router.localClient.isAvailable {
-                    localOptimized = try await router.localClient.generateText(
-                        prompt: optimizationPrompt, temperature: 0.3
-                    )
-                } else {
-                    localOptimized = originalQuestion
-                }
-                #else
                 localOptimized = originalQuestion
-                #endif
             }
+            #else
+            localOptimized = originalQuestion
+            #endif
 
             let trimmed = localOptimized.trimmed()
             if !trimmed.isEmpty {

@@ -66,10 +66,6 @@ enum UserDefaultsKeys {
     static let aiModelLessonPlanning = "AI.lessonPlanningModel"
     static let aiModelBackgroundTasks = "AI.backgroundTasksModel"
 
-    // MARK: - AI Providers
-    static let ollamaBaseURL = "AI.ollamaBaseURL"
-    static let ollamaModelName = "AI.ollamaModelName"
-
     // MARK: - CDLesson Planning
     static let lessonPlanningModel = "LessonPlanning.model"
     static let lessonPlanningTimeout = "LessonPlanning.timeout"

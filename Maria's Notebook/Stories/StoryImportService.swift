@@ -91,7 +91,8 @@ enum StoryImportService {
         let extracted = StoryAnalyzer.extractText(from: imported.url)
         if let extracted {
             story.extractedTextHash = extracted.hash
-            if !StoryAnalyzer.hasUsableText(extracted.text) {
+            if !StoryAnalyzer.hasUsableText(extracted.text), !StoryAnalyzer.isVisualAnalysisEnabled {
+                // No readable text and no vision-capable model to read the pages.
                 story.analysisStatus = .manual
                 story.analysisErrorMessage = "Couldn't read text from this PDF — add details manually."
             }
@@ -109,14 +110,27 @@ enum StoryImportService {
             throw ImportRejection.copyFailed(message: error.localizedDescription)
         }
 
-        // Kick off async analysis if we have usable text and AI is on.
-        if story.analysisStatus == .analyzing,
-           let text = extracted?.text,
-           StoryAnalyzer.hasUsableText(text) {
-            scheduleAnalysis(for: story.objectID, extractedText: text, context: context)
-        }
+        scheduleInitialAnalysis(
+            for: story, extractedText: extracted?.text, url: imported.url, context: context
+        )
 
         return story
+    }
+
+    /// Kicks off async analysis after import when AI is on: text analysis when the
+    /// PDF has readable text, visual page analysis otherwise (scanned/picture books).
+    private static func scheduleInitialAnalysis(
+        for story: CDStory,
+        extractedText: String?,
+        url: URL,
+        context: NSManagedObjectContext
+    ) {
+        guard story.analysisStatus == .analyzing else { return }
+        if let text = extractedText, StoryAnalyzer.hasUsableText(text) {
+            scheduleAnalysis(for: story.objectID, input: .text(text), context: context)
+        } else if StoryAnalyzer.isVisualAnalysisEnabled {
+            scheduleAnalysis(for: story.objectID, input: .visual(url), context: context)
+        }
     }
 
     /// Re-runs analysis for an existing story. Skips overwriting fields the user has
@@ -143,23 +157,47 @@ enum StoryImportService {
         }
 
         story.extractedTextHash = extracted.hash
-        story.analysisStatus = .analyzing
-        story.analysisErrorMessage = ""
-        _ = context.safeSave()
 
-        scheduleAnalysis(for: story.objectID, extractedText: extracted.text, context: context)
+        if StoryAnalyzer.hasUsableText(extracted.text) {
+            story.analysisStatus = .analyzing
+            story.analysisErrorMessage = ""
+            _ = context.safeSave()
+            scheduleAnalysis(for: story.objectID, input: .text(extracted.text), context: context)
+        } else if StoryAnalyzer.isVisualAnalysisEnabled {
+            story.analysisStatus = .analyzing
+            story.analysisErrorMessage = ""
+            _ = context.safeSave()
+            scheduleAnalysis(for: story.objectID, input: .visual(url), context: context)
+        } else {
+            story.analysisStatus = .manual
+            story.analysisErrorMessage = "Couldn't read text from this PDF — add details manually."
+            _ = context.safeSave()
+        }
     }
 
     // MARK: - Background analysis
 
+    /// What the analyzer should look at: extracted text, or rendered pages for
+    /// PDFs with no readable text layer.
+    private enum AnalysisInput: Sendable {
+        case text(String)
+        case visual(URL)
+    }
+
     private static func scheduleAnalysis(
         for objectID: NSManagedObjectID,
-        extractedText: String,
+        input: AnalysisInput,
         context: NSManagedObjectContext
     ) {
-        StoryImportQueue.shared.submit { [extractedText] in
+        StoryImportQueue.shared.submit {
             do {
-                let result = try await StoryAnalyzer.analyze(text: extractedText)
+                let result: StoryAnalysisResult
+                switch input {
+                case .text(let text):
+                    result = try await StoryAnalyzer.analyze(text: text)
+                case .visual(let url):
+                    result = try await StoryAnalyzer.analyzeVisually(url: url)
+                }
                 await applyResult(result, to: objectID, context: context)
             } catch {
                 await applyFailure(error, to: objectID, context: context)
@@ -211,6 +249,9 @@ enum StoryImportService {
                 case .insufficientText:
                     story.analysisStatus = .manual
                     story.analysisErrorMessage = "Couldn't read text from this PDF — add details manually."
+                case .unreadablePDF:
+                    story.analysisStatus = .manual
+                    story.analysisErrorMessage = "Couldn't read this PDF's pages — add details manually."
                 case .timedOut:
                     story.analysisStatus = .failed
                     story.analysisErrorMessage = "Analysis timed out. Try again."

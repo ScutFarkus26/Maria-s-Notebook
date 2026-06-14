@@ -29,15 +29,17 @@ struct AppleIntelligenceSheet: View {
     let notes: [CDNote]
     
     // Editor State
-    @State private var editorText: String = ""
+    // editorText is internal so the FoundationModels generation extension
+    // (AppleIntelligenceSheet+Generation.swift) can drive it.
+    @State var editorText: String = ""
     @State private var isAnonymized: Bool = false
     @FocusState private var isFocused: Bool
     @State private var aiTriggerCounter: Int = 0
     @State private var pendingAITrigger: Bool = false
-    
-    // AI State
-    @State private var isGenerating: Bool = false
-    @State private var generationError: String?
+
+    // AI State (internal: see AppleIntelligenceSheet+Generation.swift)
+    @State var isGenerating: Bool = false
+    @State var generationError: String?
 
     // UI State
     @State private var currentTemplate: PromptTemplate?
@@ -205,83 +207,8 @@ struct AppleIntelligenceSheet: View {
         #endif
     }
     
-    #if ENABLE_FOUNDATION_MODELS && canImport(FoundationModels)
-    @MainActor
-    private func generateWithFoundationModel(template: PromptTemplate, context: String) async {
-        isGenerating = true
-        generationError = nil
-        
-        guard SystemLanguageModel.default.isAvailable else {
-            generationError = unavailabilityMessage()
-            editorText = context
-            isGenerating = false
-            return
-        }
-        
-        // Set up the session with specific persona based on template
-        let session = LanguageModelSession(instructions: AIPrompts.advancedAssistant)
-        
-        do {
-            let prompt = """
-            \(template.instruction)
-            
-            DATA:
-            \(context)
-            """
-            
-            // Generate unstructured text
-            let response = try await session.respond(to: prompt, options: .init(temperature: 0.7))
-            
-            // Animate the text in (simple replacement for now)
-            adaptiveWithAnimation {
-                editorText = response.content
-            }
-        } catch let error as LanguageModelError {
-            let message = userMessage(for: error)
-            generationError = message
-            editorText = context + "\n\n[Error: \(message)]"
-        } catch {
-            let message = AppErrorMessages.aiMessage(for: error)
-            generationError = message
-            editorText = context + "\n\n[Error: \(message)]"
-        }
-        
-        isGenerating = false
-    }
-    
-    private func unavailabilityMessage() -> String {
-        switch SystemLanguageModel.default.availability {
-        case .available:
-            return ""
-        case .unavailable(.appleIntelligenceNotEnabled):
-            return "Please enable Apple Intelligence in Settings to use this feature."
-        case .unavailable(.deviceNotEligible):
-            return "This device does not support Apple Intelligence."
-        case .unavailable(.modelNotReady):
-            return "Apple Intelligence model is downloading. Please try again later."
-        case .unavailable:
-            return "Apple Intelligence is not available."
-        }
-    }
-    
-    private func userMessage(for error: LanguageModelError) -> String {
-        switch error {
-        case .rateLimited:
-            return "Too many requests. Please wait a moment and try again."
-        case .contextSizeExceeded:
-            return "The data is too large for on-device processing. Try selecting fewer notes."
-        case .unsupportedLanguageOrLocale:
-            return "This language is not supported by Apple Intelligence."
-        case .refusal:
-            return "The request could not be processed due to content restrictions."
-        case .timeout:
-            return "The request timed out. Please try again."
-        default:
-            return "Apple Intelligence encountered an unexpected issue. Try again."
-        }
-    }
-    #endif
-    
+    // FoundationModels draft generation lives in AppleIntelligenceSheet+Generation.swift.
+
     private var editorBackgroundColor: Color {
         #if os(macOS)
         return Color(nsColor: .textBackgroundColor)

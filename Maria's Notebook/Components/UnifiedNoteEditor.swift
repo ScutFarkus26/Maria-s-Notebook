@@ -98,6 +98,7 @@ struct UnifiedNoteEditor: View {
 
     #if ENABLE_FOUNDATION_MODELS && canImport(FoundationModels)
     @State var isSuggesting: Bool = false
+    @State var isDescribingPhoto: Bool = false
     @State var showingSuggestionSheet: Bool = false
     @State var proposedTags: [String] = []
     @State var proposedStudentIDs: [UUID] = []

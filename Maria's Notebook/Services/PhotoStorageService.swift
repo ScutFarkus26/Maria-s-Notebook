@@ -199,6 +199,25 @@ public enum PhotoStorageService {
     }
     #endif
     
+    /// Loads a downsampled CGImage suitable for on-device AI analysis.
+    /// Platform-independent; capped at `maxPixelSize` on the long edge to keep
+    /// token cost and latency reasonable.
+    nonisolated public static func loadCGImageForAI(
+        filename: String, maxPixelSize: CGFloat = 1_024
+    ) -> CGImage? {
+        guard let photosDir = try? photosDirectory() else { return nil }
+        let fileURL = photosDir.appendingPathComponent(filename, isDirectory: false)
+        guard let imageSource = CGImageSourceCreateWithURL(fileURL as CFURL, nil) else {
+            return nil
+        }
+        let options: [CFString: Any] = [
+            kCGImageSourceCreateThumbnailFromImageAlways: true,
+            kCGImageSourceShouldCacheImmediately: true,
+            kCGImageSourceThumbnailMaxPixelSize: maxPixelSize
+        ]
+        return CGImageSourceCreateThumbnailAtIndex(imageSource, 0, options as CFDictionary)
+    }
+
     /// Deletes an image file from the photos directory.
     /// - Parameter filename: The filename to delete
     /// - Throws: An error if the file cannot be deleted

@@ -23,7 +23,7 @@ enum SettingsCategory: String, CaseIterable, Identifiable, Hashable {
         case .backup: return "Export, restore & auto-backup"
         case .templates: return "Note & meeting templates"
         case .communication: return "Attendance email settings"
-        case .aiFeatures: return "Claude, Ollama & Apple AI"
+        case .aiFeatures: return "Claude & Apple AI"
         case .database: return "Record counts & statistics"
         case .advanced: return "Testing & debug tools"
         }
@@ -66,7 +66,7 @@ enum SettingsCategory: String, CaseIterable, Identifiable, Hashable {
         case .templates: return "templates note meeting"
         case .communication: return "communication attendance email"
         case .aiFeatures:
-            return "ai features claude api lesson planning assistant model apple on device ollama download local"
+            return "ai features claude api lesson planning assistant model apple on device private cloud local"
         case .database: return "database statistics records overview storage"
         case .advanced: return "advanced debug test students"
         }
@@ -109,8 +109,8 @@ enum SettingsCategory: String, CaseIterable, Identifiable, Hashable {
         case .aiFeatures:
             return [
                 "AI Models", "Chat Model", "Lesson Planning Model", "Background Tasks Model",
-                "Apple Intelligence", "On-Device", "Ollama", "Server URL", "Model",
-                "Install Models", "Pull Model", "Claude API Key", "Anthropic",
+                "Apple Intelligence", "On-Device", "Private Cloud", "Model",
+                "Claude API Key", "Anthropic",
                 "OpenAI API Key", "OpenAI", "gpt-image-1", "Story Cover",
                 "Configure API Key", "Sonnet", "Haiku", "Test Connection",
                 "Lesson Planning Assistant", "Depth", "System Prompt", "Temperature", "Timeout",
