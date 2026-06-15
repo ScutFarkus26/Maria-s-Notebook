@@ -1,6 +1,30 @@
 # School Year Separation — Implementation Plan
 
-Status: **Proposed** · Owner: Danny · Created 2026-06-15
+Status: **In progress** — Phases 0–2 landed on `feature/school-year-separation` · Owner: Danny · Created 2026-06-15
+
+## Implementation status (2026-06-15)
+
+Landed and building green on `feature/school-year-separation`:
+
+- **Phase 0 (engine)** — `SchoolYear` / `DateRange` / `SchoolYearSelection`, `SchoolYearStore`,
+  `SchoolYearFilter` predicate factories, global picker + non-current-year banner, configurable
+  start date, `FloridaGradeCalculator` integration, and unit tests.
+- **Phase 1** — student roster scoped to "active this year"; the per-student unified notes
+  timeline scoped to the selected year. The timeline already merges notes + presentations +
+  work + meetings + attendance as items, so per-student *history review* is comprehensively
+  year-scoped through that one integration.
+- **Phase 2** — the Projects list scoped via `CDProject.overlaps` (creation through last
+  session/edit).
+
+Reframing from the original plan — the lens only visibly matters on *accumulating history*:
+
+- Deliberately **not** wired (near-no-op for the current-year default, or no list to filter):
+  the Today screen (single day), the Open Work queue and Presentations planning inbox
+  (forward-looking), and the global Note tab (a quick-note composer, not a browser). The
+  standalone `PresentationsListView` is orphaned/dead.
+- **Remaining surfaces** if desired: Going Out (filters inside its view model), Meetings, the
+  area-checklist coverage grid, and lens-driven date presets on the attendance reports.
+  Phase 3 reports and Phase 4 (`schoolYearKey` stamp) remain optional.
 
 ## Overview
 
