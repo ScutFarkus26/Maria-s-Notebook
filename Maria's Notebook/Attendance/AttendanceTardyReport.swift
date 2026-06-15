@@ -7,6 +7,7 @@ struct AttendanceTardyReport: View {
     private static let logger = Logger.attendance
     @Environment(\.managedObjectContext) private var viewContext
     @Environment(\.dismiss) private var dismiss
+    @Environment(\.dependencies) private var dependencies
 
     @FetchRequest(sortDescriptors: [NSSortDescriptor(keyPath: \CDStudent.lastName, ascending: true)])
     private var allStudentsRaw: FetchedResults<CDStudent>
@@ -123,6 +124,12 @@ struct AttendanceTardyReport: View {
                     Button("Last 90 Days") { applyPreset(days: 90) }
                     Divider()
                     Button("This School Year") { applyCurrentSchoolYearPreset() }
+                    if let range = dependencies.schoolYearStore.activeRange,
+                       !dependencies.schoolYearStore.isCurrentYearSelected {
+                        Button("Match viewing: \(dependencies.schoolYearStore.menuButtonLabel)") {
+                            applyLensPreset(range)
+                        }
+                    }
                 } label: {
                     Label("Preset", systemImage: "calendar.badge.clock")
                         .labelStyle(.iconOnly)
@@ -224,6 +231,12 @@ struct AttendanceTardyReport: View {
     private func applyCurrentSchoolYearPreset() {
         endDate = AppCalendar.startOfDay(Date())
         startDate = AppCalendar.startOfDay(FloridaGradeCalculator.schoolYearStart())
+    }
+
+    /// Snap the report range to the globally-selected school-year lens (a specific year or cycle).
+    private func applyLensPreset(_ range: DateRange) {
+        startDate = AppCalendar.startOfDay(range.start)
+        endDate = AppCalendar.startOfDay(AppCalendar.addingDays(-1, to: range.end))
     }
 }
 
