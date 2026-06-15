@@ -9,6 +9,7 @@ struct ProjectsRootView: View {
     private static let logger = Logger.projects
     @Environment(\.managedObjectContext) private var modelContext
     @Environment(SaveCoordinator.self) private var saveCoordinator
+    @Environment(\.dependencies) private var dependencies
 
     // MARK: - Data
     @FetchRequest(fetchRequest: {
@@ -47,11 +48,21 @@ struct ProjectsRootView: View {
     }
 
     private var filteredClubs: [CDProject] {
-        if searchText.isEmpty { return clubs }
-        return clubs.filter { club in
-            club.title.localizedCaseInsensitiveContains(searchText) ||
-            (club.bookTitle ?? "").localizedCaseInsensitiveContains(searchText)
+        var result = clubs
+
+        // School-year lens: scope to projects active in the selected year
+        // (no-op when the lens is "All years").
+        if let range = dependencies.schoolYearStore.activeRange {
+            result = result.filter { $0.overlaps(range) }
         }
+
+        if !searchText.isEmpty {
+            result = result.filter { club in
+                club.title.localizedCaseInsensitiveContains(searchText) ||
+                (club.bookTitle ?? "").localizedCaseInsensitiveContains(searchText)
+            }
+        }
+        return result
     }
 
     // MARK: - Body
