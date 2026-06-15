@@ -21,6 +21,12 @@ extension StudentNotesTimelineList {
     var allFilteredItems: [UnifiedNoteItem] {
         var items = viewModel.items
 
+        // School-year lens: scope the timeline to notes in the selected year
+        // (no-op when the lens is "All years").
+        if let range = dependencies.schoolYearStore.activeRange {
+            items = items.filter { range.contains($0.date) }
+        }
+
         // Apply report filter
         if selectedFilter == .reportItems {
             items = items.filter(\.includeInReport)

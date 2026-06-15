@@ -17,6 +17,7 @@ struct StudentsView: View {
     @Environment(\.managedObjectContext) var viewContext
     @Environment(\.appRouter) private var appRouter
     @Environment(\.calendar) var calendar
+    @Environment(\.dependencies) var dependencies
     #if os(iOS)
     @Environment(\.horizontalSizeClass) var horizontalSizeClass
     #endif

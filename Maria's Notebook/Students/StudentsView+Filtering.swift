@@ -82,9 +82,18 @@ extension StudentsView {
             testStudentNames: testStudentNamesRaw
         )
 
+        // School-year lens: scope the roster to students active in the selected year
+        // (no-op when the lens is "All years"). The withdrawn section is unaffected.
+        let scoped: [CDStudent]
+        if let range = dependencies.schoolYearStore.activeRange {
+            scoped = base.filter { $0.isActive(in: range) }
+        } else {
+            scoped = base
+        }
+
         // DEDUPLICATION: CloudKit sync can create duplicate records with the same ID.
         // Use uniqueByID to prevent SwiftUI crash on "Duplicate values for key"
-        return base.uniqueByID
+        return scoped.uniqueByID
     }
 
     /// Withdrawn students for the collapsible section at the bottom of the roster.

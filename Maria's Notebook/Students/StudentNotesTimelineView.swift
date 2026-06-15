@@ -68,6 +68,7 @@ struct StudentNotesTimelineView: View {
 struct StudentNotesTimelineList: View {
     @Bindable var viewModel: StudentNotesViewModel
     @Environment(\.calendar) var calendar
+    @Environment(\.dependencies) var dependencies
 
     enum NoteFilter: String, CaseIterable, Identifiable {
         case all = "All Notes"
