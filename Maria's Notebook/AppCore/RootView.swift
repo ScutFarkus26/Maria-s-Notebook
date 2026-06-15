@@ -285,6 +285,7 @@ struct RootView: View {
 
     private var searchAndSyncOverlay: some View {
         HStack(spacing: 8) {
+            SchoolYearPicker()
             Button {
                 isShowingSearch = true
             } label: {
@@ -309,6 +310,10 @@ struct RootView: View {
         let cloudStatus = CloudKitConfiguration.getCloudKitStatus()
         if cloudStatus.enabled && !cloudStatus.active {
             CloudKitSyncWarningBanner()
+        }
+
+        if !dependencies.schoolYearStore.isCurrentYearSelected {
+            SchoolYearBanner()
         }
     }
 

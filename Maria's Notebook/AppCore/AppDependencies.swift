@@ -248,6 +248,18 @@ final class AppDependencies {
         return cache
     }
 
+    /// The global "viewing year" lens shared by every screen.
+    /// See Docs/Implementation/SCHOOL_YEAR_SEPARATION.md.
+    private var _schoolYearStore: SchoolYearStore?
+    var schoolYearStore: SchoolYearStore {
+        if let store = _schoolYearStore {
+            return store
+        }
+        let store = SchoolYearStore()
+        _schoolYearStore = store
+        return store
+    }
+
     // MARK: - Presentation Services
 
     private var _presentationsViewModel: PresentationsViewModel?

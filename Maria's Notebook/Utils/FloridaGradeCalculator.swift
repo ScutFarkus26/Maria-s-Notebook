@@ -38,10 +38,18 @@ enum GradeResult: Equatable {
 struct FloridaGradeCalculator {
     // MARK: - Configuration
 
-    /// Month of the school year start (September)
-    static let schoolStartMonth: Int = 9
-    /// Day of the school year start (1st)
-    static let schoolStartDay: Int = 1
+    /// Month of the school year start. Configurable via Settings; defaults to September.
+    /// Read from `UserDefaultsKeys.schoolYearStartMonth` so the grade boundary and the
+    /// school-year viewing lens (`SchoolYearStore`) stay in lockstep.
+    static var schoolStartMonth: Int {
+        let value = UserDefaults.standard.integer(forKey: UserDefaultsKeys.schoolYearStartMonth)
+        return (1...12).contains(value) ? value : 9
+    }
+    /// Day of the school year start. Configurable via Settings; defaults to the 1st.
+    static var schoolStartDay: Int {
+        let value = UserDefaults.standard.integer(forKey: UserDefaultsKeys.schoolYearStartDay)
+        return (1...31).contains(value) ? value : 1
+    }
     /// Minimum age (in whole years) on/before school start to be 1st grade
     static let minimumFirstGradeAge: Int = 6
     /// Ages at or above this threshold are considered "Graduated"

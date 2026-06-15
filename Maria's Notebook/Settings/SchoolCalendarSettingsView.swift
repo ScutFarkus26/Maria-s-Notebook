@@ -12,6 +12,7 @@ struct SchoolCalendarSettingsView: View {
     private static let logger = Logger.settings
     @Environment(\.managedObjectContext) private var viewContext
     @Environment(\.calendar) private var calendar
+    @Environment(\.dependencies) private var dependencies
     @State private var currentMonth: Date = Date()
     @State private var selected: Set<DateComponents> = []
     @State private var nonSchoolDates: Set<Date> = []
@@ -26,6 +27,10 @@ struct SchoolCalendarSettingsView: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
+            SchoolYearStartConfig(store: dependencies.schoolYearStore)
+
+            Divider()
+
             HStack(spacing: 8) {
                 Button { shiftMonth(-1) } label: { Image(systemName: "chevron.left") }
                     .buttonStyle(.plain)

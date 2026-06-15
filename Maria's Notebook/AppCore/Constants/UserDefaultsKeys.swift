@@ -127,4 +127,12 @@ enum UserDefaultsKeys {
     static let todayDoneTodayExpanded = "Today.doneTodayExpanded"
     /// Dynamic per-date keys for dismissable Today cards: "Today.dayCardDismissed.<yyyy-MM-dd>.<cardName>"
     static let todayDayCardDismissedPrefix = "Today.dayCardDismissed."
+
+    // MARK: - School Year
+    /// Month (1–12) the school year starts on. Default September.
+    static let schoolYearStartMonth = "SchoolYear.startMonth"
+    /// Day (1–31) the school year starts on. Default 1.
+    static let schoolYearStartDay = "SchoolYear.startDay"
+    /// Persisted active viewing lens token ("all", "year:2025", "cycle:2025").
+    static let schoolYearSelection = "SchoolYear.selection"
 }
