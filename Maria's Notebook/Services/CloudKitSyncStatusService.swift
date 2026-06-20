@@ -66,8 +66,21 @@ final class CloudKitSyncStatusService {
     /// `setup` or `import` of data from iCloud. Drives the "Syncing from iCloud…"
     /// overlay so a freshly launched or freshly signed-in device shows progress
     /// instead of an empty-looking screen. Apple notes the first import on a new
-    /// device "can take minutes, or longer" (TN3163).
+    /// device "can take minutes, or longer" (TN3163). Only ever set when
+    /// ``hadSyncedBeforeLaunch`` is false — a device that has synced before
+    /// already holds its data locally and must not re-show the overlay.
     var isImportingFromCloud: Bool = false
+
+    /// Whether this device had already completed at least one successful CloudKit
+    /// sync in a previous session, captured at launch before any syncing happens
+    /// this session. `NSPersistentCloudKitContainer` fires a `setup` event on
+    /// *every* launch (and routine `import` events for incremental changes), so
+    /// keying the "Syncing from iCloud…" overlay off those events made it flash
+    /// on every launch. We instead show the overlay only on a device that has
+    /// never synced — the genuine first import, when the screen would otherwise
+    /// look empty (Apple TN3163). Once a device has its data, the overlay stays
+    /// suppressed.
+    let hadSyncedBeforeLaunch: Bool
 
     // MARK: - Specialized Services
 
@@ -115,9 +128,17 @@ final class CloudKitSyncStatusService {
     init() {
         // Load persisted state
         let syncDateKey = UserDefaultsKeys.cloudKitLastSuccessfulSyncDate
+        let persistedSyncDate: Date?
         if let timestamp = UserDefaults.standard.object(forKey: syncDateKey) as? TimeInterval {
-            lastSuccessfulSync = Date(timeIntervalSince1970: timestamp)
+            persistedSyncDate = Date(timeIntervalSince1970: timestamp)
+        } else {
+            persistedSyncDate = nil
         }
+        lastSuccessfulSync = persistedSyncDate
+        // Capture, before this launch performs any syncing, whether the device
+        // already completed a successful sync in a prior session. Drives
+        // suppression of the "Syncing from iCloud…" overlay on routine launches.
+        hadSyncedBeforeLaunch = (persistedSyncDate != nil)
         lastSyncError = UserDefaults.standard.string(forKey: UserDefaultsKeys.cloudKitLastSyncError)
 
         // Setup network monitoring using AsyncStream

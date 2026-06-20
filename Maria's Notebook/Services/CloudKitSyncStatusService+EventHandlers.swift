@@ -111,6 +111,10 @@ extension CloudKitSyncStatusService {
     /// overlay flash for a single frame (or never paint at all). Keeping it set
     /// until that activity quiets keeps the overlay visible for the whole import.
     func noteCloudImportActivity() {
+        // A device that has synced before already holds its data locally, so the
+        // `setup`/`import` events CloudKit fires on every launch are just noise.
+        // Show the overlay only during a never-synced device's first import.
+        guard !hadSyncedBeforeLaunch else { return }
         isImportingFromCloud = true
         cloudImportDebounceTask?.cancel()
         cloudImportDebounceTask = Task { [weak self] in
