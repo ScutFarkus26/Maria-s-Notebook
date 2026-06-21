@@ -17,6 +17,7 @@ struct MoreMenuView: View {
                 Section("Students") {
                     moreMenuButton(.meetings)
                     moreMenuButton(.goingOut)
+                    moreMenuButton(.progressDashboard)
                 }
 
                 Section("Curriculum") {
@@ -31,10 +32,6 @@ struct MoreMenuView: View {
                     moreMenuButton(.needsLesson)
                     moreMenuButton(.smallSequencePlanner)
                     moreMenuButton(.planningChecklist)
-                }
-
-                Section("Insights") {
-                    moreMenuButton(.progressDashboard)
                 }
 
                 Section("Resources") {

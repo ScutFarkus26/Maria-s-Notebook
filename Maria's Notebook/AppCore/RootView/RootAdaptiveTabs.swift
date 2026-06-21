@@ -59,6 +59,11 @@ struct RootAdaptiveTabs: View {
             } label: {
                 Label("Going Out", systemImage: "figure.walk")
             }
+            Tab(value: RootView.NavigationItem.progressDashboard) {
+                RootDetailContent(selectedNavItem: .progressDashboard)
+            } label: {
+                Label("Progress Dashboard", systemImage: "person.text.rectangle")
+            }
         } header: {
             Text("Students")
         }
@@ -126,16 +131,6 @@ struct RootAdaptiveTabs: View {
             }
         } header: {
             Text("Parsha")
-        }
-
-        TabSection {
-            Tab(value: RootView.NavigationItem.progressDashboard) {
-                RootDetailContent(selectedNavItem: .progressDashboard)
-            } label: {
-                Label("Progress Dashboard", systemImage: "person.text.rectangle")
-            }
-        } header: {
-            Text("Insights")
         }
 
         TabSection {

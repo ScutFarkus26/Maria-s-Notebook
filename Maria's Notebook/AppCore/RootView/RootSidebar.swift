@@ -49,6 +49,8 @@ extension RootSidebar {
                 sidebarRow(.meetings, title: "Meetings", systemImage: SFSymbol.People.person2)
 
                 sidebarRow(.goingOut, title: "Going Out", systemImage: "figure.walk")
+
+                sidebarRow(.progressDashboard, title: "Progress Dashboard", systemImage: "person.text.rectangle")
             }
 
             Section("Planning") {
@@ -106,10 +108,6 @@ extension RootSidebar {
                 sidebarRow(.parshaCalendar, title: "Parsha Calendar", systemImage: "calendar")
             }
 
-            Section("Insights") {
-                sidebarRow(.progressDashboard, title: "Progress Dashboard", systemImage: "person.text.rectangle")
-            }
-
             Section("Resources") {
                 sidebarRow(.resourceLibrary, title: "Resources", systemImage: "tray.2")
 
@@ -146,7 +144,6 @@ extension RootSidebar {
             iOSSidebarClassroomSection
             iOSSidebarCurriculumSection
             iOSSidebarParshaSection
-            iOSSidebarInsightsSection
             iOSSidebarResourcesSection
             iOSSidebarSystemSection
         }
@@ -192,6 +189,10 @@ extension RootSidebar {
                              title: "Going Out",
                              systemImage: "figure.walk",
                              hint: "Plan and track student going-out excursions")
+            iOSSidebarButton(.progressDashboard,
+                             title: "Progress Dashboard",
+                             systemImage: "person.text.rectangle",
+                             hint: "View per-student progress across all areas")
         }
     }
 
@@ -268,15 +269,6 @@ extension RootSidebar {
                              title: "Checklist",
                              systemImage: "list.clipboard",
                              hint: "View class area checklist")
-        }
-    }
-
-    private var iOSSidebarInsightsSection: some View {
-        Section("Insights") {
-            iOSSidebarButton(.progressDashboard,
-                             title: "Progress Dashboard",
-                             systemImage: "person.text.rectangle",
-                             hint: "View per-student progress across all areas")
         }
     }
 
