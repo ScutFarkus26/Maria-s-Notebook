@@ -50,25 +50,7 @@ extension LessonDetailCard {
                 }
             }
 
-            // Progression rule overrides
-            VStack(alignment: .leading, spacing: 6) {
-                Text("Progression Rules")
-                    .font(AppTheme.ScaledFont.calloutSemibold)
-                    .foregroundStyle(.secondary)
-                Picker("Requires Practice", selection: $draftPracticeOverride) {
-                    ForEach(ProgressionOverride.allCases) { o in
-                        Text(o.label).tag(o)
-                    }
-                }
-                Picker("Requires Confirmation", selection: $draftConfirmationOverride) {
-                    ForEach(ProgressionOverride.allCases) { o in
-                        Text(o.label).tag(o)
-                    }
-                }
-                Text("\"From Group\" uses the sequence's default setting.")
-                    .font(AppTheme.ScaledFont.caption)
-                    .foregroundStyle(.tertiary)
-            }
+            progressionRulesSection
 
             TextField("Age Range (e.g., 6+, 3-6)", text: $draftAgeRange)
                 .textFieldStyle(.roundedBorder)
@@ -100,112 +82,142 @@ extension LessonDetailCard {
                     )
             }
 
-            VStack(alignment: .leading, spacing: 6) {
-                Text("Imported Pages File")
-                    .font(AppTheme.ScaledFont.calloutSemibold)
-                    .foregroundStyle(.secondary)
-                VStack(alignment: .leading, spacing: 8) {
-                    HStack(spacing: 8) {
-                        if resolvedPagesURL != nil {
-                            Button("Remove") {
-                                if let url = resolvedPagesURL {
-                                    do {
-                                        try LessonFileStorage.deleteIfManaged(url)
-                                    } catch {
-                                        Self.logger.warning("Failed to delete managed file: \(error)")
-                                    }
+            pagesFileSection
+
+            notesAndFollowUpSection
+        }
+    }
+
+    @ViewBuilder private var progressionRulesSection: some View {
+        // Progression rule overrides
+        VStack(alignment: .leading, spacing: 6) {
+            Text("Progression Rules")
+                .font(AppTheme.ScaledFont.calloutSemibold)
+                .foregroundStyle(.secondary)
+            Picker("Requires Practice", selection: $draftPracticeOverride) {
+                ForEach(ProgressionOverride.allCases) { o in
+                    Text(o.label).tag(o)
+                }
+            }
+            Picker("Requires Confirmation", selection: $draftConfirmationOverride) {
+                ForEach(ProgressionOverride.allCases) { o in
+                    Text(o.label).tag(o)
+                }
+            }
+            Text("\"From Group\" uses the sequence's default setting.")
+                .font(AppTheme.ScaledFont.caption)
+                .foregroundStyle(.tertiary)
+        }
+    }
+
+    @ViewBuilder private var pagesFileSection: some View {
+        VStack(alignment: .leading, spacing: 6) {
+            Text("Imported Pages File")
+                .font(AppTheme.ScaledFont.calloutSemibold)
+                .foregroundStyle(.secondary)
+            VStack(alignment: .leading, spacing: 8) {
+                HStack(spacing: 8) {
+                    if resolvedPagesURL != nil {
+                        Button("Remove") {
+                            if let url = resolvedPagesURL {
+                                do {
+                                    try LessonFileStorage.deleteIfManaged(url)
+                                } catch {
+                                    Self.logger.warning("Failed to delete managed file: \(error)")
                                 }
-                                lesson.pagesFileBookmark = nil
-                                lesson.pagesFileRelativePath = nil
-                                resolvedPagesURL = nil
-                                previousManagedURL = nil
-                                saveCoordinator.save(viewContext, reason: "Clear Pages link")
                             }
-                        }
-                        Button("Import\u{2026}") {
-                            #if os(macOS)
-                            presentMacOpenPanel()
-                            #else
-                            showingPagesImporter = true
-                            #endif
+                            lesson.pagesFileBookmark = nil
+                            lesson.pagesFileRelativePath = nil
+                            resolvedPagesURL = nil
+                            previousManagedURL = nil
+                            saveCoordinator.save(viewContext, reason: "Clear Pages link")
                         }
                     }
-                    if let url = resolvedPagesURL {
-                        OpenInPagesButton(title: "Open in Pages") { openInPages(url) }
-                            .padding(.top, 4)
-                    } else {
-                        Text("No file selected")
-                            .foregroundStyle(.secondary)
+                    Button("Import\u{2026}") {
+                        #if os(macOS)
+                        presentMacOpenPanel()
+                        #else
+                        showingPagesImporter = true
+                        #endif
                     }
                 }
-            }
-
-            VStack(alignment: .leading, spacing: 6) {
-                Text("Presentation Notes")
-                    .font(AppTheme.ScaledFont.calloutSemibold)
-                    .foregroundStyle(.secondary)
-                TextEditor(text: $draftWriteUp)
-                    .frame(minHeight: 140)
-                    .overlay(
-                        RoundedRectangle(cornerRadius: 8)
-                            .stroke(Color.primary.opacity(UIConstants.OpacityConstants.medium))
-                    )
-            }
-
-            VStack(alignment: .leading, spacing: 6) {
-                Text("Teacher Notes")
-                    .font(AppTheme.ScaledFont.calloutSemibold)
-                    .foregroundStyle(.secondary)
-                TextEditor(text: $draftTeacherNotes)
-                    .frame(minHeight: 100)
-                    .overlay(
-                        RoundedRectangle(cornerRadius: 8)
-                            .stroke(Color.primary.opacity(UIConstants.OpacityConstants.medium))
-                    )
-            }
-
-            // Suggested Follow-Up Work (unified)
-            VStack(alignment: .leading, spacing: 6) {
-                HStack {
-                    Text("Suggested Follow-Up Work")
-                        .font(AppTheme.ScaledFont.calloutSemibold)
+                if let url = resolvedPagesURL {
+                    OpenInPagesButton(title: "Open in Pages") { openInPages(url) }
+                        .padding(.top, 4)
+                } else {
+                    Text("No file selected")
                         .foregroundStyle(.secondary)
-                    Spacer()
-                    Button {
-                        editingSampleWork = nil
-                        showingSampleWorkEditor = true
-                    } label: {
-                        Label("Add Work with Steps", systemImage: "plus.circle")
-                    }
-                    .buttonStyle(.bordered)
                 }
-                Text("Enter one suggestion per line")
-                    .font(AppTheme.ScaledFont.caption)
-                    .foregroundStyle(.tertiary)
-                TextEditor(text: $draftSuggestedFollowUpWork)
-                    .frame(minHeight: 80)
-                    .overlay(
-                        RoundedRectangle(cornerRadius: 8)
-                            .stroke(Color.primary.opacity(UIConstants.OpacityConstants.medium))
-                    )
+            }
+        }
+    }
 
-                // Structured sample works (with steps)
-                ForEach(lesson.orderedSampleWorks) { sw in
-                    SampleWorkRow(sampleWork: sw)
-                        .contentShape(Rectangle())
-                        .onTapGesture {
-                            editingSampleWork = sw
-                            showingSampleWorkEditor = true
-                        }
-                }
-            }
-            .sheet(isPresented: $showingSampleWorkEditor) {
-                SampleWorkEditorSheet(
-                    lesson: lesson,
-                    existingSampleWork: editingSampleWork,
-                    onSave: {}
+    @ViewBuilder private var notesAndFollowUpSection: some View {
+        VStack(alignment: .leading, spacing: 6) {
+            Text("Presentation Notes")
+                .font(AppTheme.ScaledFont.calloutSemibold)
+                .foregroundStyle(.secondary)
+            TextEditor(text: $draftWriteUp)
+                .frame(minHeight: 140)
+                .overlay(
+                    RoundedRectangle(cornerRadius: 8)
+                        .stroke(Color.primary.opacity(UIConstants.OpacityConstants.medium))
                 )
+        }
+
+        VStack(alignment: .leading, spacing: 6) {
+            Text("Teacher Notes")
+                .font(AppTheme.ScaledFont.calloutSemibold)
+                .foregroundStyle(.secondary)
+            TextEditor(text: $draftTeacherNotes)
+                .frame(minHeight: 100)
+                .overlay(
+                    RoundedRectangle(cornerRadius: 8)
+                        .stroke(Color.primary.opacity(UIConstants.OpacityConstants.medium))
+                )
+        }
+
+        // Suggested Follow-Up Work (unified)
+        VStack(alignment: .leading, spacing: 6) {
+            HStack {
+                Text("Suggested Follow-Up Work")
+                    .font(AppTheme.ScaledFont.calloutSemibold)
+                    .foregroundStyle(.secondary)
+                Spacer()
+                Button {
+                    editingSampleWork = nil
+                    showingSampleWorkEditor = true
+                } label: {
+                    Label("Add Work with Steps", systemImage: "plus.circle")
+                }
+                .buttonStyle(.bordered)
             }
+            Text("Enter one suggestion per line")
+                .font(AppTheme.ScaledFont.caption)
+                .foregroundStyle(.tertiary)
+            TextEditor(text: $draftSuggestedFollowUpWork)
+                .frame(minHeight: 80)
+                .overlay(
+                    RoundedRectangle(cornerRadius: 8)
+                        .stroke(Color.primary.opacity(UIConstants.OpacityConstants.medium))
+                )
+
+            // Structured sample works (with steps)
+            ForEach(lesson.orderedSampleWorks) { sw in
+                SampleWorkRow(sampleWork: sw)
+                    .contentShape(Rectangle())
+                    .onTapGesture {
+                        editingSampleWork = sw
+                        showingSampleWorkEditor = true
+                    }
+            }
+        }
+        .sheet(isPresented: $showingSampleWorkEditor) {
+            SampleWorkEditorSheet(
+                lesson: lesson,
+                existingSampleWork: editingSampleWork,
+                onSave: {}
+            )
         }
     }
 }

@@ -5,7 +5,7 @@ import SwiftUI
 
 /// More menu view for iPhone that shows additional navigation items
 struct MoreMenuView: View {
-    @State private var navigationPath = NavigationPath()
+    @State private var navigationPath: NavigationPath = NavigationPath()
 
     var body: some View {
         NavigationStack(path: $navigationPath) {

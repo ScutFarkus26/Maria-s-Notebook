@@ -86,74 +86,7 @@ struct RootView: View {
 
     // MARK: - Body
     var body: some View {
-        rootLayoutWithObservers
-        .saveErrorAlert()
-        .toastOverlay(dependencies.toastService)
-        #if !os(macOS)
-        .overlay(alignment: .bottom) {
-            TipView(quickNoteTip, arrowEdge: .bottom)
-                .padding(.horizontal, 24)
-                .padding(.bottom, 80)
-        }
-        #endif
-        .overlay(alignment: .bottomTrailing) {
-            QuickNoteGlassButton(
-                isShowingCommandBar: $isShowingCommandBar,
-                onNewPresentation: {
-                    let draft = PresentationFactory.makeDraft(lessonID: UUID(), studentIDs: [], context: viewContext)
-                    do {
-                        try viewContext.save()
-                    } catch {
-                        Self.logger.error("Failed to save new presentation draft: \(error)")
-                    }
-                    newPresentationDraftID = draft.id
-                },
-                isShowingWorkItemSheet: $isShowingNewWorkItem,
-                onRecordPractice: {
-                    isShowingRecordPractice = true
-                },
-                onNewTodo: {
-                    isShowingNewTodo = true
-                },
-                onNewNote: {
-                    quickNoteParams = QuickNoteParams()
-                }
-            )
-        }
-        .sheet(item: $quickNoteParams) { params in
-            QuickNoteSheet(
-                initialStudentIDs: params.studentIDs,
-                initialBodyText: params.bodyText,
-                initialTags: params.tags
-            )
-        }
-        .sheet(isPresented: $isShowingCommandBar) {
-            CommandBarSheet(
-                onPresentation: { draftID in
-                    isShowingCommandBar = false
-                    newPresentationDraftID = draftID
-                },
-                onWorkItem: { lessonID, studentIDs in
-                    isShowingCommandBar = false
-                    commandBarWorkLessonID = lessonID
-                    commandBarWorkStudentIDs = studentIDs
-                    isShowingNewWorkItem = true
-                },
-                onNote: { studentIDs, bodyText, inferredTags in
-                    isShowingCommandBar = false
-                    quickNoteParams = QuickNoteParams(
-                        studentIDs: studentIDs,
-                        bodyText: bodyText,
-                        tags: inferredTags
-                    )
-                },
-                onTodo: { titleText in
-                    isShowingCommandBar = false
-                    commandBarTodoTitle = titleText
-                    isShowingNewTodo = true
-                }
-            )
-        }
+        rootWithQuickActions
         .sheet(item: $newPresentationDraftID) { draftID in
             PresentationDraftSheet(id: draftID) {
                 newPresentationDraftID = nil
@@ -239,6 +172,77 @@ struct RootView: View {
     }
 
     // MARK: - View Components
+
+    private var rootWithQuickActions: some View {
+        rootLayoutWithObservers
+        .saveErrorAlert()
+        .toastOverlay(dependencies.toastService)
+        #if !os(macOS)
+        .overlay(alignment: .bottom) {
+            TipView(quickNoteTip, arrowEdge: .bottom)
+                .padding(.horizontal, 24)
+                .padding(.bottom, 80)
+        }
+        #endif
+        .overlay(alignment: .bottomTrailing) {
+            QuickNoteGlassButton(
+                isShowingCommandBar: $isShowingCommandBar,
+                onNewPresentation: {
+                    let draft = PresentationFactory.makeDraft(lessonID: UUID(), studentIDs: [], context: viewContext)
+                    do {
+                        try viewContext.save()
+                    } catch {
+                        Self.logger.error("Failed to save new presentation draft: \(error)")
+                    }
+                    newPresentationDraftID = draft.id
+                },
+                isShowingWorkItemSheet: $isShowingNewWorkItem,
+                onRecordPractice: {
+                    isShowingRecordPractice = true
+                },
+                onNewTodo: {
+                    isShowingNewTodo = true
+                },
+                onNewNote: {
+                    quickNoteParams = QuickNoteParams()
+                }
+            )
+        }
+        .sheet(item: $quickNoteParams) { params in
+            QuickNoteSheet(
+                initialStudentIDs: params.studentIDs,
+                initialBodyText: params.bodyText,
+                initialTags: params.tags
+            )
+        }
+        .sheet(isPresented: $isShowingCommandBar) {
+            CommandBarSheet(
+                onPresentation: { draftID in
+                    isShowingCommandBar = false
+                    newPresentationDraftID = draftID
+                },
+                onWorkItem: { lessonID, studentIDs in
+                    isShowingCommandBar = false
+                    commandBarWorkLessonID = lessonID
+                    commandBarWorkStudentIDs = studentIDs
+                    isShowingNewWorkItem = true
+                },
+                onNote: { studentIDs, bodyText, inferredTags in
+                    isShowingCommandBar = false
+                    quickNoteParams = QuickNoteParams(
+                        studentIDs: studentIDs,
+                        bodyText: bodyText,
+                        tags: inferredTags
+                    )
+                },
+                onTodo: { titleText in
+                    isShowingCommandBar = false
+                    commandBarTodoTitle = titleText
+                    isShowingNewTodo = true
+                }
+            )
+        }
+    }
 
     private var rootLayoutWithObservers: some View {
         rootLayout

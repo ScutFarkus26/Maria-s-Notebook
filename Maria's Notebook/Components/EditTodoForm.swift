@@ -23,37 +23,7 @@ struct EditTodoForm: View {
                     .font(AppTheme.ScaledFont.body)
             }
 
-            Section("Schedule") {
-                HStack {
-                    Text("When")
-                    Spacer()
-                    TodoSchedulePickerButton(
-                        scheduledDate: $todo.scheduledDate,
-                        dueDate: $todo.dueDate,
-                        isSomeday: $todo.isSomeday
-                    )
-                }
-
-                Picker("Repeats", selection: $todo.recurrence) {
-                    ForEach(RecurrencePattern.allCases, id: \.self) { pattern in
-                        Text(pattern.rawValue).tag(pattern)
-                    }
-                }
-
-                if todo.recurrence != .none {
-                    Toggle("Repeat after completion", isOn: $todo.repeatAfterCompletion)
-                    if todo.recurrence == .custom {
-                        Stepper(
-                            "Every \(todo.customIntervalDays == 0 ? 7 : todo.customIntervalDays) days",
-                            value: Binding(
-                                get: { Int(todo.customIntervalDays == 0 ? 7 : todo.customIntervalDays) },
-                                set: { todo.customIntervalDays = Int64($0) }
-                            ),
-                            in: 1...365
-                        )
-                    }
-                }
-            }
+            scheduleSection
 
             Section("Organization") {
                 Picker("Priority", selection: $todo.priority) {
@@ -97,6 +67,40 @@ struct EditTodoForm: View {
         .onChange(of: todo.isCompleted) { _, _ in saveTodoChanges() }
         .onDisappear {
             saveTodoChanges()
+        }
+    }
+
+    @ViewBuilder private var scheduleSection: some View {
+        Section("Schedule") {
+            HStack {
+                Text("When")
+                Spacer()
+                TodoSchedulePickerButton(
+                    scheduledDate: $todo.scheduledDate,
+                    dueDate: $todo.dueDate,
+                    isSomeday: $todo.isSomeday
+                )
+            }
+
+            Picker("Repeats", selection: $todo.recurrence) {
+                ForEach(RecurrencePattern.allCases, id: \.self) { pattern in
+                    Text(pattern.rawValue).tag(pattern)
+                }
+            }
+
+            if todo.recurrence != .none {
+                Toggle("Repeat after completion", isOn: $todo.repeatAfterCompletion)
+                if todo.recurrence == .custom {
+                    Stepper(
+                        "Every \(todo.customIntervalDays == 0 ? 7 : todo.customIntervalDays) days",
+                        value: Binding<Int>(
+                            get: { Int(todo.customIntervalDays == 0 ? 7 : todo.customIntervalDays) },
+                            set: { todo.customIntervalDays = Int64($0) }
+                        ),
+                        in: 1...365
+                    )
+                }
+            }
         }
     }
 

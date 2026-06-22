@@ -116,47 +116,7 @@ extension TodoMainView {
         List {
             Section {
                 ForEach(TodoListFilter.allCases) { filter in
-                    let isActive = selectedTag == nil && selectedFolder == nil && selectedFilter == filter
-                    Button {
-                        selectedTag = nil
-                        selectedFolder = nil
-                        selectedFilter = filter
-                    } label: {
-                        HStack(spacing: 12) {
-                            Image(systemName: filter.icon)
-                                .font(.system(size: 13, weight: .semibold))
-                                .foregroundStyle(filter.color)
-                                .frame(width: 28, height: 28)
-                                .background(
-                                    filter.color.opacity(UIConstants.OpacityConstants.accent),
-                                    in: RoundedRectangle(cornerRadius: 7, style: .continuous)
-                                )
-
-                            Text(filter.title)
-                                .font(AppTheme.ScaledFont.body)
-                                .fontWeight(isActive ? .semibold : .regular)
-
-                            Spacer()
-
-                            if filter != .all {
-                                let count = countForFilter(filter)
-                                if count > 0 {
-                                    Text("\(count)")
-                                        .font(AppTheme.ScaledFont.captionSemibold)
-                                        .foregroundStyle(.tertiary)
-                                }
-                            }
-                        }
-                        .frame(maxWidth: .infinity, alignment: .leading)
-                        .contentShape(Rectangle())
-                        .padding(.vertical, 3)
-                    }
-                    .buttonStyle(.plain)
-                    .listRowBackground(
-                        isActive
-                            ? Color.accentColor.opacity(UIConstants.OpacityConstants.light)
-                            : Color.clear
-                    )
+                    filterRow(filter: filter)
                 }
             }
 
@@ -166,7 +126,7 @@ extension TodoMainView {
                         if item.hasPrefix("folder:") {
                             let sequenceName = String(item.dropFirst("folder:".count))
                             DisclosureGroup(
-                                isExpanded: Binding(
+                                isExpanded: Binding<Bool>(
                                     get: { expandedTagGroups.contains(sequenceName) },
                                     set: { isExpanded in
                                         if isExpanded {
@@ -187,62 +147,7 @@ extension TodoMainView {
                                     )
                                 }
                             } label: {
-                                HStack(spacing: 10) {
-                                    Image(systemName: selectedFolder == sequenceName ? "folder.fill" : "folder")
-                                        .foregroundStyle(
-                                            selectedFolder == sequenceName ? Color.accentColor : .secondary
-                                        )
-                                        .font(.system(size: 12, weight: .semibold))
-                                        .frame(width: 10)
-
-                                    Text(sequenceName)
-                                        .font(AppTheme.ScaledFont.bodySemibold)
-                                        .foregroundStyle(selectedFolder == sequenceName ? Color.accentColor : .primary)
-
-                                    Spacer()
-
-                                    if selectedFolder == sequenceName {
-                                        Image(systemName: "line.3.horizontal.decrease.circle.fill")
-                                            .font(.system(size: 13))
-                                            .foregroundStyle(Color.accentColor)
-                                    }
-                                }
-                                .padding(.vertical, 4)
-                                .contentShape(Rectangle())
-                                .onTapGesture {
-                                    adaptiveWithAnimation(.snappy(duration: 0.2)) {
-                                        if selectedFolder == sequenceName {
-                                            // Deselect folder
-                                            selectedFolder = nil
-                                            selectedFilter = .inbox
-                                        } else {
-                                            // Select folder -- show all items with tags in this folder
-                                            selectedFolder = sequenceName
-                                            selectedTag = nil
-                                            selectedFilter = nil
-                                        }
-                                    }
-                                }
-                                .draggable(item) {
-                                    HStack(spacing: 6) {
-                                        Image(systemName: "folder")
-                                            .foregroundStyle(.secondary)
-                                            .font(.system(size: 12, weight: .semibold))
-                                        Text(sequenceName)
-                                            .font(AppTheme.ScaledFont.captionSemibold)
-                                    }
-                                    .padding(.horizontal, 8)
-                                    .padding(.vertical, 4)
-                                    .background(.regularMaterial)
-                                    .clipShape(RoundedRectangle(cornerRadius: 6))
-                                }
-                                .dropDestination(for: String.self) { items, _ in
-                                    guard let dropped = items.first, dropped != item else { return false }
-                                    adaptiveWithAnimation(.snappy(duration: 0.2)) {
-                                        moveTag(from: dropped, toAfter: item)
-                                    }
-                                    return true
-                                }
+                                folderRowLabel(sequenceName: sequenceName, item: item)
                             }
                         } else {
                             tagRow(
@@ -279,6 +184,113 @@ extension TodoMainView {
             }
         }
         .listStyle(.sidebar)
+    }
+
+    // MARK: - Filter Row Helper
+
+    @ViewBuilder
+    private func filterRow(filter: TodoListFilter) -> some View {
+        let isActive = selectedTag == nil && selectedFolder == nil && selectedFilter == filter
+        Button {
+            selectedTag = nil
+            selectedFolder = nil
+            selectedFilter = filter
+        } label: {
+            HStack(spacing: 12) {
+                Image(systemName: filter.icon)
+                    .font(.system(size: 13, weight: .semibold))
+                    .foregroundStyle(filter.color)
+                    .frame(width: 28, height: 28)
+                    .background(
+                        filter.color.opacity(UIConstants.OpacityConstants.accent),
+                        in: RoundedRectangle(cornerRadius: 7, style: .continuous)
+                    )
+
+                Text(filter.title)
+                    .font(AppTheme.ScaledFont.body)
+                    .fontWeight(isActive ? .semibold : .regular)
+
+                Spacer()
+
+                if filter != .all {
+                    let count = countForFilter(filter)
+                    if count > 0 {
+                        Text("\(count)")
+                            .font(AppTheme.ScaledFont.captionSemibold)
+                            .foregroundStyle(.tertiary)
+                    }
+                }
+            }
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .contentShape(Rectangle())
+            .padding(.vertical, 3)
+        }
+        .buttonStyle(.plain)
+        .listRowBackground(
+            isActive
+                ? Color.accentColor.opacity(UIConstants.OpacityConstants.light)
+                : Color.clear
+        )
+    }
+
+    // MARK: - Folder Row Label
+
+    @ViewBuilder
+    private func folderRowLabel(sequenceName: String, item: String) -> some View {
+        HStack(spacing: 10) {
+            Image(systemName: selectedFolder == sequenceName ? "folder.fill" : "folder")
+                .foregroundStyle(
+                    selectedFolder == sequenceName ? Color.accentColor : .secondary
+                )
+                .font(.system(size: 12, weight: .semibold))
+                .frame(width: 10)
+
+            Text(sequenceName)
+                .font(AppTheme.ScaledFont.bodySemibold)
+                .foregroundStyle(selectedFolder == sequenceName ? Color.accentColor : .primary)
+
+            Spacer()
+
+            if selectedFolder == sequenceName {
+                Image(systemName: "line.3.horizontal.decrease.circle.fill")
+                    .font(.system(size: 13))
+                    .foregroundStyle(Color.accentColor)
+            }
+        }
+        .padding(.vertical, 4)
+        .contentShape(Rectangle())
+        .onTapGesture {
+            adaptiveWithAnimation(.snappy(duration: 0.2)) {
+                if selectedFolder == sequenceName {
+                    selectedFolder = nil
+                    selectedFilter = .inbox
+                } else {
+                    selectedFolder = sequenceName
+                    selectedTag = nil
+                    selectedFilter = nil
+                }
+            }
+        }
+        .draggable(item) {
+            HStack(spacing: 6) {
+                Image(systemName: "folder")
+                    .foregroundStyle(.secondary)
+                    .font(.system(size: 12, weight: .semibold))
+                Text(sequenceName)
+                    .font(AppTheme.ScaledFont.captionSemibold)
+            }
+            .padding(.horizontal, 8)
+            .padding(.vertical, 4)
+            .background(.regularMaterial)
+            .clipShape(RoundedRectangle(cornerRadius: 6))
+        }
+        .dropDestination(for: String.self) { items, _ in
+            guard let dropped = items.first, dropped != item else { return false }
+            adaptiveWithAnimation(.snappy(duration: 0.2)) {
+                moveTag(from: dropped, toAfter: item)
+            }
+            return true
+        }
     }
 
     // MARK: - Tag Row Helper
