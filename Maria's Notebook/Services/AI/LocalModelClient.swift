@@ -69,7 +69,7 @@ final class LocalModelClient: MCPClientProtocol {
         do {
             let response = try await session.respond(
                 to: prompt,
-                options: .init(temperature: temperature)
+                options: .init(temperature: temperature, maximumResponseTokens: maxTokens)
             )
             return response.content
         } catch let error as LanguageModelError {
@@ -104,7 +104,7 @@ final class LocalModelClient: MCPClientProtocol {
         do {
             let response = try await session.respond(
                 to: prompt,
-                options: .init(temperature: temperature)
+                options: .init(temperature: temperature, maximumResponseTokens: maxTokens)
             )
 
             // Validate JSON
@@ -153,14 +153,17 @@ final class LocalModelClient: MCPClientProtocol {
         guard isAvailable else {
             throw LocalModelError.unavailable(unavailabilityReason)
         }
+        let base = systemMessage ?? AIPrompts.chatAssistant
+        let instructions = Self.conversationInstructions(from: messages, base: base)
         let session = LanguageModelSession(
             tools: NotebookTools.chatTools(),
-            instructions: systemMessage ?? AIPrompts.chatAssistant
+            instructions: instructions
         )
+        let prompt = Self.lastUserMessage(from: messages)
         do {
             let response = try await session.respond(
-                to: Self.flatten(messages),
-                options: .init(temperature: temperature)
+                to: prompt,
+                options: .init(temperature: temperature, maximumResponseTokens: maxTokens)
             )
             return response.content
         } catch let error as LanguageModelError {
@@ -181,14 +184,17 @@ final class LocalModelClient: MCPClientProtocol {
         guard isAvailable else {
             throw LocalModelError.unavailable(unavailabilityReason)
         }
+        let base = systemMessage ?? AIPrompts.chatAssistant
+        let instructions = Self.conversationInstructions(from: messages, base: base)
         let session = LanguageModelSession(
             tools: NotebookTools.chatTools(),
-            instructions: systemMessage ?? AIPrompts.chatAssistant
+            instructions: instructions
         )
+        let prompt = Self.lastUserMessage(from: messages)
         do {
             let stream = session.streamResponse(
-                to: Self.flatten(messages),
-                options: .init(temperature: temperature)
+                to: prompt,
+                options: .init(temperature: temperature, maximumResponseTokens: maxTokens)
             )
             // Snapshots are cumulative; emit only the new suffix as the delta.
             var emitted = ""
@@ -205,9 +211,30 @@ final class LocalModelClient: MCPClientProtocol {
         }
     }
 
-    private static func flatten(_ messages: [[String: String]]) -> String {
-        messages.map { "\($0["role"] ?? "user"): \($0["content"] ?? "")" }
-            .joined(separator: "\n\n")
+    // Returns the most recent user message to use as the prompt.
+    private static func lastUserMessage(from messages: [[String: String]]) -> String {
+        messages.last(where: { $0["role"] == "user" })?["content"] ?? ""
+    }
+
+    // Injects all prior turns into session instructions so LanguageModelSession
+    // sees a real conversation context rather than a flattened string prompt.
+    private static func conversationInstructions(
+        from messages: [[String: String]],
+        base: String
+    ) -> String {
+        guard let lastUserIdx = messages.lastIndex(where: { $0["role"] == "user" }),
+              lastUserIdx > 0 else {
+            return base
+        }
+        let lines = messages.prefix(lastUserIdx).compactMap { msg -> String? in
+            guard let role = msg["role"], let content = msg["content"], !content.isEmpty else { return nil }
+            return role == "assistant" ? "Assistant: \(content)" : "Teacher: \(content)"
+        }
+        guard !lines.isEmpty else { return base }
+        return base
+            + "\n\n=== Prior conversation ===\n"
+            + lines.joined(separator: "\n")
+            + "\n=== End of prior conversation ==="
     }
 }
 

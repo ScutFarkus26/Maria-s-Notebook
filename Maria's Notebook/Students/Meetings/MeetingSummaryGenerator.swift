@@ -50,11 +50,6 @@ enum MeetingSummaryGenerator {
         let manualSummary = generateFallbackSummary(for: meeting)
 
         #if ENABLE_FOUNDATION_MODELS && canImport(FoundationModels)
-        guard #available(macOS 26.0, *) else {
-            await MainActor.run { onSummaryGenerated(manualSummary, false) }
-            return
-        }
-
         guard SystemLanguageModel.default.isAvailable else {
             await MainActor.run { onSummaryGenerated(manualSummary, false) }
             return
@@ -112,10 +107,9 @@ enum MeetingSummaryGenerator {
     /// Returns true if AI summary generation is available.
     static var isAIEnabled: Bool {
         #if ENABLE_FOUNDATION_MODELS && canImport(FoundationModels)
-        if #available(macOS 26.0, *) {
-            return SystemLanguageModel.default.isAvailable
-        }
-        #endif
+        return SystemLanguageModel.default.isAvailable
+        #else
         return false
+        #endif
     }
 }
