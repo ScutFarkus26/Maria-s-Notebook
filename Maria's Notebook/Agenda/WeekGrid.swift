@@ -23,11 +23,18 @@ struct WeekGrid: View {
     }
 
     var body: some View {
+        // Pre-group lessons by day once so each DayColumn receives only its own slice,
+        // eliminating the per-column, per-render filter over the full week array.
+        let byDay = Dictionary(
+            grouping: allLessonAssignments,
+            by: { AppCalendar.startOfDay($0.scheduledFor ?? .distantPast) }
+        )
         LazyVGrid(columns: columns, alignment: .leading, spacing: UIConstants.gridColumnSpacing) {
             ForEach(days, id: \.self) { day in
+                let dayStart = AppCalendar.startOfDay(day)
                 DayColumn(
                     day: day,
-                    weekLessonAssignments: allLessonAssignments,
+                    lessonAssignments: byDay[dayStart, default: []],
                     availableHeight: availableHeight,
                     onSelectLesson: onSelectLesson,
                     onQuickActions: onQuickActions,

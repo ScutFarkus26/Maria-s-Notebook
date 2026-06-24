@@ -19,10 +19,37 @@ extension TodayView {
     }
 
     private var todosPartition: TodosPartition {
+        // Compute date boundaries once — todayTodos and the partition sub-filters all need them.
         let selectedDay = AppCalendar.startOfDay(viewModel.date)
         let nextDay = Calendar.current.date(byAdding: .day, value: 1, to: selectedDay) ?? selectedDay
-        let todos = todayTodos
 
+        // Filter and sort the raw fetch results in a single pass.
+        let todos = todayTodoItems.filter { todo in
+            guard !todo.isCompleted else { return false }
+            guard !todo.isSomeday else { return false }
+            if let scheduled = todo.scheduledDate, scheduled >= selectedDay && scheduled < nextDay { return true }
+            if let dueDate = todo.dueDate, dueDate < selectedDay {
+                if let scheduled = todo.scheduledDate, scheduled >= nextDay { return false }
+                return true
+            }
+            if let dueDate = todo.dueDate, dueDate >= selectedDay && dueDate < nextDay { return true }
+            if todo.priority == .high { return true }
+            return false
+        }
+        .sorted { lhs, rhs in
+            let lhsOverdue = lhs.dueDate.map { $0 < selectedDay } ?? false
+            let rhsOverdue = rhs.dueDate.map { $0 < selectedDay } ?? false
+            let lhsScheduled = lhs.scheduledDate.map { $0 >= selectedDay && $0 < nextDay } ?? false
+            let rhsScheduled = rhs.scheduledDate.map { $0 >= selectedDay && $0 < nextDay } ?? false
+            let lhsDueOnDay = lhs.dueDate.map { $0 >= selectedDay && $0 < nextDay } ?? false
+            let rhsDueOnDay = rhs.dueDate.map { $0 >= selectedDay && $0 < nextDay } ?? false
+            if lhsOverdue != rhsOverdue { return lhsOverdue }
+            if lhsScheduled != rhsScheduled { return lhsScheduled }
+            if lhsDueOnDay != rhsDueOnDay { return lhsDueOnDay }
+            return lhs.priority.sortOrder < rhs.priority.sortOrder
+        }
+
+        // Partition the already-sorted list — reuses the pre-computed dates.
         let overdue = todos.filter { todo in
             guard let dueDate = todo.dueDate else { return false }
             return dueDate < selectedDay && (todo.scheduledDate == nil || todo.scheduledDate! < nextDay)
@@ -187,51 +214,6 @@ extension TodayView {
     }
 
     /// Todos relevant to the selected day: scheduled for day, overdue deadline, due on date, or high priority.
-    /// Someday todos are excluded.
-    var todayTodos: [CDTodoItem] {
-        let selectedDay = AppCalendar.startOfDay(viewModel.date)
-        let nextDay = Calendar.current.date(byAdding: .day, value: 1, to: selectedDay) ?? selectedDay
-
-        return todayTodoItems.filter { todo in
-            guard !todo.isCompleted else { return false }
-            // Exclude someday items
-            guard !todo.isSomeday else { return false }
-
-            // Scheduled for the selected date
-            if let scheduled = todo.scheduledDate, scheduled >= selectedDay && scheduled < nextDay {
-                return true
-            }
-            // Overdue deadline relative to the selected date
-            if let dueDate = todo.dueDate, dueDate < selectedDay {
-                // Only show overdue if not scheduled for a future date
-                if let scheduled = todo.scheduledDate, scheduled >= nextDay {
-                    return false
-                }
-                return true
-            }
-            // Deadline on the selected date (and not scheduled for a different day)
-            if let dueDate = todo.dueDate, dueDate >= selectedDay && dueDate < nextDay {
-                return true
-            }
-            // High priority (always shown)
-            if todo.priority == .high {
-                return true
-            }
-            return false
-        }
-        .sorted { lhs, rhs in
-            let lhsOverdue = lhs.dueDate.map { $0 < selectedDay } ?? false
-            let rhsOverdue = rhs.dueDate.map { $0 < selectedDay } ?? false
-            let lhsScheduled = lhs.scheduledDate.map { $0 >= selectedDay && $0 < nextDay } ?? false
-            let rhsScheduled = rhs.scheduledDate.map { $0 >= selectedDay && $0 < nextDay } ?? false
-            let lhsDueOnDay = lhs.dueDate.map { $0 >= selectedDay && $0 < nextDay } ?? false
-            let rhsDueOnDay = rhs.dueDate.map { $0 >= selectedDay && $0 < nextDay } ?? false
-
-            // Overdue first, then scheduled for today, then due on selected day, then high priority
-            if lhsOverdue != rhsOverdue { return lhsOverdue }
-            if lhsScheduled != rhsScheduled { return lhsScheduled }
-            if lhsDueOnDay != rhsDueOnDay { return lhsDueOnDay }
-            return lhs.priority.sortOrder < rhs.priority.sortOrder
-        }
-    }
+    /// Someday todos are excluded. Delegates to todosPartition for memoized computation.
+    var todayTodos: [CDTodoItem] { todosPartition.all }
 }

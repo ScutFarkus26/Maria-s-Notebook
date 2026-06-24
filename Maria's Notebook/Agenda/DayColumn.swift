@@ -11,10 +11,9 @@ struct DayColumn: View {
     @AppStorage(UserDefaultsKeys.generalTestStudentNames)
     private var testStudentNamesRaw: String = "Danny De Berry,Lil Dan D"
 
-    // OPTIMIZATION: Use shared week lesson assignments and filter for this day in memory
-    // This avoids making separate database queries for each day
-    let weekLessonAssignments: [CDLessonAssignment]
-    @FetchRequest(sortDescriptors: CDStudent.sortByLastName)private var allStudentsRaw: FetchedResults<CDStudent>
+    // Pre-filtered to this day's assignments by WeekGrid — no further date filtering needed.
+    let lessonAssignments: [CDLessonAssignment]
+    @FetchRequest(sortDescriptors: CDStudent.sortByLastName) private var allStudentsRaw: FetchedResults<CDStudent>
     // DEDUPLICATION: CloudKit sync can create duplicate records with the same ID.
     // Filter out test students when setting is disabled
     private var allStudents: [CDStudent] {
@@ -33,14 +32,14 @@ struct DayColumn: View {
 
     init(
         day: Date,
-        weekLessonAssignments: [CDLessonAssignment],
+        lessonAssignments: [CDLessonAssignment],
         availableHeight: CGFloat,
         onSelectLesson: @escaping (CDLessonAssignment) -> Void,
         onQuickActions: @escaping (CDLessonAssignment) -> Void,
         onPlanNext: @escaping (CDLessonAssignment) -> Void
     ) {
         self.day = day
-        self.weekLessonAssignments = weekLessonAssignments
+        self.lessonAssignments = lessonAssignments
         self.availableHeight = availableHeight
         self.onSelectLesson = onSelectLesson
         self.onQuickActions = onQuickActions
@@ -94,6 +93,12 @@ struct DayColumn: View {
     private var schoolDayKey: String { "\(day.timeIntervalSinceReferenceDate)#\(SchoolDayDataVersion.current)" }
 
     var body: some View {
+        // Compute allStudents and planned IDs once per render to avoid evaluating
+        // allStudents and lessonAssignments multiple times across DropZones and the strip.
+        let students = allStudents
+        let plannedIDs = buildPlannedIDs()
+        let unplanned = buildUnplanned(students: students, plannedIDs: plannedIDs)
+
         VStack(alignment: .leading, spacing: 0) {
             HStack(alignment: .firstTextBaseline, spacing: 8) {
                 Text(dayName)
@@ -119,7 +124,7 @@ struct DayColumn: View {
                     VStack(alignment: .leading, spacing: 0) {
                         periodChip(title: "Morning", tint: .blue)
                         DropZone(
-                            allLessonAssignments: dayLessonAssignments,
+                            allLessonAssignments: lessonAssignments,
                             day: day,
                             period: PlanningDayPeriod.morning,
                             onSelectLesson: onSelectLesson,
@@ -133,7 +138,7 @@ struct DayColumn: View {
                     periodChip(title: "Afternoon", tint: .orange)
                         .padding(.top, UIConstants.dayColumnSpacing)
                     DropZone(
-                        allLessonAssignments: dayLessonAssignments,
+                        allLessonAssignments: lessonAssignments,
                         day: day,
                         period: PlanningDayPeriod.afternoon,
                         onSelectLesson: onSelectLesson,
@@ -143,8 +148,8 @@ struct DayColumn: View {
                         .frame(minHeight: UIConstants.minDropZoneTotalHeight, alignment: .top)
                         .fixedSize(horizontal: false, vertical: true)
 
-                    if !unplannedStudents.isEmpty {
-                        UnplannedStudentsStrip(date: normalizedDay, unplanned: unplannedStudents) { student in
+                    if !unplanned.isEmpty {
+                        UnplannedStudentsStrip(date: normalizedDay, unplanned: unplanned) { student in
                             guard let studentID = student.id else { return }
                             appRouter.requestPlanLessonForStudentOnDate(studentID: studentID, date: normalizedDay)
                         }
@@ -168,31 +173,19 @@ struct DayColumn: View {
 
     private var normalizedDay: Date { AppCalendar.startOfDay(day) }
 
-    /// OPTIMIZATION: Filter week lesson assignments for this specific day in memory
-    /// The week data is already loaded with a database-level predicate, so we just filter here
-    private var dayLessonAssignments: [CDLessonAssignment] {
-        let (start, end) = AppCalendar.dayRange(for: normalizedDay)
-        return weekLessonAssignments.filter { la in
-            guard let scheduled = la.scheduledFor else { return false }
-            return scheduled >= start && scheduled < end
-        }
-    }
-
-    private var plannedStudentIDs: Set<UUID> {
-        let (start, end) = AppCalendar.dayRange(for: normalizedDay)
+    /// IDs of students who already have a non-given assignment scheduled for this day.
+    private func buildPlannedIDs() -> Set<UUID> {
         var acc: [UUID] = []
-        for la in dayLessonAssignments {
-            guard !la.isGiven else { continue }
-            if let scheduled = la.scheduledFor, scheduled >= start && scheduled < end {
-                acc.append(contentsOf: la.resolvedStudentIDs)
-            }
+        for la in lessonAssignments where !la.isGiven && la.scheduledFor != nil {
+            acc.append(contentsOf: la.resolvedStudentIDs)
         }
         return Set(acc)
     }
 
-    private var unplannedStudents: [CDStudent] {
-        let planned = plannedStudentIDs
-        return allStudents.filter { guard let id = $0.id else { return true }; return !planned.contains(id) }
+    /// Students who have no planned assignment for this day, sorted by last name.
+    private func buildUnplanned(students: [CDStudent], plannedIDs: Set<UUID>) -> [CDStudent] {
+        students
+            .filter { guard let id = $0.id else { return true }; return !plannedIDs.contains(id) }
             .sorted { lhs, rhs in
                 let ln = lhs.lastName.lowercased()
                 let rn = rhs.lastName.lowercased()

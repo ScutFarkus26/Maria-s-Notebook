@@ -27,10 +27,12 @@ struct DeadlinesSectionView: View {
     }
 
     var body: some View {
-        if !overdueTodos.isEmpty {
+        // Compute once so both the guard and the count label use the same value.
+        let overdue = overdueTodos
+        if !overdue.isEmpty {
             Section {
                 VStack(alignment: .leading, spacing: 10) {
-                    overdueTodosRow
+                    overdueRow(count: overdue.count)
                 }
                 .padding(.vertical, 4)
                 .listRowInsets(EdgeInsets(top: 8, leading: 20, bottom: 8, trailing: 20))
@@ -41,7 +43,7 @@ struct DeadlinesSectionView: View {
     }
 
     @ViewBuilder
-    private var overdueTodosRow: some View {
+    private func overdueRow(count: Int) -> some View {
         Button {
             appRouter.navigateTo(.todos)
         } label: {
@@ -50,7 +52,7 @@ struct DeadlinesSectionView: View {
                     .foregroundStyle(.red)
                     .frame(width: 24)
                 VStack(alignment: .leading, spacing: 2) {
-                    Text("\(overdueTodos.count) overdue todo\(overdueTodos.count == 1 ? "" : "s")")
+                    Text("\(count) overdue todo\(count == 1 ? "" : "s")")
                         .foregroundStyle(.primary)
                     Text("Open the Todos surface to review")
                         .font(.caption2)

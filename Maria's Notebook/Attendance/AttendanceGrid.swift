@@ -44,13 +44,14 @@ struct AttendanceGrid: View {
 
 #if os(iOS)
     private var compactListLayout: some View {
-        List {
+        let duplicates = duplicateFirstNames
+        return List {
             ForEach(students, id: \.id) { student in
                 AttendanceCard(
                     student: student,
                     record: recordsByStudentID[student.cloudKitKey],
                     isEditing: true,
-                    duplicateFirstNames: duplicateFirstNames,
+                    duplicateFirstNames: duplicates,
                     onTap: {
                         onCycleStatus(student)
                     },
@@ -74,7 +75,9 @@ struct AttendanceGrid: View {
     // MARK: - iPad/macOS: Card grid
 
     private var gridLayout: some View {
-        GeometryReader { geometry in
+        // Compute once; passed into both the scrolling and non-scrolling ForEach branches.
+        let duplicates = duplicateFirstNames
+        return GeometryReader { geometry in
             let availableWidth = geometry.size.width - (horizontalPadding * 2)
             let availableHeight = geometry.size.height - (verticalPadding * 2)
 
@@ -103,7 +106,7 @@ struct AttendanceGrid: View {
                                 student: student,
                                 record: recordsByStudentID[student.cloudKitKey],
                                 isEditing: true,
-                                duplicateFirstNames: duplicateFirstNames,
+                                duplicateFirstNames: duplicates,
                                 onTap: {
                                     onCycleStatus(student)
                                 },
@@ -128,7 +131,7 @@ struct AttendanceGrid: View {
                                 student: student,
                                 record: recordsByStudentID[student.cloudKitKey],
                                 isEditing: true,
-                                duplicateFirstNames: duplicateFirstNames,
+                                duplicateFirstNames: duplicates,
                                 onTap: {
                                     onCycleStatus(student)
                                 },

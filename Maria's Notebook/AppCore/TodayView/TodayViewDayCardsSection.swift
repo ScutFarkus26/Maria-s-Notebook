@@ -38,8 +38,9 @@ extension TodayView {
     var dayCardsListSection: some View {
         // Reading dayCardsRefreshTrigger here makes the section re-evaluate after a dismiss.
         _ = dayCardsRefreshTrigger
+        // Compute once; reused by both the section content and the header guard.
+        let cards = activeDayCards
         return Section {
-            let cards = activeDayCards
             if !cards.isEmpty {
                 ForEach(cards, id: \.0) { card, subtitle in
                     dayCardRow(card: card, subtitle: subtitle)
@@ -47,7 +48,7 @@ extension TodayView {
                 }
             }
         } header: {
-            if !activeDayCards.isEmpty {
+            if !cards.isEmpty {
                 sectionHeader("For Today")
             }
         }

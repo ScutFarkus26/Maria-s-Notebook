@@ -101,43 +101,34 @@ extension TodayView {
                 }
 
                 if !(viewModel.absentToday.isEmpty && viewModel.leftEarlyToday.isEmpty) {
+                    // Resolve names once per student — sort key and display label are the same value.
+                    let absentPairs = viewModel.absentToday
+                        .map { (id: $0, name: displayNameForID($0)) }
+                        .filter { !$0.name.trimmed().isEmpty }
+                        .sorted { $0.name.localizedCaseInsensitiveCompare($1.name) == .orderedAscending }
+                    let leftEarlyPairs = viewModel.leftEarlyToday
+                        .map { (id: $0, name: displayNameForID($0)) }
+                        .filter { !$0.name.trimmed().isEmpty }
+                        .sorted { $0.name.localizedCaseInsensitiveCompare($1.name) == .orderedAscending }
                     ScrollView(.horizontal, showsIndicators: false) {
                         HStack(spacing: 6) {
-                            ForEach(
-                                StringSorting.sortByLocalizedCaseInsensitive(
-                                    items: viewModel.absentToday,
-                                    extractor: { displayNameForID($0) }
-                                ),
-                                id: \.self
-                            ) { sid in
-                                let name = displayNameForID(sid)
-                                if !name.trimmed().isEmpty {
-                                    studentPill(name, color: .red)
-                                        .contextMenu {
-                                            Text(name)
-                                            Divider()
-                                            Button {
-                                                markTardy(sid)
-                                            } label: {
-                                                Label("Mark Tardy", systemImage: "clock")
-                                            }
+                            ForEach(absentPairs, id: \.id) { pair in
+                                studentPill(pair.name, color: .red)
+                                    .contextMenu {
+                                        Text(pair.name)
+                                        Divider()
+                                        Button {
+                                            markTardy(pair.id)
+                                        } label: {
+                                            Label("Mark Tardy", systemImage: "clock")
                                         }
-                                }
+                                    }
                             }
-                            if !viewModel.absentToday.isEmpty && !viewModel.leftEarlyToday.isEmpty {
+                            if !absentPairs.isEmpty && !leftEarlyPairs.isEmpty {
                                 Color.clear.frame(width: 8)
                             }
-                            ForEach(
-                                StringSorting.sortByLocalizedCaseInsensitive(
-                                    items: viewModel.leftEarlyToday,
-                                    extractor: { displayNameForID($0) }
-                                ),
-                                id: \.self
-                            ) { sid in
-                                let name = displayNameForID(sid)
-                                if !name.trimmed().isEmpty {
-                                    studentPill(name, color: .purple)
-                                }
+                            ForEach(leftEarlyPairs, id: \.id) { pair in
+                                studentPill(pair.name, color: .purple)
                             }
                         }
                         .padding(.leading, 8)

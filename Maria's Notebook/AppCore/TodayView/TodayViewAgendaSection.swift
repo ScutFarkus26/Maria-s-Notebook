@@ -13,8 +13,9 @@ extension TodayView {
     // MARK: - Presented Lessons Section
 
     var presentedLessonsListSection: some View {
-        Section {
-            let presented = viewModel.todaysLessons.filter(\.isPresented)
+        // Compute once; count forwarded to the header to avoid a second filter pass.
+        let presented = viewModel.todaysLessons.filter(\.isPresented)
+        return Section {
             if presented.isEmpty {
                 emptyStateText("No lessons presented yet")
             } else {
@@ -39,12 +40,12 @@ extension TodayView {
                 }
             }
         } header: {
-            presentedLessonsSectionHeader
+            presentedLessonsSectionHeader(count: presented.count)
         }
     }
 
     @ViewBuilder
-    var presentedLessonsSectionHeader: some View {
+    func presentedLessonsSectionHeader(count: Int) -> some View {
         HStack {
             Text("Lessons Presented")
                 .font(AppTheme.ScaledFont.caption)
@@ -53,7 +54,6 @@ extension TodayView {
                 .textCase(.uppercase)
                 .tracking(0.8)
             Spacer()
-            let count = viewModel.todaysLessons.filter(\.isPresented).count
             if count > 0 {
                 Text("\(count)")
                     .font(AppTheme.ScaledFont.captionSmallSemibold)
