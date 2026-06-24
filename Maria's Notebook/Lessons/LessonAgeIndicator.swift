@@ -83,77 +83,22 @@ struct ColorUtils {
 
 /// Helper to compute school-day age counts using the app's SchoolCalendar.
 struct LessonAgeHelper {
-    /// Synchronous helper that determines if a date is a non-school day using direct NSManagedObjectContext fetches.
-    /// Rules:
-    /// - Explicit CDNonSchoolDay records mark weekdays as non-school
-    /// - Weekends are non-school by default unless a CDSchoolDayOverride exists for that date
-    private static func isNonSchoolDaySync(
-        _ date: Date,
-        using context: NSManagedObjectContext,
-        calendar: Calendar
-    ) -> Bool {
-        let day = calendar.startOfDay(for: date)
-
-        // 1) Explicit non-school day wins
-        do {
-            let nsDescriptor = {
-                let r = NSFetchRequest<CDNonSchoolDay>(entityName: "NonSchoolDay")
-                r.predicate = NSPredicate(format: "date == %@", day as CVarArg)
-                r.fetchLimit = 1
-                return r
-            }()
-            let nonSchoolDays: [CDNonSchoolDay] = try context.fetch(nsDescriptor)
-            if !nonSchoolDays.isEmpty { return true }
-        } catch {
-            // On fetch error, fall back to weekend logic below
-        }
-
-        // 2) Weekends are non-school by default (Sunday=1, Saturday=7)
-        let weekday = calendar.component(.weekday, from: day)
-        let isWeekend = (weekday == 1 || weekday == 7)
-        guard isWeekend else { return false }
-
-        // 3) Weekend override makes it a school day
-        do {
-            let ovDescriptor = {
-                let r = NSFetchRequest<CDSchoolDayOverride>(entityName: "SchoolDayOverride")
-                r.predicate = NSPredicate(format: "date == %@", day as CVarArg)
-                r.fetchLimit = 1
-                return r
-            }()
-            let overrides: [CDSchoolDayOverride] = try context.fetch(ovDescriptor)
-            if !overrides.isEmpty { return false }
-        } catch {
-            // If override fetch fails, assume weekend remains non-school
-        }
-        return true
-    }
-
-    /// Compute the number of school days between `createdAt` (start of day) and `today` (start of day),
-    /// counting only days that are not marked as non-school by SchoolCalendar.
-    /// Returns 0 when `today` is the same start-of-day as `createdAt` or earlier.
+    /// Compute the number of school days between `createdAt` (start of day) and `today` (start of day).
+    /// Routes through SchoolDayCalculationCache to avoid issuing a Core Data fetch per day.
+    @MainActor
     static func schoolDaysSinceCreation(
         createdAt: Date, asOf today: Date = Date(),
         using context: NSManagedObjectContext, calendar: Calendar = .current
     ) -> Int {
-        let start = calendar.startOfDay(for: createdAt)
-        let end = calendar.startOfDay(for: today)
-        if end <= start { return 0 }
-        var count = 0
-        var cursor = start
-        while cursor < end {
-            if !isNonSchoolDaySync(cursor, using: context, calendar: calendar) {
-                count += 1
-            }
-            guard let next = calendar.date(byAdding: .day, value: 1, to: cursor) else { break }
-            cursor = next
-        }
-        return max(0, count)
+        SchoolDayCalculationCache.shared.schoolDaysSinceCreation(
+            createdAt: createdAt, asOf: today, using: context, calendar: calendar
+        )
     }
 }
 
 extension LessonAssignmentSnapshot {
     /// Convenience wrapper to compute school-day age directly from a snapshot.
+    @MainActor
     func schoolDaysSinceCreation(
         asOf today: Date = Date(),
         using context: NSManagedObjectContext,

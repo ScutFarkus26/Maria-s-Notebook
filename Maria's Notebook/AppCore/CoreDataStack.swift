@@ -137,7 +137,8 @@ final class CoreDataStack {
         "StudentFocusItem",
         "DayPad",
         "BookClubSession",
-        "BookClubMeeting"
+        "BookClubMeeting",
+        "LessonRecallCheck"
     ]
 
     // MARK: - Store URLs
@@ -337,10 +338,18 @@ final class CoreDataStack {
             forName: .NSPersistentStoreRemoteChange,
             object: container.persistentStoreCoordinator,
             queue: .main
-        ) { [weak self] _ in
+        ) { [weak self] notification in
             guard let self else { return }
+            // Compute the school-day relevance flag here (queue: .main) so we don't
+            // need to send the non-Sendable Notification across the actor boundary.
+            let relevantNames: Set<String> = ["NonSchoolDay", "SchoolDayOverride"]
+            let changedIDs = [NSInsertedObjectsKey, NSUpdatedObjectsKey, NSDeletedObjectsKey]
+                .compactMap { notification.userInfo?[$0] as? Set<NSManagedObjectID> }
+                .flatMap { $0 }
+            let shouldInvalidateSchoolDayCache: Bool = changedIDs.isEmpty
+                || changedIDs.contains { relevantNames.contains($0.entity.name ?? "") }
             Task { @MainActor in
-                self.handleRemoteChangeNotification()
+                self.handleRemoteChangeNotification(invalidateSchoolDayCache: shouldInvalidateSchoolDayCache)
             }
         }
 
@@ -427,11 +436,13 @@ final class CoreDataStack {
 
     // MARK: - Remote Change Handling
 
-    private func handleRemoteChangeNotification() {
-        // A remote (CloudKit) change merged in — invalidate school-day caches so
-        // calendar-dependent counts and navigation don't show stale values.
-        // Posting unconditionally is cheap; the caches rebuild lazily on next use.
-        NotificationCenter.default.post(name: .schoolDayDataDidChange, object: nil)
+    private func handleRemoteChangeNotification(invalidateSchoolDayCache: Bool) {
+        // Only invalidate school-day caches when NonSchoolDay or SchoolDayOverride
+        // entities actually changed (computed by the caller before the actor hop).
+        // Fail-open: if the notification carried no object-ID info the caller passes true.
+        if invalidateSchoolDayCache {
+            NotificationCenter.default.post(name: .schoolDayDataDidChange, object: nil)
+        }
         guard let processor = historyProcessor else { return }
         Task {
             await processor.processRemoteChanges()
