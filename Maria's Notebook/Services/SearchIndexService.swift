@@ -40,6 +40,8 @@ final class SearchIndexService {
 
     // MARK: - Core Data Index Building
 
+    /// Rebuild the index synchronously on the provided context's queue.
+    /// Prefer `rebuildIndexAsync(container:)` at launch to avoid blocking the main thread.
     func rebuildIndex(context: NSManagedObjectContext) {
         let start = Date()
 
@@ -57,6 +59,111 @@ final class SearchIndexService {
         let indexMsg = "Search index built: \(self.resultsById.count) entities, " +
             "\(self.index.count) tokens in \(String(format: "%.2f", elapsed))s"
         Self.logger.info("\(indexMsg, privacy: .public)")
+    }
+
+    /// Rebuild the index using a background context so the main thread is free during fetches.
+    /// Collected (SearchResult, text) pairs are applied on the main actor once fetching completes.
+    func rebuildIndexAsync(container: NSPersistentContainer) async {
+        let bgContext = container.newBackgroundContext()
+        // Collect all entity data as value types on the background context's queue.
+        let collected: [(SearchResult, String)] = await bgContext.perform {
+            Self.collectAll(context: bgContext)
+        }
+        // Apply results on the main actor — index storage is @MainActor.
+        index.removeAll()
+        resultsById.removeAll()
+        for (result, text) in collected {
+            indexResult(result, text: text)
+        }
+        isReady = true
+        let count = resultsById.count
+        let tokens = index.count
+        Self.logger.info("Search index built (async): \(count) entities, \(tokens) tokens")
+    }
+
+    // MARK: - Background Collection (nonisolated static — safe to call inside bgContext.perform)
+
+    /// Gathers all indexable entities from the given context and returns Sendable value pairs.
+    private nonisolated static func collectAll(context: NSManagedObjectContext) -> [(SearchResult, String)] {
+        var pairs: [(SearchResult, String)] = []
+        collectStudents(context: context, into: &pairs)
+        collectLessons(context: context, into: &pairs)
+        collectNotes(context: context, into: &pairs)
+        collectTodos(context: context, into: &pairs)
+        collectWork(context: context, into: &pairs)
+        return pairs
+    }
+
+    private nonisolated static func collectStudents(
+        context: NSManagedObjectContext,
+        into pairs: inout [(SearchResult, String)]
+    ) {
+        let request = CDFetchRequest(CDStudent.self)
+        for student in context.safeFetch(request) {
+            guard let id = student.id else { continue }
+            pairs.append((
+                SearchResult(id: id, entityType: .student, title: student.fullName, snippet: student.level.rawValue),
+                "\(student.firstName) \(student.lastName) \(student.nickname ?? "")"
+            ))
+        }
+    }
+
+    private nonisolated static func collectLessons(
+        context: NSManagedObjectContext,
+        into pairs: inout [(SearchResult, String)]
+    ) {
+        let request = CDFetchRequest(CDLesson.self)
+        for lesson in context.safeFetch(request) {
+            guard let id = lesson.id else { continue }
+            pairs.append((
+                SearchResult(id: id, entityType: .lesson, title: lesson.name, snippet: lesson.area),
+                "\(lesson.name) \(lesson.area) \(lesson.sequence) \(lesson.section)"
+            ))
+        }
+    }
+
+    private nonisolated static func collectNotes(
+        context: NSManagedObjectContext,
+        into pairs: inout [(SearchResult, String)]
+    ) {
+        let request = CDFetchRequest(CDNote.self)
+        for note in context.safeFetch(request) {
+            guard let id = note.id else { continue }
+            let tags = (note.tags as? [String]) ?? []
+            let body = note.body
+            pairs.append((
+                SearchResult(id: id, entityType: .note, title: String(body.prefix(80)), snippet: tags.first ?? ""),
+                "\(body) \(tags.joined(separator: " "))"
+            ))
+        }
+    }
+
+    private nonisolated static func collectTodos(
+        context: NSManagedObjectContext,
+        into pairs: inout [(SearchResult, String)]
+    ) {
+        let request = CDFetchRequest(CDTodoItemEntity.self)
+        for todo in context.safeFetch(request) {
+            guard let id = todo.id else { continue }
+            pairs.append((
+                SearchResult(id: id, entityType: .todo, title: todo.title, snippet: todo.notes),
+                "\(todo.title) \(todo.notes)"
+            ))
+        }
+    }
+
+    private nonisolated static func collectWork(
+        context: NSManagedObjectContext,
+        into pairs: inout [(SearchResult, String)]
+    ) {
+        let request = CDFetchRequest(CDWorkModel.self)
+        for work in context.safeFetch(request) {
+            guard let id = work.id else { continue }
+            pairs.append((
+                SearchResult(id: id, entityType: .work, title: work.title, snippet: work.status.rawValue),
+                work.title
+            ))
+        }
     }
 
     // Deprecated SwiftData rebuildIndex(container:) removed - use rebuildIndex(context:) with NSManagedObjectContext.

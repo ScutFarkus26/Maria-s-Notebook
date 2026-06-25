@@ -7,29 +7,32 @@ struct DaysSinceLastLessonView: View {
     @Environment(\.managedObjectContext) private var viewContext
     @Environment(\.calendar) private var calendar
 
-    @FetchRequest(sortDescriptors: [
-        NSSortDescriptor(keyPath: \CDLessonAssignment.presentedAt, ascending: false),
-        NSSortDescriptor(keyPath: \CDLessonAssignment.createdAt, ascending: false)
-    ]) private var allLessonAssignments: FetchedResults<CDLessonAssignment>
+    // Only fetch presented assignments — eliminates all scheduled/draft rows from the scan.
+    @FetchRequest(
+        sortDescriptors: [
+            NSSortDescriptor(keyPath: \CDLessonAssignment.presentedAt, ascending: false),
+            NSSortDescriptor(keyPath: \CDLessonAssignment.createdAt, ascending: false)
+        ],
+        predicate: NSPredicate(format: "presentedAt != nil")
+    ) private var presentedAssignments: FetchedResults<CDLessonAssignment>
 
-    @FetchRequest(sortDescriptors: []) private var lessons: FetchedResults<CDLesson>
+    // Only fetch lessons that belong to the excluded "parsha" area/sequence,
+    // instead of loading the entire lesson library just to build the exclusion set.
+    @FetchRequest(
+        sortDescriptors: [],
+        predicate: NSPredicate(format: "area ==[c] 'parsha' OR sequence ==[c] 'parsha'")
+    ) private var parshaLessons: FetchedResults<CDLesson>
 
     private var excludedLessonIDs: Set<UUID> {
-        func norm(_ s: String) -> String { s.normalizedForComparison() }
-        let ids = lessons.filter { l in
-            let s = norm(l.area)
-            let g = norm(l.sequence)
-            return s == "parsha" || g == "parsha"
-        }.compactMap(\.id)
-        return Set(ids)
+        Set(parshaLessons.compactMap(\.id))
     }
 
     private var lastLessonDate: Date? {
         guard let studentID = student.id else { return nil }
         let studentIDString = studentID.uuidString
-        let relevant = allLessonAssignments.filter { la in
-            la.isPresented
-                && la.studentIDs.contains(studentIDString)
+        // presentedAssignments already has presentedAt != nil, so no isPresented check needed.
+        let relevant = presentedAssignments.filter { la in
+            la.studentIDs.contains(studentIDString)
                 && !excludedLessonIDs.contains(la.resolvedLessonID)
         }
         var latest: Date?

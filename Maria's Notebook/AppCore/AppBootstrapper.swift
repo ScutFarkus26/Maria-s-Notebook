@@ -35,6 +35,14 @@ final class AppBootstrapper {
         let startTime = Date()
         Self.logger.info("Bootstrap: Starting startup checks...")
 
+        // Activate the iCloud ubiquity container in the background so the
+        // "Maria's Notebook" folder appears in Finder / Files.app at launch.
+        // Apple requires this call off the main thread; it can block briefly
+        // while the container is set up for the first time.
+        Task.detached(priority: .utility) {
+            _ = FileManager.default.url(forUbiquityContainerIdentifier: nil)
+        }
+
         performEarlySetup(context: context)
 
         // 4. Initialize CDReminder Sync Service (macOS only)
@@ -192,10 +200,9 @@ final class AppBootstrapper {
 
         logger.info("Post-launch migrations finished in \(formatSeconds(Date().timeIntervalSince(start)))")
 
-        // 4. Build full-text search index after data is clean
-        await MainActor.run {
-            SearchIndexService.shared.rebuildIndex(context: coreDataStack.viewContext)
-        }
+        // 4. Build full-text search index after data is clean.
+        // rebuildIndexAsync fetches on a background context so the main thread stays free.
+        await SearchIndexService.shared.rebuildIndexAsync(container: coreDataStack.container)
     }
 
     private static func formatSeconds(_ interval: TimeInterval) -> String {

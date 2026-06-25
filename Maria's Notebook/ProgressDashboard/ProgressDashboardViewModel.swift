@@ -60,6 +60,16 @@ final class ProgressDashboardViewModel {
 
         let visibleStudents = TestStudentsFilter.filterVisible(allStudents)
 
+        // Build an O(1) lookup dictionary once — replaces allLessons.first(where:) linear
+        // scans that ran O(assignments × lessons) and O(work × lessons) per student.
+        let lessonByID: [UUID: CDLesson] = Dictionary(
+            allLessons.compactMap { l -> (UUID, CDLesson)? in
+                guard let id = l.id else { return nil }
+                return (id, l)
+            },
+            uniquingKeysWith: { first, _ in first }
+        )
+
         // Group lessons by area+sequence using display casing.
         struct AreaSeqKey: Hashable { let area: String; let sequence: String }
         let lessonsByPair: [AreaSeqKey: [CDLesson]] = Dictionary(
@@ -88,7 +98,7 @@ final class ProgressDashboardViewModel {
             // From assignments (both presented and pending).
             for la in assignmentsForStudent {
                 guard let lessonIDUUID = la.lessonIDUUID,
-                      let lesson = allLessons.first(where: { $0.id == lessonIDUUID }) else { continue }
+                      let lesson = lessonByID[lessonIDUUID] else { continue }
                 let area = lesson.area.trimmed()
                 let sequence = lesson.sequence.trimmed()
                 guard !area.isEmpty, !sequence.isEmpty else { continue }
@@ -98,7 +108,7 @@ final class ProgressDashboardViewModel {
             // From open (non-complete) work items.
             for work in workForStudent where work.status != .complete {
                 guard let lessonIDUUID = UUID(uuidString: work.lessonID),
-                      let lesson = allLessons.first(where: { $0.id == lessonIDUUID }) else { continue }
+                      let lesson = lessonByID[lessonIDUUID] else { continue }
                 let area = lesson.area.trimmed()
                 let sequence = lesson.sequence.trimmed()
                 guard !area.isEmpty, !sequence.isEmpty else { continue }
@@ -228,14 +238,19 @@ final class ProgressDashboardViewModel {
             NSSortDescriptor(keyPath: \CDLesson.sequence, ascending: true),
             NSSortDescriptor(keyPath: \CDLesson.orderInSequence, ascending: true)
         ]
+        request.fetchBatchSize = 200
         return context.safeFetch(request)
     }
 
     private func fetchAllAssignments(context: NSManagedObjectContext) -> [CDLessonAssignment] {
-        context.safeFetch(NSFetchRequest<CDLessonAssignment>(entityName: "LessonAssignment"))
+        let request = NSFetchRequest<CDLessonAssignment>(entityName: "LessonAssignment")
+        request.fetchBatchSize = 200
+        return context.safeFetch(request)
     }
 
     private func fetchAllWork(context: NSManagedObjectContext) -> [CDWorkModel] {
-        context.safeFetch(NSFetchRequest<CDWorkModel>(entityName: "WorkModel"))
+        let request = NSFetchRequest<CDWorkModel>(entityName: "WorkModel")
+        request.fetchBatchSize = 200
+        return context.safeFetch(request)
     }
 }
