@@ -1,4 +1,5 @@
 // swiftlint:disable file_length
+import AppIntents
 import SwiftUI
 import CoreData
 
@@ -318,6 +319,10 @@ extension SettingsView {
                 appleIntelligenceStatus
             }
 
+            SettingsGroup(title: "Siri & Shortcuts", systemImage: "mic.fill") {
+                siriShortcutsTips
+            }
+
             SettingsGroup(title: "Claude API Key", systemImage: "key.fill") {
                 VStack(spacing: 12) {
                     HStack {
@@ -621,6 +626,31 @@ extension SettingsView {
         #else
         appleIntelligenceUnavailableView
         #endif
+    }
+
+    // MARK: - Siri & Shortcuts Tips
+
+    var siriShortcutsTips: some View {
+        VStack(alignment: .leading, spacing: 10) {
+            Text("Try these with Siri, or find them in the Shortcuts app — no setup needed.")
+                .font(.caption)
+                .foregroundStyle(.secondary)
+            #if os(macOS)
+            // SiriTipView is unavailable on macOS; list the phrases as text instead.
+            VStack(alignment: .leading, spacing: 6) {
+                Label("“Log an observation about [student]”", systemImage: "mic")
+                Label("“Mark [lesson] as presented to [student]”", systemImage: "mic")
+                Label("“Mark [student] absent”", systemImage: "mic")
+            }
+            .font(.callout)
+            .foregroundStyle(.primary)
+            #else
+            SiriTipView(intent: LogObservationIntent())
+            SiriTipView(intent: MarkLessonPresentedIntent())
+            SiriTipView(intent: MarkAbsentIntent())
+            #endif
+        }
+        .frame(maxWidth: .infinity)
     }
 
     var appleIntelligenceUnavailableView: some View {

@@ -141,5 +141,53 @@ struct MariasNotebookAppShortcuts: AppShortcutsProvider {
             shortTitle: "New Lesson",
             systemImageName: "book.badge.plus"
         )
+        AppShortcut(
+            intent: LogObservationIntent(),
+            phrases: [
+                "Log an observation in \(.applicationName)",
+                "Record an observation in \(.applicationName)",
+                "Log an observation about \(\.$student) in \(.applicationName)",
+                "Add an observation about \(\.$student) in \(.applicationName)"
+            ],
+            shortTitle: "Log Observation",
+            systemImageName: "square.and.pencil"
+        )
+        AppShortcut(
+            intent: OpenStudentIntent(),
+            phrases: [
+                "Open a student in \(.applicationName)",
+                "Open \(\.$target) in \(.applicationName)",
+                "Show me \(\.$target) in \(.applicationName)"
+            ],
+            shortTitle: "Open Student",
+            systemImageName: "person.crop.circle"
+        )
+        AppShortcut(
+            intent: MarkLessonPresentedIntent(),
+            phrases: [
+                "Mark a lesson presented in \(.applicationName)",
+                "Mark \(\.$lesson) as presented in \(.applicationName)",
+                "Record a presentation in \(.applicationName)"
+            ],
+            shortTitle: "Mark Presented",
+            systemImageName: "checkmark.seal"
+        )
+        AppShortcut(
+            intent: MarkAbsentIntent(),
+            phrases: [
+                "Mark a student absent in \(.applicationName)",
+                "Mark \(\.$student) absent in \(.applicationName)"
+            ],
+            shortTitle: "Mark Absent",
+            systemImageName: "person.fill.xmark"
+        )
+        AppShortcut(
+            intent: OpenLessonIntent(),
+            phrases: [
+                "Open \(\.$target) in \(.applicationName)"
+            ],
+            shortTitle: "Open Lesson",
+            systemImageName: "book"
+        )
     }
 }

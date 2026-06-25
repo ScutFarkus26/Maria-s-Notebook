@@ -175,6 +175,9 @@ struct MariasNotebookApp: App {
             // enabled scheduled backups). This also hands the manager its
             // context so toggling the setting later can restart the loop.
             dependencies.autoBackupManager.startScheduledBackups(viewContext: coreDataStack.viewContext)
+
+            // Index students + lessons into Spotlight (searchable + Siri-referenceable); idempotent, off critical path.
+            Task { await SpotlightIndexer.reindexAll() }
         }
     }
 
