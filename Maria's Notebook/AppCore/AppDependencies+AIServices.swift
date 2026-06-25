@@ -53,13 +53,6 @@ extension AppDependencies {
         return service
     }
 
-    var databaseAnalysisService: DatabaseAnalysisService {
-        if let service = _databaseAnalysisService { return service }
-        let service = DatabaseAnalysisService(modelContext: viewContext, mcpClient: mcpClient)
-        _databaseAnalysisService = service
-        return service
-    }
-
     var reportGeneratorService: ReportGeneratorService {
         if let service = _reportGeneratorService {
             return service

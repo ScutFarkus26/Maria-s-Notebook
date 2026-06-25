@@ -141,16 +141,6 @@ final class AppDependencies {
         return resolver
     }
 
-    private var _groupTrackProgressResolver: SequenceTrackProgressResolver?
-    var groupTrackProgressResolver: SequenceTrackProgressResolver {
-        if let resolver = _groupTrackProgressResolver {
-            return resolver
-        }
-        let resolver = SequenceTrackProgressResolver()
-        _groupTrackProgressResolver = resolver
-        return resolver
-    }
-
     // MARK: - Sync Services
 
     private var _reminderSyncService: ReminderSyncService?
@@ -205,7 +195,6 @@ final class AppDependencies {
     var _chatService: ChatService?
     var _studentAnalysisService: StudentAnalysisService?
     var _lessonPlanningService: LessonPlanningService?
-    var _databaseAnalysisService: DatabaseAnalysisService?
     var _reportGeneratorService: ReportGeneratorService?
     var _meetingInsightsService: MeetingInsightsService?
 
