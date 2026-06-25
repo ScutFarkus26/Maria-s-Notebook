@@ -31,7 +31,6 @@ final class WorkDetailViewModel {
     var showPresentationNotes = false
     var showAddNoteSheet = false
     var noteBeingEdited: CDNote?
-    var showScheduleSheet = false
     var showPlannedBanner = false
     var showDeleteAlert = false
     var showAddStepSheet = false
@@ -356,22 +355,6 @@ final class WorkDetailViewModel {
         }
     }
 
-    func unlockNextLesson(modelContext: NSManagedObjectContext) {
-        guard let lesson = relatedLesson,
-              let studentIDString = work?.studentID,
-              let studentID = UUID(uuidString: studentIDString) else { return }
-
-        _ = UnlockNextLessonService.unlockNextLesson(
-            after: lesson.id ?? UUID(),
-            for: Set([studentID]),
-            context: modelContext,
-            lessons: relatedLessons,
-            cdAssignments: relatedLessonAssignments
-        )
-
-        showScheduleSheet = true
-    }
-    
     func addPlan(modelContext: NSManagedObjectContext) {
         guard let work else { return }
 

@@ -206,9 +206,6 @@ struct WorkDetailView: View {
                 AddLessonToInboxSheet(student: info.student, preselectedLessonID: info.lessonID)
             }
         }
-        .sheet(isPresented: $viewModel.showScheduleSheet) {
-                    WorkModelScheduleNextLessonSheet(work: work) { viewModel.showPlannedBanner = true }
-                }
                 .sheet(isPresented: $viewModel.showAddNoteSheet) {
                     UnifiedNoteEditor(
                         context: .work(work),
@@ -245,7 +242,7 @@ struct WorkDetailView: View {
                 .alert("Delete?", isPresented: $viewModel.showDeleteAlert) {
                     Button("Delete", role: .destructive) { deleteWork() }
                 }
-                .alert("Unlock Next CDLesson?", isPresented: $viewModel.showUnlockNextLessonAlert) {
+                .alert("Unlock Next Lesson?", isPresented: $viewModel.showUnlockNextLessonAlert) {
                     Button("Unlock") {
                         unlockNextLesson()
                     }

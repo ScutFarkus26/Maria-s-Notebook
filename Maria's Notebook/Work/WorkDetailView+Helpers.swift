@@ -135,7 +135,11 @@ extension WorkDetailView {
                     Spacer()
 
                     if viewModel.status != .complete, likelyNextLesson != nil {
-                        Button { viewModel.showScheduleSheet = true } label: {
+                        Button {
+                            if let info = unlockNextLessonInfo {
+                                checkAndOfferUnlock(lessonID: info.lessonID, studentID: info.studentID)
+                            }
+                        } label: {
                             HStack(spacing: 6) {
                                 Image(systemName: "lock.open.fill")
                                 Text("Unlock")
