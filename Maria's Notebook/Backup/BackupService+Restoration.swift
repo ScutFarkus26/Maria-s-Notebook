@@ -437,6 +437,14 @@ extension BackupService {
             )
         }
 
+        if let recallChecks = payload.recallChecks {
+            try BackupEntityImporter.importRecallChecks(
+                recallChecks,
+                into: viewContext,
+                existingCheck: { try index.find(CDLessonRecallCheck.self, id: $0) }
+            )
+        }
+
         if let sampleWorks = payload.sampleWorks {
             try BackupEntityImporter.importSampleWorks(
                 sampleWorks,

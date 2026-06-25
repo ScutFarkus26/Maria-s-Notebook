@@ -64,6 +64,11 @@ struct RootAdaptiveTabs: View {
             } label: {
                 Label("Progress Dashboard", systemImage: "person.text.rectangle")
             }
+            Tab(value: RootView.NavigationItem.lessonRecall) {
+                RootDetailContent(selectedNavItem: .lessonRecall)
+            } label: {
+                Label("Lesson Recall", systemImage: "arrow.clockwise.circle")
+            }
         } header: {
             Text("Students")
         }

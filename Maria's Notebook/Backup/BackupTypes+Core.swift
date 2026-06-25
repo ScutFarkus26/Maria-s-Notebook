@@ -108,6 +108,23 @@ public struct LessonPresentationDTO: Codable, Sendable {
     public var notes: String?
 }
 
+public struct LessonRecallCheckDTO: Codable, Sendable {
+    public var id: UUID
+    public var createdAt: Date
+    public var modifiedAt: Date?
+    public var studentID: String
+    public var lessonID: String
+    public var outcomeRaw: String
+    public var sourceRaw: String
+    public var coveredByLessonID: String?
+    public var presentationID: String?
+    public var originalMasteredAt: Date?
+    public var checkedAt: Date?
+    public var note: String?
+    public var photoRef: String?
+    public var schoolYearKey: String?
+}
+
 // MARK: - CDLessonAssignment DTO
 /// DTO for the unified CDLessonAssignment model.
 /// This model replaces LegacyPresentation + CDPresentation in the new architecture.

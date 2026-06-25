@@ -228,6 +228,7 @@ public enum BackupWriter {
         .init(entityName: "PracticeSession") { try ndjsonEntry($0.practiceSessions, $1) },
         .init(entityName: "LessonAttachment") { try ndjsonEntry($0.lessonAttachments, $1) },
         .init(entityName: "LessonPresentation") { try ndjsonEntry($0.lessonPresentations, $1) },
+        .init(entityName: "LessonRecallCheck") { try ndjsonEntry($0.recallChecks, $1) },
         .init(entityName: "SampleWork") { try ndjsonEntry($0.sampleWorks, $1) },
         .init(entityName: "SampleWorkStep") { try ndjsonEntry($0.sampleWorkSteps, $1) },
         .init(entityName: "NoteTemplate") { try ndjsonEntry($0.noteTemplates, $1) },

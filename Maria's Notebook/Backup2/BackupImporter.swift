@@ -175,6 +175,7 @@ enum BackupImporter {
         "PracticeSession": { $0.practiceSessions = try decodeAll(PracticeSessionDTO.self, $1, $2) },
         "LessonAttachment": { $0.lessonAttachments = try decodeAll(LessonAttachmentDTO.self, $1, $2) },
         "LessonPresentation": { $0.lessonPresentations = try decodeAll(LessonPresentationDTO.self, $1, $2) },
+        "LessonRecallCheck": { $0.recallChecks = try decodeAll(LessonRecallCheckDTO.self, $1, $2) },
         "SampleWork": { $0.sampleWorks = try decodeAll(SampleWorkDTO.self, $1, $2) },
         "SampleWorkStep": { $0.sampleWorkSteps = try decodeAll(SampleWorkStepDTO.self, $1, $2) },
         "NoteTemplate": { $0.noteTemplates = try decodeAll(NoteTemplateDTO.self, $1, $2) },

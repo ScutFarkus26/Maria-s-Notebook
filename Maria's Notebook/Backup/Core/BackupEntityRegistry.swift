@@ -13,6 +13,7 @@ struct BackupEntityRegistry {
         CDLessonAttachment.self,
         CDLessonAssignment.self,
         CDLessonPresentation.self,
+        CDLessonRecallCheck.self,
         CDNote.self,
         CDNoteStudentLink.self,
         // Calendar

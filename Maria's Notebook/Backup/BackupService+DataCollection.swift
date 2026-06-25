@@ -131,6 +131,8 @@ extension BackupService {
             CDLessonAttachment.self, using: viewContext) { BackupDTOTransformers.toDTOs($0) }
         payload.lessonPresentations = fetchAndTransformInBatches(
             CDLessonPresentation.self, using: viewContext) { BackupDTOTransformers.toDTOs($0) }
+        payload.recallChecks = fetchAndTransformInBatches(
+            CDLessonRecallCheck.self, using: viewContext) { BackupDTOTransformers.toDTOs($0) }
         payload.sampleWorks = fetchAndTransformInBatches(
             CDSampleWork.self, using: viewContext) { BackupDTOTransformers.toDTOs($0) }
         payload.sampleWorkSteps = fetchAndTransformInBatches(

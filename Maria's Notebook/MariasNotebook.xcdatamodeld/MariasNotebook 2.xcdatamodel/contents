@@ -1131,4 +1131,28 @@
         <attribute name="notificationIDs" optional="YES" attributeType="Transformable" valueTransformerName="NSSecureUnarchiveFromData"/>
         <attribute name="leadTimeDaysRaw" optional="YES" attributeType="Transformable" valueTransformerName="NSSecureUnarchiveFromData"/>
     </entity>
+    <!-- ==================== LessonRecallCheck ==================== -->
+    <entity name="LessonRecallCheck" representedClassName="CDLessonRecallCheck" syncable="YES">
+        <attribute name="id" optional="YES" attributeType="UUID" usesScalarValueType="NO"/>
+        <attribute name="createdAt" optional="YES" attributeType="Date" usesScalarValueType="NO"/>
+        <attribute name="modifiedAt" optional="YES" attributeType="Date" usesScalarValueType="NO"/>
+        <attribute name="studentID" attributeType="String" defaultValueString=""/>
+        <attribute name="lessonID" attributeType="String" defaultValueString=""/>
+        <attribute name="outcomeRaw" attributeType="String" defaultValueString="retained"/>
+        <attribute name="sourceRaw" attributeType="String" defaultValueString="observed"/>
+        <attribute name="coveredByLessonID" optional="YES" attributeType="String"/>
+        <attribute name="presentationID" optional="YES" attributeType="String"/>
+        <attribute name="originalMasteredAt" optional="YES" attributeType="Date" usesScalarValueType="NO"/>
+        <attribute name="checkedAt" optional="YES" attributeType="Date" usesScalarValueType="NO"/>
+        <attribute name="note" optional="YES" attributeType="String"/>
+        <attribute name="photoRef" optional="YES" attributeType="String"/>
+        <attribute name="schoolYearKey" optional="YES" attributeType="String"/>
+        <fetchIndex name="byStudentLesson">
+            <fetchIndexElement property="studentID" type="Binary" order="ascending"/>
+            <fetchIndexElement property="lessonID" type="Binary" order="ascending"/>
+        </fetchIndex>
+        <fetchIndex name="bySchoolYearKey">
+            <fetchIndexElement property="schoolYearKey" type="Binary" order="ascending"/>
+        </fetchIndex>
+    </entity>
 </model>

@@ -102,7 +102,7 @@ public struct BackupPayload: Codable, Sendable {
         case projectTemplateWeeks, projectWeekRoleAssignments
         case workModels
         case workCheckIns, workSteps, workParticipants, practiceSessions
-        case lessonAttachments, lessonPresentations
+        case lessonAttachments, lessonPresentations, recallChecks
         case sampleWorks, sampleWorkSteps
         case noteTemplates, meetingTemplates
         case reminders, calendarEvents
@@ -162,6 +162,8 @@ public struct BackupPayload: Codable, Sendable {
     // CDLesson extras (format v8+)
     public var lessonAttachments: [LessonAttachmentDTO]?
     public var lessonPresentations: [LessonPresentationDTO]?
+    // Lesson recall / retention checks
+    public var recallChecks: [LessonRecallCheckDTO]?
     // Sample works (format v10+)
     public var sampleWorks: [SampleWorkDTO]?
     public var sampleWorkSteps: [SampleWorkStepDTO]?

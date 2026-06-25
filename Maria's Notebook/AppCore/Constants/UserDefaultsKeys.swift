@@ -135,4 +135,9 @@ enum UserDefaultsKeys {
     static let schoolYearStartDay = "SchoolYear.startDay"
     /// Persisted active viewing lens token ("all", "year:2025", "cycle:2025").
     static let schoolYearSelection = "SchoolYear.selection"
+
+    // MARK: - Recall
+    /// Days after a lesson's last recall (or mastery) before it becomes due for a spaced
+    /// re-check. Default 90.
+    static let recallSpacedIntervalDays = "Recall.spacedIntervalDays"
 }

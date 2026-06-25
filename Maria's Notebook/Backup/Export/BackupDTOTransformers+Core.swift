@@ -173,4 +173,29 @@ extension BackupDTOTransformers {
     static func toDTOs(_ presentations: [CDLessonPresentation]) -> [LessonPresentationDTO] {
         presentations.map { toDTO($0) }
     }
+
+    // MARK: - CDLessonRecallCheck
+
+    static func toDTO(_ rc: CDLessonRecallCheck) -> LessonRecallCheckDTO {
+        LessonRecallCheckDTO(
+            id: rc.id ?? UUID(),
+            createdAt: rc.createdAt ?? Date(),
+            modifiedAt: rc.modifiedAt,
+            studentID: rc.studentID,
+            lessonID: rc.lessonID,
+            outcomeRaw: rc.outcomeRaw,
+            sourceRaw: rc.sourceRaw,
+            coveredByLessonID: rc.coveredByLessonID,
+            presentationID: rc.presentationID,
+            originalMasteredAt: rc.originalMasteredAt,
+            checkedAt: rc.checkedAt,
+            note: rc.note,
+            photoRef: rc.photoRef,
+            schoolYearKey: rc.schoolYearKey
+        )
+    }
+
+    static func toDTOs(_ checks: [CDLessonRecallCheck]) -> [LessonRecallCheckDTO] {
+        checks.map { toDTO($0) }
+    }
 }

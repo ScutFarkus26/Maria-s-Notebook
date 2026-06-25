@@ -51,6 +51,8 @@ extension RootSidebar {
                 sidebarRow(.goingOut, title: "Going Out", systemImage: "figure.walk")
 
                 sidebarRow(.progressDashboard, title: "Progress Dashboard", systemImage: "person.text.rectangle")
+
+                sidebarRow(.lessonRecall, title: "Lesson Recall", systemImage: "arrow.clockwise.circle")
             }
 
             Section("Planning") {
@@ -193,6 +195,10 @@ extension RootSidebar {
                              title: "Progress Dashboard",
                              systemImage: "person.text.rectangle",
                              hint: "View per-student progress across all areas")
+            iOSSidebarButton(.lessonRecall,
+                             title: "Lesson Recall",
+                             systemImage: "arrow.clockwise.circle",
+                             hint: "Re-check mastered lessons after a break")
         }
     }
 

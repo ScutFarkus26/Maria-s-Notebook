@@ -251,4 +251,35 @@ extension BackupEntityImporter {
             return lp
         })
     }
+
+    // MARK: - CDLessonRecallCheck
+
+    static func importRecallChecks(
+        _ dtos: [LessonRecallCheckDTO],
+        into viewContext: NSManagedObjectContext,
+        existingCheck: EntityExistsCheck<CDLessonRecallCheck>
+    ) rethrows {
+        try importSimpleEntities(
+            dtos, into: viewContext,
+            existingCheck: existingCheck,
+            idExtractor: { $0.id },
+            entityBuilder: { dto in
+            let rc = CDLessonRecallCheck(context: viewContext)
+            rc.id = dto.id
+            rc.createdAt = dto.createdAt
+            rc.modifiedAt = dto.modifiedAt
+            rc.studentID = dto.studentID
+            rc.lessonID = dto.lessonID
+            rc.outcomeRaw = dto.outcomeRaw
+            rc.sourceRaw = dto.sourceRaw
+            rc.coveredByLessonID = dto.coveredByLessonID
+            rc.presentationID = dto.presentationID
+            rc.originalMasteredAt = dto.originalMasteredAt
+            rc.checkedAt = dto.checkedAt
+            rc.note = dto.note
+            rc.photoRef = dto.photoRef
+            rc.schoolYearKey = dto.schoolYearKey
+            return rc
+        })
+    }
 }

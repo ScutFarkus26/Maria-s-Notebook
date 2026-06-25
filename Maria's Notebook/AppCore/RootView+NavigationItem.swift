@@ -28,6 +28,7 @@ extension RootView {
         case planningProjects
         case planningCalendar
         case progressDashboard
+        case lessonRecall
         case goingOut
         case needsLesson
         case smallSequencePlanner
@@ -68,6 +69,7 @@ extension RootView {
             case .planningProjects:    return ("Projects", "folder")
             case .planningCalendar:    return ("Calendar", "calendar.day.timeline.leading")
             case .progressDashboard:   return ("Progress Dashboard", "person.text.rectangle")
+            case .lessonRecall:        return ("Lesson Recall", "arrow.clockwise.circle")
             case .goingOut:            return ("Going Out", "figure.walk")
             case .needsLesson:         return ("Needs Lesson", "clock.badge.exclamationmark")
             case .smallSequencePlanner:   return ("Group Planner", "person.3.sequence")
@@ -104,7 +106,7 @@ extension RootView {
             case .lessons, .stories, .bookClub, .supplies, .procedures, .meetings,
                  .planningChecklist, .planningAgenda, .planningWork,
                  .planningProjects, .planningCalendar,
-                 .progressDashboard,
+                 .progressDashboard, .lessonRecall,
                  .goingOut,
                  .needsLesson, .smallSequencePlanner,
                  .perpetualCalendar,
@@ -137,6 +139,7 @@ extension RootView {
                  .needsLesson,
                  .smallSequencePlanner:
                 return .planning
+            case .lessonRecall:      return nil
             case .goingOut:          return nil
             case .perpetualCalendar: return nil
             case .community:         return .community
