@@ -1,5 +1,5 @@
 // PresentationsHeader.swift
-// Screen-level header for the Presentations planner: title, search, Filters, Suggest Next.
+// Screen-level header for the Presentations planner: title, search, Suggest Next, overflow menu.
 
 import SwiftUI
 
@@ -18,9 +18,12 @@ struct PresentationsHeader: View {
             searchBar
             committedFilterChipsRow
             activeStudentFilterChip
+            legendRow
         }
         .padding(.bottom, AppTheme.Spacing.small)
     }
+
+    // MARK: - Title bar
 
     private var titleBar: some View {
         HStack(spacing: AppTheme.Spacing.compact) {
@@ -32,36 +35,6 @@ struct PresentationsHeader: View {
 
             Spacer()
 
-            Button(action: onFilters) {
-                Label("Filters", systemImage: "line.3.horizontal.decrease.circle")
-                    .font(AppTheme.ScaledFont.captionSemibold)
-            }
-            .buttonStyle(.plain)
-            .foregroundStyle(.secondary)
-
-            Button {
-                adaptiveWithAnimation(.easeInOut(duration: 0.15)) {
-                    filterState.hideStudentsScheduledToday.toggle()
-                }
-            } label: {
-                Label(
-                    "Hide Today's Students",
-                    systemImage: filterState.hideStudentsScheduledToday
-                        ? "person.crop.circle.badge.checkmark"
-                        : "person.crop.circle.badge.clock"
-                )
-                .font(AppTheme.ScaledFont.captionSemibold)
-            }
-            .buttonStyle(.plain)
-            .foregroundStyle(filterState.hideStudentsScheduledToday ? Color.accentColor : .secondary)
-
-            Button(action: onConsolidate) {
-                Label("Consolidate", systemImage: "arrow.triangle.merge")
-                    .font(AppTheme.ScaledFont.captionSemibold)
-            }
-            .buttonStyle(.plain)
-            .foregroundStyle(.secondary)
-
             Button(action: onSuggestNext) {
                 Label("Suggest Next", systemImage: "sparkles")
                     .font(AppTheme.ScaledFont.captionSemibold)
@@ -69,6 +42,8 @@ struct PresentationsHeader: View {
             .buttonStyle(.plain)
             .foregroundStyle(Color.accentColor)
             .disabled(!isSuggestEnabled)
+
+            overflowMenu
 
             #if os(iOS)
             Button {
@@ -88,6 +63,46 @@ struct PresentationsHeader: View {
         .padding(.horizontal, AppTheme.Spacing.medium)
         .padding(.top, AppTheme.Spacing.small)
     }
+
+    // MARK: - Overflow menu
+
+    /// Tint the ellipsis icon with accent when any toggle inside is active,
+    /// so the user can tell a filter is set without opening the menu.
+    private var overflowMenuTint: Color {
+        filterState.hideStudentsScheduledToday ? Color.accentColor : .secondary
+    }
+
+    private var overflowMenu: some View {
+        Menu {
+            Button(action: onFilters) {
+                Label("Filters", systemImage: "line.3.horizontal.decrease.circle")
+            }
+
+            Button {
+                adaptiveWithAnimation(.easeInOut(duration: 0.15)) {
+                    filterState.hideStudentsScheduledToday.toggle()
+                }
+            } label: {
+                if filterState.hideStudentsScheduledToday {
+                    Label("Showing Today's Students", systemImage: "person.crop.circle.badge.checkmark")
+                } else {
+                    Label("Hide Today's Students", systemImage: "person.crop.circle.badge.clock")
+                }
+            }
+
+            Button(action: onConsolidate) {
+                Label("Consolidate", systemImage: "arrow.triangle.merge")
+            }
+        } label: {
+            Image(systemName: "ellipsis.circle")
+                .font(.system(size: 16, weight: .medium))
+                .foregroundStyle(overflowMenuTint)
+                .accessibilityLabel("More options")
+        }
+        .menuStyle(.automatic)
+    }
+
+    // MARK: - Search bar
 
     private var searchBar: some View {
         HStack(spacing: AppTheme.Spacing.compact) {
@@ -122,6 +137,8 @@ struct PresentationsHeader: View {
         .clipShape(RoundedRectangle(cornerRadius: UIConstants.CornerRadius.medium))
         .padding(.horizontal, AppTheme.Spacing.medium)
     }
+
+    // MARK: - Committed filter chips
 
     @ViewBuilder
     private var committedFilterChipsRow: some View {
@@ -197,5 +214,52 @@ struct PresentationsHeader: View {
         .clipShape(Capsule())
         .padding(.horizontal, AppTheme.Spacing.medium)
         .frame(maxWidth: .infinity, alignment: .leading)
+    }
+
+    // MARK: - Color legend
+
+    private var legendRow: some View {
+        ScrollView(.horizontal, showsIndicators: false) {
+            HStack(spacing: AppTheme.Spacing.compact) {
+                legendLabel("Status")
+                legendSwatch(AppColors.color(for: .overdue), "Overdue")
+                legendSwatch(AppColors.color(for: .brewing), "Brewing")
+                legendSwatch(Color.accentColor, "Suggested")
+
+                legendDivider
+
+                legendLabel("Subject")
+                legendSwatch(AppColors.color(forArea: "math"), "Math")
+                legendSwatch(AppColors.color(forArea: "language"), "Language")
+                legendSwatch(AppColors.color(forArea: "science"), "Science")
+                legendSwatch(AppColors.color(forArea: "practical life"), "Practical Life")
+                legendSwatch(AppColors.color(forArea: "sensorial"), "Sensorial")
+            }
+            .padding(.horizontal, AppTheme.Spacing.medium)
+            .padding(.vertical, AppTheme.Spacing.xxsmall)
+        }
+    }
+
+    private func legendLabel(_ text: String) -> some View {
+        Text(text + ":")
+            .font(.caption2.weight(.semibold))
+            .foregroundStyle(.tertiary)
+    }
+
+    private var legendDivider: some View {
+        Rectangle()
+            .fill(Color.secondary.opacity(0.25))
+            .frame(width: 1, height: 10)
+    }
+
+    private func legendSwatch(_ color: Color, _ label: String) -> some View {
+        HStack(spacing: AppTheme.Spacing.xxsmall) {
+            RoundedRectangle(cornerRadius: 2, style: .continuous)
+                .fill(color)
+                .frame(width: 8, height: 8)
+            Text(label)
+                .font(.caption2)
+                .foregroundStyle(.secondary)
+        }
     }
 }

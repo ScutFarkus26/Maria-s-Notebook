@@ -32,15 +32,15 @@ struct AppColors {
             return colorFromPalette(for: key)
         }
     }
-    
+
     // MARK: - Color Palette
-    
+
     /// Default color palette for unmapped areas.
     /// Colors are selected deterministically based on area name hash.
     private static let defaultColorPalette: [Color] = [
         .blue, .purple, .teal, .orange, .pink, .green, .indigo, .brown, .cyan, .mint, .yellow, .red
     ]
-    
+
     /// Returns a color from the default palette based on the area key's hash.
     /// This ensures consistent color assignment for the same area name.
     private static func colorFromPalette(for key: String) -> Color {
@@ -60,4 +60,31 @@ struct AppColors {
     static let info: Color = .blue
     /// Amber — scheduling conflicts / "heads up" planning cues. Distinct from `.warning` orange.
     static let attention: Color = Color(red: 0.80, green: 0.55, blue: 0.10)
+
+    // MARK: - Presentation Status
+
+    /// Discrete states a lesson assignment can be in within the planner.
+    /// This ramp is kept separate from subject-area colors so status and
+    /// content type are always visually distinguishable.
+    enum PresentationStatus {
+        /// Lesson is ready to present — no blocking work, within age thresholds.
+        case ready
+        /// Lesson is waiting on student work before it can be presented.
+        case brewing
+        /// Lesson was highlighted by "Suggest Next" as the recommended pick.
+        case suggested
+        /// Lesson has exceeded the age threshold (>14 school days in the inbox).
+        case overdue
+    }
+
+    /// Returns a status color that never collides with any `color(forArea:)` value.
+    /// Use this for left-border strips, status icons, chip accents, and the legend.
+    static func color(for status: PresentationStatus) -> Color {
+        switch status {
+        case .ready:    return .green
+        case .brewing:  return Color(red: 0.88, green: 0.68, blue: 0.10) // amber, distinct from .orange
+        case .suggested: return .accentColor
+        case .overdue:  return .red
+        }
+    }
 }

@@ -271,8 +271,7 @@ extension ReadyToPresentSection {
             .background(
                 Capsule().fill(isSelected
                     ? accent
-                    : accent.opacity(UIConstants.OpacityConstants.accent))
-            )
+                    : accent.opacity(UIConstants.OpacityConstants.accent)))
         }
         .buttonStyle(.plain)
     }
@@ -333,26 +332,26 @@ extension ReadyToPresentSection {
         let hasPartialReadiness = readyCount > 0 && readyCount < totalCount
 
         VStack(alignment: .leading, spacing: AppTheme.Spacing.verySmall) {
-            inboxRow(la, blockingWork: blockingWork)
+            // The card now owns the progress bar + "X of Y ready" label in its footer.
+            inboxRow(
+                la,
+                blockingWork: blockingWork,
+                readyCount: readyCount,
+                totalCount: totalCount
+            )
 
-            if totalCount > 1, let result {
-                HStack(spacing: AppTheme.Spacing.verySmall) {
-                    Text("\(readyCount) of \(totalCount) ready")
-                        .font(.caption2.weight(.semibold))
-                        .foregroundStyle(hasPartialReadiness ? .orange : .secondary)
-
+            // "Move Ready" is an action, not a status display — stays external.
+            if hasPartialReadiness, let result {
+                HStack {
                     Spacer()
-
-                    if hasPartialReadiness {
-                        Button {
-                            splitReadyToInbox(la, result: result)
-                        } label: {
-                            Text("Move Ready")
-                                .font(.caption2.weight(.medium))
-                        }
-                        .buttonStyle(.bordered)
-                        .controlSize(.mini)
+                    Button {
+                        splitReadyToInbox(la, result: result)
+                    } label: {
+                        Text("Move Ready")
+                            .font(.caption2.weight(.medium))
                     }
+                    .buttonStyle(.bordered)
+                    .controlSize(.mini)
                 }
                 .padding(.horizontal, AppTheme.Spacing.verySmall)
             }
@@ -366,14 +365,21 @@ extension ReadyToPresentSection {
     }
 
     @ViewBuilder
-    fileprivate func inboxRow(_ la: CDLessonAssignment, blockingWork: [UUID: CDWorkModel] = [:]) -> some View {
+    fileprivate func inboxRow(
+        _ la: CDLessonAssignment,
+        blockingWork: [UUID: CDWorkModel] = [:],
+        readyCount: Int? = nil,
+        totalCount: Int? = nil
+    ) -> some View {
         PresentationPlannerCard(
             snapshot: filteredSnapshot(la),
             day: nil,
             cachedLessons: viewModel.lessons,
             cachedStudents: viewModel.cachedStudents,
             blockingWork: blockingWork,
-            doubleBookedStudentIDs: []
+            doubleBookedStudentIDs: [],
+            readyCount: readyCount,
+            totalCount: totalCount
         )
         .onTapGesture { coordinator.showLessonAssignmentDetail(la) }
         .onDrag {

@@ -23,6 +23,10 @@ struct PresentationPlannerCard: View {
     let cachedStudents: [CDStudent]?
     let blockingWork: [UUID: CDWorkModel]
     let doubleBookedStudentIDs: Set<UUID>
+    /// When non-nil and `totalCount > 1`, renders a readiness progress bar and
+    /// count in the card footer. Pass both or neither.
+    var readyCount: Int? = nil
+    var totalCount: Int? = nil
 
     @FetchRequest(sortDescriptors: []) private var lessonsQuery: FetchedResults<CDLesson>
     @FetchRequest(sortDescriptors: []) private var studentsQuery: FetchedResults<CDStudent>
@@ -60,13 +64,16 @@ struct PresentationPlannerCard: View {
         )
     }
 
+    // Maps age thresholds to the shared PresentationStatus ramp.
+    // Thresholds are unchanged: >21 days = overdue, >14 days = brewing.
     private enum Priority {
         case low, medium, high
+
         var stripColor: Color {
             switch self {
-            case .low: return Color.gray.opacity(0.18)
-            case .medium: return AppColors.warning
-            case .high: return Color.red
+            case .low:    return Color.gray.opacity(0.18)
+            case .medium: return AppColors.color(for: .brewing)
+            case .high:   return AppColors.color(for: .overdue)
             }
         }
     }
@@ -101,6 +108,7 @@ struct PresentationPlannerCard: View {
             VStack(alignment: .leading, spacing: AppTheme.Spacing.verySmall) {
                 titleRow
                 studentChipsRow
+                readinessFooter
             }
             .padding(.horizontal, AppTheme.Spacing.compact)
             .padding(.vertical, AppTheme.Spacing.small)
@@ -157,7 +165,7 @@ struct PresentationPlannerCard: View {
         let indicator: Color? = {
             if isAbsent { return .red }
             if isDoubleBooked { return AppColors.attention }
-            if isBlocking { return AppColors.warning }
+            if isBlocking { return AppColors.color(for: .brewing) }
             return nil
         }()
 
@@ -175,6 +183,40 @@ struct PresentationPlannerCard: View {
                 Capsule()
                     .stroke(indicator ?? .clear, lineWidth: indicator == nil ? 0 : 1.5)
             )
+    }
+
+    // MARK: - Readiness footer
+
+    @ViewBuilder
+    private var readinessFooter: some View {
+        if let ready = readyCount, let total = totalCount, total > 1 {
+            let footerColor = ready == total
+                ? AppColors.color(for: .ready)
+                : AppColors.color(for: .brewing)
+
+            VStack(alignment: .leading, spacing: AppTheme.Spacing.xxsmall) {
+                // Thin progress bar
+                Capsule()
+                    .fill(Color.secondary.opacity(0.15))
+                    .frame(height: 3)
+                    .overlay(alignment: .leading) {
+                        GeometryReader { geo in
+                            Capsule()
+                                .fill(footerColor)
+                                .frame(
+                                    width: max(0, geo.size.width * Double(ready) / Double(total)),
+                                    height: 3
+                                )
+                        }
+                        .frame(height: 3)
+                    }
+
+                Text("\(ready) of \(total) ready")
+                    .font(.caption2.weight(.semibold))
+                    .foregroundStyle(ready > 0 ? footerColor : .secondary)
+            }
+            .padding(.top, AppTheme.Spacing.xxsmall)
+        }
     }
 
     @ViewBuilder

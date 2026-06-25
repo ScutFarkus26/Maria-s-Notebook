@@ -33,15 +33,15 @@ enum PresentationsFilterChip: String, CaseIterable, Identifiable, Sendable {
         }
     }
 
-    /// Soft accent colour for the chip when selected. Kept on the calmer end
-    /// so a row of chips doesn't compete with cards for attention.
+    /// Accent colour for the chip, sourced from the status ramp so it stays
+    /// visually consistent with card borders, icons, and the header legend.
     var accent: Color {
         switch self {
         case .all: return .secondary
         case .suggestedNext: return Color.accentColor
         case .waitingForWork: return Color.secondary
-        case .overdue: return AppColors.warning
-        case .recentlyMissed: return Color.orange
+        case .overdue: return AppColors.color(for: .overdue)
+        case .recentlyMissed: return AppColors.attention
         }
     }
 }
