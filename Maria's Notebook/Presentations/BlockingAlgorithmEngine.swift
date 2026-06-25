@@ -22,10 +22,6 @@ enum BlockingAlgorithmEngine {
             perStudentReadiness.filter(\.value.isReady).map(\.key)
         }
 
-        /// Students who are not yet ready.
-        var blockedStudentIDs: [UUID] {
-            perStudentReadiness.filter { !$0.value.isReady }.map(\.key)
-        }
     }
 
     /// Per-student readiness status for a specific lesson assignment.

@@ -39,18 +39,3 @@ enum CSVHeaderMapping {
     }
     
 }
-
-/// Common CSV import errors
-enum CSVImportError: Error, LocalizedError {
-    case missingRequiredHeaders([String])
-    case invalidHeaderFormat(String)
-    
-    var errorDescription: String? {
-        switch self {
-        case .missingRequiredHeaders(let headers):
-            return "Missing required headers: \(headers.joined(separator: ", "))"
-        case .invalidHeaderFormat(let message):
-            return "Invalid header format: \(message)"
-        }
-    }
-}

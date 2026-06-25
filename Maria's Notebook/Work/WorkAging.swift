@@ -235,21 +235,4 @@ enum WorkAgingPolicy {
             return (checkInDay == tomorrow || checkInDay == dayAfter) && checkInDay > today
         }
     }
-    
-    /// Urgency bucket for inbox sorting (none, upcoming, today, overdue, stale)
-    enum UrgencyBucket: Int, Comparable {
-        case none = 0
-        case upcoming = 1
-        case today = 2
-        case overdue = 3
-        case stale = 4
-        
-        static func < (lhs: UrgencyBucket, rhs: UrgencyBucket) -> Bool {
-            lhs.rawValue < rhs.rawValue
-        }
-    }
-    
 }
-
-#if DEBUG
-#endif

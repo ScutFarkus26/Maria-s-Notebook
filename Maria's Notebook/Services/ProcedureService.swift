@@ -134,10 +134,3 @@ enum ProcedureService {
 
     // Deprecated SwiftData methods removed - use Core Data overloads.
 }
-
-/// Statistics about procedures
-struct ProcedureStats {
-    let totalProcedures: Int
-    let byCategory: [ProcedureCategory: Int]
-    let recentlyUpdated: Int
-}

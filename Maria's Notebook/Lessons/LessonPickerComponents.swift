@@ -145,36 +145,3 @@ struct LessonPickerPopover: View {
         #endif
     }
 }
-
-// MARK: - CDStudent Chips List
-
-struct StudentChipsList: View {
-    let students: [CDStudent]
-    let areaColor: Color
-    let displayName: (CDStudent) -> String
-    let onRemove: (UUID) -> Void
-    
-    var body: some View {
-        HStack(spacing: 8) {
-            ForEach(students, id: \.id) { student in
-                HStack(spacing: 4) {
-                    Text(displayName(student))
-                        .padding(.horizontal, 12)
-                        .padding(.vertical, 6)
-                        .background(areaColor.opacity(UIConstants.OpacityConstants.moderate))
-                        .foregroundStyle(areaColor)
-                        .clipShape(Capsule())
-                    Button {
-                        guard let studentID = student.id else { return }
-                        onRemove(studentID)
-                    } label: {
-                        Image(systemName: "xmark.circle.fill")
-                            .foregroundStyle(areaColor)
-                    }
-                    .buttonStyle(.plain)
-                }
-                .padding(.vertical, 2)
-            }
-        }
-    }
-}

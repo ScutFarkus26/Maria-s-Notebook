@@ -57,13 +57,3 @@ extension View {
         #endif
     }
 }
-
-// MARK: - Sheet Presentation Sizing
-
-/// Sheet sizing options for platform-appropriate presentation
-enum SheetSize {
-    case small       // 400×300 macOS, medium iOS
-    case medium      // 500×400 macOS, medium/large iOS
-    case large       // 600×500 macOS, large iOS
-    case custom(minWidth: CGFloat, minHeight: CGFloat)
-}

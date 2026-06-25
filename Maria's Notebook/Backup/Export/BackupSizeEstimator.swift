@@ -107,29 +107,6 @@ enum BackupSizeEstimator {
         return formatter.string(fromByteCount: bytes)
     }
 
-    // MARK: - Actual Size Measurement
-
-    /// Result of actual size measurement
-    struct ActualSizeMeasurement: Sendable {
-        let compressedSize: Int64
-        let uncompressedEstimate: Int64
-        let entityCounts: [String: Int]
-        let compressionRatio: Double
-        let measurementDate: Date
-
-        var formattedCompressedSize: String {
-            BackupSizeEstimator.formatSize(compressedSize)
-        }
-
-        var formattedUncompressedSize: String {
-            BackupSizeEstimator.formatSize(uncompressedEstimate)
-        }
-
-        var totalEntityCount: Int {
-            entityCounts.values.reduce(0, +)
-        }
-    }
-
     // MARK: - Private Helpers
 
     private static func safeFetchCount<T: NSManagedObject>(

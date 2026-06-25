@@ -128,7 +128,6 @@ struct PresentationsView: View {
     var testStudentNamesRaw: String = "Danny De Berry,Lil Dan D"
 
     @State var startDate: Date = Date()
-    @State var mobileViewSelection: MobileViewMode = .inbox
     @State var compactTab: PresentationsCompactTab = .ready
     @State var cachedNonSchoolDates: Set<Date> = []
 
@@ -148,11 +147,6 @@ struct PresentationsView: View {
     /// fire several @FetchRequest updates in quick succession — without
     /// debouncing, each one triggers a full PresentationsViewModel rebuild.
     @State var dependencyDebounceTask: Task<Void, Never>?
-
-    enum MobileViewMode: String, CaseIterable, Sendable {
-        case inbox = "Inbox"
-        case calendar = "Calendar"
-    }
 
     // OPTIMIZATION: Use shared ViewModel from dependencies for instant loading
     // The shared instance persists across navigation and preloads data in the background

@@ -319,15 +319,3 @@ struct MCPAnalysisResult {
     let interventionSuggestions: [String]
     let rawJSON: String
 }
-
-struct ProgressComparison {
-    let improvements: [String]
-    let regressions: [String]
-    let newMilestones: [String]
-    let emergingStrengths: [String]
-    let timeSpan: TimeInterval
-
-    var hasSignificantChanges: Bool {
-        !improvements.isEmpty || !newMilestones.isEmpty || !emergingStrengths.isEmpty
-    }
-}

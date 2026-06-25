@@ -109,31 +109,3 @@ struct SessionWorkAssignmentService {
         return lesson.id!
     }
 }
-
-// MARK: - Selection Status
-
-/// Represents the selection status for a student in a choice-mode session
-enum SelectionStatus: Equatable {
-    case needsMore(selected: Int, minimum: Int)
-    case inProgress(selected: Int, minimum: Int, maximum: Int)
-    case complete(selected: Int)
-
-    var isValid: Bool {
-        switch self {
-        case .needsMore: return false
-        case .inProgress, .complete: return true
-        }
-    }
-
-    var displayText: String {
-        switch self {
-        case .needsMore(let selected, let minimum):
-            return "\(selected)/\(minimum) selected"
-        case .inProgress(let selected, let minimum, let maximum):
-            let maxText = maximum > 0 ? "/\(maximum)" : ""
-            return "\(selected)\(maxText) selected (min \(minimum))"
-        case .complete(let selected):
-            return "\(selected) selected"
-        }
-    }
-}

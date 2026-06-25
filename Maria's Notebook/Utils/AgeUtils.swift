@@ -197,29 +197,4 @@ struct AgeUtils {
         return "\(y)\(fraction)"
     }
 
-    /// Returns (years, hasHalf) where hasHalf indicates rounding to the nearest half-year.
-    /// Months are rounded to the nearest 0, 6, or 12; 12 months carries to the next year.
-    static func halfYearRoundedAgeComponents(
-        birthday: Date,
-        today: Date = Date(),
-        calendar: Calendar = .current
-    ) -> (years: Int, hasHalf: Bool) {
-        // Start from month-rounded components (push days >= half a month up)
-        let base = roundedAgeComponents(birthday: birthday, today: today, calendar: calendar)
-        var years = max(0, base.years)
-        let months = max(0, base.months)
-
-        // Round months to nearest half-year (0, 6, 12)
-        let bucket = Int((Double(months) / 6.0).rounded()) // 0, 1, or 2
-        switch bucket {
-        case 0:
-            return (years, false)
-        case 1:
-            return (years, true)
-        default:
-            years += 1
-            return (years, false)
-        }
-    }
-
 }

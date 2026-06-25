@@ -20,14 +20,6 @@ extension Collection {
     }
 }
 
-/// Safe first access that returns nil instead of crashing
-extension Collection {
-    /// Returns the first element safely (always safe, but included for consistency)
-    var safeFirst: Element? {
-        return first
-    }
-}
-
 // MARK: - Deduplication
 
 extension Array where Element: Identifiable {

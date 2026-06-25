@@ -14,16 +14,11 @@ private let logger = Logger.students
 
 extension StudentNotesViewModel {
     // Hooks that the real view model can set; safe no-ops by default
-    var itemsNoteLookup: ((UUID) -> CDNote?)? {
-        get { objc_getAssociatedObject(self, &AssociatedKeys.lookup) as? (UUID) -> CDNote? }
-        set { objc_setAssociatedObject(self, &AssociatedKeys.lookup, newValue, .OBJC_ASSOCIATION_RETAIN_NONATOMIC) }
-    }
     var reloadItems: (() -> Void)? {
         get { objc_getAssociatedObject(self, &AssociatedKeys.reload) as? () -> Void }
         set { objc_setAssociatedObject(self, &AssociatedKeys.reload, newValue, .OBJC_ASSOCIATION_RETAIN_NONATOMIC) }
     }
     private struct AssociatedKeys {
-        nonisolated(unsafe) static var lookup: UInt8 = 0
         nonisolated(unsafe) static var reload: UInt8 = 0
     }
 }
@@ -49,10 +44,6 @@ struct StudentNotesTimelineView: View {
                     viewContext: viewContext,
                     saveCoordinator: saveCoordinator
                 )
-                // Set up the note lookup function
-                newViewModel.itemsNoteLookup = { id in
-                    newViewModel.note(by: id)
-                }
                 // Set up the reload function
                 newViewModel.reloadItems = {
                     newViewModel.fetchAllNotes()

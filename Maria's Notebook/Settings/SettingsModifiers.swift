@@ -3,29 +3,6 @@
 
 import SwiftUI
 
-// MARK: - Search Highlight Modifier
-
-/// Highlights a setting label when it matches the current search text
-struct SearchHighlightModifier: ViewModifier {
-    let searchText: String
-    let label: String
-
-    private var isMatch: Bool {
-        !searchText.isEmpty && label.lowercased().contains(searchText.lowercased())
-    }
-
-    func body(content: Content) -> some View {
-        content
-            .background(
-                isMatch
-                    ? RoundedRectangle(cornerRadius: 4, style: .continuous)
-                        .fill(AppColors.info.opacity(UIConstants.OpacityConstants.accent))
-                        .padding(-4)
-                    : nil
-            )
-    }
-}
-
 // MARK: - Breadcrumb Modifier
 
 /// Adds a breadcrumb subtitle to the toolbar on compact layouts
