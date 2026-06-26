@@ -75,9 +75,6 @@ final class AppRouter {
     /// Navigation item selection for root view (new primary navigation)
     var selectedNavItem: RootView.NavigationItem?
     
-    /// Tab selection for root view (legacy - kept for backward compatibility)
-    var selectedTab: RootView.Tab?
-    
     /// Students mode selection
     var studentsMode: String?
     

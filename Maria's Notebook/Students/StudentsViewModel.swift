@@ -31,7 +31,7 @@ final class StudentsViewModel {
         var fetched = viewContext.safeFetch(descriptor)
 
         let query = searchString.trimmed().isEmpty ? nil : searchString.normalizedForComparison()
-        let testFilter = TestStudentsFiltering.buildTestStudentFilter(
+        let testFilter = TestStudentsFilter.buildTestStudentFilter(
             showTestStudents: showTestStudents, testStudentNames: testStudentNames
         )
         fetched = applyStudentFilters(

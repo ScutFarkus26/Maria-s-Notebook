@@ -40,4 +40,20 @@ enum TestStudentsFilter {
         })
     }
 
+    /// Builds a reusable visibility predicate for test students.
+    /// - Parameters:
+    ///   - showTestStudents: When true, no students are hidden (predicate always true).
+    ///   - testStudentNames: Comma/semicolon-separated list of test-student names.
+    /// - Returns: A closure returning true if the student should be visible.
+    static func buildTestStudentFilter(
+        showTestStudents: Bool,
+        testStudentNames: String
+    ) -> (CDStudent) -> Bool {
+        let hidden = normalizedHiddenNames(show: showTestStudents, namesRaw: testStudentNames)
+        guard !hidden.isEmpty else { return { _ in true } }
+        return { student in
+            !hidden.contains(student.fullName.normalizedForComparison())
+        }
+    }
+
 }

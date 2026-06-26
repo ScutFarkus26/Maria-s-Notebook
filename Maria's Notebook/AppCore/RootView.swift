@@ -252,7 +252,6 @@ struct RootView: View {
         }
         .onChange(of: appRouter.navigationDestination, handleNavigationDestinationChange)
         .onChange(of: appRouter.selectedNavItem, handleSelectedNavItemChange)
-        .onChange(of: appRouter.selectedTab, handleSelectedTabChange)
         .onChange(of: appRouter.triggerNewWorkItem) { _, value in
             guard value else { return }
             appRouter.triggerNewWorkItem = false
@@ -380,19 +379,6 @@ struct RootView: View {
         }
     }
 
-    private func handleSelectedTabChange(_ oldValue: RootView.Tab?, _ tab: RootView.Tab?) {
-        guard let tab, let navItem = RootView.NavigationItem(fromLegacyTab: tab) else { return }
-        let newValue: String
-        if tab == .planning {
-            newValue = RootView.NavigationItem.planningAgenda.rawValue
-        } else {
-            newValue = navItem.rawValue
-        }
-        if let item = RootView.NavigationItem(rawValue: newValue), selectedNavItem != item {
-            selectedNavItem = item
-        }
-        self.appRouter.selectedTab = nil
-    }
 }
 
 #Preview {

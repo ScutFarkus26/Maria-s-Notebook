@@ -117,41 +117,6 @@ extension RootView {
                 return false
             }
         }
-
-        var legacyTab: Tab? {
-            switch self {
-            case .today:             return .today
-            case .attendance:        return .attendance
-            case .note:              return nil
-            case .students:          return .students
-            case .supplies:          return nil
-            case .procedures:        return nil
-            case .meetings:          return nil
-            case .lessons:           return .albums
-            case .stories:           return nil
-            case .bookClub:          return nil
-            case .more:              return nil
-            case .todos:             return nil
-            case .planningChecklist, .planningAgenda, .planningWork,
-                 .planningProjects,
-                 .planningCalendar,
-                 .progressDashboard,
-                 .needsLesson,
-                 .smallSequencePlanner:
-                return .planning
-            case .lessonRecall:      return nil
-            case .goingOut:          return nil
-            case .perpetualCalendar: return nil
-            case .community:         return .community
-            case .schedules:         return nil
-            case .resourceLibrary:   return nil
-            case .askAI:             return nil
-            case .logs:              return .logs
-            case .settings:          return .settings
-            case .thisWeeksParsha:     return nil
-            case .parshaCalendar:      return nil
-            }
-        }
     }
 
     // MARK: - Legacy Tabs (kept for backward compatibility)
