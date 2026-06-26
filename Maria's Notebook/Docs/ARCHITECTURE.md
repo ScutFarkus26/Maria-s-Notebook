@@ -5,7 +5,7 @@
 Maria's Notebook follows a modular MVVM architecture with services:
 
 - **SwiftUI** for the view layer
-- **Core Data** for persistence (60 NSManagedObject subclasses)
+- **Core Data** for persistence (77 NSManagedObject subclasses)
 - **MVVM** pattern for complex views (40+ ViewModels)
 - **Service-oriented** backend (70+ services)
 - **Repository pattern** for data access (13 repositories)

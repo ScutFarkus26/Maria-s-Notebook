@@ -24,8 +24,8 @@ Maria's Notebook helps educators manage their classrooms with tools for:
 
 ## Requirements
 
-- **iOS 26.0+** / **macOS 26.0+**
-- Xcode 16+
+- **iOS 27.0+** / **macOS 27.0+**
+- Xcode 27+
 - Swift 6.0+
 - Apple Developer Account (for device testing and CloudKit)
 
@@ -51,7 +51,7 @@ xcodebuild -project "Maria's Notebook.xcodeproj" \
 ```
 Maria's Notebook/
 ├── AppCore/          # App entry, bootstrapping, navigation, routing
-├── Models/           # NSManagedObject subclasses (60 entities)
+├── Models/           # NSManagedObject subclasses (77 entities)
 ├── Services/         # Business logic (70+ services)
 ├── ViewModels/       # Shared ViewModels (Today, GiveLesson, etc.)
 ├── Components/       # Reusable SwiftUI components
@@ -79,14 +79,13 @@ Maria's Notebook/
 ├── Schedules/        # Schedule management
 ├── Supplies/         # Supply inventory
 ├── Topics/           # Educational topics
-├── TransitionPlanner/# Transition planning
 ├── PerpetualCalendar/# Calendar notes
 │
 ├── Backup/           # Backup & restore
 ├── Settings/         # App configuration
 ├── Tests/            # In-app test suites
 ├── Docs/             # Documentation
-└── MariasNotebook.xcdatamodeld/ # Core Data model (60 entities)
+└── MariasNotebook.xcdatamodeld/ # Core Data model (77 entities)
 ```
 
 ## Configuration
@@ -115,7 +114,7 @@ AI-powered observation summarization using Foundation Models. Requires `ENABLE_F
 
 - Auto-backup enabled by default (10 backup retention)
 - Location: `~/Documents/Backups/Auto/`
-- Format: `.mtbbackup` (optional encryption)
+- Format: `.mtbbackup` (v19 encrypted Apple Archive)
 - See [Backup System](Backup/BACKUP_SYSTEM.md) for details
 
 ### SwiftLint
