@@ -254,6 +254,19 @@ struct WorkDetailView: View {
                         Text("Ready to unlock \(nextLesson.name) for \(studentName)?")
                     }
                 }
+                .alert("Edit Note", isPresented: $viewModel.showEditNoteAlert) {
+                    TextField("Note", text: $viewModel.editingNoteDraft)
+                    Button("Save") {
+                        if let checkIn = viewModel.editingNoteCheckIn {
+                            let trimmed = viewModel.editingNoteDraft.trimmed()
+                            _ = checkIn.setLegacyNoteText(trimmed.isEmpty ? nil : trimmed, in: modelContext)
+                            saveCoordinator.save(modelContext, reason: "Edit check-in note")
+                            viewModel.loadWork(modelContext: modelContext, saveCoordinator: saveCoordinator)
+                        }
+                        viewModel.editingNoteCheckIn = nil
+                    }
+                    Button("Cancel", role: .cancel) { viewModel.editingNoteCheckIn = nil }
+                }
                 .sheet(isPresented: $viewModel.showAddStepSheet) {
                     WorkStepEditorSheet(work: work, existingStep: nil) {
                         // Step was added - force refresh

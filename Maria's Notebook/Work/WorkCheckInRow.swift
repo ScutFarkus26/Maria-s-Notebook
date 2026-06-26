@@ -33,7 +33,7 @@ struct WorkCheckInRow: View {
             Button {
                 onEditNote(checkIn)
             } label: {
-                Label("Add/Edit CDNote", systemImage: "note.text")
+                Label("Add/Edit Note", systemImage: "note.text")
             }
 
             Divider()
@@ -120,7 +120,7 @@ struct WorkCheckInRow: View {
             Button {
                 onEditNote(checkIn)
             } label: {
-                Label("Add/Edit CDNote", systemImage: "note.text")
+                Label("Add/Edit Note", systemImage: "note.text")
             }
 
             Divider()

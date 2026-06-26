@@ -109,8 +109,10 @@ extension WorkDetailView {
     func checkInRow(_ item: CDWorkCheckIn) -> some View {
         WorkCheckInRow(
             checkIn: item,
-            onEditNote: { _ in
-                // TODO: Implement note editing for check-ins
+            onEditNote: { checkIn in
+                viewModel.editingNoteCheckIn = checkIn
+                viewModel.editingNoteDraft = checkIn.latestUnifiedNoteText
+                viewModel.showEditNoteAlert = true
             },
             onSetStatus: { id, status in
                 // Update the check-in status

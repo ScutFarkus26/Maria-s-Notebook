@@ -31,6 +31,9 @@ final class WorkDetailViewModel {
     var showPresentationNotes = false
     var showAddNoteSheet = false
     var noteBeingEdited: CDNote?
+    var editingNoteCheckIn: CDWorkCheckIn?
+    var editingNoteDraft: String = ""
+    var showEditNoteAlert = false
     var showPlannedBanner = false
     var showDeleteAlert = false
     var showAddStepSheet = false
