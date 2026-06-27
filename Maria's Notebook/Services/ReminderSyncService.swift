@@ -113,10 +113,14 @@ final class ReminderSyncService {
             
             // Update status and start observing on main actor
             authorizationStatus = EKEventStore.authorizationStatus(for: .reminder)
-            if granted && syncListName != nil {
+            // Identifier-first, but fall back to a name-only configuration (e.g. the macOS
+            // bootstrap default sets syncListName before any identifier is backfilled) so
+            // auto-observation still starts on first grant. Mirrors startObservingChanges'
+            // own guard (identifier OR name).
+            if granted && (syncListIdentifier != nil || syncListName != nil) {
                 startObservingChanges()
             }
-            
+
             return granted
         } else {
             // swiftlint:disable closure_parameter_position
@@ -134,10 +138,14 @@ final class ReminderSyncService {
             
             // Update status and start observing on main actor
             authorizationStatus = EKEventStore.authorizationStatus(for: .reminder)
-            if granted && syncListName != nil {
+            // Identifier-first, but fall back to a name-only configuration (e.g. the macOS
+            // bootstrap default sets syncListName before any identifier is backfilled) so
+            // auto-observation still starts on first grant. Mirrors startObservingChanges'
+            // own guard (identifier OR name).
+            if granted && (syncListIdentifier != nil || syncListName != nil) {
                 startObservingChanges()
             }
-            
+
             return granted
         }
     }

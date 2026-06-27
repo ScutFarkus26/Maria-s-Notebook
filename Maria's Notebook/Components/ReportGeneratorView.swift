@@ -26,7 +26,11 @@ struct ReportGeneratorView: View {
 
     private var effectiveDateRange: ClosedRange<Date> {
         if selectedDateRange == .custom {
-            return customStartDate...customEndDate
+            // Order the bounds defensively: forming a ClosedRange with
+            // lowerBound > upperBound is a hard runtime trap.
+            let lower = min(customStartDate, customEndDate)
+            let upper = max(customStartDate, customEndDate)
+            return lower...upper
         }
         return selectedDateRange.dateRange()
     }
@@ -104,8 +108,8 @@ struct ReportGeneratorView: View {
             }
 
             if selectedDateRange == .custom {
-                DatePicker("Start Date", selection: $customStartDate, displayedComponents: .date)
-                DatePicker("End Date", selection: $customEndDate, displayedComponents: .date)
+                DatePicker("Start Date", selection: $customStartDate, in: ...customEndDate, displayedComponents: .date)
+                DatePicker("End Date", selection: $customEndDate, in: customStartDate..., displayedComponents: .date)
             }
         } header: {
             Text("Date Range")

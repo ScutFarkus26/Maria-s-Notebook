@@ -24,6 +24,11 @@ public enum CSVParser {
         var currentRow: [String] = []
         var currentField = ""
         var insideQuotes = false
+        // True once any field content (a char, comma, or opening quote) has been seen since
+        // the last record-terminating newline. Lets us distinguish a genuine final record
+        // (even an empty quoted one like `""` at EOF) from the empty state left after a
+        // trailing "\n" — so we never synthesize a spurious blank row, nor drop a real one.
+        var pendingRecord = false
         let chars = Array(content)
         var i = 0
         
@@ -35,6 +40,7 @@ public enum CSVParser {
         while i < chars.count {
             let c = chars[i]
             if insideQuotes {
+                pendingRecord = true
                 if c == "\"" {
                     // Check if next char is also quote (escaped quote)
                     if i + 1 < chars.count && chars[i + 1] == "\"" {
@@ -49,22 +55,29 @@ public enum CSVParser {
             } else {
                 switch c {
                 case "\"":
+                    pendingRecord = true
                     insideQuotes = true
                 case ",":
+                    pendingRecord = true
                     appendField()
                 case "\n":
                     appendField()
                     rows.append(currentRow)
                     currentRow = []
+                    pendingRecord = false
                 default:
+                    pendingRecord = true
                     currentField.append(c)
                 }
             }
             i += 1
         }
-        // Append last field and row if any
-        appendField()
-        if !currentRow.isEmpty {
+        // Flush a trailing record only when one is genuinely in progress (content seen
+        // since the last newline). A file ending in "\n" leaves pendingRecord false, so no
+        // blank row is synthesized; a final record without a trailing newline — including a
+        // lone empty quoted field — is correctly flushed.
+        if pendingRecord {
+            appendField()
             rows.append(currentRow)
         }
         

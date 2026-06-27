@@ -49,7 +49,7 @@ enum AttendanceInsightsTimeframe: String, CaseIterable, Identifiable, Sendable {
     func priorRange(for range: ClosedRange<Date>) -> ClosedRange<Date> {
         switch self {
         case .last7, .last30, .last90:
-            let priorEnd = AppCalendar.addingDays(-fixedDays, to: range.lowerBound)
+            let priorEnd = AppCalendar.addingDays(-1, to: range.lowerBound)
             let priorStart = AppCalendar.addingDays(-(fixedDays - 1), to: priorEnd)
             return priorStart...priorEnd
         case .schoolYear:
