@@ -23,7 +23,11 @@ struct StudentOverviewTab: View {
     
     let lessonsByID: [UUID: CDLesson]
     let nextLessonsForStudent: [LessonAssignmentSnapshot]
-    
+    /// Re-fetches the parent's authoritative work cache after a work mutation, so the
+    /// "Working on" list reflects status/due-date changes immediately (the fetch excludes
+    /// completed work and recomputes attention state).
+    let onWorkChanged: () -> Void
+
     @Environment(\.managedObjectContext) private var viewContext
     @Environment(\.calendar) private var calendar
     #if os(iOS)
@@ -145,6 +149,9 @@ struct StudentOverviewTab: View {
                                     w.completedAt = AppCalendar.startOfDay(Date())
                                     do {
                                         try viewContext.save()
+                                        // Re-fetch from the source of truth: the "Working on" fetch
+                                        // excludes complete work, so the just-completed card drops out.
+                                        onWorkChanged()
                                     } catch {
                                         logger.warning("Failed to save after marking work completed: \(error)")
                                     }
@@ -155,6 +162,9 @@ struct StudentOverviewTab: View {
                                     w.dueAt = today
                                     do {
                                         try viewContext.save()
+                                        // Re-fetch so the card's parent-computed attention state
+                                        // (derived from dueAt) recomputes deterministically.
+                                        onWorkChanged()
                                     } catch {
                                         logger.warning("Failed to save after scheduling for today: \(error)")
                                     }

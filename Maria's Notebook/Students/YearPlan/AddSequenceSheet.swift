@@ -94,7 +94,7 @@ struct AddSequenceSheet: View {
     }
 
     private func refreshPreview() {
-        Task { await viewModel.computePreview(context: viewContext) }
+        Task { await viewModel.computePreview(student: student, context: viewContext) }
     }
 
     // MARK: - Sections

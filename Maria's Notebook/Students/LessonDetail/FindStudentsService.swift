@@ -43,8 +43,10 @@ enum FindStudentsService {
             .filter { guard let id = $0.id else { return false }; return existingStudentIDs.contains(id) }
             .compactMap(\.birthday)
 
-        // Candidates are students NOT already in the presentation
-        let candidates = allStudents.filter {
+        // Candidates are enrolled students NOT already in the presentation.
+        // Mirror StudentPickerPopover.filteredStudentsForPicker: drop withdrawn
+        // students so they aren't offered as lesson candidates.
+        let candidates = allStudents.filterEnrolled().filter {
             guard let id = $0.id else { return true }
             return !existingStudentIDs.contains(id)
         }

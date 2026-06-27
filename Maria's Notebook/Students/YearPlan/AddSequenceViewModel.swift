@@ -101,14 +101,16 @@ final class AddSequenceViewModel {
         }
     }
 
-    func computePreview(context: NSManagedObjectContext) async {
+    func computePreview(student: CDStudent, context: NSManagedObjectContext) async {
         guard let lesson = selectedLesson,
-              lesson.id != nil else {
+              lesson.id != nil,
+              let studentID = student.id else {
             previewItems = []
             showsOverflowWarning = false
             overflowCount = 0
             return
         }
+        let studentIDStr = studentID.uuidString
 
         // Fetch all lessons in the same area + sequence
         let req = CDFetchRequest(CDLesson.self)
@@ -155,13 +157,18 @@ final class AddSequenceViewModel {
                 }
             }
 
+            let lessonIDStr = lessonInSequence.id?.uuidString ?? ""
+            let alreadyExists = !lessonIDStr.isEmpty && entryExists(
+                lessonID: lessonIDStr, studentID: studentIDStr, context: context
+            )
+
             items.append(PreviewItem(
                 id: lessonInSequence.id ?? UUID(),
                 lesson: lessonInSequence,
                 lessonName: lessonInSequence.name,
                 area: lessonInSequence.area,
                 date: currentDate,
-                alreadyExists: false,
+                alreadyExists: alreadyExists,
                 orderInSequence: index
             ))
         }
@@ -177,11 +184,19 @@ final class AddSequenceViewModel {
               let lesson = selectedLesson else { return }
 
         let sequenceKey = "\(lesson.area)::\(lesson.sequence)"
+        let studentIDStr = studentID.uuidString
 
         for item in previewItems {
+            let lessonIDStr = item.id.uuidString
+            // Skip lessons that already have a Year Plan entry for this student —
+            // re-scheduling the same sequence must not create duplicates.
+            guard !entryExists(lessonID: lessonIDStr, studentID: studentIDStr, context: context) else {
+                continue
+            }
+
             let entry = CDYearPlanEntry(context: context)
-            entry.studentID = studentID.uuidString
-            entry.lessonID = item.id.uuidString
+            entry.studentID = studentIDStr
+            entry.lessonID = lessonIDStr
             entry.plannedDate = item.date
             entry.spacingSchoolDays = Int64(spacingDays)
             entry.sequenceGroupKey = sequenceKey
@@ -190,5 +205,24 @@ final class AddSequenceViewModel {
         }
 
         context.safeSave()
+    }
+
+    // MARK: - Helpers
+
+    /// Whether a Year Plan entry already exists for this lesson + student.
+    /// Uses the same uniqueness key (lessonID + studentID) as the preview and the
+    /// rest of the Year Plan services, so the preview and the insert agree.
+    private func entryExists(
+        lessonID: String,
+        studentID: String,
+        context: NSManagedObjectContext
+    ) -> Bool {
+        let req = CDFetchRequest(CDYearPlanEntry.self)
+        req.predicate = NSPredicate(
+            format: "lessonID == %@ AND studentID == %@",
+            lessonID, studentID
+        )
+        req.fetchLimit = 1
+        return context.safeFetchFirst(req) != nil
     }
 }

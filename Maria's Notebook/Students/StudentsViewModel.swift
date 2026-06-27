@@ -1,5 +1,6 @@
 import Foundation
 import CoreData
+import SwiftUI
 
 @Observable
 @MainActor
@@ -170,9 +171,7 @@ final class StudentsViewModel {
         var subset = subsetIDs
         // Reorder within the subset
         if let sFrom = subset.firstIndex(of: movingID) {
-            let item = subset.remove(at: sFrom)
-            let boundedIndex = max(0, min(subset.count, toIndex))
-            subset.insert(item, at: boundedIndex)
+            subset.move(fromOffsets: IndexSet(integer: sFrom), toOffset: toIndex)
         }
 
         // Merge: replace the positions of subset items in the full list with the new subset order

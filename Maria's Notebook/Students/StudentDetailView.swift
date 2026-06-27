@@ -73,7 +73,8 @@ struct StudentDetailView: View {
                 workCache: $workCache,
                 selectedWorkID: $selectedWorkID,
                 lessonsByID: vm.lessonsByID,
-                nextLessonsForStudent: vm.nextLessonsForStudent
+                nextLessonsForStudent: vm.nextLessonsForStudent,
+                onWorkChanged: { workCache = fetchWorkForStudent() }
             )
         case .meetings:
             StudentMeetingsTab(student: student)

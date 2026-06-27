@@ -273,6 +273,13 @@ final class PresentationDetailViewModel {
 
     /// Deletes the lesson assignment
     func delete(onDone: (() -> Void)? = nil) {
+        // Cancel any pending notes autosave and clear the dirty flag BEFORE deleting,
+        // so the dismissal-triggered onDisappear flush (flushNotesAutosaveIfNeeded)
+        // is a no-op and never mutates/saves the object being deleted.
+        notesAutosaveTask?.cancel()
+        notesAutosaveTask = nil
+        notesDirty = false
+
         let id = lessonAssignment.id ?? UUID()
         let ctx = viewContext
         let coordinator = saveCoordinator
