@@ -164,7 +164,9 @@ struct WorkRepository {
         if let note, !note.isEmpty {
             work.setLegacyNoteText(note, in: context)
         }
-        context.safeSave()
+        // Only signal success and run downstream unlocking if the save actually persisted —
+        // a success haptic / auto-unlock on a failed save would be misleading.
+        guard context.safeSave() else { return }
         HapticService.shared.notification(.success)
 
         // Check if completing this work unlocks the next lesson

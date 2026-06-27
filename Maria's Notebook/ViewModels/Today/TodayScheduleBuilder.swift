@@ -43,13 +43,21 @@ enum TodayScheduleBuilder {
         var newToday: [ScheduledWorkItem] = []
         var newStale: [FollowUpWorkItem] = []
 
+        // Tracks work already placed in the overdue list so the due-today
+        // branch can't add the same work a second time (overdue precedence).
+        var placedWorkIDs: Set<UUID> = []
+
         let startToday = referenceDate.startOfDay
 
         for work in workItems {
-            // Filter by Level
-            if let sid = UUID(uuidString: work.studentID),
-               let s = studentsByID[sid],
-               !levelFilter.matches(s.level) {
+            // Filter by Level — mirrors TodayLevelFilterService.filterWork:
+            // drop the item unless its student is present in studentsByID
+            // (enrolled + visible) AND matches the level filter. Items whose
+            // student is missing (withdrawn, hidden test students, garbage IDs)
+            // are excluded, not kept.
+            guard let sid = UUID(uuidString: work.studentID),
+                  let s = studentsByID[sid],
+                  levelFilter.matches(s.level) else {
                 continue
             }
 
@@ -74,11 +82,15 @@ enum TodayScheduleBuilder {
                 return itemDate < startToday && startLastTouch < itemDate
             }) {
                 newOverdue.append(ScheduledWorkItem(work: work, checkIn: overdueItem))
+                placedWorkIDs.insert(workID)
                 isOverdueOrToday = true
             }
 
             // --- Due Today Logic ---
-            if let todayItem = sortedCheckIns.first(where: { ($0.date ?? .distantPast).isSameDay(as: referenceDate) }) {
+            // Skip if this work is already placed in the overdue list so it
+            // appears only once (overdue takes precedence over due-today).
+            if !placedWorkIDs.contains(workID),
+               let todayItem = sortedCheckIns.first(where: { ($0.date ?? .distantPast).isSameDay(as: referenceDate) }) {
                 newToday.append(ScheduledWorkItem(work: work, checkIn: todayItem))
                 isOverdueOrToday = true
             }

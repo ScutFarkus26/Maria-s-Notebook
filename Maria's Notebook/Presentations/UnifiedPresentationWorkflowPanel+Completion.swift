@@ -126,7 +126,15 @@ extension UnifiedPresentationWorkflowPanel {
             }
         }
 
-        // 3. Execute next lesson action
+        // 3. Persist per-student proficiency confirmations.
+        // This is the single common choke point for every entry path (embedded
+        // three-panel view AND the LessonAssignmentDetailSheet -> sheet path), so
+        // the teacher's "Ready for next lesson" toggles always reach the assignment.
+        // confirmStudent is idempotent, so the embedded path's handleWorkflowComplete
+        // calling it again will not double-add.
+        persistConfirmations()
+
+        // 4. Execute next lesson action
         presentationViewModel.executeNextLessonAction(
             studentIDs: Set(students.compactMap(\.id)),
             allStudents: students,
@@ -135,9 +143,38 @@ extension UnifiedPresentationWorkflowPanel {
             viewContext: viewContext
         )
 
-        // 4. Save everything
+        // 5. Save everything
         saveCoordinator.save(viewContext, reason: "Unified Presentation Workflow")
 
         onComplete()
+    }
+
+    /// Writes the teacher's in-memory proficiency confirmations onto the lesson's
+    /// assignment so BlockingAlgorithmEngine can unblock the next lesson. Mirrors the
+    /// canonical persistence in PresentationDetailView+Workflow.handleWorkflowComplete.
+    private func persistConfirmations() {
+        guard presentationViewModel.requiresConfirmation,
+              !presentationViewModel.confirmedStudentIDs.isEmpty else { return }
+
+        // Confirm each student on the assignment for THIS lesson that actually contains
+        // them. Matching per-student (rather than requiring the assignment's student-set to
+        // exactly equal the visible panel roster) keeps confirmations robust when the roster
+        // has been filtered — e.g. a withdrawn or hidden student still in the group, or a
+        // single-student sheet derived from a multi-student assignment.
+        for studentID in presentationViewModel.confirmedStudentIDs {
+            let candidates = lessonAssignments.filter { la in
+                la.lessonIDUUID == lessonID && la.studentUUIDs.contains(studentID)
+            }
+            // Prefer the presented assignment if multiple states exist for the student.
+            guard let assignment = candidates.first(where: { $0.isPresented }) ?? candidates.first else {
+                continue
+            }
+            assignment.confirmStudent(studentID)
+            ReadinessAutoUnlockService.checkAndUnlock(
+                afterConfirmationOn: lessonID,
+                studentID: studentID,
+                context: viewContext
+            )
+        }
     }
 }

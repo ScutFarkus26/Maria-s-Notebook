@@ -44,9 +44,10 @@ extension WorksAgendaView {
     }
 
     func markCompleted(_ w: CDWorkModel) {
-        w.status = .complete
-        saveCoordinator.save(viewContext, reason: "Mark work completed")
-        HapticService.shared.notification(.success)
+        guard let workID = w.id else { return }
+        // Route through the canonical completion path so completedAt is set
+        // and the readiness auto-unlock check runs (handles save + haptic).
+        WorkRepository(context: viewContext).markWorkCompleted(id: workID)
     }
 
     func scheduleToday(_ w: CDWorkModel) {
