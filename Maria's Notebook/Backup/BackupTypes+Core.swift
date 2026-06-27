@@ -151,6 +151,10 @@ public struct LessonAssignmentDTO: Codable, Sendable {
     /// the blocking engine doesn't silently re-block it after import. Optional for
     /// compatibility with older backups that predate this field.
     public var manuallyUnblocked: Bool?
+    /// Student IDs the teacher confirmed as proficient for this lesson. Restored so the blocking
+    /// engine doesn't silently re-block already-cleared lessons after import. Optional for
+    /// compatibility with older backups that predate this field.
+    public var confirmedStudentIDs: [String]?
 
     public init(
         id: UUID,
@@ -171,7 +175,8 @@ public struct LessonAssignmentDTO: Codable, Sendable {
         trackStepID: String?,
         migratedFromLegacyID: String?,
         migratedFromPresentationID: String?,
-        manuallyUnblocked: Bool? = nil
+        manuallyUnblocked: Bool? = nil,
+        confirmedStudentIDs: [String]? = nil
     ) {
         self.id = id
         self.createdAt = createdAt
@@ -192,6 +197,7 @@ public struct LessonAssignmentDTO: Codable, Sendable {
         self.migratedFromLegacyID = migratedFromLegacyID
         self.migratedFromPresentationID = migratedFromPresentationID
         self.manuallyUnblocked = manuallyUnblocked
+        self.confirmedStudentIDs = confirmedStudentIDs
     }
 }
 
@@ -214,6 +220,8 @@ public struct NoteDTO: Codable, Sendable {
     public var communityTopicID: String?
     public var schoolDayOverrideID: String?
     public var studentTrackEnrollmentID: String?
+    // FK to a Going Out (optional for compatibility with older backups that predate this field).
+    public var goingOutID: String?
     // Relationship targets, relinked in a post-import pass (their entities are
     // imported in later phases, so they can't be resolved at note-import time).
     public var lessonAssignmentID: UUID?

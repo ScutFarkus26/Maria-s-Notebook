@@ -113,6 +113,7 @@ extension LessonAssignmentDTO {
             forKey: LegacyKey("migratedFromPresentationID")
         )
         self.manuallyUnblocked = try c.decodeIfPresent(Bool.self, forKey: LegacyKey("manuallyUnblocked"))
+        self.confirmedStudentIDs = try c.decodeIfPresent([String].self, forKey: LegacyKey("confirmedStudentIDs"))
     }
 }
 

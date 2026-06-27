@@ -203,9 +203,12 @@ extension BackupEntityImporter {
 
     static func importMeetingWorkReviews(
         _ dtos: [MeetingWorkReviewDTO],
-        into viewContext: NSManagedObjectContext
+        into viewContext: NSManagedObjectContext,
+        existingCheck: EntityExistsCheck<CDMeetingWorkReview>
     ) {
         for dto in dtos {
+            // Skip records already in the store so a `.merge` restore doesn't insert duplicates.
+            if shouldSkipExisting(id: dto.id, existingCheck: existingCheck) { continue }
             let entity = CDMeetingWorkReview(context: viewContext)
             entity.id = dto.id
             entity.meetingID = dto.meetingID
@@ -225,9 +228,12 @@ extension BackupEntityImporter {
 
     static func importStudentFocusItems(
         _ dtos: [StudentFocusItemDTO],
-        into viewContext: NSManagedObjectContext
+        into viewContext: NSManagedObjectContext,
+        existingCheck: EntityExistsCheck<CDStudentFocusItem>
     ) {
         for dto in dtos {
+            // Skip records already in the store so a `.merge` restore doesn't insert duplicates.
+            if shouldSkipExisting(id: dto.id, existingCheck: existingCheck) { continue }
             let entity = CDStudentFocusItem(context: viewContext)
             entity.id = dto.id
             entity.studentID = dto.studentID

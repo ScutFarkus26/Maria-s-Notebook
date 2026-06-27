@@ -194,14 +194,20 @@ final class BackupRoundTripTests {
         note.reportedBy = "assistant-123"
         note.reporterName = "Ms. Frizzle"
         note.communityTopicID = "topic-xyz"
+        // Going Out link — regression guard: dropped on backup before NoteDTO.goingOutID was added.
+        note.goingOutID = "going-out-abc"
         let noteID = note.id
 
-        // A manually-unblocked lesson assignment.
+        // A manually-unblocked lesson assignment with a confirmed-proficient student.
         let assignment = CDLessonAssignment(context: ctx)
         assignment.lessonID = UUID().uuidString
         assignment.studentIDs = [UUID().uuidString]
         assignment.stateRaw = LessonAssignmentState.draft.rawValue
         assignment.manuallyUnblocked = true
+        // Teacher confirmation — regression guard: dropped on backup before
+        // LessonAssignmentDTO.confirmedStudentIDs was added.
+        let confirmedStudentID = UUID().uuidString
+        assignment.confirmedStudentIDs = [confirmedStudentID]
         let assignmentID = assignment.id
 
         // The note's context relationships (relinked in a post-import pass).
@@ -231,6 +237,7 @@ final class BackupRoundTripTests {
         #expect(restoredNote.reportedBy == "assistant-123", "reportedBy must survive the round-trip")
         #expect(restoredNote.reporterName == "Ms. Frizzle", "reporterName must survive the round-trip")
         #expect(restoredNote.communityTopicID == "topic-xyz", "note context link must survive the round-trip")
+        #expect(restoredNote.goingOutID == "going-out-abc", "note → Going Out link must survive the round-trip")
 
         let restoredAssignment = try #require(
             try BackupTestUtil.fetchByID(
@@ -239,6 +246,10 @@ final class BackupRoundTripTests {
             "Restored lesson assignment not found"
         )
         #expect(restoredAssignment.manuallyUnblocked, "manuallyUnblocked must survive the backup round-trip")
+        #expect(
+            restoredAssignment.confirmedStudentIDs == [confirmedStudentID],
+            "confirmedStudentIDs must survive the backup round-trip"
+        )
         #expect(
             restoredNote.lessonAssignment?.id == assignmentID,
             "note → lessonAssignment relationship must be relinked on restore"
@@ -258,6 +269,20 @@ final class BackupRoundTripTests {
         lesson.lessonFormatRaw = "story"
         lesson.sortIndex = 7
         lesson.requiresPracticeOverride = "required"
+        // Montessori album fields — regression guard: these were silently dropped on every
+        // backup before the live lesson transformer was fixed to emit them.
+        lesson.suggestedFollowUpWork = "Practice with the golden beads"
+        lesson.materials = "Number rods; spindle box"
+        lesson.purpose = "Concept of quantity 1-10"
+        lesson.ageRange = "3-6"
+        lesson.teacherNotes = "Watch for left-to-right tracking"
+        lesson.prerequisiteLessonIDs = "prereq-1,prereq-2"
+        lesson.relatedLessonIDs = "related-1"
+        lesson.sourceRaw = "albumPrimary"
+        lesson.personalKindRaw = "lowerWork"
+        lesson.defaultWorkKindRaw = "research"
+        let attachmentID = UUID()
+        lesson.primaryAttachmentIDUUID = attachmentID
         let lessonID = lesson.id
 
         let student = CoreDataTestHelpers.seedStudent(in: ctx, firstName: "Eli", lastName: "Cohen")
@@ -286,6 +311,18 @@ final class BackupRoundTripTests {
         #expect(rl.lessonFormatRaw == "story", "lessonFormatRaw must survive")
         #expect(rl.sortIndex == 7, "sortIndex must survive")
         #expect(rl.requiresPracticeOverride == "required", "requiresPracticeOverride must survive")
+        // Montessori album fields must survive the round-trip (regression guard).
+        #expect(rl.suggestedFollowUpWork == "Practice with the golden beads", "suggestedFollowUpWork must survive")
+        #expect(rl.materials == "Number rods; spindle box", "materials must survive")
+        #expect(rl.purpose == "Concept of quantity 1-10", "purpose must survive")
+        #expect(rl.ageRange == "3-6", "ageRange must survive")
+        #expect(rl.teacherNotes == "Watch for left-to-right tracking", "teacherNotes must survive")
+        #expect(rl.prerequisiteLessonIDs == "prereq-1,prereq-2", "prerequisiteLessonIDs must survive")
+        #expect(rl.relatedLessonIDs == "related-1", "relatedLessonIDs must survive")
+        #expect(rl.sourceRaw == "albumPrimary", "sourceRaw must survive")
+        #expect(rl.personalKindRaw == "lowerWork", "personalKindRaw must survive")
+        #expect(rl.defaultWorkKindRaw == "research", "defaultWorkKindRaw must survive")
+        #expect(rl.primaryAttachmentIDUUID == attachmentID, "primaryAttachmentID must survive")
 
         let rs = try #require(
             try BackupTestUtil.fetchByID(CDStudent.self, studentID, entityName: "Student", in: dctx),
@@ -451,6 +488,46 @@ final class BackupRestoreModeTests {
         let total = try BackupTestUtil.count(entityName: "Student", in: destStack.viewContext)
         // 2 seeded + 1 existing (Marie) = 3 minimum. Merge must not wipe the original row.
         #expect(total >= 3, "Merge mode dropped pre-existing data: \(total) students")
+    }
+
+    @Test("Merge mode does not duplicate MeetingWorkReview / StudentFocusItem already in the store")
+    func mergeDoesNotDuplicateNewEntities() async throws {
+        let sharedReviewID = UUID()
+        let sharedFocusID = UUID()
+
+        // Source backup contains the two records.
+        let sourceStack = try CoreDataTestHelpers.makeInMemoryStack()
+        let sctx = sourceStack.viewContext
+        let review = CDMeetingWorkReview(context: sctx)
+        review.id = sharedReviewID
+        review.noteText = "Reviewed bead work"
+        let focus = CDStudentFocusItem(context: sctx)
+        focus.id = sharedFocusID
+        focus.text = "Focus on grace and courtesy"
+        #expect(CoreDataTestHelpers.save(sctx))
+
+        let url = BackupTestUtil.tempBackupURL()
+        defer { BackupTestUtil.cleanup(url) }
+        try await BackupTestUtil.writeCurrentBackup(from: sctx, to: url)
+
+        // Destination already holds the SAME records (same ids). A merge restore must skip them,
+        // not insert duplicates (regression guard: these two importers had no existence check).
+        let destStack = try CoreDataTestHelpers.makeInMemoryStack()
+        let dctx = destStack.viewContext
+        let existingReview = CDMeetingWorkReview(context: dctx)
+        existingReview.id = sharedReviewID
+        existingReview.noteText = "Reviewed bead work"
+        let existingFocus = CDStudentFocusItem(context: dctx)
+        existingFocus.id = sharedFocusID
+        existingFocus.text = "Focus on grace and courtesy"
+        #expect(CoreDataTestHelpers.save(dctx))
+
+        try await BackupTestUtil.importCurrentBackup(from: url, into: dctx, mode: .merge)
+
+        let reviewCount = try BackupTestUtil.count(entityName: "MeetingWorkReview", in: dctx)
+        let focusCount = try BackupTestUtil.count(entityName: "StudentFocusItem", in: dctx)
+        #expect(reviewCount == 1, "merge must not duplicate an existing MeetingWorkReview, got \(reviewCount)")
+        #expect(focusCount == 1, "merge must not duplicate an existing StudentFocusItem, got \(focusCount)")
     }
 
     @Test("Corrupted backup file is rejected, not silently imported")

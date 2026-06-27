@@ -766,14 +766,16 @@ extension BackupService {
         if let meetingWorkReviews = payload.meetingWorkReviews {
             BackupEntityImporter.importMeetingWorkReviews(
                 meetingWorkReviews,
-                into: viewContext
+                into: viewContext,
+                existingCheck: { try index.find(CDMeetingWorkReview.self, id: $0) }
             )
         }
 
         if let studentFocusItems = payload.studentFocusItems {
             BackupEntityImporter.importStudentFocusItems(
                 studentFocusItems,
-                into: viewContext
+                into: viewContext,
+                existingCheck: { try index.find(CDStudentFocusItem.self, id: $0) }
             )
         }
     }

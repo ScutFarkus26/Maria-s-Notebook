@@ -52,6 +52,7 @@ extension BackupEntityImporter {
             note.communityTopicID = dto.communityTopicID
             note.schoolDayOverrideID = dto.schoolDayOverrideID
             note.studentTrackEnrollmentID = dto.studentTrackEnrollmentID
+            note.goingOutID = dto.goingOutID
 
             if let data = dto.scope.data(using: .utf8) {
                 do {

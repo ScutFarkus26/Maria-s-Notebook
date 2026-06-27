@@ -164,6 +164,7 @@ extension BackupEntityImporter {
             assignment.trackID = dto.trackID
             assignment.trackStepID = dto.trackStepID
             assignment.manuallyUnblocked = dto.manuallyUnblocked ?? false
+            assignment.confirmedStudentIDs = dto.confirmedStudentIDs ?? []
 
             // Update modifiedAt
             assignment.modifiedAt = dto.modifiedAt
