@@ -16,6 +16,10 @@ struct DatabaseMaintenanceCard: View {
 
     @State private var showingResetConfirmation = false
     @State private var showingRelaunchPrompt = false
+    @State private var showingInMemoryConfirmation = false
+    #if os(macOS)
+    @AppStorage(UserDefaultsKeys.allowLocalStoreFallback) private var allowLocalStoreFallback = false
+    #endif
 
     private var isResetArmed: Bool {
         UserDefaults.standard.bool(forKey: UserDefaultsKeys.resetLocalCacheOnLaunch)
@@ -72,6 +76,32 @@ struct DatabaseMaintenanceCard: View {
                     .controlSize(.regular)
                     .tint(.red)
                 }
+
+                Divider()
+                    .padding(.vertical, 4)
+
+                DisclosureGroup("Advanced") {
+                    VStack(alignment: .leading, spacing: 12) {
+                        #if os(macOS)
+                        Toggle("Allow Local Store Fallback", isOn: $allowLocalStoreFallback)
+                        Text("If iCloud is unavailable at launch, open a local-only store instead of failing to start.")
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                            .fixedSize(horizontal: false, vertical: true)
+                        #endif
+
+                        Button("Use In-Memory Store on Next Launch") {
+                            showingInMemoryConfirmation = true
+                        }
+                        Text("Diagnostic only: the next launch runs without saving. Your stored data is untouched and returns when you relaunch normally afterward.")
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                            .fixedSize(horizontal: false, vertical: true)
+                    }
+                    .padding(.top, 8)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                }
+                .font(.subheadline.weight(.semibold))
             }
             .frame(maxWidth: .infinity)
         }
@@ -95,6 +125,22 @@ struct DatabaseMaintenanceCard: View {
             Button("OK", role: .cancel) { }
         } message: {
             Text("Quit Maria's Notebook (⌘Q on Mac) and reopen it. The reset will run automatically.")
+        }
+        .confirmationDialog(
+            "Use in-memory store next launch?",
+            isPresented: $showingInMemoryConfirmation,
+            titleVisibility: .visible
+        ) {
+            Button("Use In-Memory Next Launch", role: .destructive) {
+                UserDefaults.standard.set(true, forKey: UserDefaultsKeys.useInMemoryStoreOnce)
+            }
+            Button("Cancel", role: .cancel) { }
+        } message: {
+            Text(
+                "On the next launch only, the app runs with a temporary in-memory database for " +
+                "diagnostics. Nothing you do in that session is saved. Relaunch again afterward " +
+                "to return to your real data."
+            )
         }
     }
 

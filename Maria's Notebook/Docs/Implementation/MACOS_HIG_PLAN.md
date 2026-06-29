@@ -30,9 +30,11 @@ Derived from the macOS Human Interface Guidelines audit (2026-06-28). The audit 
 **Phase 1 verified:** macOS + iOS both BUILD SUCCEEDED, zero warnings (2026-06-29).
 
 ## Phase 2 — Settings as a real Settings window
-- [ ] Add the `Settings { SettingsView() }` scene under `#if os(macOS)`; drop the manual `.appSettings` ⌘, override.
-- [ ] Rebuild panes with `Form`/`.formStyle(.grouped)`/`LabeledContent`; drop the rounded-card chrome and the `.scaleEffect(0.8)` toggle hack.
-- [ ] Relocate the troubleshooting toggles here (Advanced/Diagnostics pane, confirmation-gated) — completes the Phase 0 deferral.
+- [x] **Relocated troubleshooting controls out of the Help menu** (completes the Phase 0 deferral): "Enable CloudKit Sync" was a duplicate of the existing Data & Sync "Enable iCloud Sync" toggle → removed; "Allow Local Store Fallback" (macOS) + "Use In-Memory Store" → moved into a new **Advanced** disclosure in Settings → Database → Maintenance (`DatabaseMaintenanceCard`), the in-memory option now confirmation-gated. Help menu reduced to a `#if DEBUG` reset.
+- [ ] Add the `Settings { SettingsView() }` scene under `#if os(macOS)`; drop the manual `.appSettings` ⌘, override. **BLOCKED/needs care:** (1) heavily touches `SettingsView+Sections.swift`, which has uncommitted WIP; (2) needs runtime verification (open app, ⌘,, confirm standalone window + in-window route superseded) — build-only verification is insufficient. Do after the Settings WIP is committed/stashed.
+- [ ] Rebuild panes with `Form`/`.formStyle(.grouped)`/`LabeledContent`; drop the rounded-card chrome and the `.scaleEffect(0.8)` toggle hack. Same WIP-collision caveat.
+
+**Phase 2 slice verified:** macOS + iOS both BUILD SUCCEEDED, zero warnings (2026-06-29).
 
 ## Phase 3 — The native shell (keystone)
 - [ ] Drop `.windowStyle(.hiddenTitleBar)`; adopt a real title bar + unified toolbar app-wide.

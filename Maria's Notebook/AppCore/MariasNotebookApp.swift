@@ -347,33 +347,17 @@ struct MariasNotebookApp: App {
                 // item performed no action and bound ⌘? — which macOS reserves for
                 // the Help-menu search field — so it was removed rather than ship a no-op.
 
+                // Engineering/diagnostics controls (local-store fallback, in-memory
+                // store, iCloud-sync toggle) now live in Settings > Database > Advanced
+                // and Data & Sync — not the user-facing Help menu.
+                #if DEBUG
                 Divider()
 
-                // Move all technical toggles into a submenu to keep the top bar clean
-                Menu("Troubleshooting") {
-                    #if os(macOS)
-                    Toggle("Allow Local Store Fallback", isOn: Binding(
-                        get: { UserDefaults.standard.bool(forKey: UserDefaultsKeys.allowLocalStoreFallback) },
-                        set: { UserDefaults.standard.set($0, forKey: UserDefaultsKeys.allowLocalStoreFallback) }
-                    ))
-                    Toggle("Enable CloudKit Sync", isOn: Binding(
-                        get: { UserDefaults.standard.bool(forKey: UserDefaultsKeys.enableCloudKitSync) },
-                        set: { UserDefaults.standard.set($0, forKey: UserDefaultsKeys.enableCloudKitSync) }
-                    ))
-                    #endif
-                    
-                    Button("Use In-Memory Store Next Launch") {
-                        UserDefaults.standard.set(true, forKey: UserDefaultsKeys.useInMemoryStoreOnce)
-                    }
-                    
-                    #if DEBUG
-                    Divider()
-
+                Menu("Troubleshooting (Debug)") {
                     Button("Reset Local Database…", role: .destructive) {
                         #if os(macOS)
                         AppBootstrapping.requestResetLocalDatabaseWithConfirmation()
                         #else
-                        // On iOS, this would need a different approach (not available via menu)
                         do {
                             try AppBootstrapping.resetLocalDatabaseInDebug()
                         } catch {
@@ -381,8 +365,8 @@ struct MariasNotebookApp: App {
                         }
                         #endif
                     }
-                    #endif
                 }
+                #endif
             }
         }
 
