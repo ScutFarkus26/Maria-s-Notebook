@@ -220,7 +220,9 @@ struct MariasNotebookApp: App {
         #if os(macOS)
         .windowStyle(.hiddenTitleBar)
         .windowResizability(.automatic)
-        .defaultSize(width: 800, height: 700)
+        // Default must be >= the enforced minimum (900x600, see EnsureResizableWindow)
+        // so a freshly-opened window isn't immediately snapped wider.
+        .defaultSize(width: 1000, height: 720)
         #endif
         // Legacy .modelContainer removed — using CoreDataStack
         .commands {
@@ -265,14 +267,9 @@ struct MariasNotebookApp: App {
             }
 
             // 3. WINDOW MANAGEMENT & SEARCH
+            // NOTE: Close (⌘W) is supplied automatically by SwiftUI for WindowGroup
+            // scenes — we no longer hand-roll it via NSApplication.keyWindow.
             #if os(macOS)
-            CommandGroup(after: .windowSize) {
-                Button("Close Window") {
-                    NSApplication.shared.keyWindow?.close()
-                }
-                .keyboardShortcut("w", modifiers: .command)
-            }
-
             CommandGroup(after: .textEditing) {
                 Button("Find…") {
                     NotificationCenter.default.post(name: .focusSearch, object: nil)
@@ -280,6 +277,9 @@ struct MariasNotebookApp: App {
                 .keyboardShortcut("f", modifiers: .command)
             }
             #endif
+
+            // VIEW MENU — standard Show/Hide Sidebar (⌃⌘S) for the NavigationSplitView
+            SidebarCommands()
 
             // 4. GO MENU (Navigation)
             // Dedicated menu for navigating between app sections
@@ -324,10 +324,10 @@ struct MariasNotebookApp: App {
                 .keyboardShortcut("/", modifiers: [.command])
                 #endif
 
-                Button("\(Bundle.main.infoDictionary?["CFBundleName"] as? String ?? "App") Help") {
-                    // Action to open help
-                }
-                .keyboardShortcut("?", modifiers: [.command])
+                // NOTE: A standard "<App> Help" item belongs here once real help
+                // content exists (a hosted docs URL or Help Book). The previous
+                // item performed no action and bound ⌘? — which macOS reserves for
+                // the Help-menu search field — so it was removed rather than ship a no-op.
 
                 Divider()
 

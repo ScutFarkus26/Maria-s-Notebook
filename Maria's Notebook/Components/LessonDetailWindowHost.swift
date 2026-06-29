@@ -20,6 +20,7 @@ struct LessonDetailWindowHost: View {
                 // Save is handled by the view itself with SaveCoordinator
             })
             .frame(minWidth: 500, minHeight: 400)
+            .navigationTitle(lesson.name.isEmpty ? "Lesson" : lesson.name)
         } else {
             ContentUnavailableView("Lesson Not Found", systemImage: "book.closed")
                 .frame(minWidth: 400, minHeight: 300)

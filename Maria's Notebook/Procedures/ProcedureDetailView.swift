@@ -164,7 +164,7 @@ struct ProcedureDetailView: View {
     private var contentSection: some View {
         VStack(alignment: .leading, spacing: AppTheme.Spacing.medium) {
             if procedure.content.isEmpty {
-                Text("No content yet. Tap Edit to add procedure details.")
+                Text("No content yet. \(PlatformVerb.tap) Edit to add procedure details.")
                     .font(.subheadline)
                     .foregroundStyle(.secondary)
                     .italic()

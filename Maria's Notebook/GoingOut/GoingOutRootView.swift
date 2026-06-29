@@ -171,7 +171,7 @@ struct GoingOutRootView: View {
         ContentUnavailableView {
             Label("No Going-Outs", systemImage: "figure.walk")
         } description: {
-            Text("Student-initiated excursions will appear here. Tap + to create one.")
+            Text("Student-initiated excursions will appear here. \(PlatformVerb.tap) + to create one.")
         }
     }
 }

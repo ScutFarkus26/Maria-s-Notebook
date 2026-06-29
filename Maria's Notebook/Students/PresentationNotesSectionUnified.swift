@@ -126,7 +126,7 @@ struct PresentationNotesSectionUnified: View {
                         .stroke(Color.primary.opacity(UIConstants.OpacityConstants.medium), lineWidth: 1)
                 )
             } else if allUnifiedNotes.isEmpty && legacyNotes.trimmed().isEmpty {
-                Text("No notes yet. Tap + to add a note.")
+                Text("No notes yet. \(PlatformVerb.tap) + to add a note.")
                     .font(.subheadline)
                     .foregroundStyle(.secondary)
                     .italic()

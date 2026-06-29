@@ -14,6 +14,7 @@ struct WorkDetailWindowHost: View {
         if let workModel = viewContext.safeFetchFirst(workModelFetch) {
             WorkDetailView(workID: workModel.id ?? UUID())
                 .frame(minWidth: 400, minHeight: 300)
+                .navigationTitle(workModel.title.isEmpty ? "Work" : workModel.title)
         } else {
             ContentUnavailableView("Work Not Found", systemImage: "doc.text.magnifyingglass")
         }

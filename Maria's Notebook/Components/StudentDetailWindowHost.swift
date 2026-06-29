@@ -18,6 +18,7 @@ struct StudentDetailWindowHost: View {
         if let student = viewContext.safeFetchFirst(fetchDescriptor) {
             StudentDetailView(student: student)
                 .frame(minWidth: 500, minHeight: 400)
+                .navigationTitle(student.fullName)
         } else {
             ContentUnavailableView("Student Not Found", systemImage: "person.slash")
                 .frame(minWidth: 400, minHeight: 300)

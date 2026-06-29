@@ -57,14 +57,14 @@ struct ClassroomSharingView: View {
                     tint: .orange,
                     title: "\(zoneRepair.orphanCount) record(s) waiting to sync",
                     body: "Until you share your classroom, this data stays on this device only. " +
-                        "Tap Share Classroom below to enable CloudKit sync."
+                        "\(PlatformVerb.tap) Share Classroom below to enable CloudKit sync."
                 )
             } else if service?.isSharing == true, !zoneRepair.lastUnrecoverableOrphans.isEmpty {
                 bannerCard(
                     icon: "exclamationmark.octagon.fill",
                     tint: .red,
                     title: "\(zoneRepair.lastUnrecoverableOrphans.count) record(s) failed to sync",
-                    body: "These records couldn't be attached to your classroom share. Tap Repair Sync below to retry."
+                    body: "These records couldn't be attached to your classroom share. \(PlatformVerb.tap) Repair Sync below to retry."
                 )
             }
         }

@@ -39,7 +39,7 @@ struct SchoolCalendarSettingsView: View {
                 Button { shiftMonth(1) } label: { Image(systemName: "chevron.right") }
                     .buttonStyle(.plain)
                 Spacer()
-                Label("Tap dates to mark as non-school", systemImage: "hand.tap")
+                Label("\(PlatformVerb.tap) dates to mark as non-school", systemImage: PlatformVerb.tapSymbol)
                     .font(.footnote)
                     .foregroundStyle(.secondary)
             }

@@ -160,6 +160,11 @@ struct RootView: View {
             AppSearchView()
         }
     #if os(macOS)
+        // Standard Find (⌘F): the menu-bar command posts .focusSearch; open the
+        // app-wide search sheet so the platform shortcut drives the real search.
+        .onReceive(NotificationCenter.default.publisher(for: .focusSearch)) { _ in
+            isShowingSearch = true
+        }
         .background(
             EnsureResizableWindow(
                 minSize: NSSize(
