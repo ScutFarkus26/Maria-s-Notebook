@@ -86,6 +86,7 @@ struct MariasNotebookApp: App {
                 Text(loadingMessage)
                     .foregroundStyle(.secondary)
             }
+            .accessibilityElement(children: .combine)
             .frame(maxWidth: .infinity, maxHeight: .infinity)
             .background(Color.clear)
         }
@@ -99,6 +100,7 @@ struct MariasNotebookApp: App {
                 Text("Restoring data…")
                     .foregroundStyle(.secondary)
             }
+            .accessibilityElement(children: .combine)
             .frame(maxWidth: .infinity, maxHeight: .infinity)
             .background(Color.clear)
         } else if !hasCompletedOnboarding {
@@ -244,6 +246,22 @@ struct MariasNotebookApp: App {
                 
                 Button("New Work…") { appRouter.requestNewWork() }
                     .keyboardShortcut("n", modifiers: [.command, .option])
+
+                Divider()
+
+                // Quick-capture actions — also reachable via the floating radial
+                // menu and its right-click menu; these give them a keyboard path.
+                Button("New Presentation") { appRouter.triggerNewPresentation = true }
+                    .keyboardShortcut("p", modifiers: [.command, .control])
+
+                Button("Record Practice") { appRouter.triggerRecordPractice = true }
+                    .keyboardShortcut("r", modifiers: [.command, .control])
+
+                Button("New Todo") { appRouter.triggerNewTodo = true }
+                    .keyboardShortcut("t", modifiers: [.command, .control])
+
+                Button("New Note") { appRouter.triggerNewNote = true }
+                    .keyboardShortcut("k", modifiers: [.command, .control])
             }
 
             // 2. STANDARD "IMPORT/EXPORT" ITEMS (File > Import)

@@ -278,6 +278,16 @@ struct RootView: View {
             }
             newPresentationDraftID = draft.id
         }
+        .onChange(of: appRouter.triggerNewTodo) { _, value in
+            guard value else { return }
+            appRouter.triggerNewTodo = false
+            isShowingNewTodo = true
+        }
+        .onChange(of: appRouter.triggerNewNote) { _, value in
+            guard value else { return }
+            appRouter.triggerNewNote = false
+            quickNoteParams = QuickNoteParams()
+        }
     }
 
     private var rootLayout: some View {
@@ -303,6 +313,9 @@ struct RootView: View {
             }
             .buttonStyle(.plain)
             .accessibilityLabel("Search")
+            #if os(macOS)
+            .help("Search")
+            #endif
             CompactSyncStatusIndicator(compact: true)
         }
         .padding(.trailing, 12)

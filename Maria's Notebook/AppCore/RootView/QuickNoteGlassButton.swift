@@ -56,12 +56,39 @@ struct QuickNoteGlassButton: View {
         .onDisappear {
             longPressTask?.cancel()
         }
+        // macOS: a standard right-click menu exposes every action to pointer users
+        // (the long-press radial menu has no pointer/keyboard equivalent on its own).
+        // On iOS the long-press already drives the pie menu, so no contextMenu there.
+        #if os(macOS)
+        .contextMenu {
+            ForEach(PieMenuAction.allCases, id: \.self) { action in
+                Button {
+                    executeAction(action)
+                } label: {
+                    Label(action.label, systemImage: action.icon)
+                }
+            }
+        }
+        .help("Quick command — right-click for create actions")
+        #endif
         .accessibilityLabel("Quick command")
+        #if os(macOS)
+        .accessibilityHint("Opens the command bar. Use the available actions to create a presentation, work, practice, todo, or note.")
+        #else
         .accessibilityHint(
             "Double tap to open command bar, hold for presentation,"
             + " work, practice, todo, and note actions, or drag to reposition"
         )
+        #endif
         .accessibilityAddTraits(.isButton)
+        // Expose every action to VoiceOver (the drag-to-wedge gesture is unreachable
+        // by assistive tech); these appear in the VoiceOver actions rotor.
+        .accessibilityAction(named: "Open Command Bar") { isShowingCommandBar = true }
+        .accessibilityAction(named: PieMenuAction.newPresentation.label) { executeAction(.newPresentation) }
+        .accessibilityAction(named: PieMenuAction.newWorkItem.label) { executeAction(.newWorkItem) }
+        .accessibilityAction(named: PieMenuAction.recordPractice.label) { executeAction(.recordPractice) }
+        .accessibilityAction(named: PieMenuAction.newTodo.label) { executeAction(.newTodo) }
+        .accessibilityAction(named: PieMenuAction.newNote.label) { executeAction(.newNote) }
     }
 
     private var pieMenuOverlay: some View {

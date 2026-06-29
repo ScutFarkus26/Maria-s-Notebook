@@ -22,10 +22,12 @@ Derived from the macOS Human Interface Guidelines audit (2026-06-28). The audit 
 **Phase 0 verified:** macOS + iOS both BUILD SUCCEEDED, zero warnings (2026-06-28).
 
 ## Phase 1 — Accessibility baseline + radial-menu compliance
-- [ ] Radial menu: add the 5 actions to File ▸ New with shortcuts; add a `.contextMenu` (right-click) on the button; add per-action `.accessibilityAction(named:)`; de-touch the accessibility hint. (`QuickNoteGlassButton.swift`, `MariasNotebookApp.swift`)
-- [ ] Honor Reduce Motion on macOS in `adaptiveWithAnimation` (`AdaptiveAnimationModifier.swift` — currently iOS-only).
-- [ ] Accessibility labels/state: Today date chevrons, "Sync Now → Syncing…", launch spinners.
-- [ ] `.help()` tooltips + hover/pointer feedback on icon-only buttons (reuse the accessibility labels).
+- [x] Radial menu kept and made compliant: 5 actions added to File ▸ New with ⌃⌘P/R/T/K shortcuts (via new `AppRouter.triggerNewTodo`/`triggerNewNote` + RootView handlers); macOS `.contextMenu` (right-click) on the button; per-action `.accessibilityAction(named:)` + "Open Command Bar"; de-touched the accessibility hint on macOS. (`QuickNoteGlassButton.swift`, `MariasNotebookApp.swift`, `AppRouter.swift`, `RootView.swift`)
+- [x] Honor Reduce Motion on macOS in `adaptiveWithAnimation` (`AdaptiveAnimationModifier.swift` now checks `NSWorkspace…ShouldReduceMotion`).
+- [~] Accessibility labels/state: "Sync Now → Syncing/Idle" (`accessibilityValue`) and launch spinners (`accessibilityElement(.combine)`) done. **Today date chevrons deferred** — `TodayViewHeader.swift` has unrelated uncommitted WIP; add the two labels once that's committed/stashed.
+- [~] `.help()` tooltips: QuickNote button + global Search button done. Broader icon-only tooltip + hover/pointer-style sweep → folded into Phase 5 polish.
+
+**Phase 1 verified:** macOS + iOS both BUILD SUCCEEDED, zero warnings (2026-06-29).
 
 ## Phase 2 — Settings as a real Settings window
 - [ ] Add the `Settings { SettingsView() }` scene under `#if os(macOS)`; drop the manual `.appSettings` ⌘, override.

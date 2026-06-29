@@ -6,6 +6,9 @@ import SwiftUI
 #if os(iOS)
 import UIKit
 #endif
+#if os(macOS)
+import AppKit
+#endif
 
 /// A view modifier that conditionally applies animation based on the Reduce Motion setting
 struct AdaptiveAnimationModifier<V: Equatable>: ViewModifier {
@@ -34,6 +37,10 @@ extension View {
 func adaptiveWithAnimation<Result>(_ animation: Animation? = .default, _ body: () throws -> Result) rethrows -> Result {
     #if os(iOS)
     if UIAccessibility.isReduceMotionEnabled {
+        return try body()
+    }
+    #elseif os(macOS)
+    if NSWorkspace.shared.accessibilityDisplayShouldReduceMotion {
         return try body()
     }
     #endif

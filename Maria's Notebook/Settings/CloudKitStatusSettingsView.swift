@@ -71,6 +71,8 @@ struct CloudKitStatusSettingsView: View {
                     .buttonStyle(.bordered)
                     .disabled(syncService.isSyncing)
                     .help("Sync Now")
+                    .accessibilityLabel("Sync Now")
+                    .accessibilityValue(syncService.isSyncing ? "Syncing" : "Idle")
                 }
             }
 
