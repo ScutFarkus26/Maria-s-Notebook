@@ -50,7 +50,7 @@ Derived from the macOS Human Interface Guidelines audit (2026-06-28). The audit 
 ## Phase 5 — Depth & ongoing polish
 - [ ] Typography sweep → semantic / `ScaledFont` tokens; raise sub-10pt labels (Dynamic Type).
 - [ ] Undo for destructive deletes (UndoManager + the unused `ToastService.undoAction`).
-- [ ] Dark Mode / contrast color fixes (amber, shadows, accent gradient).
+- [~] Dark Mode / contrast color fixes: **amber status colors now adaptive** via new `Components/Color+Adaptive.swift` `Color(light:dark:)` helper — `AppColors.attention` + `.brewing` get a brighter Dark Mode variant (verified macOS + iOS, 0 warnings, 2026-06-29). **Deliberately skipped:** card shadows (naive `Color.primary` swap → white glow in Dark Mode; needs a material/separator approach), and the floating-button gradient (it's the button's visual identity — would change the look the user chose to keep).
 - [ ] Optional: MenuBarExtra + Dock menu quick capture; window state restoration; background-work notifications/Dock badge; localization scaffolding.
 
 ---

@@ -59,7 +59,11 @@ struct AppColors {
     /// Blue — informational, neutral highlights
     static let info: Color = .blue
     /// Amber — scheduling conflicts / "heads up" planning cues. Distinct from `.warning` orange.
-    static let attention: Color = Color(red: 0.80, green: 0.55, blue: 0.10)
+    /// Brighter in Dark Mode so it reads cleanly on a dark window, like the system colors.
+    static let attention = Color(
+        light: Color(red: 0.80, green: 0.55, blue: 0.10),
+        dark: Color(red: 0.98, green: 0.76, blue: 0.28)
+    )
 
     // MARK: - Presentation Status
 
@@ -82,7 +86,10 @@ struct AppColors {
     static func color(for status: PresentationStatus) -> Color {
         switch status {
         case .ready:    return .green
-        case .brewing:  return Color(red: 0.88, green: 0.68, blue: 0.10) // amber, distinct from .orange
+        case .brewing:  return Color(
+            light: Color(red: 0.88, green: 0.68, blue: 0.10),
+            dark: Color(red: 1.0, green: 0.82, blue: 0.32)
+        ) // amber, distinct from .orange; brighter in Dark Mode
         case .suggested: return .accentColor
         case .overdue:  return .red
         }
