@@ -15,7 +15,15 @@ struct AppSearchView: View {
                 searchBar
                 Divider()
                 if !searchIndex.isReady {
-                    ContentUnavailableView("Building index…", systemImage: "magnifyingglass")
+                    // Active work in progress — show a real spinner, not an empty state.
+                    VStack(spacing: 12) {
+                        ProgressView()
+                            .controlSize(.large)
+                        Text("Building search index…")
+                            .foregroundStyle(.secondary)
+                    }
+                    .frame(maxWidth: .infinity, maxHeight: .infinity)
+                    .accessibilityElement(children: .combine)
                 } else if searchText.isEmpty {
                     ContentUnavailableView("Search everything", systemImage: "magnifyingglass",
                         description: Text("Notes, lessons, students, todos, and work items"))

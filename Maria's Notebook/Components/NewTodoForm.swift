@@ -202,6 +202,7 @@ struct NewTodoForm: View {
                     }
                 }
                 .disabled(title.trimmed().isEmpty || isCreatingTodo)
+                .keyboardShortcut(.defaultAction)
             }
         }
     }

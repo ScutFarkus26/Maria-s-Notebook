@@ -410,7 +410,7 @@ struct DataManagementGrid: View {
                     Spacer()
                     Toggle("", isOn: $autoBackupEnabled)
                         .toggleStyle(.switch)
-                        .scaleEffect(SettingsStyle.toggleScale)
+                        .controlSize(.small)
                         .labelsHidden()
                 }
 
