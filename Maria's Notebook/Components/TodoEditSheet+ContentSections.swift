@@ -207,7 +207,7 @@ extension TodoEditSheet {
                 }
             }
 
-            Text("Tap + to attach files or images")
+            Text("\(PlatformVerb.tap) + to attach files or images")
                 .font(.caption)
                 .foregroundStyle(.secondary)
         }

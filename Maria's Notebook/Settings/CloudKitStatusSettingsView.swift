@@ -72,7 +72,9 @@ struct CloudKitStatusSettingsView: View {
                     .disabled(syncService.isSyncing)
                     .help("Sync Now")
                     .accessibilityLabel("Sync Now")
-                    .accessibilityValue(syncService.isSyncing ? "Syncing" : "Idle")
+                    // Only announce a value while syncing — a momentary button
+                    // carries no value at rest ("Idle" is noise for VoiceOver).
+                    .accessibilityValue(syncService.isSyncing ? "Syncing" : "")
                 }
             }
 
@@ -149,7 +151,7 @@ struct CloudKitStatusSettingsView: View {
     /// `String` so the multi-part concatenation type-checks outside the view body.
     private var mirroringDelegateFailedMessage: String {
         "CloudKit's sync engine couldn't start this session — likely a corrupt " +
-        "local cache. To recover, open the Database tab and tap " +
+        "local cache. To recover, open the Database tab and \(PlatformVerb.tapLowercased) " +
         "\u{201C}Reset Local Cache.\u{201D} Your data is safe in iCloud and will " +
         "re-download automatically."
     }

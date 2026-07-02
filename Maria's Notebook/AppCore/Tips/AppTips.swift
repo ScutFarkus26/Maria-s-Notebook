@@ -50,7 +50,7 @@ struct WorkLifecycleTip: Tip {
         Text(
             "Work items flow through stages: Active (in progress),"
             + " Review (checking work), and Complete (finished)."
-            + " Tap the status to advance."
+            + " \(PlatformVerb.tap) the status to advance."
         )
     }
 

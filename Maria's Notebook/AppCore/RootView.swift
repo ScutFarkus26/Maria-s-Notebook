@@ -159,12 +159,17 @@ struct RootView: View {
         .sheet(isPresented: $isShowingSearch) {
             AppSearchView()
         }
+        // Expose key-window actions to the menu bar (Find…, File > New quick-capture).
+        // Only the key main window's RootView provides these, so menu commands act
+        // on exactly one window and disable when no main window is frontmost.
+        .focusedSceneValue(\.openSearch, { isShowingSearch = true })
+        .focusedSceneValue(\.quickCapture, QuickCaptureActions(
+            newPresentation: { createPresentationDraft() },
+            recordPractice: { isShowingRecordPractice = true },
+            newTodo: { isShowingNewTodo = true },
+            newNote: { quickNoteParams = QuickNoteParams() }
+        ))
     #if os(macOS)
-        // Standard Find (⌘F): the menu-bar command posts .focusSearch; open the
-        // app-wide search sheet so the platform shortcut drives the real search.
-        .onReceive(NotificationCenter.default.publisher(for: .focusSearch)) { _ in
-            isShowingSearch = true
-        }
         .background(
             EnsureResizableWindow(
                 minSize: NSSize(
@@ -192,15 +197,7 @@ struct RootView: View {
         .overlay(alignment: .bottomTrailing) {
             QuickNoteGlassButton(
                 isShowingCommandBar: $isShowingCommandBar,
-                onNewPresentation: {
-                    let draft = PresentationFactory.makeDraft(lessonID: UUID(), studentIDs: [], context: viewContext)
-                    do {
-                        try viewContext.save()
-                    } catch {
-                        Self.logger.error("Failed to save new presentation draft: \(error)")
-                    }
-                    newPresentationDraftID = draft.id
-                },
+                onNewPresentation: { createPresentationDraft() },
                 isShowingWorkItemSheet: $isShowingNewWorkItem,
                 onRecordPractice: {
                     isShowingRecordPractice = true
@@ -270,24 +267,20 @@ struct RootView: View {
         .onChange(of: appRouter.triggerNewPresentation) { _, value in
             guard value else { return }
             appRouter.triggerNewPresentation = false
-            let draft = PresentationFactory.makeDraft(lessonID: UUID(), studentIDs: [], context: viewContext)
-            do {
-                try viewContext.save()
-            } catch {
-                Self.logger.error("Failed to save new presentation draft: \(error)")
-            }
-            newPresentationDraftID = draft.id
+            createPresentationDraft()
         }
-        .onChange(of: appRouter.triggerNewTodo) { _, value in
-            guard value else { return }
-            appRouter.triggerNewTodo = false
-            isShowingNewTodo = true
+    }
+
+    /// Creates a presentation draft and opens its editor sheet. Shared by the
+    /// iOS toolbar trigger, the radial quick-command menu, and File > New.
+    private func createPresentationDraft() {
+        let draft = PresentationFactory.makeDraft(lessonID: UUID(), studentIDs: [], context: viewContext)
+        do {
+            try viewContext.save()
+        } catch {
+            Self.logger.error("Failed to save new presentation draft: \(error)")
         }
-        .onChange(of: appRouter.triggerNewNote) { _, value in
-            guard value else { return }
-            appRouter.triggerNewNote = false
-            quickNoteParams = QuickNoteParams()
-        }
+        newPresentationDraftID = draft.id
     }
 
     private var rootLayout: some View {
@@ -314,7 +307,7 @@ struct RootView: View {
             .buttonStyle(.plain)
             .accessibilityLabel("Search")
             #if os(macOS)
-            .help("Search")
+            .help("Search notes, lessons, students, and todos (⌘F)")
             #endif
             CompactSyncStatusIndicator(compact: true)
         }

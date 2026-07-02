@@ -331,7 +331,7 @@ struct StoryDetailView: View {
     private var connectedLessonsList: some View {
         let entries = story.loadRelatedLessons(in: viewContext)
         if entries.isEmpty {
-            Text("No connections found yet. Tap Find to analyze your lesson library.")
+            Text("No connections found yet. \(PlatformVerb.tap) Find to analyze your lesson library.")
                 .font(.caption)
                 .foregroundStyle(.tertiary)
                 .frame(maxWidth: .infinity, alignment: .leading)

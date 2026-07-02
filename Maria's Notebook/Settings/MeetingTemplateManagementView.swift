@@ -90,7 +90,7 @@ struct MeetingTemplateManagementView: View {
                         }
                     }
 
-                    Text("Tap a template to preview. The active template's prompts are shown in weekly meetings.")
+                    Text("\(PlatformVerb.tap) a template to preview. The active template's prompts are shown in weekly meetings.")
                         .font(.caption)
                         .foregroundStyle(.tertiary)
                 }

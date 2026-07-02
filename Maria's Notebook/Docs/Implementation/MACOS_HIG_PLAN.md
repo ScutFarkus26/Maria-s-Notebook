@@ -21,6 +21,15 @@ Derived from the macOS Human Interface Guidelines audit (2026-06-28). The audit 
 
 **Phase 0 verified:** macOS + iOS both BUILD SUCCEEDED, zero warnings (2026-06-28).
 
+## Post-phase adversarial review (2026-06-30) — corrections
+A 25-agent review of the five commits confirmed 13 findings; fixes applied:
+- **⌘F / quick-capture commands rearchitected to `@FocusedValue`** (new `AppCore/AppCommands.swift`: `FileNewCommands` + `FindCommands`). Fixes three confirmed defects of the notification/router-flag approach: double-handling with `DebouncedSearchField`'s old `.focusSearch` observer (removed), the sheet opening in every main window at once, and stranded one-shot trigger flags when no main window exists (menu items now disable instead). `triggerNewTodo`/`triggerNewNote` removed from AppRouter; presentation-draft creation factored into one `RootView.createPresentationDraft()`.
+- **"New Window" now calls `openWindow(id:)` directly** (works with zero windows open; got ⌃⌘N); `.openNewWindow` + `.focusSearch` notification names deleted.
+- **File ▸ New items normalized with ellipses** (all open sheets needing input).
+- Radial-button macOS hint trimmed to result-only ("Opens the command bar."); Sync Now announces a value only while syncing; Auto-Backup toggle got a real VoiceOver title; Search tooltip made informative; Advanced disclosure font no longer cascades into child controls.
+- **Tap sweep completed** (8 more strings: BookClub, Community, TodoEditSheet, APIKey, Meeting/NoteTemplate, StoryDetail, CloudKitStatus recovery text, WorkLifecycleTip) — `PlatformVerb.tapLowercased` now in use.
+- **Known follow-up:** ~10 accessibility hints say "Double tap …" (iOS VoiceOver phrasing) in un-gated shared files (AttendanceCard, AgendaItemRows, GroupedWorkListRows, TodayViewListRows) — wrong wording for macOS VoiceOver (VO-Space); needs a per-platform hint helper. Pre-existing ⌘N quadruple-binding (menu New Lesson vs screen-local New Student/New Todo buttons) also pre-dates the branch — untouched.
+
 ## Phase 1 — Accessibility baseline + radial-menu compliance
 - [x] Radial menu kept and made compliant: 5 actions added to File ▸ New with ⌃⌘P/R/T/K shortcuts (via new `AppRouter.triggerNewTodo`/`triggerNewNote` + RootView handlers); macOS `.contextMenu` (right-click) on the button; per-action `.accessibilityAction(named:)` + "Open Command Bar"; de-touched the accessibility hint on macOS. (`QuickNoteGlassButton.swift`, `MariasNotebookApp.swift`, `AppRouter.swift`, `RootView.swift`)
 - [x] Honor Reduce Motion on macOS in `adaptiveWithAnimation` (`AdaptiveAnimationModifier.swift` now checks `NSWorkspace…ShouldReduceMotion`).

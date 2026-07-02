@@ -7,9 +7,6 @@ struct OpenWindowOnNotificationModifier: ViewModifier {
 
     func body(content: Content) -> some View {
         content
-            .onReceive(NotificationCenter.default.publisher(for: .openNewWindow)) { _ in
-                openWindow(id: "mainWindow")
-            }
             .onReceive(NotificationCenter.default.publisher(for: .openStudentDetailWindow)) { notification in
                 if let studentID = notification.userInfo?["studentID"] as? UUID {
                     openWindow(id: "StudentDetailWindow", value: studentID)

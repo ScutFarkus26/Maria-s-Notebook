@@ -408,7 +408,9 @@ struct DataManagementGrid: View {
                         .font(.subheadline.weight(.bold))
                         .foregroundStyle(AppColors.success)
                     Spacer()
-                    Toggle("", isOn: $autoBackupEnabled)
+                    // Title is hidden visually but read by VoiceOver — an empty
+                    // title would announce as an unlabeled switch.
+                    Toggle("Auto-Backup", isOn: $autoBackupEnabled)
                         .toggleStyle(.switch)
                         .controlSize(.small)
                         .labelsHidden()

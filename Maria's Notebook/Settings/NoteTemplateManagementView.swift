@@ -88,7 +88,7 @@ struct NoteTemplateManagementView: View {
                         }
                     }
 
-                    Text("Tap a template to preview. Use the menu to edit or delete.")
+                    Text("\(PlatformVerb.tap) a template to preview. Use the menu to edit or delete.")
                         .font(.caption)
                         .foregroundStyle(.tertiary)
                 }

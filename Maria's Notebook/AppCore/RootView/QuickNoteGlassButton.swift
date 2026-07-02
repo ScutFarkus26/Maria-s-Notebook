@@ -73,7 +73,9 @@ struct QuickNoteGlassButton: View {
         #endif
         .accessibilityLabel("Quick command")
         #if os(macOS)
-        .accessibilityHint("Opens the command bar. Use the available actions to create a presentation, work, practice, todo, or note.")
+        // Per hint guidelines: describe the result only; the accessibilityActions
+        // below are announced by VoiceOver's actions rotor on their own.
+        .accessibilityHint("Opens the command bar.")
         #else
         .accessibilityHint(
             "Double tap to open command bar, hold for presentation,"

@@ -92,8 +92,6 @@ final class AppRouter {
     var triggerNewWorkItem: Bool = false
     var triggerRecordPractice: Bool = false
     var triggerNewPresentation: Bool = false
-    var triggerNewTodo: Bool = false
-    var triggerNewNote: Bool = false
 
     /// App lifecycle events
     var appDataWillBeReplaced: Bool = false

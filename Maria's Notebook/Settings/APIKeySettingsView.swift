@@ -215,7 +215,7 @@ struct APIKeyInformationSheet: View {
             infoCard(color: .blue) {
                 Label("Step 3: Add to App", systemImage: "3.circle.fill")
                     .font(.headline)
-                Text("Paste your API key in the settings above and tap 'Save API Key'.")
+                Text("Paste your API key in the settings above and \(PlatformVerb.tapLowercased) 'Save API Key'.")
                     .font(.body)
             }
         }

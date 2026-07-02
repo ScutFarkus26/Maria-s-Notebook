@@ -172,7 +172,7 @@ struct CommunityMeetingsView: View {
 
                 SectionHeader(title: "Open Topics", systemImage: "exclamationmark.bubble.fill")
                 if open.isEmpty {
-                    emptyState("No open topics. Tap New Topic to add one.")
+                    emptyState("No open topics. \(PlatformVerb.tap) New Topic to add one.")
                 } else {
                     VStack(spacing: 10) {
                         ForEach(open) { t in

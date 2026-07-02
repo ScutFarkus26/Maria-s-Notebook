@@ -229,40 +229,8 @@ struct MariasNotebookApp: App {
         // Legacy .modelContainer removed — using CoreDataStack
         .commands {
             // 1. STANDARD "NEW" ITEMS (File > New)
-            // Consolidates all creation actions into the standard location
-            CommandGroup(replacing: .newItem) {
-                #if os(macOS)
-                Button("New Window") {
-                    NotificationCenter.default.post(name: .openNewWindow, object: nil)
-                }
-                Divider()
-                #endif
-                
-                Button("New Lesson") { appRouter.requestNewLesson() }
-                    .keyboardShortcut("n", modifiers: [.command])
-                
-                Button("New Student") { appRouter.requestNewStudent() }
-                    .keyboardShortcut("n", modifiers: [.command, .shift])
-                
-                Button("New Work…") { appRouter.requestNewWork() }
-                    .keyboardShortcut("n", modifiers: [.command, .option])
-
-                Divider()
-
-                // Quick-capture actions — also reachable via the floating radial
-                // menu and its right-click menu; these give them a keyboard path.
-                Button("New Presentation") { appRouter.triggerNewPresentation = true }
-                    .keyboardShortcut("p", modifiers: [.command, .control])
-
-                Button("Record Practice") { appRouter.triggerRecordPractice = true }
-                    .keyboardShortcut("r", modifiers: [.command, .control])
-
-                Button("New Todo") { appRouter.triggerNewTodo = true }
-                    .keyboardShortcut("t", modifiers: [.command, .control])
-
-                Button("New Note") { appRouter.triggerNewNote = true }
-                    .keyboardShortcut("k", modifiers: [.command, .control])
-            }
+            // Key-window-targeted via @FocusedValue — see AppCommands.swift.
+            FileNewCommands()
 
             // 2. STANDARD "IMPORT/EXPORT" ITEMS (File > Import)
             // Moves Imports, Backups, and Restores here
@@ -287,14 +255,8 @@ struct MariasNotebookApp: App {
             // 3. WINDOW MANAGEMENT & SEARCH
             // NOTE: Close (⌘W) is supplied automatically by SwiftUI for WindowGroup
             // scenes — we no longer hand-roll it via NSApplication.keyWindow.
-            #if os(macOS)
-            CommandGroup(after: .textEditing) {
-                Button("Find…") {
-                    NotificationCenter.default.post(name: .focusSearch, object: nil)
-                }
-                .keyboardShortcut("f", modifiers: .command)
-            }
-            #endif
+            // Find (⌘F) is key-window-targeted via @FocusedValue — see AppCommands.swift.
+            FindCommands()
 
             // VIEW MENU — standard Show/Hide Sidebar (⌃⌘S) for the NavigationSplitView
             SidebarCommands()

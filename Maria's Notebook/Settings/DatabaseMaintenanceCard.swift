@@ -80,7 +80,7 @@ struct DatabaseMaintenanceCard: View {
                 Divider()
                     .padding(.vertical, 4)
 
-                DisclosureGroup("Advanced") {
+                DisclosureGroup {
                     VStack(alignment: .leading, spacing: 12) {
                         #if os(macOS)
                         Toggle("Allow Local Store Fallback", isOn: $allowLocalStoreFallback)
@@ -100,8 +100,12 @@ struct DatabaseMaintenanceCard: View {
                     }
                     .padding(.top, 8)
                     .frame(maxWidth: .infinity, alignment: .leading)
+                } label: {
+                    // Style the disclosure label only — .font on the whole group
+                    // would cascade into the child Toggle/Button labels.
+                    Text("Advanced")
+                        .font(.subheadline.weight(.semibold))
                 }
-                .font(.subheadline.weight(.semibold))
             }
             .frame(maxWidth: .infinity)
         }

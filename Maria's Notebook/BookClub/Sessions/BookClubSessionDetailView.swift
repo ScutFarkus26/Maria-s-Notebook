@@ -143,7 +143,7 @@ struct BookClubSessionDetailView: View {
                 .foregroundStyle(.secondary)
                 .textCase(.uppercase)
             if roster.isEmpty {
-                Text("No students yet — tap Edit to add.")
+                Text("No students yet — \(PlatformVerb.tapLowercased) Edit to add.")
                     .font(.callout)
                     .foregroundStyle(.secondary)
             } else {
