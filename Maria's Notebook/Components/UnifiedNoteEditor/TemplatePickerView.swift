@@ -57,7 +57,7 @@ struct TemplatePickerView: View {
                 }
             }
             .buttonStyle(.plain)
-            .accessibilityHint(isExpanded ? "Double tap to collapse" : "Double tap to expand template options")
+            .accessibilityHint(isExpanded ? "Collapses template options" : "Expands template options")
 
             if isExpanded {
                 // Category filter
@@ -152,7 +152,7 @@ struct TemplatePickerView: View {
                 }
                 .buttonStyle(.plain)
                 .accessibilityLabel(template.title)
-                .accessibilityHint("Double tap to insert: \(template.body)")
+                .accessibilityHint("Inserts: \(template.body)")
             }
         }
     }

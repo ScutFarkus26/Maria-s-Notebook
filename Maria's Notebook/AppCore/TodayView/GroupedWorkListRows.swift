@@ -69,8 +69,8 @@ struct GroupedScheduledWorkListRow: View {
             .accessibilityLabel(accessibilityLabelText)
             .accessibilityHint(
                 isFlexible
-                    ? "Double tap to expand individual students"
-                    : "Double tap to view group check-in"
+                    ? "Expands individual students"
+                    : "Views the group check-in"
             )
 
             // Expanded individual rows (flexible mode only)
@@ -168,8 +168,8 @@ struct GroupedFollowUpWorkListRow: View {
             .accessibilityLabel(accessibilityLabelText)
             .accessibilityHint(
                 isFlexible
-                    ? "Double tap to expand individual students"
-                    : "Double tap to view group follow-up"
+                    ? "Expands individual students"
+                    : "Views the group follow-up"
             )
 
             if isFlexible && isExpanded {

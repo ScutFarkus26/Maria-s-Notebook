@@ -74,7 +74,7 @@ extension UnifiedNoteEditor {
         }
         .buttonStyle(.plain)
         .accessibilityLabel(studentName)
-        .accessibilityHint(isSelected ? "Double tap to deselect" : "Double tap to select")
+        .accessibilityHint(isSelected ? "Deselects this student" : "Selects this student")
         .accessibilityAddTraits(isSelected ? .isSelected : [])
     }
 
@@ -124,7 +124,7 @@ extension UnifiedNoteEditor {
         }
         .buttonStyle(.plain)
         .accessibilityLabel("Add student")
-        .accessibilityHint("Double tap to open student picker")
+        .accessibilityHint("Opens the student picker")
         .popover(isPresented: $showingStudentPicker, arrowEdge: .top) {
             studentPickerPopover
         }

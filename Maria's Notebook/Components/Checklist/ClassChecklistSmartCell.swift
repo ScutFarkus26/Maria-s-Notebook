@@ -28,7 +28,7 @@ struct ClassChecklistSmartCell: View {
             .accessibilityElement(children: .ignore)
             .accessibilityLabel("\(studentName), \(lessonName)")
             .accessibilityValue(accessibilityValueText)
-            .accessibilityHint(isSelectionMode ? "Double tap to select" : "Double tap to see options")
+            .accessibilityHint(isSelectionMode ? "Adds to the selection" : "Shows options")
     }
 
     // MARK: - Cell Content

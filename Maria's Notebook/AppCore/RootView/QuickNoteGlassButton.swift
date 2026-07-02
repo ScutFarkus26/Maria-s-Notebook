@@ -72,16 +72,10 @@ struct QuickNoteGlassButton: View {
         .help("Quick command — right-click for create actions")
         #endif
         .accessibilityLabel("Quick command")
-        #if os(macOS)
-        // Per hint guidelines: describe the result only; the accessibilityActions
-        // below are announced by VoiceOver's actions rotor on their own.
-        .accessibilityHint("Opens the command bar.")
-        #else
-        .accessibilityHint(
-            "Double tap to open command bar, hold for presentation,"
-            + " work, practice, todo, and note actions, or drag to reposition"
-        )
-        #endif
+        // Per hint guidelines: describe the result only — no gestures. VoiceOver
+        // announces its own activation instructions, and the accessibilityActions
+        // below surface the five create actions via the actions rotor.
+        .accessibilityHint("Opens the command bar")
         .accessibilityAddTraits(.isButton)
         // Expose every action to VoiceOver (the drag-to-wedge gesture is unreachable
         // by assistive tech); these appear in the VoiceOver actions rotor.

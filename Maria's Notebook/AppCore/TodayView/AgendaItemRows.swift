@@ -147,7 +147,7 @@ struct TodoTodayRow: View {
         }
         .sensoryFeedback(.success, trigger: todo.isCompleted)
         .accessibilityLabel(accessibilityLabelText)
-        .accessibilityHint("Double tap to view details, swipe right to complete")
+        .accessibilityHint("Views details")
     }
 }
 

@@ -317,7 +317,7 @@ struct AttendanceCard: View {
         .accessibilityElement(children: .combine)
         .accessibilityLabel("\(student.fullName), \(statusLabel)")
         .accessibilityValue(hasNote ? "Has note" : "No note")
-        .accessibilityHint(isEditing ? "Double tap to change attendance status" : "")
+        .accessibilityHint(isEditing ? "Changes the attendance status" : "")
         .sheet(isPresented: $showingNoteEditor) {
             if let record {
                 UnifiedNoteEditor(

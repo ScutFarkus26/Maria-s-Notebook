@@ -91,7 +91,7 @@ struct ReminderListRow: View {
         .buttonStyle(.subtleRow)
         .sensoryFeedback(.success, trigger: reminder.isCompleted)
         .accessibilityLabel(accessibilityLabelText)
-        .accessibilityHint(reminder.isCompleted ? "Double tap to mark as incomplete" : "Double tap to mark as complete")
+        .accessibilityHint(reminder.isCompleted ? "Marks as incomplete" : "Marks as complete")
         .accessibilityAddTraits(reminder.isCompleted ? .isSelected : [])
     }
 }
@@ -150,7 +150,7 @@ struct LessonListRow: View {
         }
         .accessibilityElement(children: .combine)
         .accessibilityLabel(accessibilityLabelText)
-        .accessibilityHint("Double tap to view lesson details")
+        .accessibilityHint("Views lesson details")
     }
 }
 
@@ -196,7 +196,7 @@ struct ScheduledWorkListRow: View {
         }
         .buttonStyle(.subtleRow)
         .accessibilityLabel(accessibilityLabelText)
-        .accessibilityHint("Double tap to view work details")
+        .accessibilityHint("Views work details")
     }
 }
 
@@ -229,7 +229,7 @@ struct FollowUpWorkListRow: View {
         }
         .buttonStyle(.subtleRow)
         .accessibilityLabel(accessibilityLabelText)
-        .accessibilityHint("Double tap to view work details and add follow-up")
+        .accessibilityHint("Views work details for adding a follow-up")
     }
 }
 
@@ -270,7 +270,7 @@ struct CompletionListRow: View {
         }
         .accessibilityElement(children: .combine)
         .accessibilityLabel(accessibilityLabelText)
-        .accessibilityHint("Double tap to view completion details")
+        .accessibilityHint("Views completion details")
     }
 }
 
@@ -308,12 +308,12 @@ struct ScheduledMeetingListRow: View {
             }
             .buttonStyle(.subtleRow)
             .accessibilityLabel("Meeting with \(studentName)")
-            .accessibilityHint("Double tap to start meeting")
+            .accessibilityHint("Starts the meeting")
         } else {
             rowContent
                 .accessibilityElement(children: .combine)
                 .accessibilityLabel("Meeting with \(studentName)")
-                .accessibilityHint("Drag to reorder or double tap to start meeting")
+                .accessibilityHint("Starts the meeting. Can be reordered")
         }
     }
 }
