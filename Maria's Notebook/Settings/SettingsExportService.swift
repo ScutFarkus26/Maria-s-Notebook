@@ -29,47 +29,67 @@ enum SettingsExportService {
         let storeKey: String
         let store: Store
         let type: ValueType
+        /// The value the app behaves with when the key was never customized.
+        /// Exported in place of a missing key so importing a profile reproduces
+        /// the exporting device's effective configuration — the stores' scalar
+        /// getters would otherwise silently turn "never set" into 0/false.
+        let defaultValue: Any
     }
 
     // Each setting is declared once — used for both export and import.
     private static let descriptors: [Descriptor] = [
         // General — Age Indicators (CDLesson)
-        .init(jsonKey: "lessonAgeWarningDays", storeKey: "LessonAge.warningDays", store: .synced, type: .int),
-        .init(jsonKey: "lessonAgeOverdueDays", storeKey: "LessonAge.overdueDays", store: .synced, type: .int),
-        .init(jsonKey: "lessonAgeFreshColorHex", storeKey: "LessonAge.freshColorHex", store: .synced, type: .string),
+        .init(jsonKey: "lessonAgeWarningDays", storeKey: "LessonAge.warningDays", store: .synced, type: .int,
+              defaultValue: LessonAgeDefaults.warningDays),
+        .init(jsonKey: "lessonAgeOverdueDays", storeKey: "LessonAge.overdueDays", store: .synced, type: .int,
+              defaultValue: LessonAgeDefaults.overdueDays),
+        .init(jsonKey: "lessonAgeFreshColorHex", storeKey: "LessonAge.freshColorHex", store: .synced, type: .string,
+              defaultValue: LessonAgeDefaults.freshColorHex),
         .init(jsonKey: "lessonAgeWarningColorHex", storeKey: "LessonAge.warningColorHex",
-              store: .synced, type: .string),
+              store: .synced, type: .string, defaultValue: LessonAgeDefaults.warningColorHex),
         .init(jsonKey: "lessonAgeOverdueColorHex", storeKey: "LessonAge.overdueColorHex",
-              store: .synced, type: .string),
+              store: .synced, type: .string, defaultValue: LessonAgeDefaults.overdueColorHex),
         // General — Age Indicators (Work)
-        .init(jsonKey: "workAgeWarningDays", storeKey: "WorkAge.warningDays", store: .synced, type: .int),
-        .init(jsonKey: "workAgeOverdueDays", storeKey: "WorkAge.overdueDays", store: .synced, type: .int),
-        .init(jsonKey: "workAgeFreshColorHex", storeKey: "WorkAge.freshColorHex", store: .synced, type: .string),
-        .init(jsonKey: "workAgeWarningColorHex", storeKey: "WorkAge.warningColorHex", store: .synced, type: .string),
-        .init(jsonKey: "workAgeOverdueColorHex", storeKey: "WorkAge.overdueColorHex", store: .synced, type: .string),
+        .init(jsonKey: "workAgeWarningDays", storeKey: "WorkAge.warningDays", store: .synced, type: .int,
+              defaultValue: WorkAgeDefaults.warningDays),
+        .init(jsonKey: "workAgeOverdueDays", storeKey: "WorkAge.overdueDays", store: .synced, type: .int,
+              defaultValue: WorkAgeDefaults.overdueDays),
+        .init(jsonKey: "workAgeFreshColorHex", storeKey: "WorkAge.freshColorHex", store: .synced, type: .string,
+              defaultValue: WorkAgeDefaults.freshColorHex),
+        .init(jsonKey: "workAgeWarningColorHex", storeKey: "WorkAge.warningColorHex", store: .synced, type: .string,
+              defaultValue: WorkAgeDefaults.warningColorHex),
+        .init(jsonKey: "workAgeOverdueColorHex", storeKey: "WorkAge.overdueColorHex", store: .synced, type: .string,
+              defaultValue: WorkAgeDefaults.overdueColorHex),
         // AI Models (no API keys!)
-        .init(jsonKey: "aiModelChat", storeKey: UserDefaultsKeys.aiModelChat, store: .userDefaults, type: .string),
+        .init(jsonKey: "aiModelChat", storeKey: UserDefaultsKeys.aiModelChat, store: .userDefaults, type: .string,
+              defaultValue: AIFeatureArea.chat.defaultModel.rawValue),
         .init(jsonKey: "aiModelLessonPlanning", storeKey: UserDefaultsKeys.aiModelLessonPlanning,
-              store: .userDefaults, type: .string),
+              store: .userDefaults, type: .string,
+              defaultValue: AIFeatureArea.lessonPlanning.defaultModel.rawValue),
         .init(jsonKey: "aiModelBackgroundTasks", storeKey: UserDefaultsKeys.aiModelBackgroundTasks,
-              store: .userDefaults, type: .string),
-        // CDLesson Planning
+              store: .userDefaults, type: .string,
+              defaultValue: AIFeatureArea.backgroundTasks.defaultModel.rawValue),
+        // CDLesson Planning — defaults mirror LessonPlanningSettingsView's @AppStorage values
         .init(jsonKey: "lessonPlanningTimeout", storeKey: UserDefaultsKeys.lessonPlanningTimeout,
-              store: .userDefaults, type: .int),
+              store: .userDefaults, type: .int, defaultValue: 120),
         .init(jsonKey: "lessonPlanningDefaultDepth", storeKey: UserDefaultsKeys.lessonPlanningDefaultDepth,
-              store: .userDefaults, type: .string),
+              store: .userDefaults, type: .string, defaultValue: "standard"),
         .init(jsonKey: "lessonPlanningTemperature", storeKey: UserDefaultsKeys.lessonPlanningTemperature,
-              store: .userDefaults, type: .double),
-        // Backup
+              store: .userDefaults, type: .double, defaultValue: 0.3),
+        // Backup — defaults mirror AutoBackupManager's @AppStorage values
         .init(jsonKey: "autoBackupEnabled", storeKey: UserDefaultsKeys.autoBackupEnabled,
-              store: .userDefaults, type: .bool),
+              store: .userDefaults, type: .bool, defaultValue: true),
         .init(jsonKey: "autoBackupRetentionCount", storeKey: UserDefaultsKeys.autoBackupRetentionCount,
-              store: .userDefaults, type: .int),
-        .init(jsonKey: "backupEncrypt", storeKey: "Backup.encrypt", store: .synced, type: .bool),
-        // Communication
-        .init(jsonKey: "attendanceEmailEnabled", storeKey: "AttendanceEmail.enabled", store: .synced, type: .bool),
-        .init(jsonKey: "attendanceEmailTo", storeKey: "AttendanceEmail.to", store: .synced, type: .string),
-        .init(jsonKey: "attendanceEmailFrom", storeKey: "AttendanceEmail.from", store: .synced, type: .string)
+              store: .userDefaults, type: .int, defaultValue: 10),
+        .init(jsonKey: "backupEncrypt", storeKey: "Backup.encrypt", store: .synced, type: .bool,
+              defaultValue: false),
+        // Communication — defaults mirror AttendanceEmail's @SyncedAppStorage values
+        .init(jsonKey: "attendanceEmailEnabled", storeKey: "AttendanceEmail.enabled", store: .synced, type: .bool,
+              defaultValue: true),
+        .init(jsonKey: "attendanceEmailTo", storeKey: "AttendanceEmail.to", store: .synced, type: .string,
+              defaultValue: ""),
+        .init(jsonKey: "attendanceEmailFrom", storeKey: "AttendanceEmail.from", store: .synced, type: .string,
+              defaultValue: "")
     ]
 
     // MARK: - Export
@@ -114,18 +134,22 @@ enum SettingsExportService {
 
     // MARK: - Read/Write Helpers
 
+    /// Reads the effective value for a setting: the raw stored object when the
+    /// user customized it, otherwise the app default. Only object-level reads
+    /// can distinguish "never set" (nil) from an explicit 0/false, per
+    /// `UserDefaults.object(forKey:)` semantics.
     private static func readValue(
         _ desc: Descriptor, syncStore: SyncedPreferencesStore, userDefaults ud: UserDefaults
     ) -> Any {
-        switch (desc.store, desc.type) {
-        case (.synced, .int):         return syncStore.integer(forKey: desc.storeKey)
-        case (.synced, .string):      return syncStore.string(forKey: desc.storeKey) as Any
-        case (.synced, .double):      return syncStore.double(forKey: desc.storeKey)
-        case (.synced, .bool):        return syncStore.bool(forKey: desc.storeKey)
-        case (.userDefaults, .int):    return ud.integer(forKey: desc.storeKey)
-        case (.userDefaults, .string): return ud.string(forKey: desc.storeKey) as Any
-        case (.userDefaults, .double): return ud.double(forKey: desc.storeKey)
-        case (.userDefaults, .bool):   return ud.bool(forKey: desc.storeKey)
+        let stored: Any? = switch desc.store {
+        case .synced: syncStore.get(key: desc.storeKey)
+        case .userDefaults: ud.object(forKey: desc.storeKey)
+        }
+        switch desc.type {
+        case .int:    return (stored as? Int) ?? desc.defaultValue
+        case .string: return (stored as? String) ?? desc.defaultValue
+        case .double: return (stored as? Double) ?? desc.defaultValue
+        case .bool:   return (stored as? Bool) ?? desc.defaultValue
         }
     }
 
