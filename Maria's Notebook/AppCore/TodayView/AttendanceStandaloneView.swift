@@ -19,6 +19,10 @@ struct AttendanceStandaloneView: View {
     // MARK: - State
     @State private var date: Date = AppCalendar.startOfDay(Date())
     @State private var schoolDayCache = SchoolDayCache()
+    /// The school-day-coerced date that currently represents "today". When the
+    /// calendar day changes we only auto-advance `date` if it still equals this
+    /// anchor — a deliberately chosen date is kept.
+    @State private var todayAnchor: Date?
     @State private var toastMessage: String?
     @State private var showingTardyReport = false
     @State private var showingAbsenceReport = false
@@ -38,6 +42,13 @@ struct AttendanceStandaloneView: View {
             if coerced != date {
                 date = AppCalendar.startOfDay(coerced)
             }
+            if todayAnchor == nil {
+                todayAnchor = AppCalendar.startOfDay(coerced)
+            }
+            handleDayChange()
+        }
+        .onCalendarDayChange {
+            handleDayChange()
         }
         .onChange(of: calendar) { _, newCal in
             AppCalendar.adopt(timeZoneFrom: newCal)
@@ -136,6 +147,20 @@ struct AttendanceStandaloneView: View {
                 .transition(.move(edge: .top).combined(with: .opacity))
                 .padding(.top, 8)
         }
+    }
+
+    // MARK: - Day Rollover
+
+    /// Rolls `date` forward when the calendar day changes so "Mark All Present"
+    /// never overwrites a previous day's records after an overnight suspension.
+    /// Idempotent — called at midnight, on scene activation, and on appear.
+    private func handleDayChange() {
+        let newAnchor = AppCalendar.startOfDay(nearestSchoolDaySync(to: Date()))
+        guard newAnchor != todayAnchor else { return }
+        if todayAnchor == nil || date == todayAnchor {
+            date = newAnchor
+        }
+        todayAnchor = newAnchor
     }
 
     // MARK: - School Day Navigation

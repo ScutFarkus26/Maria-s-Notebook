@@ -87,6 +87,12 @@ struct TodayView: View {
     // MARK: - School Day Cache
     @State var schoolDayCache = SchoolDayCache()
 
+    // MARK: - Day Rollover
+    /// The school-day-coerced date that currently represents "today".
+    /// When the calendar day changes we only auto-advance `viewModel.date`
+    /// if it still equals this anchor — a deliberately chosen date is kept.
+    @State private var todayAnchor: Date?
+
     // MARK: - Computed Properties
     private var presentationIDs: [UUID] { filteredPresentationIDs }
     private var planItemIDs: [UUID] { filteredPlanItemIDs }
@@ -124,6 +130,9 @@ struct TodayView: View {
             }
             .onChange(of: scenePhase) { _, newPhase in
                 handleScenePhaseChange(newPhase)
+            }
+            .onCalendarDayChange {
+                handleDayChange()
             }
             .modifier(TodayViewSheets(
                 selectedWorkID: $selectedWorkID,
@@ -361,6 +370,10 @@ struct TodayView: View {
         if coerced != viewModel.date {
             viewModel.date = AppCalendar.startOfDay(coerced)
         }
+        if todayAnchor == nil {
+            todayAnchor = AppCalendar.startOfDay(coerced)
+        }
+        handleDayChange()
         updateFilteredQueries()
         reloadDerivedCounts()
         // Await both syncs — cancellation propagates automatically when view disappears
@@ -404,6 +417,19 @@ struct TodayView: View {
         @unknown default:
             break
         }
+    }
+
+    /// Rolls `viewModel.date` forward when the calendar day changes so agenda
+    /// and attendance actions (e.g. "Mark All Present") never target a stale
+    /// "today" after an overnight suspension. Idempotent — called at midnight,
+    /// on scene activation, and on appear.
+    private func handleDayChange() {
+        let newAnchor = AppCalendar.startOfDay(nearestSchoolDaySync(to: Date()))
+        guard newAnchor != todayAnchor else { return }
+        if todayAnchor == nil || viewModel.date == todayAnchor {
+            viewModel.date = newAnchor
+        }
+        todayAnchor = newAnchor
     }
 
     private func handleDateChange(_ newValue: Date) {
