@@ -4,7 +4,9 @@
 //
 //  Records that a lesson was presented to a student — by voice or from
 //  Shortcuts, without opening the app. Reuses an existing draft/scheduled
-//  presentation for that lesson+student when one exists; otherwise creates a
+//  presentation for that lesson+student when one exists — splitting the
+//  student out via PresentationSplitService when the assignment covers a
+//  group, so classmates aren't marked presented too. Otherwise creates a
 //  new one. Marking uses CDLessonAssignment.markPresented (the canonical path).
 //
 
@@ -37,7 +39,7 @@ struct MarkLessonPresentedIntent: AppIntent {
         let lessonRequest = CDFetchRequest(CDLesson.self)
         lessonRequest.predicate = NSPredicate(format: "id == %@", lesson.id as CVarArg)
         lessonRequest.fetchLimit = 1
-        guard let cdLesson = context.safeFetchFirst(lessonRequest), let lessonID = cdLesson.id else {
+        guard let cdLesson = context.safeFetchFirst(lessonRequest), cdLesson.id != nil else {
             throw MarkLessonPresentedError.lessonNotFound(lesson.name)
         }
 
@@ -52,12 +54,30 @@ struct MarkLessonPresentedIntent: AppIntent {
         let existing = cdLesson.lessonAssignments.first {
             !$0.isPresented && $0.studentIDs.contains(studentID.uuidString)
         }
-        let assignment = existing ?? {
-            let new = CDLessonAssignment(context: context)
-            new.lessonIDUUID = lessonID
-            new.studentIDs = [studentID.uuidString]
-            return new
-        }()
+
+        let assignment: CDLessonAssignment
+        if let existing {
+            // A group assignment must be split first (same path as the UI) so
+            // only this student is recorded as presented; the classmates keep
+            // their original, unpresented assignment.
+            if existing.studentIDs.count > 1,
+               let split = PresentationSplitService.splitReadyStudents(
+                   from: existing,
+                   readyStudentIDs: [studentID],
+                   asDraft: true,
+                   context: context
+               ) {
+                assignment = split
+            } else {
+                assignment = existing
+            }
+        } else {
+            assignment = PresentationFactory.makeDraft(
+                lesson: cdLesson,
+                students: [cdStudent],
+                context: context
+            )
+        }
         assignment.markPresented()
 
         guard context.safeSave() else { throw MarkLessonPresentedError.saveFailed }
