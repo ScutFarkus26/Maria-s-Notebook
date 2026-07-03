@@ -76,6 +76,7 @@ struct AttendanceExpandedView: View {
         AttendanceGrid(
             students: filteredStudents,
             recordsByStudentID: viewModel.recordsByStudentID,
+            isEditing: isEditing,
             onCycleStatus: { student in
                 viewModel.cycleStatus(for: student, modelContext: viewContext)
                 saveCoordinator.save(viewContext, reason: "Update status")

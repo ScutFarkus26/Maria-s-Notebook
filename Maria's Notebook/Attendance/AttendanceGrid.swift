@@ -4,6 +4,8 @@ import CoreData
 struct AttendanceGrid: View {
     let students: [CDStudent]
     let recordsByStudentID: [String: CDAttendanceRecord]
+    /// When false (e.g. the day is locked), cards render read-only and taps no longer cycle status.
+    let isEditing: Bool
     let onCycleStatus: (CDStudent) -> Void
     let onUpdateNote: (CDStudent, String?) -> Void
     let onUpdateAbsenceReason: (CDStudent, AbsenceReason) -> Void
@@ -50,7 +52,7 @@ struct AttendanceGrid: View {
                 AttendanceCard(
                     student: student,
                     record: recordsByStudentID[student.cloudKitKey],
-                    isEditing: true,
+                    isEditing: isEditing,
                     duplicateFirstNames: duplicates,
                     onTap: {
                         onCycleStatus(student)
@@ -105,7 +107,7 @@ struct AttendanceGrid: View {
                             AttendanceCard(
                                 student: student,
                                 record: recordsByStudentID[student.cloudKitKey],
-                                isEditing: true,
+                                isEditing: isEditing,
                                 duplicateFirstNames: duplicates,
                                 onTap: {
                                     onCycleStatus(student)
@@ -130,7 +132,7 @@ struct AttendanceGrid: View {
                             AttendanceCard(
                                 student: student,
                                 record: recordsByStudentID[student.cloudKitKey],
-                                isEditing: true,
+                                isEditing: isEditing,
                                 duplicateFirstNames: duplicates,
                                 onTap: {
                                     onCycleStatus(student)

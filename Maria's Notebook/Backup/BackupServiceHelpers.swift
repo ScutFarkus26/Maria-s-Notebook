@@ -87,6 +87,7 @@ enum BackupServiceHelpers {
                 logger.warning("Failed to encode note scope: \(error.localizedDescription, privacy: .public)")
                 scopeString = "{}"
             }
+            let tagsArray = (n.tags as? [String]) ?? []
             return NoteDTO(
                 id: nID,
                 createdAt: n.createdAt ?? Date(),
@@ -94,6 +95,8 @@ enum BackupServiceHelpers {
                 body: n.body,
                 isPinned: n.isPinned,
                 scope: scopeString,
+                tags: tagsArray.isEmpty ? nil : tagsArray,
+                needsFollowUp: n.needsFollowUp ? true : nil,
                 lessonID: n.lesson?.id,
                 workID: n.work?.id,
                 imagePath: n.imagePath,
