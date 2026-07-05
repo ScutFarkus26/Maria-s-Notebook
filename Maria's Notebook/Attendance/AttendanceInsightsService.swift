@@ -142,6 +142,7 @@ enum AttendanceInsightsService {
     }
 
     /// Single-range fetch helper used across all aggregations.
+    /// Collapses CloudKit duplicates so counts match what the grid displays.
     static func fetchRecords(
         in range: ClosedRange<Date>,
         context: NSManagedObjectContext,
@@ -152,7 +153,7 @@ enum AttendanceInsightsService {
         let request = NSFetchRequest<CDAttendanceRecord>(entityName: "AttendanceRecord")
         request.predicate = NSPredicate(format: "date >= %@ AND date <= %@", start as NSDate, end as NSDate)
         do {
-            return try context.fetch(request)
+            return try context.fetch(request).deduplicatedPerStudentDay()
         } catch {
             let label = fetchLabel
             let message = error.localizedDescription
@@ -322,6 +323,36 @@ extension AttendanceInsightsService {
             }
         }
         return absent + tardy + leftEarly
+    }
+}
+
+// MARK: - CloudKit Duplicate Handling
+
+extension Array where Element == CDAttendanceRecord {
+    /// Collapses CloudKit duplicates to one record per (student, day). Two devices
+    /// opening the same day each create their own records; the grid only ever shows
+    /// one status per student per day, so reports must count the same way.
+    /// The winner is deterministic — a marked record beats an unmarked one, then the
+    /// lowest record id wins — so every device converges on the same record.
+    func deduplicatedPerStudentDay() -> [CDAttendanceRecord] {
+        var winners: [String: CDAttendanceRecord] = [:]
+        for record in self {
+            guard let date = record.date else { continue }
+            let key = record.studentID + "|" + AppCalendar.dayID(date)
+            if let incumbent = winners[key] {
+                if Self.wins(record, over: incumbent) { winners[key] = record }
+            } else {
+                winners[key] = record
+            }
+        }
+        return Array(winners.values)
+    }
+
+    private static func wins(_ candidate: CDAttendanceRecord, over incumbent: CDAttendanceRecord) -> Bool {
+        let candidateMarked = candidate.status != .unmarked
+        let incumbentMarked = incumbent.status != .unmarked
+        if candidateMarked != incumbentMarked { return candidateMarked }
+        return (candidate.id?.uuidString ?? "") < (incumbent.id?.uuidString ?? "")
     }
 }
 

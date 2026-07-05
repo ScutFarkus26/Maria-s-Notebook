@@ -28,6 +28,7 @@ struct AttendanceTardyReport: View {
         let fetchRequest = NSFetchRequest<CDAttendanceRecord>(entityName: "AttendanceRecord")
         fetchRequest.predicate = NSPredicate(format: "date >= %@ AND date <= %@", start as NSDate, end as NSDate)
         let records = safeFetch(fetchRequest, context: "AttendanceTardyReport.rows")
+            .deduplicatedPerStudentDay()
 
         // Count tardies per studentID
         var countsByID: [String: Int] = [:]
