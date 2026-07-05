@@ -250,7 +250,7 @@ enum StudentCSVImporter {
                 let key = duplicateKey(first: r.firstName, last: r.lastName, birthday: r.birthday)
                 if let existing = byFullKey[key] {
                     var didChange = false
-                    if let b = r.birthday, existing.birthday != b {
+                    if let b = r.birthday, !existing.birthday.isSameCalendarDay(as: b) {
                         existing.birthday = b; didChange = true
                     }
                     if existing.dateStarted == nil, let ds = r.dateStarted {
@@ -266,7 +266,7 @@ enum StudentCSVImporter {
                 let nameKey = "\(r.firstName) \(r.lastName)".normalizedNameKey()
                 if let existing = byNameKey[nameKey] {
                     var didChange = false
-                    if let b = r.birthday, existing.birthday != b {
+                    if let b = r.birthday, !existing.birthday.isSameCalendarDay(as: b) {
                         existing.birthday = b; didChange = true
                     }
                     if existing.dateStarted == nil, let ds = r.dateStarted {
@@ -333,5 +333,17 @@ enum StudentCSVImporter {
         default:
             return nil
         }
+    }
+}
+
+// MARK: - Import Date Comparison
+
+private extension Optional where Wrapped == Date {
+    /// Day-level equality for imported dates: a stored birthday may carry a
+    /// time-of-day, while CSV parses land at local midnight. Comparing exact
+    /// instants would flag every re-import as a change.
+    func isSameCalendarDay(as other: Date) -> Bool {
+        guard let self else { return false }
+        return AppCalendar.isSameDay(self, other)
     }
 }

@@ -152,6 +152,16 @@ public enum DateParser {
         return dict
     }()
 
+    /// The only format that carries an explicit time and zone — parsed as an
+    /// absolute instant. Every other format is a calendar date.
+    private static let dateTimeFormat = "yyyy-MM-dd'T'HH:mm:ssZ"
+
+    private static let gmtCalendar: Calendar = {
+        var cal = Calendar(identifier: .gregorian)
+        cal.timeZone = .gmt
+        return cal
+    }()
+
     public static func parse(_ value: String) -> Date? {
         let trimmed = value.trimmed()
         if trimmed.isEmpty { return nil }
@@ -161,9 +171,18 @@ public enum DateParser {
         }
         for fmt in formats {
             if let df = cachedFormatters[fmt], let date = df.date(from: trimmed) {
-                return date
+                return fmt == dateTimeFormat ? date : rebasedToLocalMidnight(date)
             }
         }
         return nil
+    }
+
+    /// Date-only strings parse at GMT midnight (the cached formatters are pinned to
+    /// GMT for stability), which displays as the previous day in western time zones
+    /// and never compares equal to locally-entered dates. Rebase the calendar day to
+    /// local midnight so the value stores, displays, and dedupes as the day the CSV named.
+    private static func rebasedToLocalMidnight(_ gmtMidnight: Date) -> Date {
+        let comps = gmtCalendar.dateComponents([.year, .month, .day], from: gmtMidnight)
+        return AppCalendar.shared.date(from: comps) ?? gmtMidnight
     }
 }
