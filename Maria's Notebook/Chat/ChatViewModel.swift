@@ -139,6 +139,13 @@ final class ChatViewModel {
         streamingContent = ""
         pendingEscalation = nil
 
+        // Show the user's message immediately. The service appends it to its own
+        // copy of the session, which replaces this optimistic one on success.
+        let preSendSession = currentSession
+        var optimisticSession = currentSession
+        optimisticSession.messages.append(ChatMessage(role: .user, content: text))
+        session = optimisticSession
+
         Task { [self] in
             do {
                 let fullResponse = try await service.sendMessageStreaming(
@@ -158,34 +165,45 @@ final class ChatViewModel {
                 self.streamingContent = nil
 
                 // Smart escalation: validate local response quality and offer cloud upgrade
-                if resolvedModel == .localFirstAuto && AnthropicAPIClient.hasAPIKey() {
-                    let validation = ResponseQualityValidator.validate(fullResponse, forRequest: text)
-                    if !validation.isAdequate {
-                        let reason = validation.reason ?? "unknown"
-                        Self.logger.info("Local response inadequate (\(reason)), offering cloud escalation")
-                        self.pendingEscalation = PendingEscalation(
-                            originalQuestion: text,
-                            localResponse: fullResponse
-                        )
-                        // Append an escalation prompt message to the session
-                        let escalationMessage = ChatMessage(
-                            role: .assistant,
-                            content: "This answer might be improved with Claude. Want me to try?",
-                            isEscalationPrompt: true
-                        )
-                        self.session?.messages.append(escalationMessage)
-                    }
-                }
+                self.offerEscalationIfNeeded(resolvedModel: resolvedModel, question: text, response: fullResponse)
 
                 // Persist after each message exchange
                 currentSession.save()
             } catch {
                 Self.logger.warning("Chat send failed: \(error)")
+                // Roll back the optimistic message and put the text back in the
+                // input field so the message isn't lost.
+                self.session = preSendSession
+                if self.inputText.isEmpty {
+                    self.inputText = text
+                }
                 self.errorMessage = AppErrorMessages.aiMessage(for: error)
                 self.streamingContent = nil
             }
             self.isLoading = false
         }
+    }
+
+    /// When the local model's answer looks inadequate, records a pending escalation
+    /// and appends the "try Claude?" prompt to the transcript.
+    private func offerEscalationIfNeeded(resolvedModel: AIModelOption, question: String, response: String) {
+        guard resolvedModel == .localFirstAuto && AnthropicAPIClient.hasAPIKey() else { return }
+        let validation = ResponseQualityValidator.validate(response, forRequest: question)
+        guard !validation.isAdequate else { return }
+
+        let reason = validation.reason ?? "unknown"
+        Self.logger.info("Local response inadequate (\(reason)), offering cloud escalation")
+        pendingEscalation = PendingEscalation(
+            originalQuestion: question,
+            localResponse: response
+        )
+        // Append an escalation prompt message to the session
+        let escalationMessage = ChatMessage(
+            role: .assistant,
+            content: "This answer might be improved with Claude. Want me to try?",
+            isEscalationPrompt: true
+        )
+        session?.messages.append(escalationMessage)
     }
 
     /// Accepts the cloud escalation offer. Uses local model to optimize the prompt,
