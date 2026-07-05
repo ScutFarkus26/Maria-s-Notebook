@@ -108,6 +108,13 @@ struct CommunityMeetingsView: View {
         }
     }
 
+    /// Markdown export of all currently-filtered resolved topics, for the ShareLink.
+    private var resolvedTopicsMarkdown: String {
+        filteredResolvedTopics
+            .map { MarkdownExporter.markdown(for: $0) }
+            .joined(separator: "\n\n---\n\n")
+    }
+
     var body: some View {
         // FIX: Removed NavigationStack wrapper because this view is already presented 
         // inside a NavigationSplitView (iPad) or More Menu NavigationStack (iPhone).
@@ -120,11 +127,8 @@ struct CommunityMeetingsView: View {
         .toolbar {
             ToolbarItem(placement: .automatic) {
                 Menu {
-                    Button("Export Resolved (Markdown)", systemImage: "doc.plaintext") {
-                        let topicsToExport = self.filteredResolvedTopics
-                        let exported: [String] = topicsToExport.map { MarkdownExporter.markdown(for: $0) }
-                        let md: String = exported.joined(separator: "\n\n---\n\n")
-                        MarkdownExporter.presentShare(md)
+                    ShareLink(item: resolvedTopicsMarkdown) {
+                        Label("Export Resolved (Markdown)", systemImage: "doc.plaintext")
                     }
                 } label: { Image(systemName: "square.and.arrow.up") }
             }
