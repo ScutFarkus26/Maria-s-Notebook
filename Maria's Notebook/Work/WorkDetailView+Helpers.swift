@@ -262,7 +262,9 @@ extension WorkDetailView {
             la.studentUUIDs.contains(studentID)
         }
 
-        if existingLAs.contains(where: { $0.manuallyUnblocked }) {
+        // Nothing to unlock if the next lesson is already unlocked, already on the
+        // schedule, or already presented for this student.
+        if existingLAs.contains(where: { $0.manuallyUnblocked || $0.scheduledFor != nil || $0.presentedAt != nil }) {
             return
         }
 

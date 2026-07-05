@@ -57,14 +57,19 @@ struct UnlockNextLessonService {
         guard let nextLessonID = nextLesson.id else { return .noNextLesson }
         let nextLessonIDString = nextLessonID.uuidString
 
-        // Check if a CDLessonAssignment already exists for this lesson + students combo
-        // Look for unscheduled, ungiven lessons (in the inbox)
-        let existingAssignment = cdAssignments.first { la in
+        // Reuse any assignment for this lesson that already covers all of these
+        // students and hasn't been presented — an exact inbox draft, a group draft,
+        // or a scheduled presentation. Creating a fresh draft alongside any of those
+        // would duplicate the presentation. Prefer the exact unscheduled match so a
+        // solo unlock keeps its own inbox draft when both exist.
+        let coveringAssignments = cdAssignments.filter { la in
             la.lessonID == nextLessonIDString &&
-            Set(la.studentUUIDs) == studentIDs &&
             la.presentedAt == nil &&
-            la.scheduledFor == nil
+            studentIDs.isSubset(of: Set(la.studentUUIDs))
         }
+        let existingAssignment = coveringAssignments.first { la in
+            Set(la.studentUUIDs) == studentIDs && la.scheduledFor == nil
+        } ?? coveringAssignments.first
 
         if let existing = existingAssignment {
             if existing.manuallyUnblocked {

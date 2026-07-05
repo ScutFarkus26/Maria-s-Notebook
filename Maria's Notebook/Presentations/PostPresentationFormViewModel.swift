@@ -236,12 +236,19 @@ final class PostPresentationFormViewModel {
     ) {
         guard let nextLesson else { return }
 
+        // `existingNextAssignment` is a load-time snapshot. The unlock step in the
+        // Done handler may have just created a draft for these students, so re-resolve
+        // against the context (which sees pending inserts) before deciding whether to
+        // update or create — otherwise Schedule/Inbox creates a second assignment.
+        let resolvedExisting = existingNextAssignment
+            ?? Self.fetchExistingAssignment(for: nextLesson, studentIDs: studentIDs, in: viewContext)
+
         switch nextLessonAction {
         case .hold:
             // Ensure a draft assignment exists so the blocking algorithm can detect it.
             // Opt out of Year Plan auto-promote: Hold means the user wants to block the
             // sequence with a draft, not schedule per the Year Plan.
-            if existingNextAssignment == nil {
+            if resolvedExisting == nil {
                 PlanNextLessonService.planLesson(
                     nextLesson,
                     forStudents: studentIDs,
@@ -254,7 +261,7 @@ final class PostPresentationFormViewModel {
             }
 
         case .inbox:
-            if let existing = existingNextAssignment {
+            if let existing = resolvedExisting {
                 // Update existing to draft/inbox state
                 existing.state = .draft
                 existing.scheduledFor = nil
@@ -273,34 +280,66 @@ final class PostPresentationFormViewModel {
             }
 
         case .schedule:
-            if let existing = existingNextAssignment {
+            if let existing = resolvedExisting {
                 // Update existing to scheduled
                 existing.state = .scheduled
                 existing.scheduledFor = nextLessonScheduleDate
             } else {
-                guard let nextLessonID = nextLesson.id else { return }
-                // Create new scheduled assignment
-                let relatedStudents = allStudents.filter {
-                    guard let id = $0.id else { return false }
-                    return studentIDs.contains(id)
-                }
-                let nextLessonObj = allLessons.first(where: { $0.id != nil && $0.id == nextLessonID })
-                if let nextLessonObj {
-                    _ = PresentationFactory.makeScheduled(
-                        lesson: nextLessonObj,
-                        students: relatedStudents,
-                        scheduledFor: nextLessonScheduleDate,
-                        context: viewContext
-                    )
-                } else {
-                    _ = PresentationFactory.makeScheduled(
-                        lessonID: nextLessonID,
-                        studentIDs: Array(studentIDs),
-                        scheduledFor: nextLessonScheduleDate,
-                        context: viewContext
-                    )
-                }
+                createScheduledAssignment(
+                    for: nextLesson,
+                    studentIDs: studentIDs,
+                    allStudents: allStudents,
+                    allLessons: allLessons,
+                    viewContext: viewContext
+                )
             }
         }
+    }
+
+    /// Creates a new scheduled assignment for the next lesson.
+    private func createScheduledAssignment(
+        for nextLesson: CDLesson,
+        studentIDs: Set<UUID>,
+        allStudents: [CDStudent],
+        allLessons: [CDLesson],
+        viewContext: NSManagedObjectContext
+    ) {
+        guard let nextLessonID = nextLesson.id else { return }
+        let relatedStudents = allStudents.filter {
+            guard let id = $0.id else { return false }
+            return studentIDs.contains(id)
+        }
+        let nextLessonObj = allLessons.first(where: { $0.id != nil && $0.id == nextLessonID })
+        if let nextLessonObj {
+            _ = PresentationFactory.makeScheduled(
+                lesson: nextLessonObj,
+                students: relatedStudents,
+                scheduledFor: nextLessonScheduleDate,
+                context: viewContext
+            )
+        } else {
+            _ = PresentationFactory.makeScheduled(
+                lessonID: nextLessonID,
+                studentIDs: Array(studentIDs),
+                scheduledFor: nextLessonScheduleDate,
+                context: viewContext
+            )
+        }
+    }
+
+    /// Finds a not-yet-presented assignment for the lesson covering these students,
+    /// preferring an exact student-set match over a group assignment that contains
+    /// them. Fetches through the context so pending (unsaved) inserts are visible.
+    private static func fetchExistingAssignment(
+        for lesson: CDLesson,
+        studentIDs: Set<UUID>,
+        in context: NSManagedObjectContext
+    ) -> CDLessonAssignment? {
+        guard let lessonID = lesson.id else { return nil }
+        let request = CDFetchRequest(CDLessonAssignment.self)
+        request.predicate = NSPredicate(format: "lessonID == %@", lessonID.uuidString)
+        let unpresented = context.safeFetch(request).filter { $0.presentedAt == nil }
+        return unpresented.first { Set($0.studentUUIDs) == studentIDs }
+            ?? unpresented.first { studentIDs.isSubset(of: Set($0.studentUUIDs)) }
     }
 }
