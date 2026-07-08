@@ -47,10 +47,12 @@ A 25-agent review of the five commits confirmed 13 findings; fixes applied:
 **Phase 2 slice verified:** macOS + iOS both BUILD SUCCEEDED, zero warnings (2026-06-29).
 
 ## Phase 3 — The native shell (keystone)
-- [ ] Drop `.windowStyle(.hiddenTitleBar)`; adopt a real title bar + unified toolbar app-wide.
-- [ ] Move Search / sync / school-year controls from the corner overlay into `.toolbar`; set per-screen `.navigationTitle`; reserve `ViewHeader` for iOS.
-- [ ] Add toolbar customization + `.windowToolbarStyle(.unified)`.
-- [ ] Route record open/edit to their windows (`openWindow`) instead of fitted modal sheets; reserve sheets for confirmations.
+- [x] Drop `.windowStyle(.hiddenTitleBar)`; adopt a real title bar + unified toolbar app-wide.
+- [~] Move Search / sync / school-year controls from the corner overlay into `.toolbar`; set per-screen `.navigationTitle`; reserve `ViewHeader` for iOS. **Done:** main window toolbar now owns school-year, global search, and sync; root detail selection sets a navigation title. **Remaining:** move per-screen `ViewHeader` controls (Today date, Checklist area/edit, etc.) into screen toolbars one screen at a time.
+- [x] Add toolbar customization + `.windowToolbarStyle(.unified)`.
+- [~] Route record open/edit to their windows (`openWindow`) instead of fitted modal sheets; reserve sheets for confirmations. **Done:** Work, Student, Lesson, and Presentation detail have native macOS window scenes; Today, Student detail, Presentations, and app-wide student deep links route those detail opens to windows on macOS. **Remaining:** sweep secondary record sheets (notes, meetings, files, reports) and decide which deserve independent windows.
+
+**Phase 3 implementation note (2026-07-07):** macOS build validation is currently blocked before completion by SDK/API drift unrelated to this phase: the local Xcode reports macOS SDK 26.5 while the project targets macOS 27.0, and compilation fails in AI/Speech sources on missing `PrivateCloudComputeLanguageModel`, `ContextOptions`, `LanguageModelError`, and `@diagnose`.
 
 ## Phase 4 — Native data browsers
 - [ ] Convert tappable cards to real `Button`s (keyboard focus, focus ring, VoiceOver trait, pointer cursor).

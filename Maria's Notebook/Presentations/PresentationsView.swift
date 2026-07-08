@@ -9,6 +9,9 @@ struct PresentationsView: View {
     @Environment(\.calendar) var calendar
     @Environment(\.horizontalSizeClass) var horizontalSizeClass
     @Environment(\.dependencies) private var dependencies
+    #if os(macOS)
+    @Environment(\.openWindow) private var openWindow
+    #endif
 
     // OPTIMIZATION: Use lightweight queries for change detection only
     // Extract IDs immediately to avoid retaining full objects - significantly reduces memory usage

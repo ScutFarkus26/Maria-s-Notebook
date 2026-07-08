@@ -65,7 +65,12 @@ extension PresentationsView {
                 updateViewModel()
             }
         }
-        .sheet(item: $coordinator.activeSheet) { sheet in
+        #if os(macOS)
+        .onChange(of: coordinator.activeSheet?.id) { _, _ in
+            openPresentationWindowIfNeeded()
+        }
+        #endif
+        .sheet(item: activeModalSheet) { sheet in
             switch sheet {
             case .lessonAssignmentDetail(let la):
                 PresentationDetailView(lessonAssignment: la) {
@@ -99,6 +104,30 @@ extension PresentationsView {
             }
         }
     }
+
+    private var activeModalSheet: Binding<PresentationsCoordinator.Sheet?> {
+        Binding {
+            #if os(macOS)
+            if case .lessonAssignmentDetail = coordinator.activeSheet {
+                return nil
+            }
+            #endif
+            return coordinator.activeSheet
+        } set: { newValue in
+            coordinator.activeSheet = newValue
+        }
+    }
+
+    #if os(macOS)
+    private func openPresentationWindowIfNeeded() {
+        guard case .lessonAssignmentDetail(let lessonAssignment) = coordinator.activeSheet,
+              let id = lessonAssignment.id else {
+            return
+        }
+        openWindow(id: "PresentationDetailWindow", value: id)
+        coordinator.dismissSheet()
+    }
+    #endif
 
     @ViewBuilder
     private var presentationsMainContent: some View {

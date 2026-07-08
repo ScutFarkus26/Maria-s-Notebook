@@ -220,7 +220,7 @@ struct MariasNotebookApp: App {
             #endif
         }
         #if os(macOS)
-        .windowStyle(.hiddenTitleBar)
+        .windowToolbarStyle(.unified(showsTitle: true))
         .windowResizability(.automatic)
         // Default must be >= the enforced minimum (900x600, see EnsureResizableWindow)
         // so a freshly-opened window isn't immediately snapped wider.
@@ -358,7 +358,7 @@ struct MariasNotebookApp: App {
                     .frame(minWidth: 400, minHeight: 300)
             }
         }
-        .windowStyle(.hiddenTitleBar)
+        .windowToolbarStyle(.unified(showsTitle: true))
         .windowResizability(.automatic)
         .defaultSize(width: 900, height: 700)
         // Legacy .modelContainer removed — using CoreDataStack
@@ -389,7 +389,7 @@ struct MariasNotebookApp: App {
                     .frame(minWidth: 400, minHeight: 300)
             }
         }
-        .windowStyle(.hiddenTitleBar)
+        .windowToolbarStyle(.unified(showsTitle: true))
         .windowResizability(.automatic)
         .defaultSize(width: 860, height: 640)
         // Legacy .modelContainer removed — using CoreDataStack
@@ -398,7 +398,7 @@ struct MariasNotebookApp: App {
         WindowGroup("Keyboard Shortcuts", id: "KeyboardShortcutsWindow") {
             KeyboardShortcutsHelpView()
         }
-        .windowStyle(.hiddenTitleBar)
+        .windowToolbarStyle(.unified(showsTitle: true))
         .windowResizability(.automatic)
         .defaultSize(width: 480, height: 600)
 
@@ -428,9 +428,39 @@ struct MariasNotebookApp: App {
                     .frame(minWidth: 400, minHeight: 300)
             }
         }
-        .windowStyle(.hiddenTitleBar)
+        .windowToolbarStyle(.unified(showsTitle: true))
         .windowResizability(.automatic)
         .defaultSize(width: 720, height: 560)
+        // Legacy .modelContainer removed — using CoreDataStack
+
+        WindowGroup("", id: "PresentationDetailWindow", for: UUID.self) { $lessonAssignmentID in
+            if let id = lessonAssignmentID {
+                Group {
+                    if bootstrapper.state != .ready || restoreCoordinator.isRestoring {
+                        VStack(spacing: 20) {
+                            ProgressView().controlSize(.large)
+                            Text(restoreCoordinator.isRestoring ? "Restoring data…" : "Loading…")
+                                .foregroundStyle(.secondary)
+                        }
+                        .frame(minWidth: 400, minHeight: 300)
+                    } else {
+                        PresentationDetailWindowHost(lessonAssignmentID: id)
+                            .environment(\.managedObjectContext, coreDataStack.viewContext)
+                            .environment(\.calendar, AppCalendar.shared)
+                            .environment(\.appRouter, appRouter)
+                            .environment(\.dependencies, dependencies)
+                            .environment(saveCoordinator)
+                            .environment(restoreCoordinator)
+                    }
+                }
+            } else {
+                Text("No presentation selected")
+                    .frame(minWidth: 400, minHeight: 300)
+            }
+        }
+        .windowToolbarStyle(.unified(showsTitle: true))
+        .windowResizability(.automatic)
+        .defaultSize(width: 820, height: 720)
         // Legacy .modelContainer removed — using CoreDataStack
         #endif
     }

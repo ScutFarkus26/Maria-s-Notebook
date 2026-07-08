@@ -31,6 +31,9 @@ struct RootView: View {
     @Environment(\.appRouter) private var appRouter
     @Environment(\.dependencies) private var dependencies
     @Environment(\.calendar) private var calendar
+    #if os(macOS)
+    @Environment(\.openWindow) private var openWindow
+    #endif
     #if !os(macOS)
     private let quickNoteTip = QuickNoteTip()
     #endif
@@ -185,6 +188,9 @@ struct RootView: View {
 
     private var rootWithQuickActions: some View {
         rootLayoutWithObservers
+        #if os(macOS)
+        .toolbar { rootToolbar }
+        #endif
         .saveErrorAlert()
         .toastOverlay(dependencies.toastService)
         #if !os(macOS)
@@ -284,14 +290,20 @@ struct RootView: View {
     }
 
     private var rootLayout: some View {
-        VStack(spacing: 0) {
+        let layout = VStack(spacing: 0) {
             warningBanners
             Divider()
             mainContent
         }
+
+        #if os(macOS)
+        layout
+        #else
+        layout
         .overlay(alignment: .topTrailing) {
             searchAndSyncOverlay
         }
+        #endif
     }
 
     private var searchAndSyncOverlay: some View {
@@ -349,8 +361,31 @@ struct RootView: View {
         } detail: {
             RootDetailContent(selectedNavItem: selectedNavItem)
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
+                .navigationTitle(selectedNavItem.displayName)
         }
     }
+
+    #if os(macOS)
+    @ToolbarContentBuilder
+    private var rootToolbar: some ToolbarContent {
+        ToolbarItem(id: "schoolYear", placement: .primaryAction) {
+            SchoolYearPicker()
+        }
+
+        ToolbarItem(id: "search", placement: .primaryAction) {
+            Button {
+                isShowingSearch = true
+            } label: {
+                Label("Search", systemImage: "magnifyingglass")
+            }
+            .help("Search notes, lessons, students, and todos (⌘F)")
+        }
+
+        ToolbarItem(id: "syncStatus", placement: .primaryAction) {
+            CompactSyncStatusIndicator(compact: true)
+        }
+    }
+    #endif
 
     // MARK: - Event Handlers
 
@@ -379,6 +414,13 @@ struct RootView: View {
             }
             self.appRouter.clearNavigation()
         }
+
+        #if os(macOS)
+        if case .openStudentDetail(let studentID) = destination {
+            openWindow(id: "StudentDetailWindow", value: studentID)
+            self.appRouter.clearNavigation()
+        }
+        #endif
     }
 
     private func handleSelectedNavItemChange(_ oldValue: RootView.NavigationItem?, _ item: RootView.NavigationItem?) {

@@ -19,6 +19,9 @@ struct StudentDetailView: View {
     @Environment(\.managedObjectContext) private var viewContext
     @Environment(\.managedObjectContext) private var managedObjectContext
     @Environment(SaveCoordinator.self) private var saveCoordinator
+    #if os(macOS)
+    @Environment(\.openWindow) private var openWindow
+    #endif
 
     private var repository: StudentRepository {
         StudentRepository(context: managedObjectContext, saveCoordinator: saveCoordinator)
@@ -210,12 +213,15 @@ struct StudentDetailView: View {
         .sheet(item: $vm.selectedLessonForGive) { lesson in
             lessonGiveSheet(for: lesson)
         }
+#if os(iOS)
         .sheet(item: $vm.selectedLessonAssignmentForDetail) { la in
             PresentationDetailView(lessonAssignment: la) {
                 vm.selectedLessonAssignmentForDetail = nil
             }
             .studentDetailSheetSizing()
         }
+#endif
+#if os(iOS)
         .sheet(isPresented: Binding(
             get: { selectedWorkID != nil },
             set: { if !$0 { selectedWorkID = nil } }
@@ -230,6 +236,7 @@ struct StudentDetailView: View {
                 ContentUnavailableView("Work not found", systemImage: "exclamationmark.triangle")
             }
         }
+#endif
         .sheet(isPresented: $showAIPlanning) {
             AIPlanningAssistantView(mode: .singleStudent(student.id ?? UUID()))
         }
@@ -245,6 +252,18 @@ struct StudentDetailView: View {
             vm.loadData(viewContext: viewContext)
             workCache = fetchWorkForStudent()
         }
+        #if os(macOS)
+        .onChange(of: selectedWorkID) { _, workID in
+            guard let workID else { return }
+            openWindow(id: "WorkDetailWindow", value: workID)
+            selectedWorkID = nil
+        }
+        .onChange(of: vm.selectedLessonAssignmentForDetail?.id) { _, _ in
+            guard let lessonAssignmentID = vm.selectedLessonAssignmentForDetail?.id else { return }
+            openWindow(id: "PresentationDetailWindow", value: lessonAssignmentID)
+            vm.selectedLessonAssignmentForDetail = nil
+        }
+        #endif
     }
 
     @ViewBuilder

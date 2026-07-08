@@ -35,6 +35,9 @@ struct TodayView: View {
     @Environment(\.scenePhase) private var scenePhase
     @Environment(RestoreCoordinator.self) var restoreCoordinator
     @Environment(SaveCoordinator.self) var saveCoordinator
+    #if os(macOS)
+    @Environment(\.openWindow) private var openWindow
+    #endif
     #if os(iOS)
     @Environment(\.horizontalSizeClass) private var horizontalSizeClass
     #endif
@@ -131,6 +134,18 @@ struct TodayView: View {
             .onChange(of: scenePhase) { _, newPhase in
                 handleScenePhaseChange(newPhase)
             }
+            #if os(macOS)
+            .onChange(of: selectedWorkID) { _, workID in
+                guard let workID else { return }
+                openWindow(id: "WorkDetailWindow", value: workID)
+                selectedWorkID = nil
+            }
+            .onChange(of: selectedLessonAssignment?.id) { _, _ in
+                guard let lessonAssignmentID = selectedLessonAssignment?.id else { return }
+                openWindow(id: "PresentationDetailWindow", value: lessonAssignmentID)
+                selectedLessonAssignment = nil
+            }
+            #endif
             .onCalendarDayChange {
                 handleDayChange()
             }
@@ -503,15 +518,19 @@ private struct TodayViewSheets: ViewModifier {
 
     func body(content: Content) -> some View {
         content
+            #if os(iOS)
             .sheet(id: $selectedWorkID) { id in
                 WorkDetailView(workID: id) {
                     selectedWorkID = nil
                     onReload()
                 }
             }
-            .sheet(item: $selectedLessonAssignment) { la in
-                lessonAssignmentSheet(la)
-            }
+            #endif
+            #if os(iOS)
+                .sheet(item: $selectedLessonAssignment) { la in
+                    lessonAssignmentSheet(la)
+                }
+            #endif
             .sheet(
                 isPresented: $isShowingQuickNote,
                 onDismiss: { pendingNoteStudentIDs = nil },
