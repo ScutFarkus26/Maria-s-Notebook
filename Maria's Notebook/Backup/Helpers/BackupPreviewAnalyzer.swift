@@ -73,53 +73,124 @@ enum BackupPreviewAnalyzer {
         viewContext: NSManagedObjectContext,
         assign: (_ key: String, _ ins: Int, _ sk: Int, _ del: Int) -> Void
     ) {
+        // Replace-mode restore deletes every type in BackupEntityRegistry.allTypes
+        // (BackupService+Helpers.deleteAll) and re-inserts the payload, so the
+        // preview enumerates that same registry. A hand-picked subset here once
+        // under-reported the destructive-restore consent numbers by ~35 types.
         let model = viewContext.persistentStoreCoordinator?.managedObjectModel
-        func count<T: NSManagedObject>(_ type: T.Type) -> Int {
-            // Skip types whose entity doesn't exist in the Core Data model (e.g. legacy stubs)
-            guard model?.entitiesByName.values
-                .contains(where: { $0.managedObjectClassName == NSStringFromClass(T.self) }) == true else {
-                return 0
-            }
-            do {
-                let entityName = T.entity().name ?? String(describing: T.self)
-                return try viewContext.fetch(NSFetchRequest<T>(entityName: entityName)).count
-            } catch {
-                logger.warning("Failed to count \(T.self): \(error)")
-                return 0
-            }
+        let insertCounts = payloadInsertCounts(payload)
+
+        for type in BackupEntityRegistry.allTypes {
+            let registryName = BackupEntityRegistry.entityName(for: type)
+            guard !BackupEntityRegistry.notYetBackedUpEntityNames.contains(registryName) else { continue }
+            let key = displayName(forEntityTypeName: registryName)
+            assign(key, insertCounts[key] ?? 0, 0, existingCount(of: type, model: model, in: viewContext))
         }
 
-        assign("Student", payload.students.count, 0, count(CDStudent.self))
-        assign("Lesson", payload.lessons.count, 0, count(CDLesson.self))
-        assign("LessonAssignment", payload.lessonAssignments.count, 0, count(CDLessonAssignment.self))
-        assign("Note", payload.notes.count, 0, count(CDNote.self))
-        assign("NonSchoolDay", payload.nonSchoolDays.count, 0, count(CDNonSchoolDay.self))
-        assign("SchoolDayOverride", payload.schoolDayOverrides.count, 0, count(CDSchoolDayOverride.self))
-        assign("StudentMeeting", payload.studentMeetings.count, 0, count(CDStudentMeeting.self))
-        assign("CommunityTopic", payload.communityTopics.count, 0, count(CDCommunityTopicEntity.self))
-        assign("ProposedSolution", payload.proposedSolutions.count, 0, count(CDProposedSolutionEntity.self))
-        assign("CommunityAttachment", payload.communityAttachments.count, 0, count(CDCommunityAttachmentEntity.self))
-        assign("AttendanceRecord", payload.attendance.count, 0, count(CDAttendanceRecord.self))
-        assign("WorkModel", payload.workModels?.count ?? 0, 0, count(CDWorkModel.self))
-        assign("WorkCompletionRecord", payload.workCompletions.count, 0, count(CDWorkCompletionRecord.self))
-        assign("Project", payload.projects.count, 0, count(CDProject.self))
-        assign("ProjectAssignmentTemplate", payload.projectAssignmentTemplates.count, 0, 0) // Deprecated
-        assign("ProjectSession", payload.projectSessions.count, 0, count(CDProjectSession.self))
-        assign("ProjectRole", payload.projectRoles.count, 0, count(CDProjectRole.self))
-        assign("ProjectTemplateWeek", payload.projectTemplateWeeks.count, 0, 0) // Deprecated
-        assign("ProjectWeekRoleAssignment", payload.projectWeekRoleAssignments.count, 0, 0) // Deprecated
-        // Format v12+ entities
-        assign("GoingOut", payload.goingOuts?.count ?? 0, 0, count(CDGoingOut.self))
-        assign(
-            "GoingOutChecklistItem",
-            payload.goingOutChecklistItems?.count ?? 0,
-            0,
-            count(CDGoingOutChecklistItem.self)
-        )
-        assign("ClassroomJob", payload.classroomJobs?.count ?? 0, 0, count(CDClassroomJob.self))
-        assign("JobAssignment", payload.jobAssignments?.count ?? 0, 0, count(CDJobAssignment.self))
-        assign("CalendarNote", payload.calendarNotes?.count ?? 0, 0, count(CDCalendarNote.self))
-        assign("ScheduledMeeting", payload.scheduledMeetings?.count ?? 0, 0, count(CDScheduledMeeting.self))
+        // Deprecated payload sections with no live entity behind them: nothing
+        // gets deleted, but old backups may still carry records.
+        assign("ProjectAssignmentTemplate", payload.projectAssignmentTemplates.count, 0, 0)
+        assign("ProjectTemplateWeek", payload.projectTemplateWeeks.count, 0, 0)
+        assign("ProjectWeekRoleAssignment", payload.projectWeekRoleAssignments.count, 0, 0)
+    }
+
+    /// "CDCommunityTopicEntity" → "CommunityTopic"
+    private static func displayName(forEntityTypeName name: String) -> String {
+        var result = name
+        if result.hasPrefix("CD") { result.removeFirst(2) }
+        if result.hasSuffix("Entity") { result.removeLast("Entity".count) }
+        return result
+    }
+
+    private static func existingCount(
+        of type: NSManagedObject.Type,
+        model: NSManagedObjectModel?,
+        in viewContext: NSManagedObjectContext
+    ) -> Int {
+        // Skip types whose entity doesn't exist in the Core Data model (legacy stubs)
+        let className = NSStringFromClass(type)
+        guard let entityName = model?.entitiesByName
+            .first(where: { $0.value.managedObjectClassName == className })?.key else {
+            return 0
+        }
+        do {
+            return try viewContext.count(for: NSFetchRequest<NSFetchRequestResult>(entityName: entityName))
+        } catch {
+            logger.warning("Failed to count \(entityName): \(error)")
+            return 0
+        }
+    }
+
+    /// Insert counts from the payload, keyed by the display names derived from
+    /// BackupEntityRegistry (see `displayName(forEntityTypeName:)`).
+    // swiftlint:disable:next function_body_length
+    private static func payloadInsertCounts(_ payload: BackupPayload) -> [String: Int] {
+        [
+            "Student": payload.students.count,
+            "Lesson": payload.lessons.count,
+            "LessonAttachment": payload.lessonAttachments?.count ?? 0,
+            "LessonAssignment": payload.lessonAssignments.count,
+            "LessonPresentation": payload.lessonPresentations?.count ?? 0,
+            "LessonRecallCheck": payload.recallChecks?.count ?? 0,
+            "Note": payload.notes.count,
+            "NoteStudentLink": payload.noteStudentLinks?.count ?? 0,
+            "NonSchoolDay": payload.nonSchoolDays.count,
+            "SchoolDayOverride": payload.schoolDayOverrides.count,
+            "StudentMeeting": payload.studentMeetings.count,
+            "MeetingTemplate": payload.meetingTemplates?.count ?? 0,
+            "CommunityTopic": payload.communityTopics.count,
+            "ProposedSolution": payload.proposedSolutions.count,
+            "CommunityAttachment": payload.communityAttachments.count,
+            "AttendanceRecord": payload.attendance.count,
+            "WorkModel": payload.workModels?.count ?? 0,
+            "WorkCompletionRecord": payload.workCompletions.count,
+            "WorkCheckIn": payload.workCheckIns?.count ?? 0,
+            "WorkParticipant": payload.workParticipants?.count ?? 0,
+            "WorkStep": payload.workSteps?.count ?? 0,
+            "SampleWork": payload.sampleWorks?.count ?? 0,
+            "SampleWorkStep": payload.sampleWorkSteps?.count ?? 0,
+            "PracticeSession": payload.practiceSessions?.count ?? 0,
+            "Project": payload.projects.count,
+            "ProjectSession": payload.projectSessions.count,
+            "ProjectRole": payload.projectRoles.count,
+            "Issue": payload.issues?.count ?? 0,
+            "IssueAction": payload.issueActions?.count ?? 0,
+            "Track": payload.tracks?.count ?? 0,
+            "TrackStep": payload.trackSteps?.count ?? 0,
+            "StudentTrackEnrollment": payload.studentTrackEnrollments?.count ?? 0,
+            "SequenceTrack": payload.sequenceTracks?.count ?? 0,
+            "NoteTemplate": payload.noteTemplates?.count ?? 0,
+            "Reminder": payload.reminders?.count ?? 0,
+            "CalendarEvent": payload.calendarEvents?.count ?? 0,
+            "Document": payload.documents?.count ?? 0,
+            "Supply": payload.supplies?.count ?? 0,
+            "Procedure": payload.procedures?.count ?? 0,
+            "Schedule": payload.schedules?.count ?? 0,
+            "ScheduleSlot": payload.scheduleSlots?.count ?? 0,
+            "DevelopmentSnapshot": payload.developmentSnapshots?.count ?? 0,
+            "TodoItem": payload.todoItems?.count ?? 0,
+            "TodoSubtask": payload.todoSubtasks?.count ?? 0,
+            "TodoTemplate": payload.todoTemplates?.count ?? 0,
+            "TodayAgendaOrder": payload.todayAgendaOrders?.count ?? 0,
+            "DayPad": payload.dayPads?.count ?? 0,
+            "PlanningRecommendation": payload.planningRecommendations?.count ?? 0,
+            "Resource": payload.resources?.count ?? 0,
+            "GoingOut": payload.goingOuts?.count ?? 0,
+            "GoingOutChecklistItem": payload.goingOutChecklistItems?.count ?? 0,
+            "ClassroomJob": payload.classroomJobs?.count ?? 0,
+            "JobAssignment": payload.jobAssignments?.count ?? 0,
+            "CalendarNote": payload.calendarNotes?.count ?? 0,
+            "ScheduledMeeting": payload.scheduledMeetings?.count ?? 0,
+            "ClassroomMembership": payload.classroomMemberships?.count ?? 0,
+            "MeetingWorkReview": payload.meetingWorkReviews?.count ?? 0,
+            "StudentFocusItem": payload.studentFocusItems?.count ?? 0,
+            "YearPlanEntry": payload.yearPlanEntries?.count ?? 0,
+            "LessonSequenceSettings": payload.lessonSequenceSettings?.count ?? 0,
+            "Story": payload.stories?.count ?? 0,
+            "BookClubPacket": payload.bookClubPackets?.count ?? 0,
+            "BookClubSession": payload.bookClubSessions?.count ?? 0,
+            "BookClubMeeting": payload.bookClubMeetings?.count ?? 0
+        ]
     }
 
     // MARK: - Merge Mode Analysis
@@ -188,25 +259,28 @@ enum BackupPreviewAnalyzer {
             into: ImportAnalysis()
         ) { (acc: inout ImportAnalysis, la: LessonAssignmentDTO) in
             guard let lessonUUID = UUID(uuidString: la.lessonID) else {
+                // The importer skips assignments whose lessonID isn't a valid UUID.
                 acc.sk += 1
-                acc.missingLesson += 1
                 return
             }
-            let hasLesson = lessonsInStore.contains(lessonUUID) || lessonsInPayload.contains(lessonUUID)
-            if !hasLesson {
+            if entityExists(CDLessonAssignment.self, la.id) {
                 acc.sk += 1
+                return
+            }
+            // The importer inserts assignments even when the lesson is missing
+            // from both the payload and the library — they restore unlinked,
+            // they are NOT skipped (BackupEntityImporter+Lessons).
+            acc.ins += 1
+            if !lessonsInStore.contains(lessonUUID) && !lessonsInPayload.contains(lessonUUID) {
                 acc.missingLesson += 1
-            } else if entityExists(CDLessonAssignment.self, la.id) {
-                acc.sk += 1
-            } else {
-                acc.ins += 1
             }
         }
         assign("LessonAssignment", analysis.ins, analysis.sk, 0)
         if analysis.missingLesson > 0 {
             warnings.append(
-                "\(analysis.missingLesson) CDLessonAssignment records "
-                + "reference missing Lessons and will be skipped."
+                "\(analysis.missingLesson) lesson assignments reference lessons missing "
+                + "from both this backup and the library; they will be restored but "
+                + "stay unlinked until their lesson exists."
             )
         }
     }

@@ -124,7 +124,11 @@ enum BlockingCacheBuilder {
                     }
                 }
             } else {
-                for studentID in la.resolvedStudentIDs where blocking[studentID] == nil {
+                // Legacy rows without participants belong to a single student — only
+                // that student is blocked, not every classmate on the assignment.
+                if let studentID = UUID(uuidString: work.studentID),
+                   la.resolvedStudentIDs.contains(studentID),
+                   blocking[studentID] == nil {
                     blocking[studentID] = work
                 }
             }

@@ -253,15 +253,23 @@ final class CalendarSyncService {
             }
         }
 
-        // Delete events that no longer exist in EventKit (only for selected calendars)
+        // Delete events that no longer exist in EventKit (only for selected calendars).
+        // Scope the check to the fetched window: EventKit only returned events
+        // overlapping [startDate, endDate], so a stored event outside that window
+        // being absent from `currentEKIDs` means "not fetched", not "deleted".
+        // Deleting on absence alone wiped all history older than 7 days on every
+        // sync — and the deletes propagated to every device via CloudKit.
         let currentEKIDs = Set(syncData.map(\.eventIdentifier))
         for existing in existingEvents {
-            if let ekID = existing.eventKitEventID,
-               let calendarID = existing.eventKitCalendarID,
-               !currentEKIDs.contains(ekID),
-               targetCalendarIDs.contains(calendarID) {
-                context.delete(existing)
-            }
+            guard let ekID = existing.eventKitEventID,
+                  let calendarID = existing.eventKitCalendarID,
+                  !currentEKIDs.contains(ekID),
+                  targetCalendarIDs.contains(calendarID),
+                  let existingStart = existing.startDate,
+                  let existingEnd = existing.endDate,
+                  existingEnd >= startDate, existingStart <= endDate
+            else { continue }
+            context.delete(existing)
         }
 
         context.safeSave()

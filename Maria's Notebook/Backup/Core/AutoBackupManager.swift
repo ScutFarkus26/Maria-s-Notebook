@@ -156,6 +156,11 @@ final class AutoBackupManager {
     private func performScheduledBackup() async {
         guard let viewContext else { return }
         _ = await performBackup(viewContext: viewContext, trigger: .scheduled, prefix: "ScheduledBackup")
+        // Advance the schedule clock regardless of outcome (success, skip, or
+        // failure). A failed attempt must still move `lastScheduledBackupDate`
+        // forward, otherwise the timer loop computes a zero wait and retries
+        // the full payload collection in a hot loop until the app quits.
+        markScheduledBackupPerformed()
     }
 
     // MARK: - App Quit Backup
@@ -198,18 +203,14 @@ final class AutoBackupManager {
 
         // Skip automatic backups when persistent history shows no transactions
         // since the last one — nothing new to protect. Manual and
-        // pre-destructive backups always run. A skipped scheduled backup still
-        // advances the schedule clock, otherwise the timer loop would retry
-        // in a tight spin.
+        // pre-destructive backups always run. (The schedule clock advances in
+        // performScheduledBackup, after every scheduled attempt.)
         let automaticTriggers: Set<BackupTrigger> = [.appQuit, .scheduled, .background]
         if automaticTriggers.contains(trigger),
            !changeTracker.hasChangesSinceLastBackup(in: viewContext) {
             Self.logger.info(
                 "Auto-backup (\(trigger.rawValue, privacy: .public)) skipped \u{2014} no changes since last backup"
             )
-            if trigger == .scheduled {
-                markScheduledBackupPerformed()
-            }
             return .skippedNoChanges(Date())
         }
 
@@ -265,11 +266,6 @@ final class AutoBackupManager {
 
             // New change-detection baseline: the data just backed up.
             changeTracker.recordBackupPoint(context: viewContext)
-
-            // Update tracking
-            if trigger == .scheduled {
-                markScheduledBackupPerformed()
-            }
 
             // Cleanup old backups (Retention Policy)
             cleanupOldBackups(in: backupDir, keeping: retentionCount)

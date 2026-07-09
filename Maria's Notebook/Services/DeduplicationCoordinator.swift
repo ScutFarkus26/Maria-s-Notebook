@@ -39,11 +39,14 @@ final class DeduplicationCoordinator {
 
         let bgContext = container.newBackgroundContext()
         bgContext.mergePolicy = NSMergePolicy.mergeByPropertyObjectTrump
+        // CloudKit container for deterministic survivor selection — every device
+        // must keep the same duplicate, or peers delete each other's survivors.
+        let cloudKitContainer = container as? NSPersistentCloudKitContainer
 
         Task.detached(priority: .utility) { [weak self] in
             await bgContext.perform {
                 let start = Date()
-                let results = DataCleanupService.deduplicateAllModels(using: bgContext)
+                let results = DataCleanupService.deduplicateAllModels(using: bgContext, container: cloudKitContainer)
 
                 if !results.isEmpty {
                     do {

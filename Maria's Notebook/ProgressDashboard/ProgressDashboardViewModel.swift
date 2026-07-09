@@ -129,8 +129,11 @@ final class ProgressDashboardViewModel {
                     guard let lessonID = lesson.id else { continue }
                     let lessonIDStr = lessonID.uuidString
 
+                    // "Previously Presented" records are deliberately undated (state ==
+                    // .presented, presentedAt == nil), so match on state as well — a
+                    // date-only check renders bulk-marked historical lessons as Not Started.
                     let presentation = assignmentsForStudent.first {
-                        $0.lessonID == lessonIDStr && $0.presentedAt != nil
+                        $0.lessonID == lessonIDStr && ($0.isPresented || $0.presentedAt != nil)
                     }
                     let scheduledPresentation = assignmentsForStudent.first {
                         $0.lessonID == lessonIDStr && $0.isScheduled

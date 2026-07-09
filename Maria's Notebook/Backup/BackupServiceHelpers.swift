@@ -21,7 +21,7 @@ enum BackupServiceHelpers {
                 id: sID,
                 firstName: s.firstName,
                 lastName: s.lastName,
-                birthday: s.birthday ?? Date(),
+                birthday: s.birthday,
                 dateStarted: s.dateStarted,
                 level: level,
                 nextLessons: s.nextLessonUUIDs,
@@ -30,7 +30,8 @@ enum BackupServiceHelpers {
                 updatedAt: nil,
                 nickname: s.nickname,
                 enrollmentStatusRaw: s.enrollmentStatusRaw,
-                dateWithdrawn: s.dateWithdrawn
+                dateWithdrawn: s.dateWithdrawn,
+                modifiedAt: s.modifiedAt
             )
         }
     }
@@ -97,7 +98,10 @@ enum BackupServiceHelpers {
                 scope: scopeString,
                 tags: tagsArray.isEmpty ? nil : tagsArray,
                 needsFollowUp: n.needsFollowUp ? true : nil,
-                lessonID: n.lesson?.id,
+                // Read the string FK directly: `n.lesson` is a computed cross-store
+                // accessor that fetches the lesson and returns nil when it can't be
+                // resolved — which would silently drop the link from the backup.
+                lessonID: n.lessonID.flatMap { UUID(uuidString: $0) },
                 workID: n.work?.id,
                 imagePath: n.imagePath,
                 includeInReport: n.includeInReport,
@@ -162,7 +166,8 @@ enum BackupServiceHelpers {
                 title: c.title,
                 bookTitle: c.bookTitle,
                 memberStudentIDs: c.memberStudentIDsArray,
-                isActive: c.isActive
+                isActive: c.isActive,
+                modifiedAt: c.modifiedAt
             )
         }
     }

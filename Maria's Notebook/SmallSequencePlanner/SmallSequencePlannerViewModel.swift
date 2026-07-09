@@ -215,7 +215,10 @@ final class SmallSequencePlannerViewModel {
                     // Gate 1: Practice completion
                     if let rules, rules.requiresPractice {
                         let presentationID = precedingAssignment.id?.uuidString ?? ""
-                        let relatedWork = workByPresentationID[presentationID] ?? []
+                        // Only this student's own work gates their readiness — a
+                        // classmate's unfinished work must not hold them back.
+                        let relatedWork = (workByPresentationID[presentationID] ?? [])
+                            .filter { BlockingAlgorithmEngine.workInvolvesStudent(work: $0, studentID: studentID) }
 
                         if relatedWork.isEmpty {
                             // No work assigned yet — if practice flagged, not ready

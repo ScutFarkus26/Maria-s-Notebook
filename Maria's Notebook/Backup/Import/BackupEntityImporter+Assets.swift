@@ -11,8 +11,7 @@ extension BackupEntityImporter {
     static func importDocuments(
         _ dtos: [DocumentDTO],
         into viewContext: NSManagedObjectContext,
-        existingCheck: EntityExistsCheck<CDDocument>,
-        studentCheck: EntityExistsCheck<CDStudent>
+        existingCheck: EntityExistsCheck<CDDocument>
     ) rethrows {
         for dto in dtos {
             if shouldSkipExisting(id: dto.id, existingCheck: existingCheck) { continue }
@@ -21,16 +20,12 @@ extension BackupEntityImporter {
             d.title = dto.title
             d.category = dto.category
             d.uploadDate = dto.uploadDate
-            if let studentID = dto.studentID {
-                do {
-                    if let student = try studentCheck(studentID) {
-                        d.student = student
-                    }
-                } catch {
-                    let desc = error.localizedDescription
-                    Logger.backup.warning("Failed to check student for document: \(desc, privacy: .public)")
-                }
-            }
+            // document → student is a cross-store string FK, not a Core Data
+            // relationship. Restore the raw ID unconditionally: requiring the
+            // student to already be resolvable here silently dropped the link
+            // (the computed `student` accessor tolerates a dangling ID).
+            d.studentID = dto.studentID?.uuidString
+            d.pdfFileRelativePath = dto.pdfFileRelativePath ?? ""
             viewContext.insert(d)
         }
     }

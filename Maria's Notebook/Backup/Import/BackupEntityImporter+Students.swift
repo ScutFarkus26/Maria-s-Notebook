@@ -25,7 +25,11 @@ extension BackupEntityImporter {
             student.id = dto.id
             student.firstName = dto.firstName
             student.lastName = dto.lastName
-            student.birthday = dto.birthday
+            // Older backups fabricated a birthday for students who had none
+            // (.distantPast from one transformer). Restore that sentinel as nil
+            // rather than a bogus real date. (Backups where the fabricated value
+            // was the export-time Date() are indistinguishable from real data.)
+            student.birthday = dto.birthday == .distantPast ? nil : dto.birthday
             student.level = dto.level == .upper ? .upper : .lower
             student.dateStarted = dto.dateStarted
             student.nextLessons = dto.nextLessons.map(\.uuidString) as NSArray
@@ -33,6 +37,9 @@ extension BackupEntityImporter {
             student.nickname = dto.nickname
             if let v = dto.enrollmentStatusRaw { student.enrollmentStatusRaw = v }
             student.dateWithdrawn = dto.dateWithdrawn
+            // Preserve the original modification time (awakeFromInsert stamped "now");
+            // older backups lack the field, so those keep the import-time stamp.
+            if let v = dto.modifiedAt { student.modifiedAt = v }
             viewContext.insert(student)
             studentsByID[student.id ?? dto.id] = student
         }

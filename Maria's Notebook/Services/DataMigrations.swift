@@ -12,9 +12,14 @@ enum DataMigrations {
     // MARK: - Data Cleanup (delegated to DataCleanupService)
 
     /// Remove all duplicate records across all model types.
+    /// Pass the CloudKit container when available so survivor selection is
+    /// deterministic across devices (falls back to the CloudKit record name).
     @discardableResult
-    static func deduplicateAllModels(using context: NSManagedObjectContext) -> [String: Int] {
-        DataCleanupService.deduplicateAllModels(using: context)
+    static func deduplicateAllModels(
+        using context: NSManagedObjectContext,
+        container: NSPersistentCloudKitContainer? = nil
+    ) -> [String: Int] {
+        DataCleanupService.deduplicateAllModels(using: context, container: container)
     }
 
     /// Deduplicate draft CDLessonAssignment records.

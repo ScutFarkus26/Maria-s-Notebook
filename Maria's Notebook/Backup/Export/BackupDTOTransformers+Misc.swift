@@ -5,35 +5,11 @@ import CoreData
 // MARK: - Misc Transformers
 // (Calendar, Todo, CDTrackEntity, CDSupply, CDSchedule, CDIssue, CDProcedure, CDDocument, etc.)
 
+// CDNonSchoolDay, CDSchoolDayOverride, CDStudentMeeting, CDAttendanceRecord, and
+// CDWorkCompletionRecord exports go through BackupServiceHelpers.toDTOs — do not
+// re-add transformers for them here.
+
 extension BackupDTOTransformers {
-
-    // MARK: - CDNonSchoolDay
-
-    static func toDTO(_ nonSchoolDay: CDNonSchoolDay) -> NonSchoolDayDTO {
-        NonSchoolDayDTO(id: nonSchoolDay.id ?? UUID(), date: nonSchoolDay.date ?? Date(), reason: nonSchoolDay.reason)
-    }
-
-    // MARK: - CDSchoolDayOverride
-
-    static func toDTO(_ override: CDSchoolDayOverride) -> SchoolDayOverrideDTO {
-        SchoolDayOverrideDTO(id: override.id ?? UUID(), date: override.date ?? Date())
-    }
-
-    // MARK: - CDStudentMeeting
-
-    static func toDTO(_ meeting: CDStudentMeeting) -> StudentMeetingDTO? {
-        guard let studentIDUUID = UUID(uuidString: meeting.studentID) else { return nil }
-        return StudentMeetingDTO(
-            id: meeting.id ?? UUID(),
-            studentID: studentIDUUID,
-            date: meeting.date ?? Date(),
-            completed: meeting.completed,
-            reflection: meeting.reflection,
-            focus: meeting.focus,
-            requests: meeting.requests,
-            guideNotes: meeting.guideNotes
-        )
-    }
 
     // MARK: - CDLessonAssignment
 
@@ -59,32 +35,6 @@ extension BackupDTOTransformers {
             migratedFromPresentationID: assignment.migratedFromPresentationID,
             manuallyUnblocked: assignment.manuallyUnblocked,
             confirmedStudentIDs: assignment.confirmedStudentIDs
-        )
-    }
-
-    // MARK: - CDAttendanceRecord
-
-    static func toDTO(_ record: CDAttendanceRecord) -> AttendanceRecordDTO? {
-        guard let studentIDUUID = UUID(uuidString: record.studentID) else { return nil }
-        return AttendanceRecordDTO(
-            id: record.id ?? UUID(),
-            studentID: studentIDUUID,
-            date: record.date ?? Date(),
-            status: record.status.rawValue,
-            absenceReason: record.absenceReason.rawValue == "none" ? nil : record.absenceReason.rawValue
-        )
-    }
-
-    // MARK: - CDWorkCompletionRecord
-
-    static func toDTO(_ record: CDWorkCompletionRecord) -> WorkCompletionRecordDTO? {
-        guard let workIDUUID = UUID(uuidString: record.workID),
-              let studentIDUUID = UUID(uuidString: record.studentID) else { return nil }
-        return WorkCompletionRecordDTO(
-            id: record.id ?? UUID(),
-            workID: workIDUUID,
-            studentID: studentIDUUID,
-            completedAt: record.completedAt ?? Date()
         )
     }
 
@@ -202,7 +152,11 @@ extension BackupDTOTransformers {
             title: d.title,
             category: d.category,
             uploadDate: d.uploadDate ?? Date(),
-            studentID: d.student?.id
+            // Read the string FK directly: `d.student` is a computed cross-store
+            // accessor that fetches the student and returns nil when it can't be
+            // resolved — which would silently drop the link from the backup.
+            studentID: d.studentID.flatMap { UUID(uuidString: $0) },
+            pdfFileRelativePath: d.pdfFileRelativePath.isEmpty ? nil : d.pdfFileRelativePath
         )
     }
 
@@ -420,28 +374,8 @@ extension BackupDTOTransformers {
 
     // MARK: - Batch Transformations (Misc)
 
-    static func toDTOs(_ nonSchoolDays: [CDNonSchoolDay]) -> [NonSchoolDayDTO] {
-        nonSchoolDays.map { toDTO($0) }
-    }
-
-    static func toDTOs(_ overrides: [CDSchoolDayOverride]) -> [SchoolDayOverrideDTO] {
-        overrides.map { toDTO($0) }
-    }
-
-    static func toDTOs(_ meetings: [CDStudentMeeting]) -> [StudentMeetingDTO] {
-        meetings.compactMap { toDTO($0) }
-    }
-
     static func toDTOs(_ assignments: [CDLessonAssignment]) -> [LessonAssignmentDTO] {
         assignments.map { toDTO($0) }
-    }
-
-    static func toDTOs(_ records: [CDAttendanceRecord]) -> [AttendanceRecordDTO] {
-        records.compactMap { toDTO($0) }
-    }
-
-    static func toDTOs(_ records: [CDWorkCompletionRecord]) -> [WorkCompletionRecordDTO] {
-        records.compactMap { toDTO($0) }
     }
 
     static func toDTOs(_ templates: [CDNoteTemplate]) -> [NoteTemplateDTO] {

@@ -197,8 +197,9 @@ struct CurriculumDataAssembler {
             la.lessonID == lessonIDStr && la.studentIDs.contains(studentID)
         }
 
-        // Check if any presentation has been given
-        let hasBeenPresented = relevantPresentations.contains { $0.presentedAt != nil }
+        // Check if any presentation has been given. "Previously Presented" records
+        // are undated (state == .presented, presentedAt == nil), so match on state too.
+        let hasBeenPresented = relevantPresentations.contains { $0.isPresented || $0.presentedAt != nil }
 
         if !hasBeenPresented {
             // Check if there's a draft/scheduled presentation

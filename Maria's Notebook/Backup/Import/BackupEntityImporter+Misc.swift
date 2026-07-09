@@ -18,8 +18,7 @@ extension BackupEntityImporter {
     static func importNotes(
         _ dtos: [NoteDTO],
         into viewContext: NSManagedObjectContext,
-        existingCheck: EntityExistsCheck<CDNote>,
-        lessonCheck: EntityExistsCheck<CDLesson>
+        existingCheck: EntityExistsCheck<CDNote>
     ) rethrows {
         for dto in dtos {
             do {
@@ -64,16 +63,11 @@ extension BackupEntityImporter {
                 }
             }
 
-            if let lessonID = dto.lessonID {
-                do {
-                    if let lesson = try lessonCheck(lessonID) {
-                        note.lesson = lesson
-                    }
-                } catch {
-                    let desc = error.localizedDescription
-                    Logger.backup.warning("Failed to check lesson for note: \(desc, privacy: .public)")
-                }
-            }
+            // note → lesson is a cross-store string FK, not a Core Data relationship.
+            // Restore the raw ID unconditionally: requiring the lesson to already be
+            // resolvable here silently dropped the link (the computed `lesson`
+            // accessor tolerates a dangling ID and resolves lazily).
+            note.lessonID = dto.lessonID?.uuidString
 
             viewContext.insert(note)
         }

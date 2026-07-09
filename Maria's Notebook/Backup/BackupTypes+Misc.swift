@@ -145,6 +145,9 @@ public struct DocumentDTO: Codable, Sendable {
     public var uploadDate: Date
     public var studentID: UUID?
     // PDF data excluded by design - too large for JSON backup
+    /// Managed relative path only (the PDF payload itself is excluded).
+    /// Optional for compatibility with older backups that predate this field.
+    public var pdfFileRelativePath: String?
 }
 
 // MARK: - Agenda Order DTO

@@ -12,9 +12,10 @@ enum MigrationRunner {
         // the results via `automaticallyMergesChangesFromParent`. This mirrors the
         // pattern already used by DeduplicationCoordinator for the post-sync pass.
         let bgContext = coreDataStack.newBackgroundContext()
+        let container = coreDataStack.container
         let deduplicationResults: [String: Int] = await bgContext.perform {
             // Remove duplicate records that may have been created by CloudKit sync conflicts.
-            let results = DataMigrations.deduplicateAllModels(using: bgContext)
+            let results = DataMigrations.deduplicateAllModels(using: bgContext, container: container)
             // Clean up any orphaned note images.
             DataMigrations.cleanupOrphanedNoteImages(using: bgContext)
             if bgContext.hasChanges {

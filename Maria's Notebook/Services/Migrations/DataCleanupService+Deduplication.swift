@@ -1,5 +1,6 @@
 import Foundation
 import CoreData
+import CloudKit
 import os
 
 // MARK: - Deduplication
@@ -67,13 +68,55 @@ extension DataCleanupService {
 
     // MARK: - Generic Deduplication
 
+    /// Deterministic cross-device survivor ordering for duplicates sharing one logical id.
+    ///
+    /// This pass runs independently on every synced device, so the survivor must be
+    /// chosen from data every peer sees identically — otherwise two devices can keep
+    /// opposite copies and each delete the other's, and both deletes sync (Apple's
+    /// dedup guidance: pick the winner by a globally unique key so "all peers
+    /// eventually reserve the same" record). Ordering:
+    /// 1. Earliest `createdAt`, matching the draft-assignment dedup precedent above.
+    /// 2. Lowest CloudKit record name — the same for a given record on every device.
+    ///    A synced record outranks a local-only copy.
+    /// 3. Object URI, reached only when neither record has been exported yet — such
+    ///    copies exist on this device alone, so a local ordering cannot diverge.
+    private static func precedesAsCanonical(
+        _ lhs: NSManagedObject,
+        _ rhs: NSManagedObject,
+        container: NSPersistentCloudKitContainer?
+    ) -> Bool {
+        if lhs.entity.attributesByName["createdAt"] != nil {
+            let lhsDate = lhs.value(forKey: "createdAt") as? Date ?? .distantFuture
+            let rhsDate = rhs.value(forKey: "createdAt") as? Date ?? .distantFuture
+            if lhsDate != rhsDate { return lhsDate < rhsDate }
+        }
+
+        let lhsName = container?.recordID(for: lhs.objectID)?.recordName
+        let rhsName = container?.recordID(for: rhs.objectID)?.recordName
+        switch (lhsName, rhsName) {
+        case let (.some(lhsRecord), .some(rhsRecord)) where lhsRecord != rhsRecord:
+            return lhsRecord < rhsRecord
+        case (.some, .none):
+            return true
+        case (.none, .some):
+            return false
+        default:
+            break
+        }
+
+        return lhs.objectID.uriRepresentation().absoluteString
+            < rhs.objectID.uriRepresentation().absoluteString
+    }
+
     /// Generic deduplication for any NSManagedObject with an id property.
-    /// Keeps the first instance encountered and deletes duplicates.
+    /// Keeps a deterministically chosen canonical instance and deletes duplicates,
+    /// so every synced device converges on the same survivor.
     /// Returns the number of duplicates removed.
     @discardableResult
     static func deduplicate<T: NSManagedObject>(
         _ type: T.Type,
         using context: NSManagedObjectContext,
+        container: NSPersistentCloudKitContainer? = nil,
         merge: ((T, T) -> Void)? = nil
     ) -> Int {
         let fetch = CDFetchRequest(T.self)
@@ -107,8 +150,9 @@ extension DataCleanupService {
         var deletedCount = 0
 
         for (_, items) in byID where items.count > 1 {
-            guard let canonical = items.first else { continue }
-            for duplicate in items.dropFirst() {
+            let ordered = items.sorted { precedesAsCanonical($0, $1, container: container) }
+            guard let canonical = ordered.first else { continue }
+            for duplicate in ordered.dropFirst() {
                 merge?(canonical, duplicate)
                 context.delete(duplicate)
                 deletedCount += 1
@@ -147,30 +191,45 @@ extension DataCleanupService {
     // MARK: - Strong Deduplication (Data-Preserving Merges)
 
     @discardableResult
-    static func deduplicateStudentsStrong(using context: NSManagedObjectContext) -> Int {
-        deduplicate(CDStudent.self, using: context, merge: mergeStudent)
+    static func deduplicateStudentsStrong(
+        using context: NSManagedObjectContext,
+        container: NSPersistentCloudKitContainer? = nil
+    ) -> Int {
+        deduplicate(CDStudent.self, using: context, container: container, merge: mergeStudent)
     }
 
     @discardableResult
-    static func deduplicateLessonsStrong(using context: NSManagedObjectContext) -> Int {
-        deduplicate(CDLesson.self, using: context, merge: mergeLesson)
+    static func deduplicateLessonsStrong(
+        using context: NSManagedObjectContext,
+        container: NSPersistentCloudKitContainer? = nil
+    ) -> Int {
+        deduplicate(CDLesson.self, using: context, container: container, merge: mergeLesson)
     }
 
     @discardableResult
-    static func deduplicateLessonPresentationsStrong(using context: NSManagedObjectContext) -> Int {
-        deduplicate(CDLessonPresentation.self, using: context, merge: mergeLessonPresentation)
+    static func deduplicateLessonPresentationsStrong(
+        using context: NSManagedObjectContext,
+        container: NSPersistentCloudKitContainer? = nil
+    ) -> Int {
+        deduplicate(CDLessonPresentation.self, using: context, container: container, merge: mergeLessonPresentation)
     }
 
     @discardableResult
-    static func deduplicateWorkModelsStrong(using context: NSManagedObjectContext) -> Int {
-        deduplicate(CDWorkModel.self, using: context) { canonical, duplicate in
+    static func deduplicateWorkModelsStrong(
+        using context: NSManagedObjectContext,
+        container: NSPersistentCloudKitContainer? = nil
+    ) -> Int {
+        deduplicate(CDWorkModel.self, using: context, container: container) { canonical, duplicate in
             mergeWorkModel(canonical: canonical, duplicate: duplicate, context: context)
         }
     }
 
     @discardableResult
-    static func deduplicateNotesStrong(using context: NSManagedObjectContext) -> Int {
-        deduplicate(CDNote.self, using: context, merge: mergeNote)
+    static func deduplicateNotesStrong(
+        using context: NSManagedObjectContext,
+        container: NSPersistentCloudKitContainer? = nil
+    ) -> Int {
+        deduplicate(CDNote.self, using: context, container: container, merge: mergeNote)
     }
 
     /// Semantic deduplication for attendance records.
@@ -502,59 +561,80 @@ extension DataCleanupService {
     // MARK: - Deduplicate All Models
 
     /// Deduplicates all model types in the database.
+    ///
+    /// Pass the owning `NSPersistentCloudKitContainer` whenever it is available:
+    /// it lets survivor selection fall back to the CloudKit record name so every
+    /// synced device converges on the same canonical record.
     @discardableResult
-    static func deduplicateAllModels(using context: NSManagedObjectContext) -> [String: Int] {
+    static func deduplicateAllModels(
+        using context: NSManagedObjectContext,
+        container: NSPersistentCloudKitContainer? = nil
+    ) -> [String: Int] {
         var results: [String: Int] = [:]
 
         // Core models
-        results["Student"] = deduplicateStudentsStrong(using: context)
-        results["Lesson"] = deduplicateLessonsStrong(using: context)
-        results["LessonAssignment"] = deduplicate(CDLessonAssignment.self, using: context, merge: mergeLessonAssignment)
-        results["LessonPresentation"] = deduplicateLessonPresentationsStrong(using: context)
+        results["Student"] = deduplicateStudentsStrong(using: context, container: container)
+        results["Lesson"] = deduplicateLessonsStrong(using: context, container: container)
+        results["LessonAssignment"] = deduplicate(
+            CDLessonAssignment.self, using: context, container: container, merge: mergeLessonAssignment
+        )
+        results["LessonPresentation"] = deduplicateLessonPresentationsStrong(using: context, container: container)
 
         // Work-related models
-        results["WorkModel"] = deduplicateWorkModelsStrong(using: context)
-        results["WorkCheckIn"] = deduplicate(CDWorkCheckIn.self, using: context, merge: mergeWorkCheckIn)
-        results["WorkCompletionRecord"] = deduplicate(CDWorkCompletionRecord.self, using: context, merge: mergeWorkCompletionRecord)
-        results["WorkParticipantEntity"] = deduplicate(CDWorkParticipantEntity.self, using: context)
-        results["WorkStep"] = deduplicate(CDWorkStep.self, using: context)
+        results["WorkModel"] = deduplicateWorkModelsStrong(using: context, container: container)
+        results["WorkCheckIn"] = deduplicate(
+            CDWorkCheckIn.self, using: context, container: container, merge: mergeWorkCheckIn
+        )
+        results["WorkCompletionRecord"] = deduplicate(
+            CDWorkCompletionRecord.self, using: context, container: container, merge: mergeWorkCompletionRecord
+        )
+        results["WorkParticipantEntity"] = deduplicate(CDWorkParticipantEntity.self, using: context, container: container)
+        results["WorkStep"] = deduplicate(CDWorkStep.self, using: context, container: container)
 
         // CDProject models
-        results["Project"] = deduplicate(CDProject.self, using: context)
-        results["ProjectRole"] = deduplicate(CDProjectRole.self, using: context)
-        results["ProjectSession"] = deduplicate(CDProjectSession.self, using: context, merge: mergeProjectSession)
+        results["Project"] = deduplicate(CDProject.self, using: context, container: container)
+        results["ProjectRole"] = deduplicate(CDProjectRole.self, using: context, container: container)
+        results["ProjectSession"] = deduplicate(
+            CDProjectSession.self, using: context, container: container, merge: mergeProjectSession
+        )
         // ProjectAssignmentTemplate, ProjectTemplateWeek, and ProjectWeekRoleAssignment
         // deduplication removed — these entities are deprecated
 
         // CDTrackEntity models
-        results["Track"] = deduplicate(CDTrackEntity.self, using: context)
-        results["TrackStep"] = deduplicate(CDTrackStepEntity.self, using: context)
-        results["SequenceTrack"] = deduplicate(CDSequenceTrackEntity.self, using: context)
-        results["StudentTrackEnrollment"] = deduplicate(CDStudentTrackEnrollmentEntity.self, using: context)
+        results["Track"] = deduplicate(CDTrackEntity.self, using: context, container: container)
+        results["TrackStep"] = deduplicate(CDTrackStepEntity.self, using: context, container: container)
+        results["SequenceTrack"] = deduplicate(CDSequenceTrackEntity.self, using: context, container: container)
+        results["StudentTrackEnrollment"] = deduplicate(
+            CDStudentTrackEnrollmentEntity.self, using: context, container: container
+        )
 
         // Notes and documents
-        results["Note"] = deduplicateNotesStrong(using: context)
-        results["NoteTemplate"] = deduplicate(CDNoteTemplateEntity.self, using: context)
-        results["NoteStudentLink"] = deduplicate(CDNoteStudentLink.self, using: context)
-        results["Document"] = deduplicate(CDDocument.self, using: context)
+        results["Note"] = deduplicateNotesStrong(using: context, container: container)
+        results["NoteTemplate"] = deduplicate(CDNoteTemplateEntity.self, using: context, container: container)
+        results["NoteStudentLink"] = deduplicate(CDNoteStudentLink.self, using: context, container: container)
+        results["Document"] = deduplicate(CDDocument.self, using: context, container: container)
 
         // Attendance and calendar
         results["AttendanceRecord"] = deduplicateAttendanceRecordsStrong(using: context)
-        results["StudentMeeting"] = deduplicate(CDStudentMeeting.self, using: context, merge: mergeStudentMeeting)
-        results["MeetingTemplate"] = deduplicate(CDMeetingTemplateEntity.self, using: context)
-        results["CalendarEvent"] = deduplicate(CDCalendarEvent.self, using: context)
-        results["NonSchoolDay"] = deduplicate(CDNonSchoolDay.self, using: context)
-        results["SchoolDayOverride"] = deduplicate(CDSchoolDayOverride.self, using: context)
+        results["StudentMeeting"] = deduplicate(
+            CDStudentMeeting.self, using: context, container: container, merge: mergeStudentMeeting
+        )
+        results["MeetingTemplate"] = deduplicate(CDMeetingTemplateEntity.self, using: context, container: container)
+        results["CalendarEvent"] = deduplicate(CDCalendarEvent.self, using: context, container: container)
+        results["NonSchoolDay"] = deduplicate(CDNonSchoolDay.self, using: context, container: container)
+        results["SchoolDayOverride"] = deduplicate(CDSchoolDayOverride.self, using: context, container: container)
 
         // Community models
-        results["CommunityTopic"] = deduplicate(CDCommunityTopicEntity.self, using: context)
-        results["ProposedSolution"] = deduplicate(CDProposedSolutionEntity.self, using: context)
-        results["CommunityAttachment"] = deduplicate(CDCommunityAttachmentEntity.self, using: context)
+        results["CommunityTopic"] = deduplicate(CDCommunityTopicEntity.self, using: context, container: container)
+        results["ProposedSolution"] = deduplicate(CDProposedSolutionEntity.self, using: context, container: container)
+        results["CommunityAttachment"] = deduplicate(
+            CDCommunityAttachmentEntity.self, using: context, container: container
+        )
 
         // Other models
-        results["Reminder"] = deduplicate(CDReminder.self, using: context, merge: mergeReminder)
-        results["TodoItem"] = deduplicate(CDTodoItemEntity.self, using: context)
-        results["TodoSubtask"] = deduplicate(CDTodoSubtaskEntity.self, using: context)
+        results["Reminder"] = deduplicate(CDReminder.self, using: context, container: container, merge: mergeReminder)
+        results["TodoItem"] = deduplicate(CDTodoItemEntity.self, using: context, container: container)
+        results["TodoSubtask"] = deduplicate(CDTodoSubtaskEntity.self, using: context, container: container)
 
         return results.filter { $0.value > 0 }
     }

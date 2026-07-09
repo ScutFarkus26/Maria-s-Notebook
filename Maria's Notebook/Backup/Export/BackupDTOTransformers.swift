@@ -8,15 +8,21 @@ import OSLog
 /// testability and separation of concerns.
 ///
 /// Transformers are organized into domain-specific extensions:
-/// - `BackupDTOTransformers+Core.swift` — CDStudent, CDLesson, CDNote,
-///   CDLessonAttachment, CDLessonPresentation, CDSampleWork, CDSampleWorkStep
+/// - `BackupDTOTransformers+Core.swift` — CDLessonAttachment,
+///   CDLessonPresentation, CDLessonRecallCheck, CDSampleWork, CDSampleWorkStep
 /// - `BackupDTOTransformers+Work.swift` — CDWorkCheckIn, CDWorkStep,
 ///   WorkParticipant, CDPracticeSession
-/// - `BackupDTOTransformers+Projects.swift` — CDProject, CDProjectSession,
-///   CDProjectRole, CDCommunityTopicEntity, CDProposedSolutionEntity,
-///   CDCommunityAttachmentEntity
+/// - `BackupDTOTransformers+V18Entities.swift` — CDDayPad, CDYearPlanEntry,
+///   CDLessonSequenceSettings, CDStory, Book Club entities
 /// - `BackupDTOTransformers+Misc.swift` — Calendar, Todo, CDTrackEntity,
 ///   CDSupply, CDSchedule, CDIssue, CDProcedure, CDDocument, and remaining types
+///
+/// Entities NOT handled here (CDStudent, CDLesson, CDNote, CDNonSchoolDay,
+/// CDSchoolDayOverride, CDStudentMeeting, CDAttendanceRecord,
+/// CDWorkCompletionRecord, CDProject, CDProjectSession, CDProjectRole, and the
+/// Community entities) are exported via `BackupServiceHelpers.toDTOs`, which
+/// carries their full field set. Duplicating them here caused silent field loss
+/// in the past — keep a single transformer per entity.
 enum BackupDTOTransformers {
     static let logger = Logger.backup
 

@@ -12,7 +12,10 @@ public struct StudentDTO: Codable, Sendable {
     public var id: UUID
     public var firstName: String
     public var lastName: String
-    public var birthday: Date
+    // Optional: a student with no recorded birthday must export as nil, not a
+    // fabricated date. Older backups always carry a value (sometimes fabricated —
+    // Date() at export time or .distantPast); the importer filters sentinels.
+    public var birthday: Date?
     public var dateStarted: Date?
     public var level: Level
     public var nextLessons: [UUID]
@@ -23,6 +26,10 @@ public struct StudentDTO: Codable, Sendable {
     public var nickname: String?
     public var enrollmentStatusRaw: String?
     public var dateWithdrawn: Date?
+    /// Conflict-resolution timestamp, preserved so post-restore deduplication
+    /// doesn't treat every restored student as "just modified". Optional for
+    /// compatibility with older backups that predate this field.
+    public var modifiedAt: Date?
 }
 
 public struct LessonDTO: Codable, Sendable {

@@ -283,8 +283,7 @@ extension BackupService {
         try BackupEntityImporter.importNotes(
             payload.notes,
             into: viewContext,
-            existingCheck: { try index.find(CDNote.self, id: $0) },
-            lessonCheck: { try index.related(CDLesson.self, id: $0) }
+            existingCheck: { try index.find(CDNote.self, id: $0) }
         )
     }
 
@@ -552,8 +551,7 @@ extension BackupService {
             try BackupEntityImporter.importDocuments(
                 documents,
                 into: viewContext,
-                existingCheck: { try index.find(CDDocument.self, id: $0) },
-                studentCheck: { try index.related(CDStudent.self, id: $0) }
+                existingCheck: { try index.find(CDDocument.self, id: $0) }
             )
         }
 

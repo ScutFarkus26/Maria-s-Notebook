@@ -24,6 +24,9 @@ extension BackupEntityImporter {
                 project.bookTitle = dto.bookTitle
                 project.memberStudentIDsArray = dto.memberStudentIDs
                 project.isActive = dto.isActive ?? true
+                // Preserve the original modification time (awakeFromInsert stamped
+                // "now"); older backups lack the field and keep the import-time stamp.
+                if let v = dto.modifiedAt { project.modifiedAt = v }
                 return project
             }
         )

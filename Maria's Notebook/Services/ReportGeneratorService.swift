@@ -263,16 +263,12 @@ struct ReportGeneratorService {
             lessonCount: lessonCount
         )
 
-        // Create PDF using CGContext
-        let pdfDocument = PDFDocument()
-
-        // Use a simpler approach - create PDF data directly
-        if let pdfPage = createPDFPage(
+        // Create PDF using CGContext, flowing the text across as many pages as it needs
+        if let pdfDocument = createPDFDocument(
             from: reportText,
             pageSize: NSSize(width: pageWidth, height: pageHeight),
             margin: margin
         ) {
-            pdfDocument.insert(pdfPage, at: 0)
             pdfData = pdfDocument.dataRepresentation() ?? Data()
         }
         #endif
@@ -618,19 +614,20 @@ extension ReportGeneratorService {
         result.append(NSAttributedString(string: "─────────────────────────────────────\n\n"))
     }
 
-    private func createPDFPage(
+    private func createPDFDocument(
         from attributedString: NSAttributedString, pageSize: NSSize, margin: CGFloat
-    ) -> PDFPage? {
-        // Create a simple PDF page from attributed string
+    ) -> PDFDocument? {
+        // TextKit 1 pagination: one NSTextContainer per page. The layout manager
+        // flows the text through the container chain, so each container holds
+        // exactly one page's worth of glyphs. (TextKit 2 still has no
+        // multi-container pagination story, so this remains the supported path.)
         let textStorage = NSTextStorage(attributedString: attributedString)
         let layoutManager = NSLayoutManager()
         textStorage.addLayoutManager(layoutManager)
 
         let contentSize = NSSize(width: pageSize.width - margin * 2, height: pageSize.height - margin * 2)
-        let textContainer = NSTextContainer(size: contentSize)
-        layoutManager.addTextContainer(textContainer)
+        guard contentSize.width > 0, contentSize.height > 0 else { return nil }
 
-        // Create PDF data
         let pdfData = NSMutableData()
         var mediaBox = CGRect(x: 0, y: 0, width: pageSize.width, height: pageSize.height)
 
@@ -639,31 +636,37 @@ extension ReportGeneratorService {
             return nil
         }
 
-        context.beginPDFPage(nil)
+        var renderedGlyphs = 0
+        repeat {
+            let textContainer = NSTextContainer(size: contentSize)
+            layoutManager.addTextContainer(textContainer)
+            let glyphRange = layoutManager.glyphRange(for: textContainer)
 
-        // Flip coordinate system
-        context.translateBy(x: 0, y: pageSize.height)
-        context.scaleBy(x: 1.0, y: -1.0)
+            context.beginPDFPage(nil)
+            context.saveGState()
 
-        // Draw text
-        NSGraphicsContext.saveGraphicsState()
-        let nsContext = NSGraphicsContext(cgContext: context, flipped: true)
-        NSGraphicsContext.current = nsContext
+            // Flip coordinate system
+            context.translateBy(x: 0, y: pageSize.height)
+            context.scaleBy(x: 1.0, y: -1.0)
 
-        let glyphRange = layoutManager.glyphRange(for: textContainer)
-        layoutManager.drawGlyphs(forGlyphRange: glyphRange, at: CGPoint(x: margin, y: margin))
+            NSGraphicsContext.saveGraphicsState()
+            NSGraphicsContext.current = NSGraphicsContext(cgContext: context, flipped: true)
+            layoutManager.drawBackground(forGlyphRange: glyphRange, at: CGPoint(x: margin, y: margin))
+            layoutManager.drawGlyphs(forGlyphRange: glyphRange, at: CGPoint(x: margin, y: margin))
+            NSGraphicsContext.restoreGraphicsState()
 
-        NSGraphicsContext.restoreGraphicsState()
+            context.restoreGState()
+            context.endPDFPage()
 
-        context.endPDFPage()
+            // A page that laid out no glyphs means no forward progress is
+            // possible (defensive: contentSize is validated above), so stop
+            // rather than spin.
+            guard glyphRange.length > 0 else { break }
+            renderedGlyphs = NSMaxRange(glyphRange)
+        } while renderedGlyphs < layoutManager.numberOfGlyphs
         context.closePDF()
 
-        // Convert to PDFPage
-        if let pdfDocument = PDFDocument(data: pdfData as Data),
-           let page = pdfDocument.page(at: 0) {
-            return page
-        }
-        return nil
+        return PDFDocument(data: pdfData as Data)
     }
     #endif
 

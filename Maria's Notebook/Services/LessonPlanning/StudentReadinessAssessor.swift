@@ -180,8 +180,10 @@ struct StudentReadinessAssessor {
         var progress = LessonSequenceProgress()
         for lesson in sorted {
             let lessonIDStr = lesson.id?.uuidString ?? ""
+            // Match on state too: "Previously Presented" records are undated, and a
+            // date-only check would re-suggest already-presented historical lessons.
             let presented = presentations.contains { la in
-                la.lessonID == lessonIDStr && la.presentedAt != nil
+                la.lessonID == lessonIDStr && (la.isPresented || la.presentedAt != nil)
             }
             if presented {
                 progress.completedInSequence += 1

@@ -100,41 +100,7 @@ extension TodayView {
                         .fixedSize()
                 }
 
-                if !(viewModel.absentToday.isEmpty && viewModel.leftEarlyToday.isEmpty) {
-                    // Resolve names once per student — sort key and display label are the same value.
-                    let absentPairs = viewModel.absentToday
-                        .map { (id: $0, name: displayNameForID($0)) }
-                        .filter { !$0.name.trimmed().isEmpty }
-                        .sorted { $0.name.localizedCaseInsensitiveCompare($1.name) == .orderedAscending }
-                    let leftEarlyPairs = viewModel.leftEarlyToday
-                        .map { (id: $0, name: displayNameForID($0)) }
-                        .filter { !$0.name.trimmed().isEmpty }
-                        .sorted { $0.name.localizedCaseInsensitiveCompare($1.name) == .orderedAscending }
-                    ScrollView(.horizontal, showsIndicators: false) {
-                        HStack(spacing: 6) {
-                            ForEach(absentPairs, id: \.id) { pair in
-                                studentPill(pair.name, color: .red)
-                                    .contextMenu {
-                                        Text(pair.name)
-                                        Divider()
-                                        Button {
-                                            markTardy(pair.id)
-                                        } label: {
-                                            Label("Mark Tardy", systemImage: "clock")
-                                        }
-                                    }
-                            }
-                            if !absentPairs.isEmpty && !leftEarlyPairs.isEmpty {
-                                Color.clear.frame(width: 8)
-                            }
-                            ForEach(leftEarlyPairs, id: \.id) { pair in
-                                studentPill(pair.name, color: .purple)
-                            }
-                        }
-                        .padding(.leading, 8)
-                    }
-                    .fixedSize(horizontal: false, vertical: true)
-                }
+                attendanceStudentScroll
 
                 Spacer(minLength: 0)
 
@@ -149,6 +115,47 @@ extension TodayView {
             )
         }
         .buttonStyle(.plain)
+    }
+
+    // MARK: - Attendance Student Scroll
+
+    @ViewBuilder
+    private var attendanceStudentScroll: some View {
+        if !(viewModel.absentToday.isEmpty && viewModel.leftEarlyToday.isEmpty) {
+            // Resolve names once per student — sort key and display label are the same value.
+            let absentPairs = viewModel.absentToday
+                .map { (id: $0, name: displayNameForID($0)) }
+                .filter { !$0.name.trimmed().isEmpty }
+                .sorted { $0.name.localizedCaseInsensitiveCompare($1.name) == .orderedAscending }
+            let leftEarlyPairs = viewModel.leftEarlyToday
+                .map { (id: $0, name: displayNameForID($0)) }
+                .filter { !$0.name.trimmed().isEmpty }
+                .sorted { $0.name.localizedCaseInsensitiveCompare($1.name) == .orderedAscending }
+            ScrollView(.horizontal, showsIndicators: false) {
+                HStack(spacing: 6) {
+                    ForEach(absentPairs, id: \.id) { pair in
+                        studentPill(pair.name, color: .red)
+                            .contextMenu {
+                                Text(pair.name)
+                                Divider()
+                                Button {
+                                    markTardy(pair.id)
+                                } label: {
+                                    Label("Mark Tardy", systemImage: "clock")
+                                }
+                            }
+                    }
+                    if !absentPairs.isEmpty && !leftEarlyPairs.isEmpty {
+                        Color.clear.frame(width: 8)
+                    }
+                    ForEach(leftEarlyPairs, id: \.id) { pair in
+                        studentPill(pair.name, color: .purple)
+                    }
+                }
+                .padding(.leading, 8)
+            }
+            .fixedSize(horizontal: false, vertical: true)
+        }
     }
 
     // MARK: - Stat Chip

@@ -307,8 +307,12 @@ extension TodayView {
     }
 
     func bumpLessonToTomorrow(_ sl: CDLessonAssignment) {
-        let base = sl.scheduledFor ?? viewModel.date
-        guard let tomorrow = Calendar.current.date(byAdding: .day, value: 1, to: base) else { return }
+        // "Tomorrow" is relative to today, not the item's own date — adding a day
+        // to an overdue item's old date would leave it in the past, still overdue.
+        let calendar = Calendar.current
+        guard let tomorrow = calendar.date(
+            byAdding: .day, value: 1, to: calendar.startOfDay(for: Date())
+        ) else { return }
         sl.schedule(for: tomorrow)
         do {
             try viewContext.save()
@@ -327,9 +331,21 @@ extension TodayView {
     }
 
     func bumpCheckInToTomorrow(_ checkIn: CDWorkCheckIn) {
+        // "Tomorrow" is relative to today, not the check-in's own date — adding a
+        // day to a 5-day-old check-in moved it to 4 days ago, still overdue.
+        // Keep the original time of day so intra-day ordering stays stable.
+        let calendar = Calendar.current
         let base = checkIn.date ?? viewModel.date
-        guard let tomorrow = Calendar.current.date(byAdding: .day, value: 1, to: base) else { return }
-        checkIn.date = tomorrow
+        guard let startOfTomorrow = calendar.date(
+            byAdding: .day, value: 1, to: calendar.startOfDay(for: Date())
+        ) else { return }
+        let time = calendar.dateComponents([.hour, .minute, .second], from: base)
+        checkIn.date = calendar.date(
+            bySettingHour: time.hour ?? 0,
+            minute: time.minute ?? 0,
+            second: time.second ?? 0,
+            of: startOfTomorrow
+        ) ?? startOfTomorrow
         do {
             try viewContext.save()
             viewModel.reload()

@@ -1,56 +1,12 @@
 import Foundation
 import CoreData
-import OSLog
 
-// MARK: - Core Transformers (CDStudent, CDLesson, CDNote, CDLessonAttachment, CDLessonPresentation)
+// MARK: - Core Transformers (CDSampleWork, CDSampleWorkStep, CDLessonAttachment,
+//         CDLessonPresentation, CDLessonRecallCheck)
+// CDStudent, CDLesson, and CDNote exports go through BackupServiceHelpers.toDTOs,
+// which carries the full field set — do not re-add transformers for them here.
 
 extension BackupDTOTransformers {
-
-    // MARK: - CDStudent
-
-    static func toDTO(_ student: CDStudent) -> StudentDTO {
-        let level: StudentDTO.Level = (student.level == .upper) ? .upper : .lower
-        return StudentDTO(
-            id: student.id ?? UUID(),
-            firstName: student.firstName,
-            lastName: student.lastName,
-            birthday: student.birthday ?? Date.distantPast,
-            dateStarted: student.dateStarted,
-            level: level,
-            nextLessons: student.nextLessonUUIDs,
-            manualOrder: Int(student.manualOrder),
-            createdAt: nil,
-            updatedAt: nil
-        )
-    }
-
-    // MARK: - CDLesson
-
-    static func toDTO(_ lesson: CDLesson) -> LessonDTO {
-        LessonDTO(
-            id: lesson.id ?? UUID(),
-            name: lesson.name,
-            area: lesson.area,
-            sequence: lesson.sequence,
-            orderInSequence: Int(lesson.orderInSequence),
-            section: lesson.section,
-            writeUp: lesson.writeUp,
-            createdAt: nil,
-            updatedAt: nil,
-            pagesFileRelativePath: lesson.pagesFileRelativePath,
-            primaryAttachmentID: lesson.primaryAttachmentIDUUID,
-            suggestedFollowUpWork: lesson.suggestedFollowUpWork,
-            sourceRaw: lesson.sourceRaw,
-            personalKindRaw: lesson.personalKindRaw,
-            defaultWorkKindRaw: lesson.defaultWorkKindRaw,
-            materials: lesson.materials,
-            purpose: lesson.purpose,
-            ageRange: lesson.ageRange,
-            teacherNotes: lesson.teacherNotes,
-            prerequisiteLessonIDs: lesson.prerequisiteLessonIDs,
-            relatedLessonIDs: lesson.relatedLessonIDs
-        )
-    }
 
     // MARK: - CDSampleWork
 
@@ -76,36 +32,6 @@ extension BackupDTOTransformers {
             orderIndex: Int(step.orderIndex),
             instructions: step.instructions,
             createdAt: step.createdAt ?? Date()
-        )
-    }
-
-    // MARK: - CDNote
-
-    static func toDTO(_ note: CDNote) -> NoteDTO {
-        let scopeString: String
-        do {
-            let data = try JSONEncoder().encode(note.scope)
-            scopeString = String(data: data, encoding: .utf8) ?? "{}"
-        } catch {
-            logger.warning("Failed to encode note scope: \(error)")
-            scopeString = "{}"
-        }
-
-        let tagsArray = (note.tags as? [String]) ?? []
-        return NoteDTO(
-            id: note.id ?? UUID(),
-            createdAt: note.createdAt ?? Date(),
-            updatedAt: note.updatedAt ?? Date(),
-            body: note.body,
-            isPinned: note.isPinned,
-            scope: scopeString,
-            tags: tagsArray.isEmpty ? nil : tagsArray,
-            needsFollowUp: note.needsFollowUp ? true : nil,
-            lessonID: note.lesson?.id,
-            imagePath: note.imagePath,
-            includeInReport: note.includeInReport,
-            reportedBy: note.reportedBy,
-            reporterName: note.reporterName
         )
     }
 
@@ -145,18 +71,6 @@ extension BackupDTOTransformers {
     }
 
     // MARK: - Batch Transformations (Core)
-
-    static func toDTOs(_ students: [CDStudent]) -> [StudentDTO] {
-        students.map { toDTO($0) }
-    }
-
-    static func toDTOs(_ lessons: [CDLesson]) -> [LessonDTO] {
-        lessons.map { toDTO($0) }
-    }
-
-    static func toDTOs(_ notes: [CDNote]) -> [NoteDTO] {
-        notes.map { toDTO($0) }
-    }
 
     static func toDTOs(_ sampleWorks: [CDSampleWork]) -> [SampleWorkDTO] {
         sampleWorks.map { toDTO($0) }

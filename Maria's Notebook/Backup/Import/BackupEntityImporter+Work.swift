@@ -22,6 +22,7 @@ extension BackupEntityImporter {
                 let work = CDWorkModel(context: viewContext)
                 work.id = dto.id
                 work.title = dto.title
+                work.workTypeRaw = dto.workTypeRaw
                 work.kindRaw = dto.kindRaw
                 work.studentLessonID = dto.studentLessonID
                 work.createdAt = dto.createdAt

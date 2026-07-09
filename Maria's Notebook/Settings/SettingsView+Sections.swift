@@ -635,12 +635,12 @@ extension SettingsView {
             Text("Try these with Siri, or find them in the Shortcuts app — no setup needed.")
                 .font(.caption)
                 .foregroundStyle(.secondary)
-            #if os(macOS)
-            // SiriTipView is unavailable on macOS; list the phrases as text instead.
+            #if os(macOS) || targetEnvironment(macCatalyst)
+            // SiriTipView is unavailable on macOS and Mac Catalyst; list the phrases as text instead.
             VStack(alignment: .leading, spacing: 6) {
-                Label("“Log an observation about [student]”", systemImage: "mic")
-                Label("“Mark [lesson] as presented to [student]”", systemImage: "mic")
-                Label("“Mark [student] absent”", systemImage: "mic")
+                Label("\"Log an observation about [student]\"", systemImage: "mic")
+                Label("\"Mark [lesson] as presented to [student]\"", systemImage: "mic")
+                Label("\"Mark [student] absent\"", systemImage: "mic")
             }
             .font(.callout)
             .foregroundStyle(.primary)

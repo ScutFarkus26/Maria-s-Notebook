@@ -9,6 +9,10 @@ public struct ProjectDTO: Codable, Sendable {
     public var bookTitle: String?
     public var memberStudentIDs: [String]
     public var isActive: Bool?
+    /// Conflict-resolution timestamp, preserved so post-restore deduplication
+    /// doesn't treat every restored project as "just modified". Optional for
+    /// compatibility with older backups that predate this field.
+    public var modifiedAt: Date?
 }
 
 public struct ProjectAssignmentTemplateDTO: Codable, Sendable {

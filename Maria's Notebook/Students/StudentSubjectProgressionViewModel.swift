@@ -66,9 +66,11 @@ final class StudentAreaProgressionViewModel {
         for lesson in groupLessons {
             let lessonIDStr = lesson.id?.uuidString ?? ""
 
-            // Find matching presentation
+            // Find matching presentation. "Previously Presented" records are undated
+            // (state == .presented, presentedAt == nil), so match on state as well —
+            // otherwise historical lessons show Not Started and get re-suggested as next.
             let presentation = studentPresentations.first {
-                $0.lessonID == lessonIDStr && $0.presentedAt != nil
+                $0.lessonID == lessonIDStr && ($0.isPresented || $0.presentedAt != nil)
             }
             let scheduledPresentation = studentPresentations.first {
                 $0.lessonID == lessonIDStr && $0.isScheduled

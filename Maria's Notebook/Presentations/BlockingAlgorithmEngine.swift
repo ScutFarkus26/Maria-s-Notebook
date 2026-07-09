@@ -189,7 +189,10 @@ enum BlockingAlgorithmEngine {
             var workComplete = true
             if rules.requiresPractice, let assignment = studentAssignment {
                 let presentationID = assignment.id?.uuidString ?? ""
-                let prerequisiteWork = context.workByPresentationID[presentationID] ?? []
+                // Only this student's own work can gate their readiness — a classmate's
+                // unfinished work on the same group presentation must not block them.
+                let prerequisiteWork = (context.workByPresentationID[presentationID] ?? [])
+                    .filter { workInvolvesStudent(work: $0, studentID: studentID) }
 
                 if prerequisiteWork.isEmpty {
                     // No work assigned yet — if practice is required, student isn't ready
@@ -327,6 +330,17 @@ enum BlockingAlgorithmEngine {
         let relevantParticipants = participantsArray.filter { requiredStudentIDStrings.contains($0.studentID) }
 
         return !relevantParticipants.isEmpty && relevantParticipants.allSatisfy { $0.completedAt != nil }
+    }
+
+    /// Whether a work item applies to the given student: they are a participant, or —
+    /// for legacy rows with no participants — the work's single-student field names them.
+    static func workInvolvesStudent(work: CDWorkModel, studentID: UUID) -> Bool {
+        let studentIDStr = studentID.uuidString
+        let participantsArray = (work.participants?.allObjects as? [CDWorkParticipantEntity]) ?? []
+        guard !participantsArray.isEmpty else {
+            return work.studentID == studentIDStr
+        }
+        return participantsArray.contains { $0.studentID == studentIDStr }
     }
 
     /// Check if work is complete for a single student.

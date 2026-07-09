@@ -135,7 +135,10 @@ final class AppBootstrapper {
         let dedupStart = Date()
         await MainActor.run {
             // 3.8. Deduplication (CloudKit sync can create duplicates during merge conflicts)
-            _ = DataMigrations.deduplicateAllModels(using: coreDataStack.viewContext)
+            _ = DataMigrations.deduplicateAllModels(
+                using: coreDataStack.viewContext,
+                container: coreDataStack.container
+            )
         }
         logger.info("Post-launch: deduplication completed in \(formatSeconds(Date().timeIntervalSince(dedupStart)))")
 
@@ -164,6 +167,14 @@ final class AppBootstrapper {
         // Gated internally on SharedStoreZoneRepair.hasActiveShare.
         await MainActor.run {
             DataMigrations.backfillLessonPresentationsFromAssignments(using: coreDataStack.viewContext)
+        }
+
+        // 3.86. Link pre-fix work items to their lesson assignment. Work created by
+        // the presentation workflow before the presentationID fix carries no link, so
+        // required-practice gates could never see it complete and students stayed
+        // blocked. Runs once per device (UserDefaults-guarded); idempotent.
+        await MainActor.run {
+            DataMigrations.backfillWorkPresentationLinks(using: coreDataStack.viewContext)
         }
 
         // 3.9. Data Integrity Repairs (Run on ~10% of launches to reduce startup impact)

@@ -57,9 +57,28 @@ struct WorkRepository {
         let lessonIDString = lessonID.uuidString
         let request = CDFetchRequest(CDLessonAssignment.self)
         request.predicate = NSPredicate(format: "lessonID == %@", lessonIDString)
-        return context.safeFetch(request)
-            .first(where: { $0.studentIDs.contains(studentID.uuidString) })?
-            .id
+        let candidates = context.safeFetch(request)
+            .filter { $0.studentIDs.contains(studentID.uuidString) }
+        return Self.preferredAssignment(among: candidates)?.id
+    }
+
+    /// Picks the assignment a work item should link to. Follow-up work belongs to the
+    /// presentation the student just received, so prefer presented assignments (most
+    /// recent first) over drafts/scheduled ones. "Previously Presented" records are
+    /// undated, so fall back to createdAt. Also used by the one-shot backfill that
+    /// links pre-fix work items (DataMigrations+WorkPresentationLinkBackfill).
+    static func preferredAssignment(among candidates: [CDLessonAssignment]) -> CDLessonAssignment? {
+        let presented = candidates
+            .filter(\.isPresented)
+            .max { lhs, rhs in
+                let lhsDate = lhs.presentedAt ?? lhs.createdAt ?? .distantPast
+                let rhsDate = rhs.presentedAt ?? rhs.createdAt ?? .distantPast
+                return lhsDate < rhsDate
+            }
+        let fallback = candidates.max {
+            ($0.createdAt ?? .distantPast) < ($1.createdAt ?? .distantPast)
+        }
+        return presented ?? fallback
     }
 
     // MARK: - Fetch
@@ -121,10 +140,13 @@ struct WorkRepository {
         work.dueAt = scheduledDate
         work.completionOutcome = nil
 
-        // Populate identity fields for UI resolution
+        // Populate identity fields for UI resolution. presentationID must carry the
+        // resolved assignment ID (not just the raw parameter, which most callers omit):
+        // readiness, blocking, and mastery checks all key work on presentationID, so an
+        // unlinked work item can never satisfy a practice gate.
         work.studentID = studentID.uuidString
         work.lessonID = lessonID.uuidString
-        work.presentationID = presentationID?.uuidString
+        work.presentationID = studentLessonID?.uuidString
 
         // Create participant
         let participant = CDWorkParticipantEntity(context: context)

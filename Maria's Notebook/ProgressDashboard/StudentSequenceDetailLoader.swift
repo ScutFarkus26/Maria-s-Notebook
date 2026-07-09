@@ -120,7 +120,12 @@ enum StudentSequenceDetailLoader {
         context: NSManagedObjectContext
     ) -> [PresentationDetailItem] {
         let request = NSFetchRequest<CDLessonAssignment>(entityName: "LessonAssignment")
-        request.predicate = NSPredicate(format: "lessonID IN %@ AND presentedAt != nil", lessonIDStrs)
+        // Include undated "Previously Presented" records (stateRaw == presented,
+        // presentedAt == nil) so the drill-in matches the dashboard grid.
+        request.predicate = NSPredicate(
+            format: "lessonID IN %@ AND (stateRaw == %@ OR presentedAt != nil)",
+            lessonIDStrs, LessonAssignmentState.presented.rawValue
+        )
         let assignments = context.safeFetch(request)
             .filter { $0.studentIDs.contains(studentIDStr) }
             .sorted { ($0.presentedAt ?? .distantPast) > ($1.presentedAt ?? .distantPast) }
