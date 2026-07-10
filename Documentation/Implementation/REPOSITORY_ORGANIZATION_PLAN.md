@@ -103,8 +103,20 @@ Commit: `9bc5a837 docs(repo): add incremental organization plan`
 
 ### Phase 4 - Extract feature code from Components
 
-- Status: Pending
-- Move Todos first, then Notes and quick capture, one feature per commit.
+- Status: Complete
+- Implementation commits:
+  - `1b14621b` (`refactor(todos): move Todo UI out of Components`)
+  - `ac057e7c` (`refactor(notes): co-locate note UI and quick capture`)
+- Moved 30 Todo-owned Swift files into `Todos/Views/` and `Todos/Support/`, including the Todo screens, forms, rows, scheduling controls, filters, sorting, and date parser.
+- Moved 26 note-owned Swift files into `Notes/Editor/`, `Notes/Observations/`, `Notes/QuickCapture/`, and `Notes/Views/`. This also removed the feature-specific note editor and tag picker from `AppCore`.
+- Both source changes are 100% renames with zero Swift insertions or deletions. No types, declarations, imports, or behavior changed.
+- Preserved shared ownership for controls used by unrelated features, including `Components/SelectedStudentChipsRow.swift`. The cross-feature quick-action button and work-item sheet remain in `AppCore` as application composition.
+- Updated repository maps, the developer manual, and AI and architecture documentation for the new paths and feature boundaries.
+- Validation:
+  - macOS and generic iOS Debug builds passed after each implementation commit.
+  - The full macOS suite exactly matched the established baseline: 161 passed and the same 11 Keychain-blocked tests failed with `-34018`.
+  - Staged whitespace and stale-path checks passed.
+  - SwiftLint reported no Notes violations and only six pre-existing Todo warnings in unchanged, rename-only source files.
 
 ### Phase 5 - Clarify shared layers
 
