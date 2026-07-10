@@ -171,5 +171,13 @@ Commit: `9bc5a837 docs(repo): add incremental organization plan`
 
 ### Phase 8 - Closeout and enforcement
 
-- Status: Pending
-- Refresh architecture documentation, add lightweight repository checks, remove superseded empty folders, and run final builds, lint, and tests.
+- Status: Complete (2026-07-10)
+- Implementation commit: `43d75271` (`chore(repo): add organization safeguards`)
+- Added `Scripts/check_repository_structure.sh` to report tracked Xcode user data, retired organization paths, loose Swift files in the reorganized large features and test root, and empty source, test, or documentation folders.
+- Refreshed feature-ownership guidance, documentation instructions, and the repository maps in `README.md` and `CLAUDE.md`.
+- Audited the source, test, and documentation trees and confirmed that no superseded empty folders remain after the moves.
+- The repository structure check, shell syntax check, local Markdown link check, and whitespace check passed.
+- A clean generic iOS build passed. The clean macOS test action built the app and test targets and ran all 172 tests.
+- The full macOS suite exactly matched the established environment baseline: 161 passed and the same 11 backup tests failed because the test runner cannot write to Keychain (`-34018`).
+- Full-project SwiftLint reported the existing baseline of 179 findings (13 errors and 166 warnings). Phase 8 changed no Swift source and introduced no new lint findings.
+- Repository organization is complete and the branch is ready for review.
