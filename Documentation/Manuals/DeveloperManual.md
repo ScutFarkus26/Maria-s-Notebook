@@ -1176,7 +1176,7 @@ Quick actions: reschedule, mark complete, open detail, assign work.
 
 ## Notes Module
 
-**Across:** `Models/NoteEntity.swift`, `Components/ObservationsView.swift`, `Components/NotesSection.swift`
+**Across:** `Models/NoteEntity.swift`, `Notes/Observations/`, `Notes/Editor/`, `Notes/QuickCapture/`
 
 Universal observation system. Notes can be:
 
@@ -1649,7 +1649,11 @@ Maria's Notebook/
 |   +-- Views/                            Screens, forms, rows, and sheets
 |   +-- Support/                          Filters, sorting, and date parsing
 +-- Projects/                            Project-based learning
-+-- Notes/                               Observation views
++-- Notes/                               Observation and note capture
+|   +-- Observations/                     Browsing, filtering, and AI summaries
+|   +-- Editor/                           Note editors and tag selection
+|   +-- QuickCapture/                     Quick-note sheet and parsing
+|   +-- Views/                            Scoped note presentation
 +-- Supplies/                            Inventory management
 +-- Settings/                            App configuration
 +-- Backup/                              Backup and restore

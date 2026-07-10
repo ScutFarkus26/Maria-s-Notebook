@@ -67,6 +67,7 @@ Maria's Notebook/
 ├── Inbox/            # Follow-up inbox
 ├── Today/            # Daily hub views, view model, and support
 ├── Todos/            # Todo screens, forms, and presentation support
+├── Notes/            # Observation browsing, editing, and quick capture
 │
 ├── Agenda/           # Calendar day/month grid views
 ├── Chat/             # AI chat features

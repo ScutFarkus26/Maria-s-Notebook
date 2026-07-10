@@ -103,9 +103,9 @@ equivalent) at runtime before calling the model.
 |---------|------|--------|-----------|------------|
 | Draft generation (parent email, report card, action plan, weekly summary) | `Components/AppleIntelligenceSheet.swift` + `…+Generation.swift` | Free text | No | — |
 | Meeting summaries | `Students/Meetings/MeetingSummaryGenerator.swift` | `@Generable` `MeetingSummary` | Yes | — |
-| Observation digests / narrative | `Components/ObservationsView+AI.swift` | `@Generable` `NotesDigest` / `NotesNarrative` | Yes | — |
-| Note tag + student suggestion | `Components/UnifiedNoteEditor/NoteEditorAISuggestion.swift` | `@Generable` `NoteTagSuggestion` | No | **Photo** |
-| Describe photo into note | `Components/UnifiedNoteEditor/NoteEditorAISuggestion.swift` | Free text | No | **Photo** |
+| Observation digests / narrative | `Notes/Observations/ObservationsView+AI.swift` | `@Generable` `NotesDigest` / `NotesNarrative` | Yes | — |
+| Note tag + student suggestion | `Notes/Editor/NoteEditorAISuggestion.swift` | `@Generable` `NoteTagSuggestion` | No | **Photo** |
+| Describe photo into note | `Notes/Editor/NoteEditorAISuggestion.swift` | Free text | No | **Photo** |
 | Story metadata (title/themes/grade) | `Stories/StoryAnalyzer.swift` | `@Generable` `StoryAnalysisAI` | No | **PDF pages** |
 | Todo smart parsing | `Services/TodoSmartParserService.swift` | `@Generable` `ParsedTodo` | No | — |
 | Student-name extraction | `Services/TodoStudentSuggestionService.swift` | `@Generable` `ExtractedNames` | No | — |
@@ -256,8 +256,9 @@ Settings/
 Components/
   AppleIntelligenceSheet.swift        # draft generation UI
   AppleIntelligenceSheet+Generation.swift  # on-device/PCC draft routing
-  ObservationsView+AI.swift           # observation digests/narrative
-  UnifiedNoteEditor/NoteEditorAISuggestion.swift  # tags + photo description
+Notes/
+  Observations/ObservationsView+AI.swift  # observation digests/narrative
+  Editor/NoteEditorAISuggestion.swift     # tags + photo description
 Stories/StoryAnalyzer.swift           # story metadata (text + visual)
 Documentation/Architecture/
   AI.md                               # this file

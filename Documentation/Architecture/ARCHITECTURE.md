@@ -121,11 +121,12 @@ StudentDetailSheetModifiers.swift # Sheet presentations
 
 ### Reusable Components (in Components/)
 
-- `UnifiedNoteEditor` — Multi-context note editing
-- `ObservationsView` — Note display with selection
 - `DropZone` — Drag-and-drop targets
 - `ToastOverlay` — Toast notifications
 - `SearchField` — Debounced search input
+
+Feature-owned composed views stay with their feature. For example, note editing lives in
+`Notes/Editor/` and observation browsing lives in `Notes/Observations/`.
 
 ### Error Handling
 
