@@ -171,9 +171,9 @@ entity without backup coverage turns a test red.
 
 ## Testing
 
-- `Maria's Notebook Tests/BackupRoundTripTests.swift` — end-to-end round trips, encryption/verification, merge mode, corruption rejection, v18 entity fidelity.
-- `Maria's Notebook Tests/BackupCoverageTests.swift` — coverage exhaustiveness (registry ≡ writer ≡ importer ≡ model − exclusions).
-- `Maria's Notebook Tests/BackupCheckpointSafetyTests.swift` — checkpoint failure aborts before any destructive delete.
+- `Maria's Notebook Tests/Backup/BackupRoundTripTests.swift` — end-to-end round trips, encryption/verification, merge mode, corruption rejection, v18 entity fidelity.
+- `Maria's Notebook Tests/Backup/BackupCoverageTests.swift` — coverage exhaustiveness (registry ≡ writer ≡ importer ≡ model − exclusions).
+- `Maria's Notebook Tests/Backup/BackupCheckpointSafetyTests.swift` — checkpoint failure aborts before any destructive delete.
 
 ```bash
 DEVELOPER_DIR="$HOME/Downloads/Xcode-beta.app/Contents/Developer" \
