@@ -545,7 +545,7 @@ Once a presentation reaches `presented`, the `lessonTitleSnapshot` and `lessonSu
 
 ### CDWorkModel
 
-**File:** `Work/WorkModelEntity.swift`
+**File:** `Work/Models/WorkModelEntity.swift`
 
 | Field | Type | Purpose |
 |-------|------|---------|
@@ -1076,9 +1076,12 @@ CSV import and export for bulk lesson management. `LessonFileStorage` handles fi
 
 ## Work Module
 
-**Directory:** `Work/` (74 files)
+**Directory:** `Work/`
 
 The largest module. Manages the complete lifecycle of student work items.
+
+The feature is organized into `Agenda/`, `CheckIns/`, `Completion/`, `Detail/`, `Models/`,
+`Practice/`, `SampleWork/`, `Steps/`, `Support/`, `Services/`, and `WorkCard/`.
 
 ### Work Creation Sources
 
@@ -1650,9 +1653,17 @@ Maria's Notebook/
 |   +-- Checklist/ViewModels/            Class-area checklist state
 |
 +-- Work/
-|   +-- WorkModelEntity.swift            Work entity (CDWorkModel)
+|   +-- Models/WorkModelEntity.swift     Work entity (CDWorkModel)
+|   +-- Agenda/                           Work calendar and planning
+|   +-- CheckIns/                         Progress check-ins
+|   +-- Completion/                       Completion records and rules
+|   +-- Detail/                           Work detail screen and state
+|   +-- Practice/                         Practice sessions
+|   +-- SampleWork/                       Sample-work capture
+|   +-- Steps/                            Work-step editing
+|   +-- Support/                          Scheduling, filtering, and data access
 |   +-- Services/                         Lifecycle and PDF rendering
-|   +-- (74 files for lifecycle, check-ins, practice, PDF, etc.)
+|   +-- WorkCard/                         Shared work card presentations
 |
 +-- Presentations/                       Scheduling and recording
 |   +-- Services/                         Presentation splitting

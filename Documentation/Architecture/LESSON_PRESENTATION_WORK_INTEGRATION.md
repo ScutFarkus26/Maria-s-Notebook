@@ -52,7 +52,7 @@ lesson.getLessonStats(from: context) -> LessonStats
 
 ### 2. Enhanced WorkDetailView
 
-**Location**: `Maria's Notebook/Work/WorkDetailView.swift`
+**Location**: `Maria's Notebook/Work/Detail/WorkDetailView.swift`
 
 **New Features**:
 - Displays presentation context section showing:

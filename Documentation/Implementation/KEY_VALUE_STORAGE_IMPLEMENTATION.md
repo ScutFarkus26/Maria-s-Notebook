@@ -55,7 +55,7 @@ Updated the following files to use `@SyncedAppStorage` instead of `@AppStorage` 
 - `Backup/BackupRestoreSectionView.swift` - Backup encryption setting
 - `Students/Presentations/PresentationPill.swift` - Lesson age preferences
 - `Students/Meetings/StudentMeetingsTab.swift` - Work age preference
-- `Work/WorkCardView.swift` - Work age preferences
+- `Work/WorkCard/WorkCard.swift` - Work age preferences
 - `Backup/BackupService.swift` - Backup/restore preference handling
 
 ## How It Works
@@ -145,7 +145,7 @@ Potential improvements:
 7. `Backup/BackupRestoreSectionView.swift` - Updated backup encryption
 8. `Students/Presentations/PresentationPill.swift` - Updated lesson age preferences
 9. `Students/Meetings/StudentMeetingsTab.swift` - Updated work age preference
-10. `Work/WorkCardView.swift` - Updated work age preferences
+10. `Work/WorkCard/WorkCard.swift` - Updated work age preferences
 11. `Backup/BackupService.swift` - Updated backup/restore logic
 
 ---
@@ -158,5 +158,4 @@ Potential improvements:
 
 - [CloudKit Guide](../Architecture/CloudKit/CLOUDKIT_GUIDE.md) - CloudKit configuration and verification
 - [ARCHITECTURE.md](../Architecture/ARCHITECTURE.md) - App architecture overview
-
 

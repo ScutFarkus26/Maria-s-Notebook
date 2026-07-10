@@ -149,7 +149,7 @@ Links students to lessons with scheduling and presentation tracking.
 
 Tracks student work items through their lifecycle.
 
-**Location:** `Work/WorkModelEntity.swift` (class `CDWorkModel`)
+**Location:** `Work/Models/WorkModelEntity.swift` (class `CDWorkModel`)
 
 | Field | Type | Description |
 |-------|------|-------------|
@@ -353,7 +353,7 @@ Individual session within a project.
 
 Tracks individual student participation in a work item.
 
-**Location:** `Work/WorkParticipantEntityCD.swift` (class `CDWorkParticipant`)
+**Location:** `Work/Models/WorkParticipantEntityCD.swift` (class `CDWorkParticipant`)
 
 | Field | Type | Description |
 |-------|------|-------------|
@@ -367,7 +367,7 @@ Tracks individual student participation in a work item.
 
 Check-in record for work items.
 
-**Location:** `Work/WorkCheckInEntity.swift` (class `CDWorkCheckIn`)
+**Location:** `Work/CheckIns/WorkCheckInEntity.swift` (class `CDWorkCheckIn`)
 
 | Field | Type | Description |
 |-------|------|-------------|
@@ -384,7 +384,7 @@ Check-in record for work items.
 
 Individual step within a work item.
 
-**Location:** `Work/WorkStepEntity.swift` (class `CDWorkStep`)
+**Location:** `Work/Steps/WorkStepEntity.swift` (class `CDWorkStep`)
 
 | Field | Type | Description |
 |-------|------|-------------|
@@ -399,7 +399,7 @@ Individual step within a work item.
 
 Records student completion of a work item.
 
-**Location:** `Work/WorkCompletionRecordEntity.swift` (class `CDWorkCompletionRecord`)
+**Location:** `Work/Completion/WorkCompletionRecordEntity.swift` (class `CDWorkCompletionRecord`)
 
 | Field | Type | Description |
 |-------|------|-------------|
