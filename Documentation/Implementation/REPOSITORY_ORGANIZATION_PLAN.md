@@ -138,8 +138,21 @@ Commit: `9bc5a837 docs(repo): add incremental organization plan`
 
 ### Phase 6 - Organize large flat features
 
-- Status: Pending
-- Organize Students, Work, and Presentations by subdomain, one feature per commit.
+- Status: Complete
+- Implementation commits:
+  - `c123e1ea` (`refactor(students): organize feature by subdomain`)
+  - `dcef63af` (`refactor(work): organize feature by subdomain`)
+  - `14daaa04` (`refactor(presentations): organize feature by subdomain`)
+- Moved all 107 flat Students Swift files into detail, files, import, insights, meetings, models, notes, presentations, printing, progress, roster, and selection subdomains. Existing LessonDetail, Recall, and YearPlan subdomains were preserved.
+- Moved all 58 flat Work Swift files into agenda, check-ins, completion, detail, models, practice, sample-work, steps, and support subdomains. Existing Services and WorkCard subdomains were preserved.
+- Moved all 41 flat Presentations Swift files into assignments, overview, planning, and workflow subdomains. The existing Services subdomain was preserved.
+- All 206 Swift changes are 100% renames with zero Swift insertions or deletions. No types, declarations, imports, or behavior changed, and the three feature roots now contain no Swift files.
+- Updated developer, data-model, implementation, and integration documentation for the new paths and feature maps.
+- Validation:
+  - macOS and generic iOS Debug builds passed after each feature commit.
+  - The full macOS suite exactly matched the established baseline: 161 passed and the same 11 Keychain-blocked tests failed with `-34018`.
+  - Local Markdown links, staged whitespace checks, moved-path checks, and empty feature-root checks passed.
+  - SwiftLint reported no new violations; the moved files retain 35 pre-existing warnings and no errors.
 
 ### Phase 7 - Mirror the test structure
 
