@@ -75,9 +75,18 @@ Commit: `9bc5a837 docs(repo): add incremental organization plan`
 
 ### Phase 2 - Consolidate Backup
 
-- Status: Pending
-- Move the archive implementation into `Backup/Archive/` without renaming Swift types.
-- Commit target: `refactor(backup): consolidate archive implementation`
+- Status: Complete
+- Commit: `e6e7dcaa refactor(backup): consolidate archive implementation`
+- Moved the six current AppleArchive files from `Backup2/` into `Backup/Archive/` without renaming declarations or changing behavior.
+- Moved `BACKUP_SYSTEM.md` from the synchronized app source tree into `Documentation/Architecture/` and repaired code comments, README links, and documentation paths.
+- Validation:
+  - macOS Debug build passed.
+  - Generic iOS Debug build passed.
+  - Thirteen backup coverage, registry, field-coverage, and checkpoint-safety tests passed.
+  - Five archive compatibility tests passed; the other eleven targeted round-trip tests failed only with the recorded Keychain error, `-34018`.
+  - The full macOS suite exactly matched the established baseline: 161 passed and the same 11 Keychain-blocked tests failed.
+  - Local Markdown links and staged whitespace checks passed. Changed-file SwiftLint reported only the repository's recorded pre-existing violations.
+- Intentional exception: the existing `Backup2RoundTripTests` type and references to that test type remain unchanged because this phase forbids type renames. Test naming can be addressed with the Phase 7 test-structure work.
 
 ### Phase 3 - Co-locate Today
 
