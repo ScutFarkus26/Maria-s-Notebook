@@ -12,8 +12,8 @@ extension BackupService {
     private static let logger = Logger.backup
 
     /// Collects every backup-eligible Core Data entity into a `BackupPayload`.
-    /// Exposed for reuse by the Backup2 module (which serializes the payload
-    /// to AEA-framed NDJSON instead of the legacy JSON envelope.
+    /// Exposed for reuse by the archive implementation, which serializes the
+    /// payload to AEA-framed NDJSON instead of the legacy JSON envelope.
     public func collectPayload(
         viewContext: NSManagedObjectContext,
         progress: @escaping ProgressCallback = { _, _ in }

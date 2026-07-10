@@ -1,8 +1,8 @@
 # Backup & Restore System
 
-**Last Updated:** 2026-06-13
+**Last Updated:** 2026-07-09
 
-> Authoritative summary lives in the project root `CLAUDE.md` ("Backup System").
+> Authoritative summary lives in `Maria's Notebook/CLAUDE.md` ("Backup System").
 > This file is the longer-form companion. If they disagree, CLAUDE.md wins.
 
 ## Overview
@@ -23,18 +23,18 @@ now come from the AppleArchive/AEA layer plus a post-write structural check.
 
 ## Architecture
 
-### The Backup2 module (current code path)
+### Archive implementation (current code path)
 
 | File | Purpose |
 |------|---------|
-| `Backup2/BackupCoordinator.swift` | The single app-facing API. UI calls `exportBackup`, `previewImport`, `importBackup`, `verifyBackup`. |
-| `Backup2/BackupArchive.swift` | Low-level AppleArchive wrapper. Encrypted write (`AA01`), read of both encrypted v19 and plain v17/v18 (`pbz*`), magic-byte detection, per-entry size guard. |
-| `Backup2/BackupEncryptionKeyStore.swift` | The 256-bit symmetric key in the iCloud Keychain (synchronizable, after-first-unlock). `fetchOrCreateKey()` for export, `requireKey()` for restore. |
-| `Backup2/BackupWriter.swift` | Builds a v19 backup: collect payload (main actor) → serialize NDJSON + manifest → write encrypted temp file → verify → atomic rename (all off-main). Aborts on any entity encode failure. |
-| `Backup2/BackupReader.swift` | Decodes an archive into manifest + entries + preferences. `verifyStructure` streams the archive counting rows without holding the payload. |
-| `Backup2/BackupImporter.swift` | Off-main: reconstructs a `BackupPayload` from NDJSON entries (table-driven dispatch). On-main: hands it to `BackupService.importPayload`. Surfaces decode skips as warnings. |
+| `Backup/Archive/BackupCoordinator.swift` | The single app-facing API. UI calls `exportBackup`, `previewImport`, `importBackup`, `verifyBackup`. |
+| `Backup/Archive/BackupArchive.swift` | Low-level AppleArchive wrapper. Encrypted write (`AA01`), read of both encrypted v19 and plain v17/v18 (`pbz*`), magic-byte detection, per-entry size guard. |
+| `Backup/Archive/BackupEncryptionKeyStore.swift` | The 256-bit symmetric key in the iCloud Keychain (synchronizable, after-first-unlock). `fetchOrCreateKey()` for export, `requireKey()` for restore. |
+| `Backup/Archive/BackupWriter.swift` | Builds a v19 backup: collect payload (main actor) → serialize NDJSON + manifest → write encrypted temp file → verify → atomic rename (all off-main). Aborts on any entity encode failure. |
+| `Backup/Archive/BackupReader.swift` | Decodes an archive into manifest + entries + preferences. `verifyStructure` streams the archive counting rows without holding the payload. |
+| `Backup/Archive/BackupImporter.swift` | Off-main: reconstructs a `BackupPayload` from NDJSON entries (table-driven dispatch). On-main: hands it to `BackupService.importPayload`. Surfaces decode skips as warnings. |
 
-### Shared services (reused by Backup2)
+### Shared services (reused by the archive implementation)
 
 | File | Purpose |
 |------|---------|

@@ -63,7 +63,7 @@ extension BackupService {
 
     // swiftlint:disable:next function_parameter_count function_body_length
     /// Post-decode import path. Shared by:
-    ///   - `Backup2.BackupCoordinator` for archive imports (which reconstructs
+    ///   - `BackupCoordinator` for archive imports (which reconstructs
     ///     a `BackupPayload` from archive entries then calls this)
     /// Centralizing this method means deleteAll, the entity-import dispatch,
     /// the denormalized-field repair, and the CloudKit-sync wait all share one

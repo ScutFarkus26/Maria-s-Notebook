@@ -90,7 +90,7 @@ final class SettingsViewModel {
                 .appendingPathExtension(BackupFile.fileExtension)
             exportURL = tmp
             safeRemoveItem(at: tmp, context: "performExport-cleanup")
-            // Export through Backup2 — produces the current AEA-framed format.
+            // Export through the archive implementation — produces the current AEA-framed format.
             // At-rest protection comes from FileVault / iOS Data Protection / iCloud Drive.
             _ = try await coordinator.exportBackup(
                 viewContext: viewContext,

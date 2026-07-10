@@ -116,7 +116,7 @@ AI-powered observation summarization using Foundation Models. Requires the `ENAB
 - Auto-backup enabled by default (10 backup retention)
 - Location: `~/Documents/Backups/Auto/`
 - Format: `.mtbbackup` (v19 encrypted Apple Archive)
-- See [Backup System](Backup/BACKUP_SYSTEM.md) for details
+- See the [Backup System](../Documentation/Architecture/BACKUP_SYSTEM.md) for details
 
 ### SwiftLint
 
@@ -131,7 +131,7 @@ Configuration in `.swiftlint.yml`. Install via `brew install swiftlint`.
 | [CloudKit Guide](../Documentation/Architecture/CloudKit/CLOUDKIT_GUIDE.md) | CloudKit verification & troubleshooting |
 | [ADRs](../Documentation/ADRs/) | Architecture Decision Records |
 | [Manuals](../Documentation/Manuals/) | Developer and user manuals |
-| [BACKUP_SYSTEM.md](Backup/BACKUP_SYSTEM.md) | Backup system documentation |
+| [BACKUP_SYSTEM.md](../Documentation/Architecture/BACKUP_SYSTEM.md) | Backup system documentation |
 
 ## Keyboard Shortcuts (macOS)
 

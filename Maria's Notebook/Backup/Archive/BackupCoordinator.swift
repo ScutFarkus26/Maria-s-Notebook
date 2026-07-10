@@ -1,5 +1,5 @@
 // BackupCoordinator.swift
-// Top-level entry point for the Backup2 module. The UI talks to this.
+// Top-level entry point for archive backup and restore. The UI talks to this.
 //
 // Responsibilities:
 //   - Single app-facing entry point for backup and restore work.
