@@ -1188,7 +1188,7 @@ Universal observation system. Notes can be:
 
 ## Todos Module
 
-**Across:** `Models/TodoItemEntity.swift`, various views
+**Across:** `Models/TodoItemEntity.swift`, `Todos/Views/`, `Todos/Support/`, `Services/Todo*.swift`
 
 Teacher task management with:
 
@@ -1645,6 +1645,9 @@ Maria's Notebook/
 |   +-- Views/                            Today screen and sections
 |   +-- ViewModels/TodayViewModel.swift   Today hub state
 |   +-- Support/                          Builders, loaders, caches, navigation
++-- Todos/                               Todo management
+|   +-- Views/                            Screens, forms, rows, and sheets
+|   +-- Support/                          Filters, sorting, and date parsing
 +-- Projects/                            Project-based learning
 +-- Notes/                               Observation views
 +-- Supplies/                            Inventory management

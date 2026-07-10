@@ -66,6 +66,7 @@ Maria's Notebook/
 ├── Planning/         # Planning & checklist tools
 ├── Inbox/            # Follow-up inbox
 ├── Today/            # Daily hub views, view model, and support
+├── Todos/            # Todo screens, forms, and presentation support
 │
 ├── Agenda/           # Calendar day/month grid views
 ├── Chat/             # AI chat features
