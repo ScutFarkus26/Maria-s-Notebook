@@ -116,6 +116,10 @@ enum AppErrorMessages {
     static func aiMessage(for error: Error) -> String {
         let nsError = error as NSError
 
+        if let localError = error as? LocalModelError {
+            return localError.localizedDescription
+        }
+
         // Network issues
         if nsError.domain == NSURLErrorDomain {
             return userMessage(for: error, context: "connecting to the AI service")

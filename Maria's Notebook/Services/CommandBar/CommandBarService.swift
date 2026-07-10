@@ -1,5 +1,5 @@
 // CommandBarService.swift
-// Orchestrates local → Apple Intelligence → Claude parsing cascade
+// Orchestrates deterministic local parsing with Apple Intelligence assistance
 
 import Foundation
 import OSLog
@@ -19,10 +19,9 @@ enum ParseState: Sendable {
 
 // MARK: - Command Bar Service
 
-/// Three-tier parsing cascade:
+/// Private parsing cascade:
 /// 1. Local keyword + fuzzy matching (instant, offline)
 /// 2. Apple Intelligence on-device model (fast, free, no network)
-/// 3. Claude API (most capable, requires network + API key)
 @Observable
 @MainActor
 final class CommandBarService {
@@ -36,7 +35,7 @@ final class CommandBarService {
         input: String,
         students: [StudentData],
         lessons: [LessonData],
-        mcpClient: MCPClientProtocol?
+        mcpClient _: MCPClientProtocol?
     ) async {
         parseState = .parsing
 
@@ -55,7 +54,6 @@ final class CommandBarService {
                 input: input,
                 students: students,
                 lessons: lessons,
-                mcpClient: mcpClient,
                 localFallback: lowConfidenceCmd
             )
 
@@ -65,7 +63,6 @@ final class CommandBarService {
                     input: input,
                     students: students,
                     lessons: lessons,
-                    mcpClient: mcpClient,
                     localFallback: best
                 )
             } else {
@@ -78,20 +75,18 @@ final class CommandBarService {
                 input: input,
                 students: students,
                 lessons: lessons,
-                mcpClient: mcpClient,
                 localFallback: nil
             )
         }
     }
 
-    // MARK: - AI Fallback Cascade
+    // MARK: - Apple Intelligence Fallback
 
-    /// Tries Apple Intelligence first, then Claude API.
+    /// Tries Apple Intelligence, then preserves the best deterministic result.
     private func tryAIFallback(
         input: String,
         students: [StudentData],
         lessons: [LessonData],
-        mcpClient: MCPClientProtocol?,
         localFallback: ParsedCommand?
     ) async {
         let studentNames = students.map { "\($0.firstName) \($0.lastName)" }
@@ -114,69 +109,19 @@ final class CommandBarService {
                     parseState = .result(cmd)
                     return
                 } catch {
-                    Self.logger.warning("Apple Intelligence parser failed: \(error), trying Claude")
+                    Self.logger.warning("Apple Intelligence parser failed: \(error)")
                 }
             }
         }
         #endif
 
-        // Tier 3: Try Claude API (most capable, requires network)
-        let claudeContext = CommandParseContext(
-            input: input, students: students, lessons: lessons,
-            studentNames: studentNames, lessonNames: lessonNames
-        )
-        await tryClaudeFallback(context: claudeContext, mcpClient: mcpClient, localFallback: localFallback)
-    }
-
-    // MARK: - Claude Fallback
-
-    private struct CommandParseContext {
-        let input: String
-        let students: [StudentData]
-        let lessons: [LessonData]
-        let studentNames: [String]
-        let lessonNames: [String]
-    }
-
-    private func tryClaudeFallback(
-        context: CommandParseContext,
-        mcpClient: MCPClientProtocol?,
-        localFallback: ParsedCommand?
-    ) async {
-        guard let mcpClient else {
-            if let fallback = localFallback {
-                parseState = .result(fallback)
-            } else {
-                parseState = .error(
-                    "Could not understand command. Try something like "
-                    + "'gave binomial cube to Sarah'."
-                )
-            }
-            return
-        }
-
-        do {
-            let claudeParser = ClaudeCommandParser(mcpClient: mcpClient)
-
-            let cmd = try await claudeParser.parse(
-                input: context.input,
-                studentNames: context.studentNames,
-                lessonNames: context.lessonNames,
-                students: context.students,
-                lessons: context.lessons
+        if let localFallback {
+            parseState = .result(localFallback)
+        } else {
+            parseState = .error(
+                "Could not understand command. Try something like "
+                + "'gave binomial cube to Sarah'."
             )
-            Self.logger.info("Claude parser succeeded with confidence \(cmd.confidence)")
-            parseState = .result(cmd)
-        } catch {
-            Self.logger.warning("Claude parser failed: \(error)")
-            if let fallback = localFallback {
-                parseState = .result(fallback)
-            } else {
-                parseState = .error(
-                    "Could not understand command. Try something like "
-                    + "'gave binomial cube to Sarah'."
-                )
-            }
         }
     }
 

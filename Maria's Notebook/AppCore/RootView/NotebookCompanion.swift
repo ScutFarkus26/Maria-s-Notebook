@@ -237,24 +237,7 @@ struct NotebookCompanionCharacter: View {
 
     var body: some View {
         ZStack(alignment: .topTrailing) {
-            ZStack {
-                Circle()
-                    .fill(
-                        LinearGradient(
-                            colors: [accent.opacity(0.95), accent.opacity(0.68)],
-                            startPoint: .topLeading,
-                            endPoint: .bottomTrailing
-                        )
-                    )
-                Circle()
-                    .strokeBorder(.white.opacity(0.34), lineWidth: 1)
-
-                Image(systemName: "bird.fill")
-                    .font(.system(size: 27, weight: .semibold, design: .rounded))
-                    .foregroundStyle(.white)
-                    .offset(y: 1)
-            }
-            .shadow(color: accent.opacity(0.34), radius: 8, x: 0, y: 4)
+            robotTeacher
 
             Image(systemName: badgeIcon)
                 .font(.system(size: 9, weight: .bold, design: .rounded))
@@ -278,9 +261,84 @@ struct NotebookCompanionCharacter: View {
             }
         }
     }
+
+    private var robotTeacher: some View {
+        ZStack {
+            HStack(spacing: 42) {
+                robotEar
+                robotEar
+            }
+            .offset(y: 6)
+
+            RoundedRectangle(cornerRadius: 13, style: .continuous)
+                .fill(
+                    LinearGradient(
+                        colors: [accent.opacity(0.98), accent.opacity(0.72)],
+                        startPoint: .topLeading,
+                        endPoint: .bottomTrailing
+                    )
+                )
+                .frame(width: 48, height: 40)
+                .overlay {
+                    RoundedRectangle(cornerRadius: 13, style: .continuous)
+                        .strokeBorder(.white.opacity(0.38), lineWidth: 1)
+                }
+                .offset(y: 5)
+
+            VStack(spacing: 7) {
+                HStack(spacing: 11) {
+                    robotEye
+                    robotEye
+                }
+                Capsule()
+                    .fill(.white.opacity(0.92))
+                    .frame(width: 16, height: 3)
+            }
+            .offset(y: 8)
+
+            Image(systemName: "graduationcap.fill")
+                .font(.system(size: 23, weight: .bold))
+                .foregroundStyle(Color.indigo)
+                .shadow(color: .black.opacity(0.18), radius: 2, x: 0, y: 1)
+                .offset(x: -3, y: -16)
+        }
+        .frame(width: 58, height: 58)
+        .shadow(color: accent.opacity(0.34), radius: 8, x: 0, y: 4)
+    }
+
+    private var robotEar: some View {
+        RoundedRectangle(cornerRadius: 3, style: .continuous)
+            .fill(accent.opacity(0.82))
+            .frame(width: 7, height: 16)
+    }
+
+    private var robotEye: some View {
+        RoundedRectangle(cornerRadius: 3, style: .continuous)
+            .fill(.white)
+            .frame(width: 7, height: state == .working ? 4 : 8)
+    }
 }
 
 struct NotebookCompanionPanel: View {
+    enum PlacementAction {
+        case moveToDesktop
+        case returnToApp
+
+        var title: String {
+            switch self {
+            case .moveToDesktop: return "Move to Desktop"
+            case .returnToApp: return "Return to App"
+            }
+        }
+
+        var icon: String {
+            switch self {
+            case .moveToDesktop: return "macwindow.on.rectangle"
+            case .returnToApp: return "rectangle.inset.filled"
+            }
+        }
+    }
+
     let snapshot: NotebookCompanionSnapshot
     let isWorking: Bool
     let onPlanDay: () -> Void
@@ -289,6 +347,8 @@ struct NotebookCompanionPanel: View {
     let onAskAnything: () -> Void
     let onQuickCapture: () -> Void
     let onReviewTodos: () -> Void
+    var placementAction: PlacementAction?
+    var onChangePlacement: (() -> Void)?
 
     private var state: NotebookCompanionState {
         snapshot.state(isWorking: isWorking)
@@ -302,6 +362,7 @@ struct NotebookCompanionPanel: View {
             primaryAction
             suggestionGrid
             footerActions
+            placementButton
         }
         .padding(AppTheme.Spacing.medium)
         .frame(minWidth: 320, idealWidth: 360, maxWidth: 400)
@@ -406,6 +467,20 @@ struct NotebookCompanionPanel: View {
             }
         }
         .controlSize(.small)
+    }
+
+    @ViewBuilder
+    private var placementButton: some View {
+        if let placementAction, let onChangePlacement {
+            Divider()
+            Button(action: onChangePlacement) {
+                Label(placementAction.title, systemImage: placementAction.icon)
+                    .frame(maxWidth: .infinity)
+            }
+            .buttonStyle(.plain)
+            .font(AppTheme.ScaledFont.caption)
+            .foregroundStyle(.secondary)
+        }
     }
 
     private func summaryChip(_ title: String, icon: String, color: Color) -> some View {

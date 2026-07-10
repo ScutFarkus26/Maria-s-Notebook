@@ -13,27 +13,21 @@ parent emails and report cards, summarizing observations, suggesting note tags,
 turning plain-English commands into records, describing photos of student work,
 and answering questions about the classroom.
 
-The guiding principle is **private first**. Wherever possible the work runs on
-Apple's models — either fully on-device or on Apple's Private Cloud Compute, both
-of which keep student data inside Apple's privacy boundary (nothing stored, no
-training, independently verifiable). Claude (Anthropic's cloud model) is only
-used when the guide explicitly selects it or as a last-resort fallback, and it
-requires the guide's own API key.
+The guiding principle is **Apple Intelligence by default**. Automatic requests
+run on Apple's models — either fully on-device or on Apple's Private Cloud
+Compute. Claude (Anthropic's cloud model) is used only when the guide explicitly
+selects it, and it requires the guide's own API key.
 
-Three "providers" sit behind every AI feature, tried in this order for the
-automatic setting:
+Two Apple providers are tried in this order for the automatic setting:
 
 1. **Apple On-Device** — instant, free, fully private, works offline. Smaller
    context window (~8K tokens).
 2. **Apple Private Cloud Compute (PCC)** — Apple's larger server model for big
    jobs (report cards, long summaries). Still private, no API key, but needs a
    network connection and an Apple-granted entitlement (see §8).
-3. **Claude** — most capable for open-ended reasoning; requires the user's
-   Anthropic API key and sends data to Anthropic's servers.
-
-If a provider isn't available (no Apple Intelligence, offline, no API key, quota
-reached), the app silently falls back to the next one. Nothing breaks; the
-feature just uses whatever is available, or tells the user it can't run.
+If neither Apple provider is available, the app explains why and does not
+silently send classroom data to another company. Claude remains an explicit
+model choice in Settings for guides who intentionally choose it.
 
 ---
 
@@ -51,17 +45,17 @@ implementations:
 | Router | `AIClientRouter` | `Services/AI/AIClientRouter.swift` | Implements `MCPClientProtocol`; dispatches to the above. |
 
 `AIClientRouter` is the only client most code holds. It reads the user's
-per-feature model choice and routes accordingly. The automatic ("Apple First")
+per-feature model choice and routes accordingly. The automatic ("Apple Intelligence")
 strategy cascades:
 
 ```
-on-device  →  Private Cloud Compute  →  Claude
-(LocalModelClient)   (PrivateCloudModelClient)   (AnthropicAPIClient)
+on-device  →  Private Cloud Compute
+(LocalModelClient)   (PrivateCloudModelClient)
 ```
 
-Each step is skipped if that provider's `isAvailable` is false, and a thrown
-`LocalModelError` falls through to the next step. Claude is the terminal
-fallback.
+Each step is skipped if that provider's `isAvailable` is false, and an on-device
+error falls through to PCC. If both fail, the router returns an Apple
+Intelligence availability error.
 
 > **History:** A local **Ollama** provider existed before the WWDC26 work and
 > was removed — Apple's on-device + PCC models now fill that "local, private"
@@ -79,9 +73,9 @@ on-device but send lesson planning to Claude. Defined in
 
 | Area | Purpose | Default model |
 |------|---------|---------------|
-| `.chat` | Conversational "Ask AI" assistant | Apple First (Auto) |
-| `.lessonPlanning` | Curriculum planning recommendations | Claude Sonnet |
-| `.backgroundTasks` | Note suggestions, drafting, analysis | Apple First (Auto) |
+| `.chat` | Conversational "Ask AI" assistant | Apple Intelligence (Auto) |
+| `.lessonPlanning` | Curriculum planning recommendations | Apple Intelligence (Auto) |
+| `.backgroundTasks` | Note suggestions, drafting, analysis | Apple Intelligence (Auto) |
 
 `AIModelOption` (the choices): `.localFirstAuto` (cascade), `.appleOnDevice`,
 `.applePrivateCloud`, `.claudeSonnet`, `.claudeHaiku`. Selections persist in
@@ -113,9 +107,9 @@ equivalent) at runtime before calling the model.
 | Ask-your-notebook chat | `Chat/Services/ChatService.swift` + `Services/AI/NotebookTools.swift` | Free text | Yes | — |
 | Lesson planning | `Planning/AIPlanning/LessonPlanning/*` | Structured | — | — |
 
-The command bar also has a non-AI tier-1 (`LocalCommandParser`, keyword/fuzzy)
-and a Claude tier-3 (`ClaudeCommandParser`); `CommandBarService` cascades
-local → Apple Intelligence → Claude.
+The command bar first uses deterministic keyword/fuzzy parsing, then asks the
+on-device Apple Intelligence model when the result is uncertain. It never makes
+a hidden Claude request.
 
 System prompts/personas for all of this live in one place: `AppCore/AIPrompts.swift`
 (`generalAssistant`, `advancedAssistant`, `lessonPlanningAssistant`,
@@ -171,13 +165,13 @@ tool-enabled multi-turn session instead of flattening messages into one prompt.
 - **On-device** and **PCC** keep data inside Apple's boundary. PCC is stateless
   (no prompts retained) and independently verifiable. Neither trains on input.
 - **Claude** sends data to Anthropic and requires the user's own API key (stored
-  in the Keychain, never in the binary). It is opt-in per feature or a fallback.
+  in the Keychain, never in the binary). It is opt-in per feature.
 - `AppleIntelligenceSheet` has an **anonymize** toggle that strips student names
   from the context before drafting (`SmartNoteFormatter(anonymize:)`).
 - Test/sample students are filtered out of AI context (`TestStudentsFilter`).
 
-When choosing where new AI work should run, prefer on-device → PCC → Claude, and
-never send more student data than the feature needs.
+When choosing where new AI work should run, prefer on-device → PCC, and never
+send more student data than the feature needs.
 
 ---
 
@@ -211,8 +205,8 @@ build-flag document.
 `com.apple.developer.private-cloud-compute`, which Apple must grant. It is
 deliberately **not** in `Maria_s_Notebook.entitlements` yet, because adding an
 un-granted managed entitlement breaks code-signing on dev builds. Until it's
-added, `PrivateCloudModelClient.isAvailable` is false and routing falls back to
-Claude — no behavior change. Activation steps: `PrivateCloudCompute.md`.
+added, `PrivateCloudModelClient.isAvailable` is false and automatic routing stays
+on-device. Activation steps: `PrivateCloudCompute.md`.
 
 ---
 

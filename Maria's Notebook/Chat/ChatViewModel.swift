@@ -4,7 +4,7 @@ import OSLog
 
 /// ViewModel for the Ask AI chat interface.
 /// Manages session state, streaming, persistence, and dynamic suggestions.
-/// Handles smart local-first routing with user-driven cloud escalation.
+/// Uses the model selected for Ask AI, with Apple Intelligence as the default.
 @Observable
 @MainActor
 final class ChatViewModel {
@@ -22,22 +22,9 @@ final class ChatViewModel {
     /// Whether we're actively receiving streamed text.
     var isStreaming: Bool { streamingContent != nil }
 
-    /// Holds the context for a pending cloud escalation (original question + local response).
-    private(set) var pendingEscalation: PendingEscalation?
-
-    /// Whether we're currently escalating to Claude.
-    private(set) var isEscalating = false
-
     private(set) var session: ChatSession?
     private var chatService: ChatService?
     @ObservationIgnored private weak var appRouter: AppRouter?
-
-    // MARK: - Escalation Types
-
-    struct PendingEscalation {
-        let originalQuestion: String
-        let localResponse: String
-    }
 
     // MARK: - Computed
 
@@ -116,6 +103,7 @@ final class ChatViewModel {
             self.session = saved
             // Refresh the snapshot since it's likely stale from a previous launch
             var restoredSession = saved
+            restoredSession.messages.removeAll { $0.isEscalationPrompt }
             restoredSession.classroomSnapshotText = nil
             restoredSession.snapshotBuiltAt = nil
             self.session = restoredSession
@@ -130,7 +118,6 @@ final class ChatViewModel {
     // MARK: - Actions
 
     /// Sends the current input text as a user message with streaming.
-    /// After receiving a local response, validates quality and offers cloud escalation if needed.
     func sendMessage() {
         let text = inputText.trimmed()
         guard !text.isEmpty, var currentSession = session, let service = chatService else { return }
@@ -144,7 +131,6 @@ final class ChatViewModel {
         appRouter?.isAIWorking = true
         errorMessage = nil
         streamingContent = ""
-        pendingEscalation = nil
 
         // Show the user's message immediately. The service appends it to its own
         // copy of the session, which replaces this optimistic one on success.
@@ -155,7 +141,7 @@ final class ChatViewModel {
 
         Task { [self] in
             do {
-                let fullResponse = try await service.sendMessageStreaming(
+                _ = try await service.sendMessageStreaming(
                     text,
                     session: &currentSession
                 ) { [weak self] delta in
@@ -170,9 +156,6 @@ final class ChatViewModel {
                 }
                 self.session = currentSession
                 self.streamingContent = nil
-
-                // Smart escalation: validate local response quality and offer cloud upgrade
-                self.offerEscalationIfNeeded(resolvedModel: resolvedModel, question: text, response: fullResponse)
 
                 // Persist after each message exchange
                 currentSession.save()
@@ -192,78 +175,6 @@ final class ChatViewModel {
         }
     }
 
-    /// When the local model's answer looks inadequate, records a pending escalation
-    /// and appends the "try Claude?" prompt to the transcript.
-    private func offerEscalationIfNeeded(resolvedModel: AIModelOption, question: String, response: String) {
-        guard resolvedModel == .localFirstAuto && AnthropicAPIClient.hasAPIKey() else { return }
-        let validation = ResponseQualityValidator.validate(response, forRequest: question)
-        guard !validation.isAdequate else { return }
-
-        let reason = validation.reason ?? "unknown"
-        Self.logger.info("Local response inadequate (\(reason)), offering cloud escalation")
-        pendingEscalation = PendingEscalation(
-            originalQuestion: question,
-            localResponse: response
-        )
-        // Append an escalation prompt message to the session
-        let escalationMessage = ChatMessage(
-            role: .assistant,
-            content: "This answer might be improved with Claude. Want me to try?",
-            isEscalationPrompt: true
-        )
-        session?.messages.append(escalationMessage)
-    }
-
-    /// Accepts the cloud escalation offer. Uses local model to optimize the prompt,
-    /// then sends the optimized request to Claude.
-    func acceptEscalation() {
-        guard let escalation = pendingEscalation,
-              var currentSession = session,
-              let service = chatService else { return }
-
-        // Remove the escalation prompt message
-        currentSession.messages.removeAll { $0.isEscalationPrompt }
-        session = currentSession
-
-        pendingEscalation = nil
-        isEscalating = true
-        isLoading = true
-        appRouter?.isAIWorking = true
-        streamingContent = ""
-        errorMessage = nil
-
-        Task { [self] in
-            do {
-                _ = try await service.escalateToCloud(
-                    originalQuestion: escalation.originalQuestion,
-                    localResponse: escalation.localResponse,
-                    session: &currentSession
-                ) { [weak self] delta in
-                    Task { @MainActor in
-                        self?.streamingContent = (self?.streamingContent ?? "") + delta
-                    }
-                }
-                self.session = currentSession
-                self.streamingContent = nil
-                currentSession.save()
-            } catch {
-                Self.logger.warning("Cloud escalation failed: \(error)")
-                self.errorMessage = AppErrorMessages.aiMessage(for: error)
-                self.streamingContent = nil
-            }
-            self.isLoading = false
-            self.isEscalating = false
-            self.appRouter?.isAIWorking = false
-        }
-    }
-
-    /// Dismisses the cloud escalation offer without sending to Claude.
-    func dismissEscalation() {
-        pendingEscalation = nil
-        // Remove the escalation prompt message from session
-        session?.messages.removeAll { $0.isEscalationPrompt }
-    }
-
     /// Resets the chat session to start fresh.
     func resetSession() {
         guard let service = chatService else { return }
@@ -271,8 +182,6 @@ final class ChatViewModel {
         errorMessage = nil
         inputText = ""
         streamingContent = nil
-        pendingEscalation = nil
-        isEscalating = false
         isLoading = false
         appRouter?.isAIWorking = false
         ChatSession.clearSaved()

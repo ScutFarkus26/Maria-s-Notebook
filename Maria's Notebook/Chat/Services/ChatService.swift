@@ -147,96 +147,6 @@ final class ChatService {
         return fullResponse
     }
 
-    // MARK: - Cloud Escalation
-
-    // Escalates a question to Claude after optimizing the prompt locally.
-    // The local model refines the original question using its prior attempt, then
-    // the optimized prompt is sent directly to Claude for a higher-quality answer.
-    // swiftlint:disable:next function_body_length
-    func escalateToCloud(
-        originalQuestion: String,
-        localResponse: String,
-        session: inout ChatSession,
-        onDelta: @escaping @Sendable (String) -> Void
-    ) async throws -> String {
-        guard let router = mcpClient as? AIClientRouter else {
-            throw ChatError.serviceNotConfigured
-        }
-
-        // Step 1: Use the local model to optimize the prompt for Claude
-        let optimizationPrompt = """
-        You are a prompt optimizer. Rewrite the following question to be clearer and more specific \
-        for a powerful cloud AI assistant. Incorporate relevant context from the conversation. \
-        Return ONLY the optimized question, nothing else.
-
-        Original question: \(originalQuestion)
-
-        Your previous answer (which was insufficient): \(localResponse.prefix(500))
-
-        Optimized question:
-        """
-
-        // Try to optimize locally; fall back to the original question if the on-device model is unavailable
-        var optimizedQuestion = originalQuestion
-        do {
-            let localOptimized: String
-            #if ENABLE_FOUNDATION_MODELS && canImport(FoundationModels)
-            if router.localClient.isAvailable {
-                localOptimized = try await router.localClient.generateText(
-                    prompt: optimizationPrompt, temperature: 0.3
-                )
-            } else {
-                localOptimized = originalQuestion
-            }
-            #else
-            localOptimized = originalQuestion
-            #endif
-
-            let trimmed = localOptimized.trimmed()
-            if !trimmed.isEmpty {
-                optimizedQuestion = trimmed
-            }
-        } catch {
-            Self.logger.info("Local prompt optimization failed, using original question: \(error.localizedDescription)")
-        }
-
-        Self.logger.debug("Escalating to Claude with optimized prompt (\(optimizedQuestion.count) chars)")
-
-        // Step 2: Build context and send directly to Claude
-        let systemMessage = buildSystemMessage(
-            snapshot: session.classroomSnapshotText ?? "",
-            questionContext: ""
-        )
-
-        // Build messages including the optimized question as the latest user message
-        var apiMessages = buildAPIMessages(from: session.messages)
-        // Replace the last user message with the optimized version for Claude
-        if let lastUserIndex = apiMessages.lastIndex(where: { $0["role"] == "user" }) {
-            apiMessages[lastUserIndex] = ["role": "user", "content": optimizedQuestion]
-        }
-
-        let fullResponse = try await router.anthropicClient.streamConversation(
-            messages: apiMessages,
-            systemMessage: systemMessage,
-            temperature: 0.7,
-            maxTokens: 2048,
-            model: nil,
-            timeout: nil,
-            onDelta: onDelta
-        )
-
-        // Add the cloud response to session
-        let assistantMessage = ChatMessage(
-            role: .assistant,
-            content: fullResponse,
-            modelID: AIModelOption.claudeSonnet.rawValue
-        )
-        session.messages.append(assistantMessage)
-
-        Self.logger.debug("Cloud escalation complete (\(fullResponse.count) chars)")
-        return fullResponse
-    }
-
     // MARK: - Private Helpers
 
     private func buildSystemMessage(snapshot: String, questionContext: String) -> String {
@@ -261,22 +171,6 @@ final class ChatService {
             .suffix(maxHistoryMessages)
         return recentMessages.map { message in
             ["role": message.role.rawValue, "content": message.content]
-        }
-    }
-}
-
-// MARK: - Chat Errors
-
-enum ChatError: Error, LocalizedError {
-    case serviceNotConfigured
-    case noAPIKey
-
-    var errorDescription: String? {
-        switch self {
-        case .serviceNotConfigured:
-            return "Chat service is not properly configured."
-        case .noAPIKey:
-            return "Please add your Anthropic API key in Settings to use Ask AI."
         }
     }
 }

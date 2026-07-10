@@ -333,6 +333,28 @@ struct MariasNotebookApp: App {
         }
 
         #if os(macOS)
+        Window("Notebook Companion", id: "notebookCompanion") {
+            if bootstrapper.state == .ready,
+               !restoreCoordinator.isRestoring,
+               hasCompletedOnboarding {
+                DesktopNotebookCompanionView()
+                    .environment(\.managedObjectContext, coreDataStack.viewContext)
+                    .environment(\.calendar, AppCalendar.shared)
+                    .environment(\.appRouter, appRouter)
+                    .environment(\.dependencies, dependencies)
+                    .environment(saveCoordinator)
+                    .environment(restoreCoordinator)
+            } else {
+                ProgressView()
+                    .controlSize(.small)
+                    .frame(width: 88, height: 88)
+            }
+        }
+        .windowStyle(.plain)
+        .windowResizability(.contentSize)
+        .defaultPosition(.topTrailing)
+        .defaultSize(width: 88, height: 88)
+
         WindowGroup("", id: "WorkDetailWindow", for: UUID.self) { $workID in
             if let id = workID {
                 Group {

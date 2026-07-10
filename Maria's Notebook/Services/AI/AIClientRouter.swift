@@ -3,7 +3,7 @@
 //  Maria's Notebook
 //
 //  Routes AI requests to the appropriate provider based on per-feature model selection.
-//  Supports: Apple Intelligence (on-device), Apple Private Cloud Compute, and Claude API.
+//  Supports Apple Intelligence by default, with Claude available only when explicitly selected.
 //  Implements MCPClientProtocol so it can be injected anywhere the protocol is used.
 //
 
@@ -14,7 +14,7 @@ import OSLog
 ///
 /// Supports two routing strategies:
 /// - **Direct**: Route to a specific provider (Claude, Apple on-device, Apple Private Cloud)
-/// - **Apple First (Auto)**: On-device first, Private Cloud Compute next, Claude as final fallback
+/// - **Apple Intelligence (Auto)**: On-device first, then Private Cloud Compute
 ///
 /// Usage:
 /// ```swift
@@ -149,8 +149,9 @@ final class AIClientRouter: MCPClientProtocol {
     // MARK: - MCPClientProtocol — searchKnowledgeBase
 
     func searchKnowledgeBase(query: String, domain: String) async throws -> [KnowledgeBaseResult] {
-        // Always use Claude for knowledge base (Apple models have none)
-        try await anthropicClient.searchKnowledgeBase(query: query, domain: domain)
+        try await route { client in
+            try await client.searchKnowledgeBase(query: query, domain: domain)
+        }
     }
 
     // MARK: - MCPClientProtocol — sendConversation
@@ -219,18 +220,23 @@ final class AIClientRouter: MCPClientProtocol {
         }
     }
 
-    /// Tries Apple's models in order (on-device, then Private Cloud Compute), falls back to Claude.
-    /// For chat, returns the local response as-is (escalation is handled by the ChatViewModel UI).
+    /// Tries Apple's models in order: on-device, then Private Cloud Compute.
+    /// Claude is never a hidden fallback; it is used only when explicitly selected.
     private func localFirstCascade<T>(_ work: (MCPClientProtocol) async throws -> T) async throws -> T {
         #if ENABLE_FOUNDATION_MODELS && canImport(FoundationModels)
+        var failures: [String] = []
+
         // 1. Apple Intelligence on-device (fastest, fully private, free)
         if localClient.isAvailable {
             do {
                 Self.logger.debug("Apple-first: trying on-device for \(self.activeFeatureArea.rawValue)")
                 return try await work(localClient)
-            } catch let error as LocalModelError {
+            } catch {
                 Self.logger.info("On-device failed (\(error.localizedDescription)), trying next provider")
+                failures.append(error.localizedDescription)
             }
+        } else {
+            failures.append(localClient.unavailabilityReason)
         }
 
         // 2. Private Cloud Compute (larger context, still private, no API key)
@@ -238,19 +244,21 @@ final class AIClientRouter: MCPClientProtocol {
             do {
                 Self.logger.debug("Apple-first: trying Private Cloud Compute for \(self.activeFeatureArea.rawValue)")
                 return try await work(privateCloudClient)
-            } catch let error as LocalModelError {
-                Self.logger.info(
-                    "Private Cloud Compute failed (\(error.localizedDescription)), falling back to Claude"
-                )
+            } catch {
+                Self.logger.info("Private Cloud Compute failed (\(error.localizedDescription))")
+                failures.append(error.localizedDescription)
             }
+        } else {
+            failures.append(privateCloudClient.unavailabilityReason)
         }
-        #endif
 
-        // 3. Claude (final fallback)
-        Self.logger.debug(
-            "Apple-first: all Apple providers unavailable, routing to Claude for \(self.activeFeatureArea.rawValue)"
+        let reason = failures.filter { !$0.isEmpty }.joined(separator: " ")
+        throw LocalModelError.unavailable(
+            reason.isEmpty ? "Apple Intelligence is not available right now." : reason
         )
-        return try await work(anthropicClient)
+        #else
+        throw LocalModelError.unavailable("Apple Intelligence is not available in this build.")
+        #endif
     }
 
     // MARK: - Provider Helpers

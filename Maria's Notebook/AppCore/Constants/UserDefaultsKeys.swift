@@ -83,6 +83,10 @@ enum UserDefaultsKeys {
     // MARK: - Quick CDNote Button
     static let quickNoteButtonOffsetX = "QuickNoteButton.offsetX"
     static let quickNoteButtonOffsetY = "QuickNoteButton.offsetY"
+    static let notebookCompanionDetached = "NotebookCompanion.detached"
+    static let notebookCompanionHasDesktopPosition = "NotebookCompanion.hasDesktopPosition"
+    static let notebookCompanionDesktopX = "NotebookCompanion.desktopX"
+    static let notebookCompanionDesktopY = "NotebookCompanion.desktopY"
 
     // MARK: - Lessons
     static let lessonsSortIndexMigrated = "Lessons.sortIndexMigrated"

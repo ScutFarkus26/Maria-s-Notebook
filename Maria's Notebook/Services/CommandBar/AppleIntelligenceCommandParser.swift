@@ -81,7 +81,7 @@ final class AppleIntelligenceCommandParser {
         // Map intent string to enum
         guard let intent = RecordIntent(rawValue: parsed.intent) else {
             Self.logger.warning("Apple Intelligence returned unrecognized intent: \(parsed.intent)")
-            throw ClaudeParserError.invalidIntent(parsed.intent)
+            throw AppleIntelligenceParserError.invalidIntent(parsed.intent)
         }
 
         // Map student names back to UUIDs
@@ -142,6 +142,17 @@ final class AppleIntelligenceCommandParser {
             return lesson.id
         }
         return nil
+    }
+}
+
+enum AppleIntelligenceParserError: LocalizedError {
+    case invalidIntent(String)
+
+    var errorDescription: String? {
+        switch self {
+        case .invalidIntent(let intent):
+            return "Apple Intelligence returned an unrecognized command: \(intent)"
+        }
     }
 }
 

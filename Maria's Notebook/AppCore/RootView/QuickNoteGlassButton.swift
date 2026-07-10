@@ -6,6 +6,12 @@ import SwiftUI
 // Isolated component to prevent RootView re-renders during drag
 // swiftlint:disable:next type_body_length
 struct QuickNoteGlassButton: View {
+    #if os(macOS)
+    @Environment(\.openWindow) private var openWindow
+    @AppStorage(UserDefaultsKeys.notebookCompanionDetached)
+    private var isNotebookCompanionDetached = false
+    #endif
+
     @Binding var isShowingCommandBar: Bool
     var onNewPresentation: () -> Void
     @Binding var isShowingWorkItemSheet: Bool
@@ -113,6 +119,12 @@ struct QuickNoteGlassButton: View {
             onAskAI(NotebookCompanionSnapshot.followUpPrompt)
         } label: {
             Label("Who Needs Follow-up?", systemImage: "person.crop.circle.badge.questionmark")
+        }
+        Divider()
+        Button {
+            moveCompanionToDesktop()
+        } label: {
+            Label("Move to Desktop", systemImage: "macwindow.on.rectangle")
         }
         Divider()
         ForEach(PieMenuAction.allCases, id: \.self) { action in
@@ -248,9 +260,37 @@ struct QuickNoteGlassButton: View {
             },
             onReviewTodos: {
                 performCompanionAction(action: onReviewTodos)
-            }
+            },
+            placementAction: companionPlacementAction,
+            onChangePlacement: companionPlacementHandler
         )
     }
+
+    private var companionPlacementAction: NotebookCompanionPanel.PlacementAction? {
+        #if os(macOS)
+        .moveToDesktop
+        #else
+        nil
+        #endif
+    }
+
+    private var companionPlacementHandler: (() -> Void)? {
+        #if os(macOS)
+        moveCompanionToDesktop
+        #else
+        nil
+        #endif
+    }
+
+    #if os(macOS)
+    private func moveCompanionToDesktop() {
+        isCompanionPresented = false
+        isNotebookCompanionDetached = true
+        openWindow(id: "notebookCompanion")
+    }
+    #else
+    private func moveCompanionToDesktop() {}
+    #endif
 
     private var companionAccessibilityLabel: String {
         if isAIWorking {

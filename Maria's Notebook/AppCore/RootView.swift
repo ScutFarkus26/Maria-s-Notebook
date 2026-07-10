@@ -47,6 +47,8 @@ struct RootView: View {
     @State private var workDetailIDToOpen: UUID?
     @State private var selectedNavItem: NavigationItem = .today
     @State private var companionViewModel = NotebookCompanionViewModel()
+    @AppStorage(UserDefaultsKeys.notebookCompanionDetached)
+    private var isNotebookCompanionDetached = false
 
     // Command bar pre-population state
     @State private var commandBarWorkLessonID: UUID?
@@ -202,35 +204,37 @@ struct RootView: View {
         }
         #endif
         .overlay(alignment: .bottomTrailing) {
-            QuickNoteGlassButton(
-                isShowingCommandBar: $isShowingCommandBar,
-                onNewPresentation: { createPresentationDraft() },
-                isShowingWorkItemSheet: $isShowingNewWorkItem,
-                onRecordPractice: {
-                    isShowingRecordPractice = true
-                },
-                onNewTodo: {
-                    isShowingNewTodo = true
-                },
-                onNewNote: {
-                    quickNoteParams = QuickNoteParams()
-                },
-                companionSnapshot: companionViewModel.snapshot,
-                isAIWorking: appRouter.isAIWorking,
-                onAskAI: { prompt in
-                    if let prompt {
-                        appRouter.requestAIQuestion(prompt)
-                    } else {
-                        appRouter.navigateTo(.askAI)
+            if !isNotebookCompanionDetached {
+                QuickNoteGlassButton(
+                    isShowingCommandBar: $isShowingCommandBar,
+                    onNewPresentation: { createPresentationDraft() },
+                    isShowingWorkItemSheet: $isShowingNewWorkItem,
+                    onRecordPractice: {
+                        isShowingRecordPractice = true
+                    },
+                    onNewTodo: {
+                        isShowingNewTodo = true
+                    },
+                    onNewNote: {
+                        quickNoteParams = QuickNoteParams()
+                    },
+                    companionSnapshot: companionViewModel.snapshot,
+                    isAIWorking: appRouter.isAIWorking,
+                    onAskAI: { prompt in
+                        if let prompt {
+                            appRouter.requestAIQuestion(prompt)
+                        } else {
+                            appRouter.navigateTo(.askAI)
+                        }
+                    },
+                    onReviewTodos: {
+                        appRouter.navigateTo(.todos)
+                    },
+                    onRefreshCompanion: {
+                        companionViewModel.reload(calendar: calendar)
                     }
-                },
-                onReviewTodos: {
-                    appRouter.navigateTo(.todos)
-                },
-                onRefreshCompanion: {
-                    companionViewModel.reload(calendar: calendar)
-                }
-            )
+                )
+            }
         }
         .sheet(item: $quickNoteParams) { params in
             QuickNoteSheet(
@@ -273,6 +277,11 @@ struct RootView: View {
         .onAppear(perform: restoreSelectionIfNeeded)
         .task {
             companionViewModel.configure(context: viewContext)
+            #if os(macOS)
+            if isNotebookCompanionDetached {
+                openWindow(id: "notebookCompanion")
+            }
+            #endif
         }
         .onReceive(
             NotificationCenter.default.publisher(
@@ -304,6 +313,11 @@ struct RootView: View {
             guard value else { return }
             appRouter.triggerNewPresentation = false
             createPresentationDraft()
+        }
+        .onChange(of: appRouter.triggerCommandBar) { _, value in
+            guard value else { return }
+            appRouter.triggerCommandBar = false
+            isShowingCommandBar = true
         }
     }
 

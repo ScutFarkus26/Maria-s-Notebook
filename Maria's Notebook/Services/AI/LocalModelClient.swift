@@ -250,13 +250,13 @@ enum LocalModelError: Error, LocalizedError {
     var errorDescription: String? {
         switch self {
         case .unavailable(let reason):
-            return "On-device model unavailable: \(reason)"
+            return "Apple Intelligence unavailable: \(reason)"
         case .contextTooLarge:
-            return "Input too large for on-device processing. Try selecting fewer items."
+            return "The request is too large for Apple Intelligence. Try selecting fewer items."
         case .rateLimited:
-            return "On-device model rate limited. Try again shortly."
+            return "Apple Intelligence is busy. Try again shortly."
         case .invalidJSON:
-            return "On-device model returned invalid JSON."
+            return "Apple Intelligence returned an unreadable response."
         case .generationFailed(let msg):
             return "Generation failed: \(msg)"
         }
@@ -291,13 +291,13 @@ enum LocalModelError: Error, LocalizedError {
     var errorDescription: String? {
         switch self {
         case .unavailable(let reason):
-            return "On-device model unavailable: \(reason)"
+            return "Apple Intelligence unavailable: \(reason)"
         case .contextTooLarge:
-            return "Input too large for on-device processing."
+            return "The request is too large for Apple Intelligence."
         case .rateLimited:
-            return "On-device model rate limited."
+            return "Apple Intelligence is busy."
         case .invalidJSON:
-            return "On-device model returned invalid JSON."
+            return "Apple Intelligence returned an unreadable response."
         case .generationFailed(let msg):
             return "Generation failed: \(msg)"
         }

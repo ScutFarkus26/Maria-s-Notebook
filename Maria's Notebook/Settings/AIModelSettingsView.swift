@@ -16,7 +16,7 @@ enum AIModelOption: String, CaseIterable, Identifiable {
 
     var displayName: String {
         switch self {
-        case .localFirstAuto: return "Apple First (Auto)"
+        case .localFirstAuto: return "Apple Intelligence (Auto)"
         case .appleOnDevice: return "Apple On-Device"
         case .applePrivateCloud: return "Apple Private Cloud"
         case .claudeSonnet: return "Claude Sonnet 4"
@@ -26,7 +26,7 @@ enum AIModelOption: String, CaseIterable, Identifiable {
 
     var subtitle: String {
         switch self {
-        case .localFirstAuto: return "On-device first, Private Cloud for big jobs, Claude if needed"
+        case .localFirstAuto: return "On-device first, then Apple's Private Cloud for larger jobs"
         case .appleOnDevice: return "Apple Intelligence, private"
         case .applePrivateCloud: return "Apple's server model — private, no API key, larger jobs"
         case .claudeSonnet: return "Balanced speed & quality"
@@ -117,7 +117,7 @@ enum AIFeatureArea: String, CaseIterable, Identifiable {
     var defaultModel: AIModelOption {
         switch self {
         case .chat: return .localFirstAuto
-        case .lessonPlanning: return .claudeSonnet
+        case .lessonPlanning: return .localFirstAuto
         case .backgroundTasks: return .localFirstAuto
         }
     }
@@ -158,13 +158,20 @@ struct AIModelSettingsView: View {
                 selection: $backgroundTasksModel
             )
 
-            if !hasAPIKey {
+            if usesClaudeWithoutKey {
                 apiKeyWarning
             }
         }
         .onChange(of: chatModel) { _, _ in SettingsCategory.markModified(.aiFeatures) }
         .onChange(of: lessonPlanningModel) { _, _ in SettingsCategory.markModified(.aiFeatures) }
         .onChange(of: backgroundTasksModel) { _, _ in SettingsCategory.markModified(.aiFeatures) }
+    }
+
+    private var usesClaudeWithoutKey: Bool {
+        guard !hasAPIKey else { return false }
+        return [chatModel, lessonPlanningModel, backgroundTasksModel]
+            .compactMap(AIModelOption.init(rawValue:))
+            .contains(where: \.requiresAPIKey)
     }
 
     // MARK: - Area Row
