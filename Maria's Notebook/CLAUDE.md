@@ -67,7 +67,9 @@ Maria's Notebook/
 ├── Settings/         # App configuration
 └── MariasNotebook.xcdatamodeld/ # Core Data model
 
-Documentation/        # Repository-level architecture, ADRs, plans, and manuals
+Maria's Notebook Tests/ # Feature-mirrored test target
+Scripts/                 # Repository structure checks
+Documentation/           # Repository-level architecture, ADRs, plans, and manuals
 ```
 
 ## Architecture

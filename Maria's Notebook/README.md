@@ -89,7 +89,9 @@ Maria's Notebook/
 ├── Tests/            # In-app test suites
 └── MariasNotebook.xcdatamodeld/ # Core Data model
 
-Documentation/        # Architecture, ADRs, plans, and manuals
+Maria's Notebook Tests/ # Feature-mirrored test target
+Scripts/                 # Repository structure checks
+Documentation/           # Architecture, ADRs, plans, and manuals
 ```
 
 ## Configuration
@@ -124,6 +126,8 @@ AI-powered observation summarization using Foundation Models. Requires the `ENAB
 ### SwiftLint
 
 Configuration in `.swiftlint.yml`. Install via `brew install swiftlint`.
+
+After moving files or folders, run `Scripts/check_repository_structure.sh` from the repository root.
 
 ## Documentation
 

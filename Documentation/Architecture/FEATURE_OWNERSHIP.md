@@ -1,6 +1,6 @@
 # Feature Ownership Conventions
 
-These conventions define where new code belongs and how existing code should move during the repository reorganization. They describe source ownership, not new Swift modules; Maria's Notebook remains a single app target unless a separate modularization decision is made later.
+These conventions define where new and existing code belongs. They describe source ownership, not new Swift modules; Maria's Notebook remains a single app target unless a separate modularization decision is made later.
 
 ## Core rule
 
@@ -84,6 +84,15 @@ An organization-only commit should:
 6. Build macOS and iOS, run relevant tests, and record known baseline exceptions.
 
 If ownership is ambiguous, leave the file in place and record the exception in the repository organization plan. A questionable move is more expensive than a temporary imperfect folder.
+
+## Repository structure check
+
+Run `Scripts/check_repository_structure.sh` from the repository root after moving files or changing the project layout. The check protects the main organization decisions by reporting:
+
+- tracked Xcode user data
+- retired folders from the former layout
+- loose Swift files at the roots of `Students`, `Work`, `Presentations`, or the test target
+- empty source, test, or documentation folders
 
 ## Examples for this repository
 

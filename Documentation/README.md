@@ -20,3 +20,13 @@ python3 Documentation/Manuals/generate_user_pdf.py
 ```
 
 Each script reads its Markdown source from `Manuals/` and writes the PDF to `Generated/`.
+
+## Checking repository structure
+
+Run the lightweight structure check from the repository root after moving files or changing folders:
+
+```bash
+Scripts/check_repository_structure.sh
+```
+
+It checks that the completed organization remains intact without compiling the app.
