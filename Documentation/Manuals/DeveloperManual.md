@@ -1632,6 +1632,8 @@ Maria's Notebook/
 |   +-- LessonEntity.swift              Lesson entity (CDLesson)
 |   +-- LessonsListView.swift           Library view
 |   +-- LessonDetailView.swift          Detail view
+|   +-- ViewModels/GiveLessonViewModel.swift  Lesson picker state
+|   +-- Checklist/ViewModels/            Class-area checklist state
 |
 +-- Work/
 |   +-- WorkModelEntity.swift            Work entity (CDWorkModel)
@@ -1655,6 +1657,8 @@ Maria's Notebook/
 |   +-- QuickCapture/                     Quick-note sheet and parsing
 |   +-- Views/                            Scoped note presentation
 +-- Supplies/                            Inventory management
++-- Topics/
+|   +-- ViewModels/TopicDetailViewModel.swift  Topic detail state
 +-- Settings/                            App configuration
 +-- Backup/                              Backup and restore
 |
@@ -1674,7 +1678,6 @@ Maria's Notebook/
 |   +-- (10+ repositories)
 |
 +-- ViewModels/
-|   +-- GiveLessonViewModel.swift        Lesson picker state
 |   +-- CommandBarViewModel.swift        Command bar state
 |
 +-- Components/                          102+ reusable UI components

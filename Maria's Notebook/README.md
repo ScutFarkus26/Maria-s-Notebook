@@ -53,7 +53,7 @@ Maria's Notebook/
 ├── AppCore/          # App entry, bootstrapping, navigation, routing
 ├── Models/           # NSManagedObject subclasses and extensions
 ├── Services/         # Business logic and system integrations
-├── ViewModels/       # Shared ViewModels (GiveLesson, CommandBar, etc.)
+├── ViewModels/       # App-wide presentation state (CommandBar)
 ├── Components/       # Reusable SwiftUI components
 ├── Utils/            # Extensions & utilities
 ├── Repositories/     # Data access repositories
