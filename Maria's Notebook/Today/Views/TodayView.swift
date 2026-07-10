@@ -190,11 +190,6 @@ struct TodayView: View {
     private var mainContent: some View {
         NavigationStack {
             VStack(spacing: 0) {
-                #if os(macOS)
-                header
-                Divider()
-                #endif
-
                 // On iPhone compact, attendance has its own tab, so hide it here.
                 // Otherwise render the strip (and expanded grid, if open) above the
                 // list so the user can mark attendance without losing scroll position.
@@ -204,7 +199,9 @@ struct TodayView: View {
                 listContent
             }
             .navigationTitle("Today")
-            #if os(iOS)
+            #if os(macOS)
+            .toolbar { macOSTodayToolbarContent }
+            #else
             .toolbar { toolbarContent }
             #endif
         }

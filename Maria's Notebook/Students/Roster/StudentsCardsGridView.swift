@@ -99,46 +99,51 @@ struct StudentsCardsGridView: View {
     }
 
     private func addCardGestures<Content: View>(_ view: Content, for student: CDStudent) -> some View {
-        view
-            .onTapGesture { onTapStudent(student) }
-            .when(isManualMode) { v in
-                v.simultaneousGesture(longPressThenDrag(for: student))
+        Button {
+            onTapStudent(student)
+        } label: {
+            view
+        }
+        .buttonStyle(.plain)
+        .accessibilityHint("Opens student details")
+        .when(isManualMode) { v in
+            v.simultaneousGesture(longPressThenDrag(for: student))
+        }
+        .contextMenu {
+            Button {
+                onTapStudent(student)
+            } label: {
+                Label("View Details", systemImage: "person.text.rectangle")
             }
-            .contextMenu {
+
+            #if os(macOS)
+            if let studentID = student.id {
                 Button {
-                    onTapStudent(student)
+                    openStudentInNewWindow(studentID)
                 } label: {
-                    Label("View Details", systemImage: "person.text.rectangle")
+                    Label("Open in New Window", systemImage: "uiwindow.split.2x1")
                 }
+            }
+            #endif
 
-                #if os(macOS)
-                if let studentID = student.id {
-                    Button {
-                        openStudentInNewWindow(studentID)
-                    } label: {
-                        Label("Open in New Window", systemImage: "uiwindow.split.2x1")
-                    }
-                }
-                #endif
+            Divider()
 
+            Button {
+                copyStudentName(student)
+            } label: {
+                Label("Copy Name", systemImage: "doc.on.doc")
+            }
+
+            if let onDelete = onDeleteStudent {
                 Divider()
 
-                Button {
-                    copyStudentName(student)
+                Button(role: .destructive) {
+                    onDelete(student)
                 } label: {
-                    Label("Copy Name", systemImage: "doc.on.doc")
-                }
-
-                if let onDelete = onDeleteStudent {
-                    Divider()
-
-                    Button(role: .destructive) {
-                        onDelete(student)
-                    } label: {
-                        Label("Delete", systemImage: "trash")
-                    }
+                    Label("Delete", systemImage: "trash")
                 }
             }
+        }
     }
 
     private func copyStudentName(_ student: CDStudent) {

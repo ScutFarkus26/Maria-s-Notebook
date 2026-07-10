@@ -8,60 +8,61 @@ import CoreData
 
 extension TodayView {
 
-    // MARK: - Header (macOS)
+    // MARK: - Native macOS Toolbar
 
-    var header: some View {
-        ViewHeader(title: "Today") {
-            HStack(spacing: 16) {
-                // Date navigation
-                HStack(spacing: 8) {
-                    Button {
-                        let prev = previousSchoolDaySync(before: viewModel.date)
-                        viewModel.date = AppCalendar.startOfDay(prev)
-                    } label: {
-                        Image(systemName: "chevron.left")
-                            .font(.system(size: 12, weight: .medium))
-                            .foregroundStyle(.secondary)
+    #if os(macOS)
+    @ToolbarContentBuilder
+    var macOSTodayToolbarContent: some ToolbarContent {
+        ToolbarItemGroup(placement: .automatic) {
+            Button {
+                let previousDate = previousSchoolDaySync(before: viewModel.date)
+                viewModel.date = AppCalendar.startOfDay(previousDate)
+            } label: {
+                Image(systemName: "chevron.left")
+            }
+            .accessibilityLabel("Previous School Day")
+            .help("Previous School Day")
+
+            DatePicker(
+                "Date",
+                selection: Binding(
+                    get: { viewModel.date },
+                    set: { newValue in
+                        let coercedDate = nearestSchoolDaySync(to: newValue)
+                        viewModel.date = AppCalendar.startOfDay(coercedDate)
                     }
-                    .buttonStyle(.plain)
+                ),
+                displayedComponents: .date
+            )
+            .datePickerStyle(.field)
+            .labelsHidden()
+            .accessibilityLabel("School Day")
+            .help("Choose a school day")
 
-                    DatePicker("Date", selection: Binding(get: { viewModel.date }, set: { newValue in
-                        let coerced = nearestSchoolDaySync(to: newValue)
-                        viewModel.date = AppCalendar.startOfDay(coerced)
-                    }), displayedComponents: .date)
-                    #if os(macOS)
-                    .datePickerStyle(.field)
-                    #else
-                    .datePickerStyle(.compact)
-                    #endif
-                    .labelsHidden()
+            Button {
+                let nextDate = nextSchoolDaySync(after: viewModel.date)
+                viewModel.date = AppCalendar.startOfDay(nextDate)
+            } label: {
+                Image(systemName: "chevron.right")
+            }
+            .accessibilityLabel("Next School Day")
+            .help("Next School Day")
 
-                    Button {
-                        let next = nextSchoolDaySync(after: viewModel.date)
-                        viewModel.date = AppCalendar.startOfDay(next)
-                    } label: {
-                        Image(systemName: "chevron.right")
-                            .font(.system(size: 12, weight: .medium))
-                            .foregroundStyle(.secondary)
-                    }
-                    .buttonStyle(.plain)
-
-                    if !Calendar.current.isDateInToday(viewModel.date) {
-                        Button {
-                            let today = Date()
-                            let coerced = nearestSchoolDaySync(to: today)
-                            viewModel.date = AppCalendar.startOfDay(coerced)
-                        } label: {
-                            Text("Today")
-                                .font(AppTheme.ScaledFont.caption)
-                                .foregroundStyle(Color.accentColor)
-                        }
-                        .buttonStyle(.plain)
-                    }
+            if !isViewingCurrentSchoolDay {
+                Button("Today") {
+                    let currentSchoolDay = nearestSchoolDaySync(to: Date())
+                    viewModel.date = AppCalendar.startOfDay(currentSchoolDay)
                 }
+                .help("Return to the current school day")
             }
         }
     }
+
+    private var isViewingCurrentSchoolDay: Bool {
+        let currentSchoolDay = nearestSchoolDaySync(to: Date())
+        return AppCalendar.startOfDay(viewModel.date) == AppCalendar.startOfDay(currentSchoolDay)
+    }
+    #endif
 
     // MARK: - Attendance Strip
 
