@@ -68,7 +68,7 @@ Two of the ten goals turned out to be **already satisfied** in the codebase (Wri
 |------|--------|
 | `AppCore/AppIntents.swift` | Registered the new intents in `MariasNotebookAppShortcuts` (now exactly 10 shortcuts) with natural + parameterized phrases |
 | `AppCore/MariasNotebookApp.swift` | Added `Task { await SpotlightIndexer.reindexAll() }` at the end of `performStartupBootstrap()` |
-| `Students/SummarizeTodaysObservationsIntent.swift` | Replaced mock data with a live, async-loading snippet view + interactive button; added `authenticationPolicy` |
+| `Students/Notes/SummarizeTodaysObservationsIntent.swift` | Replaced mock data with a live, async-loading snippet view + interactive button; added `authenticationPolicy` |
 | `Settings/SettingsView+Sections.swift` | Added a "Siri & Shortcuts" group (`SiriTipView` on iOS, text fallback on macOS) |
 
 ### 3.3 Key design decisions

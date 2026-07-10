@@ -53,8 +53,8 @@ Updated the following files to use `@SyncedAppStorage` instead of `@AppStorage` 
 - `Attendance/AttendanceView.swift` - Email UI bindings
 - `Settings/DataManagementGrid.swift` - Backup encryption setting
 - `Backup/BackupRestoreSectionView.swift` - Backup encryption setting
-- `Students/PresentationPill.swift` - Lesson age preferences
-- `Students/StudentMeetingsTab.swift` - Work age preference
+- `Students/Presentations/PresentationPill.swift` - Lesson age preferences
+- `Students/Meetings/StudentMeetingsTab.swift` - Work age preference
 - `Work/WorkCardView.swift` - Work age preferences
 - `Backup/BackupService.swift` - Backup/restore preference handling
 
@@ -143,8 +143,8 @@ Potential improvements:
 5. `Attendance/AttendanceView.swift` - Updated email bindings
 6. `Settings/DataManagementGrid.swift` - Updated backup encryption
 7. `Backup/BackupRestoreSectionView.swift` - Updated backup encryption
-8. `Students/PresentationPill.swift` - Updated lesson age preferences
-9. `Students/StudentMeetingsTab.swift` - Updated work age preference
+8. `Students/Presentations/PresentationPill.swift` - Updated lesson age preferences
+9. `Students/Meetings/StudentMeetingsTab.swift` - Updated work age preference
 10. `Work/WorkCardView.swift` - Updated work age preferences
 11. `Backup/BackupService.swift` - Updated backup/restore logic
 
@@ -158,6 +158,5 @@ Potential improvements:
 
 - [CloudKit Guide](../Architecture/CloudKit/CLOUDKIT_GUIDE.md) - CloudKit configuration and verification
 - [ARCHITECTURE.md](../Architecture/ARCHITECTURE.md) - App architecture overview
-
 
 

@@ -38,7 +38,7 @@ Build commands use Xcode 27 beta at `/Applications/Xcode-beta.app/Contents/Devel
 - SwiftLint: Runs with Xcode beta and the project configuration, but currently reports pre-existing violations, including errors. Later phases must not add violations to changed Swift files.
 - Known compiler warnings:
   - `AppCore/AppCommands.swift`: closure stored in an `@Entry` may invalidate dependents on every update.
-  - `Students/SummarizeTodaysObservationsIntent.swift`: main actor-isolated view initializer is called from a synchronous nonisolated context.
+  - `Students/Notes/SummarizeTodaysObservationsIntent.swift`: main actor-isolated view initializer is called from a synchronous nonisolated context.
 
 Commit: `9bc5a837 docs(repo): add incremental organization plan`
 
@@ -93,7 +93,7 @@ Commit: `9bc5a837 docs(repo): add incremental organization plan`
 - Status: Complete
 - Implementation commit: `e86b9bb6` (`refactor(today): co-locate Today feature files`)
 - Gathered 35 Today-owned Swift files under one top-level feature: views in `Today/Views/`, the primary view model in `Today/ViewModels/`, and builders, loaders, caches, types, and navigation support in `Today/Support/`.
-- Preserved shared ownership for `Models/TodayAgendaOrderEntity.swift` and `Students/SummarizeTodaysObservationsIntent.swift`; neither belongs exclusively to the Today presentation feature.
+- Preserved shared ownership for `Models/TodayAgendaOrderEntity.swift` and `Students/Notes/SummarizeTodaysObservationsIntent.swift`; neither belongs exclusively to the Today presentation feature.
 - The source diff is 35 100% renames with zero insertions or deletions. No types, declarations, imports, or behavior changed.
 - Updated the repository maps and developer manual to reflect the new Today ownership boundary and removed stale Today paths.
 - Validation:

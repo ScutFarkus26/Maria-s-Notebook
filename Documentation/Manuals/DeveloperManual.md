@@ -456,7 +456,7 @@ This timestamp is used for last-writer-wins conflict resolution during CloudKit 
 
 ### CDStudent
 
-**File:** `Students/StudentEntity.swift`
+**File:** `Students/Models/StudentEntity.swift`
 
 | Field | Type | Purpose |
 |-------|------|---------|
@@ -1018,6 +1018,10 @@ The daily dashboard. Shows everything relevant to the selected date.
 ## Students Module
 
 **Directory:** `Students/`
+
+The feature is organized by subdomain: `Roster/`, `Detail/`, `Models/`, `Files/`, `Import/`,
+`Notes/`, `Presentations/`, `Progress/`, `Selection/`, `Printing/`, `Meetings/`, `Insights/`,
+`Recall/`, `YearPlan/`, and `LessonDetail/`.
 
 ### Student Roster
 
@@ -1623,9 +1627,15 @@ Maria's Notebook/
 |   +-- (other shared entity files)
 |
 +-- Students/
-|   +-- StudentEntity.swift              Student entity (CDStudent)
-|   +-- StudentsListView.swift           Roster view
-|   +-- StudentDetailView.swift          Detail tabs
+|   +-- Models/StudentEntity.swift       Student entity (CDStudent)
+|   +-- Roster/                           Student list and cards
+|   +-- Detail/                           Student detail tabs and state
+|   +-- Files/                            Student documents
+|   +-- Import/                           CSV import workflow
+|   +-- Notes/                            Student observation timeline
+|   +-- Presentations/                    Student presentation workflow
+|   +-- Progress/                         Curriculum progress and tracks
+|   +-- Selection/                        Student picker UI
 |   +-- Meetings/                        One-on-one meetings
 |   |   +-- Services/                     Meeting insight generation
 |   +-- Insights/Services/               Student analysis

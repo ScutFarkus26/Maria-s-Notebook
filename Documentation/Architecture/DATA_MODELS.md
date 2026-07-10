@@ -52,7 +52,7 @@ All models are NSManagedObject subclasses (with `CD` prefix) defined in `MariasN
 
 The primary entity representing a student in the classroom.
 
-**Location:** `Students/StudentEntity.swift` (class `CDStudent`)
+**Location:** `Students/Models/StudentEntity.swift` (class `CDStudent`)
 
 | Field | Type | Description |
 |-------|------|-------------|
