@@ -119,12 +119,22 @@ struct CommunityMeetingsView: View {
         // FIX: Removed NavigationStack wrapper because this view is already presented 
         // inside a NavigationSplitView (iPad) or More Menu NavigationStack (iPhone).
         VStack(spacing: 0) {
+            #if os(iOS)
             header
             Divider()
+            #endif
             content
         }
         .navigationTitle("Community")
+        #if os(macOS)
+        .searchable(text: $searchText, placement: .toolbar, prompt: "Search topics")
+        #endif
         .toolbar {
+            #if os(macOS)
+            ToolbarItem(placement: .automatic) {
+                filtersMenu
+            }
+            #endif
             ToolbarItem(placement: .automatic) {
                 Menu {
                     ShareLink(item: resolvedTopicsMarkdown) {
@@ -132,6 +142,14 @@ struct CommunityMeetingsView: View {
                     }
                 } label: { Image(systemName: "square.and.arrow.up") }
             }
+            #if os(macOS)
+            ToolbarItem(placement: .primaryAction) {
+                Button("New Topic", systemImage: "plus") {
+                    addTopicFromSearch()
+                }
+                .help("Create a community topic")
+            }
+            #endif
         }
         .sheet(isPresented: $showingAdd) {
             AddTopicSheet { title, issue in
@@ -148,6 +166,42 @@ struct CommunityMeetingsView: View {
         }
     }
 
+    private var filtersMenu: some View {
+        Menu {
+            Section("Date") {
+                Button("All") { filterDate = nil }
+                Button("Today") { filterDate = .today }
+                Button("This Week") { filterDate = .thisWeek }
+                Button("This Month") { filterDate = .thisMonth }
+            }
+
+            Section("Tags") {
+                Button("All") { selectedTag = nil }
+                ForEach(allTags, id: \.self) { tag in
+                    Button(tag) { selectedTag = tag }
+                }
+            }
+        } label: {
+            Label("Filters", systemImage: "line.3.horizontal.decrease.circle")
+        }
+        .help("Filter community topics")
+    }
+
+    private func addTopicFromSearch() {
+        let trimmed = searchText.trimmed()
+        guard !trimmed.isEmpty else {
+            showingAdd = true
+            return
+        }
+
+        let topic = CDCommunityTopicEntity(context: viewContext)
+        topic.title = trimmed
+        topic.issueDescription = ""
+        saveCoordinator.save(viewContext, reason: "Quick add community topic")
+        searchText = ""
+        selectedTopic = topic
+    }
+
     private var header: some View {
         MeetingsHeaderView(
             filterDate: $filterDate,
@@ -155,16 +209,7 @@ struct CommunityMeetingsView: View {
             selectedTag: $selectedTag,
             searchText: $searchText,
             showingAdd: $showingAdd,
-            onAddTopic: { title in
-                let t = CDCommunityTopicEntity(context: viewContext)
-                t.title = title
-                t.issueDescription = ""
-                saveCoordinator.save(viewContext, reason: "Quick add community topic")
-                // Clear the search text so the newly added appears and UI resets
-                searchText = ""
-                // Optionally open the detail editor for the new topic
-                selectedTopic = t
-            }
+            onAddTopic: { _ in addTopicFromSearch() }
         )
     }
 

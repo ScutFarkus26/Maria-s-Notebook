@@ -54,7 +54,7 @@ A 25-agent review of the five commits confirmed 13 findings; fixes applied:
 
 **Phase 3 implementation note (2026-07-07):** macOS build validation is currently blocked before completion by SDK/API drift unrelated to this phase: the local Xcode reports macOS SDK 26.5 while the project targets macOS 27.0, and compilation fails in AI/Speech sources on missing `PrivateCloudComputeLanguageModel`, `ContextOptions`, `LanguageModelError`, and `@diagnose`.
 
-**Focused toolbar passes (2026-07-10):** Schedules, Procedures, Checklist, Projects, Supplies, and Logs now use native macOS titles/toolbars while retaining their existing iOS page headers. Remaining feature headers will be migrated in later focused passes.
+**Focused toolbar passes (2026-07-10):** Schedules, Procedures, Checklist, Projects, Supplies, Logs, Resources, Community, and Lessons now use native macOS titles/toolbars while retaining their existing iOS page headers. Resource selection actions collapse into a toolbar menu; Community and Lessons use native toolbar search. Remaining feature headers will be migrated in later focused passes.
 
 ## Phase 4 — Native data browsers
 - [~] Convert tappable cards to real `Button`s (keyboard focus, focus ring, VoiceOver trait, pointer cursor). **Done:** the shared student roster/needs-lesson grid plus Topics, Resources, student Documents, Stories, Book Club packets, recent observations, resource list rows, and student project/report cards use plain-styled native buttons while preserving their visual design and context menus. **Remaining:** continue feature-by-feature, excluding drag surfaces and cards with nested controls until they can be safely redesigned.

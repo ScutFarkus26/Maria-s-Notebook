@@ -229,8 +229,10 @@ struct LessonsRootView: View {
 
     private var lessonsMainLayout: some View {
         VStack(spacing: 0) {
+            #if os(iOS)
             ViewHeader(title: "Lessons") { headerTrailingControls }
             Divider()
+            #endif
             HStack(spacing: 0) {
                 lessonsContentColumn
                     .frame(maxWidth: .infinity)
@@ -243,6 +245,11 @@ struct LessonsRootView: View {
                 }
             }
         }
+        .navigationTitle("Lessons")
+        #if os(macOS)
+        .searchable(text: $filterState.searchText, placement: .toolbar, prompt: "Search lessons")
+        .toolbar { lessonsToolbarContent }
+        #endif
     }
 
     /// Vertical divider that resizes the detail pane when dragged.

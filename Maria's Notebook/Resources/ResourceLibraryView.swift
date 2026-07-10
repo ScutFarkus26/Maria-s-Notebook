@@ -167,8 +167,80 @@ struct ResourceLibraryView: View {
 
     // MARK: - Body
 
+    #if os(macOS)
+    @ToolbarContentBuilder
+    private var resourceLibraryToolbar: some ToolbarContent {
+        ToolbarItemGroup(placement: .primaryAction) {
+            if isSelectMode {
+                Text("\(selectedResourceIDs.count) selected")
+                    .foregroundStyle(.secondary)
+
+                Button(resourceSelectionButtonTitle) {
+                    toggleAllFilteredResources()
+                }
+
+                Menu("Actions", systemImage: "ellipsis.circle") {
+                    Button("Favorite", systemImage: SFSymbol.Shape.starFill) {
+                        bulkToggleFavorite()
+                    }
+                    Button("Categorize", systemImage: "folder") {
+                        showingBulkCategoryPicker = true
+                    }
+                    Button("Tag", systemImage: "tag") {
+                        bulkTags = []
+                        showingBulkTagPicker = true
+                    }
+                    Divider()
+                    Button("Delete", systemImage: SFSymbol.Action.trash, role: .destructive) {
+                        showingBulkDeleteConfirmation = true
+                    }
+                }
+                .disabled(selectedResourceIDs.isEmpty)
+
+                Button("Done") { exitSelectMode() }
+            } else {
+                Picker("View", selection: $viewMode) {
+                    Image(systemName: SFSymbol.List.squareGrid).tag(ResourceViewMode.grid)
+                    Image(systemName: SFSymbol.List.list).tag(ResourceViewMode.list)
+                }
+                .pickerStyle(.segmented)
+                .frame(width: 80)
+
+                categoryFilterMenu
+
+                if !allResources.isEmpty {
+                    Button("Select", systemImage: "checkmark.circle") {
+                        isSelectMode = true
+                    }
+                }
+
+                Button("Add Resource", systemImage: SFSymbol.Action.plus) {
+                    showingImportSheet = true
+                }
+            }
+        }
+    }
+
+    private var resourceSelectionButtonTitle: String {
+        let allFilteredSelected = !filteredResources.isEmpty
+            && selectedResourceIDs.count == filteredResources.count
+        return allFilteredSelected ? "Deselect All" : "Select All"
+    }
+
+    private func toggleAllFilteredResources() {
+        let allFilteredSelected = !filteredResources.isEmpty
+            && selectedResourceIDs.count == filteredResources.count
+        if allFilteredSelected {
+            selectedResourceIDs.removeAll()
+        } else {
+            selectedResourceIDs = Set(filteredResources.compactMap(\.id))
+        }
+    }
+    #endif
+
     var body: some View {
         VStack(spacing: 0) {
+            #if os(iOS)
             ViewHeader(title: "Resources") {
                 HStack(spacing: 12) {
                     if isSelectMode {
@@ -224,6 +296,7 @@ struct ResourceLibraryView: View {
             }
 
             Divider()
+            #endif
 
             if isCompact {
                 compactContent
@@ -245,6 +318,10 @@ struct ResourceLibraryView: View {
         .onChange(of: viewMode) { _, newValue in
             viewModeRaw = newValue.rawValue
         }
+        .navigationTitle("Resources")
+        #if os(macOS)
+        .toolbar { resourceLibraryToolbar }
+        #endif
         .sheet(isPresented: $showingImportSheet) {
             ResourceImportSheet()
         }

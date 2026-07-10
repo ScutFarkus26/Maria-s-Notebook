@@ -19,6 +19,19 @@ extension LessonsRootView {
         }
     }
 
+    #if os(macOS)
+    @ToolbarContentBuilder
+    var lessonsToolbarContent: some ToolbarContent {
+        ToolbarItemGroup(placement: .primaryAction) {
+            parshasToggleButton
+            if canShowEditMapButton {
+                editMapButton
+            }
+            headerAddMenu
+        }
+    }
+    #endif
+
     private var parshasToggleButton: some View {
         Button {
             showingParshas.toggle()
@@ -30,7 +43,9 @@ extension LessonsRootView {
         } label: {
             Label("Parshas", systemImage: showingParshas ? "scroll.fill" : "scroll")
         }
+        #if os(iOS)
         .buttonStyle(.bordered)
+        #endif
         .tint(showingParshas ? .indigo : nil)
         .help(showingParshas ? "Back to lessons map" : "Browse parshas")
     }
@@ -45,7 +60,9 @@ extension LessonsRootView {
                 systemImage: isEditingMap ? "checkmark" : "arrow.up.arrow.down"
             )
         }
+        #if os(iOS)
         .buttonStyle(.bordered)
+        #endif
         .tint(isEditingMap ? .accentColor : nil)
         .help(isEditingMap ? "Finish editing" : "Reorder sequences and lessons")
     }
@@ -99,8 +116,5 @@ extension LessonsRootView {
         } label: {
             Label("Add", systemImage: "plus")
         }
-        #if os(macOS)
-        .menuStyle(.borderedButton)
-        #endif
     }
 }
