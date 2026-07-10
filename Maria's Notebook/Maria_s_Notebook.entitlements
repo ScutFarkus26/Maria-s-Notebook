@@ -31,7 +31,7 @@
 	  capability in Signing & Capabilities), add:
 	      <key>com.apple.developer.private-cloud-compute</key><true/>
 	  Until then PrivateCloudModelClient reports unavailable and routing falls
-	  back to Claude — see Docs/PrivateCloudCompute.md.
+	  back to Claude — see Documentation/Architecture/PrivateCloudCompute.md.
 	-->
 </dict>
 </plist>

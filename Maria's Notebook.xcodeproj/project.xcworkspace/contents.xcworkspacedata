@@ -5,24 +5,6 @@
       location = "self:">
    </FileRef>
    <FileRef
-      location = "group:VIEWMODEL_GUIDELINES.md">
-   </FileRef>
-   <FileRef
-      location = "group:PHASE6_COMPLETION.md">
-   </FileRef>
-   <FileRef
-      location = "group:DI_GUIDELINES.md">
-   </FileRef>
-   <FileRef
-      location = "group:PHASE5_COMPLETION.md">
-   </FileRef>
-   <FileRef
-      location = "group:MODULARIZATION_GUIDELINES.md">
-   </FileRef>
-   <FileRef
-      location = "group:PHASE7_COMPLETION.md">
-   </FileRef>
-   <FileRef
-      location = "group:ARCHITECTURE_MIGRATION_COMPLETE.md">
+      location = "group:Documentation/README.md">
    </FileRef>
 </Workspace>

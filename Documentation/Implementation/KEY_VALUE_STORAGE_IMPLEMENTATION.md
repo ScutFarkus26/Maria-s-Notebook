@@ -156,10 +156,8 @@ Potential improvements:
 
 ## Related Documentation
 
-- [CLOUDKIT_COMPATIBILITY_REPORT.md](../CloudKit/CLOUDKIT_COMPATIBILITY_REPORT.md) - CloudKit sync status
-- [CLOUDKIT_VERIFICATION_GUIDE.md](../CloudKit/CLOUDKIT_VERIFICATION_GUIDE.md) - CloudKit testing guide
-- [ARCHITECTURE.md](../ARCHITECTURE.md) - App architecture overview
-
+- [CloudKit Guide](../Architecture/CloudKit/CLOUDKIT_GUIDE.md) - CloudKit configuration and verification
+- [ARCHITECTURE.md](../Architecture/ARCHITECTURE.md) - App architecture overview
 
 
 

@@ -466,8 +466,11 @@ def md_to_flowables(md_text, styles):
 
 
 def build_pdf():
-    md_path = os.path.join(os.path.dirname(__file__), 'UserManual.md')
-    pdf_path = os.path.join(os.path.dirname(__file__), 'UserManual.pdf')
+    manuals_dir = os.path.dirname(__file__)
+    md_path = os.path.join(manuals_dir, 'UserManual.md')
+    pdf_path = os.path.abspath(
+        os.path.join(manuals_dir, '..', 'Generated', 'UserManual.pdf')
+    )
 
     with open(md_path, 'r') as f:
         md_text = f.read()

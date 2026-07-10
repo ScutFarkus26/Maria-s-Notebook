@@ -4,7 +4,7 @@
 // One source of truth for every fetch site. Each factory returns `nil` when `range` is nil
 // (the `.allTime` lens) so callers can AND it into an existing predicate and cleanly
 // short-circuit. Undated records fail *open* (are included) by default so nothing silently
-// disappears when the lens is on — see the plan in Docs/Implementation/SCHOOL_YEAR_SEPARATION.md.
+// disappears when the lens is on — see Documentation/Implementation/SCHOOL_YEAR_SEPARATION.md.
 
 import Foundation
 import CoreData

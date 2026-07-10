@@ -238,7 +238,7 @@ final class AppDependencies {
     }
 
     /// The global "viewing year" lens shared by every screen.
-    /// See Docs/Implementation/SCHOOL_YEAR_SEPARATION.md.
+    /// See Documentation/Implementation/SCHOOL_YEAR_SEPARATION.md.
     private var _schoolYearStore: SchoolYearStore?
     var schoolYearStore: SchoolYearStore {
         if let store = _schoolYearStore {

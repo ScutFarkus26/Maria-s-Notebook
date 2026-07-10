@@ -151,8 +151,7 @@ For developers, you can verify CloudKit activity in the CloudKit Console:
 
 ## Related Documentation
 
-- [KEY_VALUE_STORAGE_IMPLEMENTATION.md](../Implementation/KEY_VALUE_STORAGE_IMPLEMENTATION.md) - iCloud KVS preference sync
+- [KEY_VALUE_STORAGE_IMPLEMENTATION.md](../../Implementation/KEY_VALUE_STORAGE_IMPLEMENTATION.md) - iCloud KVS preference sync
 - [ARCHITECTURE.md](../ARCHITECTURE.md) - Architecture guide
-
 
 

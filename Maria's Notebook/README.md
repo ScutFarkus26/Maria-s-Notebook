@@ -51,12 +51,12 @@ xcodebuild -project "Maria's Notebook.xcodeproj" \
 ```
 Maria's Notebook/
 ├── AppCore/          # App entry, bootstrapping, navigation, routing
-├── Models/           # NSManagedObject subclasses (77 entities)
-├── Services/         # Business logic (70+ services)
+├── Models/           # NSManagedObject subclasses and extensions
+├── Services/         # Business logic and system integrations
 ├── ViewModels/       # Shared ViewModels (Today, GiveLesson, etc.)
 ├── Components/       # Reusable SwiftUI components
 ├── Utils/            # Extensions & utilities
-├── Repositories/     # Data access repositories (14 repos)
+├── Repositories/     # Data access repositories
 │
 ├── Students/         # Student profiles, meetings, detail views
 ├── Lessons/          # Lesson library, attachments, exercises
@@ -84,8 +84,9 @@ Maria's Notebook/
 ├── Backup/           # Backup & restore
 ├── Settings/         # App configuration
 ├── Tests/            # In-app test suites
-├── Docs/             # Documentation
-└── MariasNotebook.xcdatamodeld/ # Core Data model (77 entities)
+└── MariasNotebook.xcdatamodeld/ # Core Data model
+
+Documentation/        # Architecture, ADRs, plans, and manuals
 ```
 
 ## Configuration
@@ -102,13 +103,13 @@ Maria's Notebook/
 
 ### CloudKit Sync
 
-Disabled by default. Enable in Settings → CloudKit Status, then restart. See [CloudKit Guide](Docs/CloudKit/CLOUDKIT_GUIDE.md).
+Disabled by default. Enable in Settings → CloudKit Status, then restart. See the [CloudKit Guide](../Documentation/Architecture/CloudKit/CLOUDKIT_GUIDE.md).
 
 Container: `iCloud.DanielSDeBerry.MariasNoteBook`
 
 ### Apple Intelligence (Optional)
 
-AI-powered observation summarization using Foundation Models. Requires `ENABLE_FOUNDATION_MODELS` build flag. See [Setup Guide](Docs/ENABLE_FOUNDATION_MODELS.md).
+AI-powered observation summarization using Foundation Models. Requires the `ENABLE_FOUNDATION_MODELS` build flag. See the [AI architecture guide](../Documentation/Architecture/AI.md#8-build-flag--entitlement).
 
 ### Backup
 
@@ -125,10 +126,11 @@ Configuration in `.swiftlint.yml`. Install via `brew install swiftlint`.
 
 | Document | Description |
 |----------|-------------|
-| [ARCHITECTURE.md](Docs/ARCHITECTURE.md) | Architecture, patterns, and guidelines |
-| [DATA_MODELS.md](Docs/DATA_MODELS.md) | Core Data model documentation |
-| [CloudKit Guide](Docs/CloudKit/CLOUDKIT_GUIDE.md) | CloudKit verification & troubleshooting |
-| [ADRs](Docs/ADRs/) | Architecture Decision Records |
+| [ARCHITECTURE.md](../Documentation/Architecture/ARCHITECTURE.md) | Architecture, patterns, and guidelines |
+| [DATA_MODELS.md](../Documentation/Architecture/DATA_MODELS.md) | Core Data model documentation |
+| [CloudKit Guide](../Documentation/Architecture/CloudKit/CLOUDKIT_GUIDE.md) | CloudKit verification & troubleshooting |
+| [ADRs](../Documentation/ADRs/) | Architecture Decision Records |
+| [Manuals](../Documentation/Manuals/) | Developer and user manuals |
 | [BACKUP_SYSTEM.md](Backup/BACKUP_SYSTEM.md) | Backup system documentation |
 
 ## Keyboard Shortcuts (macOS)
@@ -144,7 +146,7 @@ Configuration in `.swiftlint.yml`. Install via `brew install swiftlint`.
 
 **Signing issues** — Verify Apple Developer account and team in Signing & Capabilities
 
-**CloudKit not syncing** — Check iCloud account, network, container ID, and restart app after enabling. See [CloudKit Guide](Docs/CloudKit/CLOUDKIT_GUIDE.md).
+**CloudKit not syncing** — Check iCloud account, network, container ID, and restart app after enabling. See the [CloudKit Guide](../Documentation/Architecture/CloudKit/CLOUDKIT_GUIDE.md).
 
 **Slow performance** — Check for unfiltered `@FetchRequest` usage. Profile with Instruments.
 

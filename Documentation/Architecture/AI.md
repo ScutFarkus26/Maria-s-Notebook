@@ -204,14 +204,15 @@ disable their AI buttons when the relevant capability is absent.
 **`ENABLE_FOUNDATION_MODELS`** — all FoundationModels code is compiled behind this
 active-compilation condition (now set for Debug and Release). When off, the app
 builds with stub error types and AI features fall back to system writing tools or
-no-ops. See `Docs/ENABLE_FOUNDATION_MODELS.md`.
+no-ops. This flag is documented in this section because there is no separate
+build-flag document.
 
 **Private Cloud Compute entitlement** — PCC needs the managed entitlement
 `com.apple.developer.private-cloud-compute`, which Apple must grant. It is
 deliberately **not** in `Maria_s_Notebook.entitlements` yet, because adding an
 un-granted managed entitlement breaks code-signing on dev builds. Until it's
 added, `PrivateCloudModelClient.isAvailable` is false and routing falls back to
-Claude — no behavior change. Activation steps: `Docs/PrivateCloudCompute.md`.
+Claude — no behavior change. Activation steps: `PrivateCloudCompute.md`.
 
 ---
 
@@ -258,8 +259,7 @@ Components/
   ObservationsView+AI.swift           # observation digests/narrative
   UnifiedNoteEditor/NoteEditorAISuggestion.swift  # tags + photo description
 Stories/StoryAnalyzer.swift           # story metadata (text + visual)
-Docs/
+Documentation/Architecture/
   AI.md                               # this file
   PrivateCloudCompute.md              # PCC entitlement activation
-  ENABLE_FOUNDATION_MODELS.md         # build-flag reference
 ```

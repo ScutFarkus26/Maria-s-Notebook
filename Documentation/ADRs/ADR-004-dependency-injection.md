@@ -452,8 +452,7 @@ struct FeatureViewModel {
 ## Related Decisions
 
 - See [ADR-003](ADR-003-repository-pattern.md) for repository usage
-- See [FeatureFlags.swift](../AppCore/FeatureFlags.swift) for migration flags
-- See [7-Phase Migration Plan](../Docs/ARCHITECTURE_MIGRATION.md)
+- See the [repository organization plan](../Implementation/REPOSITORY_ORGANIZATION_PLAN.md) for the current migration sequence.
 
 ## References
 
@@ -471,4 +470,4 @@ struct FeatureViewModel {
 
 ---
 
-**Next ADR:** [ADR-005: Denormalization Strategy](ADR-005-denormalization-strategy.md)
+**Next ADR:** To be determined.

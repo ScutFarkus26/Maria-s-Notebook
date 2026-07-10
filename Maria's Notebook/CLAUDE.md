@@ -32,11 +32,11 @@ DEVELOPER_DIR="$HOME/Downloads/Xcode-beta.app/Contents/Developer" \
 Maria's Notebook/
 ├── AppCore/          # App entry, initialization, root navigation
 ├── Models/           # NSManagedObject subclasses & extensions
-├── Services/         # Business logic layer (50+ services)
+├── Services/         # Business logic and system integrations
 ├── ViewModels/       # Shared ViewModels (Today, GiveLesson, etc.)
 ├── Components/       # Reusable SwiftUI components
 ├── Utils/            # Extensions & utility functions
-├── Repositories/     # Data access layer (14 repositories)
+├── Repositories/     # Data access layer
 │
 ├── Students/         # Student profiles & meetings
 ├── Lessons/          # Lesson library, attachments, exercises
@@ -62,8 +62,9 @@ Maria's Notebook/
 ├── Sharing/          # CloudKit sharing (classroom collaboration)
 ├── Backup/           # Backup & restore functionality
 ├── Settings/         # App configuration
-├── Docs/             # Documentation
-└── MariasNotebook.xcdatamodeld/ # Core Data model (76 entities)
+└── MariasNotebook.xcdatamodeld/ # Core Data model
+
+Documentation/        # Repository-level architecture, ADRs, plans, and manuals
 ```
 
 ## Architecture

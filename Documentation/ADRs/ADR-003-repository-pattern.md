@@ -383,9 +383,8 @@ struct Repository<T: NSManagedObject> {
 
 ## Related Decisions
 
-- See [ADR-002](ADR-002-domain-errors.md) for error handling in repositories
 - See [ADR-004](ADR-004-dependency-injection.md) for repository injection
-- See [ARCHITECTURE.md](../ARCHITECTURE.md) for ViewModel guidelines
+- See [ARCHITECTURE.md](../Architecture/ARCHITECTURE.md) for ViewModel guidelines
 
 ## References
 

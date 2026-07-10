@@ -3,7 +3,7 @@
 //  Maria's Notebook
 //
 //  MCPClientProtocol implementation backed by Apple's on-device FoundationModels.
-//  Guarded behind ENABLE_FOUNDATION_MODELS flag (see Docs/ENABLE_FOUNDATION_MODELS.md).
+//  Guarded behind ENABLE_FOUNDATION_MODELS flag (see Documentation/Architecture/AI.md).
 //
 
 import Foundation

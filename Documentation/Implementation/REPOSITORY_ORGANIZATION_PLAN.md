@@ -26,13 +26,14 @@ Build commands use Xcode 27 beta at `/Applications/Xcode-beta.app/Contents/Devel
 
 ### Phase 0 - Establish a trustworthy baseline
 
-- Status: In progress
+- Status: Complete
 - Branch: `codex/repository-organization`
 - Baseline commit: `b79dca27`
+- Plan commit: `9bc5a837`
 - Xcode: 27.0 beta (`27A5218g`)
 - macOS Debug build: Passed
-- iOS generic Debug build: In progress
-- Full macOS test suite: Pending
+- iOS generic Debug build: Passed
+- Full macOS test suite: 161 passed and 11 failed out of 172. All 11 failures are backup tests blocked by the same local Keychain write error, `-34018`; this is the recorded pre-existing test baseline.
 - SwiftLint: Runs with Xcode beta but currently reports pre-existing violations, including errors. Its default traversal also enters ignored nested worktrees under `.claude/worktrees`; this must be corrected before treating repository-wide counts as a stable gate.
 - Known compiler warnings:
   - `AppCore/AppCommands.swift`: closure stored in an `@Entry` may invalidate dependents on every update.
@@ -46,12 +47,15 @@ Commit target: `docs(repo): add incremental organization plan`
 
 #### 1A - Stop tracking Xcode user data
 
+- Status: Complete
+- Commit: `6dc6a065`
 - Remove tracked `xcuserdata` entries from Git while preserving local files.
 - Verify `git ls-files '*xcuserdata*'` returns no paths.
 - Commit target: `chore(git): stop tracking Xcode user data`
 
 #### 1B - Consolidate documentation
 
+- Status: In progress
 - Move developer documentation out of the synchronized app source root.
 - Merge the current `docs/` and `Maria's Notebook/Docs/` trees under repository-level `Documentation/`.
 - Use `Architecture/`, `ADRs/`, `Implementation/`, `Manuals/`, and `Generated/` as the top-level documentation categories.

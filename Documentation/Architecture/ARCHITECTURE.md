@@ -77,7 +77,7 @@ private var activeWork: FetchedResults<CDWorkModel>
 ```
 
 **CloudKit compatibility rules:**
-- Enums stored as raw strings (`statusRaw` pattern — see [ADR-001](ADRs/ADR-001-swiftdata-enum-pattern.md))
+- Enums stored as raw strings (`statusRaw` pattern — see [ADR-001](../ADRs/ADR-001-swiftdata-enum-pattern.md))
 - Foreign keys as `String`, not `UUID`
 - Optional relationship arrays
 - No unique constraints (incompatible with CloudKit)
@@ -86,11 +86,11 @@ See [DATA_MODELS.md](DATA_MODELS.md) for full model reference.
 
 ### Repository Pattern
 
-Repositories for complex data access; `@FetchRequest` for simple cases. See [ADR-003](ADRs/ADR-003-repository-pattern.md).
+Repositories for complex data access; `@FetchRequest` for simple cases. See [ADR-003](../ADRs/ADR-003-repository-pattern.md).
 
 ### Dependency Injection
 
-Centralized via `AppDependencies` with lazy initialization. See [ADR-004](ADRs/ADR-004-dependency-injection.md).
+Centralized via `AppDependencies` with lazy initialization. See [ADR-004](../ADRs/ADR-004-dependency-injection.md).
 
 ## Service Layer
 
@@ -242,5 +242,5 @@ for (index, item) in items.enumerated() {
 ## Related Documentation
 
 - [DATA_MODELS.md](DATA_MODELS.md) — Model reference
-- [ADRs/](ADRs/) — Architecture decisions
+- [ADRs/](../ADRs/) — Architecture decisions
 - [CloudKit Guide](CloudKit/CLOUDKIT_GUIDE.md) — CloudKit setup
