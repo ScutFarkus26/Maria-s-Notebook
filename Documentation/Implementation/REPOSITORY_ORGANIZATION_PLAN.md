@@ -120,8 +120,21 @@ Commit: `9bc5a837 docs(repo): add incremental organization plan`
 
 ### Phase 5 - Clarify shared layers
 
-- Status: Pending
-- Move feature-specific services and view models to their owning features while preserving genuinely cross-feature infrastructure.
+- Status: Complete
+- Implementation commits:
+  - `28fcebd4` (`refactor(viewmodels): move feature state to owners`)
+  - `d47a9ac3` (`refactor(services): move feature logic to owners`)
+- Moved six feature-owned view-model files from the shared `ViewModels/` folder into Lessons, the Lessons checklist, and Topics. `ViewModels/CommandBarViewModel.swift` remains because the command bar is app-wide.
+- Moved 37 feature-specific service and planning-state files into Chat, Inbox, Parsha, Planning, Presentations, Procedures, Projects, Students, Supplies, Todos, and Work.
+- All 43 Swift changes are 100% renames with zero Swift insertions or deletions. No types, declarations, imports, or behavior changed.
+- Preserved the shared `Services/` layer for cross-feature infrastructure and integrations: AI clients and routing, CloudKit and sync, migrations, calendar and reminders, search, persistence history, networking, and app-wide utilities.
+- Intentional shared exceptions: progression orchestration (`LessonProgressionRules`, `ReadinessAutoUnlockService`, `SequenceAutoPopulateService`, `SequenceTrackService`, `TrackProgressResolver`, and `UnlockNextLessonService`) remains shared because it coordinates Lessons, Planning, Presentations, Students, and Work rather than having one clear owner.
+- Updated repository maps, service documentation, and AI file maps to reflect the new ownership boundaries.
+- Validation:
+  - macOS and generic iOS Debug builds passed after each implementation commit.
+  - The full macOS suite exactly matched the established baseline: 161 passed and the same 11 Keychain-blocked tests failed with `-34018`.
+  - Local Markdown links, staged whitespace checks, and moved-path checks passed.
+  - SwiftLint reported no violations in the moved view-model files and only 19 pre-existing warnings in unchanged, rename-only service files.
 
 ### Phase 6 - Organize large flat features
 
