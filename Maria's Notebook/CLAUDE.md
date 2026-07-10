@@ -32,7 +32,7 @@ DEVELOPER_DIR="$HOME/Downloads/Xcode-beta.app/Contents/Developer" \
 Maria's Notebook/
 ├── AppCore/          # App entry, initialization, root navigation
 ├── Models/           # NSManagedObject subclasses & extensions
-├── Services/         # Business logic and system integrations
+├── Services/         # Cross-feature infrastructure and system integrations
 ├── ViewModels/       # App-wide presentation state (CommandBar)
 ├── Components/       # Reusable SwiftUI components
 ├── Utils/            # Extensions & utility functions

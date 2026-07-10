@@ -97,13 +97,13 @@ Centralized via `AppDependencies` with lazy initialization. See [ADR-004](../ADR
 | Service | Location | Purpose |
 |---------|----------|---------|
 | `DataMigrations` | Services/ | Schema migrations |
-| `LifecycleService` | Services/ | Work lifecycle state transitions |
+| `LifecycleService` | Work/Services/ | Work lifecycle state transitions |
 | `BackupService` | Backup/ | Database backup/restore |
-| `ChatService` | Services/Chat/ | AI chat functionality |
-| `LessonPlanningService` | Services/LessonPlanning/ | AI-assisted lesson planning |
+| `ChatService` | Chat/Services/ | AI chat functionality |
+| `LessonPlanningService` | Planning/AIPlanning/LessonPlanning/ | AI-assisted lesson planning |
 | `CloudKitSyncStatusService` | Services/ | CloudKit sync monitoring |
 | `SyncedPreferencesStore` | Services/ | iCloud KVS preference sync |
-| `FollowUpInboxEngine` | Services/ | Inbox and follow-up tasks |
+| `FollowUpInboxEngine` | Inbox/Services/ | Inbox and follow-up tasks |
 
 Services accessed via `AppDependencies` or direct instantiation.
 

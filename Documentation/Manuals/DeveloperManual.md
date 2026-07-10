@@ -812,7 +812,7 @@ Services in this app follow these conventions:
 
 ### LifecycleService
 
-**File:** `Services/LifecycleService.swift`
+**File:** `Work/Services/LifecycleService.swift`
 
 Manages work item state transitions and data integrity.
 
@@ -830,7 +830,7 @@ Manages work item state transitions and data integrity.
 
 ### FollowUpInboxEngine
 
-**File:** `Services/FollowUpInboxEngine.swift`
+**File:** `Inbox/Services/FollowUpInboxEngine.swift`
 
 Categorizes pending work and follow-ups into an actionable inbox.
 
@@ -861,7 +861,7 @@ The engine respects non-school days when calculating "days since" for staleness.
 
 ### ChatService + AnthropicAPIClient
 
-**Files:** `Services/Chat/ChatService.swift`, `Services/AnthropicAPIClient.swift`
+**Files:** `Chat/Services/ChatService.swift`, `Services/AnthropicAPIClient.swift`
 
 #### AnthropicAPIClient
 
@@ -1188,7 +1188,7 @@ Universal observation system. Notes can be:
 
 ## Todos Module
 
-**Across:** `Models/TodoItemEntity.swift`, `Todos/Views/`, `Todos/Support/`, `Services/Todo*.swift`
+**Across:** `Models/TodoItemEntity.swift`, `Todos/Views/`, `Todos/Support/`, `Todos/Services/`
 
 Teacher task management with:
 
@@ -1232,7 +1232,7 @@ Teacher task management with:
 
 ## AI Chat
 
-**Directory:** `Services/Chat/`
+**Directory:** `Chat/` (`Chat/Services/` contains chat orchestration)
 
 Chat with Claude about classroom data. The system:
 
@@ -1627,6 +1627,10 @@ Maria's Notebook/
 |   +-- StudentsListView.swift           Roster view
 |   +-- StudentDetailView.swift          Detail tabs
 |   +-- Meetings/                        One-on-one meetings
+|   |   +-- Services/                     Meeting insight generation
+|   +-- Insights/Services/               Student analysis
+|   +-- Recall/Services/                 Recall scoring and retention
+|   +-- YearPlan/Services/               Year-plan promotion
 |
 +-- Lessons/
 |   +-- LessonEntity.swift              Lesson entity (CDLesson)
@@ -1637,12 +1641,17 @@ Maria's Notebook/
 |
 +-- Work/
 |   +-- WorkModelEntity.swift            Work entity (CDWorkModel)
+|   +-- Services/                         Lifecycle and PDF rendering
 |   +-- (74 files for lifecycle, check-ins, practice, PDF, etc.)
 |
 +-- Presentations/                       Scheduling and recording
+|   +-- Services/                         Presentation splitting
 +-- Attendance/                          Daily tracking
 +-- Planning/                            Scheduling and curriculum
+|   +-- AIPlanning/LessonPlanning/        AI planning service and state
+|   +-- Services/                         Next-lesson planning
 +-- Inbox/                               Follow-up management
+|   +-- Services/                         Follow-up categorization
 +-- Today/                               Daily hub
 |   +-- Views/                            Today screen and sections
 |   +-- ViewModels/TodayViewModel.swift   Today hub state
@@ -1650,26 +1659,29 @@ Maria's Notebook/
 +-- Todos/                               Todo management
 |   +-- Views/                            Screens, forms, rows, and sheets
 |   +-- Support/                          Filters, sorting, and date parsing
+|   +-- Services/                         Parsing, notifications, and export
 +-- Projects/                            Project-based learning
+|   +-- Services/                         Session work assignment
 +-- Notes/                               Observation and note capture
 |   +-- Observations/                     Browsing, filtering, and AI summaries
 |   +-- Editor/                           Note editors and tag selection
 |   +-- QuickCapture/                     Quick-note sheet and parsing
 |   +-- Views/                            Scoped note presentation
++-- Chat/Services/                       AI chat orchestration
++-- Parsha/Services/                     Parsha metadata and suggestions
++-- Procedures/Services/                Procedure operations
 +-- Supplies/                            Inventory management
+|   +-- Services/                         Supply operations
 +-- Topics/
 |   +-- ViewModels/TopicDetailViewModel.swift  Topic detail state
 +-- Settings/                            App configuration
 +-- Backup/                              Backup and restore
 |
 +-- Services/
-|   +-- LifecycleService.swift           Work state machine
-|   +-- FollowUpInboxEngine.swift        Inbox categorization
 |   +-- AnthropicAPIClient.swift         Claude API
 |   +-- CloudKitSyncStatusService.swift  Sync monitoring
 |   +-- CommandBar/                      Natural language parsing
-|   +-- Chat/                            AI chat orchestration
-|   +-- (70+ service files)
+|   +-- (cross-feature infrastructure and system integrations)
 |
 +-- Repositories/
 |   +-- RepositoryContainer.swift        Factory
@@ -1680,7 +1692,7 @@ Maria's Notebook/
 +-- ViewModels/
 |   +-- CommandBarViewModel.swift        Command bar state
 |
-+-- Components/                          102+ reusable UI components
++-- Components/                          Reusable UI primitives
 +-- Utils/                               57+ utility files
 ```
 

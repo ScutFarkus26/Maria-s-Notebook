@@ -52,7 +52,7 @@ xcodebuild -project "Maria's Notebook.xcodeproj" \
 Maria's Notebook/
 ├── AppCore/          # App entry, bootstrapping, navigation, routing
 ├── Models/           # NSManagedObject subclasses and extensions
-├── Services/         # Business logic and system integrations
+├── Services/         # Cross-feature infrastructure and system integrations
 ├── ViewModels/       # App-wide presentation state (CommandBar)
 ├── Components/       # Reusable SwiftUI components
 ├── Utils/            # Extensions & utilities

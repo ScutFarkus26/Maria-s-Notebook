@@ -107,11 +107,11 @@ equivalent) at runtime before calling the model.
 | Note tag + student suggestion | `Notes/Editor/NoteEditorAISuggestion.swift` | `@Generable` `NoteTagSuggestion` | No | **Photo** |
 | Describe photo into note | `Notes/Editor/NoteEditorAISuggestion.swift` | Free text | No | **Photo** |
 | Story metadata (title/themes/grade) | `Stories/StoryAnalyzer.swift` | `@Generable` `StoryAnalysisAI` | No | **PDF pages** |
-| Todo smart parsing | `Services/TodoSmartParserService.swift` | `@Generable` `ParsedTodo` | No | — |
-| Student-name extraction | `Services/TodoStudentSuggestionService.swift` | `@Generable` `ExtractedNames` | No | — |
+| Todo smart parsing | `Todos/Services/TodoSmartParserService.swift` | `@Generable` `ParsedTodo` | No | — |
+| Student-name extraction | `Todos/Services/TodoStudentSuggestionService.swift` | `@Generable` `ExtractedNames` | No | — |
 | Command bar parsing | `Services/CommandBar/AppleIntelligenceCommandParser.swift` | `@Generable` `ParsedTeacherCommand` | No | — |
-| Ask-your-notebook chat | `Services/Chat/ChatService.swift` + `Services/AI/NotebookTools.swift` | Free text | Yes | — |
-| Lesson planning | `Services/LessonPlanning/*` | Structured | — | — |
+| Ask-your-notebook chat | `Chat/Services/ChatService.swift` + `Services/AI/NotebookTools.swift` | Free text | Yes | — |
+| Lesson planning | `Planning/AIPlanning/LessonPlanning/*` | Structured | — | — |
 
 The command bar also has a non-AI tier-1 (`LocalCommandParser`, keyword/fuzzy)
 and a Claude tier-3 (`ClaudeCommandParser`); `CommandBarService` cascades
@@ -246,9 +246,10 @@ Services/
     PrivateCloudModelClient.swift     # Private Cloud Compute provider
     TokenBudget.swift                 # token-based input budgeting
     NotebookTools.swift               # on-device search tools for chat
-  Chat/ChatService.swift              # chat orchestration + escalation
   CommandBar/                         # command parsing (local/AI/Claude tiers)
-  LessonPlanning/                     # lesson planning service
+Chat/Services/ChatService.swift       # chat orchestration + escalation
+Planning/AIPlanning/LessonPlanning/   # lesson planning service and state
+Todos/Services/                       # todo parsing and student suggestions
 AppCore/AIPrompts.swift               # all system prompts/personas
 Settings/
   AIModelSettingsView.swift           # AIFeatureArea, AIModelOption, picker
