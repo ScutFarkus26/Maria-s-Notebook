@@ -289,7 +289,7 @@ struct RootView: View {
         newPresentationDraftID = draft.id
     }
 
-    private var rootLayout: some View {
+    @ViewBuilder private var rootLayout: some View {
         let layout = VStack(spacing: 0) {
             warningBanners
             Divider()

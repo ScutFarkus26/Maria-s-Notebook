@@ -10,7 +10,7 @@ struct PresentationsView: View {
     @Environment(\.horizontalSizeClass) var horizontalSizeClass
     @Environment(\.dependencies) private var dependencies
     #if os(macOS)
-    @Environment(\.openWindow) private var openWindow
+    @Environment(\.openWindow) var openWindow
     #endif
 
     // OPTIMIZATION: Use lightweight queries for change detection only
