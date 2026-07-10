@@ -73,7 +73,7 @@ lesson.getLessonStats(from: context) -> LessonStats
 
 ### 3. Presentation Detail with Work Summary
 
-**Location**: `Maria's Notebook/Presentations/LessonAssignmentDetailSheet.swift`
+**Location**: `Maria's Notebook/Presentations/Assignments/LessonAssignmentDetailSheet.swift`
 
 **New Features**:
 - Work summary section showing:

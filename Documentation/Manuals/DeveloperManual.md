@@ -1121,6 +1121,9 @@ The feature is organized into `Agenda/`, `CheckIns/`, `Completion/`, `Detail/`, 
 
 **Directory:** `Presentations/`
 
+The feature is organized into `Assignments/`, `Planning/`, `Overview/`, `Workflow/`, and
+`Services/`.
+
 ### Scheduling Calendar
 
 Visual calendar for planning when to present lessons. The blocking algorithm prevents over-scheduling by checking:
@@ -1666,6 +1669,10 @@ Maria's Notebook/
 |   +-- WorkCard/                         Shared work card presentations
 |
 +-- Presentations/                       Scheduling and recording
+|   +-- Assignments/                      Assignment detail and history
+|   +-- Planning/                         Scheduling and blocking
+|   +-- Overview/                         Presentation queues and filters
+|   +-- Workflow/                         Presentation and follow-up workflow
 |   +-- Services/                         Presentation splitting
 +-- Attendance/                          Daily tracking
 +-- Planning/                            Scheduling and curriculum
