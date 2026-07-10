@@ -85,6 +85,14 @@ final class AppRouter {
     /// Refresh trigger for planning inbox
     var planningInboxRefreshTrigger: UUID = UUID()
 
+    /// A companion-suggested question waiting for Ask AI to consume it.
+    /// The prompt is set only after the guide explicitly chooses an action.
+    var pendingAIQuestion: String?
+
+    /// App-wide progress state so the companion can show that Ask AI is working
+    /// even if the guide navigates to another surface.
+    var isAIWorking: Bool = false
+
     /// Triggers for quick-action sheets shown by RootView. Setting any to true asks
     /// RootView to present the corresponding sheet; RootView resets the value to false
     /// after consuming it. Used by Today's toolbar `+` menu and other entry points
@@ -152,6 +160,23 @@ final class AppRouter {
     /// Navigate to a specific navigation item
     func navigateTo(_ item: RootView.NavigationItem) {
         selectedNavItem = item
+    }
+
+    /// Open Ask AI and submit a question chosen from the notebook companion.
+    func requestAIQuestion(_ question: String) {
+        let trimmed = question.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !trimmed.isEmpty else {
+            selectedNavItem = .askAI
+            return
+        }
+        pendingAIQuestion = trimmed
+        selectedNavItem = .askAI
+    }
+
+    /// Returns a queued companion question exactly once.
+    func consumePendingAIQuestion() -> String? {
+        defer { pendingAIQuestion = nil }
+        return pendingAIQuestion
     }
 
     /// Navigate to checklist with optional area/sequence pre-selection

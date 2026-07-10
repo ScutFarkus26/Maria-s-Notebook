@@ -46,6 +46,7 @@ struct RootView: View {
     @State private var isShowingNewTodo = false
     @State private var workDetailIDToOpen: UUID?
     @State private var selectedNavItem: NavigationItem = .today
+    @State private var companionViewModel = NotebookCompanionViewModel()
 
     // Command bar pre-population state
     @State private var commandBarWorkLessonID: UUID?
@@ -213,6 +214,21 @@ struct RootView: View {
                 },
                 onNewNote: {
                     quickNoteParams = QuickNoteParams()
+                },
+                companionSnapshot: companionViewModel.snapshot,
+                isAIWorking: appRouter.isAIWorking,
+                onAskAI: { prompt in
+                    if let prompt {
+                        appRouter.requestAIQuestion(prompt)
+                    } else {
+                        appRouter.navigateTo(.askAI)
+                    }
+                },
+                onReviewTodos: {
+                    appRouter.navigateTo(.todos)
+                },
+                onRefreshCompanion: {
+                    companionViewModel.reload(calendar: calendar)
                 }
             )
         }
@@ -255,6 +271,20 @@ struct RootView: View {
     private var rootLayoutWithObservers: some View {
         rootLayout
         .onAppear(perform: restoreSelectionIfNeeded)
+        .task {
+            companionViewModel.configure(context: viewContext)
+        }
+        .onReceive(
+            NotificationCenter.default.publisher(
+                for: .NSManagedObjectContextObjectsDidChange,
+                object: viewContext
+            )
+        ) { _ in
+            companionViewModel.reload(calendar: calendar)
+        }
+        .onCalendarDayChange {
+            companionViewModel.reload(calendar: calendar)
+        }
         .onChange(of: selectedNavItem) { _, item in
             persistSelection(item)
         }

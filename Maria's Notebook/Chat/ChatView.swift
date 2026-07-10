@@ -8,6 +8,7 @@ import CoreData
 struct ChatView: View {
     @Environment(\.managedObjectContext) private var viewContext
     @Environment(\.dependencies) private var dependencies
+    @Environment(\.appRouter) private var appRouter
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @State private var viewModel = ChatViewModel()
     @State private var iconPulse = false
@@ -50,10 +51,24 @@ struct ChatView: View {
             .onAppear {
                 viewModel.configure(
                     viewContext: viewContext,
-                    mcpClient: dependencies.mcpClient
+                    mcpClient: dependencies.mcpClient,
+                    appRouter: appRouter
                 )
+                submitPendingCompanionQuestion()
+            }
+            .onChange(of: appRouter.pendingAIQuestion) { _, question in
+                guard question != nil else { return }
+                submitPendingCompanionQuestion()
             }
         }
+    }
+
+    private func submitPendingCompanionQuestion() {
+        guard !viewModel.needsAPIKey,
+              !viewModel.isLoading,
+              let question = appRouter.consumePendingAIQuestion() else { return }
+        viewModel.inputText = question
+        viewModel.sendMessage()
     }
 
     // MARK: - Chat Content

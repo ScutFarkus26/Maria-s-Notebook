@@ -30,6 +30,7 @@ final class ChatViewModel {
 
     private(set) var session: ChatSession?
     private var chatService: ChatService?
+    @ObservationIgnored private weak var appRouter: AppRouter?
 
     // MARK: - Escalation Types
 
@@ -100,7 +101,12 @@ final class ChatViewModel {
     // MARK: - Configuration
 
     /// Configure with dependencies. Called from the view's onAppear.
-    func configure(viewContext: NSManagedObjectContext, mcpClient: MCPClientProtocol) {
+    func configure(
+        viewContext: NSManagedObjectContext,
+        mcpClient: MCPClientProtocol,
+        appRouter: AppRouter
+    ) {
+        self.appRouter = appRouter
         guard chatService == nil else { return } // Already configured
         let service = ChatService(modelContext: viewContext, mcpClient: mcpClient)
         self.chatService = service
@@ -135,6 +141,7 @@ final class ChatViewModel {
 
         inputText = ""
         isLoading = true
+        appRouter?.isAIWorking = true
         errorMessage = nil
         streamingContent = ""
         pendingEscalation = nil
@@ -181,6 +188,7 @@ final class ChatViewModel {
                 self.streamingContent = nil
             }
             self.isLoading = false
+            self.appRouter?.isAIWorking = false
         }
     }
 
@@ -220,6 +228,7 @@ final class ChatViewModel {
         pendingEscalation = nil
         isEscalating = true
         isLoading = true
+        appRouter?.isAIWorking = true
         streamingContent = ""
         errorMessage = nil
 
@@ -244,6 +253,7 @@ final class ChatViewModel {
             }
             self.isLoading = false
             self.isEscalating = false
+            self.appRouter?.isAIWorking = false
         }
     }
 
@@ -263,6 +273,8 @@ final class ChatViewModel {
         streamingContent = nil
         pendingEscalation = nil
         isEscalating = false
+        isLoading = false
+        appRouter?.isAIWorking = false
         ChatSession.clearSaved()
     }
 }

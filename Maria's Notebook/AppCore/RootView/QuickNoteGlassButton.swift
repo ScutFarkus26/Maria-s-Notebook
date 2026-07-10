@@ -1,5 +1,5 @@
 // QuickNoteGlassButton.swift
-// Floating action button for quick note creation
+// Floating notebook companion. A long press preserves the original quick-create menu.
 
 import SwiftUI
 
@@ -12,10 +12,16 @@ struct QuickNoteGlassButton: View {
     var onRecordPractice: () -> Void
     var onNewTodo: () -> Void
     var onNewNote: () -> Void
+    let companionSnapshot: NotebookCompanionSnapshot
+    let isAIWorking: Bool
+    var onAskAI: (String?) -> Void
+    var onReviewTodos: () -> Void
+    var onRefreshCompanion: () -> Void
 
     @State private var offset: CGSize = .zero
     @State private var isPressed: Bool = false
     @State private var isPieMenuExpanded: Bool = false
+    @State private var isCompanionPresented: Bool = false
     @State private var highlightedAction: PieMenuAction?
     @State private var dragTranslation: CGSize = .zero
     @State private var longPressTask: Task<Void, Never>?
@@ -28,6 +34,10 @@ struct QuickNoteGlassButton: View {
     private let longPressDuration: Duration = .milliseconds(400) // 0.4 seconds
 
     var body: some View {
+        accessibilityContent
+    }
+
+    private var floatingContent: some View {
         // Main button with fixed size
         visualContent
             .scaleEffect(isPressed && !isPieMenuExpanded ? 0.92 : 1.0)
@@ -56,36 +66,64 @@ struct QuickNoteGlassButton: View {
         .onDisappear {
             longPressTask?.cancel()
         }
+        .popover(isPresented: $isCompanionPresented, arrowEdge: .bottom) {
+            companionPanel
+        }
+    }
+
+    @ViewBuilder
+    private var pointerContent: some View {
         // macOS: a standard right-click menu exposes every action to pointer users
         // (the long-press radial menu has no pointer/keyboard equivalent on its own).
         // On iOS the long-press already drives the pie menu, so no contextMenu there.
         #if os(macOS)
-        .contextMenu {
-            ForEach(PieMenuAction.allCases, id: \.self) { action in
-                Button {
-                    executeAction(action)
-                } label: {
-                    Label(action.label, systemImage: action.icon)
-                }
+        floatingContent
+            .contextMenu {
+                companionContextMenu
+            }
+            .help("Notebook companion — right-click for actions")
+        #else
+        floatingContent
+        #endif
+    }
+
+    private var accessibilityContent: some View {
+        pointerContent
+        .accessibilityLabel(companionAccessibilityLabel)
+        .accessibilityHint("Opens the notebook companion")
+        .accessibilityAddTraits(.isButton)
+        .accessibilityAction(named: "Open Notebook Companion") { openCompanion() }
+        .accessibilityAction(named: "Quick Capture") { isShowingCommandBar = true }
+    }
+
+    #if os(macOS)
+    @ViewBuilder
+    private var companionContextMenu: some View {
+        Button {
+            onAskAI(nil)
+        } label: {
+            Label("Ask My Notebook", systemImage: "bubble.left.and.text.bubble.right")
+        }
+        Button {
+            onAskAI(companionSnapshot.briefingPrompt)
+        } label: {
+            Label("Make My Short Plan", systemImage: "list.bullet.clipboard.fill")
+        }
+        Button {
+            onAskAI(NotebookCompanionSnapshot.followUpPrompt)
+        } label: {
+            Label("Who Needs Follow-up?", systemImage: "person.crop.circle.badge.questionmark")
+        }
+        Divider()
+        ForEach(PieMenuAction.allCases, id: \.self) { action in
+            Button {
+                executeAction(action)
+            } label: {
+                Label(action.label, systemImage: action.icon)
             }
         }
-        .help("Quick command — right-click for create actions")
-        #endif
-        .accessibilityLabel("Quick command")
-        // Per hint guidelines: describe the result only — no gestures. VoiceOver
-        // announces its own activation instructions, and the accessibilityActions
-        // below surface the five create actions via the actions rotor.
-        .accessibilityHint("Opens the command bar")
-        .accessibilityAddTraits(.isButton)
-        // Expose every action to VoiceOver (the drag-to-wedge gesture is unreachable
-        // by assistive tech); these appear in the VoiceOver actions rotor.
-        .accessibilityAction(named: "Open Command Bar") { isShowingCommandBar = true }
-        .accessibilityAction(named: PieMenuAction.newPresentation.label) { executeAction(.newPresentation) }
-        .accessibilityAction(named: PieMenuAction.newWorkItem.label) { executeAction(.newWorkItem) }
-        .accessibilityAction(named: PieMenuAction.recordPractice.label) { executeAction(.recordPractice) }
-        .accessibilityAction(named: PieMenuAction.newTodo.label) { executeAction(.newTodo) }
-        .accessibilityAction(named: PieMenuAction.newNote.label) { executeAction(.newNote) }
     }
+    #endif
 
     private var pieMenuOverlay: some View {
         ZStack {
@@ -142,79 +180,86 @@ struct QuickNoteGlassButton: View {
     }
 
     private var visualContent: some View {
-        Group {
-            #if os(iOS)
-            Image(systemName: isPieMenuExpanded ? "xmark" : "plus")
-                .font(.system(size: 24, weight: .semibold, design: .rounded))
-                .foregroundStyle(.white)
-                .frame(width: 56, height: 56)
-                .background(
-                    Circle()
-                        .fill(
+        ZStack(alignment: .bottomTrailing) {
+            if isPieMenuExpanded {
+                Image(systemName: "xmark")
+                    .font(.system(size: 23, weight: .semibold, design: .rounded))
+                    .foregroundStyle(.white)
+                    .frame(width: 58, height: 58)
+                    .background(
+                        Circle().fill(
                             LinearGradient(
-                                colors: isPieMenuExpanded
-                                    ? [
-                                        .pink.opacity(UIConstants.OpacityConstants.almostOpaque),
-                                        .orange.opacity(UIConstants.OpacityConstants.almostOpaque)
-                                    ]
-                                    : [
-                                        .blue.opacity(UIConstants.OpacityConstants.almostOpaque),
-                                        .teal.opacity(UIConstants.OpacityConstants.nearSolid)
-                                    ],
+                                colors: [.pink, .orange],
                                 startPoint: .topLeading,
                                 endPoint: .bottomTrailing
                             )
                         )
+                    )
+                    .shadow(color: .black.opacity(0.18), radius: 8, x: 0, y: 4)
+            } else {
+                NotebookCompanionCharacter(
+                    state: companionSnapshot.state(isWorking: isAIWorking)
                 )
-                .overlay(
-                    Circle()
-                        .strokeBorder(
-                            Color.white.opacity(UIConstants.OpacityConstants.light),
-                            lineWidth: UIConstants.StrokeWidth.thin
-                        )
-                )
-                .clipShape(Circle())
-                .shadow(
-                    color: .black.opacity(UIConstants.OpacityConstants.muted),
-                    radius: AppTheme.Spacing.xsmall,
-                    x: 0,
-                    y: AppTheme.Spacing.xxsmall
-                )
-                .rotationEffect(.degrees(isPieMenuExpanded ? 90 : 0))
-            #else
-            Image(systemName: isPieMenuExpanded ? "xmark" : "plus")
-                .font(.system(size: 24, weight: .semibold, design: .rounded))
-                .foregroundStyle(.white)
-                .frame(width: 56, height: 56)
-                .background(
-                    Circle()
-                        .fill(
-                            LinearGradient(
-                                colors: isPieMenuExpanded
-                                    ? [
-                                        .pink.opacity(UIConstants.OpacityConstants.almostOpaque),
-                                        .orange.opacity(UIConstants.OpacityConstants.almostOpaque)
-                                    ]
-                                    : [
-                                        .blue.opacity(UIConstants.OpacityConstants.almostOpaque),
-                                        .teal.opacity(UIConstants.OpacityConstants.nearSolid)
-                                    ],
-                                startPoint: .topLeading,
-                                endPoint: .bottomTrailing
-                            )
-                        )
-                )
-                .clipShape(Circle())
-                .shadow(
-                    color: .black.opacity(UIConstants.OpacityConstants.muted),
-                    radius: AppTheme.Spacing.xsmall,
-                    x: 0,
-                    y: AppTheme.Spacing.xxsmall
-                )
-                .rotationEffect(.degrees(isPieMenuExpanded ? 90 : 0))
-            #endif
+            }
+
+            if companionSnapshot.attentionCount > 0 && !isPieMenuExpanded {
+                Text(companionSnapshot.attentionCount > 9 ? "9+" : "\(companionSnapshot.attentionCount)")
+                    .font(.system(size: 9, weight: .bold, design: .rounded))
+                    .foregroundStyle(.white)
+                    .frame(minWidth: 20, minHeight: 20)
+                    .background(Circle().fill(.red))
+                    .overlay(Circle().strokeBorder(.white, lineWidth: 2))
+                    .offset(x: 3, y: 3)
+            }
         }
+        .frame(width: 62, height: 62)
+        .contentShape(Circle())
         .adaptiveAnimation(.spring(response: 0.3, dampingFraction: 0.7), value: isPieMenuExpanded)
+    }
+
+    private var companionPanel: some View {
+        NotebookCompanionPanel(
+            snapshot: companionSnapshot,
+            isWorking: isAIWorking,
+            onPlanDay: {
+                performCompanionAction {
+                    onAskAI(companionSnapshot.briefingPrompt)
+                }
+            },
+            onFindFollowUps: {
+                performCompanionAction {
+                    onAskAI(NotebookCompanionSnapshot.followUpPrompt)
+                }
+            },
+            onSuggestPresentations: {
+                performCompanionAction {
+                    onAskAI(NotebookCompanionSnapshot.presentationPrompt)
+                }
+            },
+            onAskAnything: {
+                performCompanionAction {
+                    onAskAI(nil)
+                }
+            },
+            onQuickCapture: {
+                performCompanionAction {
+                    isShowingCommandBar = true
+                }
+            },
+            onReviewTodos: {
+                performCompanionAction(action: onReviewTodos)
+            }
+        )
+    }
+
+    private var companionAccessibilityLabel: String {
+        if isAIWorking {
+            return "Notebook companion, checking your notebook"
+        }
+        if companionSnapshot.attentionCount > 0 {
+            return "Notebook companion, \(companionSnapshot.attentionCount) overdue items"
+        }
+        return "Notebook companion"
     }
 
     private var combinedGesture: some Gesture {
@@ -264,9 +309,9 @@ struct QuickNoteGlassButton: View {
                         highlightedAction = nil
                     }
                 } else if distance < 2 {
-                    // Simple tap - open command bar
+                    // Simple tap - open the useful companion panel.
                     self.offset = CGSize(width: savedOffsetX, height: savedOffsetY)
-                    isShowingCommandBar = true
+                    openCompanion()
                 } else {
                     // Drag ended - save new position
                     let finalOffset = CGSize(
@@ -349,6 +394,16 @@ struct QuickNoteGlassButton: View {
         case .newNote:
             onNewNote()
         }
+    }
+
+    private func openCompanion() {
+        onRefreshCompanion()
+        isCompanionPresented = true
+    }
+
+    private func performCompanionAction(action: @escaping () -> Void) {
+        isCompanionPresented = false
+        action()
     }
 
     private func normalizedDegrees(_ angle: Double) -> Double {
