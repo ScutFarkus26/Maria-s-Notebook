@@ -32,44 +32,22 @@ struct ProceduresListView: View {
 
     var body: some View {
         VStack(spacing: 0) {
+            #if os(iOS)
             // Header
             ViewHeader(title: "Procedures") {
                 HStack(spacing: 12) {
-                    // Category filter
-                    Menu {
-                        Button("All Categories") {
-                            selectedCategory = nil
-                        }
-                        Divider()
-                        ForEach(ProcedureCategory.allCases) { category in
-                            Button {
-                                selectedCategory = category
-                            } label: {
-                                Label(category.rawValue, systemImage: category.icon)
-                            }
-                        }
-                    } label: {
-                        Label(
-                            selectedCategory?.rawValue ?? "All",
-                            systemImage: selectedCategory?.icon ?? "square.grid.2x2"
-                        )
-                        .font(.subheadline)
-                    }
-                    .buttonStyle(.bordered)
-                    .controlSize(.small)
+                    categoryMenu
+                        .buttonStyle(.bordered)
+                        .controlSize(.small)
 
-                    // Add button
-                    Button {
-                        showingAddSheet = true
-                    } label: {
-                        Label("Add CDProcedure", systemImage: "plus")
-                    }
-                    .buttonStyle(.borderedProminent)
-                    .controlSize(.small)
+                    addProcedureButton
+                        .buttonStyle(.borderedProminent)
+                        .controlSize(.small)
                 }
             }
 
             Divider()
+            #endif
 
             ScrollView {
                 VStack(alignment: .leading, spacing: 24) {
@@ -93,6 +71,15 @@ struct ProceduresListView: View {
                 .padding(.vertical, 16)
             }
         }
+        .navigationTitle("Procedures")
+        #if os(macOS)
+        .toolbar {
+            ToolbarItemGroup(placement: .primaryAction) {
+                categoryMenu
+                addProcedureButton
+            }
+        }
+        #endif
         .sheet(isPresented: $showingAddSheet) {
             ProcedureEditorSheet(procedure: nil)
         }
@@ -111,6 +98,36 @@ struct ProceduresListView: View {
         }
         .sheet(item: $procedureToEdit) { procedure in
             ProcedureEditorSheet(procedure: procedure)
+        }
+    }
+
+    private var categoryMenu: some View {
+        Menu {
+            Button("All Categories") {
+                selectedCategory = nil
+            }
+            Divider()
+            ForEach(ProcedureCategory.allCases) { category in
+                Button {
+                    selectedCategory = category
+                } label: {
+                    Label(category.rawValue, systemImage: category.icon)
+                }
+            }
+        } label: {
+            Label(
+                selectedCategory?.rawValue ?? "All Categories",
+                systemImage: selectedCategory?.icon ?? "square.grid.2x2"
+            )
+        }
+        .help("Filter procedures by category")
+    }
+
+    private var addProcedureButton: some View {
+        Button {
+            showingAddSheet = true
+        } label: {
+            Label("Add Procedure", systemImage: "plus")
         }
     }
 

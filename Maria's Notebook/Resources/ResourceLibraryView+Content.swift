@@ -42,11 +42,13 @@ extension ResourceLibraryView {
                     if isSelectMode {
                         selectableRow(resource: resource)
                     } else {
-                        ResourceRow(resource: resource)
-                            .contentShape(Rectangle())
-                            .onTapGesture {
-                                ResourceDocumentActions.open(resource)
-                            }
+                        Button {
+                            ResourceDocumentActions.open(resource)
+                        } label: {
+                            ResourceRow(resource: resource)
+                        }
+                            .buttonStyle(.plain)
+                            .accessibilityHint("Opens resource")
                             .contextMenu { resourceRowContextMenu(for: resource) }
                     }
                 }
@@ -130,17 +132,19 @@ extension ResourceLibraryView {
 
     func selectableRow(resource: CDResource) -> some View {
         let isSelected = resource.id.map { selectedResourceIDs.contains($0) } ?? false
-        return HStack(spacing: 8) {
-            Image(systemName: isSelected ? "checkmark.circle.fill" : "circle")
-                .font(.title3)
-                .foregroundStyle(isSelected ? Color.accentColor : .secondary)
-
-            ResourceRow(resource: resource)
-        }
-        .contentShape(Rectangle())
-        .onTapGesture {
+        return Button {
             toggleSelection(resource)
+        } label: {
+            HStack(spacing: 8) {
+                Image(systemName: isSelected ? "checkmark.circle.fill" : "circle")
+                    .font(.title3)
+                    .foregroundStyle(isSelected ? Color.accentColor : .secondary)
+
+                ResourceRow(resource: resource)
+            }
         }
+        .buttonStyle(.plain)
+        .accessibilityValue(isSelected ? "Selected" : "Not selected")
         .overlay(
             RoundedRectangle(cornerRadius: 8, style: .continuous)
                 .stroke(isSelected ? Color.accentColor : Color.clear, lineWidth: 1)

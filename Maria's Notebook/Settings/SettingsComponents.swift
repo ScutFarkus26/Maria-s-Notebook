@@ -133,45 +133,19 @@ struct SettingsGroup<Content: View>: View {
     }
 
     var body: some View {
-        VStack(alignment: .leading, spacing: SettingsStyle.groupSpacing) {
-            HStack {
-                if collapsible {
-                    Button {
-                        adaptiveWithAnimation(.easeInOut(duration: 0.25)) {
-                            isExpanded.toggle()
-                        }
-                    } label: {
-                        HStack {
-                            SectionHeader(title: title, systemImage: systemImage)
-                            Spacer()
-                            Image(systemName: "chevron.right")
-                                .font(.caption2.weight(.semibold))
-                                .foregroundStyle(.tertiary)
-                                .rotationEffect(.degrees(isExpanded ? 90 : 0))
-                        }
-                        .contentShape(Rectangle())
-                    }
-                    .buttonStyle(.plain)
-                } else {
-                    SectionHeader(title: title, systemImage: systemImage)
-                    Spacer()
-                }
-
-                if let onReset {
-                    Menu {
-                        Button(role: .destructive) {
-                            onReset()
-                        } label: {
-                            Label("Reset to Defaults", systemImage: "arrow.counterclockwise")
-                        }
-                    } label: {
-                        Image(systemName: "ellipsis.circle")
-                            .font(.caption)
-                            .foregroundStyle(.secondary)
-                    }
-                    .menuStyle(.borderlessButton)
-                }
+        #if os(macOS)
+        GroupBox {
+            if isExpanded || !collapsible {
+                content
+                    .padding(.top, 4)
+                    .transition(.opacity.combined(with: .move(edge: .top)))
             }
+        } label: {
+            groupHeader
+        }
+        #else
+        VStack(alignment: .leading, spacing: SettingsStyle.groupSpacing) {
+            groupHeader
 
             if isExpanded || !collapsible {
                 content
@@ -187,5 +161,49 @@ struct SettingsGroup<Content: View>: View {
             RoundedRectangle(cornerRadius: SettingsStyle.cornerRadius, style: .continuous)
                 .stroke(Color.primary.opacity(SettingsStyle.borderOpacity))
         )
+        #endif
+    }
+
+    private var groupHeader: some View {
+        HStack {
+            if collapsible {
+                Button {
+                    adaptiveWithAnimation(.easeInOut(duration: 0.25)) {
+                        isExpanded.toggle()
+                    }
+                } label: {
+                    HStack {
+                        SectionHeader(title: title, systemImage: systemImage)
+                        Spacer()
+                        Image(systemName: "chevron.right")
+                            .font(.caption2.weight(.semibold))
+                            .foregroundStyle(.tertiary)
+                            .rotationEffect(.degrees(isExpanded ? 90 : 0))
+                            .accessibilityHidden(true)
+                    }
+                    .contentShape(Rectangle())
+                }
+                .buttonStyle(.plain)
+                .accessibilityValue(isExpanded ? "Expanded" : "Collapsed")
+            } else {
+                SectionHeader(title: title, systemImage: systemImage)
+                Spacer()
+            }
+
+            if let onReset {
+                Menu {
+                    Button(role: .destructive) {
+                        onReset()
+                    } label: {
+                        Label("Reset to Defaults", systemImage: "arrow.counterclockwise")
+                    }
+                } label: {
+                    Image(systemName: "ellipsis.circle")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                }
+                .menuStyle(.borderlessButton)
+            }
+        }
     }
 }

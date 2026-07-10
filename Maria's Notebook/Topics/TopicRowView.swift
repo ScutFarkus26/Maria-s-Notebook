@@ -6,8 +6,11 @@ struct TopicRowView: View {
     let onSelect: () -> Void
 
     var body: some View {
-        topicCard
-            .onTapGesture(perform: onSelect)
+        Button(action: onSelect) {
+            topicCard
+        }
+        .buttonStyle(.plain)
+        .accessibilityHint("Opens topic details")
     }
 
     private var topicCard: some View {

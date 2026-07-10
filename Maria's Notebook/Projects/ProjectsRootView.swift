@@ -68,6 +68,7 @@ struct ProjectsRootView: View {
     // MARK: - Body
     var body: some View {
         VStack(spacing: 0) {
+            #if os(iOS)
             ViewHeader(title: "Projects") {
                 Button {
                     showNewSheet = true
@@ -77,6 +78,7 @@ struct ProjectsRootView: View {
                 .buttonStyle(.borderedProminent)
             }
             Divider()
+            #endif
             HStack(spacing: 0) {
                 // MARK: Sidebar
                 projectsSidebar
@@ -90,6 +92,7 @@ struct ProjectsRootView: View {
             }
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
+        .navigationTitle("Projects")
         .sheet(isPresented: $showNewSheet) {
             ProjectEditorSheet(club: nil)
         }

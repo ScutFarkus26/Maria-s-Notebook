@@ -18,17 +18,15 @@ struct SchedulesView: View {
 
     var body: some View {
         VStack(spacing: 0) {
+            #if os(iOS)
             ViewHeader(title: "Schedules") {
-                Button {
-                    showingAddSheet = true
-                } label: {
-                    Label("Add CDSchedule", systemImage: "plus")
-                }
-                .buttonStyle(.borderedProminent)
-                .controlSize(.small)
+                addScheduleButton
+                    .buttonStyle(.borderedProminent)
+                    .controlSize(.small)
             }
 
             Divider()
+            #endif
 
             ScrollView {
                 if schedules.isEmpty {
@@ -38,6 +36,14 @@ struct SchedulesView: View {
                 }
             }
         }
+        .navigationTitle("Schedules")
+        #if os(macOS)
+        .toolbar {
+            ToolbarItem(placement: .primaryAction) {
+                addScheduleButton
+            }
+        }
+        #endif
         .sheet(isPresented: $showingAddSheet) {
             ScheduleEditorSheet(schedule: nil)
         }
@@ -56,6 +62,14 @@ struct SchedulesView: View {
         }
         .sheet(item: $scheduleToEdit) { schedule in
             ScheduleEditorSheet(schedule: schedule)
+        }
+    }
+
+    private var addScheduleButton: some View {
+        Button {
+            showingAddSheet = true
+        } label: {
+            Label("Add Schedule", systemImage: "plus")
         }
     }
 
@@ -116,7 +130,7 @@ struct SchedulesView: View {
             Button {
                 showingAddSheet = true
             } label: {
-                Label("Add First CDSchedule", systemImage: "plus")
+                Label("Add First Schedule", systemImage: "plus")
             }
             .buttonStyle(.borderedProminent)
         }

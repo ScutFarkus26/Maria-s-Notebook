@@ -33,6 +33,18 @@ struct LessonPlanningSettingsView: View {
 
     private var planningSection: some View {
         VStack(alignment: .leading, spacing: 8) {
+            #if os(macOS)
+            LabeledContent("Default depth") {
+                Picker("Default depth", selection: $defaultDepth) {
+                    ForEach(depthOptions, id: \.0) { value, label, _ in
+                        Text(label).tag(value)
+                    }
+                }
+                .labelsHidden()
+                .pickerStyle(.menu)
+                .frame(width: 180, alignment: .trailing)
+            }
+            #else
             Text("Default Depth")
                 .font(.caption.weight(.semibold))
                 .foregroundStyle(.secondary)
@@ -43,6 +55,7 @@ struct LessonPlanningSettingsView: View {
                 }
             }
             .pickerStyle(.segmented)
+            #endif
 
             if let selected = depthOptions.first(where: { $0.0 == defaultDepth }) {
                 Text(selected.2)
@@ -123,6 +136,56 @@ struct LessonPlanningSettingsView: View {
                 .font(.caption.weight(.semibold))
                 .foregroundStyle(.secondary)
 
+            #if os(macOS)
+            LabeledContent("Temperature") {
+                HStack(spacing: 8) {
+                    Slider(value: $temperature, in: 0.0...1.0, step: 0.1)
+                        .frame(width: 180)
+                    Text(String(format: "%.1f", temperature))
+                        .monospacedDigit()
+                        .foregroundStyle(.secondary)
+                        .frame(width: 28, alignment: .trailing)
+                }
+            }
+            #else
+            temperatureControl
+            #endif
+            Text("Lower values produce more focused, deterministic responses. Higher values add variety.")
+                .font(.caption2)
+                .foregroundStyle(.tertiary)
+
+            Divider()
+
+            #if os(macOS)
+            LabeledContent("Request timeout") {
+                HStack(spacing: 8) {
+                    timeoutSlider
+                        .frame(width: 180)
+                    Text("\(timeout)s")
+                        .monospacedDigit()
+                        .foregroundStyle(.secondary)
+                        .frame(width: 42, alignment: .trailing)
+                }
+            }
+            #else
+            timeoutControl
+            #endif
+            Text("How long to wait for a response before timing out. Increase if you see timeout errors.")
+                .font(.caption2)
+                .foregroundStyle(.tertiary)
+        }
+    }
+
+    private var timeoutSlider: some View {
+        Slider(value: Binding(
+            get: { Double(timeout) },
+            set: { timeout = Int($0) }
+        ), in: 30...300, step: 30)
+    }
+
+    #if os(iOS)
+    private var temperatureControl: some View {
+        VStack(spacing: 8) {
             HStack {
                 Text("Temperature")
                     .font(.subheadline)
@@ -132,12 +195,11 @@ struct LessonPlanningSettingsView: View {
                     .foregroundStyle(.secondary)
             }
             Slider(value: $temperature, in: 0.0...1.0, step: 0.1)
-            Text("Lower values produce more focused, deterministic responses. Higher values add variety.")
-                .font(.caption2)
-                .foregroundStyle(.tertiary)
+        }
+    }
 
-            Divider()
-
+    private var timeoutControl: some View {
+        VStack(spacing: 8) {
             HStack {
                 Text("Request Timeout")
                     .font(.subheadline)
@@ -146,15 +208,10 @@ struct LessonPlanningSettingsView: View {
                     .font(.subheadline.monospacedDigit())
                     .foregroundStyle(.secondary)
             }
-            Slider(value: Binding(
-                get: { Double(timeout) },
-                set: { timeout = Int($0) }
-            ), in: 30...300, step: 30)
-            Text("How long to wait for a response before timing out. Increase if you see timeout errors.")
-                .font(.caption2)
-                .foregroundStyle(.tertiary)
+            timeoutSlider
         }
     }
+    #endif
 
     // MARK: - Reset
 

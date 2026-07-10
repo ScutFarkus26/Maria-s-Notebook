@@ -53,8 +53,10 @@ struct LogsMenuRootView: View {
 
     var body: some View {
         VStack(spacing: 0) {
+            #if os(iOS)
             ViewHeader(title: "Logs")
             Divider()
+            #endif
             HStack(spacing: 0) {
                 // MARK: Sidebar
                 logsSidebar
@@ -68,6 +70,7 @@ struct LogsMenuRootView: View {
             }
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
+        .navigationTitle("Logs")
     }
 
     // MARK: - Sidebar

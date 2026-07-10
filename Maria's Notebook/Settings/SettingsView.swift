@@ -5,6 +5,7 @@ import UniformTypeIdentifiers
 // MARK: - SettingsView
 
 struct SettingsView: View {
+    private let showsPageHeader: Bool
     @Environment(\.managedObjectContext) private var viewContext
     @Environment(\.dependencies) private var dependencies
     @State var statsViewModel = SettingsStatsViewModel()
@@ -12,6 +13,10 @@ struct SettingsView: View {
     @Environment(\.dynamicTypeSize) private var dynamicTypeSize
     @State private var searchText = ""
     @AppStorage("settings_selectedCategory") private var selectedCategoryRaw: String = ""
+
+    init(showsPageHeader: Bool = true) {
+        self.showsPageHeader = showsPageHeader
+    }
 
     var isCompact: Bool {
         #if os(iOS)
@@ -62,8 +67,10 @@ struct SettingsView: View {
     var body: some View {
         NavigationStack {
             VStack(spacing: 0) {
-                ViewHeader(title: "Settings")
-                Divider()
+                if showsPageHeader {
+                    ViewHeader(title: "Settings")
+                    Divider()
+                }
                 settingsContent
             }
         }

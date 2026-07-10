@@ -18,6 +18,23 @@ struct DocumentCard: View {
     }
 
     var body: some View {
+        Button(action: openDocument) {
+            cardContent
+        }
+        .buttonStyle(.plain)
+        .accessibilityHint("Opens document")
+        .contextMenu {
+            Button(role: .destructive, action: onDelete) {
+                Label("Delete", systemImage: SFSymbol.Action.trash)
+            }
+
+            Button(action: onRename) {
+                Label("Rename", systemImage: SFSymbol.Education.pencil)
+            }
+        }
+    }
+
+    private var cardContent: some View {
         VStack(alignment: .leading, spacing: 8) {
             PDFThumbnail(url: fileURL, data: document.pdfData)
                 .aspectRatio(contentMode: .fit)
@@ -46,21 +63,13 @@ struct DocumentCard: View {
                 .stroke(Color.primary.opacity(UIConstants.OpacityConstants.light))
         )
         .contentShape(Rectangle())
-        .onTapGesture {
-            if let url = fileURL {
-                onOpen(url)
-            } else if let url = createTemporaryFileURL() {
-                onOpen(url)
-            }
-        }
-        .contextMenu {
-            Button(role: .destructive, action: onDelete) {
-                Label("Delete", systemImage: SFSymbol.Action.trash)
-            }
+    }
 
-            Button(action: onRename) {
-                Label("Rename", systemImage: SFSymbol.Education.pencil)
-            }
+    private func openDocument() {
+        if let url = fileURL {
+            onOpen(url)
+        } else if let url = createTemporaryFileURL() {
+            onOpen(url)
         }
     }
 

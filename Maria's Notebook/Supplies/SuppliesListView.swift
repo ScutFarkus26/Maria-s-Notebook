@@ -45,41 +45,21 @@ struct SuppliesListView: View {
 
     var body: some View {
         VStack(spacing: 0) {
+            #if os(iOS)
             ViewHeader(title: "Supplies") {
                 HStack(spacing: 12) {
-                    Menu {
-                        Button("All Categories") {
-                            selectedCategory = nil
-                        }
-                        Divider()
-                        ForEach(SupplyCategory.allCases) { category in
-                            Button {
-                                selectedCategory = category
-                            } label: {
-                                Label(category.rawValue, systemImage: category.icon)
-                            }
-                        }
-                    } label: {
-                        Label(
-                            selectedCategory?.rawValue ?? "All",
-                            systemImage: selectedCategory?.icon ?? "square.grid.2x2"
-                        )
-                        .font(.subheadline)
-                    }
+                    categoryMenu
                     .buttonStyle(.bordered)
                     .controlSize(.small)
 
-                    Button {
-                        showingAddSheet = true
-                    } label: {
-                        Label("Add Supply", systemImage: "plus")
-                    }
+                    addSupplyButton
                     .buttonStyle(.borderedProminent)
                     .controlSize(.small)
                 }
             }
 
             Divider()
+            #endif
 
             ScrollView {
                 VStack(alignment: .leading, spacing: 24) {
@@ -109,6 +89,46 @@ struct SuppliesListView: View {
         .sheet(item: $quickAdjustSupply) { supply in
             QuickAdjustSheet(supply: supply)
         }
+        .navigationTitle("Supplies")
+        #if os(macOS)
+        .toolbar {
+            ToolbarItemGroup(placement: .primaryAction) {
+                categoryMenu
+                addSupplyButton
+            }
+        }
+        #endif
+    }
+
+    private var categoryMenu: some View {
+        Menu {
+            Button("All Categories") {
+                selectedCategory = nil
+            }
+            Divider()
+            ForEach(SupplyCategory.allCases) { category in
+                Button {
+                    selectedCategory = category
+                } label: {
+                    Label(category.rawValue, systemImage: category.icon)
+                }
+            }
+        } label: {
+            Label(
+                selectedCategory?.rawValue ?? "All Categories",
+                systemImage: selectedCategory?.icon ?? "square.grid.2x2"
+            )
+        }
+        .help("Filter supplies by category")
+    }
+
+    private var addSupplyButton: some View {
+        Button {
+            showingAddSheet = true
+        } label: {
+            Label("Add Supply", systemImage: "plus")
+        }
+        .help("Add a classroom supply")
     }
 }
 

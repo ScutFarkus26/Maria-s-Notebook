@@ -15,13 +15,15 @@ extension TodayView {
                 emptyStateText("No recent observations")
             } else {
                 ForEach(viewModel.recentNotes, id: \.objectID) { note in
-                    recentNoteRow(note)
+                    Button {
+                        noteBeingEdited = note
+                    } label: {
+                        recentNoteRow(note)
+                    }
+                        .buttonStyle(.plain)
+                        .accessibilityHint("Opens observation for editing")
                         .id(note.id)
                         .listRowInsets(EdgeInsets(top: 8, leading: 20, bottom: 8, trailing: 20))
-                        .contentShape(Rectangle())
-                        .onTapGesture {
-                            noteBeingEdited = note
-                        }
                 }
             }
         } header: {

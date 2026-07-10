@@ -12,6 +12,17 @@ struct ResourceCard: View {
     var onChangeCategory: (() -> Void)?
 
     var body: some View {
+        Button(action: onTap) {
+            cardContent
+        }
+        .buttonStyle(.plain)
+        .accessibilityHint("Opens resource")
+        .contextMenu {
+            contextMenuContent
+        }
+    }
+
+    private var cardContent: some View {
         VStack(alignment: .leading, spacing: 8) {
             // Thumbnail
             thumbnailView
@@ -70,8 +81,10 @@ struct ResourceCard: View {
                 .stroke(Color.primary.opacity(UIConstants.OpacityConstants.light))
         )
         .contentShape(Rectangle())
-        .onTapGesture(perform: onTap)
-        .contextMenu {
+    }
+
+    @ViewBuilder
+    private var contextMenuContent: some View {
             if let onOpen {
                 Button(action: onOpen) {
                     Label("Open", systemImage: "arrow.up.forward.square")
@@ -107,7 +120,6 @@ struct ResourceCard: View {
             Button(role: .destructive, action: onDelete) {
                 Label("Delete", systemImage: SFSymbol.Action.trash)
             }
-        }
     }
 
     @ViewBuilder

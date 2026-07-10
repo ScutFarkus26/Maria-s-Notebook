@@ -41,8 +41,8 @@ A 25-agent review of the five commits confirmed 13 findings; fixes applied:
 
 ## Phase 2 — Settings as a real Settings window
 - [x] **Relocated troubleshooting controls out of the Help menu** (completes the Phase 0 deferral): "Enable CloudKit Sync" was a duplicate of the existing Data & Sync "Enable iCloud Sync" toggle → removed; "Allow Local Store Fallback" (macOS) + "Use In-Memory Store" → moved into a new **Advanced** disclosure in Settings → Database → Maintenance (`DatabaseMaintenanceCard`), the in-memory option now confirmation-gated. Help menu reduced to a `#if DEBUG` reset.
-- [ ] Add the `Settings { SettingsView() }` scene under `#if os(macOS)`; drop the manual `.appSettings` ⌘, override. **BLOCKED/needs care:** (1) heavily touches `SettingsView+Sections.swift`, which has uncommitted WIP; (2) needs runtime verification (open app, ⌘,, confirm standalone window + in-window route superseded) — build-only verification is insufficient. Do after the Settings WIP is committed/stashed.
-- [ ] Rebuild panes with `Form`/`.formStyle(.grouped)`/`LabeledContent`; drop the rounded-card chrome and the `.scaleEffect(0.8)` toggle hack. Same WIP-collision caveat.
+- [x] Add the `Settings { SettingsView() }` scene under `#if os(macOS)` and restore the standard App → Settings / ⌘, behavior. The existing in-window route remains available for iOS.
+- [~] Rebuild panes with native controls. **Done:** macOS settings groups now use `GroupBox`; lesson/work age controls and Lesson Planning Assistant controls use `LabeledContent` with compact Mac-appropriate pickers and sliders. **Remaining:** migrate the other panes gradually and remove any remaining custom sizing hacks after visual review.
 
 **Phase 2 slice verified:** macOS + iOS both BUILD SUCCEEDED, zero warnings (2026-06-29).
 
@@ -54,8 +54,10 @@ A 25-agent review of the five commits confirmed 13 findings; fixes applied:
 
 **Phase 3 implementation note (2026-07-07):** macOS build validation is currently blocked before completion by SDK/API drift unrelated to this phase: the local Xcode reports macOS SDK 26.5 while the project targets macOS 27.0, and compilation fails in AI/Speech sources on missing `PrivateCloudComputeLanguageModel`, `ContextOptions`, `LanguageModelError`, and `@diagnose`.
 
+**Focused toolbar passes (2026-07-10):** Schedules, Procedures, Checklist, Projects, Supplies, and Logs now use native macOS titles/toolbars while retaining their existing iOS page headers. Remaining feature headers will be migrated in later focused passes.
+
 ## Phase 4 — Native data browsers
-- [~] Convert tappable cards to real `Button`s (keyboard focus, focus ring, VoiceOver trait, pointer cursor). **Done:** the shared student roster/needs-lesson card grid now uses plain-styled native buttons with a result-oriented accessibility hint while preserving its context menu and card design. **Remaining:** audit the other tappable card grids one feature at a time.
+- [~] Convert tappable cards to real `Button`s (keyboard focus, focus ring, VoiceOver trait, pointer cursor). **Done:** the shared student roster/needs-lesson grid plus Topics, Resources, student Documents, Stories, Book Club packets, recent observations, resource list rows, and student project/report cards use plain-styled native buttons while preserving their visual design and context menus. **Remaining:** continue feature-by-feature, excluding drag surfaces and cards with nested controls until they can be safely redesigned.
 - [ ] Sortable `Table` for Students / Lessons / Logs (keep card grid as an option).
 - [ ] Native drag-and-drop reorder for the student grid (replace the long-press DragGesture).
 

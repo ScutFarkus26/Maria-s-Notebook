@@ -56,11 +56,13 @@ struct StudentProgressTab: View {
                             .padding(.horizontal, AppTheme.Spacing.xsmall)
 
                         ForEach(viewModel.activeProjects) { project in
-                            projectRow(project)
-                                .contentShape(Rectangle())
-                                .onTapGesture {
-                                    selectedProject = project
-                                }
+                            Button {
+                                selectedProject = project
+                            } label: {
+                                projectRow(project)
+                            }
+                            .buttonStyle(.plain)
+                            .accessibilityHint("Opens project details")
                         }
                     }
                     .padding(.horizontal, AppTheme.Spacing.xsmall)
@@ -75,12 +77,14 @@ struct StudentProgressTab: View {
                             .padding(.horizontal, AppTheme.Spacing.xsmall)
 
                         ForEach(viewModel.activeReports) { report in
-                            reportCard(report: report)
+                            Button {
+                                selectedReport = report
+                            } label: {
+                                reportCard(report: report)
+                            }
+                                .buttonStyle(.plain)
+                                .accessibilityHint("Opens report details")
                                 .padding(.horizontal, AppTheme.Spacing.xsmall)
-                                .contentShape(Rectangle())
-                                .onTapGesture {
-                                    selectedReport = report
-                                }
                         }
                     }
                     .padding(.horizontal, AppTheme.Spacing.xsmall)

@@ -133,10 +133,13 @@ struct BookClubPacketsListView: View {
 
     private func packetCard(for packet: CDBookClubPacket) -> some View {
         let isSelected = packet.objectID == selectedPacketID
-        return BookClubPacketCardView(packet: packet, isSelected: isSelected)
-            .onTapGesture {
+        return Button {
                 selectedPacketID = isSelected ? nil : packet.objectID
+            } label: {
+                BookClubPacketCardView(packet: packet, isSelected: isSelected)
             }
+            .buttonStyle(.plain)
+            .accessibilityValue(isSelected ? "Selected" : "Not selected")
     }
 
     @ViewBuilder

@@ -286,15 +286,6 @@ struct MariasNotebookApp: App {
                     .keyboardShortcut("7", modifiers: .command)
             }
             
-            // 4. STANDARD SETTINGS (App Menu)
-            // Maps the standard macOS "Settings..." menu item (Cmd+,) to your Settings tab
-            CommandGroup(replacing: .appSettings) {
-                Button("Settings…") {
-                    appRouter.navigateTo(.settings)
-                }
-                .keyboardShortcut(",", modifiers: .command)
-            }
-
             // 5. HELP & TROUBLESHOOTING (Help Menu)
             CommandGroup(replacing: .help) {
                 #if os(macOS)
@@ -333,6 +324,32 @@ struct MariasNotebookApp: App {
         }
 
         #if os(macOS)
+        Settings {
+            Group {
+                if bootstrapper.state == .ready,
+                   !restoreCoordinator.isRestoring,
+                   hasCompletedOnboarding {
+                    SettingsView(showsPageHeader: false)
+                        .environment(\.managedObjectContext, coreDataStack.viewContext)
+                        .environment(\.calendar, AppCalendar.shared)
+                        .environment(\.appRouter, appRouter)
+                        .environment(\.dependencies, dependencies)
+                        .environment(saveCoordinator)
+                        .environment(restoreCoordinator)
+                } else {
+                    VStack(spacing: 12) {
+                        ProgressView()
+                            .controlSize(.small)
+                        Text(settingsUnavailableMessage)
+                            .foregroundStyle(.secondary)
+                    }
+                    .accessibilityElement(children: .combine)
+                    .frame(maxWidth: .infinity, maxHeight: .infinity)
+                }
+            }
+            .frame(minWidth: 760, minHeight: 600)
+        }
+
         Window("Notebook Companion", id: "notebookCompanion") {
             if bootstrapper.state == .ready,
                !restoreCoordinator.isRestoring,
@@ -486,4 +503,16 @@ struct MariasNotebookApp: App {
         // Legacy .modelContainer removed — using CoreDataStack
         #endif
     }
+
+    #if os(macOS)
+    private var settingsUnavailableMessage: String {
+        if restoreCoordinator.isRestoring {
+            return "Settings will be available when the restore finishes."
+        }
+        if !hasCompletedOnboarding {
+            return "Finish setup in the main window to use Settings."
+        }
+        return loadingMessage
+    }
+    #endif
 }

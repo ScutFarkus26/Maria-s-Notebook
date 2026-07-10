@@ -108,10 +108,13 @@ struct StoriesRootView: View {
 
     private func storyCard(for story: CDStory) -> some View {
         let isSelected = story.objectID == selectedStoryID
-        return StoryCardView(story: story, isSelected: isSelected)
-            .onTapGesture {
+        return Button {
                 selectedStoryID = isSelected ? nil : story.objectID
+            } label: {
+                StoryCardView(story: story, isSelected: isSelected)
             }
+            .buttonStyle(.plain)
+            .accessibilityValue(isSelected ? "Selected" : "Not selected")
     }
 
     @ViewBuilder

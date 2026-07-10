@@ -17,47 +17,42 @@ struct LessonAgeSettingsView: View {
                 .font(.footnote)
                 .foregroundStyle(.secondary)
 
-            HStack(spacing: 16) {
+            #if os(macOS)
+            LabeledContent("Warning threshold") {
                 Stepper(value: $warningDays, in: 0...30) {
-                    Text("Warning starts at \(warningDays) school day\(warningDays == 1 ? "" : "s")")
+                    Text("\(warningDays) school day\(warningDays == 1 ? "" : "s")")
                 }
+            }
+            LabeledContent("Overdue threshold") {
                 Stepper(value: $overdueDays, in: 1...60) {
-                    Text("Overdue after \(overdueDays) school day\(overdueDays == 1 ? "" : "s")")
+                    Text("\(overdueDays) school day\(overdueDays == 1 ? "" : "s")")
                 }
             }
 
-            HStack(spacing: 16) {
-                VStack(alignment: .leading) {
-                    Text("Fresh Color")
-                        .font(.caption)
-                        .foregroundStyle(.secondary)
+            LabeledContent("Fresh color") {
                     ColorPicker("Fresh", selection: Binding(get: { freshColor }, set: { new in
                         freshColor = new
                         freshHex = ColorUtils.hexString(from: new)
                     }))
                     .labelsHidden()
-                }
-                VStack(alignment: .leading) {
-                    Text("Warning Color")
-                        .font(.caption)
-                        .foregroundStyle(.secondary)
+            }
+            LabeledContent("Warning color") {
                     ColorPicker("Warning", selection: Binding(get: { warningColor }, set: { new in
                         warningColor = new
                         warningHex = ColorUtils.hexString(from: new)
                     }))
                     .labelsHidden()
-                }
-                VStack(alignment: .leading) {
-                    Text("Overdue Color")
-                        .font(.caption)
-                        .foregroundStyle(.secondary)
+            }
+            LabeledContent("Overdue color") {
                     ColorPicker("Overdue", selection: Binding(get: { overdueColor }, set: { new in
                         overdueColor = new
                         overdueHex = ColorUtils.hexString(from: new)
                     }))
                     .labelsHidden()
-                }
             }
+            #else
+            lessonAgeCompactControls
+            #endif
         }
         .onAppear {
             // Initialize pickers from stored hex strings
@@ -71,6 +66,25 @@ struct LessonAgeSettingsView: View {
         .onChange(of: warningHex) { _, _ in SettingsCategory.markModified(.general) }
         .onChange(of: overdueHex) { _, _ in SettingsCategory.markModified(.general) }
     }
+
+    #if os(iOS)
+    private var lessonAgeCompactControls: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            HStack(spacing: 16) {
+                Stepper("Warning: \(warningDays) days", value: $warningDays, in: 0...30)
+                Stepper("Overdue: \(overdueDays) days", value: $overdueDays, in: 1...60)
+            }
+            HStack(spacing: 16) {
+                ColorPicker("Fresh", selection: $freshColor)
+                ColorPicker("Warning", selection: $warningColor)
+                ColorPicker("Overdue", selection: $overdueColor)
+            }
+        }
+        .onChange(of: freshColor) { _, new in freshHex = ColorUtils.hexString(from: new) }
+        .onChange(of: warningColor) { _, new in warningHex = ColorUtils.hexString(from: new) }
+        .onChange(of: overdueColor) { _, new in overdueHex = ColorUtils.hexString(from: new) }
+    }
+    #endif
 }
 
 struct WorkAgeSettingsView: View {
@@ -90,47 +104,42 @@ struct WorkAgeSettingsView: View {
                 .font(.footnote)
                 .foregroundStyle(.secondary)
 
-            HStack(spacing: 16) {
+            #if os(macOS)
+            LabeledContent("Warning threshold") {
                 Stepper(value: $warningDays, in: 0...30) {
-                    Text("Warning starts at \(warningDays) school day\(warningDays == 1 ? "" : "s")")
+                    Text("\(warningDays) school day\(warningDays == 1 ? "" : "s")")
                 }
+            }
+            LabeledContent("Overdue threshold") {
                 Stepper(value: $overdueDays, in: 1...60) {
-                    Text("Overdue after \(overdueDays) school day\(overdueDays == 1 ? "" : "s")")
+                    Text("\(overdueDays) school day\(overdueDays == 1 ? "" : "s")")
                 }
             }
 
-            HStack(spacing: 16) {
-                VStack(alignment: .leading) {
-                    Text("Fresh Color")
-                        .font(.caption)
-                        .foregroundStyle(.secondary)
+            LabeledContent("Fresh color") {
                     ColorPicker("Fresh", selection: Binding(get: { freshColor }, set: { new in
                         freshColor = new
                         freshHex = ColorUtils.hexString(from: new)
                     }))
                     .labelsHidden()
-                }
-                VStack(alignment: .leading) {
-                    Text("Warning Color")
-                        .font(.caption)
-                        .foregroundStyle(.secondary)
+            }
+            LabeledContent("Warning color") {
                     ColorPicker("Warning", selection: Binding(get: { warningColor }, set: { new in
                         warningColor = new
                         warningHex = ColorUtils.hexString(from: new)
                     }))
                     .labelsHidden()
-                }
-                VStack(alignment: .leading) {
-                    Text("Overdue Color")
-                        .font(.caption)
-                        .foregroundStyle(.secondary)
+            }
+            LabeledContent("Overdue color") {
                     ColorPicker("Overdue", selection: Binding(get: { overdueColor }, set: { new in
                         overdueColor = new
                         overdueHex = ColorUtils.hexString(from: new)
                     }))
                     .labelsHidden()
-                }
             }
+            #else
+            workAgeCompactControls
+            #endif
         }
         .onAppear {
             // Initialize pickers from stored hex strings
@@ -144,4 +153,23 @@ struct WorkAgeSettingsView: View {
         .onChange(of: warningHex) { _, _ in SettingsCategory.markModified(.general) }
         .onChange(of: overdueHex) { _, _ in SettingsCategory.markModified(.general) }
     }
+
+    #if os(iOS)
+    private var workAgeCompactControls: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            HStack(spacing: 16) {
+                Stepper("Warning: \(warningDays) days", value: $warningDays, in: 0...30)
+                Stepper("Overdue: \(overdueDays) days", value: $overdueDays, in: 1...60)
+            }
+            HStack(spacing: 16) {
+                ColorPicker("Fresh", selection: $freshColor)
+                ColorPicker("Warning", selection: $warningColor)
+                ColorPicker("Overdue", selection: $overdueColor)
+            }
+        }
+        .onChange(of: freshColor) { _, new in freshHex = ColorUtils.hexString(from: new) }
+        .onChange(of: warningColor) { _, new in warningHex = ColorUtils.hexString(from: new) }
+        .onChange(of: overdueColor) { _, new in overdueHex = ColorUtils.hexString(from: new) }
+    }
+    #endif
 }

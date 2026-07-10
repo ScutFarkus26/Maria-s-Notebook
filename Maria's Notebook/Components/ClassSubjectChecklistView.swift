@@ -29,9 +29,11 @@ struct ClassAreaChecklistView: View {
 
     var body: some View {
         VStack(spacing: 0) {
+            #if os(iOS)
             checklistHeader
 
             Divider()
+            #endif
 
             if viewModel.isSelectionMode {
                 batchActionsToolbar
@@ -85,6 +87,10 @@ struct ClassAreaChecklistView: View {
             }
             .coordinateSpace(name: "gridSpace")
         }
+        .navigationTitle("Checklist")
+        #if os(macOS)
+        .toolbar { checklistToolbarContent }
+        #endif
         .onAppear {
             // Restore persisted area before loading so loadData uses it
             if !persistedArea.isEmpty {
@@ -208,6 +214,32 @@ extension ClassAreaChecklistView {
                 .borderSeparated()
         }
     }
+
+    #if os(macOS)
+    @ToolbarContentBuilder
+    var checklistToolbarContent: some ToolbarContent {
+        ToolbarItemGroup(placement: .primaryAction) {
+            Picker("Area", selection: $viewModel.selectedArea) {
+                ForEach(viewModel.availableAreas, id: \.self) { area in
+                    Text(area).tag(area)
+                }
+            }
+            .pickerStyle(.menu)
+            .help("Choose a curriculum area")
+
+            Button(viewModel.isSelectionMode ? "Done" : "Select") {
+                withAnimation(.snappy(duration: 0.2)) {
+                    if viewModel.isSelectionMode {
+                        viewModel.clearSelection()
+                    } else {
+                        viewModel.isEditModeActive = true
+                    }
+                }
+            }
+            .help(viewModel.isSelectionMode ? "Finish selecting checklist cells" : "Select checklist cells")
+        }
+    }
+    #endif
 }
 
 // MARK: - Batch Actions Toolbar
@@ -303,7 +335,7 @@ extension ClassAreaChecklistView {
                     }
                 }
             } label: {
-                Text(viewModel.isSelectionMode ? "Done" : "Edit")
+                Text(viewModel.isSelectionMode ? "Done" : "Select")
                     .fontWeight(.medium)
             }
             .buttonStyle(.bordered)
