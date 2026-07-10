@@ -156,8 +156,18 @@ Commit: `9bc5a837 docs(repo): add incremental organization plan`
 
 ### Phase 7 - Mirror the test structure
 
-- Status: Pending
-- Reorganize tests so their folders mirror production feature ownership without renaming test types or methods.
+- Status: Complete
+- Implementation commit: `d1247d74` (`refactor(tests): mirror production ownership`)
+- Moved all 26 flat test Swift files into Attendance, Backup, Notes, Parsha, Presentations, SchoolYear, Sharing, Students/Recall, Work, AppCore, Services/Sync, Utils/CSV, and Support folders.
+- All test source changes are 100% renames with zero Swift insertions or deletions. No test type, suite, or method names changed, so existing `-only-testing` identifiers remain valid.
+- The test target root now contains no loose Swift files. Shared helpers and bundle lookup live in `Support/`.
+- Updated backup documentation paths for the new test locations.
+- Validation:
+  - The generic iOS Debug build passed.
+  - The macOS test action compiled every moved file from its new folder, confirming synchronized-folder target membership.
+  - The full macOS suite exactly matched the established baseline: 161 passed and the same 11 Keychain-blocked tests failed with `-34018`.
+  - Local Markdown links, staged whitespace checks, moved-path checks, and the empty test-root check passed.
+  - Because every Swift file is a 100% rename, the reorganization introduces no SwiftLint changes.
 
 ### Phase 8 - Closeout and enforcement
 
