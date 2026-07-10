@@ -979,7 +979,7 @@ Toasts auto-dismiss after a configurable delay and support stacking.
 
 ## Today Hub
 
-**Files:** `AppCore/TodayView/`, `ViewModels/TodayViewModel.swift`
+**Files:** `Today/Views/`, `Today/ViewModels/TodayViewModel.swift`, `Today/Support/`
 
 The daily dashboard. Shows everything relevant to the selected date.
 
@@ -1641,6 +1641,10 @@ Maria's Notebook/
 +-- Attendance/                          Daily tracking
 +-- Planning/                            Scheduling and curriculum
 +-- Inbox/                               Follow-up management
++-- Today/                               Daily hub
+|   +-- Views/                            Today screen and sections
+|   +-- ViewModels/TodayViewModel.swift   Today hub state
+|   +-- Support/                          Builders, loaders, caches, navigation
 +-- Projects/                            Project-based learning
 +-- Notes/                               Observation views
 +-- Supplies/                            Inventory management
@@ -1663,7 +1667,6 @@ Maria's Notebook/
 |   +-- (10+ repositories)
 |
 +-- ViewModels/
-|   +-- TodayViewModel.swift             Today hub state
 |   +-- GiveLessonViewModel.swift        Lesson picker state
 |   +-- CommandBarViewModel.swift        Command bar state
 |

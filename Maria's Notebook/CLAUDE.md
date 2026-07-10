@@ -33,7 +33,7 @@ Maria's Notebook/
 ├── AppCore/          # App entry, initialization, root navigation
 ├── Models/           # NSManagedObject subclasses & extensions
 ├── Services/         # Business logic and system integrations
-├── ViewModels/       # Shared ViewModels (Today, GiveLesson, etc.)
+├── ViewModels/       # Shared ViewModels (GiveLesson, CommandBar, etc.)
 ├── Components/       # Reusable SwiftUI components
 ├── Utils/            # Extensions & utility functions
 ├── Repositories/     # Data access layer
@@ -45,6 +45,7 @@ Maria's Notebook/
 ├── Attendance/       # Attendance tracking
 ├── Planning/         # Planning & checklist tools
 ├── Inbox/            # Follow-up inbox
+├── Today/            # Daily hub views, view model, and support
 │
 ├── Agenda/           # Calendar day/month grid views
 ├── Community/        # Community topics & solutions
