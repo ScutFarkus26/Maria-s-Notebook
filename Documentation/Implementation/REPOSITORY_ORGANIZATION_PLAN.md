@@ -90,9 +90,16 @@ Commit: `9bc5a837 docs(repo): add incremental organization plan`
 
 ### Phase 3 - Co-locate Today
 
-- Status: Pending
-- Gather Today views, view models, and support code under one top-level feature.
-- Commit target: `refactor(today): co-locate Today feature files`
+- Status: Complete
+- Implementation commit: `e86b9bb6` (`refactor(today): co-locate Today feature files`)
+- Gathered 35 Today-owned Swift files under one top-level feature: views in `Today/Views/`, the primary view model in `Today/ViewModels/`, and builders, loaders, caches, types, and navigation support in `Today/Support/`.
+- Preserved shared ownership for `Models/TodayAgendaOrderEntity.swift` and `Students/SummarizeTodaysObservationsIntent.swift`; neither belongs exclusively to the Today presentation feature.
+- The source diff is 35 100% renames with zero insertions or deletions. No types, declarations, imports, or behavior changed.
+- Updated the repository maps and developer manual to reflect the new Today ownership boundary and removed stale Today paths.
+- Validation:
+  - The macOS build completed successfully as part of the full test run, and the generic iOS build passed.
+  - The full macOS suite exactly matched the established baseline: 161 passed and the same 11 Keychain-blocked tests failed with `-34018`.
+  - Staged whitespace checks passed. SwiftLint reported only the existing file-length warnings in three unchanged Today source files.
 
 ### Phase 4 - Extract feature code from Components
 
