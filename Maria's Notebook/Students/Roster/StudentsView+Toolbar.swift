@@ -17,9 +17,15 @@ extension StudentsView {
         }
         #endif
 
-        ToolbarItem(placement: .automatic) {
-            sortMenu
+        #if os(macOS)
+        if viewStyle != .table {
+            ToolbarItem(placement: .automatic) {
+                sortMenu
+            }
         }
+        #else
+        ToolbarItem(placement: .automatic) { sortMenu }
+        #endif
 
         if showsViewStyleToggle {
             ToolbarItem(placement: .automatic) {
@@ -65,14 +71,21 @@ extension StudentsView {
     /// List/grid toggle for the detail area browser (regular widths only).
     var viewStylePicker: some View {
         Picker("View Style", selection: viewStyleSelection) {
+            #if os(macOS)
+            Label("Cards", systemImage: "square.grid.2x2")
+                .tag(StudentsViewStyle.grid)
+            Label("Table", systemImage: "tablecells")
+                .tag(StudentsViewStyle.table)
+            #else
             Label("List", systemImage: "list.bullet")
                 .tag(StudentsViewStyle.list)
             Label("Grid", systemImage: "square.grid.2x2")
                 .tag(StudentsViewStyle.grid)
+            #endif
         }
         .pickerStyle(.segmented)
         .labelsHidden()
-        .help("Switch between list and card grid")
+        .help("Switch between cards and table")
     }
 
     private var viewStyleSelection: Binding<StudentsViewStyle> {

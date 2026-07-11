@@ -13,6 +13,7 @@ enum SortOrder: Hashable {
 enum StudentsViewStyle: String {
     case list
     case grid
+    case table
 }
 
 // Shared logical filter for the students list (used by StudentsView and StudentsViewModel)

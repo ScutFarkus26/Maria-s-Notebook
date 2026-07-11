@@ -10,6 +10,8 @@ final class StudentsViewModel {
     var cachedLessonAssignments: [CDLessonAssignment] = []
     var cachedLessons: [UUID: CDLesson] = [:]
     var cachedDaysSinceLastLesson: [UUID: Int] = [:]
+    var cachedNextLessonNames: [UUID: String] = [:]
+    var cachedLastObservationDates: [UUID: Date] = [:]
     
     // MARK: - Change Detection
     private var lastLoadTimestamp: Date = .distantPast
@@ -209,7 +211,52 @@ final class StudentsViewModel {
         cachedDaysSinceLastLesson = computeDaysSinceLastLessonCache(
             for: students, using: viewContext, calendar: calendar
         )
+        loadTableCaches(students: students, viewContext: viewContext)
         lastLoadTimestamp = Date()
+    }
+
+    private func loadTableCaches(students: [CDStudent], viewContext: NSManagedObjectContext) {
+        let studentIDs = Set(students.compactMap(\.id))
+
+        let lessonRequest: NSFetchRequest<CDLesson> = NSFetchRequest(entityName: "Lesson")
+        let lessons = viewContext.safeFetch(lessonRequest)
+        cachedLessons = Dictionary(
+            lessons.compactMap { lesson in lesson.id.map { ($0, lesson) } },
+            uniquingKeysWith: { first, _ in first }
+        )
+        cachedNextLessonNames = Dictionary(
+            uniqueKeysWithValues: students.compactMap { student in
+                guard let studentID = student.id,
+                      let lessonName = student.nextLessonUUIDs.lazy.compactMap({ self.cachedLessons[$0]?.name }).first
+                else { return nil }
+                return (studentID, lessonName)
+            }
+        )
+
+        let noteRequest: NSFetchRequest<CDNote> = NSFetchRequest(entityName: "Note")
+        noteRequest.predicate = NSPredicate(format: "searchIndexStudentID != nil")
+        let directNotes = viewContext.safeFetch(noteRequest)
+
+        let linkRequest: NSFetchRequest<CDNoteStudentLink> = NSFetchRequest(entityName: "NoteStudentLink")
+        linkRequest.relationshipKeyPathsForPrefetching = ["note"]
+        let links = viewContext.safeFetch(linkRequest)
+
+        var latest: [UUID: Date] = [:]
+        for note in directNotes {
+            guard let studentID = note.searchIndexStudentID,
+                  studentIDs.contains(studentID),
+                  let date = note.updatedAt ?? note.createdAt else { continue }
+            latest[studentID] = max(latest[studentID] ?? .distantPast, date)
+        }
+        for link in links {
+            guard let studentID = link.studentIDUUID,
+                  studentIDs.contains(studentID),
+                  let note = link.note,
+                  !note.scopeIsAll,
+                  let date = note.updatedAt ?? note.createdAt else { continue }
+            latest[studentID] = max(latest[studentID] ?? .distantPast, date)
+        }
+        cachedLastObservationDates = latest
     }
     
     // MARK: - Computed Helpers

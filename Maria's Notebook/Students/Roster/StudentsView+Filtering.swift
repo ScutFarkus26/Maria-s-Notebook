@@ -28,7 +28,12 @@ extension StudentsView {
     }
 
     var viewStyle: StudentsViewStyle {
-        StudentsViewStyle(rawValue: studentsViewStyleRaw) ?? .list
+        #if os(macOS)
+        let stored = StudentsViewStyle(rawValue: studentsViewStyleRaw)
+        return stored == .table ? .table : .grid
+        #else
+        return StudentsViewStyle(rawValue: studentsViewStyleRaw) ?? .list
+        #endif
     }
 
     /// Whether the list/grid view-style toggle is shown (regular widths only —

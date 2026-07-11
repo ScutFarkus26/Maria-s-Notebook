@@ -58,7 +58,7 @@ A 25-agent review of the five commits confirmed 13 findings; fixes applied:
 
 ## Phase 4 — Native data browsers
 - [~] Convert tappable cards to real `Button`s (keyboard focus, focus ring, VoiceOver trait, pointer cursor). **Done:** the shared student roster/needs-lesson grid plus Topics, Resources, student Documents, Stories, Book Club packets, recent observations, resource list rows, and student project/report cards use plain-styled native buttons while preserving their visual design and context menus. **Remaining:** continue feature-by-feature, excluding drag surfaces and cards with nested controls until they can be safely redesigned.
-- [ ] Sortable `Table` for Students / Lessons / Logs (keep card grid as an option).
+- [~] Sortable `Table` for Students / Lessons / Logs (keep card grid as an option). **Done:** Students offers a remembered Cards/Table switch on macOS, with sortable Name, Level, Age, Next Lesson, and Last Observation columns. **Remaining:** evaluate daily use before adapting the pattern to Lessons and Logs.
 - [ ] Native drag-and-drop reorder for the student grid (replace the long-press DragGesture).
 
 ## Phase 5 — Depth & ongoing polish

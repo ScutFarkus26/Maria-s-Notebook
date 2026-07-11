@@ -42,7 +42,7 @@ struct StudentsView: View {
     // MARK: - Persisted Display Options
     @AppStorage(UserDefaultsKeys.studentsViewSortOrder) var studentsSortOrderRaw: String = "alphabetical"
     @AppStorage(UserDefaultsKeys.studentsViewSelectedFilter) var studentsFilterRaw: String = "all"
-    @AppStorage(UserDefaultsKeys.studentsViewStyle) var studentsViewStyleRaw: String = "list"
+    @AppStorage(UserDefaultsKeys.studentsViewStyle) var studentsViewStyleRaw: String = "grid"
     @AppStorage(UserDefaultsKeys.generalShowTestStudents) var showTestStudents: Bool = false
     @AppStorage(UserDefaultsKeys.generalTestStudentNames) var testStudentNamesRaw: String = "Danny De Berry,Lil Dan D"
 
@@ -157,12 +157,41 @@ struct StudentsView: View {
                 .navigationTitle(student.fullName)
                 .inlineNavigationTitle()
                 .toolbar { detailToolbar }
-        } else if viewStyle == .grid {
+        } else {
+            rosterBrowser
+        }
+    }
+
+    @ViewBuilder
+    private var rosterBrowser: some View {
+        #if os(macOS)
+        if viewStyle == .table {
+            tableBrowser
+        } else {
+            gridBrowser
+        }
+        #else
+        if viewStyle == .grid {
             gridBrowser
         } else {
             SelectStudentEmptyState()
         }
+        #endif
     }
+
+    #if os(macOS)
+    private var tableBrowser: some View {
+        StudentsTableView(
+            students: filteredStudents,
+            nextLessonNames: viewModel.cachedNextLessonNames,
+            lastObservationDates: viewModel.cachedLastObservationDates,
+            presentNowIDs: presentNowIDs,
+            selectedStudentID: $selectedStudentID
+        )
+        .navigationTitle("Students")
+        .inlineNavigationTitle()
+    }
+    #endif
 
     /// Full-width card grid shown in the detail area when nothing is selected
     /// and the grid view style is active. Cards follow the current sort:
@@ -184,7 +213,7 @@ struct StudentsView: View {
 
     @ToolbarContentBuilder
     private var detailToolbar: some ToolbarContent {
-        if viewStyle == .grid {
+        if viewStyle == .grid || viewStyle == .table {
             ToolbarItem(placement: .primaryAction) {
                 Button {
                     selectedStudentID = nil
