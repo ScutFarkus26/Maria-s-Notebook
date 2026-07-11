@@ -55,6 +55,9 @@ enum ObservationsHelpers {
 
 struct ObservationsView: View {
     @Environment(\.managedObjectContext) var viewContext
+    #if os(macOS)
+    @Environment(\.openWindow) private var openWindow
+    #endif
 
     // Composer
     @State private var isShowingComposer = false
@@ -144,11 +147,22 @@ struct ObservationsView: View {
             .sheet(isPresented: $isShowingComposer) {
                 QuickNoteSheet()
             }
+            #if os(iOS)
             .sheet(item: $noteBeingEdited) { note in
                 NoteEditSheet(note: note) {
                     noteBeingEdited = nil
                     reloadAllNotes()
                 }
+            }
+            #else
+            .onChange(of: noteBeingEdited?.id) { _, _ in
+                guard let noteID = noteBeingEdited?.id else { return }
+                openWindow(id: "NoteEditorWindow", value: noteID)
+                noteBeingEdited = nil
+            }
+            #endif
+            .onReceive(NotificationCenter.default.publisher(for: .noteDidSave)) { _ in
+                reloadAllNotes()
             }
 #if ENABLE_FOUNDATION_MODELS && canImport(FoundationModels)
             .sheet(isPresented: $showingAIScopeSheet) {

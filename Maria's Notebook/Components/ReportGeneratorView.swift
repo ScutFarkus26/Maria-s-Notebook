@@ -6,6 +6,7 @@ import CoreData
 
 struct ReportGeneratorView: View {
     let student: CDStudent
+    private let isWindowWorkspace: Bool
     @Environment(\.managedObjectContext) private var viewContext
     @Environment(\.dismiss) private var dismiss
 
@@ -24,6 +25,11 @@ struct ReportGeneratorView: View {
     @Environment(\.dependencies) private var dependencies
     private var reportService: ReportGeneratorService { dependencies.reportGeneratorService }
 
+    init(student: CDStudent, isWindowWorkspace: Bool = false) {
+        self.student = student
+        self.isWindowWorkspace = isWindowWorkspace
+    }
+
     private var effectiveDateRange: ClosedRange<Date> {
         if selectedDateRange == .custom {
             // Order the bounds defensively: forming a ClosedRange with
@@ -36,6 +42,21 @@ struct ReportGeneratorView: View {
     }
 
     var body: some View {
+        #if os(macOS)
+        if isWindowWorkspace {
+            macWorkspace
+        } else {
+            reportForm
+                .frame(minWidth: 450, minHeight: 500)
+        }
+        #else
+        reportForm
+            .presentationDetents([.large])
+            .presentationDragIndicator(.visible)
+        #endif
+    }
+
+    private var reportForm: some View {
         NavigationStack {
             Form {
                 dateRangeSection
@@ -48,8 +69,10 @@ struct ReportGeneratorView: View {
             .inlineNavigationTitle()
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {
-                    Button("Cancel") {
-                        dismiss()
+                    if !isWindowWorkspace {
+                        Button("Cancel") {
+                            dismiss()
+                        }
                     }
                 }
             }
@@ -88,14 +111,63 @@ struct ReportGeneratorView: View {
                 }
             }
         }
-        #if os(iOS)
-        .presentationDetents([.large])
-        .presentationDragIndicator(.visible)
-        #endif
-        #if os(macOS)
-        .frame(minWidth: 450, minHeight: 500)
-        #endif
     }
+
+    #if os(macOS)
+    private var macWorkspace: some View {
+        HSplitView {
+            Form {
+                dateRangeSection
+                reportStyleSection
+                previewSection
+                generateSection
+            }
+            .formStyle(.grouped)
+            .frame(minWidth: 330, idealWidth: 380, maxWidth: 460)
+
+            Group {
+                if let generatedPDF {
+                    PDFKitView(data: generatedPDF)
+                        .accessibilityLabel("Generated report preview")
+                } else {
+                    ContentUnavailableView {
+                        Label("Report Preview", systemImage: "doc.text.magnifyingglass")
+                    } description: {
+                        if noteCount == 0 {
+                            Text("Choose a period containing notes flagged for reports.")
+                        } else {
+                            Text("Choose the report options, then generate the report to preview it here.")
+                        }
+                    }
+                }
+            }
+            .frame(minWidth: 500, maxWidth: .infinity, maxHeight: .infinity)
+        }
+        .navigationTitle("Report — \(student.fullName)")
+        .toolbar {
+            ToolbarItem(placement: .primaryAction) {
+                Button {
+                    generateReport()
+                } label: {
+                    Label(isGenerating ? "Generating…" : "Generate Report", systemImage: "doc.badge.gearshape")
+                }
+                .disabled(isGenerating || noteCount == 0)
+                .help("Generate a fresh report using the selected options")
+            }
+        }
+        .onAppear {
+            fetchNoteCount()
+        }
+        .onChange(of: selectedDateRange) { _, _ in fetchNoteCount() }
+        .onChange(of: customStartDate) { _, _ in
+            if selectedDateRange == .custom { fetchNoteCount() }
+        }
+        .onChange(of: customEndDate) { _, _ in
+            if selectedDateRange == .custom { fetchNoteCount() }
+        }
+        .frame(minWidth: 900, minHeight: 650)
+    }
+    #endif
 
     // MARK: - Form Sections
 

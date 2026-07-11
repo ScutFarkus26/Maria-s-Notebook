@@ -17,6 +17,9 @@ import UniformTypeIdentifiers
 /// Displays resources organized by category with search, filter, and grid/list toggle.
 struct ResourceLibraryView: View {
     @Environment(\.managedObjectContext) var viewContext
+    #if os(macOS)
+    @Environment(\.openWindow) var openWindow
+    #endif
     @FetchRequest(sortDescriptors: [NSSortDescriptor(keyPath: \CDResource.createdAt, ascending: false)])
     var allResources: FetchedResults<CDResource>
 
@@ -56,6 +59,15 @@ struct ResourceLibraryView: View {
         return horizontalSizeClass == .compact
         #else
         return false
+        #endif
+    }
+
+    func openResourceDetails(_ resource: CDResource) {
+        #if os(macOS)
+        guard let id = resource.id else { return }
+        openWindow(id: "ResourceDetailWindow", value: id)
+        #else
+        selectedResource = resource
         #endif
     }
 
@@ -325,9 +337,11 @@ struct ResourceLibraryView: View {
         .sheet(isPresented: $showingImportSheet) {
             ResourceImportSheet()
         }
+        #if os(iOS)
         .sheet(item: $selectedResource) { resource in
             ResourceDetailView(resource: resource)
         }
+        #endif
         .sheet(isPresented: $showingBulkCategoryPicker) {
             bulkCategorySheet
         }

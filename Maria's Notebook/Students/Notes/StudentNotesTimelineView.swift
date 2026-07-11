@@ -60,6 +60,9 @@ struct StudentNotesTimelineList: View {
     @Bindable var viewModel: StudentNotesViewModel
     @Environment(\.calendar) var calendar
     @Environment(\.dependencies) var dependencies
+    #if os(macOS)
+    @Environment(\.openWindow) private var openWindow
+    #endif
 
     enum NoteFilter: String, CaseIterable, Identifiable {
         case all = "All Notes"
@@ -99,18 +102,24 @@ struct StudentNotesTimelineList: View {
             Divider()
             quickNoteBar
         }
+        #if os(iOS)
         .sheet(item: $noteBeingEdited) { note in
             NoteEditSheet(note: note) {
                 // Reload the view model after edits to reflect changes
                 viewModel.reload()
             }
-        #if os(macOS)
-            .frame(minWidth: 520, minHeight: 420)
-            .presentationSizingFitted()
-        #else
             .presentationDetents([.large])
             .presentationDragIndicator(.visible)
+        }
+        #else
+        .onChange(of: noteBeingEdited?.id) { _, _ in
+            guard let noteID = noteBeingEdited?.id else { return }
+            openWindow(id: "NoteEditorWindow", value: noteID)
+            noteBeingEdited = nil
+        }
         #endif
+        .onReceive(NotificationCenter.default.publisher(for: .noteDidSave)) { _ in
+            viewModel.reload()
         }
         .toolbar {
             // Selection mode toggle

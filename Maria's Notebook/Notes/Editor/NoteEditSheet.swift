@@ -7,6 +7,10 @@ import AppKit
 import UIKit
 #endif
 
+extension Notification.Name {
+    static let noteDidSave = Notification.Name("MariaNotebook.noteDidSave")
+}
+
 struct NoteEditSheet: View {
     private static let logger = Logger.notes
 
@@ -120,6 +124,7 @@ struct NoteEditSheet: View {
         note.updatedAt = Date()
         do {
             try viewContext.save()
+            NotificationCenter.default.post(name: .noteDidSave, object: note.id)
         } catch {
             Self.logger.warning("Failed to save note: \(error)")
         }

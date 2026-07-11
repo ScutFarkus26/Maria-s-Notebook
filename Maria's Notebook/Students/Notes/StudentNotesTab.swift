@@ -11,6 +11,9 @@ struct StudentNotesTab: View {
     @FetchRequest(sortDescriptors: []) private var notes: FetchedResults<CDNote>
     @State private var showingSmartAssistant = false
     @State private var showingReportGenerator = false
+    #if os(macOS)
+    @Environment(\.openWindow) private var openWindow
+    #endif
 
     init(student: CDStudent) {
         self.student = student
@@ -35,7 +38,13 @@ struct StudentNotesTab: View {
             .toolbar {
                 ToolbarItem(placement: .primaryAction) {
                     Button {
+                        #if os(macOS)
+                        if let studentID = student.id {
+                            openWindow(id: "StudentReportWindow", value: studentID)
+                        }
+                        #else
                         showingReportGenerator = true
+                        #endif
                     } label: {
                         Label("Generate Report", systemImage: "doc.text")
                     }

@@ -11,6 +11,9 @@ struct RelatedResourcesSection: View {
         NSSortDescriptor(keyPath: \CDResource.title, ascending: true)
     ]) private var allResources: FetchedResults<CDResource>
     @State private var selectedResource: CDResource?
+    #if os(macOS)
+    @Environment(\.openWindow) private var openWindow
+    #endif
 
     private var relatedResources: [CDResource] {
         let idString = lessonID.uuidString
@@ -64,7 +67,7 @@ struct RelatedResourcesSection: View {
                 VStack(alignment: .leading, spacing: AppTheme.Spacing.small) {
                     ForEach(relatedResources, id: \.objectID) { resource in
                         Button {
-                            selectedResource = resource
+                            openResourceDetails(resource)
                         } label: {
                             HStack(spacing: 8) {
                                 Image(systemName: resource.category.icon)
@@ -91,9 +94,20 @@ struct RelatedResourcesSection: View {
                 }
             }
             .padding(.top, AppTheme.Spacing.verySmall)
+            #if os(iOS)
             .sheet(item: $selectedResource) { resource in
                 ResourceDetailView(resource: resource)
             }
+            #endif
         }
+    }
+
+    private func openResourceDetails(_ resource: CDResource) {
+        #if os(macOS)
+        guard let id = resource.id else { return }
+        openWindow(id: "ResourceDetailWindow", value: id)
+        #else
+        selectedResource = resource
+        #endif
     }
 }

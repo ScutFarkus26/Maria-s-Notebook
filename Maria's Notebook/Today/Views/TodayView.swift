@@ -145,7 +145,27 @@ struct TodayView: View {
                 openWindow(id: "PresentationDetailWindow", value: lessonAssignmentID)
                 selectedLessonAssignment = nil
             }
+            .onChange(of: noteBeingEdited?.id) { _, _ in
+                guard let noteID = noteBeingEdited?.id else { return }
+                openWindow(id: "NoteEditorWindow", value: noteID)
+                noteBeingEdited = nil
+            }
+            .onChange(of: selectedMeetingStudentID) { _, studentID in
+                guard let studentID else { return }
+                openWindow(
+                    id: "MeetingSessionWindow",
+                    value: MeetingSessionWindowPayload(
+                        studentID: studentID,
+                        scheduledMeetingID: selectedMeetingID
+                    )
+                )
+                selectedMeetingStudentID = nil
+                selectedMeetingID = nil
+            }
             #endif
+            .onReceive(NotificationCenter.default.publisher(for: .noteDidSave)) { _ in
+                viewModel.reload()
+            }
             .onCalendarDayChange {
                 handleDayChange()
             }
@@ -541,12 +561,16 @@ private struct TodayViewSheets: ViewModifier {
             .sheet(isPresented: $isShowingNewTodo) {
                 newTodoSheet
             }
+            #if os(iOS)
             .sheet(item: $noteBeingEdited) { note in
                 noteEditSheet(note)
             }
+            #endif
+            #if os(iOS)
             .sheet(id: $selectedMeetingStudentID) { studentID in
                 meetingSessionSheet(studentID)
             }
+            #endif
     }
 
     private func lessonAssignmentSheet(_ la: CDLessonAssignment) -> some View {

@@ -50,7 +50,7 @@ A 25-agent review of the five commits confirmed 13 findings; fixes applied:
 - [x] Drop `.windowStyle(.hiddenTitleBar)`; adopt a real title bar + unified toolbar app-wide.
 - [x] Move Search / sync / school-year controls from the corner overlay into `.toolbar`; set per-screen `.navigationTitle`; reserve `ViewHeader` for iOS. Main and feature-level controls now use native macOS toolbars, while iPhone/iPad retain their existing page headers.
 - [x] Add toolbar customization + `.windowToolbarStyle(.unified)`.
-- [~] Route record open/edit to their windows (`openWindow`) instead of fitted modal sheets; reserve sheets for confirmations. **Done:** Work, Student, Lesson, and Presentation detail have native macOS window scenes; Today, Student detail, Presentations, and app-wide student deep links route those detail opens to windows on macOS. **Remaining:** sweep secondary record sheets (notes, meetings, files, reports) and decide which deserve independent windows.
+- [x] Route sustained record work to native windows (`openWindow`) and reserve sheets for short choices. Work, Student, Lesson, Presentation, Community Topic, Resource Detail, existing Note editing, Student Reports, and Today-launched active Meetings use UUID-keyed macOS windows. Quick capture, import, pickers, confirmations, and other short tasks remain sheets; iPhone/iPad keep their existing sheet workflows.
 
 **Phase 3 implementation note (2026-07-07):** macOS build validation is currently blocked before completion by SDK/API drift unrelated to this phase: the local Xcode reports macOS SDK 26.5 while the project targets macOS 27.0, and compilation fails in AI/Speech sources on missing `PrivateCloudComputeLanguageModel`, `ContextOptions`, `LanguageModelError`, and `@diagnose`.
 

@@ -501,6 +501,118 @@ struct MariasNotebookApp: App {
         .windowResizability(.automatic)
         .defaultSize(width: 820, height: 720)
         // Legacy .modelContainer removed — using CoreDataStack
+
+        WindowGroup("", id: "CommunityTopicWindow", for: UUID.self) { $topicID in
+            if let id = topicID {
+                if bootstrapper.state != .ready || restoreCoordinator.isRestoring {
+                    ProgressView(restoreCoordinator.isRestoring ? "Restoring data…" : "Loading…")
+                        .frame(minWidth: 500, minHeight: 360)
+                } else {
+                    CommunityTopicWindowHost(topicID: id)
+                        .environment(\.managedObjectContext, coreDataStack.viewContext)
+                        .environment(\.calendar, AppCalendar.shared)
+                        .environment(\.appRouter, appRouter)
+                        .environment(\.dependencies, dependencies)
+                        .environment(saveCoordinator)
+                        .environment(restoreCoordinator)
+                }
+            } else {
+                ContentUnavailableView("No Topic Selected", systemImage: "bubble.left.and.bubble.right")
+                    .frame(minWidth: 500, minHeight: 360)
+            }
+        }
+        .windowToolbarStyle(.unified(showsTitle: true))
+        .windowResizability(.automatic)
+        .defaultSize(width: 720, height: 760)
+
+        WindowGroup("", id: "ResourceDetailWindow", for: UUID.self) { $resourceID in
+            if let id = resourceID {
+                if bootstrapper.state != .ready || restoreCoordinator.isRestoring {
+                    ProgressView(restoreCoordinator.isRestoring ? "Restoring data…" : "Loading…")
+                        .frame(minWidth: 500, minHeight: 360)
+                } else {
+                    ResourceDetailWindowHost(resourceID: id)
+                        .environment(\.managedObjectContext, coreDataStack.viewContext)
+                        .environment(\.calendar, AppCalendar.shared)
+                        .environment(\.appRouter, appRouter)
+                        .environment(\.dependencies, dependencies)
+                        .environment(saveCoordinator)
+                        .environment(restoreCoordinator)
+                }
+            } else {
+                ContentUnavailableView("No Resource Selected", systemImage: "doc.text")
+                    .frame(minWidth: 500, minHeight: 360)
+            }
+        }
+        .windowToolbarStyle(.unified(showsTitle: true))
+        .windowResizability(.automatic)
+        .defaultSize(width: 760, height: 760)
+
+        WindowGroup("", id: "NoteEditorWindow", for: UUID.self) { $noteID in
+            if let id = noteID {
+                if bootstrapper.state != .ready || restoreCoordinator.isRestoring {
+                    ProgressView(restoreCoordinator.isRestoring ? "Restoring data…" : "Loading…")
+                        .frame(minWidth: 480, minHeight: 320)
+                } else {
+                    NoteEditorWindowHost(noteID: id)
+                        .environment(\.managedObjectContext, coreDataStack.viewContext)
+                        .environment(\.calendar, AppCalendar.shared)
+                        .environment(\.appRouter, appRouter)
+                        .environment(\.dependencies, dependencies)
+                        .environment(saveCoordinator)
+                        .environment(restoreCoordinator)
+                }
+            } else {
+                ContentUnavailableView("No Observation Selected", systemImage: "note.text")
+            }
+        }
+        .windowToolbarStyle(.unified(showsTitle: true))
+        .windowResizability(.automatic)
+        .defaultSize(width: 700, height: 600)
+
+        WindowGroup("", id: "StudentReportWindow", for: UUID.self) { $studentID in
+            if let id = studentID {
+                if bootstrapper.state != .ready || restoreCoordinator.isRestoring {
+                    ProgressView(restoreCoordinator.isRestoring ? "Restoring data…" : "Loading…")
+                        .frame(minWidth: 600, minHeight: 420)
+                } else {
+                    StudentReportWindowHost(studentID: id)
+                        .environment(\.managedObjectContext, coreDataStack.viewContext)
+                        .environment(\.calendar, AppCalendar.shared)
+                        .environment(\.appRouter, appRouter)
+                        .environment(\.dependencies, dependencies)
+                        .environment(saveCoordinator)
+                        .environment(restoreCoordinator)
+                }
+            } else {
+                ContentUnavailableView("No Student Selected", systemImage: "person.crop.circle")
+            }
+        }
+        .windowToolbarStyle(.unified(showsTitle: true))
+        .windowResizability(.automatic)
+        .defaultSize(width: 1000, height: 720)
+
+        WindowGroup("", id: "MeetingSessionWindow", for: MeetingSessionWindowPayload.self) { $payload in
+            if let payload {
+                if bootstrapper.state != .ready || restoreCoordinator.isRestoring {
+                    ProgressView(restoreCoordinator.isRestoring ? "Restoring data…" : "Loading…")
+                        .frame(minWidth: 700, minHeight: 500)
+                } else {
+                    MeetingSessionWindowHost(payload: payload)
+                        .environment(\.managedObjectContext, coreDataStack.viewContext)
+                        .environment(\.calendar, AppCalendar.shared)
+                        .environment(\.appRouter, appRouter)
+                        .environment(\.dependencies, dependencies)
+                        .environment(saveCoordinator)
+                        .environment(restoreCoordinator)
+                }
+            } else {
+                ContentUnavailableView("No Meeting Selected", systemImage: "person.2")
+            }
+        }
+        .windowToolbarStyle(.unified(showsTitle: true))
+        .windowResizability(.automatic)
+        .defaultSize(width: 1100, height: 760)
         #endif
     }
 

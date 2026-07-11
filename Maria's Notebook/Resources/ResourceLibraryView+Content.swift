@@ -20,7 +20,7 @@ extension ResourceLibraryView {
                         ResourceCard(resource: resource) {
                             ResourceDocumentActions.open(resource)
                         } onViewDetails: {
-                            selectedResource = resource
+                            openResourceDetails(resource)
                         } onOpen: {
                             ResourceDocumentActions.open(resource)
                         } onPrint: {
@@ -73,7 +73,7 @@ extension ResourceLibraryView {
         }
 
         Button {
-            selectedResource = resource
+            openResourceDetails(resource)
         } label: {
             Label("View Details", systemImage: "eye")
         }

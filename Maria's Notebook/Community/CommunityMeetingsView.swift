@@ -4,6 +4,9 @@ import CoreData
 struct CommunityMeetingsView: View {
     @Environment(\.managedObjectContext) private var viewContext
     @Environment(SaveCoordinator.self) private var saveCoordinator
+    #if os(macOS)
+    @Environment(\.openWindow) private var openWindow
+    #endif
 
     @FetchRequest(fetchRequest: {
         let request = NSFetchRequest<CDCommunityTopicEntity>(entityName: "CommunityTopic")
@@ -159,11 +162,13 @@ struct CommunityMeetingsView: View {
                 saveCoordinator.save(viewContext, reason: "Add community topic")
             }
         }
+        #if os(iOS)
         .sheet(item: $selectedTopic) { topic in
             TopicDetailView(topic: topic) { _ in
                 saveCoordinator.save(viewContext, reason: "Update community topic")
             }
         }
+        #endif
     }
 
     private var filtersMenu: some View {
@@ -199,7 +204,16 @@ struct CommunityMeetingsView: View {
         topic.issueDescription = ""
         saveCoordinator.save(viewContext, reason: "Quick add community topic")
         searchText = ""
+        openTopic(topic)
+    }
+
+    private func openTopic(_ topic: CDCommunityTopicEntity) {
+        #if os(macOS)
+        guard let id = topic.id else { return }
+        openWindow(id: "CommunityTopicWindow", value: id)
+        #else
         selectedTopic = topic
+        #endif
     }
 
     private var header: some View {
@@ -226,7 +240,7 @@ struct CommunityMeetingsView: View {
                     VStack(spacing: 10) {
                         ForEach(open) { t in
                             TopicRowView(topic: t) {
-                                selectedTopic = t
+                                openTopic(t)
                             }
                         }
                     }
@@ -239,7 +253,7 @@ struct CommunityMeetingsView: View {
                     VStack(spacing: 10) {
                         ForEach(resolved) { t in
                             TopicRowView(topic: t) {
-                                selectedTopic = t
+                                openTopic(t)
                             }
                         }
                     }
