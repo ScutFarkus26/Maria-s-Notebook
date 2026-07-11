@@ -21,11 +21,13 @@ struct AIConnectionTestView: View {
                 HStack(spacing: 6) {
                     if isTesting {
                         ProgressView()
-                            .scaleEffect(SettingsStyle.toggleScale)
+                            .controlSize(.small)
                     }
                     Text(isTesting ? "Testing..." : "Test Connection")
                 }
+                #if os(iOS)
                 .frame(maxWidth: .infinity)
+                #endif
             }
             .buttonStyle(.borderedProminent)
             .controlSize(.small)

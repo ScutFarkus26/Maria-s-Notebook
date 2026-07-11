@@ -159,6 +159,29 @@ struct CloudKitStatusSettingsView: View {
     private var syncDetailsSection: some View {
         DisclosureGroup("Sync Details", isExpanded: $isSyncDetailsExpanded) {
             VStack(alignment: .leading, spacing: 6) {
+                #if os(macOS)
+                LabeledContent("Network", value: syncService.isNetworkAvailable ? "Online" : "Offline")
+                LabeledContent("iCloud Account", value: syncService.isICloudAvailable ? "Available" : "Unavailable")
+                LabeledContent("Current Operation", value: syncService.currentOperation ?? "Idle")
+                LabeledContent("Pending Changes", value: "\(syncService.pendingLocalChanges)")
+                LabeledContent(
+                    "Retry",
+                    value: syncService.hasPendingRetry
+                        ? "\(syncService.retryAttempt)/\(syncService.maxRetryAttempts) scheduled"
+                        : "\(syncService.retryAttempt)/\(syncService.maxRetryAttempts)"
+                )
+
+                if let lastOperation = syncService.lastOperation {
+                    LabeledContent("Last Operation", value: lastOperation)
+                }
+
+                if let lastOperationDate = syncService.lastOperationDate {
+                    LabeledContent(
+                        "Last Operation Time",
+                        value: lastOperationDate.formatted(date: .abbreviated, time: .standard)
+                    )
+                }
+                #else
                 DetailRow(label: "Network", value: syncService.isNetworkAvailable ? "Online" : "Offline")
                 DetailRow(label: "iCloud Account", value: syncService.isICloudAvailable ? "Available" : "Unavailable")
                 DetailRow(label: "Current Operation", value: syncService.currentOperation ?? "Idle")
@@ -180,6 +203,7 @@ struct CloudKitStatusSettingsView: View {
                         value: lastOperationDate.formatted(date: .abbreviated, time: .standard)
                     )
                 }
+                #endif
             }
             .padding(.top, 6)
         }

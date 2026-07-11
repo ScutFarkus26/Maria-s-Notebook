@@ -109,8 +109,15 @@ struct WorksAgendaView: View {
                     VStack(spacing: 0) {
                         // Top: Open Work grid
                         VStack(alignment: .leading, spacing: 8) {
+                            #if os(iOS)
                             header
                             Divider()
+                            #else
+                            WorkKindFilterChipBar(visibleKinds: visibleKinds)
+                                .padding(.vertical, 4)
+                                .padding(.horizontal, 16)
+                            Divider()
+                            #endif
                             OpenWorkGrid(
                                 works: openWorksFiltered(),
                                 lessonsByID: lessonsByID,
@@ -169,7 +176,11 @@ struct WorksAgendaView: View {
                         }
                     }
                 }
-                .navigationTitle("Work Agenda")
+                .navigationTitle("Open Work")
+                #if os(macOS)
+                .searchable(text: $searchText, placement: .toolbar, prompt: "Search students or lessons")
+                .toolbar { openWorkToolbarContent }
+                #endif
                 .sheet(
                     item: $selected,
                     onDismiss: { selected = nil },
@@ -187,7 +198,61 @@ struct WorksAgendaView: View {
         .onReceive(NotificationCenter.default.publisher(for: .NSManagedObjectContextDidSave)) { _ in
             refreshChangeTokens()
         }
+        .onChange(of: searchText) { _, newValue in
+            searchDebounceTask?.cancel()
+            searchDebounceTask = Task { @MainActor in
+                try? await Task.sleep(for: .milliseconds(250))
+                guard !Task.isCancelled else { return }
+                debouncedSearchText = newValue
+            }
+        }
+        .onDisappear {
+            searchDebounceTask?.cancel()
+        }
     }
+
+    #if os(macOS)
+    @ToolbarContentBuilder
+    private var openWorkToolbarContent: some ToolbarContent {
+        ToolbarItemGroup(placement: .primaryAction) {
+            Picker("Sort", selection: $sortMode) {
+                ForEach(WorkAgendaSortMode.allCases) { mode in
+                    Text(mode.rawValue).tag(mode)
+                }
+            }
+            .pickerStyle(.menu)
+
+            Button {
+                hideScheduled.toggle()
+            } label: {
+                Label(
+                    hideScheduled ? "Show Scheduled Work" : "Hide Scheduled Work",
+                    systemImage: hideScheduled ? "calendar.badge.minus" : "calendar"
+                )
+            }
+            .help(hideScheduled ? "Show scheduled work" : "Hide scheduled work")
+
+            Button {
+                isCalendarMinimized.toggle()
+            } label: {
+                Label(
+                    isCalendarMinimized ? "Show Planning Calendar" : "Hide Planning Calendar",
+                    systemImage: isCalendarMinimized ? "calendar" : "calendar.badge.minus"
+                )
+            }
+            .help(isCalendarMinimized ? "Show planning calendar" : "Hide planning calendar")
+
+            Menu("Output", systemImage: "square.and.arrow.up") {
+                Button("Print", systemImage: "printer") {
+                    printWorkView()
+                }
+                Button("Export PDF", systemImage: "arrow.down.doc") {
+                    exportWorkPDF()
+                }
+            }
+        }
+    }
+    #endif
 
     @ViewBuilder
     private func sheetContent(for token: SelectionToken) -> some View {
@@ -270,15 +335,6 @@ struct WorksAgendaView: View {
             .clipShape(RoundedRectangle(cornerRadius: 10))
             .padding(.horizontal, 16)
             .padding(.bottom, 4)
-            .onChange(of: searchText) { _, newValue in
-                searchDebounceTask?.cancel()
-                searchDebounceTask = Task { @MainActor in
-                    try? await Task.sleep(for: .milliseconds(250)) // 250ms debounce
-                    guard !Task.isCancelled else { return }
-                    debouncedSearchText = newValue
-                }
-            }
-
             WorkKindFilterChipBar(visibleKinds: visibleKinds)
                 .padding(.bottom, 4)
         }

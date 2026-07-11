@@ -12,6 +12,14 @@ struct TestStudentsSettingsView: View {
             Toggle("Show Test Students", isOn: $showTestStudents)
             
             if !showTestStudents {
+                #if os(macOS)
+                Text(
+                    "When hidden, test students are excluded from Students, Today, Attendance, Planning, "
+                    + "Presentations, Checklist, Open Work, Logs, Projects, Notes, Inbox, and related views."
+                )
+                .font(.footnote)
+                .foregroundStyle(.secondary)
+                #else
                 VStack(alignment: .leading, spacing: 8) {
                     Text("Test students are excluded from all views:")
                         .font(.footnote)
@@ -38,7 +46,8 @@ struct TestStudentsSettingsView: View {
                 .background(
                     RoundedRectangle(cornerRadius: 8, style: .continuous)
                         .fill(Color.primary.opacity(UIConstants.OpacityConstants.whisper))
-                )
+                    )
+                #endif
             }
             
             Text(
@@ -50,24 +59,29 @@ struct TestStudentsSettingsView: View {
             TextEditor(text: $draftNames)
                 .font(AppTheme.ScaledFont.body)
                 .frame(minHeight: 80)
+                #if os(iOS)
                 .padding(8)
                 .background(
                     RoundedRectangle(cornerRadius: 8, style: .continuous)
                         .fill(Color.primary.opacity(UIConstants.OpacityConstants.trace))
-                )
+                    )
+                #endif
                 .overlay(
                     RoundedRectangle(cornerRadius: 8, style: .continuous)
                         .stroke(Color.primary.opacity(UIConstants.OpacityConstants.subtle))
                 )
             HStack {
                 Spacer()
-                Button("Restore Default") {
+                Button("Restore Defaults") {
                     draftNames = "Danny De Berry,Lil Dan D"
                 }
                 Button("Save") {
                     testStudentNamesRaw = draftNames
                 }
                 .buttonStyle(.borderedProminent)
+                #if os(macOS)
+                .keyboardShortcut(.defaultAction)
+                #endif
             }
         }
         .onAppear { draftNames = testStudentNamesRaw }

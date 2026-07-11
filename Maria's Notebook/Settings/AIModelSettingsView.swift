@@ -177,6 +177,34 @@ struct AIModelSettingsView: View {
     // MARK: - Area Row
 
     private func areaRow(area: AIFeatureArea, selection: Binding<String>) -> some View {
+        #if os(macOS)
+        LabeledContent {
+            VStack(alignment: .trailing, spacing: 4) {
+                Picker("Model", selection: selection) {
+                    ForEach(AIModelOption.allCases) { option in
+                        Label(option.displayName, systemImage: option.iconName)
+                            .tag(option.rawValue)
+                    }
+                }
+                .labelsHidden()
+                .pickerStyle(.menu)
+                .frame(minWidth: 200)
+
+                if let selected = AIModelOption(rawValue: selection.wrappedValue) {
+                    Text(selected.requiresAPIKey && !hasAPIKey ? "Requires API key" : selected.subtitle)
+                        .font(.caption)
+                        .foregroundStyle(selected.requiresAPIKey && !hasAPIKey ? AppColors.warning : .secondary)
+                }
+            }
+        } label: {
+            VStack(alignment: .leading, spacing: 2) {
+                Label(area.displayName, systemImage: area.iconName)
+                Text(area.description)
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+            }
+        }
+        #else
         VStack(alignment: .leading, spacing: 6) {
             HStack(spacing: 8) {
                 Image(systemName: area.iconName)
@@ -222,6 +250,7 @@ struct AIModelSettingsView: View {
                 }
             }
         }
+        #endif
     }
 
     // MARK: - API Key Warning

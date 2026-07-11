@@ -15,6 +15,20 @@ struct DatabaseStatsSubsection<Content: View>: View {
     @State private var isExpanded: Bool = false
 
     var body: some View {
+        #if os(macOS)
+        DisclosureGroup(isExpanded: $isExpanded) {
+            content
+                .padding(.top, 8)
+        } label: {
+            HStack {
+                Label(title, systemImage: systemImage)
+                Spacer()
+                Text(summaryValue)
+                    .monospacedDigit()
+                    .foregroundStyle(.secondary)
+            }
+        }
+        #else
         VStack(alignment: .leading, spacing: 0) {
             Button {
                 adaptiveWithAnimation(.easeInOut(duration: 0.25)) {
@@ -54,6 +68,7 @@ struct DatabaseStatsSubsection<Content: View>: View {
                     .transition(.opacity.combined(with: .move(edge: .top)))
             }
         }
+        #endif
     }
 }
 
@@ -64,6 +79,14 @@ struct DatabaseTotalSummary: View {
     let totalRecords: Int
 
     var body: some View {
+        #if os(macOS)
+        VStack(alignment: .leading, spacing: 4) {
+            LabeledContent("Total records", value: "\(totalRecords)")
+            Text("Records across all database categories")
+                .font(.caption)
+                .foregroundStyle(.secondary)
+        }
+        #else
         HStack(spacing: 12) {
             Image(systemName: "cylinder.fill")
                 .font(.title2)
@@ -90,5 +113,6 @@ struct DatabaseTotalSummary: View {
             RoundedRectangle(cornerRadius: 10, style: .continuous)
                 .stroke(Color.accentColor.opacity(UIConstants.OpacityConstants.accent))
         )
+        #endif
     }
 }

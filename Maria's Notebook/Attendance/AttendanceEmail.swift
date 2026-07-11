@@ -235,6 +235,27 @@ public struct AttendanceEmailSettingsView: View {
     public init() {}
 
     public var body: some View {
+        #if os(macOS)
+        VStack(alignment: .leading, spacing: 12) {
+            LabeledContent("Attendance email") {
+                Toggle("Enabled", isOn: $enabled)
+                    .labelsHidden()
+            }
+            LabeledContent("Send to") {
+                TextField("Email addresses", text: $toAddress)
+                    .frame(minWidth: 260)
+            }
+            LabeledContent("From account") {
+                Text("Default Mail account")
+                    .foregroundStyle(.secondary)
+            }
+            Text("You can enter multiple addresses separated by commas or semicolons.")
+                .font(.footnote)
+                .foregroundStyle(.secondary)
+        }
+        .onChange(of: enabled) { _, _ in SettingsCategory.markModified(.communication) }
+        .onChange(of: toAddress) { _, _ in SettingsCategory.markModified(.communication) }
+        #else
         Form {
             Section("Attendance Email") {
                 Toggle("Show 'Send Attendance Email' Button", isOn: $enabled)
@@ -268,6 +289,7 @@ public struct AttendanceEmailSettingsView: View {
         .onChange(of: enabled) { _, _ in SettingsCategory.markModified(.communication) }
         .onChange(of: toAddress) { _, _ in SettingsCategory.markModified(.communication) }
         .onChange(of: fromAddress) { _, _ in SettingsCategory.markModified(.communication) }
+        #endif
     }
 }
 #Preview {

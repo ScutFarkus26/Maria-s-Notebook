@@ -168,6 +168,22 @@ private struct CalendarToggleRow: View {
     let onToggle: (Bool) -> Void
 
     var body: some View {
+        #if os(macOS)
+        Toggle(isOn: Binding(
+            get: { isSelected },
+            set: onToggle
+        )) {
+            HStack(spacing: 8) {
+                if let cgColor = calendarInfo.color {
+                    Circle()
+                        .fill(Color(cgColor: cgColor))
+                        .frame(width: 12, height: 12)
+                }
+                Text(calendarInfo.name)
+            }
+        }
+        .toggleStyle(.checkbox)
+        #else
         Button(action: { onToggle(!isSelected) }, label: {
             HStack(spacing: 10) {
                 Image(systemName: isSelected ? "checkmark.circle.fill" : "circle")
@@ -188,6 +204,7 @@ private struct CalendarToggleRow: View {
             .contentShape(Rectangle())
         })
         .buttonStyle(.plain)
+        #endif
     }
 }
 

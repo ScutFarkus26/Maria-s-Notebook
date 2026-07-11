@@ -24,7 +24,7 @@ struct AuthorizationRequestSection: View {
             if isRefreshing {
                 HStack(spacing: 8) {
                     ProgressView()
-                        .scaleEffect(SettingsStyle.toggleScale)
+                        .controlSize(.small)
                     Text("Requesting access...")
                         .font(.footnote)
                         .foregroundStyle(.secondary)

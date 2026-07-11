@@ -235,6 +235,15 @@ extension SettingsView {
         VStack(spacing: 12) {
             SettingsGroup(title: "Note Templates", systemImage: "note.text.badge.plus") {
                 VStack(spacing: 8) {
+                    #if os(macOS)
+                    LabeledContent("Available", value: "\(statsViewModel.noteTemplatesCount)")
+
+                    NavigationLink("Manage Note Templates…") {
+                        NoteTemplateManagementView()
+                            .settingsBreadcrumb("Settings › Templates")
+                    }
+                    .buttonStyle(.bordered)
+                    #else
                     HStack {
                         VStack(alignment: .leading, spacing: 2) {
                             Text("\(statsViewModel.noteTemplatesCount)")
@@ -262,11 +271,21 @@ extension SettingsView {
                         }
                     }
                     .buttonStyle(.plain)
+                    #endif
                 }
             }
 
             SettingsGroup(title: "Meeting Templates", systemImage: "person.2.fill") {
                 VStack(spacing: 8) {
+                    #if os(macOS)
+                    LabeledContent("Available", value: "\(statsViewModel.meetingTemplatesCount)")
+
+                    NavigationLink("Manage Meeting Templates…") {
+                        MeetingTemplateManagementView()
+                            .settingsBreadcrumb("Settings › Templates")
+                    }
+                    .buttonStyle(.bordered)
+                    #else
                     HStack {
                         VStack(alignment: .leading, spacing: 2) {
                             Text("\(statsViewModel.meetingTemplatesCount)")
@@ -294,6 +313,7 @@ extension SettingsView {
                         }
                     }
                     .buttonStyle(.plain)
+                    #endif
                 }
             }
         }
