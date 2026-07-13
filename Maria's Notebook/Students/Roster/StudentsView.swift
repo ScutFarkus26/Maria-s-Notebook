@@ -73,23 +73,25 @@ struct StudentsView: View {
     // MARK: - Body
 
     var body: some View {
-        #if os(macOS)
-        NavigationSplitView(columnVisibility: $columnVisibility) {
-            workspaceSidebarColumn
-        } content: {
-            macRosterColumn
-        } detail: {
-            macDetailColumn
+        Group {
+            #if os(macOS)
+            NavigationSplitView(columnVisibility: $columnVisibility) {
+                workspaceSidebarColumn
+            } content: {
+                macRosterColumn
+            } detail: {
+                macDetailColumn
+            }
+            .navigationSplitViewStyle(.balanced)
+            #else
+            NavigationSplitView(columnVisibility: $columnVisibility) {
+                sidebarColumn
+            } detail: {
+                detailColumn
+            }
+            .navigationSplitViewStyle(.balanced)
+            #endif
         }
-        .navigationSplitViewStyle(.balanced)
-        #else
-        NavigationSplitView(columnVisibility: $columnVisibility) {
-            sidebarColumn
-        } detail: {
-            detailColumn
-        }
-        .navigationSplitViewStyle(.balanced)
-        #endif
         .sheet(isPresented: $showingAddStudent) {
             AddStudentView()
                 .presentationSizingFitted()
