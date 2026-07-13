@@ -88,6 +88,31 @@ extension StudentsView {
         .help("Switch between cards and table")
     }
 
+    /// A native View menu keeps the Mac toolbar focused on work, rather than
+    /// permanently spending space on a segmented control. The choice remains
+    /// remembered through the existing AppStorage value.
+    var rosterViewMenu: some View {
+        Menu {
+            Picker("View", selection: viewStyleSelection) {
+                #if os(macOS)
+                Label("Cards", systemImage: "square.grid.2x2")
+                    .tag(StudentsViewStyle.grid)
+                Label("Table", systemImage: "tablecells")
+                    .tag(StudentsViewStyle.table)
+                #else
+                Label("List", systemImage: "list.bullet")
+                    .tag(StudentsViewStyle.list)
+                Label("Grid", systemImage: "square.grid.2x2")
+                    .tag(StudentsViewStyle.grid)
+                #endif
+            }
+            .pickerStyle(.inline)
+        } label: {
+            Label("View", systemImage: "rectangle.3.group")
+        }
+        .help("Choose cards or table")
+    }
+
     private var viewStyleSelection: Binding<StudentsViewStyle> {
         Binding(
             get: { viewStyle },

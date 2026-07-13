@@ -6,7 +6,7 @@ import CoreData
 
 struct StudentDetailBottomBar: View {
     let isEditing: Bool
-    let selectedTab: StudentDetailTab
+    let selectedSection: StudentWorkspaceSection
     let showDeleteAlert: Binding<Bool>
     let draftFirstName: String
     let draftLastName: String
@@ -19,7 +19,7 @@ struct StudentDetailBottomBar: View {
     var body: some View {
         // Hide the bar if we're not editing and not on overview
         // (only "Done" would show, which is redundant on iPad/Mac)
-        if isEditing || selectedTab == .overview {
+        if isEditing || selectedSection == .overview {
             VStack(spacing: 0) {
                 Divider()
                 HStack {
@@ -56,7 +56,7 @@ struct StudentDetailBottomBar: View {
     @ViewBuilder
     private var viewingButtons: some View {
         // Only show Profile Edit/Delete controls if we are on the Overview tab
-        if selectedTab == .overview {
+        if selectedSection == .overview {
             Button("Edit") {
                 onEdit()
             }

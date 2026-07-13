@@ -63,6 +63,11 @@ extension StudentMeetingsTab {
 
                                     Spacer()
                                     Menu {
+                                        if meetingSummaries[itemID] == nil && !generatingSummaries.contains(itemID) {
+                                            Button("Generate Draft Summary", systemImage: "sparkles") {
+                                                Task { await generateSummary(for: item) }
+                                            }
+                                        }
                                         Button("Edit", systemImage: "square.and.pencil") { beginEdit(item) }
                                         Button("Delete", systemImage: "trash", role: .destructive) { delete(item) }
                                     } label: {
@@ -91,12 +96,6 @@ extension StudentMeetingsTab {
                                         }
                                     }
                                     .padding(.top, 8)
-                                }
-                            }
-                            .task {
-                                // Generate summary when meeting appears
-                                if meetingSummaries[itemID] == nil && !generatingSummaries.contains(itemID) {
-                                    await generateSummary(for: item)
                                 }
                             }
                             .padding(.vertical, 4)

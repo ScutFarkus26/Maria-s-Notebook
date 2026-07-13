@@ -592,6 +592,29 @@ struct MariasNotebookApp: App {
         .windowResizability(.automatic)
         .defaultSize(width: 1000, height: 720)
 
+        WindowGroup("", id: "StudentDocumentsWindow", for: UUID.self) { $studentID in
+            if let id = studentID {
+                if bootstrapper.state != .ready || restoreCoordinator.isRestoring {
+                    ProgressView(restoreCoordinator.isRestoring ? "Restoring data…" : "Loading…")
+                        .frame(minWidth: 640, minHeight: 480)
+                } else {
+                    StudentDocumentsWindowHost(studentID: id)
+                        .environment(\.managedObjectContext, coreDataStack.viewContext)
+                        .environment(\.calendar, AppCalendar.shared)
+                        .environment(\.appRouter, appRouter)
+                        .environment(\.dependencies, dependencies)
+                        .environment(saveCoordinator)
+                        .environment(restoreCoordinator)
+                }
+            } else {
+                ContentUnavailableView("No Student Selected", systemImage: "paperclip")
+                    .frame(minWidth: 640, minHeight: 480)
+            }
+        }
+        .windowToolbarStyle(.unified(showsTitle: true))
+        .windowResizability(.automatic)
+        .defaultSize(width: 760, height: 680)
+
         WindowGroup("", id: "MeetingSessionWindow", for: MeetingSessionWindowPayload.self) { $payload in
             if let payload {
                 if bootstrapper.state != .ready || restoreCoordinator.isRestoring {

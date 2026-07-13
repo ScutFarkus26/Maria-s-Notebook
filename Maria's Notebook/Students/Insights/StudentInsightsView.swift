@@ -23,7 +23,6 @@ struct StudentInsightsView: View {
     @State var selectedLookbackDays = 30
     @State var showingParentSummary = false
     @State var parentSummary = ""
-    @State var showingAPIKeySettings = false
 
     let lookbackOptions = [7, 14, 30, 60, 90]
 
@@ -60,11 +59,6 @@ struct StudentInsightsView: View {
         .sheet(isPresented: $showingParentSummary) {
             ParentSummarySheet(summary: parentSummary, student: student)
         }
-        .sheet(isPresented: $showingAPIKeySettings) {
-            NavigationStack {
-                APIKeySettingsView()
-            }
-        }
     }
 
     // MARK: - Actions
@@ -86,14 +80,6 @@ struct StudentInsightsView: View {
         Task {
             isGenerating = true
             errorMessage = nil
-
-            // Check if API key is configured
-            if !AnthropicAPIClient.hasAPIKey() {
-                errorMessage = "Please configure your Anthropic API key in Settings"
-                    + " \u{2192} AI Features to use Development Insights."
-                isGenerating = false
-                return
-            }
 
             do {
                 let snapshot = try await dependencies.studentAnalysisService.analyzeStudent(

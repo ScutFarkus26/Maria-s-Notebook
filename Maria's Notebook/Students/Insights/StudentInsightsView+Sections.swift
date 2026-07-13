@@ -275,16 +275,6 @@ extension StudentInsightsView {
                 .font(.body)
                 .foregroundStyle(.primary)
 
-            // Show settings button if API key is missing
-            if message.contains("API key") {
-                Button(action: { showingAPIKeySettings = true }, label: {
-                    Label("Configure API Key", systemImage: SFSymbol.Settings.gear)
-                        .font(.subheadline)
-                        .frame(maxWidth: .infinity)
-                        .padding(.vertical, 8)
-                })
-                .buttonStyle(.borderedProminent)
-            }
         }
         .padding()
         .background(Color.red.opacity(UIConstants.OpacityConstants.light))

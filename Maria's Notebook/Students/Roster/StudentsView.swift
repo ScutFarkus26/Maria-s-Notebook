@@ -52,6 +52,12 @@ struct StudentsView: View {
     @State var selectedStudentID: UUID?
     @State var isWithdrawnExpanded = false
     @State private var columnVisibility: NavigationSplitViewVisibility = .all
+    #if os(macOS)
+    /// The Mac workspace treats withdrawn students as a collection, not an
+    /// afterthought at the bottom of a roster list. iPhone and iPad retain the
+    /// existing collapsible section.
+    @State var isShowingWithdrawnRoster = false
+    #endif
 
     // MARK: - State for CSV Import
     @State var showingStudentCSVImporter: Bool = false
@@ -67,12 +73,23 @@ struct StudentsView: View {
     // MARK: - Body
 
     var body: some View {
+        #if os(macOS)
+        NavigationSplitView(columnVisibility: $columnVisibility) {
+            workspaceSidebarColumn
+        } content: {
+            macRosterColumn
+        } detail: {
+            macDetailColumn
+        }
+        .navigationSplitViewStyle(.balanced)
+        #else
         NavigationSplitView(columnVisibility: $columnVisibility) {
             sidebarColumn
         } detail: {
             detailColumn
         }
         .navigationSplitViewStyle(.balanced)
+        #endif
         .sheet(isPresented: $showingAddStudent) {
             AddStudentView()
                 .presentationSizingFitted()
@@ -162,6 +179,67 @@ struct StudentsView: View {
         }
     }
 
+    #if os(macOS)
+    /// macOS gets the full browse → compare → inspect workspace. The middle
+    /// column remains visible while a student is selected, so a guide can keep
+    /// their place in the roster while reviewing a record.
+    @ViewBuilder
+    private var macRosterColumn: some View {
+        Group {
+            if viewStyle == .table {
+                StudentsTableView(
+                    students: macRosterStudents,
+                    nextLessonNames: viewModel.cachedNextLessonNames,
+                    lastObservationDates: viewModel.cachedLastObservationDates,
+                    presentNowIDs: presentNowIDs,
+                    selectedStudentID: $selectedStudentID
+                )
+            } else {
+                StudentsCardsGridView(
+                    students: macRosterStudents,
+                    isBirthdayMode: false,
+                    isAgeMode: false,
+                    isLastLessonMode: false,
+                    lastLessonDays: [:],
+                    isManualMode: false,
+                    onTapStudent: { student in selectedStudentID = student.id },
+                    onReorder: { _, _, _, _ in }
+                )
+            }
+        }
+        .navigationTitle(isShowingWithdrawnRoster ? "Withdrawn Students" : "Student Roster")
+        .inlineNavigationTitle()
+        .navigationSplitViewColumnWidth(min: 340, ideal: 520)
+        .toolbar { rosterToolbar }
+    }
+
+    @ViewBuilder
+    private var macDetailColumn: some View {
+        if let student = selectedStudent {
+            StudentDetailView(student: student, isInline: true, onDone: { selectedStudentID = nil })
+                .id(student.id)
+                .navigationTitle(student.fullName)
+                .inlineNavigationTitle()
+        } else {
+            SelectStudentEmptyState()
+                .navigationTitle("Student Record")
+                .inlineNavigationTitle()
+        }
+    }
+
+    var macRosterStudents: [CDStudent] {
+        isShowingWithdrawnRoster ? withdrawnStudents : filteredStudents
+    }
+
+    @ToolbarContentBuilder
+    private var rosterToolbar: some ToolbarContent {
+        if viewStyle != .table {
+            ToolbarItem(placement: .automatic) { sortMenu }
+        }
+        ToolbarItem(placement: .primaryAction) { rosterViewMenu }
+    }
+    #endif
+
     @ViewBuilder
     private var rosterBrowser: some View {
         #if os(macOS)
@@ -193,14 +271,14 @@ struct StudentsView: View {
     }
     #endif
 
-    /// Full-width card grid shown in the detail area when nothing is selected
-    /// and the grid view style is active. Cards follow the current sort:
-    /// birthday sort shows birthday cards, age sort shows age cards.
+    /// Full-width card grid shown in the compact detail area when nothing is
+    /// selected. Sorting changes order, never the visual language of a child
+    /// card; this keeps the roster calm and easy to scan.
     private var gridBrowser: some View {
         StudentsCardsGridView(
             students: filteredStudents,
-            isBirthdayMode: sortOrder == .birthday,
-            isAgeMode: sortOrder == .age,
+            isBirthdayMode: false,
+            isAgeMode: false,
             isLastLessonMode: false,
             lastLessonDays: [:],
             isManualMode: false,

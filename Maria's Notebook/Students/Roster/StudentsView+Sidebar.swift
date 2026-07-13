@@ -5,6 +5,85 @@ import CoreData
 
 extension StudentsView {
 
+    #if os(macOS)
+    /// The first column in the Mac workspace is a real collection sidebar, not
+    /// a second copy of the roster. The adjacent roster/table and record panes
+    /// make browsing and comparison feel at home on a desktop.
+    var workspaceSidebarColumn: some View {
+        List {
+            Section("Students") {
+                workspaceScopeRow(.all, count: enrolledCount, systemImage: "person.3")
+                workspaceScopeRow(.presentNow, count: presentNowCount, systemImage: "checkmark.circle")
+            }
+
+            Section("Level") {
+                workspaceScopeRow(.lower, systemImage: "circle.fill")
+                workspaceScopeRow(.upper, systemImage: "circle.fill")
+            }
+
+            if !withdrawnStudents.isEmpty {
+                Section("Records") {
+                    Button {
+                        isShowingWithdrawnRoster = true
+                        selectedStudentID = nil
+                    } label: {
+                        Label("Withdrawn (\(withdrawnStudents.count))", systemImage: "archivebox")
+                    }
+                    .buttonStyle(.plain)
+                    .foregroundStyle(isShowingWithdrawnRoster ? Color.accentColor : .primary)
+                }
+            }
+        }
+        .navigationTitle("Students")
+        .inlineNavigationTitle()
+        .navigationSplitViewColumnWidth(min: 190, ideal: 230, max: 300)
+        .searchable(text: $searchText, placement: .sidebar, prompt: "Search students")
+        .onSubmit(of: .search) {
+            if let first = macRosterStudents.first {
+                selectedStudentID = first.id
+            }
+        }
+        .toolbar {
+            ToolbarItem(placement: .primaryAction) { addStudentMenu }
+        }
+        .overlay {
+            ParsingOverlay(isParsing: $isParsing) {
+                parsingTask?.cancel()
+            }
+        }
+        .background {
+            Button("") { showingAddStudent = true }
+                .keyboardShortcut("n", modifiers: [.command])
+                .hidden()
+        }
+    }
+
+    private func workspaceScopeRow(
+        _ filter: StudentsFilter,
+        count: Int? = nil,
+        systemImage: String
+    ) -> some View {
+        let isSelected = !isShowingWithdrawnRoster && selectedFilter == filter
+        return Button {
+            isShowingWithdrawnRoster = false
+            studentsFilterRaw = filter.storageValue
+        } label: {
+            HStack {
+                Label(filter.chipTitle, systemImage: systemImage)
+                Spacer()
+                if let count {
+                    Text("\(count)")
+                        .foregroundStyle(.secondary)
+                }
+            }
+            .contentShape(Rectangle())
+        }
+        .buttonStyle(.plain)
+        .foregroundStyle(isSelected ? Color.accentColor : .primary)
+        .accessibilityAddTraits(isSelected ? .isSelected : [])
+    }
+    #endif
+
     var sidebarColumn: some View {
         rosterList
             .navigationTitle("Students")

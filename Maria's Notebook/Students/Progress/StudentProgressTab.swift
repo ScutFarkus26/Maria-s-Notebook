@@ -46,8 +46,6 @@ struct StudentProgressTab: View {
     var body: some View {
         ScrollView {
             VStack(spacing: 20) {
-                insightsLink
-
                 if !viewModel.activeProjects.isEmpty {
                     VStack(alignment: .leading, spacing: 12) {
                         Label("Active Projects", systemImage: "book.closed.fill")
@@ -139,53 +137,6 @@ struct StudentProgressTab: View {
         }
     }
     
-    // MARK: - Insights Link
-
-    private var insightsLink: some View {
-        NavigationLink {
-            StudentInsightsView(student: student)
-        } label: {
-            HStack(spacing: 16) {
-                Image(systemName: "brain.head.profile")
-                    .font(.system(size: 32))
-                    .foregroundStyle(.white)
-                    .frame(width: 56, height: 56)
-                    .background(
-                        LinearGradient(
-                            colors: [.purple, .blue],
-                            startPoint: .topLeading,
-                            endPoint: .bottomTrailing
-                        )
-                    )
-                    .cornerRadius(UIConstants.CornerRadius.large)
-
-                VStack(alignment: .leading, spacing: AppTheme.Spacing.xsmall) {
-                    Text("Development Insights")
-                        .font(.headline)
-                        .foregroundStyle(.primary)
-                    Text("AI-powered analysis of recent progress")
-                        .font(.subheadline)
-                        .foregroundStyle(.secondary)
-                }
-
-                Spacer()
-
-                Image(systemName: "chevron.right")
-                    .foregroundStyle(.secondary)
-            }
-            .padding(AppTheme.Spacing.medium)
-            #if os(iOS)
-            .background(Color(.systemBackground))
-            #else
-            .background(Color(NSColor.controlBackgroundColor))
-            #endif
-            .cornerRadius(UIConstants.CornerRadius.large)
-            .shadow(color: .purple.opacity(UIConstants.OpacityConstants.moderate), radius: 8, x: 0, y: 4)
-        }
-        .buttonStyle(.plain)
-        .padding(.horizontal, AppTheme.Spacing.xsmall)
-    }
-
     // MARK: - Empty State
     private var emptyStateView: some View {
         ContentUnavailableView {

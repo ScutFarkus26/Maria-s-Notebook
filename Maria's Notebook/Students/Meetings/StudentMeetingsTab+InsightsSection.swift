@@ -25,6 +25,18 @@ extension StudentMeetingsTab {
                     }
                     .pickerStyle(.menu)
                     .controlSize(.small)
+
+                    Button {
+                        Task { await generateInsights() }
+                    } label: {
+                        Label(
+                            meetingInsights == nil ? "Generate Review" : "Refresh",
+                            systemImage: "sparkles"
+                        )
+                    }
+                    .buttonStyle(.bordered)
+                    .controlSize(.small)
+                    .disabled(isGeneratingInsights || meetingItems.isEmpty)
                 }
 
                 if isGeneratingInsights {
@@ -41,8 +53,7 @@ extension StudentMeetingsTab {
                 } else if let error = insightsError {
                     insightsErrorView(error)
                 } else {
-                    // Empty/initial state — auto-generation will handle this
-                    Text("Insights will appear here after analysis.")
+                    Text("Generate a review when you want help noticing patterns across meetings.")
                         .font(.subheadline)
                         .foregroundStyle(.secondary)
                         .padding(.vertical, 4)
@@ -138,23 +149,13 @@ extension StudentMeetingsTab {
                 .font(.subheadline)
                 .foregroundStyle(.secondary)
 
-            if !AnthropicAPIClient.hasAPIKey() {
-                Button {
-                    showingAPIKeySettings = true
-                } label: {
-                    Label("Configure API Key", systemImage: "key")
-                }
-                .buttonStyle(.bordered)
-                .controlSize(.small)
-            } else {
-                Button {
-                    Task { await generateInsights() }
-                } label: {
-                    Label("Try Again", systemImage: "arrow.clockwise")
-                }
-                .buttonStyle(.bordered)
-                .controlSize(.small)
+            Button {
+                Task { await generateInsights() }
+            } label: {
+                Label("Try Again", systemImage: "arrow.clockwise")
             }
+            .buttonStyle(.bordered)
+            .controlSize(.small)
         }
     }
 

@@ -41,26 +41,35 @@ struct StudentDetailView: View {
     @State private var draftDateWithdrawn: Date?
     @State private var showDeleteAlert = false
 
-    @AppStorage(UserDefaultsKeys.studentDetailViewActiveTab) private var selectedTab: StudentDetailTab = .overview
+    // The stored key is retained so existing installations migrate cleanly.
+    // Its old tab values are translated into the four guide-facing sections.
+    @AppStorage(UserDefaultsKeys.studentDetailViewActiveTab)
+    private var selectedSectionRaw = StudentWorkspaceSection.overview.rawValue
 
     @State private var selectedWorkID: UUID?
     @State private var workCache: [CDWorkModel] = []
     @State private var showAIPlanning = false
+    @State private var showQuickNote = false
+    @State private var showDocuments = false
+    @State private var showMeetingSession = false
 
     private var lessonIDs: [UUID] { vm.lessons.compactMap(\.id) }
     private var lessonAssignmentIDs: [UUID] { vm.lessonAssignments.compactMap(\.id) }
 
-    private var tabUsesUnscrolledLayout: Bool {
-        switch selectedTab {
-        case .progress, .developmentalTraits, .history, .files, .yearPlan: true
-        default: false
-        }
+    private var selectedSection: StudentWorkspaceSection {
+        StudentWorkspaceSection.migrating(storedValue: selectedSectionRaw)
+    }
+
+    private var selectedSectionBinding: Binding<StudentWorkspaceSection> {
+        Binding(
+            get: { selectedSection },
+            set: { selectedSectionRaw = $0.rawValue }
+        )
     }
 
     @ViewBuilder
-    private var tabContent: some View {
-        let tab: StudentDetailTab = selectedTab
-        switch tab {
+    private var sectionContent: some View {
+        switch selectedSection {
         case .overview:
             StudentOverviewTab(
                 student: student,
@@ -79,26 +88,12 @@ struct StudentDetailView: View {
                 nextLessonsForStudent: vm.nextLessonsForStudent,
                 onWorkChanged: { workCache = fetchWorkForStudent() }
             )
+        case .observe:
+            StudentObserveWorkspace(student: student)
+        case .learning:
+            StudentLearningWorkspace(student: student)
         case .meetings:
             StudentMeetingsTab(student: student)
-                .padding(.top, 36)
-        case .notes:
-            // handled in body
-            EmptyView()
-        case .progress:
-            StudentProgressTab(student: student)
-                .padding(.top, 36)
-        case .developmentalTraits:
-            DevelopmentalTraitsView(studentID: student.id ?? UUID())
-                .padding(.top, 36)
-        case .history:
-            StudentHistoryTab(student: student)
-                .padding(.top, 36)
-        case .files:
-            StudentFilesTab(student: student)
-                .padding(.top, 36)
-        case .yearPlan:
-            StudentYearPlanTab(student: student)
                 .padding(.top, 36)
         }
     }
@@ -160,18 +155,68 @@ struct StudentDetailView: View {
         if let onDone { onDone() } else { dismiss() }
     }
 
+    private func startMeeting() {
+        guard let studentID = student.id else { return }
+        #if os(macOS)
+        openWindow(
+            id: "MeetingSessionWindow",
+            value: MeetingSessionWindowPayload(studentID: studentID, scheduledMeetingID: nil)
+        )
+        #else
+        showMeetingSession = true
+        #endif
+    }
+
+    private func openDocuments() {
+        guard let studentID = student.id else { return }
+        #if os(macOS)
+        openWindow(id: "StudentDocumentsWindow", value: studentID)
+        #else
+        showDocuments = true
+        #endif
+    }
+
     private var headerRow: some View {
-        HStack {
-            Text("Student Info")
-                .font(AppTheme.ScaledFont.titleSmall)
-                .frame(maxWidth: .infinity, alignment: .leading)
-            
-            Button(action: { showAIPlanning = true }, label: {
-                Label("Plan Lessons", systemImage: "sparkles")
-                    .font(AppTheme.ScaledFont.captionSemibold)
-            })
-            .buttonStyle(.plain)
-            .foregroundStyle(Color.accentColor)
+        HStack(alignment: .firstTextBaseline, spacing: 12) {
+            VStack(alignment: .leading, spacing: 2) {
+                Text(StudentFormatter.displayName(for: student))
+                    .font(AppTheme.ScaledFont.titleSmall)
+                Text("Student record")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+            }
+
+            Spacer()
+
+            Button {
+                showQuickNote = true
+            } label: {
+                Label("Add Observation", systemImage: "plus")
+            }
+            .buttonStyle(.bordered)
+
+            Menu {
+                Button("Start Meeting", systemImage: "person.2") {
+                    startMeeting()
+                }
+                Button("Plan Lessons", systemImage: "sparkles") {
+                    showAIPlanning = true
+                }
+                Button("Open Documents", systemImage: "folder") {
+                    openDocuments()
+                }
+
+                Divider()
+
+                Button("Edit Student", systemImage: "square.and.pencil") {
+                    handleEdit()
+                }
+                Button("Delete Student", systemImage: "trash", role: .destructive) {
+                    handleDelete()
+                }
+            } label: {
+                Label("Student Actions", systemImage: "ellipsis.circle")
+            }
         }
         .padding(.horizontal, 24)
         .padding(.top, 18)
@@ -179,10 +224,11 @@ struct StudentDetailView: View {
     
     var body: some View {
         sizedContent
+        #if os(iOS)
         .safeAreaInset(edge: .bottom) {
             StudentDetailBottomBar(
                 isEditing: isEditing,
-                selectedTab: selectedTab,
+                selectedSection: selectedSection,
                 showDeleteAlert: $showDeleteAlert,
                 draftFirstName: draftFirstName,
                 draftLastName: draftLastName,
@@ -193,6 +239,7 @@ struct StudentDetailView: View {
                 onDone: handleDone
             )
         }
+        #endif
         .overlay(alignment: .top) {
             StudentDetailToastOverlay(message: vm.toastMessage)
         }
@@ -240,6 +287,22 @@ struct StudentDetailView: View {
         .sheet(isPresented: $showAIPlanning) {
             AIPlanningAssistantView(mode: .singleStudent(student.id ?? UUID()))
         }
+        .sheet(isPresented: $showQuickNote) {
+            QuickNoteSheet(initialStudentID: student.id)
+        }
+        #if os(iOS)
+        .sheet(isPresented: $showDocuments) {
+            NavigationStack {
+                StudentFilesTab(student: student)
+                    .navigationTitle("Documents")
+            }
+        }
+        .sheet(isPresented: $showMeetingSession) {
+            if let studentID = student.id {
+                ScheduledMeetingSessionSheet(studentID: studentID)
+            }
+        }
+        #endif
         .task {
             vm.loadData(viewContext: viewContext)
             workCache = fetchWorkForStudent()
@@ -276,24 +339,23 @@ struct StudentDetailView: View {
         VStack(spacing: 0) {
             headerRow
 
-            StudentDetailTabNavigation(selectedTab: $selectedTab)
+            StudentWorkspaceSectionPicker(selectedSection: selectedSectionBinding)
+                .padding(.horizontal, 24)
+                .padding(.top, 12)
+                .padding(.bottom, 8)
 
             Divider().padding(.top, 8)
 
-            if selectedTab == .notes {
-                StudentNotesTab(student: student)
-            } else if tabUsesUnscrolledLayout {
-                tabContent
-                    .padding(.horizontal, 32)
-                    .padding(.bottom, 24)
-            } else {
+            if selectedSection == .overview || selectedSection == .meetings {
                 ScrollView {
                     VStack(spacing: 28) {
-                        tabContent
+                        sectionContent
                     }
                     .padding(.horizontal, 32)
                     .padding(.bottom, 24)
                 }
+            } else {
+                sectionContent
             }
         }
     }

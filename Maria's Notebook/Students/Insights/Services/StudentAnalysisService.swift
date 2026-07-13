@@ -34,7 +34,7 @@ final class StudentAnalysisService {
     ///   - lookbackDays: Number of days to analyze (default: 30)
     /// - Returns: A CDDevelopmentSnapshotEntity containing analysis results
     func analyzeStudent(_ student: CDStudent, lookbackDays: Int = 30) async throws -> CDDevelopmentSnapshotEntity {
-        mcpClient.configureForFeature(.chat)
+        mcpClient.configureForFeature(.backgroundTasks)
         let cutoffDate = Calendar.current.date(byAdding: .day, value: -lookbackDays, to: Date()) ?? Date()
 
         // Gather student data from the past N days
@@ -82,7 +82,7 @@ final class StudentAnalysisService {
 
     /// Generates a parent-friendly summary from a development snapshot
     func generateParentSummary(snapshot: CDDevelopmentSnapshotEntity) async throws -> String {
-        mcpClient.configureForFeature(.chat)
+        mcpClient.configureForFeature(.backgroundTasks)
         let prompt = """
         Create a warm, encouraging 2-3 paragraph summary for parents about their child's recent progress.
 

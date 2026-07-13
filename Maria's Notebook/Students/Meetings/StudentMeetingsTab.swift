@@ -107,8 +107,6 @@ struct StudentMeetingsTab: View {
     @State var isGeneratingInsights: Bool = false
     @State var insightsTimeframeDays: Int = 30
     @State var insightsError: String?
-    @State var showingAPIKeySettings: Bool = false
-    @State private var lastAnalyzedMeetingCount: Int = 0
 
     // Work snapshot settings
     @SyncedAppStorage("WorkAge.overdueDays") private var workOverdueDays: Int = 14
@@ -194,14 +192,12 @@ struct StudentMeetingsTab: View {
 
     private var bodyWithModifiers: some View {
         bodyWithPersistence
-            .onChange(of: insightsTimeframeDays) { _, _ in handleInsightsTimeframeChange() }
-            .onChange(of: meetingItems.count) { _, newCount in handleMeetingCountChange(newCount) }
-            .task { await handleInsightsTask() }
+            .onChange(of: insightsTimeframeDays) { _, _ in meetingInsights = nil }
+            .onChange(of: meetingItems.count) { _, _ in meetingInsights = nil }
     }
 
     private var bodyWithSheets: some View {
         bodyWithModifiers
-            .sheet(isPresented: $showingAPIKeySettings) { NavigationStack { APIKeySettingsView() } }
             .sheet(item: $editingMeeting) { meeting in editMeetingSheet(meeting) }
             .sheet(item: workSheetBinding) { wrapper in
                 WorkDetailView(workID: wrapper.id) { selectedWorkID = nil }
@@ -218,25 +214,6 @@ struct StudentMeetingsTab: View {
     private func handleOnAppear() {
         loadCurrentFromDefaults()
         migrateHistoryIfNeeded()
-    }
-
-    private func handleInsightsTimeframeChange() {
-        meetingInsights = nil
-        Task { await generateInsights() }
-    }
-
-    private func handleMeetingCountChange(_ newCount: Int) {
-        if newCount != lastAnalyzedMeetingCount && lastAnalyzedMeetingCount > 0 {
-            meetingInsights = nil
-            Task { await generateInsights() }
-        }
-    }
-
-    private func handleInsightsTask() async {
-        if meetingInsights == nil && !meetingItems.isEmpty {
-            lastAnalyzedMeetingCount = meetingItems.count
-            await generateInsights()
-        }
     }
 
     @ViewBuilder
