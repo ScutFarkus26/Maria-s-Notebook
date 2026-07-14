@@ -101,14 +101,10 @@ final class Phase8PreTests {
 
     @Test("AppBootstrapper starts in idle state")
     func bootstrapperStartsIdle() {
-        // Verify bootstrap state machine starts at idle
-        // (We can't test shared singleton directly, but we can test the enum)
-        let state = AppBootstrapper.State.idle
-        switch state {
-        case .idle: break  // expected
-        case .initializingContainer, .migrating, .ready:
-            Issue.record("AppBootstrapper should start in idle state")
-        }
+        // Keep the state-machine cases explicit without switching on a
+        // compile-time constant.
+        let states: [AppBootstrapper.State] = [.idle, .initializingContainer, .migrating, .ready]
+        #expect(states.count == 4)
     }
 
     @Test("CoreDataStack store URLs use expected file names")

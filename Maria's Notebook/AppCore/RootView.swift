@@ -40,6 +40,7 @@ struct RootView: View {
     @State private var quickNoteParams: QuickNoteParams?
     @State private var isShowingCommandBar = false
     @State private var isShowingSearch = false
+    @State private var focusedSearchAction = FocusedSearchAction()
     @State private var newPresentationDraftID: UUID?
     @State private var isShowingNewWorkItem = false
     @State private var isShowingRecordPractice = false
@@ -168,7 +169,15 @@ struct RootView: View {
         // Expose key-window actions to the menu bar (Find…, File > New quick-capture).
         // Only the key main window's RootView provides these, so menu commands act
         // on exactly one window and disable when no main window is frontmost.
-        .focusedSceneValue(\.openSearch, { isShowingSearch = true })
+        .focusedSceneValue(\.openSearch, focusedSearchAction)
+        .onAppear {
+            focusedSearchAction.setAction {
+                isShowingSearch = true
+            }
+        }
+        .onDisappear {
+            focusedSearchAction.clearAction()
+        }
         .focusedSceneValue(\.quickCapture, QuickCaptureActions(
             newPresentation: { createPresentationDraft() },
             recordPractice: { isShowingRecordPractice = true },

@@ -23,11 +23,33 @@ struct QuickCaptureActions {
     let newNote: () -> Void
 }
 
+/// A stable, per-window target for the standard Find command.
+///
+/// Keeping the callback inside this reference type lets the focused-value
+/// system compare the target by identity. The command still acts only on the
+/// key main window, just as it did when the callback was stored directly.
+@MainActor
+final class FocusedSearchAction {
+    private var action: (() -> Void)?
+
+    func setAction(_ action: @escaping () -> Void) {
+        self.action = action
+    }
+
+    func clearAction() {
+        action = nil
+    }
+
+    func invoke() {
+        action?()
+    }
+}
+
 extension FocusedValues {
     /// Provided by the key main window's RootView; nil when no main window is key.
     @Entry var quickCapture: QuickCaptureActions?
     /// Opens the app-wide search UI in the key main window.
-    @Entry var openSearch: (() -> Void)?
+    @Entry var openSearch: FocusedSearchAction?
 }
 
 /// File > New — standard creation commands plus the quick-capture actions.
@@ -85,7 +107,7 @@ struct FindCommands: Commands {
     var body: some Commands {
         CommandGroup(after: .textEditing) {
             #if os(macOS)
-            Button("Find…") { openSearch?() }
+            Button("Find…") { openSearch?.invoke() }
                 .keyboardShortcut("f", modifiers: .command)
                 .disabled(openSearch == nil)
             #endif

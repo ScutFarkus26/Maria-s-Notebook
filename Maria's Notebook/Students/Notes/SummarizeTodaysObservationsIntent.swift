@@ -133,6 +133,9 @@ struct SummarizeTodaysObservationsIntent: AppIntent, SnippetIntent {
         .result()
     }
 
+    /// Snippets render SwiftUI content, so construct this view on the main
+    /// actor even when App Intents asks for the intent from another context.
+    @MainActor
     var snippet: some View {
         TodayObservationsSnippetView()
     }

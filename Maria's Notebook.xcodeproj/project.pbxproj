@@ -26,6 +26,7 @@
 		5141E8022ED77B10004F918F /* Exceptions for "Maria's Notebook" folder in "Maria's Notebook" target */ = {
 			isa = PBXFileSystemSynchronizedBuildFileExceptionSet;
 			membershipExceptions = (
+				Info-macOS.plist,
 				Info.plist,
 				README.md,
 			);
@@ -258,6 +259,7 @@
 				ENABLE_USER_SELECTED_FILES = readwrite;
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_FILE = "Maria's Notebook/Info.plist";
+				"INFOPLIST_FILE[sdk=macosx*]" = "Maria's Notebook/Info-macOS.plist";
 				INFOPLIST_KEY_CFBundleDisplayName = "Maria's Notebook";
 				INFOPLIST_KEY_LSApplicationCategoryType = "public.app-category.education";
 				INFOPLIST_KEY_NSHumanReadableCopyright = "Copyright © 2026 Daniel De Berry. All rights reserved.";
@@ -333,6 +335,7 @@
 				ENABLE_USER_SELECTED_FILES = readwrite;
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_FILE = "Maria's Notebook/Info.plist";
+				"INFOPLIST_FILE[sdk=macosx*]" = "Maria's Notebook/Info-macOS.plist";
 				INFOPLIST_KEY_CFBundleDisplayName = "Maria's Notebook";
 				INFOPLIST_KEY_LSApplicationCategoryType = "public.app-category.education";
 				INFOPLIST_KEY_NSHumanReadableCopyright = "Copyright © 2026 Daniel De Berry. All rights reserved.";

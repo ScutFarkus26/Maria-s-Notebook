@@ -51,8 +51,8 @@ final class Phase9PreTests {
         // NSManagedObject is NOT Sendable — it's bound to its NSManagedObjectContext's
         // thread/queue. Pass NSManagedObjectID or Sendable DTOs across boundaries.
         //
-        // Verify key entity types are NSManagedObject subclasses (compile-time check)
-        // and confirm none declare Sendable conformance via runtime check.
+        // The declared collection type is the compile-time check that every
+        // listed model type is an NSManagedObject subclass.
         let entityTypes: [NSManagedObject.Type] = [
             CDStudent.self,
             CDNote.self,
@@ -61,18 +61,9 @@ final class Phase9PreTests {
             CDClassroomMembership.self
         ]
 
-        for type in entityTypes {
-            // All should be NSManagedObject subclasses
-            #expect(type is NSManagedObject.Type, "\(type) should be NSManagedObject subclass")
-            // None should be Sendable (this is enforced by the compiler in strict concurrency)
-            // We verify indirectly: NSManagedObject itself is not Sendable
-        }
-
-        // Direct runtime check: NSManagedObject does not conform to Sendable
-        // (Swift doesn't provide a runtime Sendable check, but we can verify
-        //  the type hierarchy is correct)
-        #expect(CDStudent.self is NSManagedObject.Type)
-        #expect(CDNote.self is NSManagedObject.Type)
+        // Keep the intended coverage list explicit. Sendable conformance is
+        // enforced by Swift's strict-concurrency compiler, not at runtime.
+        #expect(entityTypes.count == 5)
     }
 
     // MARK: - Key Services Already @MainActor

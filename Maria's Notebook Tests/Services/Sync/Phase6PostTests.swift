@@ -10,10 +10,11 @@ final class Phase6PostTests {
     // MARK: - Token Tracking
 
     @Test("PersistentHistoryProcessor init loads without crash")
-    func processorInit() throws {
+    func processorInit() async throws {
         let stack = try CoreDataTestHelpers.makeInMemoryStack()
         let processor = PersistentHistoryProcessor(container: stack.container)
-        #expect(processor != nil)
+        // Construction and an empty-history pass must both complete safely.
+        await processor.processRemoteChanges()
     }
 
     @Test("processRemoteChanges completes without crash on empty history")

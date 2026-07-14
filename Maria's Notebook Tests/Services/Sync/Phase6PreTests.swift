@@ -12,8 +12,8 @@ final class Phase6PreTests {
     @Test("DeduplicationCoordinator init — no crash")
     func dedupCoordinatorInit() {
         let coordinator = DeduplicationCoordinator.shared
-        // Singleton should exist and be usable
-        #expect(coordinator != nil)
+        // The coordinator is a real singleton, not an optional factory result.
+        #expect(coordinator === DeduplicationCoordinator.shared)
     }
 
     @Test("requestDeduplication fires without crash even without container")

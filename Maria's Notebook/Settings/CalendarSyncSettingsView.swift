@@ -165,13 +165,18 @@ public struct CalendarSyncSettingsView: View {
 private struct CalendarToggleRow: View {
     let calendarInfo: CalendarSyncService.CalendarInfo
     let isSelected: Bool
-    let onToggle: (Bool) -> Void
+    /// SwiftUI invokes custom binding setters from an actor-isolated, Sendable
+    /// closure. The selection is still changed only by this view on the main
+    /// actor; the annotation makes that boundary explicit to Swift 6.
+    let onToggle: @MainActor @Sendable (Bool) -> Void
 
     var body: some View {
         #if os(macOS)
         Toggle(isOn: Binding(
             get: { isSelected },
-            set: onToggle
+            set: { newValue in
+                onToggle(newValue)
+            }
         )) {
             HStack(spacing: 8) {
                 if let cgColor = calendarInfo.color {
