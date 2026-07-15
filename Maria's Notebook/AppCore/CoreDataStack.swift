@@ -181,6 +181,13 @@ final class CoreDataStack {
         storeDirectory().appendingPathComponent("unified.sqlite")
     }
 
+    /// Local-only store used by Sample Class. Keeping it in a separate SQLite
+    /// file makes the sample classroom a hard persistence boundary rather than
+    /// a filter over the guide's real records.
+    nonisolated static func sampleClassroomStoreURL() -> URL {
+        storeDirectory().appendingPathComponent("sample-classroom.sqlite")
+    }
+
     // MARK: - Initialization
 
     /// Creates the Core Data stack.
@@ -192,10 +199,17 @@ final class CoreDataStack {
     ///     the existing private/shared store files instead of switching to the unified
     ///     local-only store. This lets the app continue using the last cached data set
     ///     when CloudKit initialization fails at launch.
+    ///   - localStoreURL: Optional isolated location for a local-only store. This is
+    ///     used by Sample Class and tests; it is never connected to CloudKit.
+    ///   - managedObjectModel: An already-loaded model to share with another stack.
+    ///     Sample Class uses the primary stack's exact model instance so SwiftUI
+    ///     fetch controllers remain valid while their context is replaced.
     init(
         enableCloudKit: Bool = true,
         inMemory: Bool = false,
-        preserveSplitStoreLayout: Bool = false
+        preserveSplitStoreLayout: Bool = false,
+        localStoreURL: URL? = nil,
+        managedObjectModel suppliedModel: NSManagedObjectModel? = nil
     ) throws {
         let start = Date()
         Self.logger.info("Initializing CoreDataStack (CloudKit: \(enableCloudKit), inMemory: \(inMemory))...")
@@ -205,7 +219,9 @@ final class CoreDataStack {
         // created so the next loadPersistentStores reconstitutes from
         // CloudKit. Migration / sharing completion flags are also cleared so
         // post-launch bootstrap re-runs against the fresh data.
-        if !inMemory, UserDefaults.standard.bool(forKey: UserDefaultsKeys.resetLocalCacheOnLaunch) {
+        if !inMemory,
+           localStoreURL == nil,
+           UserDefaults.standard.bool(forKey: UserDefaultsKeys.resetLocalCacheOnLaunch) {
             let defaults = UserDefaults.standard
             let armedAt = defaults.string(forKey: UserDefaultsKeys.resetLocalCacheArmedAt) ?? "unknown"
             let source = defaults.string(forKey: UserDefaultsKeys.resetLocalCacheArmedSource) ?? "unknown"
@@ -216,14 +232,25 @@ final class CoreDataStack {
         }
 
         let modelName = "MariasNotebook"
-        guard let modelURL = Bundle.main.url(forResource: modelName, withExtension: "momd"),
-              let cachedModel = NSManagedObjectModel(contentsOf: modelURL) else {
-            throw CoreDataStackError.modelNotFound(modelName)
+        let model: NSManagedObjectModel
+        if let suppliedModel,
+           !enableCloudKit,
+           !preserveSplitStoreLayout {
+            // A model becomes immutable once a coordinator uses it, which makes
+            // it safe for the primary and sample coordinators to share. More
+            // importantly, every NSEntityDescription keeps the same identity
+            // while SwiftUI replaces its managed-object context.
+            model = suppliedModel
+        } else {
+            guard let modelURL = Bundle.main.url(forResource: modelName, withExtension: "momd"),
+                  let cachedModel = NSManagedObjectModel(contentsOf: modelURL) else {
+                throw CoreDataStackError.modelNotFound(modelName)
+            }
+            // Copy the model so mutations (like assignEntitiesToConfigurations) don't
+            // pollute the cached instance. NSManagedObjectModel(contentsOf:) can return
+            // a cached object, and calling setEntities on it would affect subsequent inits.
+            model = cachedModel.copy() as! NSManagedObjectModel  // swiftlint:disable:this force_cast
         }
-        // Copy the model so mutations (like assignEntitiesToConfigurations) don't
-        // pollute the cached instance. NSManagedObjectModel(contentsOf:) can return
-        // a cached object, and calling setEntities on it would affect subsequent inits.
-        let model = cachedModel.copy() as! NSManagedObjectModel  // swiftlint:disable:this force_cast
         Self.setActiveModel(model)
 
         // Validate that all entities in our routing tables exist in the model
@@ -285,7 +312,7 @@ final class CoreDataStack {
                 desc.type = NSInMemoryStoreType
             } else {
                 desc = Self.makeStoreDescription(
-                    url: Self.unifiedStoreURL(),
+                    url: localStoreURL ?? Self.unifiedStoreURL(),
                     configuration: nil
                 )
             }

@@ -146,6 +146,10 @@ final class AppDependencies {
     private var _reminderSyncService: ReminderSyncService?
     var reminderSync: ReminderSyncService {
         if let service = _reminderSyncService {
+            // ReminderSyncService is process-wide. Rebind it whenever the
+            // active classroom dependency graph asks for it so a prior Sample
+            // Class visit cannot leave the singleton pointed at that store.
+            service.managedObjectContext = viewContext
             return service
         }
         let service = ReminderSyncService.shared

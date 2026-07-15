@@ -96,6 +96,9 @@ final class CloudKitSyncStatusService {
     var cloudKitEventObserver: NSObjectProtocol?
     var syncStartTime: Date?
     private var coreDataStack: CoreDataStack?
+    var monitoredPersistentStoreCoordinator: NSPersistentStoreCoordinator? {
+        coreDataStack?.container.persistentStoreCoordinator
+    }
     // Legacy modelContainer removed — use coreDataStack instead
     var syncingTask: Task<Void, Never>?
 
@@ -125,7 +128,9 @@ final class CloudKitSyncStatusService {
 
     // MARK: - Initialization
 
-    init() {
+    init(coreDataStack: CoreDataStack? = nil) {
+        self.coreDataStack = coreDataStack
+
         // Load persisted state
         let syncDateKey = UserDefaultsKeys.cloudKitLastSuccessfulSyncDate
         let persistedSyncDate: Date?

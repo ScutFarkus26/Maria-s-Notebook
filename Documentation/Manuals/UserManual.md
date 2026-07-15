@@ -33,6 +33,17 @@ After setup, you'll land on the **Today** view — your daily dashboard. Along t
 | Lessons | Your full lesson library |
 | More | Access to planning tools, projects, AI chat, settings, and everything else |
 
+## Switching Between My Class and Sample Class
+
+Use the **My Class** control in the Mac toolbar or the classroom controls at the top of iPhone and iPad to change classrooms.
+
+- **My Class** contains your real classroom records and continues to use your normal iCloud and sharing setup.
+- **Sample Class** is a local practice classroom with fake students, attendance, observations, and lesson activity. It has its own database and never changes records in My Class.
+- The lesson catalog is copied from My Class when you enter Sample Class, so lesson names, write-ups, attachments, and follow-up work are available with the fake roster.
+- A blue banner remains visible whenever Sample Class is active. Use **Return to My Class** in that banner when you are finished practicing.
+
+Backup and restore commands are unavailable while Sample Class is active, which prevents a practice data set from being mistaken for a real classroom backup.
+
 ## The Floating Button
 
 In the bottom-right corner of every screen, you'll see a small glass-style button. This is your **quick action hub** — the fastest way to do almost anything in the app.

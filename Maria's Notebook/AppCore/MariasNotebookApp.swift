@@ -27,6 +27,7 @@ struct MariasNotebookApp: App {
     @State private var appRouter = AppRouter.shared
     @State private var databaseErrorCoordinator = DatabaseErrorCoordinator.shared
     @State private var dependencies: AppDependencies
+    @State private var classroomWorkspace: ClassroomWorkspaceStore
     @State private var saveCoordinator: SaveCoordinator
     @State private var restoreCoordinator: RestoreCoordinator
 
@@ -49,6 +50,10 @@ struct MariasNotebookApp: App {
         coreDataStack = stack
         let deps = AppDependencies(coreDataStack: stack)
         _dependencies = State(wrappedValue: deps)
+        _classroomWorkspace = State(wrappedValue: ClassroomWorkspaceStore(
+            primaryStack: stack,
+            primaryDependencies: deps
+        ))
         _saveCoordinator = State(wrappedValue: SaveCoordinator(toastService: deps.toastService))
         _restoreCoordinator = State(wrappedValue: RestoreCoordinator(appRouter: deps.appRouter))
 
@@ -106,11 +111,10 @@ struct MariasNotebookApp: App {
         } else if !hasCompletedOnboarding {
             OnboardingView()
         } else {
-            RootView()
-                .environment(\.managedObjectContext, coreDataStack.viewContext)
+            RootView(classroomWorkspace: classroomWorkspace)
+                .activeClassroomEnvironment(classroomWorkspace)
                 .environment(\.calendar, AppCalendar.shared)
                 .environment(\.appRouter, appRouter)
-                .environment(\.dependencies, dependencies)
                 .environment(saveCoordinator)
                 .environment(restoreCoordinator)
                 .syncingFromICloudOverlay()
@@ -246,9 +250,11 @@ struct MariasNotebookApp: App {
                 Section {
                     Button("Create Backup") { appRouter.requestCreateBackup() }
                         .keyboardShortcut("b", modifiers: [.command])
+                        .disabled(classroomWorkspace.isShowingSampleClass)
                     
                     Button("Restore Data…") { appRouter.requestRestoreBackup() }
                         .keyboardShortcut("b", modifiers: [.command, .shift])
+                        .disabled(classroomWorkspace.isShowingSampleClass)
                 }
             }
 
@@ -260,6 +266,21 @@ struct MariasNotebookApp: App {
 
             // VIEW MENU — standard Show/Hide Sidebar (⌃⌘S) for the NavigationSplitView
             SidebarCommands()
+
+            CommandMenu("Classroom") {
+                Button("My Class") {
+                    Task { await classroomWorkspace.select(.myClass) }
+                }
+                .disabled(classroomWorkspace.selection == .myClass)
+
+                Button("Sample Class") {
+                    Task { await classroomWorkspace.select(.sampleClass) }
+                }
+                .disabled(
+                    classroomWorkspace.selection == .sampleClass
+                        || classroomWorkspace.isPreparingSample
+                )
+            }
 
             // 4. GO MENU (Navigation)
             // Dedicated menu for navigating between app sections
@@ -355,10 +376,9 @@ struct MariasNotebookApp: App {
                !restoreCoordinator.isRestoring,
                hasCompletedOnboarding {
                 DesktopNotebookCompanionView()
-                    .environment(\.managedObjectContext, coreDataStack.viewContext)
+                    .activeClassroomEnvironment(classroomWorkspace)
                     .environment(\.calendar, AppCalendar.shared)
                     .environment(\.appRouter, appRouter)
-                    .environment(\.dependencies, dependencies)
                     .environment(saveCoordinator)
                     .environment(restoreCoordinator)
             } else {
@@ -384,10 +404,9 @@ struct MariasNotebookApp: App {
                         .frame(minWidth: 400, minHeight: 300)
                     } else {
                         WorkDetailWindowHost(workID: id)
-                            .environment(\.managedObjectContext, coreDataStack.viewContext)
+                            .activeClassroomEnvironment(classroomWorkspace)
                             .environment(\.calendar, AppCalendar.shared)
                             .environment(\.appRouter, appRouter)
-                            .environment(\.dependencies, dependencies)
                             .environment(saveCoordinator)
                             .environment(restoreCoordinator)
                     }
@@ -415,10 +434,9 @@ struct MariasNotebookApp: App {
                         .frame(minWidth: 400, minHeight: 300)
                     } else {
                         StudentDetailWindowHost(studentID: id)
-                            .environment(\.managedObjectContext, coreDataStack.viewContext)
+                            .activeClassroomEnvironment(classroomWorkspace)
                             .environment(\.calendar, AppCalendar.shared)
                             .environment(\.appRouter, appRouter)
-                            .environment(\.dependencies, dependencies)
                             .environment(saveCoordinator)
                             .environment(restoreCoordinator)
                     }
@@ -454,10 +472,9 @@ struct MariasNotebookApp: App {
                         .frame(minWidth: 400, minHeight: 300)
                     } else {
                         LessonDetailWindowHost(lessonID: id)
-                            .environment(\.managedObjectContext, coreDataStack.viewContext)
+                            .activeClassroomEnvironment(classroomWorkspace)
                             .environment(\.calendar, AppCalendar.shared)
                             .environment(\.appRouter, appRouter)
-                            .environment(\.dependencies, dependencies)
                             .environment(saveCoordinator)
                             .environment(restoreCoordinator)
                     }
@@ -484,10 +501,9 @@ struct MariasNotebookApp: App {
                         .frame(minWidth: 400, minHeight: 300)
                     } else {
                         PresentationDetailWindowHost(lessonAssignmentID: id)
-                            .environment(\.managedObjectContext, coreDataStack.viewContext)
+                            .activeClassroomEnvironment(classroomWorkspace)
                             .environment(\.calendar, AppCalendar.shared)
                             .environment(\.appRouter, appRouter)
-                            .environment(\.dependencies, dependencies)
                             .environment(saveCoordinator)
                             .environment(restoreCoordinator)
                     }
@@ -509,10 +525,9 @@ struct MariasNotebookApp: App {
                         .frame(minWidth: 500, minHeight: 360)
                 } else {
                     CommunityTopicWindowHost(topicID: id)
-                        .environment(\.managedObjectContext, coreDataStack.viewContext)
+                        .activeClassroomEnvironment(classroomWorkspace)
                         .environment(\.calendar, AppCalendar.shared)
                         .environment(\.appRouter, appRouter)
-                        .environment(\.dependencies, dependencies)
                         .environment(saveCoordinator)
                         .environment(restoreCoordinator)
                 }
@@ -532,10 +547,9 @@ struct MariasNotebookApp: App {
                         .frame(minWidth: 500, minHeight: 360)
                 } else {
                     ResourceDetailWindowHost(resourceID: id)
-                        .environment(\.managedObjectContext, coreDataStack.viewContext)
+                        .activeClassroomEnvironment(classroomWorkspace)
                         .environment(\.calendar, AppCalendar.shared)
                         .environment(\.appRouter, appRouter)
-                        .environment(\.dependencies, dependencies)
                         .environment(saveCoordinator)
                         .environment(restoreCoordinator)
                 }
@@ -555,10 +569,9 @@ struct MariasNotebookApp: App {
                         .frame(minWidth: 480, minHeight: 320)
                 } else {
                     NoteEditorWindowHost(noteID: id)
-                        .environment(\.managedObjectContext, coreDataStack.viewContext)
+                        .activeClassroomEnvironment(classroomWorkspace)
                         .environment(\.calendar, AppCalendar.shared)
                         .environment(\.appRouter, appRouter)
-                        .environment(\.dependencies, dependencies)
                         .environment(saveCoordinator)
                         .environment(restoreCoordinator)
                 }
@@ -577,10 +590,9 @@ struct MariasNotebookApp: App {
                         .frame(minWidth: 600, minHeight: 420)
                 } else {
                     StudentReportWindowHost(studentID: id)
-                        .environment(\.managedObjectContext, coreDataStack.viewContext)
+                        .activeClassroomEnvironment(classroomWorkspace)
                         .environment(\.calendar, AppCalendar.shared)
                         .environment(\.appRouter, appRouter)
-                        .environment(\.dependencies, dependencies)
                         .environment(saveCoordinator)
                         .environment(restoreCoordinator)
                 }
@@ -599,10 +611,9 @@ struct MariasNotebookApp: App {
                         .frame(minWidth: 640, minHeight: 480)
                 } else {
                     StudentDocumentsWindowHost(studentID: id)
-                        .environment(\.managedObjectContext, coreDataStack.viewContext)
+                        .activeClassroomEnvironment(classroomWorkspace)
                         .environment(\.calendar, AppCalendar.shared)
                         .environment(\.appRouter, appRouter)
-                        .environment(\.dependencies, dependencies)
                         .environment(saveCoordinator)
                         .environment(restoreCoordinator)
                 }
@@ -622,10 +633,9 @@ struct MariasNotebookApp: App {
                         .frame(minWidth: 700, minHeight: 500)
                 } else {
                     MeetingSessionWindowHost(payload: payload)
-                        .environment(\.managedObjectContext, coreDataStack.viewContext)
+                        .activeClassroomEnvironment(classroomWorkspace)
                         .environment(\.calendar, AppCalendar.shared)
                         .environment(\.appRouter, appRouter)
-                        .environment(\.dependencies, dependencies)
                         .environment(saveCoordinator)
                         .environment(restoreCoordinator)
                 }

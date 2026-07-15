@@ -1,5 +1,6 @@
 import Foundation
 import CoreData
+import OSLog
 
 // MARK: - Observer Setup
 
@@ -7,10 +8,15 @@ extension CloudKitSyncStatusService {
 
     // swiftlint:disable:next function_body_length
     func startObserving() {
+        guard let monitoredCoordinator = monitoredPersistentStoreCoordinator else {
+            Self.logger.warning("Cannot observe CloudKit status before a Core Data stack is configured")
+            return
+        }
+
         // Observe remote changes (incoming CloudKit sync)
         remoteChangeObserver = NotificationCenter.default.addObserver(
             forName: .NSPersistentStoreRemoteChange,
-            object: nil,
+            object: monitoredCoordinator,
             queue: .main
         ) { [weak self] _ in
             Task { @MainActor [weak self] in
@@ -27,8 +33,15 @@ extension CloudKitSyncStatusService {
         saveObserver = NotificationCenter.default.addObserver(
             forName: .NSManagedObjectContextDidSave,
             object: nil,
-            queue: .main
-        ) { [weak self] _ in
+            queue: nil
+        ) { [weak self] notification in
+            // Context-save notifications identify their source context. Filter
+            // on the posting context's queue before hopping to MainActor so a
+            // local-only Sample Class save cannot look like a CloudKit export.
+            guard let context = notification.object as? NSManagedObjectContext,
+                  context.persistentStoreCoordinator === monitoredCoordinator else {
+                return
+            }
             Task { @MainActor [weak self] in
                 guard let self else { return }
                 // Cancel any pending task to prevent accumulation
@@ -44,7 +57,7 @@ extension CloudKitSyncStatusService {
         // which can happen during migrations or configuration changes
         storeCoordinatorChangeObserver = NotificationCenter.default.addObserver(
             forName: .NSPersistentStoreCoordinatorStoresDidChange,
-            object: nil,
+            object: monitoredCoordinator,
             queue: .main
         ) { [weak self] _ in
             Task { @MainActor [weak self] in

@@ -23,6 +23,7 @@ extension UUID: @retroactive Identifiable {
 // swiftlint:disable:next type_body_length
 struct RootView: View {
     private static let logger = Logger.app_
+    let classroomWorkspace: ClassroomWorkspaceStore
 
     // MARK: - Storage
     @SceneStorage("RootView.selectedNavItem") private var selectedNavItemRaw: String?
@@ -35,6 +36,7 @@ struct RootView: View {
     @Environment(\.openWindow) private var openWindow
     #endif
     #if !os(macOS)
+    @Environment(\.horizontalSizeClass) private var horizontalSizeClass
     private let quickNoteTip = QuickNoteTip()
     #endif
     @State private var quickNoteParams: QuickNoteParams?
@@ -279,6 +281,40 @@ struct RootView: View {
                 }
             )
         }
+        .overlay {
+            if classroomWorkspace.isPreparingSample {
+                ZStack {
+                    Color.black.opacity(0.08)
+                        .ignoresSafeArea()
+
+                    VStack(spacing: 12) {
+                        ProgressView()
+                            .controlSize(.large)
+                        Text("Preparing Sample Class…")
+                            .font(.headline)
+                        Text("Copying the lesson catalog into its separate local classroom.")
+                            .font(.subheadline)
+                            .foregroundStyle(.secondary)
+                    }
+                    .padding(24)
+                    .background(.regularMaterial, in: RoundedRectangle(cornerRadius: 16))
+                    .shadow(radius: 12)
+                }
+            }
+        }
+        .alert(
+            "Couldn’t Open Sample Class",
+            isPresented: Binding(
+                get: { classroomWorkspace.preparationErrorMessage != nil },
+                set: { isPresented in
+                    if !isPresented { classroomWorkspace.dismissPreparationError() }
+                }
+            )
+        ) {
+            Button("OK") { classroomWorkspace.dismissPreparationError() }
+        } message: {
+            Text(classroomWorkspace.preparationErrorMessage ?? "The sample classroom could not be prepared.")
+        }
     }
 
     private var rootLayoutWithObservers: some View {
@@ -345,6 +381,11 @@ struct RootView: View {
     @ViewBuilder private var rootLayout: some View {
         let layout = VStack(spacing: 0) {
             warningBanners
+            #if os(iOS)
+            if horizontalSizeClass == .compact {
+                mobileContextBar
+            }
+            #endif
             Divider()
             mainContent
         }
@@ -352,15 +393,48 @@ struct RootView: View {
         #if os(macOS)
         layout
         #else
-        layout
-        .overlay(alignment: .topTrailing) {
-            searchAndSyncOverlay
+        if horizontalSizeClass == .compact {
+            layout
+        } else {
+            layout
+                .overlay(alignment: .topTrailing) {
+                    searchAndSyncOverlay
+                }
         }
         #endif
     }
 
+    #if os(iOS)
+    private var mobileContextBar: some View {
+        HStack(spacing: 10) {
+            MobileClassroomAndYearPicker(
+                workspaceStore: classroomWorkspace,
+                showsContextLabel: true
+            )
+
+            Spacer(minLength: 8)
+
+            Button {
+                isShowingSearch = true
+            } label: {
+                Image(systemName: "magnifyingglass")
+            }
+            .buttonStyle(.plain)
+            .accessibilityLabel("Search")
+
+            if !classroomWorkspace.isShowingSampleClass {
+                CompactSyncStatusIndicator(compact: true)
+            }
+        }
+        .padding(.horizontal, 14)
+        .padding(.vertical, 8)
+        .background(.bar)
+    }
+    #endif
+
     private var searchAndSyncOverlay: some View {
         HStack(spacing: 8) {
+            ClassroomWorkspacePicker(workspaceStore: classroomWorkspace)
             SchoolYearPicker()
             Button {
                 isShowingSearch = true
@@ -374,7 +448,9 @@ struct RootView: View {
             #if os(macOS)
             .help("Search notes, lessons, students, and todos (⌘F)")
             #endif
-            CompactSyncStatusIndicator(compact: true)
+            if !classroomWorkspace.isShowingSampleClass {
+                CompactSyncStatusIndicator(compact: true)
+            }
         }
         .padding(.trailing, 12)
         .padding(.top, 6)
@@ -382,12 +458,17 @@ struct RootView: View {
 
     @ViewBuilder
     private var warningBanners: some View {
+        if classroomWorkspace.isShowingSampleClass {
+            SampleClassroomBanner(workspaceStore: classroomWorkspace)
+        }
+
         if UserDefaults.standard.bool(forKey: UserDefaultsKeys.ephemeralSessionFlag) {
             EphemeralStoreWarningBanner()
         }
 
         let cloudStatus = CloudKitConfiguration.getCloudKitStatus()
-        if cloudStatus.enabled && !cloudStatus.active {
+        if !classroomWorkspace.isShowingSampleClass,
+           cloudStatus.enabled && !cloudStatus.active {
             CloudKitSyncWarningBanner()
         }
 
@@ -421,6 +502,10 @@ struct RootView: View {
     #if os(macOS)
     @ToolbarContentBuilder
     private var rootToolbar: some ToolbarContent {
+        ToolbarItem(id: "classroom", placement: .primaryAction) {
+            ClassroomWorkspacePicker(workspaceStore: classroomWorkspace)
+        }
+
         ToolbarItem(id: "schoolYear", placement: .primaryAction) {
             SchoolYearPicker()
         }
@@ -434,8 +519,10 @@ struct RootView: View {
             .help("Search notes, lessons, students, and todos (⌘F)")
         }
 
-        ToolbarItem(id: "syncStatus", placement: .primaryAction) {
-            CompactSyncStatusIndicator(compact: true)
+        if !classroomWorkspace.isShowingSampleClass {
+            ToolbarItem(id: "syncStatus", placement: .primaryAction) {
+                CompactSyncStatusIndicator(compact: true)
+            }
         }
     }
     #endif
@@ -488,6 +575,12 @@ struct RootView: View {
 }
 
 #Preview {
-    RootView()
-        .previewEnvironment()
+    let dependencies = AppDependencies(coreDataStack: CoreDataStack.preview)
+    let workspace = ClassroomWorkspaceStore(
+        primaryStack: CoreDataStack.preview,
+        primaryDependencies: dependencies
+    )
+    RootView(classroomWorkspace: workspace)
+        .environment(\.dependencies, dependencies)
+        .previewEnvironment(using: CoreDataStack.preview)
 }
