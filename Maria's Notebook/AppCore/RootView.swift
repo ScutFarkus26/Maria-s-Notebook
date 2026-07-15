@@ -34,6 +34,7 @@ struct RootView: View {
     @Environment(\.calendar) private var calendar
     #if os(macOS)
     @Environment(\.openWindow) private var openWindow
+    @Environment(\.dismissWindow) private var dismissWindow
     #endif
     #if !os(macOS)
     @Environment(\.horizontalSizeClass) private var horizontalSizeClass
@@ -50,6 +51,8 @@ struct RootView: View {
     @State private var workDetailIDToOpen: UUID?
     @State private var selectedNavItem: NavigationItem = .today
     @State private var companionViewModel = NotebookCompanionViewModel()
+    @AppStorage(UserDefaultsKeys.notebookCompanionVisible)
+    private var isNotebookCompanionVisible = true
     @AppStorage(UserDefaultsKeys.notebookCompanionDetached)
     private var isNotebookCompanionDetached = false
 
@@ -215,7 +218,7 @@ struct RootView: View {
         }
         #endif
         .overlay(alignment: .bottomTrailing) {
-            if !isNotebookCompanionDetached {
+            if isNotebookCompanionVisible && !isNotebookCompanionDetached {
                 QuickNoteGlassButton(
                     isShowingCommandBar: $isShowingCommandBar,
                     onNewPresentation: { createPresentationDraft() },
@@ -323,8 +326,17 @@ struct RootView: View {
         .task {
             companionViewModel.configure(context: viewContext)
             #if os(macOS)
-            if isNotebookCompanionDetached {
+            if isNotebookCompanionVisible && isNotebookCompanionDetached {
                 openWindow(id: "notebookCompanion")
+            }
+            #endif
+        }
+        .onChange(of: isNotebookCompanionVisible) { _, isVisible in
+            #if os(macOS)
+            if isVisible && isNotebookCompanionDetached {
+                openWindow(id: "notebookCompanion")
+            } else if !isVisible {
+                dismissWindow(id: "notebookCompanion")
             }
             #endif
         }

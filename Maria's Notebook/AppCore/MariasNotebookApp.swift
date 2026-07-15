@@ -266,6 +266,7 @@ struct MariasNotebookApp: App {
 
             // VIEW MENU — standard Show/Hide Sidebar (⌃⌘S) for the NavigationSplitView
             SidebarCommands()
+            NotebookCompanionCommands()
 
             CommandMenu("Classroom") {
                 Button("My Class") {

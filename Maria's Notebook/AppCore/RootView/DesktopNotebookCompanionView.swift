@@ -12,6 +12,8 @@ struct DesktopNotebookCompanionView: View {
     @Environment(\.openWindow) private var openWindow
     @Environment(\.dismissWindow) private var dismissWindow
 
+    @AppStorage(UserDefaultsKeys.notebookCompanionVisible)
+    private var isVisible = true
     @AppStorage(UserDefaultsKeys.notebookCompanionDetached)
     private var isDetached = false
     @AppStorage(UserDefaultsKeys.notebookCompanionHasDesktopPosition)
@@ -62,8 +64,15 @@ struct DesktopNotebookCompanionView: View {
         .accessibilityLabel(accessibilityLabel)
         .accessibilityHint("Opens the notebook companion")
         .onAppear {
+            isVisible = true
             isDetached = true
             viewModel.configure(context: viewContext)
+        }
+        .onChange(of: isVisible) { _, shouldShow in
+            if !shouldShow {
+                isPanelPresented = false
+                dismissWindow(id: "notebookCompanion")
+            }
         }
         .onReceive(
             NotificationCenter.default.publisher(
@@ -139,7 +148,8 @@ struct DesktopNotebookCompanionView: View {
                 }
             },
             placementAction: .returnToApp,
-            onChangePlacement: returnToApp
+            onChangePlacement: returnToApp,
+            onHide: hideCompanion
         )
     }
 
@@ -156,6 +166,7 @@ struct DesktopNotebookCompanionView: View {
         }
         Divider()
         Button("Return to App", systemImage: "rectangle.inset.filled", action: returnToApp)
+        Button("Hide Companion", systemImage: "eye.slash", role: .destructive, action: hideCompanion)
     }
 
     private var accessibilityLabel: String {
@@ -179,6 +190,11 @@ struct DesktopNotebookCompanionView: View {
         openWindow(id: "mainWindow")
         NSApp.activate(ignoringOtherApps: true)
         dismissWindow(id: "notebookCompanion")
+    }
+
+    private func hideCompanion() {
+        isPanelPresented = false
+        isVisible = false
     }
 
     private func performInMainApp(_ action: @escaping @MainActor () -> Void) {

@@ -330,6 +330,11 @@ extension SettingsView {
     // 6. AI Features
     var aiFeaturesSection: some View {
         VStack(spacing: 12) {
+            SettingsGroup(title: "Notebook Companion", systemImage: "graduationcap.fill") {
+                NotebookCompanionSettingsView()
+                    .frame(maxWidth: .infinity)
+            }
+
             SettingsGroup(title: "AI Models", systemImage: "cpu") {
                 AIModelSettingsView()
                     .frame(maxWidth: .infinity)
@@ -689,5 +694,50 @@ extension SettingsView {
             }
             Spacer()
         }
+    }
+}
+
+private struct NotebookCompanionSettingsView: View {
+    @AppStorage(UserDefaultsKeys.notebookCompanionVisible)
+    private var isVisible = true
+    #if os(macOS)
+    @AppStorage(UserDefaultsKeys.notebookCompanionDetached)
+    private var isDetached = false
+    @Environment(\.openWindow) private var openWindow
+    @Environment(\.dismissWindow) private var dismissWindow
+    #endif
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 6) {
+            Toggle("Show Notebook Companion", isOn: visibilityBinding)
+            Text(helpText)
+                .font(.caption)
+                .foregroundStyle(.secondary)
+                .fixedSize(horizontal: false, vertical: true)
+        }
+    }
+
+    private var visibilityBinding: Binding<Bool> {
+        Binding(
+            get: { isVisible },
+            set: { newValue in
+                isVisible = newValue
+                #if os(macOS)
+                if newValue && isDetached {
+                    openWindow(id: "notebookCompanion")
+                } else if !newValue {
+                    dismissWindow(id: "notebookCompanion")
+                }
+                #endif
+            }
+        )
+    }
+
+    private var helpText: String {
+        #if os(macOS)
+        "You can also show or hide him from the View menu."
+        #else
+        "Turn this back on whenever you want the companion to return."
+        #endif
     }
 }

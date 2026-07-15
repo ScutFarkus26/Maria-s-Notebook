@@ -349,6 +349,7 @@ struct NotebookCompanionPanel: View {
     let onReviewTodos: () -> Void
     var placementAction: PlacementAction?
     var onChangePlacement: (() -> Void)?
+    var onHide: (() -> Void)?
 
     private var state: NotebookCompanionState {
         snapshot.state(isWorking: isWorking)
@@ -362,7 +363,7 @@ struct NotebookCompanionPanel: View {
             primaryAction
             suggestionGrid
             footerActions
-            placementButton
+            displayButtons
         }
         .padding(AppTheme.Spacing.medium)
         .frame(minWidth: 320, idealWidth: 360, maxWidth: 400)
@@ -470,12 +471,21 @@ struct NotebookCompanionPanel: View {
     }
 
     @ViewBuilder
-    private var placementButton: some View {
-        if let placementAction, let onChangePlacement {
+    private var displayButtons: some View {
+        if placementAction != nil || onHide != nil {
             Divider()
-            Button(action: onChangePlacement) {
-                Label(placementAction.title, systemImage: placementAction.icon)
-                    .frame(maxWidth: .infinity)
+            HStack {
+                if let placementAction, let onChangePlacement {
+                    Button(action: onChangePlacement) {
+                        Label(placementAction.title, systemImage: placementAction.icon)
+                    }
+                }
+                Spacer()
+                if let onHide {
+                    Button(action: onHide) {
+                        Label("Hide Companion", systemImage: "eye.slash")
+                    }
+                }
             }
             .buttonStyle(.plain)
             .font(AppTheme.ScaledFont.caption)

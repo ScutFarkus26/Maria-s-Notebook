@@ -6,6 +6,8 @@ import SwiftUI
 // Isolated component to prevent RootView re-renders during drag
 // swiftlint:disable:next type_body_length
 struct QuickNoteGlassButton: View {
+    @AppStorage(UserDefaultsKeys.notebookCompanionVisible)
+    private var isNotebookCompanionVisible = true
     #if os(macOS)
     @Environment(\.openWindow) private var openWindow
     @AppStorage(UserDefaultsKeys.notebookCompanionDetached)
@@ -125,6 +127,11 @@ struct QuickNoteGlassButton: View {
             moveCompanionToDesktop()
         } label: {
             Label("Move to Desktop", systemImage: "macwindow.on.rectangle")
+        }
+        Button(role: .destructive) {
+            hideCompanion()
+        } label: {
+            Label("Hide Companion", systemImage: "eye.slash")
         }
         Divider()
         ForEach(PieMenuAction.allCases, id: \.self) { action in
@@ -262,7 +269,8 @@ struct QuickNoteGlassButton: View {
                 performCompanionAction(action: onReviewTodos)
             },
             placementAction: companionPlacementAction,
-            onChangePlacement: companionPlacementHandler
+            onChangePlacement: companionPlacementHandler,
+            onHide: hideCompanion
         )
     }
 
@@ -291,6 +299,11 @@ struct QuickNoteGlassButton: View {
     #else
     private func moveCompanionToDesktop() {}
     #endif
+
+    private func hideCompanion() {
+        isCompanionPresented = false
+        isNotebookCompanionVisible = false
+    }
 
     private var companionAccessibilityLabel: String {
         if isAIWorking {
