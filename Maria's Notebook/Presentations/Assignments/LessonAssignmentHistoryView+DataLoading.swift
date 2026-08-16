@@ -32,7 +32,7 @@ extension LessonAssignmentHistoryView {
         if let limit {
             hasLoadedMore = loadedAssignments.count < limit
         } else {
-            hasLoadedMore = false // No limit means we loaded everything
+            hasLoadedMore = true // No limit means we loaded everything
         }
     }
 

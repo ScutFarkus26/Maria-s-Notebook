@@ -10,6 +10,7 @@ struct ChatView: View {
     @Environment(\.dependencies) private var dependencies
     @Environment(\.appRouter) private var appRouter
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
+    @Environment(\.scenePhase) private var scenePhase
     @State private var viewModel = ChatViewModel()
     @State private var iconPulse = false
     @State private var iconRotation: Double = 0
@@ -238,13 +239,12 @@ struct ChatView: View {
                         .scaleEffect(iconPulse ? 1.08 : 1.0)
                         .rotationEffect(.degrees(iconRotation))
                 }
-                .onAppear {
-                    guard !reduceMotion else { return }
-                    withAnimation(.easeInOut(duration: 2.5).repeatForever(autoreverses: true)) {
-                        iconPulse = true
-                    }
-                    withAnimation(.easeInOut(duration: 6.0).repeatForever(autoreverses: true)) {
-                        iconRotation = 8
+                .onAppear(perform: startHeroAnimation)
+                .onChange(of: scenePhase) { _, newPhase in
+                    if newPhase == .active {
+                        startHeroAnimation()
+                    } else {
+                        stopHeroAnimation()
                     }
                 }
 
@@ -283,6 +283,30 @@ struct ChatView: View {
                     }
             }
             .padding(.horizontal, AppTheme.Spacing.large)
+        }
+    }
+
+    /// Starts the empty-state hero animation. Bounded rather than `repeatForever`,
+    /// and restarted on scene activation, so an idle or backgrounded window isn't
+    /// driving the render loop for nothing.
+    private func startHeroAnimation() {
+        guard !reduceMotion else { return }
+        withAnimation(.easeInOut(duration: 2.5).repeatCount(120, autoreverses: true)) {
+            iconPulse = true
+        }
+        withAnimation(.easeInOut(duration: 6.0).repeatCount(50, autoreverses: true)) {
+            iconRotation = 8
+        }
+    }
+
+    /// Snaps the hero back to rest without animating, so the next activation has a
+    /// state change to animate from.
+    private func stopHeroAnimation() {
+        var transaction = Transaction()
+        transaction.disablesAnimations = true
+        withTransaction(transaction) {
+            iconPulse = false
+            iconRotation = 0
         }
     }
 

@@ -10,6 +10,7 @@ struct UnifiedPresentationWorkflowSheet: View {
     let students: [CDStudent]
     let lessonName: String
     let lessonID: UUID
+    let presentationID: UUID
     
     // MARK: - Callbacks
     
@@ -32,6 +33,7 @@ struct UnifiedPresentationWorkflowSheet: View {
         students: [CDStudent],
         lessonName: String,
         lessonID: UUID,
+        presentationID: UUID,
         onComplete: @escaping () -> Void,
         onCancel: @escaping () -> Void
     ) {
@@ -39,6 +41,7 @@ struct UnifiedPresentationWorkflowSheet: View {
         self.students = deduped
         self.lessonName = lessonName
         self.lessonID = lessonID
+        self.presentationID = presentationID
         self.onComplete = onComplete
         self.onCancel = onCancel
         
@@ -53,6 +56,7 @@ struct UnifiedPresentationWorkflowSheet: View {
             students: students,
             lessonName: lessonName,
             lessonID: lessonID,
+            presentationID: presentationID,
             onComplete: {
                 onComplete()
                 dismiss()
@@ -87,7 +91,6 @@ struct UnifiedPresentationWorkflowSheet: View {
                 Button("Complete & Save All") {
                     triggerCompletion = true
                 }
-                .disabled(!presentationViewModel.hasValidStatus)
             }
         }
     }

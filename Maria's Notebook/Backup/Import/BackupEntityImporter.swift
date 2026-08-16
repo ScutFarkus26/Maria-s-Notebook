@@ -18,19 +18,31 @@ import OSLog
 enum BackupEntityImporter {
     private static let logger = Logger.backup
 
-    /// Type alias for a function that checks if an entity with a given ID exists
-    typealias EntityExistsCheck<T: NSManagedObject> = (UUID) throws -> T?
+    /// Type alias for a function that checks if an entity with a given ID exists.
+    ///
+    /// Answers existence only, never the object: no caller has ever used the
+    /// matched record, and returning one forced the restore index to keep a fully
+    /// materialized copy of every table (blob columns included) in memory.
+    typealias EntityExistsCheck = (UUID) throws -> Bool
+
+    /// Type alias for a function that resolves a relationship target by ID.
+    ///
+    /// Distinct from `EntityExistsCheck` on purpose: these callers assign the
+    /// result to a relationship, so they need the object — and they're backed by
+    /// `BackupEntityIndex.related`, which must see records inserted earlier in
+    /// this same restore.
+    typealias EntityLookup<T: NSManagedObject> = (UUID) throws -> T?
 
     // MARK: - Common Helpers
 
     /// Generic helper to check if an entity exists and skip if it does.
     /// Returns true if the entity should be skipped (already exists).
-    static func shouldSkipExisting<T: NSManagedObject>(
+    static func shouldSkipExisting(
         id: UUID,
-        existingCheck: EntityExistsCheck<T>
+        existingCheck: EntityExistsCheck
     ) -> Bool {
         do {
-            return try existingCheck(id) != nil
+            return try existingCheck(id)
         } catch {
             logger.warning("Failed to check if entity exists: \(error.localizedDescription, privacy: .public)")
             return false
@@ -41,7 +53,7 @@ enum BackupEntityImporter {
     static func importSimpleEntities<DTO, Entity: NSManagedObject>(
         _ dtos: [DTO],
         into viewContext: NSManagedObjectContext,
-        existingCheck: EntityExistsCheck<Entity>,
+        existingCheck: EntityExistsCheck,
         idExtractor: (DTO) -> UUID,
         entityBuilder: (DTO) -> Entity
     ) rethrows {

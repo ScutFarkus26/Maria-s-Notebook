@@ -13,10 +13,34 @@ import Testing
 @MainActor
 final class DeduplicationMergeTests {
 
+    private struct FollowUpBundle: Equatable {
+        let actionRaw: String?
+        let reviewAt: Date?
+        let resolvedAt: Date?
+        let resolutionRaw: String?
+        let updatedAt: Date?
+        let evidenceRaw: String?
+        let note: String?
+        let supportRaw: String?
+    }
+
     /// Deterministic UUIDs whose string order matches the numeric suffix,
     /// so tests can rely on the "lowest id survives" rule.
     private func uuid(_ suffix: Int) -> UUID {
         UUID(uuidString: String(format: "00000000-0000-0000-0000-%012d", suffix))!
+    }
+
+    private func followUpBundle(_ row: CDLessonPresentation) -> FollowUpBundle {
+        FollowUpBundle(
+            actionRaw: row.followUpActionRaw,
+            reviewAt: row.followUpReviewAt,
+            resolvedAt: row.followUpResolvedAt,
+            resolutionRaw: row.followUpResolutionRaw,
+            updatedAt: row.followUpUpdatedAt,
+            evidenceRaw: row.followUpEvidenceRaw,
+            note: row.followUpNote,
+            supportRaw: row.followUpSupportRaw
+        )
     }
 
     // MARK: - Generic id-based dedup
@@ -226,6 +250,49 @@ final class DeduplicationMergeTests {
         #expect(CoreDataTestHelpers.save(ctx))
         DataCleanupService.deduplicateDraftLessonAssignments(using: ctx)
         #expect(ctx.safeFetch(CDFetchRequest(CDLessonAssignment.self)).count == 2)
+    }
+
+    // MARK: - Presentation follow-up dedup
+
+    @Test("Lesson presentation dedup keeps the entire newest follow-up decision together")
+    func lessonPresentationDedupKeepsNewestFollowUpBundle() throws {
+        let stack = try CoreDataTestHelpers.makeInMemoryStack()
+        let ctx = stack.viewContext
+        let sharedID = uuid(9)
+        let olderUpdate = Date(timeIntervalSince1970: 2_000)
+        let newerUpdate = Date(timeIntervalSince1970: 3_000)
+        let reviewAt = Date(timeIntervalSince1970: 4_000)
+        let resolvedAt = Date(timeIntervalSince1970: 5_000)
+
+        let canonical = CDLessonPresentation(context: ctx)
+        canonical.id = sharedID
+        canonical.createdAt = Date(timeIntervalSince1970: 1_000)
+        canonical.followUpAction = .watchWork
+        canonical.followUpUpdatedAt = olderUpdate
+        canonical.followUpEvidence = [.choseIndependently]
+        canonical.followUpNote = "Older observation"
+
+        let duplicate = CDLessonPresentation(context: ctx)
+        duplicate.id = sharedID
+        duplicate.createdAt = Date(timeIntervalSince1970: 1_500)
+        duplicate.followUpAction = .planSupport
+        duplicate.followUpReviewAt = reviewAt
+        duplicate.followUpResolvedAt = resolvedAt
+        duplicate.followUpResolution = .supportOrRepresent
+        duplicate.followUpUpdatedAt = newerUpdate
+        duplicate.followUpEvidence = [.concentrated, .encounteredDifficulty]
+        duplicate.followUpNote = "Newer factual observation"
+        duplicate.followUpSupport = .confer
+        let expectedBundle = followUpBundle(duplicate)
+
+        #expect(CoreDataTestHelpers.save(ctx))
+        #expect(DataCleanupService.deduplicateLessonPresentationsStrong(using: ctx) == 1)
+
+        let remaining = ctx.safeFetch(CDFetchRequest(CDLessonPresentation.self))
+        let survivor = try #require(remaining.first)
+        #expect(remaining.count == 1)
+        #expect(survivor.objectID == canonical.objectID)
+        #expect(followUpBundle(survivor) == expectedBundle)
     }
 
     // MARK: - Work model dedup re-parents Cascade children

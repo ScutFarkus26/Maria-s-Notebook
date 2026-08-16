@@ -59,13 +59,14 @@ struct LifecycleService {
 
     /// Upsert CDLessonPresentation idempotently by (presentationID, studentID).
     /// If exists: updates lastObservedAt. If not exists: creates new with state .presented.
+    @discardableResult
     static func upsertLessonPresentation(
         presentationID: String,
         studentID: String,
         lessonID: String,
         presentedAt: Date,
         context: NSManagedObjectContext
-    ) throws {
+    ) throws -> CDLessonPresentation {
         // PERFORMANCE: Use predicate to filter at database level instead of loading all records
         let request = CDFetchRequest(CDLessonPresentation.self)
         request.predicate = NSPredicate(format: "presentationID == %@ AND studentID == %@", presentationID, studentID)
@@ -75,6 +76,7 @@ struct LifecycleService {
         if let existing {
             // Update lastObservedAt to track when this presentation was last seen
             existing.lastObservedAt = presentedAt
+            return existing
         } else {
             // Create new CDLessonPresentation with initial state .presented
             let lessonPresentation = CDLessonPresentation(context: context)
@@ -84,6 +86,7 @@ struct LifecycleService {
             lessonPresentation.state = .presented
             lessonPresentation.presentedAt = presentedAt
             lessonPresentation.lastObservedAt = presentedAt
+            return lessonPresentation
         }
     }
 

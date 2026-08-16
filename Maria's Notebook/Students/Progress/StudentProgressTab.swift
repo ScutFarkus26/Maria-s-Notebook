@@ -15,12 +15,16 @@ struct StudentProgressTab: View {
     let student: CDStudent
 
     @Environment(\.managedObjectContext) private var viewContext
+    #if os(macOS)
+    @Environment(\.openWindow) private var openWindow
+    #endif
     @State private var viewModel = StudentProgressTabViewModel()
 
     // MARK: - State
     @State private var selectedEnrollment: CDStudentTrackEnrollmentEntity?
     @State private var selectedProject: CDProject?
     @State private var selectedReport: CDWorkModel?
+    @State private var selectedFollowUpAssignment: CDLessonAssignment?
     @State private var filterSheet: FilterSheet?
 
     // MARK: - Filter Sheet State
@@ -46,6 +50,14 @@ struct StudentProgressTab: View {
     var body: some View {
         ScrollView {
             VStack(spacing: 20) {
+                if let studentID = student.id {
+                    FollowingPresentationsView(
+                        style: .student,
+                        studentID: studentID,
+                        onOpen: openFollowingPresentation
+                    )
+                }
+
                 if !viewModel.activeProjects.isEmpty {
                     VStack(alignment: .leading, spacing: 12) {
                         Label("Active Projects", systemImage: "book.closed.fill")
@@ -128,6 +140,14 @@ struct StudentProgressTab: View {
             }
             .studentDetailSheetSizing()
         }
+        #if os(iOS)
+        .sheet(item: $selectedFollowUpAssignment) { assignment in
+            PresentationDetailView(lessonAssignment: assignment) {
+                selectedFollowUpAssignment = nil
+            }
+            .studentDetailSheetSizing()
+        }
+        #endif
         .sheet(item: $filterSheet) { sheet in
             TrackFilteredListSheet(
                 sheet: sheet,
@@ -135,6 +155,15 @@ struct StudentProgressTab: View {
                 onDismiss: { filterSheet = nil }
             )
         }
+    }
+
+    private func openFollowingPresentation(_ assignment: CDLessonAssignment) {
+        #if os(macOS)
+        guard let id = assignment.id else { return }
+        openWindow(id: "PresentationDetailWindow", value: id)
+        #else
+        selectedFollowUpAssignment = assignment
+        #endif
     }
     
     // MARK: - Empty State

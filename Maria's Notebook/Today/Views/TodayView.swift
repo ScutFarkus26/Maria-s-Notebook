@@ -258,6 +258,7 @@ struct TodayView: View {
                 .listRowInsets(EdgeInsets())
             // What's next, then today's surfaces
             rightNowListSection
+            followingPresentationsListSection
             deadlinesListSection
             dayCardsListSection
             agendaListSection
@@ -283,6 +284,7 @@ struct TodayView: View {
             // Left column: glanceable surfaces; Right column: live agenda
             List {
                 rightNowListSection
+                followingPresentationsListSection
                 deadlinesListSection
                 dayCardsListSection
                 todosListSection

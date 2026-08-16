@@ -11,8 +11,8 @@ private let logger = Logger.students
 // One NavigationSplitView spine on every platform:
 // - Sidebar: roster list with search, scope chips, sort-contextual rows,
 //   and a collapsible Withdrawn section.
-// - Detail: the selected student inline (pushed on iPhone), or the card-grid
-//   browser when the grid view style is active and nothing is selected.
+// - Detail: the selected student inline on iPhone, or the mobile grid browser
+//   when no student is selected.
 struct StudentsView: View {
     @Environment(\.managedObjectContext) var viewContext
     @Environment(\.appRouter) private var appRouter
@@ -49,6 +49,7 @@ struct StudentsView: View {
     // MARK: - State
     @State var searchText: String = ""
     @State var showingAddStudent = false
+    @State var showingRollover = false
     @State var selectedStudentID: UUID?
     @State var isWithdrawnExpanded = false
     @State private var columnVisibility: NavigationSplitViewVisibility = .all
@@ -75,14 +76,7 @@ struct StudentsView: View {
     var body: some View {
         Group {
             #if os(macOS)
-            NavigationSplitView(columnVisibility: $columnVisibility) {
-                workspaceSidebarColumn
-            } content: {
-                macRosterColumn
-            } detail: {
-                macDetailColumn
-            }
-            .navigationSplitViewStyle(.balanced)
+            macWorkspace
             #else
             NavigationSplitView(columnVisibility: $columnVisibility) {
                 sidebarColumn
@@ -95,6 +89,12 @@ struct StudentsView: View {
         .sheet(isPresented: $showingAddStudent) {
             AddStudentView()
                 .presentationSizingFitted()
+        }
+        .sheet(isPresented: $showingRollover) {
+            SchoolYearRolloverView()
+                #if os(macOS)
+                .frame(minWidth: 640, minHeight: 560)
+                #endif
         }
         .alert(item: $importAlert) { alert in
             Alert(title: Text(alert.title), message: Text(alert.message), dismissButton: .default(Text("OK")))
@@ -182,37 +182,36 @@ struct StudentsView: View {
     }
 
     #if os(macOS)
-    /// macOS gets the full browse → compare → inspect workspace. The middle
-    /// column remains visible while a student is selected, so a guide can keep
-    /// their place in the roster while reviewing a record.
-    @ViewBuilder
-    private var macRosterColumn: some View {
-        Group {
-            if viewStyle == .table {
-                StudentsTableView(
-                    students: macRosterStudents,
-                    nextLessonNames: viewModel.cachedNextLessonNames,
-                    lastObservationDates: viewModel.cachedLastObservationDates,
-                    presentNowIDs: presentNowIDs,
-                    selectedStudentID: $selectedStudentID
-                )
-            } else {
-                StudentsCardsGridView(
-                    students: macRosterStudents,
-                    isBirthdayMode: false,
-                    isAgeMode: false,
-                    isLastLessonMode: false,
-                    lastLessonDays: [:],
-                    isManualMode: false,
-                    onTapStudent: { student in selectedStudentID = student.id },
-                    onReorder: { _, _, _, _ in }
-                )
+    /// The app already supplies the outer navigation split view. Using a
+    /// second NavigationSplitView here makes macOS apply that outer sidebar's
+    /// safe-area inset again, leaving a false blank column before the table.
+    /// HSplitView provides the same user-resizable Mac workspace without
+    /// nesting navigation containers.
+    private var macWorkspace: some View {
+        HSplitView {
+            workspaceSidebarColumn
+
+            macRosterColumn
+
+            if selectedStudent != nil {
+                macDetailColumn
+                    .frame(minWidth: 480, idealWidth: 720)
             }
         }
-        .navigationTitle(isShowingWithdrawnRoster ? "Withdrawn Students" : "Student Roster")
+        .navigationTitle(isShowingWithdrawnRoster ? "Former Students" : "Student Roster")
         .inlineNavigationTitle()
-        .navigationSplitViewColumnWidth(min: 340, ideal: 520)
-        .toolbar { rosterToolbar }
+    }
+
+    @ViewBuilder
+    private var macRosterColumn: some View {
+        StudentsTableView(
+            students: macRosterStudents,
+            nextLessonNames: viewModel.cachedNextLessonNames,
+            lastObservationDates: viewModel.cachedLastObservationDates,
+            presentNowIDs: presentNowIDs,
+            selectedStudentID: $selectedStudentID
+        )
+        .frame(minWidth: 340, idealWidth: 520)
     }
 
     @ViewBuilder
@@ -233,45 +232,20 @@ struct StudentsView: View {
         isShowingWithdrawnRoster ? withdrawnStudents : filteredStudents
     }
 
-    @ToolbarContentBuilder
-    private var rosterToolbar: some ToolbarContent {
-        if viewStyle != .table {
-            ToolbarItem(placement: .automatic) { sortMenu }
-        }
-        ToolbarItem(placement: .primaryAction) { rosterViewMenu }
-    }
     #endif
 
     @ViewBuilder
     private var rosterBrowser: some View {
-        #if os(macOS)
-        if viewStyle == .table {
-            tableBrowser
-        } else {
-            gridBrowser
-        }
-        #else
+        #if os(iOS)
         if viewStyle == .grid {
             gridBrowser
         } else {
             SelectStudentEmptyState()
         }
+        #else
+        EmptyView()
         #endif
     }
-
-    #if os(macOS)
-    private var tableBrowser: some View {
-        StudentsTableView(
-            students: filteredStudents,
-            nextLessonNames: viewModel.cachedNextLessonNames,
-            lastObservationDates: viewModel.cachedLastObservationDates,
-            presentNowIDs: presentNowIDs,
-            selectedStudentID: $selectedStudentID
-        )
-        .navigationTitle("Students")
-        .inlineNavigationTitle()
-    }
-    #endif
 
     /// Full-width card grid shown in the compact detail area when nothing is
     /// selected. Sorting changes order, never the visual language of a child
@@ -293,7 +267,7 @@ struct StudentsView: View {
 
     @ToolbarContentBuilder
     private var detailToolbar: some ToolbarContent {
-        if viewStyle == .grid || viewStyle == .table {
+        if viewStyle == .grid {
             ToolbarItem(placement: .primaryAction) {
                 Button {
                     selectedStudentID = nil

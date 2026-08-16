@@ -11,7 +11,7 @@ extension BackupEntityImporter {
     static func importTracks(
         _ dtos: [TrackDTO],
         into viewContext: NSManagedObjectContext,
-        existingCheck: EntityExistsCheck<CDTrackEntity>
+        existingCheck: EntityExistsCheck
     ) rethrows {
         try importSimpleEntities(
             dtos, into: viewContext,
@@ -31,8 +31,8 @@ extension BackupEntityImporter {
     static func importTrackSteps(
         _ dtos: [TrackStepDTO],
         into viewContext: NSManagedObjectContext,
-        existingCheck: EntityExistsCheck<CDTrackStepEntity>,
-        trackCheck: EntityExistsCheck<CDTrackEntity>
+        existingCheck: EntityExistsCheck,
+        trackCheck: EntityLookup<CDTrackEntity>
     ) rethrows {
         var imported = 0
         for dto in dtos {
@@ -70,9 +70,9 @@ extension BackupEntityImporter {
     static func importStudentTrackEnrollments(
         _ dtos: [StudentTrackEnrollmentDTO],
         into viewContext: NSManagedObjectContext,
-        existingCheck: EntityExistsCheck<CDStudentTrackEnrollmentEntity>,
-        studentCheck: EntityExistsCheck<CDStudent>,
-        trackCheck: EntityExistsCheck<CDTrackEntity>
+        existingCheck: EntityExistsCheck,
+        studentCheck: EntityLookup<CDStudent>,
+        trackCheck: EntityLookup<CDTrackEntity>
     ) rethrows {
         try importSimpleEntities(
             dtos, into: viewContext,
@@ -102,7 +102,7 @@ extension BackupEntityImporter {
     static func importSequenceTracks(
         _ dtos: [SequenceTrackDTO],
         into viewContext: NSManagedObjectContext,
-        existingCheck: EntityExistsCheck<CDSequenceTrack>
+        existingCheck: EntityExistsCheck
     ) rethrows {
         try importSimpleEntities(
             dtos, into: viewContext,

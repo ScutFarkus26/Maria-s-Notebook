@@ -19,7 +19,7 @@ extension BackupEntityImporter {
     static func importDayPads(
         _ dtos: [DayPadDTO],
         into viewContext: NSManagedObjectContext,
-        existingCheck: EntityExistsCheck<CDDayPad>
+        existingCheck: EntityExistsCheck
     ) rethrows {
         for dto in dtos {
             if shouldSkipExisting(id: dto.id, existingCheck: existingCheck) { continue }
@@ -40,7 +40,7 @@ extension BackupEntityImporter {
     static func importYearPlanEntries(
         _ dtos: [YearPlanEntryDTO],
         into viewContext: NSManagedObjectContext,
-        existingCheck: EntityExistsCheck<CDYearPlanEntry>
+        existingCheck: EntityExistsCheck
     ) rethrows {
         try importSimpleEntities(
             dtos, into: viewContext,
@@ -68,7 +68,7 @@ extension BackupEntityImporter {
     static func importLessonSequenceSettings(
         _ dtos: [LessonSequenceSettingsDTO],
         into viewContext: NSManagedObjectContext,
-        existingCheck: EntityExistsCheck<CDLessonSequenceSettings>
+        existingCheck: EntityExistsCheck
     ) rethrows {
         try importSimpleEntities(
             dtos, into: viewContext,
@@ -92,7 +92,7 @@ extension BackupEntityImporter {
     static func importStories(
         _ dtos: [StoryDTO],
         into viewContext: NSManagedObjectContext,
-        existingCheck: EntityExistsCheck<CDStory>
+        existingCheck: EntityExistsCheck
     ) rethrows {
         try importSimpleEntities(
             dtos, into: viewContext,
@@ -129,7 +129,7 @@ extension BackupEntityImporter {
     static func importBookClubPackets(
         _ dtos: [BookClubPacketDTO],
         into viewContext: NSManagedObjectContext,
-        existingCheck: EntityExistsCheck<CDBookClubPacket>
+        existingCheck: EntityExistsCheck
     ) rethrows {
         try importSimpleEntities(
             dtos, into: viewContext,
@@ -159,7 +159,7 @@ extension BackupEntityImporter {
     static func importBookClubSessions(
         _ dtos: [BookClubSessionDTO],
         into viewContext: NSManagedObjectContext,
-        existingCheck: EntityExistsCheck<CDBookClubSession>
+        existingCheck: EntityExistsCheck
     ) rethrows {
         try importSimpleEntities(
             dtos, into: viewContext,
@@ -189,8 +189,8 @@ extension BackupEntityImporter {
     static func importBookClubMeetings(
         _ dtos: [BookClubMeetingDTO],
         into viewContext: NSManagedObjectContext,
-        existingCheck: EntityExistsCheck<CDBookClubMeeting>,
-        sessionCheck: EntityExistsCheck<CDBookClubSession>
+        existingCheck: EntityExistsCheck,
+        sessionCheck: EntityLookup<CDBookClubSession>
     ) rethrows {
         for dto in dtos {
             if shouldSkipExisting(id: dto.id, existingCheck: existingCheck) { continue }

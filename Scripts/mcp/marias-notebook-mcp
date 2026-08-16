@@ -1,0 +1,49 @@
+#!/bin/sh
+#
+# marias-notebook-mcp — stdio bridge between an MCP client (Claude Desktop,
+# Claude Code) and the MCP server inside the running Maria's Notebook app.
+#
+# The app listens on loopback TCP (the App Sandbox cannot bind Unix
+# sockets anywhere external clients could reach without TCC prompts).
+# MCP clients speak newline-delimited JSON-RPC over stdio; netcat relays
+# the byte streams verbatim after a one-line AUTH preamble carrying the
+# per-install token the app wrote to ~/.marias-notebook/mcp.token.
+#
+# Claude Desktop config (~/Library/Application Support/Claude/claude_desktop_config.json):
+#   { "mcpServers": { "marias-notebook": { "command": "<absolute path to this script>" } } }
+#
+set -eu
+
+BUNDLE_ID="DanielSDeBerry.MariasNoteBook"
+PORT=43117
+TOKEN_FILE="$HOME/.marias-notebook/mcp.token"
+
+port_open() {
+    /usr/bin/nc -z 127.0.0.1 "$PORT" >/dev/null 2>&1
+}
+
+# Launch the app (backgrounded, without stealing focus) if the server is
+# not up yet. Set MARIAS_NOTEBOOK_NO_AUTOLAUNCH=1 to disable.
+if ! port_open && [ -z "${MARIAS_NOTEBOOK_NO_AUTOLAUNCH:-}" ]; then
+    open -g -b "$BUNDLE_ID" 2>/dev/null || true
+    waited=0
+    while ! port_open && [ "$waited" -lt 100 ]; do
+        sleep 0.2
+        waited=$((waited + 1))
+    done
+fi
+
+if ! port_open; then
+    printf 'Maria'\''s Notebook MCP server is not listening on 127.0.0.1:%s\n' "$PORT" >&2
+    printf 'Open the app and enable Claude Desktop access in Settings, then retry.\n' >&2
+    exit 1
+fi
+
+if [ ! -r "$TOKEN_FILE" ]; then
+    printf 'MCP auth token not found at %s\n' "$TOKEN_FILE" >&2
+    printf 'Enable Claude Desktop access in the app'\''s Settings to create it.\n' >&2
+    exit 1
+fi
+
+# Prepend the AUTH line, then relay stdio verbatim.
+{ printf 'AUTH %s\n' "$(cat "$TOKEN_FILE")"; exec /bin/cat; } | exec /usr/bin/nc 127.0.0.1 "$PORT"

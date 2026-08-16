@@ -5,6 +5,7 @@ struct AppColors {
         switch level {
         case .upper: return .pink
         case .lower: return .blue
+        case .adolescent: return .orange
         }
     }
 

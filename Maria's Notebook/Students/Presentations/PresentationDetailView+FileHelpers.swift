@@ -12,6 +12,7 @@ struct IndependentWorkflowWindow: View {
     let students: [CDStudent]
     let lessonName: String
     let lessonID: UUID
+    let presentationID: UUID?
     let onComplete: () -> Void
     let onCancel: () -> Void
 
@@ -50,6 +51,7 @@ struct IndependentWorkflowWindow: View {
                 students: students,
                 lessonName: lessonName,
                 lessonID: lessonID,
+                presentationID: presentationID,
                 onComplete: {
                     onComplete()
                     dismiss()

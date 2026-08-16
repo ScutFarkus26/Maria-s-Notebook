@@ -123,6 +123,10 @@ struct PresentationDetailContentView: View {
     @State var showUnsavedChangesAlert: Bool = false
     @State var showIndependentWorkflowWindow: Bool = false
     @State var triggerWorkflowCompletion: Bool = false
+    @State var showPostPresentationCapture: Bool = false
+    @State var presentationUndoToken: ImmediatePresentationRecordingService.UndoToken?
+    @State var presentationRecordErrorMessage: String?
+    @State var postPresentationFlow = PostPresentationFlowState()
 
     #if os(iOS)
     @Environment(\.horizontalSizeClass) var horizontalSizeClass
@@ -130,7 +134,9 @@ struct PresentationDetailContentView: View {
 
     var body: some View {
         Group {
-            if vm.showWorkflowPanel {
+            if postPresentationFlow.phase == .followUp {
+                postPresentationFollowUpContent
+            } else if vm.showWorkflowPanel {
                 threePanelLayout
             } else {
                 planningView
@@ -141,14 +147,17 @@ struct PresentationDetailContentView: View {
         .frame(
             minWidth: vm.showWorkflowPanel ? 1400 : 720,
             idealWidth: vm.showWorkflowPanel ? 1600 : 720,
-            minHeight: vm.showWorkflowPanel ? 700 : 800,
-            idealHeight: vm.showWorkflowPanel ? 800 : 900
+            minHeight: vm.showWorkflowPanel ? 700 : (postPresentationFlow.phase == .followUp ? 620 : 800),
+            idealHeight: vm.showWorkflowPanel ? 800 : (postPresentationFlow.phase == .followUp ? 760 : 900)
         )
         .background(
             SheetWindowResizer(
                 targetSize: vm.showWorkflowPanel
                     ? NSSize(width: 1600, height: 800)
-                    : NSSize(width: 720, height: 900)
+                    : NSSize(
+                        width: 720,
+                        height: postPresentationFlow.phase == .followUp ? 760 : 900
+                    )
             )
         )
         #endif
@@ -160,6 +169,7 @@ struct PresentationDetailContentView: View {
                     students: selectedStudentsList,
                     lessonName: currentLessonName,
                     lessonID: currentLessonID,
+                    presentationID: vm.lessonAssignment.id,
                     onComplete: {
                         handleWorkflowComplete()
                         showIndependentWorkflowWindow = false
@@ -172,6 +182,26 @@ struct PresentationDetailContentView: View {
             }
         }
         #endif
+        .sheet(
+            isPresented: $showPostPresentationCapture,
+            onDismiss: postPresentationCaptureDidDismiss
+        ) {
+            postPresentationCaptureContent
+        }
+        .alert("Couldn’t Record Presentation", isPresented: presentationRecordErrorIsPresented) {
+            Button("OK") { presentationRecordErrorMessage = nil }
+        } message: {
+            Text(presentationRecordErrorMessage ?? "The presentation could not be recorded.")
+        }
+        .onAppear {
+            if postPresentationFlow.phase == .lesson,
+               PresentationFollowUpService.hasOpenFollowUps(
+                for: vm.lessonAssignment.id,
+                in: viewContext
+               ) {
+                postPresentationFlow.showFollowUp()
+            }
+        }
     }
 
     // MARK: - Planning View (Single Column)
@@ -295,6 +325,79 @@ struct PresentationDetailContentView: View {
         } else {
             dismiss()
         }
+    }
+
+    @ViewBuilder
+    var postPresentationCaptureContent: some View {
+        if let lesson = currentLesson,
+           let presentationID = vm.lessonAssignment.id {
+            PostPresentationCaptureSheet(
+                students: selectedStudentsList,
+                lesson: lesson,
+                presentationID: presentationID,
+                presentedAt: vm.lessonAssignment.presentedAt ?? Date(),
+                onUndoPresentation: postPresentationUndoAction,
+                onDetailsSaved: {
+                    presentationUndoToken = nil
+                    ToastService.shared.dismiss()
+                }
+            )
+        } else {
+            ContentUnavailableView(
+                "Presentation Unavailable",
+                systemImage: "exclamationmark.triangle",
+                description: Text("Close this window and try recording the presentation again.")
+            )
+            .frame(minWidth: 420, minHeight: 300)
+        }
+    }
+
+    @ViewBuilder
+    var postPresentationFollowUpContent: some View {
+        if let lesson = currentLesson {
+            PostPresentationFollowUpView(
+                assignment: vm.lessonAssignment,
+                lesson: lesson,
+                students: selectedStudentsList,
+                lessons: lessons,
+                lessonAssignments: lessonAssignmentsAll,
+                onReturnToLesson: {
+                    postPresentationFlow.returnToLesson()
+                },
+                onClose: {
+                    postPresentationFlow.close()
+                    handleDone()
+                }
+            )
+        } else {
+            ContentUnavailableView(
+                "Follow-Up Unavailable",
+                systemImage: "exclamationmark.triangle",
+                description: Text("Return to the lesson and choose it again.")
+            )
+        }
+    }
+
+    var postPresentationUndoAction: (() -> String?)? {
+        guard presentationUndoToken != nil else { return nil }
+        return { undoJustPresented() }
+    }
+
+    var presentationRecordErrorIsPresented: Binding<Bool> {
+        Binding(
+            get: { presentationRecordErrorMessage != nil },
+            set: { if !$0 { presentationRecordErrorMessage = nil } }
+        )
+    }
+
+    func postPresentationCaptureDidDismiss() {
+        postPresentationFlow.reflectionDidDismiss(
+            presentationIsRecorded: vm.lessonAssignment.isPresented,
+            hasOpenFollowUp: PresentationFollowUpService.hasOpenFollowUps(
+                for: vm.lessonAssignment.id,
+                in: viewContext
+            )
+        )
     }
 
     func handleCancelWithCleanup() {

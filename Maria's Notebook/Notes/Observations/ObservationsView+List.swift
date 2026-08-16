@@ -76,7 +76,7 @@ extension ObservationsView {
                 }
 
                 Spacer()
-                Text(item.date, style: .relative)
+                Text(item.date.formatted(.relative(presentation: .named)))
                     .font(AppTheme.ScaledFont.captionSmall)
                     .foregroundStyle(.secondary)
             }

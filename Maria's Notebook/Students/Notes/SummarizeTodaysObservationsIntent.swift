@@ -121,7 +121,7 @@ struct SummarizeTodaysObservationsIntent: AppIntent, SnippetIntent {
     /// Marked nonisolated(unsafe) because AppIntent static metadata properties are accessed
     /// from the system's intent infrastructure, which operates outside our actor isolation.
     /// Safe because these are immutable static properties initialized at compile time.
-    nonisolated(unsafe) static var title: LocalizedStringResource = "Summarize Today's Observations"
+    nonisolated(unsafe) static var title: LocalizedStringResource = "Show Today's Observations"
     nonisolated(unsafe) static var description = IntentDescription(
         "Shows a snippet of today's observations."
     )

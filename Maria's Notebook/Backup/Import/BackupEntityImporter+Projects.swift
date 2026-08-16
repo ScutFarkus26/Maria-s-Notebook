@@ -10,7 +10,7 @@ extension BackupEntityImporter {
     static func importProjects(
         _ dtos: [ProjectDTO],
         into viewContext: NSManagedObjectContext,
-        existingCheck: EntityExistsCheck<CDProject>
+        existingCheck: EntityExistsCheck
     ) rethrows {
         try importSimpleEntities(
             dtos, into: viewContext,
@@ -38,7 +38,7 @@ extension BackupEntityImporter {
     static func importProjectRoles(
         _ dtos: [ProjectRoleDTO],
         into viewContext: NSManagedObjectContext,
-        existingCheck: EntityExistsCheck<CDProjectRole>
+        existingCheck: EntityExistsCheck
     ) rethrows {
         try importSimpleEntities(
             dtos, into: viewContext,
@@ -66,7 +66,7 @@ extension BackupEntityImporter {
     static func importProjectSessions(
         _ dtos: [ProjectSessionDTO],
         into viewContext: NSManagedObjectContext,
-        existingCheck: EntityExistsCheck<CDProjectSession>
+        existingCheck: EntityExistsCheck
     ) rethrows {
         try importSimpleEntities(
             dtos, into: viewContext,

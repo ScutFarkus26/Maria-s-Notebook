@@ -1,3 +1,4 @@
+import CoreData
 import SwiftUI
 
 /// A single chat message bubble with role-appropriate styling.
@@ -7,6 +8,11 @@ struct ChatMessageBubble: View {
     let isStreaming: Bool
 
     @State private var appeared = false
+    @Environment(\.appRouter) private var appRouter
+    @Environment(\.managedObjectContext) private var viewContext
+    #if os(macOS)
+    @Environment(\.openWindow) private var openWindow
+    #endif
 
     init(message: ChatMessage, isStreaming: Bool = false) {
         self.message = message
@@ -46,6 +52,10 @@ struct ChatMessageBubble: View {
                 )
                 .shadow(isUser ? AppTheme.ShadowStyle.medium : assistantShadow)
 
+                if !isUser, !message.sources.isEmpty {
+                    sourceChips
+                }
+
                 if !isStreaming {
                     messageFooter
                 }
@@ -64,6 +74,71 @@ struct ChatMessageBubble: View {
                 appeared = true
             }
         }
+    }
+
+    private var sourceChips: some View {
+        FlowLayout(spacing: 6) {
+            ForEach(message.sources) { source in
+                Button {
+                    openSource(source)
+                } label: {
+                    Label(source.title, systemImage: "doc.text.magnifyingglass")
+                        .font(.caption)
+                        .lineLimit(1)
+                }
+                .buttonStyle(.bordered)
+                .help(source.excerpt)
+            }
+        }
+    }
+
+    private func openSource(_ source: EvidenceReference) {
+        switch source.entityKind {
+        case .note:
+            #if os(macOS)
+            openWindow(id: "NoteEditorWindow", value: source.entityID)
+            #else
+            appRouter.navigateTo(.logs)
+            #endif
+        case .student:
+            appRouter.requestOpenStudentDetail(source.entityID)
+        case .lesson:
+            appRouter.navigateTo(.lessons)
+        case .presentation:
+            openPresentationSource(source.entityID)
+        case .work:
+            openWorkSource(source.entityID)
+        case .todo:
+            appRouter.navigateTo(.todos)
+        }
+    }
+
+    private func openPresentationSource(_ id: UUID) {
+        let request = CDFetchRequest(CDLessonAssignment.self)
+        request.predicate = NSPredicate(format: "id == %@", id as CVarArg)
+        request.fetchLimit = 1
+
+        guard let assignment = viewContext.safeFetch(request).first else {
+            appRouter.navigateToLessonsAndWork(.history, presentationID: id)
+            return
+        }
+        if !assignment.isPresented {
+            appRouter.navigateToLessonsAndWork(.upcoming, presentationID: id)
+        } else if PresentationFollowUpService.hasOpenFollowUps(for: id, in: viewContext) {
+            appRouter.navigateToLessonsAndWork(.needsAttention, presentationID: id)
+        } else {
+            appRouter.navigateToLessonsAndWork(.history, presentationID: id)
+        }
+    }
+
+    private func openWorkSource(_ id: UUID) {
+        let request = CDFetchRequest(CDWorkModel.self)
+        request.predicate = NSPredicate(format: "id == %@", id as CVarArg)
+        request.fetchLimit = 1
+        let scope: LessonsAndWorkScope = viewContext.safeFetch(request).first?.status == .complete
+            ? .history
+            : .childrenWorking
+        appRouter.navigateToLessonsAndWork(scope, workID: id)
     }
 
     // MARK: - Bubble Background

@@ -14,26 +14,33 @@ struct StudentHeaderView: View {
     let levelColor: Color
     let initials: String
     var layout: Layout = .centered
+    /// When supplied, the level badge becomes a menu that reassigns the child's
+    /// level in place. The badge is always on screen, so this stays reachable
+    /// even when the surrounding chrome is not.
+    var onChangeLevel: ((CDStudent.Level) -> Void)?
 
     // Keep the primitive initializer for callers that already provide pre-computed values.
-    init(fullName: String, levelDisplay: String, levelColor: Color, initials: String, layout: Layout = .centered) {
+    init(
+        fullName: String,
+        levelDisplay: String,
+        levelColor: Color,
+        initials: String,
+        layout: Layout = .centered,
+        onChangeLevel: ((CDStudent.Level) -> Void)? = nil
+    ) {
         self.fullName = fullName
         self.levelDisplay = levelDisplay
         self.levelColor = levelColor
         self.initials = initials
         self.layout = layout
+        self.onChangeLevel = onChangeLevel
     }
 
     // Convenience initializer that derives display values from a CDStudent model.
-    init(student: CDStudent, layout: Layout = .centered) {
+    init(student: CDStudent, layout: Layout = .centered, onChangeLevel: ((CDStudent.Level) -> Void)? = nil) {
         let fullName = student.fullName
         let levelDisplay = student.level.rawValue
-        let levelColor: Color = {
-            switch student.level {
-            case .upper: return .pink
-            case .lower: return .blue
-            }
-        }()
+        let levelColor = AppColors.color(forLevel: student.level)
         let initials: String = {
             let parts = student.fullName.split(separator: " ")
             if parts.count >= 2 {
@@ -46,7 +53,14 @@ struct StudentHeaderView: View {
                 return "?"
             }
         }()
-        self.init(fullName: fullName, levelDisplay: levelDisplay, levelColor: levelColor, initials: initials, layout: layout)
+        self.init(
+            fullName: fullName,
+            levelDisplay: levelDisplay,
+            levelColor: levelColor,
+            initials: initials,
+            layout: layout,
+            onChangeLevel: onChangeLevel
+        )
     }
 
     var body: some View {
@@ -106,7 +120,45 @@ struct StudentHeaderView: View {
         }
     }
 
+    @ViewBuilder
     private func levelBadge(font: Font, horizontalPadding: CGFloat, verticalPadding: CGFloat) -> some View {
+        if let onChangeLevel {
+            Menu {
+                ForEach(CDStudent.Level.allCases, id: \.self) { level in
+                    Button {
+                        onChangeLevel(level)
+                    } label: {
+                        if level.rawValue == levelDisplay {
+                            Label(level.rawValue, systemImage: "checkmark")
+                        } else {
+                            Text(level.rawValue)
+                        }
+                    }
+                }
+            } label: {
+                HStack(spacing: 4) {
+                    Text(levelDisplay)
+                    Image(systemName: "chevron.down")
+                        .font(.system(size: 9, weight: .semibold))
+                        .opacity(UIConstants.OpacityConstants.semi)
+                }
+                .font(font)
+                .padding(.horizontal, horizontalPadding)
+                .padding(.vertical, verticalPadding)
+                .background(Capsule().fill(levelColor.opacity(UIConstants.OpacityConstants.medium)))
+                .contentShape(Capsule())
+            }
+            .buttonStyle(.plain)
+            .menuIndicator(.hidden)
+            .fixedSize()
+            .help("Change this student's level")
+            .accessibilityLabel("Level: \(levelDisplay). Change level.")
+        } else {
+            levelText(font: font, horizontalPadding: horizontalPadding, verticalPadding: verticalPadding)
+        }
+    }
+
+    private func levelText(font: Font, horizontalPadding: CGFloat, verticalPadding: CGFloat) -> some View {
         Text(levelDisplay)
             .font(font)
             .padding(.horizontal, horizontalPadding)

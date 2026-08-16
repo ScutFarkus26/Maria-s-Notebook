@@ -11,7 +11,7 @@ extension BackupEntityImporter {
     static func importGoingOuts(
         _ dtos: [GoingOutDTO],
         into viewContext: NSManagedObjectContext,
-        existingCheck: EntityExistsCheck<CDGoingOut>
+        existingCheck: EntityExistsCheck
     ) rethrows {
         try importSimpleEntities(
             dtos, into: viewContext,
@@ -43,8 +43,8 @@ extension BackupEntityImporter {
     static func importGoingOutChecklistItems(
         _ dtos: [GoingOutChecklistItemDTO],
         into viewContext: NSManagedObjectContext,
-        existingCheck: EntityExistsCheck<CDGoingOutChecklistItem>,
-        goingOutCheck: EntityExistsCheck<CDGoingOut>
+        existingCheck: EntityExistsCheck,
+        goingOutCheck: EntityLookup<CDGoingOut>
     ) rethrows {
         for dto in dtos {
             if shouldSkipExisting(id: dto.id, existingCheck: existingCheck) { continue }
@@ -75,7 +75,7 @@ extension BackupEntityImporter {
     static func importClassroomJobs(
         _ dtos: [ClassroomJobDTO],
         into viewContext: NSManagedObjectContext,
-        existingCheck: EntityExistsCheck<CDClassroomJob>
+        existingCheck: EntityExistsCheck
     ) rethrows {
         try importSimpleEntities(
             dtos, into: viewContext,
@@ -102,8 +102,8 @@ extension BackupEntityImporter {
     static func importJobAssignments(
         _ dtos: [JobAssignmentDTO],
         into viewContext: NSManagedObjectContext,
-        existingCheck: EntityExistsCheck<CDJobAssignment>,
-        jobCheck: EntityExistsCheck<CDClassroomJob>
+        existingCheck: EntityExistsCheck,
+        jobCheck: EntityLookup<CDClassroomJob>
     ) rethrows {
         for dto in dtos {
             if shouldSkipExisting(id: dto.id, existingCheck: existingCheck) { continue }
@@ -135,7 +135,7 @@ extension BackupEntityImporter {
     static func importCalendarNotes(
         _ dtos: [CalendarNoteDTO],
         into viewContext: NSManagedObjectContext,
-        existingCheck: EntityExistsCheck<CDCalendarNote>
+        existingCheck: EntityExistsCheck
     ) rethrows {
         try importSimpleEntities(
             dtos, into: viewContext,
@@ -159,7 +159,7 @@ extension BackupEntityImporter {
     static func importScheduledMeetings(
         _ dtos: [ScheduledMeetingDTO],
         into viewContext: NSManagedObjectContext,
-        existingCheck: EntityExistsCheck<CDScheduledMeeting>
+        existingCheck: EntityExistsCheck
     ) rethrows {
         for dto in dtos {
             if shouldSkipExisting(id: dto.id, existingCheck: existingCheck) { continue }
@@ -181,7 +181,7 @@ extension BackupEntityImporter {
     static func importClassroomMemberships(
         _ dtos: [ClassroomMembershipDTO],
         into viewContext: NSManagedObjectContext,
-        existingCheck: EntityExistsCheck<CDClassroomMembership>
+        existingCheck: EntityExistsCheck
     ) rethrows {
         try importSimpleEntities(
             dtos, into: viewContext,
@@ -204,7 +204,7 @@ extension BackupEntityImporter {
     static func importMeetingWorkReviews(
         _ dtos: [MeetingWorkReviewDTO],
         into viewContext: NSManagedObjectContext,
-        existingCheck: EntityExistsCheck<CDMeetingWorkReview>
+        existingCheck: EntityExistsCheck
     ) {
         for dto in dtos {
             // Skip records already in the store so a `.merge` restore doesn't insert duplicates.
@@ -229,7 +229,7 @@ extension BackupEntityImporter {
     static func importStudentFocusItems(
         _ dtos: [StudentFocusItemDTO],
         into viewContext: NSManagedObjectContext,
-        existingCheck: EntityExistsCheck<CDStudentFocusItem>
+        existingCheck: EntityExistsCheck
     ) {
         for dto in dtos {
             // Skip records already in the store so a `.merge` restore doesn't insert duplicates.

@@ -26,10 +26,12 @@ struct MeetingsLogView: View {
     )
     private var studentsRaw: FetchedResults<CDStudent>
     // DEDUPLICATION: CloudKit sync can create duplicate records with the same ID.
-    // Filter out test students when setting is disabled
+    // Filter out test students when setting is disabled.
+    // All students, not enrolled-only: this log spans all time, so former
+    // students' meeting history must keep resolving.
     private var students: [CDStudent] {
         TestStudentsFilter.filterVisible(
-            Array(studentsRaw).uniqueByID.filterEnrolled(),
+            Array(studentsRaw).uniqueByID,
             show: showTestStudents,
             namesRaw: testStudentNamesRaw
         )

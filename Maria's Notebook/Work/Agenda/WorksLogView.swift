@@ -2,6 +2,14 @@ import SwiftUI
 import CoreData
 
 struct WorksLogView: View {
+    var embeddedSearchText: String? = nil
+    var completedOnly: Bool = false
+    var isEmbedded: Bool = false
+    var focusedWorkID: UUID? = nil
+
+    #if os(macOS)
+    @Environment(\.openWindow) private var openWindow
+    #endif
     // Test student filtering
     @AppStorage(UserDefaultsKeys.generalShowTestStudents) private var showTestStudents: Bool = false
     @AppStorage(UserDefaultsKeys.generalTestStudentNames)
@@ -26,10 +34,12 @@ struct WorksLogView: View {
     ])
     private var studentsRaw: FetchedResults<CDStudent>
     // DEDUPLICATION: CloudKit sync can create duplicate records with the same ID.
-    // Filter out test students when setting is disabled
+    // Filter out test students when setting is disabled.
+    // All students, not enrolled-only: this log spans all time, so former
+    // students' work history must keep resolving.
     private var students: [CDStudent] {
         TestStudentsFilter.filterVisible(
-            Array(studentsRaw).uniqueByID.filterEnrolled(),
+            Array(studentsRaw).uniqueByID,
             show: showTestStudents,
             namesRaw: testStudentNamesRaw
         )
@@ -43,8 +53,17 @@ struct WorksLogView: View {
     @State private var selectedStudentIDs: Set<UUID> = []
     @State private var searchText: String = ""
 
+    private var effectiveSearchText: String {
+        embeddedSearchText ?? searchText
+    }
+
     // Pagination state
     @State private var pagination = PaginationState(pageSize: 50)
+
+    private struct FocusRevealKey: Hashable {
+        let id: UUID?
+        let filteredIndex: Int?
+    }
 
     private var lessonsByID: [UUID: CDLesson] {
         // Use uniquingKeysWith to handle CloudKit sync duplicates
@@ -62,11 +81,20 @@ struct WorksLogView: View {
     /// Filtered works based on current filter selections
     private var filteredWorks: [CDWorkModel] {
         allWorks.filter { work in
+            if completedOnly && work.status != .complete { return false }
+
+            // A one-shot route to a particular record takes precedence over
+            // stale local filters. Keep the requested item in the collection
+            // long enough to reveal it, without weakening the History scope.
+            if let focusedWorkID, work.id == focusedWorkID { return true }
+
             // Kind filter
             if let kind = selectedKind, work.kind != kind { return false }
 
             // Status filter
-            if !selectedStatuses.isEmpty && !selectedStatuses.contains(work.status) { return false }
+            if !completedOnly,
+               !selectedStatuses.isEmpty,
+               !selectedStatuses.contains(work.status) { return false }
 
             // CDStudent filter (check participants)
             if !selectedStudentIDs.isEmpty {
@@ -77,10 +105,10 @@ struct WorksLogView: View {
             }
 
             // Search filter
-            if !searchText.isEmpty {
+            if !effectiveSearchText.isEmpty {
                 let title = workTitle(work).lowercased()
                 let notes = work.latestUnifiedNoteText.lowercased()
-                let query = searchText.lowercased()
+                let query = effectiveSearchText.lowercased()
                 if !title.contains(query) && !notes.contains(query) { return false }
             }
 
@@ -91,6 +119,15 @@ struct WorksLogView: View {
     /// Paginated works for display
     private var displayedWorks: [CDWorkModel] {
         filteredWorks.paginated(using: pagination)
+    }
+
+    private var focusRevealKey: FocusRevealKey {
+        FocusRevealKey(
+            id: focusedWorkID,
+            filteredIndex: focusedWorkID.flatMap { id in
+                filteredWorks.firstIndex { $0.id == id }
+            }
+        )
     }
 
     private func linkedLessonAssignment(for work: CDWorkModel) -> CDLessonAssignment? {
@@ -243,37 +280,39 @@ struct WorksLogView: View {
                 )
             }
 
-            // Status Menu (multi-select)
-            Menu {
-                Button("All Statuses") { selectedStatuses.removeAll() }
-                Divider()
-                ForEach(WorkStatus.allCases) { status in
-                    Button(action: {
-                        if selectedStatuses.contains(status) {
-                            selectedStatuses.remove(status)
-                        } else {
-                            selectedStatuses.insert(status)
-                        }
-                    }, label: {
-                        HStack {
+            if !completedOnly {
+                // Status Menu (multi-select)
+                Menu {
+                    Button("All Statuses") { selectedStatuses.removeAll() }
+                    Divider()
+                    ForEach(WorkStatus.allCases) { status in
+                        Button(action: {
                             if selectedStatuses.contains(status) {
-                                Image(systemName: "checkmark")
+                                selectedStatuses.remove(status)
+                            } else {
+                                selectedStatuses.insert(status)
                             }
-                            Text(status.displayName)
-                        }
-                    })
+                        }, label: {
+                            HStack {
+                                if selectedStatuses.contains(status) {
+                                    Image(systemName: "checkmark")
+                                }
+                                Text(status.displayName)
+                            }
+                        })
+                    }
+                } label: {
+                    HStack(spacing: 6) {
+                        Image(systemName: "checkmark.circle")
+                        Text(selectedStatusLabel)
+                    }
+                    .padding(.horizontal, 10)
+                    .padding(.vertical, 6)
+                    .background(
+                        RoundedRectangle(cornerRadius: 8, style: .continuous)
+                            .fill(Color.primary.opacity(UIConstants.OpacityConstants.hint))
+                    )
                 }
-            } label: {
-                HStack(spacing: 6) {
-                    Image(systemName: "checkmark.circle")
-                    Text(selectedStatusLabel)
-                }
-                .padding(.horizontal, 10)
-                .padding(.vertical, 6)
-                .background(
-                    RoundedRectangle(cornerRadius: 8, style: .continuous)
-                        .fill(Color.primary.opacity(UIConstants.OpacityConstants.hint))
-                )
             }
 
             Spacer()
@@ -283,32 +322,70 @@ struct WorksLogView: View {
 
     // MARK: - Body
 
-    var body: some View {
+    private var worksContent: some View {
         VStack(spacing: 8) {
             filterBar
 
-            List {
-                ForEach(displayedWorks) { work in
-                    WorkCard.list(
-                        work: work,
-                        title: workTitle(work),
-                        subtitle: workSubtitle(work),
-                        badge: .status(work.isOpen ? "active" : "complete"),
-                        onOpen: { w in selectedWork = w }
-                    )
-                }
+            ScrollViewReader { reader in
+                List {
+                    ForEach(displayedWorks) { work in
+                        let workID = work.id ?? UUID()
+                        WorkCard.list(
+                            work: work,
+                            title: workTitle(work),
+                            subtitle: workSubtitle(work),
+                            badge: .status(work.isOpen ? "active" : "complete"),
+                            onOpen: openWork
+                        )
+                        .id(workID)
+                        .listRowBackground(
+                            workID == focusedWorkID
+                                ? Color.accentColor.opacity(0.12)
+                                : Color.clear
+                        )
+                    }
 
-                // Pagination footer
-                if pagination.totalCount > 0 {
-                    Section {
-                        PaginatedListFooter(state: pagination, itemName: "works")
+                    // Pagination footer
+                    if pagination.totalCount > 0 {
+                        Section {
+                            PaginatedListFooter(state: pagination, itemName: "works")
+                        }
                     }
                 }
+                .listStyle(.inset)
+                .task(id: focusRevealKey) {
+                    guard let focusedWorkID,
+                          let index = filteredWorks.firstIndex(where: { $0.id == focusedWorkID }) else {
+                        return
+                    }
+                    pagination.updateTotal(filteredWorks.count)
+                    pagination.revealItem(at: index)
+                    await Task.yield()
+                    try? await Task.sleep(for: .milliseconds(50))
+                    guard !Task.isCancelled else { return }
+                    withAnimation { reader.scrollTo(focusedWorkID, anchor: .center) }
+                }
             }
-            .listStyle(.inset)
         }
-        .navigationTitle("Works")
-        .searchable(text: $searchText)
+    }
+
+    @ViewBuilder
+    private var searchableContent: some View {
+        if embeddedSearchText == nil {
+            worksContent.searchable(text: $searchText)
+        } else {
+            worksContent
+        }
+    }
+
+    var body: some View {
+        Group {
+            if isEmbedded {
+                searchableContent
+            } else {
+                searchableContent.navigationTitle("Works")
+            }
+        }
         .onChange(of: filteredWorks.count) { _, newCount in
             pagination.updateTotal(newCount)
         }
@@ -323,6 +400,15 @@ struct WorksLogView: View {
                 workDetailSheetContent(for: work)
             }
         }
+    }
+
+    private func openWork(_ work: CDWorkModel) {
+        guard let workID = work.id else { return }
+        #if os(macOS)
+        openWindow(id: "WorkDetailWindow", value: workID)
+        #else
+        selectedWork = work
+        #endif
     }
 }
 

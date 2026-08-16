@@ -17,6 +17,7 @@ struct SchoolCalendarSettingsView: View {
     @State private var selected: Set<DateComponents> = []
     @State private var nonSchoolDates: Set<Date> = []
     @State private var selectedSingleDate: Date = Date()
+    @State private var showingRollover = false
 
     private var monthInterval: DateInterval {
         let cal = calendar
@@ -28,6 +29,20 @@ struct SchoolCalendarSettingsView: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
             SchoolYearStartConfig(store: dependencies.schoolYearStore)
+
+            Button {
+                showingRollover = true
+            } label: {
+                Label("School Year Rollover…", systemImage: "calendar.badge.clock")
+            }
+            .buttonStyle(.bordered)
+            .help("Promote, transfer, or withdraw students for the new school year")
+            .sheet(isPresented: $showingRollover) {
+                SchoolYearRolloverView()
+                    #if os(macOS)
+                    .frame(minWidth: 640, minHeight: 560)
+                    #endif
+            }
 
             Divider()
 
@@ -106,7 +121,9 @@ struct SchoolCalendarSettingsView: View {
                     GradeGuidelineRowCompact(age: "Age 9", grade: "4th Grade")
                     GradeGuidelineRowCompact(age: "Age 10", grade: "5th Grade")
                     GradeGuidelineRowCompact(age: "Age 11", grade: "6th Grade")
-                    GradeGuidelineRowCompact(age: "Age 12+", grade: "Graduated")
+                    GradeGuidelineRowCompact(age: "Age 12", grade: "7th Grade")
+                    GradeGuidelineRowCompact(age: "Age 13", grade: "8th Grade")
+                    GradeGuidelineRowCompact(age: "Age 14+", grade: "Graduated")
                 }
                 .padding(.top, 4)
             }
@@ -133,7 +150,9 @@ struct SchoolCalendarSettingsView: View {
                     GradeGuidelineRow(age: "Age 9", grade: "4th Grade")
                     GradeGuidelineRow(age: "Age 10", grade: "5th Grade")
                     GradeGuidelineRow(age: "Age 11", grade: "6th Grade")
-                    GradeGuidelineRow(age: "Age 12+", grade: "Graduated")
+                    GradeGuidelineRow(age: "Age 12", grade: "7th Grade")
+                    GradeGuidelineRow(age: "Age 13", grade: "8th Grade")
+                    GradeGuidelineRow(age: "Age 14+", grade: "Graduated")
                 }
             }
             .padding(.top, 8)

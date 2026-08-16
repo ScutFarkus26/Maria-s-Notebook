@@ -115,6 +115,10 @@ enum SampleClassroomSeeder {
         .init(
             id: UUID(uuidString: "A0000000-0000-0000-0000-000000000008")!,
             firstName: "Eli", lastName: "Brooks", age: 11, birthMonth: 7, birthDay: 17, level: .upper
+        ),
+        .init(
+            id: UUID(uuidString: "A0000000-0000-0000-0000-000000000009")!,
+            firstName: "Rina", lastName: "Ash", age: 12, birthMonth: 3, birthDay: 22, level: .adolescent
         )
     ]
 
@@ -474,7 +478,8 @@ enum SampleClassroomSeeder {
             "Showed careful material care while helping a younger classmate reset the shelf.",
             "Recorded a question to bring back to the next conference.",
             "Worked independently for a longer cycle than last week.",
-            "Requested another presentation before beginning the follow-up work."
+            "Requested another presentation before beginning the follow-up work.",
+            "Outlined a plan for a longer research project and set her own checkpoints."
         ]
 
         for (index, studentSeed) in fakeStudents.enumerated() {

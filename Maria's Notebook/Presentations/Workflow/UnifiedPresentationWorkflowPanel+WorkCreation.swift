@@ -111,30 +111,32 @@ extension UnifiedPresentationWorkflowPanel {
         var workKind: WorkKind = .followUpAssignment
         if trimmed.caseInsensitiveCompare("Practice") == .orderedSame {
             trimmed = "Practice: \(lessonName)"
-            presentationViewModel.bulkAssignment = trimmed
             workKind = .practiceLesson
         }
 
-        presentationViewModel.applyBulkAssignment()
+        presentationViewModel.bulkAssignment = ""
 
         for student in students {
             guard let studentID = student.id else { continue }
             // Check if this student already has work drafts
-            if workDrafts[studentID]?.isEmpty ?? true {
+            if presentationViewModel.workDrafts[studentID]?.isEmpty ?? true {
                 let draft = createWorkDraft(for: studentID, title: trimmed, kind: workKind, applyDefaultDates: true)
-                workDrafts[studentID, default: []].append(draft)
+                presentationViewModel.workDrafts[studentID, default: []].append(draft)
             } else {
                 // Update existing first draft
-                if let firstIndex = workDrafts[studentID]?.indices.first {
-                    workDrafts[studentID]?[firstIndex].title = trimmed
+                if let firstIndex = presentationViewModel.workDrafts[studentID]?.indices.first {
+                    presentationViewModel.workDrafts[studentID]?[firstIndex].title = trimmed
 
                     // Apply default dates if enabled and not already set
                     if presentationViewModel.defaultCheckInEnabled
-                        && workDrafts[studentID]?[firstIndex].checkInDate == nil {
-                        workDrafts[studentID]?[firstIndex].checkInDate = presentationViewModel.defaultCheckInDate
+                        && presentationViewModel.workDrafts[studentID]?[firstIndex].checkInDate == nil {
+                        presentationViewModel.workDrafts[studentID]?[firstIndex].checkInDate =
+                            presentationViewModel.defaultCheckInDate
                     }
-                    if presentationViewModel.defaultDueEnabled && workDrafts[studentID]?[firstIndex].dueDate == nil {
-                        workDrafts[studentID]?[firstIndex].dueDate = presentationViewModel.defaultDueDate
+                    if presentationViewModel.defaultDueEnabled
+                        && presentationViewModel.workDrafts[studentID]?[firstIndex].dueDate == nil {
+                        presentationViewModel.workDrafts[studentID]?[firstIndex].dueDate =
+                            presentationViewModel.defaultDueDate
                     }
                 }
             }
@@ -169,17 +171,13 @@ extension UnifiedPresentationWorkflowPanel {
                     Text(StudentFormatter.displayName(for: student))
                         .font(AppTheme.ScaledFont.bodyBold)
 
-                    // Quick context from presentation
-                    if let entry = presentationViewModel.entries[studentID] {
-                        HStack(spacing: 8) {
-                            MiniUnderstandingIndicator(level: entry.understandingLevel)
-
-                            if !entry.observation.isEmpty {
-                                Image(systemName: "note.text")
-                                    .font(.system(size: 10))
-                                    .foregroundStyle(.secondary)
-                            }
-                        }
+                    // Keep the observation visible as context without turning it
+                    // into a second work-assignment field.
+                    if let observation = presentationViewModel.entries[studentID]?.observation,
+                       !observation.trimmed().isEmpty {
+                        Label("Observation added", systemImage: "note.text")
+                            .font(AppTheme.ScaledFont.captionSmall)
+                            .foregroundStyle(.secondary)
                     }
                 }
 
@@ -201,7 +199,7 @@ extension UnifiedPresentationWorkflowPanel {
             }
 
             // Work drafts (new items being created in this session)
-            let drafts = workDrafts[studentID] ?? []
+            let drafts = presentationViewModel.workDrafts[studentID] ?? []
             if drafts.isEmpty && existingWork.isEmpty {
                 Text("No work items yet - add one or use bulk assignment")
                     .font(AppTheme.ScaledFont.caption)
@@ -444,9 +442,8 @@ extension UnifiedPresentationWorkflowPanel {
     // MARK: - Work Draft Management
 
     func addWorkDraft(for studentID: UUID) {
-        let assignment = presentationViewModel.entries[studentID]?.assignment ?? ""
-        let draft = createWorkDraft(for: studentID, title: assignment)
-        workDrafts[studentID, default: []].append(draft)
+        let draft = createWorkDraft(for: studentID)
+        presentationViewModel.workDrafts[studentID, default: []].append(draft)
     }
 
     func createWorkDraft(
@@ -473,14 +470,14 @@ extension UnifiedPresentationWorkflowPanel {
     }
 
     func removeWorkDraft(studentID: UUID, draftID: UUID) {
-        workDrafts[studentID]?.removeAll { $0.id == draftID }
+        presentationViewModel.workDrafts[studentID]?.removeAll { $0.id == draftID }
     }
 
     func updateWorkDraft(studentID: UUID, draftID: UUID, update: (inout WorkItemDraft) -> Void) {
-        guard var drafts = workDrafts[studentID],
+        guard var drafts = presentationViewModel.workDrafts[studentID],
               let index = drafts.firstIndex(where: { $0.id == draftID }) else { return }
         update(&drafts[index])
-        workDrafts[studentID] = drafts
+        presentationViewModel.workDrafts[studentID] = drafts
     }
 
 }

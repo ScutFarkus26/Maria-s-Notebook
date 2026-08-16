@@ -5,11 +5,11 @@ import Foundation
 
 /// Controls how many AI pipeline steps to run and the corresponding cost/detail tradeoff.
 enum PlanningDepth: String, Codable, CaseIterable, Identifiable {
-    /// Steps 1-2 only: local readiness + gap analysis (~$0.01)
+    /// Steps 1-2 only: local evidence assembly + gap analysis.
     case quick
-    /// Steps 1-3: adds plan synthesis with day scheduling (~$0.02-0.03)
+    /// Steps 1-3: adds plan synthesis with day scheduling.
     case standard
-    /// Steps 1-4: adds whole-class week optimization (~$0.04-0.06)
+    /// Steps 1-4: adds whole-class week optimization.
     case deep
     
     var id: String { rawValue }
@@ -24,7 +24,7 @@ enum PlanningDepth: String, Codable, CaseIterable, Identifiable {
     
     var description: String {
         switch self {
-        case .quick: return "Fast suggestions based on readiness"
+        case .quick: return "Fast suggestions from curriculum and guide records"
         case .standard: return "Scheduled plan with grouping suggestions"
         case .deep: return "Full weekly optimization across all students"
         }
@@ -46,7 +46,7 @@ enum PlanningMode: Equatable {
 enum PipelineStep: String, Codable {
     case idle
     case gatheringData
-    case assessingReadiness
+    case gatheringEvidence
     case generatingPlan
     case presentingPlan
     case awaitingInput
@@ -58,7 +58,7 @@ enum PipelineStep: String, Codable {
         switch self {
         case .idle: return "Ready"
         case .gatheringData: return "Gathering data..."
-        case .assessingReadiness: return "Assessing readiness..."
+        case .gatheringEvidence: return "Gathering evidence..."
         case .generatingPlan: return "Generating plan..."
         case .presentingPlan: return "Plan ready"
         case .awaitingInput: return "Awaiting input"
@@ -118,7 +118,32 @@ struct PlanningMessage: Identifiable, Codable {
 
 // MARK: - CDLesson Recommendation
 
-/// A single AI-generated lesson recommendation.
+/// How much direct, locally recorded evidence supports a planning candidate.
+/// This describes evidence availability, not whether a child is ready.
+enum EvidenceAvailability: String, Codable, CaseIterable {
+    case strong
+    case some
+    case insufficient
+
+    var displayLabel: String {
+        switch self {
+        case .strong: return "Strong evidence"
+        case .some: return "Some evidence"
+        case .insufficient: return "Insufficient evidence"
+        }
+    }
+
+    /// Combines evidence for a group conservatively: the least-supported child
+    /// determines the label shown on the shared recommendation.
+    static func combined(_ values: [EvidenceAvailability]) -> EvidenceAvailability {
+        guard !values.isEmpty else { return .insufficient }
+        if values.contains(.insufficient) { return .insufficient }
+        if values.contains(.some) { return .some }
+        return .strong
+    }
+}
+
+/// A lesson candidate assembled from local records and optionally arranged by AI.
 struct LessonRecommendation: Identifiable, Codable {
     let id: UUID
     let lessonID: UUID
@@ -128,7 +153,10 @@ struct LessonRecommendation: Identifiable, Codable {
     let studentIDs: [UUID]
     let studentNames: [String]
     let reasoning: String
+    /// Legacy model confidence retained for feedback-record compatibility. It is
+    /// intentionally not presented as evidence or readiness in the UI.
     let confidence: Double
+    let evidenceAvailability: EvidenceAvailability
     let priority: Int
     let suggestedDay: String?
     var decision: TeacherDecision?
@@ -141,7 +169,8 @@ struct LessonRecommendation: Identifiable, Codable {
         studentIDs: [UUID],
         studentNames: [String],
         reasoning: String,
-        confidence: Double,
+        confidence: Double = 0,
+        evidenceAvailability: EvidenceAvailability = .insufficient,
         priority: Int,
         suggestedDay: String? = nil
     ) {
@@ -154,6 +183,7 @@ struct LessonRecommendation: Identifiable, Codable {
         self.studentNames = studentNames
         self.reasoning = reasoning
         self.confidence = confidence
+        self.evidenceAvailability = evidenceAvailability
         self.priority = priority
         self.suggestedDay = suggestedDay
     }
@@ -204,48 +234,40 @@ struct WeekPlan: Codable {
     }
 }
 
-// MARK: - CDStudent Readiness Profile
+// MARK: - CDStudent Planning Evidence Profile
 
-/// Locally-computed profile summarizing a student's readiness for new lessons.
+/// Locally-computed factual profile for planning. It intentionally excludes
+/// practice ratings, behavior labels, and inferred social-emotional judgments.
 struct StudentReadinessProfile: Identifiable, Codable {
     let id: UUID
     let studentID: UUID
     let studentName: String
     let level: String
     var areaReadiness: [AreaReadiness]
-    let practiceQualityAvg: Double?
-    let independenceAvg: Double?
     let daysSinceLastPresentation: Int?
     let activeWorkCount: Int
-    let behavioralFlags: [String]
     
     init(
         studentID: UUID,
         studentName: String,
         level: String,
         areaReadiness: [AreaReadiness],
-        practiceQualityAvg: Double?,
-        independenceAvg: Double?,
         daysSinceLastPresentation: Int?,
-        activeWorkCount: Int,
-        behavioralFlags: [String]
+        activeWorkCount: Int
     ) {
         self.id = UUID()
         self.studentID = studentID
         self.studentName = studentName
         self.level = level
         self.areaReadiness = areaReadiness
-        self.practiceQualityAvg = practiceQualityAvg
-        self.independenceAvg = independenceAvg
         self.daysSinceLastPresentation = daysSinceLastPresentation
         self.activeWorkCount = activeWorkCount
-        self.behavioralFlags = behavioralFlags
     }
 }
 
 // MARK: - Area Readiness
 
-/// Per-area readiness data for a single student.
+/// Per-area factual curriculum position and evidence availability for a student.
 struct AreaReadiness: Identifiable, Codable {
     let id: UUID
     let area: String
@@ -255,8 +277,9 @@ struct AreaReadiness: Identifiable, Codable {
     let nextLessonName: String?
     let nextLessonID: UUID?
     let proficiencySignal: ProficiencySignal
+    let evidenceAvailability: EvidenceAvailability
     let activeWorkCount: Int
-    let completedInSequence: Int
+    let presentedInSequence: Int
     let totalInSequence: Int
     
     init(
@@ -267,8 +290,9 @@ struct AreaReadiness: Identifiable, Codable {
         nextLessonName: String?,
         nextLessonID: UUID?,
         proficiencySignal: ProficiencySignal,
+        evidenceAvailability: EvidenceAvailability,
         activeWorkCount: Int,
-        completedInSequence: Int,
+        presentedInSequence: Int,
         totalInSequence: Int
     ) {
         self.id = UUID()
@@ -279,15 +303,17 @@ struct AreaReadiness: Identifiable, Codable {
         self.nextLessonName = nextLessonName
         self.nextLessonID = nextLessonID
         self.proficiencySignal = proficiencySignal
+        self.evidenceAvailability = evidenceAvailability
         self.activeWorkCount = activeWorkCount
-        self.completedInSequence = completedInSequence
+        self.presentedInSequence = presentedInSequence
         self.totalInSequence = totalInSequence
     }
 }
 
 // MARK: - Proficiency Signal
 
-/// Indicates a student's proficiency status for a particular curriculum position.
+/// A factual planning signal. Strong states come only from explicit guide
+/// decisions; ordinary presentation history never becomes mastery by inference.
 enum ProficiencySignal: String, Codable {
     case notPresented
     case presented
@@ -301,9 +327,9 @@ enum ProficiencySignal: String, Codable {
         case .notPresented: return "Not Presented"
         case .presented: return "Presented"
         case .practicing: return "Practicing"
-        case .proficient: return "Mastered"
+        case .proficient: return "Guide Confirmed"
         case .needsMorePractice: return "Needs Practice"
-        case .needsReteaching: return "Needs Reteaching"
+        case .needsReteaching: return "Needs Re-presentation"
         }
     }
 }
@@ -330,14 +356,14 @@ struct CurriculumMap: Codable {
         let id: UUID
         let sequence: String
         var lessons: [LessonPosition]
-        let completedCount: Int
+        let presentedCount: Int
         let totalCount: Int
         
-        init(sequence: String, lessons: [LessonPosition], completedCount: Int, totalCount: Int) {
+        init(sequence: String, lessons: [LessonPosition], presentedCount: Int, totalCount: Int) {
             self.id = UUID()
             self.sequence = sequence
             self.lessons = lessons
-            self.completedCount = completedCount
+            self.presentedCount = presentedCount
             self.totalCount = totalCount
         }
     }
@@ -400,7 +426,7 @@ struct PlanningResponse: Codable {
         let sequence: String
         let studentNames: [String]
         let reasoning: String
-        let confidence: Double
+        let confidence: Double?
         let priority: Int
         let suggestedDay: String?
     }

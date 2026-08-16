@@ -66,7 +66,15 @@ extension BackupDTOTransformers {
             presentedAt: lp.presentedAt ?? Date(),
             lastObservedAt: lp.lastObservedAt,
             masteredAt: lp.masteredAt,
-            notes: lp.notes
+            notes: lp.notes,
+            followUpActionRaw: lp.followUpActionRaw,
+            followUpReviewAt: lp.followUpReviewAt,
+            followUpResolvedAt: lp.followUpResolvedAt,
+            followUpResolutionRaw: lp.followUpResolutionRaw,
+            followUpUpdatedAt: lp.followUpUpdatedAt,
+            followUpEvidenceRaw: lp.followUpEvidenceRaw,
+            followUpNote: lp.followUpNote,
+            followUpSupportRaw: lp.followUpSupportRaw
         )
     }
 

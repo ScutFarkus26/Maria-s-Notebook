@@ -11,7 +11,7 @@ extension BackupEntityImporter {
     static func importDocuments(
         _ dtos: [DocumentDTO],
         into viewContext: NSManagedObjectContext,
-        existingCheck: EntityExistsCheck<CDDocument>
+        existingCheck: EntityExistsCheck
     ) rethrows {
         for dto in dtos {
             if shouldSkipExisting(id: dto.id, existingCheck: existingCheck) { continue }
@@ -35,7 +35,7 @@ extension BackupEntityImporter {
     static func importSupplies(
         _ dtos: [SupplyDTO],
         into viewContext: NSManagedObjectContext,
-        existingCheck: EntityExistsCheck<CDSupply>
+        existingCheck: EntityExistsCheck
     ) rethrows {
         try importSimpleEntities(
             dtos, into: viewContext,
@@ -60,7 +60,7 @@ extension BackupEntityImporter {
     static func importProcedures(
         _ dtos: [ProcedureDTO],
         into viewContext: NSManagedObjectContext,
-        existingCheck: EntityExistsCheck<CDProcedure>
+        existingCheck: EntityExistsCheck
     ) rethrows {
         try importSimpleEntities(
             dtos, into: viewContext,

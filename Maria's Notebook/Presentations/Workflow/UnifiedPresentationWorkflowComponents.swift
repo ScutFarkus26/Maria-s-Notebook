@@ -14,70 +14,6 @@ struct WorkflowSectionHeader: View {
     }
 }
 
-// MARK: - Understanding Level Components
-
-struct UnderstandingLevelRow: View {
-    @Binding var selectedLevel: Int
-    let showLabel: Bool
-
-    init(selectedLevel: Binding<Int>, showLabel: Bool = true) {
-        self._selectedLevel = selectedLevel
-        self.showLabel = showLabel
-    }
-
-    var body: some View {
-        HStack(spacing: 8) {
-            ForEach(1...5, id: \.self) { level in
-                Button {
-                    selectedLevel = level
-                } label: {
-                    Circle()
-                        .fill(UnderstandingLevel.color(for: level).opacity(
-                            selectedLevel >= level ? 1.0 : 0.2
-                        ))
-                        .frame(width: 24, height: 24)
-                }
-                .buttonStyle(.plain)
-            }
-
-            if showLabel {
-                Spacer()
-                Text(UnderstandingLevel.label(for: selectedLevel))
-                    .font(AppTheme.ScaledFont.caption)
-                    .foregroundStyle(.secondary)
-            }
-        }
-    }
-}
-
-struct CompactUnderstandingIndicator: View {
-    let level: Int
-
-    var body: some View {
-        HStack(spacing: 2) {
-            ForEach(1...5, id: \.self) { i in
-                Circle()
-                    .fill(UnderstandingLevel.color(for: level).opacity(i <= level ? 1.0 : 0.2))
-                    .frame(width: 8, height: 8)
-            }
-        }
-    }
-}
-
-struct MiniUnderstandingIndicator: View {
-    let level: Int
-
-    var body: some View {
-        HStack(spacing: 2) {
-            ForEach(1...5, id: \.self) { i in
-                Circle()
-                    .fill(UnderstandingLevel.color(for: level).opacity(i <= level ? 1.0 : 0.2))
-                    .frame(width: 6, height: 6)
-            }
-        }
-    }
-}
-
 // MARK: - Date Picker with Toggle
 
 struct WorkflowDatePicker: View {
@@ -185,39 +121,6 @@ struct WorkflowCard<Content: View>: View {
                 RoundedRectangle(cornerRadius: cornerRadius, style: .continuous)
                     .stroke(borderColor, lineWidth: 1)
             )
-    }
-}
-
-// MARK: - Status Button (Generic)
-
-struct WorkflowStatusButton: View {
-    let icon: String
-    let title: String
-    let color: Color
-    let isSelected: Bool
-    let action: () -> Void
-
-    var body: some View {
-        Button(action: action) {
-            HStack(spacing: 8) {
-                Image(systemName: icon)
-                Text(title)
-            }
-            .font(.callout.weight(.semibold))
-            .padding(.horizontal, 12)
-            .padding(.vertical, 10)
-            .frame(maxWidth: .infinity)
-            .foregroundStyle(color)
-            .background(
-                Capsule(style: .continuous)
-                    .fill(color.opacity(isSelected ? 0.20 : 0.10))
-            )
-            .overlay(
-                Capsule(style: .continuous)
-                    .strokeBorder(color.opacity(isSelected ? 0.5 : 0.25), lineWidth: isSelected ? 2 : 1)
-            )
-        }
-        .buttonStyle(.plain)
     }
 }
 
@@ -330,7 +233,6 @@ struct StudentEntryRowHeader: View {
     let studentName: String
     let hasContent: Bool
     let isExpanded: Bool
-    let understandingLevel: Int
     var masteryStage: MasteryStage = .presented
 
     var body: some View {
@@ -342,8 +244,6 @@ struct StudentEntryRowHeader: View {
             MasteryStageIndicator(stage: masteryStage)
 
             Spacer()
-
-            CompactUnderstandingIndicator(level: understandingLevel)
 
             HStack(spacing: 4) {
                 if hasContent {

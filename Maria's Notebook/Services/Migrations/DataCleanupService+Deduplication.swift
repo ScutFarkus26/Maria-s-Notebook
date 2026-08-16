@@ -119,7 +119,20 @@ extension DataCleanupService {
         container: NSPersistentCloudKitContainer? = nil,
         merge: ((T, T) -> Void)? = nil
     ) -> Int {
+        // Cheap pre-check: read only the `id` column to learn whether this table
+        // has duplicates at all. The answer is almost always "no", and finding
+        // that out shouldn't fault every row of every entity into the context —
+        // on the view context those objects then stay registered for the session.
+        // `nil` means the pre-check couldn't be trusted, so fall back to the
+        // original full-table pass.
+        let duplicateIDs = duplicatedIDs(of: T.self, using: context)
+        if let duplicateIDs, duplicateIDs.isEmpty { return 0 }
+
         let fetch = CDFetchRequest(T.self)
+        if let duplicateIDs {
+            // Only the colliding rows need to be materialized.
+            fetch.predicate = NSPredicate(format: "id IN %@", Array(duplicateIDs))
+        }
         let all: [T]
         do {
             all = try context.fetch(fetch)
@@ -127,18 +140,6 @@ extension DataCleanupService {
             logger.warning("Failed to fetch \(type, privacy: .public): \(error.localizedDescription)")
             return 0
         }
-
-        // Fast duplicate detection pass
-        var seen = Set<UUID>()
-        var hasDuplicates = false
-        for item in all {
-            let itemID = item.value(forKey: "id") as? UUID ?? UUID()
-            if !seen.insert(itemID).inserted {
-                hasDuplicates = true
-                break
-            }
-        }
-        guard hasDuplicates else { return 0 }
 
         // Group by ID
         var byID: [UUID: [T]] = [:]
@@ -164,6 +165,42 @@ extension DataCleanupService {
         }
 
         return deletedCount
+    }
+
+    /// IDs that appear on more than one row of `type`, found by reading just the
+    /// `id` column instead of materializing objects.
+    ///
+    /// Returns `nil` when the answer can't be trusted — a context with unsaved
+    /// changes (dictionary-result fetches don't see pending inserts) or a failed
+    /// fetch — in which case the caller should do the original full pass.
+    private static func duplicatedIDs<T: NSManagedObject>(
+        of type: T.Type,
+        using context: NSManagedObjectContext
+    ) -> Set<UUID>? {
+        guard !context.hasChanges else { return nil }
+        guard let entityName = CDFetchRequest(T.self).entityName else { return nil }
+
+        let request = NSFetchRequest<NSDictionary>(entityName: entityName)
+        request.resultType = .dictionaryResultType
+        request.propertiesToFetch = ["id"]
+        // Rows with no id are never merged with each other — the object pass
+        // hands each one a fresh UUID — so they can't contribute a duplicate.
+        request.predicate = NSPredicate(format: "id != nil")
+
+        let rows: [NSDictionary]
+        do {
+            rows = try context.fetch(request)
+        } catch {
+            return nil
+        }
+
+        var seen = Set<UUID>(minimumCapacity: rows.count)
+        var duplicates = Set<UUID>()
+        for row in rows {
+            guard let id = row["id"] as? UUID else { continue }
+            if !seen.insert(id).inserted { duplicates.insert(id) }
+        }
+        return duplicates
     }
 
     // MARK: - NSSet Merge Helper
@@ -310,6 +347,8 @@ extension DataCleanupService {
         if canonical.lastName.isEmpty { canonical.lastName = duplicate.lastName }
         if canonical.nickname == nil { canonical.nickname = duplicate.nickname }
         if canonical.dateStarted == nil { canonical.dateStarted = duplicate.dateStarted }
+        if canonical.previousLevelRaw == nil { canonical.previousLevelRaw = duplicate.previousLevelRaw }
+        if canonical.dateLastPromoted == nil { canonical.dateLastPromoted = duplicate.dateLastPromoted }
         if canonical.manualOrder == 0 && duplicate.manualOrder != 0 { canonical.manualOrder = duplicate.manualOrder }
 
         // nextLessons is a Transformable [String] stored as NSObject
@@ -370,6 +409,23 @@ extension DataCleanupService {
         if canonical.lastObservedAt == nil { canonical.lastObservedAt = duplicate.lastObservedAt }
         if canonical.masteredAt == nil { canonical.masteredAt = duplicate.masteredAt }
         if (canonical.notes ?? "").isEmpty { canonical.notes = duplicate.notes }
+
+        // Follow-up is one conflict-resolution bundle. Mixing an older action with
+        // a newer resolution can accidentally reopen a responsibility on another
+        // shared device, so copy every field from whichever bundle was updated last.
+        let canonicalFollowUpDate = canonical.followUpUpdatedAt ?? .distantPast
+        let duplicateFollowUpDate = duplicate.followUpUpdatedAt ?? .distantPast
+        if duplicateFollowUpDate > canonicalFollowUpDate
+            || (canonical.followUpActionRaw == nil && duplicate.followUpActionRaw != nil) {
+            canonical.followUpActionRaw = duplicate.followUpActionRaw
+            canonical.followUpReviewAt = duplicate.followUpReviewAt
+            canonical.followUpResolvedAt = duplicate.followUpResolvedAt
+            canonical.followUpResolutionRaw = duplicate.followUpResolutionRaw
+            canonical.followUpUpdatedAt = duplicate.followUpUpdatedAt
+            canonical.followUpEvidenceRaw = duplicate.followUpEvidenceRaw
+            canonical.followUpNote = duplicate.followUpNote
+            canonical.followUpSupportRaw = duplicate.followUpSupportRaw
+        }
     }
 
     private static func mergeWorkModel(

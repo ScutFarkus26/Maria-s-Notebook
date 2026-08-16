@@ -54,6 +54,30 @@ final class Phase6PostTests {
         await processor.purgeOldHistory()
     }
 
+    @Test("purgeOldHistory is a no-op until CloudKit has successfully exported")
+    func purgeSkipsWithoutExportDate() async throws {
+        let stack = try CoreDataTestHelpers.makeInMemoryStack()
+        let processor = PersistentHistoryProcessor(container: stack.container)
+
+        let exportKey = UserDefaultsKeys.cloudKitLastSuccessfulExportStartDate
+        let purgeKey = UserDefaultsKeys.persistentHistoryLastPurgeDate
+        let savedExport = UserDefaults.standard.object(forKey: exportKey)
+        let savedPurge = UserDefaults.standard.object(forKey: purgeKey)
+        defer {
+            UserDefaults.standard.set(savedExport, forKey: exportKey)
+            UserDefaults.standard.set(savedPurge, forKey: purgeKey)
+        }
+        UserDefaults.standard.removeObject(forKey: exportKey)
+        UserDefaults.standard.removeObject(forKey: purgeKey)
+
+        await processor.purgeOldHistory()
+
+        // Without a recorded export the purge must not run, and must not
+        // record a purge date — the mirroring delegate's history cursor
+        // could still point anywhere in the un-exported history.
+        #expect(UserDefaults.standard.object(forKey: purgeKey) == nil)
+    }
+
     // MARK: - End-to-End Merge
 
     @Test("Insert on background context merges to viewContext")
@@ -80,9 +104,13 @@ final class Phase6PostTests {
 
     // MARK: - CoreDataStack Integration
 
-    @Test("CoreDataStack has historyProcessor after init")
-    func stackHasProcessor() throws {
+    @Test("Secondary stacks (in-memory, Sample Class) do not create a history processor")
+    func secondaryStackHasNoProcessor() throws {
+        // History tokens are per-store and every processor persists its token
+        // under the same UserDefaults key, so only the primary on-disk stack
+        // may own a processor — a secondary stack's saves would clobber the
+        // primary cursor with one referencing a different store file.
         let stack = try CoreDataTestHelpers.makeInMemoryStack()
-        #expect(stack.historyProcessor != nil)
+        #expect(stack.historyProcessor == nil)
     }
 }

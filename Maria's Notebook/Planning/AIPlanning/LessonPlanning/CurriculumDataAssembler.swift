@@ -2,9 +2,9 @@ import Foundation
 import CoreData
 import OSLog
 
-/// Assembles curriculum data across students by querying lessons, presentations, and work outcomes.
-/// Produces a `CurriculumMap` that summarizes each student's position within the curriculum,
-/// with token-efficient compression for AI prompt construction.
+/// Assembles factual curriculum history across students.
+/// Presentation history and explicit guide decisions determine the displayed signal;
+/// work outcomes and practice ratings are never treated as proficiency evidence.
 @MainActor
 struct CurriculumDataAssembler {
     private static let logger = Logger.ai
@@ -23,7 +23,6 @@ struct CurriculumDataAssembler {
     ) -> CurriculumMap {
         let allLessons = fetchAllLessons(context: context)
         let allPresentations = fetchAllPresentations(context: context)
-        let allWork = fetchActiveWork(context: context)
 
         let studentIDs = Set(students.compactMap { $0.id?.uuidString })
         let studentNameMap = Dictionary(
@@ -47,7 +46,7 @@ struct CurriculumDataAssembler {
                 let sortedLessons = groupLessons.sorted { $0.orderInSequence < $1.orderInSequence }
 
                 var lessonPositions: [CurriculumMap.LessonPosition] = []
-                var completedCount = 0
+                var presentedCount = 0
 
                 for lesson in sortedLessons {
                     guard let lessonID = lesson.id else { continue }
@@ -57,8 +56,7 @@ struct CurriculumDataAssembler {
                         let proficiency = determineProficiency(
                             lessonID: lessonID,
                             studentID: studentIDString,
-                            presentations: allPresentations,
-                            work: allWork
+                            presentations: allPresentations
                         )
 
                         let name = studentNameMap[studentIDString] ?? "Unknown"
@@ -69,10 +67,11 @@ struct CurriculumDataAssembler {
                         ))
                     }
 
-                    // Count as completed if all students have been presented or beyond
+                    // Count only the factual event: every included student has a
+                    // presentation record for this lesson.
                     let allPresented = studentStatuses.allSatisfy { $0.proficiency != .notPresented }
                     if allPresented && !studentStatuses.isEmpty {
-                        completedCount += 1
+                        presentedCount += 1
                     }
 
                     lessonPositions.append(.init(
@@ -86,7 +85,7 @@ struct CurriculumDataAssembler {
                 groupMaps.append(.init(
                     sequence: sequence,
                     lessons: lessonPositions,
-                    completedCount: completedCount,
+                    presentedCount: presentedCount,
                     totalCount: sortedLessons.count
                 ))
             }
@@ -114,19 +113,20 @@ struct CurriculumDataAssembler {
             var groupDetails: [String] = []
 
             for sequence in area.groups {
-                let progress = "\(sequence.completedCount)/\(sequence.totalCount)"
+                let progress = "\(sequence.presentedCount)/\(sequence.totalCount) presented"
 
-                // Only show frontier lessons (first not-presented or practicing)
+                // Show lessons that remain relevant at the curriculum frontier.
                 let frontierLessons = sequence.lessons.filter { lesson in
                     lesson.studentStatuses.contains { status in
                         status.proficiency == .notPresented
                             || status.proficiency == .practicing
                             || status.proficiency == .needsMorePractice
+                            || status.proficiency == .needsReteaching
                     }
                 }.prefix(3)
 
                 if frontierLessons.isEmpty {
-                    groupDetails.append("  \(sequence.sequence) \(progress) complete")
+                    groupDetails.append("  \(sequence.sequence) \(progress)")
                 } else {
                     var detail = "  \(sequence.sequence) \(progress):"
                     for lesson in frontierLessons {
@@ -177,18 +177,12 @@ struct CurriculumDataAssembler {
         return context.safeFetch(request)
     }
 
-    private static func fetchActiveWork(context: NSManagedObjectContext) -> [CDWorkModel] {
-        let request = CDFetchRequest(CDWorkModel.self)
-        request.predicate = NSPredicate(format: "statusRaw != %@", "complete")
-        return context.safeFetch(request)
-    }
-
-    /// Determines the proficiency signal for a specific student on a specific lesson.
+    /// Returns a factual signal for a student's lesson history. Strong states
+    /// come only from explicit fields set by the guide on a presentation.
     private static func determineProficiency(
         lessonID: UUID,
         studentID: String,
-        presentations: [CDLessonAssignment],
-        work: [CDWorkModel]
+        presentations: [CDLessonAssignment]
     ) -> ProficiencySignal {
         let lessonIDStr = lessonID.uuidString
 
@@ -197,53 +191,17 @@ struct CurriculumDataAssembler {
             la.lessonID == lessonIDStr && la.studentIDs.contains(studentID)
         }
 
-        // Check if any presentation has been given. "Previously Presented" records
-        // are undated (state == .presented, presentedAt == nil), so match on state too.
-        let hasBeenPresented = relevantPresentations.contains { $0.isPresented || $0.presentedAt != nil }
-
-        if !hasBeenPresented {
-            // Check if there's a draft/scheduled presentation
-            let hasPending = relevantPresentations.contains { $0.presentedAt == nil }
-            if hasPending {
-                return .notPresented // Scheduled but not yet presented
-            }
+        let presented = relevantPresentations.filter { $0.isPresented || $0.presentedAt != nil }
+        guard let latest = presented.max(by: {
+            ($0.presentedAt ?? $0.createdAt ?? .distantPast)
+                < ($1.presentedAt ?? $1.createdAt ?? .distantPast)
+        }) else {
             return .notPresented
         }
 
-        // Has been presented - check work outcomes
-        let relevantWork = work.filter { w in
-            w.lessonID == lessonIDStr && w.studentID == studentID
-        }
-
-        // Deduplicate
-        let allRelevantWork = Array(Set(relevantWork.compactMap(\.id)).compactMap { id in
-            relevantWork.first { $0.id == id }
-        })
-
-        // Check completion outcomes
-        for w in allRelevantWork {
-            if let outcome = w.completionOutcome {
-                switch outcome {
-                case .proficient:
-                    return .proficient
-                case .needsMorePractice:
-                    return .needsMorePractice
-                case .needsReview:
-                    return .needsReteaching
-                case .incomplete:
-                    return .practicing
-                case .notApplicable:
-                    continue
-                }
-            }
-        }
-
-        // Has active work but no completion outcome yet
-        if !allRelevantWork.isEmpty {
-            return .practicing
-        }
-
-        // Presented but no work created yet
+        if latest.needsAnotherPresentation { return .needsReteaching }
+        if latest.needsPractice { return .needsMorePractice }
+        if latest.confirmedStudentIDs.contains(studentID) { return .proficient }
         return .presented
     }
 }
@@ -257,9 +215,9 @@ extension ProficiencySignal {
         case .notPresented: return "NP"
         case .presented: return "P"
         case .practicing: return "PR"
-        case .proficient: return "M"
+        case .proficient: return "GC"
         case .needsMorePractice: return "NMP"
-        case .needsReteaching: return "NR"
+        case .needsReteaching: return "RP"
         }
     }
 }

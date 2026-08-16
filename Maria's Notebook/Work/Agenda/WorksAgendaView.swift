@@ -1,10 +1,11 @@
 // WorksAgendaView.swift
-// Split view combining open-work grid with a planning calendar pane.
+// Shared Lessons & Work workspace for the full presentation-to-practice cycle.
 //
 // Helpers live in:
 // - WorksAgendaView+DataHelpers.swift  (cache loading, filtering, display helpers)
 // - WorksAgendaView+Actions.swift      (calendar navigation, work item actions)
 
+import Combine
 import CoreData
 import OSLog
 import SwiftUI
@@ -19,8 +20,12 @@ struct WorksAgendaView: View {
 
     @Environment(\.managedObjectContext) var viewContext
     @Environment(\.calendar) var calendar
+    @Environment(\.appRouter) var appRouter
     @Environment(SaveCoordinator.self) var saveCoordinator
     @Environment(RestoreCoordinator.self) private var restoreCoordinator
+    #if os(macOS)
+    @Environment(\.openWindow) var openWindow
+    #endif
 
     @FetchRequest(
         sortDescriptors: [NSSortDescriptor(keyPath: \CDWorkModel.createdAt, ascending: false)],
@@ -48,6 +53,8 @@ struct WorksAgendaView: View {
     @AppStorage(UserDefaultsKeys.workAgendaHideScheduled) var hideScheduled: Bool = false
     @AppStorage(UserDefaultsKeys.workAgendaVisibleKinds)
     var visibleKindsRaw: String = WorkKind.allCases.map(\.rawValue).joined(separator: ",")
+    @SceneStorage("LessonsAndWork.scope")
+    var workspaceScopeRaw: String = LessonsAndWorkScope.needsAttention.rawValue
 
     var visibleKinds: Binding<Set<WorkKind>> {
         Binding(
@@ -72,17 +79,41 @@ struct WorksAgendaView: View {
     @State var searchText: String = ""
     @State var debouncedSearchText: String = ""
     @State var searchDebounceTask: Task<Void, Never>?
-    @State var calendarHeightRatio: CGFloat = 0.5 // 50% calendar, 50% open work
+    #if os(macOS)
     @State var isCalendarMinimized: Bool = false
+    #else
+    @State var isCalendarMinimized: Bool = true
+    #endif
     @State var calendarStartDate: Date = AppCalendar.startOfDay(Date())
 
     @State var selected: SelectionToken?
+    @State var selectedLessonAssignment: CDLessonAssignment?
+    @State var focusedPresentationID: UUID?
+    @State var focusedWorkID: UUID?
 
     struct SelectionToken: Identifiable, Equatable { let id: UUID; let workID: UUID }
 
     // MEMORY OPTIMIZATION: Load lessons and students on-demand based on contracts
     var lessonsByID: [UUID: CDLesson] { lessonsByIDCache }
     var studentsByID: [UUID: CDStudent] { studentsByIDCache }
+
+    var workspaceScope: LessonsAndWorkScope {
+        LessonsAndWorkScope.resolved(rawValue: workspaceScopeRaw)
+    }
+
+    var workspaceScopeBinding: Binding<LessonsAndWorkScope> {
+        Binding(
+            get: { workspaceScope },
+            set: { newValue in
+                workspaceScopeRaw = newValue.rawValue
+                focusedPresentationID = nil
+                focusedWorkID = nil
+                #if os(iOS)
+                isCalendarMinimized = true
+                #endif
+            }
+        )
+    }
 
     /// Combined trigger for data reload — changes when any relevant data changes
     private var dataReloadTrigger: Int {
@@ -105,97 +136,43 @@ struct WorksAgendaView: View {
                 }
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
             } else {
-                GeometryReader { geo in
-                    VStack(spacing: 0) {
-                        // Top: Open Work grid
-                        VStack(alignment: .leading, spacing: 8) {
-                            #if os(iOS)
-                            header
-                            Divider()
-                            #else
-                            WorkKindFilterChipBar(visibleKinds: visibleKinds)
-                                .padding(.vertical, 4)
-                                .padding(.horizontal, 16)
-                            Divider()
-                            #endif
-                            OpenWorkGrid(
-                                works: openWorksFiltered(),
-                                lessonsByID: lessonsByID,
-                                studentsByID: studentsByID,
-                                sortMode: sortMode,
-                                onOpen: openDetail,
-                                onMarkCompleted: markCompleted,
-                                onScheduleToday: scheduleToday
-                            )
-                        }
-                        .frame(height: geo.size.height * (isCalendarMinimized ? 1.0 : (1 - calendarHeightRatio)))
-
-                        if !isCalendarMinimized {
-                            Divider()
-
-                            // Bottom: Calendar pane
-                            VStack(alignment: .leading, spacing: 8) {
-                                HStack(spacing: 12) {
-                                    Button {
-                                        moveCalendarStart(bySchoolDays: -UIConstants.planningNavigationStepSchoolDays)
-                                    } label: {
-                                        Image(systemName: "chevron.left")
-                                    }
-                                    .buttonStyle(.plain)
-
-                                    Text("Planning Calendar")
-                                        .font(.title3.weight(.semibold))
-
-                                    Button {
-                                        moveCalendarStart(bySchoolDays: UIConstants.planningNavigationStepSchoolDays)
-                                    } label: {
-                                        Image(systemName: "chevron.right")
-                                    }
-                                    .buttonStyle(.plain)
-
-                                    Spacer()
-
-                                    Button("Today") {
-                                        calendarStartDate = AppCalendar.startOfDay(Date())
-                                    }
-                                    .font(AppTheme.ScaledFont.captionSemibold)
-                                    .padding(.horizontal, 12)
-                                    .padding(.vertical, 6)
-                                    .background(
-                                        Color.primary.opacity(UIConstants.OpacityConstants.subtle),
-                                        in: Capsule()
-                                    )
-                                }
-                                .padding(.horizontal, 16)
-                                .padding(.top, 8)
-                                WorkAgendaCalendarPane(startDate: calendarStartDate, daysCount: 10)
-                                    .frame(maxHeight: .infinity)
-                            }
-                            .frame(height: geo.size.height * calendarHeightRatio)
-                            .transition(.opacity.combined(with: .move(edge: .bottom)))
-                        }
-                    }
-                }
-                .navigationTitle("Open Work")
+                workspaceContent
+                .navigationTitle("Lessons & Work")
                 #if os(macOS)
-                .searchable(text: $searchText, placement: .toolbar, prompt: "Search students or lessons")
-                .toolbar { openWorkToolbarContent }
+                .searchable(text: $searchText, placement: .toolbar, prompt: searchPrompt)
+                .toolbar { lessonsAndWorkToolbarContent }
                 #endif
                 .sheet(
                     item: $selected,
                     onDismiss: { selected = nil },
                     content: { token in sheetContent(for: token) }
                 )
+                #if os(iOS)
+                .sheet(item: $selectedLessonAssignment) { assignment in
+                    PresentationDetailView(lessonAssignment: assignment) {
+                        selectedLessonAssignment = nil
+                    }
+                    .presentationDetents([.large])
+                    .presentationDragIndicator(.visible)
+                }
+                #endif
             }
         }
         .onAppear {
             refreshChangeTokens()
             loadLessonsAndStudentsIfNeeded()
+            consumeWorkspaceRequestIfNeeded()
         }
         .onChange(of: dataReloadTrigger) { _, _ in
             loadLessonsAndStudentsIfNeeded()
         }
-        .onReceive(NotificationCenter.default.publisher(for: .NSManagedObjectContextDidSave)) { _ in
+        // Debounce: saves arrive in bursts (bulk edits, CloudKit merge batches).
+        // Coalesce them so the change-token fetches run once the dust settles,
+        // not once per save (same pattern as StudentsView).
+        .onReceive(
+            NotificationCenter.default.publisher(for: .NSManagedObjectContextDidSave)
+                .debounce(for: .milliseconds(300), scheduler: RunLoop.main)
+        ) { _ in
             refreshChangeTokens()
         }
         .onChange(of: searchText) { _, newValue in
@@ -206,48 +183,230 @@ struct WorksAgendaView: View {
                 debouncedSearchText = newValue
             }
         }
+        .onChange(of: appRouter.lessonsAndWorkRequest?.id) { _, _ in
+            consumeWorkspaceRequestIfNeeded()
+        }
         .onDisappear {
             searchDebounceTask?.cancel()
         }
     }
 
+    @ViewBuilder
+    private var workspaceContent: some View {
+        #if os(macOS)
+        VSplitView {
+            workspaceWorkbench
+                .frame(minHeight: 300)
+
+            if workspaceScope != .history && !isCalendarMinimized {
+                sharedAgendaPane
+                    .frame(minHeight: 190, idealHeight: 300)
+            }
+        }
+        #else
+        VStack(spacing: 0) {
+            mobileHeader
+            Divider()
+
+            if workspaceScope != .history && !isCalendarMinimized {
+                sharedAgendaPane
+            } else {
+                workspaceWorkbench
+            }
+        }
+        #endif
+    }
+
+    @ViewBuilder
+    private var workspaceWorkbench: some View {
+        switch workspaceScope {
+        case .needsAttention:
+            LessonsAndWorkAttentionView(
+                openWork: Array(openWork).uniqueByID,
+                scheduledCheckIns: Array(scheduledCheckIns).uniqueByID,
+                lessonsByID: lessonsByID,
+                studentsByID: studentsByID,
+                searchText: debouncedSearchText,
+                focusedPresentationID: focusedPresentationID,
+                focusedWorkID: focusedWorkID,
+                onOpenPresentation: openPresentation,
+                onOpenWork: openDetail
+            )
+
+        case .upcoming:
+            PresentationsView(
+                isEmbedded: true,
+                embeddedSearchText: debouncedSearchText,
+                focusedPresentationID: focusedPresentationID
+            )
+
+        case .childrenWorking:
+            openWorkPane
+
+        case .history:
+            LessonsAndWorkHistoryView(
+                searchText: debouncedSearchText,
+                focusedPresentationID: focusedPresentationID,
+                focusedWorkID: focusedWorkID
+            )
+        }
+    }
+
+    private var openWorkPane: some View {
+        VStack(alignment: .leading, spacing: 0) {
+            #if os(macOS)
+            WorkKindFilterChipBar(visibleKinds: visibleKinds)
+                .padding(.vertical, 4)
+                .padding(.horizontal, 16)
+            Divider()
+            #endif
+
+            OpenWorkGrid(
+                works: openWorksFiltered(),
+                lessonsByID: lessonsByID,
+                studentsByID: studentsByID,
+                sortMode: sortMode,
+                focusedWorkID: focusedWorkID,
+                onOpen: openDetail,
+                onMarkCompleted: markCompleted,
+                onScheduleToday: scheduleToday
+            )
+        }
+    }
+
+    private var sharedAgendaPane: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            HStack(spacing: 12) {
+                Button {
+                    moveCalendarStart(bySchoolDays: -UIConstants.planningNavigationStepSchoolDays)
+                } label: {
+                    Image(systemName: "chevron.left")
+                }
+                .buttonStyle(.plain)
+
+                Text("Agenda")
+                    .font(.title3.weight(.semibold))
+
+                Button {
+                    moveCalendarStart(bySchoolDays: UIConstants.planningNavigationStepSchoolDays)
+                } label: {
+                    Image(systemName: "chevron.right")
+                }
+                .buttonStyle(.plain)
+
+                Spacer()
+
+                Button("Today") {
+                    calendarStartDate = AppCalendar.startOfDay(Date())
+                }
+                .font(AppTheme.ScaledFont.captionSemibold)
+                .buttonStyle(.bordered)
+            }
+            .padding(.horizontal, 16)
+            .padding(.top, 8)
+
+            WorkAgendaCalendarPane(
+                startDate: calendarStartDate,
+                daysCount: 10,
+                onOpenWork: openWork(id:),
+                onOpenPresentation: openPresentation
+            )
+            .frame(maxHeight: .infinity)
+        }
+    }
+
+    private var searchPrompt: String {
+        switch workspaceScope {
+        case .needsAttention: "Search children, lessons, or work"
+        case .upcoming: "Search upcoming lessons or children"
+        case .childrenWorking: "Search work, children, or lessons"
+        case .history: "Search presentations or completed work"
+        }
+    }
+
+    private func consumeWorkspaceRequestIfNeeded() {
+        guard let request = appRouter.consumeLessonsAndWorkRequest() else { return }
+        workspaceScopeRaw = request.scope.rawValue
+        focusedPresentationID = request.presentationID
+        focusedWorkID = request.workID
+        #if os(iOS)
+        isCalendarMinimized = true
+        #endif
+    }
+
+    private func openPresentation(_ assignment: CDLessonAssignment) {
+        #if os(macOS)
+        guard let id = assignment.id else { return }
+        openWindow(id: "PresentationDetailWindow", value: id)
+        #else
+        selectedLessonAssignment = assignment
+        #endif
+    }
+
+    private func openWork(id: UUID) {
+        guard let work = fetchWork(id: id) else { return }
+        openDetail(work)
+    }
+
     #if os(macOS)
     @ToolbarContentBuilder
-    private var openWorkToolbarContent: some ToolbarContent {
+    private var lessonsAndWorkToolbarContent: some ToolbarContent {
+        ToolbarItem(placement: .principal) {
+            Picker("View", selection: workspaceScopeBinding) {
+                ForEach(LessonsAndWorkScope.allCases) { scope in
+                    Text(scope.title).tag(scope)
+                }
+            }
+            .pickerStyle(.segmented)
+            .frame(minWidth: 500, idealWidth: 620)
+        }
+
         ToolbarItemGroup(placement: .primaryAction) {
-            Picker("Sort", selection: $sortMode) {
-                ForEach(WorkAgendaSortMode.allCases) { mode in
-                    Text(mode.rawValue).tag(mode)
+            if workspaceScope == .childrenWorking {
+                Button {
+                    appRouter.requestNewWork()
+                } label: {
+                    Label("New Work", systemImage: "plus")
                 }
-            }
-            .pickerStyle(.menu)
 
-            Button {
-                hideScheduled.toggle()
-            } label: {
-                Label(
-                    hideScheduled ? "Show Scheduled Work" : "Hide Scheduled Work",
-                    systemImage: hideScheduled ? "calendar.badge.minus" : "calendar"
-                )
-            }
-            .help(hideScheduled ? "Show scheduled work" : "Hide scheduled work")
-
-            Button {
-                isCalendarMinimized.toggle()
-            } label: {
-                Label(
-                    isCalendarMinimized ? "Show Planning Calendar" : "Hide Planning Calendar",
-                    systemImage: isCalendarMinimized ? "calendar" : "calendar.badge.minus"
-                )
-            }
-            .help(isCalendarMinimized ? "Show planning calendar" : "Hide planning calendar")
-
-            Menu("Output", systemImage: "square.and.arrow.up") {
-                Button("Print", systemImage: "printer") {
-                    printWorkView()
+                Picker("Sort", selection: $sortMode) {
+                    ForEach(WorkAgendaSortMode.allCases) { mode in
+                        Text(mode.rawValue).tag(mode)
+                    }
                 }
-                Button("Export PDF", systemImage: "arrow.down.doc") {
-                    exportWorkPDF()
+                .pickerStyle(.menu)
+
+                Button {
+                    hideScheduled.toggle()
+                } label: {
+                    Label(
+                        hideScheduled ? "Show Scheduled Work" : "Hide Scheduled Work",
+                        systemImage: hideScheduled ? "calendar.badge.minus" : "calendar"
+                    )
+                }
+                .help(hideScheduled ? "Show scheduled work" : "Hide scheduled work")
+            }
+
+            if workspaceScope != .history {
+                Button {
+                    isCalendarMinimized.toggle()
+                } label: {
+                    Label(
+                        isCalendarMinimized ? "Show Agenda" : "Hide Agenda",
+                        systemImage: isCalendarMinimized ? "calendar" : "calendar.badge.minus"
+                    )
+                }
+                .help(isCalendarMinimized ? "Show the shared agenda" : "Hide the shared agenda")
+            }
+
+            if workspaceScope == .childrenWorking {
+                Menu("Output", systemImage: "square.and.arrow.up") {
+                    Button("Print", systemImage: "printer") {
+                        printWorkView()
+                    }
+                    Button("Export PDF", systemImage: "arrow.down.doc") {
+                        exportWorkPDF()
+                    }
                 }
             }
         }
@@ -272,11 +431,27 @@ struct WorksAgendaView: View {
         return viewContext.safeFetch(request).first
     }
 
-    private var header: some View {
+    private var mobileHeader: some View {
         VStack(spacing: 0) {
-            ViewHeader(title: "Open Work") {
+            ViewHeader(title: "Lessons & Work") {
                 HStack(spacing: 12) {
-                    #if os(iOS)
+                    Menu {
+                        ForEach(LessonsAndWorkScope.allCases) { scope in
+                            Button {
+                                workspaceScopeBinding.wrappedValue = scope
+                            } label: {
+                                if scope == workspaceScope {
+                                    Label(scope.title, systemImage: "checkmark")
+                                } else {
+                                    Label(scope.title, systemImage: scope.systemImage)
+                                }
+                            }
+                        }
+                    } label: {
+                        Label(workspaceScope.compactTitle, systemImage: workspaceScope.systemImage)
+                    }
+
+                    if workspaceScope != .history {
                     Button {
                         adaptiveWithAnimation(.spring(response: 0.3, dampingFraction: 0.8)) {
                             isCalendarMinimized.toggle()
@@ -289,40 +464,20 @@ struct WorksAgendaView: View {
                             .background(Color.primary.opacity(UIConstants.OpacityConstants.light))
                             .clipShape(Circle())
                     }
-                    #endif
-                    Picker("Sort", selection: $sortMode) {
-                        ForEach(WorkAgendaSortMode.allCases) { m in Text(m.rawValue).tag(m) }
                     }
-                    .pickerStyle(.segmented)
-                    .frame(maxWidth: 420)
 
-                    Button {
-                        hideScheduled.toggle()
-                    } label: {
-                        Image(systemName: hideScheduled ? "calendar.badge.minus" : "calendar")
-                            .foregroundStyle(.secondary)
+                    if workspaceScope == .childrenWorking {
+                        Button {
+                            appRouter.requestNewWork()
+                        } label: {
+                            Image(systemName: "plus")
+                        }
                     }
-                    .buttonStyle(.plain)
-                    .help(hideScheduled ? "Show scheduled work" : "Hide scheduled work")
-                    #if os(macOS)
-                    Button {
-                        printWorkView()
-                    } label: {
-                        Label("Print", systemImage: "printer")
-                    }
-                    .help("Print open work")
-                    Button {
-                        exportWorkPDF()
-                    } label: {
-                        Label("Export PDF", systemImage: "square.and.arrow.down")
-                    }
-                    .help("Export open work to PDF")
-                    #endif
                 }
             }
             HStack(spacing: 12) {
                 Image(systemName: "magnifyingglass").foregroundStyle(.secondary)
-                TextField("Search students or lessons", text: $searchText)
+                TextField(searchPrompt, text: $searchText)
                     .textFieldStyle(.plain)
                     .onSubmit {
                         searchDebounceTask?.cancel()
@@ -335,8 +490,10 @@ struct WorksAgendaView: View {
             .clipShape(RoundedRectangle(cornerRadius: 10))
             .padding(.horizontal, 16)
             .padding(.bottom, 4)
-            WorkKindFilterChipBar(visibleKinds: visibleKinds)
-                .padding(.bottom, 4)
+            if workspaceScope == .childrenWorking {
+                WorkKindFilterChipBar(visibleKinds: visibleKinds)
+                    .padding(.bottom, 4)
+            }
         }
     }
 }

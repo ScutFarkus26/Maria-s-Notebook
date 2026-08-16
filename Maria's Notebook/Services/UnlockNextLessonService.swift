@@ -42,7 +42,8 @@ struct UnlockNextLessonService {
         for studentIDs: Set<UUID>,
         context: NSManagedObjectContext,
         lessons: [CDLesson],
-        cdAssignments: [CDLessonAssignment]
+        cdAssignments: [CDLessonAssignment],
+        saveImmediately: Bool = true
     ) -> UnlockResult {
         // Find the current lesson
         guard let currentLesson = lessons.first(where: { $0.id == currentLessonID }) else {
@@ -77,7 +78,9 @@ struct UnlockNextLessonService {
             }
 
             existing.manuallyUnblocked = true
-            context.safeSave()
+            if saveImmediately {
+                context.safeSave()
+            }
             return .success(existing)
         }
 
@@ -88,7 +91,9 @@ struct UnlockNextLessonService {
             context: context
         )
         newAssignment.manuallyUnblocked = true
-        context.safeSave()
+        if saveImmediately {
+            context.safeSave()
+        }
         return .success(newAssignment)
     }
 
@@ -98,14 +103,16 @@ struct UnlockNextLessonService {
         for studentID: UUID,
         context: NSManagedObjectContext,
         lessons: [CDLesson],
-        cdAssignments: [CDLessonAssignment]
+        cdAssignments: [CDLessonAssignment],
+        saveImmediately: Bool = true
     ) -> UnlockResult {
         unlockNextLesson(
             after: currentLessonID,
             for: [studentID],
             context: context,
             lessons: lessons,
-            cdAssignments: cdAssignments
+            cdAssignments: cdAssignments,
+            saveImmediately: saveImmediately
         )
     }
 

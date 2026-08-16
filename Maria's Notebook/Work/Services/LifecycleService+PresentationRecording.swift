@@ -12,7 +12,8 @@ extension LifecycleService {
     static func recordPresentation(
         from lessonAssignment: CDLessonAssignment,
         presentedAt: Date,
-        modelContext: NSManagedObjectContext
+        modelContext: NSManagedObjectContext,
+        beginFollowUp: Bool = true
     ) throws -> CDLessonAssignment {
         // CRITICAL: Clean orphaned student IDs before processing to prevent ghost data
         let allStudents = try modelContext.fetch(CDFetchRequest(CDStudent.self))
@@ -22,10 +23,10 @@ extension LifecycleService {
         let lessonIDStr = lessonAssignment.lessonID
         let studentIDStrs = lessonAssignment.studentIDs
 
-        // Update to presented state if not already
-        if lessonAssignment.state != .presented {
-            lessonAssignment.markPresented(at: presentedAt)
-        }
+        // Apply the supplied occurrence date even when this assignment was
+        // previously stored as an undated or older presentation. The operation is
+        // still idempotent because the per-student rows are upserted below.
+        lessonAssignment.markPresented(at: presentedAt)
 
         // Update track info if not already set
         if lessonAssignment.trackID == nil, let lesson = lessonAssignment.lesson {
@@ -61,13 +62,16 @@ extension LifecycleService {
         // Upsert CDLessonPresentation records per student (for individual progress tracking)
         let assignmentIDStr = lessonAssignment.id?.uuidString ?? ""
         for sid in studentIDStrs {
-            try upsertLessonPresentation(
+            let historyRow = try upsertLessonPresentation(
                 presentationID: assignmentIDStr,
                 studentID: sid,
                 lessonID: lessonIDStr,
                 presentedAt: presentedAt,
                 context: modelContext
             )
+            if beginFollowUp {
+                PresentationFollowUpService.beginFollowing(historyRow, at: presentedAt)
+            }
         }
 
         return lessonAssignment

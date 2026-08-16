@@ -10,12 +10,12 @@ extension BackupEntityImporter {
     static func importStudents(
         _ dtos: [StudentDTO],
         into viewContext: NSManagedObjectContext,
-        existingCheck: EntityExistsCheck<CDStudent>
+        existingCheck: EntityExistsCheck
     ) rethrows -> [UUID: CDStudent] {
         var studentsByID: [UUID: CDStudent] = [:]
         for dto in dtos {
             do {
-                if try existingCheck(dto.id) != nil { continue }
+                if try existingCheck(dto.id) { continue }
             } catch {
                 let desc = error.localizedDescription
                 Logger.backup.warning("Failed to check existing student: \(desc, privacy: .public)")
@@ -30,13 +30,19 @@ extension BackupEntityImporter {
             // rather than a bogus real date. (Backups where the fabricated value
             // was the export-time Date() are indistinguishable from real data.)
             student.birthday = dto.birthday == .distantPast ? nil : dto.birthday
-            student.level = dto.level == .upper ? .upper : .lower
+            switch dto.level {
+            case .lower: student.level = .lower
+            case .upper: student.level = .upper
+            case .adolescent: student.level = .adolescent
+            }
             student.dateStarted = dto.dateStarted
             student.nextLessons = dto.nextLessons.map(\.uuidString) as NSArray
             student.manualOrder = Int64(dto.manualOrder)
             student.nickname = dto.nickname
             if let v = dto.enrollmentStatusRaw { student.enrollmentStatusRaw = v }
             student.dateWithdrawn = dto.dateWithdrawn
+            student.previousLevelRaw = dto.previousLevelRaw
+            student.dateLastPromoted = dto.dateLastPromoted
             // Preserve the original modification time (awakeFromInsert stamped "now");
             // older backups lack the field, so those keep the import-time stamp.
             if let v = dto.modifiedAt { student.modifiedAt = v }

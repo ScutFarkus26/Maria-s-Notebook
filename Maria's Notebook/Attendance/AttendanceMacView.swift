@@ -13,8 +13,12 @@ struct AttendanceMacView: View {
 
     @FetchRequest(sortDescriptors: [NSSortDescriptor(keyPath: \CDStudent.lastName, ascending: true)])
     private var allStudentsRaw: FetchedResults<CDStudent>
+    // Active on the selected day, not enrolled-only: browsing a past date shows the
+    // roster as it was then, so former students' attendance stays visible and editable.
     private var students: [CDStudent] {
-        Array(allStudentsRaw).uniqueByID.filterEnrolled()
+        let day = AppCalendar.startOfDay(selectedDate)
+        let nextDay = AppCalendar.shared.date(byAdding: .day, value: 1, to: day) ?? day
+        return Array(allStudentsRaw).uniqueByID.filterActive(in: DateRange(start: day, end: nextDay))
     }
 
     @State private var selectedDate: Date = AppCalendar.startOfDay(Date())

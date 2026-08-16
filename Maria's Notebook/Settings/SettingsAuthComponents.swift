@@ -143,7 +143,7 @@ struct LastSyncView: View {
 
     var body: some View {
         if let lastSync {
-            Text("Last synced: \(lastSync, style: .relative) ago")
+            Text("Last synced: \(lastSync.formatted(.relative(presentation: .named)))")
                 .font(.footnote)
                 .foregroundStyle(.secondary)
         }

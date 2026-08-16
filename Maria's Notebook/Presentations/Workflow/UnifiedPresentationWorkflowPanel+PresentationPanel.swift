@@ -14,19 +14,6 @@ extension UnifiedPresentationWorkflowPanel {
 
             Divider()
 
-            // Progress Indicator
-            WorkflowProgressIndicator(
-                totalStudents: students.count,
-                studentsWithUnderstanding: studentsWithUnderstanding,
-                studentsWithNotes: studentsWithNotes,
-                hasSequenceObservation: hasSequenceObservation
-            )
-            .padding(.horizontal, 16)
-            .padding(.vertical, 12)
-            .background(Color.primary.opacity(UIConstants.OpacityConstants.whisper))
-
-            Divider()
-
             // Student navigation pill bar
             studentPillBar
                 .padding(.vertical, 8)
@@ -42,12 +29,6 @@ extension UnifiedPresentationWorkflowPanel {
                            rules.requiresPractice || rules.requiresTeacherConfirmation {
                             progressionRulesBanner(rules)
                         }
-
-                        // Status Section
-                        presentationStatusSection
-
-                        Divider()
-                            .padding(.horizontal, 16)
 
                         // Group Observation Section
                         groupObservationSection
@@ -89,16 +70,8 @@ extension UnifiedPresentationWorkflowPanel {
     func studentPill(_ student: CDStudent) -> some View {
         let id = student.id ?? UUID()
         let entry = presentationViewModel.entries[id]
-        let hasNotes = !(entry?.observation ?? "").isEmpty
-        let hasLevel = entry?.understandingLevel != nil && entry?.understandingLevel != 3
-
-        let pillColor: Color = if hasNotes && hasLevel {
-            AppColors.success
-        } else if hasNotes || hasLevel {
-            Color.accentColor
-        } else {
-            Color.secondary
-        }
+        let hasNotes = !(entry?.observation.trimmed() ?? "").isEmpty
+        let pillColor: Color = hasNotes ? Color.accentColor : Color.secondary
 
         return Button {
             if !presentationViewModel.expandedStudentIDs.contains(id) {
@@ -122,46 +95,6 @@ extension UnifiedPresentationWorkflowPanel {
         .buttonStyle(.plain)
     }
 
-    // MARK: - Presentation Status Section
-
-    var presentationStatusSection: some View {
-        VStack(alignment: .leading, spacing: 16) {
-            WorkflowSectionHeader(title: "Presentation Status", icon: "flag.fill")
-
-            HStack(spacing: 12) {
-                ForEach(UnifiedPostPresentationSheet.PresentationStatus.allCases) { status in
-                    WorkflowStatusButton(
-                        icon: status.systemImage,
-                        title: status.title,
-                        color: status.tint,
-                        isSelected: presentationViewModel.status == status,
-                        action: { presentationViewModel.status = status }
-                    )
-                }
-            }
-
-            Divider()
-
-            // Apply Understanding to All
-            VStack(alignment: .leading, spacing: 8) {
-                FieldLabel(text: "Apply Understanding to All")
-
-                HStack(spacing: 8) {
-                    ForEach(1...5, id: \.self) { level in
-                        Button {
-                            applyUnderstandingToAll(level: level)
-                        } label: {
-                            UnderstandingLevelIndicator(level: level, size: 28)
-                        }
-                        .buttonStyle(.plain)
-                        .help(UnderstandingLevel.label(for: level))
-                    }
-                }
-            }
-        }
-        .padding(.horizontal, 16)
-    }
-
     // MARK: - Group Observation Section
 
     var groupObservationSection: some View {
@@ -183,12 +116,12 @@ extension UnifiedPresentationWorkflowPanel {
     var studentEntriesSection: some View {
         VStack(alignment: .leading, spacing: 12) {
             HStack {
-                WorkflowSectionHeader(title: "Student Status & Notes", icon: "person.2.fill")
+                WorkflowSectionHeader(title: "Student Observations", icon: "person.2.fill")
 
                 Spacer()
 
                 let completed = presentationViewModel.entries.values.filter {
-                    !$0.observation.isEmpty || !$0.assignment.isEmpty
+                    !$0.observation.trimmed().isEmpty
                 }.count
                 Text("\(completed)/\(presentationViewModel.entries.count)")
                     .font(AppTheme.ScaledFont.captionSemibold)
@@ -207,8 +140,7 @@ extension UnifiedPresentationWorkflowPanel {
         let studentID = student.id ?? UUID()
         let isExpanded = presentationViewModel.expandedStudentIDs.contains(studentID)
         let entry = presentationViewModel.entries[studentID]
-        let hasContent = !(entry?.observation.isEmpty ?? true) || !(entry?.assignment.isEmpty ?? true)
-        let level = entry?.understandingLevel ?? 3
+        let hasContent = !(entry?.observation.trimmed().isEmpty ?? true)
 
         return VStack(spacing: 0) {
             // Header row
@@ -224,8 +156,7 @@ extension UnifiedPresentationWorkflowPanel {
                 StudentEntryRowHeader(
                     studentName: StudentFormatter.displayName(for: student),
                     hasContent: hasContent,
-                    isExpanded: isExpanded,
-                    understandingLevel: level
+                    isExpanded: isExpanded
                 )
             }
             .buttonStyle(.plain)
@@ -241,18 +172,6 @@ extension UnifiedPresentationWorkflowPanel {
     func studentExpandedContent(for student: CDStudent) -> some View {
         let studentID = student.id ?? UUID()
         VStack(spacing: 12) {
-            // Understanding level picker
-            VStack(alignment: .leading, spacing: 6) {
-                Text("Understanding")
-                    .font(AppTheme.ScaledFont.captionSemibold)
-                    .foregroundStyle(.secondary)
-
-                UnderstandingLevelRow(selectedLevel: Binding(
-                    get: { presentationViewModel.entries[studentID]?.understandingLevel ?? 3 },
-                    set: { presentationViewModel.entries[studentID]?.understandingLevel = $0 }
-                ))
-            }
-
             // Proficiency confirmation (when required by progression rules)
             if presentationViewModel.requiresConfirmation {
                 HStack {
@@ -319,33 +238,4 @@ extension UnifiedPresentationWorkflowPanel {
         .padding(.horizontal, 16)
     }
 
-    // MARK: - Helpers
-
-    func applyUnderstandingToAll(level: Int) {
-        var count = 0
-        for student in students {
-            guard let id = student.id, presentationViewModel.entries[id] != nil else { continue }
-            presentationViewModel.entries[id]?.understandingLevel = level
-            count += 1
-        }
-
-        // Show toast notification
-        adaptiveWithAnimation(.easeInOut(duration: 0.3)) {
-            bulkAppliedMessage = "Applied \(UnderstandingLevel.label(for: level))"
-                + " to \(count) student\(count == 1 ? "" : "s")"
-            showBulkAppliedToast = true
-        }
-
-        // Auto-hide after 2 seconds
-        Task {
-            do {
-                try await Task.sleep(for: .seconds(2))
-            } catch {
-                Self.logger.debug("Toast auto-hide interrupted: \(error)")
-            }
-            adaptiveWithAnimation(.easeInOut(duration: 0.3)) {
-                showBulkAppliedToast = false
-            }
-        }
-    }
 }

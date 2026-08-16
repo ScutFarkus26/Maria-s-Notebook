@@ -51,6 +51,7 @@ extension PresentationDetailContentView {
                             students: selectedStudentsList,
                             lessonName: lessonTitle,
                             lessonID: lessonID,
+                            presentationID: vm.lessonAssignment.id,
                             onComplete: handleWorkflowComplete,
                             onCancel: vm.exitWorkflowMode,
                             triggerCompletion: $triggerWorkflowCompletion
@@ -62,16 +63,7 @@ extension PresentationDetailContentView {
             .onKeyPress { press in
                 // Handle Escape key
                 if press.key == .escape {
-                    vm.exitWorkflowMode()
-                    return .handled
-                }
-
-                // Handle Cmd+1 through Cmd+5 for understanding levels
-                if press.modifiers.contains(.command),
-                   let keyChar = press.characters.first,
-                   let level = Int(String(keyChar)),
-                   (1...5).contains(level) {
-                    applyUnderstandingToAll(level: level, presentationVM: presentationVM)
+                    checkAndExitWorkflowMode()
                     return .handled
                 }
 
@@ -79,9 +71,7 @@ extension PresentationDetailContentView {
             }
             .onSubmit {
                 // Cmd+Return to complete & save
-                if canCompleteWorkflow(presentationVM: presentationVM) {
-                    triggerWorkflowCompletion = true
-                }
+                triggerWorkflowCompletion = true
             }
             .alert("Unsaved Changes", isPresented: $showUnsavedChangesAlert) {
                 Button("Discard Changes", role: .destructive) {
@@ -107,7 +97,7 @@ extension PresentationDetailContentView {
             lessonTitle: lessonTitle,
             onBack: checkAndExitWorkflowMode,
             onComplete: { triggerWorkflowCompletion = true },
-            canComplete: canCompleteWorkflow(presentationVM: presentationVM),
+            canComplete: true,
             onPopOut: {
                 popOutToIndependentWindow(
                     presentationVM: presentationVM,
@@ -122,18 +112,9 @@ extension PresentationDetailContentView {
             lessonTitle: lessonTitle,
             onBack: checkAndExitWorkflowMode,
             onComplete: { triggerWorkflowCompletion = true },
-            canComplete: canCompleteWorkflow(presentationVM: presentationVM)
+            canComplete: true
         )
         #endif
-    }
-
-    // MARK: - Keyboard Shortcut Helper
-
-    func applyUnderstandingToAll(level: Int, presentationVM: PostPresentationFormViewModel) {
-        for student in selectedStudentsList {
-            guard let studentID = student.id, presentationVM.entries[studentID] != nil else { continue }
-            presentationVM.entries[studentID]?.understandingLevel = level
-        }
     }
 
     // MARK: - Unsaved Changes Check
@@ -148,11 +129,7 @@ extension PresentationDetailContentView {
 
     var workflowHasUnsavedChanges: Bool {
         guard let presentationVM = vm.presentationViewModel else { return false }
-        return presentationVM.entries.values.contains { entry in
-            !entry.observation.isEmpty ||
-            !entry.assignment.isEmpty ||
-            entry.understandingLevel != 3
-        } || !presentationVM.groupObservation.isEmpty
+        return presentationVM.hasUnsavedContent
     }
 
     // MARK: - Pop Out to Independent Window
@@ -176,7 +153,8 @@ extension PresentationDetailContentView {
     // MARK: - Workflow Completion
 
     func handleWorkflowComplete() {
-        setPresentationState(isPresented: true, givenAt: calendar.startOfDay(for: Date()), needsAnother: false)
+        let knownPresentationDay = vm.givenAt.map { calendar.startOfDay(for: $0) }
+        setPresentationState(isPresented: true, givenAt: knownPresentationDay, needsAnother: false)
 
         // Auto-set needsPractice from progression rules
         if let presentationVM = vm.presentationViewModel {
@@ -210,9 +188,5 @@ extension PresentationDetailContentView {
             vm.exitWorkflowMode()
             handleDone()
         }
-    }
-
-    func canCompleteWorkflow(presentationVM: PostPresentationFormViewModel) -> Bool {
-        presentationVM.hasValidStatus
     }
 }

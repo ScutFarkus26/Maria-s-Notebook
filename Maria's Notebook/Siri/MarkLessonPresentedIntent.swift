@@ -21,6 +21,7 @@ struct MarkLessonPresentedIntent: AppIntent {
         categoryName: "Lessons"
     )
     static let openAppWhenRun: Bool = false
+    static let authenticationPolicy: IntentAuthenticationPolicy = .requiresAuthentication
 
     @Parameter(title: "Lesson")
     var lesson: LessonEntity
@@ -50,6 +51,10 @@ struct MarkLessonPresentedIntent: AppIntent {
             throw MarkLessonPresentedError.studentNotFound(student.fullName)
         }
 
+        // Marking a presentation changes curriculum history. Confirm after
+        // resolving the exact lesson and child, before splitting or creating data.
+        try await requestConfirmation()
+
         // Reuse an existing not-yet-presented assignment for this lesson + student.
         let existing = cdLesson.lessonAssignments.first {
             !$0.isPresented && $0.studentIDs.contains(studentID.uuidString)
@@ -78,7 +83,11 @@ struct MarkLessonPresentedIntent: AppIntent {
                 context: context
             )
         }
-        assignment.markPresented()
+        _ = try LifecycleService.recordPresentation(
+            from: assignment,
+            presentedAt: Date(),
+            modelContext: context
+        )
 
         guard context.safeSave() else { throw MarkLessonPresentedError.saveFailed }
 

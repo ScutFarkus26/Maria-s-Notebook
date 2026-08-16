@@ -20,6 +20,7 @@ struct LogObservationIntent: AppIntent {
 
     /// Run in the background so the observation is saved without launching the UI.
     static let openAppWhenRun: Bool = false
+    static let authenticationPolicy: IntentAuthenticationPolicy = .requiresAuthentication
 
     @Parameter(title: "Student")
     var student: StudentEntity
@@ -49,6 +50,10 @@ struct LogObservationIntent: AppIntent {
               let studentID = cdStudent.id else {
             throw LogObservationError.studentNotFound(student.fullName)
         }
+
+        // The system presents the resolved student and text for review before
+        // any classroom record is written.
+        try await requestConfirmation()
 
         let note = CDNote(context: context)
         note.createdAt = Date()

@@ -369,6 +369,11 @@ final class AppDependencies {
         // Always: invalidate school day calculation caches (dictionary-based, no auto-eviction)
         invalidateSchoolDayCaches()
 
+        // Always: release the presentations view model's pinned object graph. Use the
+        // backing field directly — the accessor would *create* the view model, which
+        // is the opposite of what we want here.
+        _presentationsViewModel?.clearCaches()
+
         // Notify ViewModels and other components so they can drop their own dictionary caches
         NotificationCenter.default.post(
             name: .memoryPressureDetected,
@@ -379,6 +384,16 @@ final class AppDependencies {
         if level == .critical {
             // On critical pressure, also clear URLCache
             URLCache.shared.removeAllCachedResponses()
+
+            // The search index is a full-corpus inverted index with no eviction
+            // path — the single largest recoverable allocation. It rebuilds lazily
+            // via `ensureReady()` the next time anything searches.
+            SearchIndexService.shared.purge()
+
+            // Finally, turn every registered managed object back into a fault.
+            // The view context accumulates objects for the whole session and never
+            // resets; this is the same call the backup deletion path already uses.
+            viewContext.refreshAllObjects()
         }
     }
 }

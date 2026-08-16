@@ -31,7 +31,7 @@ struct ProcedureRow: View {
                         .lineLimit(2)
                 }
 
-                Text("Updated \(procedure.modifiedAt ?? Date(), style: .relative) ago")
+                Text("Updated \((procedure.modifiedAt ?? Date()).formatted(.relative(presentation: .named)))")
                     .font(.caption)
                     .foregroundStyle(.tertiary)
             }

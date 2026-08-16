@@ -13,6 +13,14 @@ import OSLog
 @MainActor
 final class AppBootstrapping {
 
+    /// Hosted unit tests launch the app process, but they should not also start
+    /// the full SwiftUI/Core Data bootstrap while tests create isolated stores.
+    /// Keeping this check in one place also matches the existing CloudKit test
+    /// safeguard below.
+    nonisolated static var isRunningUnitTests: Bool {
+        ProcessInfo.processInfo.environment["XCTestConfigurationFilePath"] != nil
+    }
+
     // MARK: - Shared Instance
 
     /// CDTrackEntity initialization errors to show in the UI
@@ -99,7 +107,7 @@ final class AppBootstrapping {
         UserDefaults.standard.register(defaults: [UserDefaultsKeys.enableCloudKitSync: true])
 
         // Disable CloudKit during tests to avoid entitlement-related crashes.
-        if ProcessInfo.processInfo.environment["XCTestConfigurationFilePath"] != nil {
+        if isRunningUnitTests {
             disableCloudKitForCurrentLaunch = true
         }
 

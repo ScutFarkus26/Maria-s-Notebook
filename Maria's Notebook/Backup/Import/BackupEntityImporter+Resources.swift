@@ -11,7 +11,7 @@ extension BackupEntityImporter {
     static func importResources(
         _ dtos: [ResourceDTO],
         into viewContext: NSManagedObjectContext,
-        existingCheck: EntityExistsCheck<CDResource>
+        existingCheck: EntityExistsCheck
     ) rethrows {
         try importSimpleEntities(
             dtos, into: viewContext,
@@ -41,8 +41,8 @@ extension BackupEntityImporter {
     static func importNoteStudentLinks(
         _ dtos: [NoteStudentLinkDTO],
         into viewContext: NSManagedObjectContext,
-        existingCheck: EntityExistsCheck<CDNoteStudentLink>,
-        noteCheck: EntityExistsCheck<CDNote>
+        existingCheck: EntityExistsCheck,
+        noteCheck: EntityLookup<CDNote>
     ) rethrows {
         for dto in dtos {
             if shouldSkipExisting(id: dto.id, existingCheck: existingCheck) { continue }

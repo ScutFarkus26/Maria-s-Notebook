@@ -5,6 +5,66 @@ import OSLog
 import SwiftUI
 import CoreData
 
+// MARK: - StudentRecordHeader
+
+/// Title and standing actions above the record's section picker.
+struct StudentRecordHeader: View {
+    let student: CDStudent
+    let isEditing: Bool
+    let onAddObservation: () -> Void
+    let onStartMeeting: () -> Void
+    let onPlanLessons: () -> Void
+    let onOpenDocuments: () -> Void
+    let onEdit: () -> Void
+    let onDelete: () -> Void
+
+    var body: some View {
+        HStack(alignment: .firstTextBaseline, spacing: 12) {
+            VStack(alignment: .leading, spacing: 2) {
+                Text(StudentFormatter.displayName(for: student))
+                    .font(AppTheme.ScaledFont.titleSmall)
+                Text("Student record")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+            }
+
+            Spacer()
+
+            Button(action: onAddObservation) {
+                Label("Add Observation", systemImage: "plus")
+            }
+            .buttonStyle(.bordered)
+
+            #if os(macOS)
+            // Changing a child's level is routine at rollover, so the editor
+            // gets a standing button here rather than living only behind the
+            // overflow menu.
+            Button(action: onEdit) {
+                Label("Edit", systemImage: "square.and.pencil")
+            }
+            .buttonStyle(.bordered)
+            .disabled(isEditing)
+            .help("Edit name, nickname, birthday, level, and enrollment")
+            #endif
+
+            Menu {
+                Button("Start Meeting", systemImage: "person.2", action: onStartMeeting)
+                Button("Plan Lessons", systemImage: "sparkles", action: onPlanLessons)
+                Button("Open Documents", systemImage: "folder", action: onOpenDocuments)
+
+                Divider()
+
+                Button("Edit Student", systemImage: "square.and.pencil", action: onEdit)
+                Button("Delete Student", systemImage: "trash", role: .destructive, action: onDelete)
+            } label: {
+                Label("Student Actions", systemImage: "ellipsis.circle")
+            }
+        }
+        .padding(.horizontal, 24)
+        .padding(.top, 18)
+    }
+}
+
 // MARK: - StudentEditForm
 
 struct StudentEditForm: View {
@@ -32,6 +92,7 @@ struct StudentEditForm: View {
             Picker("Level", selection: $draftLevel) {
                 Text(CDStudent.Level.lower.rawValue).tag(CDStudent.Level.lower)
                 Text(CDStudent.Level.upper.rawValue).tag(CDStudent.Level.upper)
+                Text(CDStudent.Level.adolescent.rawValue).tag(CDStudent.Level.adolescent)
             }
             .pickerStyle(.segmented)
 
@@ -40,19 +101,22 @@ struct StudentEditForm: View {
             Picker("Enrollment", selection: $draftEnrollmentStatus) {
                 Text("Enrolled").tag(CDStudent.EnrollmentStatus.enrolled)
                 Text("Withdrawn").tag(CDStudent.EnrollmentStatus.withdrawn)
+                Text("Transferred").tag(CDStudent.EnrollmentStatus.transferred)
             }
             .pickerStyle(.segmented)
             .onChange(of: draftEnrollmentStatus) { _, newValue in
-                if newValue == .withdrawn && draftDateWithdrawn == nil {
+                // Both withdrawn and transferred share the departure date; a nil date
+                // would make the student look active in every past school-year lens.
+                if newValue != .enrolled && draftDateWithdrawn == nil {
                     draftDateWithdrawn = Date()
                 } else if newValue == .enrolled {
                     draftDateWithdrawn = nil
                 }
             }
 
-            if draftEnrollmentStatus == .withdrawn {
+            if draftEnrollmentStatus != .enrolled {
                 DatePicker(
-                    "Date Withdrawn",
+                    "Date Departed",
                     selection: Binding(
                         get: { draftDateWithdrawn ?? Date() },
                         set: { draftDateWithdrawn = $0 }
@@ -65,17 +129,31 @@ struct StudentEditForm: View {
     }
 }
 
-// MARK: - Withdrawn Banner
+// MARK: - Departure Banner
 
-struct WithdrawnBanner: View {
-    let dateWithdrawn: Date?
+/// Banner shown on a former student's profile; covers both withdrawn and transferred.
+struct DepartureBanner: View {
+    let status: CDStudent.EnrollmentStatus
+    let dateDeparted: Date?
+
+    private var title: String {
+        status == .transferred ? "Transferred" : "Withdrawn"
+    }
+
+    private var icon: String {
+        status == .transferred ? "arrow.right.square" : "person.badge.minus"
+    }
+
+    private var background: Color {
+        status == .transferred ? .indigo : .gray
+    }
 
     var body: some View {
         HStack(spacing: 8) {
-            Image(systemName: "person.badge.minus")
-            Text("Withdrawn")
+            Image(systemName: icon)
+            Text(title)
                 .font(AppTheme.ScaledFont.calloutSemibold)
-            if let date = dateWithdrawn {
+            if let date = dateDeparted {
                 Text("on \(DateFormatters.mediumDate.string(from: date))")
                     .font(AppTheme.ScaledFont.callout)
             }
@@ -84,7 +162,7 @@ struct WithdrawnBanner: View {
         .padding(.vertical, 8)
         .padding(.horizontal, 14)
         .frame(maxWidth: .infinity)
-        .background(.gray, in: RoundedRectangle(cornerRadius: 8))
+        .background(background, in: RoundedRectangle(cornerRadius: 8))
         .padding(.horizontal, AppTheme.Spacing.small)
         .padding(.top, AppTheme.Spacing.small)
     }
@@ -105,6 +183,14 @@ struct StudentInfoRows: View {
 
     private var ageDescription: String {
         AgeUtils.verboseAgeString(for: student.birthday ?? Date())
+    }
+
+    private func promotionDescription(from previous: CDStudent.Level) -> String {
+        var text = "\(previous.rawValue) → \(student.level.rawValue)"
+        if let date = student.dateLastPromoted {
+            text += " on \(DateFormatters.mediumDate.string(from: date))"
+        }
+        return text
     }
 
     private var attendanceInfoRow: some View {
@@ -147,6 +233,9 @@ struct StudentInfoRows: View {
             icon: "graduationcap", title: "Florida Grade Equivalent",
             value: FloridaGradeCalculator.grade(for: student.birthday ?? Date()).displayString
         )
+        if let previous = student.previousLevel {
+            InfoRowView(icon: "arrow.up.circle", title: "Promoted", value: promotionDescription(from: previous))
+        }
         DaysSinceLastLessonView(student: student)
         attendanceInfoRow
     }

@@ -12,7 +12,7 @@ struct PlanningPromptBuilder {
     
     /// Builds the gap analysis prompt that identifies candidate lessons and ranks them.
     /// - Parameters:
-    ///   - profiles: CDStudent readiness profiles (from Step 1)
+    ///   - profiles: Locally assembled factual student evidence (from Step 1)
     ///   - curriculum: Compressed curriculum summary
     ///   - preferences: Optional teacher preferences (e.g., "focus on math", "skip sensorial")
     /// - Returns: Prompt string for the gap analysis API call
@@ -21,13 +21,13 @@ struct PlanningPromptBuilder {
         curriculum: String,
         preferences: String?
     ) -> String {
-        let readinessSummary = StudentReadinessAssessor.compressedSummary(of: profiles)
+        let evidenceSummary = StudentReadinessAssessor.compressedSummary(of: profiles)
         
         var prompt = """
-        Analyze the following student readiness data and curriculum status to identify \
-        the highest-priority lessons that should be presented next.
+        Review the following factual student evidence and curriculum history to identify \
+        possible lessons for the guide to consider next.
         
-        \(readinessSummary)
+        \(evidenceSummary)
         
         \(curriculum)
         """
@@ -41,10 +41,16 @@ struct PlanningPromptBuilder {
         
         TASK: Identify and rank the top lesson recommendations. For each recommendation:
         1. Consider prerequisite completion and curriculum sequence
-        2. Assess student readiness based on mastery signals, practice quality, and independence
+        2. Use only presentation history and explicit guide decisions in the supplied evidence
         3. Prioritize students who haven't had presentations recently
-        4. Suggest natural groupings when multiple students are ready for the same lesson
+        4. Suggest natural groupings when multiple students share the same curriculum frontier
         5. Provide clear reasoning for each recommendation
+
+        IMPORTANT:
+        - Work status is factual context, not proof of mastery or readiness.
+        - Do not infer readiness from practice ratings, independence ratings, behavior, emotion, or sentiment.
+        - "Strong", "some", and "insufficient" describe evidence availability, not readiness.
+        - When evidence is insufficient, say so plainly and leave the decision to the guide.
         
         Return your response as JSON matching this schema:
         {
@@ -53,19 +59,17 @@ struct PlanningPromptBuilder {
               "lessonName": "exact lesson name from the data",
               "area": "area name",
               "sequence": "sequence name",
-              "studentNames": ["student names who should receive this lesson"],
+              "studentNames": ["student names for the guide to consider"],
               "reasoning": "brief explanation of why this lesson now for these students",
-              "confidence": 0.85,
               "priority": 1,
               "suggestedDay": null
             }
           ],
-          "summary": "Brief overall analysis of the class readiness state"
+          "summary": "Brief overall summary of the available planning evidence"
         }
         
         Rank by priority (1 = most urgent). Include up to 10 recommendations.
         Use exact lesson names and student names from the provided data.
-        Confidence should reflect how certain you are (0.0-1.0).
         """
         
         return prompt
@@ -114,7 +118,6 @@ struct PlanningPromptBuilder {
               "sequence": "sequence name",
               "studentNames": ["student names"],
               "reasoning": "brief scheduling rationale",
-              "confidence": 0.85,
               "priority": 1,
               "suggestedDay": "Monday, Feb 24"
             }
@@ -174,7 +177,6 @@ struct PlanningPromptBuilder {
               "sequence": "sequence name",
               "studentNames": ["student names"],
               "reasoning": "optimization rationale",
-              "confidence": 0.85,
               "priority": 1,
               "suggestedDay": "day name"
             }

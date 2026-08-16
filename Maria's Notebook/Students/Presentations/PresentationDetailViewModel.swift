@@ -129,13 +129,6 @@ final class PresentationDetailViewModel {
         lessons.first(where: { $0.id == editingLessonID })
     }
 
-    /// Determines the next lesson in the sequence based on the current selection
-    func nextLessonInSequence(from lessons: [CDLesson]) -> CDLesson? {
-        guard let current = lessonObject(from: lessons) else { return nil }
-        let actions = PresentationDetailActions()
-        return actions.nextLessonInSequence(from: current, lessons: lessons)
-    }
-
     // MARK: - Group Recap
 
     /// Recomputes the sequence-recap snapshot for the current lesson + roster.
@@ -168,39 +161,23 @@ final class PresentationDetailViewModel {
         )
     }
 
-    // Saves changes to the database, handles lifecycle events, and auto-creates next lessons
+    // Saves changes to the database and handles presentation lifecycle events.
+    // Planning the next lesson only happens after an explicit choice in the
+    // post-presentation workflow.
     func save(
         studentsAll: [CDStudent],
         lessons: [CDLesson],
-        lessonAssignmentsAll: [CDLessonAssignment],
+        lessonAssignmentsAll _: [CDLessonAssignment],
         calendar: Calendar,
         onDone: (() -> Void)? = nil
     ) {
-        // Capture prior presented state
-        let wasGiven = lessonAssignment.isPresented
-
         // 1. Apply local edits to the model
         applyEditsToModel(studentsAll: studentsAll, lessons: lessons, calendar: calendar)
 
         // 2. Engagement Lifecycle (Record Presentation)
-        let nowGiven = handleEngagementLifecycle()
+        handleEngagementLifecycle()
 
-        // 3. Auto-create next lesson if needed
-        let actions = PresentationDetailActions()
-        let nextLesson = nextLessonInSequence(from: lessons)
-
-        actions.autoCreateNextIfNeeded(
-            wasGiven: wasGiven,
-            nowGiven: nowGiven,
-            nextLesson: nextLesson,
-            selectedStudentIDs: selectedStudentIDs,
-            studentsAll: studentsAll,
-            lessons: lessons,
-            lessonAssignmentsAll: lessonAssignmentsAll,
-            context: viewContext
-        )
-
-        // 4. Persist
+        // 3. Persist
         if saveCoordinator.save(viewContext, reason: "Saving lesson assignment") {
             // Reset autosave state
             notesAutosaveTask?.cancel()
@@ -225,18 +202,24 @@ final class PresentationDetailViewModel {
         }
     }
 
-    // Handles recording presentation, mastery updates, and track enrollment. Returns nowGiven.
-    private func handleEngagementLifecycle() -> Bool {
+    // Handles recording presentation, mastery updates, and track enrollment.
+    private func handleEngagementLifecycle() {
         let nowGiven = isPresented || (givenAt != nil)
         if nowGiven {
-            do {
-                _ = try LifecycleService.recordPresentation(
-                    from: lessonAssignment,
-                    presentedAt: AppCalendar.startOfDay(givenAt ?? Date()),
-                    modelContext: viewContext
-                )
-            } catch {
-                Self.logger.debug("LifecycleService error: \(error)")
+            if let givenAt {
+                do {
+                    _ = try LifecycleService.recordPresentation(
+                        from: lessonAssignment,
+                        presentedAt: AppCalendar.startOfDay(givenAt),
+                        modelContext: viewContext
+                    )
+                } catch {
+                    Self.logger.debug("LifecycleService error: \(error)")
+                }
+            } else {
+                // "Previously Presented" is intentionally historical and
+                // undated; never substitute today's date for missing knowledge.
+                lessonAssignment.markPreviouslyPresented()
             }
 
             updateProficiencyState(
@@ -268,7 +251,6 @@ final class PresentationDetailViewModel {
             }
         }
 
-        return nowGiven
     }
 
     /// Deletes the lesson assignment
@@ -295,6 +277,13 @@ final class PresentationDetailViewModel {
             do {
                 if let toDelete = try ctx.fetch(desc).first {
                     _ = toDelete.studentIDs
+                    for row in PresentationFollowUpService.rows(for: id, in: ctx)
+                        where row.hasOpenFollowUp {
+                        PresentationFollowUpService.resolve(
+                            .noFurtherFollowUp,
+                            row: row
+                        )
+                    }
                     ctx.delete(toDelete)
                     coordinator.save(ctx, reason: "Deleting lesson assignment")
                 }

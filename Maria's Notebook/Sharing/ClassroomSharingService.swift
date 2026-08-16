@@ -171,6 +171,27 @@ final class ClassroomSharingService {
         Self.logger.info("Share accepted successfully")
     }
 
+    /// Resynchronizes published share state after the owner ends sharing from
+    /// the system sharing UI.
+    ///
+    /// Since iOS 16.4, `NSPersistentCloudKitContainer` observes the system
+    /// sharing UI and updates the share it maintains in the store, so no
+    /// store-level cleanup is needed here — but the service's published state
+    /// (`currentShare`/`isSharing`/`participants`) would otherwise keep
+    /// reporting the dead share until the next `fetchExistingShare` call.
+    /// Clearing eagerly also prevents further exports from targeting the
+    /// deleted share's zone through stale cached state.
+    func handleSharingStopped() {
+        Self.logger.info("Sharing stopped from system UI — resynchronizing share state")
+        currentShare = nil
+        participants = []
+        isSharing = false
+        // Re-read store truth; if the container hasn't recorded the share
+        // deletion yet this may transiently resurface it, and the next
+        // remote-change-driven refresh converges.
+        _ = try? fetchExistingShare()
+    }
+
     /// Leaves the current shared classroom (assistant only).
     /// Purges local shared data and removes the membership record.
     func leaveClassroom() async throws {

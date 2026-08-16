@@ -77,12 +77,7 @@ struct RootAdaptiveTabs: View {
             Tab(value: RootView.NavigationItem.planningAgenda) {
                 RootDetailContent(selectedNavItem: .planningAgenda)
             } label: {
-                Label("Presentations", systemImage: "calendar")
-            }
-            Tab(value: RootView.NavigationItem.planningWork) {
-                RootDetailContent(selectedNavItem: .planningWork)
-            } label: {
-                Label("Open Work", systemImage: "tray.full")
+                Label("Lessons & Work", systemImage: "tray.full")
             }
             Tab(value: RootView.NavigationItem.needsLesson) {
                 RootDetailContent(selectedNavItem: .needsLesson)

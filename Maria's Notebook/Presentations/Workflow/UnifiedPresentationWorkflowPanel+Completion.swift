@@ -13,32 +13,38 @@ extension UnifiedPresentationWorkflowPanel {
         let studentIDString = studentID.uuidString
         let lessonIDString = lessonID.uuidString
         return allWorkModels.filter { work in
-            work.studentID == studentIDString && work.lessonID == lessonIDString
+            work.studentID == studentIDString
+                && work.lessonID == lessonIDString
+                && work.presentationID == presentationID?.uuidString
         }
-    }
-
-    var canComplete: Bool {
-        // Must have valid presentation status
-        presentationViewModel.hasValidStatus
-    }
-
-    // Progress tracking
-    var studentsWithNotes: Int {
-        presentationViewModel.entries.values.filter { !$0.observation.isEmpty }.count
-    }
-
-    var studentsWithUnderstanding: Int {
-        presentationViewModel.entries.values.filter { $0.understandingLevel != 3 }.count
-    }
-
-    var hasSequenceObservation: Bool {
-        !presentationViewModel.groupObservation.isEmpty
     }
 
     // MARK: - Completion
 
     func completeWorkflow() {
+        guard !isSaving else { return }
         isSaving = true
+
+        guard let presentationID else {
+            isSaving = false
+            saveErrorMessage = PresentationOutcomePersistenceService.PersistenceError
+                .missingPresentationID.localizedDescription
+            return
+        }
+
+        do {
+            try PresentationOutcomePersistenceService.persistObservations(
+                groupObservation: presentationViewModel.groupObservation,
+                studentObservations: presentationViewModel.entries.mapValues(\.observation),
+                studentIDs: students.compactMap(\.id),
+                presentationID: presentationID,
+                context: viewContext
+            )
+        } catch {
+            isSaving = false
+            saveErrorMessage = error.localizedDescription
+            return
+        }
 
         // 1. Unlock next lessons if needed
         presentationViewModel.unlockNextLessonsIfNeeded(
@@ -49,23 +55,19 @@ extension UnifiedPresentationWorkflowPanel {
         )
 
         // 2. Create work items
-        let cdContext = AppBootstrapping.getSharedCoreDataStack().viewContext
-        let repository = WorkRepository(context: cdContext)
+        let repository = WorkRepository(context: viewContext)
 
-        // Track which students got manual work drafts
-        var studentsWithWork: Set<UUID> = []
-
-        for (studentID, drafts) in workDrafts {
-            for draft in drafts where !draft.title.isEmpty {
-                studentsWithWork.insert(studentID)
-
+        for (studentID, drafts) in presentationViewModel.workDrafts {
+            for draft in drafts where !draft.title.trimmed().isEmpty {
                 do {
                     let work = try repository.createWork(
                         studentID: studentID,
                         lessonID: lessonID,
-                        title: draft.title,
+                        title: draft.title.trimmed(),
                         kind: draft.kind,
-                        scheduledDate: draft.dueDate
+                        presentationID: presentationID,
+                        scheduledDate: draft.dueDate,
+                        saveImmediately: false
                     )
 
                     // Update status, notes, check-in style, and completion details after creation
@@ -82,7 +84,7 @@ extension UnifiedPresentationWorkflowPanel {
                         }
                     }
                     if !allNotes.isEmpty {
-                        work.setLegacyNoteText(allNotes, in: cdContext)
+                        work.setLegacyNoteText(allNotes, in: viewContext)
                     }
 
                     // Set completion outcome if status is complete
@@ -96,32 +98,11 @@ extension UnifiedPresentationWorkflowPanel {
                     // work calendar or factored into aging. Skip when the work is
                     // already complete — a scheduled check-in there is moot.
                     if let checkInDate = draft.checkInDate, draft.status != .complete {
-                        try WorkCheckInService(context: cdContext)
+                        try WorkCheckInService(context: viewContext)
                             .createCheckIn(for: work, date: checkInDate)
                     }
                 } catch {
                     Self.logger.warning("Failed to create work item: \(error)")
-                }
-            }
-        }
-
-        // Auto-create practice work for students without manual drafts when "Just Presented"
-        if presentationViewModel.status == .justPresented {
-            let lesson = lessons.first { $0.id == lessonID }
-            let workKind = lesson?.defaultWorkKind ?? .practiceLesson
-            let title = "Practice: \(lessonName)"
-
-            for student in students {
-                guard let studentID = student.id, !studentsWithWork.contains(studentID) else { continue }
-                do {
-                    _ = try repository.createWork(
-                        studentID: studentID,
-                        lessonID: lessonID,
-                        title: title,
-                        kind: workKind
-                    )
-                } catch {
-                    Self.logger.warning("Failed to auto-create practice work: \(error)")
                 }
             }
         }
@@ -143,8 +124,15 @@ extension UnifiedPresentationWorkflowPanel {
             viewContext: viewContext
         )
 
-        // 5. Save everything
-        saveCoordinator.save(viewContext, reason: "Unified Presentation Workflow")
+        // 5. Save everything. Keep the workflow open when persistence fails so
+        // the guide can retry and the UI never reports completion for records
+        // that did not reach the store.
+        guard saveCoordinator.save(viewContext, reason: "Unified Presentation Workflow") else {
+            isSaving = false
+            saveErrorMessage = saveCoordinator.lastSaveErrorMessage
+                ?? "The presentation could not be saved. Review the records and try again."
+            return
+        }
 
         onComplete()
     }

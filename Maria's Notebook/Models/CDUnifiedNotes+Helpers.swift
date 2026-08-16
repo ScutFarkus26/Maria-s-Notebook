@@ -277,6 +277,7 @@ extension CDNote {
         if case .students(let studentUUIDs) = scope {
             for uuid in studentUUIDs {
                 let link = CDNoteStudentLink(context: context)
+                link.noteID = id?.uuidString ?? ""
                 link.studentID = uuid.uuidString
                 link.note = self
             }

@@ -49,7 +49,7 @@ extension TodayView {
 
                 // Relative date
                 if let createdAt = note.createdAt {
-                    Text(createdAt, style: .relative)
+                    Text(createdAt.formatted(.relative(presentation: .named)))
                         .font(AppTheme.ScaledFont.caption)
                         .foregroundStyle(.tertiary)
                 }

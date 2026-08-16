@@ -19,6 +19,7 @@ extension StudentsView {
         switch studentsFilterRaw {
         case "upper": return .upper
         case "lower": return .lower
+        case "adolescent": return .adolescent
         case "presentNow", "presentToday": return .presentNow
         default:
             // Includes the legacy "withdrawn" value — withdrawn students now
@@ -29,10 +30,14 @@ extension StudentsView {
 
     var viewStyle: StudentsViewStyle {
         #if os(macOS)
-        let stored = StudentsViewStyle(rawValue: studentsViewStyleRaw)
-        return stored == .table ? .table : .grid
+        // A Mac roster is always a table. Keep the stored preference for the
+        // separate iPhone/iPad experience, but do not let it alter the desktop
+        // workspace or create a second visual language there.
+        return .table
         #else
-        return StudentsViewStyle(rawValue: studentsViewStyleRaw) ?? .list
+        // A former Mac-only table choice should never strand a mobile user in
+        // an unsupported view after switching devices.
+        return StudentsViewStyle(rawValue: studentsViewStyleRaw) == .grid ? .grid : .list
         #endif
     }
 
@@ -42,7 +47,7 @@ extension StudentsView {
         #if os(iOS)
         horizontalSizeClass == .regular
         #else
-        true
+        false
         #endif
     }
 
@@ -101,8 +106,8 @@ extension StudentsView {
         return scoped.uniqueByID
     }
 
-    /// Withdrawn students for the collapsible section at the bottom of the roster.
-    /// Searching the roster also matches withdrawn students.
+    /// Former students (withdrawn or transferred) for the collapsible section at the
+    /// bottom of the roster. Searching the roster also matches former students.
     var withdrawnStudents: [CDStudent] {
         viewModel.filteredStudents(
             viewContext: viewContext,

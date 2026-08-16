@@ -13,7 +13,7 @@ extension BackupEntityImporter {
     static func importNonSchoolDays(
         _ dtos: [NonSchoolDayDTO],
         into viewContext: NSManagedObjectContext,
-        existingCheck: EntityExistsCheck<CDNonSchoolDay>
+        existingCheck: EntityExistsCheck
     ) rethrows {
         try importSimpleEntities(
             dtos, into: viewContext,
@@ -34,7 +34,7 @@ extension BackupEntityImporter {
     static func importSchoolDayOverrides(
         _ dtos: [SchoolDayOverrideDTO],
         into viewContext: NSManagedObjectContext,
-        existingCheck: EntityExistsCheck<CDSchoolDayOverride>
+        existingCheck: EntityExistsCheck
     ) rethrows {
         try importSimpleEntities(
             dtos, into: viewContext,
@@ -53,7 +53,7 @@ extension BackupEntityImporter {
     static func importSchedules(
         _ dtos: [ScheduleDTO],
         into viewContext: NSManagedObjectContext,
-        existingCheck: EntityExistsCheck<CDSchedule>
+        existingCheck: EntityExistsCheck
     ) rethrows {
         try importSimpleEntities(
             dtos, into: viewContext,
@@ -77,8 +77,8 @@ extension BackupEntityImporter {
     static func importScheduleSlots(
         _ dtos: [ScheduleSlotDTO],
         into viewContext: NSManagedObjectContext,
-        existingCheck: EntityExistsCheck<CDScheduleSlot>,
-        scheduleCheck: EntityExistsCheck<CDSchedule>
+        existingCheck: EntityExistsCheck,
+        scheduleCheck: EntityLookup<CDSchedule>
     ) rethrows {
         for dto in dtos {
             if shouldSkipExisting(id: dto.id, existingCheck: existingCheck) { continue }

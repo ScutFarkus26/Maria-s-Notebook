@@ -16,6 +16,7 @@ struct StudentPickerPopover: View {
         case all = "All"
         case lower = "Lower"
         case upper = "Upper"
+        case adolescent = "Adolescent"
 
         var id: String { rawValue }
     }
@@ -40,6 +41,8 @@ struct StudentPickerPopover: View {
                 return student.level == .lower
             case .upper:
                 return student.level == .upper
+            case .adolescent:
+                return student.level == .adolescent
             }
         }
 

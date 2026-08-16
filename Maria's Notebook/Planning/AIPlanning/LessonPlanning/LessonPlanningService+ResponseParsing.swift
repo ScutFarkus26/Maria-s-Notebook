@@ -8,16 +8,16 @@ extension LessonPlanningService {
 
     // MARK: - Response Parsing
 
-    func parseRecommendations(from jsonString: String, students: [CDStudent]) -> [LessonRecommendation] {
+    func parseRecommendations(
+        from jsonString: String,
+        students: [CDStudent],
+        profiles: [StudentReadinessProfile] = []
+    ) -> [LessonRecommendation] {
         guard let data = jsonString.data(using: .utf8) else { return [] }
 
         do {
             let response = try JSONDecoder().decode(PlanningResponse.self, from: data)
             let allLessons = fetchAllLessons()
-            let studentNameMap = Dictionary(uniqueKeysWithValues: students.compactMap { student -> (String, UUID)? in
-                guard let id = student.id else { return nil }
-                return (student.fullName.lowercased(), id)
-            })
 
             return response.recommendations.compactMap { apiRec in
                 // Resolve lesson ID from name
@@ -31,11 +31,13 @@ extension LessonPlanningService {
 
                 // Resolve student IDs from names
                 let resolvedStudentIDs = apiRec.studentNames.compactMap { name -> UUID? in
-                    let lowered = name.lowercased()
-                    let firstWord = lowered.components(separatedBy: " ").first ?? ""
-                    return studentNameMap[lowered]
-                        ?? studentNameMap.first { $0.key.contains(firstWord) }?.value
+                    resolveStudentID(named: name, from: students)
                 }
+                let evidenceAvailability = evidenceAvailability(
+                    for: lessonID,
+                    studentIDs: resolvedStudentIDs,
+                    profiles: profiles
+                )
 
                 return LessonRecommendation(
                     lessonID: lessonID,
@@ -45,7 +47,8 @@ extension LessonPlanningService {
                     studentIDs: resolvedStudentIDs,
                     studentNames: apiRec.studentNames,
                     reasoning: apiRec.reasoning,
-                    confidence: apiRec.confidence,
+                    confidence: apiRec.confidence ?? 0,
+                    evidenceAvailability: evidenceAvailability,
                     priority: apiRec.priority,
                     suggestedDay: apiRec.suggestedDay
                 )
@@ -54,6 +57,43 @@ extension LessonPlanningService {
             Self.logger.warning("Failed to parse planning response: \(error)")
             return []
         }
+    }
+
+    /// Resolve only unambiguous names from the supplied classroom roster. This
+    /// avoids silently attaching evidence to the wrong child when first names repeat.
+    private func resolveStudentID(named name: String, from students: [CDStudent]) -> UUID? {
+        let normalized = name.folding(options: [.caseInsensitive, .diacriticInsensitive], locale: .current)
+            .trimmingCharacters(in: .whitespacesAndNewlines)
+        let matches = students.filter { student in
+            let candidates = [student.fullName, student.firstName, student.nickname ?? ""]
+                .filter { !$0.isEmpty }
+                .map {
+                    $0.folding(options: [.caseInsensitive, .diacriticInsensitive], locale: .current)
+                        .trimmingCharacters(in: .whitespacesAndNewlines)
+                }
+            return candidates.contains(normalized)
+        }
+        guard matches.count == 1 else { return nil }
+        return matches[0].id
+    }
+
+    /// Evidence availability is computed from local profiles, never from model
+    /// confidence. For a group, the least-supported student determines the label.
+    private func evidenceAvailability(
+        for lessonID: UUID,
+        studentIDs: [UUID],
+        profiles: [StudentReadinessProfile]
+    ) -> EvidenceAvailability {
+        let values = studentIDs.map { studentID -> EvidenceAvailability in
+            guard let profile = profiles.first(where: { $0.studentID == studentID }) else {
+                return .insufficient
+            }
+            let matchingAreas = profile.areaReadiness.filter {
+                $0.nextLessonID == lessonID || $0.currentLessonID == lessonID
+            }
+            return EvidenceAvailability.combined(matchingAreas.map(\.evidenceAvailability))
+        }
+        return EvidenceAvailability.combined(values)
     }
 
     func parseGroupings(from jsonString: String, students: [CDStudent]) -> [GroupingSuggestion] {

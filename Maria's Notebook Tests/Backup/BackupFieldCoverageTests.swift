@@ -333,7 +333,8 @@ final class BackupFieldCoverageTests {
             "Student",
             overrides: [
                 // Parsed into StudentDTO.Level on export — must be a valid, non-default rawValue.
-                "levelRaw": "Upper",
+                // "Adolescent" pins the newest case: a non-exhaustive mapping would clamp it to lower.
+                "levelRaw": "Adolescent",
                 // Exported via `nextLessonUUIDs` (compactMap UUID(uuidString:)) — elements must parse.
                 "nextLessons": [UUID().uuidString, UUID().uuidString] as NSArray
             ]

@@ -225,7 +225,8 @@ extension CloudKitSyncStatusService {
         type: NSPersistentCloudKitContainer.EventType,
         isFinished: Bool,
         succeeded: Bool,
-        error: (any Error)?
+        error: (any Error)?,
+        startDate: Date
     ) {
         // Events fire twice: once when started (isFinished == false) and once when finished
         guard isFinished else {
@@ -259,7 +260,7 @@ extension CloudKitSyncStatusService {
         }
 
         if succeeded {
-            handleSuccessfulCloudKitEvent(type: type, typeDescription: typeDescription)
+            handleSuccessfulCloudKitEvent(type: type, typeDescription: typeDescription, startDate: startDate)
         } else {
             handleFailedCloudKitEvent(type: type, typeDescription: typeDescription, error: error)
         }
@@ -271,7 +272,8 @@ extension CloudKitSyncStatusService {
 
     private func handleSuccessfulCloudKitEvent(
         type: NSPersistentCloudKitContainer.EventType,
-        typeDescription: String
+        typeDescription: String,
+        startDate: Date
     ) {
         Self.logger.debug("CloudKit \(typeDescription) succeeded")
         SyncEventLogger.shared.log("cloudkit", status: "success", message: "\(typeDescription) completed")
@@ -280,6 +282,19 @@ extension CloudKitSyncStatusService {
 
         if type == .import {
             DeduplicationCoordinator.shared.requestDeduplication()
+        }
+
+        if type == .export {
+            // The mirroring delegate has consumed all history transactions that
+            // predate this export's start. PersistentHistoryProcessor uses this
+            // date as the safe upper bound for history purging (Apple's
+            // documented pattern in "Sharing Core Data objects between iCloud
+            // users"). Only move it forward — a stale event must not regress it.
+            let key = UserDefaultsKeys.cloudKitLastSuccessfulExportStartDate
+            let previous = UserDefaults.standard.object(forKey: key) as? TimeInterval ?? 0
+            if startDate.timeIntervalSince1970 > previous {
+                UserDefaults.standard.set(startDate.timeIntervalSince1970, forKey: key)
+            }
         }
 
         let now = Date()

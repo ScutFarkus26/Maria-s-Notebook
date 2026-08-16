@@ -61,6 +61,7 @@ struct NoAttendanceEmptyState: View {
 struct AddStudentMenu: View {
     let onAddStudent: () -> Void
     let onImportCSV: () -> Void
+    var onRollover: (() -> Void)?
 
     var body: some View {
         Menu {
@@ -77,6 +78,16 @@ struct AddStudentMenu: View {
                 onImportCSV()
             } label: {
                 Label("Import Students from CSV…", systemImage: "arrow.down.doc")
+            }
+
+            if let onRollover {
+                Divider()
+
+                Button {
+                    onRollover()
+                } label: {
+                    Label("School Year Rollover…", systemImage: "calendar.badge.clock")
+                }
             }
         } label: {
             Label("Add Student", systemImage: "plus")

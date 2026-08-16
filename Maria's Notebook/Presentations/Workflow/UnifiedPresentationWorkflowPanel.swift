@@ -13,6 +13,9 @@ struct UnifiedPresentationWorkflowPanel: View {
     let students: [CDStudent]
     let lessonName: String
     let lessonID: UUID
+    /// The exact presentation being completed. Nil is treated as a save error;
+    /// the workflow never guesses among repeated presentations.
+    let presentationID: UUID?
     let onComplete: () -> Void
     let onCancel: () -> Void
 
@@ -38,10 +41,8 @@ struct UnifiedPresentationWorkflowPanel: View {
 
     // MARK: - State
 
-    // Work drafts: studentID -> [WorkItemDraft]
-    @State var workDrafts: [UUID: [WorkItemDraft]] = [:]
-
     @State var isSaving: Bool = false
+    @State var saveErrorMessage: String = ""
     @State private var activePanel: PanelFocus = .presentation
     @State var showBulkAppliedToast: Bool = false
     @State var bulkAppliedMessage: String = ""
@@ -102,6 +103,19 @@ struct UnifiedPresentationWorkflowPanel: View {
                     .padding(.top, 16)
                     .transition(.move(edge: .top).combined(with: .opacity))
             }
+        }
+        .alert(
+            "Couldn’t Save Presentation",
+            isPresented: Binding(
+                get: { !saveErrorMessage.isEmpty },
+                set: { isPresented in
+                    if !isPresented { saveErrorMessage = "" }
+                }
+            )
+        ) {
+            Button("OK", role: .cancel) {}
+        } message: {
+            Text(saveErrorMessage)
         }
     }
 

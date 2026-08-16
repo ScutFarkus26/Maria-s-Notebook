@@ -8,6 +8,7 @@ struct CommandBarSheet: View {
     @Environment(\.dismiss) private var dismiss
     @Environment(\.managedObjectContext) private var viewContext
     @Environment(\.dependencies) private var dependencies
+    @Environment(SaveCoordinator.self) private var saveCoordinator
 
     // Callbacks to RootView for opening sheets
     var onPresentation: (UUID) -> Void
@@ -37,6 +38,7 @@ struct CommandBarSheet: View {
     // MARK: - State
 
     @State private var viewModel = CommandBarViewModel()
+    @State private var saveErrorMessage: String?
     @FocusState private var isTextFieldFocused: Bool
 
     var body: some View {
@@ -46,7 +48,7 @@ struct CommandBarSheet: View {
                 Divider()
                 contentSection
             }
-            .navigationTitle("Command Bar")
+            .navigationTitle("Capture What Happened")
             .inlineNavigationTitle()
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {
@@ -71,13 +73,21 @@ struct CommandBarSheet: View {
                 viewModel.inputText = newValue
             }
         }
+        .alert("Couldn't Save", isPresented: Binding(
+            get: { saveErrorMessage != nil },
+            set: { if !$0 { saveErrorMessage = nil } }
+        )) {
+            Button("OK") { saveErrorMessage = nil }
+        } message: {
+            Text(saveErrorMessage ?? "The classroom capture could not be saved.")
+        }
     }
 
     // MARK: - Input Section
 
     private var inputSection: some View {
         HStack(spacing: 12) {
-            TextField("Type or speak a command...", text: $viewModel.inputText, axis: .vertical)
+            TextField("What happened? Type or speak naturally…", text: $viewModel.inputText, axis: .vertical)
                 .lineLimit(1...3)
                 .textFieldStyle(.plain)
                 .focused($isTextFieldFocused)
@@ -113,7 +123,7 @@ struct CommandBarSheet: View {
                         .foregroundStyle(.blue)
                 }
                 .buttonStyle(.plain)
-                .accessibilityLabel("Submit command")
+                .accessibilityLabel("Organize classroom capture")
             }
         }
         .padding(.horizontal, 16)
@@ -126,6 +136,8 @@ struct CommandBarSheet: View {
     private var contentSection: some View {
         if viewModel.isProcessing {
             processingView
+        } else if viewModel.captureProposal != nil {
+            captureReviewView
         } else if let command = viewModel.parsedCommand {
             resultView(command)
         } else if let error = viewModel.errorMessage {
@@ -210,7 +222,7 @@ struct CommandBarSheet: View {
             Spacer()
             ProgressView()
                 .controlSize(.large)
-            Text("Understanding...")
+            Text("Organizing what happened…")
                 .font(.subheadline)
                 .foregroundStyle(.secondary)
             Spacer()
@@ -281,6 +293,57 @@ struct CommandBarSheet: View {
         }
     }
 
+    // MARK: - Capture Review
+
+    @ViewBuilder
+    private var captureReviewView: some View {
+        if viewModel.captureProposal != nil {
+            CaptureProposalReviewView(
+                proposal: Binding(
+                    get: { viewModel.captureProposal ?? Self.emptyCaptureProposal },
+                    set: { viewModel.captureProposal = $0 }
+                ),
+                students: students,
+                lessons: Array(allLessons).uniqueByID,
+                mode: .newCapture,
+                validationMessage: viewModel.captureValidationMessage,
+                saveTitle: "Save Records",
+                onSave: saveReviewedCapture,
+                onStartOver: {
+                    viewModel.reset()
+                    isTextFieldFocused = true
+                }
+            )
+        }
+    }
+
+    private static let emptyCaptureProposal = CaptureProposal(
+        rawText: "",
+        recordsPresentation: false,
+        lessonID: nil,
+        lessonName: nil,
+        groupObservation: "",
+        studentEntries: [],
+        unresolvedStudentNames: [],
+        source: .deterministic
+    )
+
+    private func saveReviewedCapture() {
+        do {
+            let receipt = try viewModel.saveCaptureProposal(
+                context: viewContext,
+                saveCoordinator: saveCoordinator
+            )
+            let recordCount = (receipt.presentationID == nil ? 0 : 1) + receipt.noteCount + receipt.workCount
+            ToastService.shared.showSuccess(
+                recordCount == 1 ? "Classroom record saved" : "\(recordCount) classroom records saved"
+            )
+            dismiss()
+        } catch {
+            saveErrorMessage = error.localizedDescription
+        }
+    }
+
     // MARK: - Actions
 
     private func submitCommand() {
@@ -311,7 +374,7 @@ struct CommandBarSheet: View {
 
     private func executeCommand(_ command: ParsedCommand) {
         viewModel.addToRecent(viewModel.inputText.trimmed())
-        let action = viewModel.buildAction(from: command, modelContext: viewContext)
+        guard let action = viewModel.buildAction(from: command, modelContext: viewContext) else { return }
 
         switch action {
         case .openPresentation(let draftID):
@@ -346,7 +409,7 @@ extension CommandBarSheet {
             VStack(alignment: .leading, spacing: 2) {
                 Text(command.intent.displayName)
                     .font(.headline)
-                Text("Confidence: \(Int(command.confidence * 100))%")
+                Text("Review in the form before saving")
                     .font(.caption)
                     .foregroundStyle(.secondary)
             }

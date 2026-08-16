@@ -117,8 +117,14 @@ public enum BackupWriter {
         progress: @escaping BackupService.ProgressCallback
     ) async throws -> BackupArchiveManifest {
         await progress(0.65, "Encoding\u{2026}")
-        let entries = try serializeEntries(from: payload)
-        let manifest = buildManifest(entries: entries, deviceName: deviceName)
+        // The manifest needs per-entity counts and store routing — not the encoded
+        // bytes — so it can be built before anything is serialized. That's what
+        // lets the loop below encode one entity at a time: previously every
+        // entity's NDJSON was materialized up front and held alongside the full
+        // DTO graph, which put the export's peak at roughly two copies of the
+        // database, at app quit / iOS background where the jetsam limit is
+        // tightest. Output bytes are identical.
+        let manifest = buildManifest(payload: payload, deviceName: deviceName)
         let manifestData = try encodeManifest(manifest)
         let preferencesData = try payload.preferencesJSON()
 
@@ -129,15 +135,36 @@ public enum BackupWriter {
         let tempURL = url.deletingLastPathComponent()
             .appendingPathComponent(".\(url.lastPathComponent).partial-\(UUID().uuidString)")
 
+        var writtenEntryCount = 0
         do {
+            let encoder = ndjsonEncoder()
             try BackupArchive.write(to: tempURL, encryptionKey: encryptionKey) { appender in
                 // Manifest first so readers can stream-validate.
                 try appender.append(path: "manifest.json", data: manifestData)
                 // Preferences as a single JSON document (not NDJSON).
                 try appender.append(path: "preferences.json", data: preferencesData)
-                // Then each non-empty entity entry, in registry order.
-                for entry in entries {
-                    try appender.append(path: entry.archivePath, data: entry.ndjson)
+                // Then each non-empty entity entry, in registry order. Encoding
+                // happens here so each entity's bytes are released before the next
+                // one is built.
+                for serialization in entitySerializations {
+                    let ndjson: Data?
+                    do {
+                        ndjson = try serialization.encode(payload, encoder)
+                    } catch {
+                        // An encode failure aborts the whole export — a backup that
+                        // silently omits an entity type would verify clean and read
+                        // back as data loss months later.
+                        throw WriterError.entityEncodingFailed(
+                            entityName: serialization.entityName,
+                            underlying: error
+                        )
+                    }
+                    guard let ndjson else { continue }
+                    try appender.append(
+                        path: archivePath(for: serialization.entityName),
+                        data: ndjson
+                    )
+                    writtenEntryCount += 1
                 }
             }
 
@@ -151,7 +178,7 @@ public enum BackupWriter {
 
         await progress(1.0, "Backup complete")
         let writeMsg = "BackupWriter wrote and verified v\(formatVersion) backup " +
-            "with \(entries.count) entity entries"
+            "with \(writtenEntryCount) entity entries"
         logger.info("\(writeMsg, privacy: .public)")
         return manifest
     }
@@ -199,79 +226,97 @@ public enum BackupWriter {
     /// coverage test that keeps it in sync with `BackupEntityRegistry`.
     struct EntitySerialization: Sendable {
         let entityName: String
-        let encode: @Sendable (BackupPayload, JSONEncoder) throws -> (ndjson: Data, count: Int)?
+        /// Row count without encoding anything — the manifest needs counts, not
+        /// bytes, so it can be built before serialization starts.
+        let count: @Sendable (BackupPayload) -> Int
+        /// This entity's DTO array as NDJSON. `nil` for an empty array, so the
+        /// archive only carries non-empty entries.
+        let encode: @Sendable (BackupPayload, JSONEncoder) throws -> Data?
+    }
+
+    /// Builds one row of the table from a payload accessor, so the count pass and
+    /// the encode pass can never disagree about which array an entity maps to.
+    private static func serialization<T: Encodable & Sendable>(
+        _ entityName: String,
+        _ select: @escaping @Sendable (BackupPayload) -> [T]
+    ) -> EntitySerialization {
+        EntitySerialization(
+            entityName: entityName,
+            count: { select($0).count },
+            encode: { payload, encoder in try ndjsonData(select(payload), encoder) }
+        )
     }
 
     static let entitySerializations: [EntitySerialization] = [
         // Core (required arrays)
-        .init(entityName: "Student") { try ndjsonEntry($0.students, $1) },
-        .init(entityName: "Lesson") { try ndjsonEntry($0.lessons, $1) },
-        .init(entityName: "LessonAssignment") { try ndjsonEntry($0.lessonAssignments, $1) },
-        .init(entityName: "Note") { try ndjsonEntry($0.notes, $1) },
-        .init(entityName: "NonSchoolDay") { try ndjsonEntry($0.nonSchoolDays, $1) },
-        .init(entityName: "SchoolDayOverride") { try ndjsonEntry($0.schoolDayOverrides, $1) },
-        .init(entityName: "StudentMeeting") { try ndjsonEntry($0.studentMeetings, $1) },
-        .init(entityName: "CommunityTopic") { try ndjsonEntry($0.communityTopics, $1) },
-        .init(entityName: "ProposedSolution") { try ndjsonEntry($0.proposedSolutions, $1) },
-        .init(entityName: "CommunityAttachment") { try ndjsonEntry($0.communityAttachments, $1) },
-        .init(entityName: "AttendanceRecord") { try ndjsonEntry($0.attendance, $1) },
-        .init(entityName: "WorkCompletionRecord") { try ndjsonEntry($0.workCompletions, $1) },
-        .init(entityName: "Project") { try ndjsonEntry($0.projects, $1) },
-        .init(entityName: "ProjectSession") { try ndjsonEntry($0.projectSessions, $1) },
-        .init(entityName: "ProjectRole") { try ndjsonEntry($0.projectRoles, $1) },
+        serialization("Student") { $0.students },
+        serialization("Lesson") { $0.lessons },
+        serialization("LessonAssignment") { $0.lessonAssignments },
+        serialization("Note") { $0.notes },
+        serialization("NonSchoolDay") { $0.nonSchoolDays },
+        serialization("SchoolDayOverride") { $0.schoolDayOverrides },
+        serialization("StudentMeeting") { $0.studentMeetings },
+        serialization("CommunityTopic") { $0.communityTopics },
+        serialization("ProposedSolution") { $0.proposedSolutions },
+        serialization("CommunityAttachment") { $0.communityAttachments },
+        serialization("AttendanceRecord") { $0.attendance },
+        serialization("WorkCompletionRecord") { $0.workCompletions },
+        serialization("Project") { $0.projects },
+        serialization("ProjectSession") { $0.projectSessions },
+        serialization("ProjectRole") { $0.projectRoles },
 
         // Optional arrays (v8+ extensions)
-        .init(entityName: "WorkModel") { try ndjsonEntry($0.workModels, $1) },
-        .init(entityName: "WorkCheckIn") { try ndjsonEntry($0.workCheckIns, $1) },
-        .init(entityName: "WorkStep") { try ndjsonEntry($0.workSteps, $1) },
-        .init(entityName: "WorkParticipantEntity") { try ndjsonEntry($0.workParticipants, $1) },
-        .init(entityName: "PracticeSession") { try ndjsonEntry($0.practiceSessions, $1) },
-        .init(entityName: "LessonAttachment") { try ndjsonEntry($0.lessonAttachments, $1) },
-        .init(entityName: "LessonPresentation") { try ndjsonEntry($0.lessonPresentations, $1) },
-        .init(entityName: "LessonRecallCheck") { try ndjsonEntry($0.recallChecks, $1) },
-        .init(entityName: "SampleWork") { try ndjsonEntry($0.sampleWorks, $1) },
-        .init(entityName: "SampleWorkStep") { try ndjsonEntry($0.sampleWorkSteps, $1) },
-        .init(entityName: "NoteTemplate") { try ndjsonEntry($0.noteTemplates, $1) },
-        .init(entityName: "MeetingTemplate") { try ndjsonEntry($0.meetingTemplates, $1) },
-        .init(entityName: "Reminder") { try ndjsonEntry($0.reminders, $1) },
-        .init(entityName: "CalendarEvent") { try ndjsonEntry($0.calendarEvents, $1) },
-        .init(entityName: "Track") { try ndjsonEntry($0.tracks, $1) },
-        .init(entityName: "TrackStep") { try ndjsonEntry($0.trackSteps, $1) },
-        .init(entityName: "StudentTrackEnrollment") { try ndjsonEntry($0.studentTrackEnrollments, $1) },
-        .init(entityName: "SequenceTrack") { try ndjsonEntry($0.sequenceTracks, $1) },
-        .init(entityName: "Document") { try ndjsonEntry($0.documents, $1) },
-        .init(entityName: "Supply") { try ndjsonEntry($0.supplies, $1) },
-        .init(entityName: "Procedure") { try ndjsonEntry($0.procedures, $1) },
-        .init(entityName: "Schedule") { try ndjsonEntry($0.schedules, $1) },
-        .init(entityName: "ScheduleSlot") { try ndjsonEntry($0.scheduleSlots, $1) },
-        .init(entityName: "Issue") { try ndjsonEntry($0.issues, $1) },
-        .init(entityName: "IssueAction") { try ndjsonEntry($0.issueActions, $1) },
-        .init(entityName: "DevelopmentSnapshot") { try ndjsonEntry($0.developmentSnapshots, $1) },
-        .init(entityName: "TodoItem") { try ndjsonEntry($0.todoItems, $1) },
-        .init(entityName: "TodoSubtask") { try ndjsonEntry($0.todoSubtasks, $1) },
-        .init(entityName: "TodoTemplate") { try ndjsonEntry($0.todoTemplates, $1) },
-        .init(entityName: "TodayAgendaOrder") { try ndjsonEntry($0.todayAgendaOrders, $1) },
-        .init(entityName: "PlanningRecommendation") { try ndjsonEntry($0.planningRecommendations, $1) },
-        .init(entityName: "Resource") { try ndjsonEntry($0.resources, $1) },
-        .init(entityName: "NoteStudentLink") { try ndjsonEntry($0.noteStudentLinks, $1) },
-        .init(entityName: "GoingOut") { try ndjsonEntry($0.goingOuts, $1) },
-        .init(entityName: "GoingOutChecklistItem") { try ndjsonEntry($0.goingOutChecklistItems, $1) },
-        .init(entityName: "ClassroomJob") { try ndjsonEntry($0.classroomJobs, $1) },
-        .init(entityName: "JobAssignment") { try ndjsonEntry($0.jobAssignments, $1) },
-        .init(entityName: "CalendarNote") { try ndjsonEntry($0.calendarNotes, $1) },
-        .init(entityName: "ScheduledMeeting") { try ndjsonEntry($0.scheduledMeetings, $1) },
-        .init(entityName: "ClassroomMembership") { try ndjsonEntry($0.classroomMemberships, $1) },
-        .init(entityName: "MeetingWorkReview") { try ndjsonEntry($0.meetingWorkReviews, $1) },
-        .init(entityName: "StudentFocusItem") { try ndjsonEntry($0.studentFocusItems, $1) },
+        serialization("WorkModel") { $0.workModels ?? [] },
+        serialization("WorkCheckIn") { $0.workCheckIns ?? [] },
+        serialization("WorkStep") { $0.workSteps ?? [] },
+        serialization("WorkParticipantEntity") { $0.workParticipants ?? [] },
+        serialization("PracticeSession") { $0.practiceSessions ?? [] },
+        serialization("LessonAttachment") { $0.lessonAttachments ?? [] },
+        serialization("LessonPresentation") { $0.lessonPresentations ?? [] },
+        serialization("LessonRecallCheck") { $0.recallChecks ?? [] },
+        serialization("SampleWork") { $0.sampleWorks ?? [] },
+        serialization("SampleWorkStep") { $0.sampleWorkSteps ?? [] },
+        serialization("NoteTemplate") { $0.noteTemplates ?? [] },
+        serialization("MeetingTemplate") { $0.meetingTemplates ?? [] },
+        serialization("Reminder") { $0.reminders ?? [] },
+        serialization("CalendarEvent") { $0.calendarEvents ?? [] },
+        serialization("Track") { $0.tracks ?? [] },
+        serialization("TrackStep") { $0.trackSteps ?? [] },
+        serialization("StudentTrackEnrollment") { $0.studentTrackEnrollments ?? [] },
+        serialization("SequenceTrack") { $0.sequenceTracks ?? [] },
+        serialization("Document") { $0.documents ?? [] },
+        serialization("Supply") { $0.supplies ?? [] },
+        serialization("Procedure") { $0.procedures ?? [] },
+        serialization("Schedule") { $0.schedules ?? [] },
+        serialization("ScheduleSlot") { $0.scheduleSlots ?? [] },
+        serialization("Issue") { $0.issues ?? [] },
+        serialization("IssueAction") { $0.issueActions ?? [] },
+        serialization("DevelopmentSnapshot") { $0.developmentSnapshots ?? [] },
+        serialization("TodoItem") { $0.todoItems ?? [] },
+        serialization("TodoSubtask") { $0.todoSubtasks ?? [] },
+        serialization("TodoTemplate") { $0.todoTemplates ?? [] },
+        serialization("TodayAgendaOrder") { $0.todayAgendaOrders ?? [] },
+        serialization("PlanningRecommendation") { $0.planningRecommendations ?? [] },
+        serialization("Resource") { $0.resources ?? [] },
+        serialization("NoteStudentLink") { $0.noteStudentLinks ?? [] },
+        serialization("GoingOut") { $0.goingOuts ?? [] },
+        serialization("GoingOutChecklistItem") { $0.goingOutChecklistItems ?? [] },
+        serialization("ClassroomJob") { $0.classroomJobs ?? [] },
+        serialization("JobAssignment") { $0.jobAssignments ?? [] },
+        serialization("CalendarNote") { $0.calendarNotes ?? [] },
+        serialization("ScheduledMeeting") { $0.scheduledMeetings ?? [] },
+        serialization("ClassroomMembership") { $0.classroomMemberships ?? [] },
+        serialization("MeetingWorkReview") { $0.meetingWorkReviews ?? [] },
+        serialization("StudentFocusItem") { $0.studentFocusItems ?? [] },
 
         // Format v18+ extensions
-        .init(entityName: "DayPad") { try ndjsonEntry($0.dayPads, $1) },
-        .init(entityName: "YearPlanEntry") { try ndjsonEntry($0.yearPlanEntries, $1) },
-        .init(entityName: "LessonSequenceSettings") { try ndjsonEntry($0.lessonSequenceSettings, $1) },
-        .init(entityName: "Story") { try ndjsonEntry($0.stories, $1) },
-        .init(entityName: "BookClubPacket") { try ndjsonEntry($0.bookClubPackets, $1) },
-        .init(entityName: "BookClubSession") { try ndjsonEntry($0.bookClubSessions, $1) },
-        .init(entityName: "BookClubMeeting") { try ndjsonEntry($0.bookClubMeetings, $1) }
+        serialization("DayPad") { $0.dayPads ?? [] },
+        serialization("YearPlanEntry") { $0.yearPlanEntries ?? [] },
+        serialization("LessonSequenceSettings") { $0.lessonSequenceSettings ?? [] },
+        serialization("Story") { $0.stories ?? [] },
+        serialization("BookClubPacket") { $0.bookClubPackets ?? [] },
+        serialization("BookClubSession") { $0.bookClubSessions ?? [] },
+        serialization("BookClubMeeting") { $0.bookClubMeetings ?? [] }
     ]
 
     /// Every entity name this writer can serialize, in archive order. The
@@ -280,6 +325,11 @@ public enum BackupWriter {
         entitySerializations.map(\.entityName)
     }
 
+    /// Materializes every entity entry at once. The export path deliberately does
+    /// *not* use this — it encodes and appends one entity at a time so peak memory
+    /// stays at a single entity rather than the whole database. Kept for tests and
+    /// callers that need the entries as values.
+    ///
     /// An encode failure here aborts the whole export (wrapped in
     /// `WriterError.entityEncodingFailed`) — a backup that silently omits an
     /// entity type would verify clean and read back as data loss months later.
@@ -290,11 +340,11 @@ public enum BackupWriter {
 
         for serialization in entitySerializations {
             do {
-                guard let (ndjson, count) = try serialization.encode(payload, encoder) else { continue }
+                guard let ndjson = try serialization.encode(payload, encoder) else { continue }
                 entries.append(BackupEntityEntry(
                     entityName: serialization.entityName,
                     storeName: store(for: serialization.entityName),
-                    count: count,
+                    count: serialization.count(payload),
                     ndjson: ndjson
                 ))
             } catch {
@@ -307,13 +357,13 @@ public enum BackupWriter {
         return entries
     }
 
-    /// Encodes a DTO array as NDJSON. Returns nil for nil/empty arrays so the
+    /// Encodes a DTO array as NDJSON. Returns nil for an empty array so the
     /// archive only carries non-empty entries.
-    private static func ndjsonEntry<T: Encodable>(
-        _ dtos: [T]?,
+    private static func ndjsonData<T: Encodable>(
+        _ dtos: [T],
         _ encoder: JSONEncoder
-    ) throws -> (ndjson: Data, count: Int)? {
-        guard let dtos, !dtos.isEmpty else { return nil }
+    ) throws -> Data? {
+        guard !dtos.isEmpty else { return nil }
         var buffer = Data()
         let newline = Data([0x0A])
         for dto in dtos {
@@ -321,20 +371,31 @@ public enum BackupWriter {
             buffer.append(line)
             buffer.append(newline)
         }
-        return (buffer, dtos.count)
+        return buffer
+    }
+
+    /// In-archive path for an entity entry. Must match `BackupEntityEntry.archivePath`.
+    private static func archivePath(for entityName: String) -> String {
+        "\(store(for: entityName))/\(entityName).ndjson"
     }
 
     // MARK: - Manifest
 
+    /// Built straight from the payload's array counts, before any encoding — the
+    /// manifest never needed the encoded bytes, only how many rows each entity has
+    /// and which store it came from. Only non-empty entities are listed, matching
+    /// the entries actually written.
     private static func buildManifest(
-        entries: [BackupEntityEntry],
+        payload: BackupPayload,
         deviceName: String
     ) -> BackupArchiveManifest {
         var counts: [String: Int] = [:]
         var stores: [String: String] = [:]
-        for entry in entries {
-            counts[entry.entityName] = entry.count
-            stores[entry.entityName] = entry.storeName
+        for serialization in entitySerializations {
+            let count = serialization.count(payload)
+            guard count > 0 else { continue }
+            counts[serialization.entityName] = count
+            stores[serialization.entityName] = store(for: serialization.entityName)
         }
         return BackupArchiveManifest(
             formatVersion: formatVersion,

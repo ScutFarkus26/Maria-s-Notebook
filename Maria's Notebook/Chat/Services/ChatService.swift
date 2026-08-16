@@ -81,9 +81,10 @@ final class ChatService {
             maxTokens: 2048,
             model: chatModelID
         )
+        let sources = await mcpClient.consumeEvidenceSources()
 
         // Add assistant response to session
-        let assistantMessage = ChatMessage(role: .assistant, content: responseText)
+        let assistantMessage = ChatMessage(role: .assistant, content: responseText, sources: sources)
         session.messages.append(assistantMessage)
 
         Self.logger.debug("Chat response received (\(responseText.count) chars)")
@@ -138,9 +139,10 @@ final class ChatService {
             model: chatModelID,
             onDelta: onDelta
         )
+        let sources = await mcpClient.consumeEvidenceSources()
 
         // Add the complete assistant response to session
-        let assistantMessage = ChatMessage(role: .assistant, content: fullResponse)
+        let assistantMessage = ChatMessage(role: .assistant, content: fullResponse, sources: sources)
         session.messages.append(assistantMessage)
 
         Self.logger.debug("Streaming chat response complete (\(fullResponse.count) chars)")

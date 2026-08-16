@@ -21,6 +21,7 @@ enum StudentsFilter: Hashable {
     case all
     case upper
     case lower
+    case adolescent
     case presentNow
     case withdrawn
 
@@ -32,10 +33,12 @@ enum StudentsFilter: Hashable {
             return "Upper"
         case .lower:
             return "Lower"
+        case .adolescent:
+            return "Adolescent"
         case .presentNow:
             return "Present Now"
         case .withdrawn:
-            return "Withdrawn"
+            return "Former Students"
         }
     }
 
@@ -47,6 +50,8 @@ enum StudentsFilter: Hashable {
             return Color.pink
         case .lower:
             return Color.blue
+        case .adolescent:
+            return Color.orange
         case .presentNow:
             return .green
         case .withdrawn:
@@ -70,6 +75,7 @@ enum StudentsFilter: Hashable {
         case .all: return "all"
         case .upper: return "upper"
         case .lower: return "lower"
+        case .adolescent: return "adolescent"
         case .presentNow: return "presentNow"
         case .withdrawn: return "withdrawn"
         }

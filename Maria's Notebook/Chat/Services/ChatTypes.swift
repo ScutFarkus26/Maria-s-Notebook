@@ -12,12 +12,15 @@ struct ChatMessage: Identifiable, Codable {
     var modelID: String?
     /// Whether this message is an escalation prompt (special UI card, not a regular bubble).
     var isEscalationPrompt: Bool
+    /// Classroom records actually returned by notebook tools for this answer.
+    var sources: [EvidenceReference]
 
     init(
         id: UUID = UUID(), role: ChatRole,
         content: String, timestamp: Date = Date(),
         modelID: String? = nil,
-        isEscalationPrompt: Bool = false
+        isEscalationPrompt: Bool = false,
+        sources: [EvidenceReference] = []
     ) {
         self.id = id
         self.role = role
@@ -25,6 +28,33 @@ struct ChatMessage: Identifiable, Codable {
         self.timestamp = timestamp
         self.modelID = modelID
         self.isEscalationPrompt = isEscalationPrompt
+        self.sources = sources
+    }
+
+    private enum CodingKeys: String, CodingKey {
+        case id, role, content, timestamp, modelID, isEscalationPrompt, sources
+    }
+
+    init(from decoder: Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        id = try container.decode(UUID.self, forKey: .id)
+        role = try container.decode(ChatRole.self, forKey: .role)
+        content = try container.decode(String.self, forKey: .content)
+        timestamp = try container.decode(Date.self, forKey: .timestamp)
+        modelID = try container.decodeIfPresent(String.self, forKey: .modelID)
+        isEscalationPrompt = try container.decodeIfPresent(Bool.self, forKey: .isEscalationPrompt) ?? false
+        sources = try container.decodeIfPresent([EvidenceReference].self, forKey: .sources) ?? []
+    }
+
+    func encode(to encoder: Encoder) throws {
+        var container = encoder.container(keyedBy: CodingKeys.self)
+        try container.encode(id, forKey: .id)
+        try container.encode(role, forKey: .role)
+        try container.encode(content, forKey: .content)
+        try container.encode(timestamp, forKey: .timestamp)
+        try container.encodeIfPresent(modelID, forKey: .modelID)
+        try container.encode(isEscalationPrompt, forKey: .isEscalationPrompt)
+        try container.encode(sources, forKey: .sources)
     }
 
     enum ChatRole: String, Codable {

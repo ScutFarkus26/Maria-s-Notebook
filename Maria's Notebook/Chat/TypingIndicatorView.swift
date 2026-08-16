@@ -34,12 +34,20 @@ struct TypingIndicatorView: View {
     }
 
     private func startBouncing() {
-        timer = Timer.scheduledTimer(withTimeInterval: 0.35, repeats: true) { _ in
+        // `onAppear` can fire more than once without a matching `onDisappear`
+        // (re-parenting, sheet re-presentation); without this guard the previous
+        // timer is dropped un-invalidated and keeps waking the CPU forever.
+        guard timer == nil else { return }
+        let bounceTimer = Timer.scheduledTimer(withTimeInterval: 0.35, repeats: true) { _ in
             Task { @MainActor in
                 withAnimation(.spring(response: 0.3, dampingFraction: 0.5)) {
                     activeIndex = (activeIndex + 1) % dotCount
                 }
             }
         }
+        // Let the system coalesce this wake with other work — a decorative dot
+        // animation doesn't need a precise fire time.
+        bounceTimer.tolerance = 0.1
+        timer = bounceTimer
     }
 }

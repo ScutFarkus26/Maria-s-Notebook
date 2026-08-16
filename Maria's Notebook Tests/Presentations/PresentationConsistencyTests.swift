@@ -148,9 +148,72 @@ final class PresentationConsistencyTests {
         )
 
         #expect(scheduled.state == .presented)
+        #expect(scheduled.scheduledFor == nil)
+        #expect(!scheduled.isScheduled)
         let rows = presentationsFor(lessonID: lesson.id!.uuidString, in: ctx)
         #expect(rows.count == 1)
         #expect(rows.first?.studentID == student.id!.uuidString)
+    }
+
+    @Test("recordPresentation applies its date to an undated presented assignment")
+    func recordPresentationUpdatesUndatedAssignment() throws {
+        let ctx = try makeContext()
+        let lesson = makeLesson(in: ctx)
+        let student = makeStudent(in: ctx, firstName: "History")
+        let assignment = PresentationFactory.makePreviouslyPresented(
+            lessonID: lesson.id!,
+            studentIDs: [student.id!],
+            context: ctx
+        )
+        assignment.lesson = lesson
+        let presentationDate = AppCalendar.startOfDay(
+            Date(timeIntervalSinceReferenceDate: 812_345_678)
+        )
+
+        _ = try LifecycleService.recordPresentation(
+            from: assignment,
+            presentedAt: presentationDate,
+            modelContext: ctx
+        )
+
+        #expect(assignment.presentedAt == presentationDate)
+        #expect(assignment.state == .presented)
+        #expect(!assignment.isScheduled)
+    }
+
+    @Test("Presentation detail preserves Previously Presented as undated")
+    func presentationDetailPreservesUndatedHistory() throws {
+        let ctx = try makeContext()
+        let lesson = makeLesson(in: ctx)
+        let student = makeStudent(in: ctx, firstName: "Undated")
+        let assignment = PresentationFactory.makeScheduled(
+            lessonID: lesson.id!,
+            studentIDs: [student.id!],
+            scheduledFor: Date().addingTimeInterval(86_400),
+            context: ctx
+        )
+        assignment.lesson = lesson
+        let coordinator = SaveCoordinator()
+        coordinator.suppressAlerts = true
+        let viewModel = PresentationDetailViewModel(
+            lessonAssignment: assignment,
+            viewContext: ctx,
+            saveCoordinator: coordinator
+        )
+        viewModel.isPresented = true
+        viewModel.givenAt = nil
+
+        viewModel.save(
+            studentsAll: [student],
+            lessons: [lesson],
+            lessonAssignmentsAll: [assignment],
+            calendar: AppCalendar.shared
+        )
+
+        #expect(assignment.state == .presented)
+        #expect(assignment.presentedAt == nil)
+        #expect(assignment.scheduledFor == nil)
+        #expect(!assignment.isScheduled)
     }
 
     // MARK: - Entry point: GiveLessonViewModel save with needsPractice=false
@@ -217,6 +280,8 @@ final class PresentationConsistencyTests {
         let ids = Set(rows.map(\.studentID))
         #expect(ids == Set([s1.id!.uuidString, s2.id!.uuidString]))
         #expect(rows.allSatisfy { $0.state == .presented })
+        #expect(rows.allSatisfy { $0.followUpActionRaw == nil })
+        #expect(rows.allSatisfy { !$0.hasOpenFollowUp })
 
         // The idempotency flag should now be set.
         #expect(UserDefaults.standard.bool(forKey: key))

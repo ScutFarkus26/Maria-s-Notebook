@@ -18,6 +18,7 @@ struct MarkAbsentIntent: AppIntent {
         categoryName: "Attendance"
     )
     static let openAppWhenRun: Bool = false
+    static let authenticationPolicy: IntentAuthenticationPolicy = .requiresAuthentication
 
     @Parameter(title: "Student")
     var student: StudentEntity
@@ -36,6 +37,8 @@ struct MarkAbsentIntent: AppIntent {
         guard let cdStudent = context.safeFetchFirst(request) else {
             throw MarkAbsentError.studentNotFound(student.fullName)
         }
+
+        try await requestConfirmation()
 
         let repository = AttendanceRepository(context: context)
         let (records, _) = repository.loadOrCreateRecords(forDate: Date(), students: [cdStudent])

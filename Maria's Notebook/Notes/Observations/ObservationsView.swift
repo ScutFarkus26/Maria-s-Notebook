@@ -5,16 +5,26 @@ import CoreData
 import FoundationModels
 
 @available(macOS 26.0, *)
-@Generable(description: "A concise digest for observations")
+@Generable(description: "One evidence-linked finding from Montessori classroom records")
+struct GroundedObservationFinding {
+    @Guide(description: "A concise factual statement or question that does not diagnose or judge readiness")
+    var text: String
+
+    @Guide(description: "Source keys exactly as supplied, such as O1 or O2", .count(1...4))
+    var sourceKeys: [String]
+}
+
+@available(macOS 26.0, *)
+@Generable(description: "An evidence-linked reflection on classroom observations")
 struct NotesDigest {
-    @Guide(description: "3–6 bullet points highlighting notable observations", .count(3...6))
-    var keyPoints: [String]
+    @Guide(description: "Directly supported factual observations", .count(0...6))
+    var factualObservations: [GroundedObservationFinding]
 
-    @Guide(description: "Actionable follow-ups for guides/assistants (0–5)", .count(0...5))
-    var followUps: [String]
+    @Guide(description: "Patterns present in at least two different source records", .count(0...5))
+    var repeatedPatterns: [GroundedObservationFinding]
 
-    @Guide(description: "Overall tone/sentiment (e.g., positive, neutral, concerned)")
-    var sentiment: String
+    @Guide(description: "Neutral questions the guide may choose to observe next", .count(0...5))
+    var questionsToObserveNext: [GroundedObservationFinding]
 }
 #endif
 
@@ -46,8 +56,10 @@ enum ObservationsHelpers {
 
     static func buildSummaryInstructions() -> String {
         """
-        You summarize Montessori classroom observations for staff.
-        Be concise, factual, and avoid speculation.
+        You help a trained Montessori guide review their own classroom records.
+        Use only the supplied source records. Be concise and factual. Never diagnose,
+        classify sentiment, infer emotion, score readiness, or decide a next lesson.
+        Preserve the guide's authority and cite the supplied source keys.
         """
     }
 }
@@ -69,8 +81,12 @@ struct ObservationsView: View {
     @State var isSummarizing: Bool = false
     @State var showingSummarySheet: Bool = false
     @State var summaryMode: SummaryMode = .digest
-    @State var summaryPartialDigest: NotesDigest.PartiallyGenerated?
-    @State var summaryPartialNarrative: NotesNarrative.PartiallyGenerated?
+    @State var summaryDigest: NotesDigest?
+    @State var summaryNarrative: NotesNarrative?
+    @State var summaryNarrativeDraft: String = ""
+    @State var summarySources: [String: EvidenceReference] = [:]
+    @State var summaryMissingEvidence: [EvidenceReference] = []
+    @State var summaryErrorMessage: String?
     @State var summaryTask: Task<Void, Never>?
 
     // AI scope picker state
@@ -175,8 +191,19 @@ struct ObservationsView: View {
                 ObservationsSummarySheet(
                     mode: summaryMode,
                     isSummarizing: $isSummarizing,
-                    partialDigest: summaryPartialDigest,
-                    partialNarrative: summaryPartialNarrative,
+                    digest: summaryDigest,
+                    narrative: summaryNarrative,
+                    narrativeDraft: $summaryNarrativeDraft,
+                    sources: summarySources,
+                    missingEvidence: summaryMissingEvidence,
+                    errorMessage: summaryErrorMessage,
+                    onOpenSource: { reference in
+                        showingSummarySheet = false
+                        guard reference.entityKind == .note,
+                              let item = loadedItems.first(where: { $0.id == reference.entityID }),
+                              case .note(let note) = item.source else { return }
+                        noteBeingEdited = note
+                    },
                     onCancel: {
                         summaryTask?.cancel()
                         summaryTask = nil

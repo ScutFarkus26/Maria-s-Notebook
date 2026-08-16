@@ -330,6 +330,8 @@ enum StudentCSVImporter {
             return .lower
         case "upper", "u", "upper elementary", "upper el", "upper elem":
             return .upper
+        case "adolescent", "adol", "adolescence", "12-15", "erdkinder":
+            return .adolescent
         default:
             return nil
         }

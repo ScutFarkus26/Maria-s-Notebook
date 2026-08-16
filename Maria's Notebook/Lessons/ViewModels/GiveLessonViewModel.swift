@@ -17,6 +17,7 @@ enum StudentLevelFilter: String, CaseIterable {
     case all = "All"
     case lower = "Lower"
     case upper = "Upper"
+    case adolescent = "Adolescent"
 }
 
 // MARK: - View Model
@@ -126,6 +127,8 @@ final class LessonPickerViewModel {
             filtered = filtered.filter { $0.level == .lower }
         case .upper:
             filtered = filtered.filter { $0.level == .upper }
+        case .adolescent:
+            filtered = filtered.filter { $0.level == .adolescent }
         case .all:
             break
         }

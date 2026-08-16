@@ -65,7 +65,11 @@ final class DeduplicationCoordinator {
                 guard let self else { return }
                 self.isRunning = false
                 if let stack = self.coreDataStack {
-                    Task { await SharedStoreZoneRepair.shared.run(coreDataStack: stack) }
+                    // `runIfNeeded` honors the 24-hour circuit breaker that exists
+                    // to stop repeated full-database zone scans (each of which can
+                    // sit on a 10-minute CloudKit lock wait). Every other automatic
+                    // call site uses it; this one bypassed it on every import.
+                    Task { await SharedStoreZoneRepair.runIfNeeded(coreDataStack: stack) }
                 }
             }
         }

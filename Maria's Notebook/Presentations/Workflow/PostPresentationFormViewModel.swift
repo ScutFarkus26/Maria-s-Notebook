@@ -2,28 +2,31 @@ import Foundation
 import SwiftUI
 import CoreData
 
+/// The small amount of per-student information collected after a presentation.
+/// Detailed follow-up work lives in `workDrafts`, so there is only one editable
+/// source for assignments.
+struct PostPresentationStudentEntry: Identifiable {
+    let id: UUID
+    let name: String
+    var observation: String = ""
+}
+
 /// ViewModel for managing post-presentation form state and logic.
-/// Works with UnifiedPostPresentationSheet's nested types for compatibility.
 @Observable
 @MainActor
 final class PostPresentationFormViewModel {
-    // MARK: - Type Aliases (using sheet's nested types)
-
-    typealias PresentationStatus = UnifiedPostPresentationSheet.PresentationStatus
-    typealias StudentEntry = UnifiedPostPresentationSheet.StudentEntry
-
     // MARK: - Next CDLesson Action
 
     enum NextLessonAction: String, CaseIterable, Identifiable {
-        case hold = "Hold"
-        case inbox = "Inbox"
+        case noChange = "Keep Watching"
+        case inbox = "Add to Inbox"
         case schedule = "Schedule"
 
         var id: String { rawValue }
 
         var systemImage: String {
             switch self {
-            case .hold: return "pause.circle.fill"
+            case .noChange: return "minus.circle"
             case .inbox: return "tray.fill"
             case .schedule: return "calendar.badge.plus"
             }
@@ -32,10 +35,10 @@ final class PostPresentationFormViewModel {
 
     // MARK: - State
 
-    var status: PresentationStatus
-    var entries: [UUID: StudentEntry] = [:]
+    var entries: [UUID: PostPresentationStudentEntry] = [:]
     var groupObservation: String = ""
     var bulkAssignment: String = ""
+    var workDrafts: [UUID: [WorkItemDraft]] = [:]
     var defaultCheckInEnabled: Bool = false
     var defaultCheckInDate: Date
     var defaultDueEnabled: Bool = false
@@ -49,49 +52,41 @@ final class PostPresentationFormViewModel {
     var confirmedStudentIDs: Set<UUID> = []
 
     // Next lesson state
-    var nextLessonAction: NextLessonAction = .inbox
+    var nextLessonAction: NextLessonAction = .noChange
     var nextLessonScheduleDate: Date = AppCalendar.startOfDay(Date().addingTimeInterval(24 * 60 * 60))
     var nextLesson: CDLesson?
     var existingNextAssignment: CDLessonAssignment?
     var isNextLessonSectionExpanded: Bool = false
+    private var nextLessonResolutionKey: NextLessonResolutionKey?
 
     // MARK: - Computed Properties
-
-    /// Whether the form has a valid status selected (required to complete).
-    var hasValidStatus: Bool {
-        status == .justPresented || status == .previouslyPresented
-    }
 
     /// Whether the form has unsaved content the user would lose by dismissing.
     var hasUnsavedContent: Bool {
         if !groupObservation.trimmed().isEmpty { return true }
         if !bulkAssignment.trimmed().isEmpty { return true }
-        if entries.values.contains(where: { !$0.observation.trimmed().isEmpty || !$0.assignment.trimmed().isEmpty }) {
+        if entries.values.contains(where: { !$0.observation.trimmed().isEmpty }) {
             return true
         }
+        if workDrafts.values.joined().contains(where: Self.isMeaningfulWorkDraft) { return true }
+        if !confirmedStudentIDs.isEmpty { return true }
+        if !studentsToUnlock.isEmpty { return true }
+        if nextLessonAction != .noChange { return true }
         return false
-    }
-
-    /// Controls interactive dismiss: blocks if status is invalid OR if there's unsaved content.
-    var canDismiss: Bool {
-        hasValidStatus && !hasUnsavedContent
     }
 
     // MARK: - Initialization
     
-    init(students: [CDStudent], initialStatus: PresentationStatus = .justPresented) {
-        // Initialize status
-        self.status = initialStatus
-        
+    init(students: [CDStudent]) {
         // Default dates
         self.defaultCheckInDate = AppCalendar.startOfDay(Date().addingTimeInterval(24*60*60))
         self.defaultDueDate = AppCalendar.startOfDay(Date().addingTimeInterval(7*24*60*60))
 
         // Initialize entries
         self.entries = Dictionary(
-            uniqueKeysWithValues: students.compactMap { student -> (UUID, StudentEntry)? in
+            uniqueKeysWithValues: students.compactMap { student -> (UUID, PostPresentationStudentEntry)? in
                 guard let id = student.id else { return nil }
-                return (id, StudentEntry(id: id, name: StudentFormatter.displayName(for: student)))
+                return (id, PostPresentationStudentEntry(id: id, name: StudentFormatter.displayName(for: student)))
             }
         )
 
@@ -100,28 +95,6 @@ final class PostPresentationFormViewModel {
     }
 
     // MARK: - Actions
-    
-    /// Applies the bulk assignment text to all students.
-    func applyBulkAssignment() {
-        let trimmed = bulkAssignment.trimmed()
-        guard !trimmed.isEmpty else { return }
-
-        for (id, entry) in entries {
-            var updated = entry
-            updated.assignment = trimmed
-
-            if defaultCheckInEnabled && entry.checkInDate == nil {
-                updated.checkInDate = defaultCheckInDate
-            }
-            if defaultDueEnabled && entry.dueDate == nil {
-                updated.dueDate = defaultDueDate
-            }
-
-            entries[id] = updated
-        }
-
-        bulkAssignment = ""
-    }
 
     /// Unlocks next lessons for selected students.
     func unlockNextLessonsIfNeeded(
@@ -137,7 +110,8 @@ final class PostPresentationFormViewModel {
             for: studentsToUnlock,
             context: viewContext,
             lessons: lessons,
-            cdAssignments: lessonAssignments
+            cdAssignments: lessonAssignments,
+            saveImmediately: false
         )
     }
 
@@ -176,6 +150,16 @@ final class PostPresentationFormViewModel {
         lessonAssignments: [CDLessonAssignment],
         context: NSManagedObjectContext
     ) {
+        // Resolve can run again when a Mac panel moves into its own window. Preserve
+        // an explicit choice for the same lesson and roster, but reset when either
+        // changes so a stale decision can never leak into another presentation.
+        let resolutionKey = NextLessonResolutionKey(lessonID: lessonID, studentIDs: studentIDs)
+        if nextLessonResolutionKey != resolutionKey {
+            nextLessonAction = .noChange
+            nextLessonResolutionKey = resolutionKey
+        }
+        existingNextAssignment = nil
+
         guard let currentLesson = lessons.first(where: { $0.id != nil && $0.id == lessonID }) else {
             nextLesson = nil
             return
@@ -186,8 +170,8 @@ final class PostPresentationFormViewModel {
         guard let nextLesson else { return }
 
         // Pre-fill the schedule date with the Year Plan's planned date (if any) so the
-        // picker shows the planned date when the teacher switches to Schedule. Default
-        // action stays .inbox — Year Plan only suggests a date, it doesn't pick the action.
+        // picker shows the planned date when the teacher switches to Schedule. A Year
+        // Plan date is only a suggestion; it never selects an action.
         if let nextID = nextLesson.id,
            let planned = YearPlanPromotionService.plannedDate(
                lessonID: nextID.uuidString,
@@ -201,29 +185,16 @@ final class PostPresentationFormViewModel {
         existingNextAssignment = lessonAssignments.first { la in
             nextLesson.id != nil && la.lessonIDUUID == nextLesson.id &&
             Set(la.studentUUIDs) == studentIDs &&
-            la.presentedAt == nil
+            !la.isPresented
         }
 
-        // If already exists, reflect its current state in the picker
+        // Keep No Change selected even when an assignment already exists. Its current
+        // state is shown in the UI, and changing it still requires an explicit choice.
         if let existing = existingNextAssignment {
             if existing.scheduledFor != nil {
-                nextLessonAction = .schedule
                 nextLessonScheduleDate = existing.scheduledFor!
-            } else {
-                nextLessonAction = .inbox
             }
         }
-    }
-
-    /// Whether any work has been assigned (bulk or per-student).
-    var hasWorkAssigned: Bool {
-        if !bulkAssignment.trimmed().isEmpty { return true }
-        return entries.values.contains { !$0.assignment.isEmpty }
-    }
-
-    /// Whether the hold option should be enabled (requires work to be assigned).
-    var isHoldEnabled: Bool {
-        hasWorkAssigned
     }
 
     /// Executes the chosen next lesson action.
@@ -234,6 +205,7 @@ final class PostPresentationFormViewModel {
         lessonAssignments: [CDLessonAssignment],
         viewContext: NSManagedObjectContext
     ) {
+        guard nextLessonAction != .noChange else { return }
         guard let nextLesson else { return }
 
         // `existingNextAssignment` is a load-time snapshot. The unlock step in the
@@ -244,27 +216,12 @@ final class PostPresentationFormViewModel {
             ?? Self.fetchExistingAssignment(for: nextLesson, studentIDs: studentIDs, in: viewContext)
 
         switch nextLessonAction {
-        case .hold:
-            // Ensure a draft assignment exists so the blocking algorithm can detect it.
-            // Opt out of Year Plan auto-promote: Hold means the user wants to block the
-            // sequence with a draft, not schedule per the Year Plan.
-            if resolvedExisting == nil {
-                PlanNextLessonService.planLesson(
-                    nextLesson,
-                    forStudents: studentIDs,
-                    allStudents: allStudents,
-                    allLessons: allLessons,
-                    existingLessonAssignments: lessonAssignments,
-                    context: viewContext,
-                    autoPromoteFromYearPlan: false
-                )
-            }
+        case .noChange:
+            return
 
         case .inbox:
             if let existing = resolvedExisting {
-                // Update existing to draft/inbox state
-                existing.state = .draft
-                existing.scheduledFor = nil
+                existing.unschedule()
             } else {
                 // Create new draft. Opt out of Year Plan auto-promote: the user explicitly
                 // chose Inbox, so we must not schedule the assignment per the Year Plan.
@@ -281,9 +238,7 @@ final class PostPresentationFormViewModel {
 
         case .schedule:
             if let existing = resolvedExisting {
-                // Update existing to scheduled
-                existing.state = .scheduled
-                existing.scheduledFor = nextLessonScheduleDate
+                existing.schedule(for: nextLessonScheduleDate)
             } else {
                 createScheduledAssignment(
                     for: nextLesson,
@@ -338,8 +293,22 @@ final class PostPresentationFormViewModel {
         guard let lessonID = lesson.id else { return nil }
         let request = CDFetchRequest(CDLessonAssignment.self)
         request.predicate = NSPredicate(format: "lessonID == %@", lessonID.uuidString)
-        let unpresented = context.safeFetch(request).filter { $0.presentedAt == nil }
+        let unpresented = context.safeFetch(request).filter { !$0.isPresented }
         return unpresented.first { Set($0.studentUUIDs) == studentIDs }
             ?? unpresented.first { studentIDs.isSubset(of: Set($0.studentUUIDs)) }
     }
+
+    nonisolated private static func isMeaningfulWorkDraft(_ draft: WorkItemDraft) -> Bool {
+        !draft.title.trimmed().isEmpty
+            || !draft.notes.trimmed().isEmpty
+            || !draft.completionNote.trimmed().isEmpty
+            || draft.checkInDate != nil
+            || draft.dueDate != nil
+            || draft.completionOutcome != nil
+    }
+}
+
+private struct NextLessonResolutionKey: Equatable {
+    let lessonID: UUID
+    let studentIDs: Set<UUID>
 }

@@ -184,6 +184,11 @@ struct MariasNotebookApp: App {
 
             // Index students + lessons into Spotlight (searchable + Siri-referenceable); idempotent, off critical path.
             Task { await SpotlightIndexer.reindexAll() }
+
+            #if os(macOS)
+            // Start the MCP server for Claude Desktop if the teacher enabled it.
+            MCPServerService.shared.applySettings()
+            #endif
         }
     }
 
@@ -215,7 +220,10 @@ struct MariasNotebookApp: App {
     var body: some Scene {
         WindowGroup("", id: "mainWindow") {
             mainWindowContent
-            .task { await performStartupBootstrap() }
+            .task {
+                guard !AppBootstrapping.isRunningUnitTests else { return }
+                await performStartupBootstrap()
+            }
             .onChange(of: scenePhase) { _, newPhase in
                 handleScenePhaseChange(newPhase)
             }
@@ -289,7 +297,7 @@ struct MariasNotebookApp: App {
                 Button("Today") { appRouter.navigateTo(.today) }
                     .keyboardShortcut("1", modifiers: .command)
 
-                Button("Presentations") { appRouter.navigateTo(.planningAgenda) }
+                Button("Lessons & Work") { appRouter.navigateToLessonsAndWork(.needsAttention) }
                     .keyboardShortcut("2", modifiers: .command)
 
                 Button("Students") { appRouter.navigateTo(.students) }

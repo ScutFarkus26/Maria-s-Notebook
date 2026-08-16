@@ -11,7 +11,14 @@ struct AttendanceTardyReport: View {
 
     @FetchRequest(sortDescriptors: [NSSortDescriptor(keyPath: \CDStudent.lastName, ascending: true)])
     private var allStudentsRaw: FetchedResults<CDStudent>
-    private var students: [CDStudent] { Array(allStudentsRaw).uniqueByID.filterEnrolled() }
+    // Active-in-range, not enrolled-only: former students must keep appearing in
+    // reports covering the period they were part of the class.
+    private var students: [CDStudent] {
+        let start = AppCalendar.startOfDay(startDate)
+        let dayAfterEnd = AppCalendar.shared.date(byAdding: .day, value: 1, to: AppCalendar.startOfDay(endDate))
+            ?? AppCalendar.startOfDay(endDate)
+        return Array(allStudentsRaw).uniqueByID.filterActive(in: DateRange(start: start, end: dayAfterEnd))
+    }
 
     // Default range: last 30 days
     @State private var startDate: Date = AppCalendar.startOfDay(

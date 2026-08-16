@@ -61,9 +61,13 @@ final class SpeechRecognitionService {
 
     // MARK: - Recording
 
-    func startRecording() {
+    func startRecording(requiresOnDeviceRecognition: Bool = false) {
         guard let speechRecognizer, speechRecognizer.isAvailable else {
             error = "Speech recognition is not available."
+            return
+        }
+        guard !requiresOnDeviceRecognition || speechRecognizer.supportsOnDeviceRecognition else {
+            error = "Private on-device speech recognition is not available here. Type the observation instead."
             return
         }
 
@@ -73,6 +77,7 @@ final class SpeechRecognitionService {
 
         let request = SFSpeechAudioBufferRecognitionRequest()
         request.shouldReportPartialResults = true
+        request.requiresOnDeviceRecognition = requiresOnDeviceRecognition
 
         let audioEngine = AVAudioEngine()
         self.audioEngine = audioEngine
@@ -144,7 +149,7 @@ final class SpeechRecognitionService {
         isRecording = false
     }
 
-    func toggleRecording() {
+    func toggleRecording(requiresOnDeviceRecognition: Bool = false) {
         if isRecording {
             stopRecording()
         } else {
@@ -153,7 +158,7 @@ final class SpeechRecognitionService {
                     let granted = await requestPermission()
                     guard granted else { return }
                 }
-                startRecording()
+                startRecording(requiresOnDeviceRecognition: requiresOnDeviceRecognition)
             }
         }
     }

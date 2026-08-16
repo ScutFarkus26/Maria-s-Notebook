@@ -208,10 +208,13 @@ class SettingsStatsViewModel {
         context: NSManagedObjectContext
     ) -> Int {
         // NSManagedObjectContext must be accessed on MainActor
-        let descriptor = NSFetchRequest<T>(entityName: T.entity().name ?? String(describing: T.self))
-        // CDNote: SwiftData doesn't have direct count, so we fetch and count
-        // For large datasets, this could be optimized further with sampling
-        return context.safeFetch(descriptor).count
+        let request = NSFetchRequest<NSFetchRequestResult>(
+            entityName: T.entity().name ?? String(describing: T.self)
+        )
+        // Count in the store — fetching every row just to call `.count` on it
+        // materialized the whole database (blob-bearing entities included) on
+        // the main actor. `loadFilteredCount` below already does it this way.
+        return (try? context.count(for: request)) ?? 0
     }
     
     /// Load count for a filtered model type

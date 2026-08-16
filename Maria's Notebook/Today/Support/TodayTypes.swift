@@ -78,11 +78,12 @@ struct AttendanceSummary: Equatable {
 
 // MARK: - Level Filter
 
-/// Filter for Lower/Upper/All levels. Used to reduce the visible items across sections.
+/// Filter for Lower/Upper/Adolescent/All levels. Used to reduce the visible items across sections.
 enum LevelFilter: String, CaseIterable, Identifiable, Sendable {
     case all = "All"
     case lower = "Lower"
     case upper = "Upper"
+    case adolescent = "Adolescent"
 
     var id: String { rawValue }
 
@@ -91,6 +92,7 @@ enum LevelFilter: String, CaseIterable, Identifiable, Sendable {
         case .all: return true
         case .lower: return level == .lower
         case .upper: return level == .upper
+        case .adolescent: return level == .adolescent
         }
     }
 }

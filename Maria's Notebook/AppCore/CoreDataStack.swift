@@ -356,8 +356,32 @@ final class CoreDataStack {
         // Configure view context
         configureViewContext()
 
-        // Create persistent history processor
-        historyProcessor = PersistentHistoryProcessor(container: container)
+        #if DEBUG
+        // Mirror Core Data model changes into the CloudKit development schema.
+        // Kept out of the normal launch path per Apple's workflow ("Sharing Core
+        // Data objects between iCloud users"): run the app once with the
+        // -InitializeCloudKitSchema launch argument after a model change, verify
+        // in CloudKit Console, then deploy the schema to production.
+        if enableCloudKit, !inMemory,
+           ProcessInfo.processInfo.arguments.contains("-InitializeCloudKitSchema") {
+            do {
+                try container.initializeCloudKitSchema(options: [])
+                Self.logger.info("CloudKit schema initialized from Core Data model")
+            } catch {
+                Self.logger.error("CloudKit schema initialization failed: \(error.localizedDescription)")
+            }
+        }
+        #endif
+
+        // Create the persistent history processor — but only for the primary
+        // on-disk stack. Sample Class and test stacks (localStoreURL / inMemory)
+        // must not create one: all processors persist their token under the same
+        // UserDefaults key, and history tokens are per-store, so a secondary
+        // stack's saves would clobber the primary stack's cursor with one that
+        // references a different store file.
+        if localStoreURL == nil && !inMemory {
+            historyProcessor = PersistentHistoryProcessor(container: container)
+        }
 
         // Listen for remote changes (must dispatch to main queue since this class is @MainActor
         // but NSPersistentStoreRemoteChange fires on a background queue)
@@ -404,6 +428,13 @@ final class CoreDataStack {
         ctx.mergePolicy = NSMergePolicy.mergeByPropertyObjectTrump
         // Tag transactions so the history processor can filter out our own writes
         ctx.transactionAuthor = PersistentHistoryProcessor.transactionAuthor
+        // On macOS the view context gets a real NSUndoManager by default, which
+        // records every insert/update/delete for the process lifetime — including
+        // whole-table migrations and backup restores — and is never popped. The
+        // three flows that need undo (command-bar capture, presentation follow-up,
+        // immediate presentation recording) install their own local manager and
+        // restore the previous value, so nil is the correct default here.
+        ctx.undoManager = nil
         // Disable autosave — we use explicit saves via SaveCoordinator
         // (Mirrors the existing SwiftData behavior where autosave was disabled)
     }

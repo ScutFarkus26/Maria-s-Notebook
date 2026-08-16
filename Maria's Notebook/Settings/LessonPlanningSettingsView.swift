@@ -11,7 +11,7 @@ struct LessonPlanningSettingsView: View {
     @State private var isPromptExpanded = false
 
     private let depthOptions = [
-        ("quick", "Quick", "Fast suggestions based on readiness"),
+        ("quick", "Quick", "Fast suggestions from curriculum and guide records"),
         ("standard", "Standard", "Scheduled plan with grouping suggestions"),
         ("deep", "Deep", "Full weekly optimization across all students")
     ]

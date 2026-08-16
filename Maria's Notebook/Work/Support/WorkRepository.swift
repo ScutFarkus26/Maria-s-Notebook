@@ -119,7 +119,8 @@ struct WorkRepository {
         kind: WorkKind? = nil,
         presentationID: UUID? = nil,
         scheduledDate: Date? = nil,
-        sampleWorkID: UUID? = nil
+        sampleWorkID: UUID? = nil,
+        saveImmediately: Bool = true
     ) throws -> CDWorkModel {
         // Use WorkKind directly (new system), with smart defaults
         let workKind = kind ?? (presentationID != nil ? .practiceLesson : .followUpAssignment)
@@ -169,7 +170,9 @@ struct WorkRepository {
             }
         }
 
-        context.safeSave()
+        if saveImmediately {
+            context.safeSave()
+        }
         return work
     }
 

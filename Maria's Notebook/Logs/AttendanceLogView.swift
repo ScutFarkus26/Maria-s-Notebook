@@ -27,10 +27,18 @@ struct AttendanceLogView: View {
     )
     private var studentsRaw: FetchedResults<CDStudent>
     // DEDUPLICATION: CloudKit sync can create duplicate records with the same ID.
-    // Filter out test students when setting is disabled
+    // Filter out test students when setting is disabled.
+    // Active-in-range, not enrolled-only, so former students' history stays visible.
     private var students: [CDStudent] {
-        TestStudentsFilter.filterVisible(
-            Array(studentsRaw).uniqueByID.filterEnrolled(),
+        let base = Array(studentsRaw).uniqueByID
+        let scoped: [CDStudent]
+        if let bounds = dateRangeBounds {
+            scoped = base.filterActive(in: DateRange(start: bounds.start, end: bounds.end))
+        } else {
+            scoped = base
+        }
+        return TestStudentsFilter.filterVisible(
+            scoped,
             show: showTestStudents,
             namesRaw: testStudentNamesRaw
         )

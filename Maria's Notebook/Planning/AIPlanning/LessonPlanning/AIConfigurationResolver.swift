@@ -16,9 +16,13 @@ struct AIConfigurationResolver {
         self.model = feature.resolvedClaudeModelID()
         let storedTimeout = defaults.integer(forKey: UserDefaultsKeys.lessonPlanningTimeout)
         self.timeout = storedTimeout > 0 ? TimeInterval(storedTimeout) : 120
-        let storedTemp = defaults.double(forKey: UserDefaultsKeys.lessonPlanningTemperature)
-        self.temperature = storedTemp > 0 ? storedTemp : 0.3
-        let customPrompt = defaults.string(forKey: UserDefaultsKeys.lessonPlanningSystemPrompt) ?? ""
-        self.systemPrompt = customPrompt.isEmpty ? AIPrompts.lessonPlanningAssistant : customPrompt
+        if defaults.object(forKey: UserDefaultsKeys.lessonPlanningTemperature) != nil {
+            self.temperature = min(max(defaults.double(forKey: UserDefaultsKeys.lessonPlanningTemperature), 0), 1)
+        } else {
+            self.temperature = 0.3
+        }
+        let customPrompt = (defaults.string(forKey: UserDefaultsKeys.lessonPlanningSystemPrompt) ?? "").trimmed()
+        let basePrompt = customPrompt.isEmpty ? AIPrompts.lessonPlanningAssistant : customPrompt
+        self.systemPrompt = basePrompt + "\n\n" + AIPrompts.planningEvidenceGuardrails
     }
 }

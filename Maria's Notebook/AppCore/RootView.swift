@@ -7,6 +7,7 @@
 // - RootDetailContent.swift - Detail content routing
 // - RootViewComponents.swift - Supporting components (QuickNoteGlassButton, warning banners)
 
+import Combine
 import SwiftUI
 import CoreData
 import OSLog
@@ -75,16 +76,24 @@ struct RootView: View {
     // MARK: - Computed
     private func resolvedPersistedNavItem() -> NavigationItem {
         if let raw = selectedNavItemRaw, let item = NavigationItem(rawValue: raw) {
+            if item == .planningWork {
+                appRouter.lessonsAndWorkRequest = .init(scope: .childrenWorking)
+                return .planningAgenda
+            }
             return item
         }
         if let legacyRaw = selectedTabRaw, let legacyTab = Tab(rawValue: legacyRaw) {
             if legacyTab == .planning {
                 if let modeRaw = UserDefaults.standard.string(forKey: UserDefaultsKeys.planningRootViewMode) {
                     switch modeRaw {
-                    case "Open Work": return .planningWork
+                    case "Open Work":
+                        appRouter.lessonsAndWorkRequest = .init(scope: .childrenWorking)
+                        return .planningAgenda
                     case "Projects": return .planningProjects
                     case "Checklist": return .planningChecklist
-                    default: return .planningAgenda
+                    default:
+                        appRouter.lessonsAndWorkRequest = .init(scope: .upcoming)
+                        return .planningAgenda
                     }
                 }
                 return .planningAgenda
@@ -340,11 +349,15 @@ struct RootView: View {
             }
             #endif
         }
+        // Debounce: objectsDidChange fires per change, not per save, so a single
+        // CloudKit merge can post it hundreds of times — and each reload runs the
+        // companion's count queries. Coalesce them (same pattern as StudentsView).
         .onReceive(
             NotificationCenter.default.publisher(
                 for: .NSManagedObjectContextObjectsDidChange,
                 object: viewContext
             )
+            .debounce(for: .milliseconds(300), scheduler: RunLoop.main)
         ) { _ in
             companionViewModel.reload(calendar: calendar)
         }
@@ -391,20 +404,30 @@ struct RootView: View {
     }
 
     @ViewBuilder private var rootLayout: some View {
+        #if os(macOS)
+        // The NavigationSplitView has to be the window's root content for macOS
+        // to hand the titlebar inset to BOTH of its columns. Stacking it beneath
+        // a VStack leaves the detail column without that inset, so the students
+        // workspace draws its column headers and first rows up underneath the
+        // toolbar while the app sidebar sits correctly below it. Banners ride
+        // along as a top safe-area inset — same space, no displaced split view.
+        mainContent
+            .safeAreaInset(edge: .top, spacing: 0) {
+                VStack(spacing: 0) {
+                    warningBanners
+                    Divider()
+                }
+            }
+        #else
         let layout = VStack(spacing: 0) {
             warningBanners
-            #if os(iOS)
             if horizontalSizeClass == .compact {
                 mobileContextBar
             }
-            #endif
             Divider()
             mainContent
         }
 
-        #if os(macOS)
-        layout
-        #else
         if horizontalSizeClass == .compact {
             layout
         } else {
@@ -495,8 +518,9 @@ struct RootView: View {
         RootAdaptiveTabs(selectedNavItem: $selectedNavItem)
         .frame(maxWidth: .infinity, maxHeight: .infinity)
         #else
+        // No .frame wrapper: every layer between the window root and the split
+        // view is another chance for the titlebar inset to go missing.
         splitViewContent
-            .frame(maxWidth: .infinity, maxHeight: .infinity)
         #endif
     }
 
@@ -550,7 +574,8 @@ struct RootView: View {
     }
 
     private func persistSelection(_ item: RootView.NavigationItem) {
-        let newValue = item.rawValue
+        let canonicalItem: RootView.NavigationItem = item == .planningWork ? .planningAgenda : item
+        let newValue = canonicalItem.rawValue
         if selectedNavItemRaw != newValue {
             selectedNavItemRaw = newValue
         }
@@ -577,8 +602,12 @@ struct RootView: View {
 
     private func handleSelectedNavItemChange(_ oldValue: RootView.NavigationItem?, _ item: RootView.NavigationItem?) {
         if let item {
-            if selectedNavItem != item {
-                selectedNavItem = item
+            let canonicalItem: RootView.NavigationItem = item == .planningWork ? .planningAgenda : item
+            if item == .planningWork {
+                appRouter.lessonsAndWorkRequest = .init(scope: .childrenWorking)
+            }
+            if selectedNavItem != canonicalItem {
+                selectedNavItem = canonicalItem
             }
             self.appRouter.selectedNavItem = nil
         }

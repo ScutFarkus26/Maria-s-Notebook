@@ -54,7 +54,8 @@ extension DataMigrations {
                 _ = try LifecycleService.recordPresentation(
                     from: la,
                     presentedAt: presentedAt,
-                    modelContext: context
+                    modelContext: context,
+                    beginFollowUp: false
                 )
                 processed += 1
             } catch {

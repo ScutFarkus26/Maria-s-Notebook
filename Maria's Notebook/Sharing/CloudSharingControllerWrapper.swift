@@ -16,10 +16,17 @@ import UIKit
 /// save — distinct from `onDismiss` so callers can synchronously
 /// refresh share state (and trigger SharedStoreZoneRepair) before any
 /// UI-driven dismissal work runs.
+///
+/// `onStopSharing` fires when the user ends the share from inside the
+/// controller. NSPersistentCloudKitContainer observes the system sharing
+/// UI and updates its own store metadata (iOS 16.4+), but the app's
+/// published share/membership state still needs an explicit resync —
+/// without it the UI keeps reporting the dead share until relaunch.
 struct CloudSharingSheet: UIViewControllerRepresentable {
     let share: CKShare
     let container: CKContainer
     var onShareSaved: (() -> Void)?
+    var onStopSharing: (() -> Void)?
     let onDismiss: () -> Void
 
     func makeUIViewController(context: Context) -> UICloudSharingController {
@@ -32,15 +39,21 @@ struct CloudSharingSheet: UIViewControllerRepresentable {
     func updateUIViewController(_ uiViewController: UICloudSharingController, context: Context) {}
 
     func makeCoordinator() -> Coordinator {
-        Coordinator(onShareSaved: onShareSaved, onDismiss: onDismiss)
+        Coordinator(onShareSaved: onShareSaved, onStopSharing: onStopSharing, onDismiss: onDismiss)
     }
 
     class Coordinator: NSObject, UICloudSharingControllerDelegate {
         let onShareSaved: (() -> Void)?
+        let onStopSharing: (() -> Void)?
         let onDismiss: () -> Void
 
-        init(onShareSaved: (() -> Void)?, onDismiss: @escaping () -> Void) {
+        init(
+            onShareSaved: (() -> Void)?,
+            onStopSharing: (() -> Void)?,
+            onDismiss: @escaping () -> Void
+        ) {
             self.onShareSaved = onShareSaved
+            self.onStopSharing = onStopSharing
             self.onDismiss = onDismiss
         }
 
@@ -63,6 +76,7 @@ struct CloudSharingSheet: UIViewControllerRepresentable {
 
         func cloudSharingControllerDidStopSharing(_ controller: UICloudSharingController) {
             Logger.app(category: "CloudSharing").info("Sharing stopped")
+            onStopSharing?()
             onDismiss()
         }
     }
@@ -75,14 +89,15 @@ import AppKit
 ///
 /// Uses NSSharingService to present the macOS sharing UI.
 ///
-/// `onShareSaved` is accepted for API parity with the iOS variant but
-/// is not invoked on macOS — `NSSharingServicePicker` doesn't expose a
-/// "share saved" signal. Callers should still refresh share state in
-/// `onDismiss`.
+/// `onShareSaved` and `onStopSharing` are accepted for API parity with
+/// the iOS variant but are not invoked on macOS — `NSSharingServicePicker`
+/// doesn't expose "share saved" or "stopped sharing" signals. Callers
+/// should still refresh share state in `onDismiss`.
 struct CloudSharingSheet: NSViewControllerRepresentable {
     let share: CKShare
     let container: CKContainer
     var onShareSaved: (() -> Void)?
+    var onStopSharing: (() -> Void)?
     let onDismiss: () -> Void
 
     func makeNSViewController(context: Context) -> NSSharingServicePickerViewController {

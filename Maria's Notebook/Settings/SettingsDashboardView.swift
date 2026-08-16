@@ -43,7 +43,7 @@ struct SettingsDashboardView: View {
                     .font(.subheadline.weight(.bold))
                     .foregroundStyle(service.syncHealth.color)
                 if let lastSync = service.lastSuccessfulSync {
-                    Text("Last: \(lastSync, style: .relative) ago")
+                    Text("Last: \(lastSync.formatted(.relative(presentation: .named)))")
                         .font(.caption)
                         .foregroundStyle(.secondary)
                 }
@@ -68,7 +68,7 @@ struct SettingsDashboardView: View {
         ) {
             VStack(alignment: .leading, spacing: 4) {
                 if let date = lastDate {
-                    Text("\(date, style: .relative) ago")
+                    Text(date.formatted(.relative(presentation: .named)))
                         .font(.subheadline.weight(.bold))
                         .foregroundStyle(isOld ? AppColors.warning : .primary)
                     if isOld {

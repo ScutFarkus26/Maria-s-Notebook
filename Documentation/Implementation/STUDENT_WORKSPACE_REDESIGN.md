@@ -29,11 +29,17 @@ duplicate the queue.
 
 ### macOS
 
-Use a three-column `NavigationSplitView` when the window has room:
+Use two inner columns while browsing, then add a third only after opening a
+child's record:
 
 1. **Collections** — All Students, Here Today, level filters, and Withdrawn.
-2. **Roster** — remembered Cards or sortable Table view.
-3. **Student record** — the selected child's workspace.
+2. **Roster** — one sortable Table view with the child’s avatar, presence,
+   level, age, next lesson, and last observation.
+3. **Student record** — the selected child's workspace, shown only when a
+   child is selected.
+
+This keeps the table directly beside Collections when no child is open; the
+app never reserves a blank record column just to preserve a three-column shape.
 
 The main window is for fast browsing. Separate windows are for sustained work:
 
@@ -77,8 +83,9 @@ The old stored detail values map without losing context:
 | Meetings | Meetings |
 | Files | Overview, with Documents opened on demand |
 
-The remembered roster Cards/Table selection and manual classroom order remain
-unchanged.
+The Mac roster no longer has a Cards/Table choice. Its table sorting is visible
+view state only, so the saved manual classroom order remains unchanged. iPad
+and iPhone retain their existing List/Grid preference.
 
 ## Completion Checks
 

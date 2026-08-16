@@ -19,6 +19,7 @@ extension StudentsView {
             Section("Level") {
                 workspaceScopeRow(.lower, systemImage: "circle.fill")
                 workspaceScopeRow(.upper, systemImage: "circle.fill")
+                workspaceScopeRow(.adolescent, systemImage: "circle.fill")
             }
 
             if !withdrawnStudents.isEmpty {
@@ -27,17 +28,16 @@ extension StudentsView {
                         isShowingWithdrawnRoster = true
                         selectedStudentID = nil
                     } label: {
-                        Label("Withdrawn (\(withdrawnStudents.count))", systemImage: "archivebox")
+                        Label("Former Students (\(withdrawnStudents.count))", systemImage: "archivebox")
                     }
                     .buttonStyle(.plain)
                     .foregroundStyle(isShowingWithdrawnRoster ? Color.accentColor : .primary)
                 }
             }
         }
-        .navigationTitle("Students")
-        .inlineNavigationTitle()
-        .navigationSplitViewColumnWidth(min: 190, ideal: 230, max: 300)
-        .searchable(text: $searchText, placement: .sidebar, prompt: "Search students")
+        .listStyle(.sidebar)
+        .frame(minWidth: 190, idealWidth: 230, maxWidth: 300)
+        .searchable(text: $searchText, placement: .toolbar, prompt: "Search students")
         .onSubmit(of: .search) {
             if let first = macRosterStudents.first {
                 selectedStudentID = first.id
@@ -220,7 +220,7 @@ extension StudentsView {
                     withAnimation { isWithdrawnExpanded.toggle() }
                 } label: {
                     HStack(spacing: 6) {
-                        Text("Withdrawn (\(withdrawnStudents.count))")
+                        Text("Former Students (\(withdrawnStudents.count))")
                         Image(systemName: "chevron.right")
                             .font(.system(size: 10, weight: .semibold))
                             .rotationEffect(.degrees(isWithdrawnExpanded ? 90 : 0))

@@ -1,4 +1,6 @@
+import CloudKit
 import Foundation
+import OSLog
 import SwiftUI
 
 /// Service responsible for monitoring CloudKit health and availability
@@ -78,9 +80,12 @@ final class CloudKitHealthCheck {
     // MARK: - Initialization
     
     init() {
-        // Check initial iCloud availability
+        // Initial iCloud hint from the ubiquity identity token (synchronous but
+        // reflects iCloud *Drive*, which users can disable while CloudKit still
+        // works). The authoritative CKContainer.accountStatus check replaces it
+        // asynchronously in startICloudAccountMonitoring / refreshAccountStatus.
         isICloudAvailable = FileManager.default.ubiquityIdentityToken != nil
-        
+
         // Set initial health based on persisted sync state and active configuration.
         let isEnabled = UserDefaults.standard.object(
             forKey: UserDefaultsKeys.enableCloudKitSync
@@ -130,11 +135,16 @@ final class CloudKitHealthCheck {
         }
     }
     
-    /// Start monitoring iCloud account changes
+    /// Start monitoring iCloud account changes.
+    ///
+    /// Uses `CKAccountChanged` + `CKContainer.accountStatus`, the CloudKit
+    /// APIs for account availability. The previously used
+    /// `ubiquityIdentityToken` reports iCloud *Drive* identity — it is nil
+    /// whenever the user turns iCloud Drive off, even though CloudKit sync
+    /// keeps working, which produced false "iCloud unavailable" states.
     func startICloudAccountMonitoring() {
-        // Observe iCloud account changes (sign-in/sign-out)
         iCloudAccountObserver = NotificationCenter.default.addObserver(
-            forName: .NSUbiquityIdentityDidChange,
+            forName: .CKAccountChanged,
             object: nil,
             queue: .main
         ) { [weak self] _ in
@@ -143,9 +153,15 @@ final class CloudKitHealthCheck {
                 // Cancel any pending task to prevent accumulation
                 self.pendingICloudTask?.cancel()
                 self.pendingICloudTask = Task { @MainActor [weak self] in
-                    self?.handleICloudAccountChange()
+                    await self?.handleICloudAccountChange()
                 }
             }
+        }
+
+        // Replace the synchronous init-time hint with the authoritative status.
+        pendingICloudTask?.cancel()
+        pendingICloudTask = Task { @MainActor [weak self] in
+            await self?.handleICloudAccountChange()
         }
     }
     
@@ -200,12 +216,32 @@ final class CloudKitHealthCheck {
     
     // MARK: - Private Methods
     
-    private func handleICloudAccountChange() {
+    private func handleICloudAccountChange() async {
+        guard let status = await Self.fetchAccountStatus() else { return }
         let wasAvailable = isICloudAvailable
-        isICloudAvailable = FileManager.default.ubiquityIdentityToken != nil
-        
+        isICloudAvailable = status == .available
+
         if wasAvailable != isICloudAvailable {
             iCloudChangeContinuation?.yield(isICloudAvailable)
+        }
+    }
+
+    /// Queries CloudKit for the account status of the app's container.
+    /// Returns nil on error (status unknown — keep the current value rather
+    /// than flapping the UI on a transient failure).
+    private static func fetchAccountStatus() async -> CKAccountStatus? {
+        let ckContainer: CKContainer
+        if let containerID = CloudKitConfigurationService.getContainerID() {
+            ckContainer = CKContainer(identifier: containerID)
+        } else {
+            ckContainer = CKContainer.default()
+        }
+        do {
+            return try await ckContainer.accountStatus()
+        } catch {
+            Logger.app(category: "CloudKitHealthCheck")
+                .warning("accountStatus failed: \(error.localizedDescription)")
+            return nil
         }
     }
     

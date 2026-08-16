@@ -26,6 +26,17 @@
 		<string>/Library/Preferences/com.apple.networkd.plist</string>
 	</array>
 	<!--
+	  MCP server (macOS): the per-install auth token that Claude Desktop's
+	  bridge script reads lives in ~/.marias-notebook/ — the sandbox
+	  container would be unreadable to external MCP clients (macOS
+	  container-protection TCC). Scoped to that one hidden folder; see
+	  Documentation/Architecture/MCP_SERVER.md.
+	-->
+	<key>com.apple.security.temporary-exception.files.home-relative-path.read-write</key>
+	<array>
+		<string>/.marias-notebook/</string>
+	</array>
+	<!--
 	  Private Cloud Compute: once Apple grants the managed entitlement
 	  (request at https://developer.apple.com/private-cloud-compute/ and add the
 	  capability in Signing & Capabilities), add:

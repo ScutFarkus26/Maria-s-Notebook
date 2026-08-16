@@ -18,8 +18,13 @@ import OSLog
 
 struct LessonAssignmentHistoryView: View {
     static let logger = Logger.presentations
+    var embeddedSearchText: String? = nil
+    var focusedAssignmentID: UUID? = nil
     @Environment(\.managedObjectContext) var viewContext
     @Environment(\.calendar) var calendar
+    #if os(macOS)
+    @Environment(\.openWindow) var openWindow
+    #endif
 
     // Test student filtering
     @AppStorage(UserDefaultsKeys.generalShowTestStudents) private var showTestStudents: Bool = false
@@ -81,6 +86,10 @@ struct LessonAssignmentHistoryView: View {
     @State var selectedAreas: Set<String> = []
     @State var searchText: String = ""
 
+    private var effectiveSearchText: String {
+        embeddedSearchText ?? searchText
+    }
+
     @AppStorage(UserDefaultsKeys.presentationHistoryNameDisplayStyle)
     private var nameDisplayStyleRaw: String = "firstLastInitial"
     private enum NameDisplayStyle: String, Sendable {
@@ -130,6 +139,10 @@ struct LessonAssignmentHistoryView: View {
     // DEDUPLICATION: CloudKit sync can create duplicate records with the same ID.
     var filteredAssignments: [CDLessonAssignment] {
         loadedAssignments.uniqueByID.filter { la in
+            // Deep links should remain visible even when an old local filter
+            // would otherwise hide the requested presentation.
+            if let focusedAssignmentID, la.id == focusedAssignmentID { return true }
+
             // CDStudent filter
             if !selectedStudentIDs.isEmpty {
                 let assignmentStudentIDs = Set(la.studentUUIDs)
@@ -149,9 +162,9 @@ struct LessonAssignmentHistoryView: View {
             }
 
             // Search filter
-            if !searchText.isEmpty {
+            if !effectiveSearchText.isEmpty {
                 let titleText = title(for: la).lowercased()
-                let query = searchText.lowercased()
+                let query = effectiveSearchText.lowercased()
                 if !titleText.contains(query) { return false }
             }
 
@@ -205,15 +218,22 @@ struct LessonAssignmentHistoryView: View {
     }
 
     var body: some View {
-        mainContent
-            .searchable(text: $searchText)
+        Group {
+            if embeddedSearchText == nil {
+                mainContent.searchable(text: $searchText)
+            } else {
+                mainContent
+            }
+        }
+            #if os(iOS)
             .sheet(item: $selectedAssignment) { la in
                 LessonAssignmentDetailSheet(assignmentID: la.id ?? UUID()) {
                     selectedAssignment = nil
                 }
             }
+            #endif
             .task {
-                loadAssignments(limit: Self.initialLoadCount)
+                loadAssignments(limit: focusedAssignmentID == nil ? Self.initialLoadCount : nil)
                 if !hasBuiltCachesOnce {
                     await buildCachesAsync()
                     hasBuiltCachesOnce = true
@@ -223,6 +243,16 @@ struct LessonAssignmentHistoryView: View {
                 lastNotesCount = recentNotes.count
                 lastLessonsCount = lessons.count
                 lastStudentsCount = safeStudents.count
+            }
+            .onChange(of: focusedAssignmentID) { _, newID in
+                guard let newID,
+                      !loadedAssignments.contains(where: { $0.id == newID }) else {
+                    return
+                }
+                // A focus request is uncommon and explicit; loading the full
+                // history here guarantees the requested older record exists
+                // in the list before ScrollViewReader tries to reveal it.
+                loadAssignments()
             }
             .onChange(of: allAssignmentsForChangeDetection.count) { _, newCount in
                 // Only reload when count actually changes

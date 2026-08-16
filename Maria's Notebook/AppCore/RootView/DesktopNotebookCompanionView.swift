@@ -1,4 +1,5 @@
 #if os(macOS)
+import Combine
 import SwiftUI
 import CoreData
 import AppKit
@@ -74,11 +75,15 @@ struct DesktopNotebookCompanionView: View {
                 dismissWindow(id: "notebookCompanion")
             }
         }
+        // Debounce: objectsDidChange fires per change, not per save, so a single
+        // CloudKit merge can post it hundreds of times — and each reload runs the
+        // companion's count queries. Coalesce them (same pattern as StudentsView).
         .onReceive(
             NotificationCenter.default.publisher(
                 for: .NSManagedObjectContextObjectsDidChange,
                 object: viewContext
             )
+            .debounce(for: .milliseconds(300), scheduler: RunLoop.main)
         ) { _ in
             viewModel.reload(calendar: calendar)
         }

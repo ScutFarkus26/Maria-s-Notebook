@@ -43,6 +43,7 @@ struct AddStudentView: View {
                     Picker("Level", selection: $level) {
                         Text("Lower").tag(CDStudent.Level.lower)
                         Text("Upper").tag(CDStudent.Level.upper)
+                        Text("Adolescent").tag(CDStudent.Level.adolescent)
                     }
                 }
             }

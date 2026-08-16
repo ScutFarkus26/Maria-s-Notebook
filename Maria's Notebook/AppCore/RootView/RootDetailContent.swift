@@ -97,8 +97,7 @@ struct RootDetailContent: View {
         case .stories: StoriesRootView()
         case .bookClub: BookClubRootView()
         case .planningChecklist: ClassAreaChecklistView()
-        case .planningAgenda: PresentationsView()
-        case .planningWork: WorksAgendaView()
+        case .planningAgenda, .planningWork: WorksAgendaView()
         default: EmptyView()
         }
     }

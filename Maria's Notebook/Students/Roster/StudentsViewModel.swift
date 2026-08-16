@@ -73,17 +73,19 @@ final class StudentsViewModel {
         presentNowIDs: Set<UUID>?
     ) -> [CDStudent] {
         students.filter { student in
-            // When showing withdrawn students, only show withdrawn; otherwise exclude them
+            // When showing former students, only show former (withdrawn or transferred);
+            // otherwise exclude them from the active roster.
             if filter == .withdrawn {
                 if student.isEnrolled { return false }
             } else {
-                if student.isWithdrawn { return false }
+                if !student.isEnrolled { return false }
             }
 
             switch filter {
             case .all, .withdrawn: break
             case .upper: if student.level != .upper { return false }
             case .lower: if student.level != .lower { return false }
+            case .adolescent: if student.level != .adolescent { return false }
             case .presentNow:
                 if let ids = presentNowIDs, !ids.isEmpty {
                     guard let studentID = student.id else { return false }

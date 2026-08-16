@@ -60,6 +60,37 @@ final class PresentationsViewModel {
     // MARK: - Initialization
     init() {}
 
+    // MARK: - Memory Pressure
+
+    /// Releases every cached object graph this view model pins.
+    ///
+    /// The caches are lifetime-scoped — once `update` runs they hold lessons,
+    /// students, work models, and assignments for as long as the view model
+    /// lives. Under memory pressure that's worth giving back; the change-detection
+    /// hashes and `lastUpdateDate` are cleared alongside them so the next `update`
+    /// sees "changed" and refetches instead of short-circuiting on stale state.
+    func clearCaches() {
+        cachedLessons = []
+        cachedWorkModels = []
+        cachedLessonAssignments = []
+        cachedStudentsStorage = []
+        lessonsByIDCache = [:]
+        studentsByIDCache = [:]
+        blockingResults = [:]
+        blockingWorkCache = [:]
+        daysSinceLastLessonByStudent = [:]
+        lastAreaByStudent = [:]
+        openWorkCountByStudent = [:]
+        readyLessons = []
+        blockedLessons = []
+
+        lastUpdateDate = nil
+        lastLessonAssignmentChangeHash = nil
+        lastLessonsHash = nil
+        lastWorkModelHash = nil
+        lastStudentsHash = nil
+    }
+
     // MARK: - Change Detection Helpers
 
     /// Computes a hash for CDLessonAssignment change detection

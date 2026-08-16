@@ -13,6 +13,21 @@ struct SearchResult: Hashable, Identifiable, Sendable {
     let entityType: SearchableEntityType
     let title: String
     let snippet: String
+    let date: Date?
+
+    init(
+        id: UUID,
+        entityType: SearchableEntityType,
+        title: String,
+        snippet: String,
+        date: Date? = nil
+    ) {
+        self.id = id
+        self.entityType = entityType
+        self.title = title
+        self.snippet = snippet
+        self.date = date
+    }
 
     func hash(into hasher: inout Hasher) {
         hasher.combine(id)
@@ -36,7 +51,33 @@ final class SearchIndexService {
 
     private(set) var isReady = false
 
+    /// Container used for the last build, so a purged index can rebuild itself
+    /// without every caller having to thread a container through.
+    private weak var indexingContainer: NSPersistentContainer?
+
     private init() {}
+
+    // MARK: - Memory Pressure
+
+    /// Drops the entire inverted index.
+    ///
+    /// The index is a full-corpus structure with no eviction path, so under real
+    /// memory pressure it's the largest thing this app can hand back. Call
+    /// `ensureReady()` before searching — it rebuilds lazily on the next use.
+    func purge() {
+        guard isReady || !index.isEmpty else { return }
+        let freedTokens = index.count
+        index.removeAll()
+        resultsById.removeAll()
+        isReady = false
+        Self.logger.info("Search index purged under memory pressure (\(freedTokens) tokens released)")
+    }
+
+    /// Rebuilds the index if it has never been built or was purged. No-op once ready.
+    func ensureReady() async {
+        guard !isReady, let container = indexingContainer else { return }
+        await rebuildIndexAsync(container: container)
+    }
 
     // MARK: - Core Data Index Building
 
@@ -64,6 +105,7 @@ final class SearchIndexService {
     /// Rebuild the index using a background context so the main thread is free during fetches.
     /// Collected (SearchResult, text) pairs are applied on the main actor once fetching completes.
     func rebuildIndexAsync(container: NSPersistentContainer) async {
+        indexingContainer = container
         let bgContext = container.newBackgroundContext()
         // Collect all entity data as value types on the background context's queue.
         let collected: [(SearchResult, String)] = await bgContext.perform {
@@ -132,7 +174,10 @@ final class SearchIndexService {
             let tags = (note.tags as? [String]) ?? []
             let body = note.body
             pairs.append((
-                SearchResult(id: id, entityType: .note, title: String(body.prefix(80)), snippet: tags.first ?? ""),
+                SearchResult(
+                    id: id, entityType: .note,
+                    title: String(body.prefix(80)), snippet: tags.first ?? "", date: note.createdAt
+                ),
                 "\(body) \(tags.joined(separator: " "))"
             ))
         }
@@ -146,7 +191,10 @@ final class SearchIndexService {
         for todo in context.safeFetch(request) {
             guard let id = todo.id else { continue }
             pairs.append((
-                SearchResult(id: id, entityType: .todo, title: todo.title, snippet: todo.notes),
+                SearchResult(
+                    id: id, entityType: .todo,
+                    title: todo.title, snippet: todo.notes, date: todo.createdAt
+                ),
                 "\(todo.title) \(todo.notes)"
             ))
         }
@@ -160,7 +208,10 @@ final class SearchIndexService {
         for work in context.safeFetch(request) {
             guard let id = work.id else { continue }
             pairs.append((
-                SearchResult(id: id, entityType: .work, title: work.title, snippet: work.status.rawValue),
+                SearchResult(
+                    id: id, entityType: .work,
+                    title: work.title, snippet: work.status.rawValue, date: work.createdAt
+                ),
                 work.title
             ))
         }
@@ -276,7 +327,8 @@ final class SearchIndexService {
                 id: noteID,
                 entityType: .note,
                 title: String(body.prefix(80)),
-                snippet: tags.first ?? ""
+                snippet: tags.first ?? "",
+                date: note.createdAt
             )
             indexResult(result, text: text)
         }
@@ -292,7 +344,8 @@ final class SearchIndexService {
                 id: todoID,
                 entityType: .todo,
                 title: todo.title,
-                snippet: todo.notes
+                snippet: todo.notes,
+                date: todo.createdAt
             )
             indexResult(result, text: text)
         }
@@ -308,7 +361,8 @@ final class SearchIndexService {
                 id: workID,
                 entityType: .work,
                 title: work.title,
-                snippet: work.status.rawValue
+                snippet: work.status.rawValue,
+                date: work.createdAt
             )
             indexResult(result, text: text)
         }

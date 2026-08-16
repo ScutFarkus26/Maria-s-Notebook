@@ -17,21 +17,15 @@ extension StudentsView {
         }
         #endif
 
-        #if os(macOS)
-        if viewStyle != .table {
-            ToolbarItem(placement: .automatic) {
-                sortMenu
-            }
-        }
-        #else
+        #if os(iOS)
         ToolbarItem(placement: .automatic) { sortMenu }
-        #endif
 
         if showsViewStyleToggle {
             ToolbarItem(placement: .automatic) {
                 viewStylePicker
             }
         }
+        #endif
 
         ToolbarItem(placement: .primaryAction) {
             addStudentMenu
@@ -68,49 +62,17 @@ extension StudentsView {
         )
     }
 
-    /// List/grid toggle for the detail area browser (regular widths only).
+    /// List/grid toggle for the mobile detail-area browser (regular widths only).
     var viewStylePicker: some View {
         Picker("View Style", selection: viewStyleSelection) {
-            #if os(macOS)
-            Label("Cards", systemImage: "square.grid.2x2")
-                .tag(StudentsViewStyle.grid)
-            Label("Table", systemImage: "tablecells")
-                .tag(StudentsViewStyle.table)
-            #else
             Label("List", systemImage: "list.bullet")
                 .tag(StudentsViewStyle.list)
             Label("Grid", systemImage: "square.grid.2x2")
                 .tag(StudentsViewStyle.grid)
-            #endif
         }
         .pickerStyle(.segmented)
         .labelsHidden()
         .help("Switch between cards and table")
-    }
-
-    /// A native View menu keeps the Mac toolbar focused on work, rather than
-    /// permanently spending space on a segmented control. The choice remains
-    /// remembered through the existing AppStorage value.
-    var rosterViewMenu: some View {
-        Menu {
-            Picker("View", selection: viewStyleSelection) {
-                #if os(macOS)
-                Label("Cards", systemImage: "square.grid.2x2")
-                    .tag(StudentsViewStyle.grid)
-                Label("Table", systemImage: "tablecells")
-                    .tag(StudentsViewStyle.table)
-                #else
-                Label("List", systemImage: "list.bullet")
-                    .tag(StudentsViewStyle.list)
-                Label("Grid", systemImage: "square.grid.2x2")
-                    .tag(StudentsViewStyle.grid)
-                #endif
-            }
-            .pickerStyle(.inline)
-        } label: {
-            Label("View", systemImage: "rectangle.3.group")
-        }
-        .help("Choose cards or table")
     }
 
     private var viewStyleSelection: Binding<StudentsViewStyle> {
@@ -125,7 +87,8 @@ extension StudentsView {
     var addStudentMenu: some View {
         AddStudentMenu(
             onAddStudent: { showingAddStudent = true },
-            onImportCSV: { showingStudentCSVImporter = true }
+            onImportCSV: { showingStudentCSVImporter = true },
+            onRollover: { showingRollover = true }
         )
     }
 }

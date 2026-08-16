@@ -17,6 +17,7 @@ import FoundationModels
 @available(macOS 26.0, iOS 26.0, *)
 final class LocalModelClient: MCPClientProtocol {
     private static let logger = Logger.ai
+    private let evidenceSourceCollector = EvidenceSourceCollector()
 
     // MARK: - Availability
 
@@ -153,10 +154,11 @@ final class LocalModelClient: MCPClientProtocol {
         guard isAvailable else {
             throw LocalModelError.unavailable(unavailabilityReason)
         }
+        _ = await evidenceSourceCollector.consume()
         let base = systemMessage ?? AIPrompts.chatAssistant
         let instructions = Self.conversationInstructions(from: messages, base: base)
         let session = LanguageModelSession(
-            tools: NotebookTools.chatTools(),
+            tools: NotebookTools.chatTools(sourceCollector: evidenceSourceCollector),
             instructions: instructions
         )
         let prompt = Self.lastUserMessage(from: messages)
@@ -184,10 +186,11 @@ final class LocalModelClient: MCPClientProtocol {
         guard isAvailable else {
             throw LocalModelError.unavailable(unavailabilityReason)
         }
+        _ = await evidenceSourceCollector.consume()
         let base = systemMessage ?? AIPrompts.chatAssistant
         let instructions = Self.conversationInstructions(from: messages, base: base)
         let session = LanguageModelSession(
-            tools: NotebookTools.chatTools(),
+            tools: NotebookTools.chatTools(sourceCollector: evidenceSourceCollector),
             instructions: instructions
         )
         let prompt = Self.lastUserMessage(from: messages)
@@ -209,6 +212,10 @@ final class LocalModelClient: MCPClientProtocol {
         } catch let error as LanguageModelError {
             throw LocalModelError.fromLanguageModel(error)
         }
+    }
+
+    func consumeEvidenceSources() async -> [EvidenceReference] {
+        await evidenceSourceCollector.consume()
     }
 
     // Returns the most recent user message to use as the prompt.

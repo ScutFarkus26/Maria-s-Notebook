@@ -128,8 +128,7 @@ enum PresentationFactory {
         context: NSManagedObjectContext
     ) -> CDLessonAssignment {
         let la = makeDraft(lessonID: lessonID, studentIDs: studentIDs, id: id, createdAt: createdAt, context: context)
-        la.state = .presented
-        // No presentedAt date — this is an undated historical record
+        la.markPreviouslyPresented(snapshotLesson: false)
         return la
     }
 

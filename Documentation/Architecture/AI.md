@@ -2,7 +2,7 @@
 
 How the app's AI features are built, where they live, and how to extend them.
 
-> **Last updated:** 2026-06-14 (Foundation Models adoption — WWDC26 APIs)
+> **Last updated:** 2026-07-14 (on-device classroom capture and evidence-linked AI policy)
 
 ---
 
@@ -13,21 +13,33 @@ parent emails and report cards, summarizing observations, suggesting note tags,
 turning plain-English commands into records, describing photos of student work,
 and answering questions about the classroom.
 
-The guiding principle is **Apple Intelligence by default**. Automatic requests
-run on Apple's models — either fully on-device or on Apple's Private Cloud
-Compute. Claude (Anthropic's cloud model) is used only when the guide explicitly
-selects it, and it requires the guide's own API key.
+The guiding principle is **Apple Intelligence on device by default**. Automatic
+requests stay on the device unless the school explicitly turns on automatic
+Apple Private Cloud Compute in Settings. If the on-device model cannot complete
+a request while that permission is off, the app stops and explains why; it does
+not silently move student records to any cloud model.
 
-Two Apple providers are tried in this order for the automatic setting:
+There are two deliberate ways to use Apple's Private Cloud Compute (PCC):
 
-1. **Apple On-Device** — instant, free, fully private, works offline. Smaller
-   context window (~8K tokens).
-2. **Apple Private Cloud Compute (PCC)** — Apple's larger server model for big
-   jobs (report cards, long summaries). Still private, no API key, but needs a
-   network connection and an Apple-granted entitlement (see §8).
-If neither Apple provider is available, the app explains why and does not
-silently send classroom data to another company. Claude remains an explicit
-model choice in Settings for guides who intentionally choose it.
+1. A school turns on **Allow Automatic Apple Private Cloud**, permitting
+   automatic mode to fall back from the on-device model to PCC.
+2. A guide explicitly chooses **Apple Private Cloud** for a feature area.
+
+PCC is Apple's larger server model for jobs such as long report-card drafts. It
+does not require an API key, but it needs a network connection and an
+Apple-granted entitlement (see §8). Claude (Anthropic's cloud model) is also an
+explicit model choice only and requires the guide's own API key. It is never a
+hidden fallback.
+
+Some classroom workflows have a stricter boundary regardless of the general
+setting: raw classroom capture and observation reflection run only on the
+on-device model. If it is unavailable, those workflows remain manual.
+
+AI organizes and reflects; the guide decides. AI-created plans, narratives,
+follow-ups, and capture interpretations are always visibly labeled, editable,
+and reviewable against the records that support them. AI must never decide that
+a child has mastered material, is ready for a lesson, needs practice, or should
+receive a particular follow-up unless the guide explicitly records that choice.
 
 ---
 
@@ -44,18 +56,25 @@ implementations:
 | Claude | `AnthropicAPIClient` | `Services/AnthropicAPIClient.swift` | REST client; API key in Keychain. Real streaming + multi-turn. |
 | Router | `AIClientRouter` | `Services/AI/AIClientRouter.swift` | Implements `MCPClientProtocol`; dispatches to the above. |
 
-`AIClientRouter` is the only client most code holds. It reads the user's
-per-feature model choice and routes accordingly. The automatic ("Apple Intelligence")
-strategy cascades:
+`AIClientRouter` is the only client most code holds. It reads the guide's
+per-feature model choice and routes accordingly. Automatic ("Apple Intelligence")
+mode begins on-device:
 
 ```
-on-device  →  Private Cloud Compute
-(LocalModelClient)   (PrivateCloudModelClient)
+on-device
+(LocalModelClient)
+    │
+    └── only when the school has enabled automatic PCC ──→ Private Cloud Compute
+                                                           (PrivateCloudModelClient)
 ```
 
-Each step is skipped if that provider's `isAvailable` is false, and an on-device
-error falls through to PCC. If both fail, the router returns an Apple
-Intelligence availability error.
+When `AI.allowAutomaticPrivateCloud` is off (the default), an on-device failure
+returns an availability/privacy explanation instead of falling through to PCC.
+When it is on, an unavailable or unsuccessful on-device request may fall through
+to PCC. Selecting `.applePrivateCloud` directly is an explicit request and does
+not depend on the automatic-PCC toggle. If the selected Apple provider fails,
+the router returns an Apple Intelligence availability error. It never changes
+the request to Claude on its own.
 
 > **History:** A local **Ollama** provider existed before the WWDC26 work and
 > was removed — Apple's on-device + PCC models now fill that "local, private"
@@ -82,6 +101,12 @@ on-device but send lesson planning to Claude. Defined in
 `UserDefaults` and are read by `AIFeatureArea.resolvedModel()`. Claude options
 report `requiresAPIKey == true`; the Apple options report `isPrivate == true`.
 
+`Allow Automatic Apple Private Cloud` is a separate, school-level privacy
+permission. It is stored as `AI.allowAutomaticPrivateCloud`, defaults to off,
+and controls only `.localFirstAuto`. It does not prevent a guide from explicitly
+selecting Apple Private Cloud. Changing this permission should be an informed
+school choice because it changes where student records are processed.
+
 A service tells the router which area it's serving via
 `mcpClient.configureForFeature(.chat)` before each call.
 
@@ -97,19 +122,42 @@ equivalent) at runtime before calling the model.
 |---------|------|--------|-----------|------------|
 | Draft generation (parent email, report card, action plan, weekly summary) | `Components/AppleIntelligenceSheet.swift` + `…+Generation.swift` | Free text | No | — |
 | Meeting summaries | `Students/Meetings/MeetingSummaryGenerator.swift` | `@Generable` `MeetingSummary` | Yes | — |
-| Observation digests / narrative | `Notes/Observations/ObservationsView+AI.swift` | `@Generable` `NotesDigest` / `NotesNarrative` | Yes | — |
+| Observation reflection / narrative draft | `Notes/Observations/ObservationsView+AI.swift` | Evidence-linked `@Generable` `NotesDigest` / `NotesNarrative` | No | — |
 | Note tag + student suggestion | `Notes/Editor/NoteEditorAISuggestion.swift` | `@Generable` `NoteTagSuggestion` | No | **Photo** |
 | Describe photo into note | `Notes/Editor/NoteEditorAISuggestion.swift` | Free text | No | **Photo** |
 | Story metadata (title/themes/grade) | `Stories/StoryAnalyzer.swift` | `@Generable` `StoryAnalysisAI` | No | **PDF pages** |
 | Todo smart parsing | `Todos/Services/TodoSmartParserService.swift` | `@Generable` `ParsedTodo` | No | — |
 | Student-name extraction | `Todos/Services/TodoStudentSuggestionService.swift` | `@Generable` `ExtractedNames` | No | — |
-| Command bar parsing | `Services/CommandBar/AppleIntelligenceCommandParser.swift` | `@Generable` `ParsedTeacherCommand` | No | — |
+| Command bar parsing and classroom capture proposal | `Services/CommandBar/AppleIntelligenceCommandParser.swift` | `@Generable` `ParsedTeacherCommand` / `GeneratedClassroomCapture` | No | — |
 | Ask-your-notebook chat | `Chat/Services/ChatService.swift` + `Services/AI/NotebookTools.swift` | Free text | Yes | — |
 | Lesson planning | `Planning/AIPlanning/LessonPlanning/*` | Structured | — | — |
 
 The command bar first uses deterministic keyword/fuzzy parsing, then asks the
 on-device Apple Intelligence model when the result is uncertain. It never makes
 a hidden Claude request.
+
+**Raw classroom capture is on-device and review-first.** The structured capture
+parser receives the guide's account and local candidate names, then returns an
+editable proposal. It has no Core Data access and cannot save by itself. It must
+ground each observation and next step in words the guide actually supplied;
+unsupported interpretations are discarded. The guide reviews the proposed
+lesson, children, observations, and explicitly stated follow-ups before any
+record is created. The parser never falls back to PCC or Claude.
+
+**Observation reflection is on-device and source-linked.** It presents factual
+observations, repeated patterns to review, and questions for future observation.
+Each finding carries references to the local records used to support it. A
+separate deterministic check identifies presentations without a linked
+observation; this is a record-completeness check, not an AI conclusion. The
+reflection does not infer sentiment, mastery, motivation, diagnosis, or
+readiness, and it never falls back to a cloud model.
+
+**Lesson planning is proposal-based.** Curriculum rules and local records
+assemble eligible lesson candidates. AI may help arrange or explain those
+candidates, but the UI shows evidence availability and links back to source
+records rather than presenting an AI confidence score as truth. The guide can
+edit, accept, or reject every recommendation. No recommendation becomes a
+presentation, assignment, or practice record until the guide chooses it.
 
 System prompts/personas for all of this live in one place: `AppCore/AIPrompts.swift`
 (`generalAssistant`, `advancedAssistant`, `lessonPlanningAssistant`,
@@ -151,27 +199,42 @@ gate on this. Two uses today:
 - Story PDFs with no text layer: `StoryAnalyzer.analyzeVisually(url:)` renders
   the first pages with PDFKit and sends them as attachments.
 
-**Notebook tools (on-device RAG).** `Services/AI/NotebookTools.swift` defines
+**Notebook tools (on-device retrieval).** `Services/AI/NotebookTools.swift` defines
 `FoundationModels.Tool`s the chat model can call to look things up in the guide's
 own data: `SearchNotebookTool` (keyword search via `SearchIndexService`) and
 `StudentNotesTool` (a student's recent notes from Core Data). They're attached in
 `LocalModelClient.sendConversation`/`streamConversation`, which give chat a real
 tool-enabled multi-turn session instead of flattening messages into one prompt.
+Tool results retain source references so an answer can show which notebook
+records support it. Retrieved text is evidence for a proposed answer, not
+authority to make a guide-owned pedagogical decision.
 
 ---
 
 ## 6. Privacy model
 
-- **On-device** and **PCC** keep data inside Apple's boundary. PCC is stateless
-  (no prompts retained) and independently verifiable. Neither trains on input.
-- **Claude** sends data to Anthropic and requires the user's own API key (stored
-  in the Keychain, never in the binary). It is opt-in per feature.
+- **On-device is the default boundary.** Automatic AI stays on the device unless
+  the school explicitly enables automatic PCC. Raw classroom capture and
+  observation reflection stay on-device in all cases.
+- **PCC is permitted only by an explicit choice.** That can be the school-level
+  automatic-PCC permission or the guide directly selecting Apple Private Cloud
+  for a feature. PCC is stateless (no prompts retained) and independently
+  verifiable; Apple does not use the input to train foundation models.
+- **Claude sends data to Anthropic** and requires the user's own API key (stored
+  in the Keychain, never in the binary). It is opt-in per feature and is never a
+  fallback from an Apple provider.
 - `AppleIntelligenceSheet` has an **anonymize** toggle that strips student names
   from the context before drafting (`SmartNoteFormatter(anonymize:)`).
 - Test/sample students are filtered out of AI context (`TestStudentsFilter`).
+- AI proposals expose their status and supporting records, remain editable, and
+  require guide confirmation before they create or change classroom records.
+- The model may organize evidence and draft language, but it may not diagnose a
+  child or decide mastery, readiness, practice, representation, or a next lesson.
 
-When choosing where new AI work should run, prefer on-device → PCC, and never
-send more student data than the feature needs.
+When choosing where new AI work should run, begin on-device and collect the
+minimum student data needed. Cloud processing requires a visible, explicit
+choice. A new workflow that interprets raw observation or capture data should
+remain on-device unless this architecture decision is deliberately revisited.
 
 ---
 
@@ -186,10 +249,12 @@ Always assume the model may be unavailable. Reasons surface as:
 - Generation errors map through `LanguageModelError` → `LocalModelError`
   (`contextSizeExceeded`, `rateLimited`, `refusal`, `timeout`, …).
 
-UI surfaces this in **Settings → AI Features → Apple Intelligence**, which shows
+UI surfaces availability in **Settings → AI Features → Apple Intelligence**, which shows
 separate **On-Device** and **Private Cloud Compute** status rows
 (`AppleIntelligenceStatusRow` in `Settings/SettingsView.swift`). Features hide or
-disable their AI buttons when the relevant capability is absent.
+disable their AI buttons when the relevant capability is absent. The model
+settings also explain whether automatic PCC is allowed. On-device-only classroom
+workflows say that records were not sent elsewhere when generation cannot run.
 
 ---
 
@@ -212,10 +277,11 @@ on-device. Activation steps: `PrivateCloudCompute.md`.
 
 ## 9. How to add a new AI feature
 
-1. **Pick the surface and provider.** Reuse the injected `AIClientRouter` (it
-   handles routing/fallback) unless you need model-specific features (images,
-   reasoning level, tools) — then call `LocalModelClient`/`PrivateCloudModelClient`
-   directly.
+1. **Classify the data before picking a provider.** Raw classroom capture and
+   observation reflection are on-device-only. For other surfaces, reuse the
+   injected `AIClientRouter`; automatic PCC remains subject to the school-level
+   permission. Call a provider directly only for a visible provider-specific
+   feature.
 2. **Define structured output** with `@Generable`/`@Guide` if the shape is known;
    otherwise request free text.
 3. **Gate it** with `#if ENABLE_FOUNDATION_MODELS && canImport(FoundationModels)`
@@ -223,8 +289,11 @@ on-device. Activation steps: `PrivateCloudCompute.md`.
    `capabilities.contains(.vision)`.
 4. **Budget the input** with `TokenBudget` instead of character limits.
 5. **Add the persona** to `AppCore/AIPrompts.swift` rather than inlining prompts.
-6. **Handle errors** by mapping `LanguageModelError` to user-facing copy and
-   degrading gracefully.
+6. **Make it a proposal.** Clearly label AI output, link claims to the records
+   that support them, let the guide edit or reject it, and require confirmation
+   before changing data. Do not turn model confidence into a readiness judgment.
+7. **Handle errors** by mapping `LanguageModelError` to user-facing copy and
+   degrading gracefully without silently crossing a privacy boundary.
 
 ---
 

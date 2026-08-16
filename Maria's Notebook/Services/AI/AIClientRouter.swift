@@ -200,6 +200,14 @@ final class AIClientRouter: MCPClientProtocol {
         }
     }
 
+    func consumeEvidenceSources() async -> [EvidenceReference] {
+        #if ENABLE_FOUNDATION_MODELS && canImport(FoundationModels)
+        return await localClient.consumeEvidenceSources()
+        #else
+        return []
+        #endif
+    }
+
     // MARK: - Routing Engine
 
     /// Routes a request to the appropriate provider based on the current feature area's model setting.
@@ -239,6 +247,14 @@ final class AIClientRouter: MCPClientProtocol {
             failures.append(localClient.unavailabilityReason)
         }
 
+        guard Self.automaticPrivateCloudAllowed else {
+            let localReason = failures.filter { !$0.isEmpty }.joined(separator: " ")
+            let privacyReason = "Automatic Private Cloud use is off in Settings. Choose Apple Private Cloud explicitly or allow it for automatic mode."
+            throw LocalModelError.unavailable(
+                localReason.isEmpty ? privacyReason : "\(localReason) \(privacyReason)"
+            )
+        }
+
         // 2. Private Cloud Compute (larger context, still private, no API key)
         if privateCloudClient.isAvailable {
             do {
@@ -259,6 +275,11 @@ final class AIClientRouter: MCPClientProtocol {
         #else
         throw LocalModelError.unavailable("Apple Intelligence is not available in this build.")
         #endif
+    }
+
+    /// Automatic cloud movement is an explicit school-level choice and defaults off.
+    static var automaticPrivateCloudAllowed: Bool {
+        UserDefaults.standard.bool(forKey: UserDefaultsKeys.aiAllowAutomaticPrivateCloud)
     }
 
     // MARK: - Provider Helpers

@@ -27,13 +27,34 @@ final class LessonPlanningViewModel {
     private var managedObjectContext: NSManagedObjectContext?
     
     // MARK: - Computed
-    
+
+    /// The model currently selected for lesson planning. This is shown in the
+    /// planning window so the guide can see whether the work stays with Apple
+    /// Intelligence or uses a configured Claude model.
+    var selectedModel: AIModelOption {
+        AIFeatureArea.lessonPlanning.resolvedModel()
+    }
+
     var estimatedCost: String {
+        guard selectedModel.requiresAPIKey else { return "" }
         let tokens = currentSession?.tokensUsed ?? 0
         if tokens == 0 { return "" }
-        // Rough cost estimate: $3/M input + $15/M output for Claude Sonnet
-        let cost = Double(tokens) * 0.003 / 1000.0 + Double(tokens) * 0.5 * 0.015 / 1000.0
-        return String(format: "$%.3f", cost)
+        // This session stores a local input-token estimate. Estimate output at
+        // half that size and use the selected Claude model's configured rates.
+        let ratesPerMillion: (input: Double, output: Double)
+        switch selectedModel {
+        case .claudeSonnet:
+            ratesPerMillion = (3, 15)
+        case .claudeHaiku:
+            ratesPerMillion = (0.25, 1.25)
+        case .localFirstAuto, .appleOnDevice, .applePrivateCloud:
+            return ""
+        }
+        let inputTokens = Double(tokens)
+        let outputTokens = inputTokens * 0.5
+        let cost = inputTokens * ratesPerMillion.input / 1_000_000
+            + outputTokens * ratesPerMillion.output / 1_000_000
+        return String(format: "Est. $%.3f", cost)
     }
     
     var modeTitle: String {
@@ -237,8 +258,11 @@ final class LessonPlanningViewModel {
             throw PlanningError.studentNotFound
         }
         
-        currentStep = .assessingReadiness
-        messages.append(PlanningMessage(role: .system, content: "Assessing readiness for \(student.fullName)..."))
+        currentStep = .gatheringEvidence
+        messages.append(PlanningMessage(
+            role: .system,
+            content: "Gathering curriculum and guide records for \(student.fullName)..."
+        ))
         
         currentStep = .generatingPlan
         
@@ -259,10 +283,10 @@ final class LessonPlanningViewModel {
             throw PlanningError.noStudents
         }
         
-        currentStep = .assessingReadiness
+        currentStep = .gatheringEvidence
         messages.append(PlanningMessage(
             role: .system,
-            content: "Assessing readiness for \(students.count) students..."
+            content: "Gathering curriculum and guide records for \(students.count) students..."
         ))
         
         currentStep = .generatingPlan
@@ -290,7 +314,7 @@ final class LessonPlanningViewModel {
             throw PlanningError.noStudents
         }
         
-        currentStep = .assessingReadiness
+        currentStep = .gatheringEvidence
         
         // Quick mode: run individual quick plans and merge results
         var allRecs: [LessonRecommendation] = []

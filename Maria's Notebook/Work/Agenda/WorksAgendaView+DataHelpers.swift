@@ -94,7 +94,9 @@ extension WorksAgendaView {
             let query = debouncedSearchText.lowercased()
             works = works.filter { w in
                 var hay: [String] = []
+                hay.append(w.title)
                 hay.append(lessonTitle(forLessonID: w.lessonID))
+                hay.append((w.kind ?? .practiceLesson).displayName)
                 if let s = studentsByID[uuidString: w.studentID] {
                     hay.append(s.firstName)
                     hay.append(s.lastName)

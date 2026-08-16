@@ -36,11 +36,17 @@ extension WorksAgendaView {
             Self.logger.warning("Failed to save context: \(error)")
         }
 
+        guard let workID = w.id else { return }
+
+        #if os(macOS)
+        openWindow(id: "WorkDetailWindow", value: workID)
+        #else
         selected = nil
-        let token = SelectionToken(id: UUID(), workID: w.id ?? UUID())
+        let token = SelectionToken(id: UUID(), workID: workID)
         Task { @MainActor in
             selected = token
         }
+        #endif
     }
 
     func markCompleted(_ w: CDWorkModel) {
@@ -109,7 +115,7 @@ extension WorksAgendaView {
         let panel = NSSavePanel()
         panel.allowedContentTypes = [.pdf]
         panel.canCreateDirectories = true
-        panel.nameFieldStringValue = "Open Work.pdf"
+        panel.nameFieldStringValue = "Children Working.pdf"
         panel.directoryURL = FileManager.default.urls(for: .desktopDirectory, in: .userDomainMask).first
         panel.begin { response in
             guard response == .OK, let url = panel.url else { return }

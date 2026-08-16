@@ -39,7 +39,7 @@ final class SampleClassroomTests {
         #expect(sampleStack.container.persistentStoreCoordinator.persistentStores.first?.url == sampleURL)
 
         let sampleStudents = try sampleStack.viewContext.fetch(CDFetchRequest(CDStudent.self))
-        #expect(sampleStudents.count == 8)
+        #expect(sampleStudents.count == 9)
         #expect(try primaryContext.count(for: CDFetchRequest(CDStudent.self)) == 0)
 
         let sampleLessonRequest = CDFetchRequest(CDLesson.self)

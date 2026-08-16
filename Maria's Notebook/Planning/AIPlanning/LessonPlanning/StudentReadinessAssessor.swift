@@ -2,20 +2,21 @@ import Foundation
 import CoreData
 import OSLog
 
-/// Pure local computation service that assesses each student's readiness for new lessons.
-/// Uses curriculum position data, work outcomes, practice sessions, and behavioral flags
-/// to produce a `StudentReadinessProfile` per student. No API calls are made.
+/// Pure local computation service that assembles factual planning evidence.
+/// Curriculum position, presentation history, active-work counts, and explicit
+/// guide decisions are included. Practice ratings, work outcomes, behavior labels,
+/// and emotional tags are deliberately excluded from readiness inference.
 @MainActor
 struct StudentReadinessAssessor {
     private static let logger = Logger.ai
 
     // MARK: - Public API
 
-    /// Assesses readiness for a set of students.
+    /// Assembles planning evidence for a set of students.
     /// - Parameters:
     ///   - students: Students to assess
     ///   - context: The Core Data managed object context for querying data
-    /// - Returns: Array of readiness profiles, one per student
+    /// - Returns: Array of factual planning profiles, one per student
     static func assessReadiness(
         for students: [CDStudent],
         context: NSManagedObjectContext
@@ -23,22 +24,18 @@ struct StudentReadinessAssessor {
         let allLessons = fetchAllLessons(context: context)
         let allPresentations = fetchPresentations(context: context)
         let allWork = fetchAllWork(context: context)
-        let recentSessions = fetchRecentPracticeSessions(context: context, daysBefore: 30)
-        let recentNotes = fetchRecentNotes(context: context, daysBefore: 30)
 
         return students.map { student in
             buildProfile(
                 for: student,
                 allLessons: allLessons,
                 allPresentations: allPresentations,
-                allWork: allWork,
-                recentSessions: recentSessions,
-                recentNotes: recentNotes
+                allWork: allWork
             )
         }
     }
 
-    /// Assesses readiness for a single student.
+    /// Assembles planning evidence for a single student.
     static func assessReadiness(
         for student: CDStudent,
         context: NSManagedObjectContext
@@ -50,11 +47,8 @@ struct StudentReadinessAssessor {
                 studentName: student.firstName,
                 level: "",
                 areaReadiness: [],
-                practiceQualityAvg: nil,
-                independenceAvg: nil,
                 daysSinceLastPresentation: nil,
-                activeWorkCount: 0,
-                behavioralFlags: []
+                activeWorkCount: 0
             )
         }
         return profile
@@ -69,70 +63,25 @@ struct StudentReadinessAssessor {
         for student: CDStudent,
         allLessons: [CDLesson],
         allPresentations: [CDLessonAssignment],
-        allWork: [CDWorkModel],
-        recentSessions: [CDPracticeSession],
-        recentNotes: [CDNote]
+        allWork: [CDWorkModel]
     ) -> StudentReadinessProfile {
         let studentIDStr = student.id?.uuidString ?? ""
         let studentPresentations = allPresentations.filter { $0.studentIDs.contains(studentIDStr) }
         let studentWork = allWork.filter { $0.studentID == studentIDStr }
-        let studentSessions = recentSessions.filter { $0.studentIDsArray.contains(studentIDStr) }
-        let studentNotes = recentNotes.filter { note in
-            note.searchIndexStudentID == student.id || note.scopeIsAll
-        }
         let areaReadiness = computeAreaReadiness(
-            student: student, allLessons: allLessons,
+            studentID: student.id ?? UUID(), allLessons: allLessons,
             presentations: studentPresentations, work: studentWork
         )
-        let metrics = computePracticeMetrics(sessions: studentSessions)
         let daysSinceLastPresentation = computeDaysSinceLastPresentation(studentPresentations)
         let activeWorkCount = studentWork.filter { $0.status != WorkStatus.complete }.count
-        let behavioralFlags = computeBehavioralFlags(sessions: studentSessions, studentNotes: studentNotes)
         return StudentReadinessProfile(
             studentID: student.id ?? UUID(),
             studentName: student.fullName,
             level: student.level.rawValue,
             areaReadiness: areaReadiness,
-            practiceQualityAvg: metrics.practiceQualityAvg,
-            independenceAvg: metrics.independenceAvg,
             daysSinceLastPresentation: daysSinceLastPresentation,
-            activeWorkCount: activeWorkCount,
-            behavioralFlags: behavioralFlags
+            activeWorkCount: activeWorkCount
         )
-    }
-
-    private static func computePracticeMetrics(
-        sessions: [CDPracticeSession]
-    ) -> (practiceQualityAvg: Double?, independenceAvg: Double?) {
-        let practiceQualities = sessions.compactMap(\.practiceQuality)
-        let practiceQualityAvg = practiceQualities.isEmpty
-            ? nil
-            : Double(practiceQualities.reduce(0, +)) / Double(practiceQualities.count)
-        let independenceLevels = sessions.compactMap(\.independenceLevel)
-        let independenceAvg = independenceLevels.isEmpty
-            ? nil
-            : Double(independenceLevels.reduce(0, +)) / Double(independenceLevels.count)
-        return (practiceQualityAvg, independenceAvg)
-    }
-
-    private static func computeBehavioralFlags(
-        sessions: [CDPracticeSession], studentNotes: [CDNote]
-    ) -> [String] {
-        var flags: [String] = []
-        let recent = sessions.prefix(10)
-        if recent.contains(where: { $0.needsReteaching }) { flags.append("needs reteaching") }
-        if recent.contains(where: { $0.readyForAssessment }) { flags.append("ready for assessment") }
-        if recent.contains(where: { $0.readyForCheckIn }) { flags.append("ready for check-in") }
-        if recent.contains(where: { $0.struggledWithConcept }) { flags.append("struggling with concept") }
-        if recent.contains(where: { $0.madeBreakthrough }) { flags.append("recent breakthrough") }
-        let behavioralNotes = studentNotes.filter { note in
-            note.tagsArray.contains { tag in
-                let name = TagHelper.tagName(tag).lowercased()
-                return name == "behavioral" || name == "emotional"
-            }
-        }
-        if !behavioralNotes.isEmpty { flags.append("\(behavioralNotes.count) behavioral/emotional notes") }
-        return flags
     }
 
     private static func computeDaysSinceLastPresentation(_ presentations: [CDLessonAssignment]) -> Int? {
@@ -143,7 +92,7 @@ struct StudentReadinessAssessor {
     // MARK: - Area Readiness Computation
 
     private static func computeAreaReadiness(
-        student: CDStudent,
+        studentID: UUID,
         allLessons: [CDLesson],
         presentations: [CDLessonAssignment],
         work: [CDWorkModel]
@@ -155,7 +104,12 @@ struct StudentReadinessAssessor {
         for (key, lessons) in lessonsByAreaSequence {
             guard !key.area.isEmpty, !key.sequence.isEmpty else { continue }
             let sorted = lessons.sorted { $0.orderInSequence < $1.orderInSequence }
-            let groupProgress = scanLessonSequenceProgress(sorted: sorted, presentations: presentations, work: work)
+            let groupProgress = scanLessonSequenceProgress(
+                studentID: studentID,
+                sorted: sorted,
+                presentations: presentations,
+                work: work
+            )
             let currentLesson = groupProgress.currentLesson
             var nextLesson = groupProgress.nextLesson
             if currentLesson == nil, let first = sorted.first { nextLesson = first }
@@ -167,15 +121,19 @@ struct StudentReadinessAssessor {
                 currentLessonName: currentLesson?.name, currentLessonID: currentLesson?.id,
                 nextLessonName: nextLesson?.name, nextLessonID: nextLesson?.id,
                 proficiencySignal: groupProgress.proficiency,
+                evidenceAvailability: groupProgress.evidenceAvailability,
                 activeWorkCount: groupProgress.activeWorkInGroup,
-                completedInSequence: groupProgress.completedInSequence, totalInSequence: sorted.count
+                presentedInSequence: groupProgress.presentedInSequence, totalInSequence: sorted.count
             ))
         }
         return results.sorted { ($0.area, $0.sequence) < ($1.area, $1.sequence) }
     }
 
     private static func scanLessonSequenceProgress(
-        sorted: [CDLesson], presentations: [CDLessonAssignment], work: [CDWorkModel]
+        studentID: UUID,
+        sorted: [CDLesson],
+        presentations: [CDLessonAssignment],
+        work: [CDWorkModel]
     ) -> LessonSequenceProgress {
         var progress = LessonSequenceProgress()
         for lesson in sorted {
@@ -186,13 +144,20 @@ struct StudentReadinessAssessor {
                 la.lessonID == lessonIDStr && (la.isPresented || la.presentedAt != nil)
             }
             if presented {
-                progress.completedInSequence += 1
+                progress.presentedInSequence += 1
                 progress.currentLesson = lesson
                 let lessonWork = work.filter { $0.lessonID == lessonIDStr }
                 let activeWork = lessonWork.filter { $0.status != WorkStatus.complete }
                 progress.activeWorkInGroup += activeWork.count
-                let completedWork = lessonWork.filter { $0.status == WorkStatus.complete }
-                progress.proficiency = determineProficiency(activeWork: activeWork, completedWork: completedWork)
+                progress.proficiency = determinePlanningSignal(
+                    studentID: studentID,
+                    lessonID: lessonIDStr,
+                    presentations: presentations
+                )
+                progress.evidenceAvailability = evidenceAvailability(
+                    for: progress.proficiency,
+                    hasPresentation: true
+                )
             } else if progress.currentLesson != nil && progress.nextLesson == nil {
                 progress.nextLesson = lesson
             }
@@ -200,25 +165,40 @@ struct StudentReadinessAssessor {
         return progress
     }
 
-    private static func determineProficiency(
-        activeWork: [CDWorkModel],
-        completedWork: [CDWorkModel]
+    /// Returns only facts explicitly recorded by the guide on the presentation.
+    /// Work completion, practice quality, and behavior fields never enter this decision.
+    private static func determinePlanningSignal(
+        studentID: UUID,
+        lessonID: String,
+        presentations: [CDLessonAssignment]
     ) -> ProficiencySignal {
-        if let latest = completedWork.max(by: {
-            ($0.completedAt ?? .distantPast) < ($1.completedAt ?? .distantPast)
-        }) {
-            guard let outcome = latest.completionOutcome else { return .practicing }
-            switch outcome {
-            case .proficient: return .proficient
-            case .needsMorePractice: return .needsMorePractice
-            case .needsReview: return .needsReteaching
-            case .incomplete: return .practicing
-            case .notApplicable: return .presented
-            }
-        } else if !activeWork.isEmpty {
-            return .practicing
-        } else {
-            return .presented
+        let matching = presentations.filter {
+            $0.lessonID == lessonID && ($0.isPresented || $0.presentedAt != nil)
+        }
+        guard let latest = matching.max(by: {
+            ($0.presentedAt ?? $0.createdAt ?? .distantPast)
+                < ($1.presentedAt ?? $1.createdAt ?? .distantPast)
+        }) else {
+            return .notPresented
+        }
+
+        if latest.needsAnotherPresentation { return .needsReteaching }
+        if latest.needsPractice { return .needsMorePractice }
+        if latest.isStudentConfirmed(studentID) { return .proficient }
+        return .presented
+    }
+
+    private static func evidenceAvailability(
+        for signal: ProficiencySignal,
+        hasPresentation: Bool
+    ) -> EvidenceAvailability {
+        switch signal {
+        case .proficient, .needsMorePractice, .needsReteaching:
+            return .strong
+        case .presented, .practicing:
+            return hasPresentation ? .some : .insufficient
+        case .notPresented:
+            return .insufficient
         }
     }
 
@@ -227,10 +207,10 @@ struct StudentReadinessAssessor {
 // MARK: - Compressed Summary
 
 extension StudentReadinessAssessor {
-    /// Creates a token-efficient text summary of readiness profiles for AI prompt inclusion.
+    /// Creates a token-efficient summary of factual planning evidence.
     static func compressedSummary(of profiles: [StudentReadinessProfile]) -> String {
         var lines: [String] = []
-        lines.append("STUDENT READINESS:")
+        lines.append("STUDENT EVIDENCE:")
 
         for profile in profiles {
             var studentLine = "\(profile.studentName) (\(profile.level))"
@@ -243,18 +223,7 @@ extension StudentReadinessAssessor {
             }
             details.append("\(profile.activeWorkCount) active work")
 
-            if let pq = profile.practiceQualityAvg {
-                details.append("quality \(String(format: "%.1f", pq))/5")
-            }
-            if let ind = profile.independenceAvg {
-                details.append("independence \(String(format: "%.1f", ind))/5")
-            }
-
             studentLine += " - \(details.joined(separator: ", "))"
-
-            if !profile.behavioralFlags.isEmpty {
-                studentLine += " [flags: \(profile.behavioralFlags.joined(separator: ", "))]"
-            }
 
             lines.append(studentLine)
 
@@ -262,9 +231,12 @@ extension StudentReadinessAssessor {
             let frontierAreas = profile.areaReadiness
                 .filter { $0.nextLessonID != nil }
             for sr in frontierAreas.prefix(8) {
-                let prog = "\(sr.completedInSequence)/\(sr.totalInSequence)"
+                let prog = "\(sr.presentedInSequence)/\(sr.totalInSequence) presented"
                 let current = sr.currentLessonName
-                    .map { "current: \($0) (\(sr.proficiencySignal.shortCode))" }
+                    .map {
+                        "current: \($0) (\(sr.proficiencySignal.shortCode), "
+                            + "evidence:\(sr.evidenceAvailability.rawValue))"
+                    }
                     ?? "not started"
                 let next = sr.nextLessonName.map { "next: \($0)" } ?? ""
                 lines.append("  \(sr.area)/\(sr.sequence) \(prog) \(current) \(next)")
@@ -298,24 +270,6 @@ extension StudentReadinessAssessor {
         return context.safeFetch(request)
     }
 
-    private static func fetchRecentPracticeSessions(
-        context: NSManagedObjectContext,
-        daysBefore: Int
-    ) -> [CDPracticeSession] {
-        let cutoff = Calendar.current.date(byAdding: .day, value: -daysBefore, to: Date()) ?? Date()
-        let request = CDFetchRequest(CDPracticeSession.self)
-        request.predicate = NSPredicate(format: "date >= %@", cutoff as NSDate)
-        request.sortDescriptors = [NSSortDescriptor(key: "date", ascending: false)]
-        return context.safeFetch(request)
-    }
-
-    private static func fetchRecentNotes(context: NSManagedObjectContext, daysBefore: Int) -> [CDNote] {
-        let cutoff = Calendar.current.date(byAdding: .day, value: -daysBefore, to: Date()) ?? Date()
-        let request = CDFetchRequest(CDNote.self)
-        request.predicate = NSPredicate(format: "createdAt >= %@", cutoff as NSDate)
-        request.sortDescriptors = [NSSortDescriptor(key: "createdAt", ascending: false)]
-        return context.safeFetch(request)
-    }
 }
 
 // Deprecated SwiftData fetching methods removed - Core Data versions are used.
@@ -331,6 +285,7 @@ private struct LessonSequenceProgress {
     var currentLesson: CDLesson?
     var nextLesson: CDLesson?
     var proficiency: ProficiencySignal = .notPresented
+    var evidenceAvailability: EvidenceAvailability = .insufficient
     var activeWorkInGroup: Int = 0
-    var completedInSequence: Int = 0
+    var presentedInSequence: Int = 0
 }

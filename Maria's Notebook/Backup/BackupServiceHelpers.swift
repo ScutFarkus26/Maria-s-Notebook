@@ -16,7 +16,12 @@ enum BackupServiceHelpers {
     static func toDTOs(_ students: [CDStudent]) -> [StudentDTO] {
         students.compactMap { s in
             guard let sID = s.id else { return nil }
-            let level: StudentDTO.Level = (s.level == .upper) ? .upper : .lower
+            let level: StudentDTO.Level
+            switch s.level {
+            case .lower: level = .lower
+            case .upper: level = .upper
+            case .adolescent: level = .adolescent
+            }
             return StudentDTO(
                 id: sID,
                 firstName: s.firstName,
@@ -31,7 +36,9 @@ enum BackupServiceHelpers {
                 nickname: s.nickname,
                 enrollmentStatusRaw: s.enrollmentStatusRaw,
                 dateWithdrawn: s.dateWithdrawn,
-                modifiedAt: s.modifiedAt
+                modifiedAt: s.modifiedAt,
+                previousLevelRaw: s.previousLevelRaw,
+                dateLastPromoted: s.dateLastPromoted
             )
         }
     }

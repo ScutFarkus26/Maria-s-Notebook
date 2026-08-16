@@ -3,7 +3,7 @@ import CoreData
 import OSLog
 
 /// Orchestrates the AI lesson planning pipeline, composing data assembly,
-/// readiness assessment, prompt construction, and API calls into a multi-step
+/// factual evidence assembly, prompt construction, and API calls into a multi-step
 /// planning workflow. Manages conversation state and applies recommendations.
 ///
 /// Helpers live in:
@@ -29,7 +29,7 @@ final class LessonPlanningService {
     // MARK: - Public API
 
     /// Suggests next lessons for a single student.
-    /// Uses quick depth: local readiness + gap analysis only.
+    /// Uses quick depth: local evidence + curriculum gap analysis only.
     func suggestNextLessons(
         for student: CDStudent,
         depth: PlanningDepth = .quick,
@@ -42,7 +42,7 @@ final class LessonPlanningService {
         }
         var session = PlanningSession(mode: .singleStudent(studentID), depth: depth)
 
-        // Step 1: Local readiness assessment
+        // Step 1: Local factual evidence assembly
         let profile = StudentReadinessAssessor.assessReadiness(for: student, context: managedObjectContext)
         session.readinessProfiles = [profile]
 
@@ -67,7 +67,11 @@ final class LessonPlanningService {
             timeout: config.timeout
         )
 
-        var recommendations = parseRecommendations(from: gapResponse, students: [student])
+        var recommendations = parseRecommendations(
+            from: gapResponse,
+            students: [student],
+            profiles: [profile]
+        )
 
         // Step 3 (standard+): Plan synthesis with day scheduling
         if depth == .standard || depth == .deep {
@@ -89,7 +93,11 @@ final class LessonPlanningService {
                 timeout: config.timeout
             )
 
-            recommendations = parseRecommendations(from: synthesisResponse, students: [student])
+            recommendations = parseRecommendations(
+                from: synthesisResponse,
+                students: [student],
+                profiles: [profile]
+            )
         }
 
         session.recommendations = recommendations
@@ -119,7 +127,7 @@ final class LessonPlanningService {
         var session = PlanningSession(mode: .wholeClass, depth: .deep)
         let weekStart = weekStartDate ?? nextWeekStart()
 
-        // Step 1: Assess readiness for all students
+        // Step 1: Assemble factual evidence for all students
         let profiles = StudentReadinessAssessor.assessReadiness(for: students, context: managedObjectContext)
         session.readinessProfiles = profiles
 
@@ -144,7 +152,11 @@ final class LessonPlanningService {
             timeout: config.timeout
         )
 
-        let candidates = parseRecommendations(from: gapResponse, students: students)
+        let candidates = parseRecommendations(
+            from: gapResponse,
+            students: students,
+            profiles: profiles
+        )
 
         // Step 3: Plan synthesis
         let candidateJSON = encodeRecommendationsForPrompt(candidates)
@@ -165,7 +177,11 @@ final class LessonPlanningService {
             timeout: config.timeout
         )
 
-        var scheduledRecs = parseRecommendations(from: synthesisResponse, students: students)
+        var scheduledRecs = parseRecommendations(
+            from: synthesisResponse,
+            students: students,
+            profiles: profiles
+        )
         let groupings = parseGroupings(from: synthesisResponse, students: students)
 
         // Step 4: Week optimization
@@ -185,7 +201,11 @@ final class LessonPlanningService {
             timeout: config.timeout
         )
 
-        scheduledRecs = parseRecommendations(from: optimizationResponse, students: students)
+        scheduledRecs = parseRecommendations(
+            from: optimizationResponse,
+            students: students,
+            profiles: profiles
+        )
 
         // Build week plan from scheduled recommendations
         let weekPlan = buildWeekPlan(
@@ -242,7 +262,11 @@ final class LessonPlanningService {
         )
 
         let students = fetchStudents(for: session.mode)
-        let newRecs = parseRecommendations(from: response, students: students)
+        let newRecs = parseRecommendations(
+            from: response,
+            students: students,
+            profiles: session.readinessProfiles
+        )
         let responseSummary = parseSummary(from: response)
 
         // Update session if new recommendations were provided

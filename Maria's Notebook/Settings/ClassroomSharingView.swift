@@ -335,6 +335,13 @@ struct ClassroomSharingView: View {
                             // Core Data to surface the new share.
                             _ = try? svc.fetchExistingShare()
                         },
+                        onStopSharing: {
+                            // Owner ended the share inside the sheet —
+                            // resync published share state immediately
+                            // instead of reporting the dead share until
+                            // the next launch.
+                            svc.handleSharingStopped()
+                        },
                         onDismiss: {
                             showingSharingSheet = false
                             try? svc.refreshParticipants()

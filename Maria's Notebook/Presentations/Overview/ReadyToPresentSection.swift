@@ -20,6 +20,19 @@ struct ReadyToPresentSection: View {
     let filterState: PresentationsFilterState
     let suggestedLessonID: UUID?
 
+    private struct FocusScrollTrigger: Equatable {
+        let focusedID: UUID?
+        let visibleIDs: [UUID]
+    }
+
+    private var focusScrollTrigger: FocusScrollTrigger {
+        FocusScrollTrigger(
+            focusedID: suggestedLessonID,
+            visibleIDs: (filteredAndSortedBlockedLessons + filteredAndSortedReadyLessons)
+                .compactMap(\.id)
+        )
+    }
+
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {
             chipRow
@@ -53,11 +66,14 @@ struct ReadyToPresentSection: View {
                 }
                 .padding(.bottom, AppTheme.Spacing.medium + AppTheme.Spacing.xsmall)
             }
-            .onChange(of: suggestedLessonID) {
-                if let id = suggestedLessonID {
-                    withAnimation(.easeInOut(duration: 0.3)) {
-                        proxy.scrollTo(id, anchor: .center)
-                    }
+            .task(id: focusScrollTrigger) {
+                guard let id = suggestedLessonID,
+                      focusScrollTrigger.visibleIDs.contains(id) else { return }
+                await Task.yield()
+                try? await Task.sleep(for: .milliseconds(50))
+                guard !Task.isCancelled else { return }
+                withAnimation(.easeInOut(duration: 0.3)) {
+                    proxy.scrollTo(id, anchor: .center)
                 }
             }
         }
@@ -215,9 +231,9 @@ struct ReadyToPresentSection: View {
     }
 
     private func readyGridItem(_ la: CDLessonAssignment) -> some View {
-        let isSuggested: Bool = suggestedLessonID == la.id
+        let isSuggested = suggestedLessonID != nil && suggestedLessonID == la.id
         return inboxRow(la)
-            .id(la.id)
+            .id(la.id ?? UUID())
             .overlay(
                 RoundedRectangle(
                     cornerRadius: UIConstants.CornerRadius.medium,
@@ -330,6 +346,7 @@ extension ReadyToPresentSection {
         let readyCount = result?.readyStudentIDs.count ?? 0
         let totalCount = la.resolvedStudentIDs.count
         let hasPartialReadiness = readyCount > 0 && readyCount < totalCount
+        let isFocused = suggestedLessonID != nil && suggestedLessonID == la.id
 
         VStack(alignment: .leading, spacing: AppTheme.Spacing.verySmall) {
             // The card now owns the progress bar + "X of Y ready" label in its footer.
@@ -356,6 +373,18 @@ extension ReadyToPresentSection {
                 .padding(.horizontal, AppTheme.Spacing.verySmall)
             }
         }
+        .id(la.id ?? UUID())
+        .overlay(
+            RoundedRectangle(
+                cornerRadius: UIConstants.CornerRadius.medium,
+                style: .continuous
+            )
+            .stroke(Color.accentColor, lineWidth: isFocused ? 2.5 : 0)
+            .shadow(
+                color: .accentColor.opacity(isFocused ? 0.4 : 0),
+                radius: 6
+            )
+        )
         .contextMenu {
             Button("Unlock Lesson", systemImage: "lock.open") {
                 unlockOnDeckLesson(la)

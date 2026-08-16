@@ -9,7 +9,8 @@ import OSLog
 /// 1. Fetch remote history transactions since the last processed token
 /// 2. Detect remote inserts and trigger DeduplicationCoordinator
 /// 3. Persist the last processed token to UserDefaults
-/// 4. Purge history older than our last processed token (safe for CloudKit)
+/// 4. Occasionally purge months-old history that the CloudKit mirroring
+///    delegate has provably finished exporting (see `purgeOldHistory`)
 ///
 /// CDNote: The view context has `automaticallyMergesChangesFromParent = true`,
 /// which handles merging remote changes automatically. This processor only
@@ -77,24 +78,66 @@ actor PersistentHistoryProcessor {
 
     // MARK: - Public: Purge Old History
 
-    /// Purge persistent history before our last processed token.
-    /// Token-based purge is safe for CloudKit (date-based purge can break sync
-    /// if the CloudKit mirroring delegate hasn't finished processing).
+    /// How old a transaction must be before it is eligible for purging.
+    /// Apple: "long enough for the history to become irrelevant, which can be
+    /// several months for apps that people use on a regular basis."
+    private static let purgeRetention: TimeInterval = 180 * 24 * 3600
+
+    /// Minimum interval between purges. Apple: "Apps generally only need to
+    /// purge the history several times a year."
+    private static let purgeInterval: TimeInterval = 60 * 24 * 3600
+
+    /// Purge persistent history following Apple's documented pattern for
+    /// CloudKit-backed stores ("Sharing Core Data objects between iCloud
+    /// users"): delete only transactions that predate BOTH the start of the
+    /// last successful `.export` event AND a several-month retention window.
+    ///
+    /// `NSCloudKitMirroringDelegate` keeps its own history cursor that this
+    /// process cannot read. Purging transactions it hasn't exported yet
+    /// invalidates that cursor and forces a full reset against the CloudKit
+    /// server — and any deletion whose only record was the purged tombstone
+    /// resurrects on the next import. The export-date gate guarantees the
+    /// delegate consumed everything we delete; the retention window keeps the
+    /// history available for other consumers (BackupChangeTracker) and for
+    /// devices that re-enable sync after running in the degraded local mode.
     func purgeOldHistory() async {
-        guard let token = lastToken else {
-            Self.logger.debug("Skipping history purge — no processed token yet")
+        let defaults = UserDefaults.standard
+
+        // Never purge before CloudKit has demonstrably exported. On stores
+        // that have never synced this keeps all history for a future first
+        // export; disk cost is acceptable at this app's write volume.
+        guard let exportStart = defaults.object(
+            forKey: UserDefaultsKeys.cloudKitLastSuccessfulExportStartDate
+        ) as? TimeInterval else {
+            Self.logger.debug("Skipping history purge — no successful CloudKit export recorded")
             return
         }
 
+        if let lastPurge = defaults.object(
+            forKey: UserDefaultsKeys.persistentHistoryLastPurgeDate
+        ) as? TimeInterval,
+           Date().timeIntervalSince1970 - lastPurge < Self.purgeInterval {
+            return
+        }
+
+        let retentionCutoff = Date().addingTimeInterval(-Self.purgeRetention)
+        let cutoff = min(Date(timeIntervalSince1970: exportStart), retentionCutoff)
+
         let context = container.newBackgroundContext()
-        await context.perform {
-            let purgeRequest = NSPersistentHistoryChangeRequest.deleteHistory(before: token)
+        let purged: Bool = await context.perform {
+            let purgeRequest = NSPersistentHistoryChangeRequest.deleteHistory(before: cutoff)
             do {
                 try context.execute(purgeRequest)
-                Self.logger.info("Purged persistent history before last processed token")
+                return true
             } catch {
                 Self.logger.error("Failed to purge history: \(error.localizedDescription)")
+                return false
             }
+        }
+
+        if purged {
+            defaults.set(Date().timeIntervalSince1970, forKey: UserDefaultsKeys.persistentHistoryLastPurgeDate)
+            Self.logger.info("Purged persistent history older than \(cutoff, privacy: .public)")
         }
     }
 
@@ -151,7 +194,7 @@ actor PersistentHistoryProcessor {
     }
 
     /// Fetches the latest token even when there are no remote transactions,
-    /// so purge can advance past our own transactions.
+    /// so the next fetch doesn't rescan transactions we already skipped.
     private static func advanceToken(
         after token: NSPersistentHistoryToken?,
         in context: NSManagedObjectContext

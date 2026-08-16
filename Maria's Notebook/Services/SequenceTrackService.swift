@@ -203,15 +203,50 @@ struct SequenceTrackService {
     }
 
     /// Auto-enroll students in a track if the lesson belongs to a track (Core Data)
-    @MainActor static func autoEnrollInTrackIfNeeded(
+    @discardableResult
+    static func autoEnrollInTrackIfNeeded(
         lessonArea: String,
         lessonSequence: String,
         studentIDs: [String],
         context: NSManagedObjectContext,
         saveCoordinator: SaveCoordinator? = nil
-    ) {
+    ) -> String? {
+        performAutoEnrollment(
+            lessonArea: lessonArea,
+            lessonSequence: lessonSequence,
+            studentIDs: studentIDs,
+            context: context,
+            persistence: saveCoordinator.map(EnrollmentPersistence.coordinator) ?? .context
+        )
+    }
+
+    /// Variant for a caller that owns a larger atomic Core Data save.
+    @discardableResult
+    static func autoEnrollInTrackIfNeeded(
+        lessonArea: String,
+        lessonSequence: String,
+        studentIDs: [String],
+        context: NSManagedObjectContext,
+        saveChanges: Bool
+    ) -> String? {
+        performAutoEnrollment(
+            lessonArea: lessonArea,
+            lessonSequence: lessonSequence,
+            studentIDs: studentIDs,
+            context: context,
+            persistence: saveChanges ? .context : .deferred
+        )
+    }
+
+    private static func performAutoEnrollment(
+        lessonArea: String,
+        lessonSequence: String,
+        studentIDs: [String],
+        context: NSManagedObjectContext,
+        persistence: EnrollmentPersistence
+    ) -> String? {
         guard isTrack(area: lessonArea, sequence: lessonSequence, context: context) else {
-            return
+            return nil
         }
 
         let track: CDTrackEntity
@@ -219,7 +254,7 @@ struct SequenceTrackService {
             track = try getOrCreateTrack(area: lessonArea, sequence: lessonSequence, context: context)
         } catch {
             logger.warning("Failed to get or create track during auto-enroll: \(error.localizedDescription)")
-            return
+            return nil
         }
 
         let trackID = track.id?.uuidString ?? ""
@@ -254,11 +289,28 @@ struct SequenceTrackService {
             }
         }
 
-        if let coordinator = saveCoordinator {
-            coordinator.save(context, reason: "Auto-enrolling in track")
-        } else {
+        persistEnrollmentChanges(persistence, in: context)
+        return trackID
+    }
+
+    private static func persistEnrollmentChanges(
+        _ persistence: EnrollmentPersistence,
+        in context: NSManagedObjectContext
+    ) {
+        switch persistence {
+        case .context:
             context.safeSave()
+        case .coordinator(let coordinator):
+            coordinator.save(context, reason: "Auto-enrolling in track")
+        case .deferred:
+            break
         }
+    }
+
+    private enum EnrollmentPersistence {
+        case context
+        case coordinator(SaveCoordinator)
+        case deferred
     }
 
     /// Check if a track is complete for a student (Core Data)

@@ -2,7 +2,7 @@ import SwiftUI
 import CoreData
 
 /// Card view displaying a single AI-generated lesson recommendation.
-/// Shows lesson name, area tag, student names, confidence badge, and reasoning.
+/// Shows lesson name, area tag, student names, evidence availability, and reasoning.
 /// Provides accept/reject/ask-why actions.
 struct PlanningRecommendationCard: View {
     let recommendation: LessonRecommendation
@@ -24,7 +24,7 @@ struct PlanningRecommendationCard: View {
     
     var body: some View {
         VStack(alignment: .leading, spacing: 8) {
-            // Header row: lesson name + confidence
+            // Header row: lesson name + evidence availability
             HStack(alignment: .top) {
                 VStack(alignment: .leading, spacing: 4) {
                     Text(recommendation.lessonName)
@@ -44,7 +44,7 @@ struct PlanningRecommendationCard: View {
                 
                 Spacer()
                 
-                confidenceBadge
+                evidenceBadge
             }
             
             // CDStudent names
@@ -103,21 +103,23 @@ struct PlanningRecommendationCard: View {
             .foregroundStyle(AppColors.color(forArea: recommendation.area))
     }
     
-    private var confidenceBadge: some View {
-        let pct = Int(recommendation.confidence * 100)
-        return Text("\(pct)%")
+    private var evidenceBadge: some View {
+        Text(recommendation.evidenceAvailability.displayLabel)
             .font(.caption2)
             .fontWeight(.semibold)
             .padding(.horizontal, 8)
             .padding(.vertical, 4)
-            .background(confidenceColor.opacity(UIConstants.OpacityConstants.accent), in: Capsule())
-            .foregroundStyle(confidenceColor)
+            .background(evidenceColor.opacity(UIConstants.OpacityConstants.accent), in: Capsule())
+            .foregroundStyle(evidenceColor)
+            .accessibilityLabel("Evidence availability: \(recommendation.evidenceAvailability.displayLabel)")
     }
-    
-    private var confidenceColor: Color {
-        if recommendation.confidence >= 0.8 { return .green }
-        if recommendation.confidence >= 0.6 { return .orange }
-        return .red
+
+    private var evidenceColor: Color {
+        switch recommendation.evidenceAvailability {
+        case .strong: return .blue
+        case .some: return .orange
+        case .insufficient: return .secondary
+        }
     }
     
     private var cardBackground: some ShapeStyle {

@@ -344,6 +344,13 @@ extension SettingsView {
                 appleIntelligenceStatus
             }
 
+            #if os(macOS)
+            SettingsGroup(title: "Claude Desktop", systemImage: "desktopcomputer") {
+                ClaudeDesktopSettingsView()
+                    .frame(maxWidth: .infinity)
+            }
+            #endif
+
             SettingsGroup(title: "Siri & Shortcuts", systemImage: "mic.fill") {
                 siriShortcutsTips
             }

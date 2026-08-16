@@ -8,7 +8,7 @@ public struct ItemDTO: Codable, Sendable {
 }
 
 public struct StudentDTO: Codable, Sendable {
-    public enum Level: String, Codable, Sendable { case lower, upper }
+    public enum Level: String, Codable, Sendable { case lower, upper, adolescent }
     public var id: UUID
     public var firstName: String
     public var lastName: String
@@ -30,6 +30,9 @@ public struct StudentDTO: Codable, Sendable {
     /// doesn't treat every restored student as "just modified". Optional for
     /// compatibility with older backups that predate this field.
     public var modifiedAt: Date?
+    // Promotion record (optional for compatibility with older backups that predate them).
+    public var previousLevelRaw: String?
+    public var dateLastPromoted: Date?
 }
 
 public struct LessonDTO: Codable, Sendable {
@@ -113,6 +116,14 @@ public struct LessonPresentationDTO: Codable, Sendable {
     // Codable DTO property, must match JSON key
     public var masteredAt: Date?
     public var notes: String?
+    public var followUpActionRaw: String?
+    public var followUpReviewAt: Date?
+    public var followUpResolvedAt: Date?
+    public var followUpResolutionRaw: String?
+    public var followUpUpdatedAt: Date?
+    public var followUpEvidenceRaw: String?
+    public var followUpNote: String?
+    public var followUpSupportRaw: String?
 }
 
 public struct LessonRecallCheckDTO: Codable, Sendable {

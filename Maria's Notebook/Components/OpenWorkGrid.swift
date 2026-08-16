@@ -6,6 +6,7 @@ struct OpenWorkGrid: View {
     let lessonsByID: [UUID: CDLesson]
     let studentsByID: [UUID: CDStudent]
     let sortMode: WorkAgendaSortMode
+    var focusedWorkID: UUID? = nil
 
     let onOpen: (CDWorkModel) -> Void
     let onMarkCompleted: (CDWorkModel) -> Void
@@ -17,41 +18,74 @@ struct OpenWorkGrid: View {
     @State private var cachedAgeSchoolDays: [UUID: Int] = [:]
 
     // MARK: - Layout
-    // Choose 1 or 2 columns based on available width; never create 3+
+    // Keep cards legible on compact devices and take advantage of Mac width
+    // without squeezing the content into the previous fixed four columns.
     private func columns(for width: CGFloat) -> [GridItem] {
-        return Array(repeating: GridItem(.flexible(minimum: 180, maximum: .infinity), spacing: 12), count: 4)
+        let count: Int
+        if width < 620 {
+            count = 1
+        } else if width < 1_050 {
+            count = 2
+        } else {
+            count = 3
+        }
+        return Array(
+            repeating: GridItem(.flexible(minimum: 260, maximum: .infinity), spacing: 12),
+            count: count
+        )
     }
 
     var body: some View {
         GeometryReader { proxy in
-            ScrollView {
-                LazyVGrid(
-                    columns: columns(for: proxy.size.width),
-                    alignment: .leading,
-                    spacing: 8,
-                    pinnedViews: [.sectionHeaders]
-                ) {
-                    ForEach(groupedSections, id: \.key) { section in
-                        Section(header: groupHeader(title: section.key, count: section.items.count)) {
-                            ForEach(section.items, id: \.id) { item in
-                                let workID = item.work.id ?? UUID()
-                                let ageSchoolDays = cachedAgeSchoolDays[workID] ?? 0
-                                WorkCard.grid(
-                                    work: item.work,
-                                    lessonTitle: item.title,
-                                    studentDisplay: item.student,
-                                    needsAttention: item.needsAttention,
-                                    ageSchoolDays: ageSchoolDays,
-                                    onOpen: onOpen,
-                                    onMarkCompleted: onMarkCompleted,
-                                    onScheduleToday: onScheduleToday
-                                )
+            ScrollViewReader { reader in
+                ScrollView {
+                    LazyVGrid(
+                        columns: columns(for: proxy.size.width),
+                        alignment: .leading,
+                        spacing: 8,
+                        pinnedViews: [.sectionHeaders]
+                    ) {
+                        ForEach(groupedSections, id: \.key) { section in
+                            Section(header: groupHeader(title: section.key, count: section.items.count)) {
+                                ForEach(section.items, id: \.id) { item in
+                                    let workID = item.work.id ?? UUID()
+                                    let ageSchoolDays = cachedAgeSchoolDays[workID] ?? 0
+                                    WorkCard.grid(
+                                        work: item.work,
+                                        lessonTitle: item.title,
+                                        studentDisplay: item.student,
+                                        needsAttention: item.needsAttention,
+                                        ageSchoolDays: ageSchoolDays,
+                                        onOpen: onOpen,
+                                        onMarkCompleted: onMarkCompleted,
+                                        onScheduleToday: onScheduleToday
+                                    )
+                                    .padding(2)
+                                    .background(
+                                        workID == focusedWorkID
+                                            ? Color.accentColor.opacity(0.12)
+                                            : Color.clear,
+                                        in: RoundedRectangle(cornerRadius: 14)
+                                    )
+                                    .overlay {
+                                        if workID == focusedWorkID {
+                                            RoundedRectangle(cornerRadius: 14)
+                                                .stroke(Color.accentColor, lineWidth: 2)
+                                        }
+                                    }
+                                    .id(workID)
+                                }
                             }
                         }
                     }
+                    .padding(.horizontal, 16)
+                    .padding(.vertical, 6)
                 }
-                .padding(.horizontal, 16)
-                .padding(.vertical, 6)
+                .task(id: focusedWorkID) {
+                    guard let focusedWorkID else { return }
+                    await Task.yield()
+                    withAnimation { reader.scrollTo(focusedWorkID, anchor: .center) }
+                }
             }
         }
         .task {

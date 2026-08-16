@@ -37,12 +37,9 @@ struct SyncHistoryLogView: View {
                                         .font(.subheadline)
                                         .lineLimit(2)
                                 }
-                                HStack(spacing: 0) {
-                                    Text(event.timestamp, style: .relative)
-                                    Text(" ago")
-                                }
-                                .font(.caption)
-                                .foregroundStyle(.secondary)
+                                Text(event.timestamp.formatted(.relative(presentation: .named)))
+                                    .font(.caption)
+                                    .foregroundStyle(.secondary)
                             }
                         }
                     }

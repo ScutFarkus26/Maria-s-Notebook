@@ -105,7 +105,16 @@ enum SequenceRecapDataLoader {
     ) -> [CDNote] {
         guard !lessonIDs.isEmpty else { return [] }
         let req = CDFetchRequest(CDNote.self)
-        req.predicate = NSPredicate(format: "lessonID IN %@", lessonIDs)
+        // Notes created from the presentation/work editors are normally linked through
+        // their most-specific Core Data relationship and do not duplicate the lesson ID
+        // onto CDNote.lessonID. Include every supported route back to the lesson so those
+        // notes are not silently absent from Sequence Recap.
+        req.predicate = NSCompoundPredicate(orPredicateWithSubpredicates: [
+            NSPredicate(format: "lessonID IN %@", lessonIDs),
+            NSPredicate(format: "lessonAssignment.lessonID IN %@", lessonIDs),
+            NSPredicate(format: "work.lessonID IN %@", lessonIDs),
+            NSPredicate(format: "workCheckIn.work.lessonID IN %@", lessonIDs)
+        ])
         return context.safeFetch(req)
     }
 
@@ -223,22 +232,32 @@ enum SequenceRecapNoteBucketer {
         return true
     }
 
+    /// Returns whether a note's explicit scope includes a particular student.
+    ///
+    /// The denormalized search fields and NoteStudentLink rows make common queries fast,
+    /// while decoding `scopeBlob` keeps older multi-student notes visible when those
+    /// indexes were not populated correctly.
+    static func noteApplies(
+        _ note: CDNote,
+        to studentID: String,
+        links: [String: Set<String>]
+    ) -> Bool {
+        guard let studentUUID = UUID(uuidString: studentID) else { return false }
+        if note.scopeIsAll { return true }
+        if note.searchIndexStudentID == studentUUID { return true }
+        if let noteID = note.id?.uuidString,
+           links[noteID]?.contains(studentID) == true {
+            return true
+        }
+        return note.decodeScope()?.applies(to: studentUUID) == true
+    }
+
     private static func resolveStudents(
         for note: CDNote,
         links: [String: Set<String>],
         studentIDSet: Set<String>
     ) -> Set<String> {
-        if note.scopeIsAll { return studentIDSet }
-        if let nid = note.id?.uuidString,
-           let linked = links[nid]?.intersection(studentIDSet),
-           !linked.isEmpty {
-            return linked
-        }
-        if let single = note.searchIndexStudentID?.uuidString,
-           studentIDSet.contains(single) {
-            return [single]
-        }
-        return []
+        Set(studentIDSet.filter { noteApplies(note, to: $0, links: links) })
     }
 }
 

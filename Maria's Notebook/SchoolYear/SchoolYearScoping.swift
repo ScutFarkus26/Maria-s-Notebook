@@ -16,6 +16,15 @@ extension CDStudent {
     }
 }
 
+extension Sequence where Element == CDStudent {
+    /// Roster for history views (reports, logs): students active during `range`,
+    /// so former students still appear in the periods they were part of the class.
+    /// Contrast with `filterEnrolled()`, which is for operational "today" views.
+    func filterActive(in range: DateRange) -> [CDStudent] {
+        filter { $0.isActive(in: range) }
+    }
+}
+
 extension CDProject {
     /// True if this project's activity window (creation through its last session or edit)
     /// overlaps `range`. Projects with no creation date fail open.

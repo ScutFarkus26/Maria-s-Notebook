@@ -172,7 +172,26 @@ extension CDLessonAssignment {
 
     /// Marks this presentation as given.
     func markPresented(at date: Date = Date(), snapshotLesson: Bool = true) {
+        // A completed presentation is no longer scheduled. Keeping the old date
+        // made the same record appear both presented and scheduled in views that
+        // use `isScheduled`.
+        self.scheduledFor = nil
+        self.scheduledForDay = Date.distantPast
         self.presentedAt = date
+        self.state = .presented
+        self.modifiedAt = Date()
+
+        if snapshotLesson, let lesson = self.lesson {
+            self.lessonTitleSnapshot = lesson.name
+            self.lessonSectionSnapshot = lesson.section
+        }
+    }
+
+    /// Marks a historical presentation whose exact date is not known.
+    func markPreviouslyPresented(snapshotLesson: Bool = true) {
+        self.scheduledFor = nil
+        self.scheduledForDay = Date.distantPast
+        self.presentedAt = nil
         self.state = .presented
         self.modifiedAt = Date()
 

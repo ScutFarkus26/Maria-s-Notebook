@@ -16,6 +16,14 @@ public class CDLessonPresentation: NSManagedObject {
     @NSManaged public var lastObservedAt: Date?
     @NSManaged public var masteredAt: Date?
     @NSManaged public var notes: String?
+    @NSManaged public var followUpActionRaw: String?
+    @NSManaged public var followUpReviewAt: Date?
+    @NSManaged public var followUpResolvedAt: Date?
+    @NSManaged public var followUpResolutionRaw: String?
+    @NSManaged public var followUpUpdatedAt: Date?
+    @NSManaged public var followUpEvidenceRaw: String?
+    @NSManaged public var followUpNote: String?
+    @NSManaged public var followUpSupportRaw: String?
 
     // MARK: - Convenience Initializer
     @discardableResult
@@ -34,6 +42,14 @@ public class CDLessonPresentation: NSManagedObject {
         self.lastObservedAt = nil
         self.masteredAt = nil
         self.notes = nil
+        self.followUpActionRaw = nil
+        self.followUpReviewAt = nil
+        self.followUpResolvedAt = nil
+        self.followUpResolutionRaw = nil
+        self.followUpUpdatedAt = nil
+        self.followUpEvidenceRaw = nil
+        self.followUpNote = nil
+        self.followUpSupportRaw = nil
     }
 }
 

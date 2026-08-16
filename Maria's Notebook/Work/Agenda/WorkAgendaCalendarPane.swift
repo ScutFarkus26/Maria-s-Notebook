@@ -11,6 +11,8 @@ struct WorkAgendaCalendarPane: View {
 
     let startDate: Date
     let daysCount: Int
+    var onOpenWork: ((UUID) -> Void)? = nil
+    var onOpenPresentation: ((CDLessonAssignment) -> Void)? = nil
 
     // Sheet for choosing reason and note when dropping
     @State private var prompt: PlanPrompt?
@@ -131,6 +133,9 @@ struct WorkAgendaCalendarPane: View {
             },
             onSequenceTap: { sequence in
                 selectedSequence = sequence
+            },
+            onLessonAssignmentSelect: { assignment in
+                onOpenPresentation?(assignment)
             }
         )
         .onDrop(of: [.plainText], isTargeted: nil) { providers in
@@ -149,6 +154,10 @@ struct WorkAgendaCalendarPane: View {
     // MARK: - Actions
     
     private func openDetail(workID: UUID) {
+        if let onOpenWork {
+            onOpenWork(workID)
+            return
+        }
         selected = nil
         let token = SelectionToken(id: UUID(), contractID: workID)
         Task { @MainActor in

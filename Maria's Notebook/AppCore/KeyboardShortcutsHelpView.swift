@@ -14,7 +14,7 @@ struct KeyboardShortcutsHelpView: View {
 
                 shortcutSection("Navigation", shortcuts: [
                     ShortcutItem(keys: "\u{2318}1", description: "Today"),
-                    ShortcutItem(keys: "\u{2318}2", description: "Presentations"),
+                    ShortcutItem(keys: "\u{2318}2", description: "Lessons & Work"),
                     ShortcutItem(keys: "\u{2318}3", description: "Students"),
                     ShortcutItem(keys: "\u{2318}4", description: "Lessons"),
                     ShortcutItem(keys: "\u{2318}5", description: "Logs"),

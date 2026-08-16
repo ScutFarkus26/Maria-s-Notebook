@@ -25,22 +25,26 @@ enum BackupFetchHelper {
     }
 }
 
-/// ID → object indexes for restore. Two separate caches per entity type,
-/// because the two questions need data captured at different moments:
+/// Two separate per-entity-type caches for restore, because the two questions
+/// need data captured at different moments — and at different weights:
 ///
-/// - `find` (existence / dedup): "was this record in the store *before* this
-///   restore began?" Its map is built the first time a type is imported —
-///   i.e. before that type's own rows are inserted — which is exactly right:
-///   replace-mode has already cleared the store, and within-payload duplicates
-///   were removed by `deduplicatePayload`, so the only thing that should count
-///   as "already exists" is a pre-restore row (merge mode).
+/// - `exists` (existence / dedup): "was this record in the store *before* this
+///   restore began?" An id-only dictionary fetch, so it never materializes an
+///   object: the answer is a `Bool` and no caller has ever needed the record
+///   itself. The set is built the first time a type is imported — i.e. before
+///   that type's own rows are inserted — which is exactly right: replace-mode
+///   has already cleared the store, and within-payload duplicates were removed
+///   by `deduplicatePayload`, so the only thing that should count as "already
+///   exists" is a pre-restore row (merge mode). Dictionary fetches don't see
+///   pending inserts, which reinforces that pre-restore-only semantic.
 ///
 /// - `related` (relationship target): "find the parent with this id, whether
-///   it pre-existed OR was just inserted earlier in this same restore." Its map
-///   is built the first time a *child* type asks for a parent — which, because
-///   the importer always imports parents before children, happens *after* the
-///   parent type is fully inserted. The `context.fetch` includes pending
-///   inserts, so same-restore parents are found.
+///   it pre-existed OR was just inserted earlier in this same restore." This one
+///   genuinely needs objects, so it keeps the full fetch. Its map is built the
+///   first time a *child* type asks for a parent — which, because the importer
+///   always imports parents before children, happens *after* the parent type is
+///   fully inserted. The `context.fetch` includes pending inserts, so
+///   same-restore parents are found.
 ///
 /// Keeping the two caches separate is load-bearing: a single shared map would
 /// be frozen by the early existence check and would then miss every
@@ -49,7 +53,7 @@ enum BackupFetchHelper {
 @MainActor
 final class BackupEntityIndex {
     private let context: NSManagedObjectContext
-    private var existenceMaps: [ObjectIdentifier: [UUID: NSManagedObject]] = [:]
+    private var existenceIDs: [ObjectIdentifier: Set<UUID>] = [:]
     private var relationshipMaps: [ObjectIdentifier: [UUID: NSManagedObject]] = [:]
 
     init(context: NSManagedObjectContext) {
@@ -58,12 +62,12 @@ final class BackupEntityIndex {
 
     /// Existence / dedup check. See the type-level note: built early, so it
     /// reflects pre-restore state only.
-    func find<T: NSManagedObject>(_ type: T.Type, id: UUID) throws -> T? {
+    func exists<T: NSManagedObject>(_ type: T.Type, id: UUID) throws -> Bool {
         let key = ObjectIdentifier(type)
-        if existenceMaps[key] == nil {
-            existenceMaps[key] = try buildMap(type)
+        if existenceIDs[key] == nil {
+            existenceIDs[key] = try buildIDSet(type)
         }
-        return existenceMaps[key]?[id] as? T
+        return existenceIDs[key]?.contains(id) ?? false
     }
 
     /// Relationship-target lookup. See the type-level note: built lazily at
@@ -74,6 +78,19 @@ final class BackupEntityIndex {
             relationshipMaps[key] = try buildMap(type)
         }
         return relationshipMaps[key]?[id] as? T
+    }
+
+    /// Reads just the `id` column — same pattern as `EntityIDIndexCache` below.
+    /// One narrow query per type instead of a full table of live objects.
+    private func buildIDSet<T: NSManagedObject>(_ type: T.Type) throws -> Set<UUID> {
+        guard let entityName = BackupFetchHelper.entityName(for: type, in: context) else {
+            return []
+        }
+        let request = NSFetchRequest<NSDictionary>(entityName: entityName)
+        request.resultType = .dictionaryResultType
+        request.propertiesToFetch = ["id"]
+        let rows = try context.fetch(request)
+        return Set(rows.compactMap { $0["id"] as? UUID })
     }
 
     private func buildMap<T: NSManagedObject>(_ type: T.Type) throws -> [UUID: NSManagedObject] {

@@ -31,6 +31,7 @@ After setup, you'll land on the **Today** view — your daily dashboard. Along t
 | Procedures | Documented classroom routines |
 | Meetings | Student meeting scheduler |
 | Lessons | Your full lesson library |
+| Lessons & Work | Plan upcoming presentations, follow what needs attention, review children’s active work, and browse presentations and completed work |
 | More | Access to planning tools, projects, AI chat, settings, and everything else |
 
 ## Switching Between My Class and Sample Class
@@ -127,7 +128,7 @@ A collapsed section at the bottom showing everything you've finished today — c
 
 ## Viewing Your Roster
 
-Tap **Students** in the navigation to see your full student list. Each student card shows their name, level (Lower or Upper Elementary), and a summary of their recent activity.
+Tap **Students** in the navigation to see your full student list. Each student card shows their name, level (Lower Elementary, Upper Elementary, or Adolescent), and a summary of their recent activity.
 
 You can sort the list by:
 
@@ -147,9 +148,24 @@ Tap the **Add Student** button (or use the add icon). Fill in:
 - **Nickname** (optional — used for display if set)
 - **Birthday** (date picker)
 - **Start Date** (when the student joined your class)
-- **Level** — Lower Elementary or Upper Elementary
+- **Level** — Lower, Upper, or Adolescent
 
 Tap **Add** and the student appears in your roster immediately.
+
+## School Year Rollover
+
+When a new school year begins and your class composition changes, use the guided rollover instead of editing students one at a time. Open it from the **Add Student** menu in the Students toolbar (**School Year Rollover…**), or from Settings → General → School Calendar.
+
+The flow has three steps:
+
+1. **Assign** — For each student choose an outcome: **Stay**, **Promote** (to the next level — Lower → Upper → Adolescent), **Transfer Out** (moved to another class at your school), or **Withdraw** (left the school). Use the **Set All** menu on a level header to assign a whole group at once. The effective date defaults to the last day of the outgoing school year, which keeps departing students visible in that year's view and out of the new year's roster. Leave "Log an observation for each change" on to record each move in the student's notes timeline.
+2. **Review** — Check the summary ("7 promoted to Adolescent · 12 transferred · …") and tap **Apply Rollover**. All changes are saved together.
+3. **Done** — For each departing student, tap **Generate Summary** to produce a PDF report to hand to their next guide. Reports draw from observations flagged "Include in report" (the rollover's own observation is flagged automatically).
+
+Nothing is deleted by a rollover:
+
+- **Promoted** students stay on your active roster at their new level, and their profile shows the move (for example "Promoted · Upper → Adolescent").
+- **Transferred** and **Withdrawn** students move to the collapsed **Former Students** section at the bottom of the roster, labeled with how they left. Their full history — observations, presentations, attendance, work — is preserved, they still appear in search, and past-year reports and logs continue to include them. Re-enroll a former student at any time by editing them and setting Enrollment back to Enrolled.
 
 ## Student Detail View
 
@@ -220,9 +236,24 @@ If you choose the Story format, you can create branching lessons: a parent story
 
 ---
 
-# Presentations
+# Lessons & Work
 
-A **presentation** is the act of giving a lesson to one or more students. This is how you track what you've taught and to whom.
+**Lessons & Work** keeps the whole presentation-to-practice cycle in one place. A **presentation** is the act of giving a lesson to one or more children; work is the independent activity that follows. The workspace helps you prepare, observe, and decide what comes next without maintaining separate presentation and work planners.
+
+## Workspace Views
+
+| View | What it shows |
+|------|---------------|
+| Needs Attention | Open presentation follow-ups and work that is due, overdue, ready for review, or has gone too long without a check-in |
+| Upcoming | Presentations that are ready or scheduled, plus children who may need a lesson |
+| Children Working | All active child work, with search, work-type filters, sorting, scheduling, and completion actions |
+| History | Recorded presentations and completed child work |
+
+On Mac, choose these views from the segmented control in the toolbar. On iPhone, choose them from the **Lessons & Work** view menu. Search follows the selected view.
+
+## Shared Agenda
+
+The **Agenda** shows scheduled presentations and work check-ins together across upcoming school days. On Mac, it is a resizable lower pane that you can show or hide. On iPhone, it starts hidden; tap the calendar button to swap the current view for the Agenda. The Agenda is available in **Needs Attention**, **Upcoming**, and **Children Working**, but not **History**.
 
 ## Recording a Presentation
 
@@ -232,6 +263,20 @@ There are several ways to record a presentation:
 2. **From a Lesson** — Open a lesson's detail view and tap "Give Lesson" or "Assign"
 3. **From the Today View** — Tap a scheduled lesson to open and record it
 4. **From the Command Bar** — Type something like "Gave Emma long division"
+
+## After Just Presented
+
+Choosing **Just Presented** records the exact lesson, children, and date immediately. You can optionally add a factual **What Happened?** reflection, then use **Follow This Presentation** to keep watching, plan a work check, plan support, plan a related or next lesson, or record the exact work offered to each child.
+
+The presentation stays open until you choose **Close**. Closing never discards the saved next step; it takes you directly to the relevant view in **Lessons & Work**:
+
+- **Needs Attention** when any child still has an open guide follow-up;
+- **Children Working** when the guide follow-up is complete and the presentation has linked work; or
+- **History** when the guide follow-up is complete and there is no linked work.
+
+**Needs Attention** focuses the presentation you just handled, and **Children Working** focuses its linked work. **Back to Lesson** returns to the lesson detail instead, while preserving everything you recorded.
+
+If you have typed a work invitation but have not chosen **Add Work**, Close, Back to Lesson, and Review Work ask before discarding it. Choose **Keep Editing** to return and add the work. If a Mac window closes unexpectedly, reopening the same follow-up restores the unfinished invitation for that child or group; it still does not become real work until you choose **Add Work**.
 
 ## The Presentation Form
 
@@ -258,13 +303,14 @@ Free-form text for recording how the presentation went — what the student resp
 
 ### Follow-Up Options
 
-After recording a presentation, you can set flags:
+Each child begins at **Keep Watching**, which creates no deadline or extra work. You can leave that in place or choose:
 
-- **Needs Practice** — The student should practice this independently
-- **Needs Another Presentation** — You need to re-present this lesson
-- **Follow-Up Work** — Describe what follow-up activity the student should do
+- **Check Work** — Return during a later work cycle, on the next school day, or on a date you choose
+- **Plan Support** — Re-present, offer a follow-up presentation, or confer with the child
+- **Plan Next Presentation** — Review and explicitly add or schedule a related or next lesson
+- **Child’s Follow-Up Work** — Record the exact work invited for one child or the group
 
-These flags feed into the Inbox, so you'll be reminded to follow up.
+Unresolved choices appear in **Needs Attention**. Work appears in **Children Working**, and a dated work check-in also appears in the shared **Agenda**. Adding work never chooses the guide’s follow-up automatically.
 
 ## Presentation States
 
@@ -288,9 +334,9 @@ Once a presentation is marked as "Presented," the lesson title and details are f
 
 Work items are typically created:
 
-- **After a presentation** — When you record giving a lesson and check "Needs Practice" or describe follow-up work
+- **After a presentation** — When you record the exact work invited in **Child’s Follow-Up Work**
 - **Manually** — From the Pie Menu (orange "Work" segment) or the Command Bar
-- **From the Inbox** — When follow-up recommendations appear and you act on them
+- **From Lessons & Work** — When you choose **New Work** in **Children Working**
 
 ## Work Detail
 
@@ -514,9 +560,9 @@ Procedures are searchable and filterable by category.
 
 Tap **More** in the navigation to access the full set of planning tools.
 
-## Open Work
+## Lessons & Work
 
-A view of all active work items across all students. Filter by student, subject, or status. Use this to plan which students need check-ins and what work needs attention.
+The shared planning workspace for presentations, follow-up, active child work, and history. Use **Needs Attention** for today’s observing and deciding, **Upcoming** to prepare presentations, **Children Working** to manage active work, and **History** to revisit presentations or completed work. The shared **Agenda** coordinates scheduled presentations and check-ins.
 
 ## Checklist
 
@@ -528,35 +574,25 @@ A per-student progression map across the curriculum. Each student's card shows w
 
 ---
 
-# Inbox
+# Needs Attention
 
-The Inbox is your follow-up assistant. It automatically collects items that need your attention and organizes them by urgency.
+**Needs Attention** is the active follow-up view inside **Lessons & Work**. It separates two kinds of guide responsibility so neither can hide the other:
 
-## How Items Get Into the Inbox
+- **Observe or Decide** — presentations whose per-child follow-up is still open;
+- **Check Work** — work that is due, overdue, ready for review, or has gone too long without a meaningful check-in.
 
-- Presentations marked "Needs Practice" or "Needs Another Presentation"
-- Work items that haven't had a check-in recently
-- Work items in "Review" status that haven't been completed
-- Overdue scheduled items
+When the same learning cycle needs both an observation and a work check, it appears once in each section. The presentation row opens the observation and planning follow-up; the work row opens the actual child work.
 
-## Inbox Buckets
+## Acting on Needs Attention
 
-| Bucket | What it means |
-|--------|-------------|
-| Overdue | Items that have gone too long without attention (lessons >7 days, work >5 days, reviews >3 days) |
-| Due Today | Items scheduled for today |
-| Inbox | Items needing action but not yet overdue |
-| Upcoming | Items scheduled for the future |
-
-## Acting on Inbox Items
-
-Tap any item to open it. From there you can:
+Open an item to:
 
 - Schedule a check-in
 - Mark work as complete
 - Re-present a lesson
 - Reschedule for later
-- Dismiss if no longer relevant
+- Record an objective observation
+- Resolve the follow-up when no further guide action is needed
 
 ---
 
@@ -781,9 +817,9 @@ The Pie Menu and Command Bar are designed for the pace of a real classroom. When
 - **Long-press** and slide to "Practice" to log what students are working on
 - **Double-tap** and type a quick command like "Gave Leo botany"
 
-## Let the Inbox Guide Your Follow-Ups
+## Let Needs Attention Guide Your Follow-Ups
 
-Don't try to remember every follow-up. When you record a presentation with "Needs Practice" or describe follow-up work, the Inbox automatically tracks it and reminds you when it's time to check in.
+Don't try to remember every follow-up. Open **Lessons & Work → Needs Attention** to see presentations that still need observation or a decision and work that is due for a guide check. Use **Upcoming** and the shared **Agenda** when you are ready to plan ahead.
 
 ## Use Check-Ins to Build a Progress Story
 
@@ -836,5 +872,5 @@ Create a manual backup at least once a week, or enable auto-backup in Settings. 
 | Scope | Who a note applies to — all students, one student, or a selected group |
 | Pie Menu | The circular quick-action menu that appears when you long-press the floating button |
 | Command Bar | The natural-language text input for typing commands in plain English |
-| Inbox | The automatic follow-up tracker that collects items needing your attention |
+| Needs Attention | The Lessons & Work view that combines open presentation follow-ups with work that needs a guide check |
 | Mastery | When a student demonstrates proficiency in a lesson or skill |

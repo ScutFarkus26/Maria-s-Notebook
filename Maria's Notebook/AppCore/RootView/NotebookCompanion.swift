@@ -214,7 +214,6 @@ final class NotebookCompanionViewModel {
 struct NotebookCompanionCharacter: View {
     let state: NotebookCompanionState
 
-    @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @State private var isBobbing = false
 
     private var accent: Color {
@@ -248,18 +247,13 @@ struct NotebookCompanionCharacter: View {
                 .offset(x: 3, y: -3)
         }
         .frame(width: 58, height: 58)
-        .offset(y: isBobbing ? -2 : 1)
-        .onAppear {
-            guard !reduceMotion else { return }
-            withAnimation(.easeInOut(duration: state == .working ? 0.65 : 1.8).repeatForever(autoreverses: true)) {
-                isBobbing = true
-            }
-        }
-        .onChange(of: reduceMotion) { _, shouldReduce in
-            if shouldReduce {
-                isBobbing = false
-            }
-        }
+        // This button is on screen for the whole session, so a `repeatForever`
+        // bob kept the render loop busy indefinitely — including while the window
+        // was occluded or backgrounded. `bobbingAnimation` is the same effect,
+        // gated on scene phase, bounded by `repeatCount`, and off on macOS (where
+        // the companion can live in an always-visible floating window). It also
+        // honors Reduce Motion internally.
+        .bobbingAnimation(bob: $isBobbing, duration: state == .working ? 0.65 : 1.8)
     }
 
     private var robotTeacher: some View {

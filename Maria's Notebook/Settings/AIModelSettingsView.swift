@@ -26,7 +26,7 @@ enum AIModelOption: String, CaseIterable, Identifiable {
 
     var subtitle: String {
         switch self {
-        case .localFirstAuto: return "On-device first, then Apple's Private Cloud for larger jobs"
+        case .localFirstAuto: return "On-device; Private Cloud only when enabled below"
         case .appleOnDevice: return "Apple Intelligence, private"
         case .applePrivateCloud: return "Apple's server model — private, no API key, larger jobs"
         case .claudeSonnet: return "Balanced speed & quality"
@@ -137,6 +137,9 @@ struct AIModelSettingsView: View {
     @AppStorage(UserDefaultsKeys.aiModelBackgroundTasks)
     private var backgroundTasksModel = AIFeatureArea.backgroundTasks.defaultModel.rawValue
 
+    @AppStorage(UserDefaultsKeys.aiAllowAutomaticPrivateCloud)
+    private var allowAutomaticPrivateCloud = false
+
     private var hasAPIKey: Bool {
         AnthropicAPIClient.hasAPIKey()
     }
@@ -158,6 +161,16 @@ struct AIModelSettingsView: View {
                 selection: $backgroundTasksModel
             )
 
+            Divider()
+            Toggle(isOn: $allowAutomaticPrivateCloud) {
+                VStack(alignment: .leading, spacing: 2) {
+                    Text("Allow Automatic Apple Private Cloud")
+                    Text("When off, automatic mode keeps student records on this device and stops if the on-device model cannot finish. Choosing Apple Private Cloud directly is still allowed.")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                }
+            }
+
             if usesClaudeWithoutKey {
                 apiKeyWarning
             }
@@ -165,6 +178,7 @@ struct AIModelSettingsView: View {
         .onChange(of: chatModel) { _, _ in SettingsCategory.markModified(.aiFeatures) }
         .onChange(of: lessonPlanningModel) { _, _ in SettingsCategory.markModified(.aiFeatures) }
         .onChange(of: backgroundTasksModel) { _, _ in SettingsCategory.markModified(.aiFeatures) }
+        .onChange(of: allowAutomaticPrivateCloud) { _, _ in SettingsCategory.markModified(.aiFeatures) }
     }
 
     private var usesClaudeWithoutKey: Bool {

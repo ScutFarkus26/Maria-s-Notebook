@@ -47,6 +47,17 @@ final class PaginationState {
         }
     }
 
+    /// Expands pagination just far enough to include a requested zero-based
+    /// index. Deep links use this before scrolling so an older record is not
+    /// stranded behind the first Load More button.
+    func revealItem(at index: Int) {
+        guard index >= 0, totalCount > 0 else { return }
+        let requiredCount = min(index + 1, totalCount)
+        guard requiredCount > displayedCount else { return }
+        let containingPage = ((requiredCount + pageSize - 1) / pageSize) * pageSize
+        displayedCount = min(containingPage, totalCount)
+    }
+
     /// Reset pagination to the first page
     func reset() {
         displayedCount = pageSize

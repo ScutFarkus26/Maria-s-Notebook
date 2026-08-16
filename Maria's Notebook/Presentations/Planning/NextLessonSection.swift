@@ -9,7 +9,7 @@ struct NextLessonSection: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {
             ExpandableSectionButton(
-                title: "Next Lesson",
+                title: "Plan Next Lesson (Optional)",
                 isExpanded: viewModel.isNextLessonSectionExpanded,
                 action: {
                     adaptiveWithAnimation(.easeInOut(duration: 0.15)) {
@@ -17,11 +17,6 @@ struct NextLessonSection: View {
                     }
                 }
             )
-            .onChange(of: viewModel.isHoldEnabled) { _, holdEnabled in
-                if !holdEnabled && viewModel.nextLessonAction == .hold {
-                    viewModel.nextLessonAction = .inbox
-                }
-            }
 
             if viewModel.isNextLessonSectionExpanded {
                 VStack(alignment: .leading, spacing: 12) {
@@ -62,12 +57,9 @@ struct NextLessonSection: View {
         // Action picker
         actionPicker
 
-        // Hold disabled hint
-        if !viewModel.isHoldEnabled {
-            Text("Assign work to enable hold")
-                .font(AppTheme.ScaledFont.captionSmall)
-                .foregroundStyle(.tertiary)
-        }
+        Text("Keep Watching leaves the next lesson unchanged. Nothing is planned unless you choose an option.")
+            .font(AppTheme.ScaledFont.captionSmall)
+            .foregroundStyle(.secondary)
 
         // Schedule date picker (only when scheduling)
         if viewModel.nextLessonAction == .schedule {
@@ -84,11 +76,12 @@ struct NextLessonSection: View {
     // MARK: - Action Picker
 
     private var actionPicker: some View {
-        HStack(spacing: 8) {
+        LazyVGrid(
+            columns: [GridItem(.adaptive(minimum: 110), spacing: 8)],
+            spacing: 8
+        ) {
             ForEach(PostPresentationFormViewModel.NextLessonAction.allCases) { action in
-                let isDisabled = action == .hold && !viewModel.isHoldEnabled
                 Button {
-                    guard !isDisabled else { return }
                     adaptiveWithAnimation(.spring(response: 0.3, dampingFraction: 0.7)) {
                         viewModel.nextLessonAction = action
                     }
@@ -102,21 +95,26 @@ struct NextLessonSection: View {
                     .padding(.horizontal, 10)
                     .padding(.vertical, 6)
                     .frame(maxWidth: .infinity)
-                    .foregroundStyle(pillForeground(for: action, isDisabled: isDisabled))
+                    .foregroundStyle(pillForeground(for: action))
                     .background(
                         Capsule(style: .continuous)
-                            .fill(pillBackground(for: action, isDisabled: isDisabled))
+                            .fill(pillBackground(for: action))
                     )
                     .overlay(
                         Capsule(style: .continuous)
                             .strokeBorder(
-                                pillBorder(for: action, isDisabled: isDisabled),
+                                pillBorder(for: action),
                                 lineWidth: viewModel.nextLessonAction == action ? 1.5 : 0.5
                             )
                     )
                 }
                 .buttonStyle(.plain)
-                .opacity(isDisabled ? 0.5 : 1.0)
+                .accessibilityAddTraits(
+                    viewModel.nextLessonAction == action ? .isSelected : []
+                )
+                .accessibilityValue(
+                    viewModel.nextLessonAction == action ? "Selected" : "Not selected"
+                )
             }
         }
     }
@@ -125,35 +123,23 @@ struct NextLessonSection: View {
 
     private func pillColor(for action: PostPresentationFormViewModel.NextLessonAction) -> Color {
         switch action {
-        case .hold: return .orange
+        case .noChange: return .gray
         case .inbox: return .blue
         case .schedule: return .green
         }
     }
 
-    private func pillForeground(
-        for action: PostPresentationFormViewModel.NextLessonAction,
-        isDisabled: Bool
-    ) -> Color {
-        if isDisabled { return .secondary }
+    private func pillForeground(for action: PostPresentationFormViewModel.NextLessonAction) -> Color {
         return viewModel.nextLessonAction == action ? pillColor(for: action) : .secondary
     }
 
-    private func pillBackground(
-        for action: PostPresentationFormViewModel.NextLessonAction,
-        isDisabled: Bool
-    ) -> Color {
-        if isDisabled { return Color.primary.opacity(UIConstants.OpacityConstants.whisper) }
+    private func pillBackground(for action: PostPresentationFormViewModel.NextLessonAction) -> Color {
         return viewModel.nextLessonAction == action
             ? pillColor(for: action).opacity(UIConstants.OpacityConstants.medium)
             : Color.primary.opacity(UIConstants.OpacityConstants.hint)
     }
 
-    private func pillBorder(
-        for action: PostPresentationFormViewModel.NextLessonAction,
-        isDisabled: Bool
-    ) -> Color {
-        if isDisabled { return Color.primary.opacity(UIConstants.OpacityConstants.light) }
+    private func pillBorder(for action: PostPresentationFormViewModel.NextLessonAction) -> Color {
         return viewModel.nextLessonAction == action
             ? pillColor(for: action).opacity(UIConstants.OpacityConstants.muted)
             : Color.primary.opacity(UIConstants.OpacityConstants.accent)

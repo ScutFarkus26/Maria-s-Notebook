@@ -18,11 +18,11 @@ extension BackupEntityImporter {
     static func importNotes(
         _ dtos: [NoteDTO],
         into viewContext: NSManagedObjectContext,
-        existingCheck: EntityExistsCheck<CDNote>
+        existingCheck: EntityExistsCheck
     ) rethrows {
         for dto in dtos {
             do {
-                if try existingCheck(dto.id) != nil { continue }
+                if try existingCheck(dto.id) { continue }
             } catch {
                 Logger.backup.warning("Failed to check existing note: \(error.localizedDescription, privacy: .public)")
                 continue
@@ -121,7 +121,7 @@ extension BackupEntityImporter {
     static func importNoteTemplates(
         _ dtos: [NoteTemplateDTO],
         into viewContext: NSManagedObjectContext,
-        existingCheck: EntityExistsCheck<CDNoteTemplate>
+        existingCheck: EntityExistsCheck
     ) rethrows {
         try importSimpleEntities(
             dtos, into: viewContext,
@@ -154,7 +154,7 @@ extension BackupEntityImporter {
     static func importCommunityTopics(
         _ dtos: [CommunityTopicDTO],
         into viewContext: NSManagedObjectContext,
-        existingCheck: EntityExistsCheck<CDCommunityTopicEntity>
+        existingCheck: EntityExistsCheck
     ) rethrows {
         try importSimpleEntities(
             dtos, into: viewContext,
@@ -186,12 +186,12 @@ extension BackupEntityImporter {
     static func importProposedSolutions(
         _ dtos: [ProposedSolutionDTO],
         into viewContext: NSManagedObjectContext,
-        existingCheck: EntityExistsCheck<CDProposedSolutionEntity>,
-        topicCheck: EntityExistsCheck<CDCommunityTopicEntity>
+        existingCheck: EntityExistsCheck,
+        topicCheck: EntityLookup<CDCommunityTopicEntity>
     ) rethrows {
         for dto in dtos {
             do {
-                if try existingCheck(dto.id) != nil { continue }
+                if try existingCheck(dto.id) { continue }
             } catch {
                 let desc = error.localizedDescription
                 Logger.backup.warning("Failed to check existing proposed solution: \(desc, privacy: .public)")
@@ -233,12 +233,12 @@ extension BackupEntityImporter {
     static func importCommunityAttachments(
         _ dtos: [CommunityAttachmentDTO],
         into viewContext: NSManagedObjectContext,
-        existingCheck: EntityExistsCheck<CDCommunityAttachmentEntity>,
-        topicCheck: EntityExistsCheck<CDCommunityTopicEntity>
+        existingCheck: EntityExistsCheck,
+        topicCheck: EntityLookup<CDCommunityTopicEntity>
     ) rethrows {
         for dto in dtos {
             do {
-                if try existingCheck(dto.id) != nil { continue }
+                if try existingCheck(dto.id) { continue }
             } catch {
                 let desc = error.localizedDescription
                 Logger.backup.warning("Failed to check existing community attachment: \(desc, privacy: .public)")
@@ -272,7 +272,7 @@ extension BackupEntityImporter {
     static func importIssues(
         _ dtos: [IssueDTO],
         into viewContext: NSManagedObjectContext,
-        existingCheck: EntityExistsCheck<CDIssue>
+        existingCheck: EntityExistsCheck
     ) rethrows {
         try importSimpleEntities(
             dtos, into: viewContext,
@@ -302,8 +302,8 @@ extension BackupEntityImporter {
     static func importIssueActions(
         _ dtos: [IssueActionDTO],
         into viewContext: NSManagedObjectContext,
-        existingCheck: EntityExistsCheck<CDIssueAction>,
-        issueCheck: EntityExistsCheck<CDIssue>
+        existingCheck: EntityExistsCheck,
+        issueCheck: EntityLookup<CDIssue>
     ) rethrows {
         for dto in dtos {
             if shouldSkipExisting(id: dto.id, existingCheck: existingCheck) { continue }
@@ -340,7 +340,7 @@ extension BackupEntityImporter {
     static func importDevelopmentSnapshots(
         _ dtos: [DevelopmentSnapshotDTO],
         into viewContext: NSManagedObjectContext,
-        existingCheck: EntityExistsCheck<CDDevelopmentSnapshotEntity>
+        existingCheck: EntityExistsCheck
     ) rethrows {
         try importSimpleEntities(
             dtos, into: viewContext,
@@ -382,7 +382,7 @@ extension BackupEntityImporter {
     static func importPlanningRecommendations(
         _ dtos: [PlanningRecommendationDTO],
         into viewContext: NSManagedObjectContext,
-        existingCheck: EntityExistsCheck<CDPlanningRecommendation>
+        existingCheck: EntityExistsCheck
     ) rethrows {
         for dto in dtos {
             if shouldSkipExisting(id: dto.id, existingCheck: existingCheck) { continue }

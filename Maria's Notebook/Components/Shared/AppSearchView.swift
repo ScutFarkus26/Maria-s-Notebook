@@ -35,6 +35,10 @@ struct AppSearchView: View {
             }
             .navigationTitle("Search")
             .inlineNavigationTitle()
+            // The index can be purged under memory pressure; rebuild it here so
+            // opening search always ends in a usable index rather than a
+            // permanent "Building search index…" spinner.
+            .task { await searchIndex.ensureReady() }
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {
                     Button("Done") { dismiss() }

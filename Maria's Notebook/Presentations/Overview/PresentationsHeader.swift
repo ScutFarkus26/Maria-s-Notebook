@@ -4,6 +4,8 @@
 import SwiftUI
 
 struct PresentationsHeader: View {
+    @Environment(\.horizontalSizeClass) private var horizontalSizeClass
+    @Binding var mode: PresentationsWorkspaceMode
     let filterState: PresentationsFilterState
     let coordinator: PresentationsCoordinator
     let cachedStudents: [CDStudent]
@@ -25,16 +27,57 @@ struct PresentationsHeader: View {
 
     // MARK: - Title bar
 
+    @ViewBuilder
     private var titleBar: some View {
+        if horizontalSizeClass == .compact {
+            VStack(spacing: AppTheme.Spacing.small) {
+                HStack(spacing: AppTheme.Spacing.compact) {
+                    titleIdentity
+                    Spacer()
+                    compactPlanActions
+                }
+
+                workspacePicker
+                    .frame(maxWidth: .infinity)
+            }
+            .padding(.horizontal, AppTheme.Spacing.medium)
+            .padding(.top, AppTheme.Spacing.small)
+        } else {
+            HStack(spacing: AppTheme.Spacing.compact) {
+                titleIdentity
+                workspacePicker
+                    .frame(maxWidth: 210)
+
+                Spacer()
+                regularPlanActions
+            }
+            .padding(.horizontal, AppTheme.Spacing.medium)
+            .padding(.top, AppTheme.Spacing.small)
+        }
+    }
+
+    private var titleIdentity: some View {
         HStack(spacing: AppTheme.Spacing.compact) {
             Image(systemName: "tray")
                 .imageScale(.large)
                 .foregroundStyle(Color.accentColor)
             Text("Presentations")
                 .font(.title3.weight(.semibold))
+        }
+    }
 
-            Spacer()
+    private var workspacePicker: some View {
+        Picker("Workspace", selection: $mode) {
+            ForEach(PresentationsWorkspaceMode.allCases) { mode in
+                Text(mode.title).tag(mode)
+            }
+        }
+        .pickerStyle(.segmented)
+    }
 
+    @ViewBuilder
+    private var regularPlanActions: some View {
+        if mode == .plan {
             Button(action: onSuggestNext) {
                 Label("Suggest Next", systemImage: "sparkles")
                     .font(AppTheme.ScaledFont.captionSemibold)
@@ -46,23 +89,47 @@ struct PresentationsHeader: View {
             overflowMenu
 
             #if os(iOS)
-            Button {
-                adaptiveWithAnimation(.spring(response: 0.3, dampingFraction: 0.8)) {
-                    coordinator.toggleCalendar()
-                }
-            } label: {
-                Image(systemName: coordinator.isCalendarMinimized ? "calendar" : "calendar.badge.minus")
-                    .font(.system(size: 16, weight: .semibold))
-                    .foregroundStyle(.secondary)
-                    .padding(AppTheme.Spacing.small)
-                    .background(Color.primary.opacity(UIConstants.OpacityConstants.light))
-                    .clipShape(Circle())
-            }
+            calendarButton
             #endif
         }
-        .padding(.horizontal, AppTheme.Spacing.medium)
-        .padding(.top, AppTheme.Spacing.small)
     }
+
+    @ViewBuilder
+    private var compactPlanActions: some View {
+        if mode == .plan {
+            Button(action: onSuggestNext) {
+                Image(systemName: "sparkles")
+                    .foregroundStyle(Color.accentColor)
+            }
+            .buttonStyle(.plain)
+            .disabled(!isSuggestEnabled)
+            .accessibilityLabel("Suggest Next")
+
+            overflowMenu
+
+            #if os(iOS)
+            calendarButton
+            #endif
+        }
+    }
+
+    #if os(iOS)
+    private var calendarButton: some View {
+        Button {
+            adaptiveWithAnimation(.spring(response: 0.3, dampingFraction: 0.8)) {
+                coordinator.toggleCalendar()
+            }
+        } label: {
+            Image(systemName: coordinator.isCalendarMinimized ? "calendar" : "calendar.badge.minus")
+                .font(.system(size: 16, weight: .semibold))
+                .foregroundStyle(.secondary)
+                .padding(AppTheme.Spacing.small)
+                .background(Color.primary.opacity(UIConstants.OpacityConstants.light))
+                .clipShape(Circle())
+        }
+        .accessibilityLabel(coordinator.isCalendarMinimized ? "Show calendar" : "Hide calendar")
+    }
+    #endif
 
     // MARK: - Overflow menu
 
@@ -109,7 +176,9 @@ struct PresentationsHeader: View {
             Image(systemName: "magnifyingglass").foregroundStyle(.secondary)
 
             TextField(
-                "Search presentations, students, or topics…",
+                mode == .plan
+                    ? "Search presentations, students, or topics…"
+                    : "Search follow-ups, students, or lessons…",
                 text: Binding(
                     get: { filterState.searchText },
                     set: { filterState.updateSearchText($0) }
@@ -220,23 +289,25 @@ struct PresentationsHeader: View {
 
     private var legendRow: some View {
         ScrollView(.horizontal, showsIndicators: false) {
-            HStack(spacing: AppTheme.Spacing.compact) {
-                legendLabel("Status")
-                legendSwatch(AppColors.color(for: .overdue), "Overdue")
-                legendSwatch(AppColors.color(for: .brewing), "Brewing")
-                legendSwatch(Color.accentColor, "Suggested")
+            if mode == .plan {
+                HStack(spacing: AppTheme.Spacing.compact) {
+                    legendLabel("Status")
+                    legendSwatch(AppColors.color(for: .overdue), "Overdue")
+                    legendSwatch(AppColors.color(for: .brewing), "Brewing")
+                    legendSwatch(Color.accentColor, "Suggested")
 
-                legendDivider
+                    legendDivider
 
-                legendLabel("Subject")
-                legendSwatch(AppColors.color(forArea: "math"), "Math")
-                legendSwatch(AppColors.color(forArea: "language"), "Language")
-                legendSwatch(AppColors.color(forArea: "science"), "Science")
-                legendSwatch(AppColors.color(forArea: "practical life"), "Practical Life")
-                legendSwatch(AppColors.color(forArea: "sensorial"), "Sensorial")
+                    legendLabel("Subject")
+                    legendSwatch(AppColors.color(forArea: "math"), "Math")
+                    legendSwatch(AppColors.color(forArea: "language"), "Language")
+                    legendSwatch(AppColors.color(forArea: "science"), "Science")
+                    legendSwatch(AppColors.color(forArea: "practical life"), "Practical Life")
+                    legendSwatch(AppColors.color(forArea: "sensorial"), "Sensorial")
+                }
+                .padding(.horizontal, AppTheme.Spacing.medium)
+                .padding(.vertical, AppTheme.Spacing.xxsmall)
             }
-            .padding(.horizontal, AppTheme.Spacing.medium)
-            .padding(.vertical, AppTheme.Spacing.xxsmall)
         }
     }
 

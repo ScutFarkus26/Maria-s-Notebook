@@ -11,7 +11,7 @@ extension BackupEntityImporter {
     static func importTodoItems(
         _ dtos: [TodoItemDTO],
         into viewContext: NSManagedObjectContext,
-        existingCheck: EntityExistsCheck<CDTodoItem>
+        existingCheck: EntityExistsCheck
     ) rethrows {
         try importSimpleEntities(
             dtos, into: viewContext,
@@ -57,8 +57,8 @@ extension BackupEntityImporter {
     static func importTodoSubtasks(
         _ dtos: [TodoSubtaskDTO],
         into viewContext: NSManagedObjectContext,
-        existingCheck: EntityExistsCheck<CDTodoSubtask>,
-        todoCheck: EntityExistsCheck<CDTodoItem>
+        existingCheck: EntityExistsCheck,
+        todoCheck: EntityLookup<CDTodoItem>
     ) rethrows {
         for dto in dtos {
             if shouldSkipExisting(id: dto.id, existingCheck: existingCheck) { continue }
@@ -88,7 +88,7 @@ extension BackupEntityImporter {
     static func importTodoTemplates(
         _ dtos: [TodoTemplateDTO],
         into viewContext: NSManagedObjectContext,
-        existingCheck: EntityExistsCheck<CDTodoTemplate>
+        existingCheck: EntityExistsCheck
     ) rethrows {
         try importSimpleEntities(
             dtos, into: viewContext,
@@ -115,7 +115,7 @@ extension BackupEntityImporter {
     static func importTodayAgendaOrders(
         _ dtos: [TodayAgendaOrderDTO],
         into viewContext: NSManagedObjectContext,
-        existingCheck: EntityExistsCheck<CDTodayAgendaOrder>
+        existingCheck: EntityExistsCheck
     ) rethrows {
         try importSimpleEntities(
             dtos, into: viewContext,

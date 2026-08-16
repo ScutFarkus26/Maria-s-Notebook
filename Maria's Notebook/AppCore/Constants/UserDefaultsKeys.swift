@@ -15,6 +15,8 @@ enum UserDefaultsKeys {
     static let cloudKitLastSyncError = "CloudKitSync.lastSyncError"
     static let cloudKitErrorLog = "cloudKitErrorLog"
     static let persistentHistoryLastToken = "PersistentHistory.lastToken"
+    static let persistentHistoryLastPurgeDate = "PersistentHistory.lastPurgeDate"
+    static let cloudKitLastSuccessfulExportStartDate = "CloudKitSync.lastSuccessfulExportStartDate"
 
     // MARK: - Planning
     static let planningRootViewMode = "PlanningRootView.mode"
@@ -65,6 +67,12 @@ enum UserDefaultsKeys {
     static let aiModelChat = "AI.chatModel"
     static let aiModelLessonPlanning = "AI.lessonPlanningModel"
     static let aiModelBackgroundTasks = "AI.backgroundTasksModel"
+    /// Off by default: automatic mode must not move student records from the
+    /// device to Private Cloud Compute without an explicit school choice.
+    static let aiAllowAutomaticPrivateCloud = "AI.allowAutomaticPrivateCloud"
+    /// Off by default: exposing notebook data to MCP clients (Claude
+    /// Desktop) is an explicit teacher choice. macOS only.
+    static let aiMCPServerEnabled = "AI.mcpServerEnabled"
 
     // MARK: - CDLesson Planning
     static let lessonPlanningModel = "LessonPlanning.model"

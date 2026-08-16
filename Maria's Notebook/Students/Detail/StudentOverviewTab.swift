@@ -30,6 +30,7 @@ struct StudentOverviewTab: View {
 
     @Environment(\.managedObjectContext) private var viewContext
     @Environment(\.calendar) private var calendar
+    @Environment(SaveCoordinator.self) private var saveCoordinator
     #if os(iOS)
     @Environment(\.horizontalSizeClass) private var horizontalSizeClass
     #endif
@@ -46,6 +47,23 @@ struct StudentOverviewTab: View {
         #endif
     }
     
+    /// Suppressed while the full editor is open so the badge and the form's
+    /// segmented picker can't disagree about the draft value.
+    private var levelChangeHandler: ((CDStudent.Level) -> Void)? {
+        isEditing ? nil : { level in changeLevel(to: level) }
+    }
+
+    /// Reassign the child's level straight from the header badge.
+    private func changeLevel(to level: CDStudent.Level) {
+        guard let studentID = student.id, level != student.level else { return }
+        let repository = StudentRepository(context: viewContext, saveCoordinator: saveCoordinator)
+        guard repository.updateStudent(id: studentID, level: level) else {
+            logger.warning("Failed to change level: student \(studentID) not found")
+            return
+        }
+        _ = repository.save(reason: "Change student level")
+    }
+
     private func lessonName(for work: CDWorkModel) -> String {
         lessonsByID[uuidString: work.lessonID]?.name ?? "Lesson"
     }
@@ -99,7 +117,11 @@ struct StudentOverviewTab: View {
 
     var body: some View {
         VStack(spacing: 0) {
-            StudentHeaderView(student: student, layout: isRegularWidth ? .leading : .centered)
+            StudentHeaderView(
+                student: student,
+                layout: isRegularWidth ? .leading : .centered,
+                onChangeLevel: levelChangeHandler
+            )
                 .padding(.top, isRegularWidth ? 12 : 36)
                 .padding(.bottom, isRegularWidth ? 20 : 0)
             if isEditing {
@@ -114,8 +136,8 @@ struct StudentOverviewTab: View {
                     draftDateWithdrawn: $draftDateWithdrawn
                 )
             } else {
-                if student.isWithdrawn {
-                    WithdrawnBanner(dateWithdrawn: student.dateWithdrawn)
+                if !student.isEnrolled {
+                    DepartureBanner(status: student.enrollmentStatus, dateDeparted: student.dateDeparted)
                 }
                 StudentInfoRows(student: student, useGrid: isRegularWidth)
                 

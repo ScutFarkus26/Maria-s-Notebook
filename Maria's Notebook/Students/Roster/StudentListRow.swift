@@ -79,7 +79,7 @@ struct StudentListRow: View {
 
             Text(student.fullName)
                 .font(AppTheme.ScaledFont.bodySemibold)
-                .foregroundStyle(student.isWithdrawn ? .secondary : .primary)
+                .foregroundStyle(student.isEnrolled ? .primary : .secondary)
                 .lineLimit(1)
                 .truncationMode(.tail)
                 // In a squeezed column the name must win over the trailing accessory.
@@ -87,8 +87,15 @@ struct StudentListRow: View {
 
             Spacer(minLength: 8)
 
-            trailingAccessory
-                .accessibilityHidden(true)
+            if student.isEnrolled {
+                trailingAccessory
+                    .accessibilityHidden(true)
+            } else {
+                Text(student.isTransferred ? "Transferred" : "Withdrawn")
+                    .font(AppTheme.ScaledFont.caption)
+                    .foregroundStyle(.tertiary)
+                    .accessibilityHidden(true)
+            }
         }
         .padding(.vertical, 6)
         .padding(.horizontal, 8)
@@ -173,6 +180,7 @@ struct StudentListRow: View {
     private var accessibilityDescription: String {
         var parts = [student.fullName]
         if isPresentToday { parts.append("present today") }
+        if !student.isEnrolled { parts.append(student.isTransferred ? "transferred" : "withdrawn") }
         switch sortOrder {
         case .birthday:
             parts.append("birthday \(birthdayDateString)")

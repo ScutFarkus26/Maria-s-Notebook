@@ -98,7 +98,7 @@ struct SyncConflictResolutionView: View {
                                     VStack(alignment: .leading, spacing: 2) {
                                         Text(event.message)
                                             .font(.caption)
-                                        Text(event.timestamp, style: .relative)
+                                        Text(event.timestamp.formatted(.relative(presentation: .named)))
                                             .font(.caption2)
                                             .foregroundStyle(.secondary)
                                     }

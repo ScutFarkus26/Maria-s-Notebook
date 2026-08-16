@@ -290,7 +290,16 @@ final class BackupRoundTripTests {
         student.nickname = "Eli"
         student.enrollmentStatusRaw = "withdrawn"
         student.dateWithdrawn = Date(timeIntervalSince1970: 1_700_000_000)
+        student.level = .adolescent
+        student.previousLevelRaw = "Upper"
+        student.dateLastPromoted = Date(timeIntervalSince1970: 1_690_000_000)
         let studentID = student.id
+
+        let transferee = CoreDataTestHelpers.seedStudent(in: ctx, firstName: "Tova", lastName: "Levi")
+        transferee.id = UUID()
+        transferee.enrollmentStatusRaw = "transferred"
+        transferee.dateWithdrawn = Date(timeIntervalSince1970: 1_700_100_000)
+        let transfereeID = transferee.id
 
         #expect(CoreDataTestHelpers.save(ctx))
 
@@ -328,9 +337,25 @@ final class BackupRoundTripTests {
             try BackupTestUtil.fetchByID(CDStudent.self, studentID, entityName: "Student", in: dctx),
             "Restored student not found"
         )
+        assertWithdrawnAdolescentRestored(rs)
+
+        let rt = try #require(
+            try BackupTestUtil.fetchByID(CDStudent.self, transfereeID, entityName: "Student", in: dctx),
+            "Restored transferred student not found"
+        )
+        #expect(rt.enrollmentStatusRaw == "transferred", "transferred status must survive the round-trip")
+        #expect(rt.isTransferred, "transferred status must decode via the enum")
+    }
+
+    /// Split out of `lessonAndStudentFieldsAreRestored` to keep that function under
+    /// the project's per-function type-check time limit.
+    private func assertWithdrawnAdolescentRestored(_ rs: CDStudent) {
         #expect(rs.nickname == "Eli", "nickname must survive the round-trip")
         #expect(rs.enrollmentStatusRaw == "withdrawn", "enrollment status must survive the round-trip")
         #expect(rs.dateWithdrawn != nil, "dateWithdrawn must survive the round-trip")
+        #expect(rs.level == .adolescent, "adolescent level must survive the round-trip (not clamp to lower)")
+        #expect(rs.previousLevelRaw == "Upper", "previousLevelRaw must survive the round-trip")
+        #expect(rs.dateLastPromoted != nil, "dateLastPromoted must survive the round-trip")
     }
 
     @Test("Project, session, todo, and check-in audited fields survive a full round-trip")

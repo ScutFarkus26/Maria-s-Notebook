@@ -28,4 +28,15 @@ enum PresentationsCompactTab: String, CaseIterable, Identifiable, Sendable {
         case .students: return "person.2"
         }
     }
+
+    /// Chooses the Upcoming subview that can actually reveal a focused
+    /// presentation. Presented assignments belong in History/Follow-Up, so
+    /// they intentionally do not select an Upcoming tab.
+    static func focusedAssignmentDestination(
+        isPresented: Bool,
+        scheduledFor: Date?
+    ) -> PresentationsCompactTab? {
+        guard !isPresented else { return nil }
+        return scheduledFor == nil ? .ready : .week
+    }
 }

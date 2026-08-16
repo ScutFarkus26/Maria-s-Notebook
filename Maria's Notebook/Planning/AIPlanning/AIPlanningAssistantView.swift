@@ -75,6 +75,8 @@ struct AIPlanningAssistantView: View {
             }
             .pickerStyle(.segmented)
             .frame(maxWidth: 220)
+
+            ModelBadgeView(model: vm.selectedModel, style: .compact)
             
             if !vm.estimatedCost.isEmpty {
                 Text(vm.estimatedCost)

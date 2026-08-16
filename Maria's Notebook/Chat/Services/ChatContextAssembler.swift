@@ -22,31 +22,22 @@ final class ChatContextAssembler {
 
     // MARK: - Tier 1: Classroom Snapshot
 
-    /// Builds a compact classroom snapshot including roster, areas, weekly activity, and open todos.
+    /// Builds a deliberately minimal classroom snapshot. Sensitive details are
+    /// fetched only when the guide's question names a child or a local notebook
+    /// tool requests a specific record.
     func buildClassroomSnapshot() -> String {
         let queryService = DataQueryService(context: context)
         let students = queryService.fetchAllStudents(excludeTest: true)
         let lessons = queryService.fetchAllLessons()
-        let lessonsDict = queryService.fetchLessonsDictionary()
-        let studentsDict = queryService.fetchStudentsDictionary()
-        let weekStart = Calendar.current.date(byAdding: .day, value: -7, to: Date()) ?? Date()
 
         var lines: [String] = []
         lines.append("=== CLASSROOM SNAPSHOT ===")
         lines.append("Date: \(formattedDate(Date()))")
-        lines.append("Total students: \(students.count)")
+        lines.append("Enrolled student count: \(students.count)")
         lines.append("")
 
-        appendRosterSection(&lines, students: students)
         appendAreasSection(&lines, lessons: lessons)
-        appendWeeklyActivitySection(
-            &lines, weekStart: weekStart,
-            lessonsDict: lessonsDict, studentsDict: studentsDict
-        )
-        appendOpenWorkSection(&lines, queryService: queryService, studentsDict: studentsDict)
-        appendCompletedWorkSection(&lines, weekStart: weekStart, studentsDict: studentsDict)
-        appendClassNotesSection(&lines)
-        appendTodosSection(&lines, studentsDict: studentsDict)
+        lines.append("Use notebook lookup tools for dates, observations, presentations, work, attendance, and student-specific facts.")
 
         return lines.joined(separator: "\n")
     }
@@ -208,7 +199,8 @@ final class ChatContextAssembler {
             newMentionedIDs.insert(studentID)
             appendStudentDetail(
                 &lines, student: student, queryService: queryService,
-                lessonsDict: lessonsDict, studentsDict: studentsDict
+                lessonsDict: lessonsDict, studentsDict: studentsDict,
+                question: question
             )
         }
 
@@ -219,20 +211,42 @@ final class ChatContextAssembler {
 
     private func appendStudentDetail(
         _ lines: inout [String], student: CDStudent, queryService: DataQueryService,
-        lessonsDict: [UUID: CDLesson], studentsDict: [UUID: CDStudent]
+        lessonsDict: [UUID: CDLesson], studentsDict: [UUID: CDStudent],
+        question: String
     ) {
         lines.append("")
         lines.append("--- \(student.firstName) \(student.lastName) ---")
-        let age = ageString(for: student.birthday)
-        lines.append("Age: \(age), Birthday: \(formattedDate(student.birthday)), Level: \(student.level.rawValue)")
-        if let started = student.dateStarted { lines.append("Started: \(formattedDate(started))") }
+        let lower = question.lowercased()
+        let asksAge = lower.contains("age") || lower.contains("birthday") || lower.contains("old")
+        let asksPresentation = lower.contains("lesson") || lower.contains("present") || lower.contains("given")
+        let asksWork = lower.contains("work") || lower.contains("practice") || lower.contains("assignment")
+        let asksNotes = lower.contains("note") || lower.contains("observ") || lower.contains("noticed")
+        let asksAttendance = lower.contains("attend") || lower.contains("absent") || lower.contains("tardy")
+        let asksTodos = lower.contains("todo") || lower.contains("remind") || lower.contains("task")
 
-        appendStudentPresentations(&lines, student: student, lessonsDict: lessonsDict, studentsDict: studentsDict)
-        appendStudentActiveWork(&lines, student: student, queryService: queryService)
-        appendStudentCompletedWork(&lines, student: student)
-        appendStudentNotes(&lines, student: student)
-        appendStudentAttendance(&lines, student: student)
-        appendStudentTodos(&lines, student: student)
+        if asksAge {
+            let age = ageString(for: student.birthday)
+            lines.append("Age: \(age), Birthday: \(formattedDate(student.birthday))")
+        }
+        if asksPresentation {
+            appendStudentPresentations(&lines, student: student, lessonsDict: lessonsDict, studentsDict: studentsDict)
+        }
+        if asksWork {
+            appendStudentActiveWork(&lines, student: student, queryService: queryService)
+            appendStudentCompletedWork(&lines, student: student)
+        }
+        if asksNotes {
+            appendStudentNotes(&lines, student: student)
+        }
+        if asksAttendance {
+            appendStudentAttendance(&lines, student: student)
+        }
+        if asksTodos {
+            appendStudentTodos(&lines, student: student)
+        }
+        if !asksAge && !asksPresentation && !asksWork && !asksNotes && !asksAttendance && !asksTodos {
+            lines.append("No specific record type was requested. Ask for observations, presentations, work, attendance, or age to retrieve only that information.")
+        }
     }
 
     private func appendStudentPresentations(

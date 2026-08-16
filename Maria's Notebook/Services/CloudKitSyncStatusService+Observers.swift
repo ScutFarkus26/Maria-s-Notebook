@@ -87,11 +87,13 @@ extension CloudKitSyncStatusService {
             let isFinished = event.endDate != nil
             let succeeded = event.succeeded
             let eventError = event.error
+            let startDate = event.startDate
             Task { @MainActor [weak self] in
                 self?.handleCloudKitEvent(
                     type: type, isFinished: isFinished,
                     succeeded: succeeded,
-                    error: eventError
+                    error: eventError,
+                    startDate: startDate
                 )
             }
         }

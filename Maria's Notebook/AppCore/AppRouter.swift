@@ -63,6 +63,28 @@ final class AppRouter {
             lhs.studentID == rhs.studentID && lhs.date == rhs.date
         }
     }
+
+    /// A one-shot request for a particular lens in the shared Lessons & Work
+    /// workspace. Optional focus identifiers let the destination reveal what
+    /// the guide just created without opening another modal automatically.
+    struct LessonsAndWorkRequest: Identifiable, Equatable {
+        let id: UUID
+        let scope: LessonsAndWorkScope
+        let presentationID: UUID?
+        let workID: UUID?
+
+        init(
+            id: UUID = UUID(),
+            scope: LessonsAndWorkScope,
+            presentationID: UUID? = nil,
+            workID: UUID? = nil
+        ) {
+            self.id = id
+            self.scope = scope
+            self.presentationID = presentationID
+            self.workID = workID
+        }
+    }
     
     // MARK: - State
     
@@ -77,6 +99,9 @@ final class AppRouter {
     
     /// Students mode selection
     var studentsMode: String?
+
+    /// One-shot destination inside the shared Lessons & Work workspace.
+    var lessonsAndWorkRequest: LessonsAndWorkRequest?
     
     /// Checklist deep-link filters (consumed once by ChecklistViewModel)
     var checklistFilterArea: String?
@@ -160,7 +185,39 @@ final class AppRouter {
     
     /// Navigate to a specific navigation item
     func navigateTo(_ item: RootView.NavigationItem) {
-        selectedNavItem = item
+        switch item {
+        case .planningAgenda:
+            navigateToLessonsAndWork(.upcoming)
+        case .planningWork:
+            navigateToLessonsAndWork(.childrenWorking)
+        default:
+            selectedNavItem = item
+        }
+    }
+
+    /// Opens the shared workspace at the point in the learning cycle requested
+    /// by the caller. Both former planning destinations now route here.
+    func navigateToLessonsAndWork(
+        _ scope: LessonsAndWorkScope = .needsAttention,
+        presentationID: UUID? = nil,
+        workID: UUID? = nil
+    ) {
+        lessonsAndWorkRequest = LessonsAndWorkRequest(
+            scope: scope,
+            presentationID: presentationID,
+            workID: workID
+        )
+        selectedNavItem = .planningAgenda
+    }
+
+    func consumeLessonsAndWorkRequest() -> LessonsAndWorkRequest? {
+        defer { lessonsAndWorkRequest = nil }
+        return lessonsAndWorkRequest
+    }
+
+    /// Kept as a source-compatible bridge for Today and older call sites.
+    func navigateToPresentationFollowUps() {
+        navigateToLessonsAndWork(.needsAttention)
     }
 
     /// Open Ask AI and submit a question chosen from the notebook companion.

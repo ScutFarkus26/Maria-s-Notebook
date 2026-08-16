@@ -45,7 +45,7 @@ struct DevelopmentalTraitCard: View {
                     .foregroundStyle(data.observationCount > 0 ? .primary : .quaternary)
 
                 if let date = data.mostRecentDate {
-                    Text(date, style: .relative)
+                    Text(date.formatted(.relative(presentation: .named)))
                         .font(.caption2)
                         .foregroundStyle(.tertiary)
                 }

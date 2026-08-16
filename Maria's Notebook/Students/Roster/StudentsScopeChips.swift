@@ -10,7 +10,7 @@ struct StudentsScopeChips: View {
     let hereCount: Int
     let onSelect: (StudentsFilter) -> Void
 
-    private let filters: [StudentsFilter] = [.all, .presentNow, .upper, .lower]
+    private let filters: [StudentsFilter] = [.all, .presentNow, .upper, .lower, .adolescent]
 
     var body: some View {
         ScrollView(.horizontal, showsIndicators: false) {

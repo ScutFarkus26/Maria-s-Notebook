@@ -23,11 +23,19 @@ enum CoreDataTestHelpers {
     static func seedStudent(
         in context: NSManagedObjectContext,
         firstName: String = "Test",
-        lastName: String = "Student"
+        lastName: String = "Student",
+        level: CDStudent.Level = .lower,
+        enrollmentStatus: CDStudent.EnrollmentStatus = .enrolled,
+        dateStarted: Date? = nil,
+        dateWithdrawn: Date? = nil
     ) -> CDStudent {
         let student = CDStudent(context: context)
         student.firstName = firstName
         student.lastName = lastName
+        student.level = level
+        student.enrollmentStatus = enrollmentStatus
+        student.dateStarted = dateStarted
+        student.dateWithdrawn = dateWithdrawn
         return student
     }
 

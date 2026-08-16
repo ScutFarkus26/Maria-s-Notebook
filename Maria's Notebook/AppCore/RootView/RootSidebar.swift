@@ -60,10 +60,14 @@ extension RootSidebar {
 
                 sidebarRow(.todos, title: "Todos", systemImage: SFSymbol.Action.checkmarkCircle)
 
-                sidebarRow(.planningAgenda, title: "Presentations", systemImage: SFSymbol.Time.calendar)
-
-                sidebarRow(.planningWork, title: "Open Work", systemImage: "tray.full")
+                sidebarRow(.planningAgenda, title: "Lessons & Work", systemImage: "tray.full")
                 .contextMenu {
+                    Button {
+                        appRouter.triggerNewPresentation = true
+                    } label: {
+                        Label("New Presentation…", systemImage: "calendar.badge.plus")
+                    }
+
                     Button {
                         appRouter.requestNewWork()
                     } label: {
@@ -256,13 +260,9 @@ extension RootSidebar {
                              systemImage: SFSymbol.Action.checkmarkCircle,
                              hint: "Manage your personal todos and tasks")
             iOSSidebarButton(.planningAgenda,
-                             title: "Presentations",
-                             systemImage: SFSymbol.Time.calendar,
-                             hint: "Manage lesson presentations agenda")
-            iOSSidebarButton(.planningWork,
-                             title: "Open Work",
+                             title: "Lessons & Work",
                              systemImage: "tray.full",
-                             hint: "View and manage student work")
+                             hint: "Plan lessons, follow presentations, and manage student work")
             iOSSidebarButton(.needsLesson,
                              title: "Needs Lesson",
                              systemImage: "clock.badge.exclamationmark",

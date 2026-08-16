@@ -214,8 +214,86 @@ extension PresentationDetailContentView {
     }
 
     func selectJustPresented() {
-        setPresentationState(isPresented: true, givenAt: calendar.startOfDay(for: Date()), needsAnother: false)
-        vm.enterWorkflowMode(students: selectedStudentsList)
+        let presentedDay = calendar.startOfDay(for: Date())
+
+        guard currentLesson != nil else {
+            presentationRecordErrorMessage = "Choose the lesson before recording this presentation."
+            return
+        }
+        guard !vm.selectedStudentIDs.isEmpty else {
+            presentationRecordErrorMessage = "Choose at least one child before recording this presentation."
+            return
+        }
+
+        // Apply lesson and roster edits before either recording or reopening the
+        // optional reflection, so its fixed context always matches the assignment.
+        vm.applyEditsToModel(studentsAll: studentsAll, lessons: lessons, calendar: calendar)
+
+        // Reopening a presentation already recorded today should return to the
+        // optional reflection without creating another lifecycle event.
+        if vm.lessonAssignment.isPresented,
+           let existingDate = vm.lessonAssignment.presentedAt,
+           calendar.isDate(existingDate, inSameDayAs: presentedDay) {
+            guard vm.saveCoordinator.save(
+                viewContext,
+                reason: "Saving edits before reopening presentation reflection"
+            ) else {
+                presentationRecordErrorMessage = vm.saveCoordinator.lastSaveErrorMessage
+                    ?? "The lesson or roster changes could not be saved."
+                return
+            }
+            setPresentationState(isPresented: true, givenAt: presentedDay, needsAnother: false)
+            presentationUndoToken = nil
+            postPresentationFlow.beginReflection()
+            showPostPresentationCapture = true
+            return
+        }
+
+        do {
+            let undoToken = try ImmediatePresentationRecordingService.record(
+                assignment: vm.lessonAssignment,
+                presentedOn: presentedDay,
+                context: viewContext,
+                saveCoordinator: vm.saveCoordinator
+            )
+            presentationUndoToken = undoToken
+            setPresentationState(isPresented: true, givenAt: presentedDay, needsAnother: false)
+            postPresentationFlow.beginReflection()
+
+            ToastService.shared.show(
+                "Presentation recorded",
+                type: .success,
+                duration: 5,
+                undoAction: {
+                    Task { @MainActor in _ = undoJustPresented() }
+                }
+            )
+            showPostPresentationCapture = true
+        } catch {
+            presentationRecordErrorMessage = error.localizedDescription
+        }
+    }
+
+    func undoJustPresented() -> String? {
+        guard let presentationUndoToken else { return nil }
+        do {
+            try ImmediatePresentationRecordingService.undo(
+                presentationUndoToken,
+                context: viewContext,
+                saveCoordinator: vm.saveCoordinator
+            )
+            self.presentationUndoToken = nil
+            vm.isPresented = vm.lessonAssignment.isPresented
+            vm.givenAt = vm.lessonAssignment.presentedAt
+            vm.needsAnotherPresentation = vm.lessonAssignment.needsAnotherPresentation
+            postPresentationFlow.undoPresentation()
+            showPostPresentationCapture = false
+            ToastService.shared.showInfo("Presentation recording undone")
+            return nil
+        } catch {
+            presentationRecordErrorMessage = error.localizedDescription
+            return error.localizedDescription
+        }
     }
 
     func selectPreviouslyPresented() {

@@ -70,59 +70,85 @@ extension ObservationsView {
                     Label("Narrative", systemImage: "text.justify")
                 }
             } label: {
-                Label("Summarize All Visible", systemImage: "sparkles.rectangle.stack")
+                Label("Reflect on All Visible", systemImage: "sparkles.rectangle.stack")
             }
         } label: {
-            Label("AI", systemImage: isSummarizing ? "sparkles.rectangle.stack" : "sparkles")
+            Label("Reflect", systemImage: isSummarizing ? "sparkles.rectangle.stack" : "sparkles")
         }
     }
 
-    // MARK: - Streaming Summary
+    // MARK: - On-device, evidence-linked reflection
 
     @MainActor
-    func startStreamingSummary(bodies overrideBodies: [String]? = nil, mode: SummaryMode = .digest) {
+    func startStreamingSummary(items overrideItems: [UnifiedObservationItem]? = nil, mode: SummaryMode = .digest) {
         guard !isSummarizing else { return }
-        guard SystemLanguageModel.default.isAvailable else { return }
-        let sourceBodies: [String]
-        if let overrideBodies, !overrideBodies.isEmpty {
-            sourceBodies = overrideBodies
-        } else {
-            sourceBodies = filteredItems.prefix(50).map { "- \($0.body)" }
+        guard SystemLanguageModel.default.isAvailable else {
+            showingSummarySheet = true
+            summaryErrorMessage = "Apple Intelligence is not available on this device right now. Your records were not sent anywhere else."
+            return
         }
-        guard !sourceBodies.isEmpty else { return }
-        let joined = ObservationsHelpers.formatBodiesForSummary(sourceBodies, mode: mode)
+
+        let sourceItems = overrideItems?.isEmpty == false ? overrideItems! : Array(filteredItems)
+        guard !sourceItems.isEmpty else { return }
 
         showingSummarySheet = true
         isSummarizing = true
         summaryMode = mode
-        summaryPartialDigest = nil
-        summaryPartialNarrative = nil
+        summaryDigest = nil
+        summaryNarrative = nil
+        summaryNarrativeDraft = ""
+        summarySources = [:]
+        let dates = sourceItems.map(\.date)
+        if let earliest = dates.min(), let latest = dates.max() {
+            let start = Calendar.current.startOfDay(for: earliest)
+            let end = Calendar.current.date(byAdding: .day, value: 1, to: Calendar.current.startOfDay(for: latest))
+                ?? latest
+            summaryMissingEvidence = PresentationObservationCoverageService.missingObservationReferences(
+                in: viewContext,
+                from: start,
+                through: end,
+                studentIDs: Set(sourceItems.flatMap(\.studentIDs))
+            )
+        } else {
+            summaryMissingEvidence = []
+        }
+        summaryErrorMessage = nil
 
         let instructions = ObservationsHelpers.buildSummaryInstructions()
         let session = LanguageModelSession(instructions: instructions)
         summaryTask?.cancel()
         summaryTask = Task { @MainActor in
             do {
+                var packets = ObservationReflectionService.sourcePackets(from: sourceItems)
+                var prompt = ObservationReflectionService.prompt(from: packets, narrative: mode == .narrative)
+                let budget = TokenBudget()
+                while packets.count > 1,
+                      !(await budget.fits(prompt: prompt, reserving: TokenBudget.draftReply)) {
+                    packets.removeLast()
+                    prompt = ObservationReflectionService.prompt(from: packets, narrative: mode == .narrative)
+                }
+
+                guard !packets.isEmpty,
+                      await budget.fits(prompt: prompt, reserving: TokenBudget.draftReply) else {
+                    summaryErrorMessage = "These records do not fit in an on-device reflection. Select fewer observations and try again."
+                    isSummarizing = false
+                    summaryTask = nil
+                    return
+                }
+
+                summarySources = ObservationReflectionService.referenceMap(from: packets)
                 switch mode {
                 case .digest:
-                    let stream = session.streamResponse(
-                        to: "Summarize the following notes as key points, follow-ups, and sentiment:\n\(joined)",
-                        generating: NotesDigest.self
-                    )
-                    for try await partial in stream {
-                        summaryPartialDigest = partial.content
-                    }
+                    let response = try await session.respond(to: prompt, generating: NotesDigest.self)
+                    summaryDigest = ObservationReflectionService.validate(response.content, against: packets)
                 case .narrative:
-                    let stream = session.streamResponse(
-                        to: "Write a single concise narrative paragraph summarizing these observations:\n\(joined)",
-                        generating: NotesNarrative.self
-                    )
-                    for try await partial in stream {
-                        summaryPartialNarrative = partial.content
-                    }
+                    let response = try await session.respond(to: prompt, generating: NotesNarrative.self)
+                    summaryNarrative = response.content
+                    summaryNarrativeDraft = response.content.narrative
                 }
             } catch {
-                Logger.ai.error("[\(#function)] Observations summary failed: \(error)")
+                Logger.ai.error("[\(#function)] Observations reflection failed: \(error)")
+                summaryErrorMessage = "The on-device reflection could not be completed. Your records were not sent to a cloud model."
             }
             isSummarizing = false
             summaryTask = nil
@@ -143,34 +169,30 @@ extension ObservationsView {
     @MainActor
     func analyzeScope(_ scope: AIAnalysisScope, mode: SummaryMode) {
         let calendar = Calendar.current
-        let bodies: [String]
+        let items: [UnifiedObservationItem]
 
         switch scope {
         case .today:
             let todayStart = calendar.startOfDay(for: Date())
-            bodies = filteredItems
+            items = filteredItems
                 .filter { calendar.startOfDay(for: $0.date) == todayStart }
-                .map { "- \($0.body)" }
 
         case .specificDay(let date):
             let dayStart = calendar.startOfDay(for: date)
-            bodies = filteredItems
+            items = filteredItems
                 .filter { calendar.startOfDay(for: $0.date) == dayStart }
-                .map { "- \($0.body)" }
 
         case .context(let ctx):
-            bodies = filteredItems
+            items = filteredItems
                 .filter { $0.contextText == ctx }
-                .map { "- \($0.body)" }
 
         case .selectedNotes:
-            bodies = filteredItems
+            items = filteredItems
                 .filter { selectedItemIDs.contains($0.id) }
-                .map { "- \($0.body)" }
         }
 
-        guard !bodies.isEmpty else { return }
-        startStreamingSummary(bodies: bodies, mode: mode)
+        guard !items.isEmpty else { return }
+        startStreamingSummary(items: items, mode: mode)
     }
 }
 
@@ -232,8 +254,13 @@ extension ObservationsView {
     struct ObservationsSummarySheet: View {
         let mode: SummaryMode
         @Binding var isSummarizing: Bool
-        let partialDigest: NotesDigest.PartiallyGenerated?
-        let partialNarrative: NotesNarrative.PartiallyGenerated?
+        let digest: NotesDigest?
+        let narrative: NotesNarrative?
+        @Binding var narrativeDraft: String
+        let sources: [String: EvidenceReference]
+        let missingEvidence: [EvidenceReference]
+        let errorMessage: String?
+        let onOpenSource: (EvidenceReference) -> Void
         let onCancel: () -> Void
 
         var body: some View {
@@ -252,7 +279,7 @@ extension ObservationsView {
                     content
                 }
                 .padding(20)
-                .navigationTitle("Summary")
+                .navigationTitle(mode == .digest ? "Observation Reflection" : "Narrative Draft")
                 .inlineNavigationTitle()
                 .toolbar {
                     ToolbarItem(placement: .cancellationAction) {
@@ -268,8 +295,11 @@ extension ObservationsView {
         @ViewBuilder
         private var header: some View {
             HStack {
-                Text("Summary")
+                Text(mode == .digest ? "Observation Reflection" : "Narrative Draft")
                     .font(AppTheme.ScaledFont.titleMedium)
+                Label("On Device", systemImage: "lock.shield")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
                 Spacer()
                 Button(isSummarizing ? "Stop" : "Close") { onCancel() }
             }
@@ -277,52 +307,112 @@ extension ObservationsView {
 
         @ViewBuilder
         private var content: some View {
-            switch mode {
-            case .digest:
-                if partialDigest == nil {
-                    ProgressView("Generating\u{2026}")
-                } else {
-                    VStack(alignment: .leading, spacing: 12) {
-                        if let points = partialDigest?.keyPoints, !points.isEmpty {
-                            Text("Key Points").font(.headline)
-                            ForEach(points, id: \.self) { p in
-                                HStack(alignment: .top, spacing: 8) {
-                                    Image(systemName: "circle.fill").font(.system(size: 6))
-                                    Text(p)
+            if let errorMessage {
+                ContentUnavailableView(
+                    "Reflection Unavailable",
+                    systemImage: "sparkles",
+                    description: Text(errorMessage)
+                )
+            } else {
+                switch mode {
+                case .digest:
+                    if digest == nil {
+                        ProgressView("Reviewing records\u{2026}")
+                    } else {
+                        ScrollView {
+                            VStack(alignment: .leading, spacing: 12) {
+                                if !missingEvidence.isEmpty {
+                                    Text("Presentations Without a Linked Observation")
+                                        .font(.headline)
+                                    Text("This is a record check, not an AI conclusion.")
+                                        .font(.caption)
+                                        .foregroundStyle(.secondary)
+                                    ForEach(missingEvidence) { reference in
+                                        Label(
+                                            "\(reference.title) — \(reference.date.map { DateFormatters.mediumDate.string(from: $0) } ?? "Unknown date")",
+                                            systemImage: "exclamationmark.bubble"
+                                        )
+                                    }
+                                    Divider().padding(.vertical, 4)
                                 }
+                                findingsSection(
+                                    "Factual Observations",
+                                    findings: digest?.factualObservations ?? [],
+                                    icon: "text.quote"
+                                )
+                                findingsSection(
+                                    "Patterns to Review",
+                                    findings: digest?.repeatedPatterns ?? [],
+                                    icon: "point.3.connected.trianglepath.dotted"
+                                )
+                                findingsSection(
+                                    "Questions to Observe Next",
+                                    findings: digest?.questionsToObserveNext ?? [],
+                                    icon: "eye"
+                                )
                             }
                         }
-                        if let actions = partialDigest?.followUps, !actions.isEmpty {
-                            Divider().padding(.vertical, 8)
-                            Text("Follow Ups").font(.headline)
-                            ForEach(actions, id: \.self) { a in
-                                HStack(alignment: .top, spacing: 8) {
-                                    Image(systemName: "checkmark.circle").foregroundStyle(AppColors.success)
-                                    Text(a)
-                                }
-                            }
-                        }
-                        if let sentiment = partialDigest?.sentiment, !sentiment.isEmpty {
-                            Divider().padding(.vertical, 8)
-                            HStack {
-                                Image(systemName: "face.smiling")
-                                Text("Sentiment: \(sentiment)")
-                                    .font(.subheadline)
+                    }
+                case .narrative:
+                    if narrative == nil {
+                        ProgressView("Generating\u{2026}")
+                    } else {
+                        ScrollView {
+                            VStack(alignment: .leading, spacing: 12) {
+                                Text("Editable AI draft — verify it against the records below.")
+                                    .font(.caption)
                                     .foregroundStyle(.secondary)
+                                if !narrativeDraft.isEmpty {
+                                    TextEditor(text: $narrativeDraft)
+                                        .font(.body)
+                                        .frame(minHeight: 160)
+                                        .padding(8)
+                                        .background(
+                                            Color.secondary.opacity(UIConstants.OpacityConstants.veryFaint),
+                                            in: RoundedRectangle(cornerRadius: 8)
+                                        )
+                                        .accessibilityLabel("Editable narrative draft")
+                                }
+                                Text("Records Reviewed")
+                                    .font(.headline)
+                                sourceButtons(keys: sources.keys.sorted())
                             }
                         }
                     }
                 }
-            case .narrative:
-                if partialNarrative == nil {
-                    ProgressView("Generating\u{2026}")
-                } else {
-                    VStack(alignment: .leading, spacing: 12) {
-                        if let text = partialNarrative?.narrative, !text.isEmpty {
-                            Text(text)
-                                .font(.body)
-                                .foregroundStyle(.primary)
+            }
+        }
+
+        @ViewBuilder
+        private func findingsSection(
+            _ title: String,
+            findings: [GroundedObservationFinding],
+            icon: String
+        ) -> some View {
+            if !findings.isEmpty {
+                Text(title).font(.headline)
+                ForEach(Array(findings.enumerated()), id: \.offset) { _, finding in
+                    VStack(alignment: .leading, spacing: 6) {
+                        Label(finding.text, systemImage: icon)
+                        sourceButtons(keys: finding.sourceKeys)
+                    }
+                }
+                Divider().padding(.vertical, 4)
+            }
+        }
+
+        private func sourceButtons(keys: [String]) -> some View {
+            FlowLayout(spacing: 6) {
+                ForEach(keys, id: \.self) { key in
+                    if let reference = sources[key] {
+                        Button {
+                            onOpenSource(reference)
+                        } label: {
+                            Label(key, systemImage: "doc.text.magnifyingglass")
+                                .font(.caption)
                         }
+                        .buttonStyle(.bordered)
+                        .help("\(reference.title): \(reference.excerpt)")
                     }
                 }
             }

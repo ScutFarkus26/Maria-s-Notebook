@@ -165,7 +165,14 @@ enum SequenceRecapResolver {
         let leftover = workByPresentationID.values.flatMap { $0 }
         let unattachedWorkItems = (workWithoutPresentation + leftover)
             .sorted { sortKey(for: $0) > sortKey(for: $1) }
-            .compactMap { buildWorkItem(work: $0, buckets: buckets) }
+            .compactMap {
+                buildWorkItem(
+                    work: $0,
+                    studentIDString: studentIDString,
+                    studentLinks: collected.studentLinks,
+                    buckets: buckets
+                )
+            }
 
         let directNotes = (buckets.directNotesByPair[pairKey] ?? [])
             .map { SequenceRecapNote(from: $0) }
@@ -203,13 +210,22 @@ enum SequenceRecapResolver {
         return participating.compactMap { a in
             guard let aid = a.id else { return nil }
             let aidString = aid.uuidString
-            let attached = (buckets.notesByAssignment[aidString] ?? [])
-                .map { SequenceRecapNote(from: $0) }
-                .sorted { ($0.createdAt ?? .distantPast) > ($1.createdAt ?? .distantPast) }
+            let attached = scopedNoteSnapshots(
+                buckets.notesByAssignment[aidString] ?? [],
+                studentIDString: studentIDString,
+                studentLinks: collected.studentLinks
+            )
             // Drain matching work so any leftovers can be reported as unattached.
             let workItems = (workByPresentationID.removeValue(forKey: aidString) ?? [])
                 .sorted { sortKey(for: $0) > sortKey(for: $1) }
-                .compactMap { buildWorkItem(work: $0, buckets: buckets) }
+                .compactMap {
+                    buildWorkItem(
+                        work: $0,
+                        studentIDString: studentIDString,
+                        studentLinks: collected.studentLinks,
+                        buckets: buckets
+                    )
+                }
             return SequenceRecapPresentation(
                 id: aid,
                 presentedAt: a.presentedAt,
@@ -227,6 +243,8 @@ enum SequenceRecapResolver {
     @MainActor
     private static func buildWorkItem(
         work: CDWorkModel,
+        studentIDString: String,
+        studentLinks: [String: Set<String>],
         buckets: SequenceRecapNoteBuckets
     ) -> SequenceRecapWorkItem? {
         guard let wid = work.id else { return nil }
@@ -235,9 +253,11 @@ enum SequenceRecapResolver {
 
         let checkInSnapshots: [SequenceRecapCheckIn] = checkIns.compactMap { ci in
             guard let ciid = ci.id else { return nil }
-            let ciNotes = (buckets.notesByCheckIn[ciid.uuidString] ?? [])
-                .map { SequenceRecapNote(from: $0) }
-                .sorted { ($0.createdAt ?? .distantPast) > ($1.createdAt ?? .distantPast) }
+            let ciNotes = scopedNoteSnapshots(
+                buckets.notesByCheckIn[ciid.uuidString] ?? [],
+                studentIDString: studentIDString,
+                studentLinks: studentLinks
+            )
             return SequenceRecapCheckIn(
                 id: ciid,
                 date: ci.date,
@@ -247,9 +267,11 @@ enum SequenceRecapResolver {
             )
         }
 
-        let workNotes = (buckets.notesByWork[wid.uuidString] ?? [])
-            .map { SequenceRecapNote(from: $0) }
-            .sorted { ($0.createdAt ?? .distantPast) > ($1.createdAt ?? .distantPast) }
+        let workNotes = scopedNoteSnapshots(
+            buckets.notesByWork[wid.uuidString] ?? [],
+            studentIDString: studentIDString,
+            studentLinks: studentLinks
+        )
 
         return SequenceRecapWorkItem(
             id: wid,
@@ -265,6 +287,23 @@ enum SequenceRecapResolver {
     }
 
     // MARK: - Sort Helpers
+
+    private static func scopedNoteSnapshots(
+        _ notes: [CDNote],
+        studentIDString: String,
+        studentLinks: [String: Set<String>]
+    ) -> [SequenceRecapNote] {
+        notes
+            .filter {
+                SequenceRecapNoteBucketer.noteApplies(
+                    $0,
+                    to: studentIDString,
+                    links: studentLinks
+                )
+            }
+            .map { SequenceRecapNote(from: $0) }
+            .sorted { ($0.createdAt ?? .distantPast) > ($1.createdAt ?? .distantPast) }
+    }
 
     private static func sortKey(for a: CDLessonAssignment) -> Date {
         a.presentedAt ?? a.scheduledFor ?? a.createdAt ?? .distantPast

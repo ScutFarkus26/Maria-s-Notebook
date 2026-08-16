@@ -7,7 +7,7 @@ import Foundation
 /// Semantic grade result used by the calculator and UI.
 enum GradeResult: Equatable {
     case kindergarten
-    case grade(Int)   // 1...6
+    case grade(Int)   // 1...8
     case graduated
 
     var displayString: String {
@@ -52,8 +52,9 @@ struct FloridaGradeCalculator {
     }
     /// Minimum age (in whole years) on/before school start to be 1st grade
     static let minimumFirstGradeAge: Int = 6
-    /// Ages at or above this threshold are considered "Graduated"
-    static let graduatedAgeThreshold: Int = 12
+    /// Ages at or above this threshold are considered "Graduated".
+    /// 14, not 12: ages 12–13 are the Adolescent level (7th/8th grade equivalents).
+    static let graduatedAgeThreshold: Int = 14
 
     // MARK: - Helpers
 
@@ -93,7 +94,9 @@ struct FloridaGradeCalculator {
     ///  - Age 9 → 4th Grade
     ///  - Age 10 → 5th Grade
     ///  - Age 11 → 6th Grade
-    ///  - Age 12+ → Graduated
+    ///  - Age 12 → 7th Grade
+    ///  - Age 13 → 8th Grade
+    ///  - Age 14+ → Graduated
     ///  - Age < 6 → Kindergarten
     static func grade(for birthday: Date, referenceDate: Date = Date(), calendar: Calendar = .current) -> GradeResult {
         let age = ageOnSchoolYearStart(birthday: birthday, referenceDate: referenceDate, calendar: calendar)

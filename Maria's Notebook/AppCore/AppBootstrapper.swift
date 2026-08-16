@@ -99,7 +99,9 @@ final class AppBootstrapper {
             try? await Task.sleep(for: .seconds(3))
             await AppBootstrapper.runPostLaunchMigrations(coreDataStack: coreDataStack)
 
-            // Purge persistent history before last processed token
+            // Occasionally purge months-old persistent history that the CloudKit
+            // mirroring delegate has provably exported (export-date gated; see
+            // PersistentHistoryProcessor.purgeOldHistory for the safety rules).
             if let processor = await MainActor.run(body: { coreDataStack.historyProcessor }) {
                 await processor.purgeOldHistory()
             }
@@ -132,15 +134,11 @@ final class AppBootstrapper {
 
         await DataMigrations.repairScopeForContextualNotes(using: coreDataStack.viewContext)
 
-        let dedupStart = Date()
-        await MainActor.run {
-            // 3.8. Deduplication (CloudKit sync can create duplicates during merge conflicts)
-            _ = DataMigrations.deduplicateAllModels(
-                using: coreDataStack.viewContext,
-                container: coreDataStack.container
-            )
-        }
-        logger.info("Post-launch: deduplication completed in \(formatSeconds(Date().timeIntervalSince(dedupStart)))")
+        // 3.8. Deduplication (CloudKit sync can create duplicates during merge
+        // conflicts) runs later in this same sequence via MigrationRunner, on a
+        // background context. It used to run here on the view context as well —
+        // a second full pass over ~35 entity types whose results the view context
+        // then held for the rest of the session.
 
         // 3.81. Migrate classroom records (Students/Lessons/Tracks/…)
         // out of the .shared-scope shared store and into the .private-scope

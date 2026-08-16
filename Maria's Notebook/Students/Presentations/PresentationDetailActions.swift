@@ -1,13 +1,10 @@
 import Foundation
-import OSLog
 import SwiftUI
 import CoreData
 
 @Observable
 @MainActor
 final class PresentationDetailActions {
-    private static let logger = Logger.students
-
     // swiftlint:disable:next function_parameter_count
     func applyEditsToModel(
         lessonAssignment: CDLessonAssignment,
@@ -33,92 +30,16 @@ final class PresentationDetailActions {
 
         // State transitions: presented > scheduled > draft
         if isPresented {
-            let date = givenAt ?? Date()
-            lessonAssignment.markPresented(at: calendar.startOfDay(for: date))
+            if let givenAt {
+                lessonAssignment.markPresented(at: calendar.startOfDay(for: givenAt))
+            } else {
+                lessonAssignment.markPreviouslyPresented()
+            }
         } else {
             if lessonAssignment.state == .presented {
                 lessonAssignment.presentedAt = nil
             }
             lessonAssignment.setScheduledFor(scheduledFor, using: calendar)
-        }
-    }
-
-    // swiftlint:disable:next function_body_length cyclomatic_complexity function_parameter_count
-    func autoCreateNextIfNeeded(
-        wasGiven: Bool,
-        nowGiven: Bool,
-        nextLesson: CDLesson?,
-        selectedStudentIDs: Set<UUID>,
-        studentsAll: [CDStudent],
-        lessons: [CDLesson],
-        lessonAssignmentsAll: [CDLessonAssignment],
-        context: NSManagedObjectContext
-    ) {
-        #if DEBUG
-        // swiftlint:disable:next line_length
-        Self.logger.debug("autoCreateNextIfNeeded: wasGiven=\(wasGiven, privacy: .public), nowGiven=\(nowGiven, privacy: .public), hasNextLesson=\(nextLesson != nil, privacy: .public)")
-        #endif
-        
-        guard !wasGiven, nowGiven, let next = nextLesson else {
-            #if DEBUG
-            if wasGiven {
-                Self.logger.debug("Skipping: lesson was already given")
-            } else if !nowGiven {
-                Self.logger.debug("Skipping: lesson not marked as given yet")
-            } else if nextLesson == nil {
-                Self.logger.debug("Skipping: no next lesson in sequence")
-            }
-            #endif
-            return
-        }
-
-        #if DEBUG
-        Self.logger.debug(
-            "Creating next lesson: \(next.name) for \(selectedStudentIDs.count, privacy: .public) students"
-        )
-        #endif
-
-        // Fetch LessonAssignments for duplicate checking (service now expects CDLessonAssignment)
-        let lessonAssignments: [CDLessonAssignment]
-        do {
-            lessonAssignments = try context.fetch(NSFetchRequest<CDLessonAssignment>(entityName: "LessonAssignment"))
-        } catch {
-            Self.logger.warning("Failed to fetch LessonAssignments: \(error)")
-            lessonAssignments = []
-        }
-
-        let result = PlanNextLessonService.planLesson(
-            next,
-            forStudents: selectedStudentIDs,
-            allStudents: studentsAll,
-            allLessons: lessons,
-            existingLessonAssignments: lessonAssignments,
-            context: context
-        )
-
-        #if DEBUG
-        switch result {
-        case .success(let presentation):
-            Self.logger.info(
-                "Successfully created next lesson (ID: \(presentation.id?.uuidString ?? "nil", privacy: .public))"
-            )
-        case .alreadyExists:
-            Self.logger.warning("Next lesson already exists in inbox")
-        case .noNextLesson:
-            Self.logger.warning("No next lesson found")
-        case .noCurrentLesson:
-            Self.logger.warning("Current lesson not found")
-        case .currentNotMastered(let reason):
-            Self.logger.warning("Current lesson not mastered: \(reason, privacy: .public)")
-        case .emptyAreaOrSequence:
-            Self.logger.warning("Empty area or sequence")
-        case .noStudents:
-            Self.logger.warning("No students selected")
-        }
-        #endif
-
-        if case .success = result {
-            PresentationDetailUtilities.notifyInboxRefresh()
         }
     }
 
@@ -162,8 +83,4 @@ final class PresentationDetailActions {
         return movedStudentNames
     }
 
-    func nextLessonInSequence(from current: CDLesson?, lessons: [CDLesson]) -> CDLesson? {
-        guard let current else { return nil }
-        return PlanNextLessonService.findNextLesson(after: current, in: lessons)
-    }
 }

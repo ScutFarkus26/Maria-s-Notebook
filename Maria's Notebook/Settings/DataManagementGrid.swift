@@ -349,7 +349,7 @@ struct DataManagementGrid: View {
                     .lineLimit(1)
 
                 if let date = viewModel.lastBackupDate {
-                    Text("Last: \(date, style: .relative)")
+                    Text("Last: \(date.formatted(.relative(presentation: .named)))")
                         .font(.caption2)
                         .foregroundStyle(.tertiary)
 

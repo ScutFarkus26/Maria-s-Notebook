@@ -44,11 +44,15 @@ final class SaveCoordinator {
         pendingSaves[contextID] = WeakContextHolder(context: context, reason: reason)
 
         saveTimer?.invalidate()
-        saveTimer = Timer.scheduledTimer(withTimeInterval: saveBatchInterval, repeats: false) { [weak self] _ in
+        let timer = Timer.scheduledTimer(withTimeInterval: saveBatchInterval, repeats: false) { [weak self] _ in
             Task { @MainActor [weak self] in
                 self?.executePendingSaves()
             }
         }
+        // This is a debounce, not a deadline — allowing the fire to slide lets the
+        // system batch the wake instead of forcing a precise one.
+        timer.tolerance = saveBatchInterval * 0.2
+        saveTimer = timer
     }
 
     /// Execute all pending saves immediately

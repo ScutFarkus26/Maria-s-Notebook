@@ -39,36 +39,68 @@ extension LessonAssignmentHistoryView {
     }
 
     var assignmentsList: some View {
-        ScrollView {
-            LazyVStack(alignment: .leading, spacing: 12) {
-                ForEach(Array(groupedByDay.enumerated()), id: \.element.day) { dayIndex, entry in
-                    daySection(dayIndex: dayIndex, entry: entry)
+        ScrollViewReader { reader in
+            ScrollView {
+                LazyVStack(alignment: .leading, spacing: 12) {
+                    ForEach(Array(groupedByDay.enumerated()), id: \.element.day) { dayIndex, entry in
+                        daySection(dayIndex: dayIndex, entry: entry)
+                    }
                 }
+                .padding(16)
             }
-            .padding(16)
+            .task(id: focusedAssignmentRevealKey) {
+                guard let focusedAssignmentID,
+                      filteredAssignments.contains(where: { $0.id == focusedAssignmentID }) else {
+                    return
+                }
+                await Task.yield()
+                try? await Task.sleep(for: .milliseconds(50))
+                guard !Task.isCancelled else { return }
+                withAnimation { reader.scrollTo(focusedAssignmentID, anchor: .center) }
+            }
         }
+    }
+
+    var focusedAssignmentRevealKey: String {
+        guard let focusedAssignmentID else { return "none" }
+        let isLoaded = loadedAssignments.contains { $0.id == focusedAssignmentID }
+        return "\(focusedAssignmentID.uuidString)|\(isLoaded)"
     }
 
     @ViewBuilder
     func daySection(dayIndex: Int, entry: (day: Date, items: [CDLessonAssignment])) -> some View {
-        Section {
-            ForEach(Array(entry.items.enumerated()), id: \.element.objectID) { itemIndex, la in
-                row(for: la)
-                    .onTapGesture { selectedAssignment = la }
-                    .onAppear {
-                        // Load more when near the end
-                        if dayIndex == groupedByDay.count - 1,
-                           itemIndex >= entry.items.count - 5 {
-                            loadMoreAssignments()
-                        }
-                    }
-            }
-        } header: {
+        VStack(alignment: .leading, spacing: 12) {
             Text(DateFormatters.mediumDate.string(from: entry.day))
                 .font(.caption.weight(.semibold))
                 .foregroundStyle(.secondary)
                 .padding(.top, 12)
+
+            ForEach(Array(entry.items.enumerated()), id: \.element.objectID) { itemIndex, la in
+                historyEntry(
+                    la,
+                    dayIndex: dayIndex,
+                    itemIndex: itemIndex,
+                    itemsInDay: entry.items.count
+                )
+            }
         }
+    }
+
+    func historyEntry(
+        _ assignment: CDLessonAssignment,
+        dayIndex: Int,
+        itemIndex: Int,
+        itemsInDay: Int
+    ) -> some View {
+        row(for: assignment)
+            .id(assignment.id ?? UUID())
+            .onTapGesture { openAssignmentDetail(assignment) }
+            .onAppear {
+                if dayIndex == groupedByDay.count - 1,
+                   itemIndex >= itemsInDay - 5 {
+                    loadMoreAssignments()
+                }
+            }
     }
 
     @ViewBuilder
@@ -115,11 +147,21 @@ extension LessonAssignmentHistoryView {
         .contentShape(Rectangle())
         .background(
             RoundedRectangle(cornerRadius: 10, style: .continuous)
-                .fill(Color.primary.opacity(UIConstants.OpacityConstants.trace))
+                .fill(
+                    focusedAssignmentID != nil && la.id == focusedAssignmentID
+                        ? Color.accentColor.opacity(0.12)
+                        : Color.primary.opacity(UIConstants.OpacityConstants.trace)
+                )
         )
+        .overlay {
+            if focusedAssignmentID != nil && la.id == focusedAssignmentID {
+                RoundedRectangle(cornerRadius: 10, style: .continuous)
+                    .stroke(Color.accentColor, lineWidth: 2)
+            }
+        }
         .contextMenu {
             Button {
-                selectedAssignment = la
+                openAssignmentDetail(la)
             } label: {
                 Label("View Details", systemImage: "eye")
             }
@@ -142,6 +184,15 @@ extension LessonAssignmentHistoryView {
                 Label("Delete", systemImage: SFSymbol.Action.trash)
             }
         }
+    }
+
+    func openAssignmentDetail(_ assignment: CDLessonAssignment) {
+        guard let assignmentID = assignment.id else { return }
+        #if os(macOS)
+        openWindow(id: "PresentationDetailWindow", value: assignmentID)
+        #else
+        selectedAssignment = assignment
+        #endif
     }
 
     @ViewBuilder

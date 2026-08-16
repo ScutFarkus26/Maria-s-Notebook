@@ -97,21 +97,19 @@ extension CDLessonAssignment {
         let uuids = studentUUIDStrings.compactMap { UUID(uuidString: $0) }
         guard !uuids.isEmpty else { return [] }
 
-        // Fetch all students and filter in-memory
-        // Core Data predicates don't support id.uuidString keypaths on Transformable arrays
+        // Narrow in the store. The *assignment's* ID list is a Transformable and
+        // isn't queryable, but the students' own `id` is a plain UUID attribute —
+        // so the already-parsed UUIDs go straight into the predicate instead of
+        // faulting in every student row and filtering in Swift.
         let request = NSFetchRequest<CDStudent>(entityName: "Student")
+        request.predicate = NSPredicate(format: "id IN %@", uuids)
         request.sortDescriptors = [NSSortDescriptor(keyPath: \CDStudent.firstName, ascending: true)]
 
-        let allStudents: [CDStudent]
         do {
-            allStudents = try context.fetch(request)
+            return try context.fetch(request)
         } catch {
             logger.warning("Failed to fetch students: \(error.localizedDescription)")
             return []
-        }
-        return allStudents.filter { student in
-            guard let studentID = student.id else { return false }
-            return studentUUIDStrings.contains(studentID.uuidString)
         }
     }
 
@@ -240,20 +238,17 @@ extension CDPracticeSession {
         let uuids = studentIDStrings.compactMap { UUID(uuidString: $0) }
         guard !uuids.isEmpty else { return [] }
 
-        // Fetch students by UUIDs
+        // Fetch students by UUIDs — the session's ID list is a Transformable, but
+        // the students' own `id` is a queryable UUID attribute.
         let request = NSFetchRequest<CDStudent>(entityName: "Student")
+        request.predicate = NSPredicate(format: "id IN %@", uuids)
         request.sortDescriptors = [NSSortDescriptor(keyPath: \CDStudent.firstName, ascending: true)]
 
-        let allStudents: [CDStudent]
         do {
-            allStudents = try context.fetch(request)
+            return try context.fetch(request)
         } catch {
             logger.warning("Failed to fetch students: \(error.localizedDescription)")
             return []
-        }
-        return allStudents.filter { student in
-            guard let studentID = student.id else { return false }
-            return studentIDStrings.contains(studentID.uuidString)
         }
     }
 
@@ -266,20 +261,15 @@ extension CDPracticeSession {
         let uuids = workIDStrings.compactMap { UUID(uuidString: $0) }
         guard !uuids.isEmpty else { return [] }
 
-        // Fetch all work items and filter in memory
-        // Core Data predicates don't support checking if UUID is in Transformable array
+        // Fetch work items by UUID. The session's ID list is a Transformable and
+        // can't be queried, but the work items' own `id` attribute can.
         let request = NSFetchRequest<CDWorkModel>(entityName: "WorkModel")
-        let allWork: [CDWorkModel]
+        request.predicate = NSPredicate(format: "id IN %@", uuids)
         do {
-            allWork = try context.fetch(request)
+            return try context.fetch(request)
         } catch {
             logger.warning("Failed to fetch work items: \(error.localizedDescription)")
             return []
-        }
-
-        return allWork.filter { work in
-            guard let workID = work.id else { return false }
-            return workIDStrings.contains(workID.uuidString)
         }
     }
 

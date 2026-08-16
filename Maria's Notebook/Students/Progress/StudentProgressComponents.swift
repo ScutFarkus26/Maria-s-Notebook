@@ -444,7 +444,7 @@ struct LastActivityRow: View {
             Image(systemName: "clock.fill")
                 .font(.system(size: 11))
                 .foregroundStyle(.secondary)
-            Text("Last activity \(lastActivityDate, style: .relative)")
+            Text("Last activity \(lastActivityDate.formatted(.relative(presentation: .named)))")
                 .font(AppTheme.ScaledFont.captionSemibold)
                 .foregroundStyle(.secondary)
         }

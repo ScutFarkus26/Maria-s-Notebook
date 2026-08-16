@@ -11,7 +11,7 @@ extension BackupEntityImporter {
     static func importStudentMeetings(
         _ dtos: [StudentMeetingDTO],
         into viewContext: NSManagedObjectContext,
-        existingCheck: EntityExistsCheck<CDStudentMeeting>
+        existingCheck: EntityExistsCheck
     ) rethrows {
         try importSimpleEntities(
             dtos, into: viewContext,
@@ -37,7 +37,7 @@ extension BackupEntityImporter {
     static func importAttendanceRecords(
         _ dtos: [AttendanceRecordDTO],
         into viewContext: NSManagedObjectContext,
-        existingCheck: EntityExistsCheck<CDAttendanceRecord>
+        existingCheck: EntityExistsCheck
     ) rethrows {
         try importSimpleEntities(
             dtos, into: viewContext,
@@ -65,7 +65,7 @@ extension BackupEntityImporter {
     static func importMeetingTemplates(
         _ dtos: [MeetingTemplateDTO],
         into viewContext: NSManagedObjectContext,
-        existingCheck: EntityExistsCheck<CDMeetingTemplate>
+        existingCheck: EntityExistsCheck
     ) rethrows {
         try importSimpleEntities(
             dtos, into: viewContext,
@@ -92,7 +92,7 @@ extension BackupEntityImporter {
     static func importReminders(
         _ dtos: [ReminderDTO],
         into viewContext: NSManagedObjectContext,
-        existingCheck: EntityExistsCheck<CDReminder>
+        existingCheck: EntityExistsCheck
     ) rethrows {
         try importSimpleEntities(
             dtos, into: viewContext,
@@ -117,7 +117,7 @@ extension BackupEntityImporter {
     static func importCalendarEvents(
         _ dtos: [CalendarEventDTO],
         into viewContext: NSManagedObjectContext,
-        existingCheck: EntityExistsCheck<CDCalendarEvent>
+        existingCheck: EntityExistsCheck
     ) rethrows {
         try importSimpleEntities(
             dtos, into: viewContext,

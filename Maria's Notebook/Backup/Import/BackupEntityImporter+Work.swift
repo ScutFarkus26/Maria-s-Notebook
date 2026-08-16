@@ -12,7 +12,7 @@ extension BackupEntityImporter {
     static func importWorkModels(
         _ dtos: [WorkModelDTO],
         into viewContext: NSManagedObjectContext,
-        existingCheck: EntityExistsCheck<CDWorkModel>
+        existingCheck: EntityExistsCheck
     ) rethrows {
         try importSimpleEntities(
             dtos, into: viewContext,
@@ -54,7 +54,7 @@ extension BackupEntityImporter {
     static func importWorkCompletionRecords(
         _ dtos: [WorkCompletionRecordDTO],
         into viewContext: NSManagedObjectContext,
-        existingCheck: EntityExistsCheck<CDWorkCompletionRecord>
+        existingCheck: EntityExistsCheck
     ) rethrows {
         try importSimpleEntities(
             dtos, into: viewContext,
@@ -75,8 +75,8 @@ extension BackupEntityImporter {
     static func importWorkCheckIns(
         _ dtos: [WorkCheckInDTO],
         into viewContext: NSManagedObjectContext,
-        existingCheck: EntityExistsCheck<CDWorkCheckIn>,
-        workCheck: EntityExistsCheck<CDWorkModel>
+        existingCheck: EntityExistsCheck,
+        workCheck: EntityLookup<CDWorkModel>
     ) rethrows {
         for dto in dtos {
             if shouldSkipExisting(id: dto.id, existingCheck: existingCheck) { continue }
@@ -106,8 +106,8 @@ extension BackupEntityImporter {
     static func importWorkSteps(
         _ dtos: [WorkStepDTO],
         into viewContext: NSManagedObjectContext,
-        existingCheck: EntityExistsCheck<CDWorkStep>,
-        workCheck: EntityExistsCheck<CDWorkModel>
+        existingCheck: EntityExistsCheck,
+        workCheck: EntityLookup<CDWorkModel>
     ) rethrows {
         for dto in dtos {
             if shouldSkipExisting(id: dto.id, existingCheck: existingCheck) { continue }
@@ -139,8 +139,8 @@ extension BackupEntityImporter {
     static func importWorkParticipants(
         _ dtos: [WorkParticipantEntityDTO],
         into viewContext: NSManagedObjectContext,
-        existingCheck: EntityExistsCheck<CDWorkParticipantEntity>,
-        workCheck: EntityExistsCheck<CDWorkModel>
+        existingCheck: EntityExistsCheck,
+        workCheck: EntityLookup<CDWorkModel>
     ) rethrows {
         for dto in dtos {
             if shouldSkipExisting(id: dto.id, existingCheck: existingCheck) { continue }
@@ -168,7 +168,7 @@ extension BackupEntityImporter {
     static func importPracticeSessions(
         _ dtos: [PracticeSessionDTO],
         into viewContext: NSManagedObjectContext,
-        existingCheck: EntityExistsCheck<CDPracticeSession>
+        existingCheck: EntityExistsCheck
     ) rethrows {
         try importSimpleEntities(
             dtos, into: viewContext,

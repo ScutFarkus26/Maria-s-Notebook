@@ -44,7 +44,7 @@ struct CloudKitStatusSettingsView: View {
                         .font(.headline)
 
                     if isCloudKitActive, let lastSync = syncService.lastSuccessfulSync {
-                        Text("Last synced: \(lastSync, style: .relative) ago")
+                        Text("Last synced: \(lastSync.formatted(.relative(presentation: .named)))")
                             .font(.caption)
                             .foregroundStyle(.secondary)
                     }

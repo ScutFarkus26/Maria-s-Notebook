@@ -258,32 +258,32 @@ extension BackupService {
         _ = try BackupEntityImporter.importStudents(
             payload.students,
             into: viewContext,
-            existingCheck: { try index.find(CDStudent.self, id: $0) }
+            existingCheck: { try index.exists(CDStudent.self, id: $0) }
         )
 
         try BackupEntityImporter.importLessons(
             payload.lessons,
             into: viewContext,
-            existingCheck: { try index.find(CDLesson.self, id: $0) }
+            existingCheck: { try index.exists(CDLesson.self, id: $0) }
         )
 
         try BackupEntityImporter.importCommunityTopics(
             payload.communityTopics,
             into: viewContext,
-            existingCheck: { try index.find(CDCommunityTopicEntity.self, id: $0) }
+            existingCheck: { try index.exists(CDCommunityTopicEntity.self, id: $0) }
         )
 
         try BackupEntityImporter.importLessonAssignments(
             payload.lessonAssignments,
             into: viewContext,
-            existingCheck: { try index.find(CDLessonAssignment.self, id: $0) },
+            existingCheck: { try index.exists(CDLessonAssignment.self, id: $0) },
             lessonCheck: { try index.related(CDLesson.self, id: $0) }
         )
 
         try BackupEntityImporter.importNotes(
             payload.notes,
             into: viewContext,
-            existingCheck: { try index.find(CDNote.self, id: $0) }
+            existingCheck: { try index.exists(CDNote.self, id: $0) }
         )
     }
 
@@ -295,45 +295,45 @@ extension BackupService {
         try BackupEntityImporter.importNonSchoolDays(
             payload.nonSchoolDays,
             into: viewContext,
-            existingCheck: { try index.find(CDNonSchoolDay.self, id: $0) }
+            existingCheck: { try index.exists(CDNonSchoolDay.self, id: $0) }
         )
 
         try BackupEntityImporter.importSchoolDayOverrides(
             payload.schoolDayOverrides,
             into: viewContext,
-            existingCheck: { try index.find(CDSchoolDayOverride.self, id: $0) }
+            existingCheck: { try index.exists(CDSchoolDayOverride.self, id: $0) }
         )
 
         try BackupEntityImporter.importStudentMeetings(
             payload.studentMeetings,
             into: viewContext,
-            existingCheck: { try index.find(CDStudentMeeting.self, id: $0) }
+            existingCheck: { try index.exists(CDStudentMeeting.self, id: $0) }
         )
 
         try BackupEntityImporter.importProposedSolutions(
             payload.proposedSolutions,
             into: viewContext,
-            existingCheck: { try index.find(CDProposedSolutionEntity.self, id: $0) },
+            existingCheck: { try index.exists(CDProposedSolutionEntity.self, id: $0) },
             topicCheck: { try index.related(CDCommunityTopicEntity.self, id: $0) }
         )
 
         try BackupEntityImporter.importCommunityAttachments(
             payload.communityAttachments,
             into: viewContext,
-            existingCheck: { try index.find(CDCommunityAttachmentEntity.self, id: $0) },
+            existingCheck: { try index.exists(CDCommunityAttachmentEntity.self, id: $0) },
             topicCheck: { try index.related(CDCommunityTopicEntity.self, id: $0) }
         )
 
         try BackupEntityImporter.importAttendanceRecords(
             payload.attendance,
             into: viewContext,
-            existingCheck: { try index.find(CDAttendanceRecord.self, id: $0) }
+            existingCheck: { try index.exists(CDAttendanceRecord.self, id: $0) }
         )
 
         try BackupEntityImporter.importWorkCompletionRecords(
             payload.workCompletions,
             into: viewContext,
-            existingCheck: { try index.find(CDWorkCompletionRecord.self, id: $0) }
+            existingCheck: { try index.exists(CDWorkCompletionRecord.self, id: $0) }
         )
     }
 
@@ -345,13 +345,13 @@ extension BackupService {
         try BackupEntityImporter.importProjects(
             payload.projects,
             into: viewContext,
-            existingCheck: { try index.find(CDProject.self, id: $0) }
+            existingCheck: { try index.exists(CDProject.self, id: $0) }
         )
 
         try BackupEntityImporter.importProjectRoles(
             payload.projectRoles,
             into: viewContext,
-            existingCheck: { try index.find(CDProjectRole.self, id: $0) }
+            existingCheck: { try index.exists(CDProjectRole.self, id: $0) }
         )
 
         // Import of CDProjectTemplateWeek, CDProjectAssignmentTemplate, and
@@ -360,7 +360,7 @@ extension BackupService {
         try BackupEntityImporter.importProjectSessions(
             payload.projectSessions,
             into: viewContext,
-            existingCheck: { try index.find(CDProjectSession.self, id: $0) }
+            existingCheck: { try index.exists(CDProjectSession.self, id: $0) }
         )
     }
 
@@ -374,7 +374,7 @@ extension BackupService {
             try BackupEntityImporter.importWorkModels(
                 workModels,
                 into: viewContext,
-                existingCheck: { try index.find(CDWorkModel.self, id: $0) }
+                existingCheck: { try index.exists(CDWorkModel.self, id: $0) }
             )
         }
 
@@ -382,7 +382,7 @@ extension BackupService {
             try BackupEntityImporter.importWorkCheckIns(
                 workCheckIns,
                 into: viewContext,
-                existingCheck: { try index.find(CDWorkCheckIn.self, id: $0) },
+                existingCheck: { try index.exists(CDWorkCheckIn.self, id: $0) },
                 workCheck: { try index.related(CDWorkModel.self, id: $0) }
             )
         }
@@ -391,7 +391,7 @@ extension BackupService {
             try BackupEntityImporter.importWorkSteps(
                 workSteps,
                 into: viewContext,
-                existingCheck: { try index.find(CDWorkStep.self, id: $0) },
+                existingCheck: { try index.exists(CDWorkStep.self, id: $0) },
                 workCheck: { try index.related(CDWorkModel.self, id: $0) }
             )
         }
@@ -400,7 +400,7 @@ extension BackupService {
             try BackupEntityImporter.importWorkParticipants(
                 workParticipants,
                 into: viewContext,
-                existingCheck: { try index.find(CDWorkParticipantEntity.self, id: $0) },
+                existingCheck: { try index.exists(CDWorkParticipantEntity.self, id: $0) },
                 workCheck: { try index.related(CDWorkModel.self, id: $0) }
             )
         }
@@ -409,7 +409,7 @@ extension BackupService {
             try BackupEntityImporter.importPracticeSessions(
                 practiceSessions,
                 into: viewContext,
-                existingCheck: { try index.find(CDPracticeSession.self, id: $0) }
+                existingCheck: { try index.exists(CDPracticeSession.self, id: $0) }
             )
         }
     }
@@ -423,7 +423,7 @@ extension BackupService {
             try BackupEntityImporter.importLessonAttachments(
                 lessonAttachments,
                 into: viewContext,
-                existingCheck: { try index.find(CDLessonAttachment.self, id: $0) },
+                existingCheck: { try index.exists(CDLessonAttachment.self, id: $0) },
                 lessonCheck: { try index.related(CDLesson.self, id: $0) }
             )
         }
@@ -432,7 +432,7 @@ extension BackupService {
             try BackupEntityImporter.importLessonPresentations(
                 lessonPresentations,
                 into: viewContext,
-                existingCheck: { try index.find(CDLessonPresentation.self, id: $0) }
+                existingCheck: { try index.exists(CDLessonPresentation.self, id: $0) }
             )
         }
 
@@ -440,7 +440,7 @@ extension BackupService {
             try BackupEntityImporter.importRecallChecks(
                 recallChecks,
                 into: viewContext,
-                existingCheck: { try index.find(CDLessonRecallCheck.self, id: $0) }
+                existingCheck: { try index.exists(CDLessonRecallCheck.self, id: $0) }
             )
         }
 
@@ -448,7 +448,7 @@ extension BackupService {
             try BackupEntityImporter.importSampleWorks(
                 sampleWorks,
                 into: viewContext,
-                existingCheck: { try index.find(CDSampleWork.self, id: $0) },
+                existingCheck: { try index.exists(CDSampleWork.self, id: $0) },
                 lessonCheck: { try index.related(CDLesson.self, id: $0) }
             )
         }
@@ -457,7 +457,7 @@ extension BackupService {
             try BackupEntityImporter.importSampleWorkSteps(
                 sampleWorkSteps,
                 into: viewContext,
-                existingCheck: { try index.find(CDSampleWorkStep.self, id: $0) },
+                existingCheck: { try index.exists(CDSampleWorkStep.self, id: $0) },
                 sampleWorkCheck: { try index.related(CDSampleWork.self, id: $0) }
             )
         }
@@ -472,7 +472,7 @@ extension BackupService {
             try BackupEntityImporter.importNoteTemplates(
                 noteTemplates,
                 into: viewContext,
-                existingCheck: { try index.find(CDNoteTemplate.self, id: $0) }
+                existingCheck: { try index.exists(CDNoteTemplate.self, id: $0) }
             )
         }
 
@@ -480,7 +480,7 @@ extension BackupService {
             try BackupEntityImporter.importMeetingTemplates(
                 meetingTemplates,
                 into: viewContext,
-                existingCheck: { try index.find(CDMeetingTemplate.self, id: $0) }
+                existingCheck: { try index.exists(CDMeetingTemplate.self, id: $0) }
             )
         }
 
@@ -488,7 +488,7 @@ extension BackupService {
             try BackupEntityImporter.importReminders(
                 reminders,
                 into: viewContext,
-                existingCheck: { try index.find(CDReminder.self, id: $0) }
+                existingCheck: { try index.exists(CDReminder.self, id: $0) }
             )
         }
 
@@ -496,7 +496,7 @@ extension BackupService {
             try BackupEntityImporter.importCalendarEvents(
                 calendarEvents,
                 into: viewContext,
-                existingCheck: { try index.find(CDCalendarEvent.self, id: $0) }
+                existingCheck: { try index.exists(CDCalendarEvent.self, id: $0) }
             )
         }
     }
@@ -510,7 +510,7 @@ extension BackupService {
             try BackupEntityImporter.importTracks(
                 tracks,
                 into: viewContext,
-                existingCheck: { try index.find(CDTrackEntity.self, id: $0) }
+                existingCheck: { try index.exists(CDTrackEntity.self, id: $0) }
             )
         }
 
@@ -518,7 +518,7 @@ extension BackupService {
             try BackupEntityImporter.importTrackSteps(
                 trackSteps,
                 into: viewContext,
-                existingCheck: { try index.find(CDTrackStepEntity.self, id: $0) },
+                existingCheck: { try index.exists(CDTrackStepEntity.self, id: $0) },
                 trackCheck: { try index.related(CDTrackEntity.self, id: $0) }
             )
         }
@@ -527,7 +527,7 @@ extension BackupService {
             try BackupEntityImporter.importStudentTrackEnrollments(
                 enrollments,
                 into: viewContext,
-                existingCheck: { try index.find(CDStudentTrackEnrollmentEntity.self, id: $0) },
+                existingCheck: { try index.exists(CDStudentTrackEnrollmentEntity.self, id: $0) },
                 studentCheck: { try index.related(CDStudent.self, id: $0) },
                 trackCheck: { try index.related(CDTrackEntity.self, id: $0) }
             )
@@ -537,7 +537,7 @@ extension BackupService {
             try BackupEntityImporter.importSequenceTracks(
                 sequenceTracks,
                 into: viewContext,
-                existingCheck: { try index.find(CDSequenceTrack.self, id: $0) }
+                existingCheck: { try index.exists(CDSequenceTrack.self, id: $0) }
             )
         }
     }
@@ -551,7 +551,7 @@ extension BackupService {
             try BackupEntityImporter.importDocuments(
                 documents,
                 into: viewContext,
-                existingCheck: { try index.find(CDDocument.self, id: $0) }
+                existingCheck: { try index.exists(CDDocument.self, id: $0) }
             )
         }
 
@@ -559,7 +559,7 @@ extension BackupService {
             try BackupEntityImporter.importSupplies(
                 supplies,
                 into: viewContext,
-                existingCheck: { try index.find(CDSupply.self, id: $0) }
+                existingCheck: { try index.exists(CDSupply.self, id: $0) }
             )
         }
 
@@ -567,7 +567,7 @@ extension BackupService {
             try BackupEntityImporter.importProcedures(
                 procedures,
                 into: viewContext,
-                existingCheck: { try index.find(CDProcedure.self, id: $0) }
+                existingCheck: { try index.exists(CDProcedure.self, id: $0) }
             )
         }
     }
@@ -581,7 +581,7 @@ extension BackupService {
             try BackupEntityImporter.importSchedules(
                 schedules,
                 into: viewContext,
-                existingCheck: { try index.find(CDSchedule.self, id: $0) }
+                existingCheck: { try index.exists(CDSchedule.self, id: $0) }
             )
         }
 
@@ -589,7 +589,7 @@ extension BackupService {
             try BackupEntityImporter.importScheduleSlots(
                 scheduleSlots,
                 into: viewContext,
-                existingCheck: { try index.find(CDScheduleSlot.self, id: $0) },
+                existingCheck: { try index.exists(CDScheduleSlot.self, id: $0) },
                 scheduleCheck: { try index.related(CDSchedule.self, id: $0) }
             )
         }
@@ -604,7 +604,7 @@ extension BackupService {
             try BackupEntityImporter.importIssues(
                 issues,
                 into: viewContext,
-                existingCheck: { try index.find(CDIssue.self, id: $0) }
+                existingCheck: { try index.exists(CDIssue.self, id: $0) }
             )
         }
 
@@ -612,7 +612,7 @@ extension BackupService {
             try BackupEntityImporter.importIssueActions(
                 issueActions,
                 into: viewContext,
-                existingCheck: { try index.find(CDIssueAction.self, id: $0) },
+                existingCheck: { try index.exists(CDIssueAction.self, id: $0) },
                 issueCheck: { try index.related(CDIssue.self, id: $0) }
             )
         }
@@ -627,7 +627,7 @@ extension BackupService {
             try BackupEntityImporter.importDevelopmentSnapshots(
                 snapshots,
                 into: viewContext,
-                existingCheck: { try index.find(CDDevelopmentSnapshotEntity.self, id: $0) }
+                existingCheck: { try index.exists(CDDevelopmentSnapshotEntity.self, id: $0) }
             )
         }
 
@@ -635,7 +635,7 @@ extension BackupService {
             try BackupEntityImporter.importTodoItems(
                 todoItems,
                 into: viewContext,
-                existingCheck: { try index.find(CDTodoItem.self, id: $0) }
+                existingCheck: { try index.exists(CDTodoItem.self, id: $0) }
             )
         }
 
@@ -643,7 +643,7 @@ extension BackupService {
             try BackupEntityImporter.importTodoSubtasks(
                 todoSubtasks,
                 into: viewContext,
-                existingCheck: { try index.find(CDTodoSubtask.self, id: $0) },
+                existingCheck: { try index.exists(CDTodoSubtask.self, id: $0) },
                 todoCheck: { try index.related(CDTodoItem.self, id: $0) }
             )
         }
@@ -652,7 +652,7 @@ extension BackupService {
             try BackupEntityImporter.importTodoTemplates(
                 todoTemplates,
                 into: viewContext,
-                existingCheck: { try index.find(CDTodoTemplate.self, id: $0) }
+                existingCheck: { try index.exists(CDTodoTemplate.self, id: $0) }
             )
         }
 
@@ -660,7 +660,7 @@ extension BackupService {
             try BackupEntityImporter.importTodayAgendaOrders(
                 agendaOrders,
                 into: viewContext,
-                existingCheck: { try index.find(CDTodayAgendaOrder.self, id: $0) }
+                existingCheck: { try index.exists(CDTodayAgendaOrder.self, id: $0) }
             )
         }
     }
@@ -674,7 +674,7 @@ extension BackupService {
             try BackupEntityImporter.importPlanningRecommendations(
                 recommendations,
                 into: viewContext,
-                existingCheck: { try index.find(CDPlanningRecommendation.self, id: $0) }
+                existingCheck: { try index.exists(CDPlanningRecommendation.self, id: $0) }
             )
         }
 
@@ -682,7 +682,7 @@ extension BackupService {
             try BackupEntityImporter.importResources(
                 resources,
                 into: viewContext,
-                existingCheck: { try index.find(CDResource.self, id: $0) }
+                existingCheck: { try index.exists(CDResource.self, id: $0) }
             )
         }
 
@@ -690,7 +690,7 @@ extension BackupService {
             try BackupEntityImporter.importNoteStudentLinks(
                 noteStudentLinks,
                 into: viewContext,
-                existingCheck: { try index.find(CDNoteStudentLink.self, id: $0) },
+                existingCheck: { try index.exists(CDNoteStudentLink.self, id: $0) },
                 noteCheck: { try index.related(CDNote.self, id: $0) }
             )
         }
@@ -705,7 +705,7 @@ extension BackupService {
             try BackupEntityImporter.importGoingOuts(
                 goingOuts,
                 into: viewContext,
-                existingCheck: { try index.find(CDGoingOut.self, id: $0) }
+                existingCheck: { try index.exists(CDGoingOut.self, id: $0) }
             )
         }
 
@@ -713,7 +713,7 @@ extension BackupService {
             try BackupEntityImporter.importGoingOutChecklistItems(
                 goingOutItems,
                 into: viewContext,
-                existingCheck: { try index.find(CDGoingOutChecklistItem.self, id: $0) },
+                existingCheck: { try index.exists(CDGoingOutChecklistItem.self, id: $0) },
                 goingOutCheck: { try index.related(CDGoingOut.self, id: $0) }
             )
         }
@@ -722,7 +722,7 @@ extension BackupService {
             try BackupEntityImporter.importClassroomJobs(
                 classroomJobs,
                 into: viewContext,
-                existingCheck: { try index.find(CDClassroomJob.self, id: $0) }
+                existingCheck: { try index.exists(CDClassroomJob.self, id: $0) }
             )
         }
 
@@ -730,7 +730,7 @@ extension BackupService {
             try BackupEntityImporter.importJobAssignments(
                 jobAssignments,
                 into: viewContext,
-                existingCheck: { try index.find(CDJobAssignment.self, id: $0) },
+                existingCheck: { try index.exists(CDJobAssignment.self, id: $0) },
                 jobCheck: { try index.related(CDClassroomJob.self, id: $0) }
             )
         }
@@ -739,7 +739,7 @@ extension BackupService {
             try BackupEntityImporter.importCalendarNotes(
                 calendarNotes,
                 into: viewContext,
-                existingCheck: { try index.find(CDCalendarNote.self, id: $0) }
+                existingCheck: { try index.exists(CDCalendarNote.self, id: $0) }
             )
         }
 
@@ -747,7 +747,7 @@ extension BackupService {
             try BackupEntityImporter.importScheduledMeetings(
                 scheduledMeetings,
                 into: viewContext,
-                existingCheck: { try index.find(CDScheduledMeeting.self, id: $0) }
+                existingCheck: { try index.exists(CDScheduledMeeting.self, id: $0) }
             )
         }
 
@@ -756,7 +756,7 @@ extension BackupService {
             try BackupEntityImporter.importClassroomMemberships(
                 memberships,
                 into: viewContext,
-                existingCheck: { try index.find(CDClassroomMembership.self, id: $0) }
+                existingCheck: { try index.exists(CDClassroomMembership.self, id: $0) }
             )
         }
 
@@ -765,7 +765,7 @@ extension BackupService {
             BackupEntityImporter.importMeetingWorkReviews(
                 meetingWorkReviews,
                 into: viewContext,
-                existingCheck: { try index.find(CDMeetingWorkReview.self, id: $0) }
+                existingCheck: { try index.exists(CDMeetingWorkReview.self, id: $0) }
             )
         }
 
@@ -773,7 +773,7 @@ extension BackupService {
             BackupEntityImporter.importStudentFocusItems(
                 studentFocusItems,
                 into: viewContext,
-                existingCheck: { try index.find(CDStudentFocusItem.self, id: $0) }
+                existingCheck: { try index.exists(CDStudentFocusItem.self, id: $0) }
             )
         }
     }
@@ -790,7 +790,7 @@ extension BackupService {
             try BackupEntityImporter.importDayPads(
                 dayPads,
                 into: viewContext,
-                existingCheck: { try index.find(CDDayPad.self, id: $0) }
+                existingCheck: { try index.exists(CDDayPad.self, id: $0) }
             )
         }
 
@@ -798,7 +798,7 @@ extension BackupService {
             try BackupEntityImporter.importYearPlanEntries(
                 yearPlanEntries,
                 into: viewContext,
-                existingCheck: { try index.find(CDYearPlanEntry.self, id: $0) }
+                existingCheck: { try index.exists(CDYearPlanEntry.self, id: $0) }
             )
         }
 
@@ -806,7 +806,7 @@ extension BackupService {
             try BackupEntityImporter.importLessonSequenceSettings(
                 sequenceSettings,
                 into: viewContext,
-                existingCheck: { try index.find(CDLessonSequenceSettings.self, id: $0) }
+                existingCheck: { try index.exists(CDLessonSequenceSettings.self, id: $0) }
             )
         }
 
@@ -814,7 +814,7 @@ extension BackupService {
             try BackupEntityImporter.importStories(
                 stories,
                 into: viewContext,
-                existingCheck: { try index.find(CDStory.self, id: $0) }
+                existingCheck: { try index.exists(CDStory.self, id: $0) }
             )
         }
 
@@ -822,7 +822,7 @@ extension BackupService {
             try BackupEntityImporter.importBookClubPackets(
                 packets,
                 into: viewContext,
-                existingCheck: { try index.find(CDBookClubPacket.self, id: $0) }
+                existingCheck: { try index.exists(CDBookClubPacket.self, id: $0) }
             )
         }
 
@@ -830,7 +830,7 @@ extension BackupService {
             try BackupEntityImporter.importBookClubSessions(
                 sessions,
                 into: viewContext,
-                existingCheck: { try index.find(CDBookClubSession.self, id: $0) }
+                existingCheck: { try index.exists(CDBookClubSession.self, id: $0) }
             )
         }
 
@@ -838,7 +838,7 @@ extension BackupService {
             try BackupEntityImporter.importBookClubMeetings(
                 meetings,
                 into: viewContext,
-                existingCheck: { try index.find(CDBookClubMeeting.self, id: $0) },
+                existingCheck: { try index.exists(CDBookClubMeeting.self, id: $0) },
                 sessionCheck: { try index.related(CDBookClubSession.self, id: $0) }
             )
         }

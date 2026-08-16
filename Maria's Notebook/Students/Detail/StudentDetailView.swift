@@ -138,6 +138,9 @@ struct StudentDetailView: View {
     }
 
     private func handleEdit() {
+        // The editor is part of the Overview section, so editing from anywhere
+        // else would otherwise show a commit bar with no form above it.
+        selectedSectionRaw = StudentWorkspaceSection.overview.rawValue
         draftFirstName = student.firstName
         draftLastName = student.lastName
         draftNickname = student.nickname ?? ""
@@ -177,51 +180,18 @@ struct StudentDetailView: View {
     }
 
     private var headerRow: some View {
-        HStack(alignment: .firstTextBaseline, spacing: 12) {
-            VStack(alignment: .leading, spacing: 2) {
-                Text(StudentFormatter.displayName(for: student))
-                    .font(AppTheme.ScaledFont.titleSmall)
-                Text("Student record")
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
-            }
-
-            Spacer()
-
-            Button {
-                showQuickNote = true
-            } label: {
-                Label("Add Observation", systemImage: "plus")
-            }
-            .buttonStyle(.bordered)
-
-            Menu {
-                Button("Start Meeting", systemImage: "person.2") {
-                    startMeeting()
-                }
-                Button("Plan Lessons", systemImage: "sparkles") {
-                    showAIPlanning = true
-                }
-                Button("Open Documents", systemImage: "folder") {
-                    openDocuments()
-                }
-
-                Divider()
-
-                Button("Edit Student", systemImage: "square.and.pencil") {
-                    handleEdit()
-                }
-                Button("Delete Student", systemImage: "trash", role: .destructive) {
-                    handleDelete()
-                }
-            } label: {
-                Label("Student Actions", systemImage: "ellipsis.circle")
-            }
-        }
-        .padding(.horizontal, 24)
-        .padding(.top, 18)
+        StudentRecordHeader(
+            student: student,
+            isEditing: isEditing,
+            onAddObservation: { showQuickNote = true },
+            onStartMeeting: startMeeting,
+            onPlanLessons: { showAIPlanning = true },
+            onOpenDocuments: openDocuments,
+            onEdit: handleEdit,
+            onDelete: handleDelete
+        )
     }
-    
+
     var body: some View {
         sizedContent
         #if os(iOS)
@@ -238,6 +208,16 @@ struct StudentDetailView: View {
                 onDelete: handleDelete,
                 onDone: handleDone
             )
+        }
+        #else
+        .safeAreaInset(edge: .bottom) {
+            if isEditing {
+                StudentEditActionBar(
+                    canSave: !draftFirstName.trimmed().isEmpty && !draftLastName.trimmed().isEmpty,
+                    onCancel: handleCancelEdit,
+                    onSave: handleSaveEdit
+                )
+            }
         }
         #endif
         .overlay(alignment: .top) {

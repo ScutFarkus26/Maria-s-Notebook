@@ -15,6 +15,8 @@ public class CDStudent: NSManagedObject {
     @NSManaged public var dateStarted: Date?
     @NSManaged public var enrollmentStatusRaw: String
     @NSManaged public var dateWithdrawn: Date?
+    @NSManaged public var previousLevelRaw: String?
+    @NSManaged public var dateLastPromoted: Date?
     @NSManaged public var modifiedAt: Date?
 
     // MARK: - Relationships
@@ -36,6 +38,8 @@ public class CDStudent: NSManagedObject {
         self.dateStarted = nil
         self.enrollmentStatusRaw = EnrollmentStatus.enrolled.rawValue
         self.dateWithdrawn = nil
+        self.previousLevelRaw = nil
+        self.dateLastPromoted = nil
         self.modifiedAt = Date()
     }
 }
@@ -54,7 +58,23 @@ extension CDStudent {
     }
 
     var isWithdrawn: Bool { enrollmentStatus == .withdrawn }
+    var isTransferred: Bool { enrollmentStatus == .transferred }
     var isEnrolled: Bool { enrollmentStatus == .enrolled }
+
+    /// True for any student no longer on the active roster (withdrawn or transferred).
+    var isDeparted: Bool { !isEnrolled }
+
+    /// `dateWithdrawn` doubles as the departure date for transferred students.
+    var dateDeparted: Date? {
+        get { dateWithdrawn }
+        set { dateWithdrawn = newValue }
+    }
+
+    /// The level held before the most recent promotion, if one was recorded.
+    var previousLevel: Level? {
+        get { previousLevelRaw.flatMap(Level.init(rawValue:)) }
+        set { previousLevelRaw = newValue?.rawValue }
+    }
 
     var fullName: String {
         "\(firstName) \(lastName)"

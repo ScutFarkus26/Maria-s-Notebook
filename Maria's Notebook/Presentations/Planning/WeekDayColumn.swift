@@ -15,6 +15,7 @@ struct WeekDayColumn: View {
     let showWork: Bool
     // OPTIMIZATION: Accept pre-fetched work items from parent
     let preloadedWorkItems: [CDWorkCheckIn]
+    let focusedPresentationID: UUID?
     let onClear: (CDLessonAssignment) -> Void
     let onSelect: (CDLessonAssignment) -> Void
 
@@ -23,12 +24,24 @@ struct WeekDayColumn: View {
     @State private var isTargeted: Bool = false
     @State private var insertionIndex: Int?
 
+    private struct FocusScrollTrigger: Equatable {
+        let focusedID: UUID?
+        let scheduledIDs: [UUID]
+    }
+
     private var scheduledLessonsForDay: [CDLessonAssignment] {
         allLessonAssignments.filter { la in
             guard let scheduled = la.scheduledFor, !la.isGiven else { return false }
             return calendar.isDate(scheduled, inSameDayAs: day)
         }
         .sorted { ($0.scheduledFor ?? .distantPast) < ($1.scheduledFor ?? .distantPast) }
+    }
+
+    private var focusScrollTrigger: FocusScrollTrigger {
+        FocusScrollTrigger(
+            focusedID: focusedPresentationID,
+            scheduledIDs: scheduledLessonsForDay.compactMap(\.id)
+        )
     }
 
     // Students appearing on 2+ not-yet-presented lesson assignments on this day.
@@ -120,69 +133,98 @@ struct WeekDayColumn: View {
                         .stroke(Color.accentColor.opacity(UIConstants.OpacityConstants.prominent), lineWidth: 2)
                 }
 
-                ScrollView(.vertical, showsIndicators: true) {
-                    LazyVStack(alignment: .leading, spacing: 6) {
-                        if allItemsForDay.isEmpty {
-                            Text("Drag a presentation here")
-                                .font(.caption)
-                                .foregroundStyle(.secondary)
-                                .padding(8)
-                        } else {
-                            ForEach(allItemsForDay) { item in
-                                switch item {
-                                case .lessonAssignment(let la):
-                                    let laID = la.id ?? UUID()
-                                    let dayDoubleBooked = doubleBookedStudentIDs
-                                    PresentationPlannerCard(
-                                        snapshot: la.snapshot(),
-                                        day: day,
-                                        cachedLessons: nil,
-                                        cachedStudents: nil,
-                                        blockingWork: [:],
-                                        doubleBookedStudentIDs: dayDoubleBooked
-                                    )
-                                        .onTapGesture { onSelect(la) }
-                                        .draggable(
-                                            UnifiedCalendarDragPayload.presentation(laID).stringRepresentation
-                                        ) {
-                                            PresentationPlannerCard(
-                                                snapshot: la.snapshot(),
-                                                day: day,
-                                                cachedLessons: [],
-                                                cachedStudents: [],
-                                                blockingWork: [:],
-                                                doubleBookedStudentIDs: dayDoubleBooked
-                                            ).opacity(UIConstants.OpacityConstants.nearSolid)
-                                        }
-                                        .contextMenu {
-                                            Button("Clear Schedule", systemImage: "xmark.circle") {
-                                                onClear(la)
-                                            }
-                                        }
-                                        .background(
-                                            GeometryReader { proxy in
-                                                Color.clear.preference(
-                                                    key: PillFramePreference.self,
-                                                    value: [laID: proxy.frame(in: .named(zoneSpaceID))]
-                                                )
-                                            }
+                ScrollViewReader { scrollProxy in
+                    ScrollView(.vertical, showsIndicators: true) {
+                        LazyVStack(alignment: .leading, spacing: 6) {
+                            if allItemsForDay.isEmpty {
+                                Text("Drag a presentation here")
+                                    .font(.caption)
+                                    .foregroundStyle(.secondary)
+                                    .padding(8)
+                            } else {
+                                ForEach(allItemsForDay) { item in
+                                    switch item {
+                                    case .lessonAssignment(let la):
+                                        let laID = la.id ?? UUID()
+                                        let dayDoubleBooked = doubleBookedStudentIDs
+                                        PresentationPlannerCard(
+                                            snapshot: la.snapshot(),
+                                            day: day,
+                                            cachedLessons: nil,
+                                            cachedStudents: nil,
+                                            blockingWork: [:],
+                                            doubleBookedStudentIDs: dayDoubleBooked
                                         )
-                                case .workCheckIn(let wci):
-                                    let wciID = wci.id ?? UUID()
-                                    WorkCheckInPill(checkIn: wci, isDulled: true)
-                                        .background(
-                                            GeometryReader { proxy in
-                                                Color.clear.preference(
-                                                    key: PillFramePreference.self,
-                                                    value: [wciID: proxy.frame(in: .named(zoneSpaceID))]
-                                                )
+                                            .id(laID)
+                                            .overlay {
+                                                if focusedPresentationID == laID {
+                                                    RoundedRectangle(
+                                                        cornerRadius: UIConstants.CornerRadius.medium,
+                                                        style: .continuous
+                                                    )
+                                                    .stroke(Color.accentColor, lineWidth: 2.5)
+                                                    .shadow(
+                                                        color: Color.accentColor.opacity(0.4),
+                                                        radius: 6
+                                                    )
+                                                }
                                             }
-                                        )
+                                            .onTapGesture { onSelect(la) }
+                                            .draggable(
+                                                UnifiedCalendarDragPayload.presentation(laID).stringRepresentation
+                                            ) {
+                                                PresentationPlannerCard(
+                                                    snapshot: la.snapshot(),
+                                                    day: day,
+                                                    cachedLessons: [],
+                                                    cachedStudents: [],
+                                                    blockingWork: [:],
+                                                    doubleBookedStudentIDs: dayDoubleBooked
+                                                ).opacity(UIConstants.OpacityConstants.nearSolid)
+                                            }
+                                            .contextMenu {
+                                                Button("Clear Schedule", systemImage: "xmark.circle") {
+                                                    onClear(la)
+                                                }
+                                            }
+                                            .background(
+                                                GeometryReader { proxy in
+                                                    Color.clear.preference(
+                                                        key: PillFramePreference.self,
+                                                        value: [laID: proxy.frame(in: .named(zoneSpaceID))]
+                                                    )
+                                                }
+                                            )
+                                    case .workCheckIn(let wci):
+                                        let wciID = wci.id ?? UUID()
+                                        WorkCheckInPill(checkIn: wci, isDulled: true)
+                                            .id(wciID)
+                                            .background(
+                                                GeometryReader { proxy in
+                                                    Color.clear.preference(
+                                                        key: PillFramePreference.self,
+                                                        value: [wciID: proxy.frame(in: .named(zoneSpaceID))]
+                                                    )
+                                                }
+                                            )
+                                    }
                                 }
                             }
                         }
+                        .padding(8)
                     }
-                    .padding(8)
+                    .task(id: focusScrollTrigger) {
+                        guard let focusedPresentationID,
+                              focusScrollTrigger.scheduledIDs.contains(focusedPresentationID) else {
+                            return
+                        }
+                        await Task.yield()
+                        try? await Task.sleep(for: .milliseconds(50))
+                        guard !Task.isCancelled else { return }
+                        withAnimation(.easeInOut(duration: 0.3)) {
+                            scrollProxy.scrollTo(focusedPresentationID, anchor: .center)
+                        }
+                    }
                 }
 
                 // Insertion indicator overlay

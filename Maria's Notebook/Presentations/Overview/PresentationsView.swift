@@ -3,6 +3,20 @@ import CoreData
 import UniformTypeIdentifiers
 import OSLog
 
+enum PresentationsWorkspaceMode: String, CaseIterable, Identifiable {
+    case plan
+    case followUp
+
+    var id: String { rawValue }
+
+    var title: String {
+        switch self {
+        case .plan: "Plan"
+        case .followUp: "Follow Up"
+        }
+    }
+}
+
 struct PresentationsView: View {
     static let logger = Logger.presentations
     @Environment(\.managedObjectContext) var viewContext
@@ -12,6 +26,12 @@ struct PresentationsView: View {
     #if os(macOS)
     @Environment(\.openWindow) var openWindow
     #endif
+
+    /// The unified Lessons & Work workspace embeds only the presentation
+    /// planning pane. The standalone form remains available during migration.
+    var isEmbedded: Bool = false
+    var embeddedSearchText: String? = nil
+    var focusedPresentationID: UUID? = nil
 
     // OPTIMIZATION: Use lightweight queries for change detection only
     // Extract IDs immediately to avoid retaining full objects - significantly reduces memory usage
@@ -132,6 +152,7 @@ struct PresentationsView: View {
 
     @State var startDate: Date = Date()
     @State var compactTab: PresentationsCompactTab = .ready
+    @State var workspaceMode: PresentationsWorkspaceMode = .plan
     @State var cachedNonSchoolDates: Set<Date> = []
 
     // MODERN: Centralized navigation coordinator

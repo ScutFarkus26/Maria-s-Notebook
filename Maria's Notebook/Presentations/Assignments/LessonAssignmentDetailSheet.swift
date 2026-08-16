@@ -379,6 +379,7 @@ struct LessonAssignmentDetailSheet: View, Identifiable {
                 students: studentList(for: la),
                 lessonName: title(for: la),
                 lessonID: lessonIDString,
+                presentationID: la.id ?? assignmentID,
                 onComplete: {
                     // Work items are created by the workflow sheet
                     showingEditSheet = false

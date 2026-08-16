@@ -8,21 +8,21 @@ Maria's Notebook is a comprehensive teacher planning and classroom management ap
 - Swift 6.0 / SwiftUI
 - Core Data + NSPersistentCloudKitContainer (two-store architecture)
 - iOS 27.0+ / macOS 27.0+ / visionOS 27.0+ (27.0 SDKs are beta until the fall GM)
-- Xcode 27.0 beta+ (currently `~/Downloads/Xcode-beta.app`; `/Applications/Xcode.app` is still 26.5)
+- Xcode 27.0 beta+ (currently `/Applications/Xcode-beta.app`; there is no other Xcode installed)
 
 ## Build & Run
 
 ```bash
 # Open project (in the 27-beta Xcode)
-open -a "$HOME/Downloads/Xcode-beta.app" "Maria's Notebook.xcodeproj"
+open -a "/Applications/Xcode-beta.app" "Maria's Notebook.xcodeproj"
 
 # Build from command line — needs the 27.0 SDKs, so point DEVELOPER_DIR at the beta
 # (drop the prefix once Xcode 27 GM replaces /Applications/Xcode.app in the fall)
-DEVELOPER_DIR="$HOME/Downloads/Xcode-beta.app/Contents/Developer" \
+DEVELOPER_DIR="/Applications/Xcode-beta.app/Contents/Developer" \
   xcodebuild -project "Maria's Notebook.xcodeproj" -scheme "Maria's Notebook" -destination "platform=iOS Simulator,name=iPhone 17,OS=27.0" build
 
 # Run unit tests
-DEVELOPER_DIR="$HOME/Downloads/Xcode-beta.app/Contents/Developer" \
+DEVELOPER_DIR="/Applications/Xcode-beta.app/Contents/Developer" \
   xcodebuild test -project "Maria's Notebook.xcodeproj" -scheme "Maria's Notebook" -destination "platform=iOS Simulator,name=iPhone 17,OS=27.0"
 ```
 
@@ -163,6 +163,10 @@ At the start of each conversation, before writing or modifying any code, search 
 - Schema changes must be additive-only after CloudKit deployment
 - All models use string-based foreign keys for sync compatibility
 - **Shared-store zone repair:** `SharedStoreZoneRepair` (Services/SharedStoreZoneRepair.swift) detects records in the shared store that aren't assigned to a CKShare zone — these poison `NSCloudKitMirroringDelegate` with `NSCocoaErrorDomain 134060`. It runs at the end of post-launch migrations, after each post-import dedup pass, and when `ClassroomSharingService.isSharing` transitions `false → true`. Lead guides also see a banner + "Repair Sync Errors" button in Settings → Classroom Sharing.
+- **Persistent history purge policy:** never purge history the mirroring delegate may still need — that resets sync and can resurrect deletions. `PersistentHistoryProcessor.purgeOldHistory` only deletes transactions that predate BOTH the last successful `.export` event's start date (recorded by `CloudKitSyncStatusService`) and a 180-day retention window, at most every 60 days. Do not add token- or short-date-based purging.
+- **Only the primary on-disk `CoreDataStack` creates a `PersistentHistoryProcessor`.** Sample Class / in-memory stacks must not — history tokens are per-store and all processors share one UserDefaults key.
+- **CloudKit schema:** after a model change, run a DEBUG build once with the `-InitializeCloudKitSchema` launch argument to mirror the model into the development schema, verify in CloudKit Console, then deploy to production before release.
+- **Account availability:** use `CKContainer.accountStatus` / `.CKAccountChanged` for CloudKit sync health, never `ubiquityIdentityToken` (that reports iCloud *Drive*, which users can disable while CloudKit keeps working). The ubiquity token remains correct for the iCloud Drive file-storage features.
 
 ### Known beta-SDK build warnings (Xcode 27 beta 1)
 
@@ -178,6 +182,12 @@ These come from Apple's frameworks, not this app — they are not actionable in 
 
 **Filter in Console.app:** exclude subsystem `com.apple.BackgroundSystemTasks`.
 **Noisy Xcode debug runs:** set `OS_ACTIVITY_MODE=disable` in the scheme's environment variables.
+
+## MCP Server (Claude Desktop)
+
+- macOS-only: the app embeds an MCP server (`Services/MCPServer/`) on loopback TCP `127.0.0.1:43117` with an `AUTH <token>` preamble (token at `~/.marias-notebook/mcp.token` via a scoped entitlement exception). Unix sockets don't work here: the sandbox can't bind them outside the container, and container paths trip macOS container-protection TCC for external clients. `Scripts/mcp/marias-notebook-mcp` bridges to Claude Desktop's stdio transport via `nc`. See `Documentation/Architecture/MCP_SERVER.md`.
+- Toggle: Settings → AI Features → Claude Desktop (`UserDefaultsKeys.aiMCPServerEnabled`, default off). Lifecycle: `MCPServerService.shared`, started from `performStartupBootstrap()`.
+- Read tools mirror `Services/AI/NotebookTools.swift` conventions (`[kind id=<uuid>]` citations, diacritic-insensitive student resolution). Write tools: `create_observation` follows the `LogObservationIntent` save path; `update_student` / `update_observation` go through `StudentRepository` / `NoteRepository` + `safeSave`. No delete tools by design. Keep the two toolsets' semantics aligned when changing either.
 
 ## Backup System
 

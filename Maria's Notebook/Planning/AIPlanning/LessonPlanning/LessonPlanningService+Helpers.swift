@@ -63,7 +63,7 @@ extension LessonPlanningService {
             lines.append("Quick suggestions for \(ids.count) students")
         }
 
-        // Readiness summary (very condensed)
+        // Factual curriculum evidence (very condensed)
         for profile in session.readinessProfiles.prefix(5) {
             let areas = profile.areaReadiness.filter { $0.nextLessonID != nil }.prefix(3)
             let areaStr = areas.map { "\($0.area):\($0.nextLessonName ?? "?")" }.joined(separator: ", ")
@@ -88,7 +88,7 @@ extension LessonPlanningService {
                 "sequence": rec.sequence,
                 "studentNames": rec.studentNames.joined(separator: ", "),
                 "reasoning": rec.reasoning,
-                "confidence": String(format: "%.2f", rec.confidence),
+                "evidenceAvailability": rec.evidenceAvailability.rawValue,
                 "priority": "\(rec.priority)",
                 "suggestedDay": rec.suggestedDay ?? ""
             ]

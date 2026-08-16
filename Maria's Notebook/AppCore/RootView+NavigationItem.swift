@@ -64,8 +64,8 @@ extension RootView {
             case .more:                return ("More", "ellipsis.circle")
             case .todos:               return ("Todos", "checkmark.circle")
             case .planningChecklist:   return ("Checklist", "list.clipboard")
-            case .planningAgenda:      return ("Presentations", "calendar")
-            case .planningWork:        return ("Open Work", "tray.full")
+            case .planningAgenda:      return ("Lessons & Work", "tray.full")
+            case .planningWork:        return ("Lessons & Work", "tray.full")
             case .planningProjects:    return ("Projects", "folder")
             case .planningCalendar:    return ("Calendar", "calendar.day.timeline.leading")
             case .progressDashboard:   return ("Progress Dashboard", "person.text.rectangle")
@@ -104,7 +104,7 @@ extension RootView {
         var isInMoreMenu: Bool {
             switch self {
             case .lessons, .stories, .bookClub, .supplies, .procedures, .meetings,
-                 .planningChecklist, .planningAgenda, .planningWork,
+                 .planningChecklist, .planningAgenda,
                  .planningProjects, .planningCalendar,
                  .progressDashboard, .lessonRecall,
                  .goingOut,
@@ -113,6 +113,10 @@ extension RootView {
                  .thisWeeksParsha, .parshaCalendar,
                  .community, .schedules, .resourceLibrary, .askAI, .logs, .settings:
                 return true
+            case .planningWork:
+                // Backward-compatible destination; the visible entry is now
+                // the shared Lessons & Work workspace at .planningAgenda.
+                return false
             default:
                 return false
             }

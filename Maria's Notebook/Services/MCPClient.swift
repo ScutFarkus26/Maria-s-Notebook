@@ -74,11 +74,17 @@ protocol MCPClientProtocol {
         timeout: TimeInterval?,
         onDelta: @escaping @Sendable (String) -> Void
     ) async throws -> String
+
+    /// Returns source records collected by the most recent grounded request.
+    /// Providers without local notebook tools return an empty list.
+    func consumeEvidenceSources() async -> [EvidenceReference]
 }
 
 // MARK: - Default Implementations
 
 extension MCPClientProtocol {
+    func consumeEvidenceSources() async -> [EvidenceReference] { [] }
+
     func generateText(
         prompt: String, systemMessage: String? = nil,
         temperature: Double, maxTokens: Int? = nil

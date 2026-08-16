@@ -1,6 +1,7 @@
 // WarningBanners.swift
 // Warning banners for store and sync issues
 
+import CloudKit
 import SwiftUI
 
 // MARK: - Ephemeral Store Warning Banner
@@ -92,9 +93,12 @@ struct EphemeralStoreWarningBanner: View {
 struct CloudKitSyncWarningBanner: View {
     @Environment(\.appRouter) private var appRouter
 
-    private var isiCloudSignedIn: Bool {
-        FileManager.default.ubiquityIdentityToken != nil
-    }
+    /// CloudKit account availability. Defaults to true so the harsher
+    /// "Not Signed Into iCloud" variant never flashes before the async check
+    /// lands. Checked via CKContainer.accountStatus — the CloudKit API — not
+    /// `ubiquityIdentityToken`, which reports iCloud *Drive* identity and is
+    /// nil for users who disabled iCloud Drive while CloudKit sync still works.
+    @State private var isiCloudSignedIn = true
 
     private var errorDescription: String? {
         UserDefaults.standard.string(forKey: UserDefaultsKeys.cloudKitLastErrorDescription)
@@ -122,6 +126,17 @@ struct CloudKitSyncWarningBanner: View {
 
     var body: some View {
         bannerContent
+            .task {
+                let ckContainer: CKContainer
+                if let containerID = CloudKitConfigurationService.getContainerID() {
+                    ckContainer = CKContainer(identifier: containerID)
+                } else {
+                    ckContainer = CKContainer.default()
+                }
+                if let status = try? await ckContainer.accountStatus() {
+                    isiCloudSignedIn = status == .available
+                }
+            }
     }
 
     private var bannerContent: some View {

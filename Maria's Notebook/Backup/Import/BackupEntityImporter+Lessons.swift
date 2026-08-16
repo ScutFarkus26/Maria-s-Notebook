@@ -11,7 +11,7 @@ extension BackupEntityImporter {
     static func importLessons(
         _ dtos: [LessonDTO],
         into viewContext: NSManagedObjectContext,
-        existingCheck: EntityExistsCheck<CDLesson>
+        existingCheck: EntityExistsCheck
     ) rethrows {
         try importSimpleEntities(
             dtos, into: viewContext,
@@ -59,8 +59,8 @@ extension BackupEntityImporter {
     static func importSampleWorks(
         _ dtos: [SampleWorkDTO],
         into viewContext: NSManagedObjectContext,
-        existingCheck: EntityExistsCheck<CDSampleWork>,
-        lessonCheck: EntityExistsCheck<CDLesson>
+        existingCheck: EntityExistsCheck,
+        lessonCheck: EntityLookup<CDLesson>
     ) rethrows {
         for dto in dtos {
             if shouldSkipExisting(id: dto.id, existingCheck: existingCheck) { continue }
@@ -91,8 +91,8 @@ extension BackupEntityImporter {
     static func importSampleWorkSteps(
         _ dtos: [SampleWorkStepDTO],
         into viewContext: NSManagedObjectContext,
-        existingCheck: EntityExistsCheck<CDSampleWorkStep>,
-        sampleWorkCheck: EntityExistsCheck<CDSampleWork>
+        existingCheck: EntityExistsCheck,
+        sampleWorkCheck: EntityLookup<CDSampleWork>
     ) rethrows {
         for dto in dtos {
             if shouldSkipExisting(id: dto.id, existingCheck: existingCheck) { continue }
@@ -128,12 +128,12 @@ extension BackupEntityImporter {
     static func importLessonAssignments(
         _ dtos: [LessonAssignmentDTO],
         into viewContext: NSManagedObjectContext,
-        existingCheck: EntityExistsCheck<CDLessonAssignment>,
-        lessonCheck: EntityExistsCheck<CDLesson>
+        existingCheck: EntityExistsCheck,
+        lessonCheck: EntityLookup<CDLesson>
     ) rethrows {
         for dto in dtos {
             do {
-                if try existingCheck(dto.id) != nil { continue }
+                if try existingCheck(dto.id) { continue }
             } catch {
                 let desc = error.localizedDescription
                 Logger.backup.warning("Failed to check existing lesson assignment: \(desc, privacy: .public)")
@@ -196,8 +196,8 @@ extension BackupEntityImporter {
     static func importLessonAttachments(
         _ dtos: [LessonAttachmentDTO],
         into viewContext: NSManagedObjectContext,
-        existingCheck: EntityExistsCheck<CDLessonAttachment>,
-        lessonCheck: EntityExistsCheck<CDLesson>
+        existingCheck: EntityExistsCheck,
+        lessonCheck: EntityLookup<CDLesson>
     ) rethrows {
         for dto in dtos {
             if shouldSkipExisting(id: dto.id, existingCheck: existingCheck) { continue }
@@ -229,7 +229,7 @@ extension BackupEntityImporter {
     static func importLessonPresentations(
         _ dtos: [LessonPresentationDTO],
         into viewContext: NSManagedObjectContext,
-        existingCheck: EntityExistsCheck<CDLessonPresentation>
+        existingCheck: EntityExistsCheck
     ) rethrows {
         try importSimpleEntities(
             dtos, into: viewContext,
@@ -249,6 +249,14 @@ extension BackupEntityImporter {
             lp.lastObservedAt = dto.lastObservedAt
             lp.masteredAt = dto.masteredAt
             lp.notes = dto.notes
+            lp.followUpActionRaw = dto.followUpActionRaw
+            lp.followUpReviewAt = dto.followUpReviewAt
+            lp.followUpResolvedAt = dto.followUpResolvedAt
+            lp.followUpResolutionRaw = dto.followUpResolutionRaw
+            lp.followUpUpdatedAt = dto.followUpUpdatedAt
+            lp.followUpEvidenceRaw = dto.followUpEvidenceRaw
+            lp.followUpNote = dto.followUpNote
+            lp.followUpSupportRaw = dto.followUpSupportRaw
             return lp
         })
     }
@@ -258,7 +266,7 @@ extension BackupEntityImporter {
     static func importRecallChecks(
         _ dtos: [LessonRecallCheckDTO],
         into viewContext: NSManagedObjectContext,
-        existingCheck: EntityExistsCheck<CDLessonRecallCheck>
+        existingCheck: EntityExistsCheck
     ) rethrows {
         try importSimpleEntities(
             dtos, into: viewContext,

@@ -7,11 +7,22 @@ extension CDStudent {
     enum Level: String, Codable, CaseIterable, Sendable {
         case lower = "Lower"
         case upper = "Upper"
+        case adolescent = "Adolescent"
+
+        /// The level a student typically moves to at a year rollover; nil at the top of the ladder.
+        var suggestedPromotionTarget: Level? {
+            switch self {
+            case .lower: return .upper
+            case .upper: return .adolescent
+            case .adolescent: return nil
+            }
+        }
     }
 
     enum EnrollmentStatus: String, Codable, CaseIterable, Sendable {
         case enrolled
         case withdrawn
+        case transferred
     }
 }
 

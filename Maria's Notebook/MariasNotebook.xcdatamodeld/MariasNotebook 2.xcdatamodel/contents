@@ -13,6 +13,8 @@
         <attribute name="dateStarted" optional="YES" attributeType="Date" usesScalarValueType="NO"/>
         <attribute name="enrollmentStatusRaw" attributeType="String" defaultValueString="enrolled"/>
         <attribute name="dateWithdrawn" optional="YES" attributeType="Date" usesScalarValueType="NO"/>
+        <attribute name="previousLevelRaw" optional="YES" attributeType="String"/>
+        <attribute name="dateLastPromoted" optional="YES" attributeType="Date" usesScalarValueType="NO"/>
         <attribute name="modifiedAt" optional="YES" attributeType="Date" usesScalarValueType="NO"/>
         <relationship name="trackEnrollments" optional="YES" toMany="YES" deletionRule="Cascade" destinationEntity="StudentTrackEnrollment" inverseName="student" inverseEntity="StudentTrackEnrollment"/>
         <fetchIndex name="byName">
@@ -159,6 +161,14 @@
         <attribute name="lastObservedAt" optional="YES" attributeType="Date" usesScalarValueType="NO"/>
         <attribute name="masteredAt" optional="YES" attributeType="Date" usesScalarValueType="NO"/>
         <attribute name="notes" optional="YES" attributeType="String"/>
+        <attribute name="followUpActionRaw" optional="YES" attributeType="String"/>
+        <attribute name="followUpReviewAt" optional="YES" attributeType="Date" usesScalarValueType="NO"/>
+        <attribute name="followUpResolvedAt" optional="YES" attributeType="Date" usesScalarValueType="NO"/>
+        <attribute name="followUpResolutionRaw" optional="YES" attributeType="String"/>
+        <attribute name="followUpUpdatedAt" optional="YES" attributeType="Date" usesScalarValueType="NO"/>
+        <attribute name="followUpEvidenceRaw" optional="YES" attributeType="String"/>
+        <attribute name="followUpNote" optional="YES" attributeType="String"/>
+        <attribute name="followUpSupportRaw" optional="YES" attributeType="String"/>
         <fetchIndex name="byStudentLesson">
             <fetchIndexElement property="studentID" type="Binary" order="ascending"/>
             <fetchIndexElement property="lessonID" type="Binary" order="ascending"/>

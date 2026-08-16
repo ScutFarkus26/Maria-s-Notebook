@@ -11,6 +11,7 @@ struct WeekPlanSection: View {
     @Binding var startDate: Date
     let isNonSchool: (Date) -> Bool
     let legend: AnyView
+    let focusedPresentationID: UUID?
     let onClear: (CDLessonAssignment) -> Void
     let onSelect: (CDLessonAssignment) -> Void
 
@@ -27,6 +28,31 @@ struct WeekPlanSection: View {
     @State private var cachedWorkItems: [CDWorkCheckIn] = []
 
     @State private var showClearAllConfirmation: Bool = false
+
+    private struct FocusScrollTrigger: Equatable {
+        let presentationID: UUID?
+        let scheduledDay: Date?
+        let visibleDays: [Date]
+    }
+
+    private var focusedScheduledDay: Date? {
+        guard let focusedPresentationID,
+              let assignment = lessonAssignments.first(where: {
+                  $0.id == focusedPresentationID && !$0.isGiven
+              }),
+              let scheduledFor = assignment.scheduledFor else {
+            return nil
+        }
+        return calendar.startOfDay(for: scheduledFor)
+    }
+
+    private var focusScrollTrigger: FocusScrollTrigger {
+        FocusScrollTrigger(
+            presentationID: focusedPresentationID,
+            scheduledDay: focusedScheduledDay,
+            visibleDays: days
+        )
+    }
 
     private func fetchWorkItems() {
         guard showWork, let firstDay = days.first, let lastDay = days.last else {
@@ -181,6 +207,7 @@ struct WeekPlanSection: View {
                                 allLessonAssignments: Array(lessonAssignments),
                                 showWork: showWork,
                                 preloadedWorkItems: cachedWorkItems,
+                                focusedPresentationID: focusedPresentationID,
                                 onClear: onClear,
                                 onSelect: onSelect
                             )
@@ -194,7 +221,7 @@ struct WeekPlanSection: View {
             .task {
                 fetchWorkItems()
                 // Scroll to the first day (which is the earliest of: first lesson date or today)
-                if let first = days.first {
+                if focusedPresentationID == nil, let first = days.first {
                     do {
                         try await Task.sleep(for: .milliseconds(100))
                     } catch {
@@ -205,11 +232,30 @@ struct WeekPlanSection: View {
                     }
                 }
             }
+            .task(id: focusScrollTrigger) {
+                guard let focusedDay = focusedScheduledDay else { return }
+
+                guard let visibleDay = days.first(where: {
+                    calendar.isDate($0, inSameDayAs: focusedDay)
+                }) else {
+                    if !calendar.isDate(startDate, inSameDayAs: focusedDay) {
+                        startDate = focusedDay
+                    }
+                    return
+                }
+
+                await Task.yield()
+                try? await Task.sleep(for: .milliseconds(50))
+                guard !Task.isCancelled else { return }
+                adaptiveWithAnimation {
+                    proxy.scrollTo(visibleDay, anchor: .center)
+                }
+            }
             .onChange(of: showWork) { _, _ in
                 fetchWorkItems()
             }
             .onChange(of: startDate) { _, _ in
-                if let first = days.first {
+                if focusedPresentationID == nil, let first = days.first {
                     adaptiveWithAnimation {
                         proxy.scrollTo(first, anchor: .leading)
                     }
@@ -218,7 +264,7 @@ struct WeekPlanSection: View {
             .onChange(of: days) { _, _ in
                 fetchWorkItems()
                 // When days change, scroll to first day (earliest of: first lesson date or today)
-                if let first = days.first {
+                if focusedPresentationID == nil, let first = days.first {
                     Task { @MainActor in
                         do {
                             try await Task.sleep(for: .milliseconds(100))
