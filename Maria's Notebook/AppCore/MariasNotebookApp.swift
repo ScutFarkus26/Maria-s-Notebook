@@ -117,9 +117,47 @@ struct MariasNotebookApp: App {
                 .environment(\.appRouter, appRouter)
                 .environment(saveCoordinator)
                 .environment(restoreCoordinator)
+                .environment(AlbumLibrary.shared)
                 .syncingFromICloudOverlay()
         }
     }
+
+    #if os(macOS)
+    /// One album open on its own, e.g. dragged to a second display.
+    private var albumWindowScene: some Scene {
+        WindowGroup("", id: "AlbumWindow", for: String.self) { $albumID in
+            albumWindowContent(albumID: albumID)
+        }
+        .windowToolbarStyle(.unified(showsTitle: true))
+        .windowResizability(.automatic)
+        .defaultSize(width: 900, height: 900)
+    }
+
+    @ViewBuilder
+    private func albumWindowContent(albumID: String?) -> some View {
+        if let albumID {
+            if bootstrapper.state != .ready || restoreCoordinator.isRestoring {
+                VStack(spacing: 20) {
+                    ProgressView().controlSize(.large)
+                    Text(restoreCoordinator.isRestoring ? "Restoring data…" : "Loading…")
+                        .foregroundStyle(.secondary)
+                }
+                .frame(minWidth: 400, minHeight: 300)
+            } else {
+                AlbumWindowHost(albumID: albumID)
+                    .activeClassroomEnvironment(classroomWorkspace)
+                    .environment(\.calendar, AppCalendar.shared)
+                    .environment(\.appRouter, appRouter)
+                    .environment(saveCoordinator)
+                    .environment(restoreCoordinator)
+                    .environment(AlbumLibrary.shared)
+            }
+        } else {
+            Text("No album selected")
+                .frame(minWidth: 400, minHeight: 300)
+        }
+    }
+    #endif
 
     private var mainWindowContent: some View {
         let logger: Logger = Logger.app(category: "App")
@@ -240,6 +278,10 @@ struct MariasNotebookApp: App {
         #endif
         // Legacy .modelContainer removed — using CoreDataStack
         .commands {
+            // 0. ALBUM READING COMMANDS
+            // Inert unless an album view is frontmost — see AlbumsCommands.swift.
+            AlbumsCommands()
+
             // 1. STANDARD "NEW" ITEMS (File > New)
             // Key-window-targeted via @FocusedValue — see AppCommands.swift.
             FileNewCommands()
@@ -459,6 +501,8 @@ struct MariasNotebookApp: App {
         .windowResizability(.automatic)
         .defaultSize(width: 860, height: 640)
         // Legacy .modelContainer removed — using CoreDataStack
+
+        albumWindowScene
 
         // Keyboard Shortcuts Help Window
         WindowGroup("Keyboard Shortcuts", id: "KeyboardShortcutsWindow") {

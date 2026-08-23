@@ -633,7 +633,28 @@ final class BackupFieldCoverageTests {
                 "monthKey": "2026-09",
                 "includedItemRefs": "[\"note:00000000-0000-0000-0000-000000000001\"]"
             ]
-        )
+        ),
+        FieldSpec("AlbumBookmark"),
+        FieldSpec("AlbumPageNote"),
+        FieldSpec("AlbumRecentVisit"),
+        FieldSpec("AlbumReadingPosition"),
+        FieldSpec(
+            "AlbumHighlight",
+            // rectsData holds JSON [[x, y, width, height]] that the exporter
+            // decodes into numbers — arbitrary bytes would decode to no
+            // rectangles and the re-encoded blob wouldn't match.
+            overrides: ["rectsData": Data("[[10,20,100,12],[10,34,80,12]]".utf8)],
+            checks: [
+                // Re-encoded on import, so compare the decoded rectangles
+                // rather than the bytes.
+                "rectsData": { source, restored in
+                    (source as? CDAlbumHighlight)?.rects == (restored as? CDAlbumHighlight)?.rects
+                }
+            ]
+        ),
+        // Pencil ink is the one binary blob carried through a backup verbatim:
+        // unlike thumbnails it is user-authored and cannot be regenerated.
+        FieldSpec("AlbumPageInk")
     ]
 
     // MARK: Tests

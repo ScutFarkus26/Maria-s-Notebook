@@ -41,7 +41,7 @@ public enum BackupWriter {
     ///   CDLessonSequenceSettings, CDStory, CDBookClubPacket, CDBookClubSession,
     ///   CDBookClubMeeting. Purely additive NDJSON entries.
     /// - v17: AppleArchive-framed NDJSON (replaced the legacy v16 JSON envelope).
-    public static let formatVersion: Int = 20
+    public static let formatVersion: Int = 21
 
     public enum WriterError: LocalizedError {
         case entityEncodingFailed(entityName: String, underlying: Error)
@@ -322,7 +322,15 @@ public enum BackupWriter {
 
         // Format v20+ extensions
         serialization("Guardian") { $0.guardians ?? [] },
-        serialization("ParentCommunication") { $0.parentCommunications ?? [] }
+        serialization("ParentCommunication") { $0.parentCommunications ?? [] },
+
+        // Format v21+ extensions — teaching-album annotations
+        serialization("AlbumBookmark") { $0.albumBookmarks ?? [] },
+        serialization("AlbumPageNote") { $0.albumPageNotes ?? [] },
+        serialization("AlbumRecentVisit") { $0.albumRecentVisits ?? [] },
+        serialization("AlbumReadingPosition") { $0.albumReadingPositions ?? [] },
+        serialization("AlbumHighlight") { $0.albumHighlights ?? [] },
+        serialization("AlbumPageInk") { $0.albumPageInk ?? [] }
     ]
 
     /// Every entity name this writer can serialize, in archive order. The

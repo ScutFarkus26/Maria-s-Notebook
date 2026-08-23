@@ -139,7 +139,13 @@ final class CoreDataStack {
         "DayPad",
         "BookClubSession",
         "BookClubMeeting",
-        "LessonRecallCheck"
+        "LessonRecallCheck",
+        "AlbumBookmark",
+        "AlbumPageNote",
+        "AlbumRecentVisit",
+        "AlbumReadingPosition",
+        "AlbumHighlight",
+        "AlbumPageInk"
     ]
 
     // MARK: - Store URLs

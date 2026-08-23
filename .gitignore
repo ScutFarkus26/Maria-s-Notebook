@@ -4,6 +4,7 @@ build/
 build_temp/
 *.xcworkspace/xcuserdata/
 *.xcodeproj/xcuserdata/
+*.profraw
 
 # Claude
 .claude/

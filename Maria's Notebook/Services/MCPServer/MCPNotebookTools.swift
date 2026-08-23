@@ -30,6 +30,8 @@ enum MCPNotebookTools {
             studentPresentationHistoryTool(context: context),
             presentationsMissingObservationsTool(context: context),
             classroomSnapshotTool(context: context),
+            searchAlbumsTool(),
+            albumPageTool(),
             createObservationTool(context: context),
             updateStudentTool(context: context),
             updateObservationTool(context: context)

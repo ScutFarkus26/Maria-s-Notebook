@@ -104,6 +104,11 @@ struct RootAdaptiveTabs: View {
             } label: {
                 Label("Lessons", systemImage: "book")
             }
+            Tab(value: RootView.NavigationItem.teachingAlbums) {
+                RootDetailContent(selectedNavItem: .teachingAlbums)
+            } label: {
+                Label("Albums", systemImage: "books.vertical.fill")
+            }
             Tab(value: RootView.NavigationItem.stories) {
                 RootDetailContent(selectedNavItem: .stories)
             } label: {

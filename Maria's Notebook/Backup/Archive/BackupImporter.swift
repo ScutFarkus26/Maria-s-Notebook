@@ -234,6 +234,18 @@ enum BackupImporter {
         "Guardian": { $0.guardians = try decodeAll(GuardianDTO.self, $1, $2) },
         "ParentCommunication": {
             $0.parentCommunications = try decodeAll(ParentCommunicationDTO.self, $1, $2)
-        }
+        },
+
+        // Format v21+ extensions — teaching-album annotations
+        "AlbumBookmark": { $0.albumBookmarks = try decodeAll(AlbumBookmarkDTO.self, $1, $2) },
+        "AlbumPageNote": { $0.albumPageNotes = try decodeAll(AlbumPageNoteDTO.self, $1, $2) },
+        "AlbumRecentVisit": {
+            $0.albumRecentVisits = try decodeAll(AlbumRecentVisitDTO.self, $1, $2)
+        },
+        "AlbumReadingPosition": {
+            $0.albumReadingPositions = try decodeAll(AlbumReadingPositionDTO.self, $1, $2)
+        },
+        "AlbumHighlight": { $0.albumHighlights = try decodeAll(AlbumHighlightDTO.self, $1, $2) },
+        "AlbumPageInk": { $0.albumPageInk = try decodeAll(AlbumPageInkDTO.self, $1, $2) }
     ]
 }

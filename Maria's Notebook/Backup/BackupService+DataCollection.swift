@@ -38,6 +38,7 @@ extension BackupService {
         collectOrganizationDTOs(into: &payload, using: viewContext, progress: progress)
         collectV18DTOs(into: &payload, using: viewContext, progress: progress)
         collectV20DTOs(into: &payload, using: viewContext, progress: progress)
+        collectV21DTOs(into: &payload, using: viewContext, progress: progress)
 
         return payload
     }
@@ -291,6 +292,30 @@ extension BackupService {
             CDGuardian.self, using: viewContext) { BackupDTOTransformers.toDTOs($0) }
         payload.parentCommunications = fetchAndTransformInBatches(
             CDParentCommunication.self, using: viewContext) { BackupDTOTransformers.toDTOs($0) }
+    }
+
+    /// Collects the format v21 entity types: teaching-album annotations.
+    private func collectV21DTOs(
+        into payload: inout BackupPayload,
+        using viewContext: NSManagedObjectContext,
+        progress: @escaping ProgressCallback
+    ) {
+        progress(
+            BackupProgress.progress(for: .collecting, subProgress: 0.99),
+            "Collecting album bookmarks & notes\u{2026}"
+        )
+        payload.albumBookmarks = fetchAndTransformInBatches(
+            CDAlbumBookmark.self, using: viewContext) { BackupDTOTransformers.toDTOs($0) }
+        payload.albumPageNotes = fetchAndTransformInBatches(
+            CDAlbumPageNote.self, using: viewContext) { BackupDTOTransformers.toDTOs($0) }
+        payload.albumRecentVisits = fetchAndTransformInBatches(
+            CDAlbumRecentVisit.self, using: viewContext) { BackupDTOTransformers.toDTOs($0) }
+        payload.albumReadingPositions = fetchAndTransformInBatches(
+            CDAlbumReadingPosition.self, using: viewContext) { BackupDTOTransformers.toDTOs($0) }
+        payload.albumHighlights = fetchAndTransformInBatches(
+            CDAlbumHighlight.self, using: viewContext) { BackupDTOTransformers.toDTOs($0) }
+        payload.albumPageInk = fetchAndTransformInBatches(
+            CDAlbumPageInk.self, using: viewContext) { BackupDTOTransformers.toDTOs($0) }
     }
 
     // MARK: - Batched Fetch Utilities

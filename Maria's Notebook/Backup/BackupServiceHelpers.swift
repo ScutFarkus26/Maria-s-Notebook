@@ -401,6 +401,13 @@ enum BackupPayloadDeduplicator {
         // Format v20+ entity deduplication
         result.guardians = payload.guardians.map { uniqueBy($0) { $0.id } }
         result.parentCommunications = payload.parentCommunications.map { uniqueBy($0) { $0.id } }
+        // Format v21+ entity deduplication
+        result.albumBookmarks = payload.albumBookmarks.map { uniqueBy($0) { $0.id } }
+        result.albumPageNotes = payload.albumPageNotes.map { uniqueBy($0) { $0.id } }
+        result.albumRecentVisits = payload.albumRecentVisits.map { uniqueBy($0) { $0.id } }
+        result.albumReadingPositions = payload.albumReadingPositions.map { uniqueBy($0) { $0.id } }
+        result.albumHighlights = payload.albumHighlights.map { uniqueBy($0) { $0.id } }
+        result.albumPageInk = payload.albumPageInk.map { uniqueBy($0) { $0.id } }
 
         return result
     }

@@ -71,12 +71,24 @@ ambiguity errors:
 | `student_presentation_history` | presented `CDLessonAssignment`s |
 | `presentations_missing_observations` | `PresentationObservationCoverageService` |
 | `classroom_snapshot` | `ChatContextAssembler.buildClassroomSnapshot` |
+| `search_albums` | `AlbumCorpusLookup.search` — teaching-album PDFs |
+| `get_album_page` | `AlbumCorpusLookup.page` — one album page's full text |
 | `create_observation` (write) | `CDNote` + `syncStudentLinks` + `safeSave`, mirroring `LogObservationIntent` |
 | `update_student` (write) | `StudentRepository.updateStudent` + `safeSave` — nickname, names, birthday, level; accepts a name or a student id |
 | `update_observation` (write) | `NoteRepository.updateNote` + `safeSave` — body, tags, follow-up and report flags, by note id |
 
 Deletes are deliberately not exposed; edits change only the fields provided
 and report exactly what changed.
+
+The two album tools are the exception to the `[kind id=<uuid>]` convention:
+album pages aren't Core Data records and have no id, so they cite
+`[albumPage album="<file>" page=<n>]`. `get_album_page` takes that same
+album/page pair, so a citation can be followed without re-searching. Both
+share `Albums/AlbumCorpusLookup.swift` with the on-device
+`SearchTeachingAlbumsTool`, which is what keeps the two surfaces' wording
+and results identical. They read the album index rather than Core Data, so
+they don't take the context provider; if the guide hasn't chosen an albums
+folder yet they say so instead of returning an empty result.
 
 All handlers run on the main actor against
 `AppBootstrapping.getSharedCoreDataStack().viewContext` (the sanctioned

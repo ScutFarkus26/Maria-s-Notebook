@@ -50,7 +50,8 @@ enum NotebookTools {
             StudentNotesTool(sourceCollector: sourceCollector),
             StudentPresentationHistoryTool(sourceCollector: sourceCollector),
             PresentationWorkTool(sourceCollector: sourceCollector),
-            MissingPresentationObservationsTool(sourceCollector: sourceCollector)
+            MissingPresentationObservationsTool(sourceCollector: sourceCollector),
+            SearchTeachingAlbumsTool()
         ]
     }
 }
@@ -410,6 +411,33 @@ private extension SearchResult {
             title: title,
             excerpt: snippet
         )
+    }
+}
+
+/// Full-text search of the guide's own Montessori teaching-album PDFs.
+///
+/// Album pages have no UUID, so this tool doesn't feed the evidence collector
+/// the way the notebook tools do; its citations are inline in the returned
+/// text instead of appearing as Sources pills.
+struct SearchTeachingAlbumsTool: Tool {
+    let name = "searchTeachingAlbums"
+    let description = "Search the guide's Montessori teaching-album PDFs by meaning and keyword. "
+        + "Use for questions about how to present a lesson, what materials it needs, "
+        + "or what the albums say about a topic."
+
+    @Generable(description: "Teaching-album search arguments")
+    struct Arguments {
+        @Guide(description: "Keywords or a question — a material, lesson name, or topic")
+        var query: String
+    }
+
+    func call(arguments: Arguments) async throws -> String {
+        let query = arguments.query
+        let hits = await AlbumCorpusLookup.search(query: query, limit: 6)
+        guard !hits.isEmpty else {
+            return await AlbumCorpusLookup.emptyResultMessage(for: query)
+        }
+        return hits.map(\.citationLine).joined(separator: "\n")
     }
 }
 

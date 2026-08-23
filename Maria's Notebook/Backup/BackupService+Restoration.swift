@@ -138,6 +138,7 @@ extension BackupService {
         try importV12Entities(from: payload, into: viewContext, index: index)
         try importV18Entities(from: payload, into: viewContext, index: index)
         importV20Entities(from: payload, into: viewContext, index: index)
+        importV21Entities(from: payload, into: viewContext, index: index)
 
         // Notes import early, but many of their relationship targets (work,
         // check-ins, meetings, etc.) import in later phases — relink them now
@@ -864,6 +865,61 @@ extension BackupService {
                 parentCommunications,
                 into: viewContext,
                 existingCheck: { try index.exists(CDParentCommunication.self, id: $0) }
+            )
+        }
+    }
+
+    /// v21+ entities: teaching-album annotations.
+    private func importV21Entities(
+        from payload: BackupPayload,
+        into viewContext: NSManagedObjectContext,
+        index: BackupEntityIndex
+    ) {
+        if let bookmarks = payload.albumBookmarks {
+            BackupEntityImporter.importAlbumBookmarks(
+                bookmarks,
+                into: viewContext,
+                existingCheck: { try index.exists(CDAlbumBookmark.self, id: $0) }
+            )
+        }
+
+        if let notes = payload.albumPageNotes {
+            BackupEntityImporter.importAlbumPageNotes(
+                notes,
+                into: viewContext,
+                existingCheck: { try index.exists(CDAlbumPageNote.self, id: $0) }
+            )
+        }
+
+        if let visits = payload.albumRecentVisits {
+            BackupEntityImporter.importAlbumRecentVisits(
+                visits,
+                into: viewContext,
+                existingCheck: { try index.exists(CDAlbumRecentVisit.self, id: $0) }
+            )
+        }
+
+        if let positions = payload.albumReadingPositions {
+            BackupEntityImporter.importAlbumReadingPositions(
+                positions,
+                into: viewContext,
+                existingCheck: { try index.exists(CDAlbumReadingPosition.self, id: $0) }
+            )
+        }
+
+        if let highlights = payload.albumHighlights {
+            BackupEntityImporter.importAlbumHighlights(
+                highlights,
+                into: viewContext,
+                existingCheck: { try index.exists(CDAlbumHighlight.self, id: $0) }
+            )
+        }
+
+        if let ink = payload.albumPageInk {
+            BackupEntityImporter.importAlbumPageInk(
+                ink,
+                into: viewContext,
+                existingCheck: { try index.exists(CDAlbumPageInk.self, id: $0) }
             )
         }
     }

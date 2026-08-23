@@ -46,6 +46,12 @@ extension CDStudentFocusItem: Identifiable {}
 extension CDBookClubPacket: Identifiable {}
 extension CDBookClubSession: Identifiable {}
 extension CDBookClubMeeting: Identifiable {}
+extension CDAlbumBookmark: Identifiable {}
+extension CDAlbumPageNote: Identifiable {}
+extension CDAlbumRecentVisit: Identifiable {}
+extension CDAlbumReadingPosition: Identifiable {}
+extension CDAlbumHighlight: Identifiable {}
+extension CDAlbumPageInk: Identifiable {}
 
 // MARK: - CD short name convenience aliases
 

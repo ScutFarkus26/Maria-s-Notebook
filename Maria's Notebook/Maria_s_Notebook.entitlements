@@ -21,6 +21,13 @@
 	</array>
 	<key>com.apple.developer.ubiquity-kvstore-identifier</key>
 	<string>$(TeamIdentifierPrefix)$(CFBundleIdentifier)</string>
+	<!--
+	  Security-scoped bookmarks must survive relaunch: the Albums feature keeps
+	  reading the guide's teaching-album folders, and the backup destination
+	  folder is remembered the same way (Backup/Core/BackupDestination.swift).
+	-->
+	<key>com.apple.security.files.bookmarks.app-scope</key>
+	<true/>
 	<key>com.apple.security.temporary-exception.files.absolute-path.read-only</key>
 	<array>
 		<string>/Library/Preferences/com.apple.networkd.plist</string>

@@ -157,4 +157,13 @@ enum UserDefaultsKeys {
     /// Days after a lesson's last recall (or mastery) before it becomes due for a spaced
     /// re-check. Default 90.
     static let recallSpacedIntervalDays = "Recall.spacedIntervalDays"
+
+    // MARK: - Albums
+    /// Security-scoped bookmarks ([Data]) for the folders holding the guide's
+    /// teaching-album PDFs. The PDFs stay where they live; the app only reads them.
+    static let albumsFolderBookmarks = "Albums.folderBookmarks"
+    /// Album filename → file modification date at last open, for "Updated" badges.
+    static let albumsLastSeenModDates = "Albums.lastSeenModDates"
+    /// Scene-restoration key for the Albums section's sidebar selection.
+    static let albumsSidebarSelection = "Albums.selection"
 }

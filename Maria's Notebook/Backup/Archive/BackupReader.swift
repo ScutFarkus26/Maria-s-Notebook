@@ -58,7 +58,7 @@ public enum BackupReader {
     /// entries in an encrypted AEA container; v18 added Stories/Book Club/
     /// Year Plan/Day Pad entries; v17/v18 files still read (plain compressed
     /// container, new entries simply absent).
-    public static let supportedFormatVersions: ClosedRange<Int> = 17...20
+    public static let supportedFormatVersions: ClosedRange<Int> = 17...21
 
     // MARK: - Public API
 

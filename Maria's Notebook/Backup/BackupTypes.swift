@@ -123,6 +123,8 @@ public struct BackupPayload: Codable, Sendable {
         case dayPads, yearPlanEntries, lessonSequenceSettings
         case stories, bookClubPackets, bookClubSessions, bookClubMeetings
         case guardians, parentCommunications
+        case albumBookmarks, albumPageNotes, albumRecentVisits
+        case albumReadingPositions, albumHighlights, albumPageInk
         case preferences
     }
 
@@ -251,6 +253,14 @@ public struct BackupPayload: Codable, Sendable {
     // Guardians & Parent Communications (format v20+)
     public var guardians: [GuardianDTO]?
     public var parentCommunications: [ParentCommunicationDTO]?
+
+    // Teaching-album annotations (format v21+)
+    public var albumBookmarks: [AlbumBookmarkDTO]?
+    public var albumPageNotes: [AlbumPageNoteDTO]?
+    public var albumRecentVisits: [AlbumRecentVisitDTO]?
+    public var albumReadingPositions: [AlbumReadingPositionDTO]?
+    public var albumHighlights: [AlbumHighlightDTO]?
+    public var albumPageInk: [AlbumPageInkDTO]?
 
     // Lightweight app/user metadata (preferences) as typed dictionary
     public var preferences: PreferencesDTO

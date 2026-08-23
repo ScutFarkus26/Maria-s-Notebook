@@ -30,7 +30,8 @@ struct RootDetailContent: View {
                 dailyContent
             case .students, .parentReports, .meetings, .goingOut, .more:
                 studentsContent
-            case .lessons, .stories, .bookClub, .planningChecklist, .planningAgenda, .planningWork,
+            case .lessons, .teachingAlbums, .stories, .bookClub, .planningChecklist,
+                 .planningAgenda, .planningWork,
                  .planningProjects, .needsLesson, .smallSequencePlanner:
                 curriculumContent
             case .todos, .planningCalendar, .perpetualCalendar:
@@ -83,7 +84,8 @@ struct RootDetailContent: View {
     @ViewBuilder
     private var curriculumContent: some View {
         switch selectedNavItem {
-        case .lessons, .stories, .bookClub, .planningChecklist, .planningAgenda, .planningWork:
+        case .lessons, .teachingAlbums, .stories, .bookClub, .planningChecklist,
+             .planningAgenda, .planningWork:
             curriculumPlanningContent
         case .planningProjects, .needsLesson, .smallSequencePlanner:
             curriculumAdvancedContent
@@ -95,6 +97,7 @@ struct RootDetailContent: View {
     private var curriculumPlanningContent: some View {
         switch selectedNavItem {
         case .lessons: LessonsMenuRootView()
+        case .teachingAlbums: AlbumsRootView()
         case .stories: StoriesRootView()
         case .bookClub: BookClubRootView()
         case .planningChecklist: ClassAreaChecklistView()

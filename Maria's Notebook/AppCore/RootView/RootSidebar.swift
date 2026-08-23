@@ -104,6 +104,8 @@ extension RootSidebar {
                     }
                 }
 
+                sidebarRow(.teachingAlbums, title: "Albums", systemImage: "books.vertical.fill")
+
                 sidebarRow(.stories, title: "Stories", systemImage: "books.vertical")
 
                 sidebarRow(.bookClub, title: "Book Club", systemImage: "books.vertical.circle")
@@ -223,6 +225,10 @@ extension RootSidebar {
                              title: "Lessons",
                              systemImage: SFSymbol.Education.book,
                              hint: "Browse and manage lesson plans")
+            iOSSidebarButton(.teachingAlbums,
+                             title: "Albums",
+                             systemImage: "books.vertical.fill",
+                             hint: "Read and search your Montessori teaching albums")
             iOSSidebarButton(.stories,
                              title: "Stories",
                              systemImage: "books.vertical",

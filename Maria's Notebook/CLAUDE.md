@@ -2,7 +2,7 @@
 
 ## Project Overview
 
-Maria's Notebook is a comprehensive teacher planning and classroom management app for iOS/macOS, built with SwiftUI. It helps Montessori educators manage students, lessons, work tracking, attendance, and classroom observations.
+Maria's Notebook is a comprehensive teacher planning and classroom management app for iOS/macOS, built with SwiftUI. It helps Montessori educators manage students, lessons, work tracking, attendance, and classroom observations, and to read and search their own teaching albums.
 
 **Tech Stack:**
 - Swift 6.0 / SwiftUI
@@ -52,6 +52,7 @@ Maria's Notebook/
 ├── Agenda/           # Calendar day/month grid views
 ├── Community/        # Community topics & solutions
 ├── GoingOut/         # Going Out planning
+├── Albums/           # Teaching-album PDF library: reading, search, annotations
 ├── Issues/           # Issue tracking
 ├── Logs/             # Application logging
 ├── Procedures/       # Procedure documentation
@@ -95,7 +96,7 @@ NSPersistentCloudKitContainer (CoreDataStack.swift)
 
 ## Data Model
 
-**76 entities** defined in `MariasNotebook.xcdatamodeld`.
+**82 entities** defined in `MariasNotebook.xcdatamodeld`.
 
 **Core Models:**
 
@@ -185,16 +186,25 @@ These come from Apple's frameworks, not this app — they are not actionable in 
 **Filter in Console.app:** exclude subsystem `com.apple.BackgroundSystemTasks`.
 **Noisy Xcode debug runs:** set `OS_ACTIVITY_MODE=disable` in the scheme's environment variables.
 
+## Albums (teaching-album PDFs)
+
+- `Albums/` holds the whole feature: the guide points at one or more folders of album PDFs and the app indexes every page. **The PDFs stay where they live** — the app keeps security-scoped bookmarks (`UserDefaultsKeys.albumsFolderBookmarks`) and never copies them into the container, unlike Stories/Resources. That's what `com.apple.security.files.bookmarks.app-scope` in the entitlements is for.
+- Two indexes, both cached in Application Support and rebuilt when a PDF's modification date changes: full page text (`AlbumSearchIndex/`) and on-device embeddings (`AlbumSemanticIndex/`, NaturalLanguage). `AlbumLibrary.shared` is app-lifetime and deliberately **not** in `AppDependencies` — the album shelf is the guide's own and must not swap with the active classroom.
+- Loading is lazy: `AlbumsRootView` calls `bootstrapIfNeeded()` on first appearance, and the AI tools call `ensureIndexed()`. Opening every PDF at launch is too heavy for `performStartupBootstrap()`.
+- Annotations (bookmarks, page notes, highlights, Pencil ink, recents, reading position) are six private-store entities written through `AlbumUserDataStore`, which saves after every mutation so marks survive a kill.
+- Ported from the standalone Albums app (`~/Developer/Albums`), which is left in place. `Scripts/export_albums_user_data.sh` + Library Options → Import Albums App Data… carries its data over.
+
 ## MCP Server (Claude Desktop)
 
 - macOS-only: the app embeds an MCP server (`Services/MCPServer/`) on loopback TCP `127.0.0.1:43117` with an `AUTH <token>` preamble (token at `~/.marias-notebook/mcp.token` via a scoped entitlement exception). Unix sockets don't work here: the sandbox can't bind them outside the container, and container paths trip macOS container-protection TCC for external clients. `Scripts/mcp/marias-notebook-mcp` bridges to Claude Desktop's stdio transport via `nc`. See `Documentation/Architecture/MCP_SERVER.md`.
 - Toggle: Settings → AI Features → Claude Desktop (`UserDefaultsKeys.aiMCPServerEnabled`, default off). Lifecycle: `MCPServerService.shared`, started from `performStartupBootstrap()`.
 - Read tools mirror `Services/AI/NotebookTools.swift` conventions (`[kind id=<uuid>]` citations, diacritic-insensitive student resolution). Write tools: `create_observation` follows the `LogObservationIntent` save path; `update_student` / `update_observation` go through `StudentRepository` / `NoteRepository` + `safeSave`. No delete tools by design. Keep the two toolsets' semantics aligned when changing either.
+- Teaching-album tools: `search_albums` and `get_album_page` (MCP) mirror `SearchTeachingAlbumsTool` (chat). Both go through `Albums/AlbumCorpusLookup.swift`, so wording and citations stay identical. Album pages have no UUID, so they cite `[albumPage album="<file>" page=<n>]` instead of `[kind id=<uuid>]` and don't feed the evidence collector.
 
 ## Backup System
 
-- **Current write format: v19 (encrypted Apple Archive)**. Files are genuine Apple Encrypted Archives — first 4 bytes are `AEA1`, AES-CTR + HMAC via `ArchiveEncryptionContext` (profile `hkdf_sha256_aesctr_hmac__symmetric__none`), with LZFSE compression inside the AEA layer. The 256-bit symmetric key lives in the **iCloud Keychain** (`Backup/Archive/BackupEncryptionKeyStore.swift`, `kSecAttrSynchronizable` + `kSecAttrAccessibleAfterFirstUnlock`) so a backup written on one device restores on any device on the same Apple ID. Files are written `0600`. Contents: a `manifest.json` first entry (format version + entity counts + origin-store routing), `preferences.json`, then one NDJSON entry per Core Data entity type, prefixed `private/` or `shared/` to indicate origin store.
-- **Read support: v17–v19** (`BackupReader.supportedFormatVersions`). v19 is the encrypted container; v17/v18 are plain LZFSE Apple Archives (magic `pbz*`) and still read so older backups and checkpoints restore. `BackupArchive.isBackupArchive(at:)` accepts both magics; `isEncryptedArchive(at:)` distinguishes them. **Legacy v5–v16 JSON-envelope `.mtbbackup` files cannot be read by the app at all** — that decoder was removed; use the external recovery process referenced in `Documentation/Architecture/BACKUP_SYSTEM.md`. The repo's own `Backups/*.mtbbackup` through 2026-04-01 are all this unreadable legacy format.
+- **Current write format: v21 (encrypted Apple Archive)**. Files are genuine Apple Encrypted Archives — first 4 bytes are `AEA1`, AES-CTR + HMAC via `ArchiveEncryptionContext` (profile `hkdf_sha256_aesctr_hmac__symmetric__none`), with LZFSE compression inside the AEA layer. The 256-bit symmetric key lives in the **iCloud Keychain** (`Backup/Archive/BackupEncryptionKeyStore.swift`, `kSecAttrSynchronizable` + `kSecAttrAccessibleAfterFirstUnlock`) so a backup written on one device restores on any device on the same Apple ID. Files are written `0600`. Contents: a `manifest.json` first entry (format version + entity counts + origin-store routing), `preferences.json`, then one NDJSON entry per Core Data entity type, prefixed `private/` or `shared/` to indicate origin store.
+- **Read support: v17–v21** (`BackupReader.supportedFormatVersions`). v19+ is the encrypted container; v17/v18 are plain LZFSE Apple Archives (magic `pbz*`) and still read so older backups and checkpoints restore. `BackupArchive.isBackupArchive(at:)` accepts both magics; `isEncryptedArchive(at:)` distinguishes them. **Legacy v5–v16 JSON-envelope `.mtbbackup` files cannot be read by the app at all** — that decoder was removed; use the external recovery process referenced in `Documentation/Architecture/BACKUP_SYSTEM.md`. The repo's own `Backups/*.mtbbackup` through 2026-04-01 are all this unreadable legacy format.
 - Top-level entry point: `Backup/Archive/BackupCoordinator.swift`. UI calls `coordinator.exportBackup`, `coordinator.previewImport`, `coordinator.importBackup`.
 - **Threading:** payload collection runs on the main actor (Core Data view-context queue); NDJSON encode, encryption, archive write, read-back verification, and decode all run off the main actor (`BackupWriter.encodeAndWrite`, `BackupImporter.decodeArchive` are `nonisolated async`).
 - **Integrity:** export writes to a hidden temp file in the destination dir, re-reads it (`BackupReader.verifyStructure` — streams the whole archive, checks the manifest decodes and per-entity NDJSON row counts match), then atomically renames into place. An encode failure for any entity type aborts the whole export (`BackupWriter.WriterError`) rather than silently dropping data; a malformed entry on read surfaces as a warning in `BackupOperationSummary`.
@@ -205,3 +215,5 @@ These come from Apple's frameworks, not this app — they are not actionable in 
 - `replace` mode uses context-level deletes (NOT `NSBatchDeleteRequest`) so CloudKit mirroring sees proper delete tombstones.
 - **Entity coverage is test-enforced:** `BackupCoverageTests` asserts `BackupEntityRegistry.allTypes` ≡ `BackupWriter.serializedEntityNames` ≡ `BackupImporter.handledEntityNames`, and that every model entity is either backed up or in an explicit, documented exclusion list (the 8 removed-feature tombstones). Adding an entity without backup coverage is a red test, not a future format version.
 - Entity registry: `Backup/Core/BackupEntityRegistry.swift`. Per-entity DTO transformers in `Backup/Export/BackupDTOTransformers*.swift`. Per-entity importers in `Backup/Import/BackupEntityImporter+*.swift` (well-factored static methods).
+- **Adding an entity also means `BackupPayloadDeduplicator.deduplicate`** (`Backup/BackupServiceHelpers.swift`): it rebuilds the payload field by field, so an array it doesn't copy is silently `nil` by the time the importer runs and the records vanish on restore. The coverage tests don't catch this; `BackupFieldCoverageTests` does.
+- Binary attributes are excluded from backups by design because they're regenerable (thumbnails, covers, file bookmarks). The **one exception is the album annotations** (format v21): highlight rectangles travel as plain numbers and Pencil ink travels as its PencilKit data, because neither can be recreated after a restore.

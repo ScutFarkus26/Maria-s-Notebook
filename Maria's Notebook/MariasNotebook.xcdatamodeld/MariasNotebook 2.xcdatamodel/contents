@@ -1192,4 +1192,77 @@
             <fetchIndexElement property="schoolYearKey" type="Binary" order="ascending"/>
         </fetchIndex>
     </entity>
+    <!-- ==================== AlbumBookmark ==================== -->
+    <entity name="AlbumBookmark" representedClassName="CDAlbumBookmark" syncable="YES">
+        <attribute name="id" optional="YES" attributeType="UUID" usesScalarValueType="NO"/>
+        <attribute name="albumID" attributeType="String" defaultValueString=""/>
+        <attribute name="pageIndex" attributeType="Integer 32" defaultValueString="0" usesScalarValueType="YES"/>
+        <attribute name="lessonTitle" attributeType="String" defaultValueString=""/>
+        <attribute name="createdAt" optional="YES" attributeType="Date" usesScalarValueType="NO"/>
+        <attribute name="modifiedAt" optional="YES" attributeType="Date" usesScalarValueType="NO"/>
+        <fetchIndex name="byAlbumID">
+            <fetchIndexElement property="albumID" type="Binary" order="ascending"/>
+        </fetchIndex>
+    </entity>
+    <!-- ==================== AlbumPageNote ==================== -->
+    <entity name="AlbumPageNote" representedClassName="CDAlbumPageNote" syncable="YES">
+        <attribute name="id" optional="YES" attributeType="UUID" usesScalarValueType="NO"/>
+        <attribute name="albumID" attributeType="String" defaultValueString=""/>
+        <attribute name="pageIndex" attributeType="Integer 32" defaultValueString="0" usesScalarValueType="YES"/>
+        <attribute name="lessonTitle" attributeType="String" defaultValueString=""/>
+        <attribute name="text" attributeType="String" defaultValueString=""/>
+        <attribute name="createdAt" optional="YES" attributeType="Date" usesScalarValueType="NO"/>
+        <attribute name="modifiedAt" optional="YES" attributeType="Date" usesScalarValueType="NO"/>
+        <fetchIndex name="byAlbumID">
+            <fetchIndexElement property="albumID" type="Binary" order="ascending"/>
+        </fetchIndex>
+    </entity>
+    <!-- ==================== AlbumRecentVisit ==================== -->
+    <entity name="AlbumRecentVisit" representedClassName="CDAlbumRecentVisit" syncable="YES">
+        <attribute name="id" optional="YES" attributeType="UUID" usesScalarValueType="NO"/>
+        <attribute name="albumID" attributeType="String" defaultValueString=""/>
+        <attribute name="pageIndex" attributeType="Integer 32" defaultValueString="0" usesScalarValueType="YES"/>
+        <attribute name="lessonTitle" attributeType="String" defaultValueString=""/>
+        <attribute name="visitedAt" optional="YES" attributeType="Date" usesScalarValueType="NO"/>
+        <attribute name="modifiedAt" optional="YES" attributeType="Date" usesScalarValueType="NO"/>
+        <fetchIndex name="byVisitedAt">
+            <fetchIndexElement property="visitedAt" type="Binary" order="descending"/>
+        </fetchIndex>
+    </entity>
+    <!-- ==================== AlbumReadingPosition ==================== -->
+    <entity name="AlbumReadingPosition" representedClassName="CDAlbumReadingPosition" syncable="YES">
+        <attribute name="id" optional="YES" attributeType="UUID" usesScalarValueType="NO"/>
+        <attribute name="albumID" attributeType="String" defaultValueString=""/>
+        <attribute name="pageIndex" attributeType="Integer 32" defaultValueString="0" usesScalarValueType="YES"/>
+        <attribute name="modifiedAt" optional="YES" attributeType="Date" usesScalarValueType="NO"/>
+        <fetchIndex name="byAlbumID">
+            <fetchIndexElement property="albumID" type="Binary" order="ascending"/>
+        </fetchIndex>
+    </entity>
+    <!-- ==================== AlbumHighlight ==================== -->
+    <entity name="AlbumHighlight" representedClassName="CDAlbumHighlight" syncable="YES">
+        <attribute name="id" optional="YES" attributeType="UUID" usesScalarValueType="NO"/>
+        <attribute name="albumID" attributeType="String" defaultValueString=""/>
+        <attribute name="pageIndex" attributeType="Integer 32" defaultValueString="0" usesScalarValueType="YES"/>
+        <attribute name="lessonTitle" attributeType="String" defaultValueString=""/>
+        <attribute name="text" attributeType="String" defaultValueString=""/>
+        <attribute name="colorName" attributeType="String" defaultValueString="yellow"/>
+        <attribute name="rectsData" optional="YES" attributeType="Binary"/>
+        <attribute name="createdAt" optional="YES" attributeType="Date" usesScalarValueType="NO"/>
+        <attribute name="modifiedAt" optional="YES" attributeType="Date" usesScalarValueType="NO"/>
+        <fetchIndex name="byAlbumID">
+            <fetchIndexElement property="albumID" type="Binary" order="ascending"/>
+        </fetchIndex>
+    </entity>
+    <!-- ==================== AlbumPageInk ==================== -->
+    <entity name="AlbumPageInk" representedClassName="CDAlbumPageInk" syncable="YES">
+        <attribute name="id" optional="YES" attributeType="UUID" usesScalarValueType="NO"/>
+        <attribute name="albumID" attributeType="String" defaultValueString=""/>
+        <attribute name="pageIndex" attributeType="Integer 32" defaultValueString="0" usesScalarValueType="YES"/>
+        <attribute name="drawingData" optional="YES" attributeType="Binary" allowsExternalBinaryDataStorage="YES"/>
+        <attribute name="modifiedAt" optional="YES" attributeType="Date" usesScalarValueType="NO"/>
+        <fetchIndex name="byAlbumID">
+            <fetchIndexElement property="albumID" type="Binary" order="ascending"/>
+        </fetchIndex>
+    </entity>
 </model>

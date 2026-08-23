@@ -280,3 +280,80 @@ extension MCPNotebookTools {
         )
     }
 }
+
+// MARK: - Teaching Albums
+
+extension MCPNotebookTools {
+    /// Full-text + semantic search of the guide's teaching-album PDFs.
+    /// Wording and citation format match the on-device `searchTeachingAlbums`
+    /// chat tool — the two surfaces are meant to stay interchangeable.
+    static func searchAlbumsTool() -> MCPToolDefinition {
+        MCPToolDefinition(
+            name: "search_albums",
+            title: "Search Teaching Albums",
+            description: "Search the guide's Montessori teaching-album PDFs by meaning and "
+                + "keyword. Use for how a lesson is presented, what materials it needs, or what "
+                + "the albums say about a topic. Each result is cited as "
+                + "[albumPage album=\"<file>\" page=<n>]; pass those to get_album_page for the "
+                + "full page.",
+            inputSchema: [
+                "type": "object",
+                "properties": [
+                    "query": [
+                        "type": "string",
+                        "description": "Keywords or a question — a material, lesson name, or topic"
+                    ],
+                    "limit": [
+                        "type": "integer",
+                        "description": "Maximum results, 1-25 (default 8)"
+                    ]
+                ],
+                "required": ["query"]
+            ],
+            handler: { arguments in
+                let query = try requireString(arguments, "query")
+                let limit = intArgument(arguments, "limit", default: 8, range: 1...25)
+                let hits = await AlbumCorpusLookup.search(query: query, limit: limit)
+                guard !hits.isEmpty else {
+                    return await AlbumCorpusLookup.emptyResultMessage(for: query)
+                }
+                return hits.map(\.citationLine).joined(separator: "\n")
+            }
+        )
+    }
+
+    /// The full text of one album page, so a citation from search_albums can
+    /// be followed up without re-searching.
+    static func albumPageTool() -> MCPToolDefinition {
+        MCPToolDefinition(
+            name: "get_album_page",
+            title: "Read Album Page",
+            description: "Return the full text of one page of a teaching album. Use the album "
+                + "filename and page number from a [albumPage …] citation.",
+            inputSchema: [
+                "type": "object",
+                "properties": [
+                    "album": [
+                        "type": "string",
+                        "description": "Album filename, e.g. \"Biology Album.pdf\""
+                    ],
+                    "page": [
+                        "type": "integer",
+                        "description": "Page number as printed in the citation (1-based)"
+                    ]
+                ],
+                "required": ["album", "page"]
+            ],
+            handler: { arguments in
+                let album = try requireString(arguments, "album")
+                let page = intArgument(arguments, "page", default: 1, range: 1...10_000)
+                guard let text = await AlbumCorpusLookup.page(album: album, page: page),
+                      !text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else {
+                    return "No text found for page \(page) of \"\(album)\". Check the album "
+                        + "filename and page number from the citation."
+                }
+                return text
+            }
+        )
+    }
+}
