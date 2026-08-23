@@ -37,6 +37,27 @@ final class BackupCoverageTests {
         "SupplyTransaction"
     ]
 
+    /// Model entities routed to NEITHER store. Every other coverage test here
+    /// starts from the routing sets, so an unrouted entity escapes all of them:
+    /// it can't persist (no store configuration includes it), it isn't backed
+    /// up, and no tripwire fires. Each entry is dormant schema only — no Swift
+    /// code references its class (CDInitiative, CDPrepChecklist, ...).
+    ///
+    /// If a NEW entity appears in the failure output, route it in
+    /// CoreDataStack.sharedEntityNames/privateEntityNames (and back it up or
+    /// add it to routedButIntentionallyNotBackedUp) — or consciously add it
+    /// here with a rationale. Removing one (by wiring it up) is the happy path.
+    private static let unroutedKnownDormant: Set<String> = [
+        "Initiative",
+        "PrepChecklist",
+        "PrepChecklistCompletion",
+        "PrepChecklistItem",
+        "TransitionPlan",
+        "TransitionChecklistItem",
+        "WorkCycleEntry",
+        "WorkCycleSession"
+    ]
+
     private func makeContext() throws -> NSManagedObjectContext {
         try CoreDataTestHelpers.makeInMemoryStack().viewContext
     }
@@ -107,6 +128,45 @@ final class BackupCoverageTests {
         // A non-empty gap means a routed entity has no DTO/writer/importer and
         // isn't on the exclusion list — back it up or document why not.
         #expect(gap.isEmpty, "Routed entities not backed up and not excluded: \(gapList)")
+    }
+
+    @Test("Every model entity is routed to a store or explicitly known-dormant")
+    func everyModelEntityIsRoutedOrKnownDormant() throws {
+        let context = try makeContext()
+        let model = try #require(
+            context.persistentStoreCoordinator?.managedObjectModel,
+            "In-memory stack should expose its managed object model"
+        )
+        let modelNames = Set(model.entities.compactMap(\.name))
+        let routed = CoreDataStack.sharedEntityNames.union(CoreDataStack.privateEntityNames)
+
+        let unrouted = modelNames.subtracting(routed).subtracting(Self.unroutedKnownDormant)
+        // A non-empty set means a model entity is invisible to every other
+        // coverage test in this suite — route it and back it up (or exclude
+        // it), or document it as dormant.
+        #expect(unrouted.isEmpty, "Model entities routed to no store and not known-dormant: \(unrouted.sorted())")
+    }
+
+    @Test("Dormant list stays honest: each entry is in the model and still unrouted")
+    func dormantListIsNotStale() throws {
+        let context = try makeContext()
+        let model = try #require(
+            context.persistentStoreCoordinator?.managedObjectModel,
+            "In-memory stack should expose its managed object model"
+        )
+        let modelNames = Set(model.entities.compactMap(\.name))
+        let routed = CoreDataStack.sharedEntityNames.union(CoreDataStack.privateEntityNames)
+
+        for dormant in Self.unroutedKnownDormant {
+            #expect(
+                modelNames.contains(dormant),
+                "Dormant entry '\(dormant)' is no longer in the model — remove it from the dormant list"
+            )
+            #expect(
+                !routed.contains(dormant),
+                "Dormant entry '\(dormant)' is now routed to a store — remove it from the dormant list"
+            )
+        }
     }
 
     @Test("Exclusion list stays honest: each entry is routed and still unbacked")
