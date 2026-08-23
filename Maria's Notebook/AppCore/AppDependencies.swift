@@ -201,6 +201,7 @@ final class AppDependencies {
     var _lessonPlanningService: LessonPlanningService?
     var _reportGeneratorService: ReportGeneratorService?
     var _meetingInsightsService: MeetingInsightsService?
+    var _monthlyReportDraftService: MonthlyReportDraftService?
 
     // MARK: - UI Services
 

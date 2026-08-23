@@ -260,6 +260,7 @@ struct TodayView: View {
             rightNowListSection
             followingPresentationsListSection
             deadlinesListSection
+            parentReportsListSection
             dayCardsListSection
             agendaListSection
             todosListSection
@@ -286,6 +287,7 @@ struct TodayView: View {
                 rightNowListSection
                 followingPresentationsListSection
                 deadlinesListSection
+                parentReportsListSection
                 dayCardsListSection
                 todosListSection
                 calendarEventsListSection
@@ -488,6 +490,10 @@ struct TodayView: View {
         if syncService.syncListIdentifier != nil || syncService.syncListName != nil {
             do {
                 try await syncService.syncReminders()
+            } catch let error as ReminderSyncError where error.isConfigurationIssue {
+                #if DEBUG
+                Logger.sync.notice("CDReminder sync skipped: \(error.localizedDescription)")
+                #endif
             } catch {
                 #if DEBUG
                 Logger.sync.error("CDReminder sync failed: \(error.localizedDescription)")

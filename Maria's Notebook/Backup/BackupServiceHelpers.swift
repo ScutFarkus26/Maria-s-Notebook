@@ -398,6 +398,9 @@ enum BackupPayloadDeduplicator {
         result.bookClubPackets = payload.bookClubPackets.map { uniqueBy($0) { $0.id } }
         result.bookClubSessions = payload.bookClubSessions.map { uniqueBy($0) { $0.id } }
         result.bookClubMeetings = payload.bookClubMeetings.map { uniqueBy($0) { $0.id } }
+        // Format v20+ entity deduplication
+        result.guardians = payload.guardians.map { uniqueBy($0) { $0.id } }
+        result.parentCommunications = payload.parentCommunications.map { uniqueBy($0) { $0.id } }
 
         return result
     }

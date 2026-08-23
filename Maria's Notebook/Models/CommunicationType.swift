@@ -6,6 +6,7 @@ import SwiftUI
 enum CommunicationType: String, CaseIterable, Identifiable, Sendable {
     case conference
     case progressUpdate
+    case monthlyReport
     case concern
     case introduction
     case endOfYear
@@ -17,6 +18,7 @@ enum CommunicationType: String, CaseIterable, Identifiable, Sendable {
         switch self {
         case .conference: return "Conference"
         case .progressUpdate: return "Progress Update"
+        case .monthlyReport: return "Monthly Report"
         case .concern: return "Concern"
         case .introduction: return "Introduction"
         case .endOfYear: return "End of Year"
@@ -28,6 +30,7 @@ enum CommunicationType: String, CaseIterable, Identifiable, Sendable {
         switch self {
         case .conference: return "person.2"
         case .progressUpdate: return "chart.line.uptrend.xyaxis"
+        case .monthlyReport: return "calendar.badge.checkmark"
         case .concern: return "exclamationmark.bubble"
         case .introduction: return "hand.wave"
         case .endOfYear: return "gift"
@@ -39,6 +42,7 @@ enum CommunicationType: String, CaseIterable, Identifiable, Sendable {
         switch self {
         case .conference: return .blue
         case .progressUpdate: return AppColors.success
+        case .monthlyReport: return .teal
         case .concern: return AppColors.warning
         case .introduction: return .purple
         case .endOfYear: return .orange

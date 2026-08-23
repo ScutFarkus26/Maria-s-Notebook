@@ -273,3 +273,40 @@ public struct StudentFocusItemDTO: Codable, Sendable {
     public var createdAt: Date
     public var sortOrder: Int
 }
+
+// MARK: - Guardian DTO (format v20+)
+
+public struct GuardianDTO: Codable, Sendable {
+    public var id: UUID
+    public var studentID: String
+    public var name: String
+    public var email: String
+    public var relationshipRaw: String
+    public var receivesReports: Bool
+    public var sortOrder: Int
+    public var notes: String
+    public var createdAt: Date
+    public var modifiedAt: Date?
+}
+
+// MARK: - ParentCommunication DTO (format v20+)
+
+public struct ParentCommunicationDTO: Codable, Sendable {
+    public var id: UUID
+    public var studentID: String
+    public var templateName: String
+    public var subject: String
+    public var body: String
+    public var communicationTypeRaw: String
+    public var sentAt: Date?
+    public var createdAt: Date
+    public var modifiedAt: Date?
+    public var notes: String
+    public var monthKey: String?
+    public var statusRaw: String
+    public var recipientsSnapshot: String
+    public var includedItemRefs: String
+    public var aiGenerated: Bool
+    public var includeStudentReflection: Bool
+    public var attachPDF: Bool
+}

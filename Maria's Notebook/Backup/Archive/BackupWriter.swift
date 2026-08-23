@@ -33,13 +33,15 @@ public enum BackupWriter {
     /// Format version produced by this writer.
     /// - v19: Apple Encrypted Archive container ("AA01" magic) — AES-CTR+HMAC
     ///   with the iCloud-Keychain symmetric key; LZFSE inside the AEA layer.
+    /// - v20: Adds backup coverage for CDGuardian and CDParentCommunication.
+    ///   Purely additive NDJSON entries.
     ///   Entry layout is unchanged from v18, so v17/v18 readers of the
     ///   decrypted stream need no changes.
     /// - v18: Adds backup coverage for CDDayPad, CDYearPlanEntry,
     ///   CDLessonSequenceSettings, CDStory, CDBookClubPacket, CDBookClubSession,
     ///   CDBookClubMeeting. Purely additive NDJSON entries.
     /// - v17: AppleArchive-framed NDJSON (replaced the legacy v16 JSON envelope).
-    public static let formatVersion: Int = 19
+    public static let formatVersion: Int = 20
 
     public enum WriterError: LocalizedError {
         case entityEncodingFailed(entityName: String, underlying: Error)
@@ -316,7 +318,11 @@ public enum BackupWriter {
         serialization("Story") { $0.stories ?? [] },
         serialization("BookClubPacket") { $0.bookClubPackets ?? [] },
         serialization("BookClubSession") { $0.bookClubSessions ?? [] },
-        serialization("BookClubMeeting") { $0.bookClubMeetings ?? [] }
+        serialization("BookClubMeeting") { $0.bookClubMeetings ?? [] },
+
+        // Format v20+ extensions
+        serialization("Guardian") { $0.guardians ?? [] },
+        serialization("ParentCommunication") { $0.parentCommunications ?? [] }
     ]
 
     /// Every entity name this writer can serialize, in archive order. The

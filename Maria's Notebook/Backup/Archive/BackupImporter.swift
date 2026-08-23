@@ -228,6 +228,12 @@ enum BackupImporter {
         "Story": { $0.stories = try decodeAll(StoryDTO.self, $1, $2) },
         "BookClubPacket": { $0.bookClubPackets = try decodeAll(BookClubPacketDTO.self, $1, $2) },
         "BookClubSession": { $0.bookClubSessions = try decodeAll(BookClubSessionDTO.self, $1, $2) },
-        "BookClubMeeting": { $0.bookClubMeetings = try decodeAll(BookClubMeetingDTO.self, $1, $2) }
+        "BookClubMeeting": { $0.bookClubMeetings = try decodeAll(BookClubMeetingDTO.self, $1, $2) },
+
+        // Format v20+ extensions
+        "Guardian": { $0.guardians = try decodeAll(GuardianDTO.self, $1, $2) },
+        "ParentCommunication": {
+            $0.parentCommunications = try decodeAll(ParentCommunicationDTO.self, $1, $2)
+        }
     ]
 }

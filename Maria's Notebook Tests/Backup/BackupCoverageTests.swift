@@ -24,8 +24,8 @@ final class BackupCoverageTests {
     /// - `ProjectAssignmentTemplate`, `ProjectTemplateWeek`,
     ///   `ProjectWeekRoleAssignment`: deprecated project-template entities
     ///   (see the "deprecated" note in BackupService+Restoration importProjectEntities).
-    /// - `ParentCommunication`, `SupplyTransaction`: entity definitions with no
-    ///   DTO and no creation site anywhere in the app — dormant schema only.
+    /// - `SupplyTransaction`: entity definition with no DTO and no creation
+    ///   site anywhere in the app — dormant schema only.
     ///
     /// If a NEW entity appears here, that's the signal to either back it up or
     /// consciously add it with a rationale. Removing one (by adding real backup
@@ -34,7 +34,6 @@ final class BackupCoverageTests {
         "ProjectAssignmentTemplate",
         "ProjectTemplateWeek",
         "ProjectWeekRoleAssignment",
-        "ParentCommunication",
         "SupplyTransaction"
     ]
 

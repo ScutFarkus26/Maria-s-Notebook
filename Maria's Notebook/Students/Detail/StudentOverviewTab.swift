@@ -203,6 +203,11 @@ struct StudentOverviewTab: View {
                     .padding(.top, AppTheme.Spacing.small)
 
                 NextLessonsSection(snapshots: nextLessonsForStudent, lessonsByID: lessonsByID)
+
+                Divider()
+                    .padding(.top, AppTheme.Spacing.small)
+
+                GuardianListSection(student: student)
             }
         }
         // Cap content width so labels and values don't drift apart on wide windows.

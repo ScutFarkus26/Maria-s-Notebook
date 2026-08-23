@@ -696,4 +696,53 @@ extension BackupDTOTransformers {
     static func toDTOs(_ items: [CDStudentFocusItem]) -> [StudentFocusItemDTO] {
         items.map { toDTO($0) }
     }
+
+    // MARK: - CDGuardian (format v20+)
+
+    static func toDTO(_ guardian: CDGuardian) -> GuardianDTO {
+        GuardianDTO(
+            id: guardian.id ?? UUID(),
+            studentID: guardian.studentID,
+            name: guardian.name,
+            email: guardian.email,
+            relationshipRaw: guardian.relationshipRaw,
+            receivesReports: guardian.receivesReports,
+            sortOrder: Int(guardian.sortOrder),
+            notes: guardian.notes,
+            createdAt: guardian.createdAt ?? Date(),
+            modifiedAt: guardian.modifiedAt
+        )
+    }
+
+    static func toDTOs(_ guardians: [CDGuardian]) -> [GuardianDTO] {
+        guardians.map { toDTO($0) }
+    }
+
+    // MARK: - CDParentCommunication (format v20+)
+
+    static func toDTO(_ communication: CDParentCommunication) -> ParentCommunicationDTO {
+        ParentCommunicationDTO(
+            id: communication.id ?? UUID(),
+            studentID: communication.studentID,
+            templateName: communication.templateName,
+            subject: communication.subject,
+            body: communication.body,
+            communicationTypeRaw: communication.communicationTypeRaw,
+            sentAt: communication.sentAt,
+            createdAt: communication.createdAt ?? Date(),
+            modifiedAt: communication.modifiedAt,
+            notes: communication.notes,
+            monthKey: communication.monthKey,
+            statusRaw: communication.statusRaw,
+            recipientsSnapshot: communication.recipientsSnapshot,
+            includedItemRefs: communication.includedItemRefs,
+            aiGenerated: communication.aiGenerated,
+            includeStudentReflection: communication.includeStudentReflection,
+            attachPDF: communication.attachPDF
+        )
+    }
+
+    static func toDTOs(_ communications: [CDParentCommunication]) -> [ParentCommunicationDTO] {
+        communications.map { toDTO($0) }
+    }
 }

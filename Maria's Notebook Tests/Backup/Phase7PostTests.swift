@@ -9,11 +9,12 @@ final class Phase7PostTests {
 
     // MARK: - Entity Registry Updated
 
-    @Test("BackupEntityRegistry contains exactly 64 entity types")
-    func backupEntityRegistryCountIs64() {
-        // 64th type is CDLessonRecallCheck (Lesson Recall / retention feature);
-        // this count is a change detector for accidental registry edits.
-        #expect(BackupEntityRegistry.allTypes.count == 64)
+    @Test("BackupEntityRegistry contains exactly 66 entity types")
+    func backupEntityRegistryCountIs66() {
+        // 65th/66th types are CDGuardian + CDParentCommunication (monthly
+        // parent reports, format v20); this count is a change detector for
+        // accidental registry edits.
+        #expect(BackupEntityRegistry.allTypes.count == 66)
     }
 
     @Test("ClassroomMembership IS now in BackupEntityRegistry")

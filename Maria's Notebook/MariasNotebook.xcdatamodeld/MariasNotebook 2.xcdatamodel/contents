@@ -1003,6 +1003,22 @@
         <attribute name="createdAt" optional="YES" attributeType="Date" usesScalarValueType="NO"/>
         <attribute name="modifiedAt" optional="YES" attributeType="Date" usesScalarValueType="NO"/>
     </entity>
+    <!-- ==================== Guardian ==================== -->
+    <entity name="Guardian" representedClassName="CDGuardian" syncable="YES">
+        <attribute name="id" optional="YES" attributeType="UUID" usesScalarValueType="NO"/>
+        <attribute name="studentID" attributeType="String" defaultValueString=""/>
+        <attribute name="name" attributeType="String" defaultValueString=""/>
+        <attribute name="email" attributeType="String" defaultValueString=""/>
+        <attribute name="relationshipRaw" attributeType="String" defaultValueString="parent"/>
+        <attribute name="receivesReports" attributeType="Boolean" defaultValueString="YES" usesScalarValueType="YES"/>
+        <attribute name="sortOrder" attributeType="Integer 64" defaultValueString="0" usesScalarValueType="YES"/>
+        <attribute name="notes" attributeType="String" defaultValueString=""/>
+        <attribute name="createdAt" optional="YES" attributeType="Date" usesScalarValueType="NO"/>
+        <attribute name="modifiedAt" optional="YES" attributeType="Date" usesScalarValueType="NO"/>
+        <fetchIndex name="byStudentID">
+            <fetchIndexElement property="studentID" type="Binary" order="ascending"/>
+        </fetchIndex>
+    </entity>
     <!-- ==================== ParentCommunication ==================== -->
     <entity name="ParentCommunication" representedClassName="CDParentCommunication" syncable="YES">
         <attribute name="id" optional="YES" attributeType="UUID" usesScalarValueType="NO"/>
@@ -1015,6 +1031,17 @@
         <attribute name="createdAt" optional="YES" attributeType="Date" usesScalarValueType="NO"/>
         <attribute name="modifiedAt" optional="YES" attributeType="Date" usesScalarValueType="NO"/>
         <attribute name="notes" attributeType="String" defaultValueString=""/>
+        <attribute name="monthKey" optional="YES" attributeType="String"/>
+        <attribute name="statusRaw" attributeType="String" defaultValueString="draft"/>
+        <attribute name="recipientsSnapshot" attributeType="String" defaultValueString=""/>
+        <attribute name="includedItemRefs" attributeType="String" defaultValueString=""/>
+        <attribute name="aiGenerated" attributeType="Boolean" defaultValueString="NO" usesScalarValueType="YES"/>
+        <attribute name="includeStudentReflection" attributeType="Boolean" defaultValueString="NO" usesScalarValueType="YES"/>
+        <attribute name="attachPDF" attributeType="Boolean" defaultValueString="NO" usesScalarValueType="YES"/>
+        <fetchIndex name="byStudentIDAndMonthKey">
+            <fetchIndexElement property="studentID" type="Binary" order="ascending"/>
+            <fetchIndexElement property="monthKey" type="Binary" order="ascending"/>
+        </fetchIndex>
     </entity>
     <!-- ==================== PrepChecklist ==================== -->
     <entity name="PrepChecklist" representedClassName="CDPrepChecklist" syncable="YES">

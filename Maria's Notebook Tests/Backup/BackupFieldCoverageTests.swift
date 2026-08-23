@@ -617,7 +617,23 @@ final class BackupFieldCoverageTests {
             ]
         ),
         FieldSpec("BookClubSession"),
-        FieldSpec("BookClubMeeting")
+        FieldSpec("BookClubMeeting"),
+        FieldSpec(
+            "Guardian",
+            // relationship is parsed via GuardianRelationship(rawValue:).
+            overrides: ["relationshipRaw": "guardian"]
+        ),
+        FieldSpec(
+            "ParentCommunication",
+            // communicationType/status are parsed via their raw-value enums;
+            // includedItemRefs must hold valid JSON for the includedRefs accessor.
+            overrides: [
+                "communicationTypeRaw": "monthlyReport",
+                "statusRaw": "reviewed",
+                "monthKey": "2026-09",
+                "includedItemRefs": "[\"note:00000000-0000-0000-0000-000000000001\"]"
+            ]
+        )
     ]
 
     // MARK: Tests

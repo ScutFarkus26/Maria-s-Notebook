@@ -122,6 +122,7 @@ public struct BackupPayload: Codable, Sendable {
         case meetingWorkReviews, studentFocusItems
         case dayPads, yearPlanEntries, lessonSequenceSettings
         case stories, bookClubPackets, bookClubSessions, bookClubMeetings
+        case guardians, parentCommunications
         case preferences
     }
 
@@ -246,6 +247,10 @@ public struct BackupPayload: Codable, Sendable {
     public var bookClubPackets: [BookClubPacketDTO]?
     public var bookClubSessions: [BookClubSessionDTO]?
     public var bookClubMeetings: [BookClubMeetingDTO]?
+
+    // Guardians & Parent Communications (format v20+)
+    public var guardians: [GuardianDTO]?
+    public var parentCommunications: [ParentCommunicationDTO]?
 
     // Lightweight app/user metadata (preferences) as typed dictionary
     public var preferences: PreferencesDTO

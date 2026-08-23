@@ -137,6 +137,7 @@ extension BackupService {
         try importAdditionalEntities(from: payload, into: viewContext, index: index)
         try importV12Entities(from: payload, into: viewContext, index: index)
         try importV18Entities(from: payload, into: viewContext, index: index)
+        importV20Entities(from: payload, into: viewContext, index: index)
 
         // Notes import early, but many of their relationship targets (work,
         // check-ins, meetings, etc.) import in later phases — relink them now
@@ -840,6 +841,29 @@ extension BackupService {
                 into: viewContext,
                 existingCheck: { try index.exists(CDBookClubMeeting.self, id: $0) },
                 sessionCheck: { try index.related(CDBookClubSession.self, id: $0) }
+            )
+        }
+    }
+
+    /// v20+ entities: Guardians and Parent Communications.
+    private func importV20Entities(
+        from payload: BackupPayload,
+        into viewContext: NSManagedObjectContext,
+        index: BackupEntityIndex
+    ) {
+        if let guardians = payload.guardians {
+            BackupEntityImporter.importGuardians(
+                guardians,
+                into: viewContext,
+                existingCheck: { try index.exists(CDGuardian.self, id: $0) }
+            )
+        }
+
+        if let parentCommunications = payload.parentCommunications {
+            BackupEntityImporter.importParentCommunications(
+                parentCommunications,
+                into: viewContext,
+                existingCheck: { try index.exists(CDParentCommunication.self, id: $0) }
             )
         }
     }

@@ -40,6 +40,7 @@ extension CDWorkCompletionRecord: Identifiable {}
 extension CDWorkStep: Identifiable {}
 extension CDResource: Identifiable {}
 extension CDParentCommunication: Identifiable {}
+extension CDGuardian: Identifiable {}
 extension CDMeetingWorkReview: Identifiable {}
 extension CDStudentFocusItem: Identifiable {}
 extension CDBookClubPacket: Identifiable {}

@@ -54,10 +54,11 @@ public enum BackupReader {
 
     /// Supported format range. Bump the upper bound when we add a new format
     /// version (and keep the reader backward-compatible for the lower bound).
-    /// v19 wraps the same entries in an encrypted AEA container; v18 added
-    /// Stories/Book Club/Year Plan/Day Pad entries; v17/v18 files still read
-    /// (plain compressed container, new entries simply absent).
-    public static let supportedFormatVersions: ClosedRange<Int> = 17...19
+    /// v20 adds Guardian/ParentCommunication entries; v19 wraps the same
+    /// entries in an encrypted AEA container; v18 added Stories/Book Club/
+    /// Year Plan/Day Pad entries; v17/v18 files still read (plain compressed
+    /// container, new entries simply absent).
+    public static let supportedFormatVersions: ClosedRange<Int> = 17...20
 
     // MARK: - Public API
 

@@ -133,6 +133,7 @@ final class CoreDataStack {
         "YearPlanEntry",
         "LessonSequenceSettings",
         "ParentCommunication",
+        "Guardian",
         "MeetingWorkReview",
         "StudentFocusItem",
         "DayPad",

@@ -321,9 +321,16 @@ extension SettingsView {
 
     // 5. Communication
     var communicationSection: some View {
-        SettingsGroup(title: "Attendance Email", systemImage: "checkmark.circle.fill") {
-            AttendanceEmailSettingsView()
-                .frame(maxWidth: .infinity)
+        VStack(spacing: 12) {
+            SettingsGroup(title: "Attendance Email", systemImage: "checkmark.circle.fill") {
+                AttendanceEmailSettingsView()
+                    .frame(maxWidth: .infinity)
+            }
+
+            SettingsGroup(title: "Parent Reports", systemImage: "envelope.badge.person.crop") {
+                ParentReportsSettingsView()
+                    .frame(maxWidth: .infinity)
+            }
         }
     }
 

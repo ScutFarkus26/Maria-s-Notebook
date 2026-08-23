@@ -101,7 +101,10 @@ struct BackupEntityRegistry {
         // Book Club
         CDBookClubPacket.self,
         CDBookClubSession.self,
-        CDBookClubMeeting.self
+        CDBookClubMeeting.self,
+        // Guardians & Parent Communications (format v20+)
+        CDGuardian.self,
+        CDParentCommunication.self
     ]
 
     /// Entity types listed in `allTypes` for schema completeness but NOT yet

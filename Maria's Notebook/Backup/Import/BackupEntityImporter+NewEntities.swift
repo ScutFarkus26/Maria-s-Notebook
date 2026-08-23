@@ -246,4 +246,59 @@ extension BackupEntityImporter {
             entity.sortOrder = Int64(dto.sortOrder)
         }
     }
+
+    // MARK: - CDGuardian (format v20+)
+
+    static func importGuardians(
+        _ dtos: [GuardianDTO],
+        into viewContext: NSManagedObjectContext,
+        existingCheck: EntityExistsCheck
+    ) {
+        for dto in dtos {
+            // Skip records already in the store so a `.merge` restore doesn't insert duplicates.
+            if shouldSkipExisting(id: dto.id, existingCheck: existingCheck) { continue }
+            let entity = CDGuardian(context: viewContext)
+            entity.id = dto.id
+            entity.studentID = dto.studentID
+            entity.name = dto.name
+            entity.email = dto.email
+            entity.relationshipRaw = dto.relationshipRaw
+            entity.receivesReports = dto.receivesReports
+            entity.sortOrder = Int64(dto.sortOrder)
+            entity.notes = dto.notes
+            entity.createdAt = dto.createdAt
+            entity.modifiedAt = dto.modifiedAt
+        }
+    }
+
+    // MARK: - CDParentCommunication (format v20+)
+
+    static func importParentCommunications(
+        _ dtos: [ParentCommunicationDTO],
+        into viewContext: NSManagedObjectContext,
+        existingCheck: EntityExistsCheck
+    ) {
+        for dto in dtos {
+            // Skip records already in the store so a `.merge` restore doesn't insert duplicates.
+            if shouldSkipExisting(id: dto.id, existingCheck: existingCheck) { continue }
+            let entity = CDParentCommunication(context: viewContext)
+            entity.id = dto.id
+            entity.studentID = dto.studentID
+            entity.templateName = dto.templateName
+            entity.subject = dto.subject
+            entity.body = dto.body
+            entity.communicationTypeRaw = dto.communicationTypeRaw
+            entity.sentAt = dto.sentAt
+            entity.createdAt = dto.createdAt
+            entity.modifiedAt = dto.modifiedAt
+            entity.notes = dto.notes
+            entity.monthKey = dto.monthKey
+            entity.statusRaw = dto.statusRaw
+            entity.recipientsSnapshot = dto.recipientsSnapshot
+            entity.includedItemRefs = dto.includedItemRefs
+            entity.aiGenerated = dto.aiGenerated
+            entity.includeStudentReflection = dto.includeStudentReflection
+            entity.attachPDF = dto.attachPDF
+        }
+    }
 }

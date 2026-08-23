@@ -74,6 +74,10 @@ enum UserDefaultsKeys {
     /// Desktop) is an explicit teacher choice. macOS only.
     static let aiMCPServerEnabled = "AI.mcpServerEnabled"
 
+    // MARK: - Parent Reports
+
+    static let parentReportsReminderEnabled = "ParentReports.reminderEnabled"
+
     // MARK: - CDLesson Planning
     static let lessonPlanningModel = "LessonPlanning.model"
     static let lessonPlanningTimeout = "LessonPlanning.timeout"

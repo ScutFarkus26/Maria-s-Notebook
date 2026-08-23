@@ -48,6 +48,8 @@ extension RootSidebar {
 
                 sidebarRow(.meetings, title: "Meetings", systemImage: SFSymbol.People.person2)
 
+                sidebarRow(.parentReports, title: "Parent Reports", systemImage: "envelope.badge.person.crop")
+
                 sidebarRow(.goingOut, title: "Going Out", systemImage: "figure.walk")
 
                 sidebarRow(.progressDashboard, title: "Progress Dashboard", systemImage: "person.text.rectangle")

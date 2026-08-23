@@ -28,7 +28,7 @@ struct RootDetailContent: View {
             switch selectedNavItem {
             case .today, .attendance, .note:
                 dailyContent
-            case .students, .meetings, .goingOut, .more:
+            case .students, .parentReports, .meetings, .goingOut, .more:
                 studentsContent
             case .lessons, .stories, .bookClub, .planningChecklist, .planningAgenda, .planningWork,
                  .planningProjects, .needsLesson, .smallSequencePlanner:
@@ -72,6 +72,7 @@ struct RootDetailContent: View {
     private var studentsContent: some View {
         switch selectedNavItem {
         case .students: StudentsView()
+        case .parentReports: ParentReportsQueueView()
         case .meetings: MeetingsWorkflowView()
         case .goingOut: GoingOutRootView()
         case .more: MoreMenuView()

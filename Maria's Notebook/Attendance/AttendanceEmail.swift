@@ -305,10 +305,24 @@ import MessageUI
 public struct MailComposerView: UIViewControllerRepresentable {
     public typealias UIViewControllerType = MFMailComposeViewController
 
+    /// A file to attach to the composed message.
+    public struct Attachment {
+        public let data: Data
+        public let mimeType: String
+        public let fileName: String
+
+        public init(data: Data, mimeType: String, fileName: String) {
+            self.data = data
+            self.mimeType = mimeType
+            self.fileName = fileName
+        }
+    }
+
     public var toRecipients: [String]
     public var subject: String
     public var body: String
     public var preferredSender: String?
+    public var attachments: [Attachment]
     public var onComplete: (MFMailComposeResult, Error?) -> Void
 
     public init(
@@ -316,12 +330,14 @@ public struct MailComposerView: UIViewControllerRepresentable {
         subject: String,
         body: String,
         preferredSender: String?,
+        attachments: [Attachment] = [],
         onComplete: @escaping (MFMailComposeResult, Error?) -> Void
     ) {
         self.toRecipients = toRecipients
         self.subject = subject
         self.body = body
         self.preferredSender = preferredSender
+        self.attachments = attachments
         self.onComplete = onComplete
     }
 
@@ -333,6 +349,13 @@ public struct MailComposerView: UIViewControllerRepresentable {
         vc.setMessageBody(body, isHTML: false)
         if let preferred = preferredSender, !preferred.trimmed().isEmpty {
             vc.setPreferredSendingEmailAddress(preferred)
+        }
+        for attachment in attachments {
+            vc.addAttachmentData(
+                attachment.data,
+                mimeType: attachment.mimeType,
+                fileName: attachment.fileName
+            )
         }
         return vc
     }
@@ -369,6 +392,7 @@ public enum MacOSMailSender {
         to recipient: String?,
         subject: String,
         body: String,
+        attachmentURL: URL? = nil,
         completion: @escaping (Bool) -> Void
     ) {
         guard let service = NSSharingService(named: .composeEmail) else {
@@ -416,7 +440,11 @@ public enum MacOSMailSender {
             delegate,
             .OBJC_ASSOCIATION_RETAIN_NONATOMIC
         )
-        service.perform(withItems: [body])
+        var items: [Any] = [body]
+        if let attachmentURL {
+            items.append(attachmentURL)
+        }
+        service.perform(withItems: items)
     }
 
     private final class SharingDelegate: NSObject, NSSharingServiceDelegate {

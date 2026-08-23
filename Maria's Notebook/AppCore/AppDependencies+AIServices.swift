@@ -62,6 +62,19 @@ extension AppDependencies {
         return service
     }
 
+    var monthlyReportDraftService: MonthlyReportDraftService {
+        if let service = _monthlyReportDraftService {
+            return service
+        }
+        let service = MonthlyReportDraftService(
+            modelContext: viewContext,
+            mcpClient: mcpClient,
+            reportService: reportGeneratorService
+        )
+        _monthlyReportDraftService = service
+        return service
+    }
+
     var meetingInsightsService: MeetingInsightsService {
         if let service = _meetingInsightsService {
             return service

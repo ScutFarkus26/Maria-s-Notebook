@@ -12,6 +12,7 @@ extension RootView {
         case attendance
         case note
         case students
+        case parentReports
         case supplies
         case procedures
         case meetings
@@ -55,6 +56,7 @@ extension RootView {
             case .attendance:          return ("Attendance", "checklist")
             case .note:                return ("Note", "square.and.pencil")
             case .students:            return ("Students", "person.3")
+            case .parentReports:       return ("Parent Reports", "envelope.badge.person.crop")
             case .supplies:            return ("Supplies", "shippingbox")
             case .procedures:          return ("Procedures", "doc.text")
             case .meetings:            return ("Meetings", "person.2")
@@ -104,6 +106,7 @@ extension RootView {
         var isInMoreMenu: Bool {
             switch self {
             case .lessons, .stories, .bookClub, .supplies, .procedures, .meetings,
+                 .parentReports,
                  .planningChecklist, .planningAgenda,
                  .planningProjects, .planningCalendar,
                  .progressDashboard, .lessonRecall,

@@ -37,6 +37,7 @@ extension BackupService {
         collectTemplateAndTrackDTOs(into: &payload, using: viewContext, progress: progress)
         collectOrganizationDTOs(into: &payload, using: viewContext, progress: progress)
         collectV18DTOs(into: &payload, using: viewContext, progress: progress)
+        collectV20DTOs(into: &payload, using: viewContext, progress: progress)
 
         return payload
     }
@@ -274,6 +275,22 @@ extension BackupService {
             CDBookClubSession.self, using: viewContext) { BackupDTOTransformers.toDTOs($0) }
         payload.bookClubMeetings = fetchAndTransformInBatches(
             CDBookClubMeeting.self, using: viewContext) { BackupDTOTransformers.toDTOs($0) }
+    }
+
+    /// Collects the format v20 entity types: Guardians and Parent Communications.
+    private func collectV20DTOs(
+        into payload: inout BackupPayload,
+        using viewContext: NSManagedObjectContext,
+        progress: @escaping ProgressCallback
+    ) {
+        progress(
+            BackupProgress.progress(for: .collecting, subProgress: 0.98),
+            "Collecting guardians & parent communications\u{2026}"
+        )
+        payload.guardians = fetchAndTransformInBatches(
+            CDGuardian.self, using: viewContext) { BackupDTOTransformers.toDTOs($0) }
+        payload.parentCommunications = fetchAndTransformInBatches(
+            CDParentCommunication.self, using: viewContext) { BackupDTOTransformers.toDTOs($0) }
     }
 
     // MARK: - Batched Fetch Utilities
