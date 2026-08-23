@@ -113,10 +113,10 @@ final class ReminderSyncService {
             
             // Update status and start observing on main actor
             authorizationStatus = EKEventStore.authorizationStatus(for: .reminder)
-            // Identifier-first, but fall back to a name-only configuration (e.g. the macOS
-            // bootstrap default sets syncListName before any identifier is backfilled) so
-            // auto-observation still starts on first grant. Mirrors startObservingChanges'
-            // own guard (identifier OR name).
+            // Identifier-first, but fall back to a legacy name-only configuration
+            // (stored before identifiers existed) so auto-observation still starts
+            // on first grant. Mirrors startObservingChanges' own guard
+            // (identifier OR name).
             if granted && (syncListIdentifier != nil || syncListName != nil) {
                 startObservingChanges()
             }
@@ -138,10 +138,10 @@ final class ReminderSyncService {
             
             // Update status and start observing on main actor
             authorizationStatus = EKEventStore.authorizationStatus(for: .reminder)
-            // Identifier-first, but fall back to a name-only configuration (e.g. the macOS
-            // bootstrap default sets syncListName before any identifier is backfilled) so
-            // auto-observation still starts on first grant. Mirrors startObservingChanges'
-            // own guard (identifier OR name).
+            // Identifier-first, but fall back to a legacy name-only configuration
+            // (stored before identifiers existed) so auto-observation still starts
+            // on first grant. Mirrors startObservingChanges' own guard
+            // (identifier OR name).
             if granted && (syncListIdentifier != nil || syncListName != nil) {
                 startObservingChanges()
             }
@@ -189,7 +189,11 @@ final class ReminderSyncService {
 
     func findReminderList(named name: String) -> EKCalendar? {
         let calendars = eventStore.calendars(for: .reminder)
-        return calendars.first { $0.title == name }
+        // Case/diacritic-insensitive: list names are user-typed in Reminders and
+        // legacy stored names may not match the list's exact casing.
+        return calendars.first {
+            $0.title.compare(name, options: [.caseInsensitive, .diacriticInsensitive]) == .orderedSame
+        }
     }
 
     func findReminderList(byIdentifier identifier: String) -> EKCalendar? {
@@ -267,6 +271,10 @@ final class ReminderSyncService {
         do {
             try await syncReminders()
             lastSyncTime = Date()
+        } catch let error as ReminderSyncError where error.isConfigurationIssue {
+            // Stale/missing configuration (e.g. list deleted in Reminders) —
+            // shown in Settings; not an error worth flagging on every change.
+            Self.logger.notice("Automatic sync skipped: \(error.localizedDescription)")
         } catch {
             // Silently log errors for automatic sync (user can manually sync if needed)
             Self.logger.warning("Automatic sync failed: \(error.localizedDescription)")
@@ -315,6 +323,19 @@ enum ReminderSyncError: LocalizedError, Equatable {
     case noSyncListConfigured
     case listNotFound(String)
     case modelContextUnavailable
+
+    /// True for errors caused by app/user configuration state (access not granted,
+    /// no list chosen, or the chosen list no longer exists in Reminders) rather
+    /// than an actual sync failure. Automatic sync call sites log these quietly;
+    /// Settings still surfaces them to the user.
+    var isConfigurationIssue: Bool {
+        switch self {
+        case .notAuthorized, .noSyncListConfigured, .listNotFound:
+            return true
+        case .modelContextUnavailable:
+            return false
+        }
+    }
 
     var errorDescription: String? {
         switch self {

@@ -117,12 +117,20 @@ extension ReminderSyncService {
 
     // MARK: - Sync Helpers
 
-    /// Resolve the target EKCalendar, preferring identifier lookup over name lookup
+    /// Resolve the target EKCalendar, preferring identifier lookup over name lookup.
+    /// A stale identifier (list deleted and recreated, or config restored on another
+    /// device) falls back to the stored display name; a successful name lookup
+    /// backfills the identifier so future lookups resolve directly.
     func resolveTargetCalendar() -> EKCalendar? {
-        if let identifier = syncListIdentifier {
-            return findReminderList(byIdentifier: identifier)
-        } else if let name = syncListName {
-            return findReminderList(named: name)
+        if let identifier = syncListIdentifier,
+           let calendar = findReminderList(byIdentifier: identifier) {
+            return calendar
+        }
+        if let name = syncListName, let calendar = findReminderList(named: name) {
+            if syncListIdentifier != calendar.calendarIdentifier {
+                syncListIdentifier = calendar.calendarIdentifier
+            }
+            return calendar
         }
         return nil
     }

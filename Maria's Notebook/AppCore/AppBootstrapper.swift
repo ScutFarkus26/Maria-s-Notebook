@@ -49,16 +49,17 @@ final class AppBootstrapper {
         #if os(macOS)
         let reminderStart = Date()
         ReminderSyncService.shared.managedObjectContext = context
-        // Set default reminder list if none configured
-        if ReminderSyncService.shared.syncListName == nil && ReminderSyncService.shared.syncListIdentifier == nil {
-            ReminderSyncService.shared.syncListName = "girls class reminders"
-        }
-        // Perform initial sync if configured
-        if ReminderSyncService.shared.syncListName != nil {
+        // Perform initial sync only if the user has configured a sync list in Settings.
+        // No default list is seeded — sync stays off until explicitly configured.
+        if ReminderSyncService.shared.syncListIdentifier != nil || ReminderSyncService.shared.syncListName != nil {
             Task {
                 do {
                     try await ReminderSyncService.shared.syncReminders()
                     Self.logger.info("Bootstrap: Initial reminder sync completed")
+                } catch let error as ReminderSyncError where error.isConfigurationIssue {
+                    // Stale or missing configuration (e.g. the list was deleted in
+                    // Reminders) — surfaced in Settings, not an app failure.
+                    Self.logger.notice("Bootstrap: Initial reminder sync skipped: \(error.localizedDescription)")
                 } catch {
                     Self.logger.error("Bootstrap: Initial reminder sync failed: \(error)")
                 }

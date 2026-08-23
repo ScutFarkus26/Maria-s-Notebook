@@ -179,6 +179,8 @@ These come from Apple's frameworks, not this app — they are not actionable in 
 
 - `updateTaskRequest called for an already running/updated task com.apple.coredata.cloudkit.activity.export.*` (subsystem `com.apple.BackgroundSystemTasks`, category `BGSTFramework`) — `NSPersistentCloudKitContainer` internals managing background export tasks.
 - `updateTaskRequest failed for com.apple.coredata.cloudkit.activity.export.*` and `Error updating background task request: BGSystemTaskSchedulerErrorDomain Code=3` — same source; benign when sync is otherwise working.
+- `It's not legal to call -layoutSubtreeIfNeeded on a view which is already being laid out.` (subsystem `com.apple.AppKit`, category `WarnOnce`) — AppKit/SwiftUI hosting internals on macOS 27 beta; no project code calls `layoutSubtreeIfNeeded`. Logged once per run.
+- `XPC connection was interrupted` (subsystem `com.apple.reminderkit`) — ReminderKit's connection to its daemon being recycled; EventKit re-establishes it automatically.
 
 **Filter in Console.app:** exclude subsystem `com.apple.BackgroundSystemTasks`.
 **Noisy Xcode debug runs:** set `OS_ACTIVITY_MODE=disable` in the scheme's environment variables.
