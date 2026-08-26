@@ -26,7 +26,9 @@ final class SharedStoreZoneRepair {
 
     static let shared = SharedStoreZoneRepair()
 
-    private static let logger = Logger.app(category: "SharedStoreZoneRepair")
+    /// Not `private`: the `+Detection` extension lives in another file and
+    /// Swift scopes `private` members to the declaring file.
+    static let logger = Logger.app(category: "SharedStoreZoneRepair")
 
     // MARK: - Observable State
 
@@ -109,22 +111,34 @@ final class SharedStoreZoneRepair {
         guard let store = coreDataStack.privatePersistentStore else { return }
         guard !repairInProgress else { return }
 
+        // Once NSPersistentCloudKitContainer's mirroring delegate has died,
+        // every `container.share(_:to:)` call fails — and it reports that
+        // failure by *raising* an Objective-C exception from inside its own
+        // fault-firing, which no Swift `catch` can trap (see `shareOffMain`).
+        // There is no recovery short of a relaunch with clean local state, so
+        // stop before we reach the uncatchable call.
+        guard !CloudKitSyncStatusService.shared.mirroringDelegateFailed else {
+            let deadMsg = "SharedStoreZoneRepair: CloudKit mirroring delegate failed this session, " +
+                "skipping repair — relaunch (or Settings → Database → Reset Local Cache) is required"
+            Self.logger.warning("\(deadMsg, privacy: .public)")
+            return
+        }
+
         repairInProgress = true
         defer {
             repairInProgress = false
             lastRunAt = Date()
         }
 
-        let entityNames = CoreDataStack.sharedEntityNames.sorted()
-        let context = coreDataStack.viewContext
-        let container = coreDataStack.container
-
-        let (orphans, perEntity) = collectOrphans(
-            entityNames: entityNames,
-            in: store,
-            context: context,
-            container: container
+        let scope = RepairScope(
+            entityNames: CoreDataStack.sharedEntityNames.sorted(),
+            store: store,
+            context: coreDataStack.viewContext,
+            container: coreDataStack.container
         )
+        let container = scope.container
+
+        let (orphans, perEntity) = collectOrphans(in: scope)
 
         orphanCount = orphans.count
         orphansByEntity = perEntity
@@ -146,79 +160,39 @@ final class SharedStoreZoneRepair {
         hasActiveShare = (existingShare != nil)
 
         if let share = existingShare {
-            let unrecoverable = await attachOrphans(orphans, to: share, container: container)
-            lastUnrecoverableOrphans = unrecoverable
-
-            // Refresh the orphan picture after the repair pass so the
-            // observable state reflects what remains stuck.
-            let (remaining, remainingByEntity) = collectOrphans(
-                entityNames: entityNames,
-                in: store,
-                context: context,
-                container: container
-            )
-            orphanCount = remaining.count
-            orphansByEntity = remainingByEntity
+            await repairOrphans(orphans, with: share, in: scope)
         } else {
-            lastUnrecoverableOrphans = []
-            let count = orphans.count
-            let msg = "Private store has \(count) classroom record(s) outside any CKShare " +
-                "zone, but no CKShare exists yet. CloudKit export will fail until the lead " +
-                "guide runs Settings → Classroom Sharing → Share Classroom."
-            Self.logger.warning("\(msg, privacy: .public)")
+            reportOrphansWithoutShare(count: orphans.count)
         }
     }
 
-    // MARK: - Detection
+    /// Attaches `orphans` to `share`, then refreshes the observable orphan
+    /// counts from whatever survived the pass.
+    private func repairOrphans(
+        _ orphans: [NSManagedObject],
+        with share: CKShare,
+        in scope: RepairScope
+    ) async {
+        lastUnrecoverableOrphans = await attachOrphans(
+            orphans,
+            to: share,
+            container: scope.container
+        )
 
-    private func collectOrphans(
-        entityNames: [String],
-        in store: NSPersistentStore,
-        context: NSManagedObjectContext,
-        container: NSPersistentCloudKitContainer
-    ) -> (orphans: [NSManagedObject], byEntity: [String: Int]) {
-        var allObjectIDs: [NSManagedObjectID] = []
-        var objectsByID: [NSManagedObjectID: NSManagedObject] = [:]
-        var entityByID: [NSManagedObjectID: String] = [:]
+        let (remaining, remainingByEntity) = collectOrphans(in: scope)
+        orphanCount = remaining.count
+        orphansByEntity = remainingByEntity
+    }
 
-        for entityName in entityNames {
-            let request = NSFetchRequest<NSManagedObject>(entityName: entityName)
-            request.affectedStores = [store]
-            request.returnsObjectsAsFaults = true
-            do {
-                let objects = try context.fetch(request)
-                for obj in objects {
-                    allObjectIDs.append(obj.objectID)
-                    objectsByID[obj.objectID] = obj
-                    entityByID[obj.objectID] = entityName
-                }
-            } catch {
-                let detail = error.localizedDescription
-                let warnMsg = "Failed to fetch \(entityName) for zone check: \(detail)"
-                Self.logger.warning("\(warnMsg, privacy: .public)")
-            }
-        }
-
-        guard !allObjectIDs.isEmpty else { return ([], [:]) }
-
-        let inShare: [NSManagedObjectID: CKShare]
-        do {
-            inShare = try container.fetchShares(matching: allObjectIDs)
-        } catch {
-            Self.logger.error("fetchShares(matching:) failed: \(error.localizedDescription, privacy: .public)")
-            return ([], [:])
-        }
-
-        var orphans: [NSManagedObject] = []
-        var byEntity: [String: Int] = [:]
-        for id in allObjectIDs where inShare[id] == nil {
-            if let obj = objectsByID[id] {
-                orphans.append(obj)
-                let name = entityByID[id] ?? "Unknown"
-                byEntity[name, default: 0] += 1
-            }
-        }
-        return (orphans, byEntity)
+    /// The safe-by-default case: orphans exist but there is no CKShare to
+    /// attach them to, so this only reports — it never creates a share or
+    /// deletes user data.
+    private func reportOrphansWithoutShare(count: Int) {
+        lastUnrecoverableOrphans = []
+        let msg = "Private store has \(count) classroom record(s) outside any CKShare " +
+            "zone, but no CKShare exists yet. CloudKit export will fail until the lead " +
+            "guide runs Settings → Classroom Sharing → Share Classroom."
+        Self.logger.warning("\(msg, privacy: .public)")
     }
 
     // MARK: - Attachment
@@ -264,46 +238,37 @@ final class SharedStoreZoneRepair {
                 let chunkMsg = "Chunk \(chunkIndex + 1)/\(chunkCount): attached \(chunkIDs.count)" +
                     " record(s) (running total: \(successCount)/\(orphanIDs.count))"
                 Self.logger.info("\(chunkMsg, privacy: .public)")
+                await Task.yield()
+                continue
             } catch {
                 let ns = error as NSError
                 let failMsg = "Chunk \(chunkIndex + 1)/\(chunkCount) batch attach failed: " +
                     "domain=\(ns.domain) code=\(ns.code) description=\(ns.localizedDescription)" +
-                    " userInfo=\(ns.userInfo). Falling back to per-record for this chunk."
+                    " userInfo=\(ns.userInfo)."
                 Self.logger.warning("\(failMsg, privacy: .public)")
 
-                // If the failure looks like CloudKit's 10-minute Share-Export
-                // timeout (134060 with no specific in-store cross-store user
-                // info), trip the circuit breaker and stop trying so we
-                // don't burn another 10-minute ulock wait per remaining
-                // record. The user can retry via the Repair button.
-                if ns.domain == "NSCocoaErrorDomain" && ns.code == 134060 {
-                    let cbMsg = "SharedStoreZoneRepair: tripping circuit breaker after " +
-                        "Share-Export timeout — manual Repair will be required"
-                    Self.logger.error("\(cbMsg, privacy: .public)")
-                    Self.trippedCircuitBreaker()
-                    // Mark remaining records as failures and exit early.
-                    let remaining = Array(orphanIDs[start..<orphanIDs.count])
-                    failures.append(contentsOf: remaining)
-                    let abortMsg = "Orphan attachment aborted: \(successCount) succeeded," +
-                        " \(failures.count) deferred (circuit breaker)"
-                    Self.logger.info("\(abortMsg, privacy: .public)")
+                if let reason = abortReason(for: ns) {
+                    failures.append(contentsOf: orphanIDs[start..<orphanIDs.count])
+                    let abortMsg = "Orphan attachment aborted (\(reason)): \(successCount) succeeded, " +
+                        "\(failures.count) deferred"
+                    Self.logger.error("\(abortMsg, privacy: .public)")
                     return failures
                 }
+            }
 
-                for orphanID in chunkIDs {
-                    do {
-                        try await Self.shareOffMain(chunkIDs: [orphanID], share: share, container: container)
-                        successCount += 1
-                    } catch {
-                        failures.append(orphanID)
-                        let uri = orphanID.uriRepresentation().absoluteString
-                        let pns = error as NSError
-                        let errMsg = "Per-record attach failed for \(uri): " +
-                            "domain=\(pns.domain) code=\(pns.code)" +
-                            " description=\(pns.localizedDescription) userInfo=\(pns.userInfo)"
-                        Self.logger.error("\(errMsg, privacy: .public)")
-                    }
-                }
+            // The whole-chunk call failed for a reason that might be specific
+            // to one bad record, so retry the chunk one record at a time.
+            let fallback = await attachIndividually(chunkIDs, to: share, container: container)
+            successCount += fallback.succeeded
+            failures.append(contentsOf: fallback.failures)
+
+            if fallback.delegateDied {
+                failures.append(contentsOf: fallback.untried)
+                failures.append(contentsOf: orphanIDs[end..<orphanIDs.count])
+                let abortMsg = "Orphan attachment aborted (mirroring delegate dead): " +
+                    "\(successCount) succeeded, \(failures.count) deferred"
+                Self.logger.error("\(abortMsg, privacy: .public)")
+                return failures
             }
 
             // Yield between chunks so we don't monopolise the MainActor for
@@ -316,54 +281,78 @@ final class SharedStoreZoneRepair {
         return failures
     }
 
-    /// Runs `container.share(_:to:)` on a background context off the MainActor.
-    /// The blocking ulock wait happens on a cooperative-pool worker, leaving
-    /// the MainActor free to service view fetches and user input.
+    /// Why a whole-chunk failure should abandon the entire pass rather than
+    /// fall back to per-record retries, or `nil` when per-record is worth a go.
     ///
-    /// `nonisolated` because we explicitly want this to run off MainActor.
-    /// NSManagedObjectIDs are documented as thread-safe; the resolved
-    /// NSManagedObjects only exist within the `performAndWait` block and the
-    /// subsequent `container.share` await, both of which are bound to the
-    /// freshly-created background context.
-    private nonisolated static func shareOffMain(
-        chunkIDs: [NSManagedObjectID],
-        share: CKShare,
-        container: NSPersistentCloudKitContainer
-    ) async throws {
-        try await Task.detached {
-            let bg = container.newBackgroundContext()
-            let objects: [NSManagedObject] = bg.performAndWait {
-                chunkIDs.compactMap { bg.object(with: $0) }
-            }
-            _ = try await container.share(objects, to: share)
-        }.value
+    /// Both cases here fail identically for every remaining record, so retrying
+    /// them one at a time buys nothing — and in the dead-delegate case the
+    /// retries are what eventually walk into `container.share`'s uncatchable
+    /// Objective-C exception (see `shareOffMain`).
+    ///
+    /// Returning a reason also arms the matching kill switch, because both
+    /// conditions outlive this pass: the session-wide mirroring-delegate flag
+    /// (cleared only by relaunching) or the 24-hour circuit breaker.
+    private func abortReason(for error: NSError) -> String? {
+        if Self.indicatesDeadMirroringDelegate(error) {
+            CloudKitSyncStatusService.shared.mirroringDelegateFailed = true
+            return "mirroring delegate never initialized, code \(error.code)"
+        }
+
+        // CloudKit's Share-Export timeout. Trip the circuit breaker so we don't
+        // burn another ten-minute ulock wait per remaining record; the user can
+        // retry from Settings → Repair Sync Errors.
+        if error.domain == NSCocoaErrorDomain && error.code == 134060 {
+            Self.trippedCircuitBreaker()
+            return "Share-Export timed out, manual Repair required"
+        }
+
+        return nil
     }
 
-    /// Creates a new CKShare seeded from `seedID` off the MainActor. Mirrors
-    /// `shareOffMain` for the orphan-attach path; used by
-    /// `ClassroomSharingService` to keep its share-create flow from
-    /// monopolising the main thread on the same kernel `ulock` as the attach
-    /// path.
-    ///
-    /// Returns the newly-created CKShare on success.
-    nonisolated static func createShareOffMain(
-        seedID: NSManagedObjectID,
+    /// Per-record retry for one chunk, isolating a single pathological record
+    /// instead of losing the whole chunk to it.
+    private func attachIndividually(
+        _ chunkIDs: [NSManagedObjectID],
+        to share: CKShare,
         container: NSPersistentCloudKitContainer
-    ) async throws -> CKShare {
-        try await Task.detached {
-            let bg = container.newBackgroundContext()
-            let seed: NSManagedObject? = bg.performAndWait {
-                bg.object(with: seedID)
+    ) async -> ChunkFallbackResult {
+        var result = ChunkFallbackResult()
+
+        for (index, orphanID) in chunkIDs.enumerated() {
+            do {
+                try await Self.shareOffMain(chunkIDs: [orphanID], share: share, container: container)
+                result.succeeded += 1
+            } catch {
+                result.failures.append(orphanID)
+                let ns = error as NSError
+                let uri = orphanID.uriRepresentation().absoluteString
+                let errMsg = "Per-record attach failed for \(uri): " +
+                    "domain=\(ns.domain) code=\(ns.code)" +
+                    " description=\(ns.localizedDescription) userInfo=\(ns.userInfo)"
+                Self.logger.error("\(errMsg, privacy: .public)")
+
+                if Self.indicatesDeadMirroringDelegate(ns) {
+                    CloudKitSyncStatusService.shared.mirroringDelegateFailed = true
+                    result.delegateDied = true
+                    result.untried = Array(chunkIDs[(index + 1)...])
+                    return result
+                }
             }
-            guard let seed else {
-                throw NSError(
-                    domain: "SharedStoreZoneRepair",
-                    code: -1,
-                    userInfo: [NSLocalizedDescriptionKey: "Seed record not available on background context"]
-                )
-            }
-            let (_, share, _) = try await container.share([seed], to: nil)
-            return share
-        }.value
+        }
+
+        return result
+    }
+
+    /// Tally from one chunk's per-record retry pass.
+    private struct ChunkFallbackResult {
+        var succeeded = 0
+        /// Records that were attempted and failed.
+        var failures: [NSManagedObjectID] = []
+        /// Records skipped because the pass aborted. Only ever non-empty when
+        /// ``delegateDied`` is true.
+        var untried: [NSManagedObjectID] = []
+        /// True when the mirroring delegate died mid-chunk, meaning no further
+        /// `container.share` call can succeed this session.
+        var delegateDied = false
     }
 }

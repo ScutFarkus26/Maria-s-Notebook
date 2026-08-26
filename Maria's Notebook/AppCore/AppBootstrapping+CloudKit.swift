@@ -52,6 +52,7 @@ extension AppBootstrapping {
                 UserDefaults.standard.removeObject(forKey: UserDefaultsKeys.lastStoreErrorDescription)
                 return stack
             } catch {
+                if isStoreFromNewerBuild(error) { throw error }
                 logger.warning("CloudKit stack failed, falling back to local: \(error)")
                 let detailedError = (error as NSError).localizedDescription
                 UserDefaults.standard.set(
@@ -79,6 +80,7 @@ extension AppBootstrapping {
             )
             return stack
         } catch {
+            if isStoreFromNewerBuild(error) { throw error }
             logger.error("Cached split-store fallback failed: \(error)")
         }
 
@@ -95,6 +97,7 @@ extension AppBootstrapping {
             )
             return stack
         } catch {
+            if isStoreFromNewerBuild(error) { throw error }
             logger.error("Local stack failed: \(error)")
             DatabaseInitializationService.handleDatabaseInitError(error)
         }
@@ -106,5 +109,20 @@ extension AppBootstrapping {
         UserDefaults.standard.set(true, forKey: UserDefaultsKeys.ephemeralSessionFlag)
         UserDefaults.standard.set(errorDesc, forKey: UserDefaultsKeys.lastStoreErrorDescription)
         return stack
+    }
+
+    /// True when the stack refused to open a store because a newer build wrote
+    /// it (`CoreDataStack.verifyStoreIsNotFromNewerBuild`).
+    ///
+    /// This must abandon the fallback chain rather than continue down it. Every
+    /// remaining attempt either reuses the same store files — and so fails the
+    /// same way — or quietly starts a *different*, empty store, which presents
+    /// a first-launch-looking app while the real data sits intact on disk. The
+    /// caller turns the rethrow into the database-error screen, which says what
+    /// actually happened and what to do about it.
+    private static func isStoreFromNewerBuild(_ error: any Error) -> Bool {
+        guard let stackError = error as? CoreDataStackError else { return false }
+        if case .storeFromNewerBuild = stackError { return true }
+        return false
     }
 }

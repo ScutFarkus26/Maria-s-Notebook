@@ -342,12 +342,22 @@ extension CloudKitSyncStatusService {
             //   1. Setup-event failure — the delegate threw during init
             //   2. NSCocoaErrorDomain 134421 — "Export encountered an
             //      unhandled exception while analyzing history in the store"
-            //   3. Underlying message mentions "Never successfully
-            //      initialized" (belt-and-braces)
+            //   3. NSCocoaErrorDomain 134406 — a request "was aborted because
+            //      the mirroring delegate never successfully initialized".
+            //      This is the shape seen when the store becomes unreadable
+            //      mid-session (e.g. another process migrated it underneath us).
+            //   4. Underlying message mentions "never successfully initialized"
+            //      (belt-and-braces). Matched case-insensitively: Core Data
+            //      spells it lower-case inside 134406's localizedDescription,
+            //      so an exact-case check silently missed this whole family.
             let isSetupFailure = (type == .setup)
-            let is134421 = (nsError.domain == NSCocoaErrorDomain && nsError.code == 134421)
-            let mentionsNeverInitialized = errorDesc.contains("Never successfully initialized")
-            if isSetupFailure || is134421 || mentionsNeverInitialized {
+            let isDelegateDeadCode = nsError.domain == NSCocoaErrorDomain
+                && (nsError.code == 134421 || nsError.code == 134406)
+            let mentionsNeverInitialized = errorDesc.range(
+                of: "never successfully initialized",
+                options: .caseInsensitive
+            ) != nil
+            if isSetupFailure || isDelegateDeadCode || mentionsNeverInitialized {
                 mirroringDelegateFailed = true
                 Self.logger.error(
                     "CloudKit mirroring delegate marked as failed for this session — Reset Local Cache required"

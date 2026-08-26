@@ -333,10 +333,7 @@ final class CoreDataStack {
         // their old Z_ENT IDs, which makes lightweight migration fail with a UNIQUE
         // constraint violation. Stripping those rows first lets migration succeed.
         if !inMemory {
-            for desc in container.persistentStoreDescriptions {
-                guard let url = desc.url, desc.type == NSSQLiteStoreType else { continue }
-                Self.cleanOrphanEntityMetadata(storeURL: url, model: model)
-            }
+            try Self.prepareStoresForLoad(container: container, model: model)
         }
 
         // Load stores synchronously
@@ -358,6 +355,12 @@ final class CoreDataStack {
                 throw CoreDataStackError.cloudKitLoadFailed(loadErrors.first!)
             }
             throw CoreDataStackError.storeLoadFailed(loadErrors.first!)
+        }
+
+        // Lightweight migration rewrites store metadata, so re-apply the
+        // schema stamp now that the (possibly migrated) stores are open.
+        if !inMemory {
+            Self.restampSchemaVersion(in: container)
         }
 
         // Configure view context
@@ -676,6 +679,7 @@ enum CoreDataStackError: LocalizedError {
     case modelNotFound(String)
     case storeLoadFailed(Error)
     case cloudKitLoadFailed(Error)
+    case storeFromNewerBuild(storeName: String, storeVersion: Int, appVersion: Int)
 
     var errorDescription: String? {
         switch self {
@@ -685,6 +689,11 @@ enum CoreDataStackError: LocalizedError {
             return "Failed to load persistent store: \(error.localizedDescription)"
         case .cloudKitLoadFailed(let error):
             return "CloudKit store failed to load: \(error.localizedDescription). Falling back to local storage."
+        case .storeFromNewerBuild(let storeName, let storeVersion, let appVersion):
+            return "\(storeName) was written by a newer version of Maria's Notebook " +
+                "(database format \(storeVersion); this copy understands \(appVersion)). " +
+                "Opening it with this copy would permanently delete the newer data, so it " +
+                "was left untouched. Quit any older copies of the app and open the current one."
         }
     }
 }
