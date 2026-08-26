@@ -73,7 +73,7 @@ struct ProcedureDetailView: View {
                 }
             }
             .confirmationDialog(
-                "Delete CDProcedure",
+                "Delete Procedure",
                 isPresented: $showingDeleteConfirmation,
                 titleVisibility: .visible
             ) {

@@ -11,12 +11,14 @@ extension ClassAreaChecklistViewModel {
         name.trimmed().lowercased()
     }
 
+    /// Keyed off the whole roster rather than the filtered columns, so a column keeps the
+    /// same "Sarah B." label whether or not the other Sarah is currently filtered out.
     var duplicateFirstNameKeys: Set<String> {
         // OPTIMIZATION: Cache duplicate name computation based on student list hash
-        let currentHash = students.map(\.id).hashValue
+        let currentHash = rosterStudents.map(\.id).hashValue
         if lastStudentHashForDuplicates != currentHash {
             var counts: [String: Int] = [:]
-            for s in students {
+            for s in rosterStudents {
                 let key = normalizedFirstName(s.firstName)
                 counts[key, default: 0] += 1
             }

@@ -8,6 +8,8 @@ import UniformTypeIdentifiers
 
 struct AlbumsRootView: View {
     @Environment(AlbumLibrary.self) private var library
+    @Environment(\.appRouter) private var appRouter
+    @Environment(\.managedObjectContext) private var context
     @Environment(\.scenePhase) private var scenePhase
     @State private var nav = AlbumsNavModel()
     @State private var intelligence = AlbumIntelligence()
@@ -48,7 +50,18 @@ struct AlbumsRootView: View {
         }
         .task {
             library.bootstrapIfNeeded()
+            // The library may already be loaded from an earlier visit, in
+            // which case no state change will arrive to trigger these.
+            library.repairAlbumIdentities(in: context)
+            consumeRouterRequest()
         }
+        .onChange(of: library.state) {
+            // A renamed or moved PDF keeps the guide's bookmarks, notes,
+            // highlights, and ink instead of orphaning them.
+            library.repairAlbumIdentities(in: context)
+            consumeRouterRequest()
+        }
+        .onChange(of: appRouter.albumPageRequest) { consumeRouterRequest() }
         .onAppear {
             if let restored = AlbumsSidebarItem(rawStorage: storedSelection) {
                 nav.selection = restored
@@ -64,6 +77,16 @@ struct AlbumsRootView: View {
                 library.refreshIfChanged()
             }
         }
+    }
+
+    /// Honours an "Open in Album" jump from a linked lesson. The request is
+    /// held until the library is ready, since it usually arrives before the
+    /// guide has ever opened this section and the PDFs are still loading.
+    private func consumeRouterRequest() {
+        guard library.state == .ready, let request = appRouter.albumPageRequest else { return }
+        _ = appRouter.consumeAlbumPageRequest()
+        nav.jump(albumID: request.albumID, pageIndex: request.pageIndex,
+                 highlight: request.highlight)
     }
 
     @ViewBuilder

@@ -568,6 +568,15 @@ The shared planning workspace for presentations, follow-up, active child work, a
 
 A class-wide checklist view organized by subject and group. See at a glance which students have received which lessons. Check off items as you go — useful for weekly or monthly planning.
 
+### Narrowing the grid
+
+The filter bar above the grid narrows what you see without changing any records:
+
+- **Filter lessons** — type any part of a lesson, sequence, or section name and the rest of the rows hide. Several words all have to match, in any order, so "frac add" finds "Addition of Fractions". If nothing in the current area matches, the screen tells you which areas do and takes you there in one tap.
+- **Students** — search and tick one or more children; every other column hides. Remove a name from the chips below the bar, or use **Show All** in the picker, to widen it back out.
+
+Both filters can be on at once, and **Clear** drops them both. Cells you had selected for a batch action drop out of the selection when a filter hides them, so the batch buttons only ever act on what you can see.
+
 ## Progress Dashboard
 
 A per-student progression map across the curriculum. Each student's card shows where they stand by subject area; tap a category to open the sequence detail — what's been presented, what's mastered, and what comes next.

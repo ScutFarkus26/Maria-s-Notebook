@@ -79,7 +79,7 @@ struct WorkCardListContent: View {
 
         WorkCard.list(
             work: w2,
-            title: "Research CDProject",
+            title: "Research Project",
             subtitle: "Science • Jan 10, 2025",
             badge: .status("complete"),
             onOpen: { _ in }

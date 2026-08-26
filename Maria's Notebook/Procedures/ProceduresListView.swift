@@ -240,7 +240,7 @@ struct ProceduresListView: View {
             Text("No Procedures Yet")
                 .font(.title2.weight(.semibold))
 
-            Text("CDDocument your classroom routines, safety procedures, and special schedules.")
+            Text("Document your classroom routines, safety procedures, and special schedules.")
                 .font(.subheadline)
                 .foregroundStyle(.secondary)
                 .multilineTextAlignment(.center)
@@ -249,7 +249,7 @@ struct ProceduresListView: View {
             Button {
                 showingAddSheet = true
             } label: {
-                Label("Add First CDProcedure", systemImage: "plus")
+                Label("Add First Procedure", systemImage: "plus")
             }
             .buttonStyle(.borderedProminent)
         }

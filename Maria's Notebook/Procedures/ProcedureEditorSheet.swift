@@ -38,7 +38,7 @@ struct ProcedureEditorSheet: View {
             ScrollView {
                 VStack(alignment: .leading, spacing: AppTheme.Spacing.large) {
                     // Header
-                    Text(isEditing ? "Edit CDProcedure" : "New CDProcedure")
+                    Text(isEditing ? "Edit Procedure" : "New Procedure")
                         .font(AppTheme.ScaledFont.titleXLarge)
 
                     // Basic Info Section
@@ -63,7 +63,7 @@ struct ProcedureEditorSheet: View {
             HStack {
                 Button("Cancel") { dismiss() }
                 Spacer()
-                Button(isEditing ? "Save Changes" : "Add CDProcedure") { save() }
+                Button(isEditing ? "Save Changes" : "Add Procedure") { save() }
                     .buttonStyle(.borderedProminent)
                     .disabled(!isValid)
             }
@@ -359,12 +359,12 @@ struct IconPickerSheet: View {
     }
 }
 
-#Preview("New CDProcedure") {
+#Preview("New Procedure") {
     ProcedureEditorSheet(procedure: nil)
         .previewEnvironment()
 }
 
-#Preview("Edit CDProcedure") {
+#Preview("Edit Procedure") {
     let stack = CoreDataStack.preview
     let ctx = stack.viewContext
     let procedure = CDProcedure(context: ctx)

@@ -54,6 +54,21 @@ final class AppRouter {
         }
     }
     
+    /// A one-shot request to open one page of one teaching album.
+    struct AlbumPageRequest: Identifiable, Equatable {
+        let id: UUID
+        let albumID: String
+        let pageIndex: Int
+        let highlight: String?
+
+        init(id: UUID = UUID(), albumID: String, pageIndex: Int, highlight: String? = nil) {
+            self.id = id
+            self.albumID = albumID
+            self.pageIndex = pageIndex
+            self.highlight = highlight
+        }
+    }
+
     /// Planning lesson for student on date
     struct PlanLessonRequest: Equatable {
         let studentID: UUID
@@ -102,6 +117,15 @@ final class AppRouter {
 
     /// One-shot destination inside the shared Lessons & Work workspace.
     var lessonsAndWorkRequest: LessonsAndWorkRequest?
+
+    /// One-shot request to open a page of a teaching album. `AlbumsRootView`
+    /// consumes it into its own `AlbumsNavModel`, which is per-surface and so
+    /// can't be reached from outside the Albums section.
+    var albumPageRequest: AlbumPageRequest?
+
+    /// One-shot request to open one lesson's detail pane, consumed by
+    /// `LessonsRootView`. Used by the album reader's "Notebook Lesson" jump.
+    var pendingLessonID: UUID?
     
     /// Checklist deep-link filters (consumed once by ChecklistViewModel)
     var checklistFilterArea: String?
@@ -235,6 +259,30 @@ final class AppRouter {
     func consumePendingAIQuestion() -> String? {
         defer { pendingAIQuestion = nil }
         return pendingAIQuestion
+    }
+
+    /// Opens the Albums section at a specific page of a specific album.
+    /// Used by the "Open in Album" action on a linked lesson.
+    func navigateToAlbumPage(albumID: String, pageIndex: Int, highlight: String? = nil) {
+        albumPageRequest = AlbumPageRequest(albumID: albumID, pageIndex: pageIndex,
+                                            highlight: highlight)
+        selectedNavItem = .teachingAlbums
+    }
+
+    func consumeAlbumPageRequest() -> AlbumPageRequest? {
+        defer { albumPageRequest = nil }
+        return albumPageRequest
+    }
+
+    /// Opens the Lessons section with one lesson's detail pane showing.
+    func navigateToLesson(_ lessonID: UUID) {
+        pendingLessonID = lessonID
+        selectedNavItem = .lessons
+    }
+
+    func consumePendingLessonID() -> UUID? {
+        defer { pendingLessonID = nil }
+        return pendingLessonID
     }
 
     /// Navigate to checklist with optional area/sequence pre-selection

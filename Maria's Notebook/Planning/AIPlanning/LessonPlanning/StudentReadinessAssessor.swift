@@ -86,7 +86,10 @@ struct StudentReadinessAssessor {
 
     private static func computeDaysSinceLastPresentation(_ presentations: [CDLessonAssignment]) -> Int? {
         guard let lastDate = presentations.compactMap({ $0.presentedAt }).max() else { return nil }
-        return Calendar.current.dateComponents([.day], from: lastDate, to: Date()).day
+        // Clamped to the school-year counter epoch (see `SchoolYearCounters`) so the planner
+        // doesn't read a summer gap as a child who has been ignored for months.
+        let from = SchoolYearCounters.countFrom(lastDate)
+        return Calendar.current.dateComponents([.day], from: from, to: Date()).day
     }
 
     // MARK: - Area Readiness Computation

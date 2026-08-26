@@ -16,9 +16,13 @@ struct AlbumsLibraryView: View {
         NSSortDescriptor(keyPath: \CDAlbumRecentVisit.visitedAt, ascending: false)
     ])
     private var recents: FetchedResults<CDAlbumRecentVisit>
+    /// Fetched once for the whole grid — `AlbumCard` used to declare its own
+    /// unfiltered fetch, so a shelf of N albums ran N full-table fetches.
+    @FetchRequest(sortDescriptors: []) private var bookmarks: FetchedResults<CDAlbumBookmark>
     @State private var showFolderPicker = false
     @State private var showDataImporter = false
     @State private var importSummary: String?
+    @State private var showMatchSheet = false
 
     private let columns = [GridItem(.adaptive(minimum: 185, maximum: 240), spacing: 18)]
 
@@ -30,7 +34,7 @@ struct AlbumsLibraryView: View {
                 }
                 LazyVGrid(columns: columns, spacing: 18) {
                     ForEach(library.albums) { album in
-                        AlbumCard(album: album)
+                        AlbumCard(album: album, bookmarkCount: bookmarkCounts[album.id] ?? 0)
                     }
                 }
             }
@@ -51,6 +55,7 @@ struct AlbumsLibraryView: View {
                         }
                     }
                     Divider()
+                    Button("Match Lessons to Albums…") { showMatchSheet = true }
                     Button("Rebuild Search Index") { library.rebuildIndex() }
                     Divider()
                     Button("Import Albums App Data…") { showDataImporter = true }
@@ -64,6 +69,9 @@ struct AlbumsLibraryView: View {
                 library.chooseFolder(url)
             }
         }
+        .sheet(isPresented: $showMatchSheet) {
+            LessonAlbumMatchSheet(lessons: unlinkedLessons())
+        }
         .fileImporter(isPresented: $showDataImporter, allowedContentTypes: [.json]) { result in
             if case .success(let url) = result {
                 importSummary = AlbumsDataImporter.importData(from: url, into: context)
@@ -75,6 +83,21 @@ struct AlbumsLibraryView: View {
             Button("OK") { importSummary = nil }
         } message: {
             Text(importSummary ?? "")
+        }
+    }
+
+    /// Every notebook lesson that isn't linked to an album page yet.
+    private func unlinkedLessons() -> [CDLesson] {
+        let request = CDFetchRequest(CDLesson.self)
+        request.predicate = NSPredicate(format: "albumID == nil OR albumID == %@", "")
+        request.sortDescriptors = [NSSortDescriptor(keyPath: \CDLesson.name, ascending: true)]
+        return context.safeFetch(request)
+    }
+
+    /// Bookmark tallies keyed by album id, built in one pass over the fetch.
+    private var bookmarkCounts: [String: Int] {
+        bookmarks.reduce(into: [:]) { counts, bookmark in
+            counts[bookmark.albumID, default: 0] += 1
         }
     }
 
@@ -129,8 +152,8 @@ private struct AlbumCard: View {
     @Environment(AlbumLibrary.self) private var library
     @Environment(AlbumsNavModel.self) private var nav
     @Environment(\.openWindow) private var openWindow
-    @FetchRequest(sortDescriptors: []) private var bookmarks: FetchedResults<CDAlbumBookmark>
     let album: Album
+    let bookmarkCount: Int
 
     var body: some View {
         Button {
@@ -200,9 +223,8 @@ private struct AlbumCard: View {
                         .padding(6)
                 }
                 Spacer()
-                let count = bookmarks.count { $0.albumID == album.id }
-                if count > 0 {
-                    Label("\(count)", systemImage: "bookmark.fill")
+                if bookmarkCount > 0 {
+                    Label("\(bookmarkCount)", systemImage: "bookmark.fill")
                         .font(.caption2.bold())
                         .padding(.horizontal, 7)
                         .padding(.vertical, 4)

@@ -94,7 +94,7 @@ struct SessionWorkAssignmentService {
     // MARK: - Private Helpers
 
     private func resolveGenericProjectLessonID() -> UUID {
-        let name = "CDProject Work"
+        let name = "Project Work"
         let request = CDFetchRequest(CDLesson.self)
         request.predicate = NSPredicate(format: "name == %@", name)
         let existing = context.safeFetch(request)

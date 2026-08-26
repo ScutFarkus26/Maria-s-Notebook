@@ -173,7 +173,7 @@ extension PersonalLessonKind {
         case .personal: return "Custom"
         case .observation: return "Observation"
         case .adaptation: return "Adaptation"
-        case .studentRequested: return "CDStudent Ask"
+        case .studentRequested: return "Student Ask"
         case .external: return "External"
         }
     }

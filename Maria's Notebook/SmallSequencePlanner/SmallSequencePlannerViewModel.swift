@@ -375,6 +375,8 @@ final class SmallSequencePlannerViewModel {
 
     private func daysSince(_ date: Date?) -> Int {
         guard let date else { return 0 }
-        return Calendar.current.dateComponents([.day], from: date, to: Date()).day ?? 0
+        // Clamped to the school-year counter epoch (see `SchoolYearCounters`).
+        let from = SchoolYearCounters.countFrom(date)
+        return Calendar.current.dateComponents([.day], from: from, to: Date()).day ?? 0
     }
 }

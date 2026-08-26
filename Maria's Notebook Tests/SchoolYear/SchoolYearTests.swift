@@ -95,6 +95,97 @@ final class SchoolYearTests {
         #expect(SchoolYearStore.selection(from: "garbage", startMonth: 9, startDay: 1, calendar: cal) == nil)
     }
 
+    // MARK: - Counter epoch
+
+    /// Runs `body` with the counter defaults isolated, restoring whatever the machine had.
+    private func withCounterDefaults(_ body: () -> Void) {
+        let defaults = UserDefaults.standard
+        let epochKey = UserDefaultsKeys.schoolYearCounterEpoch
+        let answeredKey = UserDefaultsKeys.schoolYearCounterPromptAnsweredYear
+        let savedEpoch = defaults.object(forKey: epochKey)
+        let savedAnswered = defaults.object(forKey: answeredKey)
+        defer {
+            defaults.set(savedEpoch, forKey: epochKey)
+            defaults.set(savedAnswered, forKey: answeredKey)
+        }
+        body()
+    }
+
+    @Test("The epoch clamps older dates forward and leaves this year's alone")
+    func counterClamping() {
+        withCounterDefaults {
+            SchoolYearCounters.setEpoch(day(2026, 9, 1))
+            #expect(SchoolYearCounters.isResetting)
+            #expect(SchoolYearCounters.countFrom(day(2026, 5, 12)) == day(2026, 9, 1)) // last year
+            #expect(SchoolYearCounters.countFrom(day(2026, 10, 3)) == day(2026, 10, 3)) // this year
+            #expect(SchoolYearCounters.countFrom(Date.distantPast) == day(2026, 9, 1))
+            #expect(SchoolYearCounters.countFrom(nil as Date?) == nil)
+
+            SchoolYearCounters.setEpoch(nil)
+            #expect(!SchoolYearCounters.isResetting)
+            #expect(SchoolYearCounters.countFrom(day(2026, 5, 12)) == day(2026, 5, 12)) // untouched
+        }
+    }
+
+    @Test("Turning the reset on pins the epoch to the year start; off counts all history")
+    func counterToggle() {
+        withCounterDefaults {
+            let store = SchoolYearStore()
+            store.startMonth = 9
+            store.startDay = 1
+
+            store.setCountersResetAtYearStart(true)
+            #expect(store.isResettingCounters)
+            #expect(store.counterEpoch == store.current.start)
+            #expect(SchoolYearCounters.epoch == store.current.start) // mirrored for the engines
+
+            store.setCountersResetAtYearStart(false)
+            #expect(!store.isResettingCounters)
+            #expect(SchoolYearCounters.epoch == nil)
+        }
+    }
+
+    @Test("A new school year prompts once, and starting fresh moves the epoch and the lens")
+    func counterResetPrompt() {
+        withCounterDefaults {
+            let store = SchoolYearStore()
+            store.startMonth = 9
+            store.startDay = 1
+
+            // Pretend the last answer was for the previous school year.
+            UserDefaults.standard.set(
+                store.current.beginYear - 1, forKey: UserDefaultsKeys.schoolYearCounterPromptAnsweredYear
+            )
+            let reopened = SchoolYearStore()
+            #expect(reopened.needsCounterResetPrompt)
+
+            reopened.startFreshCounters()
+            #expect(!reopened.needsCounterResetPrompt)
+            #expect(reopened.counterEpoch == reopened.current.start)
+            #expect(reopened.isCurrentYearSelected)
+        }
+    }
+
+    @Test("Declining the prompt leaves counters alone and doesn't ask again this year")
+    func counterResetDeclined() {
+        withCounterDefaults {
+            let store = SchoolYearStore()
+            store.startMonth = 9
+            store.startDay = 1
+            store.setCountersResetAtYearStart(false)
+
+            UserDefaults.standard.set(
+                store.current.beginYear - 1, forKey: UserDefaultsKeys.schoolYearCounterPromptAnsweredYear
+            )
+            let reopened = SchoolYearStore()
+            #expect(reopened.needsCounterResetPrompt)
+
+            reopened.keepCountersRunning()
+            #expect(!reopened.needsCounterResetPrompt)
+            #expect(reopened.counterEpoch == nil)
+        }
+    }
+
     // MARK: - Predicate factories (against a real in-memory store)
 
     @Test("Point-in-time predicate keeps in-range and undated, drops out-of-range")

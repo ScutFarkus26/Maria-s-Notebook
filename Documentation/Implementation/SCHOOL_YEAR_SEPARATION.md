@@ -26,6 +26,32 @@ Reframing from the original plan — the lens only visibly matters on *accumulat
   area-checklist coverage grid, and lens-driven date presets on the attendance reports.
   Phase 3 reports and Phase 4 (`schoolYearKey` stamp) remain optional.
 
+## Counter epoch (2026-08-23)
+
+The lens answers "which records do I see"; it does **not** answer "how long since…". Elapsed-day
+counters measure from the last activity date, so across a summer they describe the calendar
+rather than the child — on the first morning of school every child reads as neglected and every
+open work item arrives stale. `SchoolYear/SchoolYearCounters.swift` adds a **counter epoch**: a
+single date that clamps each counter's *start* forward, leaving the underlying dates untouched.
+Anything older than the epoch counts from it, so counters read 0 on the first day of school.
+
+- **Setting:** Settings → School Calendar → School year start. The month/day pickers now show the
+  resolved date, and a "Day counters" segmented control chooses **Start of the school year** (the
+  epoch, default) or **All history** (the old behavior, epoch `nil`). A "Reset counters to …"
+  button appears when the epoch has drifted from the current year's start.
+- **Rollover:** the epoch never moves on its own. When a new school year begins, `RootView` asks
+  once — "Start Fresh" pins the epoch to the new year's start *and* moves the lens onto it;
+  "Keep Counting" leaves both alone. `schoolYearCounterPromptAnsweredYear` keeps it to once a year.
+- **Clamped sites** (all via `SchoolYearCounters.countFrom`): `SchoolDayCalculationCache`
+  `.schoolDaysSinceCreation` (which covers `LessonAgeHelper` and so days-since-last-lesson,
+  presentation aging, and work age), `WorkAgingPolicy.daysSinceLastTouch`,
+  `FollowUpInboxEngine.schoolDaysSince`, the checklist staleness grid, days-since-last-meeting and
+  "lessons since last meeting", the small-sequence planner, and the AI planner's readiness input.
+- **Deliberately unclamped:** `schoolDaysBetween` (an explicit range, not an elapsed counter),
+  `WorkAgingPolicy.isOverdue` / `lastSchedulingActionDate` (a date comparison — a genuinely missed
+  due date shouldn't be forgiven by the calendar), `lastMeaningfulTouchDate` itself (it is also
+  *displayed*), and "completed within 30 days" style recency filters.
+
 ## Overview
 
 Let a guide view the classroom "by school year" without ever splitting, moving, or

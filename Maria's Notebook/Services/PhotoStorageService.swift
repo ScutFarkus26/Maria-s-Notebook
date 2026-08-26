@@ -25,7 +25,7 @@ public enum PhotoStorageService {
             in: .userDomainMask,
             appropriateFor: nil,
             create: true
-        ).appendingPathComponent("CDNote Photos", isDirectory: true)
+        ).appendingPathComponent("Note Photos", isDirectory: true)
         
         try createDirectoryIfNeeded(at: documentsURL)
         return documentsURL

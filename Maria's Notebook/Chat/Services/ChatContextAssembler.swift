@@ -45,7 +45,7 @@ final class ChatContextAssembler {
     // MARK: - Classroom Snapshot Helpers
 
     private func appendRosterSection(_ lines: inout [String], students: [CDStudent]) {
-        lines.append("--- CDStudent Roster ---")
+        lines.append("--- Student Roster ---")
         for student in students.sorted(by: { $0.firstName < $1.firstName }) {
             let age = ageString(for: student.birthday)
             let nick = student.nickname.map { " (\($0))" } ?? ""
@@ -297,7 +297,7 @@ final class ChatContextAssembler {
             lines.append(line)
             let workNotes = (work.unifiedNotes?.allObjects as? [CDNote]) ?? []
             for note in workNotes.prefix(2) where !note.body.isEmpty {
-                lines.append("    CDNote: \(note.body.prefix(100))")
+                lines.append("    Note: \(note.body.prefix(100))")
             }
         }
     }

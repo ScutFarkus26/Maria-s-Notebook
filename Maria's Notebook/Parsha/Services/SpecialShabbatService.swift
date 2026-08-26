@@ -56,8 +56,8 @@ enum SpecialShabbatService {
     /// Returns the most-specific special-Shabbat designation that applies to `shabbat`,
     /// or `nil` if it is an ordinary Shabbat.
     static func specialShabbat(forShabbat shabbat: Date) -> SpecialShabbat? {
-        let gregorian = Calendar(identifier: .gregorian)
-        let hebrew = Calendar(identifier: .hebrew)
+        let gregorian = HebrewParshaService.gregorian
+        let hebrew = HebrewParshaService.hebrew
         let shabbat = gregorian.startOfDay(for: shabbat)
 
         let comps = hebrew.dateComponents([.year, .month, .day], from: shabbat)

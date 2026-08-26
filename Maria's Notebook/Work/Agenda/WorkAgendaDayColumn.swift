@@ -4,6 +4,10 @@ import CoreData
 /// A day column for the Work agenda calendar that displays both work items and lesson assignments
 struct WorkAgendaDayColumn: View {
     @Environment(\.managedObjectContext) private var modelContext
+    // Drag previews render in a detached hierarchy that does not inherit the app's
+    // environment, so anything the preview view reads must be re-injected below —
+    // a missing @Environment(SaveCoordinator.self) is a fatal assertion at drag start.
+    @Environment(SaveCoordinator.self) private var saveCoordinator
 
     let day: Date
     let availableHeight: CGFloat
@@ -234,6 +238,7 @@ struct WorkAgendaDayColumn: View {
                             ) {
                                 WorkCheckInPill(checkIn: sequence.primary, isDulled: false)
                                     .opacity(UIConstants.OpacityConstants.almostOpaque)
+                                    .environment(\.managedObjectContext, modelContext)
                             }
                         }
                     case .lessonAssignment(let la):
@@ -256,6 +261,8 @@ struct WorkAgendaDayColumn: View {
                                 showAgeIndicator: false
                             )
                             .opacity(0.45)
+                            .environment(\.managedObjectContext, modelContext)
+                            .environment(saveCoordinator)
                         }
                         .onTapGesture {
                             onLessonAssignmentSelect?(la)

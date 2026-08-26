@@ -492,11 +492,11 @@ struct TodayView: View {
                 try await syncService.syncReminders()
             } catch let error as ReminderSyncError where error.isConfigurationIssue {
                 #if DEBUG
-                Logger.sync.notice("CDReminder sync skipped: \(error.localizedDescription)")
+                Logger.sync.notice("Reminder sync skipped: \(error.localizedDescription)")
                 #endif
             } catch {
                 #if DEBUG
-                Logger.sync.error("CDReminder sync failed: \(error.localizedDescription)")
+                Logger.sync.error("Reminder sync failed: \(error.localizedDescription)")
                 #endif
             }
         }

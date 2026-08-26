@@ -52,6 +52,13 @@ struct PresentationsView: View {
         let stateRaw: String
     }
 
+    /// `viewModelDependencies` is read by `.onChange`, so SwiftUI rebuilds this on
+    /// every body pass to diff it. It used to end in `.sorted { $0.id.uuidString <
+    /// $1.id.uuidString }`, which allocated two 36-character strings per comparison —
+    /// roughly `2 · n · log₂(n)` string allocations across the whole assignment table,
+    /// every pass. The sort was also redundant: the fetch above already orders by
+    /// `\CDLessonAssignment.id`, so the array is a deterministic function of the data
+    /// either way, which is all an equality-compared change key needs.
     private var lessonAssignmentChangeKeys: [LessonAssignmentChangeKey] {
         lessonAssignmentsForChangeDetection
             .compactMap { la -> LessonAssignmentChangeKey? in
@@ -63,7 +70,6 @@ struct PresentationsView: View {
                     stateRaw: la.stateRaw
                 )
             }
-            .sorted { $0.id.uuidString < $1.id.uuidString }
     }
 
     private var lessonIDs: [UUID] {

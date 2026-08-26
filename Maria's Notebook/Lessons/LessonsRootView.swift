@@ -188,6 +188,8 @@ struct LessonsRootView: View {
         .environment(\.editMode, $editMode)
         #endif
         .task { await handleInitialLoad() }
+        .task { openPendingLesson() }
+        .onChange(of: appRouter.pendingLessonID) { openPendingLesson() }
         .task(id: lessonsForArea.compactMap(\.id)) { await fetchPresentationHistory() }
         .onChange(of: filterState.selectedArea) { _, newValue in handleAreaChange(newValue) }
         .onChange(of: filterState.searchText) { _, newValue in handleSearchTextChange(newValue) }
@@ -211,6 +213,19 @@ struct LessonsRootView: View {
             )
         }
         .sheet(isPresented: $showingBulkEntry) { BulkLessonsEntryView(defaultArea: selectedArea) }
+    }
+
+    /// Reveals a lesson requested from elsewhere in the app — today, the
+    /// album reader's "Notebook Lesson" jump on a linked album page.
+    private func openPendingLesson() {
+        guard let id = appRouter.pendingLessonID else { return }
+        _ = appRouter.consumePendingLessonID()
+        guard let lesson = lessons.first(where: { $0.id == id }) else { return }
+        // Clear any area filter that would hide the lesson from its column.
+        if !lesson.area.trimmed().isEmpty, filterState.selectedArea != lesson.area {
+            filterState.selectedArea = lesson.area
+        }
+        selectedLessonDetail = lesson
     }
 
     private func lessonScheduleSheet(_ lesson: CDLesson) -> some View {

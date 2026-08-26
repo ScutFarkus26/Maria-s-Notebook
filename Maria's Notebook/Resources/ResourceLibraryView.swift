@@ -294,7 +294,7 @@ struct ResourceLibraryView: View {
                         Button {
                             showingImportSheet = true
                         } label: {
-                            Label("Add CDResource", systemImage: SFSymbol.Action.plus)
+                            Label("Add Resource", systemImage: SFSymbol.Action.plus)
                         }
                         .buttonStyle(.borderedProminent)
                         .controlSize(.small)
@@ -348,7 +348,7 @@ struct ResourceLibraryView: View {
         .sheet(isPresented: $showingBulkTagPicker) {
             bulkTagSheet
         }
-        .alert("Rename CDResource", isPresented: Binding(
+        .alert("Rename Resource", isPresented: Binding(
             get: { resourceToRename != nil },
             set: { if !$0 { resourceToRename = nil } }
         )) {
@@ -369,7 +369,7 @@ struct ResourceLibraryView: View {
             categoryPickerSheet(for: resource)
         }
         .confirmationDialog(
-            "Delete \(selectedResourceIDs.count) CDResource\(selectedResourceIDs.count == 1 ? "" : "s")?",
+            "Delete \(selectedResourceIDs.count) Resource\(selectedResourceIDs.count == 1 ? "" : "s")?",
             isPresented: $showingBulkDeleteConfirmation,
             titleVisibility: .visible
         ) {

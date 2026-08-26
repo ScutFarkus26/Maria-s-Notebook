@@ -120,7 +120,6 @@ enum HebrewParshaService {
     /// the coded year-type lookup (which covers all Gregorian years reachable via
     /// `Calendar(identifier: .hebrew)`).
     static func currentParshaKey(on date: Date = Date()) -> String? {
-        let gregorian = Calendar(identifier: .gregorian)
         let shabbat = shabbatOfWeek(containing: date, calendar: gregorian)
         return parshaKey(forShabbat: shabbat)
     }
@@ -143,21 +142,22 @@ enum HebrewParshaService {
     /// Walks from the first sedra Shabbat after Simchat Torah through next Rosh Hashanah.
     static func shabbatotForHebrewYear(containing date: Date)
         -> [(date: Date, parshaKey: String?, festivalName: String?)] {
-        let gregorian = Calendar(identifier: .gregorian)
-        let hebrew = Calendar(identifier: .hebrew)
-
         guard let hebYear = hebrew.dateComponents([.year], from: date).year else { return [] }
         // Find the cycle year whose Simchat Torah is on or before `date`.
         let candidateCycleYears: [Int] = [hebYear, hebYear - 1]
         for cycleYear in candidateCycleYears {
-            var comps = DateComponents()
-            comps.year = cycleYear
-            comps.month = 1
-            comps.day = 23
-            guard let simchatTorah = hebrew.date(from: comps).map(gregorian.startOfDay) else {
+            guard let simchatTorah = simchatTorahDate(
+                hebYear: cycleYear, hebrew: hebrew, gregorian: gregorian
+            ) else {
                 continue
             }
             guard date >= simchatTorah else { continue }
+
+            // Memoized per cycle year: `ParshaCalendarView` reads this from a computed
+            // property, so SwiftUI re-ran the whole year walk on every body pass.
+            // Checked only after the cycle year is confirmed, so a cached year is never
+            // returned for a date that belongs to the previous cycle.
+            if let cached = yearShabbatotCache[cycleYear] { return cached }
 
             // First Shabbat after Simchat Torah carries the first sedra reading (Bereishit).
             var current = shabbatOfWeek(containing: simchatTorah, calendar: gregorian)
@@ -183,6 +183,7 @@ enum HebrewParshaService {
                 guard let next = gregorian.date(byAdding: .day, value: 7, to: current) else { break }
                 current = next
             }
+            yearShabbatotCache[cycleYear] = results
             return results
         }
         return []
@@ -192,7 +193,6 @@ enum HebrewParshaService {
     /// or `nil` if a normal weekly reading takes place. The three displacing windows are
     /// Sukkot/Shemini Atzeret, Pesach (including Chol HaMoed Shabbatot), and Shavuot.
     static func displacingFestivalName(forShabbat shabbat: Date) -> String? {
-        let hebrew = Calendar(identifier: .hebrew)
         let comps = hebrew.dateComponents([.month, .day], from: shabbat)
         guard let month = comps.month, let day = comps.day else { return nil }
         if month == 1, (15...22).contains(day) { return "Sukkot" }
@@ -205,8 +205,6 @@ enum HebrewParshaService {
     /// Returns `nil` when the Shabbat is displaced by a festival reading.
     static func parshaKey(forShabbat shabbat: Date) -> String? {
         if displacingFestivalName(forShabbat: shabbat) != nil { return nil }
-        let gregorian = Calendar(identifier: .gregorian)
-        let hebrew = Calendar(identifier: .hebrew)
 
         // Determine the Hebrew year of the *next* Rosh Hashanah on or before `shabbat`,
         // so the cycle reference anchor is correct for dates before Simchat Torah too.
@@ -266,6 +264,20 @@ enum HebrewParshaService {
     /// This uses a compact algorithm that walks the 54-parsha cycle and applies the
     /// standard doubled-parshah and festival-displacement rules for the year type.
     private static func sedraSchedule(hebYear: Int, hebrew: Calendar, gregorian: Calendar) -> [String]? {
+        // Memoized: the schedule depends only on the Hebrew year, but the caller asks
+        // for it once per Shabbat. Without this, rendering a year costs ~52 full
+        // schedule builds instead of one.
+        if let cached = scheduleCache[hebYear] { return cached }
+        let built = buildSedraScheduleUncached(hebYear: hebYear, hebrew: hebrew, gregorian: gregorian)
+        scheduleCache[hebYear] = built
+        return built
+    }
+
+    private static func buildSedraScheduleUncached(
+        hebYear: Int,
+        hebrew: Calendar,
+        gregorian: Calendar
+    ) -> [String]? {
         guard let roshHashanah = roshHashanahDate(hebYear: hebYear, hebrew: hebrew, gregorian: gregorian),
               let nextRoshHashanah = roshHashanahDate(hebYear: hebYear + 1, hebrew: hebrew, gregorian: gregorian) else {
             return nil
@@ -447,7 +459,6 @@ enum HebrewParshaService {
     /// Elul=13. In non-leap years month 6 is simply skipped — so Nisan and Sivan are
     /// always 8 and 10 regardless of leap status.
     private static func isDisplacedShabbat(_ shabbat: Date, rhWeekday: Int, isLeap: Bool, gregorian: Calendar) -> Bool {
-        let hebrew = Calendar(identifier: .hebrew)
         let comps = hebrew.dateComponents([.year, .month, .day], from: shabbat)
         guard let month = comps.month, let day = comps.day else { return false }
 

@@ -49,6 +49,11 @@ extension BackupEntityImporter {
             lesson.parentStoryID = dto.parentStoryID
             if let v = dto.requiresPracticeOverride { lesson.requiresPracticeOverride = v }
             if let v = dto.requiresConfirmationOverride { lesson.requiresConfirmationOverride = v }
+            // Format v22+ teaching-album link.
+            lesson.albumID = dto.albumID
+            if let v = dto.albumPageIndex { lesson.albumPageIndex = Int32(v) }
+            lesson.albumLessonTitle = dto.albumLessonTitle
+            if let v = dto.albumLinkConfidence { lesson.albumLinkConfidence = v }
             return lesson
         })
     }

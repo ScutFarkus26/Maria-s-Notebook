@@ -336,7 +336,10 @@ struct StudentQueueRow: View {
 
     private var daysSinceLastMeeting: Int? {
         guard let lastMeeting else { return nil }
-        return Calendar.current.dateComponents([.day], from: lastMeeting.date ?? Date(), to: Date()).day
+        // Clamped to the school-year counter epoch so last spring's meeting doesn't read
+        // "104 days ago" on the first morning of the new year.
+        let from = SchoolYearCounters.countFrom(lastMeeting.date ?? Date())
+        return Calendar.current.dateComponents([.day], from: from, to: Date()).day
     }
 
     var body: some View {

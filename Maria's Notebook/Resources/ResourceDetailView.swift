@@ -141,7 +141,7 @@ struct ResourceDetailView: View {
             .sheet(isPresented: $isEditing) {
                 editSheet
             }
-            .confirmationDialog("Delete CDResource?", isPresented: $showDeleteConfirmation, titleVisibility: .visible) {
+            .confirmationDialog("Delete Resource?", isPresented: $showDeleteConfirmation, titleVisibility: .visible) {
                 Button("Delete", role: .destructive) {
                     deleteResource()
                 }
@@ -390,7 +390,7 @@ struct ResourceDetailView: View {
                     }
                 }
             }
-            .navigationTitle("Edit CDResource")
+            .navigationTitle("Edit Resource")
             .inlineNavigationTitle()
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {

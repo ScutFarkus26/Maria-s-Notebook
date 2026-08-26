@@ -327,6 +327,29 @@ struct RootView: View {
         } message: {
             Text(classroomWorkspace.preparationErrorMessage ?? "The sample classroom could not be prepared.")
         }
+        .alert(
+            "The \(dependencies.schoolYearStore.current.label) School Year Has Begun",
+            isPresented: Binding(
+                get: { dependencies.schoolYearStore.needsCounterResetPrompt },
+                set: { isPresented in
+                    if !isPresented { dependencies.schoolYearStore.keepCountersRunning() }
+                }
+            )
+        ) {
+            Button("Start Fresh") { dependencies.schoolYearStore.startFreshCounters() }
+            Button("Keep Counting", role: .cancel) { dependencies.schoolYearStore.keepCountersRunning() }
+        } message: {
+            Text(schoolYearResetPromptMessage)
+        }
+    }
+
+    /// Explains what "start fresh" does before the guide commits to it: counters only, and
+    /// nothing is moved or deleted.
+    private var schoolYearResetPromptMessage: String {
+        let start = dependencies.schoolYearStore.current.start
+            .formatted(.dateTime.month(.wide).day().year())
+        return "Restart the day counters — days since last lesson, days since last meeting, and "
+            + "work aging — from \(start)? Last year's records stay exactly as they are."
     }
 
     private var rootLayoutWithObservers: some View {

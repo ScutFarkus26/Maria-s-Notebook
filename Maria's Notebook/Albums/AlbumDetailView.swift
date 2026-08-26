@@ -26,21 +26,40 @@ struct AlbumDetailView: View {
 
     let album: Album
 
-    @FetchRequest(sortDescriptors: []) private var bookmarks: FetchedResults<CDAlbumBookmark>
-    @FetchRequest(sortDescriptors: []) private var notes: FetchedResults<CDAlbumPageNote>
-    @FetchRequest(sortDescriptors: []) private var highlights: FetchedResults<CDAlbumHighlight>
+    // Scoped to this album at init rather than fetching every row and
+    // filtering in Swift. Both call sites key the view on `album.id`, so the
+    // predicate is rebuilt whenever the album changes.
+    @FetchRequest private var bookmarks: FetchedResults<CDAlbumBookmark>
+    @FetchRequest private var notes: FetchedResults<CDAlbumPageNote>
+    @FetchRequest private var highlights: FetchedResults<CDAlbumHighlight>
+
+    init(album: Album) {
+        self.album = album
+        let scope = NSPredicate(format: "albumID == %@", album.id)
+        let unsorted: [NSSortDescriptor] = []
+        _bookmarks = FetchRequest(sortDescriptors: unsorted, predicate: scope)
+        _notes = FetchRequest(sortDescriptors: unsorted, predicate: scope)
+        _highlights = FetchRequest(sortDescriptors: unsorted, predicate: scope)
+    }
 
     @State private var currentPage = 0
     @State private var jump: AlbumPageJump?
     @State private var proxy = AlbumPDFViewerProxy()
     @State private var showNotesPopover = false
     @State private var showRelatedPopover = false
+    @State private var showNotebookLessonPopover = false
     @State private var showOutlineSheet = false
     @State private var showGoToPage = false
     @State private var goToPageText = ""
     @State private var showThumbnails = false
     @State private var summary: AlbumSummaryState?
     @State private var didRestorePosition = false
+
+    // Reading-position persistence. Both writes are debounced: flipping
+    // through a lesson used to fire two Core Data saves — and two CloudKit
+    // pushes — per page turn.
+    @State private var positionSaveTask: Task<Void, Never>?
+    @State private var lastRecordedLessonTitle: String?
 
     // Find in album
     @State private var showFindBar = false
@@ -59,7 +78,7 @@ struct AlbumDetailView: View {
     #endif
 
     private var currentLesson: AlbumLessonRef? { album.lesson(forPage: currentPage) }
-    private var albumHighlights: [CDAlbumHighlight] { highlights.filter { $0.albumID == album.id } }
+    private var albumHighlights: [CDAlbumHighlight] { Array(highlights) }
 
     var body: some View {
         content
@@ -82,11 +101,13 @@ struct AlbumDetailView: View {
             .onChange(of: albumHighlights) { album.applyHighlights(albumHighlights) }
             .onChange(of: currentPage) {
                 didRestorePosition = true
-                if let lesson = currentLesson {
-                    AlbumUserDataStore.recordVisit(albumID: album.id, pageIndex: currentPage,
-                                         lessonTitle: lesson.title, in: context)
-                }
-                AlbumUserDataStore.saveReadingPosition(albumID: album.id, pageIndex: currentPage, in: context)
+                schedulePositionSave()
+            }
+            .onDisappear {
+                // Leaving mid-debounce still records where the guide got to.
+                positionSaveTask?.cancel()
+                positionSaveTask = nil
+                persistPosition(pageIndex: currentPage)
             }
             .alert("Go to Page", isPresented: $showGoToPage) {
                 TextField("Page number", text: $goToPageText)
@@ -261,19 +282,37 @@ struct AlbumDetailView: View {
     // MARK: Toolbars
 
     #if os(macOS)
-    /// Customizable toolbar (View ▸ Customize Toolbar…) on the Mac.
+    /// Customizable toolbar (View ▸ Customize Toolbar…) on the Mac. Split in
+    /// two because `@ToolbarContentBuilder` takes at most ten children.
     @ToolbarContentBuilder
     private var toolbarContent: some CustomizableToolbarContent {
+        shownToolbarItems
+        optionalToolbarItems
+    }
+
+    /// The items every guide gets unless they customise them away.
+    @ToolbarContentBuilder
+    private var shownToolbarItems: some CustomizableToolbarContent {
         ToolbarItem(id: "page-indicator") {
+            // Fixed width: a toolbar item that resizes itself while AppKit is
+            // measuring the bar trips NSToolbarItemViewer's min/max size assertion.
             Text("p. \(currentPage + 1) of \(album.pageCount)")
                 .font(.callout.monospacedDigit())
                 .foregroundStyle(.secondary)
+                .lineLimit(1)
+                .frame(width: 120, alignment: .center)
         }
         ToolbarItem(id: "bookmark") { bookmarkButton }
         ToolbarItem(id: "highlight") { highlightButton }
         ToolbarItem(id: "notes") { notesButton }
         ToolbarItem(id: "related") { relatedButton }
+        ToolbarItem(id: "notebook-lesson") { notebookLessonButton }
         ToolbarItem(id: "summarize") { summarizeButton }
+    }
+
+    /// Hidden until the guide adds them from Customize Toolbar.
+    @ToolbarContentBuilder
+    private var optionalToolbarItems: some CustomizableToolbarContent {
         ToolbarItem(id: "find", showsByDefault: false) {
             Button { openFind() } label: {
                 Label("Find in Album", systemImage: "doc.text.magnifyingglass")
@@ -327,11 +366,14 @@ struct AlbumDetailView: View {
                     Label("Find in Album", systemImage: "doc.text.magnifyingglass")
                 }
                 Button { highlightCurrentSelection() } label: {
-                    Label("CDAlbumHighlight Selection", systemImage: "highlighter")
+                    Label("Highlight Selection", systemImage: "highlighter")
                 }
                 .disabled(!proxy.hasSelection)
                 Button { showRelatedPopover = true } label: {
                     Label("Related Lessons", systemImage: "arrow.triangle.branch")
+                }
+                Button { showNotebookLessonPopover = true } label: {
+                    Label("Notebook Lesson", systemImage: "book.closed")
                 }
                 Toggle(isOn: $showThumbnails) {
                     Label("Page Thumbnails", systemImage: "rectangle.grid.1x2")
@@ -351,6 +393,11 @@ struct AlbumDetailView: View {
                     openRelated(target)
                 }
             }
+            .popover(isPresented: $showNotebookLessonPopover) {
+                LinkedNotebookLessonsPanel(album: album, currentPage: currentPage) {
+                    showNotebookLessonPopover = false
+                }
+            }
         }
     }
 
@@ -363,21 +410,21 @@ struct AlbumDetailView: View {
         Button {
             toggleBookmark()
         } label: {
-            Label("CDAlbumBookmark This Page",
+            Label("Bookmark This Page",
                   systemImage: isBookmarked ? "bookmark.fill" : "bookmark")
                 .foregroundStyle(isBookmarked ? album.subject.color : Color.accentColor)
         }
-        .help("CDAlbumBookmark this page (⌘D)")
+        .help("Bookmark this page (⌘D)")
     }
 
     private var highlightButton: some View {
         Button {
             highlightCurrentSelection()
         } label: {
-            Label("CDAlbumHighlight Selection", systemImage: "highlighter")
+            Label("Highlight Selection", systemImage: "highlighter")
         }
         .disabled(!proxy.hasSelection)
-        .help("CDAlbumHighlight the selected text (⇧⌘H)")
+        .help("Highlight the selected text (⇧⌘H)")
     }
 
     private var notesButton: some View {
@@ -410,6 +457,20 @@ struct AlbumDetailView: View {
         }
     }
 
+    private var notebookLessonButton: some View {
+        Button {
+            showNotebookLessonPopover = true
+        } label: {
+            Label("Notebook Lesson", systemImage: "book.closed")
+        }
+        .help("Your own write-up for the lesson on this page")
+        .popover(isPresented: $showNotebookLessonPopover, arrowEdge: .bottom) {
+            LinkedNotebookLessonsPanel(album: album, currentPage: currentPage) {
+                showNotebookLessonPopover = false
+            }
+        }
+    }
+
     private var summarizeButton: some View {
         Button {
             summarizeCurrentLesson()
@@ -418,18 +479,18 @@ struct AlbumDetailView: View {
         }
         .disabled(!intelligence.isAvailable || !library.indexReady)
         .help(intelligence.isAvailable
-              ? "Summarize this lesson with Apple AlbumIntelligence"
+              ? "Summarize this lesson with Apple Intelligence"
               : (intelligence.unavailableExplanation ?? "Unavailable"))
     }
 
     // MARK: State helpers
 
     private var isBookmarked: Bool {
-        bookmarks.contains { $0.albumID == album.id && Int($0.pageIndex) == currentPage }
+        bookmarks.contains { Int($0.pageIndex) == currentPage }
     }
 
     private var pageNoteCount: Int {
-        notes.count { $0.albumID == album.id && Int($0.pageIndex) == currentPage }
+        notes.count { Int($0.pageIndex) == currentPage }
     }
 
     private func toggleBookmark() {
@@ -448,6 +509,29 @@ struct AlbumDetailView: View {
         nav.pageTarget = nil
         didRestorePosition = true
         goTo(pageIndex: target.pageIndex, highlight: target.highlight)
+    }
+
+    /// Coalesces page turns into one write. Paging through a lesson is a
+    /// burst of `currentPage` changes; only where the guide settles matters.
+    private func schedulePositionSave() {
+        positionSaveTask?.cancel()
+        let pageIndex = currentPage
+        positionSaveTask = Task {
+            try? await Task.sleep(for: .milliseconds(1500))
+            guard !Task.isCancelled else { return }
+            persistPosition(pageIndex: pageIndex)
+        }
+    }
+
+    /// Writes the reading position, and a recent visit when the guide has
+    /// moved into a different lesson than the one last recorded.
+    private func persistPosition(pageIndex: Int) {
+        if let lesson = album.lesson(forPage: pageIndex), lesson.title != lastRecordedLessonTitle {
+            lastRecordedLessonTitle = lesson.title
+            AlbumUserDataStore.recordVisit(albumID: album.id, pageIndex: pageIndex,
+                                           lessonTitle: lesson.title, in: context)
+        }
+        AlbumUserDataStore.saveReadingPosition(albumID: album.id, pageIndex: pageIndex, in: context)
     }
 
     /// Reopen the album to where the user left off (on any of their devices).
@@ -555,8 +639,10 @@ struct AlbumDetailView: View {
         let text = range.compactMap { library.text(albumID: album.id, pageIndex: $0) }
             .joined(separator: "\n")
         let state = AlbumSummaryState(lesson: lesson)
-        summary = state
-        Task {
+        // Presenting from the button action lands inside AppKit's toolbar layout
+        // pass; hop to the next main-actor turn so the bar finishes measuring first.
+        Task { @MainActor in
+            summary = state
             do {
                 state.result = try await intelligence.summarize(
                     lessonTitle: lesson.title, albumTitle: album.title, text: text)
@@ -868,7 +954,7 @@ struct AlbumSummarySheet: View {
             .frame(minHeight: 200)
             Divider()
             HStack {
-                Text("Generated on device by Apple AlbumIntelligence — double-check against the album.")
+                Text("Generated on device by Apple Intelligence — double-check against the album.")
                     .font(.caption2)
                     .foregroundStyle(.secondary)
                 Spacer()

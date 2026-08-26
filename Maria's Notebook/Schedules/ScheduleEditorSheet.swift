@@ -50,7 +50,7 @@ struct ScheduleEditorSheet: View {
             ScrollView {
                 VStack(alignment: .leading, spacing: 20) {
                     // Header
-                    Text(isEditing ? "Edit CDSchedule" : "New CDSchedule")
+                    Text(isEditing ? "Edit Schedule" : "New Schedule")
                         .font(AppTheme.ScaledFont.titleXLarge)
 
                     // Basic Info Section
@@ -97,7 +97,7 @@ struct ScheduleEditorSheet: View {
 
     private var basicInfoSection: some View {
         VStack(alignment: .leading, spacing: 12) {
-            Text("CDSchedule Info")
+            Text("Schedule Info")
                 .font(.headline)
 
             VStack(alignment: .leading, spacing: 6) {
@@ -167,7 +167,7 @@ struct ScheduleEditorSheet: View {
 
     private var weeklyScheduleSection: some View {
         VStack(alignment: .leading, spacing: 16) {
-            Text("Weekly CDSchedule")
+            Text("Weekly Schedule")
                 .font(.headline)
 
             ForEach(Weekday.schoolDays, id: \.self) { weekday in
@@ -466,7 +466,7 @@ struct ScheduleEditorSheet: View {
     }
 }
 
-#Preview("New CDSchedule") {
+#Preview("New Schedule") {
     ScheduleEditorSheet(schedule: nil)
         .previewEnvironment()
 }

@@ -42,7 +42,7 @@ struct InboxStatusSection: View {
 
             OptionalDatePicker(
                 toggleLabel: "Change Date",
-                dateLabel: "CDSchedule For",
+                dateLabel: "Schedule For",
                 date: $scheduledFor,
                 displayedComponents: [.date, .hourAndMinute],
                 defaultHour: 9
@@ -51,7 +51,7 @@ struct InboxStatusSection: View {
             Button {
                 scheduledFor = nil
             } label: {
-                Label("Remove from CDSchedule", systemImage: "xmark.circle")
+                Label("Remove from Schedule", systemImage: "xmark.circle")
                     .font(AppTheme.ScaledFont.caption)
             }
             .buttonStyle(.plain)

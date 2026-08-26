@@ -15,6 +15,7 @@ extension Logger {
     // MARK: - Features
     nonisolated static let attendance = Logger.app(category: "attendance")
     nonisolated static let lessons = Logger.app(category: "lessons")
+    nonisolated static let albums = Logger.app(category: "albums")
     nonisolated static let students = Logger.app(category: "students")
     nonisolated static let work = Logger.app(category: "work")
     nonisolated static let presentations = Logger.app(category: "presentations")

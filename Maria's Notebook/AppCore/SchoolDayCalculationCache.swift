@@ -111,13 +111,17 @@ final class SchoolDayCalculationCache {
         return result
     }
     
-    /// Convenience method matching the existing API
+    /// Convenience method matching the existing API.
+    /// The start date is clamped to the school-year counter epoch, so an activity from a
+    /// previous year counts from the first day of this one (see `SchoolYearCounters`).
+    /// `schoolDaysBetween` stays unclamped — it measures explicit ranges, not elapsed counters.
     func schoolDaysSinceCreation(
         createdAt: Date,
         asOf today: Date = Date(),
         using context: NSManagedObjectContext,
         calendar: Calendar = .current
     ) -> Int {
-        return schoolDaysBetween(start: createdAt, end: today, using: context, calendar: calendar)
+        let start = SchoolYearCounters.countFrom(createdAt)
+        return schoolDaysBetween(start: start, end: today, using: context, calendar: calendar)
     }
 }

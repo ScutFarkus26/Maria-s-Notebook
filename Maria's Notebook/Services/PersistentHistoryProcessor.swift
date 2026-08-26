@@ -28,6 +28,14 @@ actor PersistentHistoryProcessor {
     private let container: NSPersistentCloudKitContainer
     private var lastToken: NSPersistentHistoryToken?
 
+    /// A pass is in flight. `.NSPersistentStoreRemoteChange` arrives in bursts during
+    /// a CloudKit sync — one per imported batch — and each notification used to queue
+    /// its own pass: a fresh background context plus a history fetch against SQLite,
+    /// even though the first pass had already consumed the transactions the rest would
+    /// look for. These two flags collapse a burst into at most one follow-up pass.
+    private var isProcessing = false
+    private var needsAnotherPass = false
+
     // MARK: - Init
 
     init(container: NSPersistentCloudKitContainer) {
@@ -39,7 +47,24 @@ actor PersistentHistoryProcessor {
 
     /// Process new persistent history transactions since the last token.
     /// Called when `.NSPersistentStoreRemoteChange` fires.
+    ///
+    /// Callers that arrive while a pass is running are folded into a single follow-up
+    /// pass rather than each running their own. Nothing is dropped: the follow-up reads
+    /// from the same token, so it still sees every transaction written in the meantime.
     func processRemoteChanges() async {
+        guard !isProcessing else {
+            needsAnotherPass = true
+            return
+        }
+        isProcessing = true
+        defer { isProcessing = false }
+        repeat {
+            needsAnotherPass = false
+            await performProcessingPass()
+        } while needsAnotherPass
+    }
+
+    private func performProcessingPass() async {
         let context = container.newBackgroundContext()
         context.transactionAuthor = Self.transactionAuthor
         let currentToken = lastToken

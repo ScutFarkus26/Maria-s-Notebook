@@ -143,7 +143,8 @@ extension WorksAgendaView {
     }
 
     func ageDays(for w: CDWorkModel) -> Int {
-        let start = AppCalendar.startOfDay(w.createdAt ?? Date())
+        // Clamped to the school-year counter epoch (see `SchoolYearCounters`).
+        let start = AppCalendar.startOfDay(SchoolYearCounters.countFrom(w.createdAt ?? Date()))
         let end = AppCalendar.startOfDay(Date())
         return AppCalendar.shared.dateComponents([.day], from: start, to: end).day ?? 0
     }
@@ -157,7 +158,7 @@ extension WorksAgendaView {
             .map({ max($0.updatedAt ?? Date.distantPast, $0.createdAt ?? Date.distantPast) }).max() {
             let days = AppCalendar.shared.dateComponents(
                 [.day],
-                from: AppCalendar.startOfDay(lastNoteDate),
+                from: AppCalendar.startOfDay(SchoolYearCounters.countFrom(lastNoteDate)),
                 to: AppCalendar.startOfDay(Date())
             ).day ?? 0
             if days >= 10 { return true }

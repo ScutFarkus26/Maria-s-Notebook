@@ -104,7 +104,7 @@ struct ScheduleDetailSheet: View {
 
     private var scheduleSection: some View {
         VStack(alignment: .leading, spacing: 16) {
-            Text("Weekly CDSchedule")
+            Text("Weekly Schedule")
                 .font(.title3.weight(.semibold))
 
             if schedule.activeWeekdays.isEmpty {

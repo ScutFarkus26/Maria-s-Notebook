@@ -14,8 +14,8 @@ enum PDFFolderMigrationService {
     private static let logger = Logger.migration
 
     private static let strandedFolderRenames: [(old: String, new: String)] = [
-        ("CDLesson Files", "Lesson Files"),
-        ("CDResource Files", "Resource Files")
+        ("Lesson Files", "Lesson Files"),
+        ("Resource Files", "Resource Files")
     ]
 
     /// Runs the migration if it hasn't already completed. Safe to call from a background task.

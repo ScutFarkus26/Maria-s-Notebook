@@ -63,7 +63,9 @@ enum MeetingWorkSnapshotHelper {
         allLessonAssignments: [CDLessonAssignment]
     ) -> [CDLessonAssignment] {
         let studentIDString = studentID.uuidString
-        let cutoffDate = lastMeetingDate ?? Date.distantPast
+        // The cutoff is clamped to the school-year counter epoch, so "since the last meeting"
+        // never reaches back past the first day of school (see `SchoolYearCounters`).
+        let cutoffDate = SchoolYearCounters.countFrom(lastMeetingDate ?? Date.distantPast)
 
         return allLessonAssignments.filter { la in
             // Check if this student is in the lesson

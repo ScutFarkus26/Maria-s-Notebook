@@ -108,7 +108,11 @@ enum WorkAgingPolicy {
         checkIns: [CDWorkCheckIn]? = nil,
         notes: [CDNote]? = nil
     ) -> Int {
-        let last = lastMeaningfulTouchDate(for: work, checkIns: checkIns, notes: notes)
+        // Clamped to the school-year counter epoch so work that was last touched in a previous
+        // year ages from the first day of this one instead of arriving stale on day one.
+        let last = SchoolYearCounters.countFrom(
+            lastMeaningfulTouchDate(for: work, checkIns: checkIns, notes: notes)
+        )
         let today = AppCalendar.startOfDay(Date())
         return SchoolDayChecker.schoolDaysBetween(start: last, end: today, using: context)
     }

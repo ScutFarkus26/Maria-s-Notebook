@@ -110,7 +110,7 @@ struct CloudKitSyncWarningBanner: View {
         } else if let error = errorDescription, !error.isEmpty {
             return "⚠️ CloudKit Init Failed"
         } else {
-            return "⚠️ iCloud Sync CDIssue"
+            return "iCloud Sync Issue"
         }
     }
 

@@ -38,6 +38,16 @@ final class AlbumSemanticIndex {
 
     // MARK: Building
 
+    /// Drops the embedding vectors under critical memory pressure. They are the
+    /// index's whole footprint — one vector per lesson title and body, for every
+    /// album — and `loadOrBuildVectors` reads them back from the on-disk cache,
+    /// so a purge costs a reload rather than a re-embedding.
+    func purge() {
+        titleVectors.removeAll()
+        bodyVectors.removeAll()
+        status = .idle
+    }
+
     func build(items: [(id: String, modified: Date, titles: [String], bodies: [String])]) async {
         guard status != .building else { return }
         status = .building

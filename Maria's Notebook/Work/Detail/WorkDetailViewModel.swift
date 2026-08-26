@@ -406,7 +406,7 @@ final class WorkDetailViewModel {
     }
     
     func lessonTitle() -> String {
-        relatedLesson?.name ?? "Unknown CDLesson"
+        relatedLesson?.name ?? "Unknown Lesson"
     }
     
 }

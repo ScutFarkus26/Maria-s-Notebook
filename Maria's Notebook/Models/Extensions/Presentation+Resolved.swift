@@ -25,7 +25,7 @@ extension Presentation: DenormalizedSchedulable {
 extension Presentation {
     /// Display title - prefer snapshot for historical accuracy, fall back to lesson relationship.
     var displayTitle: String {
-        lessonTitleSnapshot ?? lesson?.name ?? "Unknown CDLesson"
+        lessonTitleSnapshot ?? lesson?.name ?? "Unknown Lesson"
     }
 
     /// Display section - prefer snapshot for historical accuracy, fall back to lesson relationship.

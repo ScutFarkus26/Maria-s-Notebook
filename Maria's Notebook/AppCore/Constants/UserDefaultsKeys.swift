@@ -152,6 +152,12 @@ enum UserDefaultsKeys {
     static let schoolYearStartDay = "SchoolYear.startDay"
     /// Persisted active viewing lens token ("all", "year:2025", "cycle:2025").
     static let schoolYearSelection = "SchoolYear.selection"
+    /// Date (as `timeIntervalSinceReferenceDate`) every elapsed-day counter counts from.
+    /// Absent means counters run over the full history. See `SchoolYearCounters`.
+    static let schoolYearCounterEpoch = "SchoolYear.counterEpoch"
+    /// Begin year of the last school year whose "start counters fresh?" prompt was answered,
+    /// so the prompt appears once per school year.
+    static let schoolYearCounterPromptAnsweredYear = "SchoolYear.counterPromptAnsweredYear"
 
     // MARK: - Recall
     /// Days after a lesson's last recall (or mastery) before it becomes due for a spaced
@@ -166,4 +172,8 @@ enum UserDefaultsKeys {
     static let albumsLastSeenModDates = "Albums.lastSeenModDates"
     /// Scene-restoration key for the Albums section's sidebar selection.
     static let albumsSidebarSelection = "Albums.selection"
+    /// Content fingerprint → album filename, recorded at each load. Lets
+    /// `AlbumIdentityRepair` recognise a renamed or moved PDF and carry the
+    /// guide's bookmarks, notes, highlights, and ink across to the new name.
+    static let albumsFingerprints = "Albums.fingerprints"
 }

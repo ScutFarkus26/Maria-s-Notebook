@@ -23,12 +23,41 @@ import OSLog
 class ClassAreaChecklistViewModel {
     static let logger = Logger.lessons
 
+    // The derived collections below are written by +Filtering.applyFilters(), which lives in
+    // another file — hence internal rather than private(set). Views read them only.
+
+    /// The columns actually drawn: `rosterStudents` narrowed by `studentFilterIDs`.
     var students: [CDStudent] = []
     private var allStudents: [CDStudent] = []
+    /// Every student the guide can filter to — the enrolled roster minus hidden test students.
+    /// Column labels and the matrix key off this rather than `students`, so neither churns
+    /// as the filter opens and closes.
+    var rosterStudents: [CDStudent] = []
+    /// Every lesson in the selected area.
     var lessons: [CDLesson] = []
+    /// The rows actually drawn: `lessons` narrowed by `appliedLessonQuery`.
+    var visibleLessons: [CDLesson] = []
+    /// Every sequence in the selected area.
     var orderedSequences: [String] = []
+    /// Sequences that still hold at least one visible lesson.
+    var visibleSequences: [String] = []
     var availableAreas: [String] = []
     var selectedArea: String = ""
+
+    // MARK: - Filter State
+    // Both filters are display-only: they hide rows and columns and never touch records.
+    // The matrix stays built over the whole area, so toggling a filter costs no fetches.
+
+    /// Live text from the filter field. `appliedLessonQuery` trails it by the field's debounce.
+    var lessonQuery: String = ""
+    /// The debounced query the visible rows were computed from.
+    var appliedLessonQuery: String = ""
+    var lessonQueryTokens: [String] = []
+    /// Empty means every student is shown.
+    var studentFilterIDs: Set<UUID> = []
+    /// Areas other than the selected one that hold matches for the current query.
+    /// Populated only while the selected area has none, to keep the grid from dead-ending.
+    var otherAreaMatches: [ChecklistAreaMatchCount] = []
 
     var matrixStates: [UUID: [UUID: StudentChecklistRowState]] = [:]
 
@@ -43,8 +72,9 @@ class ClassAreaChecklistViewModel {
     var cachedDuplicateFirstNameKeys: Set<String> = []
     var lastStudentHashForDuplicates: Int?
 
-    // OPTIMIZATION: Cache lessons-per-sequence to avoid filtering + sorting on every body evaluation
-    private var cachedLessonsBySequence: [String: LessonsBySection] = [:]
+    // OPTIMIZATION: Cache lessons-per-sequence to avoid filtering + sorting on every body evaluation.
+    // Internal (not private) so the +Filtering extension can invalidate it when a filter changes.
+    var cachedLessonsBySequence: [String: LessonsBySection] = [:]
 
     /// Lessons inside a single sequence, bucketed by section and ordered for display.
     /// `order` lists section names in render order ("" appended last when present).
@@ -62,6 +92,7 @@ class ClassAreaChecklistViewModel {
         studentFetch.sortDescriptors = [NSSortDescriptor(keyPath: \CDStudent.birthday, ascending: true)]
         let fetched = context.safeFetch(studentFetch)
         self.allStudents = fetched
+        self.rosterStudents = fetched
         self.students = fetched
 
         let allLessonsFetch = CDFetchRequest(CDLesson.self)
@@ -83,7 +114,8 @@ class ClassAreaChecklistViewModel {
     }
 
     func applyVisibilityFilter(context: NSManagedObjectContext, show: Bool, namesRaw: String) {
-        self.students = TestStudentsFilter.filterVisible(allStudents, show: show, namesRaw: namesRaw)
+        self.rosterStudents = TestStudentsFilter.filterVisible(allStudents, show: show, namesRaw: namesRaw)
+        applyFilters()
         recomputeMatrix(context: context)
     }
 
@@ -101,11 +133,12 @@ class ClassAreaChecklistViewModel {
             $0.area.localizedCaseInsensitiveCompare(sub) == .orderedSame
         }
         self.orderedSequences = lessonsLogic.groups(for: sub, lessons: self.lessons)
-        invalidateLessonsCache()
+        applyFilters()
     }
 
     func refreshMatrix(context: NSManagedObjectContext) {
         refreshLessonsAndSequences(context: context)
+        refreshOtherAreaMatches(context: context)
         recomputeMatrix(context: context)
     }
 
@@ -114,7 +147,7 @@ class ClassAreaChecklistViewModel {
             return cached
         }
         let groupTrimmed = sequence.trimmed()
-        let groupLessons = lessons.filter {
+        let groupLessons = visibleLessons.filter {
             $0.sequence.trimmed().localizedCaseInsensitiveCompare(groupTrimmed) == .orderedSame
         }
         let bySectionRaw = Dictionary(grouping: groupLessons) { $0.section.trimmed() }
@@ -151,7 +184,7 @@ class ClassAreaChecklistViewModel {
         return result
     }
 
-    private func invalidateLessonsCache() {
+    func invalidateLessonsCache() {
         cachedLessonsBySequence.removeAll()
     }
 
@@ -257,10 +290,12 @@ class ClassAreaChecklistViewModel {
 
     // MARK: - Matrix Computation (delegated to ChecklistMatrixBuilder)
 
+    /// Builds over the full roster and the full area rather than the filtered subsets, so
+    /// narrowing or widening a filter is a pure re-render with no Core Data work behind it.
     func recomputeMatrix(context: NSManagedObjectContext) {
         guard !lessons.isEmpty else { matrixStates = [:]; return }
         self.matrixStates = ChecklistMatrixBuilder.buildMatrix(
-            students: students,
+            students: rosterStudents,
             lessons: lessons,
             context: context
         )

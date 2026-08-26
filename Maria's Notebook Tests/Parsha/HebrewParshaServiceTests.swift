@@ -137,6 +137,46 @@ final class HebrewParshaServiceTests {
         (.init(year: 2027, month: 5, day: 1),  "acharei-mot",         "5787 leap '1720': A-K split")
     ]
 
+    // MARK: - Year Walk (and its memo cache)
+
+    /// `shabbatotForHebrewYear` memoizes per cycle year. These checks pin the two
+    /// ways that cache could go wrong: serving a neighbouring year's list, and
+    /// returning a different answer on the second call than on the first.
+    @Test("shabbatotForHebrewYear is stable across calls and distinct per cycle year")
+    func yearWalkMemoStaysCorrect() {
+        let cal = Calendar(identifier: .gregorian)
+        // One date inside each of three consecutive reading cycles (each safely
+        // after its Simchat Torah, so the cycle year is unambiguous).
+        let probes = [
+            DateComponents(year: 2024, month: 3, day: 9),
+            DateComponents(year: 2025, month: 3, day: 22),
+            DateComponents(year: 2026, month: 3, day: 14)
+        ].compactMap { cal.date(from: $0) }
+        #expect(probes.count == 3)
+
+        var firstPass: [[String]] = []
+        for probe in probes {
+            let walk = HebrewParshaService.shabbatotForHebrewYear(containing: probe)
+            #expect(!walk.isEmpty)
+            // Every Shabbat in a cycle year is a Saturday, in order, a week apart.
+            #expect(walk.allSatisfy { cal.component(.weekday, from: $0.date) == 7 })
+            #expect(zip(walk, walk.dropFirst()).allSatisfy { $0.date < $1.date })
+            // The probe's own reading must appear in its own year's walk.
+            let shabbat = HebrewParshaService.shabbatOfWeek(containing: probe)
+            #expect(walk.contains { cal.isDate($0.date, inSameDayAs: shabbat) })
+            firstPass.append(walk.map { $0.parshaKey ?? "-" })
+        }
+
+        // Distinct cycle years must not collapse onto one cached entry.
+        #expect(Set(firstPass.map { $0.joined(separator: ",") }).count == 3)
+
+        // Second pass is served from the cache — it must match the first exactly.
+        for (probe, expected) in zip(probes, firstPass) {
+            let again = HebrewParshaService.shabbatotForHebrewYear(containing: probe)
+            #expect(again.map { $0.parshaKey ?? "-" } == expected)
+        }
+    }
+
     @Test("currentParshaKey matches hebcal diaspora schedule on golden anchors")
     func goldenAnchorsMatchHebcal() {
         let cal = Calendar(identifier: .gregorian)

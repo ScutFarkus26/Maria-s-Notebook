@@ -5,6 +5,9 @@ struct StudentPickerPopover: View {
     let students: [CDStudent]
     @Binding var selectedIDs: Set<UUID>
     var onDone: (() -> Void)?
+    /// When false the footer offers "Show All" instead of "New Student…". Filter call sites
+    /// want to widen the selection back out, not create a student mid-filter.
+    var allowsCreatingStudents: Bool = true
 
     @State private var filterLevel: LevelFilter = .all
     @State private var searchText: String = ""
@@ -122,8 +125,15 @@ struct StudentPickerPopover: View {
             Divider()
 
             HStack {
-                Button("New Student…") {
-                    showingAddStudent = true
+                if allowsCreatingStudents {
+                    Button("New Student…") {
+                        showingAddStudent = true
+                    }
+                } else {
+                    Button("Show All") {
+                        selectedIDs.removeAll()
+                    }
+                    .disabled(selectedIDs.isEmpty)
                 }
 
                 Spacer()

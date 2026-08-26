@@ -36,7 +36,7 @@ struct DocumentImportSheet: View {
     var body: some View {
         NavigationStack {
             Form {
-                Section("CDDocument Details") {
+                Section("Document Details") {
                     TextField("Title", text: $title)
                     
                     Picker("Category", selection: $category) {
@@ -46,7 +46,7 @@ struct DocumentImportSheet: View {
                     }
                 }
             }
-            .navigationTitle("Import CDDocument")
+            .navigationTitle("Import Document")
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {
                     Button("Cancel") {

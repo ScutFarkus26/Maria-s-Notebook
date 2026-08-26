@@ -85,19 +85,23 @@ struct SchoolYearBanner: View {
     }
 }
 
-/// Settings control for the configurable school-year start month/day. Bound directly to the
-/// shared store so a change immediately re-resolves every screen's lens and the grade boundary.
+/// Settings control for the configurable school-year start month/day, plus the counter epoch
+/// that decides whether "days since…" numbers restart on that day. Bound directly to the shared
+/// store so a change immediately re-resolves every screen's lens and the grade boundary.
 struct SchoolYearStartConfig: View {
     @Bindable var store: SchoolYearStore
 
-    private var monthSymbols: [String] {
+    /// Resolved once. This was a computed property, and `monthName(_:)` reads it
+    /// per month — so drawing the picker allocated a `DateFormatter` and an ICU
+    /// calendar twelve times over on every body pass.
+    private static let monthSymbols: [String] = {
         let formatter = DateFormatter()
         formatter.calendar = Calendar(identifier: .gregorian)
         return formatter.monthSymbols ?? []
-    }
+    }()
 
     private func monthName(_ month: Int) -> String {
-        let symbols = monthSymbols
+        let symbols = Self.monthSymbols
         guard (1...symbols.count).contains(month) else { return "\(month)" }
         return symbols[month - 1]
     }
@@ -129,9 +133,79 @@ struct SchoolYearStartConfig: View {
                 .labelsHidden()
             }
 
-            Text("The \(store.current.label) school year is current. Changing the start re-buckets which year past activity falls into; it never moves or deletes data.")
+            Text(
+                "The \(store.current.label) school year began \(startDateText). Changing the start "
+                + "re-buckets which year past activity falls into; it never moves or deletes data."
+            )
+            .font(.footnote)
+            .foregroundStyle(.secondary)
+
+            Divider()
+                .padding(.vertical, 4)
+
+            counterSection
+        }
+    }
+
+    // MARK: - Counters
+
+    /// The counter epoch control. "Days since" numbers are the ones a guide reads every
+    /// morning, so they get an explicit switch rather than riding silently on the lens.
+    @ViewBuilder
+    private var counterSection: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            HStack(spacing: 6) {
+                Image(systemName: "gauge.with.needle")
+                    .foregroundStyle(.secondary)
+                    .font(.caption)
+                Text("Day counters")
+                    .font(.subheadline)
+                    .foregroundStyle(.secondary)
+            }
+
+            Picker("Day counters count from", selection: countersResetBinding) {
+                Text("Start of the school year").tag(true)
+                Text("All history").tag(false)
+            }
+            .pickerStyle(.segmented)
+            .labelsHidden()
+
+            Text(counterExplanation)
                 .font(.footnote)
                 .foregroundStyle(.secondary)
+
+            if store.isResettingCounters, store.counterEpoch != store.current.start {
+                Button {
+                    store.setCountersResetAtYearStart(true)
+                } label: {
+                    Label("Reset counters to \(startDateText)", systemImage: "arrow.counterclockwise")
+                }
+                .buttonStyle(.bordered)
+                .controlSize(.small)
+            }
         }
+    }
+
+    private var countersResetBinding: Binding<Bool> {
+        Binding(
+            get: { store.isResettingCounters },
+            set: { store.setCountersResetAtYearStart($0) }
+        )
+    }
+
+    private var counterExplanation: String {
+        guard let epoch = store.counterEpoch else {
+            return "Days since last lesson, days since last meeting, and work-aging counters "
+                + "measure from the last activity, however long ago it was."
+        }
+        return "Days since last lesson, days since last meeting, and work-aging counters start "
+            + "over on \(Self.dateText(epoch)) — anything older counts from that day, so every "
+            + "counter reads 0 on the first morning of school."
+    }
+
+    private var startDateText: String { Self.dateText(store.current.start) }
+
+    private static func dateText(_ date: Date) -> String {
+        date.formatted(.dateTime.month(.wide).day().year())
     }
 }

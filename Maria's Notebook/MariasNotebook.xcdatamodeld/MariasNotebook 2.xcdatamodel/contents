@@ -55,8 +55,15 @@
         <attribute name="requiresConfirmationOverride" attributeType="String" defaultValueString="inherit"/>
         <attribute name="parshaKey" optional="YES" attributeType="String"/>
         <attribute name="derivedFromLessonID" optional="YES" attributeType="String"/>
+        <attribute name="albumID" optional="YES" attributeType="String"/>
+        <attribute name="albumPageIndex" attributeType="Integer 32" defaultValueString="0" usesScalarValueType="YES"/>
+        <attribute name="albumLessonTitle" optional="YES" attributeType="String"/>
+        <attribute name="albumLinkConfidence" attributeType="Double" defaultValueString="0" usesScalarValueType="YES"/>
         <relationship name="attachments" optional="YES" toMany="YES" deletionRule="Cascade" destinationEntity="LessonAttachment" inverseName="lesson" inverseEntity="LessonAttachment"/>
         <relationship name="sampleWorks" optional="YES" toMany="YES" deletionRule="Cascade" destinationEntity="SampleWork" inverseName="lesson" inverseEntity="SampleWork"/>
+        <fetchIndex name="byAlbumID">
+            <fetchIndexElement property="albumID" type="Binary" order="ascending"/>
+        </fetchIndex>
     </entity>
     <!-- ==================== LessonAttachment ==================== -->
     <entity name="LessonAttachment" representedClassName="CDLessonAttachment" syncable="YES">

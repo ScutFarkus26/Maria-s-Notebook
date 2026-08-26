@@ -259,7 +259,8 @@ struct OpenWorkGrid: View {
     }
 
     private func ageDays(for w: CDWorkModel) -> Int {
-        let start = AppCalendar.startOfDay(w.createdAt ?? .distantPast)
+        // Clamped to the school-year counter epoch (see `SchoolYearCounters`).
+        let start = AppCalendar.startOfDay(SchoolYearCounters.countFrom(w.createdAt ?? .distantPast))
         let now = AppCalendar.startOfDay(Date())
         let comps = AppCalendar.shared.dateComponents([.day], from: start, to: now)
         return comps.day ?? 0
@@ -294,7 +295,7 @@ struct OpenWorkGrid: View {
     }
 
     private func daysSince(_ date: Date) -> Int {
-        let start = AppCalendar.startOfDay(date)
+        let start = AppCalendar.startOfDay(SchoolYearCounters.countFrom(date))
         let now = AppCalendar.startOfDay(Date())
         let comps = AppCalendar.shared.dateComponents([.day], from: start, to: now)
         return comps.day ?? 0

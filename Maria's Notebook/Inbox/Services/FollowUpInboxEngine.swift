@@ -233,7 +233,9 @@ struct FollowUpInboxEngine {
     }
 
     private static func schoolDaysSince(_ start: Date, ctx: ComputeContext) -> Int {
-        let startDay = AppCalendar.startOfDay(start)
+        // Clamped to the school-year counter epoch: a follow-up left open over the summer
+        // starts counting again on the first day of school (see `SchoolYearCounters`).
+        let startDay = AppCalendar.startOfDay(SchoolYearCounters.countFrom(start))
         let today = AppCalendar.startOfDay(Date())
         let cal = AppCalendar.shared
         let daysBetween = cal.dateComponents([.day], from: startDay, to: today).day ?? 0

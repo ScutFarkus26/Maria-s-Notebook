@@ -77,6 +77,15 @@ extension LessonDTO {
         self.requiresConfirmationOverride = try c.decodeIfPresent(
             String.self, forKey: LegacyKey("requiresConfirmationOverride")
         )
+        // Teaching-album link (format v22+); absent in older backups.
+        self.albumID = try c.decodeIfPresent(String.self, forKey: LegacyKey("albumID"))
+        self.albumPageIndex = try c.decodeIfPresent(Int.self, forKey: LegacyKey("albumPageIndex"))
+        self.albumLessonTitle = try c.decodeIfPresent(
+            String.self, forKey: LegacyKey("albumLessonTitle")
+        )
+        self.albumLinkConfidence = try c.decodeIfPresent(
+            Double.self, forKey: LegacyKey("albumLinkConfidence")
+        )
     }
 }
 

@@ -97,14 +97,15 @@ struct StudentOverviewTab: View {
     }
 
     private func daysSince(_ date: Date) -> Int {
-        let start = AppCalendar.startOfDay(date)
+        // Clamped to the school-year counter epoch (see `SchoolYearCounters`).
+        let start = AppCalendar.startOfDay(SchoolYearCounters.countFrom(date))
         let now = AppCalendar.startOfDay(Date())
         let comps = AppCalendar.shared.dateComponents([.day], from: start, to: now)
         return comps.day ?? 0
     }
-    
+
     private func ageDays(for work: CDWorkModel) -> Int {
-        let start = AppCalendar.startOfDay(work.createdAt ?? Date())
+        let start = AppCalendar.startOfDay(SchoolYearCounters.countFrom(work.createdAt ?? Date()))
         let now = AppCalendar.startOfDay(Date())
         let comps = AppCalendar.shared.dateComponents([.day], from: start, to: now)
         return comps.day ?? 0

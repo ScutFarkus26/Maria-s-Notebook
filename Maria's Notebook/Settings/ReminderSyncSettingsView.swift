@@ -31,7 +31,7 @@ public struct ReminderSyncSettingsView: View {
             if needsAuthorization {
                 AuthorizationRequestSection(
                     serviceName: "Reminders",
-                    description: "CDReminder access is required to sync reminders.",
+                    description: "Reminder access is required to sync reminders.",
                     settingsPath: "Reminders",
                     isRefreshing: isRefreshing,
                     statusMessage: lastSyncStatus,

@@ -118,16 +118,14 @@ struct AttendanceRecentActivityCard: View {
         }
     }
 
+    // Both of these run once per row. `DateFormatter` construction is expensive,
+    // and `DateFormatters` already holds exactly these two shapes.
     private func weekdayLabel(for date: Date) -> String {
-        let formatter = DateFormatter()
-        formatter.dateFormat = "EEEE"
-        return formatter.string(from: date)
+        DateFormatters.weekdayFull.string(from: date)
     }
 
     private func monthDayLabel(for date: Date) -> String {
-        let formatter = DateFormatter()
-        formatter.dateFormat = "MMM d"
-        return formatter.string(from: date)
+        DateFormatters.shortMonthDay.string(from: date)
     }
 
     private var cardBackground: some View {

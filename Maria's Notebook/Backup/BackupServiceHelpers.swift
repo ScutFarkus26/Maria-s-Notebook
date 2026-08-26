@@ -78,7 +78,13 @@ enum BackupServiceHelpers {
                 derivedFromLessonID: l.derivedFromLessonID,
                 parentStoryID: l.parentStoryID,
                 requiresPracticeOverride: l.requiresPracticeOverride,
-                requiresConfirmationOverride: l.requiresConfirmationOverride
+                requiresConfirmationOverride: l.requiresConfirmationOverride,
+                // Teaching-album link — the guide's own matching work, not
+                // recoverable from the PDFs after a restore.
+                albumID: l.albumID,
+                albumPageIndex: Int(l.albumPageIndex),
+                albumLessonTitle: l.albumLessonTitle,
+                albumLinkConfidence: l.albumLinkConfidence
             )
         }
     }

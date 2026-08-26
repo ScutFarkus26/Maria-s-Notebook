@@ -66,18 +66,22 @@ struct BookClubSessionRowView: View {
 
     private var dateRangeText: String? {
         guard let start = session.startDate else { return nil }
-        let formatter = DateFormatter()
-        formatter.dateStyle = .medium
+        let formatter = DateFormatters.mediumDate
         if let end = session.endDate {
             return "\(formatter.string(from: start)) – \(formatter.string(from: end))"
         }
         return formatter.string(from: start)
     }
 
-    private var nextMeetingText: String? {
-        guard let meeting = nextMeeting, let date = meeting.date else { return nil }
+    /// Built once — this row renders per session in a scrolling list.
+    private static let relativeFormatter: RelativeDateTimeFormatter = {
         let formatter = RelativeDateTimeFormatter()
         formatter.unitsStyle = .full
-        return "Next: \(formatter.localizedString(for: date, relativeTo: Date()))"
+        return formatter
+    }()
+
+    private var nextMeetingText: String? {
+        guard let meeting = nextMeeting, let date = meeting.date else { return nil }
+        return "Next: \(Self.relativeFormatter.localizedString(for: date, relativeTo: Date()))"
     }
 }

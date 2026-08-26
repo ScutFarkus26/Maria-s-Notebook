@@ -7,6 +7,29 @@ extension ClassroomSharingService {
 
     private static let autoCreateLogger = Logger.app(category: "ClassroomSharing")
 
+    /// Zone-name prefix `NSPersistentCloudKitContainer` uses for the zones it
+    /// creates to back a `CKShare` (e.g. `com.apple.coredata.cloudkit.share.<UUID>`).
+    private static let shareZoneNamePrefix = "com.apple.coredata.cloudkit.share."
+
+    /// Names of all share zones that currently exist server-side in the user's
+    /// private CloudKit database.
+    ///
+    /// The local store's share metadata is only as fresh as the last completed
+    /// import — after a Reset Local Cache (or on a new device) it is empty for
+    /// minutes while existing shares stream down. In that window the server is
+    /// the only source of truth for "does this classroom already have a share?".
+    /// Throws when the server can't be reached; callers must treat that as
+    /// *unknown* and refuse to create a share rather than risk minting a
+    /// duplicate zone.
+    private static func fetchServerShareZoneNames() async throws -> Set<String> {
+        guard let containerID = CloudKitConfigurationService.getContainerID() else {
+            return []
+        }
+        let database = CKContainer(identifier: containerID).privateCloudDatabase
+        let zones = try await database.allRecordZones()
+        return Set(zones.map(\.zoneID.zoneName).filter { $0.hasPrefix(shareZoneNamePrefix) })
+    }
+
     /// Best-effort flow that guarantees a CKShare exists in the lead guide's
     /// private store whenever they have classroom data to sync.
     ///
@@ -30,15 +53,36 @@ extension ClassroomSharingService {
         guard let store = coreDataStack.privatePersistentStore else { return }
         let container = coreDataStack.container
 
-        // Cheap check: does a share already exist? If so, we're done.
-        if (try? container.fetchShares(in: store).first) != nil { return }
+        // Does a share already exist locally? A *throwing* fetch must not fall
+        // through to creation — it is indistinguishable from "no share", and
+        // creating one on that basis mints a duplicate share zone that
+        // permanently fragments the classroom data across zones.
+        do {
+            if try container.fetchShares(in: store).first != nil { return }
+        } catch {
+            let msg = "ensureShareExistsOnLaunch: fetchShares failed — deferring " +
+                "auto-create to next launch: \(error.localizedDescription)"
+            autoCreateLogger.error("\(msg, privacy: .public)")
+            return
+        }
 
-        // Skip on assistant devices — they have an accepted share in the
-        // shared store and must never own a private-store share.
         let context = coreDataStack.viewContext
         let repo = ClassroomRepository(context: context)
-        if let membership = repo.fetchCurrentMembership(), membership.role == .assistant {
-            return
+        if let membership = repo.fetchCurrentMembership() {
+            // Skip on assistant devices — they have an accepted share in the
+            // shared store and must never own a private-store share.
+            if membership.role == .assistant { return }
+
+            // A lead-guide membership already names this classroom's share
+            // zone: the share exists, it just hasn't been imported into this
+            // store yet (fresh install or post-reset). Wait for the import
+            // instead of creating a competing zone.
+            if membership.classroomZoneID.hasPrefix(shareZoneNamePrefix) {
+                autoCreateLogger.info(
+                    "ensureShareExistsOnLaunch: membership references an existing share zone; waiting for import"
+                )
+                return
+            }
         }
 
         // Honor the circuit breaker — a recent Share-Export timeout means
@@ -54,6 +98,27 @@ extension ClassroomSharingService {
             return
         }
         let seedID = seed.objectID
+
+        // Last line of defense: never mint a new share zone while the server
+        // already has one. After a cache reset the store can hold imported
+        // classroom records (the seeds above) before the share zones have
+        // imported, and creating a share in that window is what accumulated
+        // duplicate zones historically. Unknown (thrown) also means "don't".
+        do {
+            let serverZones = try await fetchServerShareZoneNames()
+            if !serverZones.isEmpty {
+                let count = serverZones.count
+                autoCreateLogger.info(
+                    "ensureShareExistsOnLaunch: server already has \(count) share zone(s); waiting for import"
+                )
+                return
+            }
+        } catch {
+            let msg = "ensureShareExistsOnLaunch: couldn't verify server share zones — " +
+                "deferring auto-create to next launch: \(error.localizedDescription)"
+            autoCreateLogger.error("\(msg, privacy: .public)")
+            return
+        }
 
         let newShare: CKShare
         do {
@@ -168,6 +233,30 @@ extension ClassroomSharingService {
             throw ClassroomShareError.noSeedRecordAvailable
         }
 
+        // If this classroom's share zone already exists server-side but hasn't
+        // imported into this store yet (fresh install or post-reset), creating
+        // a second share would fragment the classroom across zones. Tell the
+        // user to let sync finish instead. Genuine re-shares (no membership,
+        // or membership pointing at a zone the server no longer has) proceed.
+        let serverZones: Set<String>
+        do {
+            serverZones = try await Self.fetchServerShareZoneNames()
+        } catch {
+            let ns = error as NSError
+            let zoneMsg = "prepareShareForPresentation: couldn't verify server share zones — " +
+                "\(ns.domain) \(ns.code): \(ns.localizedDescription)"
+            Self.autoCreateLogger.error("\(zoneMsg, privacy: .public)")
+            throw error
+        }
+        if let membership = repo.fetchCurrentMembership(),
+           serverZones.contains(membership.classroomZoneID) {
+            let zone = membership.classroomZoneID
+            Self.autoCreateLogger.error(
+                "prepareShareForPresentation: share zone \(zone, privacy: .public) exists on the server but hasn't imported locally yet"
+            )
+            throw ClassroomShareError.shareStillSyncing
+        }
+
         let seedEntity = seed.entity.name ?? "unknown"
         let seedID = seed.objectID
         let shareMsg = "prepareShareForPresentation: calling container.share with seed entity=\(seedEntity)"
@@ -228,6 +317,7 @@ enum ClassroomShareError: LocalizedError {
     case sharedStoreUnavailable
     case assistantCannotCreateShare
     case noSeedRecordAvailable
+    case shareStillSyncing
 
     var errorDescription: String? {
         switch self {
@@ -239,6 +329,9 @@ enum ClassroomShareError: LocalizedError {
             return "Only the lead guide can share the classroom."
         case .noSeedRecordAvailable:
             return "Add a student, lesson, or other classroom record before sharing."
+        case .shareStillSyncing:
+            return "This classroom's share is still syncing to this device. " +
+                "Wait for iCloud sync to finish, then try again."
         }
     }
 }

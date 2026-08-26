@@ -66,7 +66,7 @@ final class AppBootstrapper {
             }
         }
         let remElapsed = Self.formatSeconds(Date().timeIntervalSince(reminderStart))
-        Self.logger.info("Bootstrap: CDReminder setup completed in \(remElapsed)")
+        Self.logger.info("Bootstrap: Reminder setup completed in \(remElapsed)")
         #endif
         
         // 5. Signal UI (allow first render; heavy migrations continue in background)

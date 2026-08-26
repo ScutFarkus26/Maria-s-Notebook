@@ -39,8 +39,12 @@ struct WorkAgendaCalendarPane: View {
                 Button {
                     showPresentations.toggle()
                 } label: {
-                    Image(systemName: showPresentations ? "checkmark.square" : "square")
-                        .foregroundStyle(.secondary)
+                    Label(
+                        "Presentations",
+                        systemImage: showPresentations ? "checkmark.square" : "square"
+                    )
+                    .font(AppTheme.ScaledFont.caption)
+                    .foregroundStyle(.secondary)
                 }
                 .buttonStyle(.plain)
                 .help(showPresentations ? "Hide presentations" : "Show presentations")
@@ -177,6 +181,9 @@ struct WorkAgendaCalendarPane: View {
                 let normalizedDay = AppCalendar.startOfDay(day)
                 switch payload {
                 case .presentation(let id):
+                    // If presentation pills are hidden, a successful drop would be
+                    // invisible and read as the presentation vanishing — reveal them.
+                    showPresentations = true
                     rescheduleLessonAssignment(id: id, to: normalizedDay)
                 case .workCheckIn(let id):
                     rescheduleCheckIn(id: id, to: normalizedDay)
@@ -242,13 +249,9 @@ struct WorkAgendaCalendarPane: View {
         fetch.predicate = NSPredicate(format: "id == %@", id as CVarArg)
         guard let la = modelContext.safeFetchFirst(fetch) else { return }
 
-        let normalized = AppCalendar.startOfDay(day)
-        let baseDate = Calendar.current.date(byAdding: .hour, value: 9, to: normalized) ?? normalized
-        la.scheduledFor = baseDate
-        if la.state == .draft {
-            la.stateRaw = LessonAssignmentState.scheduled.rawValue
-        }
-        la.modifiedAt = Date()
+        // Day-only scheduling: `setScheduledFor` snaps to start-of-day, mirrors
+        // `scheduledForDay`, moves drafts to `.scheduled`, and stamps `modifiedAt`.
+        la.setScheduledFor(AppCalendar.startOfDay(day), using: AppCalendar.shared)
 
         saveCoordinator.save(modelContext, reason: "Reschedule CDLessonAssignment from Work view")
     }

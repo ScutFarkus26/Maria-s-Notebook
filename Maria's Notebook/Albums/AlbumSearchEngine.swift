@@ -2,7 +2,7 @@
 // Keyword search and retrieval, pure functions safe to run off the main
 // actor. `search` powers the Search screen (lesson-title hits ranked above
 // page hits, snippets around the first match); `retrieve` picks the pages
-// fed to Apple AlbumIntelligence for Ask, optionally boosted by semantic
+// fed to Apple Intelligence for Ask, optionally boosted by semantic
 // similarity from AlbumSemanticIndex.
 
 import Foundation

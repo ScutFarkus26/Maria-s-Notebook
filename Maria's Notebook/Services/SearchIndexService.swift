@@ -43,10 +43,17 @@ final class SearchIndexService {
     static let shared = SearchIndexService()
     nonisolated private static let logger = Logger.app(category: "SearchIndex")
 
-    /// Token -> set of matching results
-    private var index: [String: Set<SearchResult>] = [:]
+    /// Token -> ids of matching results.
+    ///
+    /// Stores ids rather than whole `SearchResult` values: a result is duplicated into
+    /// a bucket for every distinct token in its text, so holding the struct meant
+    /// carrying two refcounted `String` fields per (token, result) pair across the
+    /// whole corpus — the index's dominant cost, in bytes and in ARC traffic on every
+    /// union and intersection. `resultsById` is the single owner of the values.
+    private var index: [String: Set<UUID>] = [:]
 
-    /// All indexed results by ID for quick removal
+    /// All indexed results by ID — the authoritative store, and the lookup that turns
+    /// a set of matching ids back into results.
     private var resultsById: [UUID: SearchResult] = [:]
 
     private(set) var isReady = false
@@ -224,7 +231,7 @@ final class SearchIndexService {
     func indexResult(_ result: SearchResult, text: String) {
         resultsById[result.id] = result
         for token in tokenize(text) {
-            index[token, default: []].insert(result)
+            index[token, default: []].insert(result.id)
         }
     }
 
@@ -238,45 +245,51 @@ final class SearchIndexService {
         let tokens = tokenize(query)
         guard !tokens.isEmpty else { return [] }
 
-        // Start with the smallest token set for efficiency
-        let sortedTokenSets = tokens.compactMap { token -> Set<SearchResult>? in
-            // Support prefix matching
-            let matches = index.keys.filter { $0.hasPrefix(token) }
-            guard !matches.isEmpty else { return nil }
-            var combined = Set<SearchResult>()
-            for key in matches {
-                if let set = index[key] {
-                    combined.formUnion(set)
-                }
+        // One vocabulary scan per query token, reused for both matching and ranking.
+        // Iterating key/value pairs avoids the intermediate `[String]` from
+        // `index.keys.filter` and the second hash lookup per key.
+        let tokenMatches: [Set<UUID>] = tokens.compactMap { token in
+            var combined = Set<UUID>()
+            for (key, ids) in index where key.hasPrefix(token) {
+                combined.formUnion(ids)
             }
-            return combined
+            return combined.isEmpty ? nil : combined
         }
 
-        guard let first = sortedTokenSets.min(by: { $0.count < $1.count }) else { return [] }
-
-        // Intersect all token sets
-        var candidates = first
-        for (i, set) in sortedTokenSets.enumerated() {
-            if set != first || i > 0 {
-                candidates.formIntersection(set)
-            }
+        // Intersect, starting from the smallest set so the first pass does the most work.
+        guard let smallest = tokenMatches.min(by: { $0.count < $1.count }) else { return [] }
+        var candidates = smallest
+        for set in tokenMatches {
+            candidates.formIntersection(set)
         }
 
         // Filter by entity type if specified
         if let types = entityTypes {
-            candidates = candidates.filter { types.contains($0.entityType) }
+            candidates = candidates.filter { id in
+                guard let type = resultsById[id]?.entityType else { return false }
+                return types.contains(type)
+            }
         }
 
-        // Rank by number of matching tokens (more tokens = better match)
-        let ranked = candidates.sorted { a, b in
-            let aScore = tokens.filter { token in
-                index.keys.contains(where: { $0.hasPrefix(token) && (index[$0]?.contains(a) ?? false) })
-            }.count
-            let bScore = tokens.filter { token in
-                index.keys.contains(where: { $0.hasPrefix(token) && (index[$0]?.contains(b) ?? false) })
-            }.count
-            return aScore > bScore
-        }
+        // Ranking by "number of matching query tokens" is vestigial: `candidates` is
+        // the intersection of every token's match set, so each survivor matches all of
+        // them and every score is identical. It was already a tie before this rewrite —
+        // but it was an expensive one. The old code scored inside the sort comparator,
+        // recomputing both operands on every comparison, and each score rescanned the
+        // entire vocabulary (`index.keys.contains(where:)`) once per query token:
+        // O(candidates · log(candidates) · tokens · vocabulary) on the main actor, for a
+        // view that searches on every keystroke.
+        //
+        // Kept as a cheap explicit pass rather than deleted, so that relaxing the
+        // intersection above (to OR/fuzzy matching) starts ranking for real instead of
+        // silently returning an arbitrary set order.
+        let ranked = candidates
+            .compactMap { id -> (result: SearchResult, score: Int)? in
+                guard let result = resultsById[id] else { return nil }
+                return (result, tokenMatches.reduce(0) { $0 + ($1.contains(id) ? 1 : 0) })
+            }
+            .sorted { $0.score > $1.score }
+            .map(\.result)
 
         return Array(ranked.prefix(limit))
     }

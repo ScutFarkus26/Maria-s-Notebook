@@ -193,7 +193,9 @@ enum ChecklistMatrixBuilder {
         let lastActivityDate = workModelForLesson?.lastTouchedAt ?? workModelForLesson?.createdAt
         let isStale: Bool = {
             guard !isComplete, let activity = lastActivityDate else { return false }
-            let activityDay = calendar.startOfDay(for: activity)
+            // Clamped to the school-year counter epoch (see `SchoolYearCounters`), so work
+            // resting since last spring isn't stale on the first day of school.
+            let activityDay = calendar.startOfDay(for: SchoolYearCounters.countFrom(activity))
             let totalDays = calendar.dateComponents([.day], from: activityDay, to: today).day ?? 0
             guard totalDays > 0 else { return false }
             let fullWeeks = totalDays / 7

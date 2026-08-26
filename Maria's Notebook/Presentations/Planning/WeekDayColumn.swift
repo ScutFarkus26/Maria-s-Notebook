@@ -180,7 +180,11 @@ struct WeekDayColumn: View {
                                                     cachedStudents: [],
                                                     blockingWork: [:],
                                                     doubleBookedStudentIDs: dayDoubleBooked
-                                                ).opacity(UIConstants.OpacityConstants.nearSolid)
+                                                )
+                                                .opacity(UIConstants.OpacityConstants.nearSolid)
+                                                // Drag previews don't inherit the app environment;
+                                                // the card's @FetchRequests need a real context.
+                                                .environment(\.managedObjectContext, viewContext)
                                             }
                                             .contextMenu {
                                                 Button("Clear Schedule", systemImage: "xmark.circle") {

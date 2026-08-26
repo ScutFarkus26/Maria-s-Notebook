@@ -82,7 +82,7 @@ public enum ScheduledReason: String, Codable, CaseIterable, Hashable, Identifiab
         case .due: return "Due"
         case .followUp: return "Follow Up"
         case .assessment: return "Assessment"
-        case .studentRequest: return "CDStudent Request"
+        case .studentRequest: return "Student Request"
         case .other: return "Other"
         }
     }
@@ -101,7 +101,7 @@ public enum WorkSourceContextType: String, Codable, CaseIterable, Hashable, Iden
 
     public var displayName: String {
         switch self {
-        case .projectSession: return "CDProject Session"
+        case .projectSession: return "Project Session"
         case .bookClubSession: return "Book Club Session"
         case .presentation: return "Presentation"
         case .lesson: return "Lesson"

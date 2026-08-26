@@ -21,7 +21,7 @@ struct LessonRelationshipsSection: View {
             ForEach(resolvedLessons) { lesson in
                 HStack(spacing: AppTheme.Spacing.small) {
                     Text("•").font(AppTheme.ScaledFont.body)
-                    Text(lesson.name.isEmpty ? "Untitled CDLesson" : lesson.name)
+                    Text(lesson.name.isEmpty ? "Untitled Lesson" : lesson.name)
                         .font(AppTheme.ScaledFont.body)
                     if !lesson.area.isEmpty {
                         Text("(\(lesson.area))")

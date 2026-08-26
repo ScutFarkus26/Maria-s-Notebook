@@ -26,6 +26,23 @@ final class SchoolYearStore {
         didSet { UserDefaults.standard.set(Self.token(for: selection), forKey: UserDefaultsKeys.schoolYearSelection) }
     }
 
+    /// The day every elapsed-day counter starts over on, or nil when counters run over the
+    /// full history. Mirrored into UserDefaults for `SchoolYearCounters`, which the off-main
+    /// aging engines read directly.
+    private(set) var counterEpoch: Date? {
+        didSet { SchoolYearCounters.setEpoch(counterEpoch) }
+    }
+
+    /// Begin year of the last school year whose "start counters fresh?" prompt was answered.
+    /// Keeps the prompt to once per school year.
+    private var counterPromptAnsweredYear: Int {
+        didSet {
+            UserDefaults.standard.set(
+                counterPromptAnsweredYear, forKey: UserDefaultsKeys.schoolYearCounterPromptAnsweredYear
+            )
+        }
+    }
+
     private var calendar: Calendar { AppCalendar.shared }
 
     // MARK: - Init
@@ -48,6 +65,21 @@ final class SchoolYearStore {
             selection = restored
         } else {
             selection = .year(currentYear)
+        }
+
+        counterEpoch = SchoolYearCounters.epoch
+        let answered = defaults.object(forKey: UserDefaultsKeys.schoolYearCounterPromptAnsweredYear) as? Int
+        counterPromptAnsweredYear = answered ?? currentYear.beginYear
+
+        // First launch with the feature: adopt the current year's start silently rather than
+        // opening with a prompt about a school year that began months ago.
+        // Property observers don't run inside an initializer, so persist explicitly here.
+        if answered == nil {
+            defaults.set(currentYear.beginYear, forKey: UserDefaultsKeys.schoolYearCounterPromptAnsweredYear)
+            if counterEpoch == nil {
+                counterEpoch = currentYear.start
+                SchoolYearCounters.setEpoch(currentYear.start)
+            }
         }
     }
 
@@ -86,6 +118,34 @@ final class SchoolYearStore {
                 in: begin - offset, startMonth: startMonth, startDay: startDay, calendar: calendar
             )
         }
+    }
+
+    // MARK: - Counters
+
+    /// True when elapsed-day counters restart at the school-year start.
+    var isResettingCounters: Bool { counterEpoch != nil }
+
+    /// True once a new school year has begun and the guide hasn't yet said whether to start
+    /// its counters fresh. Drives the once-a-year prompt in `RootView`.
+    var needsCounterResetPrompt: Bool { counterPromptAnsweredYear < current.beginYear }
+
+    /// Answer to the new-year prompt: restart every counter at this year's first day.
+    /// Also moves the viewing lens onto the new year, so the whole app starts fresh together.
+    func startFreshCounters() {
+        counterEpoch = current.start
+        counterPromptAnsweredYear = current.beginYear
+        selection = .year(current)
+    }
+
+    /// Answer to the new-year prompt: leave counters running from where they were, and don't
+    /// ask again until the next school year begins.
+    func keepCountersRunning() {
+        counterPromptAnsweredYear = current.beginYear
+    }
+
+    /// Settings control: reset counters at the school-year start, or count all history.
+    func setCountersResetAtYearStart(_ enabled: Bool) {
+        counterEpoch = enabled ? current.start : nil
     }
 
     // MARK: - Selection helpers

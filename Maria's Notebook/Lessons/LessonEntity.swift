@@ -32,6 +32,18 @@ public class CDLesson: NSManagedObject {
     @NSManaged public var requiresConfirmationOverride: String
     @NSManaged public var parshaKey: String?
     @NSManaged public var derivedFromLessonID: String?
+    /// Filename of the album PDF this lesson is written up in, if it has
+    /// been linked. See `LessonAlbumMatcher`.
+    @NSManaged public var albumID: String?
+    /// Zero-based page within that album.
+    @NSManaged public var albumPageIndex: Int32
+    /// The album's own outline title at that page, kept so the link can be
+    /// re-resolved by name when the guide drops in a revised PDF whose
+    /// pagination has shifted.
+    @NSManaged public var albumLessonTitle: String?
+    /// 0…1. Below `LessonAlbumMatcher.autoLinkThreshold` the link was
+    /// accepted by the guide in the review sheet rather than automatically.
+    @NSManaged public var albumLinkConfidence: Double
 
     // MARK: - Relationships
     @NSManaged public var attachments: NSSet?
@@ -70,6 +82,10 @@ public class CDLesson: NSManagedObject {
         self.requiresConfirmationOverride = "inherit"
         self.parshaKey = nil
         self.derivedFromLessonID = nil
+        self.albumID = nil
+        self.albumPageIndex = 0
+        self.albumLessonTitle = nil
+        self.albumLinkConfidence = 0
     }
 }
 
@@ -120,6 +136,31 @@ extension CDLesson {
 
     /// Whether this lesson is a top-level story with no parent.
     var isRootStory: Bool { isStory && parentStoryID == nil }
+
+    /// Where in the teaching albums this lesson is written up, if linked.
+    /// `albumPageIndex` alone is meaningless — always gate on this.
+    var albumLink: AlbumLink? {
+        get {
+            guard let albumID, !albumID.isEmpty else { return nil }
+            return AlbumLink(albumID: albumID, pageIndex: Int(albumPageIndex),
+                             lessonTitle: albumLessonTitle)
+        }
+        set {
+            albumID = newValue?.albumID
+            albumPageIndex = Int32(newValue?.pageIndex ?? 0)
+            albumLessonTitle = newValue?.lessonTitle
+            if newValue == nil { albumLinkConfidence = 0 }
+        }
+    }
+
+    /// Fetches every lesson linked into the given album, in page order.
+    static func lessonsInAlbum(_ albumID: String,
+                               context: NSManagedObjectContext) -> [CDLesson] {
+        let req = CDFetchRequest(CDLesson.self)
+        req.predicate = NSPredicate(format: "albumID == %@", albumID)
+        req.sortDescriptors = [NSSortDescriptor(keyPath: \CDLesson.albumPageIndex, ascending: true)]
+        return context.safeFetch(req)
+    }
 
     var primaryAttachmentIDUUID: UUID? {
         get { primaryAttachmentID.flatMap(UUID.init(uuidString:)) }

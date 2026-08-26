@@ -5,6 +5,7 @@
 // page index (built in the background, cached per file modification date),
 // change detection for "Updated" badges, and the semantic index build.
 
+import CoreData
 import SwiftUI
 import PDFKit
 
@@ -25,6 +26,21 @@ final class Album: Identifiable {
     let lessons: [AlbumLessonRef]  // flattened outline in document order
     var cover: PlatformImage?
     var coverRequested = false
+
+    @ObservationIgnored private var cachedFingerprint: String?
+
+    /// Content fingerprint, used to recognise this album again after the PDF
+    /// is renamed or moved. Computed once — the document is already open and
+    /// the outline already parsed by the time anything asks for it.
+    var fingerprint: String {
+        if let cachedFingerprint { return cachedFingerprint }
+        let value = AlbumIdentityRepair.fingerprint(
+            pageCount: pageCount,
+            lessonTitles: lessons.map(\.title),
+            firstPageText: document.page(at: 0)?.string ?? "")
+        cachedFingerprint = value
+        return value
+    }
 
     init?(url: URL) {
         guard let document = PDFDocument(url: url) else { return nil }
@@ -166,13 +182,28 @@ final class AlbumLibrary {
     private(set) var folderURLs: [URL] = []
     /// Albums whose PDF changed since the user last opened them.
     var updatedAlbumIDs: Set<String> = []
+    /// Set after each load; the Albums surface clears it by running
+    /// `repairAlbumIdentities(in:)`, which needs a managed object context.
+    private(set) var needsIdentityRepair = false
     let semantic = AlbumSemanticIndex()
 
+    // The three index caches below are `internal` rather than `private` only so
+    // `AlbumLibrary+MemoryPressure.swift` can release them. Nothing else should
+    // touch them — read page text through `text(albumID:pageIndex:)` or `corpus()`.
+
     /// Per-album page text, keyed by album id.
-    private var pageTexts: [String: [String]] = [:]
-    private var foldedTexts: [String: [String]] = [:]
+    var pageTexts: [String: [String]] = [:]
+    /// Case- and diacritic-folded copy of `pageTexts`, used for matching. Purely
+    /// derived, so memory pressure drops it and `folded(for:)` rebuilds per album
+    /// on the next search.
+    var foldedTexts: [String: [String]] = [:]
     /// Modification date of each album's file at the time it was indexed.
     private var modDates: [String: Date] = [:]
+    /// Set when critical memory pressure purged `pageTexts`. The on-disk index
+    /// cache still holds every album's extracted text, so recovering is a JSON
+    /// decode rather than a PDF re-extraction — but nothing may search until
+    /// `buildIndexes()` has run again.
+    var indexPurged = false
 
     static let bookmarksKey = UserDefaultsKeys.albumsFolderBookmarks
     static let lastSeenKey = UserDefaultsKeys.albumsLastSeenModDates
@@ -180,6 +211,10 @@ final class AlbumLibrary {
     var folderURL: URL? { folderURLs.first }
 
     func album(id: String) -> Album? { albums.first { $0.id == id } }
+
+    private init() {
+        observeMemoryPressure()
+    }
 
     // MARK: Folder access
 
@@ -211,6 +246,11 @@ final class AlbumLibrary {
         bootstrapIfNeeded()
         while indexing || state == .loading {
             try? await Task.sleep(for: .milliseconds(100))
+        }
+        // Memory pressure can drop the page-text index after a successful load.
+        // Rebuild it here rather than leaving callers with an empty corpus.
+        if indexPurged, state == .ready {
+            await buildIndexes()
         }
     }
 
@@ -307,6 +347,7 @@ final class AlbumLibrary {
         }
         albums = pdfURLs.compactMap { Album(url: $0) }
         state = .ready
+        needsIdentityRepair = true
         Task { await buildIndexes() }
     }
 
@@ -334,10 +375,32 @@ final class AlbumLibrary {
     /// The user opened this album — clear its "updated" badge.
     func markSeen(_ album: Album) {
         updatedAlbumIDs.remove(album.id)
+        // `modDates` is only populated once indexing reaches this album, and
+        // the guide can open it before then. Fall back to the file's own
+        // modification date so the badge doesn't come back on next launch.
+        let date = modDates[album.id]
+            ?? (try? album.url.resourceValues(forKeys: [.contentModificationDateKey]))?
+                .contentModificationDate
+        guard let date else { return }
         var lastSeen = (UserDefaults.standard.dictionary(forKey: Self.lastSeenKey) as? [String: Double]) ?? [:]
-        if let date = modDates[album.id] {
-            lastSeen[album.id] = date.timeIntervalSinceReferenceDate
-            UserDefaults.standard.set(lastSeen, forKey: Self.lastSeenKey)
+        lastSeen[album.id] = date.timeIntervalSinceReferenceDate
+        UserDefaults.standard.set(lastSeen, forKey: Self.lastSeenKey)
+    }
+
+    // MARK: Identity repair
+
+    /// Carries the guide's annotations across when an album PDF has been
+    /// renamed or moved since the last load. Driven from the Albums surface
+    /// because it needs a managed object context, which the library — being
+    /// app-lifetime and classroom-independent — deliberately doesn't hold.
+    func repairAlbumIdentities(in context: NSManagedObjectContext) {
+        guard needsIdentityRepair, state == .ready else { return }
+        needsIdentityRepair = false
+        AlbumIdentityRepair.repairRenamedAlbums(albums, in: context)
+        // A revised PDF can shift pagination under existing lesson links.
+        // The outline title is the anchor, so they re-point themselves.
+        for album in albums {
+            LessonAlbumMatcher.reresolvePages(in: album, context: context)
         }
     }
 
@@ -345,6 +408,7 @@ final class AlbumLibrary {
 
     func rebuildIndex() {
         guard !indexing else { return }
+        indexPurged = false
         pageTexts = [:]
         foldedTexts = [:]
         if let dir = Self.indexCacheDirectory() {
@@ -387,6 +451,7 @@ final class AlbumLibrary {
             UserDefaults.standard.set(lastSeen, forKey: Self.lastSeenKey)
         }
         indexing = false
+        indexPurged = false
         await semantic.build(items: semanticItems())
     }
 
@@ -408,11 +473,22 @@ final class AlbumLibrary {
         }
     }
 
-    var indexReady: Bool { !indexing && !pageTexts.isEmpty }
+    var indexReady: Bool { !indexing && !indexPurged && !pageTexts.isEmpty }
 
     func text(albumID: String, pageIndex: Int) -> String? {
         guard let pages = pageTexts[albumID], pages.indices.contains(pageIndex) else { return nil }
         return pages[pageIndex]
+    }
+
+    /// Folded text for one album, rebuilt from `pageTexts` if memory pressure
+    /// dropped it. Folding a single album's pages is far cheaper than keeping a
+    /// second full copy of the corpus resident for the life of the app.
+    private func folded(for albumID: String) -> [String] {
+        if let cached = foldedTexts[albumID] { return cached }
+        guard let texts = pageTexts[albumID] else { return [] }
+        let built = texts.map(Self.fold)
+        foldedTexts[albumID] = built
+        return built
     }
 
     func corpus() -> AlbumSearchCorpus {
@@ -420,7 +496,7 @@ final class AlbumLibrary {
             AlbumSearchCorpus.AlbumData(id: $0.id, title: $0.title, subject: $0.subject,
                                    lessons: $0.lessons,
                                    texts: pageTexts[$0.id] ?? [],
-                                   folded: foldedTexts[$0.id] ?? [])
+                                   folded: folded(for: $0.id))
         })
     }
 

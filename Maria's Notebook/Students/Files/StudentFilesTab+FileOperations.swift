@@ -54,11 +54,11 @@ extension StudentFilesTab {
     var renameSheet: some View {
         NavigationStack {
             Form {
-                Section("CDDocument Title") {
+                Section("Document Title") {
                     TextField("Title", text: $renameTitleText)
                 }
             }
-            .navigationTitle("Rename CDDocument")
+            .navigationTitle("Rename Document")
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {
                     Button("Cancel") {

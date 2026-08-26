@@ -132,7 +132,7 @@ extension RecordPracticeSheet {
     var durationSection: some View {
         VStack(alignment: .leading, spacing: 12) {
             Toggle(isOn: $hasDuration) {
-                Text("CDTrackEntity Duration")
+                Text("Track Duration")
                     .font(AppTheme.ScaledFont.calloutSemibold)
             }
 

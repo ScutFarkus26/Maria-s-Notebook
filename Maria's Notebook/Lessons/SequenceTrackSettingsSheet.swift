@@ -138,7 +138,7 @@ struct SequenceTrackSettingsSheet: View {
                 track.isSequential = isSequential
                 track.isExplicitlyDisabled = false // Explicitly enabled
             } else {
-                // User unchecked "Use as CDTrackEntity" - explicitly disable
+                // User unchecked "Use as Track" - explicitly disable
                 let track = try SequenceTrackService.cdGetOrCreateSequenceTrack(
                     area: area,
                     sequence: sequence,

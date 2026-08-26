@@ -33,7 +33,7 @@ struct NoteTagSuggestion {
     @Guide(description: "Suggested tag names, e.g. Academic, Behavioral, Social, Emotional, Health, Attendance, or any relevant custom tag")
     var suggestedTags: [String]
 
-    @Guide(description: "CDStudent names mentioned in the note; empty means all students")
+    @Guide(description: "Student names mentioned in the note; empty means all students")
     var studentIdentifiers: [String]
 }
 #endif

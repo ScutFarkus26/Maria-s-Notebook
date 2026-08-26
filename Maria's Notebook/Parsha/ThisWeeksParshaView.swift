@@ -139,7 +139,7 @@ private struct ParshaContentList: View {
     }
 
     private var upcomingShabbatot: [UpcomingEntry] {
-        let calendar = Calendar(identifier: .gregorian)
+        let calendar = HebrewParshaService.gregorian
         var result: [UpcomingEntry] = []
         for offset in 1...4 {
             guard let next = calendar.date(byAdding: .day, value: 7 * offset, to: shabbat) else {

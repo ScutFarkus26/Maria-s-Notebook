@@ -90,7 +90,7 @@ extension TodoEditSheet {
     var locationReminderSection: some View {
         VStack(alignment: .leading, spacing: 12) {
             HStack {
-                Text("Location CDReminder")
+                Text("Location Reminder")
                     .font(AppTheme.ScaledFont.captionSemibold)
                     .foregroundStyle(.secondary)
                     .textCase(.uppercase)

@@ -15,7 +15,7 @@ public enum AttachmentScope: String, Codable, CaseIterable, Hashable, Identifiab
 
     public var displayName: String {
         switch self {
-        case .lesson: return "This CDLesson"
+        case .lesson: return "This Lesson"
         case .sequence: return "All Lessons in Sequence"
         case .area: return "All Lessons in Area"
         }

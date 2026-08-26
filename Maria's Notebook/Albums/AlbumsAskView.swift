@@ -2,7 +2,7 @@
 // "Ask the Albums": a conversation with the on-device model, grounded in
 // excerpts retrieved from the albums for each question. Answers cite
 // numbered sources the user can jump to. The whole exchange stays on
-// device; when Apple AlbumIntelligence is unavailable the view explains why.
+// device; when Apple Intelligence is unavailable the view explains why.
 
 import SwiftUI
 
@@ -26,7 +26,7 @@ struct AlbumsAskView: View {
         VStack(spacing: 0) {
             if let explanation = intelligence.unavailableExplanation {
                 ContentUnavailableView {
-                    Label("Apple AlbumIntelligence Unavailable", systemImage: "sparkles.slash")
+                    Label("Apple Intelligence Unavailable", systemImage: "sparkles.slash")
                 } description: {
                     Text(explanation)
                 }

@@ -68,6 +68,11 @@ public struct LessonDTO: Codable, Sendable {
     public var parentStoryID: String?
     public var requiresPracticeOverride: String?
     public var requiresConfirmationOverride: String?
+    // Teaching-album link (format v22+). Optional so v17–v21 backups decode.
+    public var albumID: String?
+    public var albumPageIndex: Int?
+    public var albumLessonTitle: String?
+    public var albumLinkConfidence: Double?
 }
 
 public struct SampleWorkDTO: Codable, Sendable {

@@ -36,11 +36,18 @@ struct ParshaCalendarView: View {
         }
     }
 
-    private var entriesByMonth: [(monthLabel: String, items: [CalendarEntry])] {
-        let calendar = Calendar(identifier: .gregorian)
+    /// Built once, not per body pass — `DateFormatter` construction is expensive and
+    /// this one never varies.
+    private static let monthLabelFormatter: DateFormatter = {
         let formatter = DateFormatter()
         formatter.dateFormat = "MMMM yyyy"
-        formatter.calendar = calendar
+        formatter.calendar = Calendar(identifier: .gregorian)
+        return formatter
+    }()
+
+    private var entriesByMonth: [(monthLabel: String, items: [CalendarEntry])] {
+        let calendar = HebrewParshaService.gregorian
+        let formatter = Self.monthLabelFormatter
 
         let grouped = Dictionary(grouping: entries) { entry -> Date in
             let comps = calendar.dateComponents([.year, .month], from: entry.date)
@@ -58,8 +65,8 @@ struct ParshaCalendarView: View {
     }
 
     private var yearTitle: String {
-        let hebrew = Calendar(identifier: .hebrew)
-        let year = hebrew.dateComponents([.year], from: currentShabbat).year ?? 0
+        let year = HebrewParshaService.hebrew
+            .dateComponents([.year], from: currentShabbat).year ?? 0
         return "Hebrew Year \(year)"
     }
 
@@ -74,6 +81,13 @@ struct ParshaCalendarView: View {
                         .font(AppTheme.ScaledFont.caption)
                         .foregroundStyle(.secondary)
                 }
+                // Hoisted out of the row builder: all three were recomputed per row.
+                // `Calendar(identifier:)` allocates an ICU calendar every time, and
+                // `lessonCountsByParsha` walked the whole fetch to rebuild its
+                // dictionary — so the counts alone were O(rows × tagged lessons).
+                let calendar = HebrewParshaService.gregorian
+                let today = currentShabbat
+                let counts = lessonCountsByParsha
                 ForEach(entriesByMonth, id: \.monthLabel) { group in
                     Section(group.monthLabel) {
                         ForEach(group.items) { entry in
@@ -82,9 +96,8 @@ struct ParshaCalendarView: View {
                                     date: entry.date,
                                     parshaKey: entry.parshaKey,
                                     festivalName: entry.festivalName,
-                                    lessonCount: entry.parshaKey.flatMap { lessonCountsByParsha[$0] } ?? 0,
-                                    isCurrentWeek: Calendar(identifier: .gregorian)
-                                        .isDate(entry.date, inSameDayAs: currentShabbat)
+                                    lessonCount: entry.parshaKey.flatMap { counts[$0] } ?? 0,
+                                    isCurrentWeek: calendar.isDate(entry.date, inSameDayAs: today)
                                 )
                             }
                         }

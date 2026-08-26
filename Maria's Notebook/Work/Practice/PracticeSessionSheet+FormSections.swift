@@ -41,7 +41,7 @@ extension PracticeSessionSheet {
 
     var optionalFieldsSection: some View {
         VStack(alignment: .leading, spacing: 16) {
-            OptionalFieldToggle(title: "CDTrackEntity Duration", isEnabled: $hasDuration) {
+            OptionalFieldToggle(title: "Track Duration", isEnabled: $hasDuration) {
                 HStack {
                     Text("Duration (minutes)")
                         .font(AppTheme.ScaledFont.caption)
@@ -82,7 +82,7 @@ extension PracticeSessionSheet {
 
     var individualNotesSection: some View {
         VStack(alignment: .leading, spacing: 12) {
-            PracticeSectionHeader(title: "Individual CDStudent Notes")
+            PracticeSectionHeader(title: "Individual Student Notes")
 
             ForEach(selectedStudents) { student in
                 individualStudentCard(for: student)

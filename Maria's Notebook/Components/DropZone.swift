@@ -7,6 +7,9 @@ struct DropZone: View {
     private static let logger = Logger.lessons
     @Environment(\.managedObjectContext) private var viewContext
     @Environment(\.calendar) private var calendar
+    // Re-injected into drag previews: their detached hierarchy does not inherit
+    // the app environment, and PresentationPill traps without SaveCoordinator.
+    @Environment(SaveCoordinator.self) private var saveCoordinator
 
     let allLessonAssignments: [CDLessonAssignment]
 
@@ -198,6 +201,8 @@ struct DropZone: View {
                 targetLessonAssignmentID: la.id
             )
             .opacity(UIConstants.OpacityConstants.nearSolid)
+            .environment(\.managedObjectContext, viewContext)
+            .environment(saveCoordinator)
         }
         .onTapGesture { onSelectLesson(la) }
         .contextMenu {

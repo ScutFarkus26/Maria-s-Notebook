@@ -1,3 +1,4 @@
+import CoreData
 import SwiftUI
 
 #if os(macOS)
@@ -58,16 +59,15 @@ struct StoryCardView: View {
 
     @ViewBuilder
     private var thumbnail: some View {
-        if let data = story.thumbnailData, let image = platformImage(from: data) {
-            #if os(macOS)
-            Image(nsImage: image)
+        // Decoded through the shared cache — this card sits in a `LazyVGrid`, so
+        // decoding in `body` re-ran the whole JPEG decode on every scroll pass.
+        if let image = CachedThumbnail.image(
+            from: story.thumbnailData,
+            cacheKey: story.objectID.uriRepresentation().absoluteString
+        ) {
+            Image(platformImage: image)
                 .resizable()
                 .scaledToFill()
-            #else
-            Image(uiImage: image)
-                .resizable()
-                .scaledToFill()
-            #endif
         } else {
             ZStack {
                 Color.secondary.opacity(0.1)
@@ -132,7 +132,4 @@ struct StoryCardView: View {
         }
     }
 
-    private func platformImage(from data: Data) -> PlatformImage? {
-        PlatformImage(data: data)
-    }
 }

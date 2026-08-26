@@ -8,7 +8,7 @@ extension LessonDetailView {
         VStack(alignment: .leading, spacing: AppTheme.Spacing.medium) {
             infoRow(
                 icon: SFSymbol.Education.bookClosed, title: "Name",
-                value: lesson.name.isEmpty ? "Untitled CDLesson" : lesson.name
+                value: lesson.name.isEmpty ? "Untitled Lesson" : lesson.name
             )
             infoRow(
                 icon: SFSymbol.Education.graduationcap, title: "Area",
@@ -26,6 +26,7 @@ extension LessonDetailView {
                 icon: "square.stack.3d.up", title: "Source",
                 value: lesson.source.label
             )
+            LessonAlbumLinkSection(lesson: lesson)
             if lesson.source == .personal {
                 infoRow(
                     icon: SFSymbol.People.person, title: "Personal Type",

@@ -67,6 +67,17 @@ nonisolated struct AlbumLessonRef: Identifiable, Hashable, Codable, Sendable {
     let depth: Int
 }
 
+// MARK: - Lesson links
+
+/// Where one notebook lesson (`CDLesson`) is written up in a teaching album.
+/// `lessonTitle` is the album's own outline title at that page, kept so the
+/// link can be re-resolved by name when a revised PDF shifts pagination.
+nonisolated struct AlbumLink: Equatable, Sendable {
+    let albumID: String
+    let pageIndex: Int
+    var lessonTitle: String?
+}
+
 // MARK: - User data snapshots (Sendable copies for background search)
 
 nonisolated struct AlbumNoteSnapshot: Identifiable, Sendable {

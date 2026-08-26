@@ -1,3 +1,4 @@
+import CoreData
 import SwiftUI
 
 /// Grid card for displaying a resource with PDF thumbnail, title, and category badge.
@@ -124,9 +125,13 @@ struct ResourceCard: View {
 
     @ViewBuilder
     private var thumbnailView: some View {
-        if let thumbnailData = resource.thumbnailData,
-           let image = platformImage(from: thumbnailData) {
-            image
+        // Decoded through the shared cache — see `CachedThumbnail`. This card is a
+        // `LazyVGrid` cell, so a decode in `body` runs on every scroll pass.
+        if let image = CachedThumbnail.image(
+            from: resource.thumbnailData,
+            cacheKey: resource.objectID.uriRepresentation().absoluteString
+        ) {
+            Image(platformImage: image)
                 .resizable()
                 .aspectRatio(contentMode: .fit)
         } else {
@@ -141,15 +146,4 @@ struct ResourceCard: View {
         }
     }
 
-    #if os(macOS)
-    private func platformImage(from data: Data) -> Image? {
-        guard let nsImage = NSImage(data: data) else { return nil }
-        return Image(nsImage: nsImage)
-    }
-    #else
-    private func platformImage(from data: Data) -> Image? {
-        guard let uiImage = UIImage(data: data) else { return nil }
-        return Image(uiImage: uiImage)
-    }
-    #endif
 }

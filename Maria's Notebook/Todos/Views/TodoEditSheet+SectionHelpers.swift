@@ -226,7 +226,7 @@ extension TodoEditSheet {
 
         // CDReminder
         if hasReminder {
-            text += "🔔 CDReminder: \(DateFormatters.mediumDateTime.string(from: reminderDate))\n"
+            text += "🔔 Reminder: \(DateFormatters.mediumDateTime.string(from: reminderDate))\n"
         }
 
         // Time estimate

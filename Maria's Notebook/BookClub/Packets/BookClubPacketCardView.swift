@@ -1,3 +1,4 @@
+import CoreData
 import SwiftUI
 
 #if os(macOS)
@@ -62,16 +63,15 @@ struct BookClubPacketCardView: View {
 
     @ViewBuilder
     private var thumbnail: some View {
-        if let data = packet.thumbnailData, let image = PlatformImage(data: data) {
-            #if os(macOS)
-            Image(nsImage: image)
+        // Decoded through the shared cache — see `CachedThumbnail`. This card is a
+        // `LazyVGrid` cell, so a decode in `body` runs on every scroll pass.
+        if let image = CachedThumbnail.image(
+            from: packet.thumbnailData,
+            cacheKey: packet.objectID.uriRepresentation().absoluteString
+        ) {
+            Image(platformImage: image)
                 .resizable()
                 .scaledToFill()
-            #else
-            Image(uiImage: image)
-                .resizable()
-                .scaledToFill()
-            #endif
         } else {
             ZStack {
                 Color.secondary.opacity(0.1)
