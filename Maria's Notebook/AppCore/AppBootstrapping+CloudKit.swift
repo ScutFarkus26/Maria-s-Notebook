@@ -52,7 +52,7 @@ extension AppBootstrapping {
                 UserDefaults.standard.removeObject(forKey: UserDefaultsKeys.lastStoreErrorDescription)
                 return stack
             } catch {
-                if isStoreFromNewerBuild(error) { throw error }
+                if isUnrecoverableStoreError(error) { throw error }
                 logger.warning("CloudKit stack failed, falling back to local: \(error)")
                 let detailedError = (error as NSError).localizedDescription
                 UserDefaults.standard.set(
@@ -80,7 +80,7 @@ extension AppBootstrapping {
             )
             return stack
         } catch {
-            if isStoreFromNewerBuild(error) { throw error }
+            if isUnrecoverableStoreError(error) { throw error }
             logger.error("Cached split-store fallback failed: \(error)")
         }
 
@@ -97,7 +97,7 @@ extension AppBootstrapping {
             )
             return stack
         } catch {
-            if isStoreFromNewerBuild(error) { throw error }
+            if isUnrecoverableStoreError(error) { throw error }
             logger.error("Local stack failed: \(error)")
             DatabaseInitializationService.handleDatabaseInitError(error)
         }
@@ -111,18 +111,37 @@ extension AppBootstrapping {
         return stack
     }
 
-    /// True when the stack refused to open a store because a newer build wrote
-    /// it (`CoreDataStack.verifyStoreIsNotFromNewerBuild`).
+    /// True when the user's real store exists but could not be opened — as
+    /// opposed to CloudKit merely being unavailable, which the chain below is
+    /// designed to ride out.
     ///
-    /// This must abandon the fallback chain rather than continue down it. Every
-    /// remaining attempt either reuses the same store files — and so fails the
-    /// same way — or quietly starts a *different*, empty store, which presents
-    /// a first-launch-looking app while the real data sits intact on disk. The
-    /// caller turns the rethrow into the database-error screen, which says what
-    /// actually happened and what to do about it.
-    private static func isStoreFromNewerBuild(_ error: any Error) -> Bool {
+    /// These must abandon the fallback chain rather than continue down it.
+    /// Every remaining attempt either reuses the same store files — and so
+    /// fails the same way — or quietly starts a *different*, empty store. That
+    /// presents a first-launch-looking app while the real data sits intact on
+    /// disk, and invites the user to type fresh work into the wrong database.
+    /// Rethrowing instead lands on the database-error screen, which says what
+    /// happened and offers Reset Local Cache.
+    private static func isUnrecoverableStoreError(_ error: any Error) -> Bool {
         guard let stackError = error as? CoreDataStackError else { return false }
-        if case .storeFromNewerBuild = stackError { return true }
-        return false
+        switch stackError {
+        case .storeFromNewerBuild, .storeSchemaIncoherent:
+            return true
+        case .storeLoadFailed(let underlying), .cloudKitLoadFailed(let underlying):
+            return isFatalStoreError(underlying as NSError)
+        case .modelNotFound:
+            return false
+        }
+    }
+
+    /// Migration and version-hash failures mean the bytes on disk are fine but
+    /// this build cannot open them. Recoverable — but not by opening something
+    /// else and pretending.
+    private static func isFatalStoreError(_ error: NSError) -> Bool {
+        guard error.domain == NSCocoaErrorDomain else { return false }
+        return error.code == NSPersistentStoreIncompatibleVersionHashError
+            || error.code == NSMigrationError
+            || error.code == NSMigrationConstraintViolationError
+            || error.code == NSMigrationMissingSourceModelError
     }
 }

@@ -81,16 +81,69 @@ extension CoreDataStack {
     /// the opposite favour — smoothing the path for the destructive backwards
     /// migration this guard exists to prevent. So the guard runs first, and the
     /// stamp goes on last.
+    /// - Returns: store URL → rollback-copy URL, for every store this pass was
+    ///   about to migrate. The caller restores these if the load still fails,
+    ///   so a failed recovery attempt leaves the user exactly where they began.
+    @discardableResult
     static func prepareStoresForLoad(
         container: NSPersistentContainer,
         model: NSManagedObjectModel
-    ) throws {
+    ) throws -> [URL: URL] {
+        var backups: [URL: URL] = [:]
+
         for description in container.persistentStoreDescriptions {
             guard let url = description.url, description.type == NSSQLiteStoreType else { continue }
             try verifyStoreIsNotFromNewerBuild(storeURL: url)
+
+            // Migration is in-place and irreversible, and both cleanups below
+            // edit the file. Copy it first, and only attempt the newer repair
+            // when that copy exists.
+            let migrating = storeNeedsMigration(
+                storeURL: url,
+                configuration: description.configuration,
+                model: model
+            )
+            let backup = migrating ? backUpStoreBeforeMigration(storeURL: url) : nil
+            if let backup { backups[url] = backup }
+
+            // A store whose metadata claims compatibility can still be missing
+            // columns (metadata rewritten by a half-finished migration). Core
+            // Data won't migrate it — the hashes say there is nothing to do —
+            // so catch the lie here. Migrating stores skip this: their
+            // migration rebuilds the schema anyway.
+            if !migrating {
+                let findings = incoherentSchemaFindings(
+                    storeURL: url,
+                    configuration: description.configuration,
+                    model: model
+                )
+                if !findings.isEmpty {
+                    if description.configuration == sharedConfiguration {
+                        // The shared store mirrors the CloudKit shared
+                        // database; a rebuilt store re-imports from the server.
+                        quarantineIncoherentStore(storeURL: url, findings: findings)
+                    } else {
+                        // Never silently rebuild the store that holds the
+                        // user's primary data — surface it instead.
+                        throw CoreDataStackError.storeSchemaIncoherent(
+                            storeName: url.lastPathComponent,
+                            detail: findings.sorted().joined(separator: ", ")
+                        )
+                    }
+                }
+            }
+
             cleanOrphanEntityMetadata(storeURL: url, model: model)
+            if backup != nil {
+                cleanDanglingCloudKitMetadata(storeURL: url)
+                dedupeCloudKitMetadataForDuplicatedEntities(storeURL: url)
+                logCloudKitMetadataShape(storeURL: url)
+            }
+
             stampSchemaVersion(storeURL: url)
         }
+
+        return backups
     }
 
     // MARK: - Guard

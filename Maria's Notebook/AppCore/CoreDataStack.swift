@@ -36,6 +36,50 @@ final class CoreDataStack {
         _activeModel = model
     }
 
+    // MARK: - Shared Model
+
+    nonisolated static let modelName = "MariasNotebook"
+
+    /// MainActor-isolated like the rest of the type, so no lock is needed:
+    /// `sharedModel()` is only ever reached from `init`.
+    private static var _sharedModel: NSManagedObjectModel?
+
+    /// The one `NSManagedObjectModel` instance this process ever uses.
+    ///
+    /// Every stack shares it — CloudKit, cached-split, unified, in-memory,
+    /// Sample Class. Loading a second copy leaves two `NSEntityDescription`s
+    /// claiming each generated class, and Core Data then gives up:
+    ///
+    ///     warning: Multiple NSEntityDescriptions claim the NSManagedObject
+    ///     subclass 'TodoItemEntity' so +entity is unable to disambiguate.
+    ///     error: +[TodoItemEntity entity] Failed to find a unique match
+    ///
+    /// `+entity` returns nil, SwiftUI's `@FetchRequest` builds a request with
+    /// no entity, and the app dies on `NSInvalidArgumentException: A fetch
+    /// request must have an entity`. A launch where the fallback chain builds
+    /// three stacks in a row hit this on 2026-08-25 — which is exactly the
+    /// launch that most needed to reach the database-error screen instead.
+    ///
+    /// Configurations are assigned here, once, because a model becomes
+    /// immutable as soon as a coordinator uses it. Stores that want every
+    /// entity (unified, in-memory) pass `configuration: nil`, which means the
+    /// default configuration — still the model's full entity set.
+    static func sharedModel() throws -> NSManagedObjectModel {
+        if let existing = _sharedModel { return existing }
+
+        guard let modelURL = Bundle.main.url(forResource: modelName, withExtension: "momd"),
+              let cachedModel = NSManagedObjectModel(contentsOf: modelURL) else {
+            throw CoreDataStackError.modelNotFound(modelName)
+        }
+        // Copy: NSManagedObjectModel(contentsOf:) can hand back an instance
+        // from its own cache, and assigning configurations would mutate that.
+        let model = cachedModel.copy() as! NSManagedObjectModel  // swiftlint:disable:this force_cast
+        validateEntityRouting(model: model)
+        assignEntitiesToConfigurations(model: model)
+        _sharedModel = model
+        return model
+    }
+
     // MARK: - Container
 
     let container: NSPersistentCloudKitContainer
@@ -238,39 +282,13 @@ final class CoreDataStack {
             Self.performLocalCacheReset()
         }
 
-        let modelName = "MariasNotebook"
-        let model: NSManagedObjectModel
-        if let suppliedModel,
-           !enableCloudKit,
-           !preserveSplitStoreLayout {
-            // A model becomes immutable once a coordinator uses it, which makes
-            // it safe for the primary and sample coordinators to share. More
-            // importantly, every NSEntityDescription keeps the same identity
-            // while SwiftUI replaces its managed-object context.
-            model = suppliedModel
-        } else {
-            guard let modelURL = Bundle.main.url(forResource: modelName, withExtension: "momd"),
-                  let cachedModel = NSManagedObjectModel(contentsOf: modelURL) else {
-                throw CoreDataStackError.modelNotFound(modelName)
-            }
-            // Copy the model so mutations (like assignEntitiesToConfigurations) don't
-            // pollute the cached instance. NSManagedObjectModel(contentsOf:) can return
-            // a cached object, and calling setEntities on it would affect subsequent inits.
-            model = cachedModel.copy() as! NSManagedObjectModel  // swiftlint:disable:this force_cast
-        }
+        // One model instance per process — see `sharedModel()`. Sample Class
+        // may hand in that same instance explicitly so its NSEntityDescriptions
+        // keep their identity while SwiftUI swaps the managed-object context.
+        let model = try suppliedModel ?? Self.sharedModel()
         Self.setActiveModel(model)
 
-        // Validate that all entities in our routing tables exist in the model
-        Self.validateEntityRouting(model: model)
-
-        // Assign entities to configurations BEFORE creating the container.
-        // NSPersistentCloudKitContainer's init creates an NSPersistentStoreCoordinator,
-        // which makes the model immutable — so all setEntities calls must happen first.
-        if (enableCloudKit || preserveSplitStoreLayout) && !inMemory {
-            Self.assignEntitiesToConfigurations(model: model)
-        }
-
-        container = NSPersistentCloudKitContainer(name: modelName, managedObjectModel: model)
+        container = NSPersistentCloudKitContainer(name: Self.modelName, managedObjectModel: model)
 
         if enableCloudKit && !inMemory {
             // CloudKit mode: two stores (private + shared) for separate CloudKit databases.
@@ -332,8 +350,9 @@ final class CoreDataStack {
         // from the model, CloudKit's ANSCKRECORDMETADATA table retains rows pointing at
         // their old Z_ENT IDs, which makes lightweight migration fail with a UNIQUE
         // constraint violation. Stripping those rows first lets migration succeed.
+        var migrationBackups: [URL: URL] = [:]
         if !inMemory {
-            try Self.prepareStoresForLoad(container: container, model: model)
+            migrationBackups = try Self.prepareStoresForLoad(container: container, model: model)
         }
 
         // Load stores synchronously
@@ -348,6 +367,12 @@ final class CoreDataStack {
         }
 
         if !loadErrors.isEmpty {
+            // The repair did not work. Put the originals back so the next
+            // attempt — and the user — see the store exactly as it was.
+            for (storeURL, backupURL) in migrationBackups {
+                Self.restoreStoreBackup(backupURL, to: storeURL)
+            }
+
             // If CloudKit stores failed, try local-only fallback
             if enableCloudKit && !inMemory {
                 Self.logger.warning("CloudKit store load failed, retrying without CloudKit...")
@@ -680,6 +705,7 @@ enum CoreDataStackError: LocalizedError {
     case storeLoadFailed(Error)
     case cloudKitLoadFailed(Error)
     case storeFromNewerBuild(storeName: String, storeVersion: Int, appVersion: Int)
+    case storeSchemaIncoherent(storeName: String, detail: String)
 
     var errorDescription: String? {
         switch self {
@@ -694,6 +720,10 @@ enum CoreDataStackError: LocalizedError {
                 "(database format \(storeVersion); this copy understands \(appVersion)). " +
                 "Opening it with this copy would permanently delete the newer data, so it " +
                 "was left untouched. Quit any older copies of the app and open the current one."
+        case .storeSchemaIncoherent(let storeName, let detail):
+            return "\(storeName) is internally inconsistent (\(detail)): its data format " +
+                "was damaged by an older version of the app. The store was left untouched. " +
+                "Use Settings → Database → Reset Local Cache to rebuild it from iCloud."
         }
     }
 }
