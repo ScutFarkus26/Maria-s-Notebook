@@ -35,6 +35,13 @@ public final class SyncedPreferencesStore {
     public private(set) var quotaUsagePercent: Double = 0.0
     public private(set) var isQuotaWarning: Bool = false
     public private(set) var isQuotaViolation: Bool = false
+
+    /// Bumped on every write and on every change synced in from another device.
+    /// `SyncedAppStorage` reads it so Observation registers the view as a dependent —
+    /// nothing else in this class is observable, so without it a preference change
+    /// never redraws the controls that show it. Preference writes are rare, so one
+    /// counter for all keys costs less than tracking each key separately.
+    public private(set) var changeCount: Int = 0
     
     /// Keys that should sync across devices
     static let syncedKeys: Set<String> = [
@@ -44,6 +51,9 @@ public final class SyncedPreferencesStore {
         "AttendanceEmail.from",
         "AttendanceEmail.nameOrder",
         "AttendanceEmail.groupByLevel",
+
+        // Attendance
+        "Attendance.sortKey",
         
         // CDLesson Age Settings
         "LessonAge.warningDays",
@@ -136,6 +146,7 @@ public final class SyncedPreferencesStore {
                     }
                     // Update quota after receiving changes
                     Task { @MainActor in
+                        self.noteChange()
                         self.updateQuotaUsage()
                     }
                 } else if reason == 2 { // quotaViolationChange - storage limit exceeded
@@ -152,6 +163,7 @@ public final class SyncedPreferencesStore {
                 } else if reason == 3 { // accountChange - user changed iCloud account
                     self.logger.info("iCloud account changed, reloading preferences")
                     Task { @MainActor in
+                        self.noteChange()
                         self.updateQuotaUsage()
                     }
                 }
@@ -190,10 +202,11 @@ public final class SyncedPreferencesStore {
             
             // CDTrackEntity this key for batched sync
             pendingSyncKeys.insert(key)
-            
+
             // Schedule a debounced sync (1.5 seconds - balances responsiveness with energy efficiency)
             scheduleBatchedSync()
-            
+
+            noteChange()
             return true
         } else {
             // Not a synced key, use UserDefaults
@@ -202,8 +215,15 @@ public final class SyncedPreferencesStore {
             } else {
                 userDefaults.removeObject(forKey: key)
             }
+            noteChange()
             return true
         }
+    }
+
+    /// Redraws every view holding a `SyncedAppStorage` value. The new value is already
+    /// in the store, so readers pick it up as soon as they re-evaluate.
+    private func noteChange() {
+        changeCount &+= 1
     }
     
     /// Schedules a batched sync operation after a delay
@@ -331,45 +351,49 @@ public final class SyncedPreferencesStore {
         return false
     }
     
-    // MARK: - Type-Safe Convenience Methods
-    
+}
+
+// MARK: - Type-Safe Convenience Methods
+
+extension SyncedPreferencesStore {
+
     public func bool(forKey key: String) -> Bool {
         if let value = get(key: key) as? Bool {
             return value
         }
         return false
     }
-    
+
     public func integer(forKey key: String) -> Int {
         if let value = get(key: key) as? Int {
             return value
         }
         return 0
     }
-    
+
     public func double(forKey key: String) -> Double {
         if let value = get(key: key) as? Double {
             return value
         }
         return 0.0
     }
-    
+
     public func string(forKey key: String) -> String? {
         return get(key: key) as? String
     }
-    
+
     public func set(_ value: Bool, forKey key: String) {
         set(value as Any?, forKey: key)
     }
-    
+
     public func set(_ value: Int, forKey key: String) {
         set(value as Any?, forKey: key)
     }
-    
+
     public func set(_ value: Double, forKey key: String) {
         set(value as Any?, forKey: key)
     }
-    
+
     public func set(_ value: String?, forKey key: String) {
         set(value as Any?, forKey: key)
     }
@@ -410,6 +434,11 @@ public struct SyncedAppStorage<T>: DynamicProperty {
     
     public var wrappedValue: T {
         get {
+            // Registers the view with Observation. The store reads straight through to
+            // KVS/UserDefaults, which SwiftUI can't see, so this counter is the only
+            // thing that tells it the value it drew is stale.
+            _ = store.changeCount
+
             // Check if key exists first
             let existingValue = store.get(key: key)
             

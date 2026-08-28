@@ -90,6 +90,11 @@ extension AttendanceEmailStudent {
 
 // MARK: - Report Generator
 public struct AttendanceEmailReport {
+    /// Names sit one step in from the heading above them. Mail sends the report as plain
+    /// text in a proportional font, where indentation reads faintly, so the layout leans on
+    /// blank lines and capitalization to carry the hierarchy.
+    private static let nameIndent = "    "
+
     public static func makeSubject(
         for date: Date,
         calendar: Calendar = .current
@@ -107,40 +112,69 @@ public struct AttendanceEmailReport {
         nameOrder: AttendanceEmailNameOrder = .firstLast,
         groupByLevel: Bool = false
     ) -> String {
-        var lines: [String] = []
-        lines.append("Attendance Report")
-        lines.append(DateFormatters.fullDate.string(from: calendar.startOfDay(for: date)))
-        lines.append("")
-        for (title, students) in [("On Time", present), ("Tardy", tardy), ("Absent", absent)] {
-            lines += sectionLines(
-                title,
-                students: students,
-                nameOrder: nameOrder,
-                groupByLevel: groupByLevel
+        let header = [
+            "Attendance Report",
+            DateFormatters.fullDate.string(from: calendar.startOfDay(for: date))
+        ]
+        let statuses = [
+            (title: "On Time", students: present),
+            (title: "Tardy", students: tardy),
+            (title: "Absent", students: absent)
+        ]
+        let body: [String]
+        let levels = groupByLevel ? levelBlocks(statuses, nameOrder: nameOrder) : []
+        if levels.isEmpty {
+            // Also the path when grouping is on but nobody is on the roster today, which
+            // would otherwise leave the report with no lists under its date at all.
+            body = stack(
+                statuses.map {
+                    statusBlock($0.title.uppercased(), students: $0.students, nameOrder: nameOrder)
+                },
+                gap: 1
             )
+        } else {
+            // Two blank lines between levels against one inside them, so each class reads whole.
+            body = stack(levels, gap: 2)
         }
-        return lines.joined(separator: "\n")
+        return stack([header, body], gap: 1).joined(separator: "\n")
     }
 
-    private static func sectionLines(
+    /// One block per level anyone is in today: the level's name over its own On Time,
+    /// Tardy, and Absent lists, so a reader sees each class whole instead of hunting
+    /// through three separate lists for it.
+    private static func levelBlocks(
+        _ statuses: [(title: String, students: [AttendanceEmailStudent])],
+        nameOrder: AttendanceEmailNameOrder
+    ) -> [[String]] {
+        levelsAttending(statuses).map { level in
+            let sections = statuses.map { status in
+                statusBlock(
+                    status.title,
+                    students: status.students.filter { $0.level == level.level },
+                    nameOrder: nameOrder
+                )
+            }
+            return stack([[level.title.uppercased()]] + sections, gap: 1)
+        }
+    }
+
+    /// A heading with its count over the names under it, or "None" when nobody is in it.
+    private static func statusBlock(
         _ title: String,
         students: [AttendanceEmailStudent],
-        nameOrder: AttendanceEmailNameOrder,
-        groupByLevel: Bool
+        nameOrder: AttendanceEmailNameOrder
     ) -> [String] {
-        var lines = ["\(title) (\(students.count)):"]
-        if students.isEmpty {
-            lines.append("  — none —")
-        } else if groupByLevel {
-            for group in grouped(students, by: nameOrder) {
-                lines.append("  \(group.title) (\(group.students.count)):")
-                lines += group.students.map { "    • \($0.name(order: nameOrder))" }
-            }
-        } else {
-            lines += sorted(students, by: nameOrder).map { "  • \($0.name(order: nameOrder))" }
+        let heading = "\(title) (\(students.count))"
+        guard !students.isEmpty else { return [heading, "\(nameIndent)None"] }
+        return [heading] + sorted(students, by: nameOrder).map {
+            "\(nameIndent)\u{2022} \($0.name(order: nameOrder))"
         }
-        lines.append("")
-        return lines
+    }
+
+    /// Stacks blocks of lines with `gap` blank lines between them. Empty blocks drop out,
+    /// so a level nobody is in can't leave a hole in the spacing.
+    private static func stack(_ blocks: [[String]], gap: Int) -> [String] {
+        Array(blocks.filter { !$0.isEmpty }.joined(separator: Array(repeating: "", count: gap)))
     }
 
     /// Sorts on the field the chosen name order leads with, so the list reads in order.
@@ -161,17 +195,17 @@ public struct AttendanceEmailReport {
         }
     }
 
-    /// Level groups in report order, dropping levels nobody is in. A student whose level
-    /// isn't one the report knows about lands in a trailing "Other" group rather than vanishing.
-    static func grouped(
-        _ students: [AttendanceEmailStudent],
-        by order: AttendanceEmailNameOrder
-    ) -> [(title: String, students: [AttendanceEmailStudent])] {
-        var groups = AttendanceEmailLevel.allCases.map { level in
-            (title: level.title, students: sorted(students.filter { $0.level == level }, by: order))
-        }
-        groups.append((title: "Other", students: sorted(students.filter { $0.level == nil }, by: order)))
-        return groups.filter { !$0.students.isEmpty }
+    /// The levels to write up, in report order, skipping any nobody is in today. A student
+    /// whose level isn't one the report knows about lands in a trailing "Other" group
+    /// rather than vanishing.
+    static func levelsAttending(
+        _ statuses: [(title: String, students: [AttendanceEmailStudent])]
+    ) -> [(title: String, level: AttendanceEmailLevel?)] {
+        let everyone = statuses.flatMap(\.students)
+        var levels: [(title: String, level: AttendanceEmailLevel?)] =
+            AttendanceEmailLevel.allCases.map { (title: $0.title, level: $0) }
+        levels.append((title: "Other", level: nil))
+        return levels.filter { level in everyone.contains { $0.level == level.level } }
     }
 }
 
@@ -389,7 +423,10 @@ public struct AttendanceEmailSettingsView: View {
     }
 
     private var groupingFootnote: some View {
-        Text("Grouping lists Upper Elementary first, then Adolescents.")
+        Text(
+            "Grouping writes each level as its own report \u{2014} on time, tardy, "
+            + "and absent \u{2014} Upper Elementary first."
+        )
             .font(.footnote)
             .foregroundStyle(.secondary)
     }
@@ -435,36 +472,47 @@ public struct AttendanceEmailSettingsView: View {
                 .foregroundStyle(.secondary)
         }
         #else
-        Form {
-            Section("Attendance Email") {
-                Toggle("Show 'Send Attendance Email' Button", isOn: $enabled)
-                TextField("Send To", text: $toAddress)
+        // A plain stack, not a Form: this view is embedded inline in a SettingsGroup
+        // inside the settings ScrollView, and a nested Form scrolls its own sections
+        // out of reach — which is how Report Format went missing.
+        VStack(alignment: .leading, spacing: 12) {
+            Toggle("Show 'Send Attendance Email' Button", isOn: $enabled)
+
+            TextField("Send To", text: $toAddress)
+                .textFieldStyle(.roundedBorder)
                 #if os(iOS)
-                    .textContentType(.emailAddress)
-                    .keyboardType(.emailAddress)
-                    .textInputAutocapitalization(.never)
-                    .autocorrectionDisabled(true)
+                .textContentType(.emailAddress)
+                .keyboardType(.emailAddress)
+                .textInputAutocapitalization(.never)
+                .autocorrectionDisabled(true)
                 #endif
-                #if os(iOS)
-                TextField("Preferred 'From' Address (iOS)", text: $fromAddress)
-                    .textContentType(.emailAddress)
-                    .keyboardType(.emailAddress)
-                    .textInputAutocapitalization(.never)
-                    .autocorrectionDisabled(true)
-                #else
-                TextField("Preferred 'From' Address (iOS only)", text: $fromAddress)
-                    .disabled(true)
-                    .foregroundStyle(.secondary)
-                #endif
-                Text("Note: iOS uses the preferred address when possible. macOS uses your default Mail account.")
-                    .font(.footnote)
-                    .foregroundStyle(.secondary)
-            }
-            Section("Report Format") {
-                nameOrderPicker
-                Toggle("Group by Level", isOn: $groupByLevel)
-                groupingFootnote
-            }
+
+            #if os(iOS)
+            TextField("Preferred 'From' Address (iOS)", text: $fromAddress)
+                .textFieldStyle(.roundedBorder)
+                .textContentType(.emailAddress)
+                .keyboardType(.emailAddress)
+                .textInputAutocapitalization(.never)
+                .autocorrectionDisabled(true)
+            #else
+            TextField("Preferred 'From' Address (iOS only)", text: $fromAddress)
+                .textFieldStyle(.roundedBorder)
+                .disabled(true)
+                .foregroundStyle(.secondary)
+            #endif
+
+            Text("Note: iOS uses the preferred address when possible. macOS uses your default Mail account.")
+                .font(.footnote)
+                .foregroundStyle(.secondary)
+
+            Divider()
+
+            Text("Report Format")
+                .font(.subheadline.weight(.semibold))
+            nameOrderPicker
+                .pickerStyle(.segmented)
+            Toggle("Group by Level", isOn: $groupByLevel)
+            groupingFootnote
         }
         #endif
     }
