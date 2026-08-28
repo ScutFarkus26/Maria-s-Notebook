@@ -89,7 +89,11 @@ enum SettingsExportService {
         .init(jsonKey: "attendanceEmailTo", storeKey: "AttendanceEmail.to", store: .synced, type: .string,
               defaultValue: ""),
         .init(jsonKey: "attendanceEmailFrom", storeKey: "AttendanceEmail.from", store: .synced, type: .string,
-              defaultValue: "")
+              defaultValue: ""),
+        .init(jsonKey: "attendanceEmailNameOrder", storeKey: "AttendanceEmail.nameOrder", store: .synced,
+              type: .string, defaultValue: AttendanceEmailNameOrder.firstLast.rawValue),
+        .init(jsonKey: "attendanceEmailGroupByLevel", storeKey: "AttendanceEmail.groupByLevel", store: .synced,
+              type: .bool, defaultValue: false)
     ]
 
     // MARK: - Export

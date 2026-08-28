@@ -26,6 +26,8 @@ Identified and migrated the following preferences to sync across devices:
 - `AttendanceEmail.enabled` - Email feature toggle
 - `AttendanceEmail.to` - Recipient email address
 - `AttendanceEmail.from` - Sender email address
+- `AttendanceEmail.nameOrder` - Name order in the report body (`firstLast` / `lastFirst`)
+- `AttendanceEmail.groupByLevel` - Group the report by level (Upper Elementary, then Adolescent)
 - `LessonAge.warningDays` - Lesson age warning threshold
 - `LessonAge.overdueDays` - Lesson age overdue threshold
 - `LessonAge.freshColorHex` - Fresh lesson color

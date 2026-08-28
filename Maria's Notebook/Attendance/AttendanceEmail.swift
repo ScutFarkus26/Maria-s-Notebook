@@ -14,6 +14,78 @@ public enum AttendanceEmailPrefs {
     public static let enabledKey = "AttendanceEmail.enabled"
     public static let toKey = "AttendanceEmail.to"
     public static let fromKey = "AttendanceEmail.from" // iOS preferred sending address
+    public static let nameOrderKey = "AttendanceEmail.nameOrder"
+    public static let groupByLevelKey = "AttendanceEmail.groupByLevel"
+}
+
+// MARK: - Report Formatting
+
+/// How each student's name is written — and sorted — in the report body.
+public enum AttendanceEmailNameOrder: String, CaseIterable, Identifiable, Sendable {
+    case firstLast
+    case lastFirst
+
+    public var id: String { rawValue }
+
+    public var title: String {
+        switch self {
+        case .firstLast: return "First Last"
+        case .lastFirst: return "Last, First"
+        }
+    }
+}
+
+/// The levels the report groups by, listed in the order their groups appear.
+/// - CDNote: Raw values match `CDStudent.Level`, so a student's level maps straight across.
+///   Lower Elementary trails because that class transferred out; any straggler belongs last.
+public enum AttendanceEmailLevel: String, CaseIterable, Sendable {
+    case upper = "Upper"
+    case adolescent = "Adolescent"
+    case lower = "Lower"
+
+    public var title: String {
+        switch self {
+        case .upper: return "Upper Elementary"
+        case .adolescent: return "Adolescent"
+        case .lower: return "Lower Elementary"
+        }
+    }
+}
+
+/// One student on the report. The name stays split so the body can reorder and group it.
+public struct AttendanceEmailStudent: Sendable, Hashable {
+    public let firstName: String
+    public let lastName: String
+    /// nil when the student's level isn't one the report groups by.
+    public let level: AttendanceEmailLevel?
+
+    public init(firstName: String, lastName: String, level: AttendanceEmailLevel?) {
+        self.firstName = firstName
+        self.lastName = lastName
+        self.level = level
+    }
+
+    /// The name written in the requested order, tolerating a missing half.
+    public func name(order: AttendanceEmailNameOrder) -> String {
+        let first = firstName.trimmed()
+        let last = lastName.trimmed()
+        guard !first.isEmpty else { return last }
+        guard !last.isEmpty else { return first }
+        switch order {
+        case .firstLast: return "\(first) \(last)"
+        case .lastFirst: return "\(last), \(first)"
+        }
+    }
+}
+
+extension AttendanceEmailStudent {
+    init(_ student: CDStudent) {
+        self.init(
+            firstName: student.firstName,
+            lastName: student.lastName,
+            level: AttendanceEmailLevel(rawValue: student.level.rawValue)
+        )
+    }
 }
 
 // MARK: - Report Generator
@@ -27,29 +99,79 @@ public struct AttendanceEmailReport {
     }
 
     public static func makeBody(
-        present: [String],
-        tardy: [String],
-        absent: [String],
+        present: [AttendanceEmailStudent],
+        tardy: [AttendanceEmailStudent],
+        absent: [AttendanceEmailStudent],
         date: Date,
-        calendar: Calendar = .current
+        calendar: Calendar = .current,
+        nameOrder: AttendanceEmailNameOrder = .firstLast,
+        groupByLevel: Bool = false
     ) -> String {
         var lines: [String] = []
         lines.append("Attendance Report")
         lines.append(DateFormatters.fullDate.string(from: calendar.startOfDay(for: date)))
         lines.append("")
-        func section(_ title: String, names: [String]) {
-            lines.append("\(title) (\(names.count)):")
-            if names.isEmpty {
-                lines.append("  — none —")
-            } else {
-                for n in names { lines.append("  • \(n)") }
-            }
-            lines.append("")
+        for (title, students) in [("On Time", present), ("Tardy", tardy), ("Absent", absent)] {
+            lines += sectionLines(
+                title,
+                students: students,
+                nameOrder: nameOrder,
+                groupByLevel: groupByLevel
+            )
         }
-        section("On Time", names: present)
-        section("Tardy", names: tardy)
-        section("Absent", names: absent)
         return lines.joined(separator: "\n")
+    }
+
+    private static func sectionLines(
+        _ title: String,
+        students: [AttendanceEmailStudent],
+        nameOrder: AttendanceEmailNameOrder,
+        groupByLevel: Bool
+    ) -> [String] {
+        var lines = ["\(title) (\(students.count)):"]
+        if students.isEmpty {
+            lines.append("  — none —")
+        } else if groupByLevel {
+            for group in grouped(students, by: nameOrder) {
+                lines.append("  \(group.title) (\(group.students.count)):")
+                lines += group.students.map { "    • \($0.name(order: nameOrder))" }
+            }
+        } else {
+            lines += sorted(students, by: nameOrder).map { "  • \($0.name(order: nameOrder))" }
+        }
+        lines.append("")
+        return lines
+    }
+
+    /// Sorts on the field the chosen name order leads with, so the list reads in order.
+    static func sorted(
+        _ students: [AttendanceEmailStudent],
+        by order: AttendanceEmailNameOrder
+    ) -> [AttendanceEmailStudent] {
+        let lead: KeyPath<AttendanceEmailStudent, String>
+        let follow: KeyPath<AttendanceEmailStudent, String>
+        switch order {
+        case .firstLast: (lead, follow) = (\.firstName, \.lastName)
+        case .lastFirst: (lead, follow) = (\.lastName, \.firstName)
+        }
+        return students.sorted { lhs, rhs in
+            let leading = lhs[keyPath: lead].localizedCaseInsensitiveCompare(rhs[keyPath: lead])
+            if leading != .orderedSame { return leading == .orderedAscending }
+            return lhs[keyPath: follow].localizedCaseInsensitiveCompare(rhs[keyPath: follow]) == .orderedAscending
+        }
+    }
+
+    /// Level groups in report order, dropping levels nobody is in. A student whose level
+    /// isn't one the report knows about lands in a trailing "Other" group rather than vanishing.
+    static func grouped(
+        _ students: [AttendanceEmailStudent],
+        by order: AttendanceEmailNameOrder
+    ) -> [(title: String, students: [AttendanceEmailStudent])] {
+        var groups = AttendanceEmailLevel.allCases.map { level in
+            (title: level.title, students: sorted(students.filter { $0.level == level }, by: order))
+        }
+        groups.append((title: "Other", students: sorted(students.filter { $0.level == nil }, by: order)))
+        return groups.filter { !$0.students.isEmpty }
     }
 }
 
@@ -67,6 +189,16 @@ public enum AttendanceEmail {
         let s = SyncedPreferencesStore.shared.string(forKey: AttendanceEmailPrefs.fromKey)?.trimmed()
         guard let s, !s.isEmpty else { return nil }
         return s
+    }
+
+    /// Falls back to "First Last" so an unset preference reads the way the report always has.
+    public static func storedNameOrder() -> AttendanceEmailNameOrder {
+        let raw = SyncedPreferencesStore.shared.string(forKey: AttendanceEmailPrefs.nameOrderKey)
+        return raw.flatMap(AttendanceEmailNameOrder.init(rawValue:)) ?? .firstLast
+    }
+
+    public static func storedGroupByLevel() -> Bool {
+        SyncedPreferencesStore.shared.bool(forKey: AttendanceEmailPrefs.groupByLevelKey)
     }
 
     /// Indicates whether the current platform can compose/send email using the built-in mechanisms.
@@ -104,10 +236,11 @@ public enum AttendanceEmail {
         AttendanceEmailReport.makeSubject(for: date, calendar: calendar)
     }
 
+    /// Builds the body using the teacher's stored name-order and grouping preferences.
     public static func makeBody(
-        present: [String],
-        tardy: [String],
-        absent: [String],
+        present: [AttendanceEmailStudent],
+        tardy: [AttendanceEmailStudent],
+        absent: [AttendanceEmailStudent],
         date: Date,
         calendar: Calendar = .current
     ) -> String {
@@ -116,7 +249,9 @@ public enum AttendanceEmail {
             tardy: tardy,
             absent: absent,
             date: date,
-            calendar: calendar
+            calendar: calendar,
+            nameOrder: storedNameOrder(),
+            groupByLevel: storedGroupByLevel()
         )
     }
 
@@ -139,9 +274,9 @@ public enum AttendanceEmail {
     ///   presenting. If unavailable, consider using
     ///   `mailtoURLForCurrentPrefs(...)` as a fallback.
     public static func composerForCurrentPrefs(
-        present: [String],
-        tardy: [String],
-        absent: [String],
+        present: [AttendanceEmailStudent],
+        tardy: [AttendanceEmailStudent],
+        absent: [AttendanceEmailStudent],
         date: Date = Date(),
         calendar: Calendar = .current,
         onComplete: @escaping (MFMailComposeResult, Error?) -> Void
@@ -168,9 +303,9 @@ public enum AttendanceEmail {
 
     #if os(macOS)
     public static func sendUsingMailAppForCurrentPrefs(
-        present: [String],
-        tardy: [String],
-        absent: [String],
+        present: [AttendanceEmailStudent],
+        tardy: [AttendanceEmailStudent],
+        absent: [AttendanceEmailStudent],
         date: Date = Date(),
         calendar: Calendar = .current,
         completion: @escaping (Bool) -> Void
@@ -196,9 +331,9 @@ public enum AttendanceEmail {
     /// - CDNote: Use this as a fallback when
     ///   NSSharingService(.composeEmail) is unavailable.
     public static func openMailtoFallbackForCurrentPrefs(
-        present: [String],
-        tardy: [String],
-        absent: [String],
+        present: [AttendanceEmailStudent],
+        tardy: [AttendanceEmailStudent],
+        absent: [AttendanceEmailStudent],
         date: Date = Date(),
         calendar: Calendar = .current
     ) -> Bool {
@@ -231,10 +366,45 @@ public struct AttendanceEmailSettingsView: View {
     @SyncedAppStorage(AttendanceEmailPrefs.enabledKey) private var enabled: Bool = true
     @SyncedAppStorage(AttendanceEmailPrefs.toKey) private var toAddress: String = ""
     @SyncedAppStorage(AttendanceEmailPrefs.fromKey) private var fromAddress: String = ""
+    @SyncedAppStorage(AttendanceEmailPrefs.groupByLevelKey) private var groupByLevel: Bool = false
+    @SyncedAppStorage(AttendanceEmailPrefs.nameOrderKey)
+    private var nameOrderRaw: String = AttendanceEmailNameOrder.firstLast.rawValue
 
     public init() {}
 
+    /// SyncedAppStorage stores primitives, so the picker reads and writes the raw value.
+    private var nameOrder: Binding<AttendanceEmailNameOrder> {
+        Binding(
+            get: { AttendanceEmailNameOrder(rawValue: nameOrderRaw) ?? .firstLast },
+            set: { nameOrderRaw = $0.rawValue }
+        )
+    }
+
+    private var nameOrderPicker: some View {
+        Picker("Name order", selection: nameOrder) {
+            ForEach(AttendanceEmailNameOrder.allCases) { order in
+                Text(order.title).tag(order)
+            }
+        }
+    }
+
+    private var groupingFootnote: some View {
+        Text("Grouping lists Upper Elementary first, then Adolescents.")
+            .font(.footnote)
+            .foregroundStyle(.secondary)
+    }
+
     public var body: some View {
+        platformBody
+            .onChange(of: enabled) { _, _ in SettingsCategory.markModified(.communication) }
+            .onChange(of: toAddress) { _, _ in SettingsCategory.markModified(.communication) }
+            .onChange(of: fromAddress) { _, _ in SettingsCategory.markModified(.communication) }
+            .onChange(of: nameOrderRaw) { _, _ in SettingsCategory.markModified(.communication) }
+            .onChange(of: groupByLevel) { _, _ in SettingsCategory.markModified(.communication) }
+    }
+
+    @ViewBuilder
+    private var platformBody: some View {
         #if os(macOS)
         VStack(alignment: .leading, spacing: 12) {
             LabeledContent("Attendance email") {
@@ -249,20 +419,26 @@ public struct AttendanceEmailSettingsView: View {
                 Text("Default Mail account")
                     .foregroundStyle(.secondary)
             }
+            LabeledContent("Name order") {
+                nameOrderPicker
+                    .labelsHidden()
+                    .pickerStyle(.segmented)
+                    .frame(maxWidth: 260)
+            }
+            LabeledContent("Group by level") {
+                Toggle("Group by level", isOn: $groupByLevel)
+                    .labelsHidden()
+            }
+            groupingFootnote
             Text("You can enter multiple addresses separated by commas or semicolons.")
                 .font(.footnote)
                 .foregroundStyle(.secondary)
         }
-        .onChange(of: enabled) { _, _ in SettingsCategory.markModified(.communication) }
-        .onChange(of: toAddress) { _, _ in SettingsCategory.markModified(.communication) }
         #else
         Form {
             Section("Attendance Email") {
                 Toggle("Show 'Send Attendance Email' Button", isOn: $enabled)
                 TextField("Send To", text: $toAddress)
-                #if os(macOS)
-                .help("You can enter multiple addresses separated by commas or semicolons.")
-                #endif
                 #if os(iOS)
                     .textContentType(.emailAddress)
                     .keyboardType(.emailAddress)
@@ -279,16 +455,17 @@ public struct AttendanceEmailSettingsView: View {
                 TextField("Preferred 'From' Address (iOS only)", text: $fromAddress)
                     .disabled(true)
                     .foregroundStyle(.secondary)
-                    .help("macOS uses your default Mail account; this setting applies to iOS only.")
                 #endif
                 Text("Note: iOS uses the preferred address when possible. macOS uses your default Mail account.")
                     .font(.footnote)
                     .foregroundStyle(.secondary)
             }
+            Section("Report Format") {
+                nameOrderPicker
+                Toggle("Group by Level", isOn: $groupByLevel)
+                groupingFootnote
+            }
         }
-        .onChange(of: enabled) { _, _ in SettingsCategory.markModified(.communication) }
-        .onChange(of: toAddress) { _, _ in SettingsCategory.markModified(.communication) }
-        .onChange(of: fromAddress) { _, _ in SettingsCategory.markModified(.communication) }
         #endif
     }
 }

@@ -36,6 +36,8 @@ enum UserDefaultsKeys {
     static let attendanceEmailEnabled = "AttendanceEmail.enabled"
     static let attendanceEmailTo = "AttendanceEmail.to"
     static let attendanceEmailFrom = "AttendanceEmail.from"
+    static let attendanceEmailNameOrder = "AttendanceEmail.nameOrder"
+    static let attendanceEmailGroupByLevel = "AttendanceEmail.groupByLevel"
     // Dynamic keys: "Attendance.locked.<yyyy-MM-dd>"
     
     // MARK: - CDLesson Age

@@ -42,6 +42,8 @@ public final class SyncedPreferencesStore {
         "AttendanceEmail.enabled",
         "AttendanceEmail.to",
         "AttendanceEmail.from",
+        "AttendanceEmail.nameOrder",
+        "AttendanceEmail.groupByLevel",
         
         // CDLesson Age Settings
         "LessonAge.warningDays",

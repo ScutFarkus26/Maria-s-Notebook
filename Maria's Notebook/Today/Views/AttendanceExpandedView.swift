@@ -223,9 +223,9 @@ struct AttendanceExpandedView: View {
         .sheet(isPresented: $showMailSheet) {
 #if os(iOS)
             AttendanceEmail.composerForCurrentPrefs(
-                present: names(for: .present),
-                tardy: names(for: .tardy),
-                absent: names(for: .absent),
+                present: students(for: .present),
+                tardy: students(for: .tardy),
+                absent: students(for: .absent),
                 date: date
             ) { result, error in
                 switch result {
@@ -252,20 +252,23 @@ struct AttendanceExpandedView: View {
         localSortKey = viewModel.sortKey
     }
 
-    private func names(for status: AttendanceStatus) -> [String] {
+    private func students(for status: AttendanceStatus) -> [AttendanceEmailStudent] {
         filteredStudents.compactMap { s in
-            if let rec = viewModel.recordsByStudentID[s.cloudKitKey], rec.status == status {
-                return s.fullName
-            }
-            return nil
+            guard let rec = viewModel.recordsByStudentID[s.cloudKitKey], rec.status == status else { return nil }
+            return AttendanceEmailStudent(s)
         }
-        .sorted { $0.localizedCaseInsensitiveCompare($1) == .orderedAscending }
+    }
+
+    /// The status popover always reads "First Last", regardless of the email's own preference.
+    private func names(for status: AttendanceStatus) -> [String] {
+        AttendanceEmailReport.sorted(students(for: status), by: .firstLast)
+            .map { $0.name(order: .firstLast) }
     }
 
     func prepareAttendanceEmail() {
-        let present = names(for: .present)
-        let tardy = names(for: .tardy)
-        let absent = names(for: .absent)
+        let present = students(for: .present)
+        let tardy = students(for: .tardy)
+        let absent = students(for: .absent)
 #if os(iOS)
         if MFMailComposeViewController.canSendMail() {
             showMailSheet = true
