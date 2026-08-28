@@ -218,7 +218,11 @@ struct AlbumPDFViewer {
             guard let view = pdfView, let proxy = parent.proxy else { return }
             let has = (view.currentSelection?.string?.isEmpty == false)
             if proxy.hasSelection != has {
-                proxy.hasSelection = has
+                // Same bounce as pageChanged: PDFKit posts this mid-layout
+                // (notably when Live Text OCR lands on scanned pages), and the
+                // highlight toolbar item reads this flag — mutating it inside
+                // AppKit's layout pass trips NSToolbarItemViewer's size assertion.
+                Task { @MainActor in proxy.hasSelection = has }
             }
         }
 
