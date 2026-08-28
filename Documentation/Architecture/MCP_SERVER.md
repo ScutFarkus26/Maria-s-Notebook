@@ -76,6 +76,10 @@ ambiguity errors:
 | `create_observation` (write) | `CDNote` + `syncStudentLinks` + `safeSave`, mirroring `LogObservationIntent` |
 | `update_student` (write) | `StudentRepository.updateStudent` + `safeSave` — nickname, names, birthday, level; accepts a name or a student id |
 | `update_observation` (write) | `NoteRepository.updateNote` + `safeSave` — body, tags, follow-up and report flags, by note id |
+| `create_meeting_entry` (write) | `CDStudentMeeting` + `FocusItemService` + `safeSave`, mirroring `MeetingFormPane.saveAndContinue` — reflection, lesson requests, guide notes, goals-as-focus-items |
+| `add_follow_up` (write) | `CDTodoItem` + `TodoTagHelper.syncStudentTags` + `safeSave`, mirroring `NewTodoForm.createTodo` |
+| `resolve_follow_up` (write) | completes a `CDTodoItem` (refusing recurring todos, whose next occurrence only the app schedules) or resolves a `CDStudentFocusItem` by id |
+| `list_open_follow_ups` | open `CDTodoItem`s + active `CDStudentFocusItem`s + `needsFollowUp` notes, optionally filtered to one student |
 
 Deletes are deliberately not exposed; edits change only the fields provided
 and report exactly what changed.
@@ -117,6 +121,15 @@ tests use an in-memory stack.
 
 The same bridge works for Claude Code:
 `claude mcp add marias-notebook -- "/Users/dannydeberry/Developer/Maria's Notebook/Scripts/mcp/marias-notebook-mcp"`.
+The repo also carries a project-scope registration in `.mcp.json`, so Claude
+Code sessions opened in this repository pick the server up automatically
+(each client asks once for approval to use a project-scope server). The
+app-side toggle in step 1 must still be on, or every client sees the
+bridge's "not listening" error.
+
+Note that Claude Desktop re-writes `claude_desktop_config.json` while it
+runs; edit it only while Claude Desktop is quit, or the `mcpServers` entry
+can be lost.
 
 ## Security posture
 
@@ -127,10 +140,11 @@ The same bridge works for Claude Code:
   processes that cannot read `~/.marias-notebook/mcp.token` (`0600`) get
   nothing. Same-user processes could read the token — but they already
   have equivalent reach on a single-user Mac; this is not a new boundary.
-- Claude Desktop prompts the teacher before each tool call; the only write
-  tool creates observation notes through the app's normal save path
-  (CloudKit mirroring, follow-up inbox, student links all behave as if the
-  note were typed in-app).
+- Claude Desktop prompts the teacher before each tool call; the write
+  tools (observations, student edits, meeting entries, follow-ups) all go
+  through the app's normal save paths (CloudKit mirroring, follow-up
+  inbox, student links all behave as if entered in-app), and none can
+  delete.
 
 ## Testing
 
@@ -140,6 +154,9 @@ The same bridge works for Claude Code:
 - `Maria's Notebook Tests/Services/MCPServer/MCPNotebookToolsTests.swift`
   — tools against an in-memory stack (roster, scoped note reads, the
   observation write path, ambiguity handling).
+- `Maria's Notebook Tests/Services/MCPServer/MCPMeetingToolsTests.swift`
+  — meeting entries, follow-up todos, goal resolution, and the open
+  follow-ups listing.
 - End-to-end smoke test from a shell (app running, toggle on):
 
   ```bash

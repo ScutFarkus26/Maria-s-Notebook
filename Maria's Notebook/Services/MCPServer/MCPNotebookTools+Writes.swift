@@ -208,7 +208,7 @@ extension MCPNotebookTools {
     /// Resolves a student from a tool argument that may be either an exact
     /// UUID (from list_students) or a name/nickname.
     @MainActor
-    private static func resolveStudentReference(
+    static func resolveStudentReference(
         _ reference: String, in modelContext: NSManagedObjectContext
     ) throws -> CDStudent {
         if let id = UUID(uuidString: reference) {

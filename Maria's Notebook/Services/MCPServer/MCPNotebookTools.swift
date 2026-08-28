@@ -34,7 +34,11 @@ enum MCPNotebookTools {
             albumPageTool(),
             createObservationTool(context: context),
             updateStudentTool(context: context),
-            updateObservationTool(context: context)
+            updateObservationTool(context: context),
+            createMeetingEntryTool(context: context),
+            addFollowUpTool(context: context),
+            resolveFollowUpTool(context: context),
+            listOpenFollowUpsTool(context: context)
         ]
     }
 }

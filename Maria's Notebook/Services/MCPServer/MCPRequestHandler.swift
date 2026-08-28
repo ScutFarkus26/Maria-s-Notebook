@@ -89,9 +89,10 @@ struct MCPRequestHandler: Sendable {
 
     private static let serverInstructions = """
         Maria's Notebook is a Montessori classroom management app. These tools read and record \
-        real classroom data — students, lesson presentations, observations, work, attendance, \
-        and todos — from the teacher's live notebook. Dates use ISO 8601 (YYYY-MM-DD). \
-        Treat student information as sensitive and only surface what the teacher asks for.
+        real classroom data — students, lesson presentations, observations, student meetings, \
+        follow-ups, work, attendance, and todos — from the teacher's live notebook. Dates use \
+        ISO 8601 (YYYY-MM-DD). Treat student information as sensitive and only surface what \
+        the teacher asks for.
         """
 
     // MARK: - Tools
