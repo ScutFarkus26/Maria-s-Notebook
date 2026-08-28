@@ -296,12 +296,17 @@ private struct YearTotals {
 
 extension AttendanceStudentHistorySheet {
     private func computeYearTotals() -> YearTotals {
-        let cal = AppCalendar.shared
         var totals = YearTotals()
-        let now = Date()
-        guard let yearAgo = cal.date(byAdding: .year, value: -1, to: now) else { return totals }
+        // The current school year, not a trailing 365-day window: totals reset at the
+        // configured year start instead of carrying last year's marks into the fall.
+        let schoolYear = SchoolYear.containing(
+            Date(),
+            startMonth: FloridaGradeCalculator.schoolStartMonth,
+            startDay: FloridaGradeCalculator.schoolStartDay,
+            calendar: AppCalendar.shared
+        )
         for record in records {
-            guard let date = record.date, date >= yearAgo else { continue }
+            guard let date = record.date, schoolYear.range.contains(date) else { continue }
             switch record.status {
             case .present: totals.present += 1
             case .absent: totals.absent += 1
