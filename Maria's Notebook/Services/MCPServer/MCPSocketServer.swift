@@ -20,6 +20,7 @@
 import Foundation
 import Network
 import OSLog
+import Synchronization
 
 /// Accepts local TCP connections, checks the auth token, and runs the MCP
 /// message loop for each client.
@@ -31,23 +32,37 @@ actor MCPSocketServer {
     private let port: UInt16
     private let authToken: String
     private let requestHandler: MCPRequestHandler
+    /// Called if the listener dies after it was ready (never for a plain
+    /// `stop()`), so the owning service can stop reporting "listening".
+    private let onFailure: (@Sendable (String) -> Void)?
     private let queue = DispatchQueue(label: "mcp-server.socket")
     private let logger = Logger.app(category: "MCPServer")
 
     private var listener: NWListener?
     private var connectionTasks: [ObjectIdentifier: Task<Void, Never>] = [:]
 
-    init(port: UInt16, authToken: String, requestHandler: MCPRequestHandler) {
+    init(
+        port: UInt16,
+        authToken: String,
+        requestHandler: MCPRequestHandler,
+        onFailure: (@Sendable (String) -> Void)? = nil
+    ) {
         self.port = port
         self.authToken = authToken
         self.requestHandler = requestHandler
+        self.onFailure = onFailure
     }
 
     var isRunning: Bool { listener != nil }
 
     // MARK: - Lifecycle
 
-    func start() throws {
+    /// Returns once the listener is actually accepting connections, and
+    /// throws if the bind fails — e.g. the port is already held by another
+    /// running copy of the app. NWListener only reports that asynchronously,
+    /// so a fire-and-forget start would look successful while nothing
+    /// listens.
+    func start() async throws {
         guard listener == nil else { return }
 
         let parameters = NWParameters.tcp
@@ -59,22 +74,50 @@ actor MCPSocketServer {
         parameters.allowLocalEndpointReuse = true
 
         let listener = try NWListener(using: parameters)
-        listener.stateUpdateHandler = { [weak self, port, logger] state in
-            switch state {
-            case .ready:
-                logger.info("MCP server listening on 127.0.0.1:\(port, privacy: .public)")
-            case .failed(let error):
-                logger.error("MCP listener failed: \(error, privacy: .public)")
-                Task { [weak self] in await self?.stop() }
-            default:
-                break
-            }
-        }
         listener.newConnectionHandler = { [weak self] connection in
             Task { [weak self] in await self?.adopt(connection) }
         }
-        listener.start(queue: queue)
         self.listener = listener
+
+        // The continuation must resume exactly once, but the handler keeps
+        // firing for the listener's whole life; the mutex claims the first
+        // terminal transition and later ones take the running-failure path.
+        let resumed = Mutex(false)
+        @Sendable func claimFirstTransition() -> Bool {
+            resumed.withLock { alreadyResumed in
+                if alreadyResumed { return false }
+                alreadyResumed = true
+                return true
+            }
+        }
+
+        do {
+            try await withCheckedThrowingContinuation { (continuation: CheckedContinuation<Void, Error>) in
+                listener.stateUpdateHandler = { [weak self, port, logger] state in
+                    switch state {
+                    case .ready:
+                        logger.notice("MCP server listening on 127.0.0.1:\(port, privacy: .public)")
+                        if claimFirstTransition() { continuation.resume() }
+                    case .failed(let error):
+                        logger.error("MCP listener failed: \(error, privacy: .public)")
+                        if claimFirstTransition() {
+                            continuation.resume(throwing: error)
+                        } else {
+                            Task { [weak self] in await self?.listenerDidFail(error.localizedDescription) }
+                        }
+                    case .cancelled:
+                        if claimFirstTransition() { continuation.resume(throwing: CancellationError()) }
+                    default:
+                        break
+                    }
+                }
+                listener.start(queue: queue)
+            }
+        } catch {
+            self.listener = nil
+            listener.cancel()
+            throw error
+        }
     }
 
     func stop() {
@@ -102,6 +145,13 @@ actor MCPSocketServer {
 
     private func forget(_ id: ObjectIdentifier) {
         connectionTasks[id] = nil
+    }
+
+    /// A ready listener died on its own (not via `stop()`); tear down and
+    /// tell the owner so status stops claiming the server is listening.
+    private func listenerDidFail(_ message: String) {
+        stop()
+        onFailure?(message)
     }
 
     /// Reads newline-delimited messages and writes back responses until
@@ -132,7 +182,10 @@ actor MCPSocketServer {
                             return
                         }
                         authenticated = true
-                        logger.info("MCP client connected")
+                        // notice, not info: info never reaches the log
+                        // archive, and "did a client ever connect" is the
+                        // first question when diagnosing this feature.
+                        logger.notice("MCP client connected")
                         continue
                     }
 
@@ -146,7 +199,7 @@ actor MCPSocketServer {
             // Disconnects surface as receive/send errors; nothing to do.
         }
         if authenticated {
-            logger.info("MCP client disconnected")
+            logger.notice("MCP client disconnected")
         }
     }
 

@@ -1,0 +1,8 @@
+{
+  "mcpServers": {
+    "marias-notebook": {
+      "type": "stdio",
+      "command": "/Users/dannydeberry/Developer/Maria's Notebook/Scripts/mcp/marias-notebook-mcp"
+    }
+  }
+}

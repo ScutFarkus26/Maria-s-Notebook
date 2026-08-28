@@ -26,6 +26,9 @@ final class MCPServerService {
     private(set) var lastError: String?
 
     private var server: MCPSocketServer?
+    /// Identifies the start attempt each async status update belongs to,
+    /// so a stale readiness or failure can't clobber a newer server's state.
+    private var currentServerID: UUID?
     private let logger = Logger.app(category: "MCPServer")
 
     private init() {}
@@ -62,16 +65,25 @@ final class MCPServerService {
             let version = Bundle.main.object(forInfoDictionaryKey: "CFBundleShortVersionString") as? String
                 ?? "1.0"
             let handler = MCPRequestHandler(serverVersion: version, tools: MCPNotebookTools.makeTools())
-            let server = MCPSocketServer(port: Self.port, authToken: token, requestHandler: handler)
+            let serverID = UUID()
+            let server = MCPSocketServer(port: Self.port, authToken: token, requestHandler: handler) { message in
+                Task { @MainActor in
+                    MCPServerService.shared.serverDidFail(id: serverID, message: message)
+                }
+            }
             self.server = server
+            currentServerID = serverID
             Task {
                 do {
                     try await server.start()
+                    guard currentServerID == serverID else { return }
                     isRunning = true
                     lastError = nil
                 } catch {
                     logger.error("MCP server failed to start: \(error, privacy: .public)")
+                    guard currentServerID == serverID else { return }
                     self.server = nil
+                    currentServerID = nil
                     isRunning = false
                     lastError = error.localizedDescription
                 }
@@ -85,8 +97,20 @@ final class MCPServerService {
     private func stop() {
         guard let server else { return }
         self.server = nil
+        currentServerID = nil
         isRunning = false
         Task { await server.stop() }
+    }
+
+    /// A previously-ready listener died (the socket server already tore
+    /// itself down); surface that in Settings instead of a stale green
+    /// "Listening" row.
+    private func serverDidFail(id: UUID, message: String) {
+        guard currentServerID == id else { return }
+        server = nil
+        currentServerID = nil
+        isRunning = false
+        lastError = message
     }
 
     /// Returns the persistent per-install auth token, creating it (0600,
