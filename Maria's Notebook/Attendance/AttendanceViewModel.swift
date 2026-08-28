@@ -12,10 +12,27 @@ final class AttendanceViewModel {
     var recordsByStudentID: [String: CDAttendanceRecord] = [:]
 
     enum SortKey: String, CaseIterable { case firstName, lastName }
-    var sortKey: SortKey = .lastName
+
+    /// The picker's last choice, remembered across launches (and across devices, since the key syncs).
+    static let sortKeyPreferenceKey = "Attendance.sortKey"
+
+    private(set) var sortKey: SortKey = AttendanceViewModel.storedSortKey()
 
     init(selectedDate: Date = Date()) {
         self.selectedDate = selectedDate.normalizedDay()
+    }
+
+    /// Reads the stored sort choice, falling back to last name for a notebook that has never set one.
+    static func storedSortKey() -> SortKey {
+        let raw = SyncedPreferencesStore.shared.string(forKey: sortKeyPreferenceKey)
+        return raw.flatMap(SortKey.init(rawValue:)) ?? .lastName
+    }
+
+    /// Changes the sort and writes it back, so reopening attendance lands on the same order.
+    func setSortKey(_ newValue: SortKey) {
+        guard newValue != sortKey else { return }
+        sortKey = newValue
+        SyncedPreferencesStore.shared.set(newValue.rawValue, forKey: Self.sortKeyPreferenceKey)
     }
 
     // MARK: - Filtering

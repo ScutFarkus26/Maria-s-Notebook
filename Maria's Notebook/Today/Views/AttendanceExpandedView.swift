@@ -32,7 +32,7 @@ struct AttendanceExpandedView: View {
     @State var showingAbsenceReport = false
     @State private var toastMessage: String?
     @State var isEditing: Bool = true
-    @State var localSortKey: AttendanceViewModel.SortKey = .lastName
+    @State var localSortKey: AttendanceViewModel.SortKey = AttendanceViewModel.storedSortKey()
     @State private var activeChipPopover: AttendanceStatus?
 
     // Persistence for locking
@@ -211,7 +211,7 @@ struct AttendanceExpandedView: View {
         }
         .onChange(of: localSortKey) { _, newValue in
             Task { @MainActor in
-                viewModel.sortKey = newValue
+                viewModel.setSortKey(newValue)
             }
         }
         .sheet(isPresented: $showingTardyReport) {
