@@ -243,7 +243,11 @@ extension WorkDetailView {
 
     func deleteWork() {
         viewModel.deleteWork(modelContext: modelContext, saveCoordinator: saveCoordinator) {
-            close()
+            // Closed on the next turn, not inside the alert's own action: a
+            // dismissal issued while the alert is still tearing itself down is
+            // swallowed, and the window this was deleted from stays open over a
+            // work item that no longer exists.
+            Task { @MainActor in close() }
         }
     }
 
