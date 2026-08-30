@@ -1,43 +1,100 @@
 // WeekDayColumn+Bands.swift
-// The two bands a day column draws: ordered presentations on top, grouped work
-// check-ins below. Split out because the column is at SwiftLint's type-length
-// limit — see WeekDayColumn.swift for the state they read.
+// The two lanes a day column draws, side by side: ordered presentations on the
+// left, grouped work check-ins on the right. Split out because the column is at
+// SwiftLint's type-length limit — see WeekDayColumn.swift for the state they
+// read.
+//
+// Each lane keeps its header and its own placeholder even when empty. A lane
+// that vanished when it had nothing in it would make the day reflow every time
+// the last check-in was cleared, and would leave no target to aim a drag at.
 
 import SwiftUI
 import CoreData
 
 extension WeekDayColumn {
-    @ViewBuilder
-    var presentationBand: some View {
-        if !scheduledLessonsForDay.isEmpty {
-            if !visibleCheckInGroups.isEmpty {
-                bandLabel("Presenting")
-            }
+    var presentationLane: some View {
+        lane(
+            title: "Presenting",
+            count: scheduledLessonsForDay.count,
+            placeholder: "Drag a presentation here"
+        ) {
             ForEach(scheduledLessonsForDay, id: \.objectID) { la in
                 presentationCard(la)
             }
         }
     }
 
-    @ViewBuilder
-    var checkInBand: some View {
-        if !visibleCheckInGroups.isEmpty {
-            if !scheduledLessonsForDay.isEmpty {
-                bandLabel("Checking work")
-                    .padding(.top, 4)
-            }
+    var checkInLane: some View {
+        lane(
+            title: "Checking work",
+            count: visibleCheckInGroups.reduce(0) { $0 + $1.checkIns.count },
+            placeholder: "Drag work here"
+        ) {
             ForEach(visibleCheckInGroups) { group in
                 checkInPill(group)
             }
         }
     }
 
-    func bandLabel(_ text: String) -> some View {
-        Text(text.uppercased())
-            .font(.caption2.weight(.semibold))
-            .tracking(0.6)
-            .foregroundStyle(.tertiary)
-            .padding(.horizontal, 4)
+    /// One lane: a header that stays put, then whatever the lane holds.
+    ///
+    /// Lazy inside, because a day can carry a classroom's worth of either kind
+    /// and both lanes are built for every visible day.
+    @ViewBuilder
+    func lane<Content: View>(
+        title: String,
+        count: Int,
+        placeholder: String,
+        @ViewBuilder content: () -> Content
+    ) -> some View {
+        VStack(alignment: .leading, spacing: 6) {
+            laneHeader(title, count: count)
+            if count == 0 {
+                // Given shape rather than a bare line of text: the lanes are
+                // top-aligned, so an empty one next to a full one would
+                // otherwise be a sentence floating beside a column of cards,
+                // with nothing that reads as somewhere to drop.
+                Text(placeholder)
+                    .font(.caption)
+                    .foregroundStyle(.tertiary)
+                    .padding(8)
+                    .frame(maxWidth: .infinity, minHeight: 64, alignment: .topLeading)
+                    .background(
+                        RoundedRectangle(cornerRadius: 8, style: .continuous)
+                            .strokeBorder(
+                                Color.primary.opacity(UIConstants.OpacityConstants.veryFaint),
+                                style: StrokeStyle(lineWidth: 1, dash: [4, 3])
+                            )
+                    )
+            } else {
+                LazyVStack(alignment: .leading, spacing: 6) {
+                    content()
+                }
+            }
+        }
+        // Fixed when the lanes share the day, so the two halves line up down
+        // the whole strip; free when a lane is alone, so it keeps the full
+        // width the column always had.
+        .frame(
+            width: showsBothLanes ? WeekDayColumn.laneWidth : nil,
+            alignment: .leading
+        )
+        .frame(maxWidth: showsBothLanes ? WeekDayColumn.laneWidth : .infinity, alignment: .leading)
+    }
+
+    func laneHeader(_ text: String, count: Int) -> some View {
+        HStack(spacing: 4) {
+            Text(text.uppercased())
+                .font(.caption2.weight(.semibold))
+                .tracking(0.6)
+            if count > 0 {
+                Text("\(count)")
+                    .font(.caption2.weight(.semibold))
+                    .monospacedDigit()
+            }
+        }
+        .foregroundStyle(.tertiary)
+        .padding(.horizontal, 4)
     }
 
     func presentationCard(_ la: CDLessonAssignment) -> some View {
@@ -118,8 +175,13 @@ extension WeekDayColumn {
 
     @ViewBuilder
     var insertionIndicator: some View {
-        if let idx = insertionIndex {
-            GeometryReader { proxy in
+        // Nothing to insert into when the Show filter has hidden presentations,
+        // and the bar would otherwise draw across the work lane.
+        if let idx = insertionIndex, visibleKinds.showsPresentations {
+            // Still a GeometryReader, though the width now comes from the lane
+            // rather than the proxy: it is what gives the bar a full-size
+            // container to be `.position`ed inside.
+            GeometryReader { _ in
                 let sortedFrames = scheduledLessonsForDay
                     .compactMap { la -> CGRect? in la.id.flatMap { itemFrames[$0] } }
                     .sorted { $0.minY < $1.minY }
@@ -136,10 +198,14 @@ extension WeekDayColumn {
                     }
                 }()
 
+                // Over the presentation lane only — the ordering it previews
+                // has no meaning on the work side, and a full-width bar would
+                // claim it does.
+                let laneWidth = presentationLaneWidth
                 Capsule()
                     .fill(Color.accentColor)
-                    .frame(width: proxy.size.width - 24, height: 3)
-                    .position(x: proxy.size.width / 2, y: indicatorY)
+                    .frame(width: max(laneWidth - 8, 0), height: 3)
+                    .position(x: 8 + laneWidth / 2, y: indicatorY)
             }
             .allowsHitTesting(false)
         }

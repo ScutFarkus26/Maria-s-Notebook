@@ -44,7 +44,10 @@ struct WeekPlanSection: View {
     @State var selectedGroup: CalendarCheckInGroup?
     @State var prompt: WorkCheckInPlanPrompt?
 
-    static let visibleDayCount = 10
+    /// Days built into the strip at once. Halved when the day columns split in
+    /// two: at roughly twice the width, ten of them made a strip you scrolled
+    /// through rather than read, and the arrows already page the window.
+    static let visibleDayCount = 5
 
     var visibleKinds: CalendarKindFilter {
         CalendarKindFilter.resolved(rawValue: visibleKindsRaw)

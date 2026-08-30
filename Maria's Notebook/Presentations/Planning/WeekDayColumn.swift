@@ -1,13 +1,20 @@
 // WeekDayColumn.swift
 // One day in the merged Lessons & Work calendar.
 //
-// Two bands, and the split is deliberate. Presentations are ordered — dragging
-// one above another sets the sequence they will be given in, and dropping one
-// onto a same-lesson pill merges the two. Check-ins sit below, unordered and
-// grouped, because "sometime today" is all their position ever meant.
+// Two lanes side by side, and the split is deliberate. Presentations are
+// ordered — dragging one above another sets the sequence they will be given in,
+// and dropping one onto a same-lesson pill merges the two. Check-ins sit in
+// their own lane, unordered and grouped, because "sometime today" is all their
+// position ever meant.
 //
-// Both bands accept drops. Before the two calendars merged, this column parsed
-// a dropped work item and then discarded it, so the drag simply failed.
+// They used to be stacked bands in one scrolling lane, which meant a day with
+// six presentations hid its work checks below the fold — the two things a guide
+// compares when planning a day were the two things he could not see at once.
+//
+// The whole day is still ONE drop zone. Splitting the drop target as well would
+// invent a new way to fail: a presentation dropped on the work side would have
+// to be either refused or silently re-aimed. Instead the lanes are layout only,
+// and the delegate keeps routing by what was dragged, not by where it landed.
 
 import SwiftUI
 import CoreData
@@ -76,8 +83,36 @@ struct WeekDayColumn: View {
         return Set(counts.filter { $0.value >= 2 }.keys)
     }
 
-    private var isEmpty: Bool {
-        scheduledLessonsForDay.isEmpty && visibleCheckInGroups.isEmpty
+    /// One lane's width: exactly what a card had before the day split, so the
+    /// pills read the same as they always did. The day is therefore about twice
+    /// as wide and fewer of them fit on screen at once — the trade this split
+    /// is worth, and the reason `WeekPlanSection.visibleDayCount` came down
+    /// with it. Narrowing the cards instead was the first attempt and it made
+    /// them unreadable.
+    static let laneWidth: CGFloat = singleLaneWidth - zonePadding * 2
+    static let laneGutter: CGFloat = 10
+    /// What the column measured before it split, and what it goes back to when
+    /// the Show filter leaves only one kind on screen.
+    static let singleLaneWidth: CGFloat = 360
+    static let zonePadding: CGFloat = 8
+
+    /// Both lanes only when the Show filter is letting both kinds through —
+    /// filtering to Presentations should not leave half the day permanently
+    /// empty.
+    var showsBothLanes: Bool {
+        visibleKinds.showsPresentations && visibleKinds.showsWork
+    }
+
+    /// The presentation lane's own width, which the insertion indicator has to
+    /// match: full width when it is the only lane, one lane when it is not.
+    var presentationLaneWidth: CGFloat {
+        showsBothLanes ? Self.laneWidth : Self.singleLaneWidth - Self.zonePadding * 2
+    }
+
+    private var columnWidth: CGFloat {
+        showsBothLanes
+            ? Self.laneWidth * 2 + Self.laneGutter + Self.zonePadding * 2
+            : Self.singleLaneWidth
     }
 
     private var headerCountLabel: String {
@@ -107,7 +142,7 @@ struct WeekDayColumn: View {
                 }
                 .contentShape(RoundedRectangle(cornerRadius: 10))
                 .onDrop(of: [UTType.text], delegate: dropDelegate)
-                .frame(width: 360)
+                .frame(width: columnWidth)
                 .frame(maxHeight: .infinity)
         }
     }
@@ -163,18 +198,15 @@ struct WeekDayColumn: View {
 
             ScrollViewReader { scrollProxy in
                 ScrollView(.vertical, showsIndicators: true) {
-                    LazyVStack(alignment: .leading, spacing: 6) {
-                        if isEmpty {
-                            Text("Drag a presentation or work here")
-                                .font(.caption)
-                                .foregroundStyle(.secondary)
-                                .padding(8)
-                        } else {
-                            presentationBand
-                            checkInBand
+                    HStack(alignment: .top, spacing: Self.laneGutter) {
+                        if visibleKinds.showsPresentations {
+                            presentationLane
+                        }
+                        if visibleKinds.showsWork {
+                            checkInLane
                         }
                     }
-                    .padding(8)
+                    .padding(Self.zonePadding)
                 }
                 .task(id: focusScrollTrigger) {
                     guard let focusedPresentationID,
