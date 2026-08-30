@@ -2,7 +2,7 @@
 //  OpenStudentIntent.swift
 //  Maria's Notebook
 //
-//  Opens a student's profile. Powers "Open Maria in Maria's Notebook" and the
+//  Opens a student's profile. Powers "Open Maria in Montessori Daybook" and the
 //  tap action on a student that appears in Spotlight search results.
 //
 
@@ -11,7 +11,7 @@ import AppIntents
 struct OpenStudentIntent: OpenIntent {
     static let title: LocalizedStringResource = "Open Student"
     static let description = IntentDescription(
-        "Open a student's profile in Maria's Notebook.",
+        "Open a student's profile in Montessori Daybook.",
         categoryName: "Navigation"
     )
 

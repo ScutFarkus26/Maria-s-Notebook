@@ -1,7 +1,7 @@
 #!/bin/sh
 #
 # marias-notebook-mcp — stdio bridge between an MCP client (Claude Desktop,
-# Claude Code) and the MCP server inside the running Maria's Notebook app.
+# Claude Code) and the MCP server inside the running Montessori Daybook app.
 #
 # The app listens on loopback TCP (the App Sandbox cannot bind Unix
 # sockets anywhere external clients could reach without TCC prompts).
@@ -34,7 +34,7 @@ if ! port_open && [ -z "${MARIAS_NOTEBOOK_NO_AUTOLAUNCH:-}" ]; then
 fi
 
 if ! port_open; then
-    printf 'Maria'\''s Notebook MCP server is not listening on 127.0.0.1:%s\n' "$PORT" >&2
+    printf 'Montessori Daybook MCP server is not listening on 127.0.0.1:%s\n' "$PORT" >&2
     printf 'Open the app and enable Claude Desktop access in Settings, then retry.\n' >&2
     exit 1
 fi

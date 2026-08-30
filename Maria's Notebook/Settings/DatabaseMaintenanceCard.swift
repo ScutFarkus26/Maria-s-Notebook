@@ -128,7 +128,7 @@ struct DatabaseMaintenanceCard: View {
         .alert("Relaunch the app", isPresented: $showingRelaunchPrompt) {
             Button("OK", role: .cancel) { }
         } message: {
-            Text("Quit Maria's Notebook (⌘Q on Mac) and reopen it. The reset will run automatically.")
+            Text("Quit Montessori Daybook (⌘Q on Mac) and reopen it. The reset will run automatically.")
         }
         .confirmationDialog(
             "Use in-memory store next launch?",

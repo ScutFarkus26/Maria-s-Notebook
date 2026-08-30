@@ -10,7 +10,7 @@ struct OnboardingView: View {
     private let pages: [OnboardingPage] = [
         OnboardingPage(
             icon: "book.and.wrench.fill",
-            title: "Welcome to Maria's Notebook",
+            title: "Welcome to Montessori Daybook",
             description: "A comprehensive planning tool for Montessori and classroom educators."
                 + " Manage students, lessons, work tracking, and observations — all in one place.",
             accentColor: .blue

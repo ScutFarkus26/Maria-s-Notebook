@@ -210,12 +210,12 @@ struct DataManagementGrid: View {
         let count = prompt.fileCount
         if count == 0 {
             return "Manual backups are saving to “\(path)”, which looks unsafe. " +
-                   "Move to iCloud Drive › Maria's Notebook › Backups?"
+                   "Move to iCloud Drive › Montessori Daybook › Backups?"
         }
         let noun = count == 1 ? "backup" : "backups"
         return "\(count) \(noun) are saved in “\(path)”, which looks unsafe " +
                "(code repo, app bundle, or system folder). Move them to " +
-               "iCloud Drive › Maria's Notebook › Backups?"
+               "iCloud Drive › Montessori Daybook › Backups?"
     }
 
     private func handleMigrationResult(_ result: BackupFolderMigration.MoveResult) {

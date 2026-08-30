@@ -22,7 +22,7 @@ public enum LessonFileStorage {
         let extWithDot: String
     }
     /// Returns the root directory URL where lesson files are stored.
-    /// Uses the app's iCloud container Documents folder (visible in Finder as "Maria's Notebook") if available,
+    /// Uses the app's iCloud container Documents folder (visible in Finder as "Montessori Daybook") if available,
     /// otherwise falls back to the app's local Documents directory.
     /// Ensures the directory exists before returning.
     public static func lessonFilesDirectory() throws -> URL {
@@ -36,7 +36,7 @@ public enum LessonFileStorage {
                 .appendingPathComponent("Lesson Files", isDirectory: true)
 
             logger.debug("Using iCloud container path: \(lessonFilesURL.path)")
-            logger.debug("Visible in Finder as: iCloud Drive/Maria's Notebook/Lesson Files")
+            logger.debug("Visible in Finder as: iCloud Drive/Montessori Daybook/Lesson Files")
             try createDirectoryIfNeeded(at: lessonFilesURL)
             return lessonFilesURL
         }

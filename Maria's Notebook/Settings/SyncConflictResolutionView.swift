@@ -45,7 +45,7 @@ struct SyncConflictResolutionView: View {
                 SettingsGroup(title: "How Conflicts are Resolved", systemImage: "info.circle") {
                     VStack(alignment: .leading, spacing: 8) {
                         Text(
-                            "Maria's Notebook uses iCloud with SwiftData for syncing. "
+                            "Montessori Daybook uses iCloud with SwiftData for syncing. "
                             + "When the same record is edited on multiple devices, "
                             + "the most recent change wins automatically."
                         )

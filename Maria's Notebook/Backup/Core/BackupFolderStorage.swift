@@ -2,7 +2,7 @@ import Foundation
 import OSLog
 
 /// The app's managed backup folder, visible in Files / Finder under
-/// iCloud Drive › Maria's Notebook › Backups. Falls back to the local
+/// iCloud Drive › Montessori Daybook › Backups. Falls back to the local
 /// app sandbox `Documents/Backups/` when iCloud is unavailable.
 ///
 /// Mirrors the pattern used by `StoryFileStorage`, `LessonFileStorage`,
@@ -34,7 +34,7 @@ enum BackupFolderStorage {
     }
 
     /// Best-effort label for UI display. Returns the iCloud-relative path
-    /// when applicable (e.g. "iCloud Drive › Maria's Notebook › Backups"),
+    /// when applicable (e.g. "iCloud Drive › Montessori Daybook › Backups"),
     /// otherwise a local fallback label.
     static func displayLabel() -> String {
         guard let url = try? managedBackupsDirectory() else {
@@ -43,7 +43,7 @@ enum BackupFolderStorage {
         let fm = FileManager.default
         if let ubiquityURL = fm.url(forUbiquityContainerIdentifier: nil),
            url.path.hasPrefix(ubiquityURL.path) {
-            return "iCloud Drive › Maria's Notebook › \(folderName)"
+            return "iCloud Drive › Montessori Daybook › \(folderName)"
         }
         return "Documents › \(folderName)"
     }

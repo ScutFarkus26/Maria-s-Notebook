@@ -12,7 +12,7 @@ import AppIntents
 struct OpenLessonIntent: OpenIntent {
     static let title: LocalizedStringResource = "Open Lesson"
     static let description = IntentDescription(
-        "Open a lesson in Maria's Notebook.",
+        "Open a lesson in Montessori Daybook.",
         categoryName: "Navigation"
     )
 

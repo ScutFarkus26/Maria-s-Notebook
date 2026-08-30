@@ -9,7 +9,7 @@ import SwiftUI
 struct OpenTodayIntent: AppIntent {
     static let title: LocalizedStringResource = "Open Today"
     static let description = IntentDescription(
-        "Open the Today view in Maria's Notebook.",
+        "Open the Today view in Montessori Daybook.",
         categoryName: "Navigation"
     )
     static let openAppWhenRun: Bool = true
@@ -26,7 +26,7 @@ struct OpenTodayIntent: AppIntent {
 struct OpenStudentsIntent: AppIntent {
     static let title: LocalizedStringResource = "Open Students"
     static let description = IntentDescription(
-        "Open the Students view in Maria's Notebook.",
+        "Open the Students view in Montessori Daybook.",
         categoryName: "Navigation"
     )
     static let openAppWhenRun: Bool = true
@@ -43,7 +43,7 @@ struct OpenStudentsIntent: AppIntent {
 struct OpenLessonsIntent: AppIntent {
     static let title: LocalizedStringResource = "Open Lessons"
     static let description = IntentDescription(
-        "Open the Lessons view in Maria's Notebook.",
+        "Open the Lessons view in Montessori Daybook.",
         categoryName: "Navigation"
     )
     static let openAppWhenRun: Bool = true
@@ -60,7 +60,7 @@ struct OpenLessonsIntent: AppIntent {
 struct OpenAttendanceIntent: AppIntent {
     static let title: LocalizedStringResource = "Open Attendance"
     static let description = IntentDescription(
-        "Open the Attendance view in Maria's Notebook.",
+        "Open the Attendance view in Montessori Daybook.",
         categoryName: "Navigation"
     )
     static let openAppWhenRun: Bool = true
@@ -77,7 +77,7 @@ struct OpenAttendanceIntent: AppIntent {
 struct NewLessonIntent: AppIntent {
     static let title: LocalizedStringResource = "Create New Lesson"
     static let description = IntentDescription(
-        "Open the new-lesson form in Maria's Notebook.",
+        "Open the new-lesson form in Montessori Daybook.",
         categoryName: "Create"
     )
     static let openAppWhenRun: Bool = true

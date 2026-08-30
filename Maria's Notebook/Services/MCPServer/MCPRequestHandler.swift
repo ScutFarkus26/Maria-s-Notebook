@@ -79,7 +79,7 @@ struct MCPRequestHandler: Sendable {
             "capabilities": ["tools": [:]],
             "serverInfo": .object([
                 "name": "marias-notebook",
-                "title": "Maria's Notebook",
+                "title": "Montessori Daybook",
                 "version": .string(serverVersion)
             ]),
             "instructions": .string(Self.serverInstructions)
@@ -88,7 +88,7 @@ struct MCPRequestHandler: Sendable {
     }
 
     private static let serverInstructions = """
-        Maria's Notebook is a Montessori classroom management app. These tools read and record \
+        Montessori Daybook is a Montessori classroom management app. These tools read and record \
         real classroom data — students, lesson presentations, observations, student meetings, \
         follow-ups, work, attendance, and todos — from the teacher's live notebook. Dates use \
         ISO 8601 (YYYY-MM-DD). Treat student information as sensitive and only surface what \
