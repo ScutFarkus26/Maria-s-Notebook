@@ -243,7 +243,11 @@ struct PresentationDetailContentView: View {
         .safeAreaInset(edge: .bottom) { bottomBar }
         .alert("Delete Presentation?", isPresented: $vm.showDeleteAlert) {
             Button("Delete", role: .destructive) {
-                vm.delete { handleDone() }
+                // Closed on the next turn, not inside the alert's own action:
+                // a dismissal issued while the alert is still tearing itself
+                // down is swallowed, and the window this was deleted from
+                // stays open over a presentation that no longer exists.
+                vm.delete { Task { @MainActor in handleDone() } }
             }
             Button("Cancel", role: .cancel) {}
         }
