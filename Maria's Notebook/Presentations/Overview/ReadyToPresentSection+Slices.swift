@@ -29,11 +29,10 @@ extension ReadyToPresentSection {
         }
     }
 
-    var suggestedNextSlice: [CDLessonAssignment] {
-        viewModel.suggestedNextLessons(
+    var suggestedNextSlice: [SuggestedPresentation] {
+        viewModel.rankedSuggestions(
             among: filteredAndSortedReadyLessons,
-            allLessonAssignments: viewModel.cachedLessonAssignments,
-            limit: 3
+            allLessonAssignments: viewModel.cachedLessonAssignments
         )
     }
 

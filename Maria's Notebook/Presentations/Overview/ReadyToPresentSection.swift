@@ -25,7 +25,9 @@ struct ReadyToPresentSection: View {
     let filteredSnapshot: (CDLessonAssignment) -> LessonAssignmentSnapshot
     let coordinator: PresentationsCoordinator
     let filterState: PresentationsFilterState
-    let suggestedLessonID: UUID?
+    /// The one card to ring and scroll to: a deep link's target. Nil the rest
+    /// of the time — nothing on this screen highlights a card on its own.
+    let focusedLessonID: UUID?
     /// Command-click selection, shared with the workspace so a selection
     /// survives a trip to the calendar and back.
     let selection: WorkspaceMultiSelection
@@ -53,7 +55,7 @@ struct ReadyToPresentSection: View {
 
     private var focusScrollTrigger: FocusScrollTrigger {
         FocusScrollTrigger(
-            focusedID: suggestedLessonID,
+            focusedID: focusedLessonID,
             // Follow-up rows are included: a deep link to a given presentation
             // lands on the Follow Up pill, and it has to scroll there too.
             visibleIDs: (filteredAndSortedBlockedLessons + filteredAndSortedReadyLessons)
@@ -116,7 +118,7 @@ struct ReadyToPresentSection: View {
                 .padding(.bottom, AppTheme.Spacing.medium + AppTheme.Spacing.xsmall)
             }
             .task(id: focusScrollTrigger) {
-                guard let id = suggestedLessonID,
+                guard let id = focusedLessonID,
                       focusScrollTrigger.visibleIDs.contains(id) else { return }
                 await Task.yield()
                 try? await Task.sleep(for: .milliseconds(50))
@@ -144,12 +146,7 @@ struct ReadyToPresentSection: View {
                 emptyDescription: "No lessons are waiting on student work right now."
             )
         case .suggestedNext:
-            singleSliceSection(
-                suggestedNextSlice,
-                emptyTitle: "No suggestions",
-                emptySymbol: "sparkles",
-                emptyDescription: "No ready presentations match the current filters."
-            )
+            suggestedNextContent
         case .overdue:
             singleSliceSection(
                 overdueSlice,
@@ -277,11 +274,11 @@ struct ReadyToPresentSection: View {
         .padding(.horizontal, AppTheme.Spacing.compact)
     }
 
-    private func readyGridItem(_ la: CDLessonAssignment) -> some View {
-        let isSuggested = suggestedLessonID != nil && suggestedLessonID == la.id
+    func readyGridItem(_ la: CDLessonAssignment) -> some View {
+        let isFocused = focusedLessonID != nil && focusedLessonID == la.id
         return inboxRow(la)
             .id(la.id ?? UUID())
-            .suggestedHighlight(isSuggested)
+            .focusHighlight(isFocused)
             .workspaceSelectionRing(
                 selection.contains(la.id),
                 cornerRadius: UIConstants.CornerRadius.medium
@@ -305,7 +302,7 @@ extension ReadyToPresentSection {
         let readyCount = result?.readyStudentIDs.count ?? 0
         let totalCount = la.resolvedStudentIDs.count
         let hasPartialReadiness = readyCount > 0 && readyCount < totalCount
-        let isFocused = suggestedLessonID != nil && suggestedLessonID == la.id
+        let isFocused = focusedLessonID != nil && focusedLessonID == la.id
 
         VStack(alignment: .leading, spacing: AppTheme.Spacing.verySmall) {
             // The card now owns the progress bar + "X of Y ready" label in its footer.
@@ -333,7 +330,7 @@ extension ReadyToPresentSection {
             }
         }
         .id(la.id ?? UUID())
-        .suggestedHighlight(isFocused)
+        .focusHighlight(isFocused)
         .workspaceSelectionRing(
             selection.contains(la.id),
             cornerRadius: UIConstants.CornerRadius.medium

@@ -83,21 +83,21 @@ extension ReadyToPresentSection {
     }
 }
 
-// MARK: - The Suggest Next ring
+// MARK: - The deep-link ring
 
 extension View {
-    /// The ring "Suggest Next" puts around its pick, and that a deep link
-    /// reuses to point at the card it just revealed. Both card shapes drew this
-    /// chain inline; they disagreed about nothing, so it is written once.
+    /// The ring a deep link puts around the card it just revealed. Both card
+    /// shapes drew this chain inline; they disagreed about nothing, so it is
+    /// written once.
     @ViewBuilder
-    func suggestedHighlight(_ isSuggested: Bool) -> some View {
+    func focusHighlight(_ isFocused: Bool) -> some View {
         overlay(
             RoundedRectangle(
                 cornerRadius: UIConstants.CornerRadius.medium,
                 style: .continuous
             )
-            .stroke(Color.accentColor, lineWidth: isSuggested ? 2.5 : 0)
-            .shadow(color: .accentColor.opacity(isSuggested ? 0.4 : 0), radius: 6)
+            .stroke(Color.accentColor, lineWidth: isFocused ? 2.5 : 0)
+            .shadow(color: .accentColor.opacity(isFocused ? 0.4 : 0), radius: 6)
         )
     }
 }

@@ -127,10 +127,6 @@ extension PresentationsView {
                     .font(.headline)
                 studentFilterChip
                 Spacer()
-                Button(action: triggerSuggestNext) {
-                    Label("Suggest Next", systemImage: "sparkles")
-                }
-                .disabled(viewModel.readyLessons.isEmpty)
             }
             .padding(.horizontal, AppTheme.Spacing.medium)
             .padding(.vertical, AppTheme.Spacing.small)
@@ -152,7 +148,7 @@ extension PresentationsView {
             filteredSnapshot: filteredSnapshot,
             coordinator: coordinator,
             filterState: filterState,
-            suggestedLessonID: suggestedLessonID ?? focusedPresentationID,
+            focusedLessonID: focusedPresentationID,
             selection: selection
         )
     }
@@ -179,27 +175,6 @@ extension PresentationsView {
             .buttonStyle(.plain)
             .help("Show lessons for every child")
             .accessibilityLabel("Showing lessons for \(StudentFormatter.displayName(for: student)). Clear filter.")
-        }
-    }
-
-    private func triggerSuggestNext() {
-        let candidates = viewModel.filteredAndSortedReady(
-            studentFilter: coordinator.selectedStudentFilter,
-            debouncedSearch: filterState.debouncedSearchText
-        )
-        let all = Array(lessonAssignmentsForChangeDetection)
-        guard let suggested = viewModel.suggestedNext(among: candidates, allLessonAssignments: all),
-              let id = suggested.id else { return }
-        suggestDismissTask?.cancel()
-        adaptiveWithAnimation(.easeInOut(duration: 0.3)) {
-            suggestedLessonID = id
-        }
-        suggestDismissTask = Task { @MainActor in
-            try? await Task.sleep(for: .seconds(3))
-            guard !Task.isCancelled else { return }
-            adaptiveWithAnimation(.easeOut(duration: 0.5)) {
-                suggestedLessonID = nil
-            }
         }
     }
 

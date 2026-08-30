@@ -97,6 +97,11 @@ extension PresentationsViewModel {
 
     // MARK: - Suggest Next
 
+    /// How many picks the Suggested Next pill offers. Five is a morning's worth
+    /// of choices — enough that the guide is choosing rather than being told,
+    /// while still fitting two rows of the three-wide grid.
+    static let suggestedNextLimit = 5
+
     /// CDStudent IDs that already have a scheduled (but not yet given) lesson.
     private func scheduledStudentIDs(in lessonAssignments: [CDLessonAssignment]) -> Set<UUID> {
         var ids = Set<UUID>()
@@ -106,17 +111,48 @@ extension PresentationsViewModel {
         return ids
     }
 
-    private func suggestScore(
+    /// Every input to one card's rank, gathered once. The score and the
+    /// sentence under the card both read from this, so they cannot drift.
+    private struct SuggestFactors {
+        /// Longest-waiting child not already booked, and their wait in school
+        /// days — `nil` days means never taught.
+        var longestWaiting: (id: UUID, days: Int?)?
+        /// True when every child on the card is already booked for something.
+        var everyoneAlreadyScheduled: Bool
+        /// The wait that feeds the score, capped the way it always has been.
+        var cappedWait: Double
+        var ageInSchoolDays: Double
+        /// Fewest open work items among the children who still need something.
+        var fewestOpenWork: Int?
+        var diversityPenalty: Double
+        /// The lesson's area differs from what all of those children last had.
+        var changesArea: Bool
+
+        var score: Double {
+            let openWorkBoost = max(0.0, 20.0 - Double(fewestOpenWork ?? 0) * 5.0)
+            return cappedWait * 10.0 + ageInSchoolDays + openWorkBoost - diversityPenalty
+        }
+    }
+
+    private func suggestFactors(
         for la: CDLessonAssignment,
         scheduledStudentIDs scheduled: Set<UUID>
-    ) -> Double {
-        // Factor 1: Max days since last lesson, only counting students who
+    ) -> SuggestFactors {
+        // Factor 1: Longest wait since a lesson, only counting students who
         // don't already have a scheduled lesson.
         let relevantStudents = la.resolvedStudentIDs.filter { !scheduled.contains($0) }
-        let maxStudentDays = relevantStudents
-            .compactMap { daysSinceLastLessonByStudent[$0] }
-            .max() ?? 0
-        let studentScore = Double(min(maxStudentDays, 999))
+        let waits = relevantStudents.compactMap { sid -> (UUID, Int)? in
+            guard let days = daysSinceLastLessonByStudent[sid] else { return nil }
+            return (sid, days)
+        }
+        let longest = waits.max { $0.1 < $1.1 }
+        // A never-taught child is stored as `Int.max`; the score caps it, the
+        // sentence names them instead of printing an absurd number of days.
+        var longestWaiting: (id: UUID, days: Int?)?
+        if let longest {
+            longestWaiting = (id: longest.0, days: longest.1 == Int.max ? nil : longest.1)
+        }
+        let cappedWait = Double(min(longest?.1 ?? 0, 999))
 
         // Factor 2: Lesson age in inbox (school days, not calendar days).
         let ageInSchoolDays: Double
@@ -130,51 +166,69 @@ extension PresentationsViewModel {
         }
 
         // Factor 3: Open work — boost lessons for students with less open work.
-        let minOpenWork = relevantStudents
+        let fewestOpenWork = relevantStudents
             .map { openWorkCountByStudent[$0] ?? 0 }
-            .min() ?? 0
-        let openWorkBoost = max(0.0, 20.0 - Double(minOpenWork) * 5.0)
+            .min()
 
         // Factor 4: Area diversity — penalize repeating last area.
         let lessonArea = lessonsByID[la.resolvedLessonID]?.area
             .trimmed().lowercased() ?? ""
         var diversityPenalty = 0.0
+        var anyKnownLastArea = false
         if !lessonArea.isEmpty {
-            for sid in relevantStudents where lastAreaByStudent[sid]?.trimmed().lowercased() == lessonArea {
-                diversityPenalty += 5.0
+            for sid in relevantStudents {
+                guard let last = lastAreaByStudent[sid]?.trimmed().lowercased(),
+                      !last.isEmpty else { continue }
+                anyKnownLastArea = true
+                if last == lessonArea { diversityPenalty += 5.0 }
             }
         }
 
-        return studentScore * 10.0 + ageInSchoolDays + openWorkBoost - diversityPenalty
+        return SuggestFactors(
+            longestWaiting: longestWaiting,
+            everyoneAlreadyScheduled: !la.resolvedStudentIDs.isEmpty && relevantStudents.isEmpty,
+            cappedWait: cappedWait,
+            ageInSchoolDays: ageInSchoolDays,
+            fewestOpenWork: fewestOpenWork,
+            diversityPenalty: diversityPenalty,
+            // Only a real change: with no recorded last area there is nothing
+            // to have changed from, and claiming one would be an invention.
+            changesArea: anyKnownLastArea && diversityPenalty == 0
+        )
     }
 
-    /// Picks the highest-priority ready lesson among `candidates`.
-    /// `allLessonAssignments` is used to compute which students already have a scheduled lesson.
-    func suggestedNext(
-        among candidates: [CDLessonAssignment],
-        allLessonAssignments: [CDLessonAssignment]
-    ) -> CDLessonAssignment? {
-        guard !candidates.isEmpty else { return nil }
-        let scheduled = scheduledStudentIDs(in: allLessonAssignments)
-        return candidates.max { a, b in
-            suggestScore(for: a, scheduledStudentIDs: scheduled)
-                < suggestScore(for: b, scheduledStudentIDs: scheduled)
-        }
+    private func rationale(from factors: SuggestFactors) -> SuggestionRationale {
+        SuggestionRationale(
+            waitingChild: factors.longestWaiting.flatMap { waiting in
+                studentsByID[waiting.id].map { StudentFormatter.displayName(for: $0) }
+            },
+            waitingSchoolDays: factors.longestWaiting?.days,
+            everyoneAlreadyScheduled: factors.everyoneAlreadyScheduled,
+            inboxSchoolDays: Int(factors.ageInSchoolDays),
+            fewestOpenWork: factors.fewestOpenWork,
+            changesArea: factors.changesArea
+        )
     }
 
-    /// Top-N suggested ready lessons (used by the Suggested Next chip).
-    func suggestedNextLessons(
+    /// The top `limit` ready lessons, each carrying why it was picked.
+    /// `allLessonAssignments` is used to compute which students already have a
+    /// scheduled lesson.
+    func rankedSuggestions(
         among candidates: [CDLessonAssignment],
         allLessonAssignments: [CDLessonAssignment],
-        limit: Int = 3
-    ) -> [CDLessonAssignment] {
+        limit: Int = PresentationsViewModel.suggestedNextLimit
+    ) -> [SuggestedPresentation] {
         guard !candidates.isEmpty, limit > 0 else { return [] }
         let scheduled = scheduledStudentIDs(in: allLessonAssignments)
-        let ranked = candidates.sorted {
-            suggestScore(for: $0, scheduledStudentIDs: scheduled)
-                > suggestScore(for: $1, scheduledStudentIDs: scheduled)
+        // Score once per candidate rather than once per comparison — the age
+        // factor walks the school calendar, and a sort would re-walk it.
+        let scored = candidates.map { la in
+            (assignment: la, factors: suggestFactors(for: la, scheduledStudentIDs: scheduled))
         }
-        return Array(ranked.prefix(limit))
+        return scored
+            .sorted { $0.factors.score > $1.factors.score }
+            .prefix(limit)
+            .map { SuggestedPresentation(assignment: $0.assignment, rationale: rationale(from: $0.factors)) }
     }
 
     // MARK: - Overdue + Recently Missed slices

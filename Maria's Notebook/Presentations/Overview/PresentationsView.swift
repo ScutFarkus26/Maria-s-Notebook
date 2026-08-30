@@ -151,11 +151,6 @@ struct PresentationsView: View {
     @AppStorage(UserDefaultsKeys.generalTestStudentNames)
     var testStudentNamesRaw: String = "Danny De Berry,Lil Dan D"
 
-    /// Lesson highlighted by the most recent "Suggest Next" click. Cleared
-    /// automatically after ~3s via `suggestDismissTask`.
-    @State var suggestedLessonID: UUID?
-    @State var suggestDismissTask: Task<Void, Never>?
-
     /// Debounces `updateViewModel()` calls triggered by `viewModelDependencies`
     /// changes. A single CloudKit import that touches unrelated entities can
     /// fire several @FetchRequest updates in quick succession — without

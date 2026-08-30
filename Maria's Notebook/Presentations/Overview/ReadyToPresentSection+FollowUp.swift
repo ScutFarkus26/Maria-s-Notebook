@@ -66,7 +66,7 @@ extension ReadyToPresentSection {
         } else {
             PresentationFollowUpList(
                 groups: followUpGroups,
-                focusedPresentationID: suggestedLessonID,
+                focusedPresentationID: focusedLessonID,
                 onOpen: { coordinator.showLessonAssignmentDetail($0) }
             )
             .padding(.top, AppTheme.Spacing.compact)
