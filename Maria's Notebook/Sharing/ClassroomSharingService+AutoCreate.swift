@@ -322,7 +322,7 @@ enum ClassroomShareError: LocalizedError {
     var errorDescription: String? {
         switch self {
         case .cloudKitInactive:
-            return "iCloud sync isn't active. Turn on iCloud for Maria's Notebook in System Settings and try again."
+            return "iCloud sync isn't active. Turn on iCloud for Montessori Daybook in System Settings and try again."
         case .sharedStoreUnavailable:
             return "Shared classroom storage isn't available on this device."
         case .assistantCannotCreateShare:

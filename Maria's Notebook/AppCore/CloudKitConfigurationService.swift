@@ -11,14 +11,12 @@ enum CloudKitConfigurationService {
 
     // MARK: - Container ID
 
-    /// Returns the CloudKit container identifier from entitlements.
-    /// This must match the container ID in the entitlements file.
+    /// The one CloudKit container every target shares. Deliberately a literal,
+    /// not derived from the bundle identifier: the assistant companion app has
+    /// its own bundle ID but must read and write this same container, and its
+    /// entitlements name it explicitly.
     static func getContainerID() -> String? {
-        if let bundleID = Bundle.main.bundleIdentifier, !bundleID.isEmpty {
-            return "iCloud.\(bundleID)"
-        }
-        // Fallback for edge cases where bundle identifier isn't available at runtime.
-        return "iCloud.DanielSDeBerry.MariasNoteBook"
+        "iCloud.DanielSDeBerry.MariasNoteBook"
     }
 
     // MARK: - Status

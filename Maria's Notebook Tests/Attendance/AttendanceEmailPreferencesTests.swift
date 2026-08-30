@@ -27,11 +27,7 @@ struct AttendanceEmailPreferencesTests {
         defer {
             for (key, value) in saved { store.set(value, forKey: key) }
         }
-        for key in Self.reportFormatKeys {
-            store.remove(key: key)
-            // remove(key:) clears only KVS, and reads still fall back to UserDefaults.
-            UserDefaults.standard.removeObject(forKey: key)
-        }
+        for key in Self.reportFormatKeys { store.remove(key: key) }
         work()
     }
 

@@ -46,7 +46,11 @@ extension CoreDataStack {
     ///
     /// Version history:
     /// - `1` — first version to carry a stamp (Albums entities + `Guardian`).
-    nonisolated static let currentSchemaVersion = 1
+    /// - `2` — `AttendanceRecord.recordedBy`/`modifiedAt` (assistant attribution)
+    ///   and `Note.attendanceRecordID` (string-FK twin of the `attendanceRecord`
+    ///   relationship, backfilled by `AttendanceNoteLinkBackfill` ahead of the
+    ///   relationship's removal when attendance moves to the shared store).
+    nonisolated static let currentSchemaVersion = 2
 
     /// Store-metadata key holding the writing build's ``currentSchemaVersion``.
     nonisolated static let schemaVersionMetadataKey = "MNSchemaVersion"

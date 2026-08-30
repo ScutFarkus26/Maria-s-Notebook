@@ -16,6 +16,9 @@ public class CDAttendanceRecord: NSManagedObject {
     @NSManaged public var date: Date?
     @NSManaged public var statusRaw: String
     @NSManaged public var absenceReasonRaw: String
+    /// `ClassroomRole` rawValue of whoever last marked this record (lead guide or assistant).
+    @NSManaged public var recordedBy: String?
+    @NSManaged public var modifiedAt: Date?
 
     // MARK: - Relationships
     @NSManaged public var notes: NSSet?

@@ -348,7 +348,7 @@ final class BackupFieldCoverageTests {
             // Importer parses stateRaw via LessonAssignmentState(rawValue:).
             overrides: ["stateRaw": "scheduled"],
             skips: [
-                "scheduledForDay": "denormalized mirror of scheduledFor (see schedule(for:)); "
+                "scheduledForDay": "start-of-day mirror of scheduledFor (see schedule(for:)); "
                     + "re-derived after restore, reads use scheduledFor",
                 "studentGroupKeyPersisted": "denormalized cache of studentIDs; studentGroupKey "
                     + "falls back to the computed key when empty (DenormalizedSchedulable)"

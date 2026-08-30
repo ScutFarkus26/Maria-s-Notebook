@@ -148,12 +148,25 @@ public struct AttendanceRecordDTO: Codable, Sendable {
     public var date: Date
     public var status: String
     public var absenceReason: String?
+    // Attribution (optional for compatibility with backups that predate it).
+    public var recordedBy: String?
+    public var modifiedAt: Date?
 
-    public init(id: UUID, studentID: UUID, date: Date, status: String, absenceReason: String? = nil) {
+    public init(
+        id: UUID,
+        studentID: UUID,
+        date: Date,
+        status: String,
+        absenceReason: String? = nil,
+        recordedBy: String? = nil,
+        modifiedAt: Date? = nil
+    ) {
         self.id = id
         self.studentID = studentID
         self.date = date
         self.status = status
         self.absenceReason = absenceReason
+        self.recordedBy = recordedBy
+        self.modifiedAt = modifiedAt
     }
 }

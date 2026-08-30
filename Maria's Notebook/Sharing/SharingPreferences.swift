@@ -1,7 +1,13 @@
 import Foundation
 
-/// Persists the lead guide's permission choices via CloudKit KVS.
-/// Both lead guide and assistant see the same config via NSUbiquitousKeyValueStore.
+/// Persists the lead guide's permission choices via iCloud KVS.
+///
+/// **Reach:** `NSUbiquitousKeyValueStore` syncs per Apple ID, so these choices
+/// reach the lead guide's *own* devices only — an assistant on their own iCloud
+/// account never sees them and falls back to `defaultEnabled`. Enforcing a
+/// non-default matrix on the assistant's device requires moving this into a
+/// shared-store entity (a future `ClassroomSettings`); until then the assistant
+/// companion app hardcodes attendance-only writes anyway.
 enum SharingPreferences {
     private static let kvsKey = "assistantWritableCategories"
 

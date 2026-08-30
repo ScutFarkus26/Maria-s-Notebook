@@ -102,6 +102,7 @@
         <attribute name="studentTrackEnrollmentID" optional="YES" attributeType="String"/>
         <attribute name="goingOutID" optional="YES" attributeType="String"/>
         <attribute name="transitionPlanID" optional="YES" attributeType="String"/>
+        <attribute name="attendanceRecordID" optional="YES" attributeType="String"/>
         <relationship name="work" optional="YES" maxCount="1" deletionRule="Nullify" destinationEntity="WorkModel" inverseName="unifiedNotes" inverseEntity="WorkModel"/>
         <relationship name="lessonAssignment" optional="YES" maxCount="1" deletionRule="Nullify" destinationEntity="LessonAssignment" inverseName="unifiedNotes" inverseEntity="LessonAssignment"/>
         <relationship name="attendanceRecord" optional="YES" maxCount="1" deletionRule="Nullify" destinationEntity="AttendanceRecord" inverseName="notes" inverseEntity="AttendanceRecord"/>
@@ -118,6 +119,9 @@
         </fetchIndex>
         <fetchIndex name="byLessonID">
             <fetchIndexElement property="lessonID" type="Binary" order="ascending"/>
+        </fetchIndex>
+        <fetchIndex name="byAttendanceRecordID">
+            <fetchIndexElement property="attendanceRecordID" type="Binary" order="ascending"/>
         </fetchIndex>
         <fetchIndex name="bySearchIndexStudentID">
             <fetchIndexElement property="searchIndexStudentID" type="Binary" order="ascending"/>
@@ -717,6 +721,8 @@
         <attribute name="date" optional="YES" attributeType="Date" usesScalarValueType="NO"/>
         <attribute name="statusRaw" attributeType="String" defaultValueString="unmarked"/>
         <attribute name="absenceReasonRaw" attributeType="String" defaultValueString="none"/>
+        <attribute name="recordedBy" optional="YES" attributeType="String"/>
+        <attribute name="modifiedAt" optional="YES" attributeType="Date" usesScalarValueType="NO"/>
         <relationship name="notes" optional="YES" toMany="YES" deletionRule="Cascade" destinationEntity="Note" inverseName="attendanceRecord" inverseEntity="Note"/>
         <fetchIndex name="byDate">
             <fetchIndexElement property="date" type="Binary" order="ascending"/>

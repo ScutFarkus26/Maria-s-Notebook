@@ -278,8 +278,9 @@ extension DataCleanupService {
     /// student/day, which the id-based pass cannot detect because every row has a
     /// unique id.
     ///
-    /// For each (studentID, day) group it keeps the record with the lowest `id`
-    /// string — deterministic, so every device converges on the same survivor —
+    /// For each (studentID, day) group it keeps the ``AttendanceDeduplication/wins(_:over:)``
+    /// winner — the same deterministic ordering the read-side `deduplicatedPerStudentDay()`
+    /// uses, so the record the grid was already showing is the one that survives —
     /// folds any real attendance mark (non-`unmarked` status + absence reason) from
     /// the duplicates into the survivor so nothing is lost, re-points the
     /// duplicates' notes to the survivor (the `notes` relationship is Cascade-delete,
@@ -311,12 +312,16 @@ extension DataCleanupService {
 
         var deletedCount = 0
         for (_, group) in groups where group.count > 1 {
-            // Deterministic survivor: lowest id string, so all devices agree.
-            let sorted = group.sorted { ($0.id?.uuidString ?? "") < ($1.id?.uuidString ?? "") }
+            // Deterministic survivor: the shared comparator's winner, so all
+            // devices — and the read-side dedup — agree on the same record.
+            let sorted = group.sorted { AttendanceDeduplication.wins($0, over: $1) }
             guard let canonical = sorted.first else { continue }
 
             for duplicate in sorted.dropFirst() {
                 // Preserve a real attendance mark if the survivor is still unmarked.
+                // (The comparator already prefers marked records, so this only fires
+                // for groups that are entirely unmarked — where it's a no-op — but it
+                // stays as a belt-and-braces guard against comparator drift.)
                 if canonical.status == .unmarked && duplicate.status != .unmarked {
                     canonical.status = duplicate.status
                     canonical.absenceReason = duplicate.absenceReason
@@ -324,10 +329,12 @@ extension DataCleanupService {
 
                 // Re-point notes before deletion. `notes` is Cascade-delete, so
                 // deleting the duplicate without moving its notes would destroy
-                // them. Setting the inverse moves each note to the survivor.
+                // them. Setting the inverse moves each note to the survivor; the
+                // string FK travels with it.
                 if let dupeNotes = duplicate.notes?.allObjects as? [CDNote] {
                     for note in dupeNotes {
                         note.attendanceRecord = canonical
+                        note.attendanceRecordID = canonical.id?.uuidString
                     }
                 }
 

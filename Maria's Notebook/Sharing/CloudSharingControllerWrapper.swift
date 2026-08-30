@@ -65,7 +65,7 @@ struct CloudSharingSheet: UIViewControllerRepresentable {
         }
 
         func itemTitle(for controller: UICloudSharingController) -> String? {
-            "Maria's Notebook Classroom"
+            "Montessori Daybook Classroom"
         }
 
         func cloudSharingControllerDidSaveShare(_ controller: UICloudSharingController) {

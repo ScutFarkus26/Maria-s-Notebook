@@ -11,8 +11,11 @@ import UIKit
 /// Best Practices:
 /// - Use for user preferences that should sync (settings, colors, thresholds)
 /// - KVS has a 1MB total limit across all keys
-/// - Automatically falls back to UserDefaults if KVS is unavailable
-/// - Handles migration from UserDefaults to KVS on first launch
+/// - Reads fall back to UserDefaults when KVS holds no value for that key, so a value
+///   written before the key started syncing is still found. Nothing fills that fallback
+///   any more: the one-time UserDefaults→KVS migration copied values across, left the
+///   originals in place, and was itself removed once it had run. Removing a key clears
+///   the leftover too, so an unset preference stays unset.
 @Observable
 @MainActor
 public final class SyncedPreferencesStore {
@@ -198,9 +201,15 @@ public final class SyncedPreferencesStore {
                 kvStore.set(value, forKey: key)
             } else {
                 kvStore.removeObject(forKey: key)
+                // `get(key:)` falls back to UserDefaults for a synced key, and the one-time
+                // migration copied values into KVS without clearing the originals. Skipping
+                // this would make removal uncover whatever the key held before it started
+                // syncing, rather than unset it — an unlocked attendance day locking itself
+                // straight back up, for instance.
+                userDefaults.removeObject(forKey: key)
             }
             
-            // CDTrackEntity this key for batched sync
+            // Track this key for batched sync
             pendingSyncKeys.insert(key)
 
             // Schedule a debounced sync (1.5 seconds - balances responsiveness with energy efficiency)

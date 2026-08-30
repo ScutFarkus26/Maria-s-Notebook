@@ -16,8 +16,6 @@ struct AttendanceSortPreferenceTests {
         let saved = store.get(key: Self.sortKey)
         defer { store.set(saved, forKey: Self.sortKey) }
         store.remove(key: Self.sortKey)
-        // remove(key:) clears only KVS, and reads still fall back to UserDefaults.
-        UserDefaults.standard.removeObject(forKey: Self.sortKey)
         work()
     }
 

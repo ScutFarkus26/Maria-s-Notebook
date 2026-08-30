@@ -28,9 +28,10 @@ enum DataMigrations {
     }
 
     /// Normalizes lesson scheduling to the day-only model (snaps `scheduledFor` to
-    /// start-of-day and mirrors `scheduledForDay`).
-    static func repairDenormalizedScheduledForDay(using context: NSManagedObjectContext) async {
-        await DataCleanupService.repairDenormalizedScheduledForDay(using: context)
+    /// Repairs the `scheduledForDay` mirror. Does not touch `scheduledFor`,
+    /// which carries each lesson's position within its day.
+    static func repairScheduledForDayMirror(using context: NSManagedObjectContext) async {
+        await DataCleanupService.repairScheduledForDayMirror(using: context)
     }
 
     /// Cleans orphaned student IDs from CDLessonAssignment records.

@@ -74,6 +74,9 @@ extension CDAttendanceRecord {
             context: context
         ) { note in
             note.attendanceRecord = self
+            // Keep the string FK in lockstep with the relationship until the
+            // relationship is removed (attendance moving to the shared store).
+            note.attendanceRecordID = self.id?.uuidString
         }
     }
 }

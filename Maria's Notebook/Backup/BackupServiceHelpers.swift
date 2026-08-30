@@ -125,7 +125,10 @@ enum BackupServiceHelpers {
                 studentTrackEnrollmentID: n.studentTrackEnrollmentID,
                 goingOutID: n.goingOutID,
                 lessonAssignmentID: n.lessonAssignment?.id,
-                attendanceRecordID: n.attendanceRecord?.id,
+                // FK-first for the same reason as lessonID above; the relationship
+                // remains as a fallback until it's removed.
+                attendanceRecordID: n.attendanceRecordID.flatMap { UUID(uuidString: $0) }
+                    ?? n.attendanceRecord?.id,
                 workCheckInID: n.workCheckIn?.id,
                 workCompletionRecordID: n.workCompletionRecord?.id,
                 studentMeetingID: n.studentMeeting?.id,
@@ -148,7 +151,9 @@ enum BackupServiceHelpers {
                 studentID: studentIDUUID,
                 date: aDate,
                 status: a.status.rawValue,
-                absenceReason: a.absenceReason.rawValue == "none" ? nil : a.absenceReason.rawValue
+                absenceReason: a.absenceReason.rawValue == "none" ? nil : a.absenceReason.rawValue,
+                recordedBy: a.recordedBy,
+                modifiedAt: a.modifiedAt
             )
         }
     }

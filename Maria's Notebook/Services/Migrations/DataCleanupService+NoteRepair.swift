@@ -75,11 +75,18 @@ extension DataCleanupService {
 
     // MARK: - Denormalized Field Repair
 
-    /// Normalizes lesson scheduling to the day-only model: snaps any leftover time on
-    /// `scheduledFor` to start-of-day and mirrors it into `scheduledForDay`. Runs at launch,
-    /// so lessons scheduled before the day-only change lose their stray time component
-    /// without waiting to be edited. Idempotent — a no-op once the data is normalized.
-    static func repairDenormalizedScheduledForDay(using context: NSManagedObjectContext) async {
+    /// Repairs the `scheduledForDay` mirror so it always equals start-of-day of
+    /// `scheduledFor`. Runs at launch; idempotent.
+    ///
+    /// **It must never write `scheduledFor` itself.** It used to: it snapped the
+    /// stored value to midnight to enforce a day-only model. `scheduledFor` now
+    /// carries the lesson's position within its day (see
+    /// `CDLessonAssignment.schedule(for:using:)`), so flattening it here would
+    /// erase every guide's within-day ordering — on a random tenth of launches,
+    /// then push the flattening to every device through CloudKit. This is the
+    /// same mirror-only shape used after a restore in
+    /// `BackupService+Restoration`.
+    static func repairScheduledForDayMirror(using context: NSManagedObjectContext) async {
         let fetch = CDFetchRequest(CDLessonAssignment.self)
         let assignments = context.safeFetch(fetch)
         var repaired = 0
@@ -87,15 +94,9 @@ extension DataCleanupService {
         for (index, la) in assignments.enumerated() {
             if index % 100 == 0 { await Task.yield() }
 
-            if let scheduled = la.scheduledFor {
-                let day = AppCalendar.startOfDay(scheduled)
-                if la.scheduledFor != day || la.scheduledForDay != day {
-                    la.scheduledFor = day
-                    la.scheduledForDay = day
-                    repaired += 1
-                }
-            } else if la.scheduledForDay != Date.distantPast {
-                la.scheduledForDay = Date.distantPast
+            let correctMirror = la.scheduledFor.map(AppCalendar.startOfDay) ?? Date.distantPast
+            if la.scheduledForDay != correctMirror {
+                la.scheduledForDay = correctMirror
                 repaired += 1
             }
         }

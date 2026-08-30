@@ -3,7 +3,7 @@
 //  Maria's Notebook
 //
 //  Marks a student absent for today — by voice or from Shortcuts, without
-//  opening the app. Uses AttendanceRepository's load-or-create + updateStatus,
+//  opening the app. Uses AttendanceRepository's ensureRecord + updateStatus,
 //  the same path the Attendance grid uses (so day normalization is correct).
 //
 
@@ -41,8 +41,8 @@ struct MarkAbsentIntent: AppIntent {
         try await requestConfirmation()
 
         let repository = AttendanceRepository(context: context)
-        let (records, _) = repository.loadOrCreateRecords(forDate: Date(), students: [cdStudent])
-        guard let record = records.first, let recordID = record.id else {
+        guard let record = repository.ensureRecord(forDate: Date(), student: cdStudent),
+              let recordID = record.id else {
             throw MarkAbsentError.saveFailed
         }
         repository.updateStatus(id: recordID, status: .absent)

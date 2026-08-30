@@ -60,16 +60,14 @@ struct AttendanceRepository: SavingRepository {
 
     // MARK: - Create / Load
 
-    /// Load or create attendance records for a date, ensuring one record per student
+    /// Fetch-or-create the single record for (student, day). Callers save afterwards.
     @discardableResult
-    func loadOrCreateRecords(
-        forDate date: Date,
-        students: [CDStudent]
-    ) -> (records: [CDAttendanceRecord], didInsert: Bool) {
+    func ensureRecord(forDate date: Date, student: CDStudent) -> CDAttendanceRecord? {
         do {
-            return try store.loadOrCreateRecords(for: date, students: students)
+            return try store.ensureRecord(for: student, on: date)
         } catch {
-            return ([], false)
+            Self.logger.warning("Failed to ensure attendance record: \(error.localizedDescription)")
+            return nil
         }
     }
 

@@ -80,6 +80,29 @@ struct AttendanceDeduplicationTests {
         #expect(records.first?.id == lowID)
     }
 
+    @Test("Among equally-marked duplicates, the latest modification wins")
+    func latestModificationWins() throws {
+        let stack = try CoreDataTestHelpers.makeInMemoryStack()
+        let context = stack.viewContext
+        let day = AppCalendar.startOfDay(Date())
+        let studentID = UUID().uuidString
+
+        let lowID = UUID(uuidString: "00000000-0000-0000-0000-000000000001")!
+        let highID = UUID(uuidString: "FFFFFFFF-0000-0000-0000-000000000001")!
+        let older = makeRecord(in: context, studentID: studentID, date: day, status: .tardy, id: lowID)
+        older.modifiedAt = day
+        let newer = makeRecord(in: context, studentID: studentID, date: day, status: .absent, id: highID)
+        newer.modifiedAt = day.addingTimeInterval(600)
+
+        let records = AttendanceInsightsService.fetchRecords(
+            in: day...day, context: context, fetchLabel: "test"
+        )
+        // Last writer wins, even against a lower id — two people marking the
+        // same student converge on the most recent mark.
+        #expect(records.first?.id == highID)
+        #expect(records.first?.status == .absent)
+    }
+
     @Test("Distinct students and distinct days are not collapsed")
     func distinctRecordsKept() throws {
         let stack = try CoreDataTestHelpers.makeInMemoryStack()

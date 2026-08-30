@@ -36,7 +36,7 @@ final class AppBootstrapper {
         Self.logger.info("Bootstrap: Starting startup checks...")
 
         // Activate the iCloud ubiquity container in the background so the
-        // "Maria's Notebook" folder appears in Finder / Files.app at launch.
+        // "Montessori Daybook" folder appears in Finder / Files.app at launch.
         // Apple requires this call off the main thread; it can block briefly
         // while the container is set up for the first time.
         Task.detached(priority: .utility) {
@@ -160,6 +160,12 @@ final class AppBootstrapper {
         // CloudKit timeout doesn't block launch.
         await ClassroomSharingService.ensureShareExistsOnLaunch(coreDataStack: coreDataStack)
 
+        // 3.83. Backfill Note.attendanceRecordID from the attendanceRecord
+        // relationship, ahead of that relationship's removal when attendance
+        // moves to the shared store (a relationship cannot cross store
+        // configurations). Idempotent + UserDefaults-gated; background context.
+        await AttendanceNoteLinkBackfill.runIfNeeded(coreDataStack: coreDataStack)
+
         // 3.85. Backfill per-student CDLessonPresentation rows for assignments that were marked
         // presented via entry points which historically skipped LifecycleService.recordPresentation.
         // Runs once per device (UserDefaults-guarded); idempotent.
@@ -179,7 +185,7 @@ final class AppBootstrapper {
         // 3.9. Data Integrity Repairs (Run on ~10% of launches to reduce startup impact)
         if Int.random(in: 1...10) == 1 {
             let integrityStart = Date()
-            await DataMigrations.repairDenormalizedScheduledForDay(using: coreDataStack.viewContext)
+            await DataMigrations.repairScheduledForDayMirror(using: coreDataStack.viewContext)
             await DataMigrations.cleanOrphanedStudentIDs(using: coreDataStack.viewContext)
             let intElapsed = formatSeconds(Date().timeIntervalSince(integrityStart))
             logger.info("Post-launch: integrity repairs completed in \(intElapsed)")

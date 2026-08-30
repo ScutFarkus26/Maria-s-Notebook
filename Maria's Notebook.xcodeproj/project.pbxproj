@@ -17,7 +17,7 @@
 /* End PBXContainerItemProxy section */
 
 /* Begin PBXFileReference section */
-		5141E7F52ED77B0F004F918F /* Maria's Notebook.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = "Maria's Notebook.app"; sourceTree = BUILT_PRODUCTS_DIR; };
+		5141E7F52ED77B0F004F918F /* Montessori Daybook.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = "Montessori Daybook.app"; sourceTree = BUILT_PRODUCTS_DIR; };
 		5193CB052F0B155C0017A069 /* FoundationModels.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = FoundationModels.framework; path = Platforms/iPhoneOS.platform/Developer/SDKs/iPhoneOS26.2.sdk/System/Library/Frameworks/FoundationModels.framework; sourceTree = DEVELOPER_DIR; };
 		51F9242D2F1C43F900E480A1 /* Maria's Notebook Tests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = "Maria's Notebook Tests.xctest"; sourceTree = BUILT_PRODUCTS_DIR; };
 /* End PBXFileReference section */
@@ -81,7 +81,7 @@
 		5141E7F62ED77B0F004F918F /* Products */ = {
 			isa = PBXGroup;
 			children = (
-				5141E7F52ED77B0F004F918F /* Maria's Notebook.app */,
+				5141E7F52ED77B0F004F918F /* Montessori Daybook.app */,
 				51F9242D2F1C43F900E480A1 /* Maria's Notebook Tests.xctest */,
 			);
 			name = Products;
@@ -117,7 +117,7 @@
 			packageProductDependencies = (
 			);
 			productName = "Maria's Notebook";
-			productReference = 5141E7F52ED77B0F004F918F /* Maria's Notebook.app */;
+			productReference = 5141E7F52ED77B0F004F918F /* Montessori Daybook.app */;
 			productType = "com.apple.product-type.application";
 		};
 		51F9242C2F1C43F900E480A1 /* Maria's Notebook Tests */ = {
@@ -239,7 +239,7 @@
 				"CODE_SIGN_IDENTITY[sdk=macosx*]" = "Apple Development";
 				"CODE_SIGN_IDENTITY[sdk=xros*]" = "Apple Development";
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 1;
+				CURRENT_PROJECT_VERSION = 2;
 				DEAD_CODE_STRIPPING = YES;
 				DEVELOPMENT_TEAM = ES2X5ZSG9W;
 				ENABLE_APP_SANDBOX = YES;
@@ -260,9 +260,16 @@
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_FILE = "Maria's Notebook/Info.plist";
 				"INFOPLIST_FILE[sdk=macosx*]" = "Maria's Notebook/Info-macOS.plist";
-				INFOPLIST_KEY_CFBundleDisplayName = "Maria's Notebook";
+				INFOPLIST_KEY_CFBundleDisplayName = "Montessori Daybook";
+				INFOPLIST_KEY_ITSAppUsesNonExemptEncryption = NO;
 				INFOPLIST_KEY_LSApplicationCategoryType = "public.app-category.education";
+				INFOPLIST_KEY_NSCalendarsFullAccessUsageDescription = "We need full access to your calendars to show today's events in your Today view.";
+				INFOPLIST_KEY_NSCalendarsUsageDescription = "We need access to your calendars to show today's events in your Today view.";
+				INFOPLIST_KEY_NSCameraUsageDescription = "We need access to your camera to take photos for notes.";
 				INFOPLIST_KEY_NSHumanReadableCopyright = "Copyright © 2026 Daniel De Berry. All rights reserved.";
+				INFOPLIST_KEY_NSRemindersFullAccessUsageDescription = "We need full access to your reminders to sync reminders from a specific list to your Today view.";
+				INFOPLIST_KEY_NSRemindersUsageDescription = "We need access to your reminders to sync reminders from a specific list to your Today view.";
+				INFOPLIST_KEY_NSSpeechRecognitionUsageDescription = "We need access to speech recognition to enable voice commands and dictation in the command bar.";
 				"INFOPLIST_KEY_UIApplicationSceneManifest_Generation[sdk=iphoneos*]" = YES;
 				"INFOPLIST_KEY_UIApplicationSceneManifest_Generation[sdk=iphonesimulator*]" = YES;
 				"INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents[sdk=iphoneos*]" = YES;
@@ -279,7 +286,8 @@
 				MACOSX_DEPLOYMENT_TARGET = 27.0;
 				MARKETING_VERSION = 0.1;
 				PRODUCT_BUNDLE_IDENTIFIER = DanielSDeBerry.MariasNoteBook;
-				PRODUCT_NAME = "$(TARGET_NAME)";
+				PRODUCT_MODULE_NAME = Maria_s_Notebook;
+				PRODUCT_NAME = "Montessori Daybook";
 				REGISTER_APP_GROUPS = YES;
 				RUNTIME_EXCEPTION_ALLOW_DYLD_ENVIRONMENT_VARIABLES = NO;
 				RUNTIME_EXCEPTION_ALLOW_JIT = NO;
@@ -315,7 +323,7 @@
 				"CODE_SIGN_IDENTITY[sdk=macosx*]" = "Apple Development";
 				"CODE_SIGN_IDENTITY[sdk=xros*]" = "Apple Development";
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 1;
+				CURRENT_PROJECT_VERSION = 2;
 				DEAD_CODE_STRIPPING = YES;
 				DEVELOPMENT_TEAM = ES2X5ZSG9W;
 				ENABLE_APP_SANDBOX = YES;
@@ -336,9 +344,16 @@
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_FILE = "Maria's Notebook/Info.plist";
 				"INFOPLIST_FILE[sdk=macosx*]" = "Maria's Notebook/Info-macOS.plist";
-				INFOPLIST_KEY_CFBundleDisplayName = "Maria's Notebook";
+				INFOPLIST_KEY_CFBundleDisplayName = "Montessori Daybook";
+				INFOPLIST_KEY_ITSAppUsesNonExemptEncryption = NO;
 				INFOPLIST_KEY_LSApplicationCategoryType = "public.app-category.education";
+				INFOPLIST_KEY_NSCalendarsFullAccessUsageDescription = "We need full access to your calendars to show today's events in your Today view.";
+				INFOPLIST_KEY_NSCalendarsUsageDescription = "We need access to your calendars to show today's events in your Today view.";
+				INFOPLIST_KEY_NSCameraUsageDescription = "We need access to your camera to take photos for notes.";
 				INFOPLIST_KEY_NSHumanReadableCopyright = "Copyright © 2026 Daniel De Berry. All rights reserved.";
+				INFOPLIST_KEY_NSRemindersFullAccessUsageDescription = "We need full access to your reminders to sync reminders from a specific list to your Today view.";
+				INFOPLIST_KEY_NSRemindersUsageDescription = "We need access to your reminders to sync reminders from a specific list to your Today view.";
+				INFOPLIST_KEY_NSSpeechRecognitionUsageDescription = "We need access to speech recognition to enable voice commands and dictation in the command bar.";
 				"INFOPLIST_KEY_UIApplicationSceneManifest_Generation[sdk=iphoneos*]" = NO;
 				"INFOPLIST_KEY_UIApplicationSceneManifest_Generation[sdk=iphonesimulator*]" = YES;
 				"INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents[sdk=iphoneos*]" = YES;
@@ -355,7 +370,8 @@
 				MACOSX_DEPLOYMENT_TARGET = 27.0;
 				MARKETING_VERSION = 0.1;
 				PRODUCT_BUNDLE_IDENTIFIER = DanielSDeBerry.MariasNoteBook;
-				PRODUCT_NAME = "$(TARGET_NAME)";
+				PRODUCT_MODULE_NAME = Maria_s_Notebook;
+				PRODUCT_NAME = "Montessori Daybook";
 				REGISTER_APP_GROUPS = YES;
 				RUNTIME_EXCEPTION_ALLOW_DYLD_ENVIRONMENT_VARIABLES = NO;
 				RUNTIME_EXCEPTION_ALLOW_JIT = NO;
@@ -509,7 +525,7 @@
 			buildSettings = {
 				BUNDLE_LOADER = "$(TEST_HOST)";
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 1;
+				CURRENT_PROJECT_VERSION = 2;
 				DEVELOPMENT_TEAM = ES2X5ZSG9W;
 				GENERATE_INFOPLIST_FILE = YES;
 				IPHONEOS_DEPLOYMENT_TARGET = 27.0;
@@ -527,7 +543,7 @@
 				SWIFT_UPCOMING_FEATURE_MEMBER_IMPORT_VISIBILITY = YES;
 				SWIFT_VERSION = 6.0;
 				TARGETED_DEVICE_FAMILY = "1,2,7";
-				TEST_HOST = "$(BUILT_PRODUCTS_DIR)/Maria's Notebook.app/$(BUNDLE_EXECUTABLE_FOLDER_PATH)/Maria's Notebook";
+				TEST_HOST = "$(BUILT_PRODUCTS_DIR)/Montessori Daybook.app/$(BUNDLE_EXECUTABLE_FOLDER_PATH)/Montessori Daybook";
 				XROS_DEPLOYMENT_TARGET = 27.0;
 			};
 			name = Debug;
@@ -537,7 +553,7 @@
 			buildSettings = {
 				BUNDLE_LOADER = "$(TEST_HOST)";
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 1;
+				CURRENT_PROJECT_VERSION = 2;
 				DEVELOPMENT_TEAM = ES2X5ZSG9W;
 				GENERATE_INFOPLIST_FILE = YES;
 				IPHONEOS_DEPLOYMENT_TARGET = 27.0;
@@ -554,7 +570,7 @@
 				SWIFT_UPCOMING_FEATURE_MEMBER_IMPORT_VISIBILITY = YES;
 				SWIFT_VERSION = 6.0;
 				TARGETED_DEVICE_FAMILY = "1,2,7";
-				TEST_HOST = "$(BUILT_PRODUCTS_DIR)/Maria's Notebook.app/$(BUNDLE_EXECUTABLE_FOLDER_PATH)/Maria's Notebook";
+				TEST_HOST = "$(BUILT_PRODUCTS_DIR)/Montessori Daybook.app/$(BUNDLE_EXECUTABLE_FOLDER_PATH)/Montessori Daybook";
 				XROS_DEPLOYMENT_TARGET = 27.0;
 			};
 			name = Release;

@@ -10,6 +10,8 @@ final class AttendanceViewModel {
     var selectedDate: Date
     // CloudKit compatibility: Use String keys since studentID is now String
     var recordsByStudentID: [String: CDAttendanceRecord] = [:]
+    /// Size of the loaded roster; students without a record count as unmarked.
+    private(set) var rosterCount = 0
 
     enum SortKey: String, CaseIterable { case firstName, lastName }
 
@@ -54,17 +56,19 @@ final class AttendanceViewModel {
     func load(for date: Date? = nil, students: [CDStudent], modelContext: NSManagedObjectContext) {
         let target = (date ?? selectedDate).normalizedDay()
         selectedDate = target
+        rosterCount = students.count
         let store = CDAttendanceStore(context: modelContext)
         do {
-            let result = try store.loadOrCreateRecords(for: target, students: students)
-            let records = result.records
+            // Load existing records only — a student without one renders as
+            // unmarked, and the first mark creates the record (`ensureRecord`).
+            let records = try store.loadRecords(for: target)
             // CloudKit compatibility: Convert UUIDs to Strings for comparison
             let allowed = Set(students.compactMap { $0.id?.uuidString })
             let filtered = records.filter { allowed.contains($0.studentID) }
-            // Build dictionary safely, handling potential duplicates by keeping the first occurrence
+            // Collapse CloudKit duplicates to the same winner reports count.
             var recordsByStudentID: [String: CDAttendanceRecord] = [:]
-            for record in filtered {
-                recordsByStudentID.insertIfAbsent(record, forKey: record.studentID)
+            for record in filtered.deduplicatedPerStudentDay() {
+                recordsByStudentID[record.studentID] = record
             }
             self.recordsByStudentID = recordsByStudentID
         } catch {
@@ -76,22 +80,34 @@ final class AttendanceViewModel {
     func cycleStatus(for student: CDStudent, modelContext: NSManagedObjectContext) {
         // CloudKit compatibility: Convert UUID to String for lookup
         let studentIDString = student.cloudKitKey
-        guard let rec = recordsByStudentID[studentIDString] else { return }
-        let next = rec.status.next()
         let store = CDAttendanceStore(context: modelContext)
-        if store.updateStatus(rec, to: next) {
-            recordsByStudentID[studentIDString]?.status = next
-            HapticService.shared.selection()
+        do {
+            // First mark on a virtual (unmarked) row creates the record here;
+            // the caller saves immediately after, so it can't linger unsaved.
+            guard let rec = try recordsByStudentID[studentIDString]
+                ?? store.ensureRecord(for: student, on: selectedDate) else { return }
+            let next = rec.status.next()
+            if store.updateStatus(rec, to: next) {
+                recordsByStudentID[studentIDString] = rec
+                HapticService.shared.selection()
+            }
+        } catch {
+            Self.logger.warning("Failed to cycle status: \(error)")
         }
     }
 
     func updateNote(for student: CDStudent, note: String?, modelContext: NSManagedObjectContext) {
         // CloudKit compatibility: Convert UUID to String for lookup
         let studentIDString = student.cloudKitKey
-        guard let rec = recordsByStudentID[studentIDString] else { return }
         let store = CDAttendanceStore(context: modelContext)
-        if store.updateNote(rec, to: note) {
-            recordsByStudentID[studentIDString] = rec
+        do {
+            guard let rec = try recordsByStudentID[studentIDString]
+                ?? store.ensureRecord(for: student, on: selectedDate) else { return }
+            if store.updateNote(rec, to: note) {
+                recordsByStudentID[studentIDString] = rec
+            }
+        } catch {
+            Self.logger.warning("Failed to update note: \(error)")
         }
     }
 
@@ -140,7 +156,10 @@ final class AttendanceViewModel {
     var countAbsent: Int { recordsByStudentID.values.filter { $0.status == .absent }.count }
     var countTardy: Int { recordsByStudentID.values.filter { $0.status == .tardy }.count }
     var countLeftEarly: Int { recordsByStudentID.values.filter { $0.status == .leftEarly }.count }
-    var countUnmarked: Int { recordsByStudentID.values.filter { $0.status == .unmarked }.count }
+    /// Roster members with no record are unmarked too — records are only created on first mark.
+    var countUnmarked: Int {
+        max(0, rosterCount - (countPresent + countAbsent + countTardy + countLeftEarly))
+    }
 
     /// "In Class" counts students who are either Present or Tardy.
     /// This is a derived metric for the header summary only and does not change stored data.

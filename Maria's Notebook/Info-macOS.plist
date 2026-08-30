@@ -6,22 +6,8 @@
 	<array>
 		<string>DanielSDeBerry.MariasNoteBook.backup</string>
 	</array>
-	<key>CFBundleDisplayName</key>
-	<string>Maria's Notebook</string>
-	<key>CFBundleName</key>
-	<string>Maria's Notebook</string>
-	<key>NSCalendarsFullAccessUsageDescription</key>
-	<string>We need full access to your calendars to show today's events in your Today view.</string>
-	<key>NSCalendarsUsageDescription</key>
-	<string>We need access to your calendars to show today's events in your Today view.</string>
-	<key>NSCameraUsageDescription</key>
-	<string>We need access to your camera to take photos for notes.</string>
-	<key>NSSpeechRecognitionUsageDescription</key>
-	<string>We need access to speech recognition to enable voice commands and dictation in the command bar.</string>
-	<key>NSRemindersFullAccessUsageDescription</key>
-	<string>We need full access to your reminders to sync reminders from a specific list to your Today view.</string>
-	<key>NSRemindersUsageDescription</key>
-	<string>We need access to your reminders to sync reminders from a specific list to your Today view.</string>
+	<key>CKSharingSupported</key>
+	<true/>
 	<key>NSUbiquitousContainers</key>
 	<dict>
 		<key>iCloud.$(CFBundleIdentifier)</key>
@@ -29,13 +15,11 @@
 			<key>NSUbiquitousContainerIsDocumentScopePublic</key>
 			<true/>
 			<key>NSUbiquitousContainerName</key>
-			<string>Maria's Notebook</string>
+			<string>Montessori Daybook</string>
 			<key>NSUbiquitousContainerSupportedFolderLevels</key>
 			<string>Any</string>
 		</dict>
 	</dict>
-	<key>ITSAppUsesNonExemptEncryption</key>
-	<false/>
 	<key>UTExportedTypeDeclarations</key>
 	<array>
 		<dict>
@@ -44,7 +28,7 @@
 				<string>public.data</string>
 			</array>
 			<key>UTTypeDescription</key>
-			<string>Maria's Notebook Backup</string>
+			<string>Montessori Daybook Backup</string>
 			<key>UTTypeIconFiles</key>
 			<array/>
 			<key>UTTypeIdentifier</key>

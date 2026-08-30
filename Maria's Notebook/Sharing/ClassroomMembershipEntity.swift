@@ -43,4 +43,13 @@ extension CDClassroomMembership {
         get { ClassroomRole(rawValue: roleRaw) ?? .leadGuide }
         set { roleRaw = newValue.rawValue }
     }
+
+    /// The device's role, read straight from the membership row. A notebook with
+    /// no membership yet (solo use, before any share exists) is its own lead guide.
+    static func currentRole(in context: NSManagedObjectContext) -> ClassroomRole {
+        let request = CDFetchRequest(CDClassroomMembership.self)
+        request.sortDescriptors = [NSSortDescriptor(key: "joinedAt", ascending: true)]
+        request.fetchLimit = 1
+        return context.safeFetchFirst(request)?.role ?? .leadGuide
+    }
 }

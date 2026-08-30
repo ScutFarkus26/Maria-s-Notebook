@@ -12,9 +12,11 @@
 		<string>DanielSDeBerry.MariasNoteBook.backup</string>
 	</array>
 	<key>CFBundleDisplayName</key>
-	<string>Maria's Notebook</string>
+	<string>Montessori Daybook</string>
 	<key>CFBundleName</key>
-	<string>Maria's Notebook</string>
+	<string>Montessori Daybook</string>
+	<key>CKSharingSupported</key>
+	<true/>
 	<key>NSCalendarsFullAccessUsageDescription</key>
 	<string>We need full access to your calendars to show today's events in your Today view.</string>
 	<key>NSCalendarsUsageDescription</key>
@@ -34,7 +36,7 @@
 			<key>NSUbiquitousContainerIsDocumentScopePublic</key>
 			<true/>
 			<key>NSUbiquitousContainerName</key>
-			<string>Maria's Notebook</string>
+			<string>Montessori Daybook</string>
 			<key>NSUbiquitousContainerSupportedFolderLevels</key>
 			<string>Any</string>
 		</dict>
@@ -49,7 +51,7 @@
 				<string>public.data</string>
 			</array>
 			<key>UTTypeDescription</key>
-			<string>Maria's Notebook Backup</string>
+			<string>Montessori Daybook Backup</string>
 			<key>UTTypeIconFiles</key>
 			<array/>
 			<key>UTTypeIdentifier</key>

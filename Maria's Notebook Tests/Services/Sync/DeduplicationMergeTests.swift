@@ -98,7 +98,7 @@ final class DeduplicationMergeTests {
 
     // MARK: - Attendance semantic dedup (same student + same day)
 
-    @Test("Attendance duplicates for one student-day keep the lowest id and fold in the real mark")
+    @Test("Attendance duplicates for one student-day keep the marked record and its real mark")
     func attendanceDedupPreservesMark() throws {
         let stack = try CoreDataTestHelpers.makeInMemoryStack()
         let ctx = stack.viewContext
@@ -117,11 +117,11 @@ final class DeduplicationMergeTests {
         marked.date = day.addingTimeInterval(3600) // same calendar day, later time
         marked.status = .absent
 
-        // Attach a note to the record that will be deleted; the `notes`
-        // relationship is Cascade, so dedup must re-parent it first.
+        // Attach a note to the record that will be deleted (the unmarked loser);
+        // the `notes` relationship is Cascade, so dedup must re-parent it first.
         let note = CDNote(context: ctx)
         note.body = "Parent called ahead"
-        note.attendanceRecord = marked
+        note.attendanceRecord = unmarked
 
         #expect(CoreDataTestHelpers.save(ctx))
 
@@ -131,12 +131,14 @@ final class DeduplicationMergeTests {
         let records = ctx.safeFetch(CDFetchRequest(CDAttendanceRecord.self))
         #expect(records.count == 1)
         let survivor = try #require(records.first)
-        #expect(survivor.id == uuid(1))
+        // The marked record wins outright — same winner the grid was showing.
+        #expect(survivor.id == uuid(2))
         #expect(survivor.status == .absent)
 
         let notes = ctx.safeFetch(CDFetchRequest(CDNote.self))
         #expect(notes.count == 1)
-        #expect(notes.first?.attendanceRecord?.id == uuid(1))
+        #expect(notes.first?.attendanceRecord?.id == uuid(2))
+        #expect(notes.first?.attendanceRecordID == uuid(2).uuidString)
     }
 
     @Test("A survivor that already has a mark keeps it over the duplicate's mark")

@@ -33,6 +33,10 @@ public class CDNote: NSManagedObject {
     @NSManaged public var schoolDayOverrideID: String?
     @NSManaged public var studentTrackEnrollmentID: String?
     @NSManaged public var goingOutID: String?
+    /// String-FK twin of the `attendanceRecord` relationship, kept in lockstep by
+    /// `setLegacyNoteText`/dedup and backfilled by `AttendanceNoteLinkBackfill` so the
+    /// relationship can be dropped when attendance moves to the shared store.
+    @NSManaged public var attendanceRecordID: String?
 
     // MARK: - Same-Store Relationships (Private → Private)
     @NSManaged public var work: CDWorkModel?

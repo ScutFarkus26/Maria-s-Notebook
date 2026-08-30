@@ -716,7 +716,7 @@ enum CoreDataStackError: LocalizedError {
         case .cloudKitLoadFailed(let error):
             return "CloudKit store failed to load: \(error.localizedDescription). Falling back to local storage."
         case .storeFromNewerBuild(let storeName, let storeVersion, let appVersion):
-            return "\(storeName) was written by a newer version of Maria's Notebook " +
+            return "\(storeName) was written by a newer version of Montessori Daybook " +
                 "(database format \(storeVersion); this copy understands \(appVersion)). " +
                 "Opening it with this copy would permanently delete the newer data, so it " +
                 "was left untouched. Quit any older copies of the app and open the current one."
