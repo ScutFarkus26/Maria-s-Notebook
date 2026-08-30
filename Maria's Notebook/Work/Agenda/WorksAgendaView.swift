@@ -67,8 +67,14 @@ struct WorksAgendaView: View {
     @AppStorage(UserDefaultsKeys.workAgendaHideScheduled) var hideScheduled: Bool = false
     @AppStorage(UserDefaultsKeys.workAgendaVisibleKinds)
     var visibleKindsRaw: String = WorkKind.allCases.map(\.rawValue).joined(separator: ",")
+    /// Which half of the workspace is showing. Same storage key as the old
+    /// state-first picker, so a scene saved under it migrates through
+    /// `WorkspaceKind.resolved` rather than snapping back to a default.
     @SceneStorage("LessonsAndWork.scope")
-    var workspaceScopeRaw: String = TriageBucket.attention.rawValue
+    var workspaceKindRaw: String = WorkspaceKind.presentations.rawValue
+    /// Which state pill the Work half is filtered by.
+    @SceneStorage("LessonsAndWork.workChip")
+    var workChipRaw: String = WorkFilterChip.needsChecking.rawValue
 
     var visibleKinds: Binding<Set<WorkKind>> {
         Binding(
@@ -93,9 +99,10 @@ struct WorksAgendaView: View {
     @State var searchText: String = ""
     @State var debouncedSearchText: String = ""
     @State var searchDebounceTask: Task<Void, Never>?
-    /// Attention shows what the rule selected; flipped on, it widens to every
-    /// open work item — the list that used to be its own Children Working tab.
-    @AppStorage(UserDefaultsKeys.workAgendaShowAllOpenWork) var showAllOpenWork: Bool = false
+    /// Command-click selections, one per half so switching sides does not
+    /// silently carry a selection of presentations into a bulk work action.
+    @State var presentationSelection = WorkspaceMultiSelection()
+    @State var workSelection = WorkspaceMultiSelection()
     @AppStorage(UserDefaultsKeys.workAgendaCalendarExpanded) var isCalendarExpanded: Bool = true
     @AppStorage(UserDefaultsKeys.workAgendaCalendarFraction) var calendarFraction: Double = 0.42
     /// The share while a drag is in flight, so the pane tracks the finger
@@ -114,18 +121,29 @@ struct WorksAgendaView: View {
     var lessonsByID: [UUID: CDLesson] { lessonsByIDCache }
     var studentsByID: [UUID: CDStudent] { studentsByIDCache }
 
-    var workspaceScope: TriageBucket {
-        TriageBucket.resolved(rawValue: workspaceScopeRaw)
+    var workspaceKind: WorkspaceKind {
+        WorkspaceKind.resolved(rawValue: workspaceKindRaw)
     }
 
-    var workspaceScopeBinding: Binding<TriageBucket> {
+    var workspaceKindBinding: Binding<WorkspaceKind> {
         Binding(
-            get: { workspaceScope },
+            get: { workspaceKind },
             set: { newValue in
-                workspaceScopeRaw = newValue.rawValue
+                workspaceKindRaw = newValue.rawValue
                 focusedPresentationID = nil
                 focusedWorkID = nil
             }
+        )
+    }
+
+    var workChip: WorkFilterChip {
+        WorkFilterChip.resolved(rawValue: workChipRaw)
+    }
+
+    var workChipBinding: Binding<WorkFilterChip> {
+        Binding(
+            get: { workChip },
+            set: { workChipRaw = $0.rawValue }
         )
     }
 
@@ -218,93 +236,46 @@ struct WorksAgendaView: View {
         #endif
     }
 
-    /// The list the guide is working *from*. Scheduled is not one of these —
-    /// it is the pane underneath, because a schedule is a destination, not a
-    /// peer list you switch to.
+    /// The half the guide is working in. Scheduled is neither of them — it is
+    /// the pane underneath, because a schedule is a destination, not a peer
+    /// list you switch to.
     @ViewBuilder
     var workspaceWorkbench: some View {
-        switch workspaceScope {
-        case .attention:
-            attentionPane
-
-        case .scheduled:
-            // Only reachable from a stale saved value; the calendar is pinned
-            // below, so fall back to the list the guide most likely wanted.
-            attentionPane
-
-        case .toSchedule:
-            LessonsAndWorkToScheduleView(
-                unscheduledWork: partition.work.toSchedule,
-                lessonsByID: lessonsByID,
-                studentsByID: studentsByID,
-                attentionWorkIDs: attentionWorkIDs,
-                sortMode: sortMode,
+        switch workspaceKind {
+        case .presentations:
+            LessonsAndWorkPresentationsView(
                 searchText: debouncedSearchText,
                 focusedPresentationID: focusedPresentationID,
-                focusedWorkID: focusedWorkID,
-                onOpenWork: openDetail,
-                onMarkCompleted: markCompleted,
-                onScheduleToday: scheduleToday,
+                selection: presentationSelection,
                 studentIDsWithUpcomingLessons: studentIDsWithUpcomingLessons
             )
 
-        case .done:
-            // Finished records live under Logs; `resolved` never returns this.
-            EmptyView()
-        }
-    }
-
-    /// Attention defaults to what the rule selected, and widens to every open
-    /// work item on request — the old Children Working list, as a filter rather
-    /// than a fourth destination.
-    @ViewBuilder
-    private var attentionPane: some View {
-        if showAllOpenWork {
-            openWorkPane
-        } else {
-            LessonsAndWorkAttentionView(
-                attentionWork: partition.work.attention,
-                lessonsByID: lessonsByID,
-                studentsByID: studentsByID,
-                searchText: debouncedSearchText,
-                focusedPresentationID: focusedPresentationID,
-                focusedWorkID: focusedWorkID,
-                onOpenPresentation: openPresentation,
-                onOpenWork: openDetail
-            )
-        }
-    }
-
-    private var openWorkPane: some View {
-        VStack(alignment: .leading, spacing: 0) {
-            #if os(macOS)
-            WorkKindFilterChipBar(visibleKinds: visibleKinds)
-                .padding(.vertical, 4)
-                .padding(.horizontal, 16)
-            Divider()
-            #endif
-
-            OpenWorkGrid(
-                works: openWorksFiltered(),
+        case .work:
+            LessonsAndWorkWorkView(
+                split: partition.work,
+                visibleWorkIDs: visibleWorkIDs,
                 lessonsByID: lessonsByID,
                 studentsByID: studentsByID,
                 attentionWorkIDs: attentionWorkIDs,
                 sortMode: sortMode,
+                searchText: debouncedSearchText,
                 focusedWorkID: focusedWorkID,
-                onOpen: openDetail,
+                selection: workSelection,
+                chip: workChipBinding,
+                visibleKinds: visibleKinds,
+                onOpenWork: openDetail,
                 onMarkCompleted: markCompleted,
-                onScheduleToday: scheduleToday
+                onScheduleToday: scheduleToday,
+                onDeleted: refreshAfterSave
             )
         }
     }
 
-    var searchPrompt: String { workspaceScope.searchPrompt }
+    var searchPrompt: String { workspaceKind.searchPrompt }
 
-    /// True when a work grid is on screen, and so its sort, kind chips and
+    /// True when the work grid is on screen, and so its sort, kind chips and
     /// print/export controls apply.
-    var showsWorkGrid: Bool {
-        (workspaceScope == .attention && showAllOpenWork) || workspaceScope == .toSchedule
-    }
+    var showsWorkGrid: Bool { workspaceKind == .work }
 }
 
 #Preview {

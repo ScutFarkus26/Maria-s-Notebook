@@ -12,9 +12,9 @@ extension WorksAgendaView {
     @ToolbarContentBuilder
     var lessonsAndWorkToolbarContent: some ToolbarContent {
         ToolbarItem(placement: .principal) {
-            Picker("View", selection: workspaceScopeBinding) {
-                ForEach(TriageBucket.listCases) { bucket in
-                    Text(bucket.title).tag(bucket)
+            Picker("View", selection: workspaceKindBinding) {
+                ForEach(WorkspaceKind.allCases) { kind in
+                    Text(kind.title).tag(kind)
                 }
             }
             .pickerStyle(.segmented)
@@ -28,14 +28,6 @@ extension WorksAgendaView {
                 Label("New Work", systemImage: "plus")
             }
 
-            if workspaceScope == .attention {
-                Toggle(isOn: $showAllOpenWork) {
-                    Label("All Open Work", systemImage: "tray.full")
-                }
-                .toggleStyle(.button)
-                .help("Show every open work item, not only what needs you")
-            }
-
             if showsWorkGrid {
                 Picker("Sort", selection: $sortMode) {
                     ForEach(WorkAgendaSortMode.allCases) { mode in
@@ -44,15 +36,20 @@ extension WorksAgendaView {
                 }
                 .pickerStyle(.menu)
 
-                Button {
-                    hideScheduled.toggle()
-                } label: {
-                    Label(
-                        hideScheduled ? "Show Scheduled Work" : "Hide Scheduled Work",
-                        systemImage: hideScheduled ? "calendar.badge.minus" : "calendar"
-                    )
+                // Only under the All pill: the other pills already name a
+                // state, and hiding scheduled work under Scheduled would empty
+                // the list the pill promises.
+                if workChip == .all {
+                    Button {
+                        hideScheduled.toggle()
+                    } label: {
+                        Label(
+                            hideScheduled ? "Show Scheduled Work" : "Hide Scheduled Work",
+                            systemImage: hideScheduled ? "calendar.badge.minus" : "calendar"
+                        )
+                    }
+                    .help(hideScheduled ? "Show scheduled work" : "Hide scheduled work")
                 }
-                .help(hideScheduled ? "Show scheduled work" : "Hide scheduled work")
             }
 
             if showsWorkGrid {
@@ -74,23 +71,19 @@ extension WorksAgendaView {
             ViewHeader(title: "Lessons & Work") {
                 HStack(spacing: 12) {
                     Menu {
-                        ForEach(TriageBucket.listCases) { bucket in
+                        ForEach(WorkspaceKind.allCases) { kind in
                             Button {
-                                workspaceScopeBinding.wrappedValue = bucket
+                                workspaceKindBinding.wrappedValue = kind
                             } label: {
-                                if bucket == workspaceScope {
-                                    Label(bucket.title, systemImage: "checkmark")
+                                if kind == workspaceKind {
+                                    Label(kind.title, systemImage: "checkmark")
                                 } else {
-                                    Label(bucket.title, systemImage: bucket.systemImage)
+                                    Label(kind.title, systemImage: kind.systemImage)
                                 }
                             }
                         }
-                        if workspaceScope == .attention {
-                            Divider()
-                            Toggle("All Open Work", isOn: $showAllOpenWork)
-                        }
                     } label: {
-                        Label(workspaceScope.compactTitle, systemImage: workspaceScope.systemImage)
+                        Label(workspaceKind.title, systemImage: workspaceKind.systemImage)
                     }
 
                     Button {

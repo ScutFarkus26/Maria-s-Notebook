@@ -123,12 +123,32 @@ extension WorksAgendaView {
 
     // MARK: - Data Helpers
 
+    /// Everything the search field and the kind chips leave visible, whichever
+    /// pill is selected. The Work half slices the triaged partition against
+    /// this, so text and kind are filtered in exactly one place.
+    var visibleWorkIDs: Set<UUID> {
+        Set(openWorksFiltered().compactMap(\.id))
+    }
+
+    /// The work actually on screen: the selected pill's slice of the partition,
+    /// narrowed to what the filters left. This is what gets printed, so the
+    /// sheet matches the list the guide is looking at.
+    func worksOnScreen() -> [CDWorkModel] {
+        let visible = visibleWorkIDs
+        return workChip.slice(of: partition.work).filter { work in
+            guard let id = work.id else { return false }
+            return visible.contains(id)
+        }
+    }
+
     func openWorksFiltered() -> [CDWorkModel] {
         // Filter open work in memory (anything NOT .complete)
         var works = Array(openWork).uniqueByID
 
-        // Hide scheduled work if enabled
-        if hideScheduled {
+        // Hide scheduled work, which only means anything under the All pill —
+        // the other pills already are a state, and hiding scheduled work under
+        // the Scheduled pill would empty the list it names.
+        if hideScheduled && workChip == .all {
             let scheduledWorkIDs = Set(scheduledCheckIns.compactMap { UUID(uuidString: $0.workID) })
             works = works.filter { !scheduledWorkIDs.contains($0.id ?? UUID()) }
         }

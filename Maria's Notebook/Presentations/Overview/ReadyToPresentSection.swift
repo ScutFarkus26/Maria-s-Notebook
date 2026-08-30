@@ -1,9 +1,11 @@
 // ReadyToPresentSection.swift
-// Top-of-screen working area for the Presentations planner:
-// chip row + prioritized inbox grid + the "On Deck (Waiting for Work)" rail.
+// The Presentations half of the Lessons & Work workspace: a pill row over the
+// prioritized inbox of lessons to give.
 //
-// Phase 2: chips render with placeholder counts and selecting a chip does not
-// yet narrow the grid. The slicing predicates are wired in Phase 3.
+// The pill row is `WorkspaceFilterPillRow`, the same component the Work half
+// uses, so both halves of one screen are filtered by one mechanism at one
+// level. The Follow Up pill and the groups behind it live in
+// `ReadyToPresentSection+FollowUp.swift`.
 
 import SwiftUI
 import CoreData
@@ -11,8 +13,11 @@ import OSLog
 
 struct ReadyToPresentSection: View {
     private static let logger = Logger.presentations
+    /// Same logger, reachable from the menu extension in its own file.
+    static let menuLogger = Logger.presentations
 
-    @Environment(\.managedObjectContext) private var viewContext
+    // Not private: the Follow Up extension in its own file reads it.
+    @Environment(\.managedObjectContext) var viewContext
 
     let viewModel: PresentationsViewModel
     let blockingResults: [UUID: BlockingAlgorithmEngine.BlockingCheckResult]
@@ -21,6 +26,25 @@ struct ReadyToPresentSection: View {
     let coordinator: PresentationsCoordinator
     let filterState: PresentationsFilterState
     let suggestedLessonID: UUID?
+    /// Command-click selection, shared with the workspace so a selection
+    /// survives a trip to the calendar and back.
+    let selection: WorkspaceMultiSelection
+
+    /// Presentations already given that still carry an unresolved follow-up.
+    /// Grouped into `followUpGroups` on a change-keyed task rather than in a
+    /// `body` pass — the service dictionary-builds over every assignment,
+    /// lesson and student each time it runs.
+    @FetchRequest(
+        sortDescriptors: [NSSortDescriptor(keyPath: \CDLessonPresentation.presentedAt, ascending: true)],
+        predicate: NSPredicate(format: "followUpActionRaw != nil AND followUpResolvedAt == nil"),
+        animation: .default
+    ) var followUpRows: FetchedResults<CDLessonPresentation>
+
+    @State var followUpGroups: [FollowingPresentationGroup] = []
+
+    /// Held here rather than on each card so one pane has one dialog: it keeps
+    /// the right count, and survives the card scrolling out from under it.
+    @State var pendingDeletion: [CDLessonAssignment] = []
 
     private struct FocusScrollTrigger: Equatable {
         let focusedID: UUID?
@@ -30,31 +54,54 @@ struct ReadyToPresentSection: View {
     private var focusScrollTrigger: FocusScrollTrigger {
         FocusScrollTrigger(
             focusedID: suggestedLessonID,
+            // Follow-up rows are included: a deep link to a given presentation
+            // lands on the Follow Up pill, and it has to scroll there too.
             visibleIDs: (filteredAndSortedBlockedLessons + filteredAndSortedReadyLessons)
-                .compactMap(\.id)
+                .compactMap(\.id) + followUpGroups.map(\.id)
         )
+    }
+
+    /// Everything a card could be selected from right now, so a selection
+    /// cannot outlive the pill that revealed it.
+    private var selectableIDs: [UUID] {
+        (filteredAndSortedBlockedLessons + filteredAndSortedReadyLessons).compactMap(\.id)
     }
 
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {
-            chipRow
+            WorkspaceFilterPillRow(
+                selection: selectedChipBinding,
+                unfiltered: .all,
+                count: chipCount
+            )
             Divider()
+            WorkspaceSelectionBar(selection: selection, noun: "presentation") {
+                Button("Schedule Today") { scheduleSelectionToday() }
+                    .buttonStyle(.borderedProminent)
+                    .controlSize(.small)
+            }
             presentationsContent
+        }
+        .workspaceDeletionConfirmation(
+            pending: $pendingDeletion,
+            title: deletionTitle,
+            confirmTitle: deletionConfirmTitle,
+            message: deletionMessage,
+            onConfirm: performPendingDeletion
+        )
+        .task(id: followUpTrigger) {
+            rebuildFollowUpGroups()
+        }
+        .task(id: selectableIDs) {
+            selection.retain(Set(selectableIDs))
         }
     }
 
-    // MARK: - Chip row
-
-    private var chipRow: some View {
-        ScrollView(.horizontal, showsIndicators: false) {
-            HStack(spacing: AppTheme.Spacing.verySmall) {
-                ForEach(PresentationsFilterChip.allCases) { chip in
-                    chipButton(chip)
-                }
-            }
-            .padding(.horizontal, AppTheme.Spacing.medium)
-            .padding(.vertical, AppTheme.Spacing.small)
-        }
+    private var selectedChipBinding: Binding<PresentationsFilterChip> {
+        Binding(
+            get: { filterState.selectedChip },
+            set: { filterState.selectedChip = $0 }
+        )
     }
 
     // MARK: - Content
@@ -87,6 +134,8 @@ struct ReadyToPresentSection: View {
         case .all:
             blockedSection
             readySection
+        case .followUp:
+            followUpContent
         case .waitingForWork:
             singleSliceSection(
                 filteredAndSortedBlockedLessons,
@@ -147,14 +196,14 @@ struct ReadyToPresentSection: View {
 
     // MARK: - Filtered slices (delegates to PresentationsViewModel)
 
-    private var filteredAndSortedReadyLessons: [CDLessonAssignment] {
+    var filteredAndSortedReadyLessons: [CDLessonAssignment] {
         viewModel.filteredAndSortedReady(
             studentFilter: coordinator.selectedStudentFilter,
             debouncedSearch: filterState.debouncedSearchText
         )
     }
 
-    private var filteredAndSortedBlockedLessons: [CDLessonAssignment] {
+    var filteredAndSortedBlockedLessons: [CDLessonAssignment] {
         viewModel.filteredAndSortedBlocked(
             studentFilter: coordinator.selectedStudentFilter,
             debouncedSearch: filterState.debouncedSearchText
@@ -232,105 +281,18 @@ struct ReadyToPresentSection: View {
         let isSuggested = suggestedLessonID != nil && suggestedLessonID == la.id
         return inboxRow(la)
             .id(la.id ?? UUID())
-            .overlay(
-                RoundedRectangle(
-                    cornerRadius: UIConstants.CornerRadius.medium,
-                    style: .continuous
-                )
-                .stroke(Color.accentColor, lineWidth: isSuggested ? 2.5 : 0)
-                .shadow(
-                    color: .accentColor.opacity(isSuggested ? 0.4 : 0),
-                    radius: 6
-                )
+            .suggestedHighlight(isSuggested)
+            .workspaceSelectionRing(
+                selection.contains(la.id),
+                cornerRadius: UIConstants.CornerRadius.medium
             )
             .contextMenu {
                 ShowInChecklistButton(lessonID: la.resolvedLessonID, context: viewContext)
+                Divider()
+                deleteButton(for: la)
             }
     }
 
-}
-
-// MARK: - Chip button + per-chip slice computations
-
-extension ReadyToPresentSection {
-
-    fileprivate func chipButton(_ chip: PresentationsFilterChip) -> some View {
-        let isSelected = filterState.selectedChip == chip
-        let accent = chip.accent
-        let count = chipCount(chip)
-        return Button {
-            adaptiveWithAnimation(.easeInOut(duration: 0.15)) {
-                filterState.selectedChip = isSelected ? .all : chip
-            }
-        } label: {
-            HStack(spacing: AppTheme.Spacing.xxsmall) {
-                Image(systemName: chip.systemImage)
-                    .font(.caption2)
-                Text(chip.title)
-                    .font(.caption.weight(.medium))
-                if count > 0 {
-                    Text("\(count)")
-                        .font(.caption2.weight(.semibold))
-                        .padding(.horizontal, 5)
-                        .padding(.vertical, 1)
-                        .background(
-                            Capsule().fill(
-                                isSelected
-                                    ? Color.white.opacity(0.25)
-                                    : accent.opacity(UIConstants.OpacityConstants.accent)
-                            )
-                        )
-                }
-            }
-            .foregroundStyle(isSelected ? Color.white : accent)
-            .padding(.horizontal, AppTheme.Spacing.small + AppTheme.Spacing.xxsmall)
-            .padding(.vertical, AppTheme.Spacing.verySmall)
-            .background(
-                Capsule().fill(isSelected
-                    ? accent
-                    : accent.opacity(UIConstants.OpacityConstants.accent)))
-        }
-        .buttonStyle(.plain)
-    }
-
-    fileprivate func chipCount(_ chip: PresentationsFilterChip) -> Int {
-        switch chip {
-        case .all:
-            return filteredAndSortedReadyLessons.count + filteredAndSortedBlockedLessons.count
-        case .suggestedNext:
-            return suggestedNextSlice.count
-        case .waitingForWork:
-            return filteredAndSortedBlockedLessons.count
-        case .overdue:
-            return overdueSlice.count
-        case .recentlyMissed:
-            return recentlyMissedSlice.count
-        }
-    }
-
-    fileprivate var suggestedNextSlice: [CDLessonAssignment] {
-        viewModel.suggestedNextLessons(
-            among: filteredAndSortedReadyLessons,
-            allLessonAssignments: viewModel.cachedLessonAssignments,
-            limit: 3
-        )
-    }
-
-    fileprivate var overdueSlice: [CDLessonAssignment] {
-        viewModel.applyStudentAndTextFilters(
-            to: viewModel.overdueReady(thresholdSchoolDays: 14),
-            studentFilter: coordinator.selectedStudentFilter,
-            debouncedSearch: filterState.debouncedSearchText
-        )
-    }
-
-    fileprivate var recentlyMissedSlice: [CDLessonAssignment] {
-        viewModel.applyStudentAndTextFilters(
-            to: viewModel.recentlyMissed(within: 14),
-            studentFilter: coordinator.selectedStudentFilter,
-            debouncedSearch: filterState.debouncedSearchText
-        )
-    }
 }
 
 // MARK: - Cards + On Deck actions
@@ -371,16 +333,10 @@ extension ReadyToPresentSection {
             }
         }
         .id(la.id ?? UUID())
-        .overlay(
-            RoundedRectangle(
-                cornerRadius: UIConstants.CornerRadius.medium,
-                style: .continuous
-            )
-            .stroke(Color.accentColor, lineWidth: isFocused ? 2.5 : 0)
-            .shadow(
-                color: .accentColor.opacity(isFocused ? 0.4 : 0),
-                radius: 6
-            )
+        .suggestedHighlight(isFocused)
+        .workspaceSelectionRing(
+            selection.contains(la.id),
+            cornerRadius: UIConstants.CornerRadius.medium
         )
         .contextMenu {
             ShowInChecklistButton(lessonID: la.resolvedLessonID, context: viewContext)
@@ -388,6 +344,8 @@ extension ReadyToPresentSection {
                 unlockOnDeckLesson(la)
             }
             .disabled(la.manuallyUnblocked)
+            Divider()
+            deleteButton(for: la)
         }
     }
 
@@ -408,13 +366,20 @@ extension ReadyToPresentSection {
             readyCount: readyCount,
             totalCount: totalCount
         )
-        .onTapGesture { coordinator.showLessonAssignmentDetail(la) }
+        // Command-click extends the selection instead of opening the card, so
+        // one click never both selects and navigates away.
+        .onTapGesture {
+            guard !selection.handleTap(on: la.id) else { return }
+            coordinator.showLessonAssignmentDetail(la)
+        }
 
         // A row with no id cannot be resolved by any drop handler, and the drop
         // would report success while doing nothing — so it simply isn't a drag
         // source.
         if let id = la.id {
-            card.draggable(UnifiedCalendarDragPayload.presentation(id).stringRepresentation) {
+            card.draggable(
+                selection.dragPayload(startingAt: id, make: UnifiedCalendarDragPayload.presentation)
+            ) {
                 dragPreview(for: la)
             }
         } else {
@@ -436,6 +401,27 @@ extension ReadyToPresentSection {
         )
         .opacity(UIConstants.OpacityConstants.nearSolid)
         .environment(\.managedObjectContext, viewContext)
+    }
+
+    /// Puts every selected presentation on today, spaced the way a drop onto
+    /// today's column would space them.
+    fileprivate func scheduleSelectionToday() {
+        let selected = (filteredAndSortedReadyLessons + filteredAndSortedBlockedLessons)
+            .filter { selection.contains($0.id) }
+        guard !selected.isEmpty else { return }
+
+        let startOfDay = AppCalendar.startOfDay(Date())
+        let base = AppCalendar.shared.date(byAdding: .hour, value: 9, to: startOfDay) ?? startOfDay
+        for (index, assignment) in selected.enumerated() {
+            let offset = Double(index * UIConstants.scheduleSpacingSeconds)
+            assignment.setScheduledFor(base.addingTimeInterval(offset), using: AppCalendar.shared)
+        }
+        do {
+            try viewContext.save()
+            selection.clear()
+        } catch {
+            Self.logger.error("Failed to schedule selected presentations: \(error)")
+        }
     }
 
     fileprivate func unlockOnDeckLesson(_ la: CDLessonAssignment) {

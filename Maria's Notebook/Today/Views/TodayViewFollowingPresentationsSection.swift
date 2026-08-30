@@ -8,7 +8,7 @@ extension TodayView {
                 selectedLessonAssignment = assignment
             },
             onViewAll: {
-                appRouter.navigateToLessonsAndWork(.attention)
+                appRouter.navigateToLessonsAndWork(.attention, preferredKind: .presentations)
             }
         )
     }

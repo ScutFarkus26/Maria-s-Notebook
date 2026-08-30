@@ -25,6 +25,9 @@ struct PresentationsView: View {
     /// view can drive the same student filter and the same search.
     let coordinator: PresentationsCoordinator
     let filterState: PresentationsFilterState
+    /// Command-click selection, owned by the workspace so it survives a switch
+    /// between the two halves.
+    let selection: WorkspaceMultiSelection
 
     // OPTIMIZATION: Use lightweight queries for change detection only
     // Extract IDs immediately to avoid retaining full objects - significantly reduces memory usage
@@ -186,5 +189,21 @@ struct PresentationsView: View {
     /// leave a deep link pointing at a list that does not contain the record.
     static func canRevealInReadyList(isPresented: Bool, scheduledFor: Date?) -> Bool {
         !isPresented && scheduledFor == nil
+    }
+
+    /// Which pill can show this presentation, or nil when none can.
+    ///
+    /// A given one carries its unresolved responsibility, which is what the
+    /// Follow Up pill holds; an unscheduled one is in the planning inbox; a
+    /// scheduled one belongs to the Scheduled calendar pinned below, so no pill
+    /// here claims it.
+    static func chipRevealing(
+        isPresented: Bool,
+        scheduledFor: Date?
+    ) -> PresentationsFilterChip? {
+        if isPresented { return .followUp }
+        return canRevealInReadyList(isPresented: isPresented, scheduledFor: scheduledFor)
+            ? .all
+            : nil
     }
 }

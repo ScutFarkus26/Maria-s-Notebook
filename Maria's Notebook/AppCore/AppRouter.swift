@@ -102,17 +102,22 @@ final class AppRouter {
         let scope: TriageBucket
         let presentationID: UUID?
         let workID: UUID?
+        /// Which half to open when the route names no record; one that does is
+        /// placed by the workspace's own partition instead.
+        let preferredKind: WorkspaceKind?
 
         init(
             id: UUID = UUID(),
             scope: TriageBucket,
             presentationID: UUID? = nil,
-            workID: UUID? = nil
+            workID: UUID? = nil,
+            preferredKind: WorkspaceKind? = nil
         ) {
             self.id = id
             self.scope = scope
             self.presentationID = presentationID
             self.workID = workID
+            self.preferredKind = preferredKind
         }
     }
     
@@ -237,16 +242,18 @@ final class AppRouter {
     }
 
     /// Opens the shared workspace at the point in the learning cycle requested
-    /// by the caller. Both former planning destinations now route here.
+    /// by the caller.
     func navigateToLessonsAndWork(
         _ scope: TriageBucket = .attention,
         presentationID: UUID? = nil,
-        workID: UUID? = nil
+        workID: UUID? = nil,
+        preferredKind: WorkspaceKind? = nil
     ) {
         lessonsAndWorkRequest = LessonsAndWorkRequest(
             scope: scope,
             presentationID: presentationID,
-            workID: workID
+            workID: workID,
+            preferredKind: preferredKind
         )
         selectedNavItem = .planningAgenda
     }
@@ -257,8 +264,7 @@ final class AppRouter {
     }
 
     /// Opens a finished record's history. The workspace holds only open work
-    /// now — completed presentations and work live under Logs, which already
-    /// hosted both lists.
+    /// now — completed presentations and work live under Logs.
     func navigateToHistory(_ kind: HistoryKind) {
         UserDefaults.standard.set(kind.logsModeRaw, forKey: UserDefaultsKeys.logsMenuRootViewMode)
         selectedNavItem = .logs
@@ -278,7 +284,7 @@ final class AppRouter {
 
     /// Kept as a source-compatible bridge for Today and older call sites.
     func navigateToPresentationFollowUps() {
-        navigateToLessonsAndWork(.attention)
+        navigateToLessonsAndWork(.attention, preferredKind: .presentations)
     }
 
     /// Open Ask AI and submit a question chosen from the notebook companion.

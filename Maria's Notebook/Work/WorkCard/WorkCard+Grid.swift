@@ -11,6 +11,10 @@ import UIKit
 struct WorkCardGridContent: View {
     let config: WorkCard.GridModeConfig
 
+    // Not private: the context menu lives in WorkCard+GridMenu.swift.
+    @Environment(\.managedObjectContext) var viewContext
+    @Environment(\.appRouter) var appRouter
+
     @SyncedAppStorage("WorkAge.warningDays") private var ageWarningDays: Int = LessonAgeDefaults.warningDays
     @SyncedAppStorage("WorkAge.overdueDays") private var ageOverdueDays: Int = LessonAgeDefaults.overdueDays
     @SyncedAppStorage("WorkAge.freshColorHex") private var ageFreshColorHex: String = LessonAgeDefaults.freshColorHex
@@ -62,14 +66,25 @@ struct WorkCardGridContent: View {
         )
         .contentShape(Rectangle())
         .accessibilityElement(children: .combine)
-        .onTapGesture { config.onOpen(config.work) }
+        // Command-click extends the selection instead of opening the card, so
+        // one click never both selects and navigates away.
+        .onTapGesture {
+            guard config.selection?.handleTap(on: config.work.id) != true else { return }
+            config.onOpen(config.work)
+        }
         // A substituted id resolves to nothing on drop, and the drop reports
         // success regardless — so a card with no id is not a drag source.
         .modifier(WorkCardDragModifier(
             workID: config.work.id,
             title: displayTitle,
-            studentDisplay: config.studentDisplay
+            studentDisplay: config.studentDisplay,
+            selection: config.selection
         ))
+        .workspaceSelectionRing(config.selection?.contains(config.work.id) == true)
+        // On the card, not on the metadata line it used to hang off — a menu
+        // you can only reach by right-clicking "Adina T. • Practice • 110d" is
+        // a menu most of the card doesn't have.
+        .contextMenu { gridContextMenu }
     }
 
     private var ageIndicator: some View {
@@ -127,62 +142,9 @@ struct WorkCardGridContent: View {
                 .font(.caption2)
                 .foregroundStyle(.secondary)
         }
-        .contextMenu {
-            Button {
-                config.onOpen(config.work)
-            } label: {
-                Label("Open", systemImage: "arrow.forward.circle")
-            }
-
-            #if os(macOS)
-            Button {
-                if let id = config.work.id { openWorkInNewWindow(id) }
-            } label: {
-                Label("Open in New Window", systemImage: "uiwindow.split.2x1")
-            }
-            #endif
-
-            Divider()
-
-            Button {
-                config.onMarkCompleted(config.work)
-            } label: {
-                Label("Mark Completed", systemImage: "checkmark.circle")
-            }
-
-            // Status change submenu
-            Menu {
-                Button {
-                    // Set to Practice (active)
-                } label: {
-                    Label("Practice", systemImage: config.work.status == .active ? "checkmark" : "circle")
-                }
-                Button {
-                    // Set to Follow-Up (review)
-                } label: {
-                    Label("Follow-Up", systemImage: config.work.status == .review ? "checkmark" : "circle")
-                }
-            } label: {
-                Label("Change Status", systemImage: "arrow.triangle.2.circlepath")
-            }
-
-            Menu {
-                Button("Today") { config.onScheduleToday(config.work) }
-            } label: {
-                Label("Schedule", systemImage: "calendar")
-            }
-
-            Divider()
-
-            Button {
-                copyWorkTitle()
-            } label: {
-                Label("Copy Title", systemImage: "doc.on.doc")
-            }
-        }
     }
 
-    private func copyWorkTitle() {
+    func copyWorkTitle() {
         #if os(macOS)
         NSPasteboard.general.clearContents()
         NSPasteboard.general.setString(displayTitle, forType: .string)
@@ -217,10 +179,16 @@ private struct WorkCardDragModifier: ViewModifier {
     let workID: UUID?
     let title: String
     let studentDisplay: String
+    /// Dragging a selected card drags every selected card.
+    let selection: WorkspaceMultiSelection?
 
     func body(content: Content) -> some View {
         if let workID {
-            content.draggable(UnifiedCalendarDragPayload.work(workID).stringRepresentation) {
+            let payload = selection?.dragPayload(
+                startingAt: workID,
+                make: UnifiedCalendarDragPayload.work
+            ) ?? UnifiedCalendarDragPayload.work(workID).stringRepresentation
+            content.draggable(payload) {
                 // Plain strings only, so the preview needs no environment.
                 VStack(alignment: .leading, spacing: 6) {
                     Text(title).font(.subheadline)

@@ -339,7 +339,7 @@ struct MariasNotebookApp: App {
                 Button("Today") { appRouter.navigateTo(.today) }
                     .keyboardShortcut("1", modifiers: .command)
 
-                Button("Lessons & Work") { appRouter.navigateToLessonsAndWork(.attention) }
+                Button("Lessons & Work") { appRouter.navigateToLessonsAndWork(.attention, preferredKind: .work) }
                     .keyboardShortcut("2", modifiers: .command)
 
                 Button("Students") { appRouter.navigateTo(.students) }

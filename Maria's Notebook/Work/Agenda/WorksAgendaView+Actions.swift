@@ -73,7 +73,7 @@ extension WorksAgendaView {
 
     #if os(macOS)
     func printWorkView() {
-        let works = openWorksFiltered()
+        let works = worksOnScreen()
         let items = makePrintItems(from: works)
         guard let pdfData = WorkPDFRenderer.renderPDF(
             items: items, sortMode: sortMode,
@@ -93,7 +93,7 @@ extension WorksAgendaView {
     }
 
     func exportWorkPDF() {
-        let works = openWorksFiltered()
+        let works = worksOnScreen()
         let items = makePrintItems(from: works)
         let currentSortMode = sortMode
         let currentSearchText = debouncedSearchText
@@ -125,35 +125,59 @@ extension WorksAgendaView {
     // MARK: - Opening Records
 
     /// A caller asking for a particular record only has to get it into the
-    /// workspace — the partition already knows which list holds it, so the
-    /// requested scope is a fallback, not an instruction.
+    /// workspace — the partition already knows which half holds it and which
+    /// state it is in, so the requested scope is a fallback, not an instruction.
     func consumeWorkspaceRequestIfNeeded() {
         guard let request = appRouter.consumeLessonsAndWorkRequest() else { return }
         focusedPresentationID = request.presentationID
         focusedWorkID = request.workID
 
-        let destination = bucketHolding(request) ?? request.scope
-        guard destination != .scheduled else {
-            // Already on screen in the pinned pane — open it and let the
-            // calendar reveal the record, rather than switching the list above.
+        let placement = placementFor(request)
+        guard placement.bucket != .scheduled || placement.kind == .work else {
+            // A scheduled presentation is already on screen in the pinned pane,
+            // so open it and let the calendar reveal the record rather than
+            // switching the half above it.
             isCalendarExpanded = true
             return
         }
-        workspaceScopeRaw = destination.rawValue
+
+        workspaceKindRaw = placement.kind.rawValue
+        switch placement.kind {
+        case .work:
+            workChipRaw = WorkFilterChip.showing(placement.bucket).rawValue
+        case .presentations:
+            // An unresolved follow-up is the one presentation state that isn't
+            // in the planning inbox, so it needs its own pill.
+            break
+        }
     }
 
-    func bucketHolding(_ request: AppRouter.LessonsAndWorkRequest) -> TriageBucket? {
-        if let workID = request.workID {
-            return TriageBucket.workspaceCases.first { bucket in
-                partition.work[bucket].contains { $0.id == workID }
-            }
+    /// Where in the workspace a route's record actually is.
+    ///
+    /// The partition is asked first, because the record's real state beats
+    /// whatever the caller guessed. `preferredKind` decides only for routes
+    /// that name no record at all.
+    func placementFor(
+        _ request: AppRouter.LessonsAndWorkRequest
+    ) -> (kind: WorkspaceKind, bucket: TriageBucket) {
+        if let workID = request.workID,
+           let bucket = TriageBucket.workspaceCases.first(where: { bucket in
+               partition.work[bucket].contains { $0.id == workID }
+           }) {
+            return (.work, bucket)
         }
-        if let presentationID = request.presentationID {
-            return TriageBucket.workspaceCases.first { bucket in
-                partition.presentations[bucket].contains { $0.id == presentationID }
-            }
+        if let presentationID = request.presentationID,
+           let bucket = TriageBucket.workspaceCases.first(where: { bucket in
+               partition.presentations[bucket].contains { $0.id == presentationID }
+           }) {
+            return (.presentations, bucket)
         }
-        return nil
+        let kind = request.preferredKind
+            ?? WorkspaceKind.holding(
+                presentationID: request.presentationID,
+                workID: request.workID
+            )
+        return (kind, request.scope)
     }
 
     func openPresentation(_ assignment: CDLessonAssignment) {

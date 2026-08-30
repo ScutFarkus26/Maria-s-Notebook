@@ -37,8 +37,27 @@ public enum UnifiedCalendarDragPayload: Equatable {
         }
     }
 
+    /// Joins several payloads into one drag string.
+    ///
+    /// A command-click selection drags as a single item carrying every record
+    /// in it. One payload per line keeps the format backwards compatible:
+    /// `parse` reads the first line, so a drop site that has not been taught
+    /// about multi-drag still schedules the card the guide was dragging rather
+    /// than failing to parse and silently doing nothing.
+    nonisolated public static func joined(_ payloads: [UnifiedCalendarDragPayload]) -> String {
+        payloads.map(\.stringRepresentation).joined(separator: "\n")
+    }
+
+    /// Every payload in a drag string, in order.
+    nonisolated public static func parseAll(_ s: String) -> [UnifiedCalendarDragPayload] {
+        s.split(whereSeparator: \.isNewline).compactMap { parse(String($0)) }
+    }
+
     nonisolated public static func parse(_ s: String) -> UnifiedCalendarDragPayload? {
-        let trimmed = s.trimmed()
+        // Only the first line: a multi-record drag reaching a single-record
+        // drop site schedules the card under the pointer.
+        let firstLine = s.split(whereSeparator: \.isNewline).first.map(String.init) ?? s
+        let trimmed = firstLine.trimmed()
         if trimmed.hasPrefix("PRESENTATION:"), let id = UUID(uuidString: String(trimmed.dropFirst(13))) {
             return .presentation(id)
         } else if trimmed.hasPrefix("STUDENTLESSON:"), let id = UUID(uuidString: String(trimmed.dropFirst(14))) {

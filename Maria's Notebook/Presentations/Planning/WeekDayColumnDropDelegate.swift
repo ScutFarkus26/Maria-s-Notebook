@@ -71,10 +71,14 @@ struct WeekDayColumnDropDelegate: DropDelegate {
         guard let provider = providers.first, provider.canLoadObject(ofClass: NSString.self) else { return false }
         provider.loadObject(ofClass: NSString.self) { reading, _ in
             guard let ns = reading as? NSString else { return }
-            let payloadString = (ns as String).trimmed()
-            guard let payload = UnifiedCalendarDragPayload.parse(payloadString) else { return }
+            // A command-click selection arrives as one item carrying every
+            // record in it, so a day accepts a whole morning in one drop.
+            let payloads = UnifiedCalendarDragPayload.parseAll(ns as String)
+            guard !payloads.isEmpty else { return }
             Task { @MainActor in
-                applyDrop(payload: payload, locationY: location.y)
+                for payload in payloads {
+                    applyDrop(payload: payload, locationY: location.y)
+                }
             }
         }
         return true

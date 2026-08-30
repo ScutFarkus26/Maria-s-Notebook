@@ -30,6 +30,17 @@ struct WorkCard: View {
         let studentDisplay: String
         let needsAttention: Bool
         let ageSchoolDays: Int
+        /// Command-click selection this card takes part in, when the surface
+        /// showing it has one. Nil on the surfaces that don't — a student's
+        /// overview has nothing to schedule a selection onto.
+        let selection: WorkspaceMultiSelection?
+        /// The records this card's context menu acts on: itself, or the whole
+        /// selection when it is part of one. Resolved by the grid, which is the
+        /// only thing holding the other cards. Nil means "just this one".
+        let menuTargets: (() -> [CDWorkModel])?
+        /// Nil hides Delete. A student's overview shows work in passing, and
+        /// passing by is not where a record should be destroyed.
+        let onRequestDelete: (([CDWorkModel]) -> Void)?
         let onOpen: (CDWorkModel) -> Void
         let onMarkCompleted: (CDWorkModel) -> Void
         let onScheduleToday: (CDWorkModel) -> Void
@@ -40,6 +51,9 @@ struct WorkCard: View {
             studentDisplay: String,
             needsAttention: Bool = false,
             ageSchoolDays: Int = 0,
+            selection: WorkspaceMultiSelection? = nil,
+            menuTargets: (() -> [CDWorkModel])? = nil,
+            onRequestDelete: (([CDWorkModel]) -> Void)? = nil,
             onOpen: @escaping (CDWorkModel) -> Void,
             onMarkCompleted: @escaping (CDWorkModel) -> Void = { _ in },
             onScheduleToday: @escaping (CDWorkModel) -> Void = { _ in }
@@ -49,6 +63,9 @@ struct WorkCard: View {
             self.studentDisplay = studentDisplay
             self.needsAttention = needsAttention
             self.ageSchoolDays = ageSchoolDays
+            self.selection = selection
+            self.menuTargets = menuTargets
+            self.onRequestDelete = onRequestDelete
             self.onOpen = onOpen
             self.onMarkCompleted = onMarkCompleted
             self.onScheduleToday = onScheduleToday
@@ -147,6 +164,9 @@ extension WorkCard {
         studentDisplay: String,
         needsAttention: Bool = false,
         ageSchoolDays: Int = 0,
+        selection: WorkspaceMultiSelection? = nil,
+        menuTargets: (() -> [CDWorkModel])? = nil,
+        onRequestDelete: (([CDWorkModel]) -> Void)? = nil,
         onOpen: @escaping (CDWorkModel) -> Void,
         onMarkCompleted: @escaping (CDWorkModel) -> Void = { _ in },
         onScheduleToday: @escaping (CDWorkModel) -> Void = { _ in }
@@ -157,6 +177,9 @@ extension WorkCard {
             studentDisplay: studentDisplay,
             needsAttention: needsAttention,
             ageSchoolDays: ageSchoolDays,
+            selection: selection,
+            menuTargets: menuTargets,
+            onRequestDelete: onRequestDelete,
             onOpen: onOpen,
             onMarkCompleted: onMarkCompleted,
             onScheduleToday: onScheduleToday

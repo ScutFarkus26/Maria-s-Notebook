@@ -152,7 +152,8 @@ extension PresentationsView {
             filteredSnapshot: filteredSnapshot,
             coordinator: coordinator,
             filterState: filterState,
-            suggestedLessonID: suggestedLessonID ?? focusedPresentationID
+            suggestedLessonID: suggestedLessonID ?? focusedPresentationID,
+            selection: selection
         )
     }
 
@@ -207,14 +208,14 @@ extension PresentationsView {
               let assignment = lessonAssignmentsForChangeDetection.first(where: {
                   $0.id == focusedPresentationID
               }),
-              PresentationsView.canRevealInReadyList(
+              let chip = PresentationsView.chipRevealing(
                   isPresented: assignment.isPresented,
                   scheduledFor: assignment.scheduledFor
               ) else {
             return
         }
         // A prior chip or student filter can hide an otherwise valid deep link.
-        filterState.selectedChip = .all
+        filterState.selectedChip = chip
         coordinator.clearStudentFilter()
     }
 

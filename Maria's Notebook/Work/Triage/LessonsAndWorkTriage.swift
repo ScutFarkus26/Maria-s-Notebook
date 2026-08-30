@@ -1,14 +1,17 @@
 // LessonsAndWorkTriage.swift
 // The single rule that decides which Lessons & Work list a record belongs in.
 //
-// The workspace exists to answer three questions:
+// The workspace exists to answer three questions about any record:
 //
-//   Attention    what needs me          — a list
-//   To Schedule  what I still must plan — a list
-//   Scheduled    what is on a day       — the calendar pinned beneath them
+//   Attention    what needs me
+//   To Schedule  what I still must plan
+//   Scheduled    what is on a day — the calendar pinned beneath both halves
 //
-// Scheduled is a bucket like the others, but not a list you switch to: it is
-// the surface the other two are dragged onto, so it stays on screen.
+// These are states, not places. The workspace is split by *kind* first
+// (`WorkspaceKind`), and each half offers its states as a pill row —
+// `WorkFilterChip` for work, `PresentationsFilterChip` for presentations.
+// Scheduled is a bucket like the others but never a list you switch to: it is
+// the surface the rest are dragged onto, so it stays on screen.
 //
 // Every open presentation and every open work item lands in exactly one of
 // them — the buckets do not overlap and they leave no gaps. Finished records
@@ -46,9 +49,10 @@ enum TriageBucket: String, CaseIterable, Identifiable, Sendable {
     /// links resolve against.
     static let workspaceCases: [TriageBucket] = [.attention, .scheduled, .toSchedule]
 
-    /// The lists the guide switches between. `.scheduled` is absent on purpose
-    /// — the calendar is pinned beneath whichever list is showing, because a
-    /// schedule is where things are dragged *to*, not a peer to switch away to.
+    /// The buckets a saved list selection may name. `.scheduled` is absent on
+    /// purpose — the calendar is pinned beneath whichever half is showing,
+    /// because a schedule is where things are dragged *to*, not a list you
+    /// switch away to.
     static let listCases: [TriageBucket] = [.attention, .toSchedule]
 
     var title: String {
@@ -57,14 +61,6 @@ enum TriageBucket: String, CaseIterable, Identifiable, Sendable {
         case .scheduled: "Scheduled"
         case .toSchedule: "To Schedule"
         case .done: "Done"
-        }
-    }
-
-    /// Shortened for the iPhone header, where the full title crowds the row.
-    var compactTitle: String {
-        switch self {
-        case .toSchedule: "To Plan"
-        default: title
         }
     }
 

@@ -10,15 +10,26 @@ struct OpenWorkGrid: View {
     let attentionWorkIDs: Set<UUID>
     let sortMode: WorkAgendaSortMode
     var focusedWorkID: UUID? = nil
+    /// Command-click selection. Optional so the grid keeps working on the
+    /// surfaces that have no selection of their own (a student's overview).
+    var selection: WorkspaceMultiSelection?
 
     let onOpen: (CDWorkModel) -> Void
     let onMarkCompleted: (CDWorkModel) -> Void
     let onScheduleToday: (CDWorkModel) -> Void
+    /// Nil hides Delete from the card menus. A grid that only reports on work
+    /// — a student's overview — is not where a record gets destroyed.
+    var onDeleted: (() -> Void)?
 
-    @Environment(\.managedObjectContext) private var viewContext
+    // Not private: the deletion helpers live in OpenWorkGrid+Deletion.swift.
+    @Environment(\.managedObjectContext) var viewContext
     @Environment(\.calendar) private var calendar
     
     @State private var cachedAgeSchoolDays: [UUID: Int] = [:]
+
+    /// Held here rather than on each card so one grid has one dialog: it keeps
+    /// the right count, and it survives the card scrolling out from under it.
+    @State var pendingDeletion: [CDWorkModel] = []
 
     // MARK: - Layout
     // Keep cards legible on compact devices and take advantage of Mac width
@@ -59,6 +70,11 @@ struct OpenWorkGrid: View {
                                         studentDisplay: item.student,
                                         needsAttention: item.needsAttention,
                                         ageSchoolDays: ageSchoolDays,
+                                        selection: selection,
+                                        menuTargets: { menuTargets(for: item.work) },
+                                        onRequestDelete: onDeleted == nil
+                                            ? nil
+                                            : { pendingDeletion = $0 },
                                         onOpen: onOpen,
                                         onMarkCompleted: onMarkCompleted,
                                         onScheduleToday: onScheduleToday
@@ -91,6 +107,13 @@ struct OpenWorkGrid: View {
                 }
             }
         }
+        .workspaceDeletionConfirmation(
+            pending: $pendingDeletion,
+            title: deletionTitle,
+            confirmTitle: deletionConfirmTitle,
+            message: deletionMessage,
+            onConfirm: performPendingDeletion
+        )
         .task {
             await precomputeAgeValues()
         }
