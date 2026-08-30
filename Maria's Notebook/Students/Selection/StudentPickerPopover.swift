@@ -13,6 +13,9 @@ struct StudentPickerPopover: View {
     @State private var searchText: String = ""
     @State private var showingAddStudent: Bool = false
 
+    @AppStorage(UserDefaultsKeys.studentPickerSortOrder)
+    private var sortModeRaw: String = SortMode.name.rawValue
+
     @Environment(\.dismiss) private var dismiss
 
     enum LevelFilter: String, CaseIterable, Identifiable {
@@ -23,6 +26,31 @@ struct StudentPickerPopover: View {
 
         var id: String { rawValue }
     }
+
+    /// How the list is ordered. Age is for the common case of picking a run of children
+    /// who are close in age; the ages are listed either way so the choice is visible.
+    enum SortMode: String, CaseIterable, Identifiable {
+        case name
+        case age
+
+        var id: String { rawValue }
+
+        var title: String {
+            switch self {
+            case .name: return "Name"
+            case .age: return "Age"
+            }
+        }
+
+        var systemImage: String {
+            switch self {
+            case .name: return "textformat.abc"
+            case .age: return "calendar"
+            }
+        }
+    }
+
+    private var sortMode: SortMode { SortMode(rawValue: sortModeRaw) ?? .name }
 
     var filteredStudentsForPicker: [CDStudent] {
         let search = searchText.normalizedForComparison()
@@ -49,13 +77,30 @@ struct StudentPickerPopover: View {
             }
         }
 
-        return filtered.sorted {
-            let leftFirst = $0.firstName.lowercased()
-            let rightFirst = $1.firstName.lowercased()
-            if leftFirst != rightFirst {
-                return leftFirst < rightFirst
+        return sortedForDisplay(filtered)
+    }
+
+    /// Age runs oldest first, matching the student columns on the checklist this picker
+    /// filters, so the same children sit in the same order in both places. Students with
+    /// no birthday on file sink to the bottom rather than posing as newborns.
+    private func sortedForDisplay(_ students: [CDStudent]) -> [CDStudent] {
+        switch sortMode {
+        case .name:
+            return students.sorted(by: StudentSortComparator.byFirstName)
+        case .age:
+            return students.sorted { lhs, rhs in
+                switch (lhs.birthday, rhs.birthday) {
+                case let (left?, right?):
+                    if left != right { return left < right }
+                    return StudentSortComparator.byFirstName(lhs, rhs)
+                case (nil, nil):
+                    return StudentSortComparator.byFirstName(lhs, rhs)
+                case (nil, _):
+                    return false
+                case (_, nil):
+                    return true
+                }
             }
-            return $0.lastName.lowercased() < $1.lastName.lowercased()
         }
     }
     
@@ -104,6 +149,54 @@ struct StudentPickerPopover: View {
         }
     }
 
+    /// Ordering control. Sits next to the select-all button rather than in its own row so
+    /// the popover keeps its height.
+    private var sortMenu: some View {
+        Menu {
+            Picker("Sort", selection: $sortModeRaw) {
+                ForEach(SortMode.allCases) { mode in
+                    Label(mode.title, systemImage: mode.systemImage)
+                        .tag(mode.rawValue)
+                }
+            }
+            .pickerStyle(.inline)
+        } label: {
+            Label(sortMode.title, systemImage: "arrow.up.arrow.down")
+                .font(.caption)
+        }
+        .menuStyle(.borderlessButton)
+        .fixedSize()
+        .help("Sort students")
+    }
+
+    @ViewBuilder
+    private func studentRow(for student: CDStudent) -> some View {
+        let isSelected = student.id.map { selectedIDs.contains($0) } ?? false
+        HStack(spacing: 8) {
+            Text(displayName(for: student))
+                .foregroundStyle(.primary)
+
+            Spacer(minLength: 8)
+
+            if let birthday = student.birthday {
+                Text(AgeUtils.quarterGlyphAgeString(for: birthday))
+                    .font(.caption)
+                    .monospacedDigit()
+                    .foregroundStyle(.secondary)
+                    .accessibilityLabel(AgeUtils.verboseQuarterAgeString(for: birthday))
+            }
+
+            // The tick keeps its slot when a row is unselected, so the ages stay in a column.
+            Image(systemName: "checkmark")
+                .foregroundStyle(Color.accentColor)
+                .opacity(isSelected ? 1 : 0)
+                .accessibilityHidden(!isSelected)
+                .frame(width: 14)
+        }
+        .padding(.vertical, 6)
+        .contentShape(Rectangle())
+    }
+
     var body: some View {
         VStack(spacing: 12) {
             HStack {
@@ -147,6 +240,8 @@ struct StudentPickerPopover: View {
                         .font(.caption)
                         .foregroundStyle(.secondary)
                 }
+
+                sortMenu
             }
 
             ScrollView {
@@ -162,17 +257,7 @@ struct StudentPickerPopover: View {
                                 }
                             }
                         } label: {
-                            HStack {
-                                Text(displayName(for: student))
-                                    .foregroundStyle(.primary)
-                                Spacer()
-                                if let studentID = student.id, selectedIDs.contains(studentID) {
-                                    Image(systemName: "checkmark")
-                                        .foregroundStyle(Color.accentColor)
-                                }
-                            }
-                            .padding(.vertical, 6)
-                            .contentShape(Rectangle())
+                            studentRow(for: student)
                         }
                         .buttonStyle(.plain)
                     }

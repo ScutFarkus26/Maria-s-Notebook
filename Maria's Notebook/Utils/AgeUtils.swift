@@ -197,4 +197,20 @@ struct AgeUtils {
         return "\(y)\(fraction)"
     }
 
+    /// Quarter-year age using typographic fractions — "8 ¼", "8 ½", "8 ¾", or plain "8" on the year.
+    /// The compact form for lists where the age sits beside a name and has to stay narrow.
+    static func quarterGlyphAgeString(
+        for birthday: Date,
+        today: Date = Date(),
+        calendar: Calendar = .current
+    ) -> String {
+        let age = quarterRoundedAgeComponents(birthday: birthday, today: today, calendar: calendar)
+        switch age.months {
+        case 3: return "\(age.years) ¼"
+        case 6: return "\(age.years) ½"
+        case 9: return "\(age.years) ¾"
+        default: return "\(age.years)"
+        }
+    }
+
 }

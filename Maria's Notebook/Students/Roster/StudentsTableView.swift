@@ -96,13 +96,7 @@ struct StudentsTableView: View {
 
     private static func ageString(for student: CDStudent) -> String {
         guard let birthday = student.birthday else { return "—" }
-        let age = AgeUtils.quarterRoundedAgeComponents(birthday: birthday)
-        switch age.months {
-        case 3: return "\(age.years) ¼"
-        case 6: return "\(age.years) ½"
-        case 9: return "\(age.years) ¾"
-        default: return "\(age.years)"
-        }
+        return AgeUtils.quarterGlyphAgeString(for: birthday)
     }
 }
 

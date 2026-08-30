@@ -116,6 +116,7 @@ enum UserDefaultsKeys {
     static let studentsViewSortOrder = "StudentsView.sortOrder"
     static let studentsViewSelectedFilter = "StudentsView.selectedFilter"
     static let studentsViewStyle = "StudentsView.viewStyle"
+    static let studentPickerSortOrder = "StudentPicker.sortOrder"
 
     // MARK: - Checklist
     static let checklistSelectedArea = "Checklist.selectedArea"
