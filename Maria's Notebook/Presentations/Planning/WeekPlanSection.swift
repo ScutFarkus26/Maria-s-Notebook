@@ -164,6 +164,14 @@ struct WeekPlanSection: View {
 
     private var bulkActionsMenu: some View {
         Menu {
+            // The day columns each carry their own clash button; this is the
+            // same gesture for a guide looking at the whole strip at once.
+            Button {
+                balanceVisibleDays()
+            } label: {
+                Label("Balance AM/PM on These Days", systemImage: "wand.and.sparkles")
+            }
+            Divider()
             Button {
                 Task { await moveAllScheduledLessonsForward() }
             } label: {
@@ -198,7 +206,7 @@ struct WeekPlanSection: View {
     private var legend: some View {
         HStack(spacing: 14) {
             legendSwatch(color: .red, label: "Absent")
-            legendSwatch(color: AppColors.attention, label: "Scheduled more than once")
+            legendSwatch(color: AppColors.attention, label: "Twice in the same half")
         }
         .font(.caption2)
         .foregroundStyle(.secondary)

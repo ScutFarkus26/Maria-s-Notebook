@@ -13,13 +13,16 @@ import CoreData
 
 extension WeekDayColumn {
     var presentationLane: some View {
-        lane(
+        // One walk over the day for the whole lane. It used to be recomputed
+        // inside every card, which meant walking the day once per card on it.
+        let clashes = clashingStudentIDs
+        return lane(
             title: "Presenting",
             count: scheduledLessonsForDay.count,
             placeholder: "Drag a presentation here"
         ) {
             ForEach(scheduledLessonsForDay, id: \.objectID) { la in
-                presentationCard(la)
+                presentationCard(la, clashing: clashes)
             }
         }
     }
@@ -97,16 +100,23 @@ extension WeekDayColumn {
         .padding(.horizontal, 4)
     }
 
-    func presentationCard(_ la: CDLessonAssignment) -> some View {
+    func presentationCard(
+        _ la: CDLessonAssignment,
+        clashing: [DayPeriod: Set<UUID>]
+    ) -> some View {
         let laID = la.id ?? UUID()
-        let dayDoubleBooked = doubleBookedStudentIDs
+        let period = half(of: la)
+        // This card's own half and no other: a child doubled up in the morning
+        // is not doubled up on the one afternoon lesson she also has.
+        let dayDoubleBooked = clashing[period ?? .morning] ?? []
         return PresentationPlannerCard(
             snapshot: la.snapshot(),
             day: day,
             cachedLessons: nil,
             cachedStudents: nil,
             blockingWork: [:],
-            doubleBookedStudentIDs: dayDoubleBooked
+            doubleBookedStudentIDs: dayDoubleBooked,
+            period: period
         )
         .id(laID)
         .overlay {
@@ -124,7 +134,8 @@ extension WeekDayColumn {
                 cachedLessons: [],
                 cachedStudents: [],
                 blockingWork: [:],
-                doubleBookedStudentIDs: dayDoubleBooked
+                doubleBookedStudentIDs: dayDoubleBooked,
+                period: period
             )
             .opacity(UIConstants.OpacityConstants.nearSolid)
             // Drag previews don't inherit the app environment;
@@ -132,6 +143,8 @@ extension WeekDayColumn {
             .environment(\.managedObjectContext, viewContext)
         }
         .contextMenu {
+            halfPicker(for: la)
+            Divider()
             ShowInChecklistButton(lessonID: la.resolvedLessonID, context: viewContext)
             Button("Clear Schedule", systemImage: "xmark.circle") {
                 onClear(la)
@@ -202,12 +215,27 @@ extension WeekDayColumn {
                 // has no meaning on the work side, and a full-width bar would
                 // claim it does.
                 let laneWidth = presentationLaneWidth
-                Capsule()
-                    .fill(Color.accentColor)
-                    .frame(width: max(laneWidth - 8, 0), height: 3)
+                insertionBar(half: insertionHalf(at: idx))
+                    .frame(width: max(laneWidth - 8, 0))
                     .position(x: 8 + laneWidth / 2, y: indicatorY)
             }
             .allowsHitTesting(false)
+        }
+    }
+
+    /// The insertion bar, tagged with the half the drop will land in.
+    ///
+    /// The tag is the rule made visible: a lesson dropped here takes the half
+    /// of the card above it, and without saying so the calendar would be
+    /// quietly deciding morning or afternoon on the guide's behalf.
+    func insertionBar(half: DayPeriod) -> some View {
+        HStack(spacing: 4) {
+            Capsule()
+                .fill(Color.accentColor)
+                .frame(height: 3)
+            Text(half.abbreviation)
+                .font(.caption2.weight(.bold))
+                .foregroundStyle(Color.accentColor)
         }
     }
 }

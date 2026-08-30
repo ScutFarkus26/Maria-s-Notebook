@@ -22,11 +22,18 @@ struct PresentationPlannerCard: View {
     let cachedLessons: [CDLesson]?
     let cachedStudents: [CDStudent]?
     let blockingWork: [UUID: CDWorkModel]
+    /// Children the caller has already found to be booked twice. In the
+    /// calendar that means twice in *this card's own half* of the day, so the
+    /// set arrives scoped and the card only draws what it is handed.
     let doubleBookedStudentIDs: Set<UUID>
     /// When non-nil and `totalCount > 1`, renders a readiness progress bar and
     /// count in the card footer. Pass both or neither.
-    var readyCount: Int? = nil
-    var totalCount: Int? = nil
+    var readyCount: Int?
+    var totalCount: Int?
+    /// Which half of the day this card is scheduled in, shown as AM or PM.
+    /// Nil where the question does not arise — the inbox, and the drag preview
+    /// of something on its way out of it.
+    var period: DayPeriod?
 
     @FetchRequest(sortDescriptors: []) private var lessonsQuery: FetchedResults<CDLesson>
     @FetchRequest(sortDescriptors: []) private var studentsQuery: FetchedResults<CDStudent>
@@ -142,6 +149,26 @@ struct PresentationPlannerCard: View {
                 .lineLimit(2)
                 .multilineTextAlignment(.leading)
                 .frame(maxWidth: .infinity, alignment: .leading)
+            periodBadge
+        }
+    }
+
+    /// A scheduled presentation has no time, so AM/PM is the whole of what the
+    /// card can say about when — kept monochrome deliberately: the card already
+    /// spends colour on the subject area, the age strip and the two warnings,
+    /// and a fourth colour language would make none of them read.
+    @ViewBuilder
+    private var periodBadge: some View {
+        if let period {
+            Text(period.abbreviation)
+                .font(.caption2.weight(.bold))
+                .foregroundStyle(.secondary)
+                .padding(.horizontal, UIConstants.CardSize.statusPillHorizontal)
+                .padding(.vertical, 2)
+                .background(
+                    Capsule().fill(Color.primary.opacity(UIConstants.OpacityConstants.veryFaint))
+                )
+                .accessibilityLabel(period.label)
         }
     }
 
@@ -232,7 +259,7 @@ struct PresentationPlannerCard: View {
                 Image(systemName: "calendar.badge.exclamationmark")
                     .font(.caption)
                     .foregroundStyle(AppColors.attention)
-                    .accessibilityLabel("Scheduled more than once")
+                    .accessibilityLabel("Two lessons in the same half of the day")
             }
             if isOverdue {
                 Image(systemName: "clock.badge.exclamationmark")
@@ -262,8 +289,12 @@ struct PresentationPlannerCard: View {
             guard let student = students.first(where: { $0.id == sid }) else { return nil }
             return StudentFormatter.displayName(for: student)
         }.joined(separator: ", ")
-        if names.isEmpty { return lessonName }
-        return "\(lessonName), \(names)"
+        // The card combines its children, so the badge's own label is replaced
+        // by this one — the half has to be spoken here or not at all.
+        return [lessonName, names, period?.label]
+            .compactMap { $0 }
+            .filter { !$0.isEmpty }
+            .joined(separator: ", ")
     }
 
     // MARK: - Attendance fetch

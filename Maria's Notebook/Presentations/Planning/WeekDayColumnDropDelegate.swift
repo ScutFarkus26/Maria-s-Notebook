@@ -136,19 +136,18 @@ struct WeekDayColumnDropDelegate: DropDelegate {
             toLocationY: locationY,
             frames: presentationFrames()
         )
-        let baseDate = baseDateForDay(day: day, calendar: calendar)
-        let timeMap = PlanningDropUtils.assignSequentialTimes(
-            ids: ids,
-            base: baseDate,
-            calendar: calendar,
-            spacingSeconds: UIConstants.scheduleSpacingSeconds
-        )
         // One pass over the day's assignments instead of a linear scan per id —
         // every drop now writes and saves for real, so a big day would repeat
         // that scan for every pill in it.
         let assignmentsByID = Dictionary(
             allLessonAssignments.compactMap { assignment in assignment.id.map { ($0, assignment) } },
             uniquingKeysWith: { first, _ in first }
+        )
+        let timeMap = DayHalfPlanner.times(
+            for: placements(ordering: ids, dropped: id, lookup: assignmentsByID),
+            on: day,
+            using: calendar,
+            spacingSeconds: UIConstants.scheduleSpacingSeconds
         )
         do {
             for itemID in ids {
@@ -174,8 +173,31 @@ struct WeekDayColumnDropDelegate: DropDelegate {
         }
     }
 
-    private func baseDateForDay(day: Date, calendar: Calendar) -> Date {
-        let startOfDay = calendar.startOfDay(for: day)
-        return calendar.date(byAdding: .hour, value: 9, to: startOfDay) ?? startOfDay
+    /// The day in its new order, each card carrying the half it belongs to.
+    ///
+    /// Every card already on the day keeps its own half; only the dropped one
+    /// takes a new one, inherited from the card it landed under. That is the
+    /// whole AM/PM gesture — and it is also what keeps a reorder honest, since
+    /// dragging a morning lesson below the afternoon run makes it an afternoon
+    /// lesson rather than leaving it stranded in the wrong half.
+    @MainActor
+    private func placements(
+        ordering ids: [UUID],
+        dropped id: UUID,
+        lookup: [UUID: CDLessonAssignment]
+    ) -> [DayHalfPlanner.Placement] {
+        func half(_ itemID: UUID) -> DayPeriod {
+            guard let scheduled = lookup[itemID]?.scheduledFor else { return .morning }
+            return DayPeriod(scheduledFor: scheduled, using: calendar)
+        }
+
+        let insertionIndex = ids.firstIndex(of: id) ?? ids.count
+        let inherited = DayHalfPlanner.inheritedPeriod(
+            insertingAt: insertionIndex,
+            into: ids.filter { $0 != id }.map(half)
+        )
+        return ids.map { itemID in
+            DayHalfPlanner.Placement(id: itemID, period: itemID == id ? inherited : half(itemID))
+        }
     }
 }

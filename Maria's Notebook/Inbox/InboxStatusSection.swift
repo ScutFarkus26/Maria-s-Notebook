@@ -44,9 +44,11 @@ struct InboxStatusSection: View {
                 toggleLabel: "Change Date",
                 dateLabel: "Schedule For",
                 date: $scheduledFor,
-                displayedComponents: [.date, .hourAndMinute],
-                defaultHour: 9
+                displayedComponents: [.date],
+                defaultHour: UIConstants.morningHour
             )
+
+            DayHalfPicker(date: $scheduledFor)
 
             Button {
                 scheduledFor = nil
@@ -80,9 +82,11 @@ struct InboxStatusSection: View {
                 toggleLabel: "Schedule Lesson",
                 dateLabel: "Schedule For",
                 date: $scheduledFor,
-                displayedComponents: [.date, .hourAndMinute],
-                defaultHour: 9
+                displayedComponents: [.date],
+                defaultHour: UIConstants.morningHour
             )
+
+            DayHalfPicker(date: $scheduledFor)
         }
     }
 

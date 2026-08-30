@@ -71,18 +71,6 @@ struct WeekDayColumn: View {
         )
     }
 
-    // Students appearing on 2+ not-yet-presented lesson assignments on this day.
-    // `scheduledLessonsForDay` already filters to `!la.isGiven`, so the count is pending-only.
-    var doubleBookedStudentIDs: Set<UUID> {
-        var counts: [UUID: Int] = [:]
-        for assignment in scheduledLessonsForDay {
-            for id in assignment.studentUUIDs {
-                counts[id, default: 0] += 1
-            }
-        }
-        return Set(counts.filter { $0.value >= 2 }.keys)
-    }
-
     /// One lane's width: exactly what a card had before the day split, so the
     /// pills read the same as they always did. The day is therefore about twice
     /// as wide and fewer of them fit on screen at once — the trade this split
@@ -154,6 +142,8 @@ struct WeekDayColumn: View {
             Text(day.formatted(Date.FormatStyle().day()))
                 .font(.headline.weight(.semibold))
             Spacer()
+            // Only ever on a day that has a clash — see WeekDayColumn+Balance.
+            balanceButton
             if !headerCountLabel.isEmpty {
                 Text(headerCountLabel)
                     .font(.caption.weight(.medium))
