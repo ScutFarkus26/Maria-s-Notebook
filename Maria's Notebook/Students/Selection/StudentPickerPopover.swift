@@ -63,6 +63,47 @@ struct StudentPickerPopover: View {
         return StudentFormatter.displayName(for: student)
     }
 
+    /// IDs of the students the current search and level filter leave on screen. The
+    /// select-all control acts on exactly this set, so what you see is what you toggle.
+    private var visibleStudentIDs: [UUID] {
+        filteredStudentsForPicker.compactMap(\.id)
+    }
+
+    private var allVisibleSelected: Bool {
+        !visibleStudentIDs.isEmpty && visibleStudentIDs.allSatisfy { selectedIDs.contains($0) }
+    }
+
+    /// The name of the group being toggled, when the visible set is a whole level rather
+    /// than a search result. Lets the button read "Select All Upper".
+    private var visibleScopeName: String? {
+        guard searchText.normalizedForComparison().isEmpty else { return nil }
+        switch filterLevel {
+        case .all: return nil
+        case .lower: return "Lower"
+        case .upper: return "Upper"
+        case .adolescent: return "Adolescent"
+        }
+    }
+
+    private var selectAllTitle: String {
+        guard let scope = visibleScopeName else {
+            return allVisibleSelected ? "Deselect These" : "Select These"
+        }
+        return allVisibleSelected ? "Deselect \(scope)" : "Select All \(scope)"
+    }
+
+    private func toggleSelectAllVisible() {
+        let ids = visibleStudentIDs
+        guard !ids.isEmpty else { return }
+        adaptiveWithAnimation {
+            if allVisibleSelected {
+                selectedIDs.subtract(ids)
+            } else {
+                selectedIDs.formUnion(ids)
+            }
+        }
+    }
+
     var body: some View {
         VStack(spacing: 12) {
             HStack {
@@ -90,6 +131,23 @@ struct StudentPickerPopover: View {
                 }
             }
             .pickerStyle(.segmented)
+
+            HStack {
+                Button(selectAllTitle) {
+                    toggleSelectAllVisible()
+                }
+                .buttonStyle(.borderless)
+                .font(.callout)
+                .disabled(visibleStudentIDs.isEmpty)
+
+                Spacer()
+
+                if !selectedIDs.isEmpty {
+                    Text("\(selectedIDs.count) selected")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                }
+            }
 
             ScrollView {
                 LazyVStack(alignment: .leading, spacing: 4) {
