@@ -30,26 +30,7 @@ extension ClassAreaChecklistView {
                     Section {
                         // Data Rows
                         ForEach(viewModel.visibleSequences, id: \.self) { sequence in
-                            // Group Header
-                            HStack(spacing: 0) {
-                                StickyLeftItem(width: lessonColumnWidth, height: 30) {
-                                    HStack {
-                                        Text(sequence)
-                                            .font(.system(.caption, design: .rounded).weight(.bold))
-                                            .foregroundStyle(.secondary)
-                                            .padding(.leading)
-                                        Spacer()
-                                    }
-                                    .background(Color.secondary.opacity(UIConstants.OpacityConstants.hint))
-                                    .borderSeparated()
-                                }
-
-                                // Spacer for the rest of the sequence row
-                                Color.secondary.opacity(UIConstants.OpacityConstants.hint)
-                                    .frame(height: 30)
-                                    .frame(width: CGFloat(viewModel.students.count) * studentColumnWidth)
-                                    .borderSeparated()
-                            }
+                            sequenceRow(name: sequence)
 
                             let grouped = viewModel.lessonsSequenced(sequence: sequence)
                             ForEach(grouped.order, id: \.self) { section in
@@ -188,30 +169,86 @@ extension ClassAreaChecklistView {
     }
 }
 
-// MARK: - Section Row
+// MARK: - Group Rows
 
 extension ClassAreaChecklistView {
+    /// The two grouping bands, tallest first. The top-level band is the seam a
+    /// guide scans for, so it stands taller and louder than the one below it.
+    fileprivate static let sequenceRowHeight: CGFloat = 34
+    fileprivate static let sectionRowHeight: CGFloat = 26
+
+    /// An opaque band tinted to `tint`. Both halves of a grouping row — the
+    /// sticky left cell and the stretch across the student columns — draw it, so
+    /// the tint can't double up where the sticky half slides over the other.
+    @ViewBuilder
+    fileprivate func groupBand(_ tint: Color) -> some View {
+        ZStack {
+            Color.clear.backgroundPlatform()
+            tint
+        }
+    }
+
+    /// Top-level grouping — "Preliminary", "Early Work". It rules the full width
+    /// of the matrix, in the accent colour and under a heavier line, so a group
+    /// boundary is legible however far the grid is scrolled.
+    @ViewBuilder
+    fileprivate func sequenceRow(name: String) -> some View {
+        let height = Self.sequenceRowHeight
+        let tint = Color.accentColor.opacity(UIConstants.OpacityConstants.medium)
+        HStack(spacing: 0) {
+            StickyLeftItem(width: lessonColumnWidth, height: height) {
+                HStack(spacing: 0) {
+                    Text(name)
+                        .font(.system(.subheadline, design: .rounded).weight(.bold))
+                        .lineLimit(1)
+                        .minimumScaleFactor(0.85)
+                    Spacer(minLength: 0)
+                }
+                .padding(.leading, 12)
+                .frame(width: lessonColumnWidth, height: height, alignment: .leading)
+                .background(groupBand(tint))
+                .borderSeparated()
+            }
+
+            groupBand(tint)
+                .frame(height: height)
+                .frame(width: CGFloat(viewModel.students.count) * studentColumnWidth)
+                .borderSeparated()
+        }
+        .overlay(alignment: .top) {
+            Rectangle()
+                .fill(Color.accentColor.opacity(UIConstants.OpacityConstants.semi))
+                .frame(height: 2)
+                .allowsHitTesting(false)
+        }
+    }
+
+    /// Second-level grouping inside a sequence — "Chains", "Stamp Game". Indented
+    /// and quieter than the band above it, but still heavier than a lesson name.
     @ViewBuilder
     fileprivate func sectionRow(name: String) -> some View {
-        let height: CGFloat = 24
+        let height = Self.sectionRowHeight
+        let tint = Color.secondary.opacity(UIConstants.OpacityConstants.veryFaint)
         HStack(spacing: 0) {
             StickyLeftItem(width: lessonColumnWidth, height: height) {
                 HStack(spacing: 6) {
                     RoundedRectangle(cornerRadius: 1)
-                        .fill(Color.secondary.opacity(UIConstants.OpacityConstants.semi))
-                        .frame(width: 3, height: 12)
+                        .fill(Color.accentColor.opacity(UIConstants.OpacityConstants.muted))
+                        .frame(width: 3, height: 14)
                     Text(name.isEmpty ? "Other" : name)
-                        .font(.system(.caption, design: .rounded).weight(.medium))
-                        .foregroundStyle(.secondary)
-                    Spacer()
+                        .font(.system(.footnote, design: .rounded).weight(.semibold))
+                        .lineLimit(1)
+                        .minimumScaleFactor(0.85)
+                    Spacer(minLength: 0)
                 }
                 .padding(.leading, 24)
+                .padding(.trailing, 8)
                 .frame(width: lessonColumnWidth, height: height, alignment: .leading)
-                .background(Color.secondary.opacity(UIConstants.OpacityConstants.trace))
+                .background(groupBand(tint))
                 .borderSeparated()
             }
 
-            Color.secondary.opacity(UIConstants.OpacityConstants.trace)
+            groupBand(tint)
                 .frame(height: height)
                 .frame(width: CGFloat(viewModel.students.count) * studentColumnWidth)
                 .borderSeparated()
