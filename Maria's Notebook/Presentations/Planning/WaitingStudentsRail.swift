@@ -56,6 +56,9 @@ struct WaitingStudentsRail: View {
             Divider()
             content
         }
+        // The rail sits in an HStack that would otherwise centre a short column,
+        // so an empty list must not float the header down the page.
+        .frame(maxHeight: .infinity, alignment: .top)
         .background(Color.primary.opacity(UIConstants.OpacityConstants.trace))
     }
 
@@ -111,8 +114,15 @@ struct WaitingStudentsRail: View {
         }
     }
 
-    @ViewBuilder
     private var emptyState: some View {
+        emptyStateMessage
+            // Claim the height the list would have had, so the header and the
+            // scope picker stay pinned where they were a moment ago.
+            .frame(maxWidth: .infinity, maxHeight: .infinity)
+    }
+
+    @ViewBuilder
+    private var emptyStateMessage: some View {
         if !filterState.debouncedSearchText.trimmed().isEmpty {
             ContentUnavailableView.search(text: filterState.debouncedSearchText)
         } else if scope == .unscheduled {
