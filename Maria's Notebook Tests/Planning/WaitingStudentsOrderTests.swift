@@ -57,7 +57,7 @@ struct WaitingStudentsOrderTests {
         )
 
         #expect(ordered.map(\.student.id) == [never.id, waiting.id])
-        #expect(ordered.first?.isNeverTaught == true)
+        #expect(ordered.first?.isUncounted == true)
     }
 
     // MARK: - Order

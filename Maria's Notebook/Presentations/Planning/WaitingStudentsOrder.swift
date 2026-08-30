@@ -1,5 +1,6 @@
 // WaitingStudentsOrder.swift
-// Who has been waiting longest for a lesson, in order.
+// Who has been waiting longest for a lesson, in order — and the ordering both
+// of the workspace's left-hand columns share.
 //
 // Kept free of SwiftUI and of Core Data fetching so the ordering — which is the
 // part that decides whether a child is visible at all — can be tested directly.
@@ -43,8 +44,10 @@ struct WaitingStudent: Identifiable {
 
     var id: NSManagedObjectID { student.objectID }
 
-    /// Never-taught reads as the most urgent thing on the list.
-    var isNeverTaught: Bool { daysWaiting == nil }
+    /// Nothing to measure from — never taught in the Presentations column, no
+    /// open work in the Work one. Both read as the most urgent thing on the
+    /// list rather than as a missing number.
+    var isUncounted: Bool { daysWaiting == nil }
 }
 
 enum WaitingStudentsOrder {
@@ -73,14 +76,32 @@ enum WaitingStudentsOrder {
         scope: WaitingStudentsScope,
         search: String = ""
     ) -> [WaitingStudent] {
+        ordered(
+            students: students,
+            daysSince: daysSince,
+            hiding: scope == .unscheduled ? studentIDsWithUpcomingLessons : [],
+            search: search
+        )
+    }
+
+    /// The core both columns sort through: normalise the sentinels, drop the
+    /// children this scope hides, then order by pressure.
+    ///
+    /// Which children get hidden is decided at the call site, because the two
+    /// columns hide different people — those already booked for a lesson, those
+    /// who already have work — and neither difference reaches the sort.
+    static func ordered(
+        students: [CDStudent],
+        daysSince: [UUID: Int],
+        hiding excluded: Set<UUID>,
+        search: String = ""
+    ) -> [WaitingStudent] {
         let query = search.trimmed().lowercased()
 
         return students
             .filter { student in
                 guard let id = student.id else { return false }
-                if scope == .unscheduled, studentIDsWithUpcomingLessons.contains(id) {
-                    return false
-                }
+                if excluded.contains(id) { return false }
                 guard !query.isEmpty else { return true }
                 return StudentFormatter.displayName(for: student).lowercased().contains(query)
             }

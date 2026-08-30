@@ -1,64 +1,35 @@
 // WaitingStudentRow.swift
-// One child in the waiting list, with how long they have gone without a lesson.
+// One child in a waiting list, with how long they have gone without the guide.
 //
 // The urgency signal is the app's existing one — the 3pt coloured bar down the
 // leading edge that already marks an aging work card and an aging presentation
 // pill, on the same guide-configurable thresholds. A guide who has learned to
 // read that bar reads this list for free.
+//
+// The row is told its colour and its wording rather than working them out. Both
+// columns that use it — lessons on the left of Presentations, work on the left
+// of Work — read five settings to colour that bar, and reading them here meant
+// five store lookups per child per body pass. `WaitingStudentsColumn` reads
+// them once for the whole list instead.
 
 import SwiftUI
 
 struct WaitingStudentRow: View {
     let entry: WaitingStudent
+    /// The bar down the leading edge, already resolved from the column's
+    /// thresholds.
+    let ageColor: Color
+    /// The line under the name: "Never taught", "12 school days ago".
+    let detail: String
+    /// Secondary while the child is fresh, the urgency colour once they are not.
+    let detailTint: Color
+    /// What tapping this row does, for VoiceOver.
+    let selectionHint: String
     let isSelected: Bool
     let onTap: () -> Void
 
-    @SyncedAppStorage(UserDefaultsKeys.lessonAgeWarningDays)
-    private var ageWarningDays: Int = LessonAgeDefaults.warningDays
-    @SyncedAppStorage(UserDefaultsKeys.lessonAgeOverdueDays)
-    private var ageOverdueDays: Int = LessonAgeDefaults.overdueDays
-    @SyncedAppStorage(UserDefaultsKeys.lessonAgeFreshColorHex)
-    private var ageFreshColorHex: String = LessonAgeDefaults.freshColorHex
-    @SyncedAppStorage(UserDefaultsKeys.lessonAgeWarningColorHex)
-    private var ageWarningColorHex: String = LessonAgeDefaults.warningColorHex
-    @SyncedAppStorage(UserDefaultsKeys.lessonAgeOverdueColorHex)
-    private var ageOverdueColorHex: String = LessonAgeDefaults.overdueColorHex
-
-    /// A child who has never been taught is the most overdue thing on the list,
-    /// not an unknown.
-    private var ageStatus: LessonAgeStatus {
-        guard let days = entry.daysWaiting else { return .overdue }
-        if days >= max(0, ageOverdueDays) { return .overdue }
-        if days >= max(0, ageWarningDays) { return .warning }
-        return .fresh
-    }
-
-    private var ageColor: Color {
-        switch ageStatus {
-        case .fresh: ColorUtils.color(from: ageFreshColorHex)
-        case .warning: ColorUtils.color(from: ageWarningColorHex)
-        case .overdue: ColorUtils.color(from: ageOverdueColorHex)
-        }
-    }
-
-    private var waitLabel: String {
-        guard let days = entry.daysWaiting else { return "Never taught" }
-        switch days {
-        case 0: return "Taught today"
-        case 1: return "1 school day ago"
-        default: return "\(days) school days ago"
-        }
-    }
-
-    private var waitTint: Color {
-        switch ageStatus {
-        case .fresh: .secondary
-        case .warning, .overdue: ageColor
-        }
-    }
-
     private var accessibilityDescription: String {
-        "\(StudentFormatter.displayName(for: entry.student)), \(waitLabel.lowercased())"
+        "\(StudentFormatter.displayName(for: entry.student)), \(detail.lowercased())"
     }
 
     var body: some View {
@@ -79,9 +50,9 @@ struct WaitingStudentRow: View {
                             .lineLimit(1)
                             .truncationMode(.tail)
                             .layoutPriority(1)
-                        Text(waitLabel)
+                        Text(detail)
                             .font(AppTheme.SemanticFont.metadata)
-                            .foregroundStyle(waitTint)
+                            .foregroundStyle(detailTint)
                             .lineLimit(1)
                     }
 
@@ -98,7 +69,7 @@ struct WaitingStudentRow: View {
         .accessibilityElement(children: .combine)
         .accessibilityLabel(accessibilityDescription)
         .accessibilityAddTraits(isSelected ? [.isSelected] : [])
-        .accessibilityHint("Shows only lessons ready for this child")
+        .accessibilityHint(selectionHint)
     }
 
     /// Selection is the accent colour, never the urgency colour — otherwise

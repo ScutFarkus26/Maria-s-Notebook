@@ -11,6 +11,11 @@
 // The pills are `WorkFilterChip`, which is `TriageBucket` in the workspace's
 // vocabulary. Nothing about where a work item belongs changed; only where the
 // guide picks between the buckets did.
+//
+// The column of children down the left is `QuietStudentsRail`, the counterpart
+// of the one Presentations has always had. It is the only place a child with no
+// open work appears at all: the grid is made of cards, and a child with nothing
+// has none.
 
 import CoreData
 import SwiftUI
@@ -23,12 +28,20 @@ struct LessonsAndWorkWorkView: View {
     let visibleWorkIDs: Set<UUID>
     let lessonsByID: [UUID: CDLesson]
     let studentsByID: [UUID: CDStudent]
+    /// The enrolled roster, for the column. Wider than `studentsByID`, which
+    /// holds only the owners of the work on screen.
+    let rosterStudents: [CDStudent]
+    /// School days since anything of each child's was last touched, and by its
+    /// keys, who has anything open. Built once per refresh by the workspace.
+    let quietDaysByStudent: [UUID: Int]
     let attentionWorkIDs: Set<UUID>
     let sortMode: WorkAgendaSortMode
     let searchText: String
     let focusedWorkID: UUID?
     let selection: WorkspaceMultiSelection
     @Binding var chip: WorkFilterChip
+    /// The child the column is narrowing the grid to, if any.
+    @Binding var studentFilter: UUID?
     /// Which kinds of work to show — practice, research, and the rest. A
     /// different axis from the state pills, so it keeps its own row.
     @Binding var visibleKinds: Set<WorkKind>
@@ -39,7 +52,70 @@ struct LessonsAndWorkWorkView: View {
     /// pinned calendar drop the record in the same pass.
     let onDeleted: () -> Void
 
+    #if !os(macOS)
+    @Environment(\.horizontalSizeClass) private var horizontalSizeClass
+    #endif
+
     var body: some View {
+        #if os(macOS)
+        railAndWork
+        #else
+        if horizontalSizeClass == .regular {
+            railAndWork
+        } else {
+            VStack(spacing: 0) {
+                // No room for a column on a phone, so the same list lies on its
+                // side above the work rather than becoming another tab.
+                QuietStudentsStrip(
+                    students: rosterStudents,
+                    daysSinceTouchByStudent: quietDaysByStudent,
+                    studentIDsWithOpenWork: studentIDsWithOpenWork,
+                    searchText: searchText,
+                    selectedStudentID: studentFilterBinding
+                )
+                Divider()
+                work
+            }
+        }
+        #endif
+    }
+
+    private var railAndWork: some View {
+        HStack(spacing: 0) {
+            QuietStudentsRail(
+                students: rosterStudents,
+                daysSinceTouchByStudent: quietDaysByStudent,
+                studentIDsWithOpenWork: studentIDsWithOpenWork,
+                searchText: searchText,
+                selectedStudentID: studentFilterBinding
+            )
+            .frame(width: StudentColumn.preferredWidth)
+            Divider()
+            work
+                .frame(maxWidth: .infinity)
+        }
+    }
+
+    /// A child is in the rollup exactly when they have something open, so the
+    /// scope control reads it rather than counting the grid a second way.
+    private var studentIDsWithOpenWork: Set<UUID> {
+        Set(quietDaysByStudent.keys)
+    }
+
+    /// Picking a child clears the state pill, the way the Presentations rail
+    /// does: a stale pill would otherwise hide every piece of work they have and
+    /// read as the child having none.
+    private var studentFilterBinding: Binding<UUID?> {
+        Binding(
+            get: { studentFilter },
+            set: { newValue in
+                studentFilter = newValue
+                if newValue != nil { chip = .all }
+            }
+        )
+    }
+
+    private var work: some View {
         VStack(spacing: 0) {
             WorkspaceFilterPillRow(
                 selection: $chip,
@@ -131,8 +207,21 @@ struct LessonsAndWorkWorkView: View {
 
     private var isSearching: Bool { !searchText.trimmed().isEmpty }
 
+    /// The name of the child the column is narrowing to, if the grid is empty
+    /// because of it rather than because the list itself is.
+    private var filteredStudentName: String? {
+        // Looked up in the roster, not in `studentsByID`: that cache holds only
+        // the owners of work on screen, so it is empty of exactly the child this
+        // message is about.
+        guard let studentFilter,
+              let student = rosterStudents.first(where: { $0.id == studentFilter })
+        else { return nil }
+        return StudentFormatter.displayName(for: student)
+    }
+
     private var emptyTitle: String {
         if isSearching { return "No Matching Work" }
+        if filteredStudentName != nil { return "Nothing Open" }
         switch chip {
         case .all: return "No Open Work"
         case .needsChecking: return "Nothing to Check"
@@ -143,6 +232,9 @@ struct LessonsAndWorkWorkView: View {
 
     private var emptyDescription: String {
         if isSearching { return "No work in this list matches this search." }
+        if let name = filteredStudentName {
+            return "\(name) has no open work. Tap their name again to see everyone's."
+        }
         switch chip {
         case .all: return "Finished work lives under Logs."
         case .needsChecking:

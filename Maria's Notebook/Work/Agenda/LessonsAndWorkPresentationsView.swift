@@ -58,7 +58,7 @@ struct LessonsAndWorkPresentationsView: View {
     private var railAndPresentations: some View {
         HStack(spacing: 0) {
             waitingStudentsRail
-                .frame(width: WaitingStudentsRail.preferredWidth)
+                .frame(width: StudentColumn.preferredWidth)
             Divider()
             presentations
                 .frame(maxWidth: .infinity)

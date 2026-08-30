@@ -51,6 +51,47 @@ extension WorksAgendaView {
             context: viewContext,
             calendar: calendar
         )
+        rebuildQuietStudents()
+    }
+
+    /// The Work column's two inputs: how long each child has gone without the
+    /// guide looking at anything of theirs, and — by the same map's keys — who
+    /// has anything open at all.
+    ///
+    /// Runs here rather than in a `body` pass for the reason the partition does:
+    /// it reads every open item's check-ins and notes and then counts school
+    /// days. The steps are the card's own — `lastMeaningfulTouchDate`, then
+    /// `SchoolDayCalculationCache` — so a child's row and their cards cannot
+    /// disagree about how long something has sat.
+    func rebuildQuietStudents() {
+        let works = Array(openWork).uniqueByID
+        let cache = SchoolDayCalculationCache.shared
+        let today = Date()
+
+        let touchDates = works.map { work in
+            WorkAgingPolicy.lastMeaningfulTouchDate(
+                for: work,
+                checkIns: (work.checkIns?.allObjects as? [CDWorkCheckIn]) ?? [],
+                notes: (work.unifiedNotes?.allObjects as? [CDNote]) ?? []
+            )
+        }
+        // One preload for the whole range, so the school-day count below is a
+        // cache hit per item rather than a fetch per item.
+        if let earliest = touchDates.min() {
+            cache.preloadNonSchoolDays(from: earliest, to: today, using: viewContext, calendar: calendar)
+        }
+
+        var ageByWorkID: [UUID: Int] = [:]
+        for (work, touched) in zip(works, touchDates) {
+            guard let id = work.id else { continue }
+            ageByWorkID[id] = cache.schoolDaysSinceCreation(
+                createdAt: touched, asOf: today, using: viewContext, calendar: calendar
+            )
+        }
+
+        quietDaysByStudent = QuietStudentsOrder.daysSinceTouchByStudent(in: works) { work in
+            work.id.flatMap { ageByWorkID[$0] } ?? 0
+        }
     }
 
     /// The ids the card badge flags, so a card cannot be marked as needing the
@@ -100,11 +141,25 @@ extension WorksAgendaView {
             lessonsByIDCache = [:]
         }
 
+        // One fetch of the table, read two ways. The Work column needs the whole
+        // enrolled roster — a child with no work owns none of the ids collected
+        // above, and they are the ones it exists to show — while the card cache
+        // needs only the owners on screen, withdrawn children included so their
+        // cards still have a name on them.
+        let allStudents: [CDStudent] = viewContext.safeFetch(
+            NSFetchRequest<CDStudent>(entityName: "Student")
+        )
+
+        // DEDUPLICATION: CloudKit sync can create duplicate records with the same ID.
+        rosterStudents = TestStudentsFilter.filterVisible(
+            allStudents.filterEnrolled(),
+            show: showTestStudents,
+            namesRaw: testStudentNamesRaw
+        ).uniqueByID
+
         // Use uniquingKeysWith to handle CloudKit sync duplicates
         if !neededStudentIDs.isEmpty {
-            let all: [CDStudent] = viewContext.safeFetch(NSFetchRequest<CDStudent>(entityName: "Student"))
-            let filtered = all.filter { neededStudentIDs.contains($0.id ?? UUID()) }
-            // DEDUPLICATION: CloudKit sync can create duplicate records with the same ID.
+            let filtered = allStudents.filter { neededStudentIDs.contains($0.id ?? UUID()) }
             let visible = TestStudentsFilter.filterVisible(
                 filtered, show: showTestStudents,
                 namesRaw: testStudentNamesRaw
@@ -158,6 +213,15 @@ extension WorksAgendaView {
         let kinds = visibleKinds.wrappedValue
         if kinds.count < WorkKind.allCases.count {
             works = works.filter { kinds.contains($0.kind ?? .practiceLesson) }
+        }
+
+        // The column's child filter. Applied here with the rest so the pill
+        // counts and the printed sheet see the list the guide is looking at, and
+        // by the column's own definition of whose work an item is — a child who
+        // has finished their part of a group project reads as done in both
+        // places or in neither.
+        if let studentID = workStudentFilter {
+            works = works.filter { QuietStudentsOrder.openStudentIDs(of: $0).contains(studentID) }
         }
 
         // Optional search (use debounced text for filtering)

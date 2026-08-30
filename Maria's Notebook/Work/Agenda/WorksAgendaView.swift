@@ -27,15 +27,17 @@ struct WorksAgendaView: View {
     @Environment(\.openWindow) var openWindow
     #endif
 
-    // Prefetch the two relationships `LessonsAndWorkTriage` reads for every row
-    // (scheduled check-ins, and the notes behind last-meaningful-touch). Without
-    // this, triaging a classroom's worth of open work faults them one row at a
-    // time — the same N+1 that `WorksLogView` already prefetches away.
+    // Prefetch the relationships that get read for every row: the scheduled
+    // check-ins and the notes behind last-meaningful-touch, which
+    // `LessonsAndWorkTriage` needs, and the participants, which decide whose
+    // work an item is for the column and its child filter. Without this,
+    // triaging a classroom's worth of open work faults them one row at a time —
+    // the same N+1 that `WorksLogView` already prefetches away.
     @FetchRequest(fetchRequest: {
         let request = NSFetchRequest<CDWorkModel>(entityName: "WorkModel")
         request.sortDescriptors = [NSSortDescriptor(keyPath: \CDWorkModel.createdAt, ascending: false)]
         request.predicate = NSPredicate(format: "statusRaw != %@", "complete")
-        request.relationshipKeyPathsForPrefetching = ["checkIns", "unifiedNotes"]
+        request.relationshipKeyPathsForPrefetching = ["checkIns", "unifiedNotes", "participants"]
         return request
     }())
     var openWork: FetchedResults<CDWorkModel>
@@ -53,6 +55,18 @@ struct WorksAgendaView: View {
     // Lazy-loaded caches (only populated when needed)
     @State var lessonsByIDCache: [UUID: CDLesson] = [:]
     @State var studentsByIDCache: [UUID: CDStudent] = [:]
+    /// The enrolled roster, for the Work half's column of children. Not the
+    /// same list as `studentsByIDCache`, which holds only the owners of work on
+    /// screen and keeps withdrawn children so their cards still have a name —
+    /// this one is who the guide is teaching, including everyone with nothing.
+    @State var rosterStudents: [CDStudent] = []
+    /// School days since the guide last touched anything of each child's, and
+    /// by its keys, who has anything open at all. Built on the same debounced
+    /// path as `partition`, never in a `body` pass: it walks every open item's
+    /// check-ins and notes and then counts school days.
+    @State var quietDaysByStudent: [UUID: Int] = [:]
+    /// The child the Work half's column is narrowing the grid to.
+    @State var workStudentFilter: UUID?
 
     /// Every record on screen, triaged once. The Attention list reads it, the
     /// card badges read it, and the picker's counts will. Rebuilt on the same
@@ -256,12 +270,15 @@ struct WorksAgendaView: View {
                 visibleWorkIDs: visibleWorkIDs,
                 lessonsByID: lessonsByID,
                 studentsByID: studentsByID,
+                rosterStudents: rosterStudents,
+                quietDaysByStudent: quietDaysByStudent,
                 attentionWorkIDs: attentionWorkIDs,
                 sortMode: sortMode,
                 searchText: debouncedSearchText,
                 focusedWorkID: focusedWorkID,
                 selection: workSelection,
                 chip: workChipBinding,
+                studentFilter: $workStudentFilter,
                 visibleKinds: visibleKinds,
                 onOpenWork: openDetail,
                 onMarkCompleted: markCompleted,

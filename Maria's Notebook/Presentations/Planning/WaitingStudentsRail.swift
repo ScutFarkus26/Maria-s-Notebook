@@ -9,6 +9,10 @@
 //
 // Replaces two earlier lists that answered the same question in two places and
 // disagreed about who belonged on it.
+//
+// The chrome is `WaitingStudentsColumn`, shared with the Work half's
+// `QuietStudentsRail`. Only what is genuinely about lessons stays here: which
+// children the scope hides, and what tapping one does to the cards beside it.
 
 import SwiftUI
 
@@ -19,8 +23,6 @@ struct WaitingStudentsRail: View {
     /// Children with a lesson on the calendar from today onward, computed once
     /// per refresh by the workspace rather than re-derived per row.
     let studentIDsWithUpcomingLessons: Set<UUID>
-
-    static let preferredWidth: CGFloat = 240
 
     @SceneStorage("Presentations.waitingScope")
     private var scopeRaw: String = WaitingStudentsScope.everyone.rawValue
@@ -49,76 +51,23 @@ struct WaitingStudentsRail: View {
     }
 
     var body: some View {
-        VStack(spacing: 0) {
-            header
-            Divider()
-            scopePicker
-            Divider()
-            content
-        }
-        // The rail sits in an HStack that would otherwise centre a short column,
-        // so an empty list must not float the header down the page.
-        .frame(maxHeight: .infinity, alignment: .top)
-        .background(Color.primary.opacity(UIConstants.OpacityConstants.trace))
-    }
-
-    private var header: some View {
-        HStack(spacing: AppTheme.Spacing.small) {
-            Label("Waiting Longest", systemImage: "clock.arrow.circlepath")
-                .font(.headline)
-                .labelStyle(.titleAndIcon)
-            Spacer()
-            Text("\(entries.count)")
-                .font(AppTheme.SemanticFont.metadata)
-                .foregroundStyle(.secondary)
-                .monospacedDigit()
-        }
-        .padding(.horizontal, AppTheme.Spacing.compact)
-        .padding(.vertical, AppTheme.Spacing.small)
-        .accessibilityElement(children: .combine)
-        .accessibilityLabel("Waiting longest, \(entries.count) children")
-    }
-
-    private var scopePicker: some View {
-        Picker("Show", selection: scopeBinding) {
-            ForEach(WaitingStudentsScope.allCases) { option in
-                Text(option.title).tag(option)
-            }
-        }
-        .pickerStyle(.segmented)
-        .labelsHidden()
-        .padding(.horizontal, AppTheme.Spacing.small)
-        .padding(.vertical, AppTheme.Spacing.verySmall)
-        .help("Everyone, or only children with no lesson on the calendar")
-    }
-
-    @ViewBuilder
-    private var content: some View {
-        if entries.isEmpty {
-            emptyState
-        } else {
-            ScrollView {
-                LazyVStack(spacing: AppTheme.Spacing.xxsmall) {
-                    ForEach(entries) { entry in
-                        WaitingStudentRow(
-                            entry: entry,
-                            isSelected: coordinator.selectedStudentFilter == entry.student.id,
-                            onTap: { select(entry.student) }
-                        )
-                    }
+        WaitingStudentsColumn(
+            vocabulary: .lessons,
+            entries: entries,
+            selectedStudentID: coordinator.selectedStudentFilter,
+            onSelect: select
+        ) {
+            Picker("Show", selection: scopeBinding) {
+                ForEach(WaitingStudentsScope.allCases) { option in
+                    Text(option.title).tag(option)
                 }
-                .padding(.horizontal, AppTheme.Spacing.small)
-                .padding(.top, AppTheme.Spacing.small)
-                .padding(.bottom, AppTheme.Spacing.medium)
             }
+            .pickerStyle(.segmented)
+            .labelsHidden()
+            .help("Everyone, or only children with no lesson on the calendar")
+        } emptyState: {
+            emptyStateMessage
         }
-    }
-
-    private var emptyState: some View {
-        emptyStateMessage
-            // Claim the height the list would have had, so the header and the
-            // scope picker stay pinned where they were a moment ago.
-            .frame(maxWidth: .infinity, maxHeight: .infinity)
     }
 
     @ViewBuilder
