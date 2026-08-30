@@ -63,17 +63,13 @@ struct WorkCardGridContent: View {
         .contentShape(Rectangle())
         .accessibilityElement(children: .combine)
         .onTapGesture { config.onOpen(config.work) }
-        .draggable(UnifiedCalendarDragPayload.work(config.work.id ?? UUID()).stringRepresentation) {
-            VStack(alignment: .leading, spacing: 6) {
-                Text(displayTitle).font(.subheadline)
-                Text(config.studentDisplay).font(.caption).foregroundStyle(.secondary)
-            }
-            .padding(8)
-            .background(
-                RoundedRectangle(cornerRadius: 8)
-                    .fill(Color.primary.opacity(UIConstants.OpacityConstants.veryFaint))
-            )
-        }
+        // A substituted id resolves to nothing on drop, and the drop reports
+        // success regardless — so a card with no id is not a drag source.
+        .modifier(WorkCardDragModifier(
+            workID: config.work.id,
+            title: displayTitle,
+            studentDisplay: config.studentDisplay
+        ))
     }
 
     private var ageIndicator: some View {
@@ -214,4 +210,30 @@ struct WorkCardGridContent: View {
     )
     .padding()
     .previewEnvironment(using: stack)
+}
+
+/// Makes a work card draggable onto the calendar, and only when it has an id.
+private struct WorkCardDragModifier: ViewModifier {
+    let workID: UUID?
+    let title: String
+    let studentDisplay: String
+
+    func body(content: Content) -> some View {
+        if let workID {
+            content.draggable(UnifiedCalendarDragPayload.work(workID).stringRepresentation) {
+                // Plain strings only, so the preview needs no environment.
+                VStack(alignment: .leading, spacing: 6) {
+                    Text(title).font(.subheadline)
+                    Text(studentDisplay).font(.caption).foregroundStyle(.secondary)
+                }
+                .padding(8)
+                .background(
+                    RoundedRectangle(cornerRadius: 8)
+                        .fill(Color.primary.opacity(UIConstants.OpacityConstants.veryFaint))
+                )
+            }
+        } else {
+            content
+        }
+    }
 }

@@ -3,35 +3,28 @@ import CoreData
 import UniformTypeIdentifiers
 import OSLog
 
-enum PresentationsWorkspaceMode: String, CaseIterable, Identifiable {
-    case plan
-    case followUp
-
-    var id: String { rawValue }
-
-    var title: String {
-        switch self {
-        case .plan: "Plan"
-        case .followUp: "Follow Up"
-        }
-    }
-}
-
+/// The Upcoming pane of the Lessons & Work workspace.
+///
+/// This view is only ever rendered inside `WorksAgendaView`. It used to double
+/// as a standalone screen with its own header and a Plan / Follow Up mode
+/// toggle; that form became unreachable when the workspace absorbed it, and the
+/// follow-up half now lives in the Attention list.
 struct PresentationsView: View {
     static let logger = Logger.presentations
     @Environment(\.managedObjectContext) var viewContext
     @Environment(\.calendar) var calendar
-    @Environment(\.horizontalSizeClass) var horizontalSizeClass
+    @Environment(\.appRouter) var appRouter
     @Environment(\.dependencies) private var dependencies
     #if os(macOS)
     @Environment(\.openWindow) var openWindow
     #endif
 
-    /// The unified Lessons & Work workspace embeds only the presentation
-    /// planning pane. The standalone form remains available during migration.
-    var isEmbedded: Bool = false
     var embeddedSearchText: String? = nil
     var focusedPresentationID: UUID? = nil
+    /// Owned by the To Schedule pane so the waiting-students rail beside this
+    /// view can drive the same student filter and the same search.
+    let coordinator: PresentationsCoordinator
+    let filterState: PresentationsFilterState
 
     // OPTIMIZATION: Use lightweight queries for change detection only
     // Extract IDs immediately to avoid retaining full objects - significantly reduces memory usage
@@ -135,7 +128,6 @@ struct PresentationsView: View {
     // NOTE: CDWorkModel fetching is now handled by ViewModel
 
     @AppStorage(UserDefaultsKeys.planningInboxOrder) var inboxOrderRaw: String = ""
-    @AppStorage(UserDefaultsKeys.lessonsAgendaStartDate) var startDateRaw: Double = 0
 
     @AppStorage(UserDefaultsKeys.lessonsAgendaMissWindow)
     var missWindowRaw: String = PresentationsMissWindow.all.rawValue
@@ -155,17 +147,6 @@ struct PresentationsView: View {
     @AppStorage(UserDefaultsKeys.generalShowTestStudents) var showTestStudents: Bool = false
     @AppStorage(UserDefaultsKeys.generalTestStudentNames)
     var testStudentNamesRaw: String = "Danny De Berry,Lil Dan D"
-
-    @State var startDate: Date = Date()
-    @State var compactTab: PresentationsCompactTab = .ready
-    @State var workspaceMode: PresentationsWorkspaceMode = .plan
-    @State var cachedNonSchoolDates: Set<Date> = []
-
-    // MODERN: Centralized navigation coordinator
-    @State var coordinator = PresentationsCoordinator()
-
-    /// Search + (later) chip filter state, shared between header and ready section.
-    @State var filterState = PresentationsFilterState()
 
     /// Lesson highlighted by the most recent "Suggest Next" click. Cleared
     /// automatically after ~3s via `suggestDismissTask`.
@@ -191,55 +172,19 @@ struct PresentationsView: View {
         viewModel.getBlockingWork(la)
     }
 
-    func isNonSchool(_ day: Date) -> Bool {
-        let dayStart = calendar.startOfDay(for: day)
-        return cachedNonSchoolDates.contains(dayStart)
-    }
-
-    func loadNonSchoolDates() async {
-        let baseDate = calendar.startOfDay(for: startDate)
-        // Load enough dates to cover the days array (14 school days might span ~20 calendar days)
-        let endDate = calendar.date(byAdding: .day, value: 30, to: baseDate) ?? baseDate
-        let set = await SchoolCalendar.nonSchoolDays(in: baseDate..<endDate, using: viewContext)
-        await MainActor.run { cachedNonSchoolDates = set }
-    }
-
-    // Find the earliest date with a scheduled lesson (using ViewModel's cached data)
-    private var earliestDateWithLesson: Date? {
-        viewModel.earliestDateWithLesson(calendar: calendar)
-    }
-
-    var days: [Date] {
-        // Strictly respect the startDate cursor.
-        // The logic to "start at earliest lesson" is handled by the initial value of startDate in onAppear.
-        // This allows the user to click "Today" and actually go to today, even if there are older lessons.
-        let baseDate = calendar.startOfDay(for: startDate)
-
-        // Compute school days starting exactly at baseDate, extending forward
-        var result: [Date] = []
-        let maxDays = BackupConstants.maxCalendarDaysInGrid
-        var cursor = baseDate
-        var safety = 0
-
-        while result.count < maxDays && safety < BatchingConstants.defaultBatchSize {
-            if !isNonSchool(cursor) {
-                result.append(cursor)
-            }
-            if let next = calendar.date(byAdding: .day, value: 1, to: cursor) {
-                cursor = next
-            } else {
-                break
-            }
-            safety += 1
-        }
-
-        return result
-    }
-
     // Use ViewModel's cached value (preserves exact same functionality)
     var daysSinceLastLessonByStudent: [UUID: Int] {
         viewModel.daysSinceLastLessonByStudent
     }
 
     // MARK: - body is defined in PresentationsView+Body.swift
+
+    /// True when the Ready list is capable of revealing this presentation.
+    ///
+    /// A given presentation is history and a scheduled one belongs to the
+    /// Scheduled calendar, so neither can be shown here — claiming them would
+    /// leave a deep link pointing at a list that does not contain the record.
+    static func canRevealInReadyList(isPresented: Bool, scheduledFor: Date?) -> Bool {
+        !isPresented && scheduledFor == nil
+    }
 }

@@ -54,95 +54,45 @@ extension PresentationsViewModel {
         return lessons.filter { $0.studentIDs.contains(studentIDString) }
     }
 
-    /// Student IDs that appear on any presentation whose `scheduledFor`
-    /// matches today's start-of-day. Used by the "Hide Today's Students" toggle.
-    var studentIDsScheduledToday: Set<UUID> {
-        let today = calendar.startOfDay(for: Date())
-        var ids = Set<UUID>()
-        for la in cachedLessonAssignments {
-            guard let day = la.scheduledFor,
-                  calendar.isDate(day, inSameDayAs: today) else { continue }
-            ids.formUnion(la.resolvedStudentIDs)
-        }
-        return ids
-    }
-
-    private func applyHideScheduledToday(
-        _ lessons: [CDLessonAssignment],
-        hide: Bool
-    ) -> [CDLessonAssignment] {
-        guard hide else { return lessons }
-        let busy = studentIDsScheduledToday
-        guard !busy.isEmpty else { return lessons }
-        return lessons.filter { Set($0.resolvedStudentIDs).isDisjoint(with: busy) }
-    }
-
     private func applyTextFilters(
         _ lessons: [CDLessonAssignment],
-        debouncedSearch: String,
-        committedFilters: [String]
+        debouncedSearch: String
     ) -> [CDLessonAssignment] {
         let liveQuery = debouncedSearch.trimmed().lowercased()
-        return lessons.filter { la in
-            for token in committedFilters where !matchesSearch(la, query: token) {
-                return false
-            }
-            return matchesSearch(la, query: liveQuery)
-        }
+        return lessons.filter { matchesSearch($0, query: liveQuery) }
     }
 
     private func sortByAge(_ lessons: [CDLessonAssignment]) -> [CDLessonAssignment] {
         lessons.sorted { ($0.createdAt ?? .distantPast) < ($1.createdAt ?? .distantPast) }
     }
 
-    /// Public wrapper: apply student filter + committed-token filter + live search
-    /// to an arbitrary slice (e.g. `overdueReady()` or `recentlyMissed()`).
+    /// Public wrapper: apply student filter + live search to an arbitrary slice
+    /// (e.g. `overdueReady()` or `recentlyMissed()`).
     func applyStudentAndTextFilters(
         to lessons: [CDLessonAssignment],
         studentFilter: UUID?,
-        debouncedSearch: String,
-        committedFilters: [String],
-        hideStudentsScheduledToday: Bool = false
+        debouncedSearch: String
     ) -> [CDLessonAssignment] {
         let afterStudent = applyStudentFilter(lessons, studentFilter: studentFilter)
-        let afterText = applyTextFilters(
-            afterStudent,
-            debouncedSearch: debouncedSearch,
-            committedFilters: committedFilters
-        )
-        return applyHideScheduledToday(afterText, hide: hideStudentsScheduledToday)
+        return applyTextFilters(afterStudent, debouncedSearch: debouncedSearch)
     }
 
     func filteredAndSortedReady(
         studentFilter: UUID?,
-        debouncedSearch: String,
-        committedFilters: [String],
-        hideStudentsScheduledToday: Bool = false
+        debouncedSearch: String
     ) -> [CDLessonAssignment] {
         let afterStudent = applyStudentFilter(readyLessons, studentFilter: studentFilter)
-        let afterText = applyTextFilters(
-            afterStudent,
-            debouncedSearch: debouncedSearch,
-            committedFilters: committedFilters
-        )
-        let afterToday = applyHideScheduledToday(afterText, hide: hideStudentsScheduledToday)
-        return sortByAge(afterToday)
+        let afterText = applyTextFilters(afterStudent, debouncedSearch: debouncedSearch)
+        return sortByAge(afterText)
     }
 
     func filteredAndSortedBlocked(
         studentFilter: UUID?,
-        debouncedSearch: String,
-        committedFilters: [String],
-        hideStudentsScheduledToday: Bool = false
+        debouncedSearch: String
     ) -> [CDLessonAssignment] {
         let afterStudent = applyStudentFilter(blockedLessons, studentFilter: studentFilter)
-        let afterText = applyTextFilters(
-            afterStudent,
-            debouncedSearch: debouncedSearch,
-            committedFilters: committedFilters
-        )
-        let afterToday = applyHideScheduledToday(afterText, hide: hideStudentsScheduledToday)
-        return sortByAge(afterToday)
+        let afterText = applyTextFilters(afterStudent, debouncedSearch: debouncedSearch)
+        return sortByAge(afterText)
     }
 
     // MARK: - Suggest Next

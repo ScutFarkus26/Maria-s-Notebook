@@ -140,17 +140,37 @@ extension CDLessonAssignment {
 // MARK: - State Transitions
 
 extension CDLessonAssignment {
-    /// Schedules this presentation for a specific date.
+    /// Schedules this presentation for a specific moment.
+    ///
+    /// `scheduledFor` keeps the time it is given, because the time is what
+    /// carries the lesson's position *within* its day — dragging one lesson
+    /// above another writes second-spaced times, and that is the order the guide
+    /// planned. It used to be snapped to midnight here, which silently threw
+    /// every reorder away.
+    ///
+    /// `scheduledForDay` is the start-of-day mirror, written only here, kept for
+    /// CloudKit/backup compatibility and day-grained queries. Day predicates use
+    /// half-open ranges on `scheduledFor`, which tolerate a time.
+    ///
+    /// Callers that mean "this day, no particular position" should use
+    /// `schedule(onDay:using:)` so they cannot leak a wall-clock time.
     func schedule(for date: Date, using calendar: Calendar = AppCalendar.shared) {
-        // Lessons are scheduled by day, not time — snap to start-of-day so `scheduledFor`
-        // is the single source of truth. `scheduledForDay` is kept as an identical mirror
-        // here (the one place that writes it) for CloudKit/backup compatibility; all app
-        // reads and predicates use `scheduledFor` directly.
-        let day = calendar.startOfDay(for: date)
-        self.scheduledFor = day
-        self.scheduledForDay = day
+        self.scheduledFor = date
+        self.scheduledForDay = calendar.startOfDay(for: date)
         self.state = .scheduled
         self.modifiedAt = Date()
+    }
+
+    /// Schedules this presentation for a day without expressing a position
+    /// within it — it lands at the start of the teaching morning, ahead of
+    /// nothing in particular.
+    func schedule(onDay day: Date, using calendar: Calendar = AppCalendar.shared) {
+        let base = calendar.date(
+            byAdding: .hour,
+            value: UIConstants.morningHour,
+            to: calendar.startOfDay(for: day)
+        ) ?? calendar.startOfDay(for: day)
+        schedule(for: base, using: calendar)
     }
 
     /// Removes the scheduled date, returning to draft state.

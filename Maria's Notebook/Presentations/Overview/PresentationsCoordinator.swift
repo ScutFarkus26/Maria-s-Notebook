@@ -51,10 +51,6 @@ final class PresentationsCoordinator {
     /// Currently active sheet (nil if no sheet presented)
     var activeSheet: Sheet?
 
-    /// UI state flags
-    var isCalendarMinimized: Bool = false
-    var isInboxTargeted: Bool = false
-
     /// Selected student filter (for filtering presentations by student)
     var selectedStudentFilter: UUID?
 
@@ -82,16 +78,6 @@ final class PresentationsCoordinator {
     }
 
     // MARK: - UI Actions
-
-    /// Toggle calendar minimized state
-    func toggleCalendar() {
-        isCalendarMinimized.toggle()
-    }
-
-    /// Set inbox as drop target
-    func setInboxTargeted(_ targeted: Bool) {
-        isInboxTargeted = targeted
-    }
 
     /// Set selected student filter
     func filterByStudent(_ studentID: UUID?) {

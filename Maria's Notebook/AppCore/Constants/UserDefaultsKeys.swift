@@ -92,7 +92,11 @@ enum UserDefaultsKeys {
     static let lessonsAgendaStartDate = "LessonsAgenda.startDate"
     static let lessonsAgendaMissWindow = "LessonsAgenda.missWindow"
     static let planningRecentWindowDays = "Planning.recentWindowDays"
+    /// Legacy — the "Work" checkbox on the old presentations-only calendar.
+    /// Read once by `CalendarKindFilter.migratedFromLegacyToggles`, never written.
     static let presentationsCalendarShowWork = "PresentationsCalendar.showWork"
+    /// What the merged calendar shows: a `CalendarKindFilter` raw value.
+    static let calendarVisibleKinds = "Calendar.visibleKinds"
 
     // MARK: - Quick CDNote Button
     static let quickNoteButtonOffsetX = "QuickNoteButton.offsetX"
@@ -122,11 +126,22 @@ enum UserDefaultsKeys {
     // MARK: - Work
     static let workAgendaHideScheduled = "WorkAgenda.hideScheduled"
     static let workAgendaVisibleKinds = "WorkAgenda.visibleKinds"
+    /// Widens the Attention list to every open work item — the list that used
+    /// to be a separate Children Working destination.
+    static let workAgendaShowAllOpenWork = "WorkAgenda.showAllOpenWork"
+    /// Whether the Scheduled calendar pane is open beneath the list it is
+    /// scheduled from. Collapsing it hands the whole screen back to the list.
+    static let workAgendaCalendarExpanded = "WorkAgenda.calendarExpanded"
+    /// The calendar pane's share of the workspace height, 0.2–0.7.
+    static let workAgendaCalendarFraction = "WorkAgenda.calendarFraction"
+    /// Legacy — the "Presentations" checkbox on the old work-only calendar.
+    /// Read once by `CalendarKindFilter.migratedFromLegacyToggles`, never written.
     static let workCalendarShowPresentations = "WorkCalendar.showPresentations"
 
     // MARK: - Migrations
     static let pdfFolderMigrationV1Complete = "Migration.pdfFolder.v1"
     static let classroomStoreMigrationV1Complete = "ClassroomStoreMigration.v1.completed"
+    static let attendanceNoteLinkBackfillV1Complete = "AttendanceNoteLinkBackfill.v1.completed"
 
     // MARK: - Shared Store Sync Repair
     static let sharedStoreZoneRepairLastTimeoutAt = "SharedStoreZoneRepair.lastTimeoutAt"

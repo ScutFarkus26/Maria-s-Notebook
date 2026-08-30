@@ -6,8 +6,9 @@ import SwiftUI
 /// two different responsibilities: observe the child, and inspect the work.
 @MainActor
 struct LessonsAndWorkAttentionView: View {
-    let openWork: [CDWorkModel]
-    let scheduledCheckIns: [CDWorkCheckIn]
+    /// Work the partition already placed in `.attention`. This view no longer
+    /// asks the rule anything — membership was decided once, upstream.
+    let attentionWork: [CDWorkModel]
     let lessonsByID: [UUID: CDLesson]
     let studentsByID: [UUID: CDStudent]
     let searchText: String
@@ -40,33 +41,12 @@ struct LessonsAndWorkAttentionView: View {
         )
     }
 
+    /// Search only narrows what the partition already selected.
     private var visibleWork: [CDWorkModel] {
-        openWork
-            .filter(isVisibleAttentionWork)
-            .sorted(by: sortWork)
-    }
-
-    private var dueWorkIDs: Set<UUID> {
-        Set(scheduledCheckIns.compactMap { checkIn -> UUID? in
-            guard let date = checkIn.date,
-                  calendar.startOfDay(for: date) <= calendar.startOfDay(for: Date()) else {
-                return nil
-            }
-            return UUID(uuidString: checkIn.workID)
-        })
-    }
-
-    private func isVisibleAttentionWork(_ work: CDWorkModel) -> Bool {
         let query = searchText.trimmed().lowercased()
-        let isDue = work.dueAt.map {
-            calendar.startOfDay(for: $0) <= calendar.startOfDay(for: Date())
-        } ?? false
-        let needsGuide = work.status == .review
-            || work.id.map(dueWorkIDs.contains) == true
-            || isDue
-            || isStale(work)
-        guard needsGuide else { return false }
-        return query.isEmpty || workSearchText(work).contains(query)
+        return attentionWork
+            .filter { query.isEmpty || workSearchText($0).contains(query) }
+            .sorted(by: sortWork)
     }
 
     var body: some View {
@@ -167,8 +147,16 @@ private extension LessonsAndWorkAttentionView {
         )
     }
 
+    /// Draggable onto the Scheduled calendar, which is how a work item that
+    /// needs the guide gets a day.
+    ///
+    /// The drag lives here rather than inside `WorkCard.list`, because the Logs
+    /// list renders the same card for finished work, and finished work must not
+    /// be schedulable. A row with no id is not a drag source: no drop handler
+    /// could resolve it, and the drop would report success while doing nothing.
+    @ViewBuilder
     func workRow(_ work: CDWorkModel) -> some View {
-        WorkCard.list(
+        let card = WorkCard.list(
             work: work,
             title: displayTitle(for: work),
             subtitle: workSubtitle(for: work),
@@ -176,6 +164,23 @@ private extension LessonsAndWorkAttentionView {
             onOpen: onOpenWork
         )
         .padding(.vertical, 3)
+
+        if let id = work.id {
+            card.draggable(UnifiedCalendarDragPayload.work(id).stringRepresentation) {
+                // Plain strings only, so the detached preview needs no context.
+                VStack(alignment: .leading, spacing: 6) {
+                    Text(displayTitle(for: work)).font(.subheadline)
+                    Text(workSubtitle(for: work)).font(.caption).foregroundStyle(.secondary)
+                }
+                .padding(8)
+                .background(
+                    RoundedRectangle(cornerRadius: 8)
+                        .fill(Color.primary.opacity(UIConstants.OpacityConstants.veryFaint))
+                )
+            }
+        } else {
+            card
+        }
     }
 
     func timingText(for group: FollowingPresentationGroup) -> String {
@@ -217,22 +222,6 @@ private extension LessonsAndWorkAttentionView {
         let lesson = lessonsByID[uuidString: work.lessonID]?.name ?? ""
         return "\(work.title) \(student) \(lesson) \((work.kind ?? .practiceLesson).displayName)"
             .lowercased()
-    }
-
-    func isStale(_ work: CDWorkModel) -> Bool {
-        let checkIns = (work.checkIns?.allObjects as? [CDWorkCheckIn]) ?? []
-        let notes = (work.unifiedNotes?.allObjects as? [CDNote]) ?? []
-        let lastTouch = WorkAgingPolicy.lastMeaningfulTouchDate(
-            for: work,
-            checkIns: checkIns,
-            notes: notes
-        )
-        return LessonAgeHelper.schoolDaysSinceCreation(
-            createdAt: lastTouch,
-            asOf: Date(),
-            using: viewContext,
-            calendar: calendar
-        ) >= 10
     }
 
     func sortWork(_ lhs: CDWorkModel, _ rhs: CDWorkModel) -> Bool {

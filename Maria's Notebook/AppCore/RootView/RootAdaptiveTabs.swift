@@ -79,11 +79,6 @@ struct RootAdaptiveTabs: View {
             } label: {
                 Label("Lessons & Work", systemImage: "tray.full")
             }
-            Tab(value: RootView.NavigationItem.needsLesson) {
-                RootDetailContent(selectedNavItem: .needsLesson)
-            } label: {
-                Label("Needs Lesson", systemImage: "clock.badge.exclamationmark")
-            }
             Tab(value: RootView.NavigationItem.smallSequencePlanner) {
                 RootDetailContent(selectedNavItem: .smallSequencePlanner)
             } label: {

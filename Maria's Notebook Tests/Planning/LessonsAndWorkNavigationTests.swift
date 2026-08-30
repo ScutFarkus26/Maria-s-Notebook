@@ -9,13 +9,13 @@ struct LessonsAndWorkNavigationTests {
     func everyScopeRemainsSelectable() throws {
         let router = AppRouter()
 
-        for first in LessonsAndWorkScope.allCases {
+        for first in TriageBucket.workspaceCases {
             router.navigateToLessonsAndWork(first)
             #expect(router.selectedNavItem == .planningAgenda)
             #expect(try #require(router.consumeLessonsAndWorkRequest()).scope == first)
             #expect(router.consumeLessonsAndWorkRequest() == nil)
 
-            for second in LessonsAndWorkScope.allCases {
+            for second in TriageBucket.workspaceCases {
                 router.navigateToLessonsAndWork(second)
                 #expect(router.selectedNavItem == .planningAgenda)
                 #expect(try #require(router.consumeLessonsAndWorkRequest()).scope == second)
@@ -30,13 +30,13 @@ struct LessonsAndWorkNavigationTests {
         let workID = UUID()
 
         router.navigateToLessonsAndWork(
-            .needsAttention,
+            .attention,
             presentationID: presentationID,
             workID: workID
         )
 
         let request = try #require(router.consumeLessonsAndWorkRequest())
-        #expect(request.scope == .needsAttention)
+        #expect(request.scope == .attention)
         #expect(request.presentationID == presentationID)
         #expect(request.workID == workID)
         #expect(router.consumeLessonsAndWorkRequest() == nil)
@@ -49,67 +49,60 @@ struct LessonsAndWorkNavigationTests {
         router.navigateToPresentationFollowUps()
 
         #expect(router.selectedNavItem == .planningAgenda)
-        #expect(try #require(router.consumeLessonsAndWorkRequest()).scope == .needsAttention)
+        #expect(try #require(router.consumeLessonsAndWorkRequest()).scope == .attention)
         #expect(router.selectedNavItem != .lessons)
     }
 
-    @Test("Legacy presentation and work destinations choose the matching lens")
-    func legacyRootDestinationsAreCanonicalized() throws {
+    @Test("The planning destination opens the workspace on the upcoming lens")
+    func planningDestinationChoosesUpcoming() throws {
         let router = AppRouter()
 
         router.navigateTo(.planningAgenda)
         #expect(router.selectedNavItem == .planningAgenda)
-        #expect(try #require(router.consumeLessonsAndWorkRequest()).scope == .upcoming)
-
-        router.navigateTo(.planningWork)
-        #expect(router.selectedNavItem == .planningAgenda)
-        #expect(try #require(router.consumeLessonsAndWorkRequest()).scope == .childrenWorking)
+        #expect(try #require(router.consumeLessonsAndWorkRequest()).scope == .toSchedule)
     }
 
     @Test("An unknown saved lens falls back to Needs Attention")
     func invalidScopeFallsBackSafely() {
-        #expect(LessonsAndWorkScope.resolved(rawValue: "unknown") == .needsAttention)
-        #expect(LessonsAndWorkScope.resolved(rawValue: nil) == .needsAttention)
+        #expect(TriageBucket.resolved(rawValue: "unknown") == .attention)
+        #expect(TriageBucket.resolved(rawValue: nil) == .attention)
+        // `.done` is a real bucket but not a workspace list, so a saved value
+        // naming it must not select a tab that cannot render.
+        #expect(TriageBucket.resolved(rawValue: TriageBucket.done.rawValue) == .attention)
     }
 
-    @Test("Upcoming reveals ready and scheduled assignments in the matching subview")
-    func upcomingFocusChoosesMatchingSubview() {
+    @Test("The Ready list only claims a presentation it can actually show")
+    func readyListClaimsOnlyUnscheduled() {
+        // Unscheduled and not yet given is exactly what the Ready list holds.
         #expect(
-            PresentationsCompactTab.focusedAssignmentDestination(
-                isPresented: false,
-                scheduledFor: nil
-            ) == .ready
+            PresentationsView.canRevealInReadyList(isPresented: false, scheduledFor: nil)
         )
+        // A scheduled one belongs to the Scheduled calendar pinned below.
         #expect(
-            PresentationsCompactTab.focusedAssignmentDestination(
-                isPresented: false,
-                scheduledFor: Date()
-            ) == .week
+            !PresentationsView.canRevealInReadyList(isPresented: false, scheduledFor: Date())
         )
+        // A given one is history, and history lives under Logs.
         #expect(
-            PresentationsCompactTab.focusedAssignmentDestination(
-                isPresented: true,
-                scheduledFor: Date()
-            ) == nil
+            !PresentationsView.canRevealInReadyList(isPresented: true, scheduledFor: Date())
         )
     }
 
     @Test(
         "Closing a presentation reveals the next guide responsibility",
         arguments: [
-            (true, false, LessonsAndWorkScope.needsAttention),
-            (true, true, LessonsAndWorkScope.needsAttention),
-            (false, true, LessonsAndWorkScope.childrenWorking),
-            (false, false, LessonsAndWorkScope.history)
+            (true, false, TriageBucket.attention),
+            (true, true, TriageBucket.attention),
+            (false, true, TriageBucket.toSchedule),
+            (false, false, TriageBucket.attention)
         ]
     )
     func postPresentationDestination(
         hasOpenFollowUp: Bool,
         hasOpenWork: Bool,
-        expected: LessonsAndWorkScope
+        expected: TriageBucket
     ) {
         #expect(
-            LessonsAndWorkScope.afterPresentation(
+            TriageBucket.afterPresentation(
                 hasOpenFollowUp: hasOpenFollowUp,
                 hasOpenWork: hasOpenWork
             ) == expected

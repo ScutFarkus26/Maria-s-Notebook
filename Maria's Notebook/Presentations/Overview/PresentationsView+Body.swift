@@ -8,47 +8,16 @@ import CoreData
 extension PresentationsView {
 
     var body: some View {
-        presentationsMainContent
+        planContent
         .task {
             if let embeddedSearchText {
                 filterState.updateSearchText(embeddedSearchText)
             }
             updateViewModel()
 
-            if startDateRaw != 0 {
-                startDate = Date(timeIntervalSinceReferenceDate: startDateRaw)
-            } else {
-                let earliestDate = lessonAssignmentsForChangeDetection
-                    .compactMap(\.scheduledFor)
-                    .min()
-                    .map { calendar.startOfDay(for: $0) }
-
-                let today = calendar.startOfDay(for: Date())
-
-                if let earliest = earliestDate {
-                    startDate = min(earliest, today)
-                } else {
-                    await loadNonSchoolDates()
-                    startDate = AgendaSchoolDayRules.computeInitialStartDate(
-                        calendar: calendar,
-                        isNonSchoolDay: isNonSchool
-                    )
-                }
-                startDateRaw = startDate.timeIntervalSinceReferenceDate
-            }
-
-            // Load non-school dates for the current startDate
-            await loadNonSchoolDates()
-
             syncInboxOrderWithCurrentBase()
             syncRecentWindowWithMissWindow()
             revealFocusedPresentationIfNeeded()
-        }
-        .onChange(of: startDate) { _, new in
-            Task { @MainActor in
-                startDateRaw = new.timeIntervalSinceReferenceDate
-                await loadNonSchoolDates()
-            }
         }
         .onChange(of: viewModelDependencies) { old, new in
             if old.lessonAssignmentKeys != new.lessonAssignmentKeys {
@@ -149,38 +118,14 @@ extension PresentationsView {
     }
     #endif
 
-    @ViewBuilder
-    private var presentationsMainContent: some View {
-        if isEmbedded {
-            embeddedPlanContent
-        } else {
-            VStack(spacing: 0) {
-                screenHeader
-                    .background(.regularMaterial)
-                Divider()
-
-                if workspaceMode == .followUp {
-                    FollowingPresentationsView(
-                        style: .full,
-                        studentID: coordinator.selectedStudentFilter,
-                        searchText: filterState.debouncedSearchText,
-                        searchTokens: filterState.committedFilters,
-                        onOpen: { coordinator.showLessonAssignmentDetail($0) }
-                    )
-                } else if horizontalSizeClass == .compact {
-                    compactLayout
-                } else {
-                    regularLayout
-                }
-            }
-        }
-    }
-
-    private var embeddedPlanContent: some View {
+    /// The Upcoming pane of the Lessons & Work workspace: what is ready to
+    /// present, what is on the calendar, and who has been waiting longest.
+    private var planContent: some View {
         VStack(spacing: 0) {
             HStack(spacing: AppTheme.Spacing.compact) {
-                Label("Ready and Scheduled", systemImage: "calendar")
+                Label("Ready to Present", systemImage: "tray.full")
                     .font(.headline)
+                studentFilterChip
                 Spacer()
                 Button(action: triggerSuggestNext) {
                     Label("Suggest Next", systemImage: "sparkles")
@@ -192,129 +137,54 @@ extension PresentationsView {
 
             Divider()
 
-            // The unified Upcoming workspace uses the same explicit Ready /
-            // Scheduled / Students destinations at every window size. This
-            // makes a deep link deterministic on Mac as well as iPhone: a
-            // scheduled assignment can select Scheduled and reveal its card.
-            embeddedCompactPlanContent
+            destinationContent
         }
     }
 
-    private var embeddedCompactPlanContent: some View {
-        VStack(spacing: 0) {
-            Picker("Upcoming View", selection: $compactTab) {
-                Label("Ready", systemImage: "tray.full").tag(PresentationsCompactTab.ready)
-                Label("Scheduled", systemImage: "calendar").tag(PresentationsCompactTab.week)
-                Label("Students", systemImage: "person.2").tag(PresentationsCompactTab.students)
-            }
-            .pickerStyle(.segmented)
-            .padding(.horizontal, AppTheme.Spacing.medium)
-            .padding(.vertical, AppTheme.Spacing.small)
-
-            Divider()
-
-            if compactTab == .week {
-                calendarStripView
-            } else if compactTab == .students {
-                StudentsNeedingLessonsView(
-                    viewModel: viewModel,
-                    coordinator: coordinator,
-                    filterState: filterState,
-                    lessonAssignments: Array(lessonAssignmentsForChangeDetection),
-                    showAboutCard: true
-                )
-            } else {
-                ReadyToPresentSection(
-                    viewModel: viewModel,
-                    blockingResults: viewModel.blockingResults,
-                    getBlockingWork: getBlockingWork,
-                    filteredSnapshot: filteredSnapshot,
-                    coordinator: coordinator,
-                    filterState: filterState,
-                    suggestedLessonID: suggestedLessonID ?? focusedPresentationID
-                )
-            }
-        }
-    }
-
-    // MARK: - Layout Helpers
-
-    private var compactLayout: some View {
-        VStack(spacing: 0) {
-            Picker("View", selection: $compactTab) {
-                ForEach(PresentationsCompactTab.allCases) { tab in
-                    Label(tab.title, systemImage: tab.systemImage).tag(tab)
-                }
-            }
-            .pickerStyle(.segmented)
-            .padding(.horizontal, AppTheme.Spacing.medium)
-            .padding(.vertical, AppTheme.Spacing.small)
-
-            Divider()
-
-            switch compactTab {
-            case .ready:
-                ReadyToPresentSection(
-                    viewModel: viewModel,
-                    blockingResults: viewModel.blockingResults,
-                    getBlockingWork: getBlockingWork,
-                    filteredSnapshot: filteredSnapshot,
-                    coordinator: coordinator,
-                    filterState: filterState,
-                    suggestedLessonID: suggestedLessonID
-                )
-            case .week:
-                calendarStripView
-            case .students:
-                StudentsNeedingLessonsView(
-                    viewModel: viewModel,
-                    coordinator: coordinator,
-                    filterState: filterState,
-                    lessonAssignments: Array(lessonAssignmentsForChangeDetection),
-                    showAboutCard: true
-                )
-            }
-        }
-    }
-
-    private var regularLayout: some View {
-        GeometryReader { proxy in
-            let inboxHeight: CGFloat = proxy.size.height * (coordinator.isCalendarMinimized ? 1.0 : 0.5)
-            let calendarHeight: CGFloat = proxy.size.height * 0.5
-
-            VStack(spacing: 0) {
-                inboxView
-                    .frame(height: inboxHeight)
-
-                if !coordinator.isCalendarMinimized {
-                    Divider()
-                    calendarStripView
-                        .frame(height: calendarHeight)
-                        .transition(.opacity.combined(with: .move(edge: .bottom)))
-                }
-            }
-        }
-    }
-
-    private var screenHeader: some View {
-        PresentationsHeader(
-            mode: $workspaceMode,
-            filterState: filterState,
+    /// Only one destination remains: the presentations that are ready to give.
+    /// Which child they are for is chosen in the rail beside this view, not by
+    /// switching away from it.
+    private var destinationContent: some View {
+        ReadyToPresentSection(
+            viewModel: viewModel,
+            blockingResults: viewModel.blockingResults,
+            getBlockingWork: getBlockingWork,
+            filteredSnapshot: filteredSnapshot,
             coordinator: coordinator,
-            cachedStudents: viewModel.cachedStudents,
-            isSuggestEnabled: !viewModel.readyLessons.isEmpty,
-            onSuggestNext: triggerSuggestNext,
-            onFilters: { /* Filters panel: wired in a later phase. */ },
-            onConsolidate: { coordinator.showConsolidatePresentations() }
+            filterState: filterState,
+            suggestedLessonID: suggestedLessonID ?? focusedPresentationID
         )
+    }
+
+    /// Selecting a child in the rail silently narrows this list, so the filter
+    /// has to be visible and clearable from the list it is narrowing.
+    @ViewBuilder
+    private var studentFilterChip: some View {
+        if let id = coordinator.selectedStudentFilter,
+           let student = viewModel.cachedStudents.first(where: { $0.id == id }) {
+            Button {
+                coordinator.clearStudentFilter()
+            } label: {
+                HStack(spacing: AppTheme.Spacing.xsmall) {
+                    Text("for \(StudentFormatter.displayName(for: student))")
+                        .font(AppTheme.ScaledFont.captionSemibold)
+                    Image(systemName: "xmark.circle.fill")
+                        .font(.caption)
+                }
+                .padding(.horizontal, AppTheme.Spacing.small)
+                .padding(.vertical, AppTheme.Spacing.xxsmall)
+                .background(Capsule().fill(Color.accentColor.opacity(UIConstants.OpacityConstants.accent)))
+            }
+            .buttonStyle(.plain)
+            .help("Show lessons for every child")
+            .accessibilityLabel("Showing lessons for \(StudentFormatter.displayName(for: student)). Clear filter.")
+        }
     }
 
     private func triggerSuggestNext() {
         let candidates = viewModel.filteredAndSortedReady(
             studentFilter: coordinator.selectedStudentFilter,
-            debouncedSearch: filterState.debouncedSearchText,
-            committedFilters: filterState.committedFilters,
-            hideStudentsScheduledToday: filterState.hideStudentsScheduledToday
+            debouncedSearch: filterState.debouncedSearchText
         )
         let all = Array(lessonAssignmentsForChangeDetection)
         guard let suggested = viewModel.suggestedNext(among: candidates, allLessonAssignments: all),
@@ -332,84 +202,20 @@ extension PresentationsView {
         }
     }
 
-    private var inboxView: some View {
-        PresentationsInboxView(
-            viewModel: viewModel,
-            blockingResults: viewModel.blockingResults,
-            getBlockingWork: getBlockingWork,
-            filteredSnapshot: filteredSnapshot,
-            missWindow: missWindow,
-            missWindowRaw: $missWindowRaw,
-            coordinator: coordinator,
-            filterState: filterState,
-            suggestedLessonID: suggestedLessonID ?? focusedPresentationID
-        )
-    }
-
-    private var calendarStripView: some View {
-        WeekPlanSection(
-            days: days,
-            startDate: $startDate,
-            isNonSchool: isNonSchool,
-            legend: AnyView(presentationsLegend),
-            focusedPresentationID: focusedPresentationID,
-            onClear: { la in
-                la.unschedule()
-                do {
-                    try viewContext.save()
-                } catch {
-                    Self.logger.warning("Failed to save schedule clear: \(error)")
-                }
-            },
-            onSelect: { la in
-                coordinator.showLessonAssignmentDetail(la)
-            }
-        )
-    }
-
     private func revealFocusedPresentationIfNeeded() {
         guard let focusedPresentationID,
               let assignment = lessonAssignmentsForChangeDetection.first(where: {
                   $0.id == focusedPresentationID
               }),
-              let destination = PresentationsCompactTab.focusedAssignmentDestination(
+              PresentationsView.canRevealInReadyList(
                   isPresented: assignment.isPresented,
                   scheduledFor: assignment.scheduledFor
               ) else {
             return
         }
-
-        compactTab = destination
-
-        switch destination {
-        case .ready:
-            // A prior chip selection can hide an otherwise valid deep link.
-            filterState.selectedChip = .all
-        case .week:
-            if let scheduledFor = assignment.scheduledFor {
-                startDate = calendar.startOfDay(for: scheduledFor)
-            }
-        case .students:
-            break
-        }
-    }
-
-    private var presentationsLegend: some View {
-        HStack(spacing: 14) {
-            legendSwatch(color: .red, label: "Absent")
-            legendSwatch(color: AppColors.attention, label: "Scheduled more than once")
-        }
-        .font(.caption2)
-        .foregroundStyle(.secondary)
-    }
-
-    private func legendSwatch(color: Color, label: String) -> some View {
-        HStack(spacing: 5) {
-            Capsule()
-                .stroke(color, lineWidth: 1)
-                .frame(width: 18, height: 11)
-            Text(label)
-        }
+        // A prior chip or student filter can hide an otherwise valid deep link.
+        filterState.selectedChip = .all
+        coordinator.clearStudentFilter()
     }
 
     // MARK: - Helpers

@@ -26,13 +26,11 @@ extension RootView {
         // Planning Sub-items
         case planningChecklist
         case planningAgenda
-        case planningWork
         case planningProjects
         case planningCalendar
         case progressDashboard
         case lessonRecall
         case goingOut
-        case needsLesson
         case smallSequencePlanner
 
         case perpetualCalendar
@@ -69,13 +67,11 @@ extension RootView {
             case .todos:               return ("Todos", "checkmark.circle")
             case .planningChecklist:   return ("Checklist", "list.clipboard")
             case .planningAgenda:      return ("Lessons & Work", "tray.full")
-            case .planningWork:        return ("Lessons & Work", "tray.full")
             case .planningProjects:    return ("Projects", "folder")
             case .planningCalendar:    return ("Calendar", "calendar.day.timeline.leading")
             case .progressDashboard:   return ("Progress Dashboard", "person.text.rectangle")
             case .lessonRecall:        return ("Lesson Recall", "arrow.clockwise.circle")
             case .goingOut:            return ("Going Out", "figure.walk")
-            case .needsLesson:         return ("Needs Lesson", "clock.badge.exclamationmark")
             case .smallSequencePlanner:   return ("Group Planner", "person.3.sequence")
             case .perpetualCalendar:   return ("Calendar", "calendar.day.timeline.leading")
             case .community:           return ("Community", "bubble.left.and.bubble.right")
@@ -113,15 +109,11 @@ extension RootView {
                  .planningProjects, .planningCalendar,
                  .progressDashboard, .lessonRecall,
                  .goingOut,
-                 .needsLesson, .smallSequencePlanner,
+                 .smallSequencePlanner,
                  .perpetualCalendar,
                  .thisWeeksParsha, .parshaCalendar,
                  .community, .schedules, .resourceLibrary, .askAI, .logs, .settings:
                 return true
-            case .planningWork:
-                // Backward-compatible destination; the visible entry is now
-                // the shared Lessons & Work workspace at .planningAgenda.
-                return false
             default:
                 return false
             }

@@ -456,7 +456,8 @@ enum SampleClassroomSeeder {
             assignment.lessonTitleSnapshot = lesson.name
             assignment.lessonSectionSnapshot = lesson.section
             if let scheduledDate = calendar.date(byAdding: .day, value: index, to: now) {
-                assignment.schedule(for: scheduledDate, using: calendar)
+                // Sample data expresses a day, not a seed-run timestamp.
+                assignment.schedule(onDay: scheduledDate, using: calendar)
             }
             assignment.notes = "Sample plan—safe to reschedule or complete."
         }

@@ -74,35 +74,56 @@ struct RootView: View {
     }
 
     // MARK: - Computed
+    /// The raw value of a retired navigation item that pointed at the same
+    /// workspace as `.planningAgenda`, opened on the children's-work lens. The
+    /// case is gone; this keeps a device that last selected it landing where it
+    /// expects instead of falling back to Today.
+    private static let retiredOpenWorkNavItemRaw = "planningWork"
+
+    /// The retired "Needs Lesson" destination. The list it showed — which
+    /// children have waited longest — now lives beside the presentations in To
+    /// Schedule, so a device restoring this selection lands there rather than
+    /// falling through to Today.
+    private static let retiredNeedsLessonNavItemRaw = "needsLesson"
+
     private func resolvedPersistedNavItem() -> NavigationItem {
-        if let raw = selectedNavItemRaw, let item = NavigationItem(rawValue: raw) {
-            if item == .planningWork {
-                appRouter.lessonsAndWorkRequest = .init(scope: .childrenWorking)
+        if let raw = selectedNavItemRaw {
+            if raw == Self.retiredOpenWorkNavItemRaw {
+                appRouter.lessonsAndWorkRequest = .init(scope: .attention)
                 return .planningAgenda
             }
-            return item
-        }
-        if let legacyRaw = selectedTabRaw, let legacyTab = Tab(rawValue: legacyRaw) {
-            if legacyTab == .planning {
-                if let modeRaw = UserDefaults.standard.string(forKey: UserDefaultsKeys.planningRootViewMode) {
-                    switch modeRaw {
-                    case "Open Work":
-                        appRouter.lessonsAndWorkRequest = .init(scope: .childrenWorking)
-                        return .planningAgenda
-                    case "Projects": return .planningProjects
-                    case "Checklist": return .planningChecklist
-                    default:
-                        appRouter.lessonsAndWorkRequest = .init(scope: .upcoming)
-                        return .planningAgenda
-                    }
-                }
+            if raw == Self.retiredNeedsLessonNavItemRaw {
+                appRouter.lessonsAndWorkRequest = .init(scope: .toSchedule)
                 return .planningAgenda
             }
-            if let item = NavigationItem(fromLegacyTab: legacyTab) {
+            if let item = NavigationItem(rawValue: raw) {
                 return item
             }
         }
+        if let legacyRaw = selectedTabRaw, let legacyTab = Tab(rawValue: legacyRaw) {
+            return resolvedLegacyTab(legacyTab)
+        }
         return .today
+    }
+
+    /// Maps a selection saved by a build that still used the old `Tab` enum.
+    private func resolvedLegacyTab(_ legacyTab: Tab) -> NavigationItem {
+        guard legacyTab == .planning else {
+            return NavigationItem(fromLegacyTab: legacyTab) ?? .today
+        }
+        guard let modeRaw = UserDefaults.standard.string(forKey: UserDefaultsKeys.planningRootViewMode) else {
+            return .planningAgenda
+        }
+        switch modeRaw {
+        case "Open Work":
+            appRouter.lessonsAndWorkRequest = .init(scope: .attention)
+            return .planningAgenda
+        case "Projects": return .planningProjects
+        case "Checklist": return .planningChecklist
+        default:
+            appRouter.lessonsAndWorkRequest = .init(scope: .toSchedule)
+            return .planningAgenda
+        }
     }
 
     // MARK: - Body
@@ -597,8 +618,7 @@ struct RootView: View {
     }
 
     private func persistSelection(_ item: RootView.NavigationItem) {
-        let canonicalItem: RootView.NavigationItem = item == .planningWork ? .planningAgenda : item
-        let newValue = canonicalItem.rawValue
+        let newValue = item.rawValue
         if selectedNavItemRaw != newValue {
             selectedNavItemRaw = newValue
         }
@@ -625,12 +645,8 @@ struct RootView: View {
 
     private func handleSelectedNavItemChange(_ oldValue: RootView.NavigationItem?, _ item: RootView.NavigationItem?) {
         if let item {
-            let canonicalItem: RootView.NavigationItem = item == .planningWork ? .planningAgenda : item
-            if item == .planningWork {
-                appRouter.lessonsAndWorkRequest = .init(scope: .childrenWorking)
-            }
-            if selectedNavItem != canonicalItem {
-                selectedNavItem = canonicalItem
+            if selectedNavItem != item {
+                selectedNavItem = item
             }
             self.appRouter.selectedNavItem = nil
         }

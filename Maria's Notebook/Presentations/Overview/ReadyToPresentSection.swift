@@ -12,6 +12,8 @@ import OSLog
 struct ReadyToPresentSection: View {
     private static let logger = Logger.presentations
 
+    @Environment(\.managedObjectContext) private var viewContext
+
     let viewModel: PresentationsViewModel
     let blockingResults: [UUID: BlockingAlgorithmEngine.BlockingCheckResult]
     let getBlockingWork: (CDLessonAssignment) -> [UUID: CDWorkModel]
@@ -148,18 +150,14 @@ struct ReadyToPresentSection: View {
     private var filteredAndSortedReadyLessons: [CDLessonAssignment] {
         viewModel.filteredAndSortedReady(
             studentFilter: coordinator.selectedStudentFilter,
-            debouncedSearch: filterState.debouncedSearchText,
-            committedFilters: filterState.committedFilters,
-            hideStudentsScheduledToday: filterState.hideStudentsScheduledToday
+            debouncedSearch: filterState.debouncedSearchText
         )
     }
 
     private var filteredAndSortedBlockedLessons: [CDLessonAssignment] {
         viewModel.filteredAndSortedBlocked(
             studentFilter: coordinator.selectedStudentFilter,
-            debouncedSearch: filterState.debouncedSearchText,
-            committedFilters: filterState.committedFilters,
-            hideStudentsScheduledToday: filterState.hideStudentsScheduledToday
+            debouncedSearch: filterState.debouncedSearchText
         )
     }
 
@@ -319,9 +317,7 @@ extension ReadyToPresentSection {
         viewModel.applyStudentAndTextFilters(
             to: viewModel.overdueReady(thresholdSchoolDays: 14),
             studentFilter: coordinator.selectedStudentFilter,
-            debouncedSearch: filterState.debouncedSearchText,
-            committedFilters: filterState.committedFilters,
-            hideStudentsScheduledToday: filterState.hideStudentsScheduledToday
+            debouncedSearch: filterState.debouncedSearchText
         )
     }
 
@@ -329,9 +325,7 @@ extension ReadyToPresentSection {
         viewModel.applyStudentAndTextFilters(
             to: viewModel.recentlyMissed(within: 14),
             studentFilter: coordinator.selectedStudentFilter,
-            debouncedSearch: filterState.debouncedSearchText,
-            committedFilters: filterState.committedFilters,
-            hideStudentsScheduledToday: filterState.hideStudentsScheduledToday
+            debouncedSearch: filterState.debouncedSearchText
         )
     }
 }
@@ -400,7 +394,7 @@ extension ReadyToPresentSection {
         readyCount: Int? = nil,
         totalCount: Int? = nil
     ) -> some View {
-        PresentationPlannerCard(
+        let card = PresentationPlannerCard(
             snapshot: filteredSnapshot(la),
             day: nil,
             cachedLessons: viewModel.lessons,
@@ -411,11 +405,33 @@ extension ReadyToPresentSection {
             totalCount: totalCount
         )
         .onTapGesture { coordinator.showLessonAssignmentDetail(la) }
-        .onDrag {
-            let provider = NSItemProvider(object: NSString(string: (la.id ?? UUID()).uuidString))
-            provider.suggestedName = viewModel.lessonsByID[uuidString: la.lessonID]?.name ?? "Lesson"
-            return provider
+
+        // A row with no id cannot be resolved by any drop handler, and the drop
+        // would report success while doing nothing — so it simply isn't a drag
+        // source.
+        if let id = la.id {
+            card.draggable(UnifiedCalendarDragPayload.presentation(id).stringRepresentation) {
+                dragPreview(for: la)
+            }
+        } else {
+            card
         }
+    }
+
+    /// Drag previews render detached from the app's environment, so anything
+    /// the preview reads has to be re-injected — a card whose `@FetchRequest`s
+    /// have no context is a crash at drag lift.
+    fileprivate func dragPreview(for la: CDLessonAssignment) -> some View {
+        PresentationPlannerCard(
+            snapshot: filteredSnapshot(la),
+            day: nil,
+            cachedLessons: [],
+            cachedStudents: [],
+            blockingWork: [:],
+            doubleBookedStudentIDs: []
+        )
+        .opacity(UIConstants.OpacityConstants.nearSolid)
+        .environment(\.managedObjectContext, viewContext)
     }
 
     fileprivate func unlockOnDeckLesson(_ la: CDLessonAssignment) {

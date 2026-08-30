@@ -12,20 +12,6 @@ import PDFKit
 
 extension WorksAgendaView {
 
-    // MARK: - Calendar Navigation
-
-    func moveCalendarStart(bySchoolDays delta: Int) {
-        guard delta != 0 else { return }
-        var remaining = abs(delta)
-        var cursor = AppCalendar.startOfDay(calendarStartDate)
-        let step = delta > 0 ? 1 : -1
-        while remaining > 0 {
-            cursor = calendar.date(byAdding: .day, value: step, to: cursor) ?? cursor
-            if !SchoolDayChecker.isNonSchoolDay(cursor, using: viewContext) { remaining -= 1 }
-        }
-        calendarStartDate = cursor
-    }
-
     // MARK: - Actions
 
     func openDetail(_ w: CDWorkModel) {
@@ -135,4 +121,70 @@ extension WorksAgendaView {
         }
     }
     #endif
+
+    // MARK: - Opening Records
+
+    /// A caller asking for a particular record only has to get it into the
+    /// workspace — the partition already knows which list holds it, so the
+    /// requested scope is a fallback, not an instruction.
+    func consumeWorkspaceRequestIfNeeded() {
+        guard let request = appRouter.consumeLessonsAndWorkRequest() else { return }
+        focusedPresentationID = request.presentationID
+        focusedWorkID = request.workID
+
+        let destination = bucketHolding(request) ?? request.scope
+        guard destination != .scheduled else {
+            // Already on screen in the pinned pane — open it and let the
+            // calendar reveal the record, rather than switching the list above.
+            isCalendarExpanded = true
+            return
+        }
+        workspaceScopeRaw = destination.rawValue
+    }
+
+    func bucketHolding(_ request: AppRouter.LessonsAndWorkRequest) -> TriageBucket? {
+        if let workID = request.workID {
+            return TriageBucket.workspaceCases.first { bucket in
+                partition.work[bucket].contains { $0.id == workID }
+            }
+        }
+        if let presentationID = request.presentationID {
+            return TriageBucket.workspaceCases.first { bucket in
+                partition.presentations[bucket].contains { $0.id == presentationID }
+            }
+        }
+        return nil
+    }
+
+    func openPresentation(_ assignment: CDLessonAssignment) {
+        #if os(macOS)
+        guard let id = assignment.id else { return }
+        openWindow(id: "PresentationDetailWindow", value: id)
+        #else
+        selectedLessonAssignment = assignment
+        #endif
+    }
+
+    func openWork(id: UUID) {
+        guard let work = fetchWork(id: id) else { return }
+        openDetail(work)
+    }
+
+    @ViewBuilder
+    func sheetContent(for token: SelectionToken) -> some View {
+        let work = fetchWork(id: token.workID)
+        if let w = work {
+            WorkDetailView(workID: w.id ?? UUID())
+                .id(token.id)
+        } else {
+            ContentUnavailableView("Work not found", systemImage: "exclamationmark.triangle")
+        }
+    }
+
+    func fetchWork(id: UUID) -> CDWorkModel? {
+        let request: NSFetchRequest<CDWorkModel> = NSFetchRequest(entityName: "WorkModel")
+        request.predicate = NSPredicate(format: "id == %@", id as CVarArg)
+        request.fetchLimit = 1
+        return viewContext.safeFetch(request).first
+    }
 }

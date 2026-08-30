@@ -308,7 +308,9 @@ final class LessonPlanningService {
 
             // Schedule if date provided
             if let date = scheduledDates[rec.id] {
-                la.scheduledFor = date
+                // Through the setter, so the day mirror and `.scheduled` state
+                // are written too — a bare assignment left both wrong.
+                la.schedule(onDay: date)
             }
 
             created.append(la)

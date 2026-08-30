@@ -84,13 +84,13 @@ final class AppRouter {
     /// the guide just created without opening another modal automatically.
     struct LessonsAndWorkRequest: Identifiable, Equatable {
         let id: UUID
-        let scope: LessonsAndWorkScope
+        let scope: TriageBucket
         let presentationID: UUID?
         let workID: UUID?
 
         init(
             id: UUID = UUID(),
-            scope: LessonsAndWorkScope,
+            scope: TriageBucket,
             presentationID: UUID? = nil,
             workID: UUID? = nil
         ) {
@@ -211,9 +211,7 @@ final class AppRouter {
     func navigateTo(_ item: RootView.NavigationItem) {
         switch item {
         case .planningAgenda:
-            navigateToLessonsAndWork(.upcoming)
-        case .planningWork:
-            navigateToLessonsAndWork(.childrenWorking)
+            navigateToLessonsAndWork(.toSchedule)
         default:
             selectedNavItem = item
         }
@@ -222,7 +220,7 @@ final class AppRouter {
     /// Opens the shared workspace at the point in the learning cycle requested
     /// by the caller. Both former planning destinations now route here.
     func navigateToLessonsAndWork(
-        _ scope: LessonsAndWorkScope = .needsAttention,
+        _ scope: TriageBucket = .attention,
         presentationID: UUID? = nil,
         workID: UUID? = nil
     ) {
@@ -239,9 +237,29 @@ final class AppRouter {
         return lessonsAndWorkRequest
     }
 
+    /// Opens a finished record's history. The workspace holds only open work
+    /// now — completed presentations and work live under Logs, which already
+    /// hosted both lists.
+    func navigateToHistory(_ kind: HistoryKind) {
+        UserDefaults.standard.set(kind.logsModeRaw, forKey: UserDefaultsKeys.logsMenuRootViewMode)
+        selectedNavItem = .logs
+    }
+
+    enum HistoryKind {
+        case presentations
+        case work
+
+        var logsModeRaw: String {
+            switch self {
+            case .presentations: "Presentations"
+            case .work: "Works"
+            }
+        }
+    }
+
     /// Kept as a source-compatible bridge for Today and older call sites.
     func navigateToPresentationFollowUps() {
-        navigateToLessonsAndWork(.needsAttention)
+        navigateToLessonsAndWork(.attention)
     }
 
     /// Open Ask AI and submit a question chosen from the notebook companion.

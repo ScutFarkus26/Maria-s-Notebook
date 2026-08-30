@@ -28,9 +28,11 @@ extension TodayView {
             }
         }
 
-        var navItem: RootView.NavigationItem {
+        /// The waiting-students list moved into To Schedule, beside the
+        /// lessons you would give — so the banner opens the workspace there.
+        var lessonsAndWorkScope: TriageBucket {
             switch self {
-            case .needsLesson: return .needsLesson
+            case .needsLesson: return .toSchedule
             }
         }
     }
@@ -66,7 +68,7 @@ extension TodayView {
     @ViewBuilder
     private func dayCardRow(card: DayCard, subtitle: String) -> some View {
         Button {
-            appRouter.selectedNavItem = card.navItem
+            appRouter.navigateToLessonsAndWork(card.lessonsAndWorkScope)
         } label: {
             HStack(spacing: 12) {
                 Image(systemName: card.icon)

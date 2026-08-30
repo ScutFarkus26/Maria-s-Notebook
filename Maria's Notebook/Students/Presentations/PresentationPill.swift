@@ -346,11 +346,27 @@ struct PresentationPill: View {
             .padding(6)
     }
 
+    /// True when `scheduledFor`'s time is the guide's own choice rather than an
+    /// artefact of ordering.
+    ///
+    /// Ordering within a day is encoded as second-spaced times from the start of
+    /// the teaching morning, so a reordered day would otherwise show a column of
+    /// identical "9:00 AM" badges (the seconds that distinguish them are not
+    /// rendered), and every row written before ordering existed would read
+    /// "12:00 AM". Neither is a time anyone set, so neither is shown.
+    private func isDeliberateTime(_ date: Date) -> Bool {
+        let calendar = AppCalendar.shared
+        let parts = calendar.dateComponents([.hour, .minute, .second], from: date)
+        let isMidnight = (parts.hour ?? 0) == 0 && (parts.minute ?? 0) == 0
+        let isOrderingSlot = (parts.hour ?? 0) == UIConstants.morningHour && (parts.minute ?? 0) == 0
+        return !isMidnight && !isOrderingSlot
+    }
+
     @ViewBuilder
     private var timeBadge: some View {
         if showTimeBadge {
             HStack(spacing: 6) {
-                if let scheduled = scheduledDate {
+                if let scheduled = scheduledDate, isDeliberateTime(scheduled) {
                     CanonicalPillButton(
                         isSelected: false,
                         contentFont: .system(.caption2, design: .rounded),

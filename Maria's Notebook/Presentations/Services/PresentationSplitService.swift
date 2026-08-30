@@ -40,7 +40,9 @@ enum PresentationSplitService {
                 context: context
             )
         } else {
-            let date = scheduledFor ?? Date()
+            // A split inherits the original's day, not the wall-clock moment
+            // the guide happened to tap.
+            let date = scheduledFor ?? AppCalendar.startOfDay(Date())
             newAssignment = PresentationFactory.makeScheduled(
                 lessonID: UUID(uuidString: assignment.lessonID) ?? UUID(),
                 studentIDs: readyStudentIDs,

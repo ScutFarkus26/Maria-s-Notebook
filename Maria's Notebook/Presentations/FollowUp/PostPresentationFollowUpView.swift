@@ -631,7 +631,7 @@ private extension PostPresentationFollowUpView {
             onReturnToLesson()
         case .openWork:
             appRouter.navigateToLessonsAndWork(
-                .childrenWorking,
+                .attention,
                 presentationID: assignment.id,
                 workID: preferredOpenWork?.id
             )
@@ -667,7 +667,7 @@ private extension PostPresentationFollowUpView {
     }
 
     func closeIntoWorkspace() {
-        let destination = LessonsAndWorkScope.afterPresentation(
+        let destination = TriageBucket.afterPresentation(
             hasOpenFollowUp: !openRows.isEmpty,
             hasOpenWork: !openLinkedWork.isEmpty
         )

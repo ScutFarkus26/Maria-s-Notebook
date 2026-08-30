@@ -255,8 +255,6 @@ struct StudentsView: View {
             students: filteredStudents,
             isBirthdayMode: false,
             isAgeMode: false,
-            isLastLessonMode: false,
-            lastLessonDays: [:],
             isManualMode: false,
             onTapStudent: { student in selectedStudentID = student.id },
             onReorder: { _, _, _, _ in }

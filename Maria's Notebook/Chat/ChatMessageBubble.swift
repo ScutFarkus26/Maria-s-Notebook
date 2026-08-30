@@ -119,15 +119,17 @@ struct ChatMessageBubble: View {
         request.fetchLimit = 1
 
         guard let assignment = viewContext.safeFetch(request).first else {
-            appRouter.navigateToLessonsAndWork(.history, presentationID: id)
+            appRouter.navigateToHistory(.presentations)
             return
         }
         if !assignment.isPresented {
-            appRouter.navigateToLessonsAndWork(.upcoming, presentationID: id)
+            // The workspace re-triages the record on arrival, so the hint only
+            // has to be somewhere in the workspace.
+            appRouter.navigateToLessonsAndWork(.toSchedule, presentationID: id)
         } else if PresentationFollowUpService.hasOpenFollowUps(for: id, in: viewContext) {
-            appRouter.navigateToLessonsAndWork(.needsAttention, presentationID: id)
+            appRouter.navigateToLessonsAndWork(.attention, presentationID: id)
         } else {
-            appRouter.navigateToLessonsAndWork(.history, presentationID: id)
+            appRouter.navigateToHistory(.presentations)
         }
     }
 
@@ -135,10 +137,11 @@ struct ChatMessageBubble: View {
         let request = CDFetchRequest(CDWorkModel.self)
         request.predicate = NSPredicate(format: "id == %@", id as CVarArg)
         request.fetchLimit = 1
-        let scope: LessonsAndWorkScope = viewContext.safeFetch(request).first?.status == .complete
-            ? .history
-            : .childrenWorking
-        appRouter.navigateToLessonsAndWork(scope, workID: id)
+        guard viewContext.safeFetch(request).first?.status != .complete else {
+            appRouter.navigateToHistory(.work)
+            return
+        }
+        appRouter.navigateToLessonsAndWork(.attention, workID: id)
     }
 
     // MARK: - Bubble Background

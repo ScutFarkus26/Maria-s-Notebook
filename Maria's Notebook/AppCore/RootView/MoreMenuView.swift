@@ -29,7 +29,6 @@ struct MoreMenuView: View {
 
                 Section("Planning") {
                     moreMenuButton(.planningAgenda)
-                    moreMenuButton(.needsLesson)
                     moreMenuButton(.smallSequencePlanner)
                     moreMenuButton(.planningChecklist)
                 }

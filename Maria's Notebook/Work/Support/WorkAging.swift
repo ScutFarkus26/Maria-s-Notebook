@@ -16,8 +16,14 @@ struct AgingPolicy {
     /// First bucket boundary where items start to be considered aging.
     static let agingDays: Int = 5
 
-    /// Second bucket boundary where items are considered stale.
-    static let staleDays: Int = 9
+    /// School days of silence after which work counts as stale.
+    ///
+    /// The single stale threshold in the app. It decides the card's colour
+    /// indicator, the Today screen's stale list, the lesson list's warning, and
+    /// — through `LessonsAndWorkTriage.staleSchoolDays` — whether work lands in
+    /// the Attention list. These used to be 9 here and 10 in the triage rule,
+    /// so a card could look stale without being asked for.
+    static let staleDays: Int = 10
 }
 
 // MARK: - CDWorkModel Aging Policy

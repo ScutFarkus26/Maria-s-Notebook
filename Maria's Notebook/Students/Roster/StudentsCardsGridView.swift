@@ -12,8 +12,6 @@ struct StudentsCardsGridView: View {
     let students: [CDStudent]
     let isBirthdayMode: Bool
     let isAgeMode: Bool
-    let isLastLessonMode: Bool
-    let lastLessonDays: [UUID: Int]
     let isManualMode: Bool
     let onTapStudent: (CDStudent) -> Void
     // Called when drag ends with final target index within the provided `students` subset
@@ -55,8 +53,6 @@ struct StudentsCardsGridView: View {
             BirthdayStudentCard(student: student)
         } else if isAgeMode {
             AgeStudentCard(student: student)
-        } else if isLastLessonMode {
-            LastLessonStudentCard(student: student, days: student.id.flatMap { lastLessonDays[$0] } ?? 0)
         } else {
             DefaultStudentCard(student: student, showAge: false)
         }

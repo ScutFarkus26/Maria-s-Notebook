@@ -27,10 +27,17 @@ struct WorksAgendaView: View {
     @Environment(\.openWindow) var openWindow
     #endif
 
-    @FetchRequest(
-        sortDescriptors: [NSSortDescriptor(keyPath: \CDWorkModel.createdAt, ascending: false)],
-        predicate: NSPredicate(format: "statusRaw != %@", "complete")
-    )
+    // Prefetch the two relationships `LessonsAndWorkTriage` reads for every row
+    // (scheduled check-ins, and the notes behind last-meaningful-touch). Without
+    // this, triaging a classroom's worth of open work faults them one row at a
+    // time — the same N+1 that `WorksLogView` already prefetches away.
+    @FetchRequest(fetchRequest: {
+        let request = NSFetchRequest<CDWorkModel>(entityName: "WorkModel")
+        request.sortDescriptors = [NSSortDescriptor(keyPath: \CDWorkModel.createdAt, ascending: false)]
+        request.predicate = NSPredicate(format: "statusRaw != %@", "complete")
+        request.relationshipKeyPathsForPrefetching = ["checkIns", "unifiedNotes"]
+        return request
+    }())
     var openWork: FetchedResults<CDWorkModel>
 
     @FetchRequest(
@@ -47,6 +54,13 @@ struct WorksAgendaView: View {
     @State var lessonsByIDCache: [UUID: CDLesson] = [:]
     @State var studentsByIDCache: [UUID: CDStudent] = [:]
 
+    /// Every record on screen, triaged once. The Attention list reads it, the
+    /// card badges read it, and the picker's counts will. Rebuilt on the same
+    /// debounced path as the caches below — never in a `body` pass, because
+    /// placing one work item walks its check-ins and notes and then counts
+    /// school days.
+    @State var partition = LessonsAndWorkPartition()
+
     @AppStorage(UserDefaultsKeys.generalShowTestStudents) var showTestStudents: Bool = false
     @AppStorage(UserDefaultsKeys.generalTestStudentNames)
     var testStudentNamesRaw: String = "Danny De Berry,Lil Dan D"
@@ -54,7 +68,7 @@ struct WorksAgendaView: View {
     @AppStorage(UserDefaultsKeys.workAgendaVisibleKinds)
     var visibleKindsRaw: String = WorkKind.allCases.map(\.rawValue).joined(separator: ",")
     @SceneStorage("LessonsAndWork.scope")
-    var workspaceScopeRaw: String = LessonsAndWorkScope.needsAttention.rawValue
+    var workspaceScopeRaw: String = TriageBucket.attention.rawValue
 
     var visibleKinds: Binding<Set<WorkKind>> {
         Binding(
@@ -79,12 +93,19 @@ struct WorksAgendaView: View {
     @State var searchText: String = ""
     @State var debouncedSearchText: String = ""
     @State var searchDebounceTask: Task<Void, Never>?
-    #if os(macOS)
-    @State var isCalendarMinimized: Bool = false
-    #else
-    @State var isCalendarMinimized: Bool = true
-    #endif
-    @State var calendarStartDate: Date = AppCalendar.startOfDay(Date())
+    /// Attention shows what the rule selected; flipped on, it widens to every
+    /// open work item — the list that used to be its own Children Working tab.
+    @AppStorage(UserDefaultsKeys.workAgendaShowAllOpenWork) var showAllOpenWork: Bool = false
+    @AppStorage(UserDefaultsKeys.workAgendaCalendarExpanded) var isCalendarExpanded: Bool = true
+    @AppStorage(UserDefaultsKeys.workAgendaCalendarFraction) var calendarFraction: Double = 0.42
+    /// The share while a drag is in flight, so the pane tracks the finger
+    /// without writing to storage on every frame.
+    @State var liveCalendarFraction: Double?
+    @State var calendarResizeStartFraction: Double?
+    @State var calendarResizeTask: Task<Void, Never>?
+    /// Snapshot taken once per appearance, so restoring the saved height cannot
+    /// fight the guide's own drag on macOS.
+    @State var restoredCalendarFraction: Double?
 
     @State var selected: SelectionToken?
     @State var selectedLessonAssignment: CDLessonAssignment?
@@ -97,20 +118,17 @@ struct WorksAgendaView: View {
     var lessonsByID: [UUID: CDLesson] { lessonsByIDCache }
     var studentsByID: [UUID: CDStudent] { studentsByIDCache }
 
-    var workspaceScope: LessonsAndWorkScope {
-        LessonsAndWorkScope.resolved(rawValue: workspaceScopeRaw)
+    var workspaceScope: TriageBucket {
+        TriageBucket.resolved(rawValue: workspaceScopeRaw)
     }
 
-    var workspaceScopeBinding: Binding<LessonsAndWorkScope> {
+    var workspaceScopeBinding: Binding<TriageBucket> {
         Binding(
             get: { workspaceScope },
             set: { newValue in
                 workspaceScopeRaw = newValue.rawValue
                 focusedPresentationID = nil
                 focusedWorkID = nil
-                #if os(iOS)
-                isCalendarMinimized = true
-                #endif
             }
         )
     }
@@ -159,6 +177,7 @@ struct WorksAgendaView: View {
             }
         }
         .onAppear {
+            if restoredCalendarFraction == nil { restoredCalendarFraction = calendarFraction }
             refreshChangeTokens()
             loadLessonsAndStudentsIfNeeded()
             consumeWorkspaceRequestIfNeeded()
@@ -173,7 +192,7 @@ struct WorksAgendaView: View {
             NotificationCenter.default.publisher(for: .NSManagedObjectContextDidSave)
                 .debounce(for: .milliseconds(300), scheduler: RunLoop.main)
         ) { _ in
-            refreshChangeTokens()
+            refreshAfterSave()
         }
         .onChange(of: searchText) { _, newValue in
             searchDebounceTask?.cancel()
@@ -188,42 +207,69 @@ struct WorksAgendaView: View {
         }
         .onDisappear {
             searchDebounceTask?.cancel()
+            calendarResizeTask?.cancel()
         }
     }
 
     @ViewBuilder
     private var workspaceContent: some View {
         #if os(macOS)
-        VSplitView {
-            workspaceWorkbench
-                .frame(minHeight: 300)
-
-            if workspaceScope != .history && !isCalendarMinimized {
-                sharedAgendaPane
-                    .frame(minHeight: 190, idealHeight: 300)
-            }
-        }
+        workspaceSplit
         #else
         VStack(spacing: 0) {
             mobileHeader
             Divider()
-
-            if workspaceScope != .history && !isCalendarMinimized {
-                sharedAgendaPane
-            } else {
-                workspaceWorkbench
-            }
+            workspaceSplit
         }
         #endif
     }
 
+    /// The list the guide is working *from*. Scheduled is not one of these —
+    /// it is the pane underneath, because a schedule is a destination, not a
+    /// peer list you switch to.
     @ViewBuilder
-    private var workspaceWorkbench: some View {
+    var workspaceWorkbench: some View {
         switch workspaceScope {
-        case .needsAttention:
+        case .attention:
+            attentionPane
+
+        case .scheduled:
+            // Only reachable from a stale saved value; the calendar is pinned
+            // below, so fall back to the list the guide most likely wanted.
+            attentionPane
+
+        case .toSchedule:
+            LessonsAndWorkToScheduleView(
+                unscheduledWork: partition.work.toSchedule,
+                lessonsByID: lessonsByID,
+                studentsByID: studentsByID,
+                attentionWorkIDs: attentionWorkIDs,
+                sortMode: sortMode,
+                searchText: debouncedSearchText,
+                focusedPresentationID: focusedPresentationID,
+                focusedWorkID: focusedWorkID,
+                onOpenWork: openDetail,
+                onMarkCompleted: markCompleted,
+                onScheduleToday: scheduleToday,
+                studentIDsWithUpcomingLessons: studentIDsWithUpcomingLessons
+            )
+
+        case .done:
+            // Finished records live under Logs; `resolved` never returns this.
+            EmptyView()
+        }
+    }
+
+    /// Attention defaults to what the rule selected, and widens to every open
+    /// work item on request — the old Children Working list, as a filter rather
+    /// than a fourth destination.
+    @ViewBuilder
+    private var attentionPane: some View {
+        if showAllOpenWork {
+            openWorkPane
+        } else {
             LessonsAndWorkAttentionView(
-                openWork: Array(openWork).uniqueByID,
-                scheduledCheckIns: Array(scheduledCheckIns).uniqueByID,
+                attentionWork: partition.work.attention,
                 lessonsByID: lessonsByID,
                 studentsByID: studentsByID,
                 searchText: debouncedSearchText,
@@ -231,23 +277,6 @@ struct WorksAgendaView: View {
                 focusedWorkID: focusedWorkID,
                 onOpenPresentation: openPresentation,
                 onOpenWork: openDetail
-            )
-
-        case .upcoming:
-            PresentationsView(
-                isEmbedded: true,
-                embeddedSearchText: debouncedSearchText,
-                focusedPresentationID: focusedPresentationID
-            )
-
-        case .childrenWorking:
-            openWorkPane
-
-        case .history:
-            LessonsAndWorkHistoryView(
-                searchText: debouncedSearchText,
-                focusedPresentationID: focusedPresentationID,
-                focusedWorkID: focusedWorkID
             )
         }
     }
@@ -265,6 +294,7 @@ struct WorksAgendaView: View {
                 works: openWorksFiltered(),
                 lessonsByID: lessonsByID,
                 studentsByID: studentsByID,
+                attentionWorkIDs: attentionWorkIDs,
                 sortMode: sortMode,
                 focusedWorkID: focusedWorkID,
                 onOpen: openDetail,
@@ -274,227 +304,12 @@ struct WorksAgendaView: View {
         }
     }
 
-    private var sharedAgendaPane: some View {
-        VStack(alignment: .leading, spacing: 8) {
-            HStack(spacing: 12) {
-                Button {
-                    moveCalendarStart(bySchoolDays: -UIConstants.planningNavigationStepSchoolDays)
-                } label: {
-                    Image(systemName: "chevron.left")
-                }
-                .buttonStyle(.plain)
+    var searchPrompt: String { workspaceScope.searchPrompt }
 
-                Text("Agenda")
-                    .font(.title3.weight(.semibold))
-
-                Button {
-                    moveCalendarStart(bySchoolDays: UIConstants.planningNavigationStepSchoolDays)
-                } label: {
-                    Image(systemName: "chevron.right")
-                }
-                .buttonStyle(.plain)
-
-                Spacer()
-
-                Button("Today") {
-                    calendarStartDate = AppCalendar.startOfDay(Date())
-                }
-                .font(AppTheme.ScaledFont.captionSemibold)
-                .buttonStyle(.bordered)
-            }
-            .padding(.horizontal, 16)
-            .padding(.top, 8)
-
-            WorkAgendaCalendarPane(
-                startDate: calendarStartDate,
-                daysCount: 10,
-                onOpenWork: openWork(id:),
-                onOpenPresentation: openPresentation
-            )
-            .frame(maxHeight: .infinity)
-        }
-    }
-
-    private var searchPrompt: String {
-        switch workspaceScope {
-        case .needsAttention: "Search children, lessons, or work"
-        case .upcoming: "Search upcoming lessons or children"
-        case .childrenWorking: "Search work, children, or lessons"
-        case .history: "Search presentations or completed work"
-        }
-    }
-
-    private func consumeWorkspaceRequestIfNeeded() {
-        guard let request = appRouter.consumeLessonsAndWorkRequest() else { return }
-        workspaceScopeRaw = request.scope.rawValue
-        focusedPresentationID = request.presentationID
-        focusedWorkID = request.workID
-        #if os(iOS)
-        isCalendarMinimized = true
-        #endif
-    }
-
-    private func openPresentation(_ assignment: CDLessonAssignment) {
-        #if os(macOS)
-        guard let id = assignment.id else { return }
-        openWindow(id: "PresentationDetailWindow", value: id)
-        #else
-        selectedLessonAssignment = assignment
-        #endif
-    }
-
-    private func openWork(id: UUID) {
-        guard let work = fetchWork(id: id) else { return }
-        openDetail(work)
-    }
-
-    #if os(macOS)
-    @ToolbarContentBuilder
-    private var lessonsAndWorkToolbarContent: some ToolbarContent {
-        ToolbarItem(placement: .principal) {
-            Picker("View", selection: workspaceScopeBinding) {
-                ForEach(LessonsAndWorkScope.allCases) { scope in
-                    Text(scope.title).tag(scope)
-                }
-            }
-            .pickerStyle(.segmented)
-            .frame(minWidth: 500, idealWidth: 620)
-        }
-
-        ToolbarItemGroup(placement: .primaryAction) {
-            if workspaceScope == .childrenWorking {
-                Button {
-                    appRouter.requestNewWork()
-                } label: {
-                    Label("New Work", systemImage: "plus")
-                }
-
-                Picker("Sort", selection: $sortMode) {
-                    ForEach(WorkAgendaSortMode.allCases) { mode in
-                        Text(mode.rawValue).tag(mode)
-                    }
-                }
-                .pickerStyle(.menu)
-
-                Button {
-                    hideScheduled.toggle()
-                } label: {
-                    Label(
-                        hideScheduled ? "Show Scheduled Work" : "Hide Scheduled Work",
-                        systemImage: hideScheduled ? "calendar.badge.minus" : "calendar"
-                    )
-                }
-                .help(hideScheduled ? "Show scheduled work" : "Hide scheduled work")
-            }
-
-            if workspaceScope != .history {
-                Button {
-                    isCalendarMinimized.toggle()
-                } label: {
-                    Label(
-                        isCalendarMinimized ? "Show Agenda" : "Hide Agenda",
-                        systemImage: isCalendarMinimized ? "calendar" : "calendar.badge.minus"
-                    )
-                }
-                .help(isCalendarMinimized ? "Show the shared agenda" : "Hide the shared agenda")
-            }
-
-            if workspaceScope == .childrenWorking {
-                Menu("Output", systemImage: "square.and.arrow.up") {
-                    Button("Print", systemImage: "printer") {
-                        printWorkView()
-                    }
-                    Button("Export PDF", systemImage: "arrow.down.doc") {
-                        exportWorkPDF()
-                    }
-                }
-            }
-        }
-    }
-    #endif
-
-    @ViewBuilder
-    private func sheetContent(for token: SelectionToken) -> some View {
-        let work = fetchWork(id: token.workID)
-        if let w = work {
-            WorkDetailView(workID: w.id ?? UUID())
-                .id(token.id)
-        } else {
-            ContentUnavailableView("Work not found", systemImage: "exclamationmark.triangle")
-        }
-    }
-
-    private func fetchWork(id: UUID) -> CDWorkModel? {
-        let request: NSFetchRequest<CDWorkModel> = NSFetchRequest(entityName: "WorkModel")
-        request.predicate = NSPredicate(format: "id == %@", id as CVarArg)
-        request.fetchLimit = 1
-        return viewContext.safeFetch(request).first
-    }
-
-    private var mobileHeader: some View {
-        VStack(spacing: 0) {
-            ViewHeader(title: "Lessons & Work") {
-                HStack(spacing: 12) {
-                    Menu {
-                        ForEach(LessonsAndWorkScope.allCases) { scope in
-                            Button {
-                                workspaceScopeBinding.wrappedValue = scope
-                            } label: {
-                                if scope == workspaceScope {
-                                    Label(scope.title, systemImage: "checkmark")
-                                } else {
-                                    Label(scope.title, systemImage: scope.systemImage)
-                                }
-                            }
-                        }
-                    } label: {
-                        Label(workspaceScope.compactTitle, systemImage: workspaceScope.systemImage)
-                    }
-
-                    if workspaceScope != .history {
-                    Button {
-                        adaptiveWithAnimation(.spring(response: 0.3, dampingFraction: 0.8)) {
-                            isCalendarMinimized.toggle()
-                        }
-                    } label: {
-                        Image(systemName: isCalendarMinimized ? "calendar" : "calendar.badge.minus")
-                            .font(.system(size: 16, weight: .semibold))
-                            .foregroundStyle(.secondary)
-                            .padding(8)
-                            .background(Color.primary.opacity(UIConstants.OpacityConstants.light))
-                            .clipShape(Circle())
-                    }
-                    }
-
-                    if workspaceScope == .childrenWorking {
-                        Button {
-                            appRouter.requestNewWork()
-                        } label: {
-                            Image(systemName: "plus")
-                        }
-                    }
-                }
-            }
-            HStack(spacing: 12) {
-                Image(systemName: "magnifyingglass").foregroundStyle(.secondary)
-                TextField(searchPrompt, text: $searchText)
-                    .textFieldStyle(.plain)
-                    .onSubmit {
-                        searchDebounceTask?.cancel()
-                        debouncedSearchText = searchText
-                    }
-            }
-            .padding(.horizontal, 16)
-            .padding(.vertical, 8)
-            .background(Color.primary.opacity(UIConstants.OpacityConstants.trace))
-            .clipShape(RoundedRectangle(cornerRadius: 10))
-            .padding(.horizontal, 16)
-            .padding(.bottom, 4)
-            if workspaceScope == .childrenWorking {
-                WorkKindFilterChipBar(visibleKinds: visibleKinds)
-                    .padding(.bottom, 4)
-            }
-        }
+    /// True when a work grid is on screen, and so its sort, kind chips and
+    /// print/export controls apply.
+    var showsWorkGrid: Bool {
+        (workspaceScope == .attention && showAllOpenWork) || workspaceScope == .toSchedule
     }
 }
 

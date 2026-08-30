@@ -313,7 +313,9 @@ extension TodayView {
         guard let tomorrow = calendar.date(
             byAdding: .day, value: 1, to: calendar.startOfDay(for: Date())
         ) else { return }
-        sl.schedule(for: tomorrow)
+        // A bump expresses a day, so it lands at the start of the morning
+        // rather than ahead of everything already planned.
+        sl.schedule(onDay: tomorrow)
         do {
             try viewContext.save()
             viewModel.reload()

@@ -23,6 +23,54 @@ extension WorksAgendaView {
         }
     }
 
+    // MARK: - Triage
+
+    /// Runs after a debounced batch of saves.
+    ///
+    /// `dataReloadTrigger` only hashes counts, so a save that moves a record
+    /// between lists without changing how many there are would not reach the
+    /// caches. This is the path that catches it.
+    func refreshAfterSave() {
+        refreshChangeTokens()
+        rebuildPartition()
+    }
+
+    /// Re-triages everything on screen in one pass.
+    ///
+    /// Assignments are fetched here rather than held in a `@FetchRequest`
+    /// because this runs on a debounced path, and the rule reads only their
+    /// `state`, `scheduledFor` and `id` — no relationships to fault.
+    func rebuildPartition() {
+        let assignmentRequest: NSFetchRequest<CDLessonAssignment> =
+            NSFetchRequest(entityName: "LessonAssignment")
+        partition = LessonsAndWorkPartition(
+            openWork: Array(openWork).uniqueByID,
+            assignments: viewContext.safeFetch(assignmentRequest),
+            unresolvedFollowUpIDs: LessonsAndWorkTriage
+                .unresolvedFollowUpAssignmentIDs(in: viewContext),
+            context: viewContext,
+            calendar: calendar
+        )
+    }
+
+    /// The ids the card badge flags, so a card cannot be marked as needing the
+    /// guide while sitting outside the Attention list.
+    var attentionWorkIDs: Set<UUID> {
+        Set(partition.work.attention.compactMap(\.id))
+    }
+
+    /// Children who already have a lesson coming up.
+    ///
+    /// Derived from the partition's scheduled presentations, which is a
+    /// superset — it also holds lessons whose day has passed without being
+    /// given, and those children still need planning. Built here, once per
+    /// refresh, because a student's assignments are a JSON blob with no
+    /// queryable relationship: asking per row means decoding every assignment
+    /// per row.
+    var studentIDsWithUpcomingLessons: Set<UUID> {
+        WaitingStudentsOrder.studentIDsWithUpcomingLessons(in: partition.presentations.scheduled)
+    }
+
     // MARK: - Cache Loading
 
     func loadLessonsAndStudentsIfNeeded() {
@@ -68,6 +116,9 @@ extension WorksAgendaView {
         } else {
             studentsByIDCache = [:]
         }
+
+        // Triage rides the same debounced path as the caches above.
+        rebuildPartition()
     }
 
     // MARK: - Data Helpers
@@ -149,23 +200,13 @@ extension WorksAgendaView {
         return AppCalendar.shared.dateComponents([.day], from: start, to: end).day ?? 0
     }
 
+    /// The printed sheet flags exactly the work the Attention list holds, via
+    /// the same `LessonsAndWorkTriage` rule.
     func needsAttention(for w: CDWorkModel) -> Bool {
-        if let due = w.dueAt,
-           AppCalendar.startOfDay(due) < AppCalendar.startOfDay(Date()) {
-            return true
-        }
-        if let lastNoteDate = ((w.unifiedNotes?.allObjects as? [CDNote]) ?? [])
-            .map({ max($0.updatedAt ?? Date.distantPast, $0.createdAt ?? Date.distantPast) }).max() {
-            let days = AppCalendar.shared.dateComponents(
-                [.day],
-                from: AppCalendar.startOfDay(SchoolYearCounters.countFrom(lastNoteDate)),
-                to: AppCalendar.startOfDay(Date())
-            ).day ?? 0
-            if days >= 10 { return true }
-        }
-        return LessonAgeHelper.schoolDaysSinceCreation(
-            createdAt: w.createdAt ?? Date(), asOf: Date(),
-            using: viewContext, calendar: calendar
-        ) >= 10
+        LessonsAndWorkTriage.bucket(
+            for: w,
+            context: viewContext,
+            calendar: calendar
+        ) == .attention
     }
 }

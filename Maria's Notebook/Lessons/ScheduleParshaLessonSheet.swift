@@ -26,7 +26,9 @@ struct ScheduleParshaLessonSheet: View {
 
     @State private var selectedStudentIDs: Set<UUID> = []
     @State private var searchText: String = ""
-    @State private var scheduleDate: Date = Date()
+    /// Day-only: the picker below offers no time, so start from midnight
+    /// rather than carrying whatever o'clock the sheet was opened at.
+    @State private var scheduleDate: Date = AppCalendar.startOfDay(Date())
     @State private var includeDate: Bool = false
 
     private var allStudents: [CDStudent] {

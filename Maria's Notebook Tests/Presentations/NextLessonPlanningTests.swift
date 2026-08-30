@@ -174,7 +174,9 @@ struct NextLessonPlanningTests {
         #expect(created.lessonIDUUID == fixture.nextLesson.id)
         #expect(created.state == .scheduled)
         #expect(created.scheduledFor == scheduleDate)
-        #expect(created.scheduledForDay == scheduleDate)
+        // The mirror is start-of-day of scheduledFor, not equal to it — a
+        // scheduled lesson now carries its position within the day.
+        #expect(created.scheduledForDay == AppCalendar.startOfDay(scheduleDate))
     }
 
     @Test("Choosing Schedule updates every date field on an existing inbox item")
@@ -204,7 +206,7 @@ struct NextLessonPlanningTests {
 
         #expect(existing.state == .scheduled)
         #expect(existing.scheduledFor == scheduleDate)
-        #expect(existing.scheduledForDay == scheduleDate)
+        #expect(existing.scheduledForDay == AppCalendar.startOfDay(scheduleDate))
         #expect(existing.modifiedAt != oldModifiedAt)
     }
 

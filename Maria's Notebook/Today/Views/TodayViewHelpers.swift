@@ -119,29 +119,14 @@ extension TodayView {
 
     /// Marks a student as tardy for the current date
     func markTardy(_ studentID: UUID) {
-        let (day, _) = AppCalendar.dayRange(for: viewModel.date)
         let store = CDAttendanceStore(context: viewContext, calendar: calendar)
 
         do {
-            let fetchRequest: NSFetchRequest<CDAttendanceRecord> =
-                NSFetchRequest<CDAttendanceRecord>(entityName: "AttendanceRecord")
-            fetchRequest.predicate = NSPredicate(
-                format: "studentID == %@ AND date == %@", studentID.uuidString, day as NSDate
-            )
-            fetchRequest.fetchLimit = 1
-
-            let records = try viewContext.fetch(fetchRequest)
-            if let record = records.first {
-                // Update existing record
-                store.updateStatus(record, to: .tardy)
-            } else {
-                // Create new record if it doesn't exist
-                guard viewModel.studentsByID[studentID] != nil else { return }
-                let record = CDAttendanceRecord(context: viewContext)
-                record.studentID = studentID.uuidString
-                record.date = day
-                record.status = .tardy
-            }
+            // ensureRecord fetches-or-creates the (student, day) record and
+            // stamps attribution, the same path the attendance grid uses.
+            guard let student = viewModel.studentsByID[studentID],
+                  let record = try store.ensureRecord(for: student, on: viewModel.date) else { return }
+            store.updateStatus(record, to: .tardy)
 
             // Save changes
             try viewContext.save()

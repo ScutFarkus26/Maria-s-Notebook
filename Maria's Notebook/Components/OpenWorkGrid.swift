@@ -5,6 +5,9 @@ struct OpenWorkGrid: View {
     let works: [CDWorkModel]
     let lessonsByID: [UUID: CDLesson]
     let studentsByID: [UUID: CDStudent]
+    /// Work the partition placed in `.attention`. Passed in rather than
+    /// recomputed so the badge cannot disagree with the Attention list.
+    let attentionWorkIDs: Set<UUID>
     let sortMode: WorkAgendaSortMode
     var focusedWorkID: UUID? = nil
 
@@ -266,40 +269,14 @@ struct OpenWorkGrid: View {
         return comps.day ?? 0
     }
 
+    /// The badge reads the workspace's one triage pass rather than re-running
+    /// the rule per card. It used to rebuild `WorkTriageInput` here from
+    /// `cachedAgeSchoolDays`, which was a third copy of a question the Attention
+    /// list was already answering over the same array.
     private func needsAttention(for w: CDWorkModel) -> Bool {
-        // Needs attention if overdue by due date, or last note is 10+ days old.
-        if let due = w.dueAt {
-            let today = AppCalendar.startOfDay(Date())
-            if AppCalendar.startOfDay(due) < today { return true }
-        }
-        if let lastNoteDate = latestNoteDate(for: w) {
-            return daysSince(lastNoteDate) >= 10
-        }
-        // Use cached age value instead of recalculating
-        let schoolDaysSinceCreated: Int
-        if let wID = w.id {
-            schoolDaysSinceCreated = cachedAgeSchoolDays[wID] ?? 0
-        } else {
-            schoolDaysSinceCreated = 0
-        }
-        return schoolDaysSinceCreated >= 10
+        w.id.map(attentionWorkIDs.contains) ?? false
     }
 
-    private func latestNoteDate(for w: CDWorkModel) -> Date? {
-        let notes = (w.unifiedNotes?.allObjects as? [CDNote]) ?? []
-        return notes.compactMap { note -> Date? in
-            let updated = note.updatedAt ?? .distantPast
-            let created = note.createdAt ?? .distantPast
-            return max(updated, created)
-        }.max()
-    }
-
-    private func daysSince(_ date: Date) -> Int {
-        let start = AppCalendar.startOfDay(SchoolYearCounters.countFrom(date))
-        let now = AppCalendar.startOfDay(Date())
-        let comps = AppCalendar.shared.dateComponents([.day], from: start, to: now)
-        return comps.day ?? 0
-    }
 }
 
 #Preview {
@@ -307,6 +284,7 @@ struct OpenWorkGrid: View {
         works: [],
         lessonsByID: [:],
         studentsByID: [:],
+        attentionWorkIDs: [],
         sortMode: .lesson,
         onOpen: { _ in },
         onMarkCompleted: { _ in },

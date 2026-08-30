@@ -31,8 +31,8 @@ struct RootDetailContent: View {
             case .students, .parentReports, .meetings, .goingOut, .more:
                 studentsContent
             case .lessons, .teachingAlbums, .stories, .bookClub, .planningChecklist,
-                 .planningAgenda, .planningWork,
-                 .planningProjects, .needsLesson, .smallSequencePlanner:
+                 .planningAgenda,
+                 .planningProjects, .smallSequencePlanner:
                 curriculumContent
             case .todos, .planningCalendar, .perpetualCalendar:
                 planningContent
@@ -85,9 +85,9 @@ struct RootDetailContent: View {
     private var curriculumContent: some View {
         switch selectedNavItem {
         case .lessons, .teachingAlbums, .stories, .bookClub, .planningChecklist,
-             .planningAgenda, .planningWork:
+             .planningAgenda:
             curriculumPlanningContent
-        case .planningProjects, .needsLesson, .smallSequencePlanner:
+        case .planningProjects, .smallSequencePlanner:
             curriculumAdvancedContent
         default: EmptyView()
         }
@@ -101,7 +101,7 @@ struct RootDetailContent: View {
         case .stories: StoriesRootView()
         case .bookClub: BookClubRootView()
         case .planningChecklist: ClassAreaChecklistView()
-        case .planningAgenda, .planningWork: WorksAgendaView()
+        case .planningAgenda: WorksAgendaView()
         default: EmptyView()
         }
     }
@@ -110,7 +110,6 @@ struct RootDetailContent: View {
     private var curriculumAdvancedContent: some View {
         switch selectedNavItem {
         case .planningProjects: ProjectsRootView()
-        case .needsLesson: NeedsLessonView()
         case .smallSequencePlanner: SmallSequencePlannerView()
         default: EmptyView()
         }

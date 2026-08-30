@@ -77,8 +77,6 @@ extension RootSidebar {
                     }
                 }
 
-                sidebarRow(.needsLesson, title: "Needs Lesson", systemImage: "clock.badge.exclamationmark")
-
                 sidebarRow(.smallSequencePlanner, title: "Group Planner", systemImage: "person.3.sequence")
 
                 sidebarRow(.planningChecklist, title: "Checklist", systemImage: "list.clipboard")
@@ -271,10 +269,6 @@ extension RootSidebar {
                              title: "Lessons & Work",
                              systemImage: "tray.full",
                              hint: "Plan lessons, follow presentations, and manage student work")
-            iOSSidebarButton(.needsLesson,
-                             title: "Needs Lesson",
-                             systemImage: "clock.badge.exclamationmark",
-                             hint: "See which students need a lesson based on days since last presentation")
             iOSSidebarButton(.smallSequencePlanner,
                              title: "Group Planner",
                              systemImage: "person.3.sequence",

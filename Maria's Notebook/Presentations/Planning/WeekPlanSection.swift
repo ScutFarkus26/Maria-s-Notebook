@@ -1,87 +1,216 @@
 // WeekPlanSection.swift
-// Bottom planning area: the horizontally scrolling week of day columns.
+// The merged Lessons & Work calendar: a horizontally scrolling strip of school
+// days carrying both presentations and work check-ins.
+//
+// Replaces two calendars that each drew the same days from opposite ends —
+// `WeekPlanSection` showed presentations with a checkbox for work, and
+// `WorkAgendaCalendarPane` showed work with a checkbox for presentations. Each
+// accepted drags the other refused. This one owns its own day window, so the
+// hosts just mount it and say what to open.
 
 import SwiftUI
 import CoreData
 import OSLog
 
 struct WeekPlanSection: View {
-    private static let logger = Logger.presentations
-    let days: [Date]
-    @Binding var startDate: Date
-    let isNonSchool: (Date) -> Bool
-    let legend: AnyView
-    let focusedPresentationID: UUID?
-    let onClear: (CDLessonAssignment) -> Void
-    let onSelect: (CDLessonAssignment) -> Void
+    static let logger = Logger.presentations
 
-    @Environment(\.calendar) private var calendar
-    @Environment(\.managedObjectContext) private var viewContext
+    var focusedPresentationID: UUID?
+    var onSelectPresentation: (CDLessonAssignment) -> Void
+    var onOpenWork: (UUID) -> Void
 
-    @FetchRequest(sortDescriptors: []) private var lessonAssignments: FetchedResults<CDLessonAssignment>
+    @Environment(\.calendar) var calendar
+    @Environment(\.managedObjectContext) var viewContext
+    @Environment(SaveCoordinator.self) var saveCoordinator
 
-    @AppStorage(UserDefaultsKeys.presentationsCalendarShowWork) private var showWork: Bool = true
+    // Sorted in the fetch as well as in the column, so the persisted order
+    // survives faulting rather than arriving in Core Data's row order.
+    @FetchRequest(sortDescriptors: [
+        NSSortDescriptor(keyPath: \CDLessonAssignment.scheduledFor, ascending: true),
+        NSSortDescriptor(keyPath: \CDLessonAssignment.createdAt, ascending: true)
+    ])
+    var lessonAssignments: FetchedResults<CDLessonAssignment>
 
-    // OPTIMIZATION: Cache work items in @State instead of fetching in a computed property.
-    // The computed property was executing a DB query on every body evaluation.
-    // Now fetched once in .task and refreshed via .onChange when days or showWork change.
-    @State private var cachedWorkItems: [CDWorkCheckIn] = []
+    @AppStorage(UserDefaultsKeys.calendarVisibleKinds)
+    var visibleKindsRaw: String = CalendarKindFilter.everything.rawValue
+    @AppStorage(UserDefaultsKeys.lessonsAgendaStartDate) var startDateRaw: Double = 0
 
-    @State private var showClearAllConfirmation: Bool = false
+    /// Check-ins for the whole visible range, fetched once and grouped per day.
+    @State var cachedCheckIns: [CDWorkCheckIn] = []
+    @State var checkInLookup = CalendarCheckInGrouper.Lookup()
+    @State var startDate: Date = AppCalendar.startOfDay(Date())
+    @State var days: [Date] = []
+    @State var showClearAllConfirmation = false
+    @State var selectedGroup: CalendarCheckInGroup?
+    @State var prompt: WorkCheckInPlanPrompt?
 
-    private struct FocusScrollTrigger: Equatable {
-        let presentationID: UUID?
-        let scheduledDay: Date?
-        let visibleDays: [Date]
+    static let visibleDayCount = 10
+
+    var visibleKinds: CalendarKindFilter {
+        CalendarKindFilter.resolved(rawValue: visibleKindsRaw)
     }
 
-    private var focusedScheduledDay: Date? {
-        guard let focusedPresentationID,
-              let assignment = lessonAssignments.first(where: {
-                  $0.id == focusedPresentationID && !$0.isGiven
-              }),
-              let scheduledFor = assignment.scheduledFor else {
-            return nil
-        }
-        return calendar.startOfDay(for: scheduledFor)
-    }
-
-    private var focusScrollTrigger: FocusScrollTrigger {
-        FocusScrollTrigger(
-            presentationID: focusedPresentationID,
-            scheduledDay: focusedScheduledDay,
-            visibleDays: days
+    private var visibleKindsBinding: Binding<CalendarKindFilter> {
+        Binding(
+            get: { visibleKinds },
+            set: { visibleKindsRaw = $0.rawValue }
         )
     }
 
-    private func fetchWorkItems() {
-        guard showWork, let firstDay = days.first, let lastDay = days.last else {
-            cachedWorkItems = []
-            return
+    // MARK: - Body
+
+    var body: some View {
+        ScrollViewReader { proxy in
+            VStack(spacing: 6) {
+                header
+                dayStrip
+            }
+            .task {
+                startDate = restoredStartDate()
+                await reloadDays()
+                scrollToFirstDay(proxy)
+            }
+            .task(id: focusedPresentationID) {
+                await revealFocusedPresentation(proxy)
+            }
+            .onChange(of: startDate) { _, _ in
+                Task { await reloadDays(); scrollToFirstDay(proxy) }
+            }
+            .onChange(of: visibleKindsRaw) { _, _ in
+                Task { await refreshCheckIns() }
+            }
+            .onChange(of: lessonAssignments.count) { _, _ in
+                Task { await refreshCheckIns() }
+            }
         }
-        let (start, _) = AppCalendar.dayRange(for: firstDay)
-        let (_, end) = AppCalendar.dayRange(for: lastDay)
-        let descriptor: NSFetchRequest<CDWorkCheckIn> = NSFetchRequest(entityName: "WorkCheckIn")
-        descriptor.predicate = NSPredicate(format: "date >= %@ AND date < %@", start as CVarArg, end as CVarArg)
-        do {
-            cachedWorkItems = try viewContext.fetch(descriptor)
-        } catch {
-            Self.logger.warning("Failed to fetch work items for range: \(error)")
-            cachedWorkItems = []
+        .sheet(item: $selectedGroup) { group in
+            GroupedCheckInDetailSheet(sequence: group) { workID in
+                selectedGroup = nil
+                Task { @MainActor in
+                    // Let the sequence sheet finish dismissing first.
+                    try? await Task.sleep(for: .milliseconds(350))
+                    onOpenWork(workID)
+                }
+            }
+        }
+        .sheet(item: $prompt) { active in
+            PlanPromptSheetView(
+                prompt: active,
+                onCancel: { prompt = nil },
+                onSave: { reason, note, studentInitiated in
+                    scheduleCheckIn(
+                        workID: active.workID,
+                        date: active.date,
+                        reason: reason,
+                        note: note,
+                        studentInitiated: studentInitiated
+                    )
+                    prompt = nil
+                }
+            )
         }
     }
 
-    // Find the earliest date with a scheduled lesson (including past dates)
-    private var earliestDateWithLesson: Date? {
-        let scheduledDates = lessonAssignments.compactMap { la -> Date? in
-            guard let scheduled = la.scheduledFor, !la.isGiven else { return nil }
-            return calendar.startOfDay(for: scheduled)
+    // MARK: - Header
+
+    private var header: some View {
+        VStack(spacing: 6) {
+            HStack(spacing: 10) {
+                Button("Today") { startDate = AppCalendar.startOfDay(Date()) }
+                    .buttonStyle(.bordered)
+                    .controlSize(.small)
+
+                Button {
+                    moveStart(bySchoolDays: -UIConstants.planningNavigationStepSchoolDays)
+                } label: { Image(systemName: "chevron.left") }
+                    .buttonStyle(.plain)
+                    .help("Earlier days")
+
+                Text(dateRangeLabel)
+                    .font(.subheadline.weight(.medium))
+                    .frame(minWidth: 180)
+                    .multilineTextAlignment(.center)
+
+                Button {
+                    moveStart(bySchoolDays: UIConstants.planningNavigationStepSchoolDays)
+                } label: { Image(systemName: "chevron.right") }
+                    .buttonStyle(.plain)
+                    .help("Later days")
+
+                Spacer()
+
+                Picker("Show", selection: visibleKindsBinding) {
+                    ForEach(CalendarKindFilter.allCases) { kind in
+                        Text(kind.title).tag(kind)
+                    }
+                }
+                .pickerStyle(.segmented)
+                .fixedSize()
+
+                bulkActionsMenu
+            }
+            .padding(.horizontal, 12)
+
+            HStack(spacing: 14) {
+                Spacer()
+                legend
+            }
+            .padding(.horizontal, 12)
         }
-        return scheduledDates.min()
+    }
+
+    private var bulkActionsMenu: some View {
+        Menu {
+            Button {
+                Task { await moveAllScheduledLessonsForward() }
+            } label: {
+                Label("Move All Forward 1 Day", systemImage: "arrow.right.circle")
+            }
+            Button(role: .destructive) {
+                showClearAllConfirmation = true
+            } label: {
+                Label("Clear All to Inbox", systemImage: "tray.and.arrow.up")
+            }
+        } label: {
+            Label("Actions", systemImage: "ellipsis.circle")
+                .labelStyle(.iconOnly)
+        }
+        .menuStyle(.borderlessButton)
+        .fixedSize()
+        .help("Bulk scheduling actions")
+        .confirmationDialog(
+            "Clear all scheduled presentations?",
+            isPresented: $showClearAllConfirmation,
+            titleVisibility: .visible
+        ) {
+            Button("Clear All to Inbox", role: .destructive) {
+                Task { await clearAllScheduledLessonsToInbox() }
+            }
+            Button("Cancel", role: .cancel) { }
+        } message: {
+            Text("This will move every scheduled, ungiven presentation back to On Deck.")
+        }
+    }
+
+    private var legend: some View {
+        HStack(spacing: 14) {
+            legendSwatch(color: .red, label: "Absent")
+            legendSwatch(color: AppColors.attention, label: "Scheduled more than once")
+        }
+        .font(.caption2)
+        .foregroundStyle(.secondary)
+    }
+
+    private func legendSwatch(color: Color, label: String) -> some View {
+        HStack(spacing: 5) {
+            Capsule()
+                .stroke(color, lineWidth: 1)
+                .frame(width: 18, height: 11)
+            Text(label)
+        }
     }
 
     /// Human-readable range covering the currently visible school days.
-    /// Falls back to a single-day label when the range collapses.
     private var dateRangeLabel: String {
         guard let first = days.first, let last = days.last else { return "" }
         let format = Date.FormatStyle().month(.abbreviated).day().year()
@@ -91,245 +220,53 @@ struct WeekPlanSection: View {
         }
         let sameYear = calendar.component(.year, from: first) == calendar.component(.year, from: last)
         let startText = sameYear ? first.formatted(shortFormat) : first.formatted(format)
-        let endText = last.formatted(format)
-        return "\(startText) – \(endText)"
+        return "\(startText) – \(last.formatted(format))"
     }
 
-    var body: some View {
-        ScrollViewReader { proxy in
-            VStack(spacing: 6) {
-                HStack(spacing: 10) {
-                    Button("Today") {
-                        let targetDate = AgendaSchoolDayRules.computeInitialStartDate(
-                            calendar: calendar, isNonSchoolDay: isNonSchool
-                        )
+    // MARK: - Day strip
 
-                        // If we are already grounded on the correct start date, just scroll to it.
-                        // Otherwise, update startDate, which will trigger the onChange below.
-                        if calendar.isDate(targetDate, inSameDayAs: startDate) {
-                            if let first = days.first {
-                                adaptiveWithAnimation {
-                                    proxy.scrollTo(first, anchor: .leading)
-                                }
-                            }
-                        } else {
-                            startDate = targetDate
-                        }
-                    }
-                    .buttonStyle(.bordered)
-                    .controlSize(.small)
-
-                    Button {
-                        moveStart(bySchoolDays: -UIConstants.planningNavigationStepSchoolDays)
-                    } label: { Image(systemName: "chevron.left") }
-                        .buttonStyle(.plain)
-                        .help("Previous week")
-
-                    Text(dateRangeLabel)
-                        .font(.subheadline.weight(.medium))
-                        .foregroundStyle(.primary)
-                        .frame(minWidth: 180)
-                        .multilineTextAlignment(.center)
-
-                    Button {
-                        moveStart(bySchoolDays: UIConstants.planningNavigationStepSchoolDays)
-                    } label: { Image(systemName: "chevron.right") }
-                        .buttonStyle(.plain)
-                        .help("Next week")
-
-                    Spacer()
-
-                    Menu {
-                        Button {
-                            // Currently the only mode. Placeholder for future "Day" / "2 weeks".
-                        } label: {
-                            Label("Week", systemImage: "checkmark")
-                        }
-                    } label: {
-                        Label("Weekly View", systemImage: "chevron.down")
-                            .labelStyle(.titleAndIcon)
-                            .font(.caption.weight(.medium))
-                    }
-                    .menuStyle(.borderlessButton)
-                    .fixedSize()
-
-                    Button {
-                        showWork.toggle()
-                    } label: {
-                        Image(systemName: showWork ? "checkmark.square" : "square")
-                            .foregroundStyle(.secondary)
-                    }
-                    .buttonStyle(.plain)
-                    .help(showWork ? "Hide work items" : "Show work items")
-                }
-                .padding(.horizontal, 12)
-
-                HStack(spacing: 16) {
-                    Spacer()
-                    Button {
-                        Task {
-                            await moveAllScheduledLessonsForward()
-                        }
-                    } label: {
-                        Label("Move All Forward 1 Day", systemImage: "arrow.right.circle")
-                    }
-                    .buttonStyle(.plain)
-                    .help("Move all scheduled lessons forward by one school day")
-                    Button {
-                        showClearAllConfirmation = true
-                    } label: {
-                        Label("Clear All to Inbox", systemImage: "tray.and.arrow.up")
-                    }
-                    .buttonStyle(.plain)
-                    .help("Unschedule all scheduled lessons and return them to On Deck")
-                    Spacer()
-                    legend
-                }
-                .padding(.horizontal, 12)
-                .confirmationDialog(
-                    "Clear all scheduled presentations?",
-                    isPresented: $showClearAllConfirmation,
-                    titleVisibility: .visible
-                ) {
-                    Button("Clear All to Inbox", role: .destructive) {
-                        Task { await clearAllScheduledLessonsToInbox() }
-                    }
-                    Button("Cancel", role: .cancel) { }
-                } message: {
-                    Text("This will move every scheduled, ungiven presentation back to On Deck.")
-                }
-
-                ScrollView(.horizontal, showsIndicators: false) {
-                    LazyHStack(alignment: .top, spacing: 12) {
-                        ForEach(days, id: \.self) { day in
-                            WeekDayColumn(
-                                day: day,
-                                allLessonAssignments: Array(lessonAssignments),
-                                showWork: showWork,
-                                preloadedWorkItems: cachedWorkItems,
-                                focusedPresentationID: focusedPresentationID,
-                                onClear: onClear,
-                                onSelect: onSelect
-                            )
-                            .id(day)
-                        }
-                    }
-                    .padding(.horizontal, 12)
-                    .padding(.vertical, 8)
+    private var dayStrip: some View {
+        ScrollView(.horizontal, showsIndicators: false) {
+            LazyHStack(alignment: .top, spacing: 12) {
+                ForEach(days, id: \.self) { day in
+                    WeekDayColumn(
+                        day: day,
+                        allLessonAssignments: Array(lessonAssignments),
+                        visibleKinds: visibleKinds,
+                        checkInGroups: checkInGroups(for: day),
+                        focusedPresentationID: focusedPresentationID,
+                        onClear: clearSchedule,
+                        onSelect: onSelectPresentation,
+                        onOpenCheckInGroup: openCheckInGroup,
+                        onDropWorkCheckIn: rescheduleCheckIn,
+                        onDropWork: beginPlanningWork
+                    )
+                    .id(day)
                 }
             }
-            .task {
-                fetchWorkItems()
-                // Scroll to the first day (which is the earliest of: first lesson date or today)
-                if focusedPresentationID == nil, let first = days.first {
-                    do {
-                        try await Task.sleep(for: .milliseconds(100))
-                    } catch {
-                        Self.logger.warning("Task sleep interrupted: \(error)")
-                    }
-                    adaptiveWithAnimation {
-                        proxy.scrollTo(first, anchor: .leading)
-                    }
-                }
-            }
-            .task(id: focusScrollTrigger) {
-                guard let focusedDay = focusedScheduledDay else { return }
-
-                guard let visibleDay = days.first(where: {
-                    calendar.isDate($0, inSameDayAs: focusedDay)
-                }) else {
-                    if !calendar.isDate(startDate, inSameDayAs: focusedDay) {
-                        startDate = focusedDay
-                    }
-                    return
-                }
-
-                await Task.yield()
-                try? await Task.sleep(for: .milliseconds(50))
-                guard !Task.isCancelled else { return }
-                adaptiveWithAnimation {
-                    proxy.scrollTo(visibleDay, anchor: .center)
-                }
-            }
-            .onChange(of: showWork) { _, _ in
-                fetchWorkItems()
-            }
-            .onChange(of: startDate) { _, _ in
-                if focusedPresentationID == nil, let first = days.first {
-                    adaptiveWithAnimation {
-                        proxy.scrollTo(first, anchor: .leading)
-                    }
-                }
-            }
-            .onChange(of: days) { _, _ in
-                fetchWorkItems()
-                // When days change, scroll to first day (earliest of: first lesson date or today)
-                if focusedPresentationID == nil, let first = days.first {
-                    Task { @MainActor in
-                        do {
-                            try await Task.sleep(for: .milliseconds(100))
-                        } catch {
-                            Self.logger.warning("Task sleep interrupted: \(error)")
-                        }
-                        adaptiveWithAnimation {
-                            proxy.scrollTo(first, anchor: .leading)
-                        }
-                    }
-                }
-            }
+            .padding(.horizontal, 12)
+            .padding(.vertical, 8)
         }
     }
 
-    private func moveStart(bySchoolDays delta: Int) {
-        guard delta != 0 else { return }
-        var remaining = abs(delta)
-        var cursor = calendar.startOfDay(for: startDate)
-        let step = delta > 0 ? 1 : -1
-        while remaining > 0 {
-            cursor = calendar.date(byAdding: .day, value: step, to: cursor) ?? cursor
-            if !isNonSchool(cursor) { remaining -= 1 }
+    private func checkInGroups(for day: Date) -> [CalendarCheckInGroup] {
+        let (start, end) = AppCalendar.dayRange(for: day)
+        let forDay = cachedCheckIns.filter { checkIn in
+            guard let date = checkIn.date else { return false }
+            return date >= start && date < end
         }
-        startDate = cursor
+        guard !forDay.isEmpty else { return [] }
+        return CalendarCheckInGrouper.groups(from: forDay, lookup: checkInLookup)
     }
+}
 
-    private func clearAllScheduledLessonsToInbox() async {
-        let scheduledLessons = lessonAssignments.filter { la in
-            la.scheduledFor != nil && !la.isGiven
-        }
-
-        guard !scheduledLessons.isEmpty else { return }
-
-        for lesson in scheduledLessons {
-            lesson.unschedule()
-        }
-
-        do {
-            try viewContext.save()
-        } catch {
-            Self.logger.warning("Failed to save lesson unschedule changes: \(error)")
-        }
-    }
-
-    private func moveAllScheduledLessonsForward() async {
-        // Find all scheduled lessons that haven't been given
-        let scheduledLessons = lessonAssignments.filter { la in
-            la.scheduledFor != nil && !la.isGiven
-        }
-
-        guard !scheduledLessons.isEmpty else { return }
-
-        // Move each lesson forward by one school day
-        for lesson in scheduledLessons {
-            guard let currentDate = lesson.scheduledFor else { continue }
-            let nextSchoolDay = await SchoolCalendar.nextSchoolDay(after: currentDate, using: viewContext)
-            lesson.setScheduledFor(nextSchoolDay, using: calendar)
-        }
-
-        // Save changes
-        do {
-            try viewContext.save()
-        } catch {
-            Self.logger.warning("Failed to save lesson schedule changes: \(error)")
-        }
-    }
+/// A pending "what is this check-in for?" question, raised by dropping a work
+/// card onto a day.
+struct WorkCheckInPlanPrompt: Identifiable {
+    let id = UUID()
+    let workID: UUID
+    let date: Date
+    var reason: String = "progressCheck"
+    var note: String = ""
+    var studentInitiated: Bool = false
 }
