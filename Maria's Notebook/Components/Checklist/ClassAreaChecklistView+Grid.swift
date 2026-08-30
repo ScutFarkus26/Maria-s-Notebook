@@ -8,53 +8,110 @@ import CoreData
 // MARK: - Grid
 
 extension ClassAreaChecklistView {
+    /// Scroll anchor for one lesson's row. The grid and the reveal below have to
+    /// agree on this value, so neither spells it out by hand.
+    static func rowAnchor(for lessonID: UUID) -> String {
+        "checklist-row-\(lessonID.uuidString)"
+    }
+
+    /// The anchor a row actually draws with. A lesson with no UUID can't be
+    /// deep-linked to, but it still needs an identity of its own or SwiftUI
+    /// would collapse every such row into one.
+    static func rowAnchor(for lesson: CDLesson) -> String {
+        lesson.id.map { rowAnchor(for: $0) }
+            ?? "checklist-row-\(lesson.objectID.uriRepresentation().absoluteString)"
+    }
+
     /// 2D scrollable grid with a pinned header row.
     var grid: some View {
-        ScrollView([.horizontal, .vertical]) {
-            LazyVStack(alignment: .leading, spacing: 0, pinnedViews: [.sectionHeaders]) {
-                Section {
-                    // Data Rows
-                    ForEach(viewModel.visibleSequences, id: \.self) { sequence in
-                        // Group Header
-                        HStack(spacing: 0) {
-                            StickyLeftItem(width: lessonColumnWidth, height: 30) {
-                                HStack {
-                                    Text(sequence)
-                                        .font(.system(.caption, design: .rounded).weight(.bold))
-                                        .foregroundStyle(.secondary)
-                                        .padding(.leading)
-                                    Spacer()
+        ScrollViewReader { proxy in
+            ScrollView([.horizontal, .vertical]) {
+                LazyVStack(alignment: .leading, spacing: 0, pinnedViews: [.sectionHeaders]) {
+                    Section {
+                        // Data Rows
+                        ForEach(viewModel.visibleSequences, id: \.self) { sequence in
+                            // Group Header
+                            HStack(spacing: 0) {
+                                StickyLeftItem(width: lessonColumnWidth, height: 30) {
+                                    HStack {
+                                        Text(sequence)
+                                            .font(.system(.caption, design: .rounded).weight(.bold))
+                                            .foregroundStyle(.secondary)
+                                            .padding(.leading)
+                                        Spacer()
+                                    }
+                                    .background(Color.secondary.opacity(UIConstants.OpacityConstants.hint))
+                                    .borderSeparated()
                                 }
-                                .background(Color.secondary.opacity(UIConstants.OpacityConstants.hint))
-                                .borderSeparated()
+
+                                // Spacer for the rest of the sequence row
+                                Color.secondary.opacity(UIConstants.OpacityConstants.hint)
+                                    .frame(height: 30)
+                                    .frame(width: CGFloat(viewModel.students.count) * studentColumnWidth)
+                                    .borderSeparated()
                             }
 
-                            // Spacer for the rest of the sequence row
-                            Color.secondary.opacity(UIConstants.OpacityConstants.hint)
-                                .frame(height: 30)
-                                .frame(width: CGFloat(viewModel.students.count) * studentColumnWidth)
-                                .borderSeparated()
-                        }
-
-                        let grouped = viewModel.lessonsSequenced(sequence: sequence)
-                        ForEach(grouped.order, id: \.self) { section in
-                            if let shLessons = grouped.bySection[section], !shLessons.isEmpty {
-                                if grouped.hasSections {
-                                    sectionRow(name: section)
-                                }
-                                ForEach(shLessons) { lesson in
-                                    lessonRow(lesson: lesson)
+                            let grouped = viewModel.lessonsSequenced(sequence: sequence)
+                            ForEach(grouped.order, id: \.self) { section in
+                                if let shLessons = grouped.bySection[section], !shLessons.isEmpty {
+                                    if grouped.hasSections {
+                                        sectionRow(name: section)
+                                    }
+                                    ForEach(shLessons) { lesson in
+                                        lessonRow(lesson: lesson)
+                                            .id(Self.rowAnchor(for: lesson))
+                                    }
                                 }
                             }
                         }
+                    } header: {
+                        // Pinned header row - stays at top during vertical scroll
+                        headerRow
                     }
-                } header: {
-                    // Pinned header row - stays at top during vertical scroll
-                    headerRow
                 }
             }
+            .coordinateSpace(name: "gridSpace")
+            .task(id: viewModel.focusedLessonID) {
+                await revealFocusedLesson(using: proxy)
+            }
         }
-        .coordinateSpace(name: "gridSpace")
+    }
+
+    /// Brings a deep-linked row on screen, holds its flash briefly, then clears
+    /// it. A change of area rebuilds the grid a beat after the request lands, so
+    /// the row is waited for rather than assumed — until the new area's lessons
+    /// are on screen there is no anchor to scroll to.
+    fileprivate func revealFocusedLesson(using proxy: ScrollViewProxy) async {
+        guard let lessonID = viewModel.focusedLessonID else { return }
+
+        func isOnScreen() -> Bool {
+            viewModel.visibleLessons.contains { $0.id == lessonID }
+        }
+
+        var waited = 0
+        while !isOnScreen() && waited < 20 {
+            try? await Task.sleep(for: .milliseconds(50))
+            guard !Task.isCancelled else { return }
+            waited += 1
+        }
+
+        // The lesson can be missing outright — a card whose lesson was deleted,
+        // or one whose area holds no rows. Drop the flash rather than leaving a
+        // highlight the guide can never see.
+        guard isOnScreen() else {
+            viewModel.focusedLessonID = nil
+            return
+        }
+
+        withAnimation(.easeInOut(duration: 0.3)) {
+            proxy.scrollTo(Self.rowAnchor(for: lessonID), anchor: .center)
+        }
+
+        try? await Task.sleep(for: .seconds(2))
+        guard !Task.isCancelled else { return }
+        withAnimation(.easeInOut(duration: 0.3)) {
+            viewModel.focusedLessonID = nil
+        }
     }
 }
 
@@ -66,16 +123,7 @@ extension ClassAreaChecklistView {
         HStack(spacing: 0) {
             // CDLesson Name (Sticky Left)
             StickyLeftItem(width: lessonColumnWidth, height: rowHeight) {
-                VStack(alignment: .leading) {
-                    Text(lesson.name)
-                        .font(.system(.body, design: .rounded).weight(.medium))
-                        .lineLimit(2)
-                        .minimumScaleFactor(0.9)
-                }
-                .padding(.horizontal, 8)
-                .frame(width: lessonColumnWidth, height: rowHeight, alignment: .leading)
-                .backgroundPlatform()
-                .borderSeparated()
+                lessonNameCell(lesson: lesson)
             }
 
             // Grid Cells
@@ -110,6 +158,33 @@ extension ClassAreaChecklistView {
                 .borderSeparated()
             }
         }
+    }
+
+    /// The row's sticky left cell. It also carries the deep-link flash, rather
+    /// than the whole row: it is the part that names the lesson, and the one
+    /// part horizontal scrolling can never push out of sight.
+    private func lessonNameCell(lesson: CDLesson) -> some View {
+        let isFocused = lesson.id != nil && lesson.id == viewModel.focusedLessonID
+        return VStack(alignment: .leading) {
+            Text(lesson.name)
+                .font(.system(.body, design: .rounded).weight(.medium))
+                .lineLimit(2)
+                .minimumScaleFactor(0.9)
+        }
+        .padding(.horizontal, 8)
+        .frame(width: lessonColumnWidth, height: rowHeight, alignment: .leading)
+        .background(isFocused
+                    ? Color.accentColor.opacity(UIConstants.OpacityConstants.accent)
+                    : Color.clear)
+        .backgroundPlatform()
+        .overlay {
+            if isFocused {
+                Rectangle()
+                    .strokeBorder(Color.accentColor, lineWidth: 2)
+                    .allowsHitTesting(false)
+            }
+        }
+        .borderSeparated()
     }
 }
 

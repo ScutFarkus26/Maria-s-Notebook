@@ -61,6 +61,11 @@ class ClassAreaChecklistViewModel {
 
     var matrixStates: [UUID: [UUID: StudentChecklistRowState]] = [:]
 
+    // MARK: - Row Focus
+    /// The lesson whose row a deep link asked to reveal. The grid scrolls to it
+    /// and flashes it, then clears this back to nil so the flash doesn't linger.
+    var focusedLessonID: UUID?
+
     // MARK: - Multi-Selection State
     var selectedCells: Set<CellIdentifier> = []
     var isEditModeActive: Bool = false
@@ -99,9 +104,21 @@ class ClassAreaChecklistViewModel {
         let allLessons = context.safeFetch(allLessonsFetch)
         self.availableAreas = lessonsLogic.areas(from: allLessons)
 
-        // Consume deep-link filter from AppRouter if present
+        // Consume deep-link filter from AppRouter if present. The lesson request
+        // is checked first: it names an exact row, so it outranks a plain area
+        // jump and the persisted area alike.
         let router = AppRouter.shared
-        if let filterArea = router.checklistFilterArea {
+        if let request = router.consumeChecklistLessonRequest() {
+            let area = request.area.trimmed()
+            if !area.isEmpty { selectedArea = area }
+            // A text filter carried over from a previous visit is free to hide
+            // the very row being revealed. `refreshLessonsAndSequences` below
+            // re-applies the filters, so clearing the fields is enough here.
+            lessonQuery = ""
+            appliedLessonQuery = ""
+            lessonQueryTokens = []
+            focusedLessonID = request.lessonID
+        } else if let filterArea = router.checklistFilterArea {
             selectedArea = filterArea
             router.checklistFilterArea = nil
             router.checklistFilterSequence = nil
@@ -186,6 +203,20 @@ class ClassAreaChecklistViewModel {
 
     func invalidateLessonsCache() {
         cachedLessonsBySequence.removeAll()
+    }
+
+    /// Reveals one lesson's row: switches the grid to that lesson's own area and
+    /// drops the text filter, which would otherwise be free to hide the very row
+    /// being revealed. Switching the area re-runs the fetch through the view's
+    /// `onChange(of: selectedArea)`, so nothing is refreshed twice here.
+    func focusLesson(_ lessonID: UUID, area: String, context: NSManagedObjectContext) {
+        let area = area.trimmed()
+        if !area.isEmpty,
+           area.localizedCaseInsensitiveCompare(selectedArea.trimmed()) != .orderedSame {
+            selectedArea = area
+        }
+        clearLessonQuery(context: context)
+        focusedLessonID = lessonID
     }
 
     func state(for student: CDStudent, lesson: CDLesson) -> StudentChecklistRowState? {

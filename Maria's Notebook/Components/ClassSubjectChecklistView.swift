@@ -13,6 +13,7 @@ import AppKit
 
 struct ClassAreaChecklistView: View {
     @Environment(\.managedObjectContext) var viewContext
+    @Environment(\.appRouter) private var appRouter
     @State var viewModel = ClassAreaChecklistViewModel()
     @State var didFinishInitialLoad = false
     @State private var isShowingAddWorkSheet = false
@@ -81,6 +82,13 @@ struct ClassAreaChecklistView: View {
                 )
             }
         })
+        // A request that arrives while the checklist is already on screen never
+        // reaches loadData, which only runs on first appearance.
+        .onChange(of: appRouter.checklistLessonRequest) { _, request in
+            guard let request else { return }
+            _ = appRouter.consumeChecklistLessonRequest()
+            viewModel.focusLesson(request.lessonID, area: request.area, context: viewContext)
+        }
         .onChange(of: viewModel.selectedArea) { _, newValue in
             // Skip during initial load — loadData already built the matrix
             guard didFinishInitialLoad else { return }

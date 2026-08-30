@@ -243,6 +243,9 @@ struct ReadyToPresentSection: View {
                     radius: 6
                 )
             )
+            .contextMenu {
+                ShowInChecklistButton(lessonID: la.resolvedLessonID, context: viewContext)
+            }
     }
 
 }
@@ -380,6 +383,7 @@ extension ReadyToPresentSection {
             )
         )
         .contextMenu {
+            ShowInChecklistButton(lessonID: la.resolvedLessonID, context: viewContext)
             Button("Unlock Lesson", systemImage: "lock.open") {
                 unlockOnDeckLesson(la)
             }

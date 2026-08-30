@@ -75,6 +75,7 @@ extension WeekDayColumn {
             .environment(\.managedObjectContext, viewContext)
         }
         .contextMenu {
+            ShowInChecklistButton(lessonID: la.resolvedLessonID, context: viewContext)
             Button("Clear Schedule", systemImage: "xmark.circle") {
                 onClear(la)
             }

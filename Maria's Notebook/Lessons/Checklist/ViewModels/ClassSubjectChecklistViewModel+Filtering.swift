@@ -39,10 +39,18 @@ extension ClassAreaChecklistViewModel {
 
     /// Drops both filters and shows the whole area again.
     func clearFilters(context: NSManagedObjectContext) {
+        studentFilterIDs = []
+        clearLessonQuery(context: context, force: true)
+    }
+
+    /// Drops only the text filter, leaving the pinned students alone. Used when
+    /// a deep link reveals a row the current query would hide — the student
+    /// columns hide nothing the guide is being sent to, so they stay put.
+    func clearLessonQuery(context: NSManagedObjectContext, force: Bool = false) {
+        guard force || !lessonQuery.isEmpty || !appliedLessonQuery.isEmpty else { return }
         lessonQuery = ""
         appliedLessonQuery = ""
         lessonQueryTokens = []
-        studentFilterIDs = []
         applyFilters()
         refreshOtherAreaMatches(context: context)
     }

@@ -69,6 +69,21 @@ final class AppRouter {
         }
     }
 
+    /// A one-shot request to reveal one lesson's row in the Checklist grid.
+    /// Carries the lesson's own area so the grid, which only ever draws one
+    /// area, can switch to the right one before scrolling.
+    struct ChecklistLessonRequest: Identifiable, Equatable {
+        let id: UUID
+        let lessonID: UUID
+        let area: String
+
+        init(id: UUID = UUID(), lessonID: UUID, area: String) {
+            self.id = id
+            self.lessonID = lessonID
+            self.area = area
+        }
+    }
+
     /// Planning lesson for student on date
     struct PlanLessonRequest: Equatable {
         let studentID: UUID
@@ -130,6 +145,10 @@ final class AppRouter {
     /// Checklist deep-link filters (consumed once by ChecklistViewModel)
     var checklistFilterArea: String?
     var checklistFilterSequence: String?
+
+    /// One-shot request to reveal a single lesson's row in the Checklist grid,
+    /// consumed by `ClassAreaChecklistView`.
+    var checklistLessonRequest: ChecklistLessonRequest?
 
     /// Refresh trigger for planning inbox
     var planningInboxRefreshTrigger: UUID = UUID()
@@ -308,6 +327,19 @@ final class AppRouter {
         checklistFilterArea = area
         checklistFilterSequence = sequence
         selectedNavItem = .planningChecklist
+    }
+
+    /// Opens the Checklist on one lesson's row. Used by "Show in Checklist" on
+    /// the presentation cards, which know the lesson but not where it sits in
+    /// the grid.
+    func navigateToChecklist(lessonID: UUID, area: String) {
+        checklistLessonRequest = ChecklistLessonRequest(lessonID: lessonID, area: area)
+        selectedNavItem = .planningChecklist
+    }
+
+    func consumeChecklistLessonRequest() -> ChecklistLessonRequest? {
+        defer { checklistLessonRequest = nil }
+        return checklistLessonRequest
     }
 
     /// Trigger planning inbox refresh
