@@ -102,10 +102,6 @@ struct WorksAgendaView: View {
     /// without writing to storage on every frame.
     @State var liveCalendarFraction: Double?
     @State var calendarResizeStartFraction: Double?
-    @State var calendarResizeTask: Task<Void, Never>?
-    /// Snapshot taken once per appearance, so restoring the saved height cannot
-    /// fight the guide's own drag on macOS.
-    @State var restoredCalendarFraction: Double?
 
     @State var selected: SelectionToken?
     @State var selectedLessonAssignment: CDLessonAssignment?
@@ -177,7 +173,6 @@ struct WorksAgendaView: View {
             }
         }
         .onAppear {
-            if restoredCalendarFraction == nil { restoredCalendarFraction = calendarFraction }
             refreshChangeTokens()
             loadLessonsAndStudentsIfNeeded()
             consumeWorkspaceRequestIfNeeded()
@@ -207,7 +202,6 @@ struct WorksAgendaView: View {
         }
         .onDisappear {
             searchDebounceTask?.cancel()
-            calendarResizeTask?.cancel()
         }
     }
 

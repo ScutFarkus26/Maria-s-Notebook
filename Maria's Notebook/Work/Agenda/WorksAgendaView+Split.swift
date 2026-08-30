@@ -1,16 +1,26 @@
 // WorksAgendaView+Split.swift
-// The list-over-calendar split, and the divider that sizes it.
+// The list-over-calendar split, and the seam that separates the two halves.
 //
 // The guide decides how much of the week he wants in view, and that decision
 // has to survive relaunching — a split that resets to a default every morning
 // is a setting the app keeps forgetting.
 //
 // The share is stored as a fraction rather than a height so it means the same
-// thing on a phone, a laptop and a resized window. Both platforms write the
-// same key; only the gesture differs, because AppKit already gives a Mac window
-// a real split divider and iOS does not.
+// thing on a phone, a laptop and a resized window.
+//
+// The seam is drawn here, once, for both platforms and both states. It used to
+// come from three different places — AppKit's `VSplitView` divider when the
+// calendar was open on a Mac, the collapsed bar's own `Divider()` when it was
+// folded away (which doubled the line, because the split drew one too), and a
+// grabber sandwiched between two more dividers on iOS. The line between the
+// workbench and the schedule changed every time the calendar was folded or a
+// different list was put above it, which read as the window redrawing itself.
+// One view now owns that line; only the invisible grab behaviour varies.
 
 import SwiftUI
+#if os(macOS)
+import AppKit
+#endif
 
 extension WorksAgendaView {
 
@@ -20,6 +30,11 @@ extension WorksAgendaView {
     static let maxCalendarFraction: Double = 0.7
     /// Floor in points, for short windows where even 20% is unusable.
     static let minCalendarHeight: CGFloat = 160
+    /// The workbench's own floor, which `VSplitView` used to enforce on macOS
+    /// and which now has to be honoured by the sizing itself.
+    static let minWorkbenchHeight: CGFloat = 220
+    /// The hairline is one point; this is the strip around it you can grab.
+    static let seamThickness: CGFloat = 6
 
     /// The share in effect right now — the live drag if one is in progress,
     /// otherwise the stored setting.
@@ -39,52 +54,25 @@ extension WorksAgendaView {
     static func calendarHeight(fraction: Double, in available: CGFloat) -> CGFloat {
         // The points floor wins on short windows, where even the minimum share
         // would leave a calendar too shallow to drop onto.
-        max(minCalendarHeight, available * clampFraction(fraction))
-    }
-
-    /// Writes the new share, coalescing the flurry of intermediate values a
-    /// drag produces into one stored value once it settles.
-    func persistCalendarFraction(_ fraction: Double) {
-        let clamped = Self.clampFraction(fraction)
-        // A sub-half-percent change is noise from layout rounding, not a
-        // decision worth writing to disk.
-        guard abs(clamped - calendarFraction) > 0.005 else { return }
-        calendarResizeTask?.cancel()
-        calendarResizeTask = Task { @MainActor in
-            try? await Task.sleep(for: .milliseconds(200))
-            guard !Task.isCancelled else { return }
-            calendarFraction = clamped
-        }
+        let requested = max(minCalendarHeight, available * clampFraction(fraction))
+        // …but the workbench keeps its own floor first. On a window too short
+        // for both, the calendar gives way rather than pushing the list it is
+        // fed from off the top of the screen.
+        let ceiling = max(minCalendarHeight, available - minWorkbenchHeight)
+        return min(requested, ceiling)
     }
 
     // MARK: - The split
 
-    @ViewBuilder
     var workspaceSplit: some View {
-        #if os(macOS)
-        GeometryReader { proxy in
-            VSplitView {
-                workspaceWorkbench
-                    .frame(minHeight: 220)
-                if isCalendarExpanded {
-                    calendarPane
-                        .frame(
-                            minHeight: Self.minCalendarHeight,
-                            idealHeight: restoredCalendarHeight(in: proxy.size.height)
-                        )
-                        .background(calendarHeightReporter(totalHeight: proxy.size.height))
-                } else {
-                    collapsedCalendarBar
-                }
-            }
-        }
-        #else
         GeometryReader { proxy in
             VStack(spacing: 0) {
                 workspaceWorkbench
-                    .frame(maxHeight: .infinity)
+                    .frame(maxWidth: .infinity, maxHeight: .infinity)
+
+                calendarSeam(totalHeight: proxy.size.height)
+
                 if isCalendarExpanded {
-                    calendarResizeHandle(totalHeight: proxy.size.height)
                     calendarPane
                         .frame(height: calendarHeight(in: proxy.size.height))
                 } else {
@@ -92,57 +80,48 @@ extension WorksAgendaView {
                 }
             }
         }
-        #endif
     }
 
-    // MARK: - macOS: let AppKit drive, and record where it landed
+    // MARK: - The seam
 
-    #if os(macOS)
-    /// The height to open at. Read from a snapshot taken once per appearance,
-    /// not from the live setting — feeding the stored value back into the split
-    /// while the split is reporting its height would fight the guide's drag.
-    private func restoredCalendarHeight(in available: CGFloat) -> CGFloat {
-        let fraction = Self.clampFraction(restoredCalendarFraction ?? calendarFraction)
-        return max(Self.minCalendarHeight, available * fraction)
-    }
-
-    /// `VSplitView` has no binding for its divider, so the pane's own height is
-    /// the only way to learn where the guide put it.
-    private func calendarHeightReporter(totalHeight: CGFloat) -> some View {
-        GeometryReader { inner in
-            Color.clear
-                .onChange(of: inner.size.height, initial: false) { _, height in
-                    guard totalHeight > 0 else { return }
-                    persistCalendarFraction(Double(height / totalHeight))
+    /// One line, drawn the same way whether the calendar is open or folded and
+    /// whichever list is above it. Expanding only adds a drag target and a
+    /// cursor — both invisible — so the seam itself never changes.
+    @ViewBuilder
+    private func calendarSeam(totalHeight: CGFloat) -> some View {
+        if isCalendarExpanded {
+            seamLine
+                .contentShape(Rectangle())
+                #if os(macOS)
+                .onHover { hovering in
+                    if hovering {
+                        NSCursor.resizeUpDown.push()
+                    } else {
+                        NSCursor.pop()
+                    }
                 }
+                #endif
+                .gesture(calendarResizeGesture(totalHeight: totalHeight))
+                .accessibilityElement()
+                .accessibilityLabel("Resize the schedule")
+                .accessibilityValue("\(Int(effectiveCalendarFraction * 100)) percent of the workspace")
+                .accessibilityAdjustableAction { direction in
+                    let step = direction == .increment ? 0.05 : -0.05
+                    calendarFraction = Self.clampFraction(calendarFraction + step)
+                }
+        } else {
+            seamLine
         }
     }
-    #endif
 
-    // MARK: - iOS: draw the divider and drag it ourselves
-
-    #if !os(macOS)
-    private func calendarResizeHandle(totalHeight: CGFloat) -> some View {
-        VStack(spacing: 0) {
-            Divider()
-            Capsule()
-                .fill(Color.secondary.opacity(UIConstants.OpacityConstants.moderate))
-                .frame(width: 36, height: 4)
-                .padding(.vertical, 5)
-            Divider()
-        }
-        .frame(maxWidth: .infinity)
-        .background(Color.primary.opacity(UIConstants.OpacityConstants.trace))
-        // The grabber is deliberately small; the touch target is not.
-        .contentShape(Rectangle())
-        .gesture(calendarResizeGesture(totalHeight: totalHeight))
-        .accessibilityElement()
-        .accessibilityLabel("Resize the schedule")
-        .accessibilityValue("\(Int(effectiveCalendarFraction * 100)) percent of the screen")
-        .accessibilityAdjustableAction { direction in
-            let step = direction == .increment ? 0.05 : -0.05
-            calendarFraction = Self.clampFraction(calendarFraction + step)
-        }
+    /// The hairline, centred in a strip tall enough to be grabbed. The strip is
+    /// transparent, so the seam reads as a single rule rather than a gutter.
+    private var seamLine: some View {
+        Rectangle()
+            .fill(Color.clear)
+            .overlay(Divider())
+            .frame(height: Self.seamThickness)
+            .frame(maxWidth: .infinity)
     }
 
     private func calendarResizeGesture(totalHeight: CGFloat) -> some Gesture {
@@ -153,7 +132,7 @@ extension WorksAgendaView {
                 if calendarResizeStartFraction == nil {
                     calendarResizeStartFraction = start
                 }
-                // Dragging the divider up grows the calendar.
+                // Dragging the seam up grows the calendar.
                 liveCalendarFraction = Self.clampFraction(
                     start + Double(-value.translation.height / totalHeight)
                 )
@@ -167,5 +146,4 @@ extension WorksAgendaView {
                 liveCalendarFraction = nil
             }
     }
-    #endif
 }

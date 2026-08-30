@@ -140,11 +140,11 @@ extension WorksAgendaView {
         }
     }
 
+    /// Folded away, the calendar is only its header. The line above it belongs
+    /// to the seam in `WorksAgendaView+Split.swift`; drawing one here as well
+    /// is what used to double the rule whenever the calendar was collapsed.
     var collapsedCalendarBar: some View {
-        VStack(spacing: 0) {
-            Divider()
-            calendarPaneHeader
-        }
+        calendarPaneHeader
     }
 
     var calendarPaneHeader: some View {
