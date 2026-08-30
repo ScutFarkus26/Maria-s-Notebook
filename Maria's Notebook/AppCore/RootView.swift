@@ -450,18 +450,10 @@ struct RootView: View {
     @ViewBuilder private var rootLayout: some View {
         #if os(macOS)
         // The NavigationSplitView has to be the window's root content for macOS
-        // to hand the titlebar inset to BOTH of its columns. Stacking it beneath
-        // a VStack leaves the detail column without that inset, so the students
-        // workspace draws its column headers and first rows up underneath the
-        // toolbar while the app sidebar sits correctly below it. Banners ride
-        // along as a top safe-area inset — same space, no displaced split view.
+        // to hand the titlebar inset to BOTH of its columns, so nothing may wrap
+        // it here. The banners live inside the detail column instead — see
+        // splitViewContent.
         mainContent
-            .safeAreaInset(edge: .top, spacing: 0) {
-                VStack(spacing: 0) {
-                    warningBanners
-                    Divider()
-                }
-            }
         #else
         let layout = VStack(spacing: 0) {
             warningBanners
@@ -573,9 +565,23 @@ struct RootView: View {
             RootSidebar(selection: $selectedNavItem)
             .navigationSplitViewColumnWidth(min: 220, ideal: 260, max: 320)
         } detail: {
+            #if os(macOS)
+            // Banners stack above the detail content rather than riding on the
+            // split view as a safe-area inset: an inset wrapped around the
+            // AppKit-backed split view never moves its columns, so the banner
+            // drew on top of the first rows and the student record's header and
+            // swallowed the clicks meant for their buttons.
+            VStack(spacing: 0) {
+                warningBanners
+                RootDetailContent(selectedNavItem: selectedNavItem)
+                    .frame(maxWidth: .infinity, maxHeight: .infinity)
+            }
+            .navigationTitle(selectedNavItem.displayName)
+            #else
             RootDetailContent(selectedNavItem: selectedNavItem)
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
                 .navigationTitle(selectedNavItem.displayName)
+            #endif
         }
     }
 
