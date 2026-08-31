@@ -399,3 +399,26 @@ struct AttendanceStoreRoutingTests {
         #expect(record.objectID.persistentStore?.configurationName == CoreDataStack.privateConfiguration)
     }
 }
+
+@Suite("Classroom membership routing")
+@MainActor
+struct ClassroomMembershipRoutingTests {
+
+    /// A membership row is a statement about this device's user. If one synced
+    /// to another participant's device it would answer `currentRole` there,
+    /// silently changing who they are allowed to be.
+    @Test("A membership row stays in the private store")
+    func membershipStaysPrivate() throws {
+        let ctx = try CoreDataTestHelpers.makeSplitStoreContext()
+        let repo = ClassroomRepository(context: ctx)
+
+        let membership = repo.createMembership(
+            classroomZoneID: "zone-1",
+            role: .assistant,
+            ownerIdentity: "owner-1"
+        )
+        #expect(CoreDataTestHelpers.save(ctx))
+
+        #expect(membership.objectID.persistentStore?.configurationName == CoreDataStack.privateConfiguration)
+    }
+}

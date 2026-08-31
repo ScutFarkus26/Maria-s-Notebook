@@ -53,6 +53,21 @@ struct ClassroomRepository: SavingRepository {
         ownerIdentity: String
     ) -> CDClassroomMembership {
         let membership = CDClassroomMembership(context: context)
+        // Pin this to the private store. A membership row states what *this*
+        // device's user is, so it must stay on this device — a row that synced
+        // would answer `currentRole` on someone else's, demoting a guide to
+        // assistant or promoting an assistant past every permission check.
+        //
+        // ClassroomMembership is registered in both configurations, so absent
+        // an assignment Core Data takes the first store, which happens to be
+        // the private one. Correct by luck is not correct: state it.
+        if let coordinator = context.persistentStoreCoordinator,
+           coordinator.persistentStores.count > 1,
+           let privateStore = coordinator.persistentStores.first(where: {
+               $0.configurationName == CoreDataStack.privateConfiguration
+           }) {
+            context.assign(membership, to: privateStore)
+        }
         membership.classroomZoneID = classroomZoneID
         membership.role = role
         membership.ownerIdentity = ownerIdentity
