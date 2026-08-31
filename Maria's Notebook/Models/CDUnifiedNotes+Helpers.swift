@@ -11,7 +11,7 @@ extension CDNote {
     ///   - scope: The NoteScope to use.
     ///   - existingNotes: The NSSet of existing CDNote objects from the parent relationship.
     ///   - context: The NSManagedObjectContext.
-    ///   - attach: Closure to attach the newly created note to its parent (e.g., `note.attendanceRecord = self`).
+    ///   - attach: Closure to attach the newly created note to its parent (e.g., `note.work = self`).
     /// - Returns: `true` if a change was made.
     @discardableResult
     static func upsertLegacyFieldNote(
@@ -58,8 +58,7 @@ extension CDNote {
 
 extension CDAttendanceRecord {
     var latestUnifiedNoteText: String {
-        let allNotes = (notes?.allObjects as? [CDNote]) ?? []
-        return CDNote.latestBody(in: allNotes)
+        CDNote.latestBody(in: unifiedNotes)
     }
 
     @discardableResult
@@ -70,12 +69,9 @@ extension CDAttendanceRecord {
             text: text,
             tags: [TagHelper.tagFromNoteCategory("attendance")],
             scope: scope,
-            existingNotes: notes,
+            existingNotes: NSSet(array: unifiedNotes),
             context: context
         ) { note in
-            note.attendanceRecord = self
-            // Keep the string FK in lockstep with the relationship until the
-            // relationship is removed (attendance moving to the shared store).
             note.attendanceRecordID = self.id?.uuidString
         }
     }

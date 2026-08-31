@@ -140,7 +140,11 @@ final class CoreDataStack {
         "SampleWorkStep",
         "ClassroomMembership",
         "Story",
-        "BookClubPacket"
+        "BookClubPacket",
+        // Moved out of the private store so a shared classroom participant
+        // (the assistant) can write attendance. Its former Note relationship
+        // is now a string FK, since a relationship cannot cross stores.
+        "AttendanceRecord"
     ]
 
     /// Entities stored in the private (per-teacher) store.
@@ -154,7 +158,6 @@ final class CoreDataStack {
         "WorkParticipantEntity",
         "WorkCompletionRecord",
         "PracticeSession",
-        "AttendanceRecord",
         "LessonAssignment",
         "StudentMeeting",
         "ScheduledMeeting",

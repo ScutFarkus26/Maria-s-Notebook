@@ -105,7 +105,6 @@
         <attribute name="attendanceRecordID" optional="YES" attributeType="String"/>
         <relationship name="work" optional="YES" maxCount="1" deletionRule="Nullify" destinationEntity="WorkModel" inverseName="unifiedNotes" inverseEntity="WorkModel"/>
         <relationship name="lessonAssignment" optional="YES" maxCount="1" deletionRule="Nullify" destinationEntity="LessonAssignment" inverseName="unifiedNotes" inverseEntity="LessonAssignment"/>
-        <relationship name="attendanceRecord" optional="YES" maxCount="1" deletionRule="Nullify" destinationEntity="AttendanceRecord" inverseName="notes" inverseEntity="AttendanceRecord"/>
         <relationship name="workCheckIn" optional="YES" maxCount="1" deletionRule="Nullify" destinationEntity="WorkCheckIn" inverseName="notes" inverseEntity="WorkCheckIn"/>
         <relationship name="workCompletionRecord" optional="YES" maxCount="1" deletionRule="Nullify" destinationEntity="WorkCompletionRecord" inverseName="notes" inverseEntity="WorkCompletionRecord"/>
         <relationship name="studentMeeting" optional="YES" maxCount="1" deletionRule="Nullify" destinationEntity="StudentMeeting" inverseName="notes" inverseEntity="StudentMeeting"/>
@@ -723,7 +722,6 @@
         <attribute name="absenceReasonRaw" attributeType="String" defaultValueString="none"/>
         <attribute name="recordedBy" optional="YES" attributeType="String"/>
         <attribute name="modifiedAt" optional="YES" attributeType="Date" usesScalarValueType="NO"/>
-        <relationship name="notes" optional="YES" toMany="YES" deletionRule="Cascade" destinationEntity="Note" inverseName="attendanceRecord" inverseEntity="Note"/>
         <fetchIndex name="byDate">
             <fetchIndexElement property="date" type="Binary" order="ascending"/>
         </fetchIndex>

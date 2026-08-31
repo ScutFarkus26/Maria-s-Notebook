@@ -50,7 +50,11 @@ extension CoreDataStack {
     ///   and `Note.attendanceRecordID` (string-FK twin of the `attendanceRecord`
     ///   relationship, backfilled by `AttendanceNoteLinkBackfill` ahead of the
     ///   relationship's removal when attendance moves to the shared store).
-    nonisolated static let currentSchemaVersion = 2
+    /// - `3` — `AttendanceRecord` moves to the shared store so an assistant can
+    ///   write it, and the `AttendanceRecord.notes` ↔ `Note.attendanceRecord`
+    ///   relationship is deleted (it would cross store configurations).
+    ///   `Note.attendanceRecordID` is now the only link.
+    nonisolated static let currentSchemaVersion = 3
 
     /// Store-metadata key holding the writing build's ``currentSchemaVersion``.
     nonisolated static let schemaVersionMetadataKey = "MNSchemaVersion"

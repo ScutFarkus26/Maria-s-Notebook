@@ -134,7 +134,7 @@ extension ObservationsView {
         if let lesson = note.lesson { return "Lesson: \(lesson.name)" }
         if let work = note.work { return "Work: \(work.title)" }
         if note.lessonAssignment != nil { return "Presentation" }
-        if note.attendanceRecord != nil { return "Attendance" }
+        if note.attendanceRecordID != nil { return "Attendance" }
         if note.workCheckIn != nil { return "Check-In" }
         if note.workCompletionRecord != nil { return "Completion" }
         if note.studentMeeting != nil { return "Meeting" }

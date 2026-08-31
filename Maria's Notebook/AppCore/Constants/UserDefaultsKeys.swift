@@ -142,7 +142,6 @@ enum UserDefaultsKeys {
     // MARK: - Migrations
     static let pdfFolderMigrationV1Complete = "Migration.pdfFolder.v1"
     static let classroomStoreMigrationV1Complete = "ClassroomStoreMigration.v1.completed"
-    static let attendanceNoteLinkBackfillV1Complete = "AttendanceNoteLinkBackfill.v1.completed"
 
     // MARK: - Shared Store Sync Repair
     static let sharedStoreZoneRepairLastTimeoutAt = "SharedStoreZoneRepair.lastTimeoutAt"

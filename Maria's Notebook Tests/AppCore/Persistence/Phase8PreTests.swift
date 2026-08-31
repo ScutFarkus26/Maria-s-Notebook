@@ -80,7 +80,10 @@ final class Phase8PreTests {
     func privateEntityRoutingCorrect() {
         let priv = CoreDataStack.privateEntityNames
         #expect(priv.contains("Note"))
-        #expect(priv.contains("AttendanceRecord"))
+        // AttendanceRecord is deliberately NOT here: it moved to the shared
+        // store so a classroom participant can write attendance.
+        #expect(!priv.contains("AttendanceRecord"))
+        #expect(CoreDataStack.sharedEntityNames.contains("AttendanceRecord"))
         #expect(priv.contains("WorkModel"))
         #expect(priv.contains("TodoItem"))
         #expect(priv.contains("Project"))

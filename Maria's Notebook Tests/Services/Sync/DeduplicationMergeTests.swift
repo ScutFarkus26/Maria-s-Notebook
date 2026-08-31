@@ -117,11 +117,12 @@ final class DeduplicationMergeTests {
         marked.date = day.addingTimeInterval(3600) // same calendar day, later time
         marked.status = .absent
 
-        // Attach a note to the record that will be deleted (the unmarked loser);
-        // the `notes` relationship is Cascade, so dedup must re-parent it first.
+        // Attach a note to the record that will be deleted (the unmarked loser).
+        // Nothing cascades now that the link is a string FK, so the note would
+        // dangle on a deleted id unless dedup re-points it at the survivor.
         let note = CDNote(context: ctx)
         note.body = "Parent called ahead"
-        note.attendanceRecord = unmarked
+        note.attendanceRecordID = uuid(1).uuidString
 
         #expect(CoreDataTestHelpers.save(ctx))
 
@@ -137,7 +138,6 @@ final class DeduplicationMergeTests {
 
         let notes = ctx.safeFetch(CDFetchRequest(CDNote.self))
         #expect(notes.count == 1)
-        #expect(notes.first?.attendanceRecord?.id == uuid(2))
         #expect(notes.first?.attendanceRecordID == uuid(2).uuidString)
     }
 

@@ -13,12 +13,20 @@ extension DataCleanupService {
         let flagKey = "Repair.noteScopes.v1"
         MigrationFlag.runIfNeeded(key: flagKey) {
             let notes = context.safeFetch(CDFetchRequest(CDNote.self))
+            // Attendance is reached by string FK now, so build the id -> student
+            // map once instead of fetching per note.
+            let attendanceStudentIDs: [String: UUID] = context
+                .safeFetch(CDFetchRequest(CDAttendanceRecord.self))
+                .reduce(into: [:]) { map, record in
+                    guard let id = record.id, let uuid = UUID(uuidString: record.studentID) else { return }
+                    map[id.uuidString] = uuid
+                }
             var changed = 0
 
             for note in notes {
                 var targetStudentID: UUID?
 
-                if let rec = note.attendanceRecord, let uuid = UUID(uuidString: rec.studentID) {
+                if let recordID = note.attendanceRecordID, let uuid = attendanceStudentIDs[recordID] {
                     targetStudentID = uuid
                 } else if let rec = note.workCompletionRecord, let uuid = UUID(uuidString: rec.studentID) {
                     targetStudentID = uuid

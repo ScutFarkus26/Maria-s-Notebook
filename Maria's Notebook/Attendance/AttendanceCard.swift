@@ -51,7 +51,7 @@ struct AttendanceCard: View {
     // Helper to resolve the most relevant note content from unified notes
     private var resolvedNote: (text: String, object: CDNote?) {
         guard let record else { return ("", nil) }
-        let note = CDNote.latestNote(in: (record.notes?.allObjects as? [CDNote]) ?? [])
+        let note = CDNote.latestNote(in: record.unifiedNotes)
         return (note?.body ?? "", note)
     }
 

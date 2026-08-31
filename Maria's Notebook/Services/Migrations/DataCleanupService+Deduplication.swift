@@ -327,15 +327,11 @@ extension DataCleanupService {
                     canonical.absenceReason = duplicate.absenceReason
                 }
 
-                // Re-point notes before deletion. `notes` is Cascade-delete, so
-                // deleting the duplicate without moving its notes would destroy
-                // them. Setting the inverse moves each note to the survivor; the
-                // string FK travels with it.
-                if let dupeNotes = duplicate.notes?.allObjects as? [CDNote] {
-                    for note in dupeNotes {
-                        note.attendanceRecord = canonical
-                        note.attendanceRecordID = canonical.id?.uuidString
-                    }
+                // Re-point notes before deletion. Nothing cascades now that the
+                // link is a string FK, so notes would simply dangle on a
+                // deleted record's id if they weren't moved to the survivor.
+                for note in duplicate.unifiedNotes {
+                    note.attendanceRecordID = canonical.id?.uuidString
                 }
 
                 context.delete(duplicate)
@@ -511,7 +507,7 @@ extension DataCleanupService {
         if canonical.lesson == nil { canonical.lesson = duplicate.lesson }
         if canonical.work == nil { canonical.work = duplicate.work }
         if canonical.lessonAssignment == nil { canonical.lessonAssignment = duplicate.lessonAssignment }
-        if canonical.attendanceRecord == nil { canonical.attendanceRecord = duplicate.attendanceRecord }
+        if canonical.attendanceRecordID == nil { canonical.attendanceRecordID = duplicate.attendanceRecordID }
         if canonical.workCheckIn == nil { canonical.workCheckIn = duplicate.workCheckIn }
         if canonical.workCompletionRecord == nil { canonical.workCompletionRecord = duplicate.workCompletionRecord }
         if canonical.studentMeeting == nil { canonical.studentMeeting = duplicate.studentMeeting }

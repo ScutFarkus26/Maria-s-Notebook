@@ -141,7 +141,7 @@ extension StudentNotesViewModel {
             if note.work != nil { return nil }
             if note.lessonAssignment != nil { return nil }
             if note.studentMeeting != nil { return nil }
-            if note.attendanceRecord != nil { return nil }
+            if note.attendanceRecordID != nil { return nil }
 
             let context: String = {
                 if let lesson = note.lesson {
@@ -269,15 +269,27 @@ extension StudentNotesViewModel {
     /// 5) Attendance-related notes.
     func fetchAttendanceNotes(
         noteSort: [NSSortDescriptor], studentIDString: String) -> [UnifiedNoteItem] {
+        let recordFetch = CDFetchRequest(CDAttendanceRecord.self)
+        recordFetch.predicate = NSPredicate(format: "studentID == %@", studentIDString)
+        let records: [CDAttendanceRecord] = safeFetch(recordFetch)
+        guard !records.isEmpty else { return [] }
+
+        let recordsByID = Dictionary(
+            records.compactMap { record in record.id.map { ($0.uuidString, record) } },
+            uniquingKeysWith: { first, _ in first }
+        )
+
         let attNoteFetch: NSFetchRequest<CDNote> = NSFetchRequest(entityName: "Note")
-        attNoteFetch.predicate = NSPredicate(format: "attendanceRecord != nil")
+        attNoteFetch.predicate = NSPredicate(
+            format: "attendanceRecordID IN %@", Array(recordsByID.keys)
+        )
         attNoteFetch.sortDescriptors = noteSort
         let attNotes: [CDNote] = safeFetch(attNoteFetch)
 
         return attNotes.compactMap { note in
             guard let noteID = note.id,
-                  let record = note.attendanceRecord,
-                  record.studentID == studentIDString else { return nil }
+                  let recordID = note.attendanceRecordID,
+                  let record = recordsByID[recordID] else { return nil }
             guard let studentID = student.id, note.scope.applies(to: studentID) else { return nil }
 
             return UnifiedNoteItem(

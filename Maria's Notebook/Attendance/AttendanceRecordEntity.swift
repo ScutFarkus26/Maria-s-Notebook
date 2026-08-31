@@ -20,9 +20,6 @@ public class CDAttendanceRecord: NSManagedObject {
     @NSManaged public var recordedBy: String?
     @NSManaged public var modifiedAt: Date?
 
-    // MARK: - Relationships
-    @NSManaged public var notes: NSSet?
-
     // MARK: - Convenience Initializer
     @discardableResult
     convenience init(context: NSManagedObjectContext) {
@@ -64,18 +61,16 @@ extension CDAttendanceRecord {
     }
 }
 
-// MARK: - Generated Accessors for To-Many Relationships
+// MARK: - Cross-Store Notes
 
 extension CDAttendanceRecord {
-    @objc(addNotesObject:)
-    @NSManaged public func addToNotes(_ value: CDNote)
-
-    @objc(removeNotesObject:)
-    @NSManaged public func removeFromNotes(_ value: CDNote)
-
-    @objc(addNotes:)
-    @NSManaged public func addToNotes(_ values: NSSet)
-
-    @objc(removeNotes:)
-    @NSManaged public func removeFromNotes(_ values: NSSet)
+    /// Cross-store inverse: fetches Notes whose attendanceRecordID matches this
+    /// record. Attendance is shared and Note is private, so the old to-many
+    /// relationship could not survive the move.
+    var unifiedNotes: [CDNote] {
+        guard let id, let ctx = managedObjectContext else { return [] }
+        let req = CDFetchRequest(CDNote.self)
+        req.predicate = NSPredicate(format: "attendanceRecordID == %@", id.uuidString)
+        return (try? ctx.fetch(req)) ?? []
+    }
 }

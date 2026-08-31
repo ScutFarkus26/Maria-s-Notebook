@@ -160,12 +160,6 @@ final class AppBootstrapper {
         // CloudKit timeout doesn't block launch.
         await ClassroomSharingService.ensureShareExistsOnLaunch(coreDataStack: coreDataStack)
 
-        // 3.83. Backfill Note.attendanceRecordID from the attendanceRecord
-        // relationship, ahead of that relationship's removal when attendance
-        // moves to the shared store (a relationship cannot cross store
-        // configurations). Idempotent + UserDefaults-gated; background context.
-        await AttendanceNoteLinkBackfill.runIfNeeded(coreDataStack: coreDataStack)
-
         // 3.85. Backfill per-student CDLessonPresentation rows for assignments that were marked
         // presented via entry points which historically skipped LifecycleService.recordPresentation.
         // Runs once per device (UserDefaults-guarded); idempotent.

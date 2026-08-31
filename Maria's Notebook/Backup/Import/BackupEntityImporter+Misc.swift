@@ -90,9 +90,8 @@ extension BackupEntityImporter {
                 note.lessonAssignment = try index.related(CDLessonAssignment.self, id: id)
             }
             if let id = dto.attendanceRecordID {
-                note.attendanceRecord = try index.related(CDAttendanceRecord.self, id: id)
-                // The string FK is the link's future-proof form; fill it even when
-                // the record itself didn't make this backup.
+                // A string FK, so it restores whether or not the record itself
+                // made this backup — nothing to resolve through the index.
                 note.attendanceRecordID = id.uuidString
             }
             if let id = dto.workCheckInID {
