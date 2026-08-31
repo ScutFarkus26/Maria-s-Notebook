@@ -88,6 +88,12 @@ struct CDAttendanceStore {
         return true
     }
 
+    // Note handling is compiled out of the assistant's companion app: its
+    // attendance notes stay private to the lead guide, and CDNote's
+    // relationships would pull most of the object model into a build that has
+    // no use for it.
+    #if !ASSISTANT_APP
+
     /// Update a record's note and return whether it changed.
     @discardableResult
     func updateNote(_ record: CDAttendanceRecord, to newNote: String?) -> Bool {
@@ -98,6 +104,8 @@ struct CDAttendanceStore {
         stamp(record)
         return true
     }
+
+    #endif
 
     /// Update a record's absence reason and return whether it changed.
     @discardableResult
@@ -129,6 +137,8 @@ struct CDAttendanceStore {
         return records
     }
 
+    #if !ASSISTANT_APP
+
     /// Convenience: Reset the date's existing records to unmarked and clear their
     /// notes. Students without a record are left alone — no record already reads
     /// as unmarked. Callers save immediately afterwards.
@@ -148,4 +158,6 @@ struct CDAttendanceStore {
         }
         return records
     }
+
+    #endif
 }

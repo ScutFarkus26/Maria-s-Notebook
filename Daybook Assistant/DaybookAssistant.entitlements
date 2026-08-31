@@ -1,0 +1,25 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+	<key>aps-environment</key>
+	<string>development</string>
+	<!--
+	  The container is spelled out, NOT derived from the bundle identifier the
+	  way the main app's entitlements do it. This app's bundle id ends in
+	  ".Assistant", so the derived form would resolve to a brand new, empty
+	  container and the assistant would sit staring at an empty classroom
+	  forever. It must be the guide's existing container, verbatim.
+	-->
+	<key>com.apple.developer.icloud-container-identifiers</key>
+	<array>
+		<string>iCloud.DanielSDeBerry.MariasNoteBook</string>
+	</array>
+	<key>com.apple.developer.icloud-services</key>
+	<array>
+		<string>CloudKit</string>
+	</array>
+	<key>com.apple.developer.ubiquity-kvstore-identifier</key>
+	<string>$(TeamIdentifierPrefix)DanielSDeBerry.MariasNoteBook</string>
+</dict>
+</plist>

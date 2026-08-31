@@ -86,11 +86,16 @@ actor PersistentHistoryProcessor {
                 "Processed \(totalCount) history transaction(s), \(remoteCount) remote, inserts: \(hasInserts)"
             )
 
+            // The companion app has no dedup coordinator: it writes only
+            // attendance, through the store that already collapses duplicates
+            // per student-day on read.
+            #if !ASSISTANT_APP
             if hasInserts {
                 Task { @MainActor in
                     DeduplicationCoordinator.shared.requestDeduplication()
                 }
             }
+            #endif
 
         case .failed:
             if lastToken != nil {

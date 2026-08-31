@@ -112,6 +112,10 @@ enum AppErrorMessages {
         return "Couldn't import the \(fileType). Make sure it's a supported format and try again."
     }
 
+    // No AI in the assistant's companion app, and LocalModelError lives with
+    // the model clients it doesn't build.
+    #if !ASSISTANT_APP
+
     /// User-friendly message for AI/chat feature errors.
     static func aiMessage(for error: Error) -> String {
         let nsError = error as NSError
@@ -139,6 +143,8 @@ enum AppErrorMessages {
 
         return "The AI feature encountered a problem. Check your connection and API settings, then try again."
     }
+
+    #endif
 
     /// User-friendly message for backup export/restore failures.
     static func backupMessage(for error: Error, operation: String) -> String {

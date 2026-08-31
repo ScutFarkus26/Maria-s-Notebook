@@ -63,6 +63,9 @@ extension CDAttendanceRecord {
 
 // MARK: - Cross-Store Notes
 
+// Excluded from the assistant's companion app — see CDAttendanceStore.
+#if !ASSISTANT_APP
+
 extension CDAttendanceRecord {
     /// Cross-store inverse: fetches Notes whose attendanceRecordID matches this
     /// record. Attendance is shared and Note is private, so the old to-many
@@ -74,3 +77,5 @@ extension CDAttendanceRecord {
         return (try? ctx.fetch(req)) ?? []
     }
 }
+
+#endif

@@ -6,6 +6,39 @@
 	objectVersion = 77;
 	objects = {
 
+/* Begin PBXBuildFile section */
+		DA1C2BA2B4668F28BBD1641B /* StudentEntity.swift in Sources */ = {isa = PBXBuildFile; fileRef = DAB7D64AEAE7820AC7AC7D43 /* StudentEntity.swift */; };
+		DA1CECBB03D8A407B1467D98 /* SharingPreferences.swift in Sources */ = {isa = PBXBuildFile; fileRef = DABF8694226D7807EB46BC77 /* SharingPreferences.swift */; };
+		DA252003A84AA445F1A97E95 /* ClassroomRepository.swift in Sources */ = {isa = PBXBuildFile; fileRef = DAD984C48AB59380BA0782CA /* ClassroomRepository.swift */; };
+		DA273C50CFBB1468B5E697F9 /* AttendanceDeduplication.swift in Sources */ = {isa = PBXBuildFile; fileRef = DAF89FDB07AADC17488E21D2 /* AttendanceDeduplication.swift */; };
+		DA352C4EF69599B10DC1BCF8 /* UIConstants.swift in Sources */ = {isa = PBXBuildFile; fileRef = DA4C4B2353AC01D418062C7F /* UIConstants.swift */; };
+		DA3CB4557D19474CF376B2CE /* AttendanceRecordEntity.swift in Sources */ = {isa = PBXBuildFile; fileRef = DABAF43790A11379CBD2A4CC /* AttendanceRecordEntity.swift */; };
+		DA4C2D30AB518AA8019C93A7 /* PersistentHistoryProcessor.swift in Sources */ = {isa = PBXBuildFile; fileRef = DA450B3C5269250827AE0269 /* PersistentHistoryProcessor.swift */; };
+		DA51602210037380301B0B85 /* AppErrorMessages.swift in Sources */ = {isa = PBXBuildFile; fileRef = DA9BCA099D416538E15471B5 /* AppErrorMessages.swift */; };
+		DA58A879F09CBF23DFB1BB96 /* CoreDataStack.swift in Sources */ = {isa = PBXBuildFile; fileRef = DA7737014313A0622D0B7569 /* CoreDataStack.swift */; };
+		DA601CA3998CD10B1685C417 /* AttendanceModels.swift in Sources */ = {isa = PBXBuildFile; fileRef = DA28F51BB683F0DDC5138A7E /* AttendanceModels.swift */; };
+		DA7BAB76B78FE330CB3240BB /* ClassroomSharingService.swift in Sources */ = {isa = PBXBuildFile; fileRef = DA2E02B9BE132A52523B4794 /* ClassroomSharingService.swift */; };
+		DA7D2FCC78D048AAA0D915E2 /* ClassroomPermissions.swift in Sources */ = {isa = PBXBuildFile; fileRef = DAC0BE10B161EC5086F86A98 /* ClassroomPermissions.swift */; };
+		DA7F870A08077490BED3589E /* ClassroomMembershipEntity.swift in Sources */ = {isa = PBXBuildFile; fileRef = DAA256BA27C74AEF2E0888A8 /* ClassroomMembershipEntity.swift */; };
+		DA85F54020C188A55AC2044D /* CDAttendanceStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = DA20E7D5C359FCF5C7158BD8 /* CDAttendanceStore.swift */; };
+		DA89C2C39C4BABC2B7921AE2 /* CoreDataStack+SchemaVersion.swift in Sources */ = {isa = PBXBuildFile; fileRef = DAA80B8AE6F5033A02C3BFB1 /* CoreDataStack+SchemaVersion.swift */; };
+		DA8CB0588F0C63B3307597D3 /* UserDefaultsKeys.swift in Sources */ = {isa = PBXBuildFile; fileRef = DA934AAA7DFBEFE58E0E3A8F /* UserDefaultsKeys.swift */; };
+		DA9C18F171ECE5CF4EAA8F71 /* AppLogging.swift in Sources */ = {isa = PBXBuildFile; fileRef = DA7D1211DB9154823C354663 /* AppLogging.swift */; };
+		DAA55AECD10FDC0407F08505 /* CoreDataStack+OrphanCleanup.swift in Sources */ = {isa = PBXBuildFile; fileRef = DA4D54D6AD04715722787D25 /* CoreDataStack+OrphanCleanup.swift */; };
+		DAAD99A3A03A6404005D4FA8 /* StudentModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = DA3123BE8062390EA6E15E23 /* StudentModel.swift */; };
+		DAB35AFA34D0F1C960DA212B /* NSManagedObjectContext+SafeFetch.swift in Sources */ = {isa = PBXBuildFile; fileRef = DA18960A04AB0CB34A2B3C3D /* NSManagedObjectContext+SafeFetch.swift */; };
+		DAB9ECB34B43A8B9FF853A98 /* String+Extensions.swift in Sources */ = {isa = PBXBuildFile; fileRef = DAF840824AAC3D22283214A2 /* String+Extensions.swift */; };
+		DAC35684943F20A84D48BF91 /* AppCalendar.swift in Sources */ = {isa = PBXBuildFile; fileRef = DA010CEBEF3C199A6C0EDD30 /* AppCalendar.swift */; };
+		DAC4E37F5533862799AABE6C /* Logger+Extensions.swift in Sources */ = {isa = PBXBuildFile; fileRef = DA00DE26D80F5C93EDE8FD24 /* Logger+Extensions.swift */; };
+		DAC74BFE466A3805601FD363 /* DocumentEntity.swift in Sources */ = {isa = PBXBuildFile; fileRef = DAF33D02953B353B5F308309 /* DocumentEntity.swift */; };
+		DACBA8C62DE44A77DAB1FFAB /* SharingPermissionCategory.swift in Sources */ = {isa = PBXBuildFile; fileRef = DA69F3C2FED434EB4E6553C6 /* SharingPermissionCategory.swift */; };
+		DACD857BDD87609889048B24 /* ShareAcceptanceAppDelegate.swift in Sources */ = {isa = PBXBuildFile; fileRef = DAA51475AF1912DCF6E6D515 /* ShareAcceptanceAppDelegate.swift */; };
+		DAD27BA7186AA8858E25DD43 /* RepositoryProtocol.swift in Sources */ = {isa = PBXBuildFile; fileRef = DACEB0200E5193CBE69A8BF1 /* RepositoryProtocol.swift */; };
+		DAE1A32F8081BE03784E8A02 /* CloudKitConfigurationService.swift in Sources */ = {isa = PBXBuildFile; fileRef = DA1A46BC25E7671E6710BDA4 /* CloudKitConfigurationService.swift */; };
+		DAE6A1DD965DBE18B12197DB /* MariasNotebook.xcdatamodeld in Sources */ = {isa = PBXBuildFile; fileRef = DA50D6010603DBA9AFE62598 /* MariasNotebook.xcdatamodeld */; };
+		DAFD1BD1FBEBC51F5948EA8A /* SaveCoordinator.swift in Sources */ = {isa = PBXBuildFile; fileRef = DA11A2430630D5E6426CD0F8 /* SaveCoordinator.swift */; };
+/* End PBXBuildFile section */
+
 /* Begin PBXContainerItemProxy section */
 		51F924312F1C43F900E480A1 /* PBXContainerItemProxy */ = {
 			isa = PBXContainerItemProxy;
@@ -20,6 +53,37 @@
 		5141E7F52ED77B0F004F918F /* Montessori Daybook.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = "Montessori Daybook.app"; sourceTree = BUILT_PRODUCTS_DIR; };
 		5193CB052F0B155C0017A069 /* FoundationModels.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = FoundationModels.framework; path = Platforms/iPhoneOS.platform/Developer/SDKs/iPhoneOS26.2.sdk/System/Library/Frameworks/FoundationModels.framework; sourceTree = DEVELOPER_DIR; };
 		51F9242D2F1C43F900E480A1 /* Maria's Notebook Tests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = "Maria's Notebook Tests.xctest"; sourceTree = BUILT_PRODUCTS_DIR; };
+		DA00DE26D80F5C93EDE8FD24 /* Logger+Extensions.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = "Logger+Extensions.swift"; path = "Maria's Notebook/Utils/Logger+Extensions.swift"; sourceTree = SOURCE_ROOT; };
+		DA010CEBEF3C199A6C0EDD30 /* AppCalendar.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = AppCalendar.swift; path = "Maria's Notebook/AppCore/AppCalendar.swift"; sourceTree = SOURCE_ROOT; };
+		DA11A2430630D5E6426CD0F8 /* SaveCoordinator.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = SaveCoordinator.swift; path = "Maria's Notebook/Backup/SaveCoordinator.swift"; sourceTree = SOURCE_ROOT; };
+		DA18960A04AB0CB34A2B3C3D /* NSManagedObjectContext+SafeFetch.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = "NSManagedObjectContext+SafeFetch.swift"; path = "Maria's Notebook/Utils/NSManagedObjectContext+SafeFetch.swift"; sourceTree = SOURCE_ROOT; };
+		DA1A46BC25E7671E6710BDA4 /* CloudKitConfigurationService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = CloudKitConfigurationService.swift; path = "Maria's Notebook/AppCore/CloudKitConfigurationService.swift"; sourceTree = SOURCE_ROOT; };
+		DA20E7D5C359FCF5C7158BD8 /* CDAttendanceStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = CDAttendanceStore.swift; path = "Maria's Notebook/Attendance/CDAttendanceStore.swift"; sourceTree = SOURCE_ROOT; };
+		DA28F51BB683F0DDC5138A7E /* AttendanceModels.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = AttendanceModels.swift; path = "Maria's Notebook/Attendance/AttendanceModels.swift"; sourceTree = SOURCE_ROOT; };
+		DA2E02B9BE132A52523B4794 /* ClassroomSharingService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = ClassroomSharingService.swift; path = "Maria's Notebook/Sharing/ClassroomSharingService.swift"; sourceTree = SOURCE_ROOT; };
+		DA3123BE8062390EA6E15E23 /* StudentModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = StudentModel.swift; path = "Maria's Notebook/Students/Models/StudentModel.swift"; sourceTree = SOURCE_ROOT; };
+		DA38A007151ABE87CC01A5B6 /* Daybook Assistant.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = "Daybook Assistant.app"; sourceTree = BUILT_PRODUCTS_DIR; };
+		DA450B3C5269250827AE0269 /* PersistentHistoryProcessor.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = PersistentHistoryProcessor.swift; path = "Maria's Notebook/Services/PersistentHistoryProcessor.swift"; sourceTree = SOURCE_ROOT; };
+		DA4C4B2353AC01D418062C7F /* UIConstants.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = UIConstants.swift; path = "Maria's Notebook/AppCore/Constants/UIConstants.swift"; sourceTree = SOURCE_ROOT; };
+		DA4D54D6AD04715722787D25 /* CoreDataStack+OrphanCleanup.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = "CoreDataStack+OrphanCleanup.swift"; path = "Maria's Notebook/AppCore/CoreDataStack+OrphanCleanup.swift"; sourceTree = SOURCE_ROOT; };
+		DA6503C3D85AC2C51E58119B /* MariasNotebook 2.xcdatamodel */ = {isa = PBXFileReference; lastKnownFileType = wrapper.xcdatamodel; path = "MariasNotebook 2.xcdatamodel"; sourceTree = "<group>"; };
+		DA69F3C2FED434EB4E6553C6 /* SharingPermissionCategory.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = SharingPermissionCategory.swift; path = "Maria's Notebook/Sharing/SharingPermissionCategory.swift"; sourceTree = SOURCE_ROOT; };
+		DA7737014313A0622D0B7569 /* CoreDataStack.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = CoreDataStack.swift; path = "Maria's Notebook/AppCore/CoreDataStack.swift"; sourceTree = SOURCE_ROOT; };
+		DA7D1211DB9154823C354663 /* AppLogging.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = AppLogging.swift; path = "Maria's Notebook/Utils/AppLogging.swift"; sourceTree = SOURCE_ROOT; };
+		DA934AAA7DFBEFE58E0E3A8F /* UserDefaultsKeys.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = UserDefaultsKeys.swift; path = "Maria's Notebook/AppCore/Constants/UserDefaultsKeys.swift"; sourceTree = SOURCE_ROOT; };
+		DA9BCA099D416538E15471B5 /* AppErrorMessages.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = AppErrorMessages.swift; path = "Maria's Notebook/Utils/AppErrorMessages.swift"; sourceTree = SOURCE_ROOT; };
+		DAA256BA27C74AEF2E0888A8 /* ClassroomMembershipEntity.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = ClassroomMembershipEntity.swift; path = "Maria's Notebook/Sharing/ClassroomMembershipEntity.swift"; sourceTree = SOURCE_ROOT; };
+		DAA51475AF1912DCF6E6D515 /* ShareAcceptanceAppDelegate.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = ShareAcceptanceAppDelegate.swift; path = "Maria's Notebook/AppCore/ShareAcceptanceAppDelegate.swift"; sourceTree = SOURCE_ROOT; };
+		DAA80B8AE6F5033A02C3BFB1 /* CoreDataStack+SchemaVersion.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = "CoreDataStack+SchemaVersion.swift"; path = "Maria's Notebook/AppCore/CoreDataStack+SchemaVersion.swift"; sourceTree = SOURCE_ROOT; };
+		DAB7D64AEAE7820AC7AC7D43 /* StudentEntity.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = StudentEntity.swift; path = "Maria's Notebook/Students/Models/StudentEntity.swift"; sourceTree = SOURCE_ROOT; };
+		DABAF43790A11379CBD2A4CC /* AttendanceRecordEntity.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = AttendanceRecordEntity.swift; path = "Maria's Notebook/Attendance/AttendanceRecordEntity.swift"; sourceTree = SOURCE_ROOT; };
+		DABF8694226D7807EB46BC77 /* SharingPreferences.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = SharingPreferences.swift; path = "Maria's Notebook/Sharing/SharingPreferences.swift"; sourceTree = SOURCE_ROOT; };
+		DAC0BE10B161EC5086F86A98 /* ClassroomPermissions.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = ClassroomPermissions.swift; path = "Maria's Notebook/Sharing/ClassroomPermissions.swift"; sourceTree = SOURCE_ROOT; };
+		DACEB0200E5193CBE69A8BF1 /* RepositoryProtocol.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = RepositoryProtocol.swift; path = "Maria's Notebook/Repositories/RepositoryProtocol.swift"; sourceTree = SOURCE_ROOT; };
+		DAD984C48AB59380BA0782CA /* ClassroomRepository.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = ClassroomRepository.swift; path = "Maria's Notebook/Sharing/ClassroomRepository.swift"; sourceTree = SOURCE_ROOT; };
+		DAF33D02953B353B5F308309 /* DocumentEntity.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = DocumentEntity.swift; path = "Maria's Notebook/Models/DocumentEntity.swift"; sourceTree = SOURCE_ROOT; };
+		DAF840824AAC3D22283214A2 /* String+Extensions.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = "String+Extensions.swift"; path = "Maria's Notebook/Utils/String+Extensions.swift"; sourceTree = SOURCE_ROOT; };
+		DAF89FDB07AADC17488E21D2 /* AttendanceDeduplication.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = AttendanceDeduplication.swift; path = "Maria's Notebook/Attendance/AttendanceDeduplication.swift"; sourceTree = SOURCE_ROOT; };
 /* End PBXFileReference section */
 
 /* Begin PBXFileSystemSynchronizedBuildFileExceptionSet section */
@@ -31,6 +95,13 @@
 				README.md,
 			);
 			target = 5141E7F42ED77B0F004F918F /* Maria's Notebook */;
+		};
+		DA9B6BA96B2A002513B8FA5F /* Exceptions for "Daybook Assistant" folder in "Daybook Assistant" target */ = {
+			isa = PBXFileSystemSynchronizedBuildFileExceptionSet;
+			membershipExceptions = (
+				Info.plist,
+			);
+			target = DA0E8A3AD980EC179856012B /* Daybook Assistant */;
 		};
 /* End PBXFileSystemSynchronizedBuildFileExceptionSet section */
 
@@ -46,6 +117,14 @@
 		51F924362F1C440000E480A1 /* Maria's Notebook Tests */ = {
 			isa = PBXFileSystemSynchronizedRootGroup;
 			path = "Maria's Notebook Tests";
+			sourceTree = "<group>";
+		};
+		DA98962CA057DBE5A307FD94 /* Daybook Assistant */ = {
+			isa = PBXFileSystemSynchronizedRootGroup;
+			exceptions = (
+				DA9B6BA96B2A002513B8FA5F /* Exceptions for "Daybook Assistant" folder in "Daybook Assistant" target */,
+			);
+			path = "Daybook Assistant";
 			sourceTree = "<group>";
 		};
 /* End PBXFileSystemSynchronizedRootGroup section */
@@ -65,6 +144,13 @@
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
+		DA7561BFB015D8F536760CB6 /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
 /* End PBXFrameworksBuildPhase section */
 
 /* Begin PBXGroup section */
@@ -73,6 +159,8 @@
 			children = (
 				5141E7F72ED77B0F004F918F /* Maria's Notebook */,
 				51F924362F1C440000E480A1 /* Maria's Notebook Tests */,
+				DA98962CA057DBE5A307FD94 /* Daybook Assistant */,
+				DAA51B995684AEC2DD04AF00 /* Shared with Montessori Daybook */,
 				5193CB042F0B155C0017A069 /* Frameworks */,
 				5141E7F62ED77B0F004F918F /* Products */,
 			);
@@ -83,6 +171,7 @@
 			children = (
 				5141E7F52ED77B0F004F918F /* Montessori Daybook.app */,
 				51F9242D2F1C43F900E480A1 /* Maria's Notebook Tests.xctest */,
+				DA38A007151ABE87CC01A5B6 /* Daybook Assistant.app */,
 			);
 			name = Products;
 			sourceTree = "<group>";
@@ -93,6 +182,43 @@
 				5193CB052F0B155C0017A069 /* FoundationModels.framework */,
 			);
 			name = Frameworks;
+			sourceTree = "<group>";
+		};
+		DAA51B995684AEC2DD04AF00 /* Shared with Montessori Daybook */ = {
+			isa = PBXGroup;
+			children = (
+				DA7737014313A0622D0B7569 /* CoreDataStack.swift */,
+				DAA80B8AE6F5033A02C3BFB1 /* CoreDataStack+SchemaVersion.swift */,
+				DA4D54D6AD04715722787D25 /* CoreDataStack+OrphanCleanup.swift */,
+				DA1A46BC25E7671E6710BDA4 /* CloudKitConfigurationService.swift */,
+				DAA51475AF1912DCF6E6D515 /* ShareAcceptanceAppDelegate.swift */,
+				DA934AAA7DFBEFE58E0E3A8F /* UserDefaultsKeys.swift */,
+				DA450B3C5269250827AE0269 /* PersistentHistoryProcessor.swift */,
+				DA18960A04AB0CB34A2B3C3D /* NSManagedObjectContext+SafeFetch.swift */,
+				DA7D1211DB9154823C354663 /* AppLogging.swift */,
+				DA00DE26D80F5C93EDE8FD24 /* Logger+Extensions.swift */,
+				DA28F51BB683F0DDC5138A7E /* AttendanceModels.swift */,
+				DABAF43790A11379CBD2A4CC /* AttendanceRecordEntity.swift */,
+				DAF89FDB07AADC17488E21D2 /* AttendanceDeduplication.swift */,
+				DA20E7D5C359FCF5C7158BD8 /* CDAttendanceStore.swift */,
+				DAB7D64AEAE7820AC7AC7D43 /* StudentEntity.swift */,
+				DAA256BA27C74AEF2E0888A8 /* ClassroomMembershipEntity.swift */,
+				DAD984C48AB59380BA0782CA /* ClassroomRepository.swift */,
+				DA2E02B9BE132A52523B4794 /* ClassroomSharingService.swift */,
+				DAC0BE10B161EC5086F86A98 /* ClassroomPermissions.swift */,
+				DA69F3C2FED434EB4E6553C6 /* SharingPermissionCategory.swift */,
+				DABF8694226D7807EB46BC77 /* SharingPreferences.swift */,
+				DA010CEBEF3C199A6C0EDD30 /* AppCalendar.swift */,
+				DACEB0200E5193CBE69A8BF1 /* RepositoryProtocol.swift */,
+				DA11A2430630D5E6426CD0F8 /* SaveCoordinator.swift */,
+				DAF840824AAC3D22283214A2 /* String+Extensions.swift */,
+				DA4C4B2353AC01D418062C7F /* UIConstants.swift */,
+				DA3123BE8062390EA6E15E23 /* StudentModel.swift */,
+				DAF33D02953B353B5F308309 /* DocumentEntity.swift */,
+				DA9BCA099D416538E15471B5 /* AppErrorMessages.swift */,
+				DA50D6010603DBA9AFE62598 /* MariasNotebook.xcdatamodeld */,
+			);
+			name = "Shared with Montessori Daybook";
 			sourceTree = "<group>";
 		};
 /* End PBXGroup section */
@@ -143,6 +269,28 @@
 			productReference = 51F9242D2F1C43F900E480A1 /* Maria's Notebook Tests.xctest */;
 			productType = "com.apple.product-type.bundle.unit-test";
 		};
+		DA0E8A3AD980EC179856012B /* Daybook Assistant */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = DA49A513989D1FB618E62952 /* Build configuration list for PBXNativeTarget "Daybook Assistant" */;
+			buildPhases = (
+				DABCE16DD0260827ECF338C7 /* Sources */,
+				DA7561BFB015D8F536760CB6 /* Frameworks */,
+				DA0189424A5A60FED329FA86 /* Resources */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+			);
+			fileSystemSynchronizedGroups = (
+				DA98962CA057DBE5A307FD94 /* Daybook Assistant */,
+			);
+			name = "Daybook Assistant";
+			packageProductDependencies = (
+			);
+			productName = "Daybook Assistant";
+			productReference = DA38A007151ABE87CC01A5B6 /* Daybook Assistant.app */;
+			productType = "com.apple.product-type.application";
+		};
 /* End PBXNativeTarget section */
 
 /* Begin PBXProject section */
@@ -178,6 +326,7 @@
 			targets = (
 				5141E7F42ED77B0F004F918F /* Maria's Notebook */,
 				51F9242C2F1C43F900E480A1 /* Maria's Notebook Tests */,
+				DA0E8A3AD980EC179856012B /* Daybook Assistant */,
 			);
 		};
 /* End PBXProject section */
@@ -191,6 +340,13 @@
 			runOnlyForDeploymentPostprocessing = 0;
 		};
 		51F9242B2F1C43F900E480A1 /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		DA0189424A5A60FED329FA86 /* Resources */ = {
 			isa = PBXResourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
@@ -211,6 +367,43 @@
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		DABCE16DD0260827ECF338C7 /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				DA58A879F09CBF23DFB1BB96 /* CoreDataStack.swift in Sources */,
+				DA89C2C39C4BABC2B7921AE2 /* CoreDataStack+SchemaVersion.swift in Sources */,
+				DAA55AECD10FDC0407F08505 /* CoreDataStack+OrphanCleanup.swift in Sources */,
+				DAE1A32F8081BE03784E8A02 /* CloudKitConfigurationService.swift in Sources */,
+				DACD857BDD87609889048B24 /* ShareAcceptanceAppDelegate.swift in Sources */,
+				DA8CB0588F0C63B3307597D3 /* UserDefaultsKeys.swift in Sources */,
+				DA4C2D30AB518AA8019C93A7 /* PersistentHistoryProcessor.swift in Sources */,
+				DAB35AFA34D0F1C960DA212B /* NSManagedObjectContext+SafeFetch.swift in Sources */,
+				DA9C18F171ECE5CF4EAA8F71 /* AppLogging.swift in Sources */,
+				DAC4E37F5533862799AABE6C /* Logger+Extensions.swift in Sources */,
+				DA601CA3998CD10B1685C417 /* AttendanceModels.swift in Sources */,
+				DA3CB4557D19474CF376B2CE /* AttendanceRecordEntity.swift in Sources */,
+				DA273C50CFBB1468B5E697F9 /* AttendanceDeduplication.swift in Sources */,
+				DA85F54020C188A55AC2044D /* CDAttendanceStore.swift in Sources */,
+				DA1C2BA2B4668F28BBD1641B /* StudentEntity.swift in Sources */,
+				DA7F870A08077490BED3589E /* ClassroomMembershipEntity.swift in Sources */,
+				DA252003A84AA445F1A97E95 /* ClassroomRepository.swift in Sources */,
+				DA7BAB76B78FE330CB3240BB /* ClassroomSharingService.swift in Sources */,
+				DA7D2FCC78D048AAA0D915E2 /* ClassroomPermissions.swift in Sources */,
+				DACBA8C62DE44A77DAB1FFAB /* SharingPermissionCategory.swift in Sources */,
+				DA1CECBB03D8A407B1467D98 /* SharingPreferences.swift in Sources */,
+				DAC35684943F20A84D48BF91 /* AppCalendar.swift in Sources */,
+				DAD27BA7186AA8858E25DD43 /* RepositoryProtocol.swift in Sources */,
+				DAFD1BD1FBEBC51F5948EA8A /* SaveCoordinator.swift in Sources */,
+				DAB9ECB34B43A8B9FF853A98 /* String+Extensions.swift in Sources */,
+				DA352C4EF69599B10DC1BCF8 /* UIConstants.swift in Sources */,
+				DAAD99A3A03A6404005D4FA8 /* StudentModel.swift in Sources */,
+				DAC74BFE466A3805601FD363 /* DocumentEntity.swift in Sources */,
+				DA51602210037380301B0B85 /* AppErrorMessages.swift in Sources */,
+				DAE6A1DD965DBE18B12197DB /* MariasNotebook.xcdatamodeld in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -575,6 +768,78 @@
 			};
 			name = Release;
 		};
+		DA5C5BC97B103C5B3939F2E4 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ASSETCATALOG_COMPILER_GENERATE_SWIFT_ASSET_SYMBOL_EXTENSIONS = YES;
+				CODE_SIGN_ENTITLEMENTS = "Daybook Assistant/DaybookAssistant.entitlements";
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				DEVELOPMENT_TEAM = ES2X5ZSG9W;
+				ENABLE_PREVIEWS = YES;
+				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_FILE = "Daybook Assistant/Info.plist";
+				INFOPLIST_KEY_CFBundleDisplayName = "Daybook Assistant";
+				INFOPLIST_KEY_ITSAppUsesNonExemptEncryption = NO;
+				INFOPLIST_KEY_LSApplicationCategoryType = "public.app-category.education";
+				INFOPLIST_KEY_NSHumanReadableCopyright = "Copyright © 2026 Daniel De Berry. All rights reserved.";
+				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
+				INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents = YES;
+				INFOPLIST_KEY_UIStatusBarStyle = UIStatusBarStyleDefault;
+				IPHONEOS_DEPLOYMENT_TARGET = 26.0;
+				LD_RUNPATH_SEARCH_PATHS = "@executable_path/Frameworks";
+				MARKETING_VERSION = 0.1;
+				PRODUCT_BUNDLE_IDENTIFIER = DanielSDeBerry.MariasNoteBook.Assistant;
+				PRODUCT_NAME = "Daybook Assistant";
+				SDKROOT = iphoneos;
+				SUPPORTED_PLATFORMS = "iphoneos iphonesimulator";
+				SUPPORTS_MACCATALYST = NO;
+				SWIFT_ACTIVE_COMPILATION_CONDITIONS = "ASSISTANT_APP $(inherited)";
+				SWIFT_APPROACHABLE_CONCURRENCY = YES;
+				SWIFT_EMIT_LOC_STRINGS = YES;
+				SWIFT_STRICT_CONCURRENCY = complete;
+				SWIFT_UPCOMING_FEATURE_MEMBER_IMPORT_VISIBILITY = YES;
+				SWIFT_VERSION = 6.0;
+				TARGETED_DEVICE_FAMILY = "1,2";
+			};
+			name = Release;
+		};
+		DAFDB2317501480E31760A6B /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ASSETCATALOG_COMPILER_GENERATE_SWIFT_ASSET_SYMBOL_EXTENSIONS = YES;
+				CODE_SIGN_ENTITLEMENTS = "Daybook Assistant/DaybookAssistant.entitlements";
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				DEVELOPMENT_TEAM = ES2X5ZSG9W;
+				ENABLE_PREVIEWS = YES;
+				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_FILE = "Daybook Assistant/Info.plist";
+				INFOPLIST_KEY_CFBundleDisplayName = "Daybook Assistant";
+				INFOPLIST_KEY_ITSAppUsesNonExemptEncryption = NO;
+				INFOPLIST_KEY_LSApplicationCategoryType = "public.app-category.education";
+				INFOPLIST_KEY_NSHumanReadableCopyright = "Copyright © 2026 Daniel De Berry. All rights reserved.";
+				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
+				INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents = YES;
+				INFOPLIST_KEY_UIStatusBarStyle = UIStatusBarStyleDefault;
+				IPHONEOS_DEPLOYMENT_TARGET = 26.0;
+				LD_RUNPATH_SEARCH_PATHS = "@executable_path/Frameworks";
+				MARKETING_VERSION = 0.1;
+				PRODUCT_BUNDLE_IDENTIFIER = DanielSDeBerry.MariasNoteBook.Assistant;
+				PRODUCT_NAME = "Daybook Assistant";
+				SDKROOT = iphoneos;
+				SUPPORTED_PLATFORMS = "iphoneos iphonesimulator";
+				SUPPORTS_MACCATALYST = NO;
+				SWIFT_ACTIVE_COMPILATION_CONDITIONS = "DEBUG ASSISTANT_APP $(inherited)";
+				SWIFT_APPROACHABLE_CONCURRENCY = YES;
+				SWIFT_EMIT_LOC_STRINGS = YES;
+				SWIFT_STRICT_CONCURRENCY = complete;
+				SWIFT_UPCOMING_FEATURE_MEMBER_IMPORT_VISIBILITY = YES;
+				SWIFT_VERSION = 6.0;
+				TARGETED_DEVICE_FAMILY = "1,2";
+			};
+			name = Debug;
+		};
 /* End XCBuildConfiguration section */
 
 /* Begin XCConfigurationList section */
@@ -605,7 +870,30 @@
 			defaultConfigurationIsVisible = 0;
 			defaultConfigurationName = Release;
 		};
+		DA49A513989D1FB618E62952 /* Build configuration list for PBXNativeTarget "Daybook Assistant" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				DAFDB2317501480E31760A6B /* Debug */,
+				DA5C5BC97B103C5B3939F2E4 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
 /* End XCConfigurationList section */
+
+/* Begin XCVersionGroup section */
+		DA50D6010603DBA9AFE62598 /* MariasNotebook.xcdatamodeld */ = {
+			isa = XCVersionGroup;
+			children = (
+				DA6503C3D85AC2C51E58119B /* MariasNotebook 2.xcdatamodel */,
+			);
+			currentVersion = DA6503C3D85AC2C51E58119B /* MariasNotebook 2.xcdatamodel */;
+			name = MariasNotebook.xcdatamodeld;
+			path = "Maria's Notebook/MariasNotebook.xcdatamodeld";
+			sourceTree = SOURCE_ROOT;
+			versionGroupType = wrapper.xcdatamodel;
+		};
+/* End XCVersionGroup section */
 	};
 	rootObject = 5141E7ED2ED77B0F004F918F /* Project object */;
 }

@@ -89,9 +89,14 @@ final class ClassroomSharingService {
         currentShare = share
         isSharing = share != nil
 
+        // Attaching orphaned records to the share zone is the owner's job. The
+        // assistant's device owns no share — everything it sees arrives through
+        // one it accepted — so the companion app leaves this out entirely.
+        #if !ASSISTANT_APP
         if !wasSharing, isSharing, let stack = coreDataStack {
             Task { await SharedStoreZoneRepair.runIfNeeded(coreDataStack: stack) }
         }
+        #endif
     }
 
     // MARK: - Share Lifecycle
@@ -136,9 +141,14 @@ final class ClassroomSharingService {
         currentShare = found
         isSharing = found != nil
 
+        // Attaching orphaned records to the share zone is the owner's job. The
+        // assistant's device owns no share — everything it sees arrives through
+        // one it accepted — so the companion app leaves this out entirely.
+        #if !ASSISTANT_APP
         if !wasSharing, isSharing, let stack = coreDataStack {
             Task { await SharedStoreZoneRepair.runIfNeeded(coreDataStack: stack) }
         }
+        #endif
 
         return found
     }
