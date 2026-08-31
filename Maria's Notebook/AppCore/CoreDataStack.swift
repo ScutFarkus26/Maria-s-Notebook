@@ -195,6 +195,31 @@ final class CoreDataStack {
         "AlbumPageInk"
     ]
 
+    /// Entities left in the model on purpose, belonging to no store.
+    ///
+    /// These are the Transition Planner, Work Cycle, Prep Checklist and
+    /// Initiative features, removed end to end on 2026-06-11. No Swift code
+    /// references their `CD*` classes, so nothing reads or writes them.
+    ///
+    /// They stay in the model deliberately. The CloudKit schema is
+    /// additive-only, and dropping entities from a mirrored model forces
+    /// re-mirroring — the route to the "empty database on launch" failure.
+    /// Dormant schema is the cheaper of the two.
+    ///
+    /// Reviving one of these features means deleting its name from here and
+    /// routing it properly; `Phase8PreTests` fails if a name is in both this
+    /// set and a routing list.
+    nonisolated static let dormantTombstoneEntities: Set<String> = [
+        "Initiative",
+        "PrepChecklist",
+        "PrepChecklistCompletion",
+        "PrepChecklistItem",
+        "TransitionChecklistItem",
+        "TransitionPlan",
+        "WorkCycleEntry",
+        "WorkCycleSession"
+    ]
+
     // MARK: - Store URLs
 
     /// Directory for Core Data store files.
@@ -646,9 +671,20 @@ final class CoreDataStack {
             logger.warning("Entity routing references entities not in model: \(missingFromModel)")
         }
 
-        let unrouted = modelEntityNames.subtracting(routedNames)
+        // Warn only about the unexpected. Warning about the known tombstones on
+        // every launch trained everyone to scroll past the message, which is the
+        // opposite of what a tripwire is for — and it reads as a data-loss
+        // scare to anyone meeting it for the first time.
+        let unrouted = modelEntityNames
+            .subtracting(routedNames)
+            .subtracting(dormantTombstoneEntities)
         if !unrouted.isEmpty {
             logger.warning("Model entities not assigned to any store: \(unrouted)")
+        }
+
+        let missingTombstones = dormantTombstoneEntities.subtracting(modelEntityNames)
+        if !missingTombstones.isEmpty {
+            logger.warning("Tombstone entities no longer in the model — prune the list: \(missingTombstones)")
         }
     }
 

@@ -29,19 +29,12 @@ final class Phase8PreTests {
 
     // MARK: - Entity Routing Baseline
 
-    /// Tombstone entities (2026-06-11): these belong to features Danny removed
-    /// end-to-end (Transition Planner, Work Cycle, Prep Checklists, Initiatives).
-    /// No code references their CD* classes. They stay in the Core Data model
-    /// because the CloudKit schema is additive-only — removing entities triggers
-    /// re-mirroring and the "empty DB on launch" bug — and they are intentionally
-    /// routed to NO store. If one of these names ever becomes routed again
-    /// (feature revived), the test below flags it so this list gets pruned.
-    private static let knownUnroutedEntities: Set<String> = [
-        "WorkCycleSession", "WorkCycleEntry",
-        "PrepChecklist", "PrepChecklistItem", "PrepChecklistCompletion",
-        "TransitionPlan", "TransitionChecklistItem",
-        "Initiative"
-    ]
+    /// The tombstones now live beside the routing lists they are an exception
+    /// to, so the launch-time check and this test cannot drift apart. See
+    /// `CoreDataStack.dormantTombstoneEntities` for why they stay in the model.
+    private static var knownUnroutedEntities: Set<String> {
+        CoreDataStack.dormantTombstoneEntities
+    }
 
     @Test("Every model entity is routed to exactly one store")
     func allModelEntitiesAreRouted() throws {

@@ -47,16 +47,9 @@ final class BackupCoverageTests {
     /// CoreDataStack.sharedEntityNames/privateEntityNames (and back it up or
     /// add it to routedButIntentionallyNotBackedUp) — or consciously add it
     /// here with a rationale. Removing one (by wiring it up) is the happy path.
-    private static let unroutedKnownDormant: Set<String> = [
-        "Initiative",
-        "PrepChecklist",
-        "PrepChecklistCompletion",
-        "PrepChecklistItem",
-        "TransitionPlan",
-        "TransitionChecklistItem",
-        "WorkCycleEntry",
-        "WorkCycleSession"
-    ]
+    private static var unroutedKnownDormant: Set<String> {
+        CoreDataStack.dormantTombstoneEntities
+    }
 
     private func makeContext() throws -> NSManagedObjectContext {
         try CoreDataTestHelpers.makeInMemoryStack().viewContext
