@@ -721,6 +721,8 @@
         <attribute name="statusRaw" attributeType="String" defaultValueString="unmarked"/>
         <attribute name="absenceReasonRaw" attributeType="String" defaultValueString="none"/>
         <attribute name="recordedBy" optional="YES" attributeType="String"/>
+        <attribute name="recordedByID" optional="YES" attributeType="String"/>
+        <attribute name="recordedByName" optional="YES" attributeType="String"/>
         <attribute name="modifiedAt" optional="YES" attributeType="Date" usesScalarValueType="NO"/>
         <fetchIndex name="byDate">
             <fetchIndexElement property="date" type="Binary" order="ascending"/>

@@ -58,6 +58,10 @@ struct CDAttendanceStore {
     /// Stamps attribution on a record that was just changed.
     private func stamp(_ record: CDAttendanceRecord) {
         record.recordedBy = role.rawValue
+        record.recordedByID = ClassroomIdentity.currentUserRecordName
+        // Only assistants carry a name: an unlabelled mark is the guide's own,
+        // and their own name on their own screen would be noise.
+        record.recordedByName = role == .assistant ? ClassroomIdentity.displayName : nil
         record.modifiedAt = Date()
     }
 

@@ -54,7 +54,10 @@ extension CoreDataStack {
     ///   write it, and the `AttendanceRecord.notes` ↔ `Note.attendanceRecord`
     ///   relationship is deleted (it would cross store configurations).
     ///   `Note.attendanceRecordID` is now the only link.
-    nonisolated static let currentSchemaVersion = 3
+    /// - `4` — `AttendanceRecord.recordedByID`/`recordedByName`: which person
+    ///   marked a record, not just which role. Two assistants both stamp
+    ///   "assistant", so the role alone stops answering the question.
+    nonisolated static let currentSchemaVersion = 4
 
     /// Store-metadata key holding the writing build's ``currentSchemaVersion``.
     nonisolated static let schemaVersionMetadataKey = "MNSchemaVersion"

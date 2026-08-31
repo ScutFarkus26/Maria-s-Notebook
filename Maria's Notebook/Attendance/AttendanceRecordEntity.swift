@@ -18,6 +18,12 @@ public class CDAttendanceRecord: NSManagedObject {
     @NSManaged public var absenceReasonRaw: String
     /// `ClassroomRole` rawValue of whoever last marked this record (lead guide or assistant).
     @NSManaged public var recordedBy: String?
+    /// Stable CloudKit user record name of the person who last marked this.
+    /// The role alone can't separate one assistant from another.
+    @NSManaged public var recordedByID: String?
+    /// What that person calls themselves, captured on their own device —
+    /// CloudKit withholds your own name from you, so it cannot be looked up.
+    @NSManaged public var recordedByName: String?
     @NSManaged public var modifiedAt: Date?
 
     // MARK: - Convenience Initializer

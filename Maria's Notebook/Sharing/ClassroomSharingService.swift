@@ -158,6 +158,9 @@ final class ClassroomSharingService {
         let share = try fetchExistingShare()
         participants = share?.participants.map { $0 } ?? []
         currentUserRecordName = share?.currentUserParticipant?.userIdentity.userRecordID?.recordName
+        if let currentUserRecordName {
+            ClassroomIdentity.currentUserRecordName = currentUserRecordName
+        }
     }
 
     /// Accepts an incoming share invitation.

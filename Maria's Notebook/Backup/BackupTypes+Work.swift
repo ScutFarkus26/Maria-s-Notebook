@@ -150,6 +150,8 @@ public struct AttendanceRecordDTO: Codable, Sendable {
     public var absenceReason: String?
     // Attribution (optional for compatibility with backups that predate it).
     public var recordedBy: String?
+    public var recordedByID: String?
+    public var recordedByName: String?
     public var modifiedAt: Date?
 
     public init(
@@ -159,6 +161,8 @@ public struct AttendanceRecordDTO: Codable, Sendable {
         status: String,
         absenceReason: String? = nil,
         recordedBy: String? = nil,
+        recordedByID: String? = nil,
+        recordedByName: String? = nil,
         modifiedAt: Date? = nil
     ) {
         self.id = id
@@ -167,6 +171,8 @@ public struct AttendanceRecordDTO: Codable, Sendable {
         self.status = status
         self.absenceReason = absenceReason
         self.recordedBy = recordedBy
+        self.recordedByID = recordedByID
+        self.recordedByName = recordedByName
         self.modifiedAt = modifiedAt
     }
 }

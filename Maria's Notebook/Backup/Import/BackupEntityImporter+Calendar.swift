@@ -56,6 +56,8 @@ extension BackupEntityImporter {
                 record.statusRaw = status.rawValue
                 record.absenceReasonRaw = absenceReason.rawValue
                 record.recordedBy = dto.recordedBy
+                record.recordedByID = dto.recordedByID
+                record.recordedByName = dto.recordedByName
                 record.modifiedAt = dto.modifiedAt
                 return record
             }

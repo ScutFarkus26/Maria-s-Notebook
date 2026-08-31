@@ -28,6 +28,24 @@ struct AttendanceCard: View {
 
     private var statusLabel: String { status.displayName }
 
+    /// Who marked this, shown only when it wasn't you. Your own marks carry no
+    /// name — labelling every one of them would bury the handful that came
+    /// from someone else, which is the only case worth reading.
+    @ViewBuilder
+    private var markedByLabel: some View {
+        if let name = record?.recordedByName?.trimmed(), !name.isEmpty {
+            HStack(spacing: 3) {
+                Image(systemName: "person.crop.circle")
+                Text(name)
+                    .lineLimit(1)
+                    .truncationMode(.tail)
+            }
+            .font(AppTheme.ScaledFont.captionSmall)
+            .foregroundStyle(.secondary)
+            .accessibilityLabel("Marked by \(name)")
+        }
+    }
+
     private var displayName: String {
         let first = student.firstName
         let key = first.trimmed().lowercased()
@@ -103,6 +121,8 @@ struct AttendanceCard: View {
             removal: .move(edge: .top).combined(with: .opacity)
         ))
         .adaptiveAnimation(.bouncy(duration: 0.3, extraBounce: 0.2), value: status)
+
+        markedByLabel
 
         // Clicking the note opens the editor only if editing, otherwise static display
         if hasNote {
@@ -213,6 +233,8 @@ struct AttendanceCard: View {
                             .foregroundStyle(accentColor)
                     }
                 }
+
+                markedByLabel
             }
 
             Spacer(minLength: 0)

@@ -11,6 +11,7 @@ struct AssistantAttendanceView: View {
     let coreDataStack: CoreDataStack
 
     @State private var viewModel: AssistantAttendanceViewModel?
+    @State private var showingNameSheet = false
 
     var body: some View {
         NavigationStack {
@@ -24,6 +25,15 @@ struct AssistantAttendanceView: View {
             .navigationTitle("Attendance")
             .toolbarTitleDisplayMode(.inline)
             .toolbar {
+                ToolbarItem(placement: .topBarTrailing) {
+                    Button {
+                        showingNameSheet = true
+                    } label: {
+                        Label(ClassroomIdentity.displayName ?? "Your name", systemImage: "person.crop.circle")
+                            .labelStyle(.iconOnly)
+                    }
+                    .accessibilityLabel("Your name")
+                }
                 ToolbarItem(placement: .principal) {
                     VStack(spacing: 1) {
                         Text("Attendance").font(.headline)
@@ -40,7 +50,13 @@ struct AssistantAttendanceView: View {
                     .background(.bar)
             }
         }
+        .sheet(isPresented: $showingNameSheet) {
+            AssistantNameSheet()
+        }
         .task {
+            // Ask once, on the first run after joining, rather than letting a
+            // term's marks accumulate under no name at all.
+            if ClassroomIdentity.displayName == nil { showingNameSheet = true }
             if viewModel == nil {
                 let model = AssistantAttendanceViewModel(context: coreDataStack.viewContext)
                 model.load()

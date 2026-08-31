@@ -150,6 +150,8 @@ enum BackupServiceHelpers {
                 status: a.status.rawValue,
                 absenceReason: a.absenceReason.rawValue == "none" ? nil : a.absenceReason.rawValue,
                 recordedBy: a.recordedBy,
+                recordedByID: a.recordedByID,
+                recordedByName: a.recordedByName,
                 modifiedAt: a.modifiedAt
             )
         }

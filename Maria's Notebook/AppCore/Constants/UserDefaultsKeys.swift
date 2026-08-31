@@ -144,6 +144,8 @@ enum UserDefaultsKeys {
     static let classroomStoreMigrationV1Complete = "ClassroomStoreMigration.v1.completed"
 
     // MARK: - Shared Store Sync Repair
+    static let classroomIdentityRecordName = "ClassroomIdentity.userRecordName"
+    static let classroomIdentityDisplayName = "ClassroomIdentity.displayName"
     static let sharedStoreZoneRepairLastTimeoutAt = "SharedStoreZoneRepair.lastTimeoutAt"
 
     /// One-shot flag the user sets via Settings → Database → "Reset Local

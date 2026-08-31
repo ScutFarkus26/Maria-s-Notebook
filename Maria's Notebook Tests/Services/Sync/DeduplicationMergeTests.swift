@@ -422,3 +422,62 @@ struct ClassroomMembershipRoutingTests {
         #expect(membership.objectID.persistentStore?.configurationName == CoreDataStack.privateConfiguration)
     }
 }
+
+@Suite("Attendance attribution", .serialized)
+@MainActor
+struct AttendanceAttributionTests {
+
+    private func withIdentity(
+        recordName: String?,
+        displayName: String?,
+        _ body: () throws -> Void
+    ) rethrows {
+        let previousRecord = ClassroomIdentity.currentUserRecordName
+        let previousName = ClassroomIdentity.displayName
+        ClassroomIdentity.currentUserRecordName = recordName
+        ClassroomIdentity.displayName = displayName
+        defer {
+            ClassroomIdentity.currentUserRecordName = previousRecord
+            ClassroomIdentity.displayName = previousName
+        }
+        try body()
+    }
+
+    /// Two assistants both stamp the role "assistant", so the role alone stops
+    /// answering "who marked this?" the moment there is more than one of them.
+    @Test("An assistant's mark carries who they are")
+    func assistantMarkIsAttributed() throws {
+        try withIdentity(recordName: "_abc123", displayName: "Rivka") {
+            let ctx = try CoreDataTestHelpers.makeInMemoryStack().viewContext
+            let student = CoreDataTestHelpers.seedStudent(in: ctx, firstName: "Etty", lastName: "Rosenberg")
+            student.id = UUID()
+
+            let store = CDAttendanceStore(context: ctx, role: .assistant)
+            let record = try #require(try store.ensureRecord(for: student, on: Date()))
+            _ = store.updateStatus(record, to: .present)
+
+            #expect(record.recordedBy == "assistant")
+            #expect(record.recordedByID == "_abc123")
+            #expect(record.recordedByName == "Rivka")
+        }
+    }
+
+    /// The guide's own marks stay unlabelled: naming every one of them would
+    /// bury the few that came from someone else.
+    @Test("A lead guide's mark carries no name")
+    func leadGuideMarkIsUnlabelled() throws {
+        try withIdentity(recordName: "_owner", displayName: "Danny") {
+            let ctx = try CoreDataTestHelpers.makeInMemoryStack().viewContext
+            let student = CoreDataTestHelpers.seedStudent(in: ctx, firstName: "Sarah", lastName: "Klein")
+            student.id = UUID()
+
+            let store = CDAttendanceStore(context: ctx, role: .leadGuide)
+            let record = try #require(try store.ensureRecord(for: student, on: Date()))
+            _ = store.updateStatus(record, to: .present)
+
+            #expect(record.recordedBy == "leadGuide")
+            #expect(record.recordedByID == "_owner")
+            #expect(record.recordedByName == nil)
+        }
+    }
+}
