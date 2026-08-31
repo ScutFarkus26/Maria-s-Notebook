@@ -11,6 +11,32 @@ enum CoreDataTestHelpers {
         try CoreDataStack(enableCloudKit: false, inMemory: true)
     }
 
+    /// A context backed by two on-disk stores carrying the real Private and
+    /// Shared configurations.
+    ///
+    /// `makeInMemoryStack` uses the unified single-store layout, where every
+    /// entity has exactly one home and nothing has to be disambiguated. Store
+    /// routing only becomes a question when both stores can hold a classroom
+    /// entity, which is the shape this builds. Private is added first, matching
+    /// production — so a test that forgets to assign still lands there.
+    static func makeSplitStoreContext() throws -> NSManagedObjectContext {
+        let model = try CoreDataStack.sharedModel()
+        let coordinator = NSPersistentStoreCoordinator(managedObjectModel: model)
+        let dir = URL(fileURLWithPath: NSTemporaryDirectory())
+            .appendingPathComponent(UUID().uuidString, isDirectory: true)
+        try FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
+        for configuration in [CoreDataStack.privateConfiguration, CoreDataStack.sharedConfiguration] {
+            try coordinator.addPersistentStore(
+                type: .sqlite,
+                configuration: configuration,
+                at: dir.appendingPathComponent("\(configuration).sqlite")
+            )
+        }
+        let context = NSManagedObjectContext(concurrencyType: .mainQueueConcurrencyType)
+        context.persistentStoreCoordinator = coordinator
+        return context
+    }
+
     /// Creates AppDependencies backed by an in-memory store.
     static func makeDependencies() throws -> AppDependencies {
         try AppDependencies.makeTest()

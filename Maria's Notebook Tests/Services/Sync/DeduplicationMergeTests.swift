@@ -356,3 +356,46 @@ final class DeduplicationMergeTests {
         #expect(ctx.safeFetch(CDFetchRequest(CDStudent.self)).count == 1)
     }
 }
+
+// MARK: - Store Routing
+
+@Suite("Attendance store routing")
+@MainActor
+struct AttendanceStoreRoutingTests {
+
+    /// Classroom entities live in both configurations, so a new record has two
+    /// candidate stores and Core Data picks the first one added unless told
+    /// otherwise. An assistant's marks landing in her own private store would
+    /// sync to her own CloudKit database and never reach the guide.
+    @Test("An assistant's new record is assigned to the shared store")
+    func assistantWritesToSharedStore() throws {
+        let ctx = try CoreDataTestHelpers.makeSplitStoreContext()
+
+        let student = CDStudent(context: ctx)
+        student.id = UUID()
+        student.firstName = "Etty"
+        student.lastName = "Rosenberg"
+
+        let store = CDAttendanceStore(context: ctx, role: .assistant)
+        let record = try #require(try store.ensureRecord(for: student, on: Date()))
+        #expect(CoreDataTestHelpers.save(ctx))
+
+        #expect(record.objectID.persistentStore?.configurationName == CoreDataStack.sharedConfiguration)
+    }
+
+    @Test("A lead guide's new record is assigned to the private store")
+    func leadGuideWritesToPrivateStore() throws {
+        let ctx = try CoreDataTestHelpers.makeSplitStoreContext()
+
+        let student = CDStudent(context: ctx)
+        student.id = UUID()
+        student.firstName = "Sarah"
+        student.lastName = "Klein"
+
+        let store = CDAttendanceStore(context: ctx, role: .leadGuide)
+        let record = try #require(try store.ensureRecord(for: student, on: Date()))
+        #expect(CoreDataTestHelpers.save(ctx))
+
+        #expect(record.objectID.persistentStore?.configurationName == CoreDataStack.privateConfiguration)
+    }
+}

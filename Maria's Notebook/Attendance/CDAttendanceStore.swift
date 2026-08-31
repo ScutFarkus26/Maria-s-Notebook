@@ -34,6 +34,27 @@ struct CDAttendanceStore {
         ClassroomPermissions.canWrite(entityName: "AttendanceRecord", role: role)
     }
 
+    /// The store a newly created record belongs in.
+    ///
+    /// Classroom entities live in *both* store configurations, which is what
+    /// makes the two-store sharing pattern work — but it also means Core Data
+    /// has two candidates for a new record and, absent an explicit assignment,
+    /// silently picks the first store added: the private one.
+    ///
+    /// On the guide's device that happens to be right. On the assistant's it is
+    /// exactly wrong: her private store is her own CloudKit database, so her
+    /// marks would sync nowhere the guide can see and simply never arrive.
+    /// Returns nil in single-store (local/in-memory) setups, where there is
+    /// nothing to disambiguate.
+    private var destinationStore: NSPersistentStore? {
+        guard let coordinator = context.persistentStoreCoordinator,
+              coordinator.persistentStores.count > 1 else { return nil }
+        let wanted = role == .assistant
+            ? CoreDataStack.sharedConfiguration
+            : CoreDataStack.privateConfiguration
+        return coordinator.persistentStores.first { $0.configurationName == wanted }
+    }
+
     /// Stamps attribution on a record that was just changed.
     private func stamp(_ record: CDAttendanceRecord) {
         record.recordedBy = role.rawValue
@@ -69,6 +90,9 @@ struct CDAttendanceStore {
             return winner
         }
         let rec = CDAttendanceRecord(context: context)
+        if let store = destinationStore {
+            context.assign(rec, to: store)
+        }
         rec.studentID = key
         rec.date = day
         rec.status = .unmarked
