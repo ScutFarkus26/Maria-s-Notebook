@@ -82,7 +82,7 @@ final class SharedStoreZoneRepair {
     /// button, call `runManual` instead.
     static func runIfNeeded(coreDataStack: CoreDataStack) async {
         guard !isCircuitBreakerOpen else {
-            shared.logger.info("SharedStoreZoneRepair: circuit breaker open, skipping auto-run")
+            shared.logger.notice("SharedStoreZoneRepair: circuit breaker open, skipping auto-run")
             return
         }
         await shared.run(coreDataStack: coreDataStack)
@@ -94,6 +94,25 @@ final class SharedStoreZoneRepair {
     func runManual(coreDataStack: CoreDataStack) async {
         Self.resetCircuitBreaker()
         await run(coreDataStack: coreDataStack)
+    }
+
+    /// Recounts records still waiting to move, without attaching anything.
+    /// Cheap enough to call whenever the sharing screen appears or ticks, and
+    /// it distinguishes "nothing left" from "never checked" — `lastRunAt`
+    /// stays nil until a real pass has run.
+    func refreshCounts(coreDataStack: CoreDataStack) {
+        guard coreDataStack.isCloudKitActive,
+              let store = coreDataStack.privatePersistentStore,
+              !repairInProgress else { return }
+        let scope = RepairScope(
+            entityNames: CoreDataStack.sharedEntityNames.sorted(),
+            store: store,
+            context: coreDataStack.viewContext,
+            container: coreDataStack.container
+        )
+        let (orphans, perEntity) = collectOrphans(in: scope)
+        orphanCount = orphans.count
+        orphansByEntity = perEntity
     }
 
     private var logger: Logger { Self.logger }
@@ -146,6 +165,7 @@ final class SharedStoreZoneRepair {
         guard !orphans.isEmpty else {
             lastUnrecoverableOrphans = []
             hasActiveShare = (try? container.fetchShares(in: store).first) != nil
+            Self.logger.notice("Zone repair pass: nothing to attach, 0 records waiting")
             return
         }
 
@@ -222,7 +242,7 @@ final class SharedStoreZoneRepair {
         let chunkSize = 200
         let orphanIDs = orphans.map(\.objectID)
         let attachMsg = "Attaching \(orphanIDs.count) orphan record(s) in chunks of \(chunkSize)"
-        Self.logger.info("\(attachMsg, privacy: .public)")
+        Self.logger.notice("\(attachMsg, privacy: .public)")
 
         var failures: [NSManagedObjectID] = []
         var successCount = 0
@@ -237,7 +257,7 @@ final class SharedStoreZoneRepair {
                 successCount += chunkIDs.count
                 let chunkMsg = "Chunk \(chunkIndex + 1)/\(chunkCount): attached \(chunkIDs.count)" +
                     " record(s) (running total: \(successCount)/\(orphanIDs.count))"
-                Self.logger.info("\(chunkMsg, privacy: .public)")
+                Self.logger.notice("\(chunkMsg, privacy: .public)")
                 await Task.yield()
                 continue
             } catch {
@@ -277,7 +297,7 @@ final class SharedStoreZoneRepair {
         }
 
         let completeMsg = "Orphan attachment complete: \(successCount) succeeded, \(failures.count) unrecoverable"
-        Self.logger.info("\(completeMsg, privacy: .public)")
+        Self.logger.notice("\(completeMsg, privacy: .public)")
         return failures
     }
 

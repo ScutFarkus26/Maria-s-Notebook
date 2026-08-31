@@ -24,6 +24,7 @@ struct ClassroomSharingView: View {
     var body: some View {
         VStack(spacing: 12) {
             syncStatusBanner
+            moveProgressCard
             roleGroup
             membersGroup
             actionsGroup
@@ -41,8 +42,61 @@ struct ClassroomSharingView: View {
             sharingService = svc
             try? svc.refreshParticipants()
         }
+        .task {
+            // Recount while this screen is open. The repair pass only updates
+            // its own figures when it runs, so without this the card would sit
+            // on a stale number through a multi-minute move.
+            while !Task.isCancelled {
+                zoneRepair.refreshCounts(coreDataStack: dependencies.coreDataStack)
+                try? await Task.sleep(for: .seconds(5))
+            }
+        }
         .sheet(isPresented: $showingUnrecoverableSheet) {
             unrecoverableOrphansSheet
+        }
+    }
+
+    // MARK: - Move Progress
+
+    /// Plain-language progress for the one-off move of records into the shared
+    /// area. `lastRunAt` is what separates "nothing left" from "not yet
+    /// checked" — the count alone reads as zero in both cases.
+    @ViewBuilder
+    private var moveProgressCard: some View {
+        if service?.currentRole == .leadGuide {
+            let waiting = zoneRepair.orphanCount
+            let checked = zoneRepair.lastRunAt != nil
+            if zoneRepair.repairInProgress {
+                bannerCard(
+                    icon: "arrow.triangle.2.circlepath",
+                    tint: .blue,
+                    title: waiting > 0
+                        ? "Moving records — \(waiting) to go"
+                        : "Moving records…",
+                    body: "Keep the app open and on Wi-Fi. This runs in the background and only has to happen once on this device."
+                )
+            } else if waiting > 0 {
+                bannerCard(
+                    icon: "clock.fill",
+                    tint: .orange,
+                    title: "\(waiting) record(s) still to move",
+                    body: "\(PlatformVerb.tap) Repair Sync Errors below to continue, then leave the app open for a few minutes."
+                )
+            } else if checked {
+                bannerCard(
+                    icon: "checkmark.circle.fill",
+                    tint: .green,
+                    title: "All records moved",
+                    body: "This device is finished. Attendance is in the shared area and ready for an assistant."
+                )
+            } else {
+                bannerCard(
+                    icon: "questionmark.circle.fill",
+                    tint: .secondary,
+                    title: "Not checked yet on this device",
+                    body: "\(PlatformVerb.tap) Repair Sync Errors below to check whether anything still has to move."
+                )
+            }
         }
     }
 
@@ -241,10 +295,22 @@ struct ClassroomSharingView: View {
     }
 
     private func participantName(_ participant: CKShare.Participant) -> String {
+        let isYou = participant.userIdentity.userRecordID?.recordName != nil
+            && participant.userIdentity.userRecordID?.recordName == service?.currentUserRecordName
+
         if let name = participant.userIdentity.nameComponents {
-            return PersonNameComponentsFormatter.localizedString(from: name, style: .default)
+            let formatted = PersonNameComponentsFormatter
+                .localizedString(from: name, style: .default)
+                .trimmed()
+            if !formatted.isEmpty {
+                return isYou ? "\(formatted) (you)" : formatted
+            }
         }
-        return "Unknown"
+
+        // CloudKit withholds your own name components entirely, and withholds
+        // an invitee's until they accept — so both rows would otherwise render
+        // blank and be impossible to tell apart.
+        return isYou ? "You" : "Name not shared"
     }
 
     private func participantStatus(_ participant: CKShare.Participant) -> String {

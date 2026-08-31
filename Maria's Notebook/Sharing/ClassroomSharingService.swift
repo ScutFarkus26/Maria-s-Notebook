@@ -24,6 +24,11 @@ final class ClassroomSharingService {
     private(set) var shareError: String?
     private(set) var currentShare: CKShare?
 
+    /// Record name of whoever is using this device, so the members list can
+    /// mark its own row. CloudKit withholds your own name components, which
+    /// otherwise leaves you as an anonymous entry in your own classroom.
+    private(set) var currentUserRecordName: String?
+
     // `@ObservationIgnored nonisolated(unsafe)` so deinit (which is
     // nonisolated by default on MainActor classes) can release the observer
     // token without crossing actor isolation. Mutation is confined to init.
@@ -142,6 +147,7 @@ final class ClassroomSharingService {
     func refreshParticipants() throws {
         let share = try fetchExistingShare()
         participants = share?.participants.map { $0 } ?? []
+        currentUserRecordName = share?.currentUserParticipant?.userIdentity.userRecordID?.recordName
     }
 
     /// Accepts an incoming share invitation.
