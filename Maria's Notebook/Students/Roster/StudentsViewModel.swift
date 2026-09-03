@@ -262,12 +262,15 @@ final class StudentsViewModel {
     }
     
     // MARK: - Computed Helpers
+    /// Students marked in the room today. Tardy counts as here — a late arrival is
+    /// still present — so this matches the Today header's "in" count. Left-early
+    /// students have gone home and are not counted.
     func presentNowIDs(from cachedRecords: [CDAttendanceRecord], calendar: Calendar) -> Set<UUID> {
         let today = calendar.startOfDay(for: Date())
-        let filtered = cachedRecords.filter { 
+        let filtered = cachedRecords.filter {
             guard let recDate = $0.date else { return false }
             let recordDay = calendar.startOfDay(for: recDate)
-            return recordDay == today && $0.status == .present
+            return recordDay == today && ($0.status == .present || $0.status == .tardy)
         }
         return Set(filtered.compactMap { UUID(uuidString: $0.studentID) })
     }

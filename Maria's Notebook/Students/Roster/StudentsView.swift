@@ -300,11 +300,19 @@ struct StudentsView: View {
     /// Called when SwiftData saves, so we detect inserts/deletes without materializing objects.
     private func refreshChangeTokens() {
         do {
+            // Marking attendance usually edits an existing row (unmarked → present),
+            // which leaves the count unchanged. Fold in the latest modifiedAt so a
+            // status flip also reloads the Here filter.
             let attendanceCount = try viewContext.count(
                 for: NSFetchRequest<CDAttendanceRecord>(entityName: "AttendanceRecord")
             )
-            if attendanceCount != attendanceChangeToken {
-                attendanceChangeToken = attendanceCount
+            let latestRequest = NSFetchRequest<CDAttendanceRecord>(entityName: "AttendanceRecord")
+            latestRequest.sortDescriptors = [NSSortDescriptor(key: "modifiedAt", ascending: false)]
+            latestRequest.fetchLimit = 1
+            let latestModified = try viewContext.fetch(latestRequest).first?.modifiedAt ?? .distantPast
+            let attendanceToken = attendanceCount &+ Int(latestModified.timeIntervalSince1970 * 1000)
+            if attendanceToken != attendanceChangeToken {
+                attendanceChangeToken = attendanceToken
             }
             let presentationCount = try viewContext.count(
                 for: NSFetchRequest<CDLessonAssignment>(entityName: "LessonAssignment")
