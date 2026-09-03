@@ -27,7 +27,6 @@ final class AppRouter {
         case importStudents
         case createBackup
         case restoreBackup
-        case newWork
         case openAttendance
         case openStudentDetail(UUID)
         case backfillIsPresented
@@ -41,7 +40,6 @@ final class AppRouter {
             case .importStudents: return "importStudents"
             case .createBackup: return "createBackup"
             case .restoreBackup: return "restoreBackup"
-            case .newWork: return "newWork"
             case .openAttendance: return "openAttendance"
             case .openStudentDetail(let id): return "openStudentDetail_\(id.uuidString)"
             case .backfillIsPresented: return "backfillIsPresented"
@@ -211,9 +209,11 @@ final class AppRouter {
         navigationDestination = .restoreBackup
     }
     
-    /// Request to show new work
+    /// Request to show the new-work sheet. RootView owns that sheet, so this
+    /// goes through the same trigger the Today `+` menu uses rather than a
+    /// navigation destination nobody presents.
     func requestNewWork() {
-        navigationDestination = .newWork
+        triggerNewWorkItem = true
     }
 
     /// Request to open student detail

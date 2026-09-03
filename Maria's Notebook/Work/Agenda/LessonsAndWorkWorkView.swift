@@ -47,10 +47,15 @@ struct LessonsAndWorkWorkView: View {
     @Binding var visibleKinds: Set<WorkKind>
     let onOpenWork: (CDWorkModel) -> Void
     let onMarkCompleted: (CDWorkModel) -> Void
-    let onScheduleToday: (CDWorkModel) -> Void
+    /// Puts a work item on a day to be checked. The day is the caller's — this
+    /// half names today, tomorrow, and whatever the calendar returns.
+    let onSchedule: (CDWorkModel, Date) -> Void
     /// Re-triages the workspace after a deletion, so the pill counts and the
     /// pinned calendar drop the record in the same pass.
     let onDeleted: () -> Void
+
+    /// Whether the selection bar's calendar is up.
+    @State private var isPickingCheckDay = false
 
     #if !os(macOS)
     @Environment(\.horizontalSizeClass) private var horizontalSizeClass
@@ -130,9 +135,25 @@ struct LessonsAndWorkWorkView: View {
             #endif
             Divider()
             WorkspaceSelectionBar(selection: selection, noun: "work item") {
-                Button("Schedule Today") { applyToSelection(onScheduleToday) }
+                Button("Schedule Today") { schedule(on: AppCalendar.startOfDay(Date())) }
                     .buttonStyle(.borderedProminent)
                     .controlSize(.small)
+                // Today was the only day this bar could name. Dragging reaches
+                // the others, but only the handful the strip below is showing.
+                Button("Another Day…") { isPickingCheckDay = true }
+                    .buttonStyle(.bordered)
+                    .controlSize(.small)
+                    .popover(isPresented: $isPickingCheckDay) {
+                        WorkCheckDayPicker(count: selection.count) { day in
+                            // Dismissed before the write: scheduling empties
+                            // the selection, and the bar this popover hangs
+                            // off goes with it.
+                            isPickingCheckDay = false
+                            schedule(on: day)
+                        } onCancel: {
+                            isPickingCheckDay = false
+                        }
+                    }
                 Button("Mark Completed") { applyToSelection(onMarkCompleted) }
                     .buttonStyle(.bordered)
                     .controlSize(.small)
@@ -163,7 +184,7 @@ struct LessonsAndWorkWorkView: View {
                 selection: selection,
                 onOpen: onOpenWork,
                 onMarkCompleted: onMarkCompleted,
-                onScheduleToday: onScheduleToday,
+                onSchedule: onSchedule,
                 onDeleted: onDeleted
             )
         }
@@ -193,6 +214,11 @@ struct LessonsAndWorkWorkView: View {
     }
 
     // MARK: - Bulk actions
+
+    /// Puts every selected item on one day to be checked.
+    private func schedule(on day: Date) {
+        applyToSelection { onSchedule($0, day) }
+    }
 
     /// Runs a per-item action across the selection, then lets it go — the
     /// selected cards have either moved to another pill or left the list.

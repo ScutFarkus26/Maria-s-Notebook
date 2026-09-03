@@ -17,6 +17,7 @@
 		DA51602210037380301B0B85 /* AppErrorMessages.swift in Sources */ = {isa = PBXBuildFile; fileRef = DA9BCA099D416538E15471B5 /* AppErrorMessages.swift */; };
 		DA58A879F09CBF23DFB1BB96 /* CoreDataStack.swift in Sources */ = {isa = PBXBuildFile; fileRef = DA7737014313A0622D0B7569 /* CoreDataStack.swift */; };
 		DA601CA3998CD10B1685C417 /* AttendanceModels.swift in Sources */ = {isa = PBXBuildFile; fileRef = DA28F51BB683F0DDC5138A7E /* AttendanceModels.swift */; };
+		DA77FCCADCA5FB5356650C93 /* ClassroomIdentity.swift in Sources */ = {isa = PBXBuildFile; fileRef = DAD7DACCCD304189540F19AF /* ClassroomIdentity.swift */; };
 		DA7BAB76B78FE330CB3240BB /* ClassroomSharingService.swift in Sources */ = {isa = PBXBuildFile; fileRef = DA2E02B9BE132A52523B4794 /* ClassroomSharingService.swift */; };
 		DA7D2FCC78D048AAA0D915E2 /* ClassroomPermissions.swift in Sources */ = {isa = PBXBuildFile; fileRef = DAC0BE10B161EC5086F86A98 /* ClassroomPermissions.swift */; };
 		DA7F870A08077490BED3589E /* ClassroomMembershipEntity.swift in Sources */ = {isa = PBXBuildFile; fileRef = DAA256BA27C74AEF2E0888A8 /* ClassroomMembershipEntity.swift */; };
@@ -37,7 +38,6 @@
 		DAE1A32F8081BE03784E8A02 /* CloudKitConfigurationService.swift in Sources */ = {isa = PBXBuildFile; fileRef = DA1A46BC25E7671E6710BDA4 /* CloudKitConfigurationService.swift */; };
 		DAE6A1DD965DBE18B12197DB /* MariasNotebook.xcdatamodeld in Sources */ = {isa = PBXBuildFile; fileRef = DA50D6010603DBA9AFE62598 /* MariasNotebook.xcdatamodeld */; };
 		DAFD1BD1FBEBC51F5948EA8A /* SaveCoordinator.swift in Sources */ = {isa = PBXBuildFile; fileRef = DA11A2430630D5E6426CD0F8 /* SaveCoordinator.swift */; };
-		DA77FCCADCA5FB5356650C93 /* ClassroomIdentity.swift in Sources */ = {isa = PBXBuildFile; fileRef = DAD7DACCCD304189540F19AF /* ClassroomIdentity.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -81,11 +81,11 @@
 		DABF8694226D7807EB46BC77 /* SharingPreferences.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = SharingPreferences.swift; path = "Maria's Notebook/Sharing/SharingPreferences.swift"; sourceTree = SOURCE_ROOT; };
 		DAC0BE10B161EC5086F86A98 /* ClassroomPermissions.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = ClassroomPermissions.swift; path = "Maria's Notebook/Sharing/ClassroomPermissions.swift"; sourceTree = SOURCE_ROOT; };
 		DACEB0200E5193CBE69A8BF1 /* RepositoryProtocol.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = RepositoryProtocol.swift; path = "Maria's Notebook/Repositories/RepositoryProtocol.swift"; sourceTree = SOURCE_ROOT; };
+		DAD7DACCCD304189540F19AF /* ClassroomIdentity.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = ClassroomIdentity.swift; path = "Maria's Notebook/Sharing/ClassroomIdentity.swift"; sourceTree = SOURCE_ROOT; };
 		DAD984C48AB59380BA0782CA /* ClassroomRepository.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = ClassroomRepository.swift; path = "Maria's Notebook/Sharing/ClassroomRepository.swift"; sourceTree = SOURCE_ROOT; };
 		DAF33D02953B353B5F308309 /* DocumentEntity.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = DocumentEntity.swift; path = "Maria's Notebook/Models/DocumentEntity.swift"; sourceTree = SOURCE_ROOT; };
 		DAF840824AAC3D22283214A2 /* String+Extensions.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = "String+Extensions.swift"; path = "Maria's Notebook/Utils/String+Extensions.swift"; sourceTree = SOURCE_ROOT; };
 		DAF89FDB07AADC17488E21D2 /* AttendanceDeduplication.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = AttendanceDeduplication.swift; path = "Maria's Notebook/Attendance/AttendanceDeduplication.swift"; sourceTree = SOURCE_ROOT; };
-		DAD7DACCCD304189540F19AF /* ClassroomIdentity.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = "ClassroomIdentity.swift"; path = "Maria's Notebook/Sharing/ClassroomIdentity.swift"; sourceTree = SOURCE_ROOT; };
 /* End PBXFileReference section */
 
 /* Begin PBXFileSystemSynchronizedBuildFileExceptionSet section */

@@ -282,7 +282,7 @@ struct WorksAgendaView: View {
                 visibleKinds: visibleKinds,
                 onOpenWork: openDetail,
                 onMarkCompleted: markCompleted,
-                onScheduleToday: scheduleToday,
+                onSchedule: schedule,
                 onDeleted: refreshAfterSave
             )
         }

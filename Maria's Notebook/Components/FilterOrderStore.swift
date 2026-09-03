@@ -25,29 +25,34 @@ struct FilterOrderStore {
 
     // MARK: Areas
 
+    // The caches below hold the *saved* order, never the merged result. Merging drops
+    // whatever the caller didn't pass in `existing`, so caching the result let one
+    // narrowed call — the Checklist while its filter field is in use, the map under a
+    // chip filter — throw away the saved position of everything absent at that moment.
+    // Both screens then read that shortened list back and re-appended the missing
+    // sections alphabetically, and the order stayed wrong for the rest of the launch.
+
     static func loadAreaOrder(existing: [String]) -> [String] {
-        if let cached = cachedAreaOrder { return mergeOrder(saved: cached, existing: existing) }
-        guard let saved = shared.defaults.array(forKey: areaOrderKey) as? [String] else {
-            cachedAreaOrder = existing
-            return existing
-        }
-        let result = mergeOrder(saved: saved, existing: existing)
-        cachedAreaOrder = result
-        return result
+        mergeOrder(saved: savedAreaOrder(), existing: existing)
+    }
+
+    private static func savedAreaOrder() -> [String] {
+        if let cached = cachedAreaOrder { return cached }
+        let saved = shared.defaults.array(forKey: areaOrderKey) as? [String] ?? []
+        cachedAreaOrder = saved
+        return saved
     }
 
     // MARK: Groups (Tracks)
 
     static func loadSequenceOrder(for area: String, existing: [String]) -> [String] {
         let key = groupOrderPrefix + normalized(area)
-        if let cached = cachedSequenceOrders[key] { return mergeOrder(saved: cached, existing: existing) }
-        guard let saved = shared.defaults.array(forKey: key) as? [String] else {
-            cachedSequenceOrders[key] = existing
-            return existing
+        if let cached = cachedSequenceOrders[key] {
+            return mergeOrder(saved: cached, existing: existing)
         }
-        let result = mergeOrder(saved: saved, existing: existing)
-        cachedSequenceOrders[key] = result
-        return result
+        let saved = shared.defaults.array(forKey: key) as? [String] ?? []
+        cachedSequenceOrders[key] = saved
+        return mergeOrder(saved: saved, existing: existing)
     }
 
     static func saveSequenceOrder(_ order: [String], for area: String) {
@@ -60,14 +65,12 @@ struct FilterOrderStore {
 
     static func loadSectionOrder(for area: String, sequence: String, existing: [String]) -> [String] {
         let key = sectionOrderPrefix + normalized(area) + "." + normalized(sequence)
-        if let cached = cachedSectionOrders[key] { return mergeOrder(saved: cached, existing: existing) }
-        guard let saved = shared.defaults.array(forKey: key) as? [String] else {
-            cachedSectionOrders[key] = existing
-            return existing
+        if let cached = cachedSectionOrders[key] {
+            return mergeOrder(saved: cached, existing: existing)
         }
-        let result = mergeOrder(saved: saved, existing: existing)
-        cachedSectionOrders[key] = result
-        return result
+        let saved = shared.defaults.array(forKey: key) as? [String] ?? []
+        cachedSectionOrders[key] = saved
+        return mergeOrder(saved: saved, existing: existing)
     }
 
     static func saveSectionOrder(_ order: [String], for area: String, sequence: String) {
@@ -86,21 +89,34 @@ struct FilterOrderStore {
 
     // MARK: Merge helper
 
+    /// The saved order, narrowed to what the caller actually has, with anything the
+    /// saved order doesn't mention appended in the caller's own order.
+    ///
+    /// Names are matched normalized rather than by exact string. A section saved as
+    /// "Equivalence" and shown as "equivalence" is one section, and matching it
+    /// literally read the second spelling as new and sent that whole band to the
+    /// bottom of the grid — while the screen that happened to spell it the saved way
+    /// still looked right. Two spellings of one name collapse to the first the caller
+    /// listed, so neither grid draws the same band twice.
     private static func mergeOrder(saved: [String], existing: [String]) -> [String] {
-        let existingSet = Set(existing)
-
-        var seen = Set<String>()
-        var filteredSaved: [String] = []
-        filteredSaved.reserveCapacity(saved.count)
-        for item in saved {
-            if existingSet.contains(item), seen.insert(item).inserted {
-                filteredSaved.append(item)
-            }
+        var unplaced: [String: String] = [:]
+        var callerOrder: [String] = []
+        callerOrder.reserveCapacity(existing.count)
+        for item in existing {
+            let key = normalized(item)
+            guard unplaced[key] == nil else { continue }
+            unplaced[key] = item
+            callerOrder.append(item)
         }
 
-        let savedSet = Set(filteredSaved)
-        let missing = existing.filter { !savedSet.contains($0) }
-
-        return filteredSaved + missing
+        var result: [String] = []
+        result.reserveCapacity(existing.count)
+        for item in saved {
+            if let spelling = unplaced.removeValue(forKey: normalized(item)) {
+                result.append(spelling)
+            }
+        }
+        result.append(contentsOf: callerOrder.filter { unplaced[normalized($0)] != nil })
+        return result
     }
 }

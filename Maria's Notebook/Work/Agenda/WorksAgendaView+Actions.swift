@@ -42,8 +42,14 @@ extension WorksAgendaView {
         WorkRepository(context: viewContext).markWorkCompleted(id: workID)
     }
 
-    func scheduleToday(_ w: CDWorkModel) {
-        let today = AppCalendar.startOfDay(Date())
+    /// Puts a work item on `day` to be checked: its earliest check-in moves
+    /// there, or one is made, and the due date follows so the two never drift.
+    ///
+    /// `day` used to be today and nothing else — the button said so. It is a
+    /// parameter now because the same write serves the Schedule menu and the
+    /// calendar the selection bar opens.
+    func schedule(_ w: CDWorkModel, on day: Date) {
+        let checkDay = AppCalendar.startOfDay(day)
         let workIDString = w.id?.uuidString ?? ""
         let request: NSFetchRequest<CDWorkCheckIn> = NSFetchRequest(entityName: "WorkCheckIn")
         request.predicate = NSPredicate(format: "workID == %@", workIDString)
@@ -51,11 +57,11 @@ extension WorksAgendaView {
         request.fetchLimit = 1
         do {
             if let first = try viewContext.fetch(request).first {
-                first.date = today
+                first.date = checkDay
             } else {
                 let item = CDWorkCheckIn(context: viewContext)
                 item.workID = workIDString
-                item.date = today
+                item.date = checkDay
                 item.status = .scheduled
                 item.purpose = "progressCheck"
             }
@@ -63,12 +69,12 @@ extension WorksAgendaView {
             Self.logger.warning("Failed to fetch CDWorkCheckIn: \(error)")
             let item = CDWorkCheckIn(context: viewContext)
             item.workID = workIDString
-            item.date = today
+            item.date = checkDay
             item.status = .scheduled
             item.purpose = "progressCheck"
         }
-        w.dueAt = today
-        saveCoordinator.save(viewContext, reason: "Quick schedule today")
+        w.dueAt = checkDay
+        saveCoordinator.save(viewContext, reason: "Quick schedule work check")
     }
 
     #if os(macOS)

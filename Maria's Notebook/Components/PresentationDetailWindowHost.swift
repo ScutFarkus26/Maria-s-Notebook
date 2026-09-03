@@ -23,6 +23,7 @@ struct PresentationDetailWindowHost: View {
             }
             .frame(minWidth: 720, minHeight: 640)
             .navigationTitle(windowTitle(for: lessonAssignment))
+            .background(FullScreenAuxiliaryWindow())
         } else {
             ContentUnavailableView("Presentation Not Found", systemImage: "rectangle.badge.magnifyingglass")
                 .frame(minWidth: 400, minHeight: 300)

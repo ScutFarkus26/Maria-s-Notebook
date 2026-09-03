@@ -14,14 +14,20 @@ struct ReorderSectionsSheet: View {
     @State private var items: [String] = []
     @State private var isEditing: Bool = false
 
+    /// The bands this sequence actually has, named the way the map and the Checklist
+    /// name them — the sheet would otherwise offer "Chains" and "chains" as two rows
+    /// and save an order neither grid could match.
     private var existing: [String] {
+        let trimmedArea = area.trimmed()
+        let trimmedSequence = sequence.trimmed()
+        // Trimmed on both sides: a lesson filed under "Fractions " was dropping out
+        // of this list, and saving then wrote an order that didn't mention its
+        // section — which sent that section to the end of both grids.
         let filtered: [CDLesson] = lessons.filter {
-            $0.area.caseInsensitiveCompare(area) == .orderedSame
-                && $0.sequence.caseInsensitiveCompare(sequence) == .orderedSame
+            $0.area.trimmed().caseInsensitiveCompare(trimmedArea) == .orderedSame
+                && $0.sequence.trimmed().caseInsensitiveCompare(trimmedSequence) == .orderedSame
         }
-        let sections: [String] = filtered.map { $0.section.trimmed() }
-        let unique: Set<String> = Set(sections.filter { !$0.isEmpty })
-        return unique.sorted { $0.localizedCaseInsensitiveCompare($1) == .orderedAscending }
+        return LessonSectionGrouping.sectionNames(in: filtered)
     }
 
     var body: some View {

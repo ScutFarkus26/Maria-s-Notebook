@@ -16,14 +16,14 @@ extension ObservationsView {
         Menu {
             // MARK: Today
             Button {
-                analyzeScope(.today, mode: .digest)
+                afterLayout { analyzeScope(.today, mode: .digest) }
             } label: {
                 Label("Today", systemImage: "calendar")
             }
 
             // MARK: Specific Day
             Button {
-                showingAIScopeSheet = true
+                afterLayout { showingAIScopeSheet = true }
             } label: {
                 Label("Pick a Day\u{2026}", systemImage: "calendar.badge.clock")
             }
@@ -35,7 +35,7 @@ extension ObservationsView {
                 Menu {
                     ForEach(contexts, id: \.self) { ctx in
                         Button {
-                            analyzeScope(.context(ctx), mode: .digest)
+                            afterLayout { analyzeScope(.context(ctx), mode: .digest) }
                         } label: {
                             Text(ctx)
                         }
@@ -49,7 +49,7 @@ extension ObservationsView {
             if isSelecting && !selectedItemIDs.isEmpty {
                 Divider()
                 Button {
-                    analyzeScope(.selectedNotes, mode: .digest)
+                    afterLayout { analyzeScope(.selectedNotes, mode: .digest) }
                 } label: {
                     Label("Selected Notes (\(selectedItemIDs.count))", systemImage: "checkmark.circle")
                 }
@@ -60,12 +60,12 @@ extension ObservationsView {
             // MARK: Summary mode toggle
             Menu {
                 Button {
-                    startStreamingSummary(mode: .digest)
+                    afterLayout { startStreamingSummary(mode: .digest) }
                 } label: {
                     Label("Key Points", systemImage: "list.bullet")
                 }
                 Button {
-                    startStreamingSummary(mode: .narrative)
+                    afterLayout { startStreamingSummary(mode: .narrative) }
                 } label: {
                     Label("Narrative", systemImage: "text.justify")
                 }
@@ -73,8 +73,28 @@ extension ObservationsView {
                 Label("Reflect on All Visible", systemImage: "sparkles.rectangle.stack")
             }
         } label: {
-            Label("Reflect", systemImage: isSummarizing ? "sparkles.rectangle.stack" : "sparkles")
+            // One symbol, always. "sparkles" and "sparkles.rectangle.stack"
+            // are different widths, so letting `isSummarizing` choose between
+            // them makes this item's size track state a toolbar reads — and a
+            // size that changes while AppKit is measuring the bar is exactly
+            // what NSToolbarItemViewer's min/max assertion kills the window
+            // over. The menu is disabled for the duration and the summary
+            // sheet is on screen throughout, so the swap said it twice anyway.
+            Label("Reflect", systemImage: "sparkles")
         }
+    }
+
+    /// Runs a Reflect action a turn after the click that asked for it.
+    ///
+    /// Every action in this menu writes state the Reflect item reads —
+    /// `isSummarizing`, or a sheet flag whose presentation re-tiles the bar.
+    /// Written while AppKit is inside the toolbar's layout pass, that poisons
+    /// the item's measured size to NaN and takes the window down with an
+    /// assertion. One turn's delay puts the write after the pass. Same bounce
+    /// the album toolbar needed, for the same reason.
+    @MainActor
+    func afterLayout(_ work: @escaping @MainActor () -> Void) {
+        Task { @MainActor in work() }
     }
 
     // MARK: - On-device, evidence-linked reflection
@@ -84,7 +104,8 @@ extension ObservationsView {
         guard !isSummarizing else { return }
         guard SystemLanguageModel.default.isAvailable else {
             showingSummarySheet = true
-            summaryErrorMessage = "Apple Intelligence is not available on this device right now. Your records were not sent anywhere else."
+            summaryErrorMessage = "Apple Intelligence is not available on this device right now. "
+                + "Your records were not sent anywhere else."
             return
         }
 
@@ -118,40 +139,51 @@ extension ObservationsView {
         let session = LanguageModelSession(instructions: instructions)
         summaryTask?.cancel()
         summaryTask = Task { @MainActor in
-            do {
-                var packets = ObservationReflectionService.sourcePackets(from: sourceItems)
-                var prompt = ObservationReflectionService.prompt(from: packets, narrative: mode == .narrative)
-                let budget = TokenBudget()
-                while packets.count > 1,
-                      !(await budget.fits(prompt: prompt, reserving: TokenBudget.draftReply)) {
-                    packets.removeLast()
-                    prompt = ObservationReflectionService.prompt(from: packets, narrative: mode == .narrative)
-                }
-
-                guard !packets.isEmpty,
-                      await budget.fits(prompt: prompt, reserving: TokenBudget.draftReply) else {
-                    summaryErrorMessage = "These records do not fit in an on-device reflection. Select fewer observations and try again."
-                    isSummarizing = false
-                    summaryTask = nil
-                    return
-                }
-
-                summarySources = ObservationReflectionService.referenceMap(from: packets)
-                switch mode {
-                case .digest:
-                    let response = try await session.respond(to: prompt, generating: NotesDigest.self)
-                    summaryDigest = ObservationReflectionService.validate(response.content, against: packets)
-                case .narrative:
-                    let response = try await session.respond(to: prompt, generating: NotesNarrative.self)
-                    summaryNarrative = response.content
-                    summaryNarrativeDraft = response.content.narrative
-                }
-            } catch {
-                Logger.ai.error("[\(#function)] Observations reflection failed: \(error)")
-                summaryErrorMessage = "The on-device reflection could not be completed. Your records were not sent to a cloud model."
-            }
+            await runSummary(sourceItems: sourceItems, mode: mode, session: session)
             isSummarizing = false
             summaryTask = nil
+        }
+    }
+
+    /// Trims the source packets until the prompt fits the on-device budget,
+    /// then asks the session for a digest or narrative and stores the result.
+    @MainActor
+    private func runSummary(
+        sourceItems: [UnifiedObservationItem],
+        mode: SummaryMode,
+        session: LanguageModelSession
+    ) async {
+        do {
+            var packets = ObservationReflectionService.sourcePackets(from: sourceItems)
+            var prompt = ObservationReflectionService.prompt(from: packets, narrative: mode == .narrative)
+            let budget = TokenBudget()
+            while packets.count > 1,
+                  !(await budget.fits(prompt: prompt, reserving: TokenBudget.draftReply)) {
+                packets.removeLast()
+                prompt = ObservationReflectionService.prompt(from: packets, narrative: mode == .narrative)
+            }
+
+            guard !packets.isEmpty,
+                  await budget.fits(prompt: prompt, reserving: TokenBudget.draftReply) else {
+                summaryErrorMessage = "These records do not fit in an on-device reflection. "
+                    + "Select fewer observations and try again."
+                return
+            }
+
+            summarySources = ObservationReflectionService.referenceMap(from: packets)
+            switch mode {
+            case .digest:
+                let response = try await session.respond(to: prompt, generating: NotesDigest.self)
+                summaryDigest = ObservationReflectionService.validate(response.content, against: packets)
+            case .narrative:
+                let response = try await session.respond(to: prompt, generating: NotesNarrative.self)
+                summaryNarrative = response.content
+                summaryNarrativeDraft = response.content.narrative
+            }
+        } catch {
+            Logger.ai.error("[\(#function)] Observations reflection failed: \(error)")
+            summaryErrorMessage = "The on-device reflection could not be completed. "
+                + "Your records were not sent to a cloud model."
         }
     }
 
@@ -244,187 +276,6 @@ extension ObservationsView {
             .presentationDetents([.medium])
             .presentationDragIndicator(.visible)
             #endif
-        }
-    }
-}
-
-// MARK: - Summary Sheet
-
-extension ObservationsView {
-    struct ObservationsSummarySheet: View {
-        let mode: SummaryMode
-        @Binding var isSummarizing: Bool
-        let digest: NotesDigest?
-        let narrative: NotesNarrative?
-        @Binding var narrativeDraft: String
-        let sources: [String: EvidenceReference]
-        let missingEvidence: [EvidenceReference]
-        let errorMessage: String?
-        let onOpenSource: (EvidenceReference) -> Void
-        let onCancel: () -> Void
-
-        var body: some View {
-            #if os(macOS)
-            VStack(alignment: .leading, spacing: 16) {
-                header
-                content
-                footer
-            }
-            .padding(20)
-            .frame(minWidth: 420, minHeight: 360)
-            .presentationSizingFitted()
-            #else
-            NavigationStack {
-                VStack(alignment: .leading, spacing: 16) {
-                    content
-                }
-                .padding(20)
-                .navigationTitle(mode == .digest ? "Observation Reflection" : "Narrative Draft")
-                .inlineNavigationTitle()
-                .toolbar {
-                    ToolbarItem(placement: .cancellationAction) {
-                        Button(isSummarizing ? "Stop" : "Close") { onCancel() }
-                    }
-                }
-            }
-            .presentationDetents([.medium, .large])
-            .presentationDragIndicator(.visible)
-            #endif
-        }
-
-        @ViewBuilder
-        private var header: some View {
-            HStack {
-                Text(mode == .digest ? "Observation Reflection" : "Narrative Draft")
-                    .font(AppTheme.ScaledFont.titleMedium)
-                Label("On Device", systemImage: "lock.shield")
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
-                Spacer()
-                Button(isSummarizing ? "Stop" : "Close") { onCancel() }
-            }
-        }
-
-        @ViewBuilder
-        private var content: some View {
-            if let errorMessage {
-                ContentUnavailableView(
-                    "Reflection Unavailable",
-                    systemImage: "sparkles",
-                    description: Text(errorMessage)
-                )
-            } else {
-                switch mode {
-                case .digest:
-                    if digest == nil {
-                        ProgressView("Reviewing records\u{2026}")
-                    } else {
-                        ScrollView {
-                            VStack(alignment: .leading, spacing: 12) {
-                                if !missingEvidence.isEmpty {
-                                    Text("Presentations Without a Linked Observation")
-                                        .font(.headline)
-                                    Text("This is a record check, not an AI conclusion.")
-                                        .font(.caption)
-                                        .foregroundStyle(.secondary)
-                                    ForEach(missingEvidence) { reference in
-                                        Label(
-                                            "\(reference.title) — \(reference.date.map { DateFormatters.mediumDate.string(from: $0) } ?? "Unknown date")",
-                                            systemImage: "exclamationmark.bubble"
-                                        )
-                                    }
-                                    Divider().padding(.vertical, 4)
-                                }
-                                findingsSection(
-                                    "Factual Observations",
-                                    findings: digest?.factualObservations ?? [],
-                                    icon: "text.quote"
-                                )
-                                findingsSection(
-                                    "Patterns to Review",
-                                    findings: digest?.repeatedPatterns ?? [],
-                                    icon: "point.3.connected.trianglepath.dotted"
-                                )
-                                findingsSection(
-                                    "Questions to Observe Next",
-                                    findings: digest?.questionsToObserveNext ?? [],
-                                    icon: "eye"
-                                )
-                            }
-                        }
-                    }
-                case .narrative:
-                    if narrative == nil {
-                        ProgressView("Generating\u{2026}")
-                    } else {
-                        ScrollView {
-                            VStack(alignment: .leading, spacing: 12) {
-                                Text("Editable AI draft — verify it against the records below.")
-                                    .font(.caption)
-                                    .foregroundStyle(.secondary)
-                                if !narrativeDraft.isEmpty {
-                                    TextEditor(text: $narrativeDraft)
-                                        .font(.body)
-                                        .frame(minHeight: 160)
-                                        .padding(8)
-                                        .background(
-                                            Color.secondary.opacity(UIConstants.OpacityConstants.veryFaint),
-                                            in: RoundedRectangle(cornerRadius: 8)
-                                        )
-                                        .accessibilityLabel("Editable narrative draft")
-                                }
-                                Text("Records Reviewed")
-                                    .font(.headline)
-                                sourceButtons(keys: sources.keys.sorted())
-                            }
-                        }
-                    }
-                }
-            }
-        }
-
-        @ViewBuilder
-        private func findingsSection(
-            _ title: String,
-            findings: [GroundedObservationFinding],
-            icon: String
-        ) -> some View {
-            if !findings.isEmpty {
-                Text(title).font(.headline)
-                ForEach(Array(findings.enumerated()), id: \.offset) { _, finding in
-                    VStack(alignment: .leading, spacing: 6) {
-                        Label(finding.text, systemImage: icon)
-                        sourceButtons(keys: finding.sourceKeys)
-                    }
-                }
-                Divider().padding(.vertical, 4)
-            }
-        }
-
-        private func sourceButtons(keys: [String]) -> some View {
-            FlowLayout(spacing: 6) {
-                ForEach(keys, id: \.self) { key in
-                    if let reference = sources[key] {
-                        Button {
-                            onOpenSource(reference)
-                        } label: {
-                            Label(key, systemImage: "doc.text.magnifyingglass")
-                                .font(.caption)
-                        }
-                        .buttonStyle(.bordered)
-                        .help("\(reference.title): \(reference.excerpt)")
-                    }
-                }
-            }
-        }
-
-        @ViewBuilder
-        private var footer: some View {
-            HStack {
-                Spacer()
-                Button(isSummarizing ? "Stop" : "Close") { onCancel() }
-                    .buttonStyle(.bordered)
-            }
         }
     }
 }

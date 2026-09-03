@@ -15,6 +15,11 @@ struct WorkCardGridContent: View {
     @Environment(\.managedObjectContext) var viewContext
     @Environment(\.appRouter) var appRouter
 
+    // Not private: the Schedule menu, which lives in the other file, is what
+    // raises the calendar. Held on the card rather than on the grid so the
+    // popover points at the card the guide right-clicked.
+    @State var isPickingCheckDay = false
+
     @SyncedAppStorage("WorkAge.warningDays") private var ageWarningDays: Int = LessonAgeDefaults.warningDays
     @SyncedAppStorage("WorkAge.overdueDays") private var ageOverdueDays: Int = LessonAgeDefaults.overdueDays
     @SyncedAppStorage("WorkAge.freshColorHex") private var ageFreshColorHex: String = LessonAgeDefaults.freshColorHex
@@ -85,6 +90,17 @@ struct WorkCardGridContent: View {
         // you can only reach by right-clicking "Adina T. • Practice • 110d" is
         // a menu most of the card doesn't have.
         .contextMenu { gridContextMenu }
+        .popover(isPresented: $isPickingCheckDay) {
+            // Resolved when the day is picked, not when the menu opened: the
+            // selection is the menu's target, and it can change underneath a
+            // popover that stays up.
+            WorkCheckDayPicker(count: menuTargets.count) { day in
+                isPickingCheckDay = false
+                schedule(menuTargets, on: day)
+            } onCancel: {
+                isPickingCheckDay = false
+            }
+        }
     }
 
     private var ageIndicator: some View {
@@ -168,7 +184,7 @@ struct WorkCardGridContent: View {
         ageSchoolDays: 7,
         onOpen: { _ in },
         onMarkCompleted: { _ in },
-        onScheduleToday: { _ in }
+        onSchedule: { _, _ in }
     )
     .padding()
     .previewEnvironment(using: stack)

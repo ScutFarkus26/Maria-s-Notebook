@@ -73,36 +73,10 @@ struct LessonsScopeThreadFocusView: View {
         }
     }
 
-    private var header: some View {
-        HStack(spacing: 12) {
-            Button(action: onBack) {
-                Label("Map", systemImage: "chevron.backward")
-                    .labelStyle(.titleAndIcon)
-                    .font(.system(size: 13, weight: .medium, design: .rounded))
-            }
-            .buttonStyle(.plain)
-            .foregroundStyle(.secondary)
-
-            Spacer()
-        }
-        .padding(.horizontal, 16)
-        .padding(.vertical, 10)
-    }
-
     private var sectionedGroups: [(String, [CDLesson])] {
-        let sorted = sortedLessons
-        let existing = Array(Set(sorted.map { $0.section.trimmed() }.filter { !$0.isEmpty }))
-            .sorted { $0.localizedCaseInsensitiveCompare($1) == .orderedAscending }
-        let order = FilterOrderStore.loadSectionOrder(
-            for: threadKey.area, sequence: threadKey.sequence, existing: existing
-        )
-        var result: [(String, [CDLesson])] = order.compactMap { name in
-            let group = sorted.filter { $0.section.trimmed().caseInsensitiveCompare(name) == .orderedSame }
-            return group.isEmpty ? nil : (name, group)
-        }
-        let unsectioned = sorted.filter { $0.section.trimmed().isEmpty }
-        if !unsectioned.isEmpty { result.append(("", unsectioned)) }
-        return result
+        LessonSectionGrouping
+            .bands(for: lessons, area: threadKey.area, sequence: threadKey.sequence)
+            .map { ($0.name, $0.lessons) }
     }
 
     private var content: some View {
@@ -318,8 +292,28 @@ struct LessonsScopeThreadFocusView: View {
             }
         }
     }
+}
 
-    private var titleBlock: some View {
+// MARK: - Header
+
+private extension LessonsScopeThreadFocusView {
+    var header: some View {
+        HStack(spacing: 12) {
+            Button(action: onBack) {
+                Label("Map", systemImage: "chevron.backward")
+                    .labelStyle(.titleAndIcon)
+                    .font(.system(size: 13, weight: .medium, design: .rounded))
+            }
+            .buttonStyle(.plain)
+            .foregroundStyle(.secondary)
+
+            Spacer()
+        }
+        .padding(.horizontal, 16)
+        .padding(.vertical, 10)
+    }
+
+    var titleBlock: some View {
         VStack(alignment: .leading, spacing: 4) {
             Text(threadKey.area.uppercased())
                 .font(.system(size: 11, weight: .semibold, design: .rounded))

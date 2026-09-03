@@ -134,20 +134,7 @@ struct ProjectsRootView: View {
     private var projectsSidebar: some View {
         List(selection: selectedClubID) {
             ForEach(filteredClubs, id: \.objectID) { club in
-                ProjectSidebarRow(
-                    club: club,
-                    isSelected: club.id?.uuidString == selectedClubIDString,
-                    lastSessionDate: lastSessionDate(for: club)
-                )
-                .tag(club.id)
-                .swipeActions(edge: .trailing, allowsFullSwipe: false) {
-                    Button(role: .destructive) {
-                        clubToDelete = club
-                        showDeleteAlert = true
-                    } label: {
-                        Label("Delete", systemImage: "trash")
-                    }
-                }
+                clubRow(for: club)
             }
         }
         .listStyle(.sidebar)
@@ -161,6 +148,31 @@ struct ProjectsRootView: View {
                     Label("Add Project", systemImage: "plus")
                 }
             }
+        }
+    }
+
+    // The tag must be a non-optional UUID: List(selection: Binding<UUID?>) only
+    // matches tags of exactly UUID, so tagging with the optional `club.id`
+    // makes every row silently unselectable.
+    @ViewBuilder
+    private func clubRow(for club: CDProject) -> some View {
+        let row = ProjectSidebarRow(
+            club: club,
+            isSelected: club.id?.uuidString == selectedClubIDString,
+            lastSessionDate: lastSessionDate(for: club)
+        )
+        .swipeActions(edge: .trailing, allowsFullSwipe: false) {
+            Button(role: .destructive) {
+                clubToDelete = club
+                showDeleteAlert = true
+            } label: {
+                Label("Delete", systemImage: "trash")
+            }
+        }
+        if let id = club.id {
+            row.tag(id)
+        } else {
+            row.selectionDisabled()
         }
     }
 

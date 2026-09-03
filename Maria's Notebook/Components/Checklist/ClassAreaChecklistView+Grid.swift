@@ -190,7 +190,9 @@ extension ClassAreaChecklistView {
 
     /// Top-level grouping — "Preliminary", "Early Work". It rules the full width
     /// of the matrix, in the accent colour and under a heavier line, so a group
-    /// boundary is legible however far the grid is scrolled.
+    /// boundary is legible however far the grid is scrolled. An empty name is the
+    /// band for lessons not yet filed under a sequence, called "Other" here and on
+    /// the scope-and-sequence map alike.
     @ViewBuilder
     fileprivate func sequenceRow(name: String) -> some View {
         let height = Self.sequenceRowHeight
@@ -198,7 +200,7 @@ extension ClassAreaChecklistView {
         HStack(spacing: 0) {
             StickyLeftItem(width: lessonColumnWidth, height: height) {
                 HStack(spacing: 0) {
-                    Text(name)
+                    Text(name.isEmpty ? "Other" : name)
                         .font(.system(.subheadline, design: .rounded).weight(.bold))
                         .lineLimit(1)
                         .minimumScaleFactor(0.85)

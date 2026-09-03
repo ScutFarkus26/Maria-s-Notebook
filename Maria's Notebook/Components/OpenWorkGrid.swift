@@ -9,14 +9,16 @@ struct OpenWorkGrid: View {
     /// recomputed so the badge cannot disagree with the Attention list.
     let attentionWorkIDs: Set<UUID>
     let sortMode: WorkAgendaSortMode
-    var focusedWorkID: UUID? = nil
+    var focusedWorkID: UUID?
     /// Command-click selection. Optional so the grid keeps working on the
     /// surfaces that have no selection of their own (a student's overview).
     var selection: WorkspaceMultiSelection?
 
     let onOpen: (CDWorkModel) -> Void
     let onMarkCompleted: (CDWorkModel) -> Void
-    let onScheduleToday: (CDWorkModel) -> Void
+    /// Puts a work item on a day to be checked, wherever the card's Schedule
+    /// menu got the day from.
+    let onSchedule: (CDWorkModel, Date) -> Void
     /// Nil hides Delete from the card menus. A grid that only reports on work
     /// — a student's overview — is not where a record gets destroyed.
     var onDeleted: (() -> Void)?
@@ -77,7 +79,7 @@ struct OpenWorkGrid: View {
                                             : { pendingDeletion = $0 },
                                         onOpen: onOpen,
                                         onMarkCompleted: onMarkCompleted,
-                                        onScheduleToday: onScheduleToday
+                                        onSchedule: onSchedule
                                     )
                                     .padding(2)
                                     .background(
@@ -311,7 +313,7 @@ struct OpenWorkGrid: View {
         sortMode: .lesson,
         onOpen: { _ in },
         onMarkCompleted: { _ in },
-        onScheduleToday: { _ in }
+        onSchedule: { _, _ in }
     )
     .previewEnvironment()
 }

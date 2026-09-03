@@ -43,7 +43,10 @@ struct WorkCard: View {
         let onRequestDelete: (([CDWorkModel]) -> Void)?
         let onOpen: (CDWorkModel) -> Void
         let onMarkCompleted: (CDWorkModel) -> Void
-        let onScheduleToday: (CDWorkModel) -> Void
+        /// Puts this work on a day to be checked. The day comes from the
+        /// caller — the Schedule menu, or the calendar it opens — so a card
+        /// has one scheduling path rather than one per date it can name.
+        let onSchedule: (CDWorkModel, Date) -> Void
 
         init(
             work: CDWorkModel,
@@ -56,7 +59,7 @@ struct WorkCard: View {
             onRequestDelete: (([CDWorkModel]) -> Void)? = nil,
             onOpen: @escaping (CDWorkModel) -> Void,
             onMarkCompleted: @escaping (CDWorkModel) -> Void = { _ in },
-            onScheduleToday: @escaping (CDWorkModel) -> Void = { _ in }
+            onSchedule: @escaping (CDWorkModel, Date) -> Void = { _, _ in }
         ) {
             self.work = work
             self.lessonTitle = lessonTitle
@@ -68,7 +71,7 @@ struct WorkCard: View {
             self.onRequestDelete = onRequestDelete
             self.onOpen = onOpen
             self.onMarkCompleted = onMarkCompleted
-            self.onScheduleToday = onScheduleToday
+            self.onSchedule = onSchedule
         }
     }
 
@@ -169,7 +172,7 @@ extension WorkCard {
         onRequestDelete: (([CDWorkModel]) -> Void)? = nil,
         onOpen: @escaping (CDWorkModel) -> Void,
         onMarkCompleted: @escaping (CDWorkModel) -> Void = { _ in },
-        onScheduleToday: @escaping (CDWorkModel) -> Void = { _ in }
+        onSchedule: @escaping (CDWorkModel, Date) -> Void = { _, _ in }
     ) -> WorkCard {
         WorkCard(config: .grid(GridConfig(
             work: work,
@@ -182,7 +185,7 @@ extension WorkCard {
             onRequestDelete: onRequestDelete,
             onOpen: onOpen,
             onMarkCompleted: onMarkCompleted,
-            onScheduleToday: onScheduleToday
+            onSchedule: onSchedule
         )))
     }
 

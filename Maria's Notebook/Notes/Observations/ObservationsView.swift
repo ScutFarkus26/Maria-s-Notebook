@@ -184,7 +184,11 @@ struct ObservationsView: View {
             .sheet(isPresented: $showingAIScopeSheet) {
                 AIDayPickerSheet(date: $aiScopeDate) { pickedDate in
                     showingAIScopeSheet = false
-                    analyzeScope(.specificDay(pickedDate), mode: .digest)
+                    // Dismissing the sheet puts AppKit inside the parent
+                    // window's layout pass; starting the reflection writes
+                    // state the Reflect toolbar item reads. Doing both in one
+                    // turn is what crashed the window.
+                    afterLayout { analyzeScope(.specificDay(pickedDate), mode: .digest) }
                 }
             }
             .sheet(isPresented: $showingSummarySheet) {
@@ -207,7 +211,9 @@ struct ObservationsView: View {
                     onCancel: {
                         summaryTask?.cancel()
                         summaryTask = nil
-                        isSummarizing = false
+                        // Same bounce, same reason: Stop closes this sheet,
+                        // and `isSummarizing` is read by a toolbar item.
+                        afterLayout { isSummarizing = false }
                     }
                 )
             }

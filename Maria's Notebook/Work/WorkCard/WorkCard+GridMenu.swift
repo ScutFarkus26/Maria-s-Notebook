@@ -123,12 +123,20 @@ extension WorkCardGridContent {
         }
     }
 
+    /// Today, tomorrow, and — the point of the submenu — any other day.
+    ///
+    /// This used to be a menu with one item in it, so the only day a card could
+    /// name was today; every other day had to be reached by dragging the card
+    /// onto the Scheduled strip, which can only offer the days it is showing.
     @ViewBuilder
     private func scheduleMenu(_ targets: [CDWorkModel]) -> some View {
         Menu {
-            Button("Today") {
-                for work in targets { config.onScheduleToday(work) }
+            Button("Today") { schedule(targets, on: AppCalendar.startOfDay(Date())) }
+            Button("Tomorrow") {
+                schedule(targets, on: AppCalendar.addingDays(1, to: AppCalendar.startOfDay(Date())))
             }
+            Divider()
+            Button("Pick a Day…") { isPickingCheckDay = true }
         } label: {
             Label("Schedule", systemImage: "calendar")
         }
@@ -177,6 +185,12 @@ extension WorkCardGridContent {
     private func isResting(_ work: CDWorkModel) -> Bool {
         guard let restingUntil = work.restingUntil else { return false }
         return AppCalendar.startOfDay(restingUntil) > AppCalendar.startOfDay(Date())
+    }
+
+    /// The one place the card writes a check day, so the menu's fixed days and
+    /// the calendar's chosen one land the same way.
+    func schedule(_ targets: [CDWorkModel], on day: Date) {
+        for work in targets { config.onSchedule(work, day) }
     }
 
     private func setStatus(_ status: WorkStatus, on targets: [CDWorkModel]) {

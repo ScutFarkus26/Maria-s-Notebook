@@ -96,20 +96,9 @@ struct ThreadRow: View {
     }
 
     private var sectionedGroups: [(String, [CDLesson])] {
-        let existing = Array(Set(lessons.map { $0.section.trimmed() }.filter { !$0.isEmpty }))
-            .sorted { $0.localizedCaseInsensitiveCompare($1) == .orderedAscending }
-        let order = FilterOrderStore.loadSectionOrder(
-            for: threadKey.area,
-            sequence: threadKey.sequence,
-            existing: existing
-        )
-        var result: [(String, [CDLesson])] = order.compactMap { name in
-            let group = lessons.filter { $0.section.trimmed().caseInsensitiveCompare(name) == .orderedSame }
-            return group.isEmpty ? nil : (name, group)
-        }
-        let unsectioned = lessons.filter { $0.section.trimmed().isEmpty }
-        if !unsectioned.isEmpty { result.append(("", unsectioned)) }
-        return result
+        LessonSectionGrouping
+            .bands(for: lessons, area: threadKey.area, sequence: threadKey.sequence)
+            .map { ($0.name, $0.lessons) }
     }
 
     @ViewBuilder

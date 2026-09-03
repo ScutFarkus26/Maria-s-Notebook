@@ -101,17 +101,25 @@ struct MeetingsQueueSidebar: View {
         }
     }
 
+    // The tag must be a non-optional UUID: List(selection: Binding<UUID?>) only
+    // matches tags of exactly UUID, so tagging with the optional `student.id`
+    // makes every row silently unselectable.
+    @ViewBuilder
     private func studentRow(_ student: CDStudent, showCheckmark: Bool) -> some View {
-        StudentQueueRow(
+        let row = StudentQueueRow(
             student: student,
             lastMeeting: lastMeetingFor(student),
             isSelected: selectedStudentID == student.id,
             showCheckmark: showCheckmark,
             scheduledDate: student.id.flatMap { scheduledMeetingDates[$0] }
         )
-        .tag(student.id)
         .contextMenu {
             scheduleMeetingMenu(for: student)
+        }
+        if let id = student.id {
+            row.tag(id)
+        } else {
+            row.selectionDisabled()
         }
     }
 

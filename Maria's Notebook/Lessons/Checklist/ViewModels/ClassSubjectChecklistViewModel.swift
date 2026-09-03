@@ -83,8 +83,9 @@ class ClassAreaChecklistViewModel {
 
     /// Lessons inside a single sequence, bucketed by section and ordered for display.
     /// `order` lists section names in render order ("" appended last when present).
-    /// Each `bySection` array is pre-sorted by `orderInSequence`, then name.
+    /// Each `bySection` array is pre-sorted into curriculum order.
     /// `hasSections` is `false` when only the empty bucket exists — callers can skip rendering sub-header rows.
+    /// See `LessonSectionGrouping`, which decides all three.
     struct LessonsBySection {
         let order: [String]
         let bySection: [String: [CDLesson]]
@@ -145,11 +146,21 @@ class ClassAreaChecklistViewModel {
         let lessonsDescriptor = CDFetchRequest(CDLesson.self)
         lessonsDescriptor.predicate = NSPredicate(format: "area CONTAINS[cd] %@", sub)
         let fetchedLessons = context.safeFetch(lessonsDescriptor)
-        // Post-filter for exact match (localizedStandardContains is substring-based)
+        // Post-filter for exact match (localizedStandardContains is substring-based).
+        // Trim the lesson's own area too, the way every other Lessons screen does —
+        // a stray "Math " otherwise passed the CONTAINS predicate and then failed
+        // here, so those lessons were missing from the grid and nowhere else.
         self.lessons = fetchedLessons.filter {
-            $0.area.localizedCaseInsensitiveCompare(sub) == .orderedSame
+            $0.area.trimmed().caseInsensitiveCompare(sub) == .orderedSame
         }
         self.orderedSequences = lessonsLogic.groups(for: sub, lessons: self.lessons)
+        // `groups(for:)` only names the sequences a lesson was actually filed under, so
+        // without this the lessons still waiting for one had no band to render in and
+        // dropped out of the grid entirely. The map gives them a trailing "Other"
+        // thread; the Checklist now shows the same band in the same place.
+        if self.lessons.contains(where: { $0.sequence.trimmed().isEmpty }) {
+            self.orderedSequences.append("")
+        }
         applyFilters()
     }
 
@@ -167,35 +178,16 @@ class ClassAreaChecklistViewModel {
         let groupLessons = visibleLessons.filter {
             $0.sequence.trimmed().localizedCaseInsensitiveCompare(groupTrimmed) == .orderedSame
         }
-        let bySectionRaw = Dictionary(grouping: groupLessons) { $0.section.trimmed() }
-        let bySection = bySectionRaw.mapValues { lessonsInBucket -> [CDLesson] in
-            lessonsInBucket.sorted { lhs, rhs in
-                if lhs.orderInSequence != rhs.orderInSequence { return lhs.orderInSequence < rhs.orderInSequence }
-                return lhs.name.localizedCaseInsensitiveCompare(rhs.name) == .orderedAscending
-            }
-        }
-
-        let existingNonEmpty = Array(Set(bySection.keys.filter { !$0.isEmpty }))
-            .sorted { $0.localizedCaseInsensitiveCompare($1) == .orderedAscending }
-        let areaTrimmed = selectedArea.trimmed()
-        let nonEmptyOrder: [String]
-        if areaTrimmed.isEmpty || existingNonEmpty.isEmpty {
-            nonEmptyOrder = existingNonEmpty
-        } else {
-            nonEmptyOrder = FilterOrderStore.loadSectionOrder(
-                for: areaTrimmed, sequence: groupTrimmed, existing: existingNonEmpty
-            )
-        }
-
-        var order = nonEmptyOrder
-        if bySection.keys.contains("") {
-            order.append("")
-        }
+        // Shared with the scope-and-sequence map so a guide reading one against the
+        // other sees the same bands in the same order.
+        let bands = LessonSectionGrouping.bands(
+            for: groupLessons, area: selectedArea, sequence: groupTrimmed
+        )
 
         let result = LessonsBySection(
-            order: order,
-            bySection: bySection,
-            hasSections: !existingNonEmpty.isEmpty
+            order: bands.map(\.name),
+            bySection: Dictionary(bands.map { ($0.name, $0.lessons) }, uniquingKeysWith: { first, _ in first }),
+            hasSections: bands.contains { !$0.name.isEmpty }
         )
         cachedLessonsBySequence[sequence] = result
         return result

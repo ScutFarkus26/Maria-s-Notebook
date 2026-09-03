@@ -569,6 +569,7 @@ struct MariasNotebookApp: App {
         .windowToolbarStyle(.unified(showsTitle: true))
         .windowResizability(.automatic)
         .defaultSize(width: 820, height: 720)
+        .centeredOnOpen()
         // Legacy .modelContainer removed — using CoreDataStack
 
         WindowGroup("", id: "CommunityTopicWindow", for: UUID.self) { $topicID in
