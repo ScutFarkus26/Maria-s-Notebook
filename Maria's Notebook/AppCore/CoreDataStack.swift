@@ -452,18 +452,10 @@ final class CoreDataStack {
             forName: .NSPersistentStoreRemoteChange,
             object: container.persistentStoreCoordinator,
             queue: .main
-        ) { [weak self] notification in
+        ) { [weak self] _ in
             guard let self else { return }
-            // Compute the school-day relevance flag here (queue: .main) so we don't
-            // need to send the non-Sendable Notification across the actor boundary.
-            let relevantNames: Set<String> = ["NonSchoolDay", "SchoolDayOverride"]
-            let changedIDs = [NSInsertedObjectsKey, NSUpdatedObjectsKey, NSDeletedObjectsKey]
-                .compactMap { notification.userInfo?[$0] as? Set<NSManagedObjectID> }
-                .flatMap { $0 }
-            let shouldInvalidateSchoolDayCache: Bool = changedIDs.isEmpty
-                || changedIDs.contains { relevantNames.contains($0.entity.name ?? "") }
             Task { @MainActor in
-                self.handleRemoteChangeNotification(invalidateSchoolDayCache: shouldInvalidateSchoolDayCache)
+                self.handleRemoteChangeNotification()
             }
         }
 
@@ -557,14 +549,18 @@ final class CoreDataStack {
 
     // MARK: - Remote Change Handling
 
-    private func handleRemoteChangeNotification(invalidateSchoolDayCache: Bool) {
-        // Only invalidate school-day caches when NonSchoolDay or SchoolDayOverride
-        // entities actually changed (computed by the caller before the actor hop).
-        // Fail-open: if the notification carried no object-ID info the caller passes true.
-        if invalidateSchoolDayCache {
+    private func handleRemoteChangeNotification() {
+        // `.NSPersistentStoreRemoteChange` carries only a history token — never
+        // the changed object IDs — so the entity filter that used to live here
+        // always fell through to "invalidate everything", once per imported
+        // batch. The history processor reads the transactions anyway and posts
+        // `.schoolDayDataDidChange` only when a calendar entity was touched.
+        guard let processor = historyProcessor else {
+            // Stacks without history processing (Sample Class, tests) can't
+            // tell what changed, so keep failing open there.
             NotificationCenter.default.post(name: .schoolDayDataDidChange, object: nil)
+            return
         }
-        guard let processor = historyProcessor else { return }
         Task {
             await processor.processRemoteChanges()
         }

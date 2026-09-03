@@ -26,6 +26,7 @@ extension BackupEntityImporter {
             day.reason = dto.reason
             return day
         })
+        notifySchoolDayDataChanged(ifImported: dtos)
     }
 
     // MARK: - School Day Overrides
@@ -46,6 +47,15 @@ extension BackupEntityImporter {
             override.date = dto.date
             return override
         })
+        notifySchoolDayDataChanged(ifImported: dtos)
+    }
+
+    /// A restore writes calendar rows through the view context, whose saves are
+    /// the app's own and so never reach the history-driven invalidation in
+    /// `PersistentHistoryProcessor`. Announce the change here instead.
+    private static func notifySchoolDayDataChanged<T>(ifImported dtos: [T]) {
+        guard !dtos.isEmpty else { return }
+        NotificationCenter.default.post(name: .schoolDayDataDidChange, object: nil)
     }
 
     // MARK: - Schedules

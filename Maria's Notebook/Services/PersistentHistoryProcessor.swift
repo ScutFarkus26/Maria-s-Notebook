@@ -23,6 +23,14 @@ actor PersistentHistoryProcessor {
     static let transactionAuthor = "MariasNotebook"
     nonisolated private static let logger = Logger.app(category: "HistoryProcessor")
 
+    /// Entities whose remote changes must invalidate the school-day caches.
+    /// `CoreDataStack` used to post `.schoolDayDataDidChange` on *every*
+    /// remote-change notification (its entity filter read object-ID keys that
+    /// notification never carries), which re-keyed every drop zone and day
+    /// column for the whole of a CloudKit import. History transactions do
+    /// know which entities changed, so the post happens here instead.
+    nonisolated private static let schoolDayEntityNames: Set<String> = ["NonSchoolDay", "SchoolDayOverride"]
+
     // MARK: - State
 
     private let container: NSPersistentCloudKitContainer
@@ -78,13 +86,17 @@ actor PersistentHistoryProcessor {
         case .noTransactions:
             break
 
-        case let .processed(newToken, remoteCount, totalCount, hasInserts):
+        case let .processed(newToken, remoteCount, totalCount, hasInserts, changedEntityNames):
             lastToken = newToken
             Self.saveToken(newToken)
 
             Self.logger.debug(
                 "Processed \(totalCount) history transaction(s), \(remoteCount) remote, inserts: \(hasInserts)"
             )
+
+            if !changedEntityNames.isDisjoint(with: Self.schoolDayEntityNames) {
+                Self.postSchoolDayDataDidChange()
+            }
 
             // The companion app has no dedup coordinator: it writes only
             // attendance, through the store that already collapses duplicates
@@ -98,11 +110,19 @@ actor PersistentHistoryProcessor {
             #endif
 
         case .failed:
+            // Fail open: we don't know what changed, so assume the calendar might have.
+            Self.postSchoolDayDataDidChange()
             if lastToken != nil {
                 Self.logger.info("Resetting stale history token for next attempt")
                 lastToken = nil
                 UserDefaults.standard.removeObject(forKey: UserDefaultsKeys.persistentHistoryLastToken)
             }
+        }
+    }
+
+    nonisolated private static func postSchoolDayDataDidChange() {
+        Task { @MainActor in
+            NotificationCenter.default.post(name: .schoolDayDataDidChange, object: nil)
         }
     }
 
@@ -198,11 +218,13 @@ actor PersistentHistoryProcessor {
             }
 
             var hasInserts = false
+            var changedEntityNames: Set<String> = []
             for transaction in transactions {
-                if !hasInserts, let changes = transaction.changes {
-                    for change in changes where change.changeType == .insert {
-                        hasInserts = true
-                        break
+                guard let changes = transaction.changes else { continue }
+                for change in changes {
+                    if change.changeType == .insert { hasInserts = true }
+                    if let name = change.changedObjectID.entity.name {
+                        changedEntityNames.insert(name)
                     }
                 }
             }
@@ -215,7 +237,8 @@ actor PersistentHistoryProcessor {
                 newToken: lastToken,
                 remoteCount: transactions.count,
                 totalCount: transactions.count,
-                hasInserts: hasInserts
+                hasInserts: hasInserts,
+                changedEntityNames: changedEntityNames
             )
         } catch {
             logger.error("Failed to process history: \(error.localizedDescription)")
@@ -242,7 +265,8 @@ actor PersistentHistoryProcessor {
             newToken: lastToken,
             remoteCount: 0,
             totalCount: transactions.count,
-            hasInserts: false
+            hasInserts: false,
+            changedEntityNames: []
         )
     }
 
@@ -281,7 +305,8 @@ private enum HistoryProcessingResult: @unchecked Sendable {
         newToken: NSPersistentHistoryToken,
         remoteCount: Int,
         totalCount: Int,
-        hasInserts: Bool
+        hasInserts: Bool,
+        changedEntityNames: Set<String>
     )
     case failed
 }
