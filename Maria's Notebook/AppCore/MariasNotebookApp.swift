@@ -44,13 +44,13 @@ struct MariasNotebookApp: App {
         let stack = AppBootstrapping.getSharedCoreDataStack()
         coreDataStack = stack
         let deps = AppDependencies(coreDataStack: stack)
-        _dependencies = State(wrappedValue: deps)
-        _classroomWorkspace = State(wrappedValue: ClassroomWorkspaceStore(
+        dependencies = deps
+        classroomWorkspace = ClassroomWorkspaceStore(
             primaryStack: stack,
             primaryDependencies: deps
-        ))
-        _saveCoordinator = State(wrappedValue: SaveCoordinator(toastService: deps.toastService))
-        _restoreCoordinator = State(wrappedValue: RestoreCoordinator(appRouter: deps.appRouter))
+        )
+        saveCoordinator = SaveCoordinator(toastService: deps.toastService)
+        restoreCoordinator = RestoreCoordinator(appRouter: deps.appRouter)
 
         #if os(iOS)
         // BGTaskScheduler handlers must be registered before launch finishes.

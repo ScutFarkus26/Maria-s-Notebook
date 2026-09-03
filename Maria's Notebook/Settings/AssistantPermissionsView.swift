@@ -6,7 +6,7 @@ struct AssistantPermissionsView: View {
     @State private var enabledCategories: Set<SharingPermissionCategory>
 
     init() {
-        _enabledCategories = State(initialValue: SharingPreferences.assistantWritableCategories())
+        enabledCategories = SharingPreferences.assistantWritableCategories()
     }
 
     var body: some View {

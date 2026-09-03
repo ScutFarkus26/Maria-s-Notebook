@@ -48,19 +48,19 @@ struct QuickNoteSheet: View {
     /// Backward-compatible init for single-student callers (pie menu, TodayView, etc.)
     init(initialStudentID: UUID? = nil, initialBodyText: String = "") {
         let ids: Set<UUID> = initialStudentID.map { Set([$0]) } ?? []
-        _viewModel = State(wrappedValue: QuickNoteViewModel(
+        viewModel = QuickNoteViewModel(
             initialStudentIDs: ids,
             initialBodyText: initialBodyText
-        ))
+        )
     }
 
     /// Full init for command bar routing with multi-student + tag pre-selection
     init(initialStudentIDs: Set<UUID>, initialBodyText: String = "", initialTags: [String] = []) {
-        _viewModel = State(wrappedValue: QuickNoteViewModel(
+        viewModel = QuickNoteViewModel(
             initialStudentIDs: initialStudentIDs,
             initialBodyText: initialBodyText,
             initialTags: initialTags
-        ))
+        )
     }
     
     // MARK: - Body

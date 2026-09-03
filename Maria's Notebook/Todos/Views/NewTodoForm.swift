@@ -25,7 +25,7 @@ struct NewTodoForm: View {
 
     init(initialTitle: String = "") {
         self.initialTitle = initialTitle
-        _title = State(initialValue: initialTitle)
+        title = initialTitle
     }
 
     @State private var title: String

@@ -14,7 +14,7 @@ public struct CalendarSyncSettingsView: View {
     @State private var lastSyncStatus: String?
 
     public init() {
-        _syncService = State(wrappedValue: AppDependenciesKey.defaultValue.calendarSync)
+        syncService = AppDependenciesKey.defaultValue.calendarSync
     }
 
     private var needsAuthorization: Bool {

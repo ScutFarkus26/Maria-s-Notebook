@@ -269,7 +269,7 @@ private struct ProjectWorkNoteField: View {
     init(work: CDWorkModel, onSave: @escaping (String) -> Void) {
         self.work = work
         self.onSave = onSave
-        _text = State(initialValue: work.latestUnifiedNoteText)
+        text = work.latestUnifiedNoteText
     }
 
     var body: some View {

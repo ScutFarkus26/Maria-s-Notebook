@@ -19,9 +19,9 @@ struct PresentationFollowUpObservationSheet: View {
         self.row = row
         self.studentName = studentName
         self.lessonName = lessonName
-        _evidence = State(initialValue: row.followUpEvidence)
-        _note = State(initialValue: row.followUpNote ?? "")
-        _resolution = State(initialValue: nil)
+        evidence = row.followUpEvidence
+        note = row.followUpNote ?? ""
+        resolution = nil
     }
 
     var body: some View {

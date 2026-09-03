@@ -28,7 +28,7 @@ struct ParshaLessonEditorSheet: View {
     init(parshaKey: String, existingLesson: CDLesson?) {
         self.parshaKey = parshaKey
         self.existingLesson = existingLesson
-        _selectedParshaKey = State(initialValue: existingLesson?.parshaKey ?? parshaKey)
+        selectedParshaKey = existingLesson?.parshaKey ?? parshaKey
     }
 
     private var candidateDerivedLessons: [CDLesson] {

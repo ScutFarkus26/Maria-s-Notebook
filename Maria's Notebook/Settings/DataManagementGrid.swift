@@ -19,7 +19,7 @@ struct DataManagementGrid: View {
 
     init() {
         // Initialize with default dependencies - will be overridden by environment
-        _viewModel = State(wrappedValue: SettingsViewModel(dependencies: AppDependenciesKey.defaultValue))
+        viewModel = SettingsViewModel(dependencies: AppDependenciesKey.defaultValue)
     }
 
     @AppStorage(UserDefaultsKeys.autoBackupEnabled) private var autoBackupEnabled = true

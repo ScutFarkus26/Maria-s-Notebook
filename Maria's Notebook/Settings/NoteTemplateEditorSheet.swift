@@ -13,9 +13,9 @@ struct NoteTemplateEditorSheet: View {
     let template: CDNoteTemplate?
     var onSaved: () -> Void
 
-    @State private var titleText: String = ""
-    @State private var bodyText: String = ""
-    @State private var tags: [String] = []
+    @State private var titleText: String
+    @State private var bodyText: String
+    @State private var tags: [String]
     @State private var showingTagPicker: Bool = false
     @State private var saveTrigger = 0
 
@@ -25,9 +25,13 @@ struct NoteTemplateEditorSheet: View {
         self.template = template
         self.onSaved = onSaved
         if let template {
-            _titleText = State(initialValue: template.title)
-            _bodyText = State(initialValue: template.body)
-            _tags = State(initialValue: (template.tags as? [String]) ?? [])
+            titleText = template.title
+            bodyText = template.body
+            tags = (template.tags as? [String]) ?? []
+        } else {
+            titleText = ""
+            bodyText = ""
+            tags = []
         }
     }
 

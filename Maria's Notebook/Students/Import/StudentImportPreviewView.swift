@@ -7,7 +7,7 @@ struct StudentImportPreviewView: View {
     let onConfirm: (StudentCSVImporter.Parsed) -> Void
 
     @State private var showWarnings: Bool = true
-    @State private var includedRows: [StudentCSVImporter.Row] = []
+    @State private var includedRows: [StudentCSVImporter.Row]
 
     init(
         parsed: StudentCSVImporter.Parsed,
@@ -17,7 +17,7 @@ struct StudentImportPreviewView: View {
         self.parsed = parsed
         self.onCancel = onCancel
         self.onConfirm = onConfirm
-        _includedRows = State(initialValue: parsed.rows)
+        includedRows = parsed.rows
     }
 
     var body: some View {

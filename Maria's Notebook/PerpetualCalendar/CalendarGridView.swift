@@ -31,7 +31,7 @@ struct CalendarGridView<DayContent: View, HeaderTrailing: View>: View {
         self.nonSchoolCells = nonSchoolCells
         self.headerTrailing = headerTrailing
         self.dayContent = dayContent
-        _displayYear = State(initialValue: AppCalendar.shared.component(.year, from: Date()))
+        displayYear = AppCalendar.shared.component(.year, from: Date())
     }
 
     private var allMonths: [MonthID] {

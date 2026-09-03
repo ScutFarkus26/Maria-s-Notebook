@@ -12,7 +12,7 @@ struct StudentSelectionSheet: View {
     @Environment(\.managedObjectContext) private var modelContext
     @Environment(SaveCoordinator.self) private var saveCoordinator
 
-    @State private var selectedWorkIDs: Set<UUID> = []
+    @State private var selectedWorkIDs: Set<UUID>
 
     init(session: CDProjectSession, studentID: String, studentName: String, offeredWorks: [CDWorkModel]) {
         self.session = session
@@ -24,7 +24,7 @@ struct StudentSelectionSheet: View {
         let currentSelections = offeredWorks.filter { work in
             ((work.participants?.allObjects as? [CDWorkParticipantEntity]) ?? []).contains { $0.studentID == studentID }
         }.compactMap(\.id)
-        _selectedWorkIDs = State(initialValue: Set(currentSelections))
+        selectedWorkIDs = Set(currentSelections)
     }
 
     var body: some View {

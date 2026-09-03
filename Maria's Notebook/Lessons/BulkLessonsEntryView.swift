@@ -28,7 +28,7 @@ public struct BulkLessonsEntryView: View {
         LessonRepository(context: managedObjectContext, saveCoordinator: nil)
     }
 
-    @State private var rows: [EntryRow] = []
+    @State private var rows: [EntryRow]
     @State private var selectedRowIDs: Set<UUID> = []
     @State private var quickArea: String = ""
     @State private var quickSequence: String = ""
@@ -43,10 +43,10 @@ public struct BulkLessonsEntryView: View {
         self.defaultArea = defaultArea?.trimmed()
         self.defaultSequence = defaultSequence?.trimmed()
         self.onDone = onDone
-        _rows = State(initialValue: Self.initialRows(
+        rows = Self.initialRows(
             count: 10, defaultArea: self.defaultArea,
             defaultSequence: self.defaultSequence
-        ))
+        )
     }
 
     private let columnSpacing: CGFloat = 8

@@ -56,9 +56,9 @@ struct PresentationQuickActionsView: View {
     init(lessonAssignment: CDLessonAssignment, onDone: (() -> Void)? = nil) {
         self.lessonAssignment = lessonAssignment
         self.onDone = onDone
-        _needsPractice = State(initialValue: lessonAssignment.needsPractice)
-        _needsAnotherPresentation = State(initialValue: lessonAssignment.needsAnotherPresentation)
-        _followUpWork = State(initialValue: lessonAssignment.followUpWork)
+        needsPractice = lessonAssignment.needsPractice
+        needsAnotherPresentation = lessonAssignment.needsAnotherPresentation
+        followUpWork = lessonAssignment.followUpWork
     }
 
     private var lesson: CDLesson? {

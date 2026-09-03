@@ -127,17 +127,17 @@ private struct ProjectRoleEditorSheet: View {
     @Environment(\.managedObjectContext) private var modelContext
     @Environment(SaveCoordinator.self) private var saveCoordinator
 
-    @State private var title: String = ""
-    @State private var summary: String = ""
-    @State private var instructions: String = ""
+    @State private var title: String
+    @State private var summary: String
+    @State private var instructions: String
 
     init(club: CDProject, role: CDProjectRole?, onDone: @escaping () -> Void) {
         self.club = club
         self.role = role
         self.onDone = onDone
-        _title = State(initialValue: role?.title ?? "")
-        _summary = State(initialValue: role?.summary ?? "")
-        _instructions = State(initialValue: role?.instructions ?? "")
+        title = role?.title ?? ""
+        summary = role?.summary ?? ""
+        instructions = role?.instructions ?? ""
     }
 
     var body: some View {

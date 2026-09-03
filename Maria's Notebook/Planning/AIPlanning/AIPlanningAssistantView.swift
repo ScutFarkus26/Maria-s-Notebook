@@ -18,7 +18,7 @@ struct AIPlanningAssistantView: View {
     
     init(mode: PlanningMode) {
         self.mode = mode
-        _vm = State(wrappedValue: LessonPlanningViewModel(mode: mode))
+        vm = LessonPlanningViewModel(mode: mode)
     }
     
     var body: some View {

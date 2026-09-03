@@ -245,16 +245,16 @@ private struct TodoTemplateEditSheet: View {
     
     init(template: CDTodoTemplate?) {
         self.template = template
-        _name = State(initialValue: template?.name ?? "")
-        _title = State(initialValue: template?.title ?? "")
-        _notes = State(initialValue: template?.notes ?? "")
-        _priority = State(initialValue: template?.priority ?? .none)
+        name = template?.name ?? ""
+        title = template?.title ?? ""
+        notes = template?.notes ?? ""
+        priority = template?.priority ?? .none
         
         let estTotal = Int(template?.defaultEstimatedMinutes ?? 0)
-        _estimatedHours = State(initialValue: estTotal / 60)
-        _estimatedMinutes = State(initialValue: estTotal % 60)
-        _selectedStudentIDs = State(initialValue: Set(template?.defaultStudentIDsArray ?? []))
-        _selectedTags = State(initialValue: template?.tagsArray ?? [])
+        estimatedHours = estTotal / 60
+        estimatedMinutes = estTotal % 60
+        selectedStudentIDs = Set(template?.defaultStudentIDsArray ?? [])
+        selectedTags = template?.tagsArray ?? []
     }
     
     private var canSave: Bool {

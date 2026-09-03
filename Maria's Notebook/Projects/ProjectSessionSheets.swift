@@ -83,7 +83,7 @@ struct AddWorkOfferSheet: View {
 
     init(session: CDProjectSession) {
         self.session = session
-        _dueDate = State(initialValue: session.meetingDate ?? Date())
+        dueDate = session.meetingDate ?? Date()
     }
 
     var body: some View {

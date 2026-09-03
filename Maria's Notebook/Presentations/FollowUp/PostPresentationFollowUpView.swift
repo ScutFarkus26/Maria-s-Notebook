@@ -56,9 +56,7 @@ struct PostPresentationFollowUpView: View {
             predicate: NSPredicate(format: "presentationID == %@", presentationID),
             animation: .default
         )
-        _nextLessonViewModel = State(
-            initialValue: PostPresentationFormViewModel(students: students)
-        )
+        nextLessonViewModel = PostPresentationFormViewModel(students: students)
     }
 
     private var allRows: [CDLessonPresentation] { Array(followUpRows) }

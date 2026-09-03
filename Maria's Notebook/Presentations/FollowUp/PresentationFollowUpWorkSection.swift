@@ -16,11 +16,11 @@ struct PresentationFollowUpWorkSection: View {
     @Environment(\.managedObjectContext) private var viewContext
     @Environment(SaveCoordinator.self) private var saveCoordinator
 
-    @State private var draftTitle = ""
+    @State private var draftTitle: String
     @State private var draftKind: WorkKind
     @State private var selectedSampleWorkID: UUID?
     @State private var errorMessage: String?
-    @State private var restoredDraft = false
+    @State private var restoredDraft: Bool
     @FocusState private var isTitleFocused: Bool
 
     init(
@@ -44,12 +44,10 @@ struct PresentationFollowUpWorkSection: View {
             presentationID: presentationID,
             studentIDs: studentIDs
         )
-        _draftTitle = State(initialValue: savedDraft?.title ?? "")
-        _draftKind = State(
-            initialValue: savedDraft?.kind ?? lesson.defaultWorkKind ?? .followUpAssignment
-        )
-        _selectedSampleWorkID = State(initialValue: savedDraft?.sampleWorkID)
-        _restoredDraft = State(initialValue: savedDraft != nil)
+        draftTitle = savedDraft?.title ?? ""
+        draftKind = savedDraft?.kind ?? lesson.defaultWorkKind ?? .followUpAssignment
+        selectedSampleWorkID = savedDraft?.sampleWorkID
+        restoredDraft = savedDraft != nil
     }
 
     var body: some View {

@@ -45,7 +45,7 @@ struct UnifiedPresentationWorkflowSheet: View {
         self.onComplete = onComplete
         self.onCancel = onCancel
         
-        _presentationViewModel = State(wrappedValue: PostPresentationFormViewModel(students: deduped))
+        presentationViewModel = PostPresentationFormViewModel(students: deduped)
     }
     
     // MARK: - Body

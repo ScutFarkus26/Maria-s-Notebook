@@ -8,11 +8,11 @@ struct ProcedureEditorSheet: View {
     @Environment(\.managedObjectContext) private var viewContext
     @Environment(\.dismiss) private var dismiss
 
-    @State private var title: String = ""
-    @State private var summary: String = ""
-    @State private var content: String = ""
-    @State private var category: ProcedureCategory = .dailyRoutines
-    @State private var icon: String = ""
+    @State private var title: String
+    @State private var summary: String
+    @State private var content: String
+    @State private var category: ProcedureCategory
+    @State private var icon: String
     @State private var showingIconPicker = false
     @State private var aiTriggerCounter: Int = 0
 
@@ -25,11 +25,17 @@ struct ProcedureEditorSheet: View {
     init(procedure: CDProcedure?) {
         self.procedure = procedure
         if let procedure {
-            _title = State(initialValue: procedure.title)
-            _summary = State(initialValue: procedure.summary)
-            _content = State(initialValue: procedure.content)
-            _category = State(initialValue: procedure.category)
-            _icon = State(initialValue: procedure.icon)
+            title = procedure.title
+            summary = procedure.summary
+            content = procedure.content
+            category = procedure.category
+            icon = procedure.icon
+        } else {
+            title = ""
+            summary = ""
+            content = ""
+            category = .dailyRoutines
+            icon = ""
         }
     }
 

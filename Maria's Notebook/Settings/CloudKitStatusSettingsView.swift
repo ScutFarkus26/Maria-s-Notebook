@@ -9,7 +9,7 @@ struct CloudKitStatusSettingsView: View {
     @AppStorage(UserDefaultsKeys.enableCloudKitSync) private var isCloudKitEnabled = true
     
     init() {
-        _syncService = State(wrappedValue: AppDependenciesKey.defaultValue.cloudKitSyncStatusService)
+        syncService = AppDependenciesKey.defaultValue.cloudKitSyncStatusService
     }
 
     private var isCloudKitActive: Bool {

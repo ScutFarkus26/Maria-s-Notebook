@@ -13,7 +13,7 @@ public struct ReminderSyncSettingsView: View {
 
     public init() {
         // Use the shared instance
-        _syncService = State(wrappedValue: ReminderSyncService.shared)
+        syncService = ReminderSyncService.shared
     }
 
     private var needsAuthorization: Bool {

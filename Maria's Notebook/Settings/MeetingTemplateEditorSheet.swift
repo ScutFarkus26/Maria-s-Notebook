@@ -13,11 +13,11 @@ struct MeetingTemplateEditorSheet: View {
     let template: CDMeetingTemplate?
     var onSaved: () -> Void
 
-    @State private var nameText: String = ""
-    @State private var reflectionPromptText: String = ""
-    @State private var focusPromptText: String = ""
-    @State private var requestsPromptText: String = ""
-    @State private var guideNotesPromptText: String = ""
+    @State private var nameText: String
+    @State private var reflectionPromptText: String
+    @State private var focusPromptText: String
+    @State private var requestsPromptText: String
+    @State private var guideNotesPromptText: String
     @State private var saveTrigger = 0
 
     private var isEditing: Bool { template != nil }
@@ -26,11 +26,17 @@ struct MeetingTemplateEditorSheet: View {
         self.template = template
         self.onSaved = onSaved
         if let template {
-            _nameText = State(initialValue: template.name)
-            _reflectionPromptText = State(initialValue: template.reflectionPrompt)
-            _focusPromptText = State(initialValue: template.focusPrompt)
-            _requestsPromptText = State(initialValue: template.requestsPrompt)
-            _guideNotesPromptText = State(initialValue: template.guideNotesPrompt)
+            nameText = template.name
+            reflectionPromptText = template.reflectionPrompt
+            focusPromptText = template.focusPrompt
+            requestsPromptText = template.requestsPrompt
+            guideNotesPromptText = template.guideNotesPrompt
+        } else {
+            nameText = ""
+            reflectionPromptText = ""
+            focusPromptText = ""
+            requestsPromptText = ""
+            guideNotesPromptText = ""
         }
     }
 

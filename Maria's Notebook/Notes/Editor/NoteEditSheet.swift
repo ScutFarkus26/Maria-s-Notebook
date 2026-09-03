@@ -31,11 +31,11 @@ struct NoteEditSheet: View {
     init(note: CDNote, onSaved: (() -> Void)? = nil) {
         self.note = note
         self.onSaved = onSaved
-        _bodyText = State(initialValue: note.body)
-        _tags = State(initialValue: (note.tags as? [String]) ?? [])
-        _includeInReport = State(initialValue: note.includeInReport)
-        _isPinned = State(initialValue: note.isPinned)
-        _needsFollowUp = State(initialValue: note.needsFollowUp)
+        bodyText = note.body
+        tags = (note.tags as? [String]) ?? []
+        includeInReport = note.includeInReport
+        isPinned = note.isPinned
+        needsFollowUp = note.needsFollowUp
     }
 
     var body: some View {

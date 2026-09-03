@@ -300,8 +300,8 @@ struct CustomTagSheet: View {
         onSave: ((String) -> Void)? = nil
     ) {
         self._selectedTags = selectedTags
-        self._tagName = State(initialValue: initialName)
-        self._selectedColor = State(initialValue: initialColor)
+        self.tagName = initialName
+        self.selectedColor = initialColor
         self.isEditing = isEditing
         self.onSave = onSave
     }

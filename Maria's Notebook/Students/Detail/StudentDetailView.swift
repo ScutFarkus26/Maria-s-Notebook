@@ -344,8 +344,8 @@ struct StudentDetailView: View {
         self.student = student
         self.isInline = isInline
         self.onDone = onDone
-        _vm = State(wrappedValue: StudentDetailViewModel(
+        vm = StudentDetailViewModel(
             student: student, dependencies: AppDependenciesKey.defaultValue
-        ))
+        )
     }
 }

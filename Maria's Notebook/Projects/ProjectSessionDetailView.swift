@@ -32,7 +32,7 @@ struct ProjectSessionDetailView: View {
 
     init(session: CDProjectSession) {
         self.session = session
-        _sessionNotesText = State(initialValue: session.latestUnifiedNoteText)
+        sessionNotesText = session.latestUnifiedNoteText
     }
 
     var students: [CDStudent] {

@@ -24,8 +24,8 @@ struct QuickNewWorkItemSheet: View {
         self.preSelectedLessonID = preSelectedLessonID
         self.preSelectedStudentIDs = preSelectedStudentIDs
         self.onCreatedAndOpen = onCreatedAndOpen
-        _selectedLessonID = State(initialValue: preSelectedLessonID)
-        _selectedStudentIDs = State(initialValue: preSelectedStudentIDs)
+        selectedLessonID = preSelectedLessonID
+        selectedStudentIDs = preSelectedStudentIDs
     }
 
     @Environment(\.dismiss) var dismiss
@@ -59,7 +59,7 @@ struct QuickNewWorkItemSheet: View {
     }
 
     @State var selectedLessonID: UUID?
-    @State var selectedStudentIDs: Set<UUID> = []
+    @State var selectedStudentIDs: Set<UUID>
     @State var workTitle: String = ""
     @State var workKind: WorkKind = .practiceLesson
     @State var dueDate: Date?

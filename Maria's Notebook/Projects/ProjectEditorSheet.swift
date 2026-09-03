@@ -24,19 +24,19 @@ struct ProjectEditorSheet: View {
         )
     }
 
-    @State private var title: String = ""
-    @State private var bookTitle: String = ""
-    @State private var selectedMemberIDs: Set<String> = []
-    @State private var isActive: Bool = true
+    @State private var title: String
+    @State private var bookTitle: String
+    @State private var selectedMemberIDs: Set<String>
+    @State private var isActive: Bool
     @State private var isSaving: Bool = false
     @State private var studentSearchText: String = ""
 
     init(club: CDProject?) {
         self.club = club
-        _title = State(initialValue: club?.title ?? "")
-        _bookTitle = State(initialValue: club?.bookTitle ?? "")
-        _selectedMemberIDs = State(initialValue: Set(club?.memberStudentIDsArray ?? []))
-        _isActive = State(initialValue: club?.isActive ?? true)
+        title = club?.title ?? ""
+        bookTitle = club?.bookTitle ?? ""
+        selectedMemberIDs = Set(club?.memberStudentIDsArray ?? [])
+        isActive = club?.isActive ?? true
     }
 
     var body: some View {

@@ -107,7 +107,7 @@ struct TodayView: View {
 
     // MARK: - Init
     init(context: NSManagedObjectContext) {
-        _viewModel = State(wrappedValue: TodayViewModel(context: context, calendar: AppCalendar.shared))
+        viewModel = TodayViewModel(context: context, calendar: AppCalendar.shared)
     }
 
     // MARK: - Body

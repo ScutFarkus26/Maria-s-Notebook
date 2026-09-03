@@ -72,7 +72,7 @@ struct WorkDetailView: View {
         self.workID = workID
         self.onDone = onDone
         self.showRepresentButton = showRepresentButton
-        _viewModel = State(wrappedValue: WorkDetailViewModel(workID: workID))
+        viewModel = WorkDetailViewModel(workID: workID)
 
         let workIDString = workID.uuidString
         let scheduledStatus = WorkCheckInStatus.scheduled.rawValue

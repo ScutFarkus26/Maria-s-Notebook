@@ -28,7 +28,7 @@ struct TopicDetailView: View, Identifiable {
         self.onSave = onSave
         let model = TopicDetailViewModel()
         model.bind(topic: topic)
-        self._vm = State(wrappedValue: model)
+        self.vm = model
     }
 
     var body: some View {

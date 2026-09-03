@@ -197,7 +197,7 @@ private struct CheckInStudentRow: View {
         self.work = work
         self.studentName = studentName
         self.onOpen = onOpen
-        _noteText = State(initialValue: checkIn.latestUnifiedNoteText)
+        noteText = checkIn.latestUnifiedNoteText
     }
 
     var body: some View {
@@ -284,9 +284,9 @@ struct PlanPromptSheetView: View {
     let prompt: WorkCheckInPlanPrompt
     let onCancel: () -> Void
     let onSave: (String, String, Bool) -> Void
-    @State private var reason: String = "progressCheck"
-    @State private var note: String = ""
-    @State private var studentInitiated: Bool = false
+    @State private var reason: String
+    @State private var note: String
+    @State private var studentInitiated: Bool
     init(
         prompt: WorkCheckInPlanPrompt,
         onCancel: @escaping () -> Void,
@@ -295,9 +295,9 @@ struct PlanPromptSheetView: View {
         self.prompt = prompt
         self.onCancel = onCancel
         self.onSave = onSave
-        _reason = State(initialValue: prompt.reason)
-        _note = State(initialValue: prompt.note)
-        _studentInitiated = State(initialValue: prompt.studentInitiated)
+        reason = prompt.reason
+        note = prompt.note
+        studentInitiated = prompt.studentInitiated
     }
     var body: some View {
         VStack(alignment: .leading, spacing: 16) {

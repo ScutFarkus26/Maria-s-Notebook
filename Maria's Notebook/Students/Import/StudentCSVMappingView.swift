@@ -11,7 +11,7 @@ struct StudentCSVMappingView: View {
         self.headers = headers
         self.onCancel = onCancel
         self.onConfirm = onConfirm
-        _mapping = State(initialValue: StudentCSVImporter.detectMapping(headers: headers))
+        mapping = StudentCSVImporter.detectMapping(headers: headers)
     }
 
     private var canContinue: Bool {

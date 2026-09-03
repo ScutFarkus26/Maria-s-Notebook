@@ -63,44 +63,44 @@ struct TodoEditSheet: View {
     init(todo: CDTodoItem, onDone: (() -> Void)? = nil) {
         self.todo = todo
         self.onDone = onDone
-        _title = State(initialValue: todo.title)
-        _notes = State(initialValue: todo.notes)
-        _selectedStudentIDs = State(initialValue: Set(todo.studentIDsArray))
-        _hasDueDate = State(initialValue: todo.dueDate != nil)
-        _dueDate = State(initialValue: todo.dueDate ?? AppCalendar.startOfDay(Date()))
-        _scheduledDate = State(initialValue: todo.scheduledDate)
-        _deadlineDate = State(initialValue: todo.dueDate)
-        _isSomeday = State(initialValue: todo.isSomeday)
-        _repeatAfterCompletion = State(initialValue: todo.repeatAfterCompletion)
-        _customIntervalDays = State(initialValue: todo.customIntervalDays > 0 ? Int(todo.customIntervalDays) : 7)
-        _priority = State(initialValue: todo.priority)
-        _recurrence = State(initialValue: todo.recurrence)
+        title = todo.title
+        notes = todo.notes
+        selectedStudentIDs = Set(todo.studentIDsArray)
+        hasDueDate = todo.dueDate != nil
+        dueDate = todo.dueDate ?? AppCalendar.startOfDay(Date())
+        scheduledDate = todo.scheduledDate
+        deadlineDate = todo.dueDate
+        isSomeday = todo.isSomeday
+        repeatAfterCompletion = todo.repeatAfterCompletion
+        customIntervalDays = todo.customIntervalDays > 0 ? Int(todo.customIntervalDays) : 7
+        priority = todo.priority
+        recurrence = todo.recurrence
 
         // Parse time estimates
         let estTotal = Int(todo.estimatedMinutes)
-        _estimatedHours = State(initialValue: estTotal / 60)
-        _estimatedMinutes = State(initialValue: estTotal % 60)
+        estimatedHours = estTotal / 60
+        estimatedMinutes = estTotal % 60
 
         let actTotal = Int(todo.actualMinutes)
-        _actualHours = State(initialValue: actTotal / 60)
-        _actualMinutes = State(initialValue: actTotal % 60)
+        actualHours = actTotal / 60
+        actualMinutes = actTotal % 60
 
         // Parse reminder
-        _hasReminder = State(initialValue: todo.reminderDate != nil)
+        hasReminder = todo.reminderDate != nil
         // Default to 1 hour from now
-        _reminderDate = State(initialValue: todo.reminderDate ?? Date().addingTimeInterval(3600))
+        reminderDate = todo.reminderDate ?? Date().addingTimeInterval(3600)
 
         // Parse mood and reflection
-        _selectedMood = State(initialValue: todo.mood)
-        _reflectionNotes = State(initialValue: todo.reflectionNotes)
+        selectedMood = todo.mood
+        reflectionNotes = todo.reflectionNotes
 
         // Parse location reminder
-        _hasLocationReminder = State(initialValue: todo.hasLocationReminder)
-        _locationName = State(initialValue: todo.locationName ?? "")
-        _locationLatitude = State(initialValue: todo.locationLatitude != 0 ? todo.locationLatitude : nil)
-        _locationLongitude = State(initialValue: todo.locationLongitude != 0 ? todo.locationLongitude : nil)
-        _notifyOnEntry = State(initialValue: todo.notifyOnEntry)
-        _notifyOnExit = State(initialValue: todo.notifyOnExit)
+        hasLocationReminder = todo.hasLocationReminder
+        locationName = todo.locationName ?? ""
+        locationLatitude = todo.locationLatitude != 0 ? todo.locationLatitude : nil
+        locationLongitude = todo.locationLongitude != 0 ? todo.locationLongitude : nil
+        notifyOnEntry = todo.notifyOnEntry
+        notifyOnExit = todo.notifyOnExit
     }
 
     var selectedStudents: [CDStudent] {
@@ -155,7 +155,7 @@ struct SubtaskRow: View {
         self.onToggle = onToggle
         self.onDelete = onDelete
         self.onUpdate = onUpdate
-        _editingTitle = State(initialValue: subtask.title)
+        editingTitle = subtask.title
     }
 
     var body: some View {

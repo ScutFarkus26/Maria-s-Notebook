@@ -30,7 +30,7 @@ struct DocumentImportSheet: View {
         
         // Pre-fill title with filename (without extension)
         let filename = pdfURL.deletingPathExtension().lastPathComponent
-        _title = State(initialValue: filename)
+        title = filename
     }
     
     var body: some View {
