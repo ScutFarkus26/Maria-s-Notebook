@@ -244,10 +244,8 @@ extension CDLesson {
     var derivedFromLesson: CDLesson? {
         guard let id = derivedFromLessonID, !id.isEmpty,
               let ctx = managedObjectContext else { return nil }
-        let req = CDFetchRequest(CDLesson.self)
-        req.predicate = NSPredicate(format: "id == %@", id)
-        req.fetchLimit = 1
-        return ctx.safeFetchFirst(req)
+        guard let uuid = UUID(uuidString: id) else { return nil }
+        return ctx.object(CDLesson.self, id: uuid)
     }
 
     /// Fetches all lessons tagged to the given parsha key, sorted by name.

@@ -36,10 +36,8 @@ extension CDDocument {
     var student: CDStudent? {
         get {
             guard let studentID, let ctx = managedObjectContext else { return nil }
-            let req = CDFetchRequest(CDStudent.self)
-            req.predicate = NSPredicate(format: "id == %@", studentID)
-            req.fetchLimit = 1
-            return ctx.safeFetchFirst(req)
+            guard let uuid = UUID(uuidString: studentID) else { return nil }
+            return ctx.object(CDStudent.self, id: uuid)
         }
         set { studentID = newValue?.id?.uuidString }
     }

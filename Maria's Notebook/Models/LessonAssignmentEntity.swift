@@ -128,10 +128,8 @@ extension CDLessonAssignment {
     var lesson: CDLesson? {
         get {
             guard !lessonID.isEmpty, let ctx = managedObjectContext else { return nil }
-            let req = CDFetchRequest(CDLesson.self)
-            req.predicate = NSPredicate(format: "id == %@", lessonID)
-            req.fetchLimit = 1
-            return ctx.safeFetchFirst(req)
+            guard let uuid = UUID(uuidString: lessonID) else { return nil }
+            return ctx.object(CDLesson.self, id: uuid)
         }
         set { lessonID = newValue?.id?.uuidString ?? "" }
     }

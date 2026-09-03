@@ -132,10 +132,7 @@ private struct SuggestionRow: View {
     @State private var didTag = false
 
     private var lesson: CDLesson? {
-        let req = CDFetchRequest(CDLesson.self)
-        req.predicate = NSPredicate(format: "id == %@", suggestion.lessonID.uuidString)
-        req.fetchLimit = 1
-        return viewContext.safeFetchFirst(req)
+        viewContext.object(CDLesson.self, id: suggestion.lessonID)
     }
 
     private var isAlreadyTagged: Bool {

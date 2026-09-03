@@ -175,15 +175,7 @@ private extension ImmediatePresentationRecordingService {
         assignment: CDLessonAssignment,
         context: NSManagedObjectContext
     ) -> String? {
-        let lesson: CDLesson?
-        if let relatedLesson = assignment.lesson {
-            lesson = relatedLesson
-        } else if let lessonID = assignment.lessonIDUUID {
-            lesson = context.object(CDLesson.self, id: lessonID)
-        } else {
-            lesson = nil
-        }
-        guard let lesson else { return nil }
+        guard let lesson = assignment.lesson else { return nil }
         let area = lesson.area.trimmed()
         let sequence = lesson.sequence.trimmed()
         guard !area.isEmpty, !sequence.isEmpty else { return nil }

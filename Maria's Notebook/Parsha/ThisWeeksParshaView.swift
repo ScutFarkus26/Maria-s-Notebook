@@ -577,10 +577,7 @@ private struct InlineSuggestionRow: View {
     @Environment(\.managedObjectContext) private var viewContext
 
     private var lesson: CDLesson? {
-        let req = CDFetchRequest(CDLesson.self)
-        req.predicate = NSPredicate(format: "id == %@", suggestion.lessonID.uuidString)
-        req.fetchLimit = 1
-        return viewContext.safeFetchFirst(req)
+        viewContext.object(CDLesson.self, id: suggestion.lessonID)
     }
 
     var body: some View {

@@ -177,10 +177,8 @@ extension CDNote {
     var lesson: CDLesson? {
         get {
             guard let lessonID, let ctx = managedObjectContext else { return nil }
-            let req = CDFetchRequest(CDLesson.self)
-            req.predicate = NSPredicate(format: "id == %@", lessonID)
-            req.fetchLimit = 1
-            return ctx.safeFetchFirst(req)
+            guard let uuid = UUID(uuidString: lessonID) else { return nil }
+            return ctx.object(CDLesson.self, id: uuid)
         }
         set { lessonID = newValue?.id?.uuidString }
     }
@@ -188,10 +186,8 @@ extension CDNote {
     var communityTopic: CDCommunityTopicEntity? {
         get {
             guard let communityTopicID, let ctx = managedObjectContext else { return nil }
-            let req = CDFetchRequest(CDCommunityTopicEntity.self)
-            req.predicate = NSPredicate(format: "id == %@", communityTopicID)
-            req.fetchLimit = 1
-            return ctx.safeFetchFirst(req)
+            guard let uuid = UUID(uuidString: communityTopicID) else { return nil }
+            return ctx.object(CDCommunityTopicEntity.self, id: uuid)
         }
         set { communityTopicID = newValue?.id?.uuidString }
     }
@@ -199,10 +195,8 @@ extension CDNote {
     var schoolDayOverride: CDSchoolDayOverride? {
         get {
             guard let schoolDayOverrideID, let ctx = managedObjectContext else { return nil }
-            let req = CDFetchRequest(CDSchoolDayOverride.self)
-            req.predicate = NSPredicate(format: "id == %@", schoolDayOverrideID)
-            req.fetchLimit = 1
-            return ctx.safeFetchFirst(req)
+            guard let uuid = UUID(uuidString: schoolDayOverrideID) else { return nil }
+            return ctx.object(CDSchoolDayOverride.self, id: uuid)
         }
         set { schoolDayOverrideID = newValue?.id?.uuidString }
     }
@@ -210,10 +204,8 @@ extension CDNote {
     var studentTrackEnrollment: CDStudentTrackEnrollmentEntity? {
         get {
             guard let studentTrackEnrollmentID, let ctx = managedObjectContext else { return nil }
-            let req = CDFetchRequest(CDStudentTrackEnrollmentEntity.self)
-            req.predicate = NSPredicate(format: "id == %@", studentTrackEnrollmentID)
-            req.fetchLimit = 1
-            return ctx.safeFetchFirst(req)
+            guard let uuid = UUID(uuidString: studentTrackEnrollmentID) else { return nil }
+            return ctx.object(CDStudentTrackEnrollmentEntity.self, id: uuid)
         }
         set { studentTrackEnrollmentID = newValue?.id?.uuidString }
     }
@@ -221,10 +213,8 @@ extension CDNote {
     var goingOut: CDGoingOut? {
         get {
             guard let goingOutID, let ctx = managedObjectContext else { return nil }
-            let req = CDFetchRequest(CDGoingOut.self)
-            req.predicate = NSPredicate(format: "id == %@", goingOutID)
-            req.fetchLimit = 1
-            return ctx.safeFetchFirst(req)
+            guard let uuid = UUID(uuidString: goingOutID) else { return nil }
+            return ctx.object(CDGoingOut.self, id: uuid)
         }
         set { goingOutID = newValue?.id?.uuidString }
     }

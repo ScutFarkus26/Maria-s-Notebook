@@ -50,10 +50,8 @@ final class StudentYearPlanViewModel {
 
         var lookup: [String: CDLesson] = [:]
         for idStr in allLessonIDs where !idStr.isEmpty {
-            let lessonReq = CDFetchRequest(CDLesson.self)
-            lessonReq.predicate = NSPredicate(format: "id == %@", idStr)
-            lessonReq.fetchLimit = 1
-            if let lesson = context.safeFetchFirst(lessonReq) {
+            if let uuid = UUID(uuidString: idStr),
+               let lesson = context.object(CDLesson.self, id: uuid) {
                 lookup[idStr] = lesson
             }
         }
