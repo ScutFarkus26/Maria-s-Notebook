@@ -25,18 +25,15 @@ public struct ParsingOverlay: View {
     }
 }
 
-struct ParsingOverlay_Previews: PreviewProvider {
+#Preview {
     struct PreviewWrapper: View {
         @State private var isParsing = true
-        
+
         var body: some View {
             ParsingOverlay(isParsing: $isParsing, onCancel: {
                 isParsing = false
             })
         }
     }
-    
-    static var previews: some View {
-        PreviewWrapper()
-    }
+    return PreviewWrapper()
 }

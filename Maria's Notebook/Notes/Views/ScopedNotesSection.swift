@@ -172,19 +172,15 @@ struct ScopedNotesSection: View {
 }
 
 #if DEBUG
-import SwiftUI
-
-struct ScopedNotesSection_Previews: PreviewProvider {
-    static var previews: some View {
-        ScopedNotesSection(
-            title: "Notes",
-            notes: [],
-            availableStudents: [],
-            defaultScope: .all,
-            onAddNote: { _, _ in }
-        )
-        .frame(width: 350)
-        .padding()
-    }
+#Preview {
+    ScopedNotesSection(
+        title: "Notes",
+        notes: [],
+        availableStudents: [],
+        defaultScope: .all,
+        onAddNote: { _, _ in }
+    )
+    .frame(width: 350)
+    .padding()
 }
 #endif
