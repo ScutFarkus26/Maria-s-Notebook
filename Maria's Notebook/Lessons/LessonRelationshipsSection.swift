@@ -40,14 +40,6 @@ struct LessonRelationshipsSection: View {
     }
 
     private var resolvedLessons: [CDLesson] {
-        lessonIDs.compactMap { id in
-            let descriptor = {
-                let r = NSFetchRequest<CDLesson>(entityName: "Lesson")
-                r.predicate = NSPredicate(format: "id == %@", id as CVarArg)
-                r.fetchLimit = 1
-                return r
-            }()
-            return viewContext.safeFetchFirst(descriptor)
-        }
+        lessonIDs.compactMap { viewContext.object(CDLesson.self, id: $0) }
     }
 }

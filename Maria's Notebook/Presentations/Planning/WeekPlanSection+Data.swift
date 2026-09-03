@@ -103,9 +103,7 @@ extension WeekPlanSection {
     /// A check-in dragged to another day moves with its work's due date, so the
     /// two never drift apart.
     func rescheduleCheckIn(id: UUID, to day: Date) {
-        let request: NSFetchRequest<CDWorkCheckIn> = NSFetchRequest(entityName: "WorkCheckIn")
-        request.predicate = NSPredicate(format: "id == %@", id as CVarArg)
-        guard let checkIn = viewContext.safeFetchFirst(request),
+        guard let checkIn = viewContext.object(CDWorkCheckIn.self, id: id),
               let workID = checkIn.workID.asUUID else { return }
 
         checkIn.date = day
@@ -142,10 +140,7 @@ extension WeekPlanSection {
     }
 
     func fetchWork(id: UUID) -> CDWorkModel? {
-        let request: NSFetchRequest<CDWorkModel> = NSFetchRequest(entityName: "WorkModel")
-        request.predicate = NSPredicate(format: "id == %@", id as CVarArg)
-        request.fetchLimit = 1
-        return viewContext.safeFetch(request).first
+        viewContext.object(CDWorkModel.self, id: id)
     }
 
     /// Moves `source`'s time-of-day onto `day`, so a lesson keeps its position

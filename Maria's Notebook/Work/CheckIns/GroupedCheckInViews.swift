@@ -164,9 +164,7 @@ struct GroupedCheckInDetailSheet: View {
 
     private func studentRow(checkIn: CDWorkCheckIn, studentName: String) -> some View {
         let work: CDWorkModel? = checkIn.workID.asUUID.flatMap { id in
-            let request = CDFetchRequest(CDWorkModel.self)
-            request.predicate = NSPredicate(format: "id == %@", id as CVarArg)
-            return modelContext.safeFetchFirst(request)
+            modelContext.object(CDWorkModel.self, id: id)
         }
         return CheckInStudentRow(
             checkIn: checkIn,

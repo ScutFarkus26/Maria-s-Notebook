@@ -307,9 +307,7 @@ final class SmallSequencePlannerViewModel {
     // MARK: - Actions
 
     func confirmMastery(studentID: UUID, assignmentID: UUID, context: NSManagedObjectContext) {
-        let request = CDFetchRequest(CDLessonAssignment.self)
-        request.predicate = NSPredicate(format: "id == %@", assignmentID as CVarArg)
-        guard let assignment = context.safeFetchFirst(request) else { return }
+        guard let assignment = context.object(CDLessonAssignment.self, id: assignmentID) else { return }
         assignment.confirmStudent(studentID)
         context.safeSave()
 

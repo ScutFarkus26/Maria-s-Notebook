@@ -1,7 +1,6 @@
 // swiftlint:disable file_length
 import SwiftUI
 import CoreData
-import OSLog
 
 // MARK: - Follow-Up Inbox Item
 struct FollowUpInboxItem: Identifiable, Equatable {
@@ -78,21 +77,6 @@ struct FollowUpInboxItem: Identifiable, Equatable {
 // MARK: - Engine
 // swiftlint:disable:next type_body_length
 struct FollowUpInboxEngine {
-    private static let logger = Logger.inbox
-
-    // MARK: - Helper Methods
-
-    private static func safeFetch<T: NSManagedObject>(
-        _ request: NSFetchRequest<T>, context: NSManagedObjectContext,
-        label: String = #function
-    ) -> [T] {
-        do {
-            return try context.fetch(request)
-        } catch {
-            logger.warning("Failed to fetch \(T.self, privacy: .public): \(error.localizedDescription)")
-            return []
-        }
-    }
     struct Constants {
         var lessonFollowUpOverdueDays: Int = 7
         var workStaleOverdueDays: Int = 5
@@ -182,20 +166,16 @@ struct FollowUpInboxEngine {
         let request = CDFetchRequest(CDWorkModel.self)
         request.predicate = NSPredicate(format: "statusRaw != %@", completeRaw)
         request.sortDescriptors = [NSSortDescriptor(key: "createdAt", ascending: false)]
-        return safeFetch(request, context: context, label: "computeItems")
+        return context.safeFetch(request)
             .filter(\.isOpen)
     }
 
     private static func fetchSchoolDaySets(
         context: NSManagedObjectContext
     ) -> (nonSchoolDays: Set<Date>, overrides: Set<Date>) {
-        let nonSchoolDays = safeFetch(
-            CDFetchRequest(CDNonSchoolDay.self), context: context, label: "computeItems"
-        )
+        let nonSchoolDays = context.safeFetch(CDFetchRequest(CDNonSchoolDay.self))
         let nsdSet = Set(nonSchoolDays.compactMap { $0.date }.map { AppCalendar.startOfDay($0) })
-        let overrides = safeFetch(
-            CDFetchRequest(CDSchoolDayOverride.self), context: context, label: "computeItems"
-        )
+        let overrides = context.safeFetch(CDFetchRequest(CDSchoolDayOverride.self))
         let sdoSet = Set(overrides.compactMap { $0.date }.map { AppCalendar.startOfDay($0) })
         return (nsdSet, sdoSet)
     }

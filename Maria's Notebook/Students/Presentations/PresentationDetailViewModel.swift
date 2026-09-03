@@ -110,18 +110,6 @@ final class PresentationDetailViewModel {
         )
     }
 
-    // MARK: - Error Handling Helpers
-
-    /// Internal (not private) so +MasteryTracking extension can call it.
-    func safeFetch<T>(_ descriptor: NSFetchRequest<T>, functionName: String = #function) -> [T] {
-        do {
-            return try viewContext.fetch(descriptor)
-        } catch {
-            Self.logger.warning("[\(functionName)] Failed to fetch \(String(describing: T.self)): \(error)")
-            return []
-        }
-    }
-
     // MARK: - Computed Helpers
 
     /// Resolves the currently selected CDLesson object from the provided list
@@ -271,24 +259,17 @@ final class PresentationDetailViewModel {
 
         // Perform deletion asynchronously
         Task { @MainActor in
-            let desc: NSFetchRequest<CDLessonAssignment> = NSFetchRequest(entityName: "LessonAssignment")
-            desc.predicate = NSPredicate(format: "id == %@", id as CVarArg)
-            desc.fetchLimit = 1
-            do {
-                if let toDelete = try ctx.fetch(desc).first {
-                    _ = toDelete.studentIDs
-                    for row in PresentationFollowUpService.rows(for: id, in: ctx)
-                        where row.hasOpenFollowUp {
-                        PresentationFollowUpService.resolve(
-                            .noFurtherFollowUp,
-                            row: row
-                        )
-                    }
-                    ctx.delete(toDelete)
-                    coordinator.save(ctx, reason: "Deleting lesson assignment")
+            if let toDelete = ctx.object(CDLessonAssignment.self, id: id) {
+                _ = toDelete.studentIDs
+                for row in PresentationFollowUpService.rows(for: id, in: ctx)
+                    where row.hasOpenFollowUp {
+                    PresentationFollowUpService.resolve(
+                        .noFurtherFollowUp,
+                        row: row
+                    )
                 }
-            } catch {
-                Self.logger.warning("Failed to fetch CDLessonAssignment for deletion: \(error)")
+                ctx.delete(toDelete)
+                coordinator.save(ctx, reason: "Deleting lesson assignment")
             }
             PresentationDetailUtilities.notifyInboxRefresh()
         }

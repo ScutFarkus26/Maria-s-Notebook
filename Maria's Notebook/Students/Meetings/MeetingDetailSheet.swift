@@ -104,10 +104,7 @@ struct MeetingDetailSheet: View {
     }
 
     private func workTitle(for workID: String) -> String {
-        let request = NSFetchRequest<CDWorkModel>(entityName: "WorkModel")
-        request.predicate = NSPredicate(format: "id == %@", (UUID(uuidString: workID) ?? UUID()) as CVarArg)
-        request.fetchLimit = 1
-        if let work = try? viewContext.fetch(request).first {
+        if let work = viewContext.object(CDWorkModel.self, id: UUID(uuidString: workID) ?? UUID()) {
             let title = work.title.trimmed()
             return title.isEmpty ? "Work Item" : title
         }

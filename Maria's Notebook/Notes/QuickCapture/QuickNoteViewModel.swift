@@ -1,4 +1,3 @@
-// swiftlint:disable file_length
 import OSLog
 import SwiftUI
 import CoreData
@@ -255,17 +254,13 @@ class QuickNoteViewModel {
         // Fetch CDStudentTrackEnrollmentEntity if selectedEnrollmentID is set
         var studentTrackEnrollment: CDStudentTrackEnrollmentEntity?
         if let enrollmentID = selectedEnrollmentID {
-            let descriptor = NSFetchRequest<CDStudentTrackEnrollmentEntity>(entityName: "StudentTrackEnrollment")
-            descriptor.predicate = NSPredicate(format: "id == %@", enrollmentID as CVarArg)
-            studentTrackEnrollment = viewContext.safeFetchFirst(descriptor)
+            studentTrackEnrollment = viewContext.object(CDStudentTrackEnrollmentEntity.self, id: enrollmentID)
         }
 
         // Fetch CDLesson if selectedLessonID is set
         var lesson: CDLesson?
         if let lessonID = selectedLessonID {
-            let descriptor = NSFetchRequest<CDLesson>(entityName: "Lesson")
-            descriptor.predicate = NSPredicate(format: "id == %@", lessonID as CVarArg)
-            lesson = viewContext.safeFetchFirst(descriptor)
+            lesson = viewContext.object(CDLesson.self, id: lessonID)
         }
 
         let newNote = CDNote(context: viewContext)

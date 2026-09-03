@@ -114,11 +114,7 @@ struct ChatMessageBubble: View {
     }
 
     private func openPresentationSource(_ id: UUID) {
-        let request = CDFetchRequest(CDLessonAssignment.self)
-        request.predicate = NSPredicate(format: "id == %@", id as CVarArg)
-        request.fetchLimit = 1
-
-        guard let assignment = viewContext.safeFetch(request).first else {
+        guard let assignment = viewContext.object(CDLessonAssignment.self, id: id) else {
             appRouter.navigateToHistory(.presentations)
             return
         }
@@ -134,10 +130,7 @@ struct ChatMessageBubble: View {
     }
 
     private func openWorkSource(_ id: UUID) {
-        let request = CDFetchRequest(CDWorkModel.self)
-        request.predicate = NSPredicate(format: "id == %@", id as CVarArg)
-        request.fetchLimit = 1
-        guard viewContext.safeFetch(request).first?.status != .complete else {
+        guard viewContext.object(CDWorkModel.self, id: id)?.status != .complete else {
             appRouter.navigateToHistory(.work)
             return
         }

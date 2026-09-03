@@ -1,6 +1,5 @@
 import SwiftUI
 import CoreData
-import OSLog
 
 /// The per-status wording and colors that distinguish the absence report from
 /// the tardy report. Everything else about the two sheets is identical.
@@ -25,8 +24,6 @@ struct AttendanceStatusReportConfig {
     let emptyTitle: String
     /// Empty-state description.
     let emptyDescription: String
-    /// Context string attached to fetch-failure log lines.
-    let fetchContext: String
 
     static let absence = AttendanceStatusReportConfig(
         status: .absent,
@@ -38,8 +35,7 @@ struct AttendanceStatusReportConfig {
         rowSingularLabel: "absence",
         rowPluralLabel: "absences",
         emptyTitle: "No Absences",
-        emptyDescription: "No absences recorded in the selected range.",
-        fetchContext: "AttendanceAbsenceReport.rows"
+        emptyDescription: "No absences recorded in the selected range."
     )
 
     static let tardy = AttendanceStatusReportConfig(
@@ -52,8 +48,7 @@ struct AttendanceStatusReportConfig {
         rowSingularLabel: "tardy",
         rowPluralLabel: "tardies",
         emptyTitle: "No Tardies",
-        emptyDescription: "No tardies recorded in the selected range.",
-        fetchContext: "AttendanceTardyReport.rows"
+        emptyDescription: "No tardies recorded in the selected range."
     )
 }
 
@@ -61,7 +56,6 @@ struct AttendanceStatusReportConfig {
 /// date range. `AttendanceAbsenceReport` and `AttendanceTardyReport` are thin
 /// wrappers that supply the config.
 struct AttendanceStatusReport: View {
-    private static let logger = Logger.attendance
     @Environment(\.managedObjectContext) private var viewContext
     @Environment(\.dismiss) private var dismiss
     @Environment(\.dependencies) private var dependencies
@@ -95,9 +89,9 @@ struct AttendanceStatusReport: View {
         let end = AppCalendar.startOfDay(endDate)
 
         // Fetch all records in the range, then filter for the status in memory
-        let fetchRequest = NSFetchRequest<CDAttendanceRecord>(entityName: "AttendanceRecord")
+        let fetchRequest = CDFetchRequest(CDAttendanceRecord.self)
         fetchRequest.predicate = NSPredicate(format: "date >= %@ AND date <= %@", start as NSDate, end as NSDate)
-        let records = safeFetch(fetchRequest, context: config.fetchContext)
+        let records = viewContext.safeFetch(fetchRequest)
             .deduplicatedPerStudentDay()
 
         // Count matching records per studentID
@@ -280,15 +274,6 @@ struct AttendanceStatusReport: View {
     }
 
     // MARK: - Helpers
-
-    private func safeFetch<T: NSManagedObject>(_ request: NSFetchRequest<T>, context: String = #function) -> [T] {
-        do {
-            return try viewContext.fetch(request)
-        } catch {
-            Self.logger.warning("Failed to fetch \(T.self, privacy: .public) in \(context, privacy: .public): \(error)")
-            return []
-        }
-    }
 
     private func applyPreset(days: Int) {
         endDate = AppCalendar.startOfDay(Date())

@@ -212,9 +212,6 @@ extension WorksAgendaView {
     }
 
     func fetchWork(id: UUID) -> CDWorkModel? {
-        let request: NSFetchRequest<CDWorkModel> = NSFetchRequest(entityName: "WorkModel")
-        request.predicate = NSPredicate(format: "id == %@", id as CVarArg)
-        request.fetchLimit = 1
-        return viewContext.safeFetch(request).first
+        viewContext.object(CDWorkModel.self, id: id)
     }
 }

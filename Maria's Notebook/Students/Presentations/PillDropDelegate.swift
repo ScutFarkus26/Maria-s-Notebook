@@ -1,9 +1,6 @@
-import OSLog
 import SwiftUI
 import CoreData
 import UniformTypeIdentifiers
-
-private let logger = Logger.students
 
 struct PillDropDelegate: DropDelegate {
     let viewContext: NSManagedObjectContext
@@ -32,7 +29,6 @@ struct PillDropDelegate: DropDelegate {
 
     func validateDrop(info: DropInfo) -> Bool { info.hasItemsConforming(to: [UTType.text]) }
 
-    // swiftlint:disable:next cyclomatic_complexity function_body_length
     func performDrop(info: DropInfo) -> Bool {
         setHighlight(false)
         setMergeHighlight(false)
@@ -47,28 +43,8 @@ struct PillDropDelegate: DropDelegate {
                     let sourceID = decoded.sourceID
                     let lessonID = decoded.lessonID
                     let studentID = decoded.studentID
-                    let srcDesc = {
-                        let r = NSFetchRequest<CDLessonAssignment>(entityName: "LessonAssignment")
-                        r.predicate = NSPredicate(format: "id == %@", sourceID as CVarArg)
-                        r.fetchLimit = 1
-                        return r
-                    }()
-                    let tgtDesc = {
-                        let r = NSFetchRequest<CDLessonAssignment>(entityName: "LessonAssignment")
-                        r.predicate = NSPredicate(format: "id == %@", targetID as CVarArg)
-                        r.fetchLimit = 1
-                        return r
-                    }()
-                    let src: CDLessonAssignment?
-                    let tgt: CDLessonAssignment?
-                    do {
-                        src = try viewContext.fetch(srcDesc).first
-                        tgt = try viewContext.fetch(tgtDesc).first
-                    } catch {
-                        logger.warning("Failed to fetch LessonAssignments on drop: \(error)")
-                        return
-                    }
-                    guard let source = src, let target = tgt,
+                    guard let source = viewContext.object(CDLessonAssignment.self, id: sourceID),
+                          let target = viewContext.object(CDLessonAssignment.self, id: targetID),
                           source.id != target.id,
                           lessonID == targetLessonID else { return }
                     let studentIDString = studentID.uuidString
@@ -134,19 +110,7 @@ struct PillDropDelegate: DropDelegate {
                         setMergeHighlight(false)
                         return
                     }
-                    let srcDesc = {
-                        let r = NSFetchRequest<CDLessonAssignment>(entityName: "LessonAssignment")
-                        r.predicate = NSPredicate(format: "id == %@", sourceID as CVarArg)
-                        r.fetchLimit = 1
-                        return r
-                    }()
-                    let source: CDLessonAssignment?
-                    do {
-                        source = try viewContext.fetch(srcDesc).first
-                    } catch {
-                        logger.warning("Failed to fetch source for merge drop: \(error)")
-                        source = nil
-                    }
+                    let source = viewContext.object(CDLessonAssignment.self, id: sourceID)
                     if let source, source.resolvedLessonID == targetLessonID, !source.isGiven {
                         setHighlight(false)
                         setMergeHighlight(true)

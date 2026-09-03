@@ -7,12 +7,7 @@ struct WorkDetailWindowHost: View {
     @Environment(\.dismissWindow) private var dismissWindow
 
     var body: some View {
-        let workModelFetch: NSFetchRequest<CDWorkModel> = {
-            let r = NSFetchRequest<CDWorkModel>(entityName: "WorkModel")
-            r.predicate = NSPredicate(format: "id == %@", workID as CVarArg)
-            return r
-        }()
-        if let workModel = viewContext.safeFetchFirst(workModelFetch) {
+        if let workModel = viewContext.object(CDWorkModel.self, id: workID) {
             // Save, Cancel and Delete all mean "close this window", so the
             // window is named rather than left to the ambient `dismiss`, which
             // has no presentation to close out here and quietly does nothing.

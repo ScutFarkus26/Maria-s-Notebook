@@ -8,14 +8,7 @@ struct ResourceDetailWindowHost: View {
     @Environment(\.managedObjectContext) private var viewContext
 
     var body: some View {
-        let request: NSFetchRequest<CDResource> = {
-            let request = NSFetchRequest<CDResource>(entityName: "Resource")
-            request.predicate = NSPredicate(format: "id == %@", resourceID as CVarArg)
-            request.fetchLimit = 1
-            return request
-        }()
-
-        if let resource = viewContext.safeFetchFirst(request) {
+        if let resource = viewContext.object(CDResource.self, id: resourceID) {
             ResourceDetailView(resource: resource)
                 .frame(minWidth: 640, minHeight: 540)
                 .navigationTitle(resource.title.isEmpty ? "Resource" : resource.title)

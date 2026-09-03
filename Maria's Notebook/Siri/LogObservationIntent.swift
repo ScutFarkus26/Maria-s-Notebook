@@ -43,10 +43,7 @@ struct LogObservationIntent: AppIntent {
         let context = AppBootstrapping.getSharedCoreDataStack().viewContext
 
         // Confirm the student still exists (could have been removed/synced away).
-        let request = CDFetchRequest(CDStudent.self)
-        request.predicate = NSPredicate(format: "id == %@", student.id as CVarArg)
-        request.fetchLimit = 1
-        guard let cdStudent = context.safeFetchFirst(request),
+        guard let cdStudent = context.object(CDStudent.self, id: student.id),
               let studentID = cdStudent.id else {
             throw LogObservationError.studentNotFound(student.fullName)
         }

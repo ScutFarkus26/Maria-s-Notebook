@@ -37,17 +37,11 @@ struct MarkLessonPresentedIntent: AppIntent {
     func perform() async throws -> some IntentResult & ProvidesDialog {
         let context = AppBootstrapping.getSharedCoreDataStack().viewContext
 
-        let lessonRequest = CDFetchRequest(CDLesson.self)
-        lessonRequest.predicate = NSPredicate(format: "id == %@", lesson.id as CVarArg)
-        lessonRequest.fetchLimit = 1
-        guard let cdLesson = context.safeFetchFirst(lessonRequest), cdLesson.id != nil else {
+        guard let cdLesson = context.object(CDLesson.self, id: lesson.id), cdLesson.id != nil else {
             throw MarkLessonPresentedError.lessonNotFound(lesson.name)
         }
 
-        let studentRequest = CDFetchRequest(CDStudent.self)
-        studentRequest.predicate = NSPredicate(format: "id == %@", student.id as CVarArg)
-        studentRequest.fetchLimit = 1
-        guard let cdStudent = context.safeFetchFirst(studentRequest), let studentID = cdStudent.id else {
+        guard let cdStudent = context.object(CDStudent.self, id: student.id), let studentID = cdStudent.id else {
             throw MarkLessonPresentedError.studentNotFound(student.fullName)
         }
 

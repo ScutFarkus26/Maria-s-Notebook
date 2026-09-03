@@ -16,9 +16,7 @@ struct WorkCardPillContent: View {
 
     private var lesson: CDLesson? {
         guard let lid = UUID(uuidString: config.item.work.lessonID) else { return nil }
-        let request = CDFetchRequest(CDLesson.self)
-        request.predicate = NSPredicate(format: "id == %@", lid as CVarArg)
-        return modelContext.safeFetchFirst(request)
+        return modelContext.object(CDLesson.self, id: lid)
     }
 
     private var lessonTitle: String {

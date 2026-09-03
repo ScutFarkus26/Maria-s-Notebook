@@ -188,9 +188,7 @@ extension LifecycleService {
         )
 
         let trackID = "\(area)|\(sequence)"
-        let presentations = safeFetch(
-            CDFetchRequest(CDLessonPresentation.self), using: context, caller: "syncAllStudentProgress"
-        )
+        let presentations = context.safeFetch(CDFetchRequest(CDLessonPresentation.self))
         for studentIDStr in studentIDs {
             if let lp = presentations.first(where: { $0.lessonID == lessonID && $0.studentID == studentIDStr }) {
                 if lp.trackID != trackID { lp.trackID = trackID }

@@ -1,13 +1,10 @@
 import Foundation
-import OSLog
 import CoreData
 import SwiftUI
 
 @Observable
 @MainActor
 final class WorkDetailViewModel {
-    private static let logger = Logger.work
-
     // MARK: - State
     var work: CDWorkModel?
     var relatedLesson: CDLesson?
@@ -63,21 +60,6 @@ final class WorkDetailViewModel {
         self.workID = workID
     }
 
-    // MARK: - Error Handling Helpers
-
-    private func safeFetch<T: NSManagedObject>(
-        _ request: NSFetchRequest<T>,
-        context: NSManagedObjectContext,
-        functionName: String = #function
-    ) -> [T] {
-        do {
-            return try context.fetch(request)
-        } catch {
-            Self.logger.warning("\(functionName): Failed to fetch \(T.self): \(error)")
-            return []
-        }
-    }
-
     // MARK: - Computed Properties
     func scheduleDates(checkIns: [CDWorkCheckIn]) -> WorkScheduleDates {
         WorkScheduleDateLogic.compute(forCheckIns: checkIns)
@@ -105,12 +87,7 @@ final class WorkDetailViewModel {
         self.modelContext = modelContext
         self.saveCoordinator = saveCoordinator
         
-        let request = CDFetchRequest(CDWorkModel.self)
-        request.predicate = NSPredicate(format: "id == %@", workID as CVarArg)
-        request.fetchLimit = 1
-
-        let fetchedWork = safeFetch(request, context: modelContext).first
-        guard let fetchedWork else {
+        guard let fetchedWork = modelContext.object(CDWorkModel.self, id: workID) else {
             return
         }
         
@@ -134,18 +111,12 @@ final class WorkDetailViewModel {
         
         // Load student
         if let studentID = UUID(uuidString: workModel.studentID) {
-            let studentRequest = CDFetchRequest(CDStudent.self)
-            studentRequest.predicate = NSPredicate(format: "id == %@", studentID as CVarArg)
-            studentRequest.fetchLimit = 1
-            relatedStudent = safeFetch(studentRequest, context: modelContext).first
+            relatedStudent = modelContext.object(CDStudent.self, id: studentID)
         }
 
         // Load lesson
         if let lessonID = UUID(uuidString: workModel.lessonID) {
-            let lessonRequest = CDFetchRequest(CDLesson.self)
-            lessonRequest.predicate = NSPredicate(format: "id == %@", lessonID as CVarArg)
-            lessonRequest.fetchLimit = 1
-            relatedLesson = safeFetch(lessonRequest, context: modelContext).first
+            relatedLesson = modelContext.object(CDLesson.self, id: lessonID)
         }
 
         // Load related lessons
@@ -155,7 +126,7 @@ final class WorkDetailViewModel {
 
             let lessonRequest = CDFetchRequest(CDLesson.self)
             lessonRequest.predicate = NSPredicate(format: "area CONTAINS %@ AND sequence CONTAINS %@", area, sequence)
-            relatedLessons = safeFetch(lessonRequest, context: modelContext)
+            relatedLessons = modelContext.safeFetch(lessonRequest)
         }
 
         // PERF: Load only lesson assignments for lessons in the same area+sequence
@@ -163,7 +134,7 @@ final class WorkDetailViewModel {
         if !relatedLessons.isEmpty {
             let relatedLessonIDs = Set(relatedLessons.compactMap { $0.id?.uuidString })
             let allLARequest = CDFetchRequest(CDLessonAssignment.self)
-            let allLAs = safeFetch(allLARequest, context: modelContext)
+            let allLAs = modelContext.safeFetch(allLARequest)
             relatedLessonAssignments = allLAs.filter { la in
                 relatedLessonIDs.contains(la.lessonID)
             }
@@ -190,10 +161,7 @@ final class WorkDetailViewModel {
         if workModel.sourceContextType == .projectSession,
            let sessionIDString = workModel.sourceContextID,
            let sessionID = UUID(uuidString: sessionIDString) {
-            let sessionRequest = CDFetchRequest(CDProjectSession.self)
-            sessionRequest.predicate = NSPredicate(format: "id == %@", sessionID as CVarArg)
-            sessionRequest.fetchLimit = 1
-            if let project = safeFetch(sessionRequest, context: modelContext).first?.project {
+            if let project = modelContext.object(CDProjectSession.self, id: sessionID)?.project {
                 projectMemberIDs = Set(
                     project.memberStudentUUIDs.filter { $0.uuidString != primaryStudentID }
                 )
@@ -202,7 +170,7 @@ final class WorkDetailViewModel {
 
         // 3. Fetch all work items for the same lesson by other students
         let allWorkRequest = CDFetchRequest(CDWorkModel.self)
-        let allWork = safeFetch(allWorkRequest, context: modelContext)
+        let allWork = modelContext.safeFetch(allWorkRequest)
         let peerWorks = allWork
             .filter { $0.lessonID == workModel.lessonID && $0.studentID != primaryStudentID }
         let peerWorkStudentIDs = Set(peerWorks.compactMap { UUID(uuidString: $0.studentID) })
@@ -237,7 +205,7 @@ final class WorkDetailViewModel {
         guard !allPeerStudentIDs.isEmpty else { return }
 
         // Batch-fetch all students
-        let allStudents = safeFetch(CDFetchRequest(CDStudent.self), context: modelContext)
+        let allStudents = modelContext.safeFetch(CDFetchRequest(CDStudent.self))
         let studentsByID = Dictionary(
             allStudents.compactMap { s in s.id.map { ($0, s) } },
             uniquingKeysWith: { first, _ in first }

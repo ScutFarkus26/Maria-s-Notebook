@@ -111,10 +111,7 @@ enum LessonAlbumMatcher {
 
     /// Writes one accepted link.
     static func apply(_ candidate: Candidate, in context: NSManagedObjectContext) {
-        let request = CDFetchRequest(CDLesson.self)
-        request.predicate = NSPredicate(format: "id == %@", candidate.lessonID as CVarArg)
-        request.fetchLimit = 1
-        guard let lesson = context.safeFetchFirst(request) else { return }
+        guard let lesson = context.object(CDLesson.self, id: candidate.lessonID) else { return }
         lesson.albumLink = AlbumLink(albumID: candidate.albumID,
                                      pageIndex: candidate.pageIndex,
                                      lessonTitle: candidate.outlineTitle)

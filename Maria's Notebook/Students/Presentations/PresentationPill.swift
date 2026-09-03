@@ -463,18 +463,7 @@ struct PresentationPill: View {
 
     /// Helper to fetch a CDLessonAssignment by ID.
     private func fetchLessonAssignment(by id: UUID) -> CDLessonAssignment? {
-        let descriptor = {
-            let r = NSFetchRequest<CDLessonAssignment>(entityName: "LessonAssignment")
-            r.predicate = NSPredicate(format: "id == %@", id as CVarArg)
-            r.fetchLimit = 1
-            return r
-        }()
-        do {
-            return try viewContext.fetch(descriptor).first
-        } catch {
-            logger.warning("Failed to fetch lesson assignment: \(error)")
-            return nil
-        }
+        viewContext.object(CDLessonAssignment.self, id: id)
     }
 
     /// Helper to merge date components (year, month, day) with time components (hour, minute).

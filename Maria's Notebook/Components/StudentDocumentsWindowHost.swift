@@ -9,14 +9,7 @@ struct StudentDocumentsWindowHost: View {
     @Environment(\.managedObjectContext) private var viewContext
 
     var body: some View {
-        let request: NSFetchRequest<CDStudent> = {
-            let request = NSFetchRequest<CDStudent>(entityName: "Student")
-            request.predicate = NSPredicate(format: "id == %@", studentID as CVarArg)
-            request.fetchLimit = 1
-            return request
-        }()
-
-        if let student = viewContext.safeFetchFirst(request) {
+        if let student = viewContext.object(CDStudent.self, id: studentID) {
             StudentFilesTab(student: student)
                 .navigationTitle("Documents — \(student.fullName)")
         } else {

@@ -81,10 +81,7 @@ final class DataQueryService {
             return cache[id]
         }
 
-        let request = CDFetchRequest(CDStudent.self)
-        request.predicate = NSPredicate(format: "id == %@", id as CVarArg)
-        request.fetchLimit = 1
-        return context.safeFetch(request).first
+        return context.object(CDStudent.self, id: id)
     }
 
     /// Get students as a dictionary keyed by ID.
@@ -160,10 +157,7 @@ final class DataQueryService {
             return cache[id]
         }
 
-        let request = CDFetchRequest(CDLesson.self)
-        request.predicate = NSPredicate(format: "id == %@", id as CVarArg)
-        request.fetchLimit = 1
-        return context.safeFetch(request).first
+        return context.object(CDLesson.self, id: id)
     }
 
     /// Get lessons as a dictionary keyed by ID.

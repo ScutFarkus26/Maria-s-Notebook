@@ -46,10 +46,7 @@ enum MeetingScheduler {
 
     /// Clears a specific scheduled meeting by ID.
     static func clearMeeting(id: UUID, context: NSManagedObjectContext) {
-        let targetID = id
-        let descriptor: NSFetchRequest<CDScheduledMeeting> = NSFetchRequest(entityName: "ScheduledMeeting")
-        descriptor.predicate = NSPredicate(format: "id == %@", targetID as CVarArg)
-        if let meeting = context.safeFetchFirst(descriptor) {
+        if let meeting = context.object(CDScheduledMeeting.self, id: id) {
             context.delete(meeting)
             context.safeSave()
         }

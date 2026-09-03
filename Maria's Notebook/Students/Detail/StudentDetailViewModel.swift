@@ -3,7 +3,6 @@
 // Behavior-preserving cleanup: comments and MARKs only.
 
 import Foundation
-import OSLog
 import SwiftUI
 import CoreData
 
@@ -13,8 +12,6 @@ import CoreData
 @Observable
 @MainActor
 final class StudentDetailViewModel {
-    private static let logger = Logger.students
-
     // MARK: - Properties
     let student: CDStudent
 
@@ -53,7 +50,7 @@ final class StudentDetailViewModel {
                 NSSortDescriptor(keyPath: \CDLessonAssignment.scheduledFor, ascending: true),
                 NSSortDescriptor(keyPath: \CDLessonAssignment.createdAt, ascending: true)
             ]
-        let allLAs = safeFetch(laDescriptor, context: viewContext)
+        let allLAs = viewContext.safeFetch(laDescriptor)
         let studentID = student.id ?? UUID()
         let filteredLAs = allLAs.filter { $0.resolvedStudentIDs.contains(studentID) }
 
@@ -87,7 +84,7 @@ final class StudentDetailViewModel {
             studentIDString,
             proficientStateRaw
         )
-        let proficientPresentations = safeFetch(descriptor, context: viewContext)
+        let proficientPresentations = viewContext.safeFetch(descriptor)
 
         proficientLessonIDs = Set(
             proficientPresentations.compactMap { UUID(uuidString: $0.lessonID) }
@@ -131,23 +128,6 @@ final class StudentDetailViewModel {
         plannedLessonIDs = Set(nextLessonsForStudent.map(\.lessonID))
     }
 
-    // MARK: - Error Handling Helpers
-
-    private func safeFetch<T>(
-        _ descriptor: NSFetchRequest<T>,
-        context: NSManagedObjectContext,
-        functionName: String = #function
-    ) -> [T] {
-        do {
-            return try context.fetch(descriptor)
-        } catch {
-            Self.logger.warning(
-                "Failed to fetch \(T.self, privacy: .public) in \(functionName, privacy: .public): \(error)"
-            )
-            return []
-        }
-    }
-
     // MARK: - UI Actions moved from View
     func showToast(_ message: String) {
         // Delegate to centralized ToastService
@@ -169,7 +149,7 @@ final class StudentDetailViewModel {
         // Prefetch unifiedNotes so StudentOverviewTab's needsAttention/latestNoteDate
         // reads each work's notes from the row cache instead of faulting per row (N+1).
         descriptor.relationshipKeyPathsForPrefetching = ["unifiedNotes"]
-        return safeFetch(descriptor, context: viewContext)
+        return viewContext.safeFetch(descriptor)
     }
 
     /// Create a draft lesson assignment, reusing existing if available

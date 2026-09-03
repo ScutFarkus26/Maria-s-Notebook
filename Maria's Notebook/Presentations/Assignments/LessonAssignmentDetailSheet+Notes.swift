@@ -71,21 +71,10 @@ extension LessonAssignmentDetailSheet {
         // Load unified CDNote objects from relationship
         // Refresh the assignment object to get updated relationships
         guard let targetID = assignment.id else { return }
-        let descriptor: NSFetchRequest<CDLessonAssignment> = NSFetchRequest(entityName: "LessonAssignment")
-        descriptor.predicate = NSPredicate(format: "id == %@", targetID as CVarArg)
-        descriptor.fetchLimit = 1
-        do {
-            if let refreshed = try viewContext.fetch(descriptor).first {
-                if let notes = refreshed.unifiedNotes?.allObjects as? [CDNote], !notes.isEmpty {
-                    self.unifiedNotes = notes
-                } else {
-                    self.unifiedNotes = []
-                }
-            } else {
-                self.unifiedNotes = []
-            }
-        } catch {
-            Self.logger.warning("Failed to fetch refreshed assignment: \(error)")
+        if let refreshed = viewContext.object(CDLessonAssignment.self, id: targetID),
+           let notes = refreshed.unifiedNotes?.allObjects as? [CDNote], !notes.isEmpty {
+            self.unifiedNotes = notes
+        } else {
             self.unifiedNotes = []
         }
     }

@@ -51,7 +51,7 @@ extension PresentationDetailViewModel {
     ) {
         guard !studentIDs.isEmpty, !lessonID.isEmpty else { return }
 
-        let allLessonPresentations = safeFetch(NSFetchRequest<CDLessonPresentation>(entityName: "LessonPresentation"))
+        let allLessonPresentations = viewContext.safeFetch(CDFetchRequest(CDLessonPresentation.self))
 
         for studentID in studentIDs {
             if let existing = allLessonPresentations.first(where: {
@@ -106,7 +106,7 @@ extension PresentationDetailViewModel {
     ) {
         guard !lessonID.isEmpty, !studentID.isEmpty else { return }
 
-        let allLessonPresentations = safeFetch(NSFetchRequest<CDLessonPresentation>(entityName: "LessonPresentation"))
+        let allLessonPresentations = viewContext.safeFetch(CDFetchRequest(CDLessonPresentation.self))
 
         if let existing = allLessonPresentations.first(where: {
             $0.lessonID == lessonID && $0.studentID == studentID

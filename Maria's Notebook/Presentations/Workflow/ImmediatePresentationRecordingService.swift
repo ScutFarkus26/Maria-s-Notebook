@@ -179,10 +179,7 @@ private extension ImmediatePresentationRecordingService {
         if let relatedLesson = assignment.lesson {
             lesson = relatedLesson
         } else if let lessonID = assignment.lessonIDUUID {
-            let request = CDFetchRequest(CDLesson.self)
-            request.predicate = NSPredicate(format: "id == %@", lessonID as CVarArg)
-            request.fetchLimit = 1
-            lesson = context.safeFetch(request).first
+            lesson = context.object(CDLesson.self, id: lessonID)
         } else {
             lesson = nil
         }

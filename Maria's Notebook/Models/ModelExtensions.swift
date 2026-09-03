@@ -9,9 +9,7 @@ private let logger = Logger.database
 extension NSManagedObjectContext {
     /// Resolves a CDWorkModel by primary ID.
     func resolveWorkModel(from workID: UUID) -> CDWorkModel? {
-        let primaryRequest = NSFetchRequest<CDWorkModel>(entityName: "WorkModel")
-        primaryRequest.predicate = NSPredicate(format: "id == %@", workID as CVarArg)
-        return safeFetchFirst(primaryRequest)
+        object(CDWorkModel.self, id: workID)
     }
 }
 
@@ -23,16 +21,7 @@ extension CDWorkModel {
         guard let presentationID,
               let uuid = UUID(uuidString: presentationID) else { return nil }
 
-        let request = NSFetchRequest<CDLessonAssignment>(entityName: "LessonAssignment")
-        request.predicate = NSPredicate(format: "id == %@", uuid as CVarArg)
-        request.fetchLimit = 1
-
-        do {
-            return try context.fetch(request).first
-        } catch {
-            logger.warning("Failed to fetch presentation: \(error.localizedDescription)")
-            return nil
-        }
+        return context.object(CDLessonAssignment.self, id: uuid)
     }
 
     /// Fetches the lesson associated with this work item
@@ -40,16 +29,7 @@ extension CDWorkModel {
         guard !lessonID.isEmpty,
               let uuid = UUID(uuidString: lessonID) else { return nil }
 
-        let request = NSFetchRequest<CDLesson>(entityName: "Lesson")
-        request.predicate = NSPredicate(format: "id == %@", uuid as CVarArg)
-        request.fetchLimit = 1
-
-        do {
-            return try context.fetch(request).first
-        } catch {
-            logger.warning("Failed to fetch lesson: \(error.localizedDescription)")
-            return nil
-        }
+        return context.object(CDLesson.self, id: uuid)
     }
 
     /// Fetches the student assigned to this work item
@@ -57,16 +37,7 @@ extension CDWorkModel {
         guard !studentID.isEmpty,
               let uuid = UUID(uuidString: studentID) else { return nil }
 
-        let request = NSFetchRequest<CDStudent>(entityName: "Student")
-        request.predicate = NSPredicate(format: "id == %@", uuid as CVarArg)
-        request.fetchLimit = 1
-
-        do {
-            return try context.fetch(request).first
-        } catch {
-            logger.warning("Failed to fetch student: \(error.localizedDescription)")
-            return nil
-        }
+        return context.object(CDStudent.self, id: uuid)
     }
 
 }

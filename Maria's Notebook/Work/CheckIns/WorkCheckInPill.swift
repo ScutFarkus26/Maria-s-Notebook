@@ -66,9 +66,7 @@ struct WorkCheckInPill: View {
               let work = fetchWork(id: workID) else { return "Work" }
         
         if let lessonID = work.lessonID.asUUID {
-            let request = CDFetchRequest(CDLesson.self)
-            request.predicate = NSPredicate(format: "id == %@", lessonID as CVarArg)
-            if let lesson = modelContext.safeFetchFirst(request) {
+            if let lesson = modelContext.object(CDLesson.self, id: lessonID) {
                 let name = lesson.name.trimmed()
                 if !name.isEmpty { return name }
             }
@@ -81,9 +79,7 @@ struct WorkCheckInPill: View {
               let work = fetchWork(id: workID),
               let studentID = work.studentID.asUUID else { return "" }
         
-        let request = CDFetchRequest(CDStudent.self)
-        request.predicate = NSPredicate(format: "id == %@", studentID as CVarArg)
-        if let student = modelContext.safeFetchFirst(request) {
+        if let student = modelContext.object(CDStudent.self, id: studentID) {
             return StudentFormatter.displayName(for: student)
         }
         return ""
@@ -105,8 +101,6 @@ struct WorkCheckInPill: View {
     }
     
     private func fetchWork(id: UUID) -> CDWorkModel? {
-        let request = CDFetchRequest(CDWorkModel.self)
-        request.predicate = NSPredicate(format: "id == %@", id as CVarArg)
-        return modelContext.safeFetchFirst(request)
+        modelContext.object(CDWorkModel.self, id: id)
     }
 }

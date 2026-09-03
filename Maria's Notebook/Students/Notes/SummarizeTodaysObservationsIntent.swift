@@ -80,10 +80,7 @@ enum TodayObservationsData {
     @MainActor
     private static func studentFirstName(for note: CDNote, in context: NSManagedObjectContext) -> String? {
         guard let studentID = note.searchIndexStudentID else { return nil }
-        let request = CDFetchRequest(CDStudent.self)
-        request.predicate = NSPredicate(format: "id == %@", studentID as CVarArg)
-        request.fetchLimit = 1
-        return context.safeFetchFirst(request)?.firstName
+        return context.object(CDStudent.self, id: studentID)?.firstName
     }
 }
 

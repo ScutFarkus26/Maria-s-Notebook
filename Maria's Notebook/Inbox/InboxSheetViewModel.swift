@@ -225,12 +225,7 @@ extension InboxSheetViewModel {
         )
 
         // Remove the student from the source
-        let sourceDescriptor = {
-            let r = NSFetchRequest<CDLessonAssignment>(entityName: "LessonAssignment")
-            r.predicate = NSPredicate(format: "id == %@", sourceID as CVarArg)
-            return r
-        }()
-        if let src = viewContext.safeFetchFirst(sourceDescriptor) {
+        if let src = viewContext.object(CDLessonAssignment.self, id: sourceID) {
             let studentIDString = studentID.uuidString
             src.studentIDs.removeAll { $0 == studentIDString }
             if src.studentIDs.isEmpty { viewContext.delete(src) }
@@ -268,22 +263,8 @@ extension InboxSheetViewModel {
         }) {
             return existing
         }
-        let lessonFetch = {
-            let r = NSFetchRequest<CDLesson>(entityName: "Lesson")
-            r.predicate = NSPredicate(format: "id == %@", lessonID as CVarArg)
-            r.fetchLimit = 1
-            return r
-        }()
-        let studentFetch = {
-            let r = NSFetchRequest<CDStudent>(entityName: "Student")
-            r.predicate = NSPredicate(format: "id == %@", studentID as CVarArg)
-            r.fetchLimit = 1
-            return r
-        }()
-        let lessonObj = safeFetchFirst(lessonFetch, viewContext: viewContext, context: "findOrCreateInboxLA-lesson")
-        let studentObj = safeFetchFirst(
-            studentFetch, viewContext: viewContext, context: "findOrCreateInboxLA-student"
-        )
+        let lessonObj = viewContext.object(CDLesson.self, id: lessonID)
+        let studentObj = viewContext.object(CDStudent.self, id: studentID)
         let new: CDLessonAssignment
         if let lessonObj {
             new = PresentationFactory.makeDraft(
@@ -312,12 +293,7 @@ extension InboxSheetViewModel {
         viewContext: NSManagedObjectContext,
         saveCoordinator: SaveCoordinator
     ) {
-        let descriptor: NSFetchRequest<CDLessonAssignment> = {
-            let r = NSFetchRequest<CDLessonAssignment>(entityName: "LessonAssignment")
-            r.predicate = NSPredicate(format: "id == %@", droppedId as CVarArg)
-            return r
-        }()
-        guard let la = viewContext.safeFetchFirst(descriptor)
+        guard let la = viewContext.object(CDLessonAssignment.self, id: droppedId)
                 ?? lessonAssignments.first(where: { $0.id == droppedId })
         else { return }
 
@@ -331,13 +307,7 @@ extension InboxSheetViewModel {
 
         // If scheduled, clear scheduledFor
         if la.scheduledFor != nil {
-            let targetId = droppedId
-            let laDescriptor = {
-                let r = NSFetchRequest<CDLessonAssignment>(entityName: "LessonAssignment")
-                r.predicate = NSPredicate(format: "id == %@", targetId as CVarArg)
-                return r
-            }()
-            if let lesson = viewContext.safeFetchFirst(laDescriptor) {
+            if let lesson = viewContext.object(CDLessonAssignment.self, id: droppedId) {
                 lesson.unschedule()
                 saveCoordinator.save(viewContext, reason: "Clearing scheduled date")
             }
@@ -350,21 +320,5 @@ extension InboxSheetViewModel {
         inboxOrderRaw.wrappedValue = serialized
         onUpdateOrder?(serialized)
         saveCoordinator.save(viewContext, reason: "Handling lesson drop")
-    }
-
-    // MARK: - Error Handling Helpers
-
-    private func safeFetchFirst<T>(
-        _ descriptor: NSFetchRequest<T>,
-        viewContext: NSManagedObjectContext,
-        context: String = #function
-    ) -> T? {
-        descriptor.fetchLimit = 1
-        do {
-            return try viewContext.fetch(descriptor).first
-        } catch {
-            Self.logger.warning("Failed to fetch \(T.self, privacy: .public) in \(context, privacy: .public): \(error)")
-            return nil
-        }
     }
 }

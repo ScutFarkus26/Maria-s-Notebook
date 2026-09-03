@@ -1,11 +1,8 @@
 import Foundation
-import OSLog
 import CoreData
 
 @MainActor
 enum PresentationMergeService {
-    private static let logger = Logger.students
-
     @discardableResult
     static func merge(
         sourceID: UUID, targetID: UUID,
@@ -50,18 +47,7 @@ enum PresentationMergeService {
     }
 
     private static func fetchLessonAssignment(id: UUID, context: NSManagedObjectContext) -> CDLessonAssignment? {
-        let desc = {
-            let r = NSFetchRequest<CDLessonAssignment>(entityName: "LessonAssignment")
-            r.predicate = NSPredicate(format: "id == %@", id as CVarArg)
-            r.fetchLimit = 1
-            return r
-        }()
-        do {
-            return try context.fetch(desc).first
-        } catch {
-            logger.warning("Failed to fetch CDLessonAssignment: \(error)")
-            return nil
-        }
+        context.object(CDLessonAssignment.self, id: id)
     }
 
     private static func mergeStudentIDs(targetIDs: [String], sourceIDs: [String]) -> [String] {

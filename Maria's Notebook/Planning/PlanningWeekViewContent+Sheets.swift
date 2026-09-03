@@ -121,13 +121,7 @@ extension PlanningWeekViewContent {
         if let found = inboxLessons.first(where: { $0.id == id }) {
             return found
         }
-        // Fallback to SwiftData fetch (PlanningWeekViewContent works with SwiftData CDLessonAssignment)
-        let fetch = {
-            let r = NSFetchRequest<CDLessonAssignment>(entityName: "LessonAssignment")
-            r.predicate = NSPredicate(format: "id == %@", id as CVarArg)
-            r.fetchLimit = 1
-            return r
-        }()
-        return try? viewContext.fetch(fetch).first
+        // Fall back to fetching the assignment by id.
+        return viewContext.object(CDLessonAssignment.self, id: id)
     }
 }

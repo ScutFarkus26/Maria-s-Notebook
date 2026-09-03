@@ -217,10 +217,7 @@ extension BackupEntityImporter {
             entity.createdAt = dto.createdAt
 
             // Wire relationship
-            let request = NSFetchRequest<CDStudentMeeting>(entityName: "StudentMeeting")
-            request.predicate = NSPredicate(format: "id == %@", (UUID(uuidString: dto.meetingID) ?? UUID()) as CVarArg)
-            request.fetchLimit = 1
-            entity.meeting = try? viewContext.fetch(request).first
+            entity.meeting = viewContext.object(CDStudentMeeting.self, id: UUID(uuidString: dto.meetingID) ?? UUID())
         }
     }
 

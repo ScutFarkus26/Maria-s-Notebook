@@ -1,7 +1,6 @@
 // StudentNotesViewModel.swift
 // Aggregates all notes for a specific CDStudent
 
-import OSLog
 import SwiftUI
 import CoreData
 
@@ -9,8 +8,6 @@ import CoreData
 @Observable
 @MainActor
 final class StudentNotesViewModel {
-    private static let logger = Logger.students
-
     private let student: CDStudent
     let viewContext: NSManagedObjectContext
     let saveCoordinator: SaveCoordinator
@@ -31,19 +28,6 @@ final class StudentNotesViewModel {
         self.viewContext = viewContext
         self.saveCoordinator = saveCoordinator
         fetchAllNotes()
-    }
-
-    // MARK: - Error Handling Helpers
-
-    private func safeFetch<T>(_ descriptor: NSFetchRequest<T>, functionName: String = #function) -> [T] {
-        do {
-            return try viewContext.fetch(descriptor)
-        } catch {
-            Self.logger.warning(
-                "Failed to fetch \(T.self, privacy: .public) in \(functionName, privacy: .public): \(error)"
-            )
-            return []
-        }
     }
 
     func loadInitialPage() {
@@ -106,7 +90,6 @@ final class StudentNotesViewModel {
 // MARK: - CDNote Source Fetchers
 
 extension StudentNotesViewModel {
-
     /// 1) General notes where scope matches this student.
     func fetchGeneralNotes(
         noteSort: [NSSortDescriptor], studentIDString: String
@@ -121,11 +104,11 @@ extension StudentNotesViewModel {
             primaryFetch.predicate = NSPredicate(format: "scopeIsAll == YES")
         }
         primaryFetch.sortDescriptors = noteSort
-        let primaryNotes: [CDNote] = safeFetch(primaryFetch)
+        let primaryNotes: [CDNote] = viewContext.safeFetch(primaryFetch)
 
         let linkFetch: NSFetchRequest<CDNoteStudentLink> = NSFetchRequest(entityName: "NoteStudentLink")
         linkFetch.predicate = NSPredicate(format: "studentID == %@", studentIDString as CVarArg)
-        let links: [CDNoteStudentLink] = safeFetch(linkFetch)
+        let links: [CDNoteStudentLink] = viewContext.safeFetch(linkFetch)
         let linkedNotes = links.compactMap(\.note)
 
         var seenIDs = Set(primaryNotes.compactMap(\.id))
@@ -168,14 +151,14 @@ extension StudentNotesViewModel {
     ) -> [UnifiedNoteItem] {
         let workFetch: NSFetchRequest<CDWorkModel> = NSFetchRequest(entityName: "WorkModel")
         workFetch.predicate = NSPredicate(format: "studentID == %@", studentIDString as CVarArg)
-        let workModels: [CDWorkModel] = safeFetch(workFetch)
+        let workModels: [CDWorkModel] = viewContext.safeFetch(workFetch)
         let workIDs = Set(workModels.compactMap(\.id))
         guard !workIDs.isEmpty else { return [] }
 
         let workNoteFetch: NSFetchRequest<CDNote> = NSFetchRequest(entityName: "Note")
         workNoteFetch.predicate = NSPredicate(format: "work != nil")
         workNoteFetch.sortDescriptors = noteSort
-        let workNotes: [CDNote] = safeFetch(workNoteFetch)
+        let workNotes: [CDNote] = viewContext.safeFetch(workNoteFetch)
         let lessonNameByWorkID = buildLessonNameLookup(forWorkModels: workModels)
 
         return workNotes.compactMap { note in
@@ -205,8 +188,8 @@ extension StudentNotesViewModel {
         let presentationNoteFetch: NSFetchRequest<CDNote> = NSFetchRequest(entityName: "Note")
         presentationNoteFetch.predicate = NSPredicate(format: "lessonAssignment != nil")
         presentationNoteFetch.sortDescriptors = noteSort
-        let presentationNotes: [CDNote] = safeFetch(presentationNoteFetch)
-        let allLessons: [CDLesson] = safeFetch(NSFetchRequest<CDLesson>(entityName: "Lesson"))
+        let presentationNotes: [CDNote] = viewContext.safeFetch(presentationNoteFetch)
+        let allLessons: [CDLesson] = viewContext.safeFetch(CDFetchRequest(CDLesson.self))
         var lessonsByID: [UUID: CDLesson] = [:]
         for lesson in allLessons {
             if let lessonID = lesson.id { lessonsByID[lessonID] = lesson }
@@ -246,7 +229,7 @@ extension StudentNotesViewModel {
         let meetingFetch: NSFetchRequest<CDStudentMeeting> = NSFetchRequest(entityName: "StudentMeeting")
         meetingFetch.predicate = NSPredicate(format: "studentID == %@", studentIDString as CVarArg)
         meetingFetch.sortDescriptors = [NSSortDescriptor(keyPath: \CDStudentMeeting.date, ascending: false)]
-        let studentMeetings: [CDStudentMeeting] = safeFetch(meetingFetch)
+        let studentMeetings: [CDStudentMeeting] = viewContext.safeFetch(meetingFetch)
 
         return studentMeetings.flatMap { meeting -> [UnifiedNoteItem] in
             var items: [UnifiedNoteItem] = []
@@ -271,7 +254,7 @@ extension StudentNotesViewModel {
         noteSort: [NSSortDescriptor], studentIDString: String) -> [UnifiedNoteItem] {
         let recordFetch = CDFetchRequest(CDAttendanceRecord.self)
         recordFetch.predicate = NSPredicate(format: "studentID == %@", studentIDString)
-        let records: [CDAttendanceRecord] = safeFetch(recordFetch)
+        let records: [CDAttendanceRecord] = viewContext.safeFetch(recordFetch)
         guard !records.isEmpty else { return [] }
 
         let recordsByID = Dictionary(
@@ -284,7 +267,7 @@ extension StudentNotesViewModel {
             format: "attendanceRecordID IN %@", Array(recordsByID.keys)
         )
         attNoteFetch.sortDescriptors = noteSort
-        let attNotes: [CDNote] = safeFetch(attNoteFetch)
+        let attNotes: [CDNote] = viewContext.safeFetch(attNoteFetch)
 
         return attNotes.compactMap { note in
             guard let noteID = note.id,
@@ -327,7 +310,7 @@ extension StudentNotesViewModel {
         let lessonIDs = Set(workModels.compactMap { UUID(uuidString: $0.lessonID) })
         guard !lessonIDs.isEmpty else { return [:] }
 
-        let allLessons: [CDLesson] = safeFetch(NSFetchRequest<CDLesson>(entityName: "Lesson"))
+        let allLessons: [CDLesson] = viewContext.safeFetch(CDFetchRequest(CDLesson.self))
         let lessons = allLessons.filter { $0.id != nil && lessonIDs.contains($0.id!) }
         var byID: [UUID: CDLesson] = [:]
         for lesson in lessons {

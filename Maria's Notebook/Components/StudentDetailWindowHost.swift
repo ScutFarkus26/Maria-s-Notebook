@@ -10,12 +10,7 @@ struct StudentDetailWindowHost: View {
     @Environment(\.managedObjectContext) private var viewContext
 
     var body: some View {
-        let fetchDescriptor = {
-            let r = NSFetchRequest<CDStudent>(entityName: "Student")
-            r.predicate = NSPredicate(format: "id == %@", studentID as CVarArg)
-            return r
-        }()
-        if let student = viewContext.safeFetchFirst(fetchDescriptor) {
+        if let student = viewContext.object(CDStudent.self, id: studentID) {
             StudentDetailView(student: student)
                 .frame(minWidth: 500, minHeight: 400)
                 .navigationTitle(student.fullName)

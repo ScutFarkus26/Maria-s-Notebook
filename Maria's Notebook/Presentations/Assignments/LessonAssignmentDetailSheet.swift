@@ -9,11 +9,9 @@
 
 import SwiftUI
 import CoreData
-import OSLog
 
 // swiftlint:disable:next type_body_length
 struct LessonAssignmentDetailSheet: View, Identifiable {
-    static let logger = Logger.presentations
     let assignmentID: UUID
     var onDone: (() -> Void)?
 
@@ -159,13 +157,7 @@ struct LessonAssignmentDetailSheet: View, Identifiable {
         .task { @MainActor in
             isLoading = true
             let targetID = assignmentID
-            let descriptor = {
-                let r = NSFetchRequest<CDLessonAssignment>(entityName: "LessonAssignment")
-                r.predicate = NSPredicate(format: "id == %@", targetID as CVarArg)
-                r.fetchLimit = 1
-                return r
-            }()
-            if let fetched = viewContext.safeFetchFirst(descriptor) {
+            if let fetched = viewContext.object(CDLessonAssignment.self, id: targetID) {
                 self.assignment = fetched
             } else {
                 self.assignment = nil

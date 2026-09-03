@@ -31,10 +31,7 @@ struct MarkAbsentIntent: AppIntent {
     func perform() async throws -> some IntentResult & ProvidesDialog {
         let context = AppBootstrapping.getSharedCoreDataStack().viewContext
 
-        let request = CDFetchRequest(CDStudent.self)
-        request.predicate = NSPredicate(format: "id == %@", student.id as CVarArg)
-        request.fetchLimit = 1
-        guard let cdStudent = context.safeFetchFirst(request) else {
+        guard let cdStudent = context.object(CDStudent.self, id: student.id) else {
             throw MarkAbsentError.studentNotFound(student.fullName)
         }
 

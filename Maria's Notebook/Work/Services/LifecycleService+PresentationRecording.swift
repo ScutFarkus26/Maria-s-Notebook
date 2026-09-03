@@ -42,11 +42,7 @@ extension LifecycleService {
                     )
                     lessonAssignment.trackID = track.id?.uuidString
                     if let lessonUUID = UUID(uuidString: lessonIDStr) {
-                        let allSteps = safeFetch(
-                            CDFetchRequest(CDTrackStepEntity.self),
-                            using: modelContext,
-                            caller: "recordPresentation"
-                        )
+                        let allSteps = modelContext.safeFetch(CDFetchRequest(CDTrackStepEntity.self))
                         if let step = allSteps.first(where: {
                             $0.track?.id == track.id && $0.lessonTemplateID == lessonUUID
                         }) {

@@ -8,13 +8,7 @@ struct PresentationDetailWindowHost: View {
     @Environment(\.dismissWindow) private var dismissWindow
 
     var body: some View {
-        let fetchRequest: NSFetchRequest<CDLessonAssignment> = {
-            let request = NSFetchRequest<CDLessonAssignment>(entityName: "LessonAssignment")
-            request.predicate = NSPredicate(format: "id == %@", lessonAssignmentID as CVarArg)
-            return request
-        }()
-
-        if let lessonAssignment = viewContext.safeFetchFirst(fetchRequest) {
+        if let lessonAssignment = viewContext.object(CDLessonAssignment.self, id: lessonAssignmentID) {
             // Done, Cancel and Delete all mean "close this window", so the
             // window is named rather than left to the ambient `dismiss`, which
             // has no presentation to close out here and quietly does nothing.

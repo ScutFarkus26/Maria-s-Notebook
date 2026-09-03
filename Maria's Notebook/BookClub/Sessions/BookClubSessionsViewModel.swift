@@ -22,9 +22,7 @@ final class BookClubSessionsViewModel {
     /// Returns the packet for a session, or nil if the linked packet has been deleted.
     func packet(for session: CDBookClubSession, in context: NSManagedObjectContext) -> CDBookClubPacket? {
         guard let packetUUID = session.packetUUID else { return nil }
-        let request: NSFetchRequest<CDBookClubPacket> = NSFetchRequest(entityName: "BookClubPacket")
-        request.predicate = NSPredicate(format: "id == %@", packetUUID as CVarArg)
-        return context.safeFetchFirst(request)
+        return context.object(CDBookClubPacket.self, id: packetUUID)
     }
 
     /// Returns the next non-completed meeting for a session, or nil if all are done.

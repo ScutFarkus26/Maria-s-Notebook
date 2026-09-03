@@ -6,20 +6,6 @@ import OSLog
 struct LifecycleService {
     static let logger = Logger.lifecycle
 
-    // MARK: - Helper Methods
-
-    static func safeFetch<T: NSManagedObject>(
-        _ request: NSFetchRequest<T>, using context: NSManagedObjectContext,
-        caller: String = #function
-    ) -> [T] {
-        do {
-            return try context.fetch(request)
-        } catch {
-            logger.warning("Failed to fetch \(T.self, privacy: .public): \(error.localizedDescription)")
-            return []
-        }
-    }
-
     /// Cleans orphaned student IDs from a CDLessonAssignment by removing IDs that no longer exist in the database.
     /// This ensures referential integrity when using manual ID management instead of Core Data relationships.
     static func cleanOrphanedStudentIDs(

@@ -18,10 +18,7 @@ enum ChecklistLessonNavigator {
     /// be worse than the menu item doing nothing.
     @MainActor
     static func reveal(lessonID: UUID, in context: NSManagedObjectContext) {
-        let request = CDFetchRequest(CDLesson.self)
-        request.predicate = NSPredicate(format: "id == %@", lessonID as CVarArg)
-        request.fetchLimit = 1
-        guard let lesson = context.safeFetch(request).first else { return }
+        guard let lesson = context.object(CDLesson.self, id: lessonID) else { return }
         AppRouter.shared.navigateToChecklist(lessonID: lessonID, area: lesson.area)
     }
 }

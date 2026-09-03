@@ -148,10 +148,7 @@ extension CDStory {
         let reasons = relatedLessonReasons
         var results: [(CDLesson, String)] = []
         for id in ids {
-            let request: NSFetchRequest<CDLesson> = NSFetchRequest(entityName: "Lesson")
-            request.predicate = NSPredicate(format: "id == %@", id as CVarArg)
-            request.fetchLimit = 1
-            if let lesson = context.safeFetchFirst(request) {
+            if let lesson = context.object(CDLesson.self, id: id) {
                 let reason = reasons[id.uuidString] ?? ""
                 results.append((lesson, reason))
             }

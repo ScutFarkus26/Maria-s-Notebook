@@ -228,9 +228,7 @@ extension MCPNotebookTools {
             throw MCPToolError("id must be a UUID from list_open_follow_ups.")
         }
 
-        let todoRequest = CDFetchRequest(CDTodoItem.self)
-        todoRequest.predicate = NSPredicate(format: "id == %@", id as CVarArg)
-        if let todo = modelContext.safeFetchFirst(todoRequest) {
+        if let todo = modelContext.object(CDTodoItem.self, id: id) {
             guard !todo.isCompleted else {
                 return "Follow-up [todo id=\(idString)] \"\(todo.title)\" is already completed."
             }
@@ -249,9 +247,7 @@ extension MCPNotebookTools {
             return "Completed follow-up [todo id=\(idString)] \"\(todo.title)\"."
         }
 
-        let focusRequest = CDFetchRequest(CDStudentFocusItem.self)
-        focusRequest.predicate = NSPredicate(format: "id == %@", id as CVarArg)
-        if let item = modelContext.safeFetchFirst(focusRequest) {
+        if let item = modelContext.object(CDStudentFocusItem.self, id: id) {
             guard item.isActive else {
                 return "Goal [focusItem id=\(idString)] \"\(item.text)\" is already "
                     + "\(item.status.rawValue)."
