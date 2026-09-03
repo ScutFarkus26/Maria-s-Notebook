@@ -271,14 +271,14 @@ final class AppDependencies {
     // CloudKitConfigurationService is an enum with static methods, no initialization needed
     // Access methods directly via CloudKitConfigurationService.methodName()
 
-    private var _cloudKitSyncStatusService: CloudKitSyncStatusService?
+    /// The one instance the app configures at launch (`MariasNotebookApp`
+    /// calls `CloudKitSyncStatusService.shared.configure(with:)`). This used
+    /// to lazily build a second, never-configured instance — each one starts
+    /// its own `NWPathMonitor` and iCloud-account observer in `init`, so the
+    /// first visit to Settings left a duplicate monitor running for the rest
+    /// of the session, feeding a service that nothing else read.
     var cloudKitSyncStatusService: CloudKitSyncStatusService {
-        if let service = _cloudKitSyncStatusService {
-            return service
-        }
-        let service = CloudKitSyncStatusService()
-        _cloudKitSyncStatusService = service
-        return service
+        CloudKitSyncStatusService.shared
     }
 
     private var _classroomSharingService: ClassroomSharingService?

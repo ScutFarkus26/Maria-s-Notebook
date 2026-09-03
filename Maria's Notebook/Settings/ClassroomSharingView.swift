@@ -9,6 +9,7 @@ import OSLog
 /// sharing (lead guide) or leaving (assistant) a classroom.
 struct ClassroomSharingView: View {
     @Environment(\.dependencies) private var dependencies
+    @Environment(\.scenePhase) private var scenePhase
 
     @State private var sharingService: ClassroomSharingService?
     @State private var showingSharingSheet = false
@@ -46,8 +47,13 @@ struct ClassroomSharingView: View {
             // Recount while this screen is open. The repair pass only updates
             // its own figures when it runs, so without this the card would sit
             // on a stale number through a multi-minute move.
+            // On macOS a Settings window left open behind the main window
+            // would otherwise keep scanning every shared entity on the main
+            // actor while the app sits idle; skip the tick when inactive.
             while !Task.isCancelled {
-                zoneRepair.refreshCounts(coreDataStack: dependencies.coreDataStack)
+                if scenePhase == .active {
+                    zoneRepair.refreshCounts(coreDataStack: dependencies.coreDataStack)
+                }
                 try? await Task.sleep(for: .seconds(5))
             }
         }
