@@ -268,50 +268,52 @@ struct StudentNotesTimelineList: View {
         .background(.background)
     }
 
-    @ViewBuilder
     private var notesListContent: some View {
-        if filteredItems.isEmpty {
-            ContentUnavailableView(
-                label: {
-                    Label("No Notes Found", systemImage: "note.text")
-                },
-                description: {
-                    Text(emptyStateMessage)
-                }
-            )
-            .frame(maxHeight: .infinity)
-        } else {
-            ScrollView {
-                LazyVStack(spacing: 0, pinnedViews: [.sectionHeaders]) {
-                    if !pinnedItems.isEmpty {
-                        Section {
-                            ForEach(pinnedItems) { item in
-                                noteRow(for: item)
-                            }
-                        } header: {
-                            pinnedSectionHeader
-                        }
+        let items = makeDisplayedItems()
+        return Group {
+            if items.displayed.isEmpty {
+                ContentUnavailableView(
+                    label: {
+                        Label("No Notes Found", systemImage: "note.text")
+                    },
+                    description: {
+                        Text(emptyStateMessage)
                     }
-
-                    ForEach(groupedItems, id: \.key) { sequence in
-                        Section {
-                            ForEach(sequence.items) { item in
-                                noteRow(for: item)
+                )
+                .frame(maxHeight: .infinity)
+            } else {
+                ScrollView {
+                    LazyVStack(spacing: 0, pinnedViews: [.sectionHeaders]) {
+                        if !items.pinned.isEmpty {
+                            Section {
+                                ForEach(items.pinned) { item in
+                                    noteRow(for: item)
+                                }
+                            } header: {
+                                pinnedSectionHeader
                             }
-                        } header: {
-                            Text(monthYearHeader(for: sequence.key))
-                                .font(.headline)
-                                .foregroundStyle(.primary)
-                                .textCase(nil)
-                                .frame(maxWidth: .infinity, alignment: .leading)
-                                .padding(.horizontal, 16)
-                                .padding(.vertical, 12)
-                                .background(.background)
                         }
-                    }
 
-                    if hasMoreItems {
-                        loadMoreButton
+                        ForEach(items.grouped, id: \.key) { sequence in
+                            Section {
+                                ForEach(sequence.items) { item in
+                                    noteRow(for: item)
+                                }
+                            } header: {
+                                Text(monthYearHeader(for: sequence.key))
+                                    .font(.headline)
+                                    .foregroundStyle(.primary)
+                                    .textCase(nil)
+                                    .frame(maxWidth: .infinity, alignment: .leading)
+                                    .padding(.horizontal, 16)
+                                    .padding(.vertical, 12)
+                                    .background(.background)
+                            }
+                        }
+
+                        if items.hasMore {
+                            loadMoreButton(remaining: items.remainingCount)
+                        }
                     }
                 }
             }
@@ -440,7 +442,7 @@ struct StudentNotesTimelineList: View {
 
     // MARK: - Load More Button
 
-    private var loadMoreButton: some View {
+    private func loadMoreButton(remaining: Int) -> some View {
         Button {
             loadMoreItems()
         } label: {
@@ -450,7 +452,7 @@ struct StudentNotesTimelineList: View {
                     Text("Load More")
                         .font(.subheadline)
                         .fontWeight(.medium)
-                    Text("\(allFilteredItems.count - displayedCount) more notes")
+                    Text("\(remaining) more notes")
                         .font(.caption)
                         .foregroundStyle(.secondary)
                 }

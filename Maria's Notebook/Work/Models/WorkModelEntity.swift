@@ -173,7 +173,9 @@ extension CDWorkModel {
 
     /// Number of check-ins recorded for this work item, representing practice repetitions.
     var practiceCount: Int {
-        (checkIns?.allObjects as? [CDWorkCheckIn])?.count ?? 0
+        // `NSSet.count` needs no bridging; `allObjects as? [T]` allocated and
+        // type-checked an array per read, from grid row builders.
+        checkIns?.count ?? 0
     }
 
     // MARK: - Choice Mode Helpers

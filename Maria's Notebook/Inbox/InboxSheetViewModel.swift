@@ -359,6 +359,7 @@ extension InboxSheetViewModel {
         viewContext: NSManagedObjectContext,
         context: String = #function
     ) -> T? {
+        descriptor.fetchLimit = 1
         do {
             return try viewContext.fetch(descriptor).first
         } catch {

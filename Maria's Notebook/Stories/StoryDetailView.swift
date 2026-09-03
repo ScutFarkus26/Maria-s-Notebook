@@ -87,11 +87,15 @@ struct StoryDetailView: View {
                         .foregroundStyle(.secondary)
                 }
             }
-        } else if let coverData = story.generatedCoverData,
-                  let image = platformImage(from: coverData) {
+        } else if let image = CachedThumbnail.image(
+            from: story.generatedCoverData,
+            cacheKey: "\(storyCacheKey)/cover"
+        ) {
             heroImage(image, label: "AI cover")
-        } else if let thumbnailData = story.thumbnailData,
-                  let image = platformImage(from: thumbnailData) {
+        } else if let image = CachedThumbnail.image(
+            from: story.thumbnailData,
+            cacheKey: storyCacheKey
+        ) {
             heroImage(image, label: nil)
         }
     }
@@ -606,7 +610,12 @@ struct StoryDetailView: View {
         }
     }
 
-    private func platformImage(from data: Data) -> PlatformImage? {
-        PlatformImage(data: data)
+    /// Hero images are decoded through the shared cache rather than in `body`:
+    /// every keystroke in the editor and every Core Data merge re-evaluates
+    /// this view, and each pass was re-decoding the full-size cover bitmap.
+    /// The thumbnail key matches `StoryCardView`, so the grid and detail share
+    /// one decoded image.
+    private var storyCacheKey: String {
+        story.objectID.uriRepresentation().absoluteString
     }
 }

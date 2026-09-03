@@ -106,7 +106,7 @@ struct GuardianEditSheet: View {
             target = CDGuardian(context: viewContext)
             target.studentID = studentID
             let request = CDGuardian.fetchRequest(studentID: studentID)
-            let siblingCount = viewContext.safeFetch(request).count
+            let siblingCount = (try? viewContext.count(for: request)) ?? 0
             target.sortOrder = Int64(siblingCount)
         }
         target.name = trimmedName

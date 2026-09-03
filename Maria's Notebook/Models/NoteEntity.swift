@@ -143,10 +143,14 @@ extension CDNote {
 
     // MARK: - Helpers
 
+    /// Shared decoder: `scope` is read per note inside timeline filters, and a
+    /// fresh `JSONDecoder` per read added up across a large notes table.
+    private static let scopeDecoder = JSONDecoder()
+
     func decodeScope() -> NoteScope? {
         guard let data = scopeBlob else { return nil }
         do {
-            return try JSONDecoder().decode(NoteScope.self, from: data)
+            return try Self.scopeDecoder.decode(NoteScope.self, from: data)
         } catch {
             Self.logger.warning("Failed to decode scope: \(error.localizedDescription)")
             return nil

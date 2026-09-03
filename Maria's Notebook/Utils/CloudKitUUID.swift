@@ -21,12 +21,19 @@ import CoreData
 /// ```
 enum CloudKitStringArrayStorage {
 
+    /// Shared coders. These accessors back `studentIDs` and friends, which are
+    /// read inside whole-table filters (`assignments.filter { $0.studentIDs.contains(…) }`)
+    /// hundreds of times per pass; building a fresh coder on every read was
+    /// pure overhead. Neither is reconfigured after creation, so sharing is safe.
+    private static let decoder = JSONDecoder()
+    private static let encoder = JSONEncoder()
+
     /// Decodes a JSON-encoded `Data` blob into a `[String]` array.
     /// Returns an empty array for `nil` data or decode failures.
     static func decode(from data: Data?) -> [String] {
         guard let data else { return [] }
         do {
-            return try JSONDecoder().decode([String].self, from: data)
+            return try decoder.decode([String].self, from: data)
         } catch {
             let prefix = String(data.prefix(64).map { Character(UnicodeScalar($0)) })
             let count = data.count
@@ -43,7 +50,7 @@ enum CloudKitStringArrayStorage {
     /// Returns `nil` on encode failure.
     static func encode(_ value: [String]) -> Data? {
         do {
-            return try JSONEncoder().encode(value)
+            return try encoder.encode(value)
         } catch {
             Logger.database.warning(
                 "CloudKitStringArrayStorage: Failed to encode \(value.count) strings: \(error.localizedDescription)"

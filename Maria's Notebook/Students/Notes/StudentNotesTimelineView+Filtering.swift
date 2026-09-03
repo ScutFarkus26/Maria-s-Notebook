@@ -53,31 +53,39 @@ extension StudentNotesTimelineList {
         return items
     }
 
-    // Paginated filtered items for display
-    var filteredItems: [UnifiedNoteItem] {
-        Array(allFilteredItems.prefix(displayedCount))
+    /// The filtered list as the body needs it, derived once per pass.
+    ///
+    /// `allFilteredItems` runs four filter passes (two of them substring
+    /// searches over every note body). The list body reads it, directly and
+    /// through `pinned`/`grouped`/`hasMore`, five or six times per evaluation
+    /// — on every keystroke in the search field — so it's computed once here
+    /// and threaded through.
+    struct DisplayedItems {
+        let displayed: [UnifiedNoteItem]
+        let pinned: [UnifiedNoteItem]
+        let grouped: [(key: String, items: [UnifiedNoteItem])]
+        let remainingCount: Int
+
+        var hasMore: Bool { remainingCount > 0 }
     }
 
-    var hasMoreItems: Bool {
-        displayedCount < allFilteredItems.count
+    func makeDisplayedItems() -> DisplayedItems {
+        let all = allFilteredItems
+        let displayed = Array(all.prefix(displayedCount))
+        return DisplayedItems(
+            displayed: displayed,
+            pinned: displayed.filter(\.isPinned),
+            grouped: groupedItems(from: displayed.filter { !$0.isPinned }),
+            remainingCount: max(0, all.count - displayedCount)
+        )
     }
 
     var hasActiveFilters: Bool {
         !selectedFilterTags.isEmpty || !debouncedSearchText.isEmpty || selectedFilter != .all
     }
 
-    // Separate pinned and unpinned items
-    var pinnedItems: [UnifiedNoteItem] {
-        filteredItems.filter(\.isPinned)
-    }
-
-    var unpinnedItems: [UnifiedNoteItem] {
-        filteredItems.filter { !$0.isPinned }
-    }
-
     // Group unpinned items by month and year
-    var groupedItems: [(key: String, items: [UnifiedNoteItem])] {
-        let items = unpinnedItems
+    private func groupedItems(from items: [UnifiedNoteItem]) -> [(key: String, items: [UnifiedNoteItem])] {
         let grouped = items.grouped { monthYearKey(for: $0.date) }
         .mapValues { items in
             items.sorted { $0.date > $1.date } // Sort items within each sequence (newest first)

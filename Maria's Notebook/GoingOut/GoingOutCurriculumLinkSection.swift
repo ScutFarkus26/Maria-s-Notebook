@@ -13,17 +13,16 @@ struct GoingOutCurriculumLinkSection: View {
         let uuids = goingOut.curriculumLinkUUIDs
         guard !uuids.isEmpty else { return [] }
 
+        // Fetch only the linked lessons; this used to load the whole Lesson
+        // table and filter it in Swift, twice per body pass.
         let request: NSFetchRequest<CDLesson> = CDFetchRequest(CDLesson.self)
-        let allLessons = modelContext.safeFetch(request)
-        let uuidSet = Set(uuids)
-        return allLessons.filter { lesson in
-            guard let lessonID = lesson.id else { return false }
-            return uuidSet.contains(lessonID)
-        }
+        request.predicate = NSPredicate(format: "id IN %@", uuids)
+        return modelContext.safeFetch(request)
     }
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 8) {
+        let linkedLessons = self.linkedLessons
+        return VStack(alignment: .leading, spacing: 8) {
             HStack {
                 Text("Curriculum Links")
                     .font(.subheadline)

@@ -161,7 +161,7 @@ enum AIReportService {
             dateRange.lowerBound as NSDate,
             dateRange.upperBound as NSDate
         )
-        return context.safeFetch(request).count
+        return (try? context.count(for: request)) ?? 0
     }
 
 }

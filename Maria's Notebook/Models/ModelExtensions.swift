@@ -25,6 +25,7 @@ extension CDWorkModel {
 
         let request = NSFetchRequest<CDLessonAssignment>(entityName: "LessonAssignment")
         request.predicate = NSPredicate(format: "id == %@", uuid as CVarArg)
+        request.fetchLimit = 1
 
         do {
             return try context.fetch(request).first
@@ -41,6 +42,7 @@ extension CDWorkModel {
 
         let request = NSFetchRequest<CDLesson>(entityName: "Lesson")
         request.predicate = NSPredicate(format: "id == %@", uuid as CVarArg)
+        request.fetchLimit = 1
 
         do {
             return try context.fetch(request).first
@@ -57,6 +59,7 @@ extension CDWorkModel {
 
         let request = NSFetchRequest<CDStudent>(entityName: "Student")
         request.predicate = NSPredicate(format: "id == %@", uuid as CVarArg)
+        request.fetchLimit = 1
 
         do {
             return try context.fetch(request).first

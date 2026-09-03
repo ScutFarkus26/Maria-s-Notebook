@@ -26,20 +26,17 @@ struct PresentationNotesSectionUnified: View {
     // Get notes from WorkModels associated with this lesson assignment
     private var workNotesForThisPresentation: [CDNote] {
         do {
-            // Fetch all Notes to avoid SwiftData predicate limitations
-            let allNotes = try viewContext.fetch(NSFetchRequest<CDNote>(entityName: "Note"))
+            // Only notes attached to work for this lesson. This used to fetch the
+            // entire Note table and filter in Swift ("to avoid SwiftData
+            // predicate limitations", which don't apply to Core Data).
+            let request = NSFetchRequest<CDNote>(entityName: "Note")
+            request.predicate = NSPredicate(format: "work.lessonID == %@", lessonAssignment.lessonID)
+            let workNotes = try viewContext.fetch(request)
 
             // Convert studentIDs (String array) to UUID set for comparison
             let presentationStudentIDs = Set(lessonAssignment.studentIDs.compactMap { UUID(uuidString: $0) })
-            let presentationLessonID = lessonAssignment.lessonID
 
-            return allNotes.filter { note in
-                // Must have a work relationship
-                guard let work = note.work else { return false }
-
-                // Work's lessonID must match lessonAssignment's lessonID
-                guard work.lessonID == presentationLessonID else { return false }
-
+            return workNotes.filter { note in
                 // Filter by scope to ensure note is relevant to this sequence
                 switch note.scope {
                 case .all:
@@ -86,7 +83,10 @@ struct PresentationNotesSectionUnified: View {
     }
     
     var body: some View {
-        VStack(alignment: .leading, spacing: 8) {
+        // Merged once per pass; the body reads it five times and each read
+        // used to re-run the fetch, the merge, and the sort.
+        let allUnifiedNotes = self.allUnifiedNotes
+        return VStack(alignment: .leading, spacing: 8) {
             HStack(spacing: 8) {
                 Image(systemName: "doc.plaintext")
                     .foregroundStyle(.secondary)

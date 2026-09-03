@@ -49,7 +49,7 @@ enum MeetingScheduler {
         let targetID = id
         let descriptor: NSFetchRequest<CDScheduledMeeting> = NSFetchRequest(entityName: "ScheduledMeeting")
         descriptor.predicate = NSPredicate(format: "id == %@", targetID as CVarArg)
-        if let meeting = context.safeFetch(descriptor).first {
+        if let meeting = context.safeFetchFirst(descriptor) {
             context.delete(meeting)
             context.safeSave()
         }

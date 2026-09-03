@@ -105,7 +105,7 @@ extension WeekPlanSection {
     func rescheduleCheckIn(id: UUID, to day: Date) {
         let request: NSFetchRequest<CDWorkCheckIn> = NSFetchRequest(entityName: "WorkCheckIn")
         request.predicate = NSPredicate(format: "id == %@", id as CVarArg)
-        guard let checkIn = viewContext.safeFetch(request).first,
+        guard let checkIn = viewContext.safeFetchFirst(request),
               let workID = checkIn.workID.asUUID else { return }
 
         checkIn.date = day

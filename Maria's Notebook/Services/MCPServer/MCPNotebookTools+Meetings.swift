@@ -230,7 +230,7 @@ extension MCPNotebookTools {
 
         let todoRequest = CDFetchRequest(CDTodoItem.self)
         todoRequest.predicate = NSPredicate(format: "id == %@", id as CVarArg)
-        if let todo = modelContext.safeFetch(todoRequest).first {
+        if let todo = modelContext.safeFetchFirst(todoRequest) {
             guard !todo.isCompleted else {
                 return "Follow-up [todo id=\(idString)] \"\(todo.title)\" is already completed."
             }
@@ -251,7 +251,7 @@ extension MCPNotebookTools {
 
         let focusRequest = CDFetchRequest(CDStudentFocusItem.self)
         focusRequest.predicate = NSPredicate(format: "id == %@", id as CVarArg)
-        if let item = modelContext.safeFetch(focusRequest).first {
+        if let item = modelContext.safeFetchFirst(focusRequest) {
             guard item.isActive else {
                 return "Goal [focusItem id=\(idString)] \"\(item.text)\" is already "
                     + "\(item.status.rawValue)."

@@ -26,7 +26,11 @@ struct AttendanceTardyReport: View {
     )
     @State private var endDate: Date = AppCalendar.startOfDay(Date())
 
-    private var rows: [TardyRow] {
+    /// Called once at the top of `body`. This was a computed property read
+    /// six times per body pass (directly and via the total), each read
+    /// re-running the ranged fetch, the per-day dedup, and the sort — and the
+    /// body re-evaluates on every date-picker change.
+    private func computeRows() -> [TardyRow] {
         guard startDate <= endDate else { return [] }
         let start = AppCalendar.startOfDay(startDate)
         let end = AppCalendar.startOfDay(endDate)
@@ -53,12 +57,10 @@ struct AttendanceTardyReport: View {
         return rows.sorted { $0.tardyCount > $1.tardyCount }
     }
 
-    private var totalTardies: Int {
-        rows.reduce(0) { $0 + $1.tardyCount }
-    }
-
     var body: some View {
-        NavigationStack {
+        let rows = computeRows()
+        let totalTardies = rows.reduce(0) { $0 + $1.tardyCount }
+        return NavigationStack {
             VStack(spacing: 0) {
                 // Date range pickers
                 dateRangeSection
@@ -68,7 +70,7 @@ struct AttendanceTardyReport: View {
                 Divider()
 
                 // Summary chip
-                summaryBar
+                summaryBar(rows: rows, totalTardies: totalTardies)
 
                 Divider()
 
@@ -76,7 +78,7 @@ struct AttendanceTardyReport: View {
                 if rows.isEmpty {
                     emptyState
                 } else {
-                    resultsList
+                    resultsList(rows)
                 }
             }
             .navigationTitle("Tardy Report")
@@ -150,7 +152,7 @@ struct AttendanceTardyReport: View {
 
     // MARK: - Summary Bar
 
-    private var summaryBar: some View {
+    private func summaryBar(rows: [TardyRow], totalTardies: Int) -> some View {
         HStack(spacing: AppTheme.Spacing.lg) {
             summaryChip(
                 value: rows.count,
@@ -181,7 +183,7 @@ struct AttendanceTardyReport: View {
 
     // MARK: - Results List
 
-    private var resultsList: some View {
+    private func resultsList(_ rows: [TardyRow]) -> some View {
         List {
             ForEach(rows) { row in
                 HStack {

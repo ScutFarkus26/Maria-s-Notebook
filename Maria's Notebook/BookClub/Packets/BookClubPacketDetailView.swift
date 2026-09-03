@@ -75,7 +75,12 @@ struct BookClubPacketDetailView: View {
 
     @ViewBuilder
     private var heroImageSection: some View {
-        if let data = packet.thumbnailData, let image = PlatformImage(data: data) {
+        // Decoded through the shared cache (same key as `BookClubPacketCardView`)
+        // instead of in `body`, which re-ran the decode on every Core Data merge.
+        if let image = CachedThumbnail.image(
+            from: packet.thumbnailData,
+            cacheKey: packet.objectID.uriRepresentation().absoluteString
+        ) {
             #if os(macOS)
             Image(nsImage: image)
                 .resizable()
