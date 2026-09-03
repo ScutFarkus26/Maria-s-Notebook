@@ -11,7 +11,7 @@
 
 import SwiftUI
 
-enum PresentationsFilterChip: String, CaseIterable, Identifiable, Sendable, WorkspaceFilterChip {
+nonisolated enum PresentationsFilterChip: String, CaseIterable, Identifiable, Sendable, WorkspaceFilterChip {
     case all
     /// Given, and still waiting on the guide to observe or decide.
     case followUp

@@ -4,7 +4,7 @@ import CoreData
 /// Describes how work is assigned in a project session
 
 @objc(CDProjectSession)
-public class CDProjectSession: NSManagedObject {
+nonisolated public class CDProjectSession: NSManagedObject {
     // MARK: - Core Data Properties
     @NSManaged public var id: UUID?
     @NSManaged public var createdAt: Date?
@@ -41,7 +41,7 @@ public class CDProjectSession: NSManagedObject {
 
 // MARK: - Computed Properties
 
-extension CDProjectSession {
+nonisolated extension CDProjectSession {
     var projectIDUUID: UUID? {
         get { UUID(uuidString: projectID) }
         set { projectID = newValue?.uuidString ?? "" }
@@ -79,7 +79,7 @@ extension CDProjectSession {
 
 // MARK: - Generated Accessors for To-Many Relationships
 
-extension CDProjectSession {
+nonisolated extension CDProjectSession {
     @objc(addNoteItemsObject:)
     @NSManaged public func addToNoteItems(_ value: CDNote)
 

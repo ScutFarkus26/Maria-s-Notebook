@@ -12,7 +12,7 @@ enum AgingBucket: Int, Codable, Comparable, Sendable {
     }
 }
 
-struct AgingPolicy {
+nonisolated struct AgingPolicy {
     /// First bucket boundary where items start to be considered aging.
     static let agingDays: Int = 5
 

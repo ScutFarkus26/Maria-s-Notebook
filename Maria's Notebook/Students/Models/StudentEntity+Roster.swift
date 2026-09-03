@@ -1,7 +1,7 @@
 import Foundation
 import CoreData
 
-extension CDStudent {
+nonisolated extension CDStudent {
     /// Canonical predicate for active-roster fetches. Use with `@FetchRequest` or `NSFetchRequest`
     /// to exclude former students (withdrawn or transferred) at the Core Data layer.
     nonisolated(unsafe) static let enrolledPredicate = NSPredicate(

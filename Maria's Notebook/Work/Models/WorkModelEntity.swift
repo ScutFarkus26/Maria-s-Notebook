@@ -2,7 +2,7 @@ import Foundation
 import CoreData
 
 @objc(CDWorkModel)
-public class CDWorkModel: NSManagedObject {
+nonisolated public class CDWorkModel: NSManagedObject {
     // MARK: - Core Data Properties
     @NSManaged public var id: UUID?
     @NSManaged public var title: String
@@ -69,7 +69,7 @@ public class CDWorkModel: NSManagedObject {
 
 // MARK: - Computed Properties
 
-extension CDWorkModel {
+nonisolated extension CDWorkModel {
     /// Work kind (practice, follow-up, research)
     var kind: WorkKind? {
         get { kindRaw.flatMap { WorkKind(rawValue: $0) } }
@@ -195,7 +195,7 @@ extension CDWorkModel {
 
 // MARK: - Generated Accessors for To-Many Relationships
 
-extension CDWorkModel {
+nonisolated extension CDWorkModel {
     @objc(addParticipantsObject:)
     @NSManaged public func addToParticipants(_ value: CDWorkParticipantEntity)
 

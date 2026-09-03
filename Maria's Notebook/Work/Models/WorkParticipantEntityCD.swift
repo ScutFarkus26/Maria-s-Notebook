@@ -2,7 +2,7 @@ import Foundation
 import CoreData
 
 @objc(CDWorkParticipantEntity)
-public class CDWorkParticipantEntity: NSManagedObject {
+nonisolated public class CDWorkParticipantEntity: NSManagedObject {
     // MARK: - Core Data Properties
     @NSManaged public var id: UUID?
     @NSManaged public var studentID: String
@@ -24,7 +24,7 @@ public class CDWorkParticipantEntity: NSManagedObject {
 
 // MARK: - Computed Properties
 
-extension CDWorkParticipantEntity {
+nonisolated extension CDWorkParticipantEntity {
     // Computed property for backward compatibility with UUID
     var studentIDUUID: UUID? {
         get { UUID(uuidString: studentID) }

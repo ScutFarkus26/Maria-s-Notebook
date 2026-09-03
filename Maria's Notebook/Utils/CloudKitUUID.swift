@@ -19,7 +19,7 @@ import CoreData
 ///     set { _studentIDsData = CloudKitStringArrayStorage.encode(newValue) }
 /// }
 /// ```
-enum CloudKitStringArrayStorage {
+nonisolated enum CloudKitStringArrayStorage {
 
     /// Shared coders. These accessors back `studentIDs` and friends, which are
     /// read inside whole-table filters (`assignments.filter { $0.studentIDs.contains(…) }`)

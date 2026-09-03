@@ -5,7 +5,7 @@ import CoreData
 // Do not add new code here.
 
 @objc(CDProjectTemplateWeek)
-public class CDProjectTemplateWeek: NSManagedObject {
+nonisolated public class CDProjectTemplateWeek: NSManagedObject {
     @NSManaged public var id: UUID?
     @NSManaged public var createdAt: Date?
     @NSManaged public var projectID: String

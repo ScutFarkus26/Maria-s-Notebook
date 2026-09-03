@@ -2,7 +2,7 @@ import Foundation
 import CoreData
 
 @objc(CDLesson)
-public class CDLesson: NSManagedObject {
+nonisolated public class CDLesson: NSManagedObject {
     // MARK: - Core Data Properties
     @NSManaged public var id: UUID?
     @NSManaged public var name: String
@@ -91,7 +91,7 @@ public class CDLesson: NSManagedObject {
 
 // MARK: - Computed Properties
 
-extension CDLesson {
+nonisolated extension CDLesson {
     var source: LessonSource {
         get { LessonSource(rawValue: sourceRaw) ?? .album }
         set { sourceRaw = newValue.rawValue }
@@ -273,7 +273,7 @@ extension CDLesson {
 
 // MARK: - Generated Accessors for To-Many Relationships
 
-extension CDLesson {
+nonisolated extension CDLesson {
     @objc(addAttachmentsObject:)
     @NSManaged public func addToAttachments(_ value: CDLessonAttachment)
 

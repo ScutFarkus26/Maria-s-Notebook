@@ -4,7 +4,7 @@ import OSLog
 /// One reading item on a book club packet — e.g. "Chapters 1–3".
 /// Stored as JSON on `CDBookClubPacket.readingItemsJSON`,
 /// and copied into `CDBookClubMeeting.readingLabel` when a session is generated.
-struct BookClubReadingItem: Codable, Hashable, Identifiable, Sendable {
+nonisolated struct BookClubReadingItem: Codable, Hashable, Identifiable, Sendable {
     let id: UUID
     var ordinal: Int
     var label: String
@@ -16,7 +16,7 @@ struct BookClubReadingItem: Codable, Hashable, Identifiable, Sendable {
     }
 }
 
-extension BookClubReadingItem {
+nonisolated extension BookClubReadingItem {
     static func decode(_ json: String) -> [BookClubReadingItem] {
         let trimmed = json.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !trimmed.isEmpty, let data = trimmed.data(using: .utf8) else { return [] }

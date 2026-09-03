@@ -2,7 +2,7 @@ import SwiftUI
 import CoreData
 import OSLog
 
-private let logger = Logger.app_
+nonisolated private let logger = Logger.app_
 
 // Shared in-memory Core Data stack for previews across the project.
 extension CoreDataStack {

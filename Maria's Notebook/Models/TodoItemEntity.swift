@@ -3,7 +3,7 @@ import CoreData
 import SwiftUI
 
 @objc(TodoItemEntity)
-public class CDTodoItemEntity: NSManagedObject {
+nonisolated public class CDTodoItemEntity: NSManagedObject {
     // MARK: - Attributes
     @NSManaged public var id: UUID?
     @NSManaged public var title: String
@@ -79,7 +79,7 @@ public class CDTodoItemEntity: NSManagedObject {
 }
 
 // MARK: - Computed Properties
-extension CDTodoItemEntity {
+nonisolated extension CDTodoItemEntity {
     var priority: TodoPriority {
         get { TodoPriority(rawValue: priorityRaw) ?? .none }
         set { priorityRaw = newValue.rawValue }
@@ -207,7 +207,7 @@ extension CDTodoItemEntity {
 }
 
 // MARK: - Generated Accessors for subtasks
-extension CDTodoItemEntity {
+nonisolated extension CDTodoItemEntity {
     @objc(addSubtasksObject:)
     @NSManaged public func addToSubtasks(_ value: CDTodoSubtaskEntity)
 

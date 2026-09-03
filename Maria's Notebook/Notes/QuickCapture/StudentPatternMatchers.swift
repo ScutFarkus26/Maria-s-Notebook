@@ -4,7 +4,7 @@ import OSLog
 // MARK: - Pattern Matching Helpers
 
 enum PatternMatchHelpers {
-    private static let logger = Logger.notes
+    nonisolated private static let logger = Logger.notes
 
     nonisolated static func containsWithBoundary(source: String, pattern: String) -> Bool {
         do {

@@ -2,12 +2,12 @@ import Foundation
 
 // MARK: - Core DTOs (Students, Lessons, Notes, and closely related types)
 
-public struct ItemDTO: Codable, Sendable {
+nonisolated public struct ItemDTO: Codable, Sendable {
     public var id: UUID
     public var timestamp: Date
 }
 
-public struct StudentDTO: Codable, Sendable {
+nonisolated public struct StudentDTO: Codable, Sendable {
     public enum Level: String, Codable, Sendable { case lower, upper, adolescent }
     public var id: UUID
     public var firstName: String
@@ -35,7 +35,7 @@ public struct StudentDTO: Codable, Sendable {
     public var dateLastPromoted: Date?
 }
 
-public struct LessonDTO: Codable, Sendable {
+nonisolated public struct LessonDTO: Codable, Sendable {
     public var id: UUID
     public var name: String
     public var area: String
@@ -75,7 +75,7 @@ public struct LessonDTO: Codable, Sendable {
     public var albumLinkConfidence: Double?
 }
 
-public struct SampleWorkDTO: Codable, Sendable {
+nonisolated public struct SampleWorkDTO: Codable, Sendable {
     public var id: UUID
     public var lessonID: UUID?
     public var title: String
@@ -85,7 +85,7 @@ public struct SampleWorkDTO: Codable, Sendable {
     public var createdAt: Date
 }
 
-public struct SampleWorkStepDTO: Codable, Sendable {
+nonisolated public struct SampleWorkStepDTO: Codable, Sendable {
     public var id: UUID
     public var sampleWorkID: UUID?
     public var title: String
@@ -94,7 +94,7 @@ public struct SampleWorkStepDTO: Codable, Sendable {
     public var createdAt: Date
 }
 
-public struct LessonAttachmentDTO: Codable, Sendable {
+nonisolated public struct LessonAttachmentDTO: Codable, Sendable {
     public var id: UUID
     public var fileName: String
     public var fileRelativePath: String
@@ -107,7 +107,7 @@ public struct LessonAttachmentDTO: Codable, Sendable {
     // Binary data (fileBookmark, thumbnailData) excluded by design
 }
 
-public struct LessonPresentationDTO: Codable, Sendable {
+nonisolated public struct LessonPresentationDTO: Codable, Sendable {
     public var id: UUID
     public var createdAt: Date
     public var studentID: String
@@ -131,7 +131,7 @@ public struct LessonPresentationDTO: Codable, Sendable {
     public var followUpSupportRaw: String?
 }
 
-public struct LessonRecallCheckDTO: Codable, Sendable {
+nonisolated public struct LessonRecallCheckDTO: Codable, Sendable {
     public var id: UUID
     public var createdAt: Date
     public var modifiedAt: Date?
@@ -151,7 +151,7 @@ public struct LessonRecallCheckDTO: Codable, Sendable {
 // MARK: - CDLessonAssignment DTO
 /// DTO for the unified CDLessonAssignment model.
 /// This model replaces LegacyPresentation + CDPresentation in the new architecture.
-public struct LessonAssignmentDTO: Codable, Sendable {
+nonisolated public struct LessonAssignmentDTO: Codable, Sendable {
     public var id: UUID
     public var createdAt: Date
     public var modifiedAt: Date
@@ -224,7 +224,7 @@ public struct LessonAssignmentDTO: Codable, Sendable {
     }
 }
 
-public struct NoteDTO: Codable, Sendable {
+nonisolated public struct NoteDTO: Codable, Sendable {
     public var id: UUID
     public var createdAt: Date
     public var updatedAt: Date
@@ -258,18 +258,18 @@ public struct NoteDTO: Codable, Sendable {
     public var issueID: UUID?
 }
 
-public struct NonSchoolDayDTO: Codable, Sendable {
+nonisolated public struct NonSchoolDayDTO: Codable, Sendable {
     public var id: UUID
     public var date: Date
     public var reason: String?
 }
 
-public struct SchoolDayOverrideDTO: Codable, Sendable {
+nonisolated public struct SchoolDayOverrideDTO: Codable, Sendable {
     public var id: UUID
     public var date: Date
 }
 
-public struct CommunityTopicDTO: Codable, Sendable {
+nonisolated public struct CommunityTopicDTO: Codable, Sendable {
     public var id: UUID
     public var title: String
     public var issueDescription: String
@@ -280,7 +280,7 @@ public struct CommunityTopicDTO: Codable, Sendable {
     public var tags: [String]
 }
 
-public struct ProposedSolutionDTO: Codable, Sendable {
+nonisolated public struct ProposedSolutionDTO: Codable, Sendable {
     public var id: UUID
     public var topicID: UUID?
     public var title: String
@@ -290,7 +290,7 @@ public struct ProposedSolutionDTO: Codable, Sendable {
     public var isAdopted: Bool
 }
 
-public struct CommunityAttachmentDTO: Codable, Sendable {
+nonisolated public struct CommunityAttachmentDTO: Codable, Sendable {
     public var id: UUID
     public var topicID: UUID?
     public var filename: String
@@ -301,7 +301,7 @@ public struct CommunityAttachmentDTO: Codable, Sendable {
 
 // MARK: - Template DTOs
 
-public struct NoteTemplateDTO: Codable, Sendable {
+nonisolated public struct NoteTemplateDTO: Codable, Sendable {
     public var id: UUID
     public var createdAt: Date
     public var title: String
@@ -312,7 +312,7 @@ public struct NoteTemplateDTO: Codable, Sendable {
     public var isBuiltIn: Bool
 }
 
-public struct MeetingTemplateDTO: Codable, Sendable {
+nonisolated public struct MeetingTemplateDTO: Codable, Sendable {
     public var id: UUID
     public var createdAt: Date
     public var name: String

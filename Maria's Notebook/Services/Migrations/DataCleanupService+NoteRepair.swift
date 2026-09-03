@@ -4,7 +4,7 @@ import os
 
 // MARK: - Note & Data Integrity Repairs
 
-extension DataCleanupService {
+nonisolated extension DataCleanupService {
 
     // MARK: - Note Cleanup
 

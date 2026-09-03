@@ -2,7 +2,7 @@ import OSLog
 import SwiftUI
 import CoreData
 
-private let logger = Logger.students
+nonisolated private let logger = Logger.students
 
 // swiftlint:disable:next type_body_length
 struct PresentationQuickActionsView: View {

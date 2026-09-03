@@ -2,7 +2,7 @@ import Foundation
 import CoreData
 
 @objc(CDLessonSequenceSettings)
-public class CDLessonSequenceSettings: NSManagedObject {
+nonisolated public class CDLessonSequenceSettings: NSManagedObject {
     @NSManaged public var id: UUID?
     @NSManaged public var area: String
     @NSManaged public var sequence: String
@@ -27,7 +27,7 @@ public class CDLessonSequenceSettings: NSManagedObject {
 
 // MARK: - Lookup
 
-extension CDLessonSequenceSettings {
+nonisolated extension CDLessonSequenceSettings {
     /// Finds sequence settings for a given area+sequence pair.
     @MainActor
     static func find(

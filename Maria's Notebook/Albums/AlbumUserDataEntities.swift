@@ -11,7 +11,7 @@ import Foundation
 // albums on disk. It is a plain String foreign key by construction.
 
 @objc(CDAlbumBookmark)
-public class CDAlbumBookmark: NSManagedObject {
+nonisolated public class CDAlbumBookmark: NSManagedObject {
     @NSManaged public var id: UUID?
     @NSManaged public var albumID: String
     @NSManaged public var pageIndex: Int32
@@ -33,7 +33,7 @@ public class CDAlbumBookmark: NSManagedObject {
 }
 
 @objc(CDAlbumPageNote)
-public class CDAlbumPageNote: NSManagedObject {
+nonisolated public class CDAlbumPageNote: NSManagedObject {
     @NSManaged public var id: UUID?
     @NSManaged public var albumID: String
     @NSManaged public var pageIndex: Int32
@@ -57,7 +57,7 @@ public class CDAlbumPageNote: NSManagedObject {
 }
 
 @objc(CDAlbumRecentVisit)
-public class CDAlbumRecentVisit: NSManagedObject {
+nonisolated public class CDAlbumRecentVisit: NSManagedObject {
     @NSManaged public var id: UUID?
     @NSManaged public var albumID: String
     @NSManaged public var pageIndex: Int32
@@ -79,7 +79,7 @@ public class CDAlbumRecentVisit: NSManagedObject {
 }
 
 @objc(CDAlbumReadingPosition)
-public class CDAlbumReadingPosition: NSManagedObject {
+nonisolated public class CDAlbumReadingPosition: NSManagedObject {
     @NSManaged public var id: UUID?
     @NSManaged public var albumID: String
     @NSManaged public var pageIndex: Int32
@@ -99,7 +99,7 @@ public class CDAlbumReadingPosition: NSManagedObject {
 /// A text highlight on a page: rectangles in PDF page space, plus the
 /// highlighted text itself so highlights stay searchable and listable.
 @objc(CDAlbumHighlight)
-public class CDAlbumHighlight: NSManagedObject {
+nonisolated public class CDAlbumHighlight: NSManagedObject {
     @NSManaged public var id: UUID?
     @NSManaged public var albumID: String
     @NSManaged public var pageIndex: Int32
@@ -127,7 +127,7 @@ public class CDAlbumHighlight: NSManagedObject {
     }
 }
 
-extension CDAlbumHighlight {
+nonisolated extension CDAlbumHighlight {
     var rects: [CGRect] {
         get { Self.decode(rectsData) }
         set { rectsData = Self.encode(newValue) }
@@ -162,7 +162,7 @@ extension CDAlbumHighlight {
 /// Apple Pencil / finger ink for one album page, stored as PencilKit drawing
 /// data so markup follows the guide across devices.
 @objc(CDAlbumPageInk)
-public class CDAlbumPageInk: NSManagedObject {
+nonisolated public class CDAlbumPageInk: NSManagedObject {
     @NSManaged public var id: UUID?
     @NSManaged public var albumID: String
     @NSManaged public var pageIndex: Int32

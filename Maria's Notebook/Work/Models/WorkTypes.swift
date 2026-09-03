@@ -6,7 +6,7 @@ import SwiftUI
 
 // MARK: - Work Kind
 /// Describes the type of work assignment
-public enum WorkKind: String, Codable, CaseIterable, Hashable, Identifiable, Sendable {
+nonisolated public enum WorkKind: String, Codable, CaseIterable, Hashable, Identifiable, Sendable {
     case practiceLesson
     case followUpAssignment
     case research
@@ -26,7 +26,7 @@ public enum WorkKind: String, Codable, CaseIterable, Hashable, Identifiable, Sen
 
 // MARK: - Work Status
 /// Describes the lifecycle status of a work item
-public enum WorkStatus: String, Codable, CaseIterable, Hashable, Identifiable, Sendable {
+nonisolated public enum WorkStatus: String, Codable, CaseIterable, Hashable, Identifiable, Sendable {
     case active
     case review
     case complete
@@ -44,7 +44,7 @@ public enum WorkStatus: String, Codable, CaseIterable, Hashable, Identifiable, S
 
 // MARK: - Completion Outcome
 /// Describes the outcome when work is completed
-public enum CompletionOutcome: String, Codable, CaseIterable, Hashable, Identifiable, Sendable {
+nonisolated public enum CompletionOutcome: String, Codable, CaseIterable, Hashable, Identifiable, Sendable {
     case proficient = "mastered"
     case needsMorePractice
     case needsReview
@@ -66,7 +66,7 @@ public enum CompletionOutcome: String, Codable, CaseIterable, Hashable, Identifi
 
 // MARK: - Scheduled Reason
 /// Describes why a work item was scheduled
-public enum ScheduledReason: String, Codable, CaseIterable, Hashable, Identifiable, Sendable {
+nonisolated public enum ScheduledReason: String, Codable, CaseIterable, Hashable, Identifiable, Sendable {
     case checkIn
     case due
     case followUp
@@ -90,7 +90,7 @@ public enum ScheduledReason: String, Codable, CaseIterable, Hashable, Identifiab
 
 // MARK: - Work Source Context Type
 /// Describes the source context from which work was created
-public enum WorkSourceContextType: String, Codable, CaseIterable, Hashable, Identifiable, Sendable {
+nonisolated public enum WorkSourceContextType: String, Codable, CaseIterable, Hashable, Identifiable, Sendable {
     case projectSession
     case bookClubSession
     case presentation
@@ -112,7 +112,7 @@ public enum WorkSourceContextType: String, Codable, CaseIterable, Hashable, Iden
 
 // MARK: - Check-In Style
 /// Describes how check-ins for multi-student work should be displayed and managed
-public enum CheckInStyle: String, Codable, CaseIterable, Hashable, Identifiable, Sendable {
+nonisolated public enum CheckInStyle: String, Codable, CaseIterable, Hashable, Identifiable, Sendable {
     /// Check each student one-on-one
     case individual
     /// Check all students together as a sequence
@@ -157,7 +157,7 @@ public enum CheckInStyle: String, Codable, CaseIterable, Hashable, Identifiable,
 
 // MARK: - WorkKind Styling
 
-public extension WorkKind {
+nonisolated public extension WorkKind {
     /// Standard color for this work kind used throughout the app
     var color: Color {
         switch self {
@@ -192,7 +192,7 @@ public extension WorkKind {
 
 // MARK: - WorkStatus Styling
 
-public extension WorkStatus {
+nonisolated public extension WorkStatus {
     /// Standard color for this status
     var color: Color {
         switch self {
@@ -214,7 +214,7 @@ public extension WorkStatus {
 
 // MARK: - CompletionOutcome Styling
 
-public extension CompletionOutcome {
+nonisolated public extension CompletionOutcome {
     /// Standard color for this outcome
     var color: Color {
         switch self {

@@ -5,7 +5,7 @@ import Foundation
 import CoreData
 
 @objc(CDParentCommunication)
-public class CDParentCommunication: NSManagedObject {
+nonisolated public class CDParentCommunication: NSManagedObject {
     // MARK: - Core Data Properties
     @NSManaged public var id: UUID?
     @NSManaged public var studentID: String

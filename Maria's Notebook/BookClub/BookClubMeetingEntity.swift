@@ -2,7 +2,7 @@ import Foundation
 import CoreData
 
 @objc(CDBookClubMeeting)
-public class CDBookClubMeeting: NSManagedObject {
+nonisolated public class CDBookClubMeeting: NSManagedObject {
     @NSManaged public var id: UUID?
     @NSManaged public var sessionID: String
     @NSManaged public var ordinal: Int32
@@ -34,7 +34,7 @@ public class CDBookClubMeeting: NSManagedObject {
     }
 }
 
-extension CDBookClubMeeting {
+nonisolated extension CDBookClubMeeting {
     var leaderStudentUUID: UUID? {
         UUID(uuidString: leaderStudentID)
     }

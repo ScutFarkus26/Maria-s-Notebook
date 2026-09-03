@@ -2,7 +2,7 @@ import Foundation
 import CoreData
 
 @objc(CDIssueAction)
-public class CDIssueAction: NSManagedObject {
+nonisolated public class CDIssueAction: NSManagedObject {
     // MARK: - Core Data Properties
     @NSManaged public var id: UUID?
     @NSManaged public var createdAt: Date?
@@ -44,16 +44,16 @@ public class CDIssueAction: NSManagedObject {
 
 // MARK: - Identifiable
 
-extension CDIssueAction: Identifiable {}
+nonisolated extension CDIssueAction: Identifiable {}
 
 // MARK: - Enums
 
-extension CDIssueAction {
+nonisolated extension CDIssueAction {
 }
 
 // MARK: - Computed Properties
 
-extension CDIssueAction {
+nonisolated extension CDIssueAction {
     var actionType: IssueActionType {
         get { IssueActionType(rawValue: actionTypeRaw) ?? .note }
         set { actionTypeRaw = newValue.rawValue }

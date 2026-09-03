@@ -2,7 +2,7 @@ import Foundation
 import CoreData
 
 @objc(CDDayPad)
-public class CDDayPad: NSManagedObject {
+nonisolated public class CDDayPad: NSManagedObject {
     @NSManaged public var id: UUID?
     @NSManaged public var day: Date?
     @NSManaged public var body: String?
@@ -22,7 +22,7 @@ public class CDDayPad: NSManagedObject {
     }
 }
 
-extension CDDayPad {
+nonisolated extension CDDayPad {
     func setBody(_ newValue: String) {
         guard body != newValue else { return }
         body = newValue

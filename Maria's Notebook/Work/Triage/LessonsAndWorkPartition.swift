@@ -26,7 +26,7 @@ import Foundation
 /// Deliberately generic and free of Core Data so the structural guarantee —
 /// every record lands in exactly one list, none is dropped, none is
 /// duplicated — can be tested without a store.
-struct TriageSplit<Record> {
+nonisolated struct TriageSplit<Record> {
     let attention: [Record]
     let scheduled: [Record]
     let toSchedule: [Record]

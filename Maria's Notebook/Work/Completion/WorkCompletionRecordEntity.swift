@@ -5,7 +5,7 @@ import CoreData
 /// at a specific point in time. Multiple records for the same (workID, studentID)
 /// pair preserve the full completion history.
 @objc(CDWorkCompletionRecord)
-public class CDWorkCompletionRecord: NSManagedObject {
+nonisolated public class CDWorkCompletionRecord: NSManagedObject {
     // MARK: - Core Data Properties
     @NSManaged public var id: UUID?
     @NSManaged public var workID: String
@@ -29,7 +29,7 @@ public class CDWorkCompletionRecord: NSManagedObject {
 
 // MARK: - Computed Properties
 
-extension CDWorkCompletionRecord {
+nonisolated extension CDWorkCompletionRecord {
     var workIDUUID: UUID? {
         get { UUID(uuidString: workID) }
         set { workID = newValue?.uuidString ?? "" }
@@ -43,7 +43,7 @@ extension CDWorkCompletionRecord {
 
 // MARK: - Generated Accessors for To-Many Relationships
 
-extension CDWorkCompletionRecord {
+nonisolated extension CDWorkCompletionRecord {
     @objc(addNotesObject:)
     @NSManaged public func addToNotes(_ value: CDNote)
 

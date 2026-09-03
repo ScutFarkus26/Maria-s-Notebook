@@ -116,7 +116,7 @@ struct StudentsTableView: View {
     }
 }
 
-private struct StudentTableRow: Identifiable {
+nonisolated private struct StudentTableRow: Identifiable {
     let id: UUID
     let student: CDStudent
     let name: String

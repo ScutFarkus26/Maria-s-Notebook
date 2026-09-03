@@ -33,7 +33,7 @@ import AppleArchive
 import CryptoKit
 import System
 
-public enum BackupArchive {
+nonisolated public enum BackupArchive {
 
     /// Refuse to allocate more than this for a single entry. A well-formed
     /// backup entry is one entity type's NDJSON (a few MB at most); a header

@@ -2,11 +2,11 @@ import Foundation
 import CoreData
 import OSLog
 
-private let logger = Logger.database
+nonisolated private let logger = Logger.database
 
 // MARK: - NSManagedObjectContext Extensions
 
-extension NSManagedObjectContext {
+nonisolated extension NSManagedObjectContext {
     /// Resolves a CDWorkModel by primary ID.
     func resolveWorkModel(from workID: UUID) -> CDWorkModel? {
         object(CDWorkModel.self, id: workID)
@@ -15,7 +15,7 @@ extension NSManagedObjectContext {
 
 // MARK: - CDWorkModel Extensions
 
-extension CDWorkModel {
+nonisolated extension CDWorkModel {
     /// Fetches the presentation that spawned this work item
     func fetchPresentation(from context: NSManagedObjectContext) -> CDLessonAssignment? {
         guard let presentationID,
@@ -44,7 +44,7 @@ extension CDWorkModel {
 
 // MARK: - Presentation (CDLessonAssignment) Extensions
 
-extension CDLessonAssignment {
+nonisolated extension CDLessonAssignment {
     /// Fetches all work items spawned from this presentation
     func fetchRelatedWork(from context: NSManagedObjectContext) -> [CDWorkModel] {
         let presentationIDString = id?.uuidString ?? ""
@@ -120,7 +120,7 @@ extension CDLessonAssignment {
 
 // MARK: - CDLesson Extensions
 
-extension CDLesson {
+nonisolated extension CDLesson {
     /// Fetches all presentations (lesson assignments) of this lesson
     func fetchAllPresentations(from context: NSManagedObjectContext) -> [CDLessonAssignment] {
         let lessonIDString = id?.uuidString ?? ""
@@ -202,7 +202,7 @@ extension CDLesson {
 
 // MARK: - CDPracticeSession Extensions
 
-extension CDPracticeSession {
+nonisolated extension CDPracticeSession {
     /// Fetches all students who participated in this session
     func fetchStudents(from context: NSManagedObjectContext) -> [CDStudent] {
         let studentIDStrings = studentIDsArray

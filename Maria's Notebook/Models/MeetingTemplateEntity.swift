@@ -2,7 +2,7 @@ import Foundation
 import CoreData
 
 @objc(MeetingTemplateEntity)
-public class CDMeetingTemplateEntity: NSManagedObject {
+nonisolated public class CDMeetingTemplateEntity: NSManagedObject {
     // MARK: - Attributes
     @NSManaged public var id: UUID?
     @NSManaged public var createdAt: Date?

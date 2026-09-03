@@ -1,7 +1,7 @@
 import Foundation
 
 // MARK: - Constants
-public enum BackupFile: Sendable {
+nonisolated public enum BackupFile: Sendable {
     /// Marked as nonisolated to allow access from Sendable contexts (e.g., FileDocument static properties)
     nonisolated public static let fileExtension = "mtbbackup"
     /// Format version 14: Adds CDMeetingWorkReview, CDStudentFocusItem, CDWorkModel.restingUntil
@@ -20,11 +20,11 @@ public enum BackupFile: Sendable {
 }
 
 // MARK: - PreferencesDTO and PreferenceValueDTO
-public struct PreferencesDTO: Codable, Sendable {
+nonisolated public struct PreferencesDTO: Codable, Sendable {
     public var values: [String: PreferenceValueDTO]
 }
 
-public enum PreferenceValueDTO: Codable, Sendable, Equatable {
+nonisolated public enum PreferenceValueDTO: Codable, Sendable, Equatable {
     case bool(Bool)
     case int(Int)
     case double(Double)
@@ -91,7 +91,7 @@ public enum PreferenceValueDTO: Codable, Sendable, Equatable {
 }
 
 // MARK: - BackupPayload
-public struct BackupPayload: Codable, Sendable {
+nonisolated public struct BackupPayload: Codable, Sendable {
 
     enum CodingKeys: String, CodingKey {
         case items, students, lessons
@@ -267,7 +267,7 @@ public struct BackupPayload: Codable, Sendable {
 }
 
 // MARK: - BackupOperationSummary
-public struct BackupOperationSummary: Identifiable, Sendable {
+nonisolated public struct BackupOperationSummary: Identifiable, Sendable {
     public enum Kind: Sendable, Equatable {
         case export
         case `import`
@@ -298,7 +298,7 @@ public struct BackupOperationSummary: Identifiable, Sendable {
 }
 
 // MARK: - RestorePreview (for Restore Preview UI)
-public struct RestorePreview: Codable, Sendable, Equatable {
+nonisolated public struct RestorePreview: Codable, Sendable, Equatable {
     public var mode: String
     public var entityInserts: [String: Int]
     public var entitySkips: [String: Int]

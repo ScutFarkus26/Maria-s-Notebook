@@ -2,7 +2,7 @@ import Foundation
 import CoreData
 
 @objc(CommunityAttachmentEntity)
-public class CDCommunityAttachmentEntity: NSManagedObject {
+nonisolated public class CDCommunityAttachmentEntity: NSManagedObject {
     // MARK: - Type Aliases (enums defined in SwiftData models)
     typealias Kind = CommunityAttachmentKind
 
@@ -30,7 +30,7 @@ public class CDCommunityAttachmentEntity: NSManagedObject {
 }
 
 // MARK: - Computed Properties & Enums
-extension CDCommunityAttachmentEntity {
+nonisolated extension CDCommunityAttachmentEntity {
     /// Kind enum matching the original SwiftData model
 
     var kind: Kind {

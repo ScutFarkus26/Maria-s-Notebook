@@ -11,7 +11,7 @@ import Foundation
 
 // MARK: - Bookmarks, notes, visits, positions
 
-public struct AlbumBookmarkDTO: Codable, Sendable {
+nonisolated public struct AlbumBookmarkDTO: Codable, Sendable {
     public var id: UUID
     public var albumID: String
     public var pageIndex: Int
@@ -20,7 +20,7 @@ public struct AlbumBookmarkDTO: Codable, Sendable {
     public var modifiedAt: Date
 }
 
-public struct AlbumPageNoteDTO: Codable, Sendable {
+nonisolated public struct AlbumPageNoteDTO: Codable, Sendable {
     public var id: UUID
     public var albumID: String
     public var pageIndex: Int
@@ -30,7 +30,7 @@ public struct AlbumPageNoteDTO: Codable, Sendable {
     public var modifiedAt: Date
 }
 
-public struct AlbumRecentVisitDTO: Codable, Sendable {
+nonisolated public struct AlbumRecentVisitDTO: Codable, Sendable {
     public var id: UUID
     public var albumID: String
     public var pageIndex: Int
@@ -39,7 +39,7 @@ public struct AlbumRecentVisitDTO: Codable, Sendable {
     public var modifiedAt: Date
 }
 
-public struct AlbumReadingPositionDTO: Codable, Sendable {
+nonisolated public struct AlbumReadingPositionDTO: Codable, Sendable {
     public var id: UUID
     public var albumID: String
     public var pageIndex: Int
@@ -48,7 +48,7 @@ public struct AlbumReadingPositionDTO: Codable, Sendable {
 
 // MARK: - Highlights and ink
 
-public struct AlbumHighlightDTO: Codable, Sendable {
+nonisolated public struct AlbumHighlightDTO: Codable, Sendable {
     public var id: UUID
     public var albumID: String
     public var pageIndex: Int
@@ -62,7 +62,7 @@ public struct AlbumHighlightDTO: Codable, Sendable {
     public var modifiedAt: Date
 }
 
-public struct AlbumPageInkDTO: Codable, Sendable {
+nonisolated public struct AlbumPageInkDTO: Codable, Sendable {
     public var id: UUID
     public var albumID: String
     public var pageIndex: Int

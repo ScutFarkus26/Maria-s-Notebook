@@ -2,7 +2,7 @@ import Foundation
 import CoreData
 
 @objc(CDJobAssignment)
-public class CDJobAssignment: NSManagedObject {
+nonisolated public class CDJobAssignment: NSManagedObject {
     // MARK: - Core Data Properties
     @NSManaged public var id: UUID?
     @NSManaged public var createdAt: Date?
@@ -32,7 +32,7 @@ public class CDJobAssignment: NSManagedObject {
 
 // MARK: - Computed Properties
 
-extension CDJobAssignment {
+nonisolated extension CDJobAssignment {
     var studentUUID: UUID? {
         UUID(uuidString: studentID)
     }

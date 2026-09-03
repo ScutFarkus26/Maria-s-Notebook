@@ -2,7 +2,7 @@ import Foundation
 
 // MARK: - CDProject DTOs
 
-public struct ProjectDTO: Codable, Sendable {
+nonisolated public struct ProjectDTO: Codable, Sendable {
     public var id: UUID
     public var createdAt: Date
     public var title: String
@@ -15,7 +15,7 @@ public struct ProjectDTO: Codable, Sendable {
     public var modifiedAt: Date?
 }
 
-public struct ProjectAssignmentTemplateDTO: Codable, Sendable {
+nonisolated public struct ProjectAssignmentTemplateDTO: Codable, Sendable {
     public var id: UUID
     public var createdAt: Date
     public var projectID: UUID
@@ -25,7 +25,7 @@ public struct ProjectAssignmentTemplateDTO: Codable, Sendable {
     public var defaultLinkedLessonID: String?
 }
 
-public struct ProjectSessionDTO: Codable, Sendable {
+nonisolated public struct ProjectSessionDTO: Codable, Sendable {
     public var id: UUID
     public var createdAt: Date
     public var projectID: UUID
@@ -38,7 +38,7 @@ public struct ProjectSessionDTO: Codable, Sendable {
     public var maxSelections: Int?
 }
 
-public struct ProjectRoleDTO: Codable, Sendable {
+nonisolated public struct ProjectRoleDTO: Codable, Sendable {
     public var id: UUID
     public var createdAt: Date
     public var projectID: UUID
@@ -47,7 +47,7 @@ public struct ProjectRoleDTO: Codable, Sendable {
     public var instructions: String
 }
 
-public struct ProjectTemplateWeekDTO: Codable, Sendable {
+nonisolated public struct ProjectTemplateWeekDTO: Codable, Sendable {
     public var id: UUID
     public var createdAt: Date
     public var projectID: UUID
@@ -58,7 +58,7 @@ public struct ProjectTemplateWeekDTO: Codable, Sendable {
     public var workInstructions: String
 }
 
-public struct ProjectWeekRoleAssignmentDTO: Codable, Sendable {
+nonisolated public struct ProjectWeekRoleAssignmentDTO: Codable, Sendable {
     public var id: UUID
     public var createdAt: Date
     public var weekID: UUID

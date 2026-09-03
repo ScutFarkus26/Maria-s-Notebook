@@ -2,7 +2,7 @@ import Foundation
 import CoreData
 
 @objc(CDStudentMeeting)
-public class CDStudentMeeting: NSManagedObject {
+nonisolated public class CDStudentMeeting: NSManagedObject {
     // MARK: - Core Data Properties
     @NSManaged public var id: UUID?
     @NSManaged public var studentID: String
@@ -35,7 +35,7 @@ public class CDStudentMeeting: NSManagedObject {
 
 // MARK: - Computed Properties
 
-extension CDStudentMeeting {
+nonisolated extension CDStudentMeeting {
     var studentIDUUID: UUID? {
         get { UUID(uuidString: studentID) }
         set { studentID = newValue?.uuidString ?? "" }
@@ -44,7 +44,7 @@ extension CDStudentMeeting {
 
 // MARK: - Generated Accessors for To-Many Relationships
 
-extension CDStudentMeeting {
+nonisolated extension CDStudentMeeting {
     @objc(addNotesObject:)
     @NSManaged public func addToNotes(_ value: CDNote)
 

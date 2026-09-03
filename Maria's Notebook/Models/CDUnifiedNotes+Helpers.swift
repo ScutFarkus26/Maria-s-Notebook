@@ -3,7 +3,7 @@ import CoreData
 
 // MARK: - CDNote Legacy Field Upsert
 
-extension CDNote {
+nonisolated extension CDNote {
     /// Upserts a legacy-field note: creates, updates, or deletes as needed.
     /// - Parameters:
     ///   - text: The note body text; nil or empty deletes existing legacy notes.
@@ -56,7 +56,7 @@ extension CDNote {
 
 // MARK: - setLegacyNoteText on CD entities
 
-extension CDAttendanceRecord {
+nonisolated extension CDAttendanceRecord {
     var latestUnifiedNoteText: String {
         CDNote.latestBody(in: unifiedNotes)
     }
@@ -77,7 +77,7 @@ extension CDAttendanceRecord {
     }
 }
 
-extension CDProjectSession {
+nonisolated extension CDProjectSession {
     var latestUnifiedNoteText: String {
         let allNotes = (noteItems?.allObjects as? [CDNote]) ?? []
         return CDNote.latestBody(in: allNotes)
@@ -96,7 +96,7 @@ extension CDProjectSession {
     }
 }
 
-extension CDReminder {
+nonisolated extension CDReminder {
     var latestUnifiedNoteText: String {
         let allNotes = (noteItems?.allObjects as? [CDNote]) ?? []
         return CDNote.latestBody(in: allNotes)
@@ -115,7 +115,7 @@ extension CDReminder {
     }
 }
 
-extension CDWorkModel {
+nonisolated extension CDWorkModel {
     var latestUnifiedNoteText: String {
         let allNotes = (unifiedNotes?.allObjects as? [CDNote]) ?? []
         return CDNote.latestBody(in: allNotes)
@@ -134,7 +134,7 @@ extension CDWorkModel {
     }
 }
 
-extension CDWorkCheckIn {
+nonisolated extension CDWorkCheckIn {
     var latestUnifiedNoteText: String {
         let allNotes = (notes?.allObjects as? [CDNote]) ?? []
         return CDNote.latestBody(in: allNotes)
@@ -170,7 +170,7 @@ extension CDWorkCheckIn {
     }
 }
 
-extension CDWorkCompletionRecord {
+nonisolated extension CDWorkCompletionRecord {
     var latestUnifiedNoteText: String {
         let allNotes = (notes?.allObjects as? [CDNote]) ?? []
         return CDNote.latestBody(in: allNotes)
@@ -196,7 +196,7 @@ extension CDWorkCompletionRecord {
     }
 }
 
-extension CDStudentTrackEnrollmentEntity {
+nonisolated extension CDStudentTrackEnrollmentEntity {
     var latestUnifiedNoteText: String {
         CDNote.latestBody(in: richNotes)
     }
@@ -221,7 +221,7 @@ extension CDStudentTrackEnrollmentEntity {
     }
 }
 
-extension CDSchoolDayOverride {
+nonisolated extension CDSchoolDayOverride {
     var latestUnifiedNoteText: String {
         CDNote.latestBody(in: notes)
     }
@@ -241,7 +241,7 @@ extension CDSchoolDayOverride {
 
 // MARK: - Helper
 
-extension CDNote {
+nonisolated extension CDNote {
     static func latestNote(in notes: [CDNote], preferredReporter: String? = nil) -> CDNote? {
         if let preferredReporter {
             let preferred = notes.filter { $0.reportedBy == preferredReporter }
@@ -261,7 +261,7 @@ extension CDNote {
 
 // MARK: - syncStudentLinks
 
-extension CDNote {
+nonisolated extension CDNote {
     /// Syncs the studentLinks relationship to match the current scope.
     /// Creates NoteStudentLink entries for `.students([UUID])` scope.
     func syncStudentLinks(in context: NSManagedObjectContext) {

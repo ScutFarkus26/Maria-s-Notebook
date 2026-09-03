@@ -64,7 +64,7 @@ struct TodoDateParser {
         }
     }
 
-    private nonisolated(unsafe) static let patterns: [DatePattern] = [
+    private static let patterns: [DatePattern] = [
         // "today" / "tonight"
         DatePattern(
             regex: makeRegex("\\b(today|tonight)\\b"),

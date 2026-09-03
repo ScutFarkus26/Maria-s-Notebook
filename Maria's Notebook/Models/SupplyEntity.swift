@@ -2,7 +2,7 @@ import Foundation
 import CoreData
 
 @objc(CDSupply)
-public class CDSupply: NSManagedObject {
+nonisolated public class CDSupply: NSManagedObject {
     // MARK: - Core Data Properties
     @NSManaged public var id: UUID?
     @NSManaged public var name: String
@@ -31,13 +31,13 @@ public class CDSupply: NSManagedObject {
 
 // MARK: - Enums
 
-extension CDSupply {
+nonisolated extension CDSupply {
 
 }
 
 // MARK: - Computed Properties
 
-extension CDSupply {
+nonisolated extension CDSupply {
     /// Computed property for category enum
     var category: SupplyCategory {
         get { SupplyCategory(rawValue: categoryRaw) ?? .other }

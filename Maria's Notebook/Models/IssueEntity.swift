@@ -2,7 +2,7 @@ import Foundation
 import CoreData
 
 @objc(CDIssue)
-public class CDIssue: NSManagedObject {
+nonisolated public class CDIssue: NSManagedObject {
     // MARK: - Core Data Properties
     @NSManaged public var id: UUID?
     @NSManaged public var createdAt: Date?
@@ -45,13 +45,13 @@ public class CDIssue: NSManagedObject {
 
 // MARK: - Enums
 
-extension CDIssue {
+nonisolated extension CDIssue {
 
 }
 
 // MARK: - Computed Properties
 
-extension CDIssue {
+nonisolated extension CDIssue {
     var category: IssueCategory {
         get { IssueCategory(rawValue: categoryRaw) ?? .other }
         set { categoryRaw = newValue.rawValue }
@@ -79,7 +79,7 @@ extension CDIssue {
 
 // MARK: - Generated Accessors for To-Many Relationships
 
-extension CDIssue {
+nonisolated extension CDIssue {
     @objc(addActionsObject:)
     @NSManaged public func addToActions(_ value: CDIssueAction)
 

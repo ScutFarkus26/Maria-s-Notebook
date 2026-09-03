@@ -67,7 +67,7 @@ struct StoryAnalysisAI {
 
 /// Performs PDF text extraction and (when Apple Intelligence is available) generates
 /// title/themes/grade-level metadata for a story.
-enum StoryAnalyzer {
+nonisolated enum StoryAnalyzer {
     private static let logger = Logger.stories
     private static let maxPagesToRead = 10
     private static let analysisTimeout: Duration = .seconds(30)

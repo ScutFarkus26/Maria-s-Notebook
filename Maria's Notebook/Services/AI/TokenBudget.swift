@@ -13,7 +13,7 @@ import Foundation
 import FoundationModels
 
 /// Measures prompts against a model's real context window.
-struct TokenBudget {
+nonisolated struct TokenBudget {
     let model: SystemLanguageModel
 
     init(model: SystemLanguageModel = .default) {

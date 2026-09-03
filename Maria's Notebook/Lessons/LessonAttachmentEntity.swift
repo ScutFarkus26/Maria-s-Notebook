@@ -2,7 +2,7 @@ import Foundation
 import CoreData
 
 @objc(CDLessonAttachment)
-public class CDLessonAttachment: NSManagedObject {
+nonisolated public class CDLessonAttachment: NSManagedObject {
     // MARK: - Core Data Properties
     @NSManaged public var id: UUID?
     @NSManaged public var fileName: String
@@ -40,7 +40,7 @@ public class CDLessonAttachment: NSManagedObject {
 
 // MARK: - Computed Properties
 
-extension CDLessonAttachment {
+nonisolated extension CDLessonAttachment {
     var scope: AttachmentScope {
         get { AttachmentScope(rawValue: scopeRaw) ?? .lesson }
         set { scopeRaw = newValue.rawValue }

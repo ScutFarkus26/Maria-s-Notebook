@@ -2,7 +2,7 @@ import Foundation
 import CoreData
 
 @objc(CDLessonRecallCheck)
-public class CDLessonRecallCheck: NSManagedObject {
+nonisolated public class CDLessonRecallCheck: NSManagedObject {
     // MARK: - Core Data Properties
     @NSManaged public var id: UUID?
     @NSManaged public var createdAt: Date?
@@ -59,7 +59,7 @@ enum RecallSource: String, CaseIterable, Sendable {
 
 // MARK: - Computed Properties
 
-extension CDLessonRecallCheck {
+nonisolated extension CDLessonRecallCheck {
     var outcome: RecallOutcome {
         get { RecallOutcome(rawValue: outcomeRaw) ?? .retained }
         set { outcomeRaw = newValue.rawValue }

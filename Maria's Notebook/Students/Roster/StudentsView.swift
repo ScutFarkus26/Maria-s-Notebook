@@ -4,7 +4,7 @@ import OSLog
 import SwiftUI
 import UniformTypeIdentifiers
 
-private let logger = Logger.students
+nonisolated private let logger = Logger.students
 
 // Top-level view for managing and browsing students.
 //

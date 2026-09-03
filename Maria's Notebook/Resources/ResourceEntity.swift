@@ -2,7 +2,7 @@ import Foundation
 import CoreData
 
 @objc(CDResource)
-public class CDResource: NSManagedObject {
+nonisolated public class CDResource: NSManagedObject {
     // MARK: - Core Data Properties
     @NSManaged public var id: UUID?
     @NSManaged public var title: String
@@ -45,12 +45,12 @@ public class CDResource: NSManagedObject {
 
 // MARK: - Enums
 
-extension CDResource {
+nonisolated extension CDResource {
 }
 
 // MARK: - Computed Properties
 
-extension CDResource {
+nonisolated extension CDResource {
     var category: ResourceCategory {
         get { ResourceCategory(rawValue: categoryRaw) ?? .other }
         set { categoryRaw = newValue.rawValue }

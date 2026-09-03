@@ -5,7 +5,7 @@ import os
 
 // MARK: - Deduplication
 
-extension DataCleanupService {
+nonisolated extension DataCleanupService {
 
     // swiftlint:disable cyclomatic_complexity
     /// Deduplicate draft CDLessonAssignment records that refer to the same lesson and identical student set.

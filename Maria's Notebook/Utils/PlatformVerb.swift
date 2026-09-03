@@ -7,7 +7,7 @@
 
 import Foundation
 
-enum PlatformVerb {
+nonisolated enum PlatformVerb {
     /// Capitalized primary interaction verb: "Click" on macOS, "Tap" on iOS.
     static var tap: String {
         #if os(macOS)

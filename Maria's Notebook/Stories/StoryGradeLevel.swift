@@ -6,7 +6,7 @@ import FoundationModels
 
 /// Discrete grade level used to bound a story's reading level.
 /// Stored as raw String on `CDStory.gradeMinRaw` / `gradeMaxRaw`.
-public enum StoryGrade: String, CaseIterable, Sendable, Identifiable {
+nonisolated public enum StoryGrade: String, CaseIterable, Sendable, Identifiable {
     case preK
     case kindergarten
     case first
@@ -64,7 +64,7 @@ public enum StoryGrade: String, CaseIterable, Sendable, Identifiable {
 }
 
 /// A grade band representing a (possibly single-level) range from min to max.
-public struct StoryGradeBand: Hashable, Sendable {
+nonisolated public struct StoryGradeBand: Hashable, Sendable {
     public let min: StoryGrade
     public let max: StoryGrade
 

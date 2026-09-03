@@ -15,7 +15,7 @@ import CryptoKit
 import OSLog
 
 enum SpotlightIndexer {
-    private static let logger = Logger.app(category: "Spotlight")
+    nonisolated private static let logger = Logger.app(category: "Spotlight")
 
     /// Fingerprint of the rows last handed to Spotlight. Lets a launch skip the
     /// index write entirely when nothing indexed has changed — the common case.
@@ -50,7 +50,7 @@ enum SpotlightIndexer {
 
     // MARK: - Snapshot
 
-    private struct StudentRow: Sendable {
+    nonisolated private struct StudentRow: Sendable {
         let id: UUID
         let firstName: String
         let lastName: String
@@ -63,7 +63,7 @@ enum SpotlightIndexer {
         var line: String { "S\u{1F}\(id.uuidString)\u{1F}\(firstName)\u{1F}\(lastName)\u{1F}\(nickname ?? "")" }
     }
 
-    private struct LessonRow: Sendable {
+    nonisolated private struct LessonRow: Sendable {
         let id: UUID
         let name: String
         let area: String
@@ -76,7 +76,7 @@ enum SpotlightIndexer {
         var line: String { "L\u{1F}\(id.uuidString)\u{1F}\(name)\u{1F}\(area)\u{1F}\(sequence)" }
     }
 
-    private struct Snapshot: Sendable {
+    nonisolated private struct Snapshot: Sendable {
         let students: [StudentRow]
         let lessons: [LessonRow]
 
@@ -92,7 +92,7 @@ enum SpotlightIndexer {
 
     /// Reads just the indexed columns as dictionaries — no managed objects are
     /// faulted in — and orders rows by id so the fingerprint is deterministic.
-    private static func loadSnapshot(in context: NSManagedObjectContext) -> Snapshot {
+    nonisolated private static func loadSnapshot(in context: NSManagedObjectContext) -> Snapshot {
         let studentRequest = NSFetchRequest<NSDictionary>(entityName: "Student")
         studentRequest.resultType = .dictionaryResultType
         studentRequest.propertiesToFetch = ["id", "firstName", "lastName", "nickname"]

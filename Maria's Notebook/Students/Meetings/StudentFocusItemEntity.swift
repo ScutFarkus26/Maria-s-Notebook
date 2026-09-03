@@ -12,7 +12,7 @@ enum FocusItemStatus: String, Codable, CaseIterable, Sendable {
 // MARK: - CDStudentFocusItem
 
 @objc(CDStudentFocusItem)
-public class CDStudentFocusItem: NSManagedObject {
+nonisolated public class CDStudentFocusItem: NSManagedObject {
     // MARK: - Core Data Properties
     @NSManaged public var id: UUID?
     @NSManaged public var studentID: String
@@ -43,7 +43,7 @@ public class CDStudentFocusItem: NSManagedObject {
 
 // MARK: - Computed Properties
 
-extension CDStudentFocusItem {
+nonisolated extension CDStudentFocusItem {
     var status: FocusItemStatus {
         get { FocusItemStatus(rawValue: statusRaw) ?? .active }
         set { statusRaw = newValue.rawValue }

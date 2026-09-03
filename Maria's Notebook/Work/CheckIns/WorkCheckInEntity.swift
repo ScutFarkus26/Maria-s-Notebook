@@ -7,7 +7,7 @@ import SwiftUI
 // MARK: - Core Data Entity
 
 @objc(CDWorkCheckIn)
-public class CDWorkCheckIn: NSManagedObject {
+nonisolated public class CDWorkCheckIn: NSManagedObject {
     // MARK: - Core Data Properties
     @NSManaged public var id: UUID?
     @NSManaged public var workID: String
@@ -36,7 +36,7 @@ public class CDWorkCheckIn: NSManagedObject {
 
 // MARK: - Computed Properties
 
-extension CDWorkCheckIn {
+nonisolated extension CDWorkCheckIn {
     var status: WorkCheckInStatus {
         get { WorkCheckInStatus(rawValue: statusRaw) ?? .scheduled }
         set { statusRaw = newValue.rawValue }
@@ -56,7 +56,7 @@ extension CDWorkCheckIn {
 
 // MARK: - Generated Accessors for To-Many Relationships
 
-extension CDWorkCheckIn {
+nonisolated extension CDWorkCheckIn {
     @objc(addNotesObject:)
     @NSManaged public func addToNotes(_ value: CDNote)
 

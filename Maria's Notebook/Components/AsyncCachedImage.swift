@@ -37,7 +37,7 @@ final class ImageCache: @unchecked Sendable {
 }
 
 /// Disk cache for downsampled images to persist across app launches
-private enum ImageDiskCache {
+nonisolated private enum ImageDiskCache {
     private static let logger = Logger.photos
     /// Returns the disk cache directory URL, creating it if needed
     static var cacheDirectory: URL? {

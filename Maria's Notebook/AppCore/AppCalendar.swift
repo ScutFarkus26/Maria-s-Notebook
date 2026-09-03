@@ -3,7 +3,7 @@ import Foundation
 /// Canonical calendar utilities for day-boundary normalization across the app.
 /// Use these helpers instead of `Calendar.current` directly to avoid mismatches
 /// between Planning, Today, and Agenda screens.
-enum AppCalendar {
+nonisolated enum AppCalendar {
     /// Shared calendar used for all date normalization: Gregorian in the device
     /// time zone. The time zone is `autoupdatingCurrent`, so the value never has
     /// to be mutated to follow a device time-zone change — which is what lets it

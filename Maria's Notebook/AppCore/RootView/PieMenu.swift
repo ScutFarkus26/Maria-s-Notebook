@@ -153,7 +153,7 @@ struct PieMenuSegment: View {
 
 // MARK: - Pie Slice Shape
 
-struct PieSlice: InsettableShape {
+nonisolated struct PieSlice: InsettableShape {
     let startAngle: Angle
     let endAngle: Angle
     let innerRadius: CGFloat

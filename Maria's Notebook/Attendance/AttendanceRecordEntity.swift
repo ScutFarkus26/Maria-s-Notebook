@@ -9,7 +9,7 @@ import SwiftUI
 // MARK: - Core Data Entity
 
 @objc(CDAttendanceRecord)
-public class CDAttendanceRecord: NSManagedObject {
+nonisolated public class CDAttendanceRecord: NSManagedObject {
     // MARK: - Core Data Properties
     @NSManaged public var id: UUID?
     @NSManaged public var studentID: String
@@ -41,7 +41,7 @@ public class CDAttendanceRecord: NSManagedObject {
 
 // MARK: - Computed Properties
 
-extension CDAttendanceRecord {
+nonisolated extension CDAttendanceRecord {
     // Computed enum mapping for convenient UI usage
     var status: AttendanceStatus {
         get { AttendanceStatus(rawValue: statusRaw) ?? .unmarked }
@@ -72,7 +72,7 @@ extension CDAttendanceRecord {
 // Excluded from the assistant's companion app — see CDAttendanceStore.
 #if !ASSISTANT_APP
 
-extension CDAttendanceRecord {
+nonisolated extension CDAttendanceRecord {
     /// Cross-store inverse: fetches Notes whose attendanceRecordID matches this
     /// record. Attendance is shared and Note is private, so the old to-many
     /// relationship could not survive the move.

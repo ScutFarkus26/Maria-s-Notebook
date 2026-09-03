@@ -5,7 +5,7 @@ import CoreData
 // Do not add new code here.
 
 @objc(CDProjectWeekRoleAssignment)
-public class CDProjectWeekRoleAssignment: NSManagedObject {
+nonisolated public class CDProjectWeekRoleAssignment: NSManagedObject {
     @NSManaged public var id: UUID?
     @NSManaged public var createdAt: Date?
     @NSManaged public var weekID: String

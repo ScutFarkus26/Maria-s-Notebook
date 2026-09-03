@@ -2,7 +2,7 @@ import Foundation
 import CoreData
 
 @objc(SampleWorkStepEntity)
-public class CDSampleWorkStepEntity: NSManagedObject {
+nonisolated public class CDSampleWorkStepEntity: NSManagedObject {
     // MARK: - Attributes
     @NSManaged public var id: UUID?
     @NSManaged public var title: String

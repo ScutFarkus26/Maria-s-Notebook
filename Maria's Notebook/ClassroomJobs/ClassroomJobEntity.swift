@@ -3,7 +3,7 @@ import CoreData
 import SwiftUI
 
 @objc(CDClassroomJob)
-public class CDClassroomJob: NSManagedObject {
+nonisolated public class CDClassroomJob: NSManagedObject {
     // MARK: - Core Data Properties
     @NSManaged public var id: UUID?
     @NSManaged public var createdAt: Date?
@@ -53,7 +53,7 @@ public class CDClassroomJob: NSManagedObject {
 
 // MARK: - Generated Accessors for To-Many Relationships
 
-extension CDClassroomJob {
+nonisolated extension CDClassroomJob {
     @objc(addAssignmentsObject:)
     @NSManaged public func addToAssignments(_ value: CDJobAssignment)
 

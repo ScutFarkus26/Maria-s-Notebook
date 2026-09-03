@@ -6,7 +6,7 @@
 import Foundation
 import CoreData
 
-extension CDStudent {
+nonisolated extension CDStudent {
     /// True if this student's enrollment overlaps `range` (i.e. they were active during it).
     /// Students with no start date are treated as always active (fail-open).
     func isActive(in range: DateRange) -> Bool {
@@ -25,7 +25,7 @@ extension Sequence where Element == CDStudent {
     }
 }
 
-extension CDProject {
+nonisolated extension CDProject {
     /// True if this project's activity window (creation through its last session or edit)
     /// overlaps `range`. Projects with no creation date fail open.
     func overlaps(_ range: DateRange) -> Bool {

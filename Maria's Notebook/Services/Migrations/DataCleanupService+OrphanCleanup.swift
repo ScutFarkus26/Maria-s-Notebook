@@ -4,7 +4,7 @@ import os
 
 // MARK: - Orphan Cleanup
 
-extension DataCleanupService {
+nonisolated extension DataCleanupService {
 
     // MARK: - Orphaned CDStudent ID Cleanup
 

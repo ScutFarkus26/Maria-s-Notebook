@@ -1,6 +1,6 @@
 import Foundation
 
-extension Dictionary where Key == UUID {
+nonisolated extension Dictionary where Key == UUID {
     /// Looks up a value by a UUID string, returning nil if the string is not a valid UUID.
     /// Replaces the common pattern: `if let uuid = UUID(uuidString: key), let v = dict[uuid] { ... }`
     subscript(uuidString key: String) -> Value? {
@@ -9,7 +9,7 @@ extension Dictionary where Key == UUID {
     }
 }
 
-extension Array {
+nonisolated extension Array {
     /// Creates a dictionary from the array using a key extractor.
     /// - Parameter keyPath: A key path to extract the key from each element
     /// - Returns: A dictionary with keys from the key path and values as the elements

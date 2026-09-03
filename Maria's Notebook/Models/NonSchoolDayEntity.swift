@@ -2,7 +2,7 @@ import Foundation
 import CoreData
 
 @objc(NonSchoolDay)
-public class CDNonSchoolDay: NSManagedObject {
+nonisolated public class CDNonSchoolDay: NSManagedObject {
     // MARK: - Core Data Properties
     @NSManaged public var id: UUID?
     @NSManaged public var date: Date?

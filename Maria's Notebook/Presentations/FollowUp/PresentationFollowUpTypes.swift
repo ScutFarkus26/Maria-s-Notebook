@@ -101,7 +101,7 @@ enum PresentationFollowUpResolution: String, CaseIterable, Identifiable, Codable
     }
 }
 
-extension CDLessonPresentation {
+nonisolated extension CDLessonPresentation {
     /// Unknown future values remain open and display as Keep Watching rather than
     /// silently dropping a shared classroom responsibility.
     var followUpAction: PresentationFollowUpAction? {
@@ -142,6 +142,6 @@ extension CDLessonPresentation {
     }
 }
 
-private extension String {
+nonisolated private extension String {
     var nilIfEmpty: String? { isEmpty ? nil : self }
 }

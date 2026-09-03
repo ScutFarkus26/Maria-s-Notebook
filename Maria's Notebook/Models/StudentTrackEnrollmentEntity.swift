@@ -2,7 +2,7 @@ import Foundation
 import CoreData
 
 @objc(StudentTrackEnrollmentEntity)
-public class CDStudentTrackEnrollmentEntity: NSManagedObject {
+nonisolated public class CDStudentTrackEnrollmentEntity: NSManagedObject {
     // MARK: - Attributes
     @NSManaged public var id: UUID?
     @NSManaged public var createdAt: Date?
@@ -31,7 +31,7 @@ public class CDStudentTrackEnrollmentEntity: NSManagedObject {
 
 // MARK: - Cross-Store Inverse
 
-extension CDStudentTrackEnrollmentEntity {
+nonisolated extension CDStudentTrackEnrollmentEntity {
     /// Cross-store inverse: fetches Notes whose studentTrackEnrollmentID matches this enrollment.
     var richNotes: [CDNote] {
         guard let id, let ctx = managedObjectContext else { return [] }

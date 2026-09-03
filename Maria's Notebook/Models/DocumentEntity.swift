@@ -2,7 +2,7 @@ import Foundation
 import CoreData
 
 @objc(CDDocument)
-public class CDDocument: NSManagedObject {
+nonisolated public class CDDocument: NSManagedObject {
     // MARK: - Core Data Properties
     @NSManaged public var id: UUID?
     @NSManaged public var title: String
@@ -32,7 +32,7 @@ public class CDDocument: NSManagedObject {
 
 // MARK: - Cross-Store Relationship Accessor
 
-extension CDDocument {
+nonisolated extension CDDocument {
     var student: CDStudent? {
         get {
             guard let studentID, let ctx = managedObjectContext else { return nil }

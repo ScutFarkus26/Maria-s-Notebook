@@ -3,7 +3,7 @@ import CoreData
 
 // MARK: - Attendance Lookup Helpers
 
-extension NSManagedObjectContext {
+nonisolated extension NSManagedObjectContext {
 
     /// Returns a dictionary of attendance statuses keyed by student ID for the given date.
     /// This performs a single fetch for the day and filters in-memory for the provided IDs.

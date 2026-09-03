@@ -7,7 +7,7 @@ import OSLog
 ///
 /// - Important: The entity's `representedClassName` in the `.xcdatamodel` must
 ///   match the `@objc(...)` name on the Swift class, or `entity()` will fail.
-func CDFetchRequest<T: NSManagedObject>(_ type: T.Type = T.self) -> NSFetchRequest<T> {
+nonisolated func CDFetchRequest<T: NSManagedObject>(_ type: T.Type = T.self) -> NSFetchRequest<T> {
     // Prefer model-based lookup (safe with multi-store configurations where
     // NSManagedObject.entity() can return an ambiguous/nil-named description).
     if let model = CoreDataStack.activeModel {
@@ -30,7 +30,7 @@ func CDFetchRequest<T: NSManagedObject>(_ type: T.Type = T.self) -> NSFetchReque
     return NSFetchRequest<T>(entityName: name)
 }
 
-extension NSManagedObjectContext {
+nonisolated extension NSManagedObjectContext {
     private static let logger = Logger.app(category: "database")
 
     /// Safely fetches entities, returning an empty array on error instead of throwing.

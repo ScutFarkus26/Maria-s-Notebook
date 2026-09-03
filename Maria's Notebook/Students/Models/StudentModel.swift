@@ -3,7 +3,7 @@ import CoreData
 
 // MARK: - CDStudent Enums
 
-extension CDStudent {
+nonisolated extension CDStudent {
     enum Level: String, Codable, CaseIterable, Sendable {
         case lower = "Lower"
         case upper = "Upper"
@@ -28,7 +28,7 @@ extension CDStudent {
 
 // MARK: - Sort Descriptors
 
-extension CDStudent {
+nonisolated extension CDStudent {
     /// First name, then last name (most common sort order across the app)
     nonisolated(unsafe) static let sortByName: [NSSortDescriptor] = [
         NSSortDescriptor(keyPath: \CDStudent.firstName, ascending: true),

@@ -6,7 +6,7 @@ import OSLog
 
 /// Central facade for data migrations.
 /// Delegates to DataCleanupService for ongoing cleanup and deduplication.
-enum DataMigrations {
+nonisolated enum DataMigrations {
     private static let logger = Logger.migration
 
     // MARK: - Data Cleanup (delegated to DataCleanupService)

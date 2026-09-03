@@ -2,7 +2,7 @@ import Foundation
 import CoreData
 
 @objc(TodoTemplateEntity)
-public class CDTodoTemplateEntity: NSManagedObject {
+nonisolated public class CDTodoTemplateEntity: NSManagedObject {
     // MARK: - Attributes
     @NSManaged public var id: UUID?
     @NSManaged public var name: String
@@ -35,7 +35,7 @@ public class CDTodoTemplateEntity: NSManagedObject {
 }
 
 // MARK: - Computed Properties
-extension CDTodoTemplateEntity {
+nonisolated extension CDTodoTemplateEntity {
     var priority: TodoPriority {
         get { TodoPriority(rawValue: priorityRaw) ?? .none }
         set { priorityRaw = newValue.rawValue }

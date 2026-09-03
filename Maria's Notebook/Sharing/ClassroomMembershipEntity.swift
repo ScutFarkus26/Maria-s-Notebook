@@ -2,7 +2,7 @@ import Foundation
 import CoreData
 
 @objc(ClassroomMembership)
-public class CDClassroomMembership: NSManagedObject {
+nonisolated public class CDClassroomMembership: NSManagedObject {
     // MARK: - Enums
     enum ClassroomRole: String, Codable, CaseIterable, Sendable {
         case leadGuide
@@ -33,12 +33,12 @@ public class CDClassroomMembership: NSManagedObject {
 
 // MARK: - Enums
 
-extension CDClassroomMembership {
+nonisolated extension CDClassroomMembership {
 }
 
 // MARK: - Computed Properties
 
-extension CDClassroomMembership {
+nonisolated extension CDClassroomMembership {
     var role: ClassroomRole {
         get { ClassroomRole(rawValue: roleRaw) ?? .leadGuide }
         set { roleRaw = newValue.rawValue }

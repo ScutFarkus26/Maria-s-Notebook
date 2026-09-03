@@ -5,7 +5,7 @@ import Foundation
 import CoreData
 
 @objc(CDGuardian)
-public class CDGuardian: NSManagedObject {
+nonisolated public class CDGuardian: NSManagedObject {
     // MARK: - Core Data Properties
     @NSManaged public var id: UUID?
     @NSManaged public var studentID: String

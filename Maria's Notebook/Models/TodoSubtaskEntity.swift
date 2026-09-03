@@ -2,7 +2,7 @@ import Foundation
 import CoreData
 
 @objc(TodoSubtaskEntity)
-public class CDTodoSubtaskEntity: NSManagedObject {
+nonisolated public class CDTodoSubtaskEntity: NSManagedObject {
     // MARK: - Attributes
     @NSManaged public var id: UUID?
     @NSManaged public var title: String

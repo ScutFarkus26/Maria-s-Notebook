@@ -4,7 +4,7 @@ import SwiftUI
 import CoreData
 import UniformTypeIdentifiers
 
-private let logger = Logger.students
+nonisolated private let logger = Logger.students
 
 // swiftlint:disable:next type_body_length
 struct PresentationPill: View {

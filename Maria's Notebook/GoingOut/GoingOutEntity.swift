@@ -2,7 +2,7 @@ import Foundation
 import CoreData
 
 @objc(CDGoingOut)
-public class CDGoingOut: NSManagedObject {
+nonisolated public class CDGoingOut: NSManagedObject {
     // MARK: - Core Data Properties
     @NSManaged public var id: UUID?
     @NSManaged public var createdAt: Date?
@@ -48,13 +48,13 @@ public class CDGoingOut: NSManagedObject {
 
 // MARK: - Enums
 
-extension CDGoingOut {
+nonisolated extension CDGoingOut {
 
 }
 
 // MARK: - Computed Properties
 
-extension CDGoingOut {
+nonisolated extension CDGoingOut {
     var status: GoingOutStatus {
         get { GoingOutStatus(rawValue: statusRaw) ?? .proposed }
         set { statusRaw = newValue.rawValue; modifiedAt = Date() }
@@ -103,7 +103,7 @@ extension CDGoingOut {
 
 // MARK: - Generated Accessors for To-Many Relationships
 
-extension CDGoingOut {
+nonisolated extension CDGoingOut {
     @objc(addChecklistItemsObject:)
     @NSManaged public func addToChecklistItems(_ value: CDGoingOutChecklistItem)
 

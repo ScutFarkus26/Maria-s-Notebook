@@ -4,54 +4,54 @@
 import Foundation
 import CoreData
 
-extension CDStudent: Identifiable {}
-extension CDLesson: Identifiable {}
-extension CDNote: Identifiable {}
-extension CDWorkModel: Identifiable {}
-extension CDLessonAssignment: Identifiable {}
-extension CDAttendanceRecord: Identifiable {}
-extension CDIssue: Identifiable {}
-extension CDProcedure: Identifiable {}
-extension CDPracticeSession: Identifiable {}
-extension CDStudentMeeting: Identifiable {}
-extension CDCommunityTopicEntity: Identifiable {}
-extension CDTrackEntity: Identifiable {}
-extension CDTrackStepEntity: Identifiable {}
-extension CDSampleWorkEntity: Identifiable {}
-extension CDTodoItemEntity: Identifiable {}
-extension CDTodoSubtaskEntity: Identifiable {}
-extension CDTodoTemplateEntity: Identifiable {}
-extension CDProject: Identifiable {}
-extension CDProjectSession: Identifiable {}
-extension CDProjectRole: Identifiable {}
-extension CDStudentTrackEnrollmentEntity: Identifiable {}
-extension CDWorkCheckIn: Identifiable {}
-extension CDSchedule: Identifiable {}
-extension CDScheduleSlot: Identifiable {}
-extension CDScheduledMeeting: Identifiable {}
-extension CDReminder: Identifiable {}
-extension CDMeetingTemplateEntity: Identifiable {}
-extension CDNoteTemplateEntity: Identifiable {}
-extension CDSupply: Identifiable {}
-extension CDDocument: Identifiable {}
-extension CDProposedSolutionEntity: Identifiable {}
-extension CDCommunityAttachmentEntity: Identifiable {}
-extension CDWorkCompletionRecord: Identifiable {}
-extension CDWorkStep: Identifiable {}
-extension CDResource: Identifiable {}
-extension CDParentCommunication: Identifiable {}
-extension CDGuardian: Identifiable {}
-extension CDMeetingWorkReview: Identifiable {}
-extension CDStudentFocusItem: Identifiable {}
-extension CDBookClubPacket: Identifiable {}
-extension CDBookClubSession: Identifiable {}
-extension CDBookClubMeeting: Identifiable {}
-extension CDAlbumBookmark: Identifiable {}
-extension CDAlbumPageNote: Identifiable {}
-extension CDAlbumRecentVisit: Identifiable {}
-extension CDAlbumReadingPosition: Identifiable {}
-extension CDAlbumHighlight: Identifiable {}
-extension CDAlbumPageInk: Identifiable {}
+nonisolated extension CDStudent: Identifiable {}
+nonisolated extension CDLesson: Identifiable {}
+nonisolated extension CDNote: Identifiable {}
+nonisolated extension CDWorkModel: Identifiable {}
+nonisolated extension CDLessonAssignment: Identifiable {}
+nonisolated extension CDAttendanceRecord: Identifiable {}
+nonisolated extension CDIssue: Identifiable {}
+nonisolated extension CDProcedure: Identifiable {}
+nonisolated extension CDPracticeSession: Identifiable {}
+nonisolated extension CDStudentMeeting: Identifiable {}
+nonisolated extension CDCommunityTopicEntity: Identifiable {}
+nonisolated extension CDTrackEntity: Identifiable {}
+nonisolated extension CDTrackStepEntity: Identifiable {}
+nonisolated extension CDSampleWorkEntity: Identifiable {}
+nonisolated extension CDTodoItemEntity: Identifiable {}
+nonisolated extension CDTodoSubtaskEntity: Identifiable {}
+nonisolated extension CDTodoTemplateEntity: Identifiable {}
+nonisolated extension CDProject: Identifiable {}
+nonisolated extension CDProjectSession: Identifiable {}
+nonisolated extension CDProjectRole: Identifiable {}
+nonisolated extension CDStudentTrackEnrollmentEntity: Identifiable {}
+nonisolated extension CDWorkCheckIn: Identifiable {}
+nonisolated extension CDSchedule: Identifiable {}
+nonisolated extension CDScheduleSlot: Identifiable {}
+nonisolated extension CDScheduledMeeting: Identifiable {}
+nonisolated extension CDReminder: Identifiable {}
+nonisolated extension CDMeetingTemplateEntity: Identifiable {}
+nonisolated extension CDNoteTemplateEntity: Identifiable {}
+nonisolated extension CDSupply: Identifiable {}
+nonisolated extension CDDocument: Identifiable {}
+nonisolated extension CDProposedSolutionEntity: Identifiable {}
+nonisolated extension CDCommunityAttachmentEntity: Identifiable {}
+nonisolated extension CDWorkCompletionRecord: Identifiable {}
+nonisolated extension CDWorkStep: Identifiable {}
+nonisolated extension CDResource: Identifiable {}
+nonisolated extension CDParentCommunication: Identifiable {}
+nonisolated extension CDGuardian: Identifiable {}
+nonisolated extension CDMeetingWorkReview: Identifiable {}
+nonisolated extension CDStudentFocusItem: Identifiable {}
+nonisolated extension CDBookClubPacket: Identifiable {}
+nonisolated extension CDBookClubSession: Identifiable {}
+nonisolated extension CDBookClubMeeting: Identifiable {}
+nonisolated extension CDAlbumBookmark: Identifiable {}
+nonisolated extension CDAlbumPageNote: Identifiable {}
+nonisolated extension CDAlbumRecentVisit: Identifiable {}
+nonisolated extension CDAlbumReadingPosition: Identifiable {}
+nonisolated extension CDAlbumHighlight: Identifiable {}
+nonisolated extension CDAlbumPageInk: Identifiable {}
 
 // MARK: - CD short name convenience aliases
 

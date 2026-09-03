@@ -2,7 +2,7 @@ import Foundation
 import CoreData
 
 @objc(CDLessonAssignment)
-public class CDLessonAssignment: NSManagedObject {
+nonisolated public class CDLessonAssignment: NSManagedObject {
     // MARK: - Core Data Properties
     @NSManaged public var id: UUID?
     @NSManaged public var createdAt: Date?
@@ -66,7 +66,7 @@ public class CDLessonAssignment: NSManagedObject {
 
 // MARK: - Computed Properties
 
-extension CDLessonAssignment {
+nonisolated extension CDLessonAssignment {
     /// Type-safe state accessor.
     var state: LessonAssignmentState {
         get { LessonAssignmentState(rawValue: stateRaw) ?? .draft }
@@ -137,7 +137,7 @@ extension CDLessonAssignment {
 
 // MARK: - State Transitions
 
-extension CDLessonAssignment {
+nonisolated extension CDLessonAssignment {
     /// Schedules this presentation for a specific moment.
     ///
     /// `scheduledFor` keeps the time it is given, because the time is what
@@ -240,7 +240,7 @@ extension CDLessonAssignment {
 
 // MARK: - Generated Accessors for To-Many Relationships
 
-extension CDLessonAssignment {
+nonisolated extension CDLessonAssignment {
     @objc(addUnifiedNotesObject:)
     @NSManaged public func addToUnifiedNotes(_ value: CDNote)
 
@@ -257,7 +257,7 @@ extension CDLessonAssignment {
 // MARK: - Debug Extensions
 
 #if DEBUG
-extension CDLessonAssignment {
+nonisolated extension CDLessonAssignment {
     override public var debugDescription: String {
         let studentCount = studentIDs.count
         let prefix = lessonID.prefix(8)

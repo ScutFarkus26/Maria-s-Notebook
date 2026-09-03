@@ -2,7 +2,7 @@ import Foundation
 
 // MARK: - Calendar & Admin DTOs
 
-public struct StudentMeetingDTO: Codable, Sendable {
+nonisolated public struct StudentMeetingDTO: Codable, Sendable {
     public var id: UUID
     public var studentID: UUID
     public var date: Date
@@ -13,7 +13,7 @@ public struct StudentMeetingDTO: Codable, Sendable {
     public var guideNotes: String
 }
 
-public struct ReminderDTO: Codable, Sendable {
+nonisolated public struct ReminderDTO: Codable, Sendable {
     public var id: UUID
     public var title: String
     public var notes: String?
@@ -25,7 +25,7 @@ public struct ReminderDTO: Codable, Sendable {
     // EventKit IDs excluded - device-specific
 }
 
-public struct CalendarEventDTO: Codable, Sendable {
+nonisolated public struct CalendarEventDTO: Codable, Sendable {
     public var id: UUID
     public var title: String
     public var startDate: Date
@@ -36,7 +36,7 @@ public struct CalendarEventDTO: Codable, Sendable {
     // EventKit IDs excluded - device-specific
 }
 
-public struct ScheduleDTO: Codable, Sendable {
+nonisolated public struct ScheduleDTO: Codable, Sendable {
     public var id: UUID
     public var name: String
     public var notes: String
@@ -46,7 +46,7 @@ public struct ScheduleDTO: Codable, Sendable {
     public var modifiedAt: Date
 }
 
-public struct ScheduleSlotDTO: Codable, Sendable {
+nonisolated public struct ScheduleSlotDTO: Codable, Sendable {
     public var id: UUID
     public var scheduleID: String
     public var studentID: String
@@ -58,7 +58,7 @@ public struct ScheduleSlotDTO: Codable, Sendable {
     public var modifiedAt: Date
 }
 
-public struct IssueDTO: Codable, Sendable {
+nonisolated public struct IssueDTO: Codable, Sendable {
     public var id: UUID
     public var createdAt: Date
     public var updatedAt: Date
@@ -74,7 +74,7 @@ public struct IssueDTO: Codable, Sendable {
     public var resolutionSummary: String?
 }
 
-public struct IssueActionDTO: Codable, Sendable {
+nonisolated public struct IssueActionDTO: Codable, Sendable {
     public var id: UUID
     public var createdAt: Date
     public var updatedAt: Date
@@ -90,7 +90,7 @@ public struct IssueActionDTO: Codable, Sendable {
     public var followUpCompleted: Bool
 }
 
-public struct ProcedureDTO: Codable, Sendable {
+nonisolated public struct ProcedureDTO: Codable, Sendable {
     public var id: UUID
     public var title: String
     public var summary: String

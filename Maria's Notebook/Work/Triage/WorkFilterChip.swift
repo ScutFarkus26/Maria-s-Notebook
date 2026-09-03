@@ -14,7 +14,7 @@
 
 import SwiftUI
 
-enum WorkFilterChip: String, CaseIterable, Identifiable, Sendable, WorkspaceFilterChip {
+nonisolated enum WorkFilterChip: String, CaseIterable, Identifiable, Sendable, WorkspaceFilterChip {
     /// Every open work item, whatever state it is in.
     case all
     /// Waiting on the guide: due, overdue, in review, or gone quiet.

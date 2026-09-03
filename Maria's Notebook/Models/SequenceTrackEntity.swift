@@ -2,7 +2,7 @@ import Foundation
 import CoreData
 
 @objc(CDSequenceTrackEntity)
-public class CDSequenceTrackEntity: NSManagedObject {
+nonisolated public class CDSequenceTrackEntity: NSManagedObject {
     // MARK: - Attributes
     @NSManaged public var id: UUID?
     @NSManaged public var area: String
@@ -29,7 +29,7 @@ public class CDSequenceTrackEntity: NSManagedObject {
 }
 
 // MARK: - Computed Properties
-extension CDSequenceTrackEntity {
+nonisolated extension CDSequenceTrackEntity {
     /// Unique identifier for this (area, sequence) combination
     var sequenceKey: String {
         "\(area)|\(sequence)"

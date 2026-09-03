@@ -2,7 +2,7 @@ import Foundation
 
 // MARK: - Todo DTOs
 
-public struct TodoItemDTO: Codable, Sendable {
+nonisolated public struct TodoItemDTO: Codable, Sendable {
     public var id: UUID
     public var title: String
     public var notes: String
@@ -36,7 +36,7 @@ public struct TodoItemDTO: Codable, Sendable {
     public var moodRaw: String?
 }
 
-public struct TodoSubtaskDTO: Codable, Sendable {
+nonisolated public struct TodoSubtaskDTO: Codable, Sendable {
     public var id: UUID
     public var todoID: UUID?
     public var title: String
@@ -46,7 +46,7 @@ public struct TodoSubtaskDTO: Codable, Sendable {
     public var completedAt: Date?
 }
 
-public struct TodoTemplateDTO: Codable, Sendable {
+nonisolated public struct TodoTemplateDTO: Codable, Sendable {
     public var id: UUID
     public var name: String
     public var title: String
@@ -61,13 +61,13 @@ public struct TodoTemplateDTO: Codable, Sendable {
 
 // MARK: - CDTrackEntity DTOs
 
-public struct TrackDTO: Codable, Sendable {
+nonisolated public struct TrackDTO: Codable, Sendable {
     public var id: UUID
     public var title: String
     public var createdAt: Date
 }
 
-public struct TrackStepDTO: Codable, Sendable {
+nonisolated public struct TrackStepDTO: Codable, Sendable {
     public var id: UUID
     public var trackID: UUID?
     public var orderIndex: Int
@@ -75,7 +75,7 @@ public struct TrackStepDTO: Codable, Sendable {
     public var createdAt: Date
 }
 
-public struct StudentTrackEnrollmentDTO: Codable, Sendable {
+nonisolated public struct StudentTrackEnrollmentDTO: Codable, Sendable {
     public var id: UUID
     public var createdAt: Date
     public var studentID: String
@@ -84,7 +84,7 @@ public struct StudentTrackEnrollmentDTO: Codable, Sendable {
     public var isActive: Bool
 }
 
-public struct SequenceTrackDTO: Codable, Sendable {
+nonisolated public struct SequenceTrackDTO: Codable, Sendable {
     public var id: UUID
     public var area: String
     public var sequence: String
@@ -95,7 +95,7 @@ public struct SequenceTrackDTO: Codable, Sendable {
 
 // MARK: - Development Snapshot DTO
 
-public struct DevelopmentSnapshotDTO: Codable, Sendable {
+nonisolated public struct DevelopmentSnapshotDTO: Codable, Sendable {
     public var id: UUID
     public var studentID: String
     public var generatedAt: Date
@@ -125,7 +125,7 @@ public struct DevelopmentSnapshotDTO: Codable, Sendable {
 
 // MARK: - CDSupply DTOs
 
-public struct SupplyDTO: Codable, Sendable {
+nonisolated public struct SupplyDTO: Codable, Sendable {
     public var id: UUID
     public var name: String
     public var categoryRaw: String
@@ -138,7 +138,7 @@ public struct SupplyDTO: Codable, Sendable {
 
 // MARK: - CDDocument DTO
 
-public struct DocumentDTO: Codable, Sendable {
+nonisolated public struct DocumentDTO: Codable, Sendable {
     public var id: UUID
     public var title: String
     public var category: String
@@ -152,7 +152,7 @@ public struct DocumentDTO: Codable, Sendable {
 
 // MARK: - Agenda Order DTO
 
-public struct TodayAgendaOrderDTO: Codable, Sendable {
+nonisolated public struct TodayAgendaOrderDTO: Codable, Sendable {
     public var id: UUID
     public var day: Date
     public var itemTypeRaw: String
@@ -162,7 +162,7 @@ public struct TodayAgendaOrderDTO: Codable, Sendable {
 
 // MARK: - Going Out DTOs (format v12+)
 
-public struct GoingOutDTO: Codable, Sendable {
+nonisolated public struct GoingOutDTO: Codable, Sendable {
     public var id: UUID
     public var createdAt: Date
     public var modifiedAt: Date
@@ -180,7 +180,7 @@ public struct GoingOutDTO: Codable, Sendable {
     public var supervisorName: String
 }
 
-public struct GoingOutChecklistItemDTO: Codable, Sendable {
+nonisolated public struct GoingOutChecklistItemDTO: Codable, Sendable {
     public var id: UUID
     public var createdAt: Date
     public var goingOutID: String
@@ -192,7 +192,7 @@ public struct GoingOutChecklistItemDTO: Codable, Sendable {
 
 // MARK: - Classroom Job DTOs (format v12+)
 
-public struct ClassroomJobDTO: Codable, Sendable {
+nonisolated public struct ClassroomJobDTO: Codable, Sendable {
     public var id: UUID
     public var createdAt: Date
     public var modifiedAt: Date
@@ -205,7 +205,7 @@ public struct ClassroomJobDTO: Codable, Sendable {
     public var maxStudents: Int
 }
 
-public struct JobAssignmentDTO: Codable, Sendable {
+nonisolated public struct JobAssignmentDTO: Codable, Sendable {
     public var id: UUID
     public var createdAt: Date
     public var modifiedAt: Date
@@ -217,7 +217,7 @@ public struct JobAssignmentDTO: Codable, Sendable {
 
 // MARK: - Calendar CDNote DTO (format v12+)
 
-public struct CalendarNoteDTO: Codable, Sendable {
+nonisolated public struct CalendarNoteDTO: Codable, Sendable {
     public var id: UUID
     public var year: Int
     public var month: Int
@@ -229,7 +229,7 @@ public struct CalendarNoteDTO: Codable, Sendable {
 
 // MARK: - Scheduled Meeting DTO (format v12+)
 
-public struct ScheduledMeetingDTO: Codable, Sendable {
+nonisolated public struct ScheduledMeetingDTO: Codable, Sendable {
     public var id: UUID
     public var studentID: String
     public var date: Date
@@ -241,7 +241,7 @@ public struct ScheduledMeetingDTO: Codable, Sendable {
 
 // MARK: - Classroom Membership DTO (format v13+)
 
-public struct ClassroomMembershipDTO: Codable, Sendable {
+nonisolated public struct ClassroomMembershipDTO: Codable, Sendable {
     public var id: UUID
     public var classroomZoneID: String
     public var roleRaw: String
@@ -252,7 +252,7 @@ public struct ClassroomMembershipDTO: Codable, Sendable {
 
 // MARK: - MeetingWorkReview DTO (format v14+)
 
-public struct MeetingWorkReviewDTO: Codable, Sendable {
+nonisolated public struct MeetingWorkReviewDTO: Codable, Sendable {
     public var id: UUID
     public var meetingID: String
     public var workID: String
@@ -262,7 +262,7 @@ public struct MeetingWorkReviewDTO: Codable, Sendable {
 
 // MARK: - StudentFocusItem DTO (format v14+)
 
-public struct StudentFocusItemDTO: Codable, Sendable {
+nonisolated public struct StudentFocusItemDTO: Codable, Sendable {
     public var id: UUID
     public var studentID: String
     public var text: String
@@ -276,7 +276,7 @@ public struct StudentFocusItemDTO: Codable, Sendable {
 
 // MARK: - Guardian DTO (format v20+)
 
-public struct GuardianDTO: Codable, Sendable {
+nonisolated public struct GuardianDTO: Codable, Sendable {
     public var id: UUID
     public var studentID: String
     public var name: String
@@ -291,7 +291,7 @@ public struct GuardianDTO: Codable, Sendable {
 
 // MARK: - ParentCommunication DTO (format v20+)
 
-public struct ParentCommunicationDTO: Codable, Sendable {
+nonisolated public struct ParentCommunicationDTO: Codable, Sendable {
     public var id: UUID
     public var studentID: String
     public var templateName: String

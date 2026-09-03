@@ -2,7 +2,7 @@ import Foundation
 
 /// Centralized UserDefaults keys to prevent typos and improve maintainability.
 /// All keys should be defined here and referenced via this enum.
-enum UserDefaultsKeys {
+nonisolated enum UserDefaultsKeys {
     // MARK: - App Core
     static let useInMemoryStoreOnce = "UseInMemoryStoreOnce"
     static let ephemeralSessionFlag = "SwiftDataEphemeralSession"

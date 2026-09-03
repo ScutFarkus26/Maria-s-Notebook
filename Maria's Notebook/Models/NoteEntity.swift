@@ -7,7 +7,7 @@ import OSLog
 // MARK: - Core Data Entity
 
 @objc(CDNote)
-public class CDNote: NSManagedObject {
+nonisolated public class CDNote: NSManagedObject {
     private static let logger = Logger.database
 
     // MARK: - Core Data Properties
@@ -75,7 +75,7 @@ public class CDNote: NSManagedObject {
 
 // MARK: - Computed Properties
 
-extension CDNote {
+nonisolated extension CDNote {
     /// Access tags as a Swift [String] array
     var tagsArray: [String] {
         get { (tags as? [String]) ?? [] }
@@ -173,7 +173,7 @@ extension CDNote {
 
 // MARK: - Cross-Store Relationship Accessors (fetch via FK)
 
-extension CDNote {
+nonisolated extension CDNote {
     var lesson: CDLesson? {
         get {
             guard let lessonID, let ctx = managedObjectContext else { return nil }
@@ -222,7 +222,7 @@ extension CDNote {
 
 // MARK: - Generated Accessors for To-Many Relationships
 
-extension CDNote {
+nonisolated extension CDNote {
     @objc(addStudentLinksObject:)
     @NSManaged public func addToStudentLinks(_ value: CDNoteStudentLink)
 

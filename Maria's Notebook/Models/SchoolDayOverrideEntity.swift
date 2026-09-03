@@ -2,7 +2,7 @@ import Foundation
 import CoreData
 
 @objc(SchoolDayOverride)
-public class CDSchoolDayOverride: NSManagedObject {
+nonisolated public class CDSchoolDayOverride: NSManagedObject {
     // MARK: - Core Data Properties
     @NSManaged public var id: UUID?
     @NSManaged public var date: Date?
@@ -19,7 +19,7 @@ public class CDSchoolDayOverride: NSManagedObject {
 
 // MARK: - Cross-Store Inverse
 
-extension CDSchoolDayOverride {
+nonisolated extension CDSchoolDayOverride {
     /// Cross-store inverse: fetches Notes whose schoolDayOverrideID matches this override.
     var notes: [CDNote] {
         guard let id, let ctx = managedObjectContext else { return [] }

@@ -68,7 +68,7 @@ enum AbsenceReason: String, Codable, CaseIterable, Sendable {
 
 // MARK: - Date Normalization Helper
 
-extension Date {
+nonisolated extension Date {
     /// Returns the start of the day for this date using the provided calendar (default .current).
     func normalizedDay(using calendar: Calendar = .current) -> Date {
         return calendar.startOfDay(for: self)

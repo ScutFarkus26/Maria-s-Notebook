@@ -3,7 +3,7 @@ import Foundation
 // MARK: - Work DTOs
 
 /// Modern DTO that captures all CDWorkModel fields (format v11+).
-public struct WorkModelDTO: Codable, Sendable {
+nonisolated public struct WorkModelDTO: Codable, Sendable {
     public var id: UUID
     public var title: String
     public var workTypeRaw: String
@@ -35,7 +35,7 @@ public struct WorkModelDTO: Codable, Sendable {
 
 // MARK: - CDPlanningRecommendation DTO
 
-public struct PlanningRecommendationDTO: Codable, Sendable {
+nonisolated public struct PlanningRecommendationDTO: Codable, Sendable {
     public var id: UUID
     public var createdAt: Date
     public var modifiedAt: Date
@@ -58,7 +58,7 @@ public struct PlanningRecommendationDTO: Codable, Sendable {
 
 // MARK: - CDResource DTO
 
-public struct ResourceDTO: Codable, Sendable {
+nonisolated public struct ResourceDTO: Codable, Sendable {
     public var id: UUID
     public var title: String
     public var descriptionText: String
@@ -77,13 +77,13 @@ public struct ResourceDTO: Codable, Sendable {
 
 // MARK: - CDNoteStudentLink DTO
 
-public struct NoteStudentLinkDTO: Codable, Sendable {
+nonisolated public struct NoteStudentLinkDTO: Codable, Sendable {
     public var id: UUID
     public var noteID: String
     public var studentID: String
 }
 
-public struct WorkCheckInDTO: Codable, Sendable {
+nonisolated public struct WorkCheckInDTO: Codable, Sendable {
     public var id: UUID
     public var workID: String
     public var date: Date
@@ -92,7 +92,7 @@ public struct WorkCheckInDTO: Codable, Sendable {
     public var studentInitiated: Bool?
 }
 
-public struct WorkStepDTO: Codable, Sendable {
+nonisolated public struct WorkStepDTO: Codable, Sendable {
     public var id: UUID
     public var workID: UUID?
     public var orderIndex: Int
@@ -104,14 +104,14 @@ public struct WorkStepDTO: Codable, Sendable {
     public var createdAt: Date
 }
 
-public struct WorkParticipantEntityDTO: Codable, Sendable {
+nonisolated public struct WorkParticipantEntityDTO: Codable, Sendable {
     public var id: UUID
     public var studentID: String
     public var completedAt: Date?
     public var workID: UUID?
 }
 
-public struct PracticeSessionDTO: Codable, Sendable {
+nonisolated public struct PracticeSessionDTO: Codable, Sendable {
     public var id: UUID
     public var createdAt: Date
     public var date: Date
@@ -135,14 +135,14 @@ public struct PracticeSessionDTO: Codable, Sendable {
     public var workStepID: String?
 }
 
-public struct WorkCompletionRecordDTO: Codable, Sendable {
+nonisolated public struct WorkCompletionRecordDTO: Codable, Sendable {
     public var id: UUID
     public var workID: UUID
     public var studentID: UUID
     public var completedAt: Date
 }
 
-public struct AttendanceRecordDTO: Codable, Sendable {
+nonisolated public struct AttendanceRecordDTO: Codable, Sendable {
     public var id: UUID
     public var studentID: UUID
     public var date: Date

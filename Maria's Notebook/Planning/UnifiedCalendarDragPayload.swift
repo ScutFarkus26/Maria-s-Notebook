@@ -6,7 +6,7 @@ import UniformTypeIdentifiers
 /// work items (CDWorkModel), and year plan entries (CDYearPlanEntry).
 /// Used across WeekPlanSection, WorkAgendaCalendarPane, planning views,
 /// and the student Year Plan calendar.
-public enum UnifiedCalendarDragPayload: Equatable {
+nonisolated public enum UnifiedCalendarDragPayload: Equatable {
     case presentation(UUID)
     case workCheckIn(UUID)
     case work(UUID)

@@ -2,7 +2,7 @@ import Foundation
 
 /// Centralized DateFormatter instances for consistent date formatting across the app.
 /// Each formatter is created once and reused.
-enum DateFormatters {
+nonisolated enum DateFormatters {
     /// Medium date, short time with relative formatting (e.g., "Today, 3:45 PM")
     static let mediumDateTimeRelative: DateFormatter = {
         let formatter = DateFormatter()

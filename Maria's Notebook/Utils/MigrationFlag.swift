@@ -2,7 +2,7 @@ import Foundation
 
 /// Utility for managing migration flags in UserDefaults.
 /// Encapsulates the common pattern of checking and setting migration completion flags.
-enum MigrationFlag {
+nonisolated enum MigrationFlag {
     /// Runs a migration closure only if the flag hasn't been set.
     /// - Parameters:
     ///   - key: The UserDefaults key for the migration flag

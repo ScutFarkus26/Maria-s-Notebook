@@ -2,7 +2,7 @@ import Foundation
 import CoreData
 
 @objc(CDProject)
-public class CDProject: NSManagedObject {
+nonisolated public class CDProject: NSManagedObject {
     // MARK: - Core Data Properties
     @NSManaged public var id: UUID?
     @NSManaged public var createdAt: Date?
@@ -32,7 +32,7 @@ public class CDProject: NSManagedObject {
 
 // MARK: - Computed Properties
 
-extension CDProject {
+nonisolated extension CDProject {
     /// Access memberStudentIDs as a Swift [String] array
     var memberStudentIDsArray: [String] {
         get {
@@ -56,7 +56,7 @@ extension CDProject {
 
 // MARK: - Generated Accessors for To-Many Relationships
 
-extension CDProject {
+nonisolated extension CDProject {
     @objc(addSessionsObject:)
     @NSManaged public func addToSessions(_ value: CDProjectSession)
 

@@ -2,7 +2,7 @@ import Foundation
 import CoreData
 
 @objc(CDProcedure)
-public class CDProcedure: NSManagedObject {
+nonisolated public class CDProcedure: NSManagedObject {
     // MARK: - Core Data Properties
     @NSManaged public var id: UUID?
     @NSManaged public var title: String
@@ -33,12 +33,12 @@ public class CDProcedure: NSManagedObject {
 
 // MARK: - Enums
 
-extension CDProcedure {
+nonisolated extension CDProcedure {
 }
 
 // MARK: - Computed Properties
 
-extension CDProcedure {
+nonisolated extension CDProcedure {
     /// Computed property for category enum
     var category: ProcedureCategory {
         get { ProcedureCategory(rawValue: categoryRaw) ?? .other }

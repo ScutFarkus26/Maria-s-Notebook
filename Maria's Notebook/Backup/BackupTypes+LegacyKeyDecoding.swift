@@ -10,7 +10,7 @@ import Foundation
 
 /// String-keyed CodingKey that lets us look up arbitrary JSON field names at
 /// decode time without enumerating every legacy spelling in a fixed enum.
-private struct LegacyKey: CodingKey {
+nonisolated private struct LegacyKey: CodingKey {
     var stringValue: String
     var intValue: Int? { nil }
     init(_ stringValue: String) { self.stringValue = stringValue }
@@ -18,7 +18,7 @@ private struct LegacyKey: CodingKey {
     init?(intValue: Int) { nil }
 }
 
-private extension KeyedDecodingContainer where Key == LegacyKey {
+nonisolated private extension KeyedDecodingContainer where Key == LegacyKey {
     func decode<T: Decodable>(
         _ type: T.Type,
         primary: String,
@@ -43,7 +43,7 @@ private extension KeyedDecodingContainer where Key == LegacyKey {
 
 // MARK: - LessonDTO
 
-extension LessonDTO {
+nonisolated extension LessonDTO {
     public init(from decoder: Decoder) throws {
         let c = try decoder.container(keyedBy: LegacyKey.self)
         self.id = try c.decode(UUID.self, forKey: LegacyKey("id"))
@@ -91,7 +91,7 @@ extension LessonDTO {
 
 // MARK: - LessonAssignmentDTO
 
-extension LessonAssignmentDTO {
+nonisolated extension LessonAssignmentDTO {
     public init(from decoder: Decoder) throws {
         let c = try decoder.container(keyedBy: LegacyKey.self)
         self.id = try c.decode(UUID.self, forKey: LegacyKey("id"))
@@ -128,7 +128,7 @@ extension LessonAssignmentDTO {
 
 // MARK: - SequenceTrackDTO
 
-extension SequenceTrackDTO {
+nonisolated extension SequenceTrackDTO {
     public init(from decoder: Decoder) throws {
         let c = try decoder.container(keyedBy: LegacyKey.self)
         self.id = try c.decode(UUID.self, forKey: LegacyKey("id"))
@@ -142,7 +142,7 @@ extension SequenceTrackDTO {
 
 // MARK: - ResourceDTO
 
-extension ResourceDTO {
+nonisolated extension ResourceDTO {
     public init(from decoder: Decoder) throws {
         let c = try decoder.container(keyedBy: LegacyKey.self)
         self.id = try c.decode(UUID.self, forKey: LegacyKey("id"))

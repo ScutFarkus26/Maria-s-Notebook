@@ -49,7 +49,7 @@ import OSLog
 /// empty after a positive migration). A freshly-installed lead-guide device
 /// whose CloudKit hasn't synced yet defers completion until a later launch —
 /// see the `totalCloned == 0` branch.
-enum ClassroomStoreMigration {
+nonisolated enum ClassroomStoreMigration {
 
     private static let completedKey = UserDefaultsKeys.classroomStoreMigrationV1Complete
     private static let logger = Logger.migration

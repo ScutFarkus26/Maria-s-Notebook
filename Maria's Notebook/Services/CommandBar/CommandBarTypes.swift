@@ -47,7 +47,7 @@ enum RecordIntent: String, Codable, CaseIterable, Sendable {
 // MARK: - Parsed Command
 
 /// The result of parsing natural language input into structured data
-struct ParsedCommand: Sendable {
+nonisolated struct ParsedCommand: Sendable {
     let intent: RecordIntent
     let studentIDs: [UUID]
     let lessonID: UUID?

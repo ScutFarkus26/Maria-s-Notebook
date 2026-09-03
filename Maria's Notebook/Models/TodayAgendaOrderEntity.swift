@@ -2,7 +2,7 @@ import Foundation
 import CoreData
 
 @objc(CDTodayAgendaOrder)
-public class CDTodayAgendaOrder: NSManagedObject {
+nonisolated public class CDTodayAgendaOrder: NSManagedObject {
     // MARK: - Core Data Properties
     @NSManaged public var id: UUID?
     @NSManaged public var day: Date?
@@ -25,7 +25,7 @@ public class CDTodayAgendaOrder: NSManagedObject {
 
 // MARK: - Computed Properties
 
-extension CDTodayAgendaOrder {
+nonisolated extension CDTodayAgendaOrder {
     var itemType: AgendaItemType {
         get { AgendaItemType(rawValue: itemTypeRaw) ?? .lesson }
         set { itemTypeRaw = newValue.rawValue }

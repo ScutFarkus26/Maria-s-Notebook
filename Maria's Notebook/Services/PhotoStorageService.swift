@@ -12,7 +12,7 @@ import UIKit
 
 /// Service for managing photo storage in the app's documents directory
 public enum PhotoStorageService {
-    private static let logger = Logger.photos
+    nonisolated private static let logger = Logger.photos
 
     /// Returns the directory URL where note photos are stored.
     /// Uses the app's Documents directory.

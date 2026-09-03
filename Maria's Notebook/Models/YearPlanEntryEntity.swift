@@ -2,7 +2,7 @@ import Foundation
 import CoreData
 
 @objc(CDYearPlanEntry)
-public class CDYearPlanEntry: NSManagedObject {
+nonisolated public class CDYearPlanEntry: NSManagedObject {
     @NSManaged public var id: UUID?
     @NSManaged public var studentID: String
     @NSManaged public var lessonID: String
@@ -43,7 +43,7 @@ enum YearPlanEntryStatus: String {
 
 // MARK: - Computed Properties
 
-extension CDYearPlanEntry {
+nonisolated extension CDYearPlanEntry {
     var status: YearPlanEntryStatus {
         get { YearPlanEntryStatus(rawValue: statusRaw) ?? .planned }
         set {

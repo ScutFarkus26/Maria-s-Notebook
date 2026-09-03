@@ -8,7 +8,7 @@ enum SearchableEntityType: String, CaseIterable, Sendable {
 }
 
 /// A lightweight search result reference.
-struct SearchResult: Hashable, Identifiable, Sendable {
+nonisolated struct SearchResult: Hashable, Identifiable, Sendable {
     let id: UUID
     let entityType: SearchableEntityType
     let title: String

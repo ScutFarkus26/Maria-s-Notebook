@@ -4,7 +4,7 @@
 
 import Foundation
 
-enum MontessoriObservationTags {
+nonisolated enum MontessoriObservationTags {
     // MARK: - Core Observation Tags
 
     static let concentration = TagHelper.createTag(name: "Concentration", color: .blue)

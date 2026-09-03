@@ -5,7 +5,7 @@ import SwiftUI
 import CoreData
 import OSLog
 
-private let logger = Logger.app_
+nonisolated private let logger = Logger.app_
 
 // MARK: - TodayView Helpers Extension
 

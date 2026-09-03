@@ -2,7 +2,7 @@ import Foundation
 import CoreData
 
 @objc(CDStudent)
-public class CDStudent: NSManagedObject {
+nonisolated public class CDStudent: NSManagedObject {
     // MARK: - Core Data Properties
     @NSManaged public var id: UUID?
     @NSManaged public var firstName: String
@@ -46,7 +46,7 @@ public class CDStudent: NSManagedObject {
 
 // MARK: - Computed Properties
 
-extension CDStudent {
+nonisolated extension CDStudent {
     var level: Level {
         get { Level(rawValue: levelRaw) ?? .lower }
         set { levelRaw = newValue.rawValue }

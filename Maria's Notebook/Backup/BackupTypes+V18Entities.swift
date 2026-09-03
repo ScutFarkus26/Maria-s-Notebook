@@ -19,7 +19,7 @@ import Foundation
 
 // MARK: - Day Pad
 
-public struct DayPadDTO: Codable, Sendable {
+nonisolated public struct DayPadDTO: Codable, Sendable {
     public var id: UUID
     public var day: Date?
     public var body: String?
@@ -29,7 +29,7 @@ public struct DayPadDTO: Codable, Sendable {
 
 // MARK: - Year Plan
 
-public struct YearPlanEntryDTO: Codable, Sendable {
+nonisolated public struct YearPlanEntryDTO: Codable, Sendable {
     public var id: UUID
     public var studentID: String
     public var lessonID: String
@@ -45,7 +45,7 @@ public struct YearPlanEntryDTO: Codable, Sendable {
 
 // MARK: - Lesson Sequence Settings
 
-public struct LessonSequenceSettingsDTO: Codable, Sendable {
+nonisolated public struct LessonSequenceSettingsDTO: Codable, Sendable {
     public var id: UUID
     public var area: String
     public var sequence: String
@@ -57,7 +57,7 @@ public struct LessonSequenceSettingsDTO: Codable, Sendable {
 
 // MARK: - Story
 
-public struct StoryDTO: Codable, Sendable {
+nonisolated public struct StoryDTO: Codable, Sendable {
     public var id: UUID
     public var title: String
     public var summary: String
@@ -82,7 +82,7 @@ public struct StoryDTO: Codable, Sendable {
 
 // MARK: - Book Club
 
-public struct BookClubPacketDTO: Codable, Sendable {
+nonisolated public struct BookClubPacketDTO: Codable, Sendable {
     public var id: UUID
     public var title: String
     public var author: String
@@ -98,7 +98,7 @@ public struct BookClubPacketDTO: Codable, Sendable {
     // Binary data (packetPDFBookmark, thumbnailData) excluded by design.
 }
 
-public struct BookClubSessionDTO: Codable, Sendable {
+nonisolated public struct BookClubSessionDTO: Codable, Sendable {
     public var id: UUID
     public var packetID: String
     public var displayName: String
@@ -114,7 +114,7 @@ public struct BookClubSessionDTO: Codable, Sendable {
     public var modifiedAt: Date
 }
 
-public struct BookClubMeetingDTO: Codable, Sendable {
+nonisolated public struct BookClubMeetingDTO: Codable, Sendable {
     public var id: UUID
     public var sessionID: String
     public var ordinal: Int

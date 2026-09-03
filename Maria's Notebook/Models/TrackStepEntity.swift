@@ -2,7 +2,7 @@ import Foundation
 import CoreData
 
 @objc(TrackStepEntity)
-public class CDTrackStepEntity: NSManagedObject {
+nonisolated public class CDTrackStepEntity: NSManagedObject {
     // MARK: - Attributes
     @NSManaged public var id: UUID?
     @NSManaged public var orderIndex: Int64

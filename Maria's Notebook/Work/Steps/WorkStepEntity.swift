@@ -5,7 +5,7 @@ import SwiftUI
 /// CDWorkStep model representing a single step in a Report-type CDWorkModel.
 /// Steps are ordered by orderIndex to ensure deterministic progression.
 @objc(CDWorkStep)
-public class CDWorkStep: NSManagedObject {
+nonisolated public class CDWorkStep: NSManagedObject {
     // MARK: - Core Data Properties
     @NSManaged public var id: UUID?
     @NSManaged public var orderIndex: Int64
@@ -37,7 +37,7 @@ public class CDWorkStep: NSManagedObject {
 
 // MARK: - Computed Properties
 
-extension CDWorkStep {
+nonisolated extension CDWorkStep {
     /// Computed convenience for completion check
     var isCompleted: Bool { completedAt != nil }
 

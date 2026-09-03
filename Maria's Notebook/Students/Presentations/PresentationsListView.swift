@@ -5,7 +5,7 @@ import CoreData
 import Foundation
 #endif
 
-private let logger = Logger.students
+nonisolated private let logger = Logger.students
 
 enum PresentationsListSort: String {
     case upcomingThenPresented = "Default"

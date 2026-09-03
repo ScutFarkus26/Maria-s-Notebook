@@ -1,6 +1,6 @@
 import OSLog
 
-extension Logger {
+nonisolated extension Logger {
     // MARK: - Core
     nonisolated static let app_ = Logger.app(category: "app")
     nonisolated static let cache = Logger.app(category: "cache")

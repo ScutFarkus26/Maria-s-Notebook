@@ -2,7 +2,7 @@ import Foundation
 import CoreData
 
 @objc(Schedule)
-public class CDSchedule: NSManagedObject {
+nonisolated public class CDSchedule: NSManagedObject {
     // MARK: - Core Data Properties
     @NSManaged public var id: UUID?
     @NSManaged public var name: String
@@ -32,13 +32,13 @@ public class CDSchedule: NSManagedObject {
 
 // MARK: - Enums
 
-extension CDSchedule {
+nonisolated extension CDSchedule {
     /// Days of the week for scheduling
 }
 
 // MARK: - Computed Properties
 
-extension CDSchedule {
+nonisolated extension CDSchedule {
     /// Safely access slots
     var safeSlots: [CDScheduleSlot] {
         (slots as? Set<CDScheduleSlot>).map(Array.init) ?? []
@@ -87,7 +87,7 @@ extension CDSchedule {
 
 // MARK: - Generated Accessors for To-Many Relationships
 
-extension CDSchedule {
+nonisolated extension CDSchedule {
     @objc(addSlotsObject:)
     @NSManaged public func addToSlots(_ value: CDScheduleSlot)
 

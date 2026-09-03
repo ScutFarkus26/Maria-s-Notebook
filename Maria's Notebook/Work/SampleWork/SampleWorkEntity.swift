@@ -2,7 +2,7 @@ import Foundation
 import CoreData
 
 @objc(SampleWorkEntity)
-public class CDSampleWorkEntity: NSManagedObject {
+nonisolated public class CDSampleWorkEntity: NSManagedObject {
     // MARK: - Attributes
     @NSManaged public var id: UUID?
     @NSManaged public var title: String
@@ -30,7 +30,7 @@ public class CDSampleWorkEntity: NSManagedObject {
 }
 
 // MARK: - Computed Properties
-extension CDSampleWorkEntity {
+nonisolated extension CDSampleWorkEntity {
     /// The work kind this template produces (reuses WorkKind enum)
     var workKind: WorkKind? {
         get { WorkKind(rawValue: workKindRaw) }
@@ -50,7 +50,7 @@ extension CDSampleWorkEntity {
 }
 
 // MARK: - Generated Accessors for steps
-extension CDSampleWorkEntity {
+nonisolated extension CDSampleWorkEntity {
     @objc(addStepsObject:)
     @NSManaged public func addToSteps(_ value: CDSampleWorkStepEntity)
 

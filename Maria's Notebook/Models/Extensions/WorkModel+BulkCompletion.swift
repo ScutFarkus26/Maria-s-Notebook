@@ -1,7 +1,7 @@
 import Foundation
 import CoreData
 
-extension CDWorkModel {
+nonisolated extension CDWorkModel {
     /// Mark this work as completed for multiple students at once.
     /// Each student receives an individual historical record.
     /// Updates both CDWorkCompletionRecord (new system) and participant.completedAt (legacy system).

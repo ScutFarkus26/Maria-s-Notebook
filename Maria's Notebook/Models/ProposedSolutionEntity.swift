@@ -2,7 +2,7 @@ import Foundation
 import CoreData
 
 @objc(ProposedSolutionEntity)
-public class CDProposedSolutionEntity: NSManagedObject {
+nonisolated public class CDProposedSolutionEntity: NSManagedObject {
     // MARK: - Attributes
     @NSManaged public var id: UUID?
     @NSManaged public var title: String

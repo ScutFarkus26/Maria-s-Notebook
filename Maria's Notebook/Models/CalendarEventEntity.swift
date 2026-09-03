@@ -2,7 +2,7 @@ import Foundation
 import CoreData
 
 @objc(CDCalendarEvent)
-public class CDCalendarEvent: NSManagedObject {
+nonisolated public class CDCalendarEvent: NSManagedObject {
     // MARK: - Core Data Properties
     @NSManaged public var id: UUID?
     @NSManaged public var title: String

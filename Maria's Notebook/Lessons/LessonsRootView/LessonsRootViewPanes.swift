@@ -5,7 +5,7 @@ import SwiftUI
 import CoreData
 import OSLog
 
-private let logger = Logger.lessons
+nonisolated private let logger = Logger.lessons
 
 // MARK: - LessonsRootView Panes Extension
 

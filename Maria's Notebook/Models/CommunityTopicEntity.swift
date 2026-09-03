@@ -3,7 +3,7 @@ import CoreData
 import OSLog
 
 @objc(CommunityTopicEntity)
-public class CDCommunityTopicEntity: NSManagedObject {
+nonisolated public class CDCommunityTopicEntity: NSManagedObject {
     // MARK: - Attributes
     @NSManaged public var id: UUID?
     @NSManaged public var title: String
@@ -36,7 +36,7 @@ public class CDCommunityTopicEntity: NSManagedObject {
 }
 
 // MARK: - Computed Properties
-extension CDCommunityTopicEntity {
+nonisolated extension CDCommunityTopicEntity {
     private static let logger = Logger(
         subsystem: Bundle.main.bundleIdentifier ?? "MariasNotebook",
         category: "CommunityTopicEntity"
@@ -82,7 +82,7 @@ extension CDCommunityTopicEntity {
 }
 
 // MARK: - Generated Accessors for proposedSolutions
-extension CDCommunityTopicEntity {
+nonisolated extension CDCommunityTopicEntity {
     @objc(addProposedSolutionsObject:)
     @NSManaged public func addToProposedSolutions(_ value: CDProposedSolutionEntity)
 
@@ -97,7 +97,7 @@ extension CDCommunityTopicEntity {
 }
 
 // MARK: - Generated Accessors for attachments
-extension CDCommunityTopicEntity {
+nonisolated extension CDCommunityTopicEntity {
     @objc(addAttachmentsObject:)
     @NSManaged public func addToAttachments(_ value: CDCommunityAttachmentEntity)
 

@@ -2,7 +2,7 @@ import Foundation
 import CoreData
 
 @objc(CDStory)
-public class CDStory: NSManagedObject {
+nonisolated public class CDStory: NSManagedObject {
     // MARK: - Core Data Properties
     @NSManaged public var id: UUID?
     @NSManaged public var title: String
@@ -59,7 +59,7 @@ public class CDStory: NSManagedObject {
 
 // MARK: - Computed Properties
 
-extension CDStory {
+nonisolated extension CDStory {
     /// Themes as a Swift `[String]` array.
     var themesArray: [String] {
         get { (themes as? [String]) ?? [] }
@@ -96,7 +96,7 @@ extension CDStory {
 
 // MARK: - Fetch Helpers
 
-extension CDStory {
+nonisolated extension CDStory {
     /// Default sort: most recently created first.
     static func defaultSortDescriptors() -> [NSSortDescriptor] {
         [NSSortDescriptor(keyPath: \CDStory.createdAt, ascending: false)]
@@ -105,7 +105,7 @@ extension CDStory {
 
 // MARK: - Related Lessons
 
-extension CDStory {
+nonisolated extension CDStory {
     /// Persisted lesson UUIDs (parsed from `relatedLessonIDsRaw`, comma-separated).
     var relatedLessonUUIDs: [UUID] {
         relatedLessonIDsRaw

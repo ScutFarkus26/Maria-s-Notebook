@@ -2,7 +2,7 @@ import Foundation
 import CoreData
 
 @objc(CDSupplyTransaction)
-public class CDSupplyTransaction: NSManagedObject {
+nonisolated public class CDSupplyTransaction: NSManagedObject {
     @NSManaged public var id: UUID?
     @NSManaged public var supplyID: String
     @NSManaged public var date: Date?

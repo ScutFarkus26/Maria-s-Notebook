@@ -2,7 +2,7 @@ import Foundation
 import CoreData
 
 @objc(TrackEntity)
-public class CDTrackEntity: NSManagedObject {
+nonisolated public class CDTrackEntity: NSManagedObject {
     // MARK: - Attributes
     @NSManaged public var id: UUID?
     @NSManaged public var title: String
@@ -25,7 +25,7 @@ public class CDTrackEntity: NSManagedObject {
 }
 
 // MARK: - Generated Accessors for steps
-extension CDTrackEntity {
+nonisolated extension CDTrackEntity {
     @objc(addStepsObject:)
     @NSManaged public func addToSteps(_ value: CDTrackStepEntity)
 

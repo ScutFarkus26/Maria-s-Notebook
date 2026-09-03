@@ -5,7 +5,7 @@ import Foundation
 /// The single ordering both dedup passes agree on, so the record the grid
 /// shows, the record reports count, and the record the destructive cleanup
 /// keeps are always the same one on every device.
-enum AttendanceDeduplication {
+nonisolated enum AttendanceDeduplication {
 
     /// Whether `candidate` beats `incumbent` for the same (student, day):
     /// a marked record beats an unmarked one, then the latest `modifiedAt`
@@ -22,7 +22,7 @@ enum AttendanceDeduplication {
     }
 }
 
-extension Array where Element == CDAttendanceRecord {
+nonisolated extension Array where Element == CDAttendanceRecord {
     /// Collapses CloudKit duplicates to one record per (student, day). Two devices
     /// marking the same day before syncing each create their own records; the grid
     /// only ever shows one status per student per day, so reports must count the

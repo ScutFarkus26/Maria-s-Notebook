@@ -2,7 +2,7 @@ import Foundation
 import OSLog
 import Darwin
 
-private let logger = Logger.cache
+nonisolated private let logger = Logger.cache
 
 /// Current process resident memory footprint in megabytes, or nil if the
 /// kernel query failed. Used to enrich memory-pressure log lines so the
@@ -20,7 +20,7 @@ private func currentMemoryFootprintMB() -> Double? {
 }
 
 /// Pressure level reported to the handler
-enum MemoryPressureLevel {
+nonisolated enum MemoryPressureLevel {
     case warning
     case critical
 }

@@ -2,7 +2,7 @@ import Foundation
 import CoreData
 
 @objc(CDLessonPresentation)
-public class CDLessonPresentation: NSManagedObject {
+nonisolated public class CDLessonPresentation: NSManagedObject {
     // MARK: - Core Data Properties
     @NSManaged public var id: UUID?
     @NSManaged public var createdAt: Date?
@@ -57,7 +57,7 @@ public class CDLessonPresentation: NSManagedObject {
 
 // MARK: - Computed Properties
 
-extension CDLessonPresentation {
+nonisolated extension CDLessonPresentation {
     var state: LessonPresentationState {
         get { LessonPresentationState(rawValue: stateRaw) ?? .presented }
         set { stateRaw = newValue.rawValue }

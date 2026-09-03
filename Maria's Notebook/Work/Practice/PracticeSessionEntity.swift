@@ -4,7 +4,7 @@ import CoreData
 /// Represents a collaborative practice session where one or more students work together
 /// on their assigned work items.
 @objc(CDPracticeSession)
-public class CDPracticeSession: NSManagedObject {
+nonisolated public class CDPracticeSession: NSManagedObject {
     // MARK: - Core Data Properties
     @NSManaged public var id: UUID?
     @NSManaged public var createdAt: Date?
@@ -62,7 +62,7 @@ public class CDPracticeSession: NSManagedObject {
 
 // MARK: - Computed Properties
 
-extension CDPracticeSession {
+nonisolated extension CDPracticeSession {
     /// Access studentIDs as a Swift [String] array
     var studentIDsArray: [String] {
         get { (studentIDs as? [String]) ?? [] }
@@ -223,7 +223,7 @@ extension CDPracticeSession {
 
 // MARK: - Generated Accessors for To-Many Relationships
 
-extension CDPracticeSession {
+nonisolated extension CDPracticeSession {
     @objc(addNotesObject:)
     @NSManaged public func addToNotes(_ value: CDNote)
 

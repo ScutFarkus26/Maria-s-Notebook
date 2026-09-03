@@ -2,7 +2,7 @@ import Foundation
 import CoreData
 
 @objc(CDBookClubPacket)
-public class CDBookClubPacket: NSManagedObject {
+nonisolated public class CDBookClubPacket: NSManagedObject {
     @NSManaged public var id: UUID?
     @NSManaged public var title: String
     @NSManaged public var author: String
@@ -39,7 +39,7 @@ public class CDBookClubPacket: NSManagedObject {
     }
 }
 
-extension CDBookClubPacket {
+nonisolated extension CDBookClubPacket {
     var themesArray: [String] {
         get { (themes as? [String]) ?? [] }
         set { themes = newValue as NSArray }
@@ -71,7 +71,7 @@ extension CDBookClubPacket {
     }
 }
 
-extension CDBookClubPacket {
+nonisolated extension CDBookClubPacket {
     static func defaultSortDescriptors() -> [NSSortDescriptor] {
         [NSSortDescriptor(keyPath: \CDBookClubPacket.createdAt, ascending: false)]
     }

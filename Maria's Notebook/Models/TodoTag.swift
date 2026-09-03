@@ -34,7 +34,7 @@ enum TagColor: String, Codable, CaseIterable {
 typealias TodoTagHelper = TagHelper
 
 /// Helper for managing tags
-struct TagHelper {
+nonisolated struct TagHelper {
     static let studentTagParent = "Students"
 
     /// Common predefined tags

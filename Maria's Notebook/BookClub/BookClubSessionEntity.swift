@@ -2,7 +2,7 @@ import Foundation
 import CoreData
 
 @objc(CDBookClubSession)
-public class CDBookClubSession: NSManagedObject {
+nonisolated public class CDBookClubSession: NSManagedObject {
     @NSManaged public var id: UUID?
     @NSManaged public var packetID: String
     @NSManaged public var displayName: String
@@ -38,7 +38,7 @@ public class CDBookClubSession: NSManagedObject {
     }
 }
 
-extension CDBookClubSession {
+nonisolated extension CDBookClubSession {
     var cadenceKind: BookClubCadenceKind {
         get { BookClubCadenceKind(rawValue: cadenceRaw) ?? .weekly }
         set { cadenceRaw = newValue.rawValue }
@@ -78,7 +78,7 @@ extension CDBookClubSession {
     }
 }
 
-extension CDBookClubSession {
+nonisolated extension CDBookClubSession {
     static func defaultSortDescriptors() -> [NSSortDescriptor] {
         [
             NSSortDescriptor(keyPath: \CDBookClubSession.startDate, ascending: true),

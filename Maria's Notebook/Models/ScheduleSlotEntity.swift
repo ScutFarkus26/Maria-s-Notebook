@@ -2,7 +2,7 @@ import Foundation
 import CoreData
 
 @objc(ScheduleSlot)
-public class CDScheduleSlot: NSManagedObject {
+nonisolated public class CDScheduleSlot: NSManagedObject {
     // MARK: - Core Data Properties
     @NSManaged public var id: UUID?
     @NSManaged public var scheduleID: String
@@ -36,7 +36,7 @@ public class CDScheduleSlot: NSManagedObject {
 
 // MARK: - Computed Properties
 
-extension CDScheduleSlot {
+nonisolated extension CDScheduleSlot {
     /// Computed property for weekday enum
     var weekday: Weekday {
         get { Weekday(rawValue: weekdayRaw) ?? .monday }

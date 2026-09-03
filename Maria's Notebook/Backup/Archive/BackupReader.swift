@@ -10,7 +10,7 @@ import Foundation
 import CryptoKit
 import OSLog
 
-public enum BackupReader {
+nonisolated public enum BackupReader {
     private static let logger = Logger.backup
 
     public struct DecodedBackup: Sendable {

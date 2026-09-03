@@ -9,7 +9,7 @@
 
 import Foundation
 
-enum AlbumCorpusLookup {
+nonisolated enum AlbumCorpusLookup {
 
     /// One retrieved album page, ready to hand to a model.
     struct Hit: Sendable {

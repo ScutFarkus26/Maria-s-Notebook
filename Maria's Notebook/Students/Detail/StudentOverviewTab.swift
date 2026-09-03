@@ -5,7 +5,7 @@ import OSLog
 import SwiftUI
 import CoreData
 
-private let logger = Logger.students
+nonisolated private let logger = Logger.students
 
 struct StudentOverviewTab: View {
     let student: CDStudent

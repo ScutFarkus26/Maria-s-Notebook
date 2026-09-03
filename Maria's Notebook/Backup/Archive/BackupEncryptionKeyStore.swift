@@ -14,7 +14,7 @@ import Foundation
 import CryptoKit
 import Security
 
-enum BackupEncryptionKeyStore {
+nonisolated enum BackupEncryptionKeyStore {
 
     enum KeyStoreError: LocalizedError {
         case keychainRead(OSStatus)

@@ -10,7 +10,7 @@ enum EvidenceEntityKind: String, Codable, Sendable {
     case todo
 }
 
-struct EvidenceReference: Identifiable, Codable, Hashable, Sendable {
+nonisolated struct EvidenceReference: Identifiable, Codable, Hashable, Sendable {
     let entityKind: EvidenceEntityKind
     let entityID: UUID
     let date: Date?

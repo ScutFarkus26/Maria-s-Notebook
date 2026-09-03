@@ -27,7 +27,7 @@ import OSLog
 import UIKit
 #endif
 
-public enum BackupWriter {
+nonisolated public enum BackupWriter {
     private static let logger = Logger.backup
 
     /// Format version produced by this writer.
@@ -467,7 +467,7 @@ public enum BackupWriter {
 
 /// JSON-encoded into the archive's first entry. Read by `BackupReader` before
 /// any entity data so import can validate version + routing up front.
-public struct BackupArchiveManifest: Codable, Sendable, Equatable {
+nonisolated public struct BackupArchiveManifest: Codable, Sendable, Equatable {
     public var formatVersion: Int
     public var createdAt: Date
     public var appVersion: String
@@ -482,7 +482,7 @@ public struct BackupArchiveManifest: Codable, Sendable, Equatable {
 /// One in-archive entity entry. NDJSON body holds one DTO per line.
 /// Shared between `BackupWriter` (produces entries) and `BackupReader`/
 /// `BackupImporter` (consume entries).
-public struct BackupEntityEntry: Sendable {
+nonisolated public struct BackupEntityEntry: Sendable {
     public let entityName: String
     public let storeName: String     // "private" or "shared"
     public let count: Int
@@ -499,7 +499,7 @@ public struct BackupEntityEntry: Sendable {
 
 // MARK: - Preferences serialization
 
-private extension BackupPayload {
+nonisolated private extension BackupPayload {
     /// Encodes the preferences dictionary as a single JSON document
     /// (preferences are small, so we don't bother with NDJSON for them).
     func preferencesJSON() throws -> Data {

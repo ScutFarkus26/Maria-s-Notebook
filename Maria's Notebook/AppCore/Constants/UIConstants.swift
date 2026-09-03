@@ -1,6 +1,6 @@
 import SwiftUI
 
-enum UIConstants {
+nonisolated enum UIConstants {
     static let sidebarWidth: CGFloat = 280
     static let headerHorizontalPadding: CGFloat = 16
     static let headerVerticalPadding: CGFloat = 10

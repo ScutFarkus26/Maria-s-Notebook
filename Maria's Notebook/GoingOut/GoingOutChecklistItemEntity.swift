@@ -2,7 +2,7 @@ import Foundation
 import CoreData
 
 @objc(CDGoingOutChecklistItem)
-public class CDGoingOutChecklistItem: NSManagedObject {
+nonisolated public class CDGoingOutChecklistItem: NSManagedObject {
     // MARK: - Core Data Properties
     @NSManaged public var id: UUID?
     @NSManaged public var createdAt: Date?
