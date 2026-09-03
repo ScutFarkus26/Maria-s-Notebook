@@ -26,11 +26,7 @@ struct LessonRepository: SavingRepository {
     // MARK: - Fetch
 
     /// Fetch a CDLesson by ID
-    func fetchLesson(id: UUID) -> CDLesson? {
-        let request = CDFetchRequest(CDLesson.self)
-        request.predicate = NSPredicate(format: "id == %@", id as CVarArg)
-        return context.safeFetchFirst(request)
-    }
+    func fetchLesson(id: UUID) -> CDLesson? { fetch(id: id) }
 
     /// Fetch multiple Lessons with optional filtering and sorting
     func fetchLessons(

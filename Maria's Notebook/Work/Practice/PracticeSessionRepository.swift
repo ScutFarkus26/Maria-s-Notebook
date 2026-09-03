@@ -3,7 +3,10 @@ import OSLog
 import CoreData
 
 /// Repository for managing CDPracticeSession CRUD operations
-struct PracticeSessionRepository {
+@MainActor
+struct PracticeSessionRepository: Repository {
+    typealias Model = CDPracticeSession
+
     private static let logger = Logger.work
 
     let context: NSManagedObjectContext
@@ -74,12 +77,7 @@ struct PracticeSessionRepository {
     }
 
     /// Fetches a specific practice session by ID
-    func fetch(byID id: UUID) -> CDPracticeSession? {
-        let request = CDFetchRequest(CDPracticeSession.self)
-        request.predicate = NSPredicate(format: "id == %@", id as CVarArg)
-        request.fetchLimit = 1
-        return context.safeFetchFirst(request)
-    }
+    func fetch(byID id: UUID) -> CDPracticeSession? { fetch(id: id) }
 
     // MARK: - Update
 

@@ -18,11 +18,7 @@ struct ResourceRepository: SavingRepository {
 
     // MARK: - Fetch
 
-    func fetchResource(id: UUID) -> CDResource? {
-        let request = CDFetchRequest(CDResource.self)
-        request.predicate = NSPredicate(format: "id == %@", id as CVarArg)
-        return context.safeFetchFirst(request)
-    }
+    func fetchResource(id: UUID) -> CDResource? { fetch(id: id) }
 
     func fetchResources(
         predicate: NSPredicate? = nil,

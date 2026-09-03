@@ -26,11 +26,7 @@ struct NoteRepository: SavingRepository {
     // MARK: - Fetch
 
     /// Fetch a CDNote by ID
-    func fetchNote(id: UUID) -> CDNote? {
-        let request = CDFetchRequest(CDNote.self)
-        request.predicate = NSPredicate(format: "id == %@", id as CVarArg)
-        return context.safeFetchFirst(request)
-    }
+    func fetchNote(id: UUID) -> CDNote? { fetch(id: id) }
 
     /// Fetch multiple Notes with optional filtering and sorting
     func fetchNotes(

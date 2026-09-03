@@ -3,7 +3,9 @@ import OSLog
 import CoreData
 
 @MainActor
-struct WorkRepository {
+struct WorkRepository: Repository {
+    typealias Model = CDWorkModel
+
     private static let logger = Logger.work
 
     let context: NSManagedObjectContext
@@ -14,10 +16,7 @@ struct WorkRepository {
 
     /// Links a work item to its associated track and step if the lesson belongs to a track
     private func linkWorkToTrack(_ work: CDWorkModel, lessonID: UUID) {
-        let request = CDFetchRequest(CDLesson.self)
-        request.predicate = NSPredicate(format: "id == %@", lessonID as CVarArg)
-        request.fetchLimit = 1
-        guard let lesson = context.safeFetchFirst(request) else { return }
+        guard let lesson = context.object(CDLesson.self, id: lessonID) else { return }
 
         let area = lesson.area.trimmed()
         let sequence = lesson.sequence.trimmed()
@@ -84,12 +83,7 @@ struct WorkRepository {
     // MARK: - Fetch
 
     /// Fetch CDWorkModel by ID
-    func fetchWorkModel(id: UUID) -> CDWorkModel? {
-        let request = CDFetchRequest(CDWorkModel.self)
-        request.predicate = NSPredicate(format: "id == %@", id as CVarArg)
-        request.fetchLimit = 1
-        return context.safeFetchFirst(request)
-    }
+    func fetchWorkModel(id: UUID) -> CDWorkModel? { fetch(id: id) }
 
     /// Fetch multiple CDWorkModel entities
     /// - Parameters:
@@ -160,10 +154,7 @@ struct WorkRepository {
 
         // If a sample work template was specified, copy its steps into the new work
         if let swID = sampleWorkID {
-            let swRequest = CDFetchRequest(CDSampleWorkEntity.self)
-            swRequest.predicate = NSPredicate(format: "id == %@", swID as CVarArg)
-            swRequest.fetchLimit = 1
-            if let sampleWork = context.safeFetchFirst(swRequest) {
+            if let sampleWork = context.object(CDSampleWorkEntity.self, id: swID) {
                 let stepService = WorkStepService(context: context)
                 let swService = SampleWorkService(context: context)
                 try swService.instantiate(sampleWork: sampleWork, into: work, stepService: stepService)

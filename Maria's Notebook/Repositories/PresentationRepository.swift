@@ -26,11 +26,7 @@ struct PresentationRepository: SavingRepository {
     // MARK: - Fetch
 
     /// Fetch a CDLessonAssignment by ID
-    func fetchLessonAssignment(id: UUID) -> CDLessonAssignment? {
-        let request = CDFetchRequest(CDLessonAssignment.self)
-        request.predicate = NSPredicate(format: "id == %@", id as CVarArg)
-        return context.safeFetchFirst(request)
-    }
+    func fetchLessonAssignment(id: UUID) -> CDLessonAssignment? { fetch(id: id) }
 
     /// Fetch multiple LessonAssignments with optional filtering and sorting
     func fetchLessonAssignments(

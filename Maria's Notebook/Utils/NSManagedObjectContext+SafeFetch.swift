@@ -49,6 +49,19 @@ extension NSManagedObjectContext {
         return safeFetch(request).first
     }
 
+    /// Fetches the one object of `type` whose `id` attribute equals `id`, or nil
+    /// when it is absent or the fetch fails (logged).
+    ///
+    /// Every entity in the model keys `id` as a UUID, so this is the single
+    /// fetch-by-id path: `CDFetchRequest` resolves the entity, the predicate is
+    /// `id == %@`, and the limit is 1.
+    func object<T: NSManagedObject>(_ type: T.Type, id: UUID) -> T? {
+        let request = CDFetchRequest(type)
+        request.predicate = NSPredicate(format: "id == %@", id as CVarArg)
+        request.fetchLimit = 1
+        return safeFetchFirst(request)
+    }
+
     /// Safely saves the context, logging errors.
     /// - Returns: true if save succeeded or no changes to save
     @discardableResult

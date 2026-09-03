@@ -18,11 +18,7 @@ struct ClassroomRepository: SavingRepository {
 
     // MARK: - Fetch
 
-    func fetchMembership(id: UUID) -> CDClassroomMembership? {
-        let request = CDFetchRequest(CDClassroomMembership.self)
-        request.predicate = NSPredicate(format: "id == %@", id as CVarArg)
-        return context.safeFetchFirst(request)
-    }
+    func fetchMembership(id: UUID) -> CDClassroomMembership? { fetch(id: id) }
 
     func fetchMemberships(
         predicate: NSPredicate? = nil,

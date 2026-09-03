@@ -26,11 +26,7 @@ struct ProjectRepository: SavingRepository {
     // MARK: - Fetch Projects
 
     /// Fetch a CDProject by ID
-    func fetchProject(id: UUID) -> CDProject? {
-        let request = CDFetchRequest(CDProject.self)
-        request.predicate = NSPredicate(format: "id == %@", id as CVarArg)
-        return context.safeFetchFirst(request)
-    }
+    func fetchProject(id: UUID) -> CDProject? { fetch(id: id) }
 
     /// Fetch multiple Projects with optional filtering and sorting
     func fetchProjects(
@@ -48,9 +44,7 @@ struct ProjectRepository: SavingRepository {
 
     /// Fetch a CDProjectSession by ID
     func fetchSession(id: UUID) -> CDProjectSession? {
-        let request = CDFetchRequest(CDProjectSession.self)
-        request.predicate = NSPredicate(format: "id == %@", id as CVarArg)
-        return context.safeFetchFirst(request)
+        context.object(CDProjectSession.self, id: id)
     }
 
     // MARK: - Delete Session

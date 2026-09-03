@@ -26,11 +26,7 @@ struct MeetingRepository: SavingRepository {
     // MARK: - Fetch
 
     /// Fetch a CDStudentMeeting by ID
-    func fetchMeeting(id: UUID) -> CDStudentMeeting? {
-        let request = CDFetchRequest(CDStudentMeeting.self)
-        request.predicate = NSPredicate(format: "id == %@", id as CVarArg)
-        return context.safeFetchFirst(request)
-    }
+    func fetchMeeting(id: UUID) -> CDStudentMeeting? { fetch(id: id) }
 
     /// Fetch multiple StudentMeetings with optional filtering and sorting
     func fetchMeetings(

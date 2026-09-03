@@ -26,11 +26,7 @@ struct NoteTemplateRepository: SavingRepository {
     // MARK: - Fetch
 
     /// Fetch a NoteTemplate by ID
-    func fetchTemplate(id: UUID) -> CDNoteTemplateEntity? {
-        let request = CDFetchRequest(CDNoteTemplateEntity.self)
-        request.predicate = NSPredicate(format: "id == %@", id as CVarArg)
-        return context.safeFetchFirst(request)
-    }
+    func fetchTemplate(id: UUID) -> CDNoteTemplateEntity? { fetch(id: id) }
 
     /// Fetch multiple NoteTemplates with optional filtering and sorting
     func fetchTemplates(

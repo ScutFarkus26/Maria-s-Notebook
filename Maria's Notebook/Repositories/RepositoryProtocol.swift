@@ -19,6 +19,13 @@ protocol Repository {
     var context: NSManagedObjectContext { get }
 }
 
+extension Repository {
+    /// Fetch the `Model` object with the given primary `id`, or nil if absent.
+    func fetch(id: UUID) -> Model? {
+        context.object(Model.self, id: id)
+    }
+}
+
 /// Protocol for repositories that support coordinated saves with error handling.
 @MainActor
 protocol SavingRepository: Repository {

@@ -29,11 +29,7 @@ struct AttendanceRepository: SavingRepository {
     // MARK: - Fetch
 
     /// Fetch an CDAttendanceRecord by ID
-    func fetchRecord(id: UUID) -> CDAttendanceRecord? {
-        let request = CDFetchRequest(CDAttendanceRecord.self)
-        request.predicate = NSPredicate(format: "id == %@", id as CVarArg)
-        return context.safeFetchFirst(request)
-    }
+    func fetchRecord(id: UUID) -> CDAttendanceRecord? { fetch(id: id) }
 
     /// Fetch AttendanceRecords with optional filtering and sorting
     func fetchRecords(

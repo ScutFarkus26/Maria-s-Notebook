@@ -26,11 +26,7 @@ struct ReminderRepository: SavingRepository {
     // MARK: - Fetch
 
     /// Fetch a CDReminder by ID
-    func fetchReminder(id: UUID) -> CDReminder? {
-        let request = CDFetchRequest(CDReminder.self)
-        request.predicate = NSPredicate(format: "id == %@", id as CVarArg)
-        return context.safeFetchFirst(request)
-    }
+    func fetchReminder(id: UUID) -> CDReminder? { fetch(id: id) }
 
     /// Fetch multiple Reminders with optional filtering and sorting
     func fetchReminders(

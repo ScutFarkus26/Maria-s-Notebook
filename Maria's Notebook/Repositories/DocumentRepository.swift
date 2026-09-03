@@ -26,11 +26,7 @@ struct DocumentRepository: SavingRepository {
     // MARK: - Fetch
 
     /// Fetch a CDDocument by ID
-    func fetchDocument(id: UUID) -> CDDocument? {
-        let request = CDFetchRequest(CDDocument.self)
-        request.predicate = NSPredicate(format: "id == %@", id as CVarArg)
-        return context.safeFetchFirst(request)
-    }
+    func fetchDocument(id: UUID) -> CDDocument? { fetch(id: id) }
 
     /// Fetch multiple Documents with optional filtering and sorting
     func fetchDocuments(

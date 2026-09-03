@@ -26,11 +26,7 @@ struct StudentRepository: SavingRepository {
     // MARK: - Fetch
 
     /// Fetch a CDStudent by ID
-    func fetchStudent(id: UUID) -> CDStudent? {
-        let request = CDFetchRequest(CDStudent.self)
-        request.predicate = NSPredicate(format: "id == %@", id as CVarArg)
-        return context.safeFetchFirst(request)
-    }
+    func fetchStudent(id: UUID) -> CDStudent? { fetch(id: id) }
 
     /// Fetch multiple Students with optional filtering and sorting
     func fetchStudents(
