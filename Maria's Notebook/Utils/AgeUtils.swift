@@ -213,4 +213,54 @@ struct AgeUtils {
         }
     }
 
+    // MARK: - Birthdays
+
+    /// The next occurrence of `birthday`'s month and day on or after today.
+    /// A Feb 29 birthday falls back to Feb 28 in non-leap years.
+    static func nextBirthday(
+        for birthday: Date,
+        today: Date = Date(),
+        calendar: Calendar = .current
+    ) -> Date? {
+        let comps = calendar.dateComponents([.month, .day], from: birthday)
+        guard let month = comps.month, let day = comps.day else { return nil }
+        let startOfToday = calendar.startOfDay(for: today)
+        let currentYear = calendar.component(.year, from: startOfToday)
+
+        for year in [currentYear, currentYear + 1] {
+            var candidate = calendar.date(from: DateComponents(year: year, month: month, day: day))
+            // Calendar rolls Feb 29 forward to Mar 1 in non-leap years; use Feb 28 instead.
+            if let date = candidate, calendar.component(.month, from: date) != month {
+                candidate = calendar.date(from: DateComponents(year: year, month: month, day: day - 1))
+            }
+            if let date = candidate, calendar.startOfDay(for: date) >= startOfToday {
+                return date
+            }
+        }
+        return nil
+    }
+
+    /// Whole days from today until the next birthday: 0 on the day itself.
+    static func daysUntilNextBirthday(
+        for birthday: Date,
+        today: Date = Date(),
+        calendar: Calendar = .current
+    ) -> Int? {
+        guard let next = nextBirthday(for: birthday, today: today, calendar: calendar) else { return nil }
+        return calendar.dateComponents(
+            [.day],
+            from: calendar.startOfDay(for: today),
+            to: calendar.startOfDay(for: next)
+        ).day
+    }
+
+    /// "today", "tomorrow", or "in N days" for a birthday countdown.
+    static func birthdayCountdownString(days: Int) -> String {
+        switch days {
+        case 0: return "today"
+        case 1: return "tomorrow"
+        default: return "in \(days) days"
+        }
+    }
+
 }

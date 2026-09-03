@@ -22,6 +22,8 @@ struct StudentsTableView: View {
                 level: student.level.rawValue,
                 age: Self.ageString(for: student),
                 ageSortValue: student.birthday?.timeIntervalSinceReferenceDate ?? .greatestFiniteMagnitude,
+                birthdayLabel: student.birthday.map { DateFormatters.shortMonthDay.string(from: $0) },
+                daysUntilBirthday: student.birthday.flatMap { AgeUtils.daysUntilNextBirthday(for: $0) },
                 nextLesson: nextLessonNames[id] ?? "—",
                 lastObservation: lastObservationDates[id]
             )
@@ -55,6 +57,20 @@ struct StudentsTableView: View {
                 Text(row.age)
             }
             .width(min: 55, ideal: 70)
+            TableColumn("Birthday", value: \.birthdaySortValue) { row in
+                if let label = row.birthdayLabel, let days = row.daysUntilBirthday {
+                    HStack(spacing: 6) {
+                        Text(label)
+                        Text(AgeUtils.birthdayCountdownString(days: days))
+                            .foregroundStyle(days == 0 ? AnyShapeStyle(.orange) : AnyShapeStyle(.secondary))
+                    }
+                    .lineLimit(1)
+                } else {
+                    Text("—")
+                        .foregroundStyle(.secondary)
+                }
+            }
+            .width(min: 120, ideal: 160)
             TableColumn("Next Lesson", value: \.nextLesson)
                 .width(min: 140, ideal: 210)
             TableColumn("Last Observation", value: \.lastObservationSortValue) { row in
@@ -107,9 +123,13 @@ private struct StudentTableRow: Identifiable {
     let level: String
     let age: String
     let ageSortValue: TimeInterval
+    let birthdayLabel: String?
+    let daysUntilBirthday: Int?
     let nextLesson: String
     let lastObservation: Date?
 
     var lastObservationSortValue: Date { lastObservation ?? .distantPast }
+    /// Soonest birthday first; students without one sort to the end.
+    var birthdaySortValue: Int { daysUntilBirthday ?? .max }
 }
 #endif
