@@ -16,6 +16,7 @@ struct MeetingFormPane: View {
     var onComplete: (() -> Void)?
 
     @Environment(\.managedObjectContext) private var viewContext
+    @Environment(SaveCoordinator.self) private var saveCoordinator
 
     // Form state
     @State private var reflectionText: String = ""
@@ -393,12 +394,9 @@ struct MeetingFormPane: View {
             )
         }
 
-        // Save all changes
-        do {
-            try viewContext.save()
-        } catch {
-            // Already logged in individual services
-        }
+        // Save all changes. A failure shows the "Couldn't Save" alert and keeps
+        // the form open so the meeting record isn't silently lost.
+        guard saveCoordinator.save(viewContext, reason: "Save meeting") else { return }
 
         // Schedule next meeting if date was set
         if let date = nextMeetingDate {

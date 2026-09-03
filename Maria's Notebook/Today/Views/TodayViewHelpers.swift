@@ -90,15 +90,15 @@ extension TodayView {
             guard let student = viewModel.studentsByID[studentID],
                   let record = try store.ensureRecord(for: student, on: viewModel.date) else { return }
             store.updateStatus(record, to: .tardy)
-
-            // Save changes
-            try viewContext.save()
-
-            // Reload the view model to reflect changes
-            viewModel.reload()
         } catch {
-            // Error updating attendance status - continue silently
+            logger.warning("Failed to load attendance record for tardy mark: \(error.localizedDescription)")
+            return
         }
+
+        // A failed save shows the "Couldn't Save" alert; the view model isn't
+        // reloaded as though the change had persisted.
+        guard saveCoordinator.save(viewContext, reason: "Mark tardy") else { return }
+        viewModel.reload()
     }
 
     // MARK: - CDReminder Actions

@@ -22,6 +22,7 @@ public struct BulkLessonsEntryView: View {
     @Environment(\.dismiss) private var dismiss
     @Environment(\.managedObjectContext) private var viewContext
     @Environment(\.managedObjectContext) private var managedObjectContext
+    @Environment(SaveCoordinator.self) private var saveCoordinator
 
     private var repository: LessonRepository {
         LessonRepository(context: managedObjectContext, saveCoordinator: nil)
@@ -360,38 +361,37 @@ public struct BulkLessonsEntryView: View {
             )
             insertedLessons.append(lesson)
         }
-        do {
-            try managedObjectContext.save()
 
-            // Automatically create/update CDTrackEntity objects for new area/sequence combinations
-            var processedSequences: Set<String> = []
-            for lesson in insertedLessons {
-                let area = lesson.area.trimmed()
-                let sequence = lesson.sequence.trimmed()
-                guard !area.isEmpty && !sequence.isEmpty else { continue }
+        // A failed save shows the "Couldn't Save" alert and keeps the sheet open
+        // so the batch can be retried instead of being silently dropped.
+        guard saveCoordinator.save(managedObjectContext, reason: "Add lessons") else { return }
 
-                let key = "\(area)|\(sequence)"
-                guard !processedSequences.contains(key) else { continue }
-                processedSequences.insert(key)
+        // Automatically create/update CDTrackEntity objects for new area/sequence combinations
+        var processedSequences: Set<String> = []
+        for lesson in insertedLessons {
+            let area = lesson.area.trimmed()
+            let sequence = lesson.sequence.trimmed()
+            guard !area.isEmpty && !sequence.isEmpty else { continue }
 
-                if SequenceTrackService.isTrack(area: area, sequence: sequence, context: viewContext) {
-                    do {
-                        _ = try SequenceTrackService.getOrCreateTrack(
-                            area: area,
-                            sequence: sequence,
-                            context: viewContext
-                        )
-                    } catch {
-                        Self.logger.warning("Failed to create/update CDTrackEntity for \(area)/\(sequence): \(error)")
-                    }
+            let key = "\(area)|\(sequence)"
+            guard !processedSequences.contains(key) else { continue }
+            processedSequences.insert(key)
+
+            if SequenceTrackService.isTrack(area: area, sequence: sequence, context: viewContext) {
+                do {
+                    _ = try SequenceTrackService.getOrCreateTrack(
+                        area: area,
+                        sequence: sequence,
+                        context: viewContext
+                    )
+                } catch {
+                    Self.logger.warning("Failed to create/update CDTrackEntity for \(area)/\(sequence): \(error)")
                 }
             }
-
-            // Save track updates
-            try viewContext.save()
-        } catch {
-            // Swallow save error for now; could surface an alert if needed
         }
+
+        // Save track updates
+        guard saveCoordinator.save(viewContext, reason: "Update tracks") else { return }
 
         onDone?()
         dismiss()
@@ -400,4 +400,5 @@ public struct BulkLessonsEntryView: View {
 
 #Preview {
     BulkLessonsEntryView(defaultArea: "Math", defaultSequence: "Decimal System")
+        .previewEnvironment()
 }
