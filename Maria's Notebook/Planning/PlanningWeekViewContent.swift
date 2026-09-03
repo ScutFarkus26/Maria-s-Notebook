@@ -223,40 +223,10 @@ struct PlanningWeekViewContent: View {
         return "\(start) - \(end)"
     }
 
-    /// Synchronous helper that determines if a date is a non-school day using direct NSManagedObjectContext fetches.
-    /// Rules:
-    /// - Explicit CDNonSchoolDay records mark weekdays as non-school
-    /// - Weekends are non-school by default unless a CDSchoolDayOverride exists for that date
+    /// Whether `day` is a non-school day, per the shared school-day cache
+    /// (explicit CDNonSchoolDay → weekend → CDSchoolDayOverride).
     private func isNonSchoolDay(_ day: Date) -> Bool {
-        let day = calendar.startOfDay(for: day)
-
-        // 1) Explicit non-school day wins
-        do {
-            let nsDescriptor: NSFetchRequest<CDNonSchoolDay> = NSFetchRequest(entityName: "NonSchoolDay")
-            nsDescriptor.predicate = NSPredicate(format: "date == %@", day as CVarArg)
-            nsDescriptor.fetchLimit = 1
-            let nonSchoolDays: [CDNonSchoolDay] = try viewContext.fetch(nsDescriptor)
-            if !nonSchoolDays.isEmpty { return true }
-        } catch {
-            // On fetch error, fall back to weekend logic below
-        }
-
-        // 2) Weekends are non-school by default (Sunday=1, Saturday=7)
-        let weekday = calendar.component(.weekday, from: day)
-        let isWeekend = (weekday == 1 || weekday == 7)
-        guard isWeekend else { return false }
-
-        // 3) Weekend override makes it a school day
-        do {
-            let ovDescriptor: NSFetchRequest<CDSchoolDayOverride> = NSFetchRequest(entityName: "SchoolDayOverride")
-            ovDescriptor.predicate = NSPredicate(format: "date == %@", day as CVarArg)
-            ovDescriptor.fetchLimit = 1
-            let overrides: [CDSchoolDayOverride] = try viewContext.fetch(ovDescriptor)
-            if !overrides.isEmpty { return false }
-        } catch {
-            // If override fetch fails, assume weekend remains non-school
-        }
-        return true
+        SchoolCalendarService.shared.isNonSchoolDaySync(day, using: viewContext)
     }
 
     private func firstSchoolDay(onOrAfter date: Date) -> Date {

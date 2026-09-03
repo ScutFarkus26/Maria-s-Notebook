@@ -48,8 +48,7 @@ extension WorksAgendaView {
             assignments: viewContext.safeFetch(assignmentRequest),
             unresolvedFollowUpIDs: LessonsAndWorkTriage
                 .unresolvedFollowUpAssignmentIDs(in: viewContext),
-            context: viewContext,
-            calendar: calendar
+            context: viewContext
         )
         rebuildQuietStudents()
     }
@@ -61,11 +60,11 @@ extension WorksAgendaView {
     /// Runs here rather than in a `body` pass for the reason the partition does:
     /// it reads every open item's check-ins and notes and then counts school
     /// days. The steps are the card's own — `lastMeaningfulTouchDate`, then
-    /// `SchoolDayCalculationCache` — so a child's row and their cards cannot
+    /// `SchoolCalendarService` — so a child's row and their cards cannot
     /// disagree about how long something has sat.
     func rebuildQuietStudents() {
         let works = Array(openWork).uniqueByID
-        let cache = SchoolDayCalculationCache.shared
+        let cache = SchoolCalendarService.shared
         let today = Date()
 
         let touchDates = works.map { work in
@@ -78,14 +77,14 @@ extension WorksAgendaView {
         // One preload for the whole range, so the school-day count below is a
         // cache hit per item rather than a fetch per item.
         if let earliest = touchDates.min() {
-            cache.preloadNonSchoolDays(from: earliest, to: today, using: viewContext, calendar: calendar)
+            cache.preloadNonSchoolDays(from: earliest, to: today, using: viewContext)
         }
 
         var ageByWorkID: [UUID: Int] = [:]
         for (work, touched) in zip(works, touchDates) {
             guard let id = work.id else { continue }
             ageByWorkID[id] = cache.schoolDaysSinceCreation(
-                createdAt: touched, asOf: today, using: viewContext, calendar: calendar
+                createdAt: touched, asOf: today, using: viewContext
             )
         }
 
@@ -287,10 +286,6 @@ extension WorksAgendaView {
     /// The printed sheet flags exactly the work the Attention list holds, via
     /// the same `LessonsAndWorkTriage` rule.
     func needsAttention(for w: CDWorkModel) -> Bool {
-        LessonsAndWorkTriage.bucket(
-            for: w,
-            context: viewContext,
-            calendar: calendar
-        ) == .attention
+        LessonsAndWorkTriage.bucket(for: w, context: viewContext) == .attention
     }
 }

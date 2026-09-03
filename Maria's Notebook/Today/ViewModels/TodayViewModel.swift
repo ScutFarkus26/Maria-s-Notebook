@@ -32,11 +32,6 @@ final class TodayViewModel {
     private var calendar: Calendar
     private let cacheManager = TodayCacheManager()
 
-    // MARK: - School Day Cache
-
-    // Use shared SchoolDayCache to avoid repeated database fetches
-    private var schoolDayCache = SchoolDayCache()
-
     // MARK: - Inputs
 
     var date: Date {
@@ -338,7 +333,6 @@ final class TodayViewModel {
         TodayNavigationService.nextDayWithLessons(
             after: date,
             levelFilter: levelFilter,
-            cache: &schoolDayCache,
             context: context
         )
     }
@@ -349,7 +343,6 @@ final class TodayViewModel {
         TodayNavigationService.previousDayWithLessons(
             before: date,
             levelFilter: levelFilter,
-            cache: &schoolDayCache,
             context: context
         )
     }

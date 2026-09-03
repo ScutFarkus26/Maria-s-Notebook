@@ -218,7 +218,6 @@ var serviceName: ServiceType {
 
 **Calendar:**
 - `schoolCalendarService`
-- `schoolDayLookupCache`
 
 **Coordinators:**
 - `appRouter`

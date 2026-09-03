@@ -1008,7 +1008,7 @@ The daily dashboard. Shows everything relevant to the selected date.
 - **TodayScheduleBuilder** — constructs the schedule from work data
 - **TodayAttendanceLoader** — fetches and summarizes attendance
 - **TodayNavigationService** — previous/next school day navigation (respects non-school days)
-- **SchoolDayCache** — reusable cache for school day calculations
+- **SchoolCalendarService** — the app-wide school-day cache (`AppCore/`)
 
 ### Reload Strategy
 

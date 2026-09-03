@@ -46,8 +46,7 @@ extension PresentationsViewModel {
                 let days = LessonAgeHelper.schoolDaysSinceCreation(
                     createdAt: last,
                     asOf: Date(),
-                    using: viewContext,
-                    calendar: calendar
+                    using: viewContext
                 )
                 result[sid] = days
             } else {

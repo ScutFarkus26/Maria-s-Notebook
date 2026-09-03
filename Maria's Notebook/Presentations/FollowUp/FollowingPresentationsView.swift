@@ -17,7 +17,6 @@ struct FollowingPresentationsView: View {
     var onViewAll: (() -> Void)?
 
     @Environment(\.managedObjectContext) private var viewContext
-    @Environment(\.calendar) private var calendar
 
     @FetchRequest(
         sortDescriptors: [NSSortDescriptor(keyPath: \CDLessonPresentation.presentedAt, ascending: true)],
@@ -37,8 +36,7 @@ struct FollowingPresentationsView: View {
             studentID: studentID,
             searchText: searchText,
             searchTokens: searchTokens,
-            context: viewContext,
-            calendar: calendar
+            context: viewContext
         )
     }
 

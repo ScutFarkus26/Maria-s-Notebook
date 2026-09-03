@@ -42,7 +42,7 @@ Anything older than the epoch counts from it, so counters read 0 on the first da
 - **Rollover:** the epoch never moves on its own. When a new school year begins, `RootView` asks
   once — "Start Fresh" pins the epoch to the new year's start *and* moves the lens onto it;
   "Keep Counting" leaves both alone. `schoolYearCounterPromptAnsweredYear` keeps it to once a year.
-- **Clamped sites** (all via `SchoolYearCounters.countFrom`): `SchoolDayCalculationCache`
+- **Clamped sites** (all via `SchoolYearCounters.countFrom`): `SchoolCalendarService`
   `.schoolDaysSinceCreation` (which covers `LessonAgeHelper` and so days-since-last-lesson,
   presentation aging, and work age), `WorkAgingPolicy.daysSinceLastTouch`,
   `FollowUpInboxEngine.schoolDaysSince`, the checklist staleness grid, days-since-last-meeting and

@@ -178,20 +178,6 @@ extension LessonsViewModel {
         )
     }
 
-    private static func formatAgeString(from date: Date?, schoolDayCache: SchoolDayLookupCache) -> String {
-        guard let date else { return "" }
-        let today = AppCalendar.startOfDay(Date())
-        let startDate = AppCalendar.startOfDay(date)
-        guard startDate < today else { return "" }
-
-        let days = schoolDayCache.schoolDaysBetween(start: startDate, end: today)
-
-        if days == 0 { return "" }
-        if days < 7 { return "\(days)d" }
-        if days < 30 { return "\(days / 7)w" }
-        return "\(days / 30)m"
-    }
-
     // MARK: - Status Counts
 
     /// Computes the number of students who need each lesson (have not been presented).

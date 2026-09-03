@@ -8,7 +8,7 @@
 //
 // That matters for more than tidiness. Placing one work item runs
 // `WorkAgingPolicy.lastMeaningfulTouchDate` over its check-ins and notes and
-// then a school-day count through `SchoolDayCalculationCache` — cheap once,
+// then a school-day count through `SchoolCalendarService` — cheap once,
 // wasteful once per consumer per body pass. Before this type existed the
 // Attention list and the work grid ran the rule over the same array on the same
 // pass, and a third copy of it badged the cards.
@@ -111,7 +111,6 @@ struct LessonsAndWorkPartition {
         assignments: [CDLessonAssignment],
         unresolvedFollowUpIDs: Set<UUID>,
         context: NSManagedObjectContext,
-        calendar: Calendar = AppCalendar.shared,
         asOf now: Date = Date()
     ) {
         self.init(
@@ -127,7 +126,6 @@ struct LessonsAndWorkPartition {
                     context: context,
                     checkIns: (item.checkIns?.allObjects as? [CDWorkCheckIn]) ?? [],
                     notes: (item.unifiedNotes?.allObjects as? [CDNote]) ?? [],
-                    calendar: calendar,
                     asOf: now
                 )
             }

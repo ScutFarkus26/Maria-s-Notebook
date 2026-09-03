@@ -8,76 +8,9 @@ import CoreData
 // MARK: - Today Navigation Service
 
 /// Service for finding school days and days with lessons.
-/// Uses SchoolDayCache to avoid repeated database fetches.
+/// School-day checks go through `SchoolCalendarService`'s shared cache.
+@MainActor
 enum TodayNavigationService {
-
-    // MARK: - School Day Navigation
-
-    /// Returns the next school day strictly after the given date.
-    /// - Parameters:
-    ///   - date: The reference date
-    ///   - cache: School day cache to use (will be populated if needed)
-    ///   - context: Managed object context for fetching school day data
-    /// - Returns: The next school day after the given date
-    static func nextSchoolDay(
-        after date: Date,
-        cache: inout SchoolDayCache,
-        context: NSManagedObjectContext
-    ) -> Date {
-        // Cache school day data once at the start to avoid repeated database fetches
-        cache.cacheSchoolDayData(for: date, viewContext: context)
-
-        let cal = AppCalendar.shared
-        var d = cal.startOfDay(for: date)
-        // Start from the following day
-        d = cal.date(byAdding: .day, value: 1, to: d) ?? d
-        // Safety cap to avoid infinite loops in case of data errors
-        for _ in 0..<730 { // up to ~2 years
-            if !cache.isNonSchoolDay(d) { return d }
-            d = cal.date(byAdding: .day, value: 1, to: d) ?? d
-        }
-        return cal.startOfDay(for: date)
-    }
-
-    /// Returns the previous school day strictly before the given date.
-    /// - Parameters:
-    ///   - date: The reference date
-    ///   - cache: School day cache to use (will be populated if needed)
-    ///   - context: Managed object context for fetching school day data
-    /// - Returns: The previous school day before the given date
-    static func previousSchoolDay(
-        before date: Date,
-        cache: inout SchoolDayCache,
-        context: NSManagedObjectContext
-    ) -> Date {
-        // Cache school day data once at the start to avoid repeated database fetches
-        cache.cacheSchoolDayData(for: date, viewContext: context)
-
-        let cal = AppCalendar.shared
-        var d = cal.startOfDay(for: date)
-        // Start from the previous day
-        d = cal.date(byAdding: .day, value: -1, to: d) ?? d
-        for _ in 0..<730 { // up to ~2 years
-            if !cache.isNonSchoolDay(d) { return d }
-            d = cal.date(byAdding: .day, value: -1, to: d) ?? d
-        }
-        return cal.startOfDay(for: date)
-    }
-
-    /// Checks if a date is a non-school day using cached data.
-    /// - Parameters:
-    ///   - date: The date to check
-    ///   - cache: School day cache to use (will be populated if needed)
-    ///   - context: Managed object context for fetching school day data
-    /// - Returns: True if the date is a non-school day
-    static func isNonSchoolDay(
-        _ date: Date,
-        cache: inout SchoolDayCache,
-        context: NSManagedObjectContext
-    ) -> Bool {
-        cache.cacheSchoolDayData(for: date, viewContext: context)
-        return cache.isNonSchoolDay(date)
-    }
 
     // MARK: - CDLesson Navigation
 
@@ -86,29 +19,28 @@ enum TodayNavigationService {
     /// - Parameters:
     ///   - date: The reference date
     ///   - levelFilter: Level filter to apply
-    ///   - cache: School day cache to use
     ///   - context: Managed object context for fetching data
     /// - Returns: The next day with lessons, or the next school day if none found
     static func nextDayWithLessons(
         after date: Date,
         levelFilter: LevelFilter,
-        cache: inout SchoolDayCache,
         context: NSManagedObjectContext
     ) -> Date {
-        var current = nextSchoolDay(after: date, cache: &cache, context: context)
+        let calendar = SchoolCalendarService.shared
+        var current = calendar.nextSchoolDaySync(after: date, using: context)
         // Safety cap: search up to 2 years forward
         for _ in 0..<730 {
             if hasLessonsMatching(on: current, levelFilter: levelFilter, context: context) {
                 return current
             }
-            current = nextSchoolDay(after: current, cache: &cache, context: context)
+            current = calendar.nextSchoolDaySync(after: current, using: context)
             // Prevent infinite loop if we've wrapped around
             if current <= date {
                 break
             }
         }
         // If no day with lessons found, return the next school day
-        return nextSchoolDay(after: date, cache: &cache, context: context)
+        return calendar.nextSchoolDaySync(after: date, using: context)
     }
 
     /// Finds the previous day (before the given date) that has lessons scheduled.
@@ -116,22 +48,21 @@ enum TodayNavigationService {
     /// - Parameters:
     ///   - date: The reference date
     ///   - levelFilter: Level filter to apply
-    ///   - cache: School day cache to use
     ///   - context: Managed object context for fetching data
     /// - Returns: The previous day with lessons, or the previous school day if none found
     static func previousDayWithLessons(
         before date: Date,
         levelFilter: LevelFilter,
-        cache: inout SchoolDayCache,
         context: NSManagedObjectContext
     ) -> Date {
-        var current = previousSchoolDay(before: date, cache: &cache, context: context)
+        let calendar = SchoolCalendarService.shared
+        var current = calendar.previousSchoolDaySync(before: date, using: context)
         // Safety cap: search up to 2 years backward
         for _ in 0..<730 {
             if hasLessonsMatching(on: current, levelFilter: levelFilter, context: context) {
                 return current
             }
-            let prev = previousSchoolDay(before: current, cache: &cache, context: context)
+            let prev = calendar.previousSchoolDaySync(before: current, using: context)
             // Prevent infinite loop if we've wrapped around
             if prev >= date || prev == current {
                 break
@@ -139,7 +70,7 @@ enum TodayNavigationService {
             current = prev
         }
         // If no day with lessons found, return the previous school day
-        return previousSchoolDay(before: date, cache: &cache, context: context)
+        return calendar.previousSchoolDaySync(before: date, using: context)
     }
 
     // MARK: - Private Helpers

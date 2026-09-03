@@ -1,8 +1,8 @@
 import Foundation
 import CoreData
 
-/// Canonical implementation of the school-day rules. The cache layers
-/// (`SchoolDayCache`, `SchoolDayCalculationCache`, `SchoolCalendarService`)
+/// Canonical implementation of the school-day rules. The cache layer
+/// (`SchoolCalendarService`) and engines that hold their own record sets
 /// route their decisions through this type so the rules cannot drift
 /// between screens.
 ///

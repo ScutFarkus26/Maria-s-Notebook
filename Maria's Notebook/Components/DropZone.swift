@@ -1,10 +1,8 @@
-import OSLog
 import SwiftUI
 import CoreData
 import UniformTypeIdentifiers
 
 struct DropZone: View {
-    private static let logger = Logger.lessons
     @Environment(\.managedObjectContext) private var viewContext
     @Environment(\.calendar) private var calendar
     // Re-injected into drag previews: their detached hierarchy does not inherit
@@ -26,50 +24,10 @@ struct DropZone: View {
     let onQuickActions: (CDLessonAssignment) -> Void
     let onPlanNext: (CDLessonAssignment) -> Void
 
-    /// Synchronous helper that determines if a date is a non-school day using direct NSManagedObjectContext fetches.
-    private func isNonSchoolDaySync(_ date: Date) -> Bool {
-        let day = AppCalendar.startOfDay(date)
-        let cal = AppCalendar.shared
-
-        // 1) Explicit non-school day wins
-        do {
-            let nsDescriptor = {
-                let r = NSFetchRequest<CDNonSchoolDay>(entityName: "NonSchoolDay")
-                r.predicate = NSPredicate(format: "date == %@", day as CVarArg)
-                r.fetchLimit = 1
-                return r
-            }()
-            let nonSchoolDays: [CDNonSchoolDay] = try viewContext.fetch(nsDescriptor)
-            if !nonSchoolDays.isEmpty { return true }
-        } catch {
-            Self.logger.error("[\(#function)] Failed to fetch non-school days: \(error)")
-        }
-
-        // 2) Weekends are non-school by default (Sunday=1, Saturday=7)
-        let weekday = cal.component(.weekday, from: day)
-        let isWeekend = (weekday == 1 || weekday == 7)
-        guard isWeekend else { return false }
-
-        // 3) Weekend override makes it a school day
-        do {
-            let ovDescriptor = {
-                let r = NSFetchRequest<CDSchoolDayOverride>(entityName: "SchoolDayOverride")
-                r.predicate = NSPredicate(format: "date == %@", day as CVarArg)
-                r.fetchLimit = 1
-                return r
-            }()
-            let overrides: [CDSchoolDayOverride] = try viewContext.fetch(ovDescriptor)
-            if !overrides.isEmpty { return false }
-        } catch {
-            Self.logger.error("[\(#function)] Failed to fetch school day overrides: \(error)")
-        }
-        return true
-    }
-
     @State private var isNonSchool: Bool = false
 
-    /// Reading the version is cheap; the Core Data fetch in `isNonSchoolDaySync`
-    /// runs only when the day or school-day data changes — not on every render.
+    /// Reading the version is cheap; the school-day lookup in `.task` runs only
+    /// when the day or school-day data changes — not on every render.
     /// DropZone re-renders continuously while dragging, so the old computed
     /// property hit Core Data on every frame.
     private var schoolDayKey: String { "\(day.timeIntervalSinceReferenceDate)#\(SchoolDayDataVersion.current)" }
@@ -151,7 +109,9 @@ struct DropZone: View {
                 }
             )
         }
-        .task(id: schoolDayKey) { isNonSchool = isNonSchoolDaySync(day) }
+        .task(id: schoolDayKey) {
+            isNonSchool = SchoolCalendarService.shared.isNonSchoolDaySync(day, using: viewContext)
+        }
         .coordinateSpace(name: zoneSpaceID)
         .onPreferenceChange(PillFramePreference.self) { frames in
             Task { @MainActor in

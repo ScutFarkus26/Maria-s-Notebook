@@ -12,60 +12,23 @@ private let logger = Logger.app_
 extension TodayView {
 
     // MARK: - School Day Navigation
+    // Thin wrappers over the shared school-day cache so the header and
+    // day-rollover code read naturally.
 
-    /// Synchronous helper that determines if a date is a non-school day using cached data.
     func isNonSchoolDaySync(_ date: Date) -> Bool {
-        schoolDayCache.cacheSchoolDayData(for: date, viewContext: viewContext)
-        return schoolDayCache.isNonSchoolDay(date)
+        SchoolCalendarService.shared.isNonSchoolDaySync(date, using: viewContext)
     }
 
-    /// Synchronous helper that returns the next school day strictly after the given date.
     func nextSchoolDaySync(after date: Date) -> Date {
-        // Cache school day data once at the start to avoid repeated database fetches
-        schoolDayCache.cacheSchoolDayData(for: date, viewContext: viewContext)
-
-        let cal = AppCalendar.shared
-        var d = cal.startOfDay(for: date)
-        // Start from the following day
-        d = cal.date(byAdding: .day, value: 1, to: d) ?? d
-        // Safety cap to avoid infinite loops in case of data errors
-        for _ in 0..<730 { // up to ~2 years
-            if !schoolDayCache.isNonSchoolDay(d) { return d }
-            d = cal.date(byAdding: .day, value: 1, to: d) ?? d
-        }
-        return cal.startOfDay(for: date)
+        SchoolCalendarService.shared.nextSchoolDaySync(after: date, using: viewContext)
     }
 
-    /// Synchronous helper that returns the previous school day strictly before the given date.
     func previousSchoolDaySync(before date: Date) -> Date {
-        // Cache school day data once at the start to avoid repeated database fetches
-        schoolDayCache.cacheSchoolDayData(for: date, viewContext: viewContext)
-
-        let cal = AppCalendar.shared
-        var d = cal.startOfDay(for: date)
-        // Start from the previous day
-        d = cal.date(byAdding: .day, value: -1, to: d) ?? d
-        for _ in 0..<730 { // up to ~2 years
-            if !schoolDayCache.isNonSchoolDay(d) { return d }
-            d = cal.date(byAdding: .day, value: -1, to: d) ?? d
-        }
-        return cal.startOfDay(for: date)
+        SchoolCalendarService.shared.previousSchoolDaySync(before: date, using: viewContext)
     }
 
-    /// Synchronous helper that coerces the provided date to the nearest school day.
     func nearestSchoolDaySync(to date: Date) -> Date {
-        // Cache school day data once at the start to avoid repeated database fetches
-        schoolDayCache.cacheSchoolDayData(for: date, viewContext: viewContext)
-
-        let day = AppCalendar.startOfDay(date)
-        if !schoolDayCache.isNonSchoolDay(day) { return day }
-        let prev = previousSchoolDaySync(before: day)
-        let next = nextSchoolDaySync(after: day)
-        let distPrev = abs(prev.timeIntervalSince(day))
-        let distNext = abs(next.timeIntervalSince(day))
-        if distPrev < distNext { return prev }
-        // On tie or next closer, prefer next
-        return next
+        SchoolCalendarService.shared.nearestSchoolDaySync(to: date, using: viewContext)
     }
 
     // MARK: - Name Resolution

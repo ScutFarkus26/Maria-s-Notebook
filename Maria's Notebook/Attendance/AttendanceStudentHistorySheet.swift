@@ -15,7 +15,6 @@ struct AttendanceStudentHistorySheet: View {
     private var allStudentsRaw: FetchedResults<CDStudent>
 
     @State private var records: [CDAttendanceRecord] = []
-    @State private var schoolDayCache = SchoolDayCache()
 
     private static let logger = Logger.attendance
 
@@ -88,7 +87,6 @@ struct AttendanceStudentHistorySheet: View {
         .frame(minWidth: 560, minHeight: 600)
         #endif
         .onAppear {
-            schoolDayCache.cacheSchoolDayData(for: Date(), viewContext: viewContext)
             loadRecords()
         }
     }
@@ -169,7 +167,7 @@ struct AttendanceStudentHistorySheet: View {
     @ViewBuilder
     private func dayCell(for day: Date, monthAnchor: Date) -> some View {
         let inMonth = AppCalendar.shared.isDate(day, equalTo: monthAnchor, toGranularity: .month)
-        let nonSchool = schoolDayCache.isNonSchoolDay(day)
+        let nonSchool = SchoolCalendarService.shared.isNonSchoolDaySync(day, using: viewContext)
         let status = statusByDay[AppCalendar.startOfDay(day)] ?? .unmarked
 
         ZStack {

@@ -419,8 +419,7 @@ extension StudentsViewModel {
                 result[studentID] = LessonAgeHelper.schoolDaysSinceCreation(
                     createdAt: lastDate,
                     asOf: Date(),
-                    using: viewContext,
-                    calendar: calendar
+                    using: viewContext
                 )
             } else {
                 // No lesson found - return -1 to indicate no lesson

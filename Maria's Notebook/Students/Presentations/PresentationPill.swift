@@ -107,61 +107,12 @@ struct PresentationPill: View {
         return names.joined(separator: ", ")
     }
     
-    /// Synchronous helper that determines if a date is a non-school day using direct NSManagedObjectContext fetches.
-    private func isNonSchoolDaySync(_ date: Date) -> Bool {
-        let day = AppCalendar.startOfDay(date)
-        let cal = AppCalendar.shared
-
-        // 1) Check explicit non-school day
-        if hasNonSchoolDay(for: day) { return true }
-
-        // 2) Check if weekend
-        let weekday = cal.component(.weekday, from: day)
-        let isWeekend = (weekday == 1 || weekday == 7)
-        guard isWeekend else { return false }
-
-        // 3) Check weekend override (makes it a school day)
-        return !hasSchoolDayOverride(for: day)
-    }
-
-    /// Helper to check if a specific date has a non-school day entry.
-    private func hasNonSchoolDay(for day: Date) -> Bool {
-        let descriptor = {
-            let r = NSFetchRequest<CDNonSchoolDay>(entityName: "NonSchoolDay")
-            r.predicate = NSPredicate(format: "date == %@", day as CVarArg)
-            r.fetchLimit = 1
-            return r
-        }()
-        do {
-            return try !viewContext.fetch(descriptor).isEmpty
-        } catch {
-            logger.warning("Failed to fetch non-school day: \(error)")
-            return false
-        }
-    }
-
-    /// Helper to check if a specific date has a school day override entry.
-    private func hasSchoolDayOverride(for day: Date) -> Bool {
-        let descriptor = {
-            let r = NSFetchRequest<CDSchoolDayOverride>(entityName: "SchoolDayOverride")
-            r.predicate = NSPredicate(format: "date == %@", day as CVarArg)
-            r.fetchLimit = 1
-            return r
-        }()
-        do {
-            return try !viewContext.fetch(descriptor).isEmpty
-        } catch {
-            logger.warning("Failed to fetch school day override: \(error)")
-            return false
-        }
-    }
-    
     private func recentSchoolDayStarts(anchor: Date, count: Int) -> [Date] {
         var result: [Date] = []
         var cursor = AppCalendar.startOfDay(anchor)
         let needed = max(1, count)
         while result.count < needed {
-            if !isNonSchoolDaySync(cursor) {
+            if !SchoolCalendarService.shared.isNonSchoolDaySync(cursor, using: viewContext) {
                 result.append(cursor)
             }
             guard let prev = calendar.date(byAdding: .day, value: -1, to: cursor) else { break }
@@ -266,7 +217,7 @@ struct PresentationPill: View {
     }
 
     private var ageSchoolDays: Int {
-        snapshot.schoolDaysSinceCreation(asOf: Date(), using: viewContext, calendar: calendar)
+        snapshot.schoolDaysSinceCreation(asOf: Date(), using: viewContext)
     }
 
     private var ageStatus: LessonAgeStatus {

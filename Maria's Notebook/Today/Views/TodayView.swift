@@ -10,7 +10,6 @@
 // - TodayViewHelpers.swift - School day helpers and utility functions
 // - TodayViewListRows.swift - Individual row components
 // - AttendanceExpandedView.swift - Expanded attendance grid
-// - SchoolDayCache.swift - School day caching
 
 import SwiftUI
 import CoreData
@@ -86,9 +85,6 @@ struct TodayView: View {
     // ENERGY OPTIMIZATION: Filter change detection queries to only the relevant date window
     @State var filteredPresentationIDs: [UUID] = []
     @State var filteredPlanItemIDs: [UUID] = []
-
-    // MARK: - School Day Cache
-    @State var schoolDayCache = SchoolDayCache()
 
     // MARK: - Day Rollover
     /// The school-day-coerced date that currently represents "today".
@@ -523,7 +519,6 @@ struct TodayView: View {
 // - TodayViewHelpers.swift - School day helpers and utility functions
 // - TodayViewListRows.swift - Individual row components
 // - AttendanceExpandedView.swift - Expanded attendance grid
-// - SchoolDayCache.swift - School day caching
 
 // MARK: - Sheets Modifier
 // Bundles all of TodayView's sheet presentations into a single ViewModifier so

@@ -46,50 +46,10 @@ struct DayColumn: View {
         self.onPlanNext = onPlanNext
     }
 
-    /// Synchronous helper that determines if a date is a non-school day using direct NSManagedObjectContext fetches.
-    private func isNonSchoolDaySync(_ date: Date) -> Bool {
-        let day: Date = AppCalendar.startOfDay(date)
-
-        // 1) Explicit non-school day wins
-        if hasNonSchoolDay(on: day) { return true }
-
-        // 2) Weekends are non-school by default (Sunday=1, Saturday=7)
-        let weekday: Int = AppCalendar.shared.component(.weekday, from: day)
-        let isWeekend: Bool = (weekday == 1 || weekday == 7)
-        guard isWeekend else { return false }
-
-        // 3) Weekend override makes it a school day
-        return !hasSchoolDayOverride(on: day)
-    }
-
-    private func hasNonSchoolDay(on day: Date) -> Bool {
-        let request: NSFetchRequest<CDNonSchoolDay> = NSFetchRequest<CDNonSchoolDay>(entityName: "NonSchoolDay")
-        request.predicate = NSPredicate(format: "date == %@", day as CVarArg)
-        request.fetchLimit = 1
-        do {
-            let results: [CDNonSchoolDay] = try viewContext.fetch(request)
-            return !results.isEmpty
-        } catch {
-            return false
-        }
-    }
-
-    private func hasSchoolDayOverride(on day: Date) -> Bool {
-        let request = NSFetchRequest<CDSchoolDayOverride>(entityName: "SchoolDayOverride")
-        request.predicate = NSPredicate(format: "date == %@", day as CVarArg)
-        request.fetchLimit = 1
-        do {
-            let results: [CDSchoolDayOverride] = try viewContext.fetch(request)
-            return !results.isEmpty
-        } catch {
-            return false
-        }
-    }
-
     @State private var isNonSchool: Bool = false
 
-    /// Reading the version is cheap; the Core Data fetch in `isNonSchoolDaySync`
-    /// runs only when the day or school-day data changes — not on every render.
+    /// Reading the version is cheap; the school-day lookup in `.task` runs only
+    /// when the day or school-day data changes — not on every render.
     private var schoolDayKey: String { "\(day.timeIntervalSinceReferenceDate)#\(SchoolDayDataVersion.current)" }
 
     var body: some View {
@@ -164,7 +124,9 @@ struct DayColumn: View {
         .onAppear {
             AppCalendar.adopt(timeZoneFrom: calendar)
         }
-        .task(id: schoolDayKey) { isNonSchool = isNonSchoolDaySync(day) }
+        .task(id: schoolDayKey) {
+            isNonSchool = SchoolCalendarService.shared.isNonSchoolDaySync(day, using: viewContext)
+        }
         .padding(.bottom, 12)
     }
 

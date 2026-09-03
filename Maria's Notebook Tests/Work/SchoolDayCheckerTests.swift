@@ -173,4 +173,32 @@ final class SchoolDayCheckerTests {
         #expect(serviceSet.contains(saturday))
         #expect(!SchoolDayChecker.isSchoolDay(saturday, using: ctx))
     }
+
+    @Test("SchoolCalendarService's cached lookups and counts agree with SchoolDayChecker")
+    func calendarServiceCacheAgreesWithChecker() throws {
+        let stack = try CoreDataTestHelpers.makeInMemoryStack()
+        let ctx = stack.viewContext
+        let holiday = CDNonSchoolDay(context: ctx)
+        holiday.date = wednesday
+        let makeup = CDSchoolDayOverride(context: ctx)
+        makeup.date = saturday
+        #expect(CoreDataTestHelpers.save(ctx))
+
+        let service = SchoolCalendarService.shared
+        service.invalidateCache()
+        defer { service.invalidateCache() }
+
+        // Mon, Tue, Thu, Fri, Sat (make-up day), next Mon — the Wednesday holiday and Sunday are skipped.
+        #expect(SchoolDayChecker.schoolDaysBetween(start: monday, end: nextTuesday, using: ctx) == 6)
+        #expect(service.schoolDaysBetween(start: monday, end: nextTuesday, using: ctx) == 6)
+        // Second call is served from the memo and must agree with the first.
+        #expect(service.schoolDaysBetween(start: monday, end: nextTuesday, using: ctx) == 6)
+
+        #expect(service.isNonSchoolDaySync(wednesday, using: ctx))
+        #expect(!service.isNonSchoolDaySync(saturday, using: ctx))
+        #expect(service.isNonSchoolDaySync(sunday, using: ctx))
+        #expect(service.nextSchoolDaySync(after: friday, using: ctx) == saturday)
+        #expect(service.previousSchoolDaySync(before: nextMonday, using: ctx) == saturday)
+        #expect(service.nearestSchoolDaySync(to: sunday, using: ctx) == nextMonday)
+    }
 }

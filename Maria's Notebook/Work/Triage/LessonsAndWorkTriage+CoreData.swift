@@ -21,7 +21,6 @@ extension WorkTriageInput {
         context: NSManagedObjectContext,
         checkIns: [CDWorkCheckIn]? = nil,
         notes: [CDNote]? = nil,
-        calendar: Calendar = AppCalendar.shared,
         asOf now: Date = Date()
     ) {
         let workCheckIns = checkIns ?? ((work.checkIns?.allObjects as? [CDWorkCheckIn]) ?? [])
@@ -40,11 +39,10 @@ extension WorkTriageInput {
             scheduledCheckInDates: workCheckIns
                 .filter { $0.status == .scheduled }
                 .compactMap(\.date),
-            schoolDaysSinceLastTouch: SchoolDayCalculationCache.shared.schoolDaysSinceCreation(
+            schoolDaysSinceLastTouch: SchoolCalendarService.shared.schoolDaysSinceCreation(
                 createdAt: lastTouch,
                 asOf: now,
-                using: context,
-                calendar: calendar
+                using: context
             )
         )
     }
@@ -79,7 +77,6 @@ extension LessonsAndWorkTriage {
         context: NSManagedObjectContext,
         checkIns: [CDWorkCheckIn]? = nil,
         notes: [CDNote]? = nil,
-        calendar: Calendar = AppCalendar.shared,
         asOf now: Date = Date()
     ) -> TriageBucket {
         let input = WorkTriageInput(
@@ -87,7 +84,6 @@ extension LessonsAndWorkTriage {
             context: context,
             checkIns: checkIns,
             notes: notes,
-            calendar: calendar,
             asOf: now
         )
         return bucket(for: input, asOf: now)

@@ -284,13 +284,12 @@ extension AttendanceInsightsService {
         count: Int,
         context: NSManagedObjectContext
     ) -> [Date] {
-        let cache = SchoolDayCache()
-        cache.cacheSchoolDayData(for: endDate, viewContext: context)
+        let calendar = SchoolCalendarService.shared
         var schoolDays: [Date] = []
         var cursor = AppCalendar.startOfDay(endDate)
         var safety = 0
         while schoolDays.count < count && safety < 365 {
-            if !cache.isNonSchoolDay(cursor) {
+            if !calendar.isNonSchoolDaySync(cursor, using: context) {
                 schoolDays.append(cursor)
             }
             cursor = AppCalendar.addingDays(-1, to: cursor)
@@ -330,13 +329,12 @@ extension AttendanceInsightsService {
 
 extension AttendanceInsightsService {
     static func patternDayRange(endingAt end: Date, count: Int, context: NSManagedObjectContext) -> [Date] {
-        let cache = SchoolDayCache()
-        cache.cacheSchoolDayData(for: end, viewContext: context)
+        let calendar = SchoolCalendarService.shared
         var days: [Date] = []
         var cursor = AppCalendar.startOfDay(end)
         var safety = 0
         while days.count < count && safety < 365 {
-            if !cache.isNonSchoolDay(cursor) {
+            if !calendar.isNonSchoolDaySync(cursor, using: context) {
                 days.append(cursor)
             }
             cursor = AppCalendar.addingDays(-1, to: cursor)

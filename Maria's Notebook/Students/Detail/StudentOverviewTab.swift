@@ -29,7 +29,6 @@ struct StudentOverviewTab: View {
     let onWorkChanged: () -> Void
 
     @Environment(\.managedObjectContext) private var viewContext
-    @Environment(\.calendar) private var calendar
     @Environment(SaveCoordinator.self) private var saveCoordinator
     #if os(iOS)
     @Environment(\.horizontalSizeClass) private var horizontalSizeClass
@@ -224,7 +223,7 @@ struct StudentOverviewTab: View {
     
     /// Precompute age values once for all work items to avoid repeated database queries during rendering
     private func precomputeAgeValues() async {
-        let cache = SchoolDayCalculationCache.shared
+        let cache = SchoolCalendarService.shared
         let today = Date()
         
         guard !workCache.isEmpty else {
@@ -244,7 +243,7 @@ struct StudentOverviewTab: View {
         guard let minDate = allDates.min(), allDates.max() != nil else { return }
         
         // Preload school days cache for entire range
-        cache.preloadNonSchoolDays(from: minDate, to: today, using: viewContext, calendar: calendar)
+        cache.preloadNonSchoolDays(from: minDate, to: today, using: viewContext)
         
         // Compute all age values using cached data
         var result: [UUID: Int] = [:]
@@ -255,8 +254,7 @@ struct StudentOverviewTab: View {
                 notes: (work.unifiedNotes?.allObjects as? [CDNote])
             )
             let age = cache.schoolDaysSinceCreation(
-                createdAt: lastTouch, asOf: today,
-                using: viewContext, calendar: calendar
+                createdAt: lastTouch, asOf: today, using: viewContext
             )
             if let workID = work.id { result[workID] = age }
         }

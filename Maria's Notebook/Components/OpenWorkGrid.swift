@@ -25,7 +25,6 @@ struct OpenWorkGrid: View {
 
     // Not private: the deletion helpers live in OpenWorkGrid+Deletion.swift.
     @Environment(\.managedObjectContext) var viewContext
-    @Environment(\.calendar) private var calendar
     
     @State private var cachedAgeSchoolDays: [UUID: Int] = [:]
 
@@ -130,7 +129,7 @@ struct OpenWorkGrid: View {
     
     /// Precompute age values once for all works to avoid repeated calculations during rendering
     private func precomputeAgeValues() async {
-        let cache = SchoolDayCalculationCache.shared
+        let cache = SchoolCalendarService.shared
         let today = Date()
         
         // Find date range for all works
@@ -143,7 +142,7 @@ struct OpenWorkGrid: View {
         guard let minDate = allDates.min(), allDates.max() != nil else { return }
         
         // Preload school days cache for entire range
-        cache.preloadNonSchoolDays(from: minDate, to: today, using: viewContext, calendar: calendar)
+        cache.preloadNonSchoolDays(from: minDate, to: today, using: viewContext)
         
         // Compute all age values using cached data
         var result: [UUID: Int] = [:]
@@ -154,7 +153,7 @@ struct OpenWorkGrid: View {
                 for: work, checkIns: checkInsArray, notes: notesArray
             )
             let age = cache.schoolDaysSinceCreation(
-                createdAt: lastTouch, asOf: today, using: viewContext, calendar: calendar
+                createdAt: lastTouch, asOf: today, using: viewContext
             )
             if let workID = work.id {
                 result[workID] = age

@@ -220,18 +220,6 @@ struct FollowUpInboxEngine {
         return lastInitial.isEmpty ? String(first) : "\(first) \(lastInitial)."
     }
 
-    private static func isNonSchoolDay(
-        _ date: Date, nonSchoolDaysSet: Set<Date>, schoolDayOverridesSet: Set<Date>
-    ) -> Bool {
-        let day = AppCalendar.startOfDay(date)
-        if nonSchoolDaysSet.contains(day) { return true }
-        let weekday = AppCalendar.shared.component(.weekday, from: day)
-        let isWeekend = (weekday == 1 || weekday == 7)
-        guard isWeekend else { return false }
-        if schoolDayOverridesSet.contains(day) { return false }
-        return true
-    }
-
     private static func schoolDaysSince(_ start: Date, ctx: ComputeContext) -> Int {
         // Clamped to the school-year counter epoch: a follow-up left open over the summer
         // starts counting again on the first day of school (see `SchoolYearCounters`).
@@ -248,8 +236,9 @@ struct FollowUpInboxEngine {
         var count = 0
         var cursor = startDay
         while cursor < today {
-            if !isNonSchoolDay(cursor, nonSchoolDaysSet: ctx.nonSchoolDaysSet,
-                               schoolDayOverridesSet: ctx.schoolDayOverridesSet) {
+            if !SchoolDayChecker.isNonSchoolDay(
+                cursor, nonSchoolDayDates: ctx.nonSchoolDaysSet, overrideDates: ctx.schoolDayOverridesSet
+            ) {
                 count += 1
             }
             cursor = AppCalendar.addingDays(1, to: cursor)

@@ -5,7 +5,6 @@ struct DaysSinceLastLessonView: View {
     let student: CDStudent
 
     @Environment(\.managedObjectContext) private var viewContext
-    @Environment(\.calendar) private var calendar
 
     // Only fetch presented assignments — eliminates all scheduled/draft rows from the scan.
     @FetchRequest(
@@ -50,7 +49,7 @@ struct DaysSinceLastLessonView: View {
     private var daysSince: Int? {
         guard let last = lastLessonDate else { return nil }
         return LessonAgeHelper.schoolDaysSinceCreation(
-            createdAt: last, asOf: Date(), using: viewContext, calendar: calendar
+            createdAt: last, asOf: Date(), using: viewContext
         )
     }
 

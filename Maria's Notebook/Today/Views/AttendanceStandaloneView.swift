@@ -18,7 +18,6 @@ struct AttendanceStandaloneView: View {
 
     // MARK: - State
     @State private var date: Date = AppCalendar.startOfDay(Date())
-    @State private var schoolDayCache = SchoolDayCache()
     /// The school-day-coerced date that currently represents "today". When the
     /// calendar day changes we only auto-advance `date` if it still equals this
     /// anchor — a deliberately chosen date is kept.
@@ -164,46 +163,22 @@ struct AttendanceStandaloneView: View {
     }
 
     // MARK: - School Day Navigation
+    // Thin wrappers over the shared school-day cache.
 
     private func isNonSchoolDaySync(_ date: Date) -> Bool {
-        schoolDayCache.cacheSchoolDayData(for: date, viewContext: viewContext)
-        return schoolDayCache.isNonSchoolDay(date)
+        SchoolCalendarService.shared.isNonSchoolDaySync(date, using: viewContext)
     }
 
     private func nextSchoolDaySync(after date: Date) -> Date {
-        schoolDayCache.cacheSchoolDayData(for: date, viewContext: viewContext)
-        let cal = AppCalendar.shared
-        var d = cal.startOfDay(for: date)
-        d = cal.date(byAdding: .day, value: 1, to: d) ?? d
-        for _ in 0..<730 {
-            if !schoolDayCache.isNonSchoolDay(d) { return d }
-            d = cal.date(byAdding: .day, value: 1, to: d) ?? d
-        }
-        return cal.startOfDay(for: date)
+        SchoolCalendarService.shared.nextSchoolDaySync(after: date, using: viewContext)
     }
 
     private func previousSchoolDaySync(before date: Date) -> Date {
-        schoolDayCache.cacheSchoolDayData(for: date, viewContext: viewContext)
-        let cal = AppCalendar.shared
-        var d = cal.startOfDay(for: date)
-        d = cal.date(byAdding: .day, value: -1, to: d) ?? d
-        for _ in 0..<730 {
-            if !schoolDayCache.isNonSchoolDay(d) { return d }
-            d = cal.date(byAdding: .day, value: -1, to: d) ?? d
-        }
-        return cal.startOfDay(for: date)
+        SchoolCalendarService.shared.previousSchoolDaySync(before: date, using: viewContext)
     }
 
     private func nearestSchoolDaySync(to date: Date) -> Date {
-        schoolDayCache.cacheSchoolDayData(for: date, viewContext: viewContext)
-        let day = AppCalendar.startOfDay(date)
-        if !schoolDayCache.isNonSchoolDay(day) { return day }
-        let prev = previousSchoolDaySync(before: day)
-        let next = nextSchoolDaySync(after: day)
-        let distPrev = abs(prev.timeIntervalSince(day))
-        let distNext = abs(next.timeIntervalSince(day))
-        if distPrev < distNext { return prev }
-        return next
+        SchoolCalendarService.shared.nearestSchoolDaySync(to: date, using: viewContext)
     }
 
     // MARK: - Toast

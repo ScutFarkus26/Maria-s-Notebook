@@ -222,25 +222,7 @@ final class AppDependencies {
 
     // MARK: - Calendar Services
 
-    private var _schoolCalendarService: SchoolCalendarService?
-    var schoolCalendarService: SchoolCalendarService {
-        if let service = _schoolCalendarService {
-            return service
-        }
-        let service = SchoolCalendarService.shared
-        _schoolCalendarService = service
-        return service
-    }
-
-    private var _schoolDayLookupCache: SchoolDayLookupCache?
-    var schoolDayLookupCache: SchoolDayLookupCache {
-        if let cache = _schoolDayLookupCache {
-            return cache
-        }
-        let cache = SchoolDayLookupCache()
-        _schoolDayLookupCache = cache
-        return cache
-    }
+    var schoolCalendarService: SchoolCalendarService { SchoolCalendarService.shared }
 
     /// The global "viewing year" lens shared by every screen.
     /// See Documentation/Implementation/SCHOOL_YEAR_SEPARATION.md.
@@ -351,14 +333,12 @@ final class AppDependencies {
 
     /// Called when system memory pressure is detected.
     /// Clears caches proportionally to the pressure level to avoid termination.
-    /// Clears every retained school-day cache and bumps the data-version stamp
-    /// that lightweight per-instance caches (`SchoolDayCache`) check. Called on
+    /// Clears the shared school-day cache and bumps the data-version stamp that
+    /// `SchoolCalendarService` and school-day-keyed views check. Called on
     /// memory pressure and whenever the underlying calendar data changes (a local
     /// edit or a CloudKit sync), so calendar-dependent counts never go stale.
     func invalidateSchoolDayCaches() {
-        SchoolDayCalculationCache.shared.invalidate()
-        _schoolDayLookupCache?.invalidate()
-        _schoolCalendarService?.invalidateCache()
+        SchoolCalendarService.shared.invalidateCache()
         SchoolDayDataVersion.bump()
     }
 

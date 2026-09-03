@@ -43,7 +43,6 @@ enum FollowingPresentationsService {
         searchText: String = "",
         searchTokens: [String] = [],
         context: NSManagedObjectContext,
-        calendar: Calendar = AppCalendar.shared,
         asOf date: Date = Date()
     ) -> [FollowingPresentationGroup] {
         let assignmentByID = Dictionary(
@@ -99,8 +98,7 @@ enum FollowingPresentationsService {
             let age = LessonAgeHelper.schoolDaysSinceCreation(
                 createdAt: presentedAt,
                 asOf: date,
-                using: context,
-                calendar: calendar
+                using: context
             )
             let result = FollowingPresentationGroup(
                 id: id,

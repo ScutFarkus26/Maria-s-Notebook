@@ -159,7 +159,7 @@ extension PresentationsViewModel {
         if let viewContext {
             ageInSchoolDays = Double(LessonAgeHelper.schoolDaysSinceCreation(
                 createdAt: la.createdAt ?? Date(), asOf: Date(),
-                using: viewContext, calendar: calendar
+                using: viewContext
             ))
         } else {
             ageInSchoolDays = 0
@@ -241,8 +241,7 @@ extension PresentationsViewModel {
             let age = LessonAgeHelper.schoolDaysSinceCreation(
                 createdAt: la.createdAt ?? Date(),
                 asOf: Date(),
-                using: viewContext,
-                calendar: calendar
+                using: viewContext
             )
             return age > thresholdSchoolDays
         }
