@@ -168,22 +168,3 @@ struct MovedStudentsBanner: View {
         .padding(.top, 8)
     }
 }
-
-// MARK: - Utility for CDStudent Name Formatting
-
-/// Consistent student name formatting used across the app.
-enum StudentFormatter {
-    /// Returns "FirstName L." format (e.g. "Maria D.")
-    static func displayName(for student: CDStudent) -> String {
-        let parts = student.fullName.split(separator: " ")
-        guard let first = parts.first else { return student.fullName }
-        let lastInitial = parts.dropFirst().first?.first.map { String($0) } ?? ""
-        return lastInitial.isEmpty ? String(first) : "\(first) \(lastInitial)."
-    }
-
-    /// Returns just the first name
-    static func firstName(for student: CDStudent) -> String {
-        let parts = student.fullName.split(separator: " ")
-        return parts.first.map(String.init) ?? student.fullName
-    }
-}

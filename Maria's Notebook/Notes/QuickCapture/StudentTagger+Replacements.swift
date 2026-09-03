@@ -18,8 +18,9 @@ extension StudentTagger {
         var terms: [SearchTerm] = []
 
         for student in studentData {
-            let lastInitial = student.lastName.first.map { String($0) } ?? ""
-            let replacement = "\(student.firstName) \(lastInitial)."
+            let replacement = StudentFormatter.displayName(
+                firstName: student.firstName, lastName: student.lastName
+            )
 
             // Full Name
             let fullName = "\(student.firstName) \(student.lastName)".lowercased()
@@ -78,7 +79,7 @@ extension StudentTagger {
             nick = (student.nickname ?? "").trimmed()
 
             if firstNameCounts[firstLower] ?? 0 > 1 {
-                replacement = "\(first) \(firstInitial.uppercased())."
+                replacement = StudentFormatter.displayName(firstName: first, lastName: last)
             } else {
                 replacement = first
             }
@@ -152,24 +153,7 @@ extension StudentTagger {
         let matchedTrimmed = matchedText.trimmed()
         let replacementTrimmed = ctx.replacement.trimmed()
 
-        if matchedTrimmed.lowercased() == replacementTrimmed.lowercased() { return true }
-
-        if replacementTrimmed.hasSuffix(".") {
-            let expectedPattern = "\(ctx.firstLower) \(ctx.firstInitial)\\."
-            do {
-                let regex = try NSRegularExpression(
-                    pattern: "^\(expectedPattern)$", options: .caseInsensitive
-                )
-                let range = NSRange(matchedText.startIndex..., in: matchedText)
-                if regex.firstMatch(in: matchedText, options: [], range: range) != nil {
-                    return true
-                }
-            } catch {
-                Logger.notes.error("[\(#function)] Failed to create regex for '\(expectedPattern)': \(error)")
-            }
-        }
-
-        return false
+        return matchedTrimmed.lowercased() == replacementTrimmed.lowercased()
     }
 
     /// Shared helper: finds case-insensitive regex matches and appends non-overlapping replacements.
@@ -233,12 +217,6 @@ extension StudentTagger {
                 // Skip if already in correct format
                 if isAlreadyInReplacementFormat(matchedText, ctx: ctx) { continue }
                 if matchedText.lowercased() == ctx.replacement.lowercased() { continue }
-
-                // Check period-ending format match
-                if ctx.replacement.hasSuffix(".") && matchedText.hasSuffix(".") {
-                    let expected = "\(ctx.first) \(ctx.firstInitial.uppercased())."
-                    if matchedText.lowercased() == expected.lowercased() { continue }
-                }
 
                 let originalText = String(text[range])
                 let origLower = originalText.trimmed().lowercased()

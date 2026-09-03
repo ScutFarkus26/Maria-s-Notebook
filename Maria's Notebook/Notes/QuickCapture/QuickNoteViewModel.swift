@@ -303,8 +303,7 @@ class QuickNoteViewModel {
         // If there are other students in the full roster with the same first name, use Last Initial
         let duplicateCount = students.filter { $0.firstName.lowercased() == student.firstName.lowercased() }.count
         if duplicateCount > 1 {
-            let lastInitial = student.lastName.first.map { String($0) } ?? ""
-            return "\(student.firstName) \(lastInitial)."
+            return StudentFormatter.displayName(for: student)
         }
         return student.firstName
     }

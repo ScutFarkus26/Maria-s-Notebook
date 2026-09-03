@@ -129,15 +129,6 @@ extension UnifiedNoteEditor {
         }
     }
 
-    // MARK: - Name Display
-
-    func displayName(for student: CDStudent) -> String {
-        let first = student.firstName.trimmed()
-        let last = student.lastName.trimmed()
-        let li = last.first.map { String($0).uppercased() } ?? ""
-        return li.isEmpty ? first : "\(first) \(li)."
-    }
-
     // MARK: - Photo Handling
 
     /// Deletes the previous image if it differs from the original (to prevent orphaned files)

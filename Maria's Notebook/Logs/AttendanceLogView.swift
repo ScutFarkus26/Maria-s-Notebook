@@ -124,7 +124,7 @@ struct AttendanceLogView: View {
             if !searchText.isEmpty {
                 guard let studentID = record.studentIDUUID,
                       let student = studentsByID[studentID] else { return false }
-                let name = displayName(for: student).lowercased()
+                let name = StudentFormatter.displayName(for: student).lowercased()
                 let query = searchText.lowercased()
                 if !name.contains(query) { return false }
             }
@@ -184,7 +184,7 @@ struct AttendanceLogView: View {
             return "All Students"
         } else if selectedStudentIDs.count == 1, let id = selectedStudentIDs.first,
                   let student = students.first(where: { $0.id == id }) {
-            return displayName(for: student)
+            return StudentFormatter.displayName(for: student)
         } else {
             return "\(selectedStudentIDs.count) Students"
         }
@@ -198,13 +198,6 @@ struct AttendanceLogView: View {
         } else {
             return "\(selectedStatuses.count) Statuses"
         }
-    }
-
-    private func displayName(for student: CDStudent) -> String {
-        let first = student.firstName.trimmed()
-        let last = student.lastName.trimmed()
-        let li = last.first.map { String($0).uppercased() } ?? ""
-        return li.isEmpty ? first : "\(first) \(li)."
     }
 
     // Available statuses (exclude unmarked)
@@ -264,7 +257,7 @@ struct AttendanceLogView: View {
                                 if selectedStudentIDs.contains(studentID) {
                                     Image(systemName: "checkmark")
                                 }
-                                Text(displayName(for: student))
+                                Text(StudentFormatter.displayName(for: student))
                             }
                         })
                     }
@@ -452,7 +445,7 @@ struct AttendanceLogView: View {
             VStack(alignment: .leading, spacing: 2) {
                 // CDStudent name
                 if let studentID = record.studentIDUUID, let student = studentsByID[studentID] {
-                    Text(displayName(for: student))
+                    Text(StudentFormatter.displayName(for: student))
                         .font(AppTheme.ScaledFont.bodySemibold)
                 } else {
                     Text("Unknown Student")

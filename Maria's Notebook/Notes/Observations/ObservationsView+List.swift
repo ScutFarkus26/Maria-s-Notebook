@@ -91,7 +91,7 @@ extension ObservationsView {
                     HStack(spacing: 6) {
                         ForEach(item.studentIDs.prefix(3), id: \.self) { sid in
                             if let s = studentsByID[sid] {
-                                studentChip(displayName(for: s))
+                                studentChip(StudentFormatter.displayName(for: s))
                             }
                         }
                     }
@@ -163,13 +163,6 @@ extension ObservationsView {
             return String(trimmed[..<newline])
         }
         return trimmed
-    }
-
-    func displayName(for student: CDStudent) -> String {
-        let first = student.firstName.trimmed()
-        let last = student.lastName.trimmed()
-        let li = last.first.map { String($0).uppercased() } ?? ""
-        return li.isEmpty ? first : "\(first) \(li)."
     }
 
     // MARK: - Data Loading

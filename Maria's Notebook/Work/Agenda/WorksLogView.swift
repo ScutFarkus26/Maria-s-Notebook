@@ -201,17 +201,10 @@ struct WorksLogView: View {
             return "All Students"
         } else if selectedStudentIDs.count == 1, let id = selectedStudentIDs.first,
                   let student = students.first(where: { $0.id == id }) {
-            return displayName(for: student)
+            return StudentFormatter.displayName(for: student)
         } else {
             return "\(selectedStudentIDs.count) Students"
         }
-    }
-
-    private func displayName(for student: CDStudent) -> String {
-        let first = student.firstName.trimmed()
-        let last = student.lastName.trimmed()
-        let li = last.first.map { String($0).uppercased() } ?? ""
-        return li.isEmpty ? first : "\(first) \(li)."
     }
 
     // MARK: - Filter Bar
@@ -235,7 +228,7 @@ struct WorksLogView: View {
                                 if selectedStudentIDs.contains(studentID) {
                                     Image(systemName: "checkmark")
                                 }
-                                Text(displayName(for: student))
+                                Text(StudentFormatter.displayName(for: student))
                             }
                         })
                     }

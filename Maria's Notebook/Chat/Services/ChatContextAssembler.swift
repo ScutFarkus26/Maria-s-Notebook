@@ -50,7 +50,7 @@ final class ChatContextAssembler {
             let age = ageString(for: student.birthday)
             let nick = student.nickname.map { " (\($0))" } ?? ""
             let bday = formattedDate(student.birthday)
-            let nameStr = "\(student.firstName) \(student.lastName.prefix(1))\(nick)"
+            let nameStr = StudentFormatter.displayName(for: student) + nick
             lines.append("• \(nameStr) — \(student.level.rawValue), age \(age), born \(bday)")
         }
         lines.append("")

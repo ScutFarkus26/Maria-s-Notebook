@@ -274,7 +274,7 @@ final class PresentationFollowUpLifecycleTests {
         )
         #expect(studentGroups.count == 1)
         #expect(studentGroups.first?.children.count == 1)
-        #expect(studentGroups.first?.children.first?.studentName == "Ada S.")
+        #expect(studentGroups.first?.children.first?.studentName == "Ada S")
 
         let matchingSearch = FollowingPresentationsService.groups(
             rows: rows,

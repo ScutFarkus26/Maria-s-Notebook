@@ -186,18 +186,9 @@ struct FollowUpInboxEngine {
         for ids: [UUID], studentsByID: [UUID: CDStudent]
     ) -> (UUID?, String) {
         if ids.count == 1, let id = ids.first, let s = studentsByID[id] {
-            return (id, cdStudentDisplayName(s))
+            return (id, StudentFormatter.displayName(for: s))
         }
         return (nil, ids.isEmpty ? "Student" : "Group")
-    }
-
-    /// Formats a CDStudent display name in "FirstName L." format,
-    /// mirroring StudentFormatter.displayName for Core Data entities.
-    private static func cdStudentDisplayName(_ student: CDStudent) -> String {
-        let parts = student.fullName.split(separator: " ")
-        guard let first = parts.first else { return student.fullName }
-        let lastInitial = parts.dropFirst().first?.first.map { String($0) } ?? ""
-        return lastInitial.isEmpty ? String(first) : "\(first) \(lastInitial)."
     }
 
     private static func schoolDaysSince(_ start: Date, ctx: ComputeContext) -> Int {
@@ -316,7 +307,7 @@ struct FollowUpInboxEngine {
         }()
         let studentName: String = {
             if let firstID = studentIDs.first, let s = ctx.studentsByID[firstID] {
-                return cdStudentDisplayName(s)
+                return StudentFormatter.displayName(for: s)
             }
             return "Student"
         }()

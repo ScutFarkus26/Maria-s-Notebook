@@ -80,10 +80,9 @@ extension LessonAssignmentHistoryView {
             // Build student name cache
             var sNames: [UUID: String] = [:]
             for idx in studentIDs.indices {
-                let first = studentFirstNames[idx].trimmed()
-                let last = studentLastNames[idx].trimmed()
-                let li = last.first.map { String($0).uppercased() } ?? ""
-                sNames[studentIDs[idx]] = li.isEmpty ? first : "\(first) \(li)."
+                sNames[studentIDs[idx]] = StudentFormatter.displayName(
+                    firstName: studentFirstNames[idx], lastName: studentLastNames[idx]
+                )
             }
 
             // Build lesson title cache

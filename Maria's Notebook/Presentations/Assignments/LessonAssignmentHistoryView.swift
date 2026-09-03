@@ -100,16 +100,13 @@ struct LessonAssignmentHistoryView: View {
     }
 
     func displayName(for s: CDStudent) -> String {
-        let first = s.firstName.trimmed()
-        let last = s.lastName.trimmed()
         switch nameDisplayStyle {
         case .initials:
-            let fi = first.first.map { String($0).uppercased() } ?? ""
-            let li = last.first.map { String($0).uppercased() } ?? ""
+            let fi = s.firstName.trimmed().first.map { String($0).uppercased() } ?? ""
+            let li = s.lastName.trimmed().first.map { String($0).uppercased() } ?? ""
             return fi + li
         case .firstLastInitial:
-            let li = last.first.map { String($0).uppercased() } ?? ""
-            return li.isEmpty ? first : "\(first) \(li)."
+            return StudentFormatter.displayName(for: s)
         }
     }
 

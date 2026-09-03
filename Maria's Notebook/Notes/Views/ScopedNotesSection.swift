@@ -71,21 +71,13 @@ struct ScopedNotesSection: View {
             return "All"
         case let .student(id):
             if let student = studentsByID[id] {
-                return displayName(for: student)
+                return StudentFormatter.displayName(for: student)
             } else {
                 return "Student"
             }
         case let .students(ids):
             return "\(ids.count) students"
         }
-    }
-
-    private func displayName(for student: CDStudent) -> String {
-        let first = student.firstName.trimmed()
-        let last = student.lastName.trimmed()
-        let full = [first, last].filter { !$0.isEmpty }.joined(separator: " ")
-        if !full.isEmpty { return full }
-        return student.fullName.trimmed()
     }
 
     private var scopeFromChoice: NoteScope {
@@ -154,7 +146,7 @@ struct ScopedNotesSection: View {
                             id: \.objectID
                         ) { student in
                             if let studentID = student.id {
-                                Text(displayName(for: student))
+                                Text(StudentFormatter.displayName(for: student))
                                     .tag(ScopeChoice.student(studentID))
                             }
                         }

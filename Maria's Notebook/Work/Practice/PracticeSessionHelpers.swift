@@ -183,7 +183,7 @@ struct StudentCategorizer {
             switch lhs.category {
             case .withInitialStudent, .practicing:
                 // Alphabetical
-                return StudentFormatter.displayName(for: lhs.student) < StudentFormatter.displayName(for: rhs.student)
+                return lhs.student.fullName < rhs.student.fullName
 
             case .recentlyPassed:
                 // Most recently completed first
@@ -201,7 +201,7 @@ struct StudentCategorizer {
 
             case .neverReceived:
                 // Alphabetical
-                return StudentFormatter.displayName(for: lhs.student) < StudentFormatter.displayName(for: rhs.student)
+                return lhs.student.fullName < rhs.student.fullName
             }
         }
     }

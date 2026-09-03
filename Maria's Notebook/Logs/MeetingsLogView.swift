@@ -90,7 +90,7 @@ struct MeetingsLogView: View {
 
                 if let studentID = meeting.studentIDUUID,
                    let student = studentsByID[studentID] {
-                    let name = displayName(for: student).lowercased()
+                    let name = StudentFormatter.displayName(for: student).lowercased()
                     if name.contains(query) { matches = true }
                 }
 
@@ -125,7 +125,7 @@ struct MeetingsLogView: View {
             return "All Students"
         } else if selectedStudentIDs.count == 1, let id = selectedStudentIDs.first,
                   let student = students.first(where: { $0.id == id }) {
-            return displayName(for: student)
+            return StudentFormatter.displayName(for: student)
         } else {
             return "\(selectedStudentIDs.count) Students"
         }
@@ -139,13 +139,6 @@ struct MeetingsLogView: View {
         } else {
             return "\(selectedAgeRanges.count) Ages"
         }
-    }
-
-    private func displayName(for student: CDStudent) -> String {
-        let first = student.firstName.trimmed()
-        let last = student.lastName.trimmed()
-        let li = last.first.map { String($0).uppercased() } ?? ""
-        return li.isEmpty ? first : "\(first) \(li)."
     }
 
     // MARK: - Filter Bar
@@ -169,7 +162,7 @@ struct MeetingsLogView: View {
                                 if selectedStudentIDs.contains(studentID) {
                                     Image(systemName: "checkmark")
                                 }
-                                Text(displayName(for: student))
+                                Text(StudentFormatter.displayName(for: student))
                             }
                         })
                     }
@@ -306,7 +299,7 @@ struct MeetingsLogView: View {
             VStack(alignment: .leading, spacing: 4) {
                 // CDStudent name
                 if let studentID = meeting.studentIDUUID, let student = studentsByID[studentID] {
-                    Text(displayName(for: student))
+                    Text(StudentFormatter.displayName(for: student))
                         .font(AppTheme.ScaledFont.bodySemibold)
                 } else {
                     Text("Unknown Student")
