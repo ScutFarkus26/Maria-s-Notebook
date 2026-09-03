@@ -32,11 +32,21 @@ enum BlockingCacheBuilder {
         // Build cache for all unscheduled lesson assignments using prerequisite blocking logic
         let unscheduled = lessonAssignments.filter { $0.scheduledFor == nil && !$0.isGiven }
 
+        // Resolved once for the whole pass rather than per assignment: the
+        // preceding-lesson search alone was a filter + sort over the library
+        // for every unscheduled assignment.
+        let lessonsByID = Dictionary(
+            lessons.compactMap { lesson in lesson.id.map { ($0, lesson) } },
+            uniquingKeysWith: { first, _ in first }
+        )
+        let precedingLessons = BlockingAlgorithmEngine.buildPrecedingLessonCache(lessons)
+
         for la in unscheduled {
             guard let laID = la.id else { continue }
             if let blocking = buildBlockingForUnscheduled(
                 la: la,
-                lessons: lessons,
+                lessonsByID: lessonsByID,
+                precedingLessons: precedingLessons,
                 workModels: workModels,
                 lessonAssignments: lessonAssignments
             ), !blocking.isEmpty {
@@ -65,21 +75,19 @@ enum BlockingCacheBuilder {
     /// Build blocking dictionary for an unscheduled CDLessonAssignment.
     private static func buildBlockingForUnscheduled(
         la: CDLessonAssignment,
-        lessons: [CDLesson],
+        lessonsByID: [UUID: CDLesson],
+        precedingLessons: [UUID: CDLesson],
         workModels: [CDWorkModel],
         lessonAssignments: [CDLessonAssignment]
     ) -> [UUID: CDWorkModel]? {
         // Find the current lesson
         guard let currentLessonID = UUID(uuidString: la.lessonID),
-              let currentLesson = lessons.first(where: { $0.id != nil && $0.id == currentLessonID }) else {
+              lessonsByID[currentLessonID] != nil else {
             return nil
         }
 
         // Find the preceding lesson in the sequence
-        guard let precedingLesson = BlockingAlgorithmEngine.findPrecedingLesson(
-            currentLesson: currentLesson,
-            lessons: lessons
-        ) else {
+        guard let precedingLesson = precedingLessons[currentLessonID] else {
             return nil // No preceding lesson means no prerequisites
         }
 

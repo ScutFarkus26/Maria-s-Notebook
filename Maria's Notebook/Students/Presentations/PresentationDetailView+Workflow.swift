@@ -161,17 +161,9 @@ extension PresentationDetailContentView {
             if presentationVM.requiresPractice {
                 vm.lessonAssignment.needsPractice = true
             }
-            // Save per-student proficiency confirmations and check auto-unlock
-            let lessonUUID = UUID(uuidString: vm.lessonAssignment.lessonID)
+            // Save per-student proficiency confirmations
             for studentID in presentationVM.confirmedStudentIDs {
                 vm.lessonAssignment.confirmStudent(studentID)
-                if let lessonUUID {
-                    ReadinessAutoUnlockService.checkAndUnlock(
-                        afterConfirmationOn: lessonUUID,
-                        studentID: studentID,
-                        context: viewContext
-                    )
-                }
             }
         }
 

@@ -158,11 +158,6 @@ extension UnifiedPresentationWorkflowPanel {
                 continue
             }
             assignment.confirmStudent(studentID)
-            ReadinessAutoUnlockService.checkAndUnlock(
-                afterConfirmationOn: lessonID,
-                studentID: studentID,
-                context: viewContext
-            )
         }
     }
 }

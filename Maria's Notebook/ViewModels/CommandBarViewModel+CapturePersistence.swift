@@ -224,11 +224,6 @@ extension CommandBarViewModel {
                 )
             case .readyForNextLesson:
                 assignment.confirmStudent(entry.studentID)
-                ReadinessAutoUnlockService.checkAndUnlock(
-                    afterConfirmationOn: persistence.lessonID,
-                    studentID: entry.studentID,
-                    context: persistence.context
-                )
             }
         }
         return workCount

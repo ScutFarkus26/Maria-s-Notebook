@@ -51,14 +51,10 @@ enum ChecklistMatrixBuilder {
         let today = calendar.startOfDay(for: Date())
 
         // Pre-compute preceding lessons and progression rules for blocking reasons
-        var precedingLessonMap: [UUID: CDLesson] = [:]
+        let precedingLessonMap = BlockingAlgorithmEngine.buildPrecedingLessonCache(lessons)
         var progressionRulesMap: [UUID: LessonProgressionRules.ResolvedRules] = [:]
-        for lesson in lessons {
-            guard let lessonID = lesson.id else { continue }
-            if let preceding = BlockingAlgorithmEngine.findPrecedingLesson(currentLesson: lesson, lessons: lessons) {
-                precedingLessonMap[lessonID] = preceding
-                progressionRulesMap[lessonID] = LessonProgressionRules.resolve(for: preceding, context: context)
-            }
+        for (lessonID, preceding) in precedingLessonMap {
+            progressionRulesMap[lessonID] = LessonProgressionRules.resolve(for: preceding, context: context)
         }
 
         for student in students {

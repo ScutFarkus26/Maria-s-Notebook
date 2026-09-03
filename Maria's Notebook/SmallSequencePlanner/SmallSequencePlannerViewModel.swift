@@ -309,18 +309,9 @@ final class SmallSequencePlannerViewModel {
     func confirmMastery(studentID: UUID, assignmentID: UUID, context: NSManagedObjectContext) {
         let request = CDFetchRequest(CDLessonAssignment.self)
         request.predicate = NSPredicate(format: "id == %@", assignmentID as CVarArg)
-        guard let assignment = context.safeFetch(request).first else { return }
+        guard let assignment = context.safeFetchFirst(request) else { return }
         assignment.confirmStudent(studentID)
         context.safeSave()
-
-        // Trigger auto-unlock for the next lesson in sequence
-        if let lessonUUID = UUID(uuidString: assignment.lessonID) {
-            ReadinessAutoUnlockService.checkAndUnlock(
-                afterConfirmationOn: lessonUUID,
-                studentID: studentID,
-                context: context
-            )
-        }
 
         loadData(context: context)
     }
