@@ -39,12 +39,8 @@ struct AttendanceMacView: View {
             }
         }
         .onAppear {
-            AppCalendar.adopt(timeZoneFrom: calendar)
             ensureSelectedIsSchoolDay()
             reloadMonthCounts()
-        }
-        .onChange(of: calendar) { _, newCal in
-            AppCalendar.adopt(timeZoneFrom: newCal)
         }
         .onChange(of: selectedDate) { _, _ in
             reloadMonthCounts()

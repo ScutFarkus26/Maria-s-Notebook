@@ -36,7 +36,6 @@ struct AttendanceStandaloneView: View {
             }
         }
         .onAppear {
-            AppCalendar.adopt(timeZoneFrom: calendar)
             let coerced = nearestSchoolDaySync(to: date)
             if coerced != date {
                 date = AppCalendar.startOfDay(coerced)
@@ -48,9 +47,6 @@ struct AttendanceStandaloneView: View {
         }
         .onCalendarDayChange {
             handleDayChange()
-        }
-        .onChange(of: calendar) { _, newCal in
-            AppCalendar.adopt(timeZoneFrom: newCal)
         }
         .overlay(alignment: .top) {
             toastOverlay

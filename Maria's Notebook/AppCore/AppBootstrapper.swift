@@ -110,13 +110,7 @@ final class AppBootstrapper {
     }
 
     private func performEarlySetup(context: NSManagedObjectContext) {
-        // 1. Calendar Setup
-        let calendarStart = Date()
-        AppCalendar.adopt(timeZoneFrom: Calendar.current)
-        let calElapsed = Self.formatSeconds(Date().timeIntervalSince(calendarStart))
-        Self.logger.info("Bootstrap: Calendar setup completed in \(calElapsed)")
-
-        // 2. Seed built-in templates (first launch or after restore)
+        // Seed built-in templates (first launch or after restore)
         BuiltInTemplateSeeder.seedIfNeeded(context: context)
     }
 

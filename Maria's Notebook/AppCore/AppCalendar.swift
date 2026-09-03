@@ -4,23 +4,20 @@ import Foundation
 /// Use these helpers instead of `Calendar.current` directly to avoid mismatches
 /// between Planning, Today, and Agenda screens.
 enum AppCalendar {
-    /// Shared calendar used for all date normalization.
-    /// Defaults to Gregorian with the current time zone.
-    /// Marked as nonisolated(unsafe) because Calendar is thread-safe for reading,
-    /// and we need to access it from SwiftData model initializers which are nonisolated.
-    nonisolated(unsafe) static var shared: Calendar = {
+    /// Shared calendar used for all date normalization: Gregorian in the device
+    /// time zone. The time zone is `autoupdatingCurrent`, so the value never has
+    /// to be mutated to follow a device time-zone change — which is what lets it
+    /// be an immutable, `Sendable` `let` that nonisolated model initializers and
+    /// background actors can read without a lock.
+    ///
+    /// Note: unlike `Calendar.current`, this calendar carries no locale, so use
+    /// `Calendar.current` (or a `DateFormatter`) for locale symbols such as
+    /// `shortMonthSymbols`; `firstWeekday` and day arithmetic are identical.
+    static let shared: Calendar = {
         var cal = Calendar(identifier: .gregorian)
-        cal.timeZone = .current
+        cal.timeZone = .autoupdatingCurrent
         return cal
     }()
-
-    /// Update the shared calendar's time zone to match the provided calendar.
-    /// Call this whenever the environment calendar/timezone changes.
-    nonisolated static func adopt(timeZoneFrom calendar: Calendar) {
-        var cal = shared
-        cal.timeZone = calendar.timeZone
-        shared = cal
-    }
 
     // MARK: - Canonical helpers
 

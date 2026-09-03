@@ -119,7 +119,6 @@ struct TodayView: View {
             }
             .onChange(of: calendar) { _, newCal in
                 viewModel.setCalendar(newCal)
-                AppCalendar.adopt(timeZoneFrom: newCal)
             }
             .onChange(of: viewModel.date) { _, newValue in
                 handleDateChange(newValue)
@@ -397,7 +396,6 @@ struct TodayView: View {
         viewModel.setCalendar(calendar)
         async let reminderSync: Void = syncReminders()
         async let calendarSync: Void = syncCalendarEvents()
-        AppCalendar.adopt(timeZoneFrom: calendar)
         let coerced = nearestSchoolDaySync(to: viewModel.date)
         if coerced != viewModel.date {
             viewModel.date = AppCalendar.startOfDay(coerced)

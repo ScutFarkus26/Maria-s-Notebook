@@ -158,10 +158,9 @@ final class TodayViewModel {
 
     // MARK: - Init
 
-    init(context: NSManagedObjectContext, date: Date = Date(), calendar: Calendar = .current) {
+    init(context: NSManagedObjectContext, date: Date = Date(), calendar: Calendar = AppCalendar.shared) {
         self.context = context
         self.calendar = calendar
-        AppCalendar.adopt(timeZoneFrom: calendar)
         // Set date without triggering didSet (which would call scheduleReload)
         // The initial reload is deferred to handleViewAppear() via .task to avoid
         // competing with SwiftUI's initial body evaluation for the store coordinator.
@@ -177,7 +176,6 @@ final class TodayViewModel {
 
     func setCalendar(_ cal: Calendar) {
         self.calendar = cal
-        AppCalendar.adopt(timeZoneFrom: cal)
         let normalized = self.date.startOfDay
         if self.date != normalized {
             self.date = normalized

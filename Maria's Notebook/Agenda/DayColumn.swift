@@ -121,9 +121,6 @@ struct DayColumn: View {
                 }
             }
         }
-        .onAppear {
-            AppCalendar.adopt(timeZoneFrom: calendar)
-        }
         .task(id: schoolDayKey) {
             isNonSchool = SchoolCalendarService.shared.isNonSchoolDaySync(day, using: viewContext)
         }

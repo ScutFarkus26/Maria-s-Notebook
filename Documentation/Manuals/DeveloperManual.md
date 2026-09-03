@@ -1300,7 +1300,7 @@ array.partitioned(by: predicate) -> (matching: [T], rest: [T])
 **Files:** `Utils/Date+Normalization.swift`, `Utils/DateCalculations.swift`, `Utils/DateFormatters.swift`
 
 - `AppCalendar.startOfDay(date)` — normalized date used everywhere for date comparisons
-- `AppCalendar.adopt(timeZoneFrom:)` — timezone consistency
+- `AppCalendar.shared` — immutable Gregorian calendar on `TimeZone.autoupdatingCurrent`; the canon behind `\.calendar` and every non-view date computation
 - Date formatters shared as static instances to avoid re-creation
 
 ## String Utilities
