@@ -146,7 +146,7 @@ struct StudentYearPlanTab: View {
         guard let start = cal.date(from: startComps),
               let end = cal.date(from: endComps) else { return }
 
-        let dates = await SchoolCalendar.nonSchoolDays(in: start..<end, using: viewContext)
+        let dates = await SchoolCalendarService.shared.nonSchoolDays(in: start..<end, using: viewContext)
         var cells = Set<CellID>()
         for date in dates {
             cells.insert(CellID(

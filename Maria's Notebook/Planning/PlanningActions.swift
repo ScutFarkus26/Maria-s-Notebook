@@ -72,7 +72,7 @@ enum PlanningActions {
             }
             guard anyAbsent else { continue }
 
-            let nextDay = await SchoolCalendar.nextSchoolDay(after: day, using: context)
+            let nextDay = await SchoolCalendarService.shared.nextSchoolDay(after: day, using: context)
             let comps = calendar.dateComponents([.hour, .minute, .second], from: when)
             if let newDate = calendar.date(
                 bySettingHour: comps.hour ?? 9,
@@ -106,7 +106,7 @@ enum PlanningActions {
         for la in scheduled {
             guard let when = la.scheduledFor else { continue }
             let day = calendar.startOfDay(for: when)
-            let nextDay = await SchoolCalendar.nextSchoolDay(after: day, using: context)
+            let nextDay = await SchoolCalendarService.shared.nextSchoolDay(after: day, using: context)
             let comps = calendar.dateComponents([.hour, .minute, .second], from: when)
             if let newDate = calendar.date(
                 bySettingHour: comps.hour ?? 9,

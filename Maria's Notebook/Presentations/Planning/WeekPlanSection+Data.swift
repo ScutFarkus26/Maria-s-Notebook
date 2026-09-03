@@ -176,7 +176,7 @@ extension WeekPlanSection {
         guard !scheduled.isEmpty else { return }
         for lesson in scheduled {
             guard let currentDate = lesson.scheduledFor else { continue }
-            let nextSchoolDay = await SchoolCalendar.nextSchoolDay(after: currentDate, using: viewContext)
+            let nextSchoolDay = await SchoolCalendarService.shared.nextSchoolDay(after: currentDate, using: viewContext)
             // Carry the within-day position across, or moving the week forward
             // would flatten every day's order to a single instant.
             lesson.setScheduledFor(

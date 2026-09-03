@@ -81,7 +81,7 @@ struct ColorUtils {
     private static var fallback: Color { Color.gray.opacity(0.6) }
 }
 
-/// Helper to compute school-day age counts using the app's SchoolCalendar.
+/// Helper to compute school-day age counts using the app's SchoolCalendarService.
 struct LessonAgeHelper {
     /// Compute the number of school days between `createdAt` (start of day) and `today` (start of day).
     /// Routes through SchoolDayCalculationCache to avoid issuing a Core Data fetch per day.

@@ -146,14 +146,14 @@ final class AddSequenceViewModel {
         var currentDate = cal.startOfDay(for: startDate)
 
         // Ensure start date is a school day
-        if await SchoolCalendar.isNonSchoolDay(currentDate, using: context) {
-            currentDate = await SchoolCalendar.nextSchoolDay(after: currentDate, using: context)
+        if await SchoolCalendarService.shared.isNonSchoolDay(currentDate, using: context) {
+            currentDate = await SchoolCalendarService.shared.nextSchoolDay(after: currentDate, using: context)
         }
 
         for (index, lessonInSequence) in sequence.enumerated() {
             if index > 0 {
                 for _ in 0..<spacingDays {
-                    currentDate = await SchoolCalendar.nextSchoolDay(after: currentDate, using: context)
+                    currentDate = await SchoolCalendarService.shared.nextSchoolDay(after: currentDate, using: context)
                 }
             }
 

@@ -165,7 +165,7 @@ struct SchoolCalendarSettingsView: View {
 
     private func reload() async {
         let range = monthInterval.start ..< monthInterval.end
-        nonSchoolDates = await SchoolCalendar.nonSchoolDays(in: range, using: viewContext)
+        nonSchoolDates = await SchoolCalendarService.shared.nonSchoolDays(in: range, using: viewContext)
     }
 
     private func shiftMonth(_ delta: Int) {

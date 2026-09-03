@@ -126,7 +126,7 @@ final class StudentYearPlanViewModel {
         var currentDate = newDateNormalized
         for next in subsequent {
             for _ in 0..<max(1, next.spacingSchoolDays) {
-                currentDate = await SchoolCalendar.nextSchoolDay(after: currentDate, using: context)
+                currentDate = await SchoolCalendarService.shared.nextSchoolDay(after: currentDate, using: context)
             }
             next.plannedDate = currentDate
             next.modifiedAt = Date()
@@ -153,13 +153,13 @@ final class StudentYearPlanViewModel {
 
             guard let firstDate = first.plannedDate, firstDate < today else { continue }
 
-            var currentDate = await SchoolCalendar.nextSchoolDay(after: today, using: context)
+            var currentDate = await SchoolCalendarService.shared.nextSchoolDay(after: today, using: context)
             first.plannedDate = currentDate
             first.modifiedAt = Date()
 
             for entry in sorted.dropFirst() {
                 for _ in 0..<max(1, entry.spacingSchoolDays) {
-                    currentDate = await SchoolCalendar.nextSchoolDay(after: currentDate, using: context)
+                    currentDate = await SchoolCalendarService.shared.nextSchoolDay(after: currentDate, using: context)
                 }
                 entry.plannedDate = currentDate
                 entry.modifiedAt = Date()

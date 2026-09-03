@@ -56,7 +56,7 @@ struct CalendarMonthGridView: View {
         guard nonSchoolDates == nil else { return }
         let start = startOfMonth
         let end = calendar.date(byAdding: .month, value: 1, to: start) ?? start
-        let set = await SchoolCalendar.nonSchoolDays(in: start..<end, using: viewContext)
+        let set = await SchoolCalendarService.shared.nonSchoolDays(in: start..<end, using: viewContext)
         await MainActor.run { computedNonSchoolDates = set }
     }
 
@@ -112,7 +112,7 @@ struct CalendarMonthGridView: View {
         Task {
             let toggleResult: Bool?
             do {
-                toggleResult = try await SchoolCalendar.toggleNonSchoolDay(d, using: viewContext)
+                toggleResult = try await SchoolCalendarService.shared.toggleNonSchoolDay(d, using: viewContext)
             } catch {
                 Self.logger.warning("Failed to toggle non-school day: \(error)")
                 toggleResult = nil
@@ -126,7 +126,7 @@ struct CalendarMonthGridView: View {
             if let result = toggleResult {
                 newState = result
             } else {
-                newState = await SchoolCalendar.isNonSchoolDay(d, using: viewContext)
+                newState = await SchoolCalendarService.shared.isNonSchoolDay(d, using: viewContext)
             }
             await MainActor.run {
                 onDateToggled?(d, newState)
@@ -134,7 +134,8 @@ struct CalendarMonthGridView: View {
             if nonSchoolDates == nil {
                 let start: Date = startOfMonth
                 let end: Date = calendar.date(byAdding: .month, value: 1, to: start) ?? start
-                let set: Set<Date> = await SchoolCalendar.nonSchoolDays(in: start..<end, using: viewContext)
+                let set: Set<Date> = await SchoolCalendarService.shared
+                    .nonSchoolDays(in: start..<end, using: viewContext)
                 await MainActor.run { computedNonSchoolDates = set }
             }
         }

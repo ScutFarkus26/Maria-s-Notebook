@@ -56,7 +56,7 @@ enum SequenceAutoPopulateService {
                 // Compute date: first entry uses scheduledDate, rest are spaced
                 if index > 0 {
                     for _ in 0..<defaultSpacing {
-                        currentDate = await SchoolCalendar.nextSchoolDay(
+                        currentDate = await SchoolCalendarService.shared.nextSchoolDay(
                             after: currentDate, using: context
                         )
                     }
