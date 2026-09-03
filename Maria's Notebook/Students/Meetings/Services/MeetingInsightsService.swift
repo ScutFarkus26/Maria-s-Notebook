@@ -78,7 +78,7 @@ final class MeetingInsightsService {
     ) async throws -> MeetingInsightsResult {
         mcpClient.configureForFeature(.backgroundTasks)
 
-        let cutoff = Calendar.current.date(byAdding: .day, value: -timeframeDays, to: Date()) ?? Date()
+        let cutoff = AppCalendar.shared.date(byAdding: .day, value: -timeframeDays, to: Date()) ?? Date()
         let relevantMeetings = meetings.filter { ($0.date ?? .distantPast) >= cutoff }
 
         guard !relevantMeetings.isEmpty else {

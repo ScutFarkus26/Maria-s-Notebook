@@ -5,6 +5,7 @@ import OSLog
 struct BookClubSessionDetailView: View {
     @ObservedObject var session: CDBookClubSession
     @Environment(\.managedObjectContext) private var viewContext
+    @Environment(\.calendar) private var calendar
     let onClose: () -> Void
     let onDelete: () -> Void
 
@@ -263,10 +264,10 @@ struct BookClubSessionDetailView: View {
         let cadence: BookClubCadence = {
             switch session.cadenceKind {
             case .weekly:
-                let weekday = session.startDate.map { Calendar.current.component(.weekday, from: $0) } ?? 2
+                let weekday = session.startDate.map { calendar.component(.weekday, from: $0) } ?? 2
                 return .weekly(weekday: weekday)
             case .biweekly:
-                let weekday = session.startDate.map { Calendar.current.component(.weekday, from: $0) } ?? 2
+                let weekday = session.startDate.map { calendar.component(.weekday, from: $0) } ?? 2
                 return .biweekly(weekday: weekday)
             case .custom:
                 return .custom(weekdayMask: session.meetingWeekdayMask)

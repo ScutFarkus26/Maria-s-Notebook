@@ -124,7 +124,7 @@ private struct ParshaContentList: View {
 
     private var presentationsByYear: [(year: Int, items: [CDLessonAssignment])] {
         let grouped = Dictionary(grouping: previousPresentations) { assignment in
-            Calendar.current.component(.year, from: assignment.presentedAt ?? .distantPast)
+            AppCalendar.shared.component(.year, from: assignment.presentedAt ?? .distantPast)
         }
         return grouped
             .map { (year: $0.key, items: $0.value) }

@@ -218,7 +218,7 @@ extension TodayView {
 
         let nextDueDate: Date?
         if todo.recurrence == .custom, todo.customIntervalDays > 0 {
-            nextDueDate = Calendar.current.date(byAdding: .day, value: Int(todo.customIntervalDays), to: baseDate)
+            nextDueDate = calendar.date(byAdding: .day, value: Int(todo.customIntervalDays), to: baseDate)
         } else {
             nextDueDate = todo.recurrence.nextDate(after: baseDate)
         }
@@ -227,8 +227,8 @@ extension TodayView {
 
         var nextScheduled: Date?
         if let scheduled = todo.scheduledDate, let due = todo.dueDate {
-            let offset = Calendar.current.dateComponents([.day], from: due, to: scheduled).day ?? 0
-            nextScheduled = Calendar.current.date(byAdding: .day, value: offset, to: nextDueDate)
+            let offset = calendar.dateComponents([.day], from: due, to: scheduled).day ?? 0
+            nextScheduled = calendar.date(byAdding: .day, value: offset, to: nextDueDate)
         } else if todo.scheduledDate != nil {
             nextScheduled = nextDueDate
         }

@@ -12,7 +12,7 @@ struct TodoDateParser {
         var matchedText: String?
     }
 
-    private static let calendar = Calendar.current
+    private static let calendar = AppCalendar.shared
 
     /// Parse a todo title for date phrases and return a clean title + suggested date.
     static func parse(_ input: String) -> ParseResult {

@@ -23,7 +23,7 @@ struct ReportMonth: Equatable, Hashable, Identifiable, Sendable {
         components.year = year
         components.month = month
         components.day = 1
-        let calendar = Calendar.current
+        let calendar = AppCalendar.shared
         guard let date = calendar.date(from: components) else { return monthKey }
         return date.formatted(.dateTime.month(.wide).year())
     }
@@ -70,7 +70,7 @@ struct ReportMonth: Equatable, Hashable, Identifiable, Sendable {
     }
 
     /// The cycle currently open for reporting: last month's records.
-    static func currentCycle(now: Date = Date(), calendar: Calendar = Calendar.current) -> ReportMonth {
+    static func currentCycle(now: Date = Date(), calendar: Calendar = AppCalendar.shared) -> ReportMonth {
         containing(now, calendar: calendar).previous
     }
 

@@ -70,7 +70,7 @@ final class ChatContextAssembler {
         lessonsDict: [UUID: CDLesson], studentsDict: [UUID: CDStudent]
     ) {
         let recentPresentations = fetchPresentations(from: weekStart, to: Date(), state: .presented)
-        let nextWeek = Calendar.current.date(byAdding: .day, value: 7, to: Date()) ?? Date()
+        let nextWeek = AppCalendar.shared.date(byAdding: .day, value: 7, to: Date()) ?? Date()
         let scheduledPresentations = fetchPresentations(from: Date(), to: nextWeek, state: .scheduled)
 
         lines.append("--- This Week ---")
@@ -304,7 +304,7 @@ final class ChatContextAssembler {
 
     private func appendStudentCompletedWork(_ lines: inout [String], student: CDStudent) {
         guard let studentID = student.id else { return }
-        let monthStart = Calendar.current.date(byAdding: .day, value: -30, to: Date()) ?? Date()
+        let monthStart = AppCalendar.shared.date(byAdding: .day, value: -30, to: Date()) ?? Date()
         let completedWork = fetchCompletedWorkForStudent(studentID: studentID.uuidString, since: monthStart)
         guard !completedWork.isEmpty else { return }
         lines.append("Completed work (last 30 days):")
@@ -333,7 +333,7 @@ final class ChatContextAssembler {
 
     private func appendStudentAttendance(_ lines: inout [String], student: CDStudent) {
         guard let studentID = student.id else { return }
-        let monthStart = Calendar.current.date(byAdding: .day, value: -30, to: Date()) ?? Date()
+        let monthStart = AppCalendar.shared.date(byAdding: .day, value: -30, to: Date()) ?? Date()
         let attendance = fetchAttendanceRecords(from: monthStart, to: Date())
             .filter { $0.studentID == studentID.uuidString }
         let presentCount = attendance.filter { $0.status == .present }.count
@@ -517,7 +517,7 @@ final class ChatContextAssembler {
 
     private func ageString(for birthday: Date?) -> String {
         guard let birthday else { return "Unknown" }
-        let components = Calendar.current.dateComponents([.year, .month], from: birthday, to: Date())
+        let components = AppCalendar.shared.dateComponents([.year, .month], from: birthday, to: Date())
         let years = components.year ?? 0
         let months = components.month ?? 0
         if years > 0 {

@@ -160,7 +160,7 @@ extension TodoMainView {
 
     var groupedTodos: [String: [CDTodoItem]] {
         var groups: [String: [CDTodoItem]] = [:]
-        let cal = Calendar.current
+        let cal = AppCalendar.shared
         let today = AppCalendar.startOfDay(Date())
 
         // For Upcoming filter, use day-by-day timeline

@@ -35,7 +35,7 @@ final class StudentAnalysisService {
     /// - Returns: A CDDevelopmentSnapshotEntity containing analysis results
     func analyzeStudent(_ student: CDStudent, lookbackDays: Int = 30) async throws -> CDDevelopmentSnapshotEntity {
         mcpClient.configureForFeature(.backgroundTasks)
-        let cutoffDate = Calendar.current.date(byAdding: .day, value: -lookbackDays, to: Date()) ?? Date()
+        let cutoffDate = AppCalendar.shared.date(byAdding: .day, value: -lookbackDays, to: Date()) ?? Date()
 
         // Gather student data from the past N days
         let studentData = try await gatherStudentData(student: student, since: cutoffDate)

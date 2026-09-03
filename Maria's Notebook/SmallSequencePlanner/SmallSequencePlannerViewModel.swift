@@ -368,6 +368,6 @@ final class SmallSequencePlannerViewModel {
         guard let date else { return 0 }
         // Clamped to the school-year counter epoch (see `SchoolYearCounters`).
         let from = SchoolYearCounters.countFrom(date)
-        return Calendar.current.dateComponents([.day], from: from, to: Date()).day ?? 0
+        return AppCalendar.shared.dateComponents([.day], from: from, to: Date()).day ?? 0
     }
 }

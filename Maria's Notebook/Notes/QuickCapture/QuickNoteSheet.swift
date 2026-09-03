@@ -440,7 +440,7 @@ struct QuickNoteSheet: View {
                     .colorMultiply(.clear)
                     .background(
                         Image(systemName: "calendar")
-                            .foregroundStyle(Calendar.current.isDateInToday(viewModel.noteDate) ? .primary : Color.red)
+                            .foregroundStyle(AppCalendar.shared.isDateInToday(viewModel.noteDate) ? .primary : Color.red)
                     )
                     .frame(width: 24, height: 24)
                     .fixedSize()

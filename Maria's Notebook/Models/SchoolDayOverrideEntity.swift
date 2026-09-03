@@ -13,7 +13,7 @@ public class CDSchoolDayOverride: NSManagedObject {
         let entity = NSEntityDescription.entity(forEntityName: "SchoolDayOverride", in: context)!
         self.init(entity: entity, insertInto: context)
         self.id = UUID()
-        self.date = Calendar.current.startOfDay(for: Date())
+        self.date = AppCalendar.shared.startOfDay(for: Date())
     }
 }
 

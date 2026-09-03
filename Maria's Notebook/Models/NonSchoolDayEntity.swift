@@ -14,7 +14,7 @@ public class CDNonSchoolDay: NSManagedObject {
         let entity = NSEntityDescription.entity(forEntityName: "NonSchoolDay", in: context)!
         self.init(entity: entity, insertInto: context)
         self.id = UUID()
-        self.date = Calendar.current.startOfDay(for: Date())
+        self.date = AppCalendar.shared.startOfDay(for: Date())
         self.reason = nil
     }
 }

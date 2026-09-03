@@ -129,7 +129,7 @@ struct StudentInsightsView: View {
     let student = CDStudent(context: ctx)
     student.firstName = "Emma"
     student.lastName = "Johnson"
-    student.birthday = Calendar.current.date(byAdding: .year, value: -4, to: Date())!
+    student.birthday = AppCalendar.shared.date(byAdding: .year, value: -4, to: Date())!
     student.level = .lower
 
     let snapshot = CDDevelopmentSnapshotEntity(context: ctx)

@@ -64,7 +64,7 @@ struct ReportGeneratorService {
         var id: String { rawValue }
 
         func dateRange(from today: Date = Date()) -> ClosedRange<Date> {
-            let calendar = Calendar.current
+            let calendar = AppCalendar.shared
             switch self {
             case .lastWeek:
                 let start = calendar.date(byAdding: .day, value: -7, to: today) ?? today

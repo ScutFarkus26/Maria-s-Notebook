@@ -56,7 +56,7 @@ final class StudentAreaProgressionViewModel {
         }
 
         // School day counting helper
-        let calendar = Calendar.current
+        let calendar = AppCalendar.shared
         let today = calendar.startOfDay(for: Date())
 
         var completed = 0

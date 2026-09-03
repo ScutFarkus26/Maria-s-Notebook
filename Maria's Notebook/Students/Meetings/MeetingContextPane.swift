@@ -30,7 +30,8 @@ struct MeetingContextPane: View {
     @State private var meetingToDelete: CDStudentMeeting?
     @State private var expandedWorkID: UUID?
     @State private var restingDatePickerWorkID: UUID?
-    @State private var restingDate: Date = Calendar.current.date(byAdding: .weekOfYear, value: 2, to: Date()) ?? Date()
+    @State private var restingDate: Date =
+        AppCalendar.shared.date(byAdding: .weekOfYear, value: 2, to: Date()) ?? Date()
     @State private var rescheduleWorkID: UUID?
     @State private var rescheduleDate: Date = Date()
 
@@ -314,7 +315,7 @@ struct MeetingContextPane: View {
                 } else {
                     Button {
                         restingDatePickerWorkID = workID
-                        restingDate = Calendar.current.date(byAdding: .weekOfYear, value: 2, to: Date()) ?? Date()
+                        restingDate = AppCalendar.shared.date(byAdding: .weekOfYear, value: 2, to: Date()) ?? Date()
                     } label: {
                         Label("Let Rest", systemImage: "moon.zzz")
                             .font(.caption2)

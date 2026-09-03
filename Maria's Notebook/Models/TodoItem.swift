@@ -90,7 +90,7 @@ enum RecurrencePattern: String, Codable, CaseIterable, Sendable {
     /// Calculate the next due date based on the current due date
     /// For `.custom`, returns nil — handled externally using `customIntervalDays`.
     func nextDate(after date: Date) -> Date? {
-        let calendar = Calendar.current
+        let calendar = AppCalendar.shared
         switch self {
         case .none, .custom:
             return nil

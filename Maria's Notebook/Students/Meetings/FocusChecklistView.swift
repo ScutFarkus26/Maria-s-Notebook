@@ -194,7 +194,7 @@ struct FocusChecklistView: View {
     }
 
     private func weeksCarried(since date: Date) -> Int {
-        let calendar = Calendar.current
+        let calendar = AppCalendar.shared
         let components = calendar.dateComponents([.weekOfYear], from: date, to: Date())
         return max(0, components.weekOfYear ?? 0)
     }

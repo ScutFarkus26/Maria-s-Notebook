@@ -39,7 +39,7 @@ extension MCPNotebookTools {
                 let lines = students.map { student -> String in
                     var details = [student.level.rawValue.lowercased()]
                     if let birthday = student.birthday {
-                        let age = Calendar.current.dateComponents([.year], from: birthday, to: Date()).year ?? 0
+                        let age = AppCalendar.shared.dateComponents([.year], from: birthday, to: Date()).year ?? 0
                         details.append("age \(age)")
                     }
                     if let started = student.dateStarted {
@@ -137,7 +137,7 @@ extension MCPNotebookTools {
             throw MCPToolError("That student record has no identifier.")
         }
 
-        let cutoff = Calendar.current.date(byAdding: .day, value: -daysBack, to: Date()) ?? .distantPast
+        let cutoff = AppCalendar.shared.date(byAdding: .day, value: -daysBack, to: Date()) ?? .distantPast
         let request = CDFetchRequest(CDNote.self)
         request.predicate = NSPredicate(format: "createdAt >= %@", cutoff as NSDate)
         request.sortDescriptors = [NSSortDescriptor(key: "createdAt", ascending: false)]
@@ -248,7 +248,7 @@ extension MCPNotebookTools {
             ],
             handler: { arguments in
                 let daysBack = intArgument(arguments, "days_back", default: 30, range: 1...120)
-                let start = Calendar.current.date(byAdding: .day, value: -daysBack, to: Date()) ?? .distantPast
+                let start = AppCalendar.shared.date(byAdding: .day, value: -daysBack, to: Date()) ?? .distantPast
                 let references = PresentationObservationCoverageService.missingObservationReferences(
                     in: context(),
                     from: start,

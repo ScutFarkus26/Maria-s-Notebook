@@ -53,7 +53,7 @@ enum AttendanceInsightsTimeframe: String, CaseIterable, Identifiable, Sendable {
             let priorStart = AppCalendar.addingDays(-(fixedDays - 1), to: priorEnd)
             return priorStart...priorEnd
         case .schoolYear:
-            let cal = Calendar.current
+            let cal = AppCalendar.shared
             let priorStart = cal.date(byAdding: .year, value: -1, to: range.lowerBound) ?? range.lowerBound
             let priorEnd = cal.date(byAdding: .year, value: -1, to: range.upperBound) ?? range.upperBound
             return AppCalendar.startOfDay(priorStart)...AppCalendar.startOfDay(priorEnd)

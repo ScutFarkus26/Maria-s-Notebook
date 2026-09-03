@@ -34,13 +34,13 @@ final class APIUsageTracker {
     }
 
     var todayCallCount: Int {
-        let startOfDay = Calendar.current.startOfDay(for: Date())
+        let startOfDay = AppCalendar.shared.startOfDay(for: Date())
         return entries.filter { $0.date >= startOfDay }.count
     }
 
     var thisMonthCallCount: Int {
-        let components = Calendar.current.dateComponents([.year, .month], from: Date())
-        guard let startOfMonth = Calendar.current.date(from: components) else { return 0 }
+        let components = AppCalendar.shared.dateComponents([.year, .month], from: Date())
+        guard let startOfMonth = AppCalendar.shared.date(from: components) else { return 0 }
         return entries.filter { $0.date >= startOfMonth }.count
     }
 

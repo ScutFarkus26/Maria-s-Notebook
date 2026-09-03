@@ -12,7 +12,7 @@ struct ReportGeneratorView: View {
 
     @State private var selectedDateRange: ReportGeneratorService.DateRangeOption = .lastMonth
     @State private var selectedStyle: ReportGeneratorService.ReportStyle = .progressReport
-    @State private var customStartDate: Date = Calendar.current.date(byAdding: .month, value: -1, to: Date()) ?? Date()
+    @State private var customStartDate: Date = AppCalendar.shared.date(byAdding: .month, value: -1, to: Date()) ?? Date()
     @State private var customEndDate: Date = Date()
 
     @State private var isGenerating: Bool = false

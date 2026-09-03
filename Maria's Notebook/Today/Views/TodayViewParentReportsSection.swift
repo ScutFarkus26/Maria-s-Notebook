@@ -15,6 +15,7 @@ extension TodayView {
 
 struct ParentReportsSectionView: View {
     @Environment(\.appRouter) private var appRouter
+    @Environment(\.calendar) private var calendar
 
     @FetchRequest(
         sortDescriptors: [],
@@ -33,11 +34,11 @@ struct ParentReportsSectionView: View {
     private var cycle: ReportMonth { ReportMonth.currentCycle() }
 
     private var cycleHasOpened: Bool {
-        Date() >= cycle.cycleWindow(calendar: Calendar.current).start
+        Date() >= cycle.cycleWindow(calendar: calendar).start
     }
 
     private var isOverdue: Bool {
-        Date() > cycle.cycleWindow(calendar: Calendar.current).end
+        Date() > cycle.cycleWindow(calendar: calendar).end
     }
 
     var body: some View {

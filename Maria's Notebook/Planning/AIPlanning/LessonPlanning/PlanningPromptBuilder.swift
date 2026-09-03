@@ -89,7 +89,7 @@ struct PlanningPromptBuilder {
         weekStart: Date
     ) -> String {
         let weekDays = (0..<5).compactMap { offset in
-            Calendar.current.date(byAdding: .day, value: offset, to: weekStart)
+            AppCalendar.shared.date(byAdding: .day, value: offset, to: weekStart)
         }
         let dayLabels = weekDays.map { DateFormatters.weekdayAndDate.string(from: $0) }
         

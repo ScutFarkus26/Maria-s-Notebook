@@ -15,7 +15,7 @@ extension LessonPlanningService {
         summary: String
     ) -> WeekPlan {
         let weekDays = (0..<5).compactMap { offset -> (String, Date)? in
-            guard let date = Calendar.current.date(byAdding: .day, value: offset, to: weekStart) else { return nil }
+            guard let date = AppCalendar.shared.date(byAdding: .day, value: offset, to: weekStart) else { return nil }
             return (DateFormatters.weekdayAndDate.string(from: date), date)
         }
 
@@ -144,7 +144,7 @@ extension LessonPlanningService {
     }
 
     func nextWeekStart() -> Date {
-        let calendar = Calendar.current
+        let calendar = AppCalendar.shared
         let today = calendar.startOfDay(for: Date())
         let weekday = calendar.component(.weekday, from: today)
         // Next Monday

@@ -265,7 +265,7 @@ struct ParentReportDraftEditorView: View {
     private func makePDFData() -> Data? {
         guard attachPDF else { return nil }
         let reportService = dependencies.reportGeneratorService
-        let range = month.closedRange(calendar: Calendar.current)
+        let range = month.closedRange(calendar: AppCalendar.shared)
         let notes = reportService.fetchReportNotes(for: student, dateRange: range, context: viewContext)
         return reportService.generatePDF(
             student: student,

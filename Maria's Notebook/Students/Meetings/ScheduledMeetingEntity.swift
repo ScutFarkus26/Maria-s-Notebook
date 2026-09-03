@@ -19,7 +19,7 @@ public class CDScheduledMeeting: NSManagedObject {
         self.init(entity: entity, insertInto: context)
         self.id = UUID()
         self.studentID = ""
-        self.date = Calendar.current.startOfDay(for: Date())
+        self.date = AppCalendar.shared.startOfDay(for: Date())
         self.createdAt = Date()
         self.isGroupMeeting = false
     }

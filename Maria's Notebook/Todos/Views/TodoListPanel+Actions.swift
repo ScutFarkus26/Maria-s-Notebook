@@ -109,7 +109,7 @@ extension TodoListPanel {
 
                 let nextDueDate: Date?
                 if todo.recurrence == .custom, todo.customIntervalDays > 0 {
-                    nextDueDate = Calendar.current.date(
+                    nextDueDate = AppCalendar.shared.date(
                         byAdding: .day, value: Int(todo.customIntervalDays), to: baseDate
                     )
                 } else {
@@ -120,8 +120,8 @@ extension TodoListPanel {
                     // Preserve the scheduledDate offset if both were set
                     var nextScheduled: Date?
                     if let scheduled = todo.scheduledDate, let due = todo.dueDate {
-                        let offset = Calendar.current.dateComponents([.day], from: due, to: scheduled).day ?? 0
-                        nextScheduled = Calendar.current.date(byAdding: .day, value: offset, to: nextDueDate)
+                        let offset = AppCalendar.shared.dateComponents([.day], from: due, to: scheduled).day ?? 0
+                        nextScheduled = AppCalendar.shared.date(byAdding: .day, value: offset, to: nextDueDate)
                     } else if todo.scheduledDate != nil {
                         nextScheduled = nextDueDate
                     }

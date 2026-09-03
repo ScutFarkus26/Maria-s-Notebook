@@ -353,7 +353,7 @@ struct DataManagementGrid: View {
                         .font(.caption2)
                         .foregroundStyle(.tertiary)
 
-                    let daysSince = Calendar.current.dateComponents(
+                    let daysSince = AppCalendar.shared.dateComponents(
                         [.day], from: date, to: Date()
                     ).day ?? 0
                     if daysSince >= 7 {

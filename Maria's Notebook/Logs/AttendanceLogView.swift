@@ -48,7 +48,7 @@ struct AttendanceLogView: View {
     @State private var selectedStudentIDs: Set<UUID> = []
     @State private var selectedStatuses: Set<AttendanceStatus> = []
     @State private var selectedDateRange: DateRangeFilter = .thisMonth
-    @State private var customStartDate: Date = Calendar.current.date(byAdding: .month, value: -1, to: Date()) ?? Date()
+    @State private var customStartDate: Date = AppCalendar.shared.date(byAdding: .month, value: -1, to: Date()) ?? Date()
     @State private var customEndDate: Date = Date()
     @State private var searchText: String = ""
 

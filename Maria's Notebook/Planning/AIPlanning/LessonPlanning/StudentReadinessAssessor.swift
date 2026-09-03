@@ -89,7 +89,7 @@ struct StudentReadinessAssessor {
         // Clamped to the school-year counter epoch (see `SchoolYearCounters`) so the planner
         // doesn't read a summer gap as a child who has been ignored for months.
         let from = SchoolYearCounters.countFrom(lastDate)
-        return Calendar.current.dateComponents([.day], from: from, to: Date()).day
+        return AppCalendar.shared.dateComponents([.day], from: from, to: Date()).day
     }
 
     // MARK: - Area Readiness Computation

@@ -298,7 +298,7 @@ extension DataCleanupService {
         }
         guard !all.isEmpty else { return 0 }
 
-        let calendar = Calendar.current
+        let calendar = AppCalendar.shared
 
         // Group by (studentID, normalized calendar day). Records missing a
         // studentID or date can't be safely matched, so leave them untouched.

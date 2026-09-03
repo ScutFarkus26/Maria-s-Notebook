@@ -21,7 +21,7 @@ extension TodayView {
     private var todosPartition: TodosPartition {
         // Compute date boundaries once — todayTodos and the partition sub-filters all need them.
         let selectedDay = AppCalendar.startOfDay(viewModel.date)
-        let nextDay = Calendar.current.date(byAdding: .day, value: 1, to: selectedDay) ?? selectedDay
+        let nextDay = calendar.date(byAdding: .day, value: 1, to: selectedDay) ?? selectedDay
 
         // Filter and sort the raw fetch results in a single pass.
         let todos = todayTodoItems.filter { todo in

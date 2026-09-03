@@ -3,6 +3,7 @@ import Charts
 
 struct TodoAnalyticsView: View {
     @Environment(\.dismiss) private var dismiss
+    @Environment(\.calendar) private var calendar
     let todos: [CDTodoItem]
     
     private var completedTodos: [CDTodoItem] {
@@ -15,7 +16,7 @@ struct TodoAnalyticsView: View {
     }
     
     private var completedLast7Days: [CDTodoItem] {
-        let sevenDaysAgo = Calendar.current.date(byAdding: .day, value: -7, to: Date()) ?? Date()
+        let sevenDaysAgo = calendar.date(byAdding: .day, value: -7, to: Date()) ?? Date()
         return completedTodos.filter { todo in
             guard let completedAt = todo.completedAt else { return false }
             return completedAt >= sevenDaysAgo
@@ -23,7 +24,7 @@ struct TodoAnalyticsView: View {
     }
     
     private var completedLast30Days: [CDTodoItem] {
-        let thirtyDaysAgo = Calendar.current.date(byAdding: .day, value: -30, to: Date()) ?? Date()
+        let thirtyDaysAgo = calendar.date(byAdding: .day, value: -30, to: Date()) ?? Date()
         return completedTodos.filter { todo in
             guard let completedAt = todo.completedAt else { return false }
             return completedAt >= thirtyDaysAgo
@@ -48,7 +49,6 @@ struct TodoAnalyticsView: View {
     }
     
     private var dailyCompletionData: [(date: Date, count: Int)] {
-        let calendar = Calendar.current
         let last7Days = (0..<7).compactMap { offset -> Date? in
             calendar.date(byAdding: .day, value: -offset, to: calendar.startOfDay(for: Date()))
         }.reversed()

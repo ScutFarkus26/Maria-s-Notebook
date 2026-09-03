@@ -121,8 +121,8 @@ extension ObservationsView {
         summarySources = [:]
         let dates = sourceItems.map(\.date)
         if let earliest = dates.min(), let latest = dates.max() {
-            let start = Calendar.current.startOfDay(for: earliest)
-            let end = Calendar.current.date(byAdding: .day, value: 1, to: Calendar.current.startOfDay(for: latest))
+            let start = AppCalendar.shared.startOfDay(for: earliest)
+            let end = AppCalendar.shared.date(byAdding: .day, value: 1, to: AppCalendar.shared.startOfDay(for: latest))
                 ?? latest
             summaryMissingEvidence = PresentationObservationCoverageService.missingObservationReferences(
                 in: viewContext,
@@ -200,7 +200,7 @@ extension ObservationsView {
     /// Runs the AI summary for a given scope.
     @MainActor
     func analyzeScope(_ scope: AIAnalysisScope, mode: SummaryMode) {
-        let calendar = Calendar.current
+        let calendar = AppCalendar.shared
         let items: [UnifiedObservationItem]
 
         switch scope {

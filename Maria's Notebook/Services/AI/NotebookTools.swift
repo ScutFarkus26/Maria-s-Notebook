@@ -150,7 +150,7 @@ struct StudentNotesTool: Tool {
             return ("No student named \"\(studentName)\" found in this classroom.", [])
         }
 
-        let cutoff = Calendar.current.date(byAdding: .day, value: -daysBack, to: Date()) ?? Date.distantPast
+        let cutoff = AppCalendar.shared.date(byAdding: .day, value: -daysBack, to: Date()) ?? Date.distantPast
         let noteRequest = CDFetchRequest(CDNote.self)
         noteRequest.predicate = NSPredicate(format: "createdAt >= %@", cutoff as NSDate)
         noteRequest.sortDescriptors = [NSSortDescriptor(key: "createdAt", ascending: false)]
@@ -346,7 +346,7 @@ struct MissingPresentationObservationsTool: Tool {
         let days = min(max(arguments.daysBack, 1), 120)
         let result = await MainActor.run {
             let context = AppBootstrapping.getSharedCoreDataStack().viewContext
-            let start = Calendar.current.date(byAdding: .day, value: -days, to: Date()) ?? .distantPast
+            let start = AppCalendar.shared.date(byAdding: .day, value: -days, to: Date()) ?? .distantPast
             return PresentationObservationCoverageService.missingObservationReferences(
                 in: context,
                 from: start,

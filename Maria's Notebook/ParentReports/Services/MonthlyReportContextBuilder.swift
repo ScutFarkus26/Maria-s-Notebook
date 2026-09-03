@@ -53,7 +53,7 @@ struct MonthlyReportContext: Sendable {
 struct MonthlyReportContextBuilder {
     let context: NSManagedObjectContext
     let reportService: ReportGeneratorService
-    var calendar: Calendar = Calendar.current
+    var calendar: Calendar = AppCalendar.shared
 
     /// Half-open month membership: `DateInterval.contains` includes the end
     /// bound, which would leak a midnight-boundary record into the prior month.

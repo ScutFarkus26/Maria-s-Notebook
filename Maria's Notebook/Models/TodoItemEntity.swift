@@ -128,25 +128,25 @@ extension CDTodoItemEntity {
     /// Check if todo is overdue
     var isOverdue: Bool {
         guard let dueDate, !isCompleted else { return false }
-        return dueDate < Calendar.current.startOfDay(for: Date())
+        return dueDate < AppCalendar.shared.startOfDay(for: Date())
     }
 
     /// Check if todo is due today
     var isDueToday: Bool {
         guard let dueDate, !isCompleted else { return false }
-        return Calendar.current.isDateInToday(dueDate)
+        return AppCalendar.shared.isDateInToday(dueDate)
     }
 
     /// Check if todo is due this week
     var isDueThisWeek: Bool {
         guard let dueDate, !isCompleted else { return false }
         let now = Date()
-        guard let weekEnd = Calendar.current.date(
+        guard let weekEnd = AppCalendar.shared.date(
             byAdding: .day,
             value: 7,
-            to: Calendar.current.startOfDay(for: now)
+            to: AppCalendar.shared.startOfDay(for: now)
         ) else { return false }
-        return dueDate >= Calendar.current.startOfDay(for: now) && dueDate < weekEnd
+        return dueDate >= AppCalendar.shared.startOfDay(for: now) && dueDate < weekEnd
     }
 
     /// Get subtasks progress text
@@ -197,10 +197,10 @@ extension CDTodoItemEntity {
     /// Whether this todo is scheduled for today
     var isScheduledForToday: Bool {
         if let scheduled = scheduledDate {
-            return Calendar.current.isDateInToday(scheduled)
+            return AppCalendar.shared.isDateInToday(scheduled)
         }
         if let due = dueDate {
-            return Calendar.current.isDateInToday(due)
+            return AppCalendar.shared.isDateInToday(due)
         }
         return false
     }

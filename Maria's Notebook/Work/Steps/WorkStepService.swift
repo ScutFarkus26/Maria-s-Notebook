@@ -48,7 +48,7 @@ struct WorkStepService: WorkStepServiceProtocol {
 
     /// Mark step as completed.
     func markCompleted(_ step: CDWorkStep, at date: Date = Date()) throws {
-        let cal = Calendar.current
+        let cal = AppCalendar.shared
         step.completedAt = cal.startOfDay(for: date)
     }
 
@@ -62,7 +62,7 @@ struct WorkStepService: WorkStepServiceProtocol {
         if step.completedAt != nil {
             step.completedAt = nil
         } else {
-            let cal = Calendar.current
+            let cal = AppCalendar.shared
             step.completedAt = cal.startOfDay(for: date)
         }
     }

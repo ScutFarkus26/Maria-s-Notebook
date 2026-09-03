@@ -55,7 +55,7 @@ struct TodoDateChip: View {
             return .someday
         }
         if let effective = todo.scheduledDate ?? todo.dueDate {
-            let cal = Calendar.current
+            let cal = AppCalendar.shared
             if cal.isDateInToday(effective) {
                 return .today
             }
@@ -137,12 +137,12 @@ struct TodoDateChip: View {
     // MARK: - Helpers
 
     private func isThisWeek(_ date: Date) -> Bool {
-        let cal = Calendar.current
+        let cal = AppCalendar.shared
         return cal.isDate(date, equalTo: Date(), toGranularity: .weekOfYear)
     }
 
     private static func formatRelative(_ date: Date) -> String {
-        let cal = Calendar.current
+        let cal = AppCalendar.shared
         if cal.isDateInYesterday(date) { return "Yesterday" }
         return DateFormatters.shortMonthDay.string(from: date)
     }

@@ -14,13 +14,14 @@ extension TodayView {
 
 struct DeadlinesSectionView: View {
     @Environment(\.appRouter) private var appRouter
+    @Environment(\.calendar) private var calendar
 
     @FetchRequest(
         sortDescriptors: [NSSortDescriptor(keyPath: \CDTodoItemEntity.dueDate, ascending: true)],
         predicate: NSPredicate(format: "isCompleted == NO AND dueDate != nil")
     ) private var todosRaw: FetchedResults<CDTodoItemEntity>
 
-    private var startOfToday: Date { Calendar.current.startOfDay(for: Date()) }
+    private var startOfToday: Date { calendar.startOfDay(for: Date()) }
 
     private var overdueTodos: [CDTodoItemEntity] {
         todosRaw.filter { ($0.dueDate ?? .distantFuture) < startOfToday }

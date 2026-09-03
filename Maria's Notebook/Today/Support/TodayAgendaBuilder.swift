@@ -168,7 +168,7 @@ enum TodayAgendaBuilder {
     /// Deletes agenda order entries older than 30 days.
     @MainActor static func cleanupOldOrders(context: NSManagedObjectContext) {
         let cutoff = AppCalendar.startOfDay(
-            Calendar.current.date(byAdding: .day, value: -30, to: Date()) ?? Date()
+            AppCalendar.addingDays(-30, to: Date())
         )
         do {
             let request = CDFetchRequest(CDTodayAgendaOrder.self)
@@ -189,7 +189,7 @@ enum TodayAgendaBuilder {
     /// so a teacher can return to past notes indefinitely.
     @MainActor static func cleanupOldDayPads(context: NSManagedObjectContext) {
         let cutoff = AppCalendar.startOfDay(
-            Calendar.current.date(byAdding: .day, value: -30, to: Date()) ?? Date()
+            AppCalendar.addingDays(-30, to: Date())
         )
         do {
             let request = CDFetchRequest(CDDayPad.self)

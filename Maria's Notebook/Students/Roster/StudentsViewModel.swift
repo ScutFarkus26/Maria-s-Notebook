@@ -115,7 +115,7 @@ final class StudentsViewModel {
                 return order == .orderedSame ? lhs.manualOrder < rhs.manualOrder : order == .orderedAscending
             }
         case .birthday:
-            let todayStart = Calendar.current.startOfDay(for: today)
+            let todayStart = AppCalendar.shared.startOfDay(for: today)
             return students.sorted { lhs, rhs in
                 let l = nextBirthday(from: lhs.birthday ?? Date(), relativeTo: todayStart)
                 let r = nextBirthday(from: rhs.birthday ?? Date(), relativeTo: todayStart)
@@ -304,7 +304,7 @@ final class StudentsViewModel {
     
     // MARK: - Helpers
     private func nextBirthday(from birthday: Date, relativeTo today: Date = Date()) -> Date {
-        let cal = Calendar.current
+        let cal = AppCalendar.shared
         let todayStart = cal.startOfDay(for: today)
         let comps = cal.dateComponents([.month, .day], from: birthday)
         guard let month = comps.month, let day = comps.day else { return .distantFuture }

@@ -302,7 +302,7 @@ struct TodoRowCard: View {
 
     private func nextMonday() -> Date {
         let today = AppCalendar.startOfDay(Date())
-        let cal = Calendar.current
+        let cal = AppCalendar.shared
         var d = cal.date(byAdding: .day, value: 1, to: today) ?? today
         while cal.component(.weekday, from: d) != 2 {
             d = cal.date(byAdding: .day, value: 1, to: d) ?? d

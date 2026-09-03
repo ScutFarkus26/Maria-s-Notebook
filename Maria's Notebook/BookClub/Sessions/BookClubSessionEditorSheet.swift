@@ -8,6 +8,7 @@ import OSLog
 struct BookClubSessionEditorSheet: View {
     @Environment(\.managedObjectContext) private var viewContext
     @Environment(\.dismiss) private var dismiss
+    @Environment(\.calendar) private var calendar
 
     let prefilledPacket: CDBookClubPacket?
     let editingSession: CDBookClubSession?
@@ -146,7 +147,7 @@ struct BookClubSessionEditorSheet: View {
             DatePicker("First meeting", selection: $startDate, displayedComponents: .date)
                 .onChange(of: startDate) { _, newValue in
                     if cadenceKind != .custom {
-                        weekday = Calendar.current.component(.weekday, from: newValue)
+                        weekday = calendar.component(.weekday, from: newValue)
                     }
                 }
             Picker("Cadence", selection: $cadenceKind) {
@@ -272,7 +273,7 @@ struct BookClubSessionEditorSheet: View {
             rotateLeader = editing.rotateLeader
             notes = editing.notes
             if let editingDate = editing.startDate {
-                weekday = Calendar.current.component(.weekday, from: editingDate)
+                weekday = calendar.component(.weekday, from: editingDate)
             }
             // Use the meetings' current reading labels for editing.
             readingItems = editing.orderedMeetings.enumerated().map { offset, meeting in
@@ -281,9 +282,9 @@ struct BookClubSessionEditorSheet: View {
         } else if let prefilled = prefilledPacket {
             selectedPacketID = prefilled.objectID
             readingItems = prefilled.readingItems
-            weekday = Calendar.current.component(.weekday, from: startDate)
+            weekday = calendar.component(.weekday, from: startDate)
         } else {
-            weekday = Calendar.current.component(.weekday, from: startDate)
+            weekday = calendar.component(.weekday, from: startDate)
         }
     }
 
@@ -400,7 +401,7 @@ struct BookClubSessionEditorSheet: View {
     }
 
     private static func nextMonday() -> Date {
-        let calendar = Calendar.current
+        let calendar = AppCalendar.shared
         let now = Date()
         let weekday = calendar.component(.weekday, from: now)
         let delta = (2 - weekday + 7) % 7

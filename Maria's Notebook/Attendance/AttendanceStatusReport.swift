@@ -81,7 +81,7 @@ struct AttendanceStatusReport: View {
 
     // Default range: last 30 days
     @State private var startDate: Date = AppCalendar.startOfDay(
-        Calendar.current.date(byAdding: .day, value: -30, to: Date()) ?? Date()
+        AppCalendar.addingDays(-30, to: Date())
     )
     @State private var endDate: Date = AppCalendar.startOfDay(Date())
 
@@ -293,7 +293,7 @@ struct AttendanceStatusReport: View {
     private func applyPreset(days: Int) {
         endDate = AppCalendar.startOfDay(Date())
         startDate = AppCalendar.startOfDay(
-            Calendar.current.date(byAdding: .day, value: -days, to: Date()) ?? Date()
+            AppCalendar.addingDays(-days, to: Date())
         )
     }
 

@@ -5,6 +5,7 @@ import CoreData
 /// Provides a queue of students, context pane, and meeting form in a focused layout.
 struct MeetingsWorkflowView: View {
     @Environment(\.managedObjectContext) private var viewContext
+    @Environment(\.calendar) private var calendar
     @Environment(SaveCoordinator.self) private var saveCoordinator
 
     // MARK: - Queries
@@ -87,7 +88,7 @@ struct MeetingsWorkflowView: View {
     }
 
     private var thresholdDate: Date {
-        Calendar.current.date(byAdding: .day, value: -daysSinceThreshold, to: Date()) ?? Date()
+        calendar.date(byAdding: .day, value: -daysSinceThreshold, to: Date()) ?? Date()
     }
 
     /// Students who haven't had a meeting within the threshold

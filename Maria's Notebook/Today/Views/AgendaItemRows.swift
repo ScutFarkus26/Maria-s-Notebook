@@ -32,9 +32,9 @@ struct TodoTodayRow: View {
 
     private var dueDateText: String? {
         guard let dueDate = todo.dueDate else { return nil }
-        if Calendar.current.isDateInToday(dueDate) {
+        if AppCalendar.shared.isDateInToday(dueDate) {
             return DateFormatters.shortTime.string(from: dueDate)
-        } else if Calendar.current.isDateInYesterday(dueDate) {
+        } else if AppCalendar.shared.isDateInYesterday(dueDate) {
             return "Yesterday"
         } else {
             return DateFormatters.shortDate.string(from: dueDate)

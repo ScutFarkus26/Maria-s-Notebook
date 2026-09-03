@@ -47,7 +47,7 @@ enum ChecklistMatrixBuilder {
         var newMatrix: [UUID: [UUID: StudentChecklistRowState]] = [:]
 
         // Pre-compute staleness threshold date once instead of per-cell
-        let calendar = Calendar.current
+        let calendar = AppCalendar.shared
         let today = calendar.startOfDay(for: Date())
 
         // Pre-compute preceding lessons and progression rules for blocking reasons

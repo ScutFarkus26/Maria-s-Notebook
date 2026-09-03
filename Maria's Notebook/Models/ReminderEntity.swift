@@ -44,7 +44,7 @@ extension CDReminder {
     /// Mark this reminder as completed
     func markCompleted() {
         self.isCompleted = true
-        self.completedAt = Calendar.current.startOfDay(for: Date())
+        self.completedAt = AppCalendar.shared.startOfDay(for: Date())
         self.updatedAt = Date()
     }
 

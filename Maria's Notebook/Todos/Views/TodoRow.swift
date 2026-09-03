@@ -153,7 +153,7 @@ struct TodoRow: View {
         .tint(.orange)
 
         Button {
-            let tomorrow = Calendar.current.date(byAdding: .day, value: 1, to: Date()) ?? Date()
+            let tomorrow = AppCalendar.shared.date(byAdding: .day, value: 1, to: Date()) ?? Date()
             todo.scheduledDate = AppCalendar.startOfDay(tomorrow)
             todo.isSomeday = false
         } label: {
@@ -176,14 +176,14 @@ struct TodoRow: View {
                 Label("Today", systemImage: "star.fill")
             }
             Button {
-                let tomorrow = Calendar.current.date(byAdding: .day, value: 1, to: Date()) ?? Date()
+                let tomorrow = AppCalendar.shared.date(byAdding: .day, value: 1, to: Date()) ?? Date()
                 todo.scheduledDate = AppCalendar.startOfDay(tomorrow)
                 todo.isSomeday = false
             } label: {
                 Label("Tomorrow", systemImage: "sunrise")
             }
             Button {
-                let cal = Calendar.current
+                let cal = AppCalendar.shared
                 let weekday = cal.component(.weekday, from: Date())
                 let daysUntilMonday = weekday == 1 ? 1 : (9 - weekday)
                 let nextMon = cal.date(byAdding: .day, value: daysUntilMonday, to: Date()) ?? Date()

@@ -49,7 +49,7 @@ class TodoNotificationService {
         }
 
         // Create trigger from date
-        let components = Calendar.current.dateComponents([.year, .month, .day, .hour, .minute], from: date)
+        let components = AppCalendar.shared.dateComponents([.year, .month, .day, .hour, .minute], from: date)
         let trigger = UNCalendarNotificationTrigger(dateMatching: components, repeats: false)
 
         // Create unique identifier

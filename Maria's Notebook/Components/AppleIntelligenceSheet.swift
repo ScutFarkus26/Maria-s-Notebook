@@ -278,7 +278,7 @@ struct SmartNoteFormatter {
     private func dateRangeString(notes: [CDNote]) -> String {
         guard let first = notes.first?.updatedAt ?? notes.first?.createdAt,
               let last = notes.last?.updatedAt ?? notes.last?.createdAt else { return "N/A" }
-        if Calendar.current.isDate(first, inSameDayAs: last) {
+        if AppCalendar.isSameDay(first, last) {
             return first.formatted(date: .abbreviated, time: .omitted)
         }
         return "\(first.formatted(date: .numeric, time: .omitted)) - \(last.formatted(date: .numeric, time: .omitted))"

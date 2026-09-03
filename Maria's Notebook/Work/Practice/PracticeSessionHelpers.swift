@@ -87,7 +87,7 @@ struct StudentCategorizer {
         // Check for completed work (recently passed)
         if let completedWork = studentWork.first(where: { $0.status == .complete }) {
             let daysSince = completedWork.completedAt.map {
-                Calendar.current.dateComponents([.day], from: $0, to: Date()).day ?? Int.max
+                AppCalendar.shared.dateComponents([.day], from: $0, to: Date()).day ?? Int.max
             } ?? Int.max
 
             if daysSince <= 30 {

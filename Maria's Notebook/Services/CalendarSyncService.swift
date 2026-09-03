@@ -206,8 +206,8 @@ final class CalendarSyncService {
         }
 
         // Fetch events for a window around today (7 days back, 30 days forward)
-        let startDate = Calendar.current.date(byAdding: .day, value: -7, to: Date()) ?? Date()
-        let endDate = Calendar.current.date(byAdding: .day, value: 30, to: Date()) ?? Date()
+        let startDate = AppCalendar.shared.date(byAdding: .day, value: -7, to: Date()) ?? Date()
+        let endDate = AppCalendar.shared.date(byAdding: .day, value: 30, to: Date()) ?? Date()
 
         let predicate = eventStore.predicateForEvents(withStart: startDate, end: endDate, calendars: targetCalendars)
         let ekEvents = eventStore.events(matching: predicate)

@@ -5,6 +5,7 @@ import CoreData
 
 struct PerpetualCalendarView: View {
     @Environment(\.managedObjectContext) private var viewContext
+    @Environment(\.calendar) private var calendar
     @FetchRequest(sortDescriptors: [
         NSSortDescriptor(keyPath: \CDCalendarNote.year, ascending: true),
         NSSortDescriptor(keyPath: \CDCalendarNote.month, ascending: true),
@@ -18,7 +19,7 @@ struct PerpetualCalendarView: View {
     private static let yearRadius = 5
 
     private var yearRange: ClosedRange<Int> {
-        let now = Calendar.current.component(.year, from: Date())
+        let now = calendar.component(.year, from: Date())
         return (now - Self.yearRadius)...(now + Self.yearRadius)
     }
 

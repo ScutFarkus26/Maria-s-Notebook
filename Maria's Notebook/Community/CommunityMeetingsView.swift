@@ -3,6 +3,7 @@ import CoreData
 
 struct CommunityMeetingsView: View {
     @Environment(\.managedObjectContext) private var viewContext
+    @Environment(\.calendar) private var calendar
     @Environment(SaveCoordinator.self) private var saveCoordinator
     #if os(macOS)
     @Environment(\.openWindow) private var openWindow
@@ -42,7 +43,7 @@ struct CommunityMeetingsView: View {
     private func passesDateFilter(_ t: CDCommunityTopicEntity) -> Bool {
         guard let f = filterDate else { return true }
         guard let createdAt = t.createdAt else { return false }
-        let cal = Calendar.current
+        let cal = calendar
         let now = Date()
         switch f {
         case .today:

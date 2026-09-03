@@ -12,7 +12,7 @@ struct TodoWhenPopover: View {
     @State private var displayedMonth: Date = Date()
     @State private var showDeadlinePicker = false
 
-    private let calendar = Calendar.current
+    @Environment(\.calendar) private var calendar
 
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {
@@ -407,15 +407,15 @@ struct TodoSchedulePickerButton: View {
     private var displayColor: Color {
         if isSomeday { return .secondary }
         if let date = scheduledDate ?? dueDate {
-            if Calendar.current.isDateInToday(date) { return .blue }
-            if Calendar.current.isDateInTomorrow(date) { return .orange }
+            if AppCalendar.shared.isDateInToday(date) { return .blue }
+            if AppCalendar.shared.isDateInTomorrow(date) { return .orange }
             return .purple
         }
         return .secondary
     }
 
     private func formatScheduleDate(_ date: Date) -> String {
-        let cal = Calendar.current
+        let cal = AppCalendar.shared
         if cal.isDateInToday(date) { return "Today" }
         if cal.isDateInTomorrow(date) { return "Tomorrow" }
         return DateFormatters.shortMonthDay.string(from: date)

@@ -24,7 +24,7 @@ enum MeetingWorkSnapshotHelper {
         let sid = studentID.uuidString
         let workModelsForStudent = allWorkModels.filter { $0.studentID == sid }
 
-        let overdueThreshold = Calendar.current.date(
+        let overdueThreshold = AppCalendar.shared.date(
             byAdding: .day, value: -workOverdueDays, to: Date()
         ) ?? Date.distantPast
 
@@ -40,7 +40,7 @@ enum MeetingWorkSnapshotHelper {
             return !overdueIDs.contains(id)
         }
 
-        let recentThreshold = Calendar.current.date(byAdding: .day, value: -7, to: Date()) ?? Date.distantPast
+        let recentThreshold = AppCalendar.shared.date(byAdding: .day, value: -7, to: Date()) ?? Date.distantPast
         let recentCompleted = workModelsForStudent.filter {
             $0.status == .complete && ($0.completedAt ?? .distantPast) >= recentThreshold
         }

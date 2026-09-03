@@ -250,7 +250,7 @@ struct AttendanceInfoRow: View {
     @Environment(\.managedObjectContext) private var viewContext
     
     private var daysTardyThisSchoolYear: Int {
-        let calendar = Calendar.current
+        let calendar = AppCalendar.shared
         let start = FloridaGradeCalculator.schoolYearStart(for: Date(), calendar: calendar)
         guard let end = calendar.date(byAdding: .year, value: 1, to: start) else { return 0 }
         let studentIDString = student.id?.uuidString ?? ""
@@ -272,7 +272,7 @@ struct AttendanceInfoRow: View {
     }
 
     private var daysAbsentThisSchoolYear: Int {
-        let calendar = Calendar.current
+        let calendar = AppCalendar.shared
         let start = FloridaGradeCalculator.schoolYearStart(for: Date(), calendar: calendar)
         guard let end = calendar.date(byAdding: .year, value: 1, to: start) else { return 0 }
         let studentIDString = student.id?.uuidString ?? ""

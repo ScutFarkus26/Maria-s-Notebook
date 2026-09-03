@@ -274,7 +274,7 @@ extension TodoEditSheet {
     }
 
     func formatReminderDate(_ date: Date) -> String {
-        let calendar = Calendar.current
+        let calendar = AppCalendar.shared
         let timeStr = DateFormatters.shortTime.string(from: date)
         if calendar.isDateInToday(date) {
             return "Today at \(timeStr)"

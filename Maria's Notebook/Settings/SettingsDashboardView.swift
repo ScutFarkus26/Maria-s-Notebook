@@ -57,7 +57,7 @@ struct SettingsDashboardView: View {
         let viewModel = SettingsViewModel(dependencies: dependencies)
         let lastDate = viewModel.lastBackupDate
         let daysSinceBackup: Int? = lastDate.map {
-            Calendar.current.dateComponents([.day], from: $0, to: Date()).day ?? 0
+            AppCalendar.shared.dateComponents([.day], from: $0, to: Date()).day ?? 0
         }
         let isOld = (daysSinceBackup ?? 999) >= 7
 

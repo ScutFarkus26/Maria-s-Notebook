@@ -44,7 +44,7 @@ extension TodoMainView {
     func batchSetDueToday() {
         adaptiveWithAnimation(.snappy(duration: 0.2)) {
             let todos = allTodos.filter { $0.id.map { selectedTodoIDs.contains($0) } ?? false }
-            let today = Calendar.current.startOfDay(for: Date())
+            let today = AppCalendar.shared.startOfDay(for: Date())
             for todo in todos {
                 todo.dueDate = today
             }

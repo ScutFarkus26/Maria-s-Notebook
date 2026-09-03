@@ -19,6 +19,6 @@ extension Date {
     /// Calculates the age in years from this date to now
     /// - Returns: The number of complete years between this date and now, or nil if calculation fails
     var age: Int? {
-        Calendar.current.dateComponents([.year], from: self, to: Date()).year
+        AppCalendar.shared.dateComponents([.year], from: self, to: Date()).year
     }
 }

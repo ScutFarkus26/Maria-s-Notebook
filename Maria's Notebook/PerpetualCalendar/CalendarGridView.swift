@@ -31,7 +31,7 @@ struct CalendarGridView<DayContent: View, HeaderTrailing: View>: View {
         self.nonSchoolCells = nonSchoolCells
         self.headerTrailing = headerTrailing
         self.dayContent = dayContent
-        _displayYear = State(initialValue: Calendar.current.component(.year, from: Date()))
+        _displayYear = State(initialValue: AppCalendar.shared.component(.year, from: Date()))
     }
 
     private var allMonths: [MonthID] {
@@ -138,6 +138,7 @@ struct CalendarGridView<DayContent: View, HeaderTrailing: View>: View {
 
     private func monthColumn(_ monthID: MonthID) -> some View {
         let days = daysInMonth(monthID)
+        // Locale month names: `AppCalendar.shared` carries no locale and would render "M01".
         let abbrev = Calendar.current.shortMonthSymbols[monthID.month - 1].uppercased()
 
         return VStack(spacing: 0) {

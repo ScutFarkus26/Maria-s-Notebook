@@ -204,7 +204,7 @@ extension StudentMeetingsTab {
             return
         }
 
-        let cutoff = Calendar.current.date(byAdding: .day, value: -insightsTimeframeDays, to: Date()) ?? Date()
+        let cutoff = AppCalendar.shared.date(byAdding: .day, value: -insightsTimeframeDays, to: Date()) ?? Date()
         let relevantMeetings = meetingItems.filter { ($0.date ?? .distantPast) >= cutoff }
 
         guard !relevantMeetings.isEmpty else {

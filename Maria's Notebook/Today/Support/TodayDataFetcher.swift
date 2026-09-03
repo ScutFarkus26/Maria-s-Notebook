@@ -142,7 +142,7 @@ enum TodayDataFetcher {
         do {
             // ENERGY OPTIMIZATION: Limit work fetch to relevant time window
             let actualReferenceDate = max(referenceDate, Date())
-            let cutoffDate = Calendar.current.date(byAdding: .day, value: -90, to: actualReferenceDate)
+            let cutoffDate = AppCalendar.shared.date(byAdding: .day, value: -90, to: actualReferenceDate)
                 ?? actualReferenceDate.addingTimeInterval(-90*24*3600)
 
             // Fetch Active/Review WorkModels with date filter
@@ -199,7 +199,7 @@ enum TodayDataFetcher {
             }
 
             // Fetch Notes
-            let notesCutoffDate = Calendar.current.date(byAdding: .day, value: -90, to: Date())
+            let notesCutoffDate = AppCalendar.shared.date(byAdding: .day, value: -90, to: Date())
                 ?? Date().addingTimeInterval(-90*24*3600)
             // PERFORMANCE: Add fetch limit and sort to prevent unbounded result sets
             let notesRequest = CDFetchRequest(CDNote.self)
@@ -400,7 +400,7 @@ enum TodayDataFetcher {
         context: NSManagedObjectContext,
         errorCollector: FetchErrorCollector? = nil
     ) -> RecentNotesFetchResult {
-        let cutoff = Calendar.current.date(byAdding: .day, value: -7, to: Date())
+        let cutoff = AppCalendar.shared.date(byAdding: .day, value: -7, to: Date())
             ?? Date().addingTimeInterval(-7*24*3600)
         do {
             let request = CDFetchRequest(CDNote.self)
