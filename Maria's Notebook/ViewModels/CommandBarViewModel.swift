@@ -3,13 +3,10 @@
 
 import Foundation
 import CoreData
-import OSLog
 
 @Observable
 @MainActor
 final class CommandBarViewModel {
-    private static let logger = Logger.app_
-
     // MARK: - Input
 
     var inputText = ""
@@ -105,11 +102,7 @@ final class CommandBarViewModel {
                 studentIDs: command.studentIDs,
                 context: modelContext
             )
-            do {
-                try modelContext.save()
-            } catch {
-                Self.logger.warning("Failed to save presentation draft: \(error)")
-            }
+            modelContext.safeSave()
             return .openPresentation(draftID: draft.id ?? UUID())
 
         case .assignWork:

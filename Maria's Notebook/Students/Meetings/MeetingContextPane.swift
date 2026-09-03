@@ -3,7 +3,6 @@
 
 import SwiftUI
 import CoreData
-import OSLog
 
 // MARK: - Context Pane
 
@@ -34,11 +33,6 @@ struct MeetingContextPane: View {
         AppCalendar.shared.date(byAdding: .weekOfYear, value: 2, to: Date()) ?? Date()
     @State private var rescheduleWorkID: UUID?
     @State private var rescheduleDate: Date = Date()
-
-    private static let logger = Logger(
-        subsystem: Bundle.main.bundleIdentifier ?? "MariasNotebook",
-        category: "MeetingContextPane"
-    )
 
     var body: some View {
         ScrollView {
@@ -365,11 +359,7 @@ struct MeetingContextPane: View {
     }
 
     private func trySave() {
-        do {
-            try viewContext.save()
-        } catch {
-            Self.logger.warning("Failed to save work changes: \(error)")
-        }
+        viewContext.safeSave()
     }
 
     private func workDisplayTitle(_ work: CDWorkModel) -> String {
@@ -545,11 +535,7 @@ struct MeetingContextPane: View {
     private func deleteMeeting(_ meeting: CDStudentMeeting) {
         adaptiveWithAnimation {
             viewContext.delete(meeting)
-            do {
-                try viewContext.save()
-            } catch {
-                Self.logger.warning("Failed to save after deleting meeting: \(error)")
-            }
+            viewContext.safeSave()
         }
     }
 }

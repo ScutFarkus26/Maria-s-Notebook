@@ -1,14 +1,12 @@
 // NewTodoForm.swift
 // Elegant full-screen todo list view inspired by Things and Bear
 
-import OSLog
 import SwiftUI
 import CoreData
 
 // MARK: - New Todo Form
 
 struct NewTodoForm: View {
-    private static let logger = Logger.todos
     @Environment(\.managedObjectContext) private var viewContext
     @Environment(\.dismiss) private var dismiss
     @FetchRequest(sortDescriptors: CDStudent.sortByName)private var allStudentsRaw: FetchedResults<CDStudent>
@@ -256,11 +254,7 @@ struct NewTodoForm: View {
             subtask.todo = todo
         }
 
-        do {
-            try viewContext.save()
-        } catch {
-            Self.logger.error("[\(#function)] Failed to create todo: \(error)")
-        }
+        viewContext.safeSave()
         dismiss()
     }
 

@@ -1,14 +1,11 @@
 // TodoRowCard.swift
 // Elegant todo row card inspired by Things and Bear
 
-import OSLog
 import SwiftUI
 import CoreData
 
 // swiftlint:disable:next type_body_length
 struct TodoRowCard: View {
-    private static let logger = Logger.todos
-
     @ObservedObject var todo: CDTodoItem
     @Environment(\.managedObjectContext) private var viewContext
     @Environment(SaveCoordinator.self) private var saveCoordinator
@@ -39,12 +36,7 @@ struct TodoRowCard: View {
         .accessibilityAction(named: Text(todo.isCompleted ? "Mark Incomplete" : "Mark Complete")) {
             todo.isCompleted.toggle()
             todo.completedAt = todo.isCompleted ? Date() : nil
-            do {
-                try viewContext.save()
-            } catch {
-                let msg = "Failed to save todo completion state: \(error.localizedDescription)"
-                Self.logger.error("\(msg, privacy: .public)")
-            }
+            viewContext.safeSave()
         }
         .accessibilityAction(named: Text("Edit")) {
             onEdit()
@@ -145,12 +137,7 @@ struct TodoRowCard: View {
                     todo.isCompleted.toggle()
                     todo.completedAt = todo.isCompleted ? Date() : nil
                     checkboxScale = 1.0
-                    do {
-                        try viewContext.save()
-                    } catch {
-                        let desc = error.localizedDescription
-                        Self.logger.error("Failed to save todo completion state: \(desc, privacy: .public)")
-                    }
+                    viewContext.safeSave()
                 }
             }
         } label: {
@@ -284,11 +271,7 @@ struct TodoRowCard: View {
         case .medium: todo.priority = .high
         case .high: todo.priority = .none
         }
-        do {
-            try viewContext.save()
-        } catch {
-            Self.logger.error("Failed to save priority change: \(error.localizedDescription, privacy: .public)")
-        }
+        viewContext.safeSave()
     }
 
     private func priorityColor(_ priority: TodoPriority) -> Color {

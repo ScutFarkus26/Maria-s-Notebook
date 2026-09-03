@@ -6,11 +6,8 @@
 //  Created by Danny De Berry on 12/27/25.
 //
 
-import OSLog
 import SwiftUI
 import CoreData
-
-private let logger = Logger.students
 
 extension StudentNotesViewModel {
     // Hooks that the real view model can set; safe no-ops by default
@@ -480,11 +477,7 @@ struct StudentNotesTimelineList: View {
         adaptiveWithAnimation {
             note.isPinned.toggle()
             note.updatedAt = Date()
-            do {
-                try viewModel.viewContext.save()
-            } catch {
-                logger.warning("Failed to save pin toggle: \(error)")
-            }
+            viewModel.viewContext.safeSave()
             viewModel.fetchAllNotes()
         }
     }

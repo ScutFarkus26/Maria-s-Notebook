@@ -110,20 +110,18 @@ extension TodayView {
         } else {
             reminder.markCompleted()
         }
-        do {
-            try viewContext.save()
-            viewModel.reload()
+        // A failed save shows the "Couldn't Save" alert; EventKit isn't told
+        // about a completion change that didn't persist.
+        guard saveCoordinator.save(viewContext, reason: "Update reminder") else { return }
+        viewModel.reload()
 
-            // Two-way sync: Update EventKit with the completion change
-            Task<Void, Never> {
-                do {
-                    try await ReminderSyncService.shared.updateReminderCompletionInEventKit(reminder)
-                } catch {
-                    logger.warning("Failed to update reminder in EventKit: \(error)")
-                }
+        // Two-way sync: Update EventKit with the completion change
+        Task<Void, Never> {
+            do {
+                try await ReminderSyncService.shared.updateReminderCompletionInEventKit(reminder)
+            } catch {
+                logger.warning("Failed to update reminder in EventKit: \(error)")
             }
-        } catch {
-            // Error toggling reminder - continue silently
         }
     }
 
@@ -198,11 +196,7 @@ extension TodayView {
             } else {
                 todo.completedAt = nil
             }
-            do {
-                try viewContext.save()
-            } catch {
-                logger.warning("Failed to save todo: \(error)")
-            }
+            viewContext.safeSave()
         }
     }
 

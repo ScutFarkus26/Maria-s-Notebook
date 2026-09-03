@@ -49,11 +49,8 @@ final class DeduplicationCoordinator {
                 let results = DataCleanupService.deduplicateAllModels(using: bgContext, container: cloudKitContainer)
 
                 if !results.isEmpty {
-                    do {
-                        try bgContext.save()
+                    if bgContext.safeSave() {
                         Self.logger.info("Post-import deduplication removed \(results.values.reduce(0, +)) duplicates")
-                    } catch {
-                        Self.logger.error("Post-import deduplication save failed: \(error.localizedDescription)")
                     }
                 }
 

@@ -10,7 +10,6 @@
 // goes with it.
 
 import CoreData
-import OSLog
 import SwiftUI
 
 extension ReadyToPresentSection {
@@ -69,11 +68,7 @@ extension ReadyToPresentSection {
         for assignment in pendingDeletion {
             viewContext.delete(assignment)
         }
-        do {
-            try viewContext.save()
-        } catch {
-            Self.menuLogger.error("Failed to delete presentations: \(error)")
-        }
+        viewContext.safeSave()
         // Drop only what was destroyed — right-clicking an unselected card while
         // a selection is live must not throw the rest of the selection away.
         let deleted = Set(pendingDeletion.compactMap(\.id))

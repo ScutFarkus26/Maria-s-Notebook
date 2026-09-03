@@ -1,7 +1,6 @@
 // StudentProgressTabViewModel.swift
 // ViewModel for StudentProgressTab - handles data loading and business logic
 
-import OSLog
 import SwiftUI
 import CoreData
 #if os(macOS)
@@ -13,8 +12,6 @@ import UIKit
 @Observable
 @MainActor
 final class StudentProgressTabViewModel {
-    private static let logger = Logger.students
-
     // MARK: - Public State
     private(set) var activeEnrollments: [CDStudentTrackEnrollmentEntity] = []
     private(set) var activeProjects: [CDProject] = []
@@ -295,11 +292,7 @@ final class StudentProgressTabViewModel {
     ) {
         if progress.isComplete && enrollment.isActive {
             enrollment.isActive = false
-            do {
-                try context.save()
-            } catch {
-                Self.logger.warning("Failed to save track completion: \(error)")
-            }
+            context.safeSave()
         }
     }
 }

@@ -54,11 +54,7 @@ extension TodoEditSheet {
         paths.remove(at: index)
         todo.attachmentPathsArray = paths
         if let context = todo.managedObjectContext {
-            do {
-                try context.save()
-            } catch {
-                Self.logger.error("[\(#function)] Failed to save todo: \(error)")
-            }
+            context.safeSave()
         }
     }
 
@@ -91,11 +87,7 @@ extension TodoEditSheet {
             }
 
             if let context = todo.managedObjectContext {
-                do {
-                    try context.save()
-                } catch {
-                    Self.logger.error("[\(#function)] Failed to save attachments: \(error)")
-                }
+                context.safeSave()
             }
         case .failure(let error):
             Self.logger.error("[\(#function)] File import failed: \(error)")
@@ -121,11 +113,7 @@ extension TodoEditSheet {
         // Link the work to this todo
         todo.linkedWorkItemID = work.id?.uuidString
 
-        do {
-            try context.save()
-        } catch {
-            Self.logger.error("[\(#function)] Failed to link work item: \(error)")
-        }
+        context.safeSave()
     }
 
     // MARK: - Subtask Operations
@@ -137,11 +125,7 @@ extension TodoEditSheet {
         newSubtask.title = ""
         newSubtask.orderIndex = Int64(subtaskCount)
         todo.addToSubtasks(newSubtask)
-        do {
-            try context.save()
-        } catch {
-            Self.logger.error("[\(#function)] Failed to save subtask: \(error)")
-        }
+        context.safeSave()
     }
 
     func toggleSubtask(_ subtask: CDTodoSubtask) {
@@ -152,33 +136,21 @@ extension TodoEditSheet {
             subtask.completedAt = nil
         }
         if let context = todo.managedObjectContext {
-            do {
-                try context.save()
-            } catch {
-                Self.logger.error("[\(#function)] Failed to toggle subtask: \(error)")
-            }
+            context.safeSave()
         }
     }
 
     func deleteSubtask(_ subtask: CDTodoSubtask) {
         if let context = todo.managedObjectContext {
             context.delete(subtask)
-            do {
-                try context.save()
-            } catch {
-                Self.logger.error("[\(#function)] Failed to delete subtask: \(error)")
-            }
+            context.safeSave()
         }
     }
 
     func updateSubtask(_ subtask: CDTodoSubtask, title: String) {
         subtask.title = title
         if let context = todo.managedObjectContext {
-            do {
-                try context.save()
-            } catch {
-                Self.logger.error("[\(#function)] Failed to update subtask: \(error)")
-            }
+            context.safeSave()
         }
     }
 
@@ -189,11 +161,7 @@ extension TodoEditSheet {
             subtask.orderIndex = Int64(index)
         }
         if let context = todo.managedObjectContext {
-            do {
-                try context.save()
-            } catch {
-                Self.logger.error("[\(#function)] Failed to reorder subtasks: \(error)")
-            }
+            context.safeSave()
         }
     }
 
@@ -302,11 +270,7 @@ extension TodoEditSheet {
         template.defaultStudentIDsArray = Array(selectedStudentIDs)
         template.tagsArray = syncedTemplateTags
 
-        do {
-            try context.save()
-        } catch {
-            Self.logger.error("[\(#function)] Failed to save template: \(error)")
-        }
+        context.safeSave()
 
         templateName = ""
     }
@@ -380,11 +344,7 @@ extension TodoEditSheet {
             }
 
             if let context = todo.managedObjectContext {
-                do {
-                    try context.save()
-                } catch {
-                    Self.logger.error("[\(#function)] Failed to save todo: \(error)")
-                }
+                context.safeSave()
             }
 
             closeEditor()

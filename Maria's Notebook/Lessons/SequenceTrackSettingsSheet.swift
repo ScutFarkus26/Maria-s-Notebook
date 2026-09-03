@@ -159,8 +159,9 @@ struct SequenceTrackSettingsSheet: View {
             gs.requiresTeacherConfirmation = requiresConfirmation
             gs.modifiedAt = Date()
 
-            try viewContext.save()
-            dismiss()
+            if viewContext.safeSave() {
+                dismiss()
+            }
         } catch {
             Self.logger.error("Failed to save track settings: \(error)")
         }

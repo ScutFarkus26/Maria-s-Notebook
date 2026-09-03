@@ -1,10 +1,8 @@
 // swiftlint:disable file_length
-import OSLog
 import SwiftUI
 import CoreData
 
 struct TodoTemplatesView: View {
-    private static let logger = Logger.todos
     @Environment(\.dismiss) private var dismiss
     @Environment(\.managedObjectContext) private var viewContext
     @FetchRequest(sortDescriptors: [
@@ -97,21 +95,13 @@ struct TodoTemplatesView: View {
         todo.tagsArray = template.tagsArray
         todo.studentIDsArray = template.defaultStudentIDsArray
         template.useCount += 1
-        do {
-            try viewContext.save()
-        } catch {
-            Self.logger.error("[\(#function)] Failed to save todo from template: \(error)")
-        }
+        viewContext.safeSave()
         dismiss()
     }
     
     private func deleteTemplate(_ template: CDTodoTemplate) {
         viewContext.delete(template)
-        do {
-            try viewContext.save()
-        } catch {
-            Self.logger.error("[\(#function)] Failed to delete template: \(error)")
-        }
+        viewContext.safeSave()
     }
 }
 
@@ -234,7 +224,6 @@ private struct TemplateRow: View {
 // MARK: - Template Edit Sheet
 
 private struct TodoTemplateEditSheet: View {
-    private static let logger = Logger.todos
     @Environment(\.dismiss) private var dismiss
     @Environment(\.managedObjectContext) private var viewContext
     @FetchRequest(sortDescriptors: [
@@ -433,11 +422,7 @@ private struct TodoTemplateEditSheet: View {
             newTemplate.tagsArray = selectedTags
         }
 
-        do {
-            try viewContext.save()
-        } catch {
-            Self.logger.error("[\(#function)] Failed to save template: \(error)")
-        }
+        viewContext.safeSave()
         dismiss()
     }
 }

@@ -162,11 +162,8 @@ struct MeetingTemplateEditorSheet: View {
             newTemplate.isBuiltIn = false
         }
 
-        do {
-            try viewContext.save()
+        if viewContext.safeSave() {
             saveTrigger &+= 1
-        } catch {
-            Self.logger.warning("Failed to save meeting template: \(error, privacy: .public)")
         }
         onSaved()
         dismiss()

@@ -155,11 +155,8 @@ struct NoteTemplateEditorSheet: View {
             newTemplate.isBuiltIn = false
         }
 
-        do {
-            try viewContext.save()
+        if viewContext.safeSave() {
             saveTrigger &+= 1
-        } catch {
-            Self.logger.warning("Failed to save note template: \(error, privacy: .public)")
         }
         onSaved()
         dismiss()

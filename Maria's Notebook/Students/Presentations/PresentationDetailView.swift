@@ -1,8 +1,5 @@
-import OSLog
 import SwiftUI
 import CoreData
-
-private let logger = Logger.students
 
 struct PresentationDetailView: View {
     @Environment(\.managedObjectContext) private var viewContext
@@ -408,11 +405,7 @@ struct PresentationDetailContentView: View {
         // Cleanup empty drafts if cancelling
         if vm.lessonAssignment.studentIDs.isEmpty {
             viewContext.delete(vm.lessonAssignment)
-            do {
-                try viewContext.save()
-            } catch {
-                logger.warning("Failed to save after cancel cleanup: \(error)")
-            }
+            viewContext.safeSave()
         }
         handleDone()
     }

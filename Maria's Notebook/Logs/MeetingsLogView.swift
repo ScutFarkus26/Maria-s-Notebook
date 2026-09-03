@@ -1,10 +1,8 @@
 import SwiftUI
 import CoreData
-import OSLog
 
 // swiftlint:disable:next type_body_length
 struct MeetingsLogView: View {
-    private static let logger = Logger.app_
     @Environment(\.managedObjectContext) private var viewContext
     @Environment(\.calendar) private var calendar
 
@@ -376,20 +374,12 @@ struct MeetingsLogView: View {
 
     private func toggleMeetingCompletion(_ meeting: CDStudentMeeting) {
         meeting.completed.toggle()
-        do {
-            try viewContext.save()
-        } catch {
-            Self.logger.warning("Failed to save after toggling meeting completion: \(error, privacy: .public)")
-        }
+        viewContext.safeSave()
     }
 
     private func deleteMeeting(_ meeting: CDStudentMeeting) {
         viewContext.delete(meeting)
-        do {
-            try viewContext.save()
-        } catch {
-            Self.logger.warning("Failed to save after deleting meeting: \(error, privacy: .public)")
-        }
+        viewContext.safeSave()
     }
 }
 

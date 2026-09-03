@@ -152,11 +152,7 @@ struct StudentsView: View {
         .onChange(of: uniqueStudentIDs) { _, _ in
             ensureInitialManualOrderIfNeeded()
             if viewModel.repairManualOrderUniquenessIfNeeded(uniqueStudents) {
-                do {
-                    try viewContext.save()
-                } catch {
-                    logger.warning("Failed to save after repairing manual order uniqueness: \(error)")
-                }
+                viewContext.safeSave()
             }
         }
     }
@@ -331,11 +327,7 @@ struct StudentsView: View {
 
     private func ensureInitialManualOrderIfNeeded() {
         if viewModel.ensureInitialManualOrderIfNeeded(uniqueStudents) {
-            do {
-                try viewContext.save()
-            } catch {
-                logger.warning("Failed to save initial manual order: \(error)")
-            }
+            viewContext.safeSave()
         }
     }
 
@@ -358,11 +350,7 @@ struct StudentsView: View {
             allStudents: uniqueStudents
         )
         assignManualOrder(from: newAllIDs)
-        do {
-            try viewContext.save()
-        } catch {
-            logger.warning("Failed to save manual reorder: \(error)")
-        }
+        viewContext.safeSave()
     }
 
     // MARK: - Navigation Helpers

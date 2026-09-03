@@ -201,11 +201,7 @@ struct SchoolCalendarSettingsView: View {
             }
             d = cal.date(byAdding: .day, value: 1, to: d) ?? d
         }
-        do {
-            try viewContext.save()
-        } catch {
-            Self.logger.warning("Failed to save after clearing month: \(error, privacy: .public)")
-        }
+        viewContext.safeSave()
         Task {
             await reload()
         }
@@ -238,11 +234,7 @@ struct SchoolCalendarSettingsView: View {
             }
             d = cal.date(byAdding: .day, value: 1, to: d) ?? d
         }
-        do {
-            try viewContext.save()
-        } catch {
-            Self.logger.warning("Failed to save after marking weekdays: \(error, privacy: .public)")
-        }
+        viewContext.safeSave()
         Task {
             await reload()
         }

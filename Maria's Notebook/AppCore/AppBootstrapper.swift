@@ -186,11 +186,8 @@ final class AppBootstrapper {
         // Save all migration changes in one batch to minimize store coordinator changes
         await MainActor.run {
             if coreDataStack.viewContext.hasChanges {
-                do {
-                    try coreDataStack.viewContext.save()
+                if coreDataStack.viewContext.safeSave() {
                     logger.info("Post-launch migrations: saved all changes successfully")
-                } catch {
-                    logger.error("Post-launch migrations: failed to save changes - \(error.localizedDescription)")
                 }
             }
         }

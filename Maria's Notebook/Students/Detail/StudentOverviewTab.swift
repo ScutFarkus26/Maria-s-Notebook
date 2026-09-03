@@ -169,13 +169,10 @@ struct StudentOverviewTab: View {
                                     // Mark as complete
                                     w.status = .complete
                                     w.completedAt = AppCalendar.startOfDay(Date())
-                                    do {
-                                        try viewContext.save()
+                                    if viewContext.safeSave() {
                                         // Re-fetch from the source of truth: the "Working on" fetch
                                         // excludes complete work, so the just-completed card drops out.
                                         onWorkChanged()
-                                    } catch {
-                                        logger.warning("Failed to save after marking work completed: \(error)")
                                     }
                                 },
                                 onSchedule: { w, day in
@@ -183,13 +180,10 @@ struct StudentOverviewTab: View {
                                     // its own to move, so the due date is the
                                     // whole of what scheduling means here.
                                     w.dueAt = AppCalendar.startOfDay(day)
-                                    do {
-                                        try viewContext.save()
+                                    if viewContext.safeSave() {
                                         // Re-fetch so the card's parent-computed attention state
                                         // (derived from dueAt) recomputes deterministically.
                                         onWorkChanged()
-                                    } catch {
-                                        logger.warning("Failed to save after scheduling a check: \(error)")
                                     }
                                 }
                             )

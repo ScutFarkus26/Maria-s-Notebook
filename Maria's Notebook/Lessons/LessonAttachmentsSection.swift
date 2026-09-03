@@ -280,7 +280,7 @@ struct LessonAttachmentsSection: View {
                 attachment.lesson = lesson
                 
                 Self.logger.debug("Saving context")
-                try viewContext.save()
+                guard viewContext.safeSave() else { return }
                 
                 // Delete original file if requested
                 if deleteOriginalAfterImport {
@@ -315,7 +315,7 @@ struct LessonAttachmentsSection: View {
             
             // Delete the attachment entity
             viewContext.delete(attachment)
-            try viewContext.save()
+            viewContext.safeSave()
             
         } catch {
             Self.logger.error("Failed to delete attachment: \(error)")
@@ -329,11 +329,7 @@ struct LessonAttachmentsSection: View {
             lesson.primaryAttachmentID = attachment.id?.uuidString
         }
 
-        do {
-            try viewContext.save()
-        } catch {
-            Self.logger.error("Failed to update primary attachment: \(error)")
-        }
+        viewContext.safeSave()
     }
 
     private func renameAttachment() {
@@ -345,10 +341,10 @@ struct LessonAttachmentsSection: View {
             attachment.fileRelativePath = renamedFile.relativePath
             attachment.fileBookmark = try LessonFileStorage.makeBookmark(for: renamedFile.url)
             attachment.fileType = renamedFile.fileType
-            try viewContext.save()
-
-            attachmentToRename = nil
-            renameFileName = ""
+            if viewContext.safeSave() {
+                attachmentToRename = nil
+                renameFileName = ""
+            }
         } catch {
             Self.logger.error("Failed to rename attachment: \(error)")
         }

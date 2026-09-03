@@ -1,9 +1,7 @@
 import SwiftUI
 import CoreData
-import OSLog
 
 struct PresentationDraftSheet: View {
-    private static let logger = Logger.students
     @Environment(\.managedObjectContext) private var viewContext
 
     // Filtered query to observe the draft by its ID
@@ -27,11 +25,7 @@ struct PresentationDraftSheet: View {
                         if let current = matches.first {
                             if current.lesson == nil && current.studentIDs.isEmpty {
                                 viewContext.delete(current)
-                                do {
-                                    try viewContext.save()
-                                } catch {
-                                    Self.logger.warning("Failed to save: \(error)")
-                                }
+                                viewContext.safeSave()
                             }
                         }
                     }

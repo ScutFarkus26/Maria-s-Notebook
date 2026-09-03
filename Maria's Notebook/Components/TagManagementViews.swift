@@ -1,7 +1,6 @@
 // TagManagementViews.swift
 // Elegant full-screen todo list view inspired by Things and Bear
 
-import OSLog
 import SwiftUI
 import CoreData
 
@@ -36,7 +35,6 @@ struct TagBadge: View {
 // MARK: - Tag Picker Component
 
 struct TagPicker: View {
-    private static let logger = Logger.todos
     @Binding var selectedTags: [String]
     @Environment(\.managedObjectContext) private var viewContext
     @FetchRequest(sortDescriptors: CDStudent.sortByName)private var studentsRaw: FetchedResults<CDStudent>
@@ -227,11 +225,7 @@ struct TagPicker: View {
                 todo.tagsArray = uniqueTags(updated)
             }
 
-            do {
-                try viewContext.save()
-            } catch {
-                Self.logger.error("[\(#function)] Failed to save tag edit: \(error)")
-            }
+            viewContext.safeSave()
         } else if !selectedTags.contains(savedTag) {
             selectedTags.append(savedTag)
         }

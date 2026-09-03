@@ -244,11 +244,7 @@ struct StudentMeetingsTab: View {
                     meeting.focus = editFocus
                     meeting.requests = editRequests
                     meeting.guideNotes = editGuideNotes
-                    do {
-                        try viewContext.save()
-                    } catch {
-                        Self.logger.warning("Failed to save meeting edit: \(error)")
-                    }
+                    viewContext.safeSave()
                     editingMeeting = nil
                 }
                 .keyboardShortcut(.defaultAction)
@@ -449,11 +445,7 @@ struct StudentMeetingsTab: View {
 
     func delete(_ item: CDStudentMeeting) {
         viewContext.delete(item)
-        do {
-            try viewContext.save()
-        } catch {
-            Self.logger.warning("Failed to save after deleting meeting: \(error)")
-        }
+        viewContext.safeSave()
     }
 
     // MARK: - UI Helpers

@@ -9,13 +9,8 @@
 
 import SwiftUI
 import CoreData
-import OSLog
 
 struct ReadyToPresentSection: View {
-    private static let logger = Logger.presentations
-    /// Same logger, reachable from the menu extension in its own file.
-    static let menuLogger = Logger.presentations
-
     // Not private: the Follow Up extension in its own file reads it.
     @Environment(\.managedObjectContext) var viewContext
 
@@ -413,11 +408,8 @@ extension ReadyToPresentSection {
             let offset = Double(index * UIConstants.scheduleSpacingSeconds)
             assignment.setScheduledFor(base.addingTimeInterval(offset), using: AppCalendar.shared)
         }
-        do {
-            try viewContext.save()
+        if viewContext.safeSave() {
             selection.clear()
-        } catch {
-            Self.logger.error("Failed to schedule selected presentations: \(error)")
         }
     }
 
@@ -425,11 +417,7 @@ extension ReadyToPresentSection {
         guard !la.manuallyUnblocked, let ctx = la.managedObjectContext else { return }
         la.manuallyUnblocked = true
         la.modifiedAt = Date()
-        do {
-            try ctx.save()
-        } catch {
-            Self.logger.error("Failed to save manual unlock: \(error)")
-        }
+        ctx.safeSave()
     }
 
     fileprivate func splitReadyToInbox(_ la: CDLessonAssignment, result: BlockingAlgorithmEngine.BlockingCheckResult) {
@@ -443,10 +431,6 @@ extension ReadyToPresentSection {
             asDraft: true,
             context: ctx
         )
-        do {
-            try ctx.save()
-        } catch {
-            Self.logger.error("Failed to save after split: \(error)")
-        }
+        ctx.safeSave()
     }
 }

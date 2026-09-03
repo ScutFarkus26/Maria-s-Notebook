@@ -104,11 +104,7 @@ extension LessonAssignmentHistoryView {
 
     func deleteAssignment(_ assignment: CDLessonAssignment) {
         viewContext.delete(assignment)
-        do {
-            try viewContext.save()
-        } catch {
-            Self.logger.warning("Failed to save assignment deletion: \(error)")
-        }
+        viewContext.safeSave()
         // Reload to reflect deletion
         loadAssignments(limit: loadedAssignments.count >= Self.initialLoadCount ? nil : Self.initialLoadCount)
     }

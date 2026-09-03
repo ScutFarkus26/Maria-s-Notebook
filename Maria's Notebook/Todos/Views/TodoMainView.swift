@@ -1,13 +1,11 @@
 // TodoMainView.swift
 // Elegant full-screen todo list view inspired by Things and Bear
 
-import OSLog
 import SwiftUI
 import CoreData
 
 /// Main todo view with elegant layout inspired by Things and Bear
 struct TodoMainView: View {
-    private static let logger = Logger.todos
     @Environment(\.managedObjectContext) var viewContext
     @FetchRequest(sortDescriptors: [NSSortDescriptor(keyPath: \CDTodoItem.createdAt, ascending: false)])
     var allTodos: FetchedResults<CDTodoItem>
@@ -204,21 +202,13 @@ struct TodoMainView: View {
         for todo in completed {
             viewContext.delete(todo)
         }
-        do {
-            try viewContext.save()
-        } catch {
-            Self.logger.error("[\(#function)] Failed to delete completed todos: \(error)")
-        }
+        viewContext.safeSave()
     }
 
     func deleteTodo(_ todo: CDTodoItem) {
         adaptiveWithAnimation {
             viewContext.delete(todo)
-            do {
-                try viewContext.save()
-            } catch {
-                Self.logger.error("[\(#function)] Failed to delete todo: \(error)")
-            }
+            viewContext.safeSave()
         }
     }
 

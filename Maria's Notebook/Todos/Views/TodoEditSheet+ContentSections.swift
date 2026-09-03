@@ -1,7 +1,6 @@
 // TodoEditSheet+ContentSections.swift
 // Content-related sections: subtasks, work integration, attachments, time, reminders, mood, location.
 
-import OSLog
 import SwiftUI
 import CoreData
 
@@ -92,11 +91,7 @@ extension TodoEditSheet {
                     Button {
                         todo.linkedWorkItemID = nil
                         if let context = todo.managedObjectContext {
-                            do {
-                                try context.save()
-                            } catch {
-                                Logger.todos.error("[\(#function)] Failed to save todo: \(error)")
-                            }
+                            context.safeSave()
                         }
                     } label: {
                         Text("Unlink")

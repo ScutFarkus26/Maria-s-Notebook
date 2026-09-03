@@ -198,10 +198,6 @@ enum PDFFolderMigrationService {
     @MainActor
     private static func saveContext(_ context: NSManagedObjectContext) {
         guard context.hasChanges else { return }
-        do {
-            try context.save()
-        } catch {
-            logger.error("PDF folder migration: save failed: \(error.localizedDescription)")
-        }
+        context.safeSave()
     }
 }

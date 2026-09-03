@@ -77,11 +77,7 @@ extension LessonsRootView {
             lesson.sortIndex = Int64(idx)
         }
 
-        do {
-            try viewContext.save()
-        } catch {
-            logger.error("Failed to save lesson reorder: \(error)")
-        }
+        viewContext.safeSave()
     }
 
     private func collectOrderedLessons(displaySequences: [String], ungroupedLabel: String) -> [CDLesson] {
@@ -156,11 +152,7 @@ extension LessonsRootView {
             lesson.sortIndex = Int64(idx)
         }
 
-        do {
-            try viewContext.save()
-        } catch {
-            logger.error("Failed to save lesson reorder: \(error)")
-        }
+        viewContext.safeSave()
     }
 
     // MARK: - Move CDLesson to Different Group
@@ -205,11 +197,7 @@ extension LessonsRootView {
             lesson.orderInSequence = Int64(idx)
         }
 
-        do {
-            try viewContext.save()
-        } catch {
-            logger.error("Failed to save lesson after insert-after: \(error)")
-        }
+        viewContext.safeSave()
     }
 
     // MARK: - Plan Presentation

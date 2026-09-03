@@ -439,11 +439,7 @@ struct RootView: View {
     /// iOS toolbar trigger, the radial quick-command menu, and File > New.
     private func createPresentationDraft() {
         let draft = PresentationFactory.makeDraft(lessonID: UUID(), studentIDs: [], context: viewContext)
-        do {
-            try viewContext.save()
-        } catch {
-            Self.logger.error("Failed to save new presentation draft: \(error)")
-        }
+        viewContext.safeSave()
         newPresentationDraftID = draft.id
     }
 

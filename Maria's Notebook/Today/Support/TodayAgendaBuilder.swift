@@ -158,11 +158,7 @@ enum TodayAgendaBuilder {
             entry.position = Int64(index)
         }
 
-        do {
-            try context.save()
-        } catch {
-            logger.warning("Failed to save agenda order: \(error)")
-        }
+        context.safeSave()
     }
 
     /// Deletes agenda order entries older than 30 days.
@@ -179,7 +175,7 @@ enum TodayAgendaBuilder {
             for entry in old {
                 context.delete(entry)
             }
-            try context.save()
+            context.safeSave()
         } catch {
             logger.warning("Failed to cleanup old agenda orders: \(error)")
         }
@@ -203,7 +199,7 @@ enum TodayAgendaBuilder {
             for entry in old {
                 context.delete(entry)
             }
-            try context.save()
+            context.safeSave()
         } catch {
             logger.warning("Failed to cleanup old day pads: \(error)")
         }

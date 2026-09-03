@@ -1,14 +1,12 @@
 // EditTodoForm.swift
 // Elegant full-screen todo list view inspired by Things and Bear
 
-import OSLog
 import SwiftUI
 import CoreData
 
 // MARK: - Edit Todo Form
 
 struct EditTodoForm: View {
-    private static let logger = Logger.todos
     @ObservedObject var todo: CDTodoItem
     @Environment(\.managedObjectContext) private var viewContext
 
@@ -118,10 +116,6 @@ struct EditTodoForm: View {
     }
 
     private func saveTodoChanges() {
-        do {
-            try viewContext.save()
-        } catch {
-            Self.logger.error("[\(#function)] Failed to save todo changes: \(error)")
-        }
+        viewContext.safeSave()
     }
 }

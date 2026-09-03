@@ -265,10 +265,6 @@ struct PlanningSlotDropDelegate: DropDelegate {
     }
 
     private func saveContext(_ operation: String) {
-        do {
-            try viewContext.save()
-        } catch {
-            Self.logger.warning("Failed to save context after \(operation): \(error)")
-        }
+        viewContext.safeSave()
     }
 }

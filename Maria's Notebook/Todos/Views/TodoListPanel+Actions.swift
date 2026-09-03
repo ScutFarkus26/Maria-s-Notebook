@@ -1,10 +1,7 @@
-import OSLog
 import SwiftUI
 import CoreData
 
 extension TodoListPanel {
-    private static let logger = Logger.todos
-
     func addTodo() {
         let trimmed = newTodoTitle.trimmed()
         guard !trimmed.isEmpty else { return }
@@ -14,11 +11,7 @@ extension TodoListPanel {
         newTodo.title = parseResult.cleanTitle
         newTodo.orderIndex = Int64(todos.count)
         newTodo.scheduledDate = parseResult.suggestedDate
-        do {
-            try viewContext.save()
-        } catch {
-            Self.logger.error("Failed to save new todo: \(error.localizedDescription, privacy: .public)")
-        }
+        viewContext.safeSave()
         newTodoTitle = ""
         isAddingFocused = true
     }
@@ -71,11 +64,7 @@ extension TodoListPanel {
                 newTodo.dueDate = dueDate
                 newTodo.priority = priority
                 newTodo.recurrence = recurrence
-                do {
-                    try viewContext.save()
-                } catch {
-                    Self.logger.error("Failed to save new todo: \(error.localizedDescription, privacy: .public)")
-                }
+                viewContext.safeSave()
                 newTodoTitle = ""
                 isAddingFocused = true
             } catch {
@@ -143,20 +132,12 @@ extension TodoListPanel {
         } else {
             todo.completedAt = nil
         }
-        do {
-            try viewContext.save()
-        } catch {
-            Self.logger.error("Failed to save todo completion: \(error.localizedDescription, privacy: .public)")
-        }
+        viewContext.safeSave()
     }
 
     func deleteTodo(_ todo: CDTodoItem) {
         viewContext.delete(todo)
-        do {
-            try viewContext.save()
-        } catch {
-            Self.logger.error("Failed to delete todo: \(error.localizedDescription, privacy: .public)")
-        }
+        viewContext.safeSave()
     }
 
     func moveTodos(from source: IndexSet, to destination: Int) {
@@ -168,10 +149,6 @@ extension TodoListPanel {
             todo.orderIndex = Int64(index)
         }
 
-        do {
-            try viewContext.save()
-        } catch {
-            Self.logger.error("Failed to update todo order: \(error.localizedDescription, privacy: .public)")
-        }
+        viewContext.safeSave()
     }
 }

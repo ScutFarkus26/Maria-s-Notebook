@@ -6,7 +6,6 @@
 // `CalendarCheckInGroup`, so they no longer belong to any one day column.
 
 import CoreData
-import OSLog
 import SwiftUI
 
 // MARK: - Grouped Pill
@@ -183,8 +182,6 @@ struct GroupedCheckInDetailSheet: View {
 /// A single student row inside GroupedCheckInDetailSheet.
 /// Owns its own note state so the text field is editable and saves back to the check-in.
 private struct CheckInStudentRow: View {
-    private static let logger = Logger.work
-
     @Environment(\.managedObjectContext) private var modelContext
 
     let checkIn: CDWorkCheckIn
@@ -240,11 +237,7 @@ private struct CheckInStudentRow: View {
                         try? await Task.sleep(for: .milliseconds(600))
                         guard !Task.isCancelled else { return }
                         checkIn.setLegacyNoteText(newValue, in: modelContext)
-                        do {
-                            try modelContext.save()
-                        } catch {
-                            Self.logger.warning("Failed to save note: \(error)")
-                        }
+                        modelContext.safeSave()
                     }
                 }
         }

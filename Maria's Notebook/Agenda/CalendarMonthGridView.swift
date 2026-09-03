@@ -117,11 +117,7 @@ struct CalendarMonthGridView: View {
                 Self.logger.warning("Failed to toggle non-school day: \(error)")
                 toggleResult = nil
             }
-            do {
-                try viewContext.save()
-            } catch {
-                Self.logger.warning("Failed to save after toggle: \(error)")
-            }
+            viewContext.safeSave()
             let newState: Bool
             if let result = toggleResult {
                 newState = result

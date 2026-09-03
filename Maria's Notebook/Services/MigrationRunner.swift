@@ -19,11 +19,7 @@ enum MigrationRunner {
             // Clean up any orphaned note images.
             DataMigrations.cleanupOrphanedNoteImages(using: bgContext)
             if bgContext.hasChanges {
-                do {
-                    try bgContext.save()
-                } catch {
-                    logger.error("Launch cleanup save failed: \(error.localizedDescription, privacy: .public)")
-                }
+                bgContext.safeSave()
             }
             return results
         }

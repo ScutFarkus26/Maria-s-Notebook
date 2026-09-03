@@ -7,11 +7,9 @@
 
 import SwiftUI
 import CoreData
-import OSLog
 
 /// View displaying AI-generated student development insights
 struct StudentInsightsView: View {
-    private static let logger = Logger.students
     @Environment(\.dependencies) var dependencies
     @Environment(\.managedObjectContext) var viewContext
 
@@ -101,11 +99,7 @@ struct StudentInsightsView: View {
 
     func markAsReviewed(_ snapshot: CDDevelopmentSnapshotEntity) {
         snapshot.isReviewed = true
-        do {
-            try viewContext.save()
-        } catch {
-            Self.logger.warning("Failed to save: \(error)")
-        }
+        viewContext.safeSave()
     }
 
     func generateParentSummary(_ snapshot: CDDevelopmentSnapshotEntity) {

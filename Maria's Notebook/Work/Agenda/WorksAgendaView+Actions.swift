@@ -16,11 +16,7 @@ extension WorksAgendaView {
 
     func openDetail(_ w: CDWorkModel) {
         // Force save before opening
-        do {
-            try viewContext.save()
-        } catch {
-            Self.logger.warning("Failed to save context: \(error)")
-        }
+        viewContext.safeSave()
 
         guard let workID = w.id else { return }
 

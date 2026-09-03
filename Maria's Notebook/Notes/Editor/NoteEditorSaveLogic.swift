@@ -24,11 +24,7 @@ extension UnifiedNoteEditor {
             note = createNewNote(body: trimmedBody, scope: scope)
         }
 
-        do {
-            try viewContext.save()
-        } catch {
-            Self.logger.error("Failed to save note: \(error.localizedDescription)")
-        }
+        viewContext.safeSave()
         onSave(note)
         dismiss()
     }

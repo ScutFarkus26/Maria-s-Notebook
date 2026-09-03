@@ -7,12 +7,10 @@
 import SwiftUI
 import CoreData
 import UniformTypeIdentifiers
-import OSLog
 
 // MARK: - Drop Delegate for day column
 
 struct WeekDayColumnDropDelegate: DropDelegate {
-    private static let logger = Logger.presentations
     let calendar: Calendar
     let viewContext: NSManagedObjectContext
     let allLessonAssignments: [CDLessonAssignment]
@@ -149,27 +147,23 @@ struct WeekDayColumnDropDelegate: DropDelegate {
             using: calendar,
             spacingSeconds: UIConstants.scheduleSpacingSeconds
         )
-        do {
-            for itemID in ids {
-                if let item = assignmentsByID[itemID], let time = timeMap[itemID] {
-                    item.setScheduledFor(time, using: AppCalendar.shared)
-                }
+        for itemID in ids {
+            if let item = assignmentsByID[itemID], let time = timeMap[itemID] {
+                item.setScheduledFor(time, using: AppCalendar.shared)
             }
-            try viewContext.save()
+        }
+        guard viewContext.safeSave() else { return }
 
-            // Auto-populate year plan entries for the dropped presentation's sequence
-            if let droppedItem = allLessonAssignments.first(where: { $0.id == id }),
-               droppedItem.state == .scheduled {
-                Task {
-                    await SequenceAutoPopulateService.autoPopulateSequence(
-                        for: droppedItem,
-                        scheduledDate: droppedItem.scheduledFor ?? day,
-                        context: viewContext
-                    )
-                }
+        // Auto-populate year plan entries for the dropped presentation's sequence
+        if let droppedItem = allLessonAssignments.first(where: { $0.id == id }),
+           droppedItem.state == .scheduled {
+            Task {
+                await SequenceAutoPopulateService.autoPopulateSequence(
+                    for: droppedItem,
+                    scheduledDate: droppedItem.scheduledFor ?? day,
+                    context: viewContext
+                )
             }
-        } catch {
-            Self.logger.warning("Presentations schedule save failed: \(error)")
         }
     }
 

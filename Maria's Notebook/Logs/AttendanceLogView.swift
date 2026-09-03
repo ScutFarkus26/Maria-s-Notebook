@@ -1,11 +1,9 @@
 // swiftlint:disable file_length
 import SwiftUI
 import CoreData
-import OSLog
 
 // swiftlint:disable:next type_body_length
 struct AttendanceLogView: View {
-    private static let logger = Logger.attendance
     @Environment(\.managedObjectContext) private var viewContext
     @Environment(\.calendar) private var calendar
 
@@ -524,20 +522,12 @@ struct AttendanceLogView: View {
 
     private func updateRecordStatus(_ record: CDAttendanceRecord, to status: AttendanceStatus) {
         record.status = status
-        do {
-            try viewContext.save()
-        } catch {
-            Self.logger.warning("Failed to save after updating record status: \(error, privacy: .public)")
-        }
+        viewContext.safeSave()
     }
 
     private func deleteRecord(_ record: CDAttendanceRecord) {
         viewContext.delete(record)
-        do {
-            try viewContext.save()
-        } catch {
-            Self.logger.warning("Failed to save after deleting record: \(error, privacy: .public)")
-        }
+        viewContext.safeSave()
     }
 }
 

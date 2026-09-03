@@ -4,11 +4,8 @@
 
 import SwiftUI
 import CoreData
-import OSLog
 
 struct DayPadEditor: View {
-    private static let logger = Logger.app_
-
     let day: Date
 
     @Environment(\.managedObjectContext) private var viewContext
@@ -85,10 +82,6 @@ struct DayPadEditor: View {
             pad = CDDayPad(context: viewContext, day: dayStart)
         }
         pad?.setBody(newValue)
-        do {
-            try viewContext.save()
-        } catch {
-            Self.logger.warning("Failed to save day pad: \(error.localizedDescription)")
-        }
+        viewContext.safeSave()
     }
 }

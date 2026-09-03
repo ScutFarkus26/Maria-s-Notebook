@@ -58,11 +58,7 @@ enum LessonOrderMigration {
         }
         
         if updatedCount > 0 {
-            do {
-                try context.save()
-            } catch {
-                logger.warning("Failed to save context after sort index migration: \(error)")
-            }
+            context.safeSave()
         }
         
         return updatedCount

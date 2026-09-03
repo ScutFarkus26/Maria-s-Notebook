@@ -298,9 +298,10 @@ extension TodayView {
                 presentedAt: Date(),
                 modelContext: viewContext
             )
-            try viewContext.save()
-            viewModel.reload()
-            toast("Marked presented")
+            if viewContext.safeSave() {
+                viewModel.reload()
+                toast("Marked presented")
+            }
         } catch {
             Logger.app_.warning("Failed to mark lesson presented: \(error.localizedDescription)")
         }
@@ -315,12 +316,9 @@ extension TodayView {
         // A bump expresses a day, so it lands at the start of the morning
         // rather than ahead of everything already planned.
         sl.schedule(onDay: tomorrow)
-        do {
-            try viewContext.save()
+        if viewContext.safeSave() {
             viewModel.reload()
             toast("Bumped to tomorrow")
-        } catch {
-            Logger.app_.warning("Failed to bump lesson: \(error.localizedDescription)")
         }
     }
 
@@ -346,12 +344,9 @@ extension TodayView {
             second: time.second ?? 0,
             of: startOfTomorrow
         ) ?? startOfTomorrow
-        do {
-            try viewContext.save()
+        if viewContext.safeSave() {
             viewModel.reload()
             toast("Bumped to tomorrow")
-        } catch {
-            Logger.app_.warning("Failed to bump check-in: \(error.localizedDescription)")
         }
     }
 

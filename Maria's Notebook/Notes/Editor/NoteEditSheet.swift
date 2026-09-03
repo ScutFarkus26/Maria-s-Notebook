@@ -122,11 +122,8 @@ struct NoteEditSheet: View {
         note.isPinned = isPinned
         note.needsFollowUp = needsFollowUp
         note.updatedAt = Date()
-        do {
-            try viewContext.save()
+        if viewContext.safeSave() {
             NotificationCenter.default.post(name: .noteDidSave, object: note.id)
-        } catch {
-            Self.logger.warning("Failed to save note: \(error)")
         }
         onSaved?()
         dismiss()
