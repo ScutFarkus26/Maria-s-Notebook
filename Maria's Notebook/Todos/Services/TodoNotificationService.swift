@@ -4,7 +4,6 @@ import CoreData
 import OSLog
 
 /// Service for managing todo notifications and reminders
-@MainActor
 class TodoNotificationService {
     private static let logger = Logger.todos
     static let shared = TodoNotificationService()

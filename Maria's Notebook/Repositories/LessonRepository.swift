@@ -9,7 +9,6 @@ import Foundation
 import OSLog
 import CoreData
 
-@MainActor
 struct LessonRepository: SavingRepository {
     typealias Model = CDLesson
 

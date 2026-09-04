@@ -1,6 +1,5 @@
 import Foundation
 
-@MainActor
 struct StudentsImportCoordinator {
     static func startHeaderScan(
         from url: URL,

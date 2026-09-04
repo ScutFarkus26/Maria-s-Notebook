@@ -276,7 +276,6 @@ struct StudentsView: View {
     // MARK: - On-Demand Data Loading
 
     /// Loads attendance and lesson-age caches based on current filters
-    @MainActor
     private func loadDataOnDemand() {
         viewModel.loadDataOnDemand(
             viewContext: viewContext,

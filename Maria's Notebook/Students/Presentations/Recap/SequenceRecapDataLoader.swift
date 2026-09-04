@@ -10,7 +10,6 @@ import CoreData
 
 enum SequenceRecapDataLoader {
 
-    @MainActor
     static func collect(
         lessonIDs: [String],
         studentIDs: [String],
@@ -39,7 +38,6 @@ enum SequenceRecapDataLoader {
 
     // MARK: - Fetches
 
-    @MainActor
     static func fetchLessonsInSequence(
         sequence: String,
         area: String,
@@ -57,7 +55,6 @@ enum SequenceRecapDataLoader {
         return context.safeFetch(req)
     }
 
-    @MainActor
     private static func fetchAssignments(
         lessonIDs: [String],
         context: NSManagedObjectContext
@@ -68,7 +65,6 @@ enum SequenceRecapDataLoader {
         return context.safeFetch(req)
     }
 
-    @MainActor
     private static func fetchPresentations(
         lessonIDs: [String],
         studentIDs: [String],
@@ -83,7 +79,6 @@ enum SequenceRecapDataLoader {
         return context.safeFetch(req)
     }
 
-    @MainActor
     private static func fetchWork(
         lessonIDs: [String],
         studentIDs: [String],
@@ -98,7 +93,6 @@ enum SequenceRecapDataLoader {
         return context.safeFetch(req)
     }
 
-    @MainActor
     private static func fetchLessonScopedNotes(
         lessonIDs: [String],
         context: NSManagedObjectContext
@@ -118,7 +112,6 @@ enum SequenceRecapDataLoader {
         return context.safeFetch(req)
     }
 
-    @MainActor
     private static func fetchStudentLinks(
         noteIDs: [String],
         context: NSManagedObjectContext

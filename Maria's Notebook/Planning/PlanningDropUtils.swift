@@ -74,7 +74,7 @@ enum PlanningDropUtils {
     /// `spacingSeconds` must stay whole: backups encode dates as ISO-8601 with
     /// whole-second precision, so sub-second offsets would collapse the order
     /// into ties across an export/restore.
-    @MainActor static func assignSequentialTimes(
+    static func assignSequentialTimes(
         ids: [UUID],
         base: Date,
         calendar: Calendar,

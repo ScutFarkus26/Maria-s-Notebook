@@ -6,7 +6,6 @@ import Foundation
 /// Presentation observations must stay attached to the exact presentation the
 /// guide is closing. This service deliberately does not guess which repeated
 /// presentation was meant when an ID is missing.
-@MainActor
 struct PresentationOutcomePersistenceService {
     enum PersistenceError: LocalizedError {
         case missingPresentationID

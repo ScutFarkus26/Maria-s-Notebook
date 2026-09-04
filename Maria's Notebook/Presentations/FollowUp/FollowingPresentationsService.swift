@@ -32,7 +32,6 @@ struct FollowingPresentationGroup: Identifiable {
     }
 }
 
-@MainActor
 enum FollowingPresentationsService {
     static func groups(
         rows: [CDLessonPresentation],

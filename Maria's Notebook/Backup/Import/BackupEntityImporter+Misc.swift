@@ -79,7 +79,6 @@ extension BackupEntityImporter {
     /// check-ins, meetings, issues, etc.) import in later phases — so they can't
     /// be resolved at note-import time. This runs as a final pass, once every
     /// target type is in the store, and wires them up by id.
-    @MainActor
     static func relinkNoteRelationships(_ dtos: [NoteDTO], index: BackupEntityIndex) throws {
         for dto in dtos {
             guard let note = try index.related(CDNote.self, id: dto.id) else { continue }

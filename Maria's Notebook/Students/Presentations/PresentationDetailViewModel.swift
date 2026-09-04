@@ -13,7 +13,6 @@ import CoreData
 import OSLog
 
 @Observable
-@MainActor
 final class PresentationDetailViewModel {
     static let logger = Logger.students
 

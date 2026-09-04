@@ -65,7 +65,6 @@ struct RolloverSummary: Equatable {
 
 // MARK: - Service
 
-@MainActor
 enum RolloverService {
 
     /// Pure summary of what a plan would do to the given roster.

@@ -28,7 +28,6 @@ struct QuickCaptureActions {
 /// Keeping the callback inside this reference type lets the focused-value
 /// system compare the target by identity. The command still acts only on the
 /// key main window, just as it did when the callback was stored directly.
-@MainActor
 final class FocusedSearchAction {
     private var action: (() -> Void)?
 

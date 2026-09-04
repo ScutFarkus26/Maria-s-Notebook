@@ -6,7 +6,6 @@ import Foundation
 /// Guide follow-up (watch, check, support, or plan next) remains a separate
 /// responsibility. This service only creates `CDWorkModel` rows, which makes
 /// the child's work immediately available to the existing Open Work screen.
-@MainActor
 struct PresentationFollowUpWorkService {
     struct CreationResult {
         struct Item {
@@ -423,7 +422,6 @@ private extension PresentationFollowUpWorkService {
 /// `rollback()` would be too broad. A temporary undo manager restores inserts,
 /// updates, relationships, and deletes made after this transaction begins while
 /// leaving the context's earlier pending changes alone.
-@MainActor
 private final class ContextMutationTransaction {
     private let context: NSManagedObjectContext
     private let previousUndoManager: UndoManager?

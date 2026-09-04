@@ -10,7 +10,6 @@ import CoreData
 /// Builds in-memory caches and exposes selection state for sheets.
 /// All methods maintain existing behavior; this refactor adds structure and docs only.
 @Observable
-@MainActor
 final class StudentDetailViewModel {
     // MARK: - Properties
     let student: CDStudent

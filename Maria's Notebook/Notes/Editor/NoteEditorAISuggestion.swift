@@ -13,7 +13,6 @@ extension UnifiedNoteEditor {
 
     /// The note's photo, downsampled for AI input — only when the on-device
     /// model can actually look at it.
-    @MainActor
     var noteImageForAI: CGImage? {
         guard SystemLanguageModel.default.capabilities.contains(.vision),
               let path = imagePath else { return nil }
@@ -39,7 +38,6 @@ extension UnifiedNoteEditor {
         }
     }
 
-    @MainActor
     // swiftlint:disable:next function_body_length
     func suggestTagsAndScope() async {
         let noteImage = noteImageForAI
@@ -111,7 +109,6 @@ extension UnifiedNoteEditor {
 
     /// Drafts a 1-2 sentence factual description of the attached photo and
     /// appends it to the note body. Runs fully on-device.
-    @MainActor
     func describePhotoIntoNote() async {
         guard SystemLanguageModel.default.isAvailable else {
             self.suggestionError = appleIntelligenceUnavailableMessage()

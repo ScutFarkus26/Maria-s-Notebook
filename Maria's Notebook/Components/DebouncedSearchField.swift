@@ -4,7 +4,6 @@
 
 import SwiftUI
 
-@MainActor
 public struct DebouncedSearchField: View {
     private let title: String
     @Binding private var text: String

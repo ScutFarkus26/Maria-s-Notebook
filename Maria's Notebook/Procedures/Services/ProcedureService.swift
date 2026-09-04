@@ -7,7 +7,6 @@ enum ProcedureService {
     // MARK: - Core Data Methods
 
     /// Fetches all procedures, optionally filtered by category
-    @MainActor
     static func fetchProcedures(
         in context: NSManagedObjectContext,
         category: ProcedureCategory? = nil,
@@ -39,7 +38,6 @@ enum ProcedureService {
     }
 
     /// Fetches procedures grouped by category
-    @MainActor
     static func fetchProceduresGroupedByCategory(
         in context: NSManagedObjectContext,
         searchText: String = ""
@@ -59,7 +57,7 @@ enum ProcedureService {
     }
 
     /// Creates a new procedure
-    @MainActor @discardableResult
+    @discardableResult
     // swiftlint:disable:next function_parameter_count
     static func createProcedure(
         title: String,
@@ -85,9 +83,7 @@ enum ProcedureService {
     }
 
     /// Updates an existing procedure
-    @MainActor
-    // swiftlint:disable:next function_parameter_count
-    static func updateProcedure(
+    static func updateProcedure( // swiftlint:disable:this function_parameter_count
         _ procedure: CDProcedure,
         title: String,
         summary: String,
@@ -108,14 +104,12 @@ enum ProcedureService {
     }
 
     /// Deletes a procedure
-    @MainActor
     static func deleteProcedure(_ procedure: CDProcedure, in context: NSManagedObjectContext) {
         context.delete(procedure)
         context.safeSave()
     }
 
     /// Fetches related procedures for a given procedure
-    @MainActor
     static func fetchRelatedProcedures(
         for procedure: CDProcedure,
         in context: NSManagedObjectContext

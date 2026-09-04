@@ -3,7 +3,6 @@ import SwiftUI
 
 /// Captures the child's work after a presentation without changing the guide's
 /// separate observation and planning follow-up.
-@MainActor
 struct PresentationFollowUpWorkSection: View {
     let presentationID: UUID
     let lesson: CDLesson

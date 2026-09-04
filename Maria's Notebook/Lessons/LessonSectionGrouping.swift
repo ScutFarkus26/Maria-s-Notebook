@@ -23,7 +23,6 @@ enum LessonSectionGrouping {
     /// The bands for `lessons`, each already in curriculum order. `lessons` may arrive
     /// in any order — it is sorted here — but has to be narrowed to the one
     /// (area, sequence) thread being drawn.
-    @MainActor
     static func bands(for lessons: [CDLesson], area: String, sequence: String) -> [Band] {
         let folded = fold(lessons)
         let existing = alphabetized(folded.labels)
@@ -51,7 +50,6 @@ enum LessonSectionGrouping {
     /// The distinct section names in `lessons`, alphabetised — the list a stored
     /// order is merged against. Used by the reorder sheet so it offers exactly the
     /// bands the map and the Checklist draw.
-    @MainActor
     static func sectionNames(in lessons: [CDLesson]) -> [String] {
         alphabetized(fold(lessons).labels)
     }
@@ -66,7 +64,6 @@ enum LessonSectionGrouping {
 
     /// Buckets by case-folded section name, keeping the spelling seen first in
     /// curriculum order as the band's label.
-    @MainActor
     private static func fold(_ lessons: [CDLesson]) -> Folded {
         var folded = Folded()
         for lesson in lessons.sorted(by: ThreadRowData.lessonSortOrder) {

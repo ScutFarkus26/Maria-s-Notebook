@@ -6,7 +6,6 @@ import CoreData
 import OSLog
 
 /// Shared helper utilities for backup operations
-@MainActor
 enum BackupServiceHelpers {
     private static let logger = Logger.backup
 
@@ -311,7 +310,6 @@ enum BackupServiceHelpers {
 }
 
 /// Helper for deduplicating backup payloads
-@MainActor
 enum BackupPayloadDeduplicator {
 
     // Removes duplicate records from the backup payload, keeping the first occurrence of each ID.

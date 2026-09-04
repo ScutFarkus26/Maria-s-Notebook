@@ -1,7 +1,6 @@
 import Foundation
 import CoreData
 
-@MainActor
 enum PresentationMergeService {
     @discardableResult
     static func merge(

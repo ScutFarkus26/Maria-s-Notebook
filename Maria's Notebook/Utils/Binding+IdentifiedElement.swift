@@ -1,6 +1,5 @@
 import SwiftUI
 
-@MainActor
 extension Binding where Value: MutableCollection & RangeReplaceableCollection,
                        Value.Element: Identifiable,
                        Value.Index == Int {

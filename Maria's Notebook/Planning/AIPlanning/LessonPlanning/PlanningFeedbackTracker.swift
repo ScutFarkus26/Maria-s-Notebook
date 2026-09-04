@@ -5,7 +5,6 @@ import OSLog
 /// Records teacher decisions on AI recommendations and tracks outcomes.
 /// Provides calibration data for future planning prompts by analyzing
 /// patterns in accepted/rejected recommendations.
-@MainActor
 struct PlanningFeedbackTracker {
     private static let logger = Logger.ai
 

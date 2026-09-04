@@ -3,7 +3,6 @@ import Foundation
 import Observation
 
 @Observable
-@MainActor
 final class PresentationFollowUpEditorModel {
     enum Scope: Hashable {
         case allChildren

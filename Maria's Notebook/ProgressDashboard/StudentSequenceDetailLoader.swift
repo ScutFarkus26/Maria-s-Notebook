@@ -40,7 +40,6 @@ struct StudentSequenceDetail {
 // MARK: - Loader
 
 enum StudentSequenceDetailLoader {
-    @MainActor
     static func load(
         target: StudentSequenceDetailTarget,
         context: NSManagedObjectContext

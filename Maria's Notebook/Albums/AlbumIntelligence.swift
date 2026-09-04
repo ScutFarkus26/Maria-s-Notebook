@@ -11,7 +11,7 @@ import FoundationModels
 
 /// On-device Apple Intelligence features for the album library.
 /// Everything runs locally — album content never leaves the device.
-@Observable @MainActor
+@Observable
 final class AlbumIntelligence {
 
     enum AlbumIntelligenceError: LocalizedError {

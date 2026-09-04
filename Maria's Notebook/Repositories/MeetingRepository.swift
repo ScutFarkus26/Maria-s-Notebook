@@ -9,7 +9,6 @@ import Foundation
 import OSLog
 import CoreData
 
-@MainActor
 struct MeetingRepository: SavingRepository {
     typealias Model = CDStudentMeeting
 

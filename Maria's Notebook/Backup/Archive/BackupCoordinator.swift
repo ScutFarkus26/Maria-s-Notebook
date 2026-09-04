@@ -16,7 +16,6 @@ import Foundation
 import CoreData
 import OSLog
 
-@MainActor
 @Observable
 final class BackupCoordinator {
     private static let logger = Logger.backup

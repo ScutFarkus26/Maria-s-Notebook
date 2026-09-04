@@ -8,7 +8,6 @@ import UserNotifications
 import SwiftUI
 import OSLog
 
-@MainActor
 enum ParentReportNotificationService {
     private static let notificationID = "parentReports.monthly"
     private static let logger = Logger.reports

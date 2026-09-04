@@ -2,7 +2,6 @@ import Foundation
 import CoreData
 import OSLog
 
-@MainActor
 struct LifecycleService {
     static let logger = Logger.lifecycle
 

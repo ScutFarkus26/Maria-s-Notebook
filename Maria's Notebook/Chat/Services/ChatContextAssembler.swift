@@ -7,9 +7,7 @@ import OSLog
 /// Uses a two-tier strategy:
 /// - Tier 1: Classroom snapshot (student roster, areas, weekly summary, todos) — built once per session
 /// - Tier 2: Selective student detail — loaded per-question when student names are detected
-@MainActor
-// swiftlint:disable:next type_body_length
-final class ChatContextAssembler {
+final class ChatContextAssembler { // swiftlint:disable:this type_body_length
     private static let logger = Logger.ai
 
     private let context: NSManagedObjectContext

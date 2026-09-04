@@ -3,7 +3,6 @@ import Network
 
 /// Service responsible for monitoring network connectivity status
 @Observable
-@MainActor
 final class NetworkMonitoring {
     // MARK: - State
     

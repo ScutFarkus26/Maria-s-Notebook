@@ -37,7 +37,6 @@ enum CalendarCheckInGrouper {
     /// Pass `lookup` built once for the whole visible range — see
     /// `Lookup.build(for:in:)`. Grouping without one still works but falls back
     /// to per-record fetches.
-    @MainActor
     static func groups(
         from checkIns: [CDWorkCheckIn],
         lookup: Lookup
@@ -114,7 +113,6 @@ enum CalendarCheckInGrouper {
                 .map(StudentFormatter.displayName(for:)) ?? ""
         }
 
-        @MainActor
         static func build(
             for checkIns: [CDWorkCheckIn],
             in context: NSManagedObjectContext
@@ -138,7 +136,6 @@ enum CalendarCheckInGrouper {
             return lookup
         }
 
-        @MainActor
         private static func fetch<T: NSManagedObject>(
             _ type: T.Type,
             entity: String,

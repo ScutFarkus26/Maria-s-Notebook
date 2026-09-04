@@ -84,7 +84,6 @@ struct GeneratedClassroomCapture {
 // MARK: - Apple Intelligence Command Parser
 
 @available(macOS 26.0, iOS 26.0, *)
-@MainActor
 final class AppleIntelligenceCommandParser {
     private static let logger = Logger.ai
 

@@ -10,7 +10,6 @@ import UIKit
 #endif
 
 @Observable
-@MainActor
 final class StudentProgressTabViewModel {
     // MARK: - Public State
     private(set) var activeEnrollments: [CDStudentTrackEnrollmentEntity] = []

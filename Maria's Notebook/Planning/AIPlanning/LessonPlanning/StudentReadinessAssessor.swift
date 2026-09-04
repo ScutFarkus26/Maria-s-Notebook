@@ -6,7 +6,6 @@ import OSLog
 /// Curriculum position, presentation history, active-work counts, and explicit
 /// guide decisions are included. Practice ratings, work outcomes, behavior labels,
 /// and emotional tags are deliberately excluded from readiness inference.
-@MainActor
 struct StudentReadinessAssessor {
     private static let logger = Logger.ai
 

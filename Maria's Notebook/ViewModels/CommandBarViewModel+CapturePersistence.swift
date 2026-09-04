@@ -1,7 +1,6 @@
 import CoreData
 import Foundation
 
-@MainActor
 extension CommandBarViewModel {
     /// Persists the reviewed proposal as one confirmed operation. Parsing never
     /// calls this method; only the review screen's save button does.

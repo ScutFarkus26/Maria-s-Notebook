@@ -66,7 +66,6 @@ struct ToastMessage: Identifiable, Equatable {
 
 /// Centralized toast service for displaying transient notifications
 @Observable
-@MainActor
 final class ToastService {
     private static let logger = Logger.ui
 

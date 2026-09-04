@@ -4,7 +4,6 @@ import OSLog
 
 /// Generates AI-powered narrative summaries for student progress reports.
 /// Uses the AnthropicAPIClient to produce structured narratives from student data.
-@MainActor
 enum AIReportService {
     private static let logger = Logger.reports
 

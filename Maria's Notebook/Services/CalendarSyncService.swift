@@ -8,7 +8,6 @@ import OSLog
 /// Service that syncs calendar events with Apple's Calendar app via EventKit.
 /// Only syncs events from a specific calendar configured by the user.
 @Observable
-@MainActor
 final class CalendarSyncService {
     private static let logger = Logger.calendar_
 
@@ -367,7 +366,6 @@ final class CalendarSyncService {
         isObserving = true
     }
 
-    @MainActor
     private func stopObservingChangesOnMainActor() {
         pendingChangeTask?.cancel()
         pendingChangeTask = nil

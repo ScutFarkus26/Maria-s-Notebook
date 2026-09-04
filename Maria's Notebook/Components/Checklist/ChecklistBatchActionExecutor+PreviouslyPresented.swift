@@ -4,7 +4,6 @@ import CoreData
 
 // MARK: - Previously Presented Helpers
 
-@MainActor
 extension ChecklistBatchActionExecutor {
 
     static func deleteLessonPresentation(

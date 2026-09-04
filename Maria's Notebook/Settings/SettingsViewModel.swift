@@ -9,7 +9,6 @@ import AppKit
 #endif
 
 @Observable
-@MainActor
 final class SettingsViewModel {
     private static let logger = Logger.settings
 

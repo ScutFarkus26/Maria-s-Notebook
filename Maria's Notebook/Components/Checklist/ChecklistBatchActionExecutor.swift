@@ -6,9 +6,7 @@ import CoreData
 
 /// Executes batch operations on checklist cells.
 /// Handles adding to inbox, marking presented/mastered, and clearing status.
-@MainActor
-// swiftlint:disable:next type_body_length
-enum ChecklistBatchActionExecutor {
+enum ChecklistBatchActionExecutor { // swiftlint:disable:this type_body_length
     private static let logger = Logger.lessons
 
     // MARK: - Batch Add to Inbox

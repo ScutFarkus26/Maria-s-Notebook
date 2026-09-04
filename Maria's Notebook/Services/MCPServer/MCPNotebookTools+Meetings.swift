@@ -60,7 +60,6 @@ extension MCPNotebookTools {
         )
     }
 
-    @MainActor
     static func recordMeeting(
         arguments: [String: JSONValue], in modelContext: NSManagedObjectContext
     ) throws -> String {
@@ -156,7 +155,6 @@ extension MCPNotebookTools {
         )
     }
 
-    @MainActor
     static func addFollowUp(
         arguments: [String: JSONValue], in modelContext: NSManagedObjectContext
     ) throws -> String {
@@ -219,7 +217,6 @@ extension MCPNotebookTools {
         )
     }
 
-    @MainActor
     static func resolveFollowUp(
         arguments: [String: JSONValue], in modelContext: NSManagedObjectContext
     ) throws -> String {
@@ -289,7 +286,6 @@ extension MCPNotebookTools {
         )
     }
 
-    @MainActor
     static func listOpenFollowUps(
         arguments: [String: JSONValue], in modelContext: NSManagedObjectContext
     ) throws -> String {

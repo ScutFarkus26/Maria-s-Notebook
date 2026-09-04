@@ -16,7 +16,6 @@ enum ChecklistLessonNavigator {
     /// Does nothing when the lesson is gone: a presentation card can outlive the
     /// lesson it was made from, and sending the guide to an unrelated area would
     /// be worse than the menu item doing nothing.
-    @MainActor
     static func reveal(lessonID: UUID, in context: NSManagedObjectContext) {
         guard let lesson = context.object(CDLesson.self, id: lessonID) else { return }
         AppRouter.shared.navigateToChecklist(lessonID: lessonID, area: lesson.area)

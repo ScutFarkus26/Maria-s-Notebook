@@ -49,7 +49,6 @@ struct MonthlyReportContext: Sendable {
 /// Builds a `MonthlyReportContext` from Core Data. Every fetch is scoped to
 /// the one student; the notes path reuses `ReportGeneratorService`'s
 /// includeInReport + scope privacy filter.
-@MainActor
 struct MonthlyReportContextBuilder {
     let context: NSManagedObjectContext
     let reportService: ReportGeneratorService

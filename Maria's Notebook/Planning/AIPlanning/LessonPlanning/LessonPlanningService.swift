@@ -10,7 +10,6 @@ import OSLog
 /// - LessonPlanningService+ResponseParsing.swift  (JSON parsing)
 /// - LessonPlanningService+Helpers.swift          (plan building, context, data fetching)
 /// - AIConfigurationResolver.swift                (UserDefaults → AI config)
-@MainActor
 final class LessonPlanningService {
     static let logger = Logger.ai
 

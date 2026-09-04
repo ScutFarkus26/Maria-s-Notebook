@@ -12,7 +12,6 @@ import SwiftUI
 import FoundationModels
 
 extension AppleIntelligenceSheet {
-    @MainActor
     func generateWithFoundationModel(template: PromptTemplate, context: String) async {
         isGenerating = true
         generationError = nil

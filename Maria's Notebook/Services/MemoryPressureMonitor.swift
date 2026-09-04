@@ -31,7 +31,6 @@ nonisolated enum MemoryPressureLevel {
 /// Differentiates between `.warning` and `.critical` pressure levels and throttles responses
 /// to avoid making pressure worse with expensive cleanup work.
 @Observable
-@MainActor
 final class MemoryPressureMonitor {
 
     // MARK: - State

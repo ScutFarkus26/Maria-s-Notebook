@@ -2,7 +2,6 @@ import Foundation
 import CoreData
 
 /// Splits a mixed-readiness lesson assignment into two: one for ready students, one for blocked.
-@MainActor
 enum PresentationSplitService {
 
     /// Split ready students out of a blocked assignment into a new assignment.

@@ -3,7 +3,6 @@ import Foundation
 
 /// Finds presentations that have no factual observation attached. This is a
 /// deterministic database check, not an AI judgment.
-@MainActor
 enum PresentationObservationCoverageService {
     static func missingObservationReferences(
         in context: NSManagedObjectContext,

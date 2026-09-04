@@ -8,7 +8,6 @@ extension AppBootstrapping {
 
     /// Retrieves or creates the shared Core Data stack.
     /// This manages lazy initialization and error handling.
-    @MainActor
     static func getSharedCoreDataStack() -> CoreDataStack {
         if let existing = _sharedCoreDataStack {
             return existing

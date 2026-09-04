@@ -1,7 +1,6 @@
 import CoreData
 import Foundation
 
-@MainActor
 enum PresentationFollowUpService {
     static func beginFollowing(_ row: CDLessonPresentation, at date: Date) {
         guard row.followUpActionRaw == nil, row.followUpResolvedAt == nil else { return }

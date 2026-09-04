@@ -6,7 +6,6 @@ import CoreData
 import OSLog
 
 @Observable
-@MainActor
 final class InboxSheetViewModel {
     private static let logger = Logger.inbox
     // MARK: - State

@@ -2,7 +2,6 @@ import Foundation
 import CoreData
 
 @Observable
-@MainActor
 final class AddSequenceViewModel {
     enum SelectionMode: String, CaseIterable {
         case sequence = "By Group"

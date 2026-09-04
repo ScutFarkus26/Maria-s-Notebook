@@ -180,7 +180,6 @@ extension ObservationsView {
         Task { await loadAllNotes() }
     }
 
-    @MainActor
     func loadAllNotes() async {
         guard !isLoading else { return }
         isLoading = true
@@ -198,7 +197,6 @@ extension ObservationsView {
         EmptyView()
     }
 
-    @MainActor
     func loadStudentsIfNeeded(for items: [UnifiedObservationItem]) {
         studentsByID = ObservationsDataLoader.loadStudents(
             for: items,

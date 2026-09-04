@@ -33,7 +33,6 @@ extension View {
 
 /// Executes a closure with animation that respects the Reduce Motion setting.
 /// When Reduce Motion is enabled, the closure executes without animation.
-@MainActor
 func adaptiveWithAnimation<Result>(_ animation: Animation? = .default, _ body: () throws -> Result) rethrows -> Result {
     #if os(iOS)
     if UIAccessibility.isReduceMotionEnabled {

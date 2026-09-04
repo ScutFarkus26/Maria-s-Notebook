@@ -3,7 +3,6 @@ import CoreData
 import SwiftUI
 
 @Observable
-@MainActor
 final class WorkDetailViewModel {
     // MARK: - State
     var work: CDWorkModel?

@@ -16,7 +16,6 @@ enum ChecklistMatrixBuilder {
     ///   - lessons: Lessons to include in the matrix
     ///   - context: Model context for fetching data
     /// - Returns: Dictionary mapping student ID -> lesson ID -> state
-    @MainActor
     static func buildMatrix(
         students: [CDStudent],
         lessons: [CDLesson],
@@ -112,7 +111,6 @@ enum ChecklistMatrixBuilder {
     private static let staleWeekdays = 14
 
     /// Computes why a student is blocked from a lesson based on the preceding lesson's state.
-    @MainActor
     private static func computeBlockingReason(
         precedingLesson: CDLesson,
         rules: LessonProgressionRules.ResolvedRules?,

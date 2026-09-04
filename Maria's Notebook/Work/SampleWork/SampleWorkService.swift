@@ -7,7 +7,6 @@ import CoreData
 /// Centralizes persistence for CDSampleWorkEntity and CDSampleWorkStepEntity operations.
 /// Follows the WorkStepService pattern: model methods remain side-effect free,
 /// callers perform explicit, transactional operations that throw on failure.
-@MainActor
 struct SampleWorkService {
     let context: NSManagedObjectContext
 

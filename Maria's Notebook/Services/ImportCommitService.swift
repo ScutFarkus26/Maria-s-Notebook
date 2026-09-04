@@ -14,7 +14,6 @@ public enum ImportCommitService {
 
     // MARK: - Core Data API
 
-    @MainActor
     static func commitStudents(
         parsed: StudentCSVImporter.Parsed, into context: NSManagedObjectContext,
         existingStudents: [CDStudent]

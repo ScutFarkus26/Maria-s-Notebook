@@ -69,7 +69,6 @@ struct PlanningSlotDropDelegate: DropDelegate {
 
     // MARK: - Payload routing
 
-    @MainActor
     private func handleDropPayload(payload: String, location: CGPoint) {
         if payload.hasPrefix("STUDENT_TO_INBOX:") || payload.hasPrefix("STUDENT_TO_SLOT:") {
             handleStudentToSlotPayload(payload: payload, location: location)
@@ -80,7 +79,6 @@ struct PlanningSlotDropDelegate: DropDelegate {
 
     // MARK: - CDStudent-to-slot drops
 
-    @MainActor
     private func handleStudentToSlotPayload(payload: String, location: CGPoint) {
         let parts = payload.split(separator: ":")
         guard parts.count == 4,
@@ -125,7 +123,6 @@ struct PlanningSlotDropDelegate: DropDelegate {
 
     // MARK: - Plain UUID (reorder / merge) drops
 
-    @MainActor
     private func handlePlainIDPayload(payload: String, location: CGPoint) {
         guard let id = UUID(uuidString: payload.trimmed()) else {
             return
@@ -185,7 +182,6 @@ struct PlanningSlotDropDelegate: DropDelegate {
         )
     }
 
-    @MainActor
     private func findOrCreateTargetLessonAssignment(lessonID: UUID, studentID: UUID) -> CDLessonAssignment {
         let studentIDString = studentID.uuidString
         let lessonIDString = lessonID.uuidString
@@ -209,7 +205,6 @@ struct PlanningSlotDropDelegate: DropDelegate {
         return new
     }
 
-    @MainActor
     private func applyTimeMap(ids: [UUID], timeMap: [UUID: Date], targetLA: CDLessonAssignment) {
         for id in ids {
             if let item = allLessonAssignments.first(where: { $0.id == id }) {
@@ -223,7 +218,6 @@ struct PlanningSlotDropDelegate: DropDelegate {
         }
     }
 
-    @MainActor
     private func applyTimeMapForReorder(ids: [UUID], timeMap: [UUID: Date]) {
         for id in ids {
             if let item = allLessonAssignments.first(where: { $0.id == id }) {
@@ -244,7 +238,6 @@ struct PlanningSlotDropDelegate: DropDelegate {
         }
     }
 
-    @MainActor
     private func removeStudentFromSource(srcID: UUID, studentID: UUID) {
         guard let src = allLessonAssignments.first(where: { $0.id == srcID }) else {
             return

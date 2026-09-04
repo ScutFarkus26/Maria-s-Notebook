@@ -27,7 +27,6 @@ struct RecallStudentRetention: Identifiable {
 }
 
 @Observable
-@MainActor
 final class RecallQueueViewModel {
     private static let logger = Logger.app_
 

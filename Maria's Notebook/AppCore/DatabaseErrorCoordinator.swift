@@ -5,7 +5,6 @@ import OSLog
 /// Coordinates database initialization errors and recovery actions.
 /// Provides app-wide error state management for database failures.
 @Observable
-@MainActor
 final class DatabaseErrorCoordinator {
     private static let logger = Logger.database
     static let shared = DatabaseErrorCoordinator()

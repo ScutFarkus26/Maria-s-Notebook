@@ -82,7 +82,6 @@ struct WeekDayColumnDropDelegate: DropDelegate {
         return true
     }
 
-    @MainActor
     private func applyDrop(payload: UnifiedCalendarDragPayload, locationY: CGFloat) {
         let normalizedDay = AppCalendar.startOfDay(day)
         switch payload {
@@ -101,7 +100,6 @@ struct WeekDayColumnDropDelegate: DropDelegate {
     /// A drop landing on a pill for the same lesson merges the two rather than
     /// reordering — this is the consolidate-duplicates gesture. Returns the
     /// assignment to merge into, or nil to fall through to reordering.
-    @MainActor
     private func mergeTarget(for id: UUID, locationY: CGFloat) -> CDLessonAssignment? {
         guard let source = allLessonAssignments.first(where: { $0.id == id }), !source.isGiven else {
             return nil
@@ -117,7 +115,6 @@ struct WeekDayColumnDropDelegate: DropDelegate {
             }
     }
 
-    @MainActor
     private func applyPresentationDrop(id: UUID, locationY: CGFloat) {
         if let target = mergeTarget(for: id, locationY: locationY) {
             PresentationMergeService.merge(
@@ -174,7 +171,6 @@ struct WeekDayColumnDropDelegate: DropDelegate {
     /// whole AM/PM gesture — and it is also what keeps a reorder honest, since
     /// dragging a morning lesson below the afternoon run makes it an afternoon
     /// lesson rather than leaving it stranded in the wrong half.
-    @MainActor
     private func placements(
         ordering ids: [UUID],
         dropped id: UUID,

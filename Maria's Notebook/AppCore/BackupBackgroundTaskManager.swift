@@ -16,7 +16,6 @@ import UIKit
 ///
 /// Both funnel into `AutoBackupManager.performBackgroundBackup`, which skips
 /// in milliseconds when persistent history shows no changes.
-@MainActor
 enum BackupBackgroundTaskManager {
     /// Must match BGTaskSchedulerPermittedIdentifiers in Info.plist.
     static let taskIdentifier = "DanielSDeBerry.MariasNoteBook.backup"
@@ -87,7 +86,6 @@ enum BackupBackgroundTaskManager {
 
 /// Holds a `UIApplication` background task assertion across an async backup
 /// so the scene-phase trigger gets time to finish after the app backgrounds.
-@MainActor
 final class BackgroundTaskAssertion {
     private var identifier: UIBackgroundTaskIdentifier = .invalid
 

@@ -46,7 +46,6 @@ enum DatabaseInitializationService {
     #if DEBUG
     /// Resets the local database by deleting store files and clearing related state.
     /// This is a DEBUG-only function that performs a complete reset.
-    @MainActor
     static func resetLocalDatabaseInDebug() throws {
         try resetPersistentStore()
 
@@ -71,7 +70,6 @@ enum DatabaseInitializationService {
     // MARK: - Error Handling
 
     /// Centralized error handling for database initialization failures.
-    @MainActor
     static func handleDatabaseInitError(_ error: Error, description: String? = nil) {
         let errorDescription = description ?? ((error as NSError?)?.localizedDescription ?? String(describing: error))
         let nsError = error as NSError? ?? NSError(

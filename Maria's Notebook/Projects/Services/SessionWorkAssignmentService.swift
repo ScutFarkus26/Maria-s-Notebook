@@ -3,7 +3,6 @@ import CoreData
 import OSLog
 
 /// Service for managing work assignments in project sessions
-@MainActor
 struct SessionWorkAssignmentService {
     private static let logger = Logger.work
 

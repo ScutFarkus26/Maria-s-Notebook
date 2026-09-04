@@ -6,7 +6,6 @@ import CoreData
 ///
 /// This extracts the CSV import handling logic from StudentsView for better
 /// testability and separation of concerns.
-@MainActor
 enum StudentsCSVImportHandler {
     /// Alert model for displaying import results or errors
     struct ImportAlert: Identifiable {

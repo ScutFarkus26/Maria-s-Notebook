@@ -6,7 +6,6 @@ import OSLog
 /// Manages planning session state, message history, recommendation actions,
 /// and bridges between the view layer and LessonPlanningService.
 @Observable
-@MainActor
 final class LessonPlanningViewModel {
     private static let logger = Logger.ai
 

@@ -5,7 +5,6 @@ import OSLog
 /// Bridges the Year Plan (guide) with the Presentation calendar (truth).
 /// Auto-promotes Year Plan entries when a new assignment is created,
 /// scheduling it for the planned date if still in the future.
-@MainActor
 enum YearPlanPromotionService {
     private static let logger = Logger.app(category: "YearPlanPromotion")
 

@@ -17,7 +17,6 @@ import UIKit
 ///   originals in place, and was itself removed once it had run. Removing a key clears
 ///   the leftover too, so an unset preference stays unset.
 @Observable
-@MainActor
 public final class SyncedPreferencesStore {
     public static let shared = SyncedPreferencesStore()
 
@@ -429,7 +428,6 @@ extension Notification.Name {
 
 /// Property wrapper that automatically syncs preferences via iCloud Key-Value Storage
 /// Usage: @SyncedAppStorage("key") var value: Type = defaultValue
-@MainActor
 @propertyWrapper
 public struct SyncedAppStorage<T>: DynamicProperty {
     private var store = SyncedPreferencesStore.shared

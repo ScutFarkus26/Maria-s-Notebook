@@ -8,7 +8,6 @@ import Foundation
 import SwiftUI
 
 @Observable
-@MainActor
 final class SchoolYearStore {
     /// Number of school years in a cycle (Montessori three-year cycle).
     let cycleYears = 3

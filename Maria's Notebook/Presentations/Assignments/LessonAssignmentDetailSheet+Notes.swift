@@ -64,7 +64,6 @@ extension LessonAssignmentDetailSheet {
         }
     }
 
-    @MainActor
     func reloadNotes() {
         guard let assignment else { return }
 

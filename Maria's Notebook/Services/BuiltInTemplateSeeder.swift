@@ -3,7 +3,6 @@ import CoreData
 import OSLog
 
 /// Seeds default Note and Meeting templates on first launch or after restore.
-@MainActor
 enum BuiltInTemplateSeeder {
     private static let logger = Logger.app(category: "TemplateSeeder")
 

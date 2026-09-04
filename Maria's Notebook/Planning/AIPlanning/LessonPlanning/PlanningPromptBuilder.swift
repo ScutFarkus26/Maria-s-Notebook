@@ -4,7 +4,6 @@ import OSLog
 /// Constructs prompts for each step of the AI lesson planning pipeline.
 /// Each method produces a prompt that includes the relevant data context and
 /// a JSON response schema for structured parsing.
-@MainActor
 struct PlanningPromptBuilder {
     private static let logger = Logger.ai
     

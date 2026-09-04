@@ -17,7 +17,6 @@ struct TrackFilteredListData {
 
 enum TrackFilteredListLoader {
 
-    @MainActor
     static func load(
         enrollment: CDStudentTrackEnrollmentEntity,
         track: CDTrackEntity,
@@ -52,7 +51,6 @@ enum TrackFilteredListLoader {
 
     // MARK: - Per-section fetches
 
-    @MainActor
     private static func fetchAssignments(
         track: CDTrackEntity,
         enrollment: CDStudentTrackEnrollmentEntity,
@@ -71,7 +69,6 @@ enum TrackFilteredListLoader {
             .filter { $0.studentIDs.contains(enrollment.studentID) }
     }
 
-    @MainActor
     private static func fetchLessons(
         for assignments: [CDLessonAssignment],
         context: NSManagedObjectContext
@@ -83,7 +80,6 @@ enum TrackFilteredListLoader {
         return context.safeFetch(request)
     }
 
-    @MainActor
     private static func fetchWork(
         track: CDTrackEntity,
         enrollment: CDStudentTrackEnrollmentEntity,
@@ -99,7 +95,6 @@ enum TrackFilteredListLoader {
         return context.safeFetch(request)
     }
 
-    @MainActor
     private static func fetchNotes(
         enrollment: CDStudentTrackEnrollmentEntity,
         context: NSManagedObjectContext

@@ -229,7 +229,6 @@ struct StudentFilesTab: View {
 }
 
 private enum StudentFilesTabPreviewFactory {
-    @MainActor
     static func makeView() -> some View {
         let stack = CoreDataStack.preview
         let context = stack.viewContext

@@ -11,7 +11,6 @@ import AppKit
 enum ResourceDocumentActions {
     private static let logger = Logger.resources
 
-    @MainActor
     static func open(_ resource: CDResource) {
         guard let url = exportableFileURL(for: resource) else { return }
         #if os(macOS)
@@ -35,7 +34,6 @@ enum ResourceDocumentActions {
         #endif
     }
 
-    @MainActor
     static func print(_ resource: CDResource) {
         guard let url = exportableFileURL(for: resource) else { return }
         #if os(iOS)
@@ -110,7 +108,6 @@ enum ResourceDocumentActions {
     }
 
     #if os(iOS)
-    @MainActor
     private static func activePresentationContext() -> (window: UIWindow, presenter: UIViewController)? {
         guard
             let scene = UIApplication.shared.connectedScenes

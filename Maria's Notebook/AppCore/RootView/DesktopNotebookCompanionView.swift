@@ -270,7 +270,6 @@ private struct DesktopCompanionDragAnchor {
     let windowOrigin: CGPoint
 }
 
-@MainActor
 private final class DetachedCompanionWindowController {
     weak var window: NSWindow?
 

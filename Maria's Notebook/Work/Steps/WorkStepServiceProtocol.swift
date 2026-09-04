@@ -43,7 +43,6 @@ final class CDWorkStepServiceImpl: WorkStepServiceProtocol {
     let context: NSManagedObjectContext
     private let cdService: WorkStepService
 
-    @MainActor
     init(context: NSManagedObjectContext) {
         self.context = context
         self.cdService = WorkStepService(context: context)

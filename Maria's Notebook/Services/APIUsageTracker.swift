@@ -4,7 +4,7 @@ import Foundation
 
 /// Tracks Claude API call usage including token counts and estimated cost.
 /// Stores entries in UserDefaults as JSON.
-@Observable @MainActor
+@Observable
 final class APIUsageTracker {
     static let shared = APIUsageTracker()
 

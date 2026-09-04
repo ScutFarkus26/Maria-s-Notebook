@@ -5,7 +5,6 @@ import OSLog
 /// Auto-populates CDYearPlanEntry records for an entire lesson sequence
 /// when a presentation is scheduled (moved from inbox to the calendar).
 /// Only creates entries that don't already exist — respects manually created sequences.
-@MainActor
 enum SequenceAutoPopulateService {
     private static let logger = Logger.app(category: "SequenceAutoPopulate")
 

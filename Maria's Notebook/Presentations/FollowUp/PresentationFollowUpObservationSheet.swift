@@ -1,6 +1,5 @@
 import SwiftUI
 
-@MainActor
 struct PresentationFollowUpObservationSheet: View {
     let row: CDLessonPresentation
     let studentName: String

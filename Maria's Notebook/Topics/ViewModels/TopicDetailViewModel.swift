@@ -2,7 +2,6 @@ import SwiftUI
 @preconcurrency import CoreData
 
 @Observable
-@MainActor
 final class TopicDetailViewModel {
     // Backing model
     var topic: CDCommunityTopicEntity?

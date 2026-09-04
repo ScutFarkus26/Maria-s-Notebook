@@ -2,7 +2,6 @@ import Foundation
 import Observation
 
 @Observable
-@MainActor
 final class RestoreCoordinator {
     var isRestoring: Bool = false
     private let appRouter: AppRouter

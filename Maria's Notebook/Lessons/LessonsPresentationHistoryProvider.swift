@@ -7,7 +7,6 @@ import Foundation
 import OSLog
 import CoreData
 
-@MainActor
 enum LessonsPresentationHistoryProvider {
     private static let logger = Logger.lessons
 

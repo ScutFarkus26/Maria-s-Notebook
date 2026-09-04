@@ -12,7 +12,6 @@ import AppKit
 /// - Background (iOS scene-phase / BGProcessingTask) backups
 /// - Pre-destructive operation backups
 @Observable
-@MainActor
 final class AutoBackupManager {
     private static let logger = Logger.backup
 

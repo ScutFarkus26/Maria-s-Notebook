@@ -24,7 +24,6 @@ enum ParseState: Sendable {
 /// old form-routing behavior. Classroom accounts are organized into an editable
 /// proposal by Apple Intelligence on device, with a deterministic local fallback.
 @Observable
-@MainActor
 final class CommandBarService {
     private static let logger = Logger.app_
 

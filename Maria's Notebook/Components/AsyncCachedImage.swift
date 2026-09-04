@@ -154,7 +154,7 @@ struct AsyncCachedImage: View {
         }
     }
     
-    @MainActor private func loadImage() async {
+    private func loadImage() async {
         // Determine the effective target size (use default thumbnail size if not provided)
         let effectiveSize = targetSize ?? CGSize(width: 300, height: 300)
 

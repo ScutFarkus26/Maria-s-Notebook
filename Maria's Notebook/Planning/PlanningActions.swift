@@ -2,7 +2,6 @@ import Foundation
 import OSLog
 import CoreData
 
-@MainActor
 enum PlanningActions {
     private static let logger = Logger.planning
 

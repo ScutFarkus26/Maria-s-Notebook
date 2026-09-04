@@ -19,7 +19,6 @@ typealias MCPContextProvider = @MainActor @Sendable () -> NSManagedObjectContext
 
 enum MCPNotebookTools {
     /// Builds the full toolset backed by the given context provider.
-    @MainActor
     static func makeTools(
         context: @escaping MCPContextProvider = { AppBootstrapping.getSharedCoreDataStack().viewContext }
     ) -> [MCPToolDefinition] {
@@ -62,7 +61,6 @@ extension MCPNotebookTools {
     /// (diacritic- and case-insensitive), mirroring NotebookTools'
     /// resolver. Ambiguity and misses throw tool errors the model can
     /// relay to the teacher.
-    @MainActor
     static func resolveStudent(named name: String, in context: NSManagedObjectContext) throws -> CDStudent {
         let token = name.folding(options: .diacriticInsensitive, locale: .current)
             .trimmed().lowercased()

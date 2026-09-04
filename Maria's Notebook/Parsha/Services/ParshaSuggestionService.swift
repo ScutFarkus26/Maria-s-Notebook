@@ -20,7 +20,6 @@ struct CachedParshaSuggestions: Codable, Sendable {
     let lessonLibraryFingerprint: String
 }
 
-@MainActor
 final class ParshaSuggestionService {
 
     static let cacheStorageKey = "ParshaSuggestionCache.v1"

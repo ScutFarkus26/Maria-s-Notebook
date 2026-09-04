@@ -38,7 +38,6 @@ nonisolated struct SearchResult: Hashable, Identifiable, Sendable {
 /// In-memory inverted index for full-text search across all searchable entities.
 /// Built on app launch and updated incrementally on entity create/update/delete.
 @Observable
-@MainActor
 final class SearchIndexService {
     static let shared = SearchIndexService()
     nonisolated private static let logger = Logger.app(category: "SearchIndex")

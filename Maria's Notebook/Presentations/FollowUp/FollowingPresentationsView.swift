@@ -1,7 +1,6 @@
 import CoreData
 import SwiftUI
 
-@MainActor
 struct FollowingPresentationsView: View {
     enum Style {
         case full

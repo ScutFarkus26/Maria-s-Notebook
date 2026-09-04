@@ -8,7 +8,6 @@ import OSLog
 /// Wraps NSPersistentCloudKitContainer zone-based sharing APIs to
 /// create, accept, manage, and leave shared classrooms.
 @Observable
-@MainActor
 final class ClassroomSharingService {
     private static let logger = Logger.app(category: "ClassroomSharing")
 

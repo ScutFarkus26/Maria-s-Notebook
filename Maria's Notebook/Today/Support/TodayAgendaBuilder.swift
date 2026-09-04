@@ -129,7 +129,7 @@ enum TodayAgendaBuilder {
     }
 
     /// Persists the current agenda order for a day.
-    @MainActor static func saveOrder(
+    static func saveOrder(
         items: [AgendaItem],
         day: Date,
         context: NSManagedObjectContext
@@ -162,7 +162,7 @@ enum TodayAgendaBuilder {
     }
 
     /// Deletes agenda order entries older than 30 days.
-    @MainActor static func cleanupOldOrders(context: NSManagedObjectContext) {
+    static func cleanupOldOrders(context: NSManagedObjectContext) {
         let cutoff = AppCalendar.startOfDay(
             AppCalendar.addingDays(-30, to: Date())
         )
@@ -183,7 +183,7 @@ enum TodayAgendaBuilder {
 
     /// Deletes empty day pads older than 30 days. Non-empty pads are preserved
     /// so a teacher can return to past notes indefinitely.
-    @MainActor static func cleanupOldDayPads(context: NSManagedObjectContext) {
+    static func cleanupOldDayPads(context: NSManagedObjectContext) {
         let cutoff = AppCalendar.startOfDay(
             AppCalendar.addingDays(-30, to: Date())
         )

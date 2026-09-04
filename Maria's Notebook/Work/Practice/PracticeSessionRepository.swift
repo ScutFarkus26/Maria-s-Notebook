@@ -3,7 +3,6 @@ import OSLog
 import CoreData
 
 /// Repository for managing CDPracticeSession CRUD operations
-@MainActor
 struct PracticeSessionRepository: Repository {
     typealias Model = CDPracticeSession
 

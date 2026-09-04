@@ -9,7 +9,6 @@ import CoreData
 
 /// Service for finding school days and days with lessons.
 /// School-day checks go through `SchoolCalendarService`'s shared cache.
-@MainActor
 enum TodayNavigationService {
 
     // MARK: - CDLesson Navigation

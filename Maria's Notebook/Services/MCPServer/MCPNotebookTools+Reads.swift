@@ -128,7 +128,6 @@ extension MCPNotebookTools {
         )
     }
 
-    @MainActor
     private static func fetchStudentObservations(
         name: String, daysBack: Int, in modelContext: NSManagedObjectContext
     ) throws -> String {
@@ -193,7 +192,6 @@ extension MCPNotebookTools {
         )
     }
 
-    @MainActor
     private static func fetchPresentationHistory(
         name: String, limit: Int, in modelContext: NSManagedObjectContext
     ) throws -> String {

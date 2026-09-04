@@ -16,7 +16,7 @@ import PencilKit
 
 /// Lets the surrounding SwiftUI view (and the menu bar, via focused values)
 /// drive the underlying PDFView: zoom, paging, printing, find, selection.
-@Observable @MainActor
+@Observable
 final class AlbumPDFViewerProxy {
     weak var pdfView: PDFView?
     /// Mirrors whether the PDFView currently has a text selection.
@@ -81,7 +81,7 @@ final class AlbumPDFViewerProxy {
 #if os(iOS)
 /// Owns the PencilKit canvases that PDFKit lays over each page, keyed by
 /// page index. Drawings load from and save to the synced store.
-@Observable @MainActor
+@Observable
 final class InkController: NSObject {
     var markupEnabled = false {
         didSet {
@@ -135,7 +135,6 @@ extension InkController: PKCanvasViewDelegate {
 
 /// SwiftUI wrapper around PDFKit's PDFView with page tracking,
 /// one-shot page jumps, and search-term highlighting.
-@MainActor
 struct AlbumPDFViewer {
     let document: PDFDocument
     @Binding var currentPageIndex: Int
@@ -178,7 +177,6 @@ struct AlbumPDFViewer {
         }
     }
 
-    @MainActor
     final class Coordinator: NSObject {
         var parent: AlbumPDFViewer
         var lastJumpID: UUID?
@@ -290,7 +288,6 @@ extension AlbumPDFViewer.Coordinator: PDFPageOverlayViewProvider {
 
 /// PDFKit's page-thumbnail rail, bound to the live PDFView so selection
 /// and navigation stay in sync.
-@MainActor
 struct ThumbnailStripView {
     let proxy: AlbumPDFViewerProxy
 

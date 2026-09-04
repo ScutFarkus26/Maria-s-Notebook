@@ -31,7 +31,6 @@ extension LessonsRootView {
 
     // MARK: - Move Groups
 
-    @MainActor
     func moveSequences(from source: IndexSet, to destination: Int, in groups: [String], overrideArea: String? = nil) {
         let area = overrideArea ?? selectedArea ?? ""
         guard !area.trimmed().isEmpty else { return }
@@ -50,7 +49,6 @@ extension LessonsRootView {
 
     // MARK: - Move Lessons in Area
 
-    @MainActor
     func moveLessonsInArea(from source: IndexSet, to destination: Int, in groupLessons: [CDLesson]) {
         guard canReorder else { return }
         guard let area = selectedArea, !area.trimmed().isEmpty else { return }
@@ -104,7 +102,6 @@ extension LessonsRootView {
 
     // MARK: - Move Single CDLesson Up/Down in Group
 
-    @MainActor
     func moveLessonInSequence(lesson: CDLesson, direction: Int, sequence: String, ungroupedLabel: String) {
         guard canReorder else { return }
 
@@ -125,7 +122,6 @@ extension LessonsRootView {
     }
 
     /// Rebuilds `sortIndex` for all lessons in the selected area based on sequence order and `orderInSequence`.
-    @MainActor
     private func rebuildSortIndexForArea() {
         let ungroupedLabel = "Ungrouped"
         let displaySequences = reorderableSequences
@@ -157,7 +153,6 @@ extension LessonsRootView {
 
     // MARK: - Move CDLesson to Different Group
 
-    @MainActor
     func moveLessonToSequence(lesson: CDLesson, newSequence: String) {
         let ungroupedLabel = "Ungrouped"
         let actualGroup = (newSequence == ungroupedLabel) ? "" : newSequence
@@ -176,7 +171,6 @@ extension LessonsRootView {
 
     /// Repositions a newly-created lesson to sit immediately after `source` in its sequence,
     /// then renumbers `orderInSequence` so the new lesson lands exactly where the user expects.
-    @MainActor
     func insertLessonAfter(newLesson: CDLesson, after source: CDLesson) {
         guard let sourceID = source.id, let newID = newLesson.id, sourceID != newID else { return }
 

@@ -5,7 +5,6 @@ import FoundationModels
 
 /// Service that uses Apple Intelligence to extract student names from todo text
 @available(macOS 26.0, iOS 26.0, *)
-@MainActor
 final class TodoStudentSuggestionService {
     
     @Generable(description: "Extracted student names from text")

@@ -8,7 +8,6 @@ import OSLog
 /// Manages backup transactions with rollback capability.
 /// Creates safety checkpoints before destructive operations and provides
 /// automatic recovery on failure.
-@MainActor
 public final class BackupTransactionManager {
     private static let logger = Logger.backup
 

@@ -22,7 +22,6 @@ extension View {
     /// - A shared in-memory Core Data stack for the app's schema
     /// - A `SaveCoordinator.preview` that suppresses alerts
     /// Use this in every `#Preview` to avoid missing environment wiring.
-    @MainActor
     func previewEnvironment() -> some View {
         self
             .environment(\.managedObjectContext, CoreDataStack.preview.viewContext)
@@ -30,7 +29,6 @@ extension View {
     }
 
     /// Variant that uses a specific stack (e.g., when seeding data in the preview)
-    @MainActor
     func previewEnvironment(using stack: CoreDataStack) -> some View {
         self
             .environment(\.managedObjectContext, stack.viewContext)

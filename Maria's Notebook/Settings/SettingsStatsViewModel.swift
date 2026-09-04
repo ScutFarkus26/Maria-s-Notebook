@@ -5,7 +5,6 @@ import SwiftUI
 /// ViewModel for efficiently loading and caching Settings statistics
 /// Optimizes SettingsView by avoiding loading entire tables just for counts
 @Observable
-@MainActor
 class SettingsStatsViewModel {
     // MARK: - Teaching
     var studentsCount: Int = 0

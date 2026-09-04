@@ -6,7 +6,6 @@ import OSLog
 /// Manages session state, streaming, persistence, and dynamic suggestions.
 /// Uses the model selected for Ask AI, with Apple Intelligence as the default.
 @Observable
-@MainActor
 final class ChatViewModel {
     private static let logger = Logger.ai
 

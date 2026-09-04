@@ -15,7 +15,6 @@ extension WorkTriageInput {
     /// Pass `checkIns` and `notes` when the caller already holds them (a list
     /// that fetched them in a batch), so the relationships are not faulted per
     /// row.
-    @MainActor
     init(
         work: CDWorkModel,
         context: NSManagedObjectContext,
@@ -68,7 +67,6 @@ extension PresentationTriageInput {
 
 // MARK: - Managed-object entry points
 
-@MainActor
 extension LessonsAndWorkTriage {
 
     /// Places one work item straight from Core Data.

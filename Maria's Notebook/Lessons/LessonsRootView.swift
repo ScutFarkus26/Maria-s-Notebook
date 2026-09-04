@@ -302,7 +302,6 @@ struct LessonsRootView: View {
 
     // MARK: - Event Handlers
 
-    @MainActor
     private func handleInitialLoad() async {
         if !sortIndexMigrated {
             _ = LessonOrderMigration.migrateSortIndices(context: viewContext)
@@ -335,7 +334,6 @@ struct LessonsRootView: View {
 
     // MARK: - Presentation History
 
-    @MainActor
     private func fetchPresentationHistory() async {
         let lessonIDs = lessonsForArea.compactMap(\.id)
         guard !lessonIDs.isEmpty else {

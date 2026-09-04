@@ -7,7 +7,6 @@ import OSLog
 /// Tracks global sync state through Core Data notifications from
 /// NSPersistentCloudKitContainer.
 @Observable
-@MainActor
 final class CloudKitSyncStatusService {
     static let logger = Logger.sync
     static let shared = CloudKitSyncStatusService()

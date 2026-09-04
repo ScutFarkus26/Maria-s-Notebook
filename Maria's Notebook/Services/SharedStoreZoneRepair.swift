@@ -21,7 +21,6 @@ import OSLog
 ///   2. ClassroomSharingService when `isSharing` transitions `false → true`
 ///   3. DeduplicationCoordinator after each post-import dedup pass
 @Observable
-@MainActor
 final class SharedStoreZoneRepair {
 
     static let shared = SharedStoreZoneRepair()

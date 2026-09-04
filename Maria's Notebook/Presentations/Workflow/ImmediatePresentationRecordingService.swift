@@ -5,7 +5,6 @@ import Foundation
 ///
 /// This service intentionally records only the presentation lifecycle. Observations,
 /// follow-up work, and next-lesson planning remain explicit, separate actions.
-@MainActor
 struct ImmediatePresentationRecordingService {
     enum RecordingError: LocalizedError {
         case invalidAssignment

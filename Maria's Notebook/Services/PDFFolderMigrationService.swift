@@ -141,7 +141,6 @@ enum PDFFolderMigrationService {
 
     /// Walks `CDDocument` rows whose `pdfData` is non-nil, writes the bytes to disk under
     /// the student's folder, sets the bookmark + relative path, and clears `pdfData`.
-    @MainActor
     private static func migrateStudentDocuments(using context: NSManagedObjectContext) async -> Bool {
         let request = NSFetchRequest<CDDocument>(entityName: "Document")
         request.predicate = NSPredicate(format: "pdfData != nil")
@@ -195,7 +194,6 @@ enum PDFFolderMigrationService {
         return failed == 0
     }
 
-    @MainActor
     private static func saveContext(_ context: NSManagedObjectContext) {
         guard context.hasChanges else { return }
         context.safeSave()

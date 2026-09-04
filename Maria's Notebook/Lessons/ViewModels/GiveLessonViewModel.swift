@@ -23,7 +23,6 @@ enum StudentLevelFilter: String, CaseIterable {
 // MARK: - View Model
 
 @Observable
-@MainActor
 // swiftlint:disable:next type_body_length
 final class LessonPickerViewModel {
     // MARK: - Properties

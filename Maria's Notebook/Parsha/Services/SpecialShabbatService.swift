@@ -50,7 +50,6 @@ enum SpecialShabbat: String, CaseIterable, Sendable {
     }
 }
 
-@MainActor
 enum SpecialShabbatService {
 
     /// Returns the most-specific special-Shabbat designation that applies to `shabbat`,

@@ -52,7 +52,6 @@ extension MCPNotebookTools {
         )
     }
 
-    @MainActor
     private static func recordObservation(
         arguments: [String: JSONValue], in modelContext: NSManagedObjectContext
     ) throws -> String {
@@ -123,7 +122,6 @@ extension MCPNotebookTools {
         )
     }
 
-    @MainActor
     private static func updateStudent(
         arguments: [String: JSONValue], in modelContext: NSManagedObjectContext
     ) throws -> String {
@@ -167,7 +165,6 @@ extension MCPNotebookTools {
         var descriptions: [String] = []
     }
 
-    @MainActor
     private static func parseStudentEdits(from arguments: [String: JSONValue]) throws -> StudentEdits {
         var edits = StudentEdits()
         // An empty nickname is meaningful (it clears the field), so read
@@ -207,7 +204,6 @@ extension MCPNotebookTools {
 
     /// Resolves a student from a tool argument that may be either an exact
     /// UUID (from list_students) or a name/nickname.
-    @MainActor
     static func resolveStudentReference(
         _ reference: String, in modelContext: NSManagedObjectContext
     ) throws -> CDStudent {
@@ -258,7 +254,6 @@ extension MCPNotebookTools {
         )
     }
 
-    @MainActor
     private static func updateObservation(
         arguments: [String: JSONValue], in modelContext: NSManagedObjectContext
     ) throws -> String {

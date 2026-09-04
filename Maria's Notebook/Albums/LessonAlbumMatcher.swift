@@ -14,7 +14,6 @@ import CoreData
 import Foundation
 import OSLog
 
-@MainActor
 enum LessonAlbumMatcher {
 
     /// At or above this, a match is safe to apply without review.

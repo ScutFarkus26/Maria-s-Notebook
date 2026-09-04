@@ -7,7 +7,6 @@ import Speech
 import AVFoundation
 
 @Observable
-@MainActor
 final class SpeechRecognitionService {
     private static let logger = Logger.app_
 

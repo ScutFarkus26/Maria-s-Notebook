@@ -5,7 +5,6 @@ import SwiftUI
 
 /// Service responsible for monitoring CloudKit health and availability
 @Observable
-@MainActor
 final class CloudKitHealthCheck {
     // MARK: - Observable State
     

@@ -44,7 +44,6 @@ import OSLog
 /// }
 /// ```
 @Observable
-@MainActor
 final class AppDependencies {
     private static let logger = Logger.app_
 
@@ -384,7 +383,7 @@ final class AppDependencies {
 struct AppDependenciesKey: @preconcurrency EnvironmentKey {
     // Use the real, already-initialized stack from AppBootstrapping if available.
     // This prevents a second in-memory stack from being created during window restoration.
-    @MainActor static let defaultValue: AppDependencies = {
+    static let defaultValue: AppDependencies = {
         let stack = AppBootstrapping.getSharedCoreDataStack()
         return AppDependencies(coreDataStack: stack)
     }()

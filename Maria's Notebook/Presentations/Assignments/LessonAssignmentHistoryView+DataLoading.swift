@@ -58,7 +58,6 @@ extension LessonAssignmentHistoryView {
 
     /// Builds caches asynchronously to avoid blocking the main thread.
     /// Extracts primitive values on the main thread, then processes on background.
-    @MainActor
     func buildCachesAsync() async {
         // Extract primitive/Sendable values on main thread before background processing
         // This avoids passing SwiftData model objects across actor boundaries

@@ -5,7 +5,6 @@ import OSLog
 
 /// Coordinates the end-to-end flow of importing a PDF as a story:
 /// validate → copy → insert entity → generate thumbnail → enqueue analysis.
-@MainActor
 enum StoryImportService {
     private static let logger = Logger.stories
 

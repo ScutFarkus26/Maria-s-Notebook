@@ -74,7 +74,6 @@ struct AttendanceRecentActivityEntry: Sendable, Identifiable, Equatable {
 
 // MARK: - Service
 
-@MainActor
 enum AttendanceInsightsService {
     static let logger = Logger.attendance
 

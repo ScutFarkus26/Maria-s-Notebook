@@ -3,7 +3,6 @@ import CoreData
 import OSLog
 
 /// Orchestrates the chat flow: context assembly, API calls, and session management.
-@MainActor
 final class ChatService {
     private static let logger = Logger.ai
 

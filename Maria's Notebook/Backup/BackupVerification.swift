@@ -3,7 +3,6 @@ import CoreData
 import OSLog
 
 /// Utility to verify backup file integrity and provide status information
-@MainActor
 public struct BackupVerification {
     private static let logger = Logger.backup
     

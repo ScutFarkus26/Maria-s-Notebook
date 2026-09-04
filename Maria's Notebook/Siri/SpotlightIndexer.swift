@@ -29,7 +29,6 @@ enum SpotlightIndexer {
     /// launch, whether or not anything had changed. Now the rows are read as
     /// plain values on a background context, hashed, and only sent when the
     /// hash differs from the last run's.
-    @MainActor
     static func reindexAll() async {
         let context = AppBootstrapping.getSharedCoreDataStack().container.newBackgroundContext()
         let snapshot = await context.perform { Self.loadSnapshot(in: context) }

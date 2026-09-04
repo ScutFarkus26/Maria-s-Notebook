@@ -10,7 +10,6 @@ import Foundation
 import CoreData
 import OSLog
 
-@MainActor
 @Observable
 final class MonthlyReportDraftService {
     struct Draft: Sendable {

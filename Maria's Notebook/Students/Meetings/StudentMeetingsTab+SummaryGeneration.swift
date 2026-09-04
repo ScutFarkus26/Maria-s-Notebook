@@ -27,7 +27,6 @@ extension StudentMeetingsTab {
         generatingSummaries.remove(itemID)
     }
 
-    @MainActor
     func setSummary(_ text: String, for meetingID: UUID, isAIGenerated: Bool = false) {
         meetingSummaries[meetingID] = text
         if isAIGenerated {

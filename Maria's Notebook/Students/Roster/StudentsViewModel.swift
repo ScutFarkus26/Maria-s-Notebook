@@ -3,7 +3,6 @@ import CoreData
 import SwiftUI
 
 @Observable
-@MainActor
 final class StudentsViewModel {
     // MARK: - Cache State
     var cachedAttendanceRecords: [CDAttendanceRecord] = []

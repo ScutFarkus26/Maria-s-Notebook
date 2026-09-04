@@ -3,7 +3,6 @@ import SwiftUI
 
 /// Filter state + filtering logic for the Book Club packets list.
 @Observable
-@MainActor
 final class BookClubPacketsViewModel {
     var searchText: String = ""
     var gradeFilter: StoryGradeBand?

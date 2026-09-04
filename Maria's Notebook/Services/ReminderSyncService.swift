@@ -18,7 +18,6 @@ struct ReminderSyncData: Sendable {
 /// Service that syncs reminders with Apple's Reminders app via EventKit.
 /// Only syncs reminders from a specific Reminders list configured by the user.
 @Observable
-@MainActor
 final class ReminderSyncService {
     private static let logger = Logger.reminders
     static let shared = ReminderSyncService()
@@ -230,7 +229,6 @@ final class ReminderSyncService {
     }
     
     /// Stop observing EventKit changes (MainActor implementation)
-    @MainActor
     private func stopObservingChangesOnMainActor() {
         // Cancel any pending sync tasks
         pendingChangeTask?.cancel()

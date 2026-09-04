@@ -21,7 +21,6 @@ import CoreData
 import NaturalLanguage
 import OSLog
 
-@MainActor
 enum StoryLessonMatcher {
     private static let logger = Logger.stories
 

@@ -4,7 +4,6 @@ import CoreData
 import OSLog
 
 @Observable
-@MainActor
 final class AttendanceViewModel {
     private static let logger = Logger.attendance
     var selectedDate: Date

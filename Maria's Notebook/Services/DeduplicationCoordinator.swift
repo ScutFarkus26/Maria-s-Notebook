@@ -5,7 +5,6 @@ import OSLog
 /// Coordinates post-sync deduplication with debouncing to prevent rapid-fire runs.
 /// Triggered by CloudKit import events to clean up merge-conflict duplicates.
 @Observable
-@MainActor
 final class DeduplicationCoordinator {
     static let shared = DeduplicationCoordinator()
     nonisolated private static let logger = Logger.app(category: "DeduplicationCoordinator")

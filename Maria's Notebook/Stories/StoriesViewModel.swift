@@ -2,7 +2,6 @@ import Foundation
 
 /// Pure functions for filtering, sorting, and computing facets over `[CDStory]`.
 /// No external state is mutated; mirrors the `LessonsViewModel` pattern.
-@MainActor
 struct StoriesViewModel {
 
     /// Returns the filtered, ordered list of stories for the given filter state.

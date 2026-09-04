@@ -15,7 +15,6 @@ import UIKit
 #endif
 
 @Observable
-@MainActor
 // swiftlint:disable:next type_body_length
 class QuickNoteViewModel {
     private static let logger = Logger.notes

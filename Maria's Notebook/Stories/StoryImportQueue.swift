@@ -3,7 +3,6 @@ import Foundation
 /// Serial queue that runs story analyses one-at-a-time so we never have multiple
 /// `LanguageModelSession`s competing on-device. Tracks a public count of jobs in
 /// flight so the UI can show progress.
-@MainActor
 @Observable
 final class StoryImportQueue {
     static let shared = StoryImportQueue()

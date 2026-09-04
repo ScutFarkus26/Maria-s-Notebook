@@ -211,7 +211,6 @@ public struct AttendanceEmailReport {
 
 /// Convenience helpers to read stored preferences and create prefilled mail senders.
 /// Includes platform-aware availability checks.
-@MainActor
 public enum AttendanceEmail {
     public static func storedToAddress() -> String? {
         let s = SyncedPreferencesStore.shared.string(forKey: AttendanceEmailPrefs.toKey)?.trimmed()
@@ -589,7 +588,6 @@ public struct MailComposerView: UIViewControllerRepresentable {
 
     public func makeCoordinator() -> Coordinator { Coordinator(onComplete: onComplete) }
 
-    @MainActor
     public final class Coordinator: NSObject, MFMailComposeViewControllerDelegate {
         let onComplete: (MFMailComposeResult, Error?) -> Void
         init(onComplete: @escaping (MFMailComposeResult, Error?) -> Void) {
@@ -610,7 +608,6 @@ public struct MailComposerView: UIViewControllerRepresentable {
 // MARK: - macOS Mail Sender Helper
 
 #if os(macOS)
-@MainActor
 public enum MacOSMailSender {
     private static let logger = Logger.attendance
     public static func send(

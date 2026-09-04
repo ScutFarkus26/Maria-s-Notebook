@@ -2,7 +2,6 @@ import Foundation
 import CoreData
 
 @Observable
-@MainActor
 final class StudentYearPlanViewModel {
 
     private(set) var entries: [CDYearPlanEntry] = []

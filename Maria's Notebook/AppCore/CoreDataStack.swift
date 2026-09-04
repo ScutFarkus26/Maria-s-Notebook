@@ -9,7 +9,6 @@ import OSLog
 /// - **Shared store** (`shared.sqlite`) — classroom-level data (students, lessons, tracks, procedures, etc.)
 ///
 /// NSPersistentCloudKitContainer handles sync, offline queuing, and conflict resolution automatically.
-@MainActor
 final class CoreDataStack {
     nonisolated private static let logger = Logger.app(category: "CoreDataStack")
 

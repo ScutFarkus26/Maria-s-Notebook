@@ -23,7 +23,6 @@ import AppKit
 #endif
 
 @Observable
-@MainActor
 final class WorkspaceMultiSelection {
     private(set) var ids: Set<UUID> = []
 

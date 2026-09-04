@@ -3,9 +3,7 @@ import CoreData
 import OSLog
 
 /// Service for managing sequence-based tracks
-@MainActor
-// swiftlint:disable:next type_body_length
-struct SequenceTrackService {
+struct SequenceTrackService { // swiftlint:disable:this type_body_length
     private static let logger = Logger.lessons
 
     // MARK: - Shared-store guard

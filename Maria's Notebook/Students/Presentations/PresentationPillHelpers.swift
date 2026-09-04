@@ -1,6 +1,5 @@
 import Foundation
 
-@MainActor
 enum RecentPresentationCache {
     struct Key: Hashable {
         let day: Date

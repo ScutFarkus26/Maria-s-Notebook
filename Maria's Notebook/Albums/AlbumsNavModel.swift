@@ -4,7 +4,7 @@
 
 import SwiftUI
 
-@Observable @MainActor
+@Observable
 final class AlbumsNavModel {
     var selection: AlbumsSidebarItem? = .library
     var pageTarget: AlbumPageTarget?

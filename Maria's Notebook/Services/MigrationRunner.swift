@@ -5,7 +5,7 @@ import OSLog
 enum MigrationRunner {
     private static let logger = Logger.migration
 
-    @MainActor static func runIfNeeded(coreDataStack: CoreDataStack) async {
+    static func runIfNeeded(coreDataStack: CoreDataStack) async {
         // Heavy, synchronous launch cleanup — deduplicating ~30 entity types and
         // sweeping orphaned note images — runs on a background context so it no
         // longer blocks the main thread during launch. The view context picks up

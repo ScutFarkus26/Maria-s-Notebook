@@ -6,7 +6,6 @@ import CoreData
 import SwiftUI
 
 @Observable
-@MainActor
 final class GoingOutViewModel {
     // MARK: - Outputs
 

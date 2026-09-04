@@ -4,7 +4,6 @@ import Foundation
 
 /// Exports and imports app settings as a JSON profile.
 /// IMPORTANT: Never exports API keys, passwords, or sensitive credentials.
-@MainActor
 enum SettingsExportService {
 
     enum SettingsImportError: Error, LocalizedError {

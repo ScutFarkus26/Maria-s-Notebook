@@ -9,7 +9,6 @@ import Foundation
 import CoreData
 
 /// Service that leverages MCP tools to analyze student data and provide actionable insights
-@MainActor
 final class StudentAnalysisService {
 
     // MARK: - Dependencies

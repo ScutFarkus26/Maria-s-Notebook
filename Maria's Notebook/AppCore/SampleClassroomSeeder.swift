@@ -7,7 +7,6 @@ import Foundation
 /// into the sample store. Student records and all activity records are created
 /// only in that sample store. No managed object is ever shared between the two
 /// contexts.
-@MainActor
 enum SampleClassroomSeeder {
     private struct AttachmentSnapshot {
         let id: UUID

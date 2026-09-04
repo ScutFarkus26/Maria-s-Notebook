@@ -27,7 +27,6 @@ struct ParshaMetadata: Decodable, Sendable {
     }
 }
 
-@MainActor
 enum ParshaMetadataService {
 
     private static let logger = Logger.app(category: "ParshaMetadataService")

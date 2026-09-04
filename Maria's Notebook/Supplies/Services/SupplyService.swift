@@ -7,7 +7,6 @@ enum SupplyService {
     // MARK: - Core Data Methods
 
     /// Fetches all supplies, optionally filtered by category
-    @MainActor
     static func fetchSupplies(
         in context: NSManagedObjectContext,
         category: SupplyCategory? = nil,
@@ -39,7 +38,6 @@ enum SupplyService {
     }
 
     /// Creates a new supply
-    @MainActor
     static func createSupply(
         name: String,
         category: SupplyCategory,
@@ -63,7 +61,6 @@ enum SupplyService {
     }
 
     /// Updates a supply's quantity directly
-    @MainActor
     static func updateQuantity(
         for supply: CDSupply,
         newQuantity: Int,
@@ -75,7 +72,6 @@ enum SupplyService {
     }
 
     /// Adds stock to a supply
-    @MainActor
     static func addStock(
         to supply: CDSupply,
         amount: Int,
@@ -87,7 +83,6 @@ enum SupplyService {
     }
 
     /// Removes stock from a supply
-    @MainActor
     static func removeStock(
         from supply: CDSupply,
         amount: Int,
@@ -99,7 +94,6 @@ enum SupplyService {
     }
 
     /// Deletes a supply
-    @MainActor
     static func deleteSupply(_ supply: CDSupply, in context: NSManagedObjectContext) {
         context.delete(supply)
         context.safeSave()

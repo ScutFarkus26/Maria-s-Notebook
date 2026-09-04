@@ -54,7 +54,6 @@ struct StudentObservationSummary: Identifiable {
 // MARK: - ViewModel
 
 @Observable
-@MainActor
 final class ObservationPatternsViewModel {
     private(set) var tagCounts: [TagCount] = []
     private(set) var studentSummaries: [StudentObservationSummary] = []

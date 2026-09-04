@@ -2,7 +2,6 @@ import Foundation
 import CoreData
 
 @Observable
-@MainActor
 final class BookClubSessionsViewModel {
     func grouped(_ sessions: [CDBookClubSession]) -> [(status: BookClubSessionStatus, sessions: [CDBookClubSession])] {
         let buckets = Dictionary(grouping: sessions, by: \.status)

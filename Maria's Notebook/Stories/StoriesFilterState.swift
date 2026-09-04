@@ -2,7 +2,6 @@ import Foundation
 import SwiftUI
 
 @Observable
-@MainActor
 final class StoriesFilterState {
     var searchText: String = "" {
         didSet { scheduleDebounce() }

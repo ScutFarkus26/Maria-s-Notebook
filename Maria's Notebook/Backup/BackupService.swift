@@ -4,7 +4,6 @@ import SwiftUI
 import CryptoKit
 import Compression
 
-@MainActor
 public final class BackupService {
     /// Progress callback type for backup operations.
     /// Guaranteed to run on MainActor so callers can update UI state directly.

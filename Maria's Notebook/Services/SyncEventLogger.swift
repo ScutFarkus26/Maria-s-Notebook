@@ -4,7 +4,7 @@ import Foundation
 
 /// Logs sync events (iCloud, Calendar, Reminders) for display in the sync history view.
 /// Events are stored in UserDefaults as JSON, capped at 50 entries.
-@Observable @MainActor
+@Observable
 final class SyncEventLogger {
     static let shared = SyncEventLogger()
 

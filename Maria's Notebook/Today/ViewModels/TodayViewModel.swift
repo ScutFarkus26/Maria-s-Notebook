@@ -18,7 +18,6 @@ import CoreData
 /// - Manages date selection and a level filter.
 /// - Builds in-memory caches to avoid repeated fetches per row.
 @Observable
-@MainActor
 final class TodayViewModel {
 
     // MARK: - Type Aliases (for backwards compatibility)

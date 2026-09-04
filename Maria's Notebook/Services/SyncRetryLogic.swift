@@ -3,7 +3,6 @@ import OSLog
 
 /// Service responsible for managing retry logic with exponential backoff
 @Observable
-@MainActor
 final class SyncRetryLogic {
     private static let logger = Logger.sync
 

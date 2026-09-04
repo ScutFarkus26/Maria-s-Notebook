@@ -15,7 +15,6 @@ import OSLog
 /// `@MainActor` to align with NSManagedObjectContext thread requirements in
 /// Swift 6. Nonisolated callers (model initializers, engines that already hold
 /// their own record sets) use `SchoolDayChecker` directly.
-@MainActor
 public final class SchoolCalendarService {
     public static let shared = SchoolCalendarService()
 

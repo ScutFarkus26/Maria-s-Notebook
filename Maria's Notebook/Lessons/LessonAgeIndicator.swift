@@ -85,7 +85,6 @@ struct ColorUtils {
 struct LessonAgeHelper {
     /// Compute the number of school days between `createdAt` (start of day) and `today` (start of day).
     /// Routes through the shared school-day cache to avoid issuing a Core Data fetch per day.
-    @MainActor
     static func schoolDaysSinceCreation(
         createdAt: Date, asOf today: Date = Date(),
         using context: NSManagedObjectContext
@@ -98,7 +97,6 @@ struct LessonAgeHelper {
 
 extension LessonAssignmentSnapshot {
     /// Convenience wrapper to compute school-day age directly from a snapshot.
-    @MainActor
     func schoolDaysSinceCreation(
         asOf today: Date = Date(),
         using context: NSManagedObjectContext

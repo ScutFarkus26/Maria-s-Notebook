@@ -12,7 +12,6 @@ import OSLog
 /// Central navigation coordinator for the app
 /// Provides type-safe navigation actions and state management
 @Observable
-@MainActor
 final class AppRouter {
     private static let logger = Logger.app_
     static let shared = AppRouter()
@@ -389,7 +388,7 @@ final class AppRouter {
 
 /// Environment key for AppRouter
 struct AppRouterKey: @preconcurrency EnvironmentKey {
-    @MainActor static let defaultValue = AppRouter.shared
+    static let defaultValue = AppRouter.shared
 }
 
 extension EnvironmentValues {

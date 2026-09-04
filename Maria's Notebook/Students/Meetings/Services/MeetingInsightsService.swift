@@ -55,7 +55,6 @@ enum MeetingSentiment: String, Sendable {
 
 // MARK: - Meeting Insights Service
 
-@MainActor
 final class MeetingInsightsService {
     private static let logger = Logger.ai
 

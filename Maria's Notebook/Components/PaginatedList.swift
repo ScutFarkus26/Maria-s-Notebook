@@ -9,7 +9,6 @@ import SwiftUI
 /// Observable state manager for list pagination.
 /// Use this in views that need to display large datasets with "load more" functionality.
 @Observable
-@MainActor
 final class PaginationState {
     /// Current number of items being displayed
     private(set) var displayedCount: Int
@@ -143,7 +142,7 @@ extension Array {
     /// Returns a paginated slice of the array.
     /// - Parameter state: The pagination state to use
     /// - Returns: Array containing only the items up to the displayed count
-    @MainActor func paginated(using state: PaginationState) -> [Element] {
+    func paginated(using state: PaginationState) -> [Element] {
         Array(prefix(state.displayedCount))
     }
 }

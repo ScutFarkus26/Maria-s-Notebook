@@ -3,7 +3,6 @@ import SwiftUI
 import CoreData
 
 @Observable
-@MainActor
 final class SaveCoordinator {
     var lastSaveError: Error?
     var lastSaveErrorMessage: String?

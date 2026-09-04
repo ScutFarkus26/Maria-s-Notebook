@@ -4,7 +4,6 @@ import CoreData
 import OSLog
 
 /// Validates a PDF and inserts a `CDBookClubPacket` with thumbnail.
-@MainActor
 enum BookClubImportService {
     private static let logger = Logger.bookClub
 

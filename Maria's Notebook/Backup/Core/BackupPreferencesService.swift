@@ -29,7 +29,7 @@ enum BackupPreferencesService {
     // MARK: - Export
 
     /// Builds a PreferencesDTO from current user preferences.
-    @MainActor static func buildPreferencesDTO() -> PreferencesDTO {
+    static func buildPreferencesDTO() -> PreferencesDTO {
         let syncedStore = SyncedPreferencesStore.shared
         let defaults = UserDefaults.standard
         var map: [String: PreferenceValueDTO] = [:]
@@ -69,7 +69,7 @@ enum BackupPreferencesService {
 
     // Applies a PreferencesDTO to user preferences.
     // swiftlint:disable:next cyclomatic_complexity
-    @MainActor static func applyPreferencesDTO(_ dto: PreferencesDTO) {
+    static func applyPreferencesDTO(_ dto: PreferencesDTO) {
         let syncedStore = SyncedPreferencesStore.shared
         let defaults = UserDefaults.standard
 

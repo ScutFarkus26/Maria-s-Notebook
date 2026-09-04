@@ -105,7 +105,6 @@ struct LessonsAndWorkPartition {
     ///   - unresolvedFollowUpIDs: built once with
     ///     `LessonsAndWorkTriage.unresolvedFollowUpAssignmentIDs`, so the
     ///     follow-up question is not re-queried per row.
-    @MainActor
     init(
         openWork: [CDWorkModel],
         assignments: [CDLessonAssignment],

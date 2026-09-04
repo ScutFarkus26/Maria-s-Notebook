@@ -359,7 +359,6 @@ struct StudentNotesTimelineList: View {
         }
     }
 
-    @MainActor
     private func resolveEditableNote(from item: UnifiedNoteItem) -> CDNote? {
         // Attempt to look up the CDNote by ID.
         // If it returns a valid CDNote object (whether attached to Work, CDLesson, or General), it will be editable.
@@ -472,7 +471,6 @@ struct StudentNotesTimelineList: View {
 
     // MARK: - Pin/Unpin
 
-    @MainActor
     private func togglePin(_ note: CDNote) {
         adaptiveWithAnimation {
             note.isPinned.toggle()
@@ -485,6 +483,5 @@ struct StudentNotesTimelineList: View {
 }
 
 extension StudentNotesViewModel {
-    @MainActor
     func reload() { self.reloadItems?() }
 }

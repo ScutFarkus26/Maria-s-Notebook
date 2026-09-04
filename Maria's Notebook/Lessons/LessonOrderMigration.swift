@@ -12,7 +12,6 @@ enum LessonOrderMigration {
     /// Should be called once on app launch or when first needed.
     /// - Parameter context: NSManagedObjectContext to migrate lessons
     /// - Returns: Number of lessons that were updated
-    @MainActor
     static func migrateSortIndices(context: NSManagedObjectContext) -> Int {
         let descriptor = { let r = NSFetchRequest<CDLesson>(entityName: "Lesson"); r.sortDescriptors = [
             NSSortDescriptor(keyPath: \CDLesson.area, ascending: true),

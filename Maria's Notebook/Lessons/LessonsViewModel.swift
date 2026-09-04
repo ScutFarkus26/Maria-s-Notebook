@@ -6,7 +6,6 @@ import CoreData
 
 /// Provides filtering and ordering utilities for Lessons screens.
 /// Methods here are pure functions and do not mutate external state.
-@MainActor
 struct LessonsViewModel {
     private static let logger = Logger.lessons
     // MARK: - Public API

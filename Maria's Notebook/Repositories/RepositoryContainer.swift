@@ -11,7 +11,6 @@ import CoreData
 
 /// Central container that provides access to all repositories.
 /// Use this to get repository instances with consistent context and save coordinator injection.
-@MainActor
 struct RepositoryContainer {
     let context: NSManagedObjectContext
     let saveCoordinator: SaveCoordinator?

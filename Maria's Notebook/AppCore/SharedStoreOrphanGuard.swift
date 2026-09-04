@@ -23,7 +23,6 @@ import OSLog
 /// This class is the safety net behind Changes 1-3 in the
 /// shared-store-orphans fix: those gates stop the known offenders,
 /// while this observer catches anything a future contributor adds.
-@MainActor
 final class SharedStoreOrphanGuard {
 
     static let shared = SharedStoreOrphanGuard()

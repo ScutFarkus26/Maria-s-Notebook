@@ -1,7 +1,6 @@
 import CoreData
 import SwiftUI
 
-@MainActor
 struct PostPresentationFollowUpView: View {
     let assignment: CDLessonAssignment
     let lesson: CDLesson

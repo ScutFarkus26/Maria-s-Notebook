@@ -8,7 +8,6 @@
 
 import Foundation
 
-@MainActor
 enum HebrewParshaService {
 
     // MARK: - Canonical Keys (annual-cycle order)

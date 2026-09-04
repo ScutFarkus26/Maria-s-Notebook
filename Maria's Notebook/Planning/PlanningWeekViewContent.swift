@@ -4,9 +4,7 @@ import CoreData
 
 /// Shared visual component for PlanningWeekView that works with both Mac and iOS data sources.
 /// This contains all the UI logic and presentation, but is data-agnostic.
-@MainActor
-// swiftlint:disable:next type_body_length
-struct PlanningWeekViewContent: View {
+struct PlanningWeekViewContent: View { // swiftlint:disable:this type_body_length
     private static let logger = Logger.planning
     @Environment(\.calendar) private var calendar
     @Environment(\.appRouter) private var appRouter
@@ -80,7 +78,7 @@ struct PlanningWeekViewContent: View {
         }
     }
     
-    @MainActor func planNextLesson(for la: CDLessonAssignment) {
+    func planNextLesson(for la: CDLessonAssignment) {
         // Fetch existing LessonAssignments via SwiftData (PlanNextLessonService expects SwiftData types)
         let presentedRaw = LessonAssignmentState.presented.rawValue
         let fetch: NSFetchRequest<CDLessonAssignment> = {
@@ -270,7 +268,6 @@ struct PlanningWeekViewContent: View {
         self.startDate = firstSchoolDay(onOrAfter: today)
     }
 
-    @MainActor
     private func syncInboxOrderWithCurrentBase() {
         let baseIDs = inboxLessons.compactMap(\.id)
         var order = InboxOrderStore.parse(inboxOrderRaw).filter { baseIDs.contains($0) }

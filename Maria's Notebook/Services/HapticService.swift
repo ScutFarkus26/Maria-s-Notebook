@@ -8,7 +8,6 @@ import UIKit
 #endif
 
 /// Provides centralized haptic feedback with pre-prepared generators for performance
-@MainActor
 final class HapticService {
     static let shared = HapticService()
 

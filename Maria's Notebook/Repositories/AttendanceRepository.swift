@@ -10,7 +10,6 @@ import Foundation
 import OSLog
 import CoreData
 
-@MainActor
 struct AttendanceRepository: SavingRepository {
     typealias Model = CDAttendanceRecord
 

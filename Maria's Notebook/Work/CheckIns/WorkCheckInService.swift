@@ -11,7 +11,6 @@ import CoreData
 /// (no implicit saves), while callers can perform explicit, transactional
 /// operations that throw on failure.
 /// This file includes only structural and documentation improvements; behavior is unchanged.
-@MainActor
 struct WorkCheckInService: WorkCheckInServiceProtocol {
     let context: NSManagedObjectContext
 

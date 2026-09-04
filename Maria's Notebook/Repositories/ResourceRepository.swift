@@ -2,7 +2,6 @@ import Foundation
 import OSLog
 import CoreData
 
-@MainActor
 struct ResourceRepository: SavingRepository {
     typealias Model = CDResource
 

@@ -4,7 +4,6 @@ import Foundation
 
 /// Helper responsible for persisting and retrieving the order of areas, per-area groups,
 /// and per-area+sequence sections using UserDefaults.
-@MainActor
 struct FilterOrderStore {
     private let defaults: UserDefaults
     init(defaults: UserDefaults = .standard) { self.defaults = defaults }

@@ -11,7 +11,6 @@
 import Foundation
 import CoreData
 
-@MainActor
 enum DayBalanceService {
     /// What one day's rearrangement did, and what it could not do.
     struct Result {

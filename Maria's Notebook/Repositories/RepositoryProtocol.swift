@@ -11,7 +11,6 @@ import CoreData
 
 /// Protocol defining standard repository operations.
 /// Repositories encapsulate data access, making views testable without a real database.
-@MainActor
 protocol Repository {
     associatedtype Model: NSManagedObject
 
@@ -27,7 +26,6 @@ extension Repository {
 }
 
 /// Protocol for repositories that support coordinated saves with error handling.
-@MainActor
 protocol SavingRepository: Repository {
     var saveCoordinator: SaveCoordinator? { get }
 }

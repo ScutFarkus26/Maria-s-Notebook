@@ -29,7 +29,6 @@ enum ClassroomWorkspace: String, CaseIterable, Identifiable, Sendable {
 /// by app views. Sample Class is deliberately local-only and has its own SQLite
 /// file; it cannot upload, fetch, edit, or delete records in My Class.
 @Observable
-@MainActor
 final class ClassroomWorkspaceStore {
     private static let logger = Logger.app(category: "ClassroomWorkspace")
 

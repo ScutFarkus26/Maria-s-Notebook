@@ -141,7 +141,7 @@ extension SettingsView {
         }
     }
 
-    @MainActor private func exportSettingsToFile() {
+    private func exportSettingsToFile() {
         guard let data = SettingsExportService.exportSettings() else {
             settingsExportMessage = "Could not prepare settings for export."
             return

@@ -219,7 +219,6 @@ extension RecordPracticeSheet {
         .padding(16)
     }
 
-    @MainActor
     func saveSession() {
         let workItemIDs: [String] = selectedStudentIDs.compactMap { studentID in
             openPracticeWork.first { $0.studentID == studentID.uuidString }?.id?.uuidString

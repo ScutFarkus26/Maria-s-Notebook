@@ -7,7 +7,6 @@ import SwiftUI
 import CoreData
 
 @Observable
-@MainActor
 final class LessonsFilterState {
     var selectedArea: String?
     var selectedSequence: String?

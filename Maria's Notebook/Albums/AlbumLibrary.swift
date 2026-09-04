@@ -14,7 +14,7 @@ import PDFKit
 
 // MARK: - Album
 
-@Observable @MainActor
+@Observable
 final class Album: Identifiable {
     let id: String            // filename, e.g. "Biology Album.pdf"
     let url: URL
@@ -165,7 +165,7 @@ final class Album: Identifiable {
 
 // MARK: - Library
 
-@Observable @MainActor
+@Observable
 final class AlbumLibrary {
     /// App-lifetime library. The album corpus is the guide's own reference
     /// shelf, not classroom data, so it does not swap with the active

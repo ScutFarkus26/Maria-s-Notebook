@@ -13,7 +13,6 @@ struct PostPresentationStudentEntry: Identifiable {
 
 /// ViewModel for managing post-presentation form state and logic.
 @Observable
-@MainActor
 final class PostPresentationFormViewModel {
     // MARK: - Next CDLesson Action
 

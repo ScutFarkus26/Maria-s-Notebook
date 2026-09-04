@@ -3,7 +3,6 @@ import CoreData
 
 /// Resolves effective progression rules for a given lesson by checking
 /// lesson-level overrides first, then sequence-level settings, then defaults.
-@MainActor
 struct LessonProgressionRules {
 
     /// The resolved practice/confirmation requirements for a lesson.

@@ -11,7 +11,6 @@ import CoreData
 import OSLog
 
 /// Service for manually unlocking next lessons when students are ready to progress
-@MainActor
 struct UnlockNextLessonService {
     private static let logger = Logger.lessons
 

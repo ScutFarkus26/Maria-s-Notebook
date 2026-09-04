@@ -5,7 +5,6 @@ import OSLog
 /// Assembles factual curriculum history across students.
 /// Presentation history and explicit guide decisions determine the displayed signal;
 /// work outcomes and practice ratings are never treated as proficiency evidence.
-@MainActor
 struct CurriculumDataAssembler {
     private static let logger = Logger.ai
 

@@ -16,7 +16,6 @@ struct PresentationFollowUpWorkDraft: Codable, Equatable, Sendable {
 /// A lightweight recovery store for text that has been typed but not yet
 /// committed with Add Work. This protects the draft from Mac window closure;
 /// it never creates a real child-work record by itself.
-@MainActor
 enum PresentationFollowUpWorkDraftStore {
     private static let storageKey = "PresentationFollowUpWorkDrafts.v1"
     private static let retentionInterval: TimeInterval = 30 * 24 * 60 * 60

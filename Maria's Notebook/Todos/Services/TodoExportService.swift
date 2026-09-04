@@ -8,7 +8,6 @@ import UIKit
 #endif
 
 /// Service for exporting todos to various formats
-@MainActor
 class TodoExportService {
     private static let logger = Logger.todos
 

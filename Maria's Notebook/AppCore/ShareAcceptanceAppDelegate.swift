@@ -7,7 +7,6 @@ import CloudKit
 /// When a user taps a share link, iOS delivers the CKShare.Metadata
 /// through this delegate method. We post a notification that
 /// ClassroomSharingService observes to process the acceptance.
-@MainActor
 final class ShareAcceptanceAppDelegate: NSObject, UIApplicationDelegate {
     func application(
         _ application: UIApplication,

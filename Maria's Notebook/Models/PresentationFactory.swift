@@ -14,7 +14,6 @@ enum PresentationFactory {
     // MARK: - Draft (Inbox)
 
     /// Creates a draft CDLessonAssignment (appears in inbox).
-    @MainActor
     static func makeDraft(
         lessonID: UUID,
         studentIDs: [UUID],
@@ -32,7 +31,6 @@ enum PresentationFactory {
     }
 
     /// Creates a draft CDLessonAssignment with relationship objects.
-    @MainActor
     static func makeDraft(
         lesson: CDLesson,
         students: [CDStudent],
@@ -55,7 +53,6 @@ enum PresentationFactory {
     // MARK: - Scheduled
 
     /// Creates a scheduled CDLessonAssignment for a specific date/time.
-    @MainActor
     static func makeScheduled(
         lessonID: UUID,
         studentIDs: [UUID],
@@ -70,7 +67,6 @@ enum PresentationFactory {
     }
 
     /// Creates a scheduled CDLessonAssignment with relationship objects.
-    @MainActor
     static func makeScheduled(
         lesson: CDLesson,
         students: [CDStudent],
@@ -87,7 +83,6 @@ enum PresentationFactory {
     // MARK: - Presented/Given
 
     /// Creates a CDLessonAssignment marked as presented.
-    @MainActor
     static func makePresented(
         lessonID: UUID,
         studentIDs: [UUID],
@@ -102,7 +97,6 @@ enum PresentationFactory {
     }
 
     /// Creates a presented CDLessonAssignment with relationship objects.
-    @MainActor
     static func makePresented(
         lesson: CDLesson,
         students: [CDStudent],
@@ -119,7 +113,6 @@ enum PresentationFactory {
     // MARK: - Previously Presented (Undated)
 
     /// Creates a CDLessonAssignment marked as previously presented (no date).
-    @MainActor
     static func makePreviouslyPresented(
         lessonID: UUID,
         studentIDs: [UUID],

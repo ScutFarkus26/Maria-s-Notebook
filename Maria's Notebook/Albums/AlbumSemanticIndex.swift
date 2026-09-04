@@ -16,7 +16,7 @@ import NaturalLanguage
 /// Related to but separate from `Stories/StoryLessonMatcher`, which matches
 /// stories to lessons with averaged word vectors. This index works over album
 /// lesson titles and bodies; consolidating the two is a possible follow-up.
-@Observable @MainActor
+@Observable
 final class AlbumSemanticIndex {
     enum Status: Equatable { case idle, building, ready, unavailable }
 

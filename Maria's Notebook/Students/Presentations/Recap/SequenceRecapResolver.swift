@@ -18,7 +18,6 @@ enum SequenceRecapResolver {
 
     /// Builds a `SequenceRecap` for the given lesson + students. Returns nil when there's
     /// nothing meaningful to show (lesson has no sequence, or no lessons in the sequence).
-    @MainActor
     static func resolve(
         currentLesson: CDLesson?,
         students: [CDStudent],
@@ -99,7 +98,6 @@ enum SequenceRecapResolver {
 
     // MARK: - Per-Student Entry
 
-    @MainActor
     private static func buildStudentEntry(
         student: CDStudent,
         studentID: UUID,
@@ -128,7 +126,6 @@ enum SequenceRecapResolver {
         )
     }
 
-    @MainActor
     private static func buildLessonEntry(
         studentIDString: String,
         lessonInSequence: SequenceRecapLesson,
@@ -194,7 +191,6 @@ enum SequenceRecapResolver {
         )
     }
 
-    @MainActor
     private static func buildPresentations(
         studentIDString: String,
         lessonIDString: String,
@@ -240,7 +236,6 @@ enum SequenceRecapResolver {
         }
     }
 
-    @MainActor
     private static func buildWorkItem(
         work: CDWorkModel,
         studentIDString: String,

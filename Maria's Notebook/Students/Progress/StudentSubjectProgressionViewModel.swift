@@ -7,7 +7,6 @@ import CoreData
 
 /// Builds the lesson timeline for one student in a area/sequence.
 @Observable
-@MainActor
 final class StudentAreaProgressionViewModel {
     private static let logger = Logger.app_
 

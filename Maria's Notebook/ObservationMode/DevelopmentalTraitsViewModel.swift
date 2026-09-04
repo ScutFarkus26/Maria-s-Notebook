@@ -7,7 +7,6 @@ import CoreData
 import SwiftUI
 
 @Observable
-@MainActor
 final class DevelopmentalTraitsViewModel {
     // MARK: - Inputs
 

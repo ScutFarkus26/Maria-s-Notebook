@@ -13,7 +13,6 @@ import CoreData
 /// Centralized navigation coordinator for Presentations menu
 /// Uses @Observable for automatic SwiftUI dependency tracking
 @Observable
-@MainActor
 final class PresentationsCoordinator {
 
     // MARK: - Sheet Destinations

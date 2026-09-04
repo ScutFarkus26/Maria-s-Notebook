@@ -92,14 +92,12 @@ extension ObservationsView {
     /// the item's measured size to NaN and takes the window down with an
     /// assertion. One turn's delay puts the write after the pass. Same bounce
     /// the album toolbar needed, for the same reason.
-    @MainActor
     func afterLayout(_ work: @escaping @MainActor () -> Void) {
         Task { @MainActor in work() }
     }
 
     // MARK: - On-device, evidence-linked reflection
 
-    @MainActor
     func startStreamingSummary(items overrideItems: [UnifiedObservationItem]? = nil, mode: SummaryMode = .digest) {
         guard !isSummarizing else { return }
         guard SystemLanguageModel.default.isAvailable else {
@@ -147,7 +145,6 @@ extension ObservationsView {
 
     /// Trims the source packets until the prompt fits the on-device budget,
     /// then asks the session for a digest or narrative and stores the result.
-    @MainActor
     private func runSummary(
         sourceItems: [UnifiedObservationItem],
         mode: SummaryMode,
@@ -198,7 +195,6 @@ extension ObservationsView {
     }
 
     /// Runs the AI summary for a given scope.
-    @MainActor
     func analyzeScope(_ scope: AIAnalysisScope, mode: SummaryMode) {
         let calendar = AppCalendar.shared
         let items: [UnifiedObservationItem]

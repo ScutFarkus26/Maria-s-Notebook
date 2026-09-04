@@ -1,7 +1,6 @@
 import CoreData
 import Foundation
 
-@MainActor
 extension CommandBarViewModel {
     func fetchStudents(ids: [UUID], context: NSManagedObjectContext) throws -> [CDStudent] {
         guard !ids.isEmpty else { return [] }

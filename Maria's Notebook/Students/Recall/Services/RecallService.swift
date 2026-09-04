@@ -14,7 +14,6 @@
 import Foundation
 import CoreData
 
-@MainActor
 struct RecallService {
     let context: NSManagedObjectContext
     let saveCoordinator: SaveCoordinator

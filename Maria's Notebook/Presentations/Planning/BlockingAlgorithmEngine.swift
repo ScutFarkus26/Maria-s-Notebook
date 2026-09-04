@@ -87,7 +87,6 @@ enum BlockingAlgorithmEngine {
     ///   - allLessonAssignments: All LessonAssignments (for presented lookup)
     ///   - workModels: All WorkModels (preferably filtered to non-complete)
     /// - Returns: Dictionary mapping CDLessonAssignment ID to BlockingCheckResult
-    @MainActor
     static func checkBlocking(
         forBatch lessonAssignments: [CDLessonAssignment],
         lessons: [CDLesson],
@@ -113,7 +112,6 @@ enum BlockingAlgorithmEngine {
     }
 
     /// Internal batch-optimized blocking check using pre-computed context.
-    @MainActor
     private static func checkBlocking(for la: CDLessonAssignment, context: BlockingContext) -> BlockingCheckResult {
         // Check for manual unlock override
         if la.manuallyUnblocked {
@@ -246,7 +244,6 @@ enum BlockingAlgorithmEngine {
     ///   - allLessonAssignments: All LessonAssignments (for presented lookup)
     ///   - workModels: All WorkModels (preferably filtered to non-complete)
     /// - Returns: A BlockingCheckResult indicating if blocked and how many prerequisites are open
-    @MainActor
     static func checkBlocking(
         for la: CDLessonAssignment,
         lessons: [CDLesson],

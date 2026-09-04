@@ -56,7 +56,6 @@ enum AlbumIdentityRepair {
     /// Carries annotations across for any album that changed filename since
     /// the last load. Returns the renames it applied, oldID → newID.
     @discardableResult
-    @MainActor
     static func repairRenamedAlbums(_ albums: [Album],
                                     in context: NSManagedObjectContext) -> [String: String] {
         var known = (UserDefaults.standard.dictionary(forKey: UserDefaultsKeys.albumsFingerprints)
@@ -95,7 +94,6 @@ enum AlbumIdentityRepair {
     }
 
     /// Rewrites every `albumID` foreign key from one filename to another.
-    @MainActor
     static func remap(from oldID: String, to newID: String, in context: NSManagedObjectContext) {
         guard oldID != newID else { return }
         var moved = 0

@@ -267,7 +267,6 @@ struct PracticeSessionSheet: View {
         }
     }
     
-    @MainActor
     private func saveSession() {
         // Create practice session
         let session = CDPracticeSession(context: viewContext)

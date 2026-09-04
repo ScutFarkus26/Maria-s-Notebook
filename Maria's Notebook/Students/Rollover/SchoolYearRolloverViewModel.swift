@@ -6,7 +6,6 @@ import Foundation
 import CoreData
 
 @Observable
-@MainActor
 final class SchoolYearRolloverViewModel {
 
     enum Phase {

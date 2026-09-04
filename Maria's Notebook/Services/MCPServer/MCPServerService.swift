@@ -13,7 +13,6 @@ import OSLog
 
 /// Starts and stops the MCP server according to the user's "Claude
 /// Desktop access" setting, and publishes status for Settings.
-@MainActor
 @Observable
 final class MCPServerService {
     static let shared = MCPServerService()

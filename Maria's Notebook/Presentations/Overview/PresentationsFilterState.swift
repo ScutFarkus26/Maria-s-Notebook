@@ -6,7 +6,6 @@ import Foundation
 import SwiftUI
 
 @Observable
-@MainActor
 final class PresentationsFilterState {
     /// Live text in the search field.
     var searchText: String = ""

@@ -13,7 +13,6 @@ import CoreData
 /// let students = service.fetchAllStudents()
 /// let lessons = service.fetchLessonsDictionary()
 /// ```
-@MainActor
 final class DataQueryService {
     private let context: NSManagedObjectContext
 

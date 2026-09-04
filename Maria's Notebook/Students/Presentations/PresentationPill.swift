@@ -166,7 +166,6 @@ struct PresentationPill: View {
         }
     }
 
-    @MainActor
     private func loadRecentlyPresentedIDsShared(for day: Date) -> Set<UUID> {
         let key = RecentPresentationCache.Key(
             day: AppCalendar.startOfDay(day),

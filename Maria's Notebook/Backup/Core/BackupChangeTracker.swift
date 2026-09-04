@@ -18,7 +18,6 @@ import Foundation
 import CoreData
 import OSLog
 
-@MainActor
 final class BackupChangeTracker {
     private static let logger = Logger.backup
     private static let tokenDefaultsKey = "AutoBackup.lastHistoryToken"

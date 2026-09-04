@@ -13,7 +13,6 @@ import CoreData
 import OSLog
 
 @Observable
-@MainActor
 final class ProgressDashboardViewModel {
     private static let logger = Logger.app_
 

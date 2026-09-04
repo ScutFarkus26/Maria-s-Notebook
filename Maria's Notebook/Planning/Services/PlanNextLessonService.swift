@@ -12,7 +12,6 @@ import CoreData
 
 /// Service for finding and creating the next lesson in a area/sequence sequence.
 /// Ensures consistent duplicate checking and creation logic across all entry points.
-@MainActor
 struct PlanNextLessonService {
 
     // MARK: - Result Type

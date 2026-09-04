@@ -100,7 +100,6 @@ extension ResourceLibraryView {
         return didImport
     }
 
-    @MainActor
     func importDroppedPDF(from tempURL: URL) {
         let stem = tempURL.deletingPathExtension().lastPathComponent
         let title = stem.isEmpty ? "Imported Resource" : stem

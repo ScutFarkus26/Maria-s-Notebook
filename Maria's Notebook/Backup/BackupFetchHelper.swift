@@ -8,7 +8,6 @@ import CoreData
 /// Core Data import anti-pattern: a 10k-row restore issued 10k+ fetch
 /// requests). Each entity type is now fetched at most twice (once per cache),
 /// and every subsequent lookup is a dictionary hit.
-@MainActor
 enum BackupFetchHelper {
     /// Resolves the model entity name for a managed-object class by matching
     /// the class name. This works for *every* backed-up type — including
@@ -50,7 +49,6 @@ enum BackupFetchHelper {
 /// be frozen by the early existence check and would then miss every
 /// same-restore parent on a fresh device (replace mode), silently dropping all
 /// intra-restore relationships.
-@MainActor
 final class BackupEntityIndex {
     private let context: NSManagedObjectContext
     private var existenceIDs: [ObjectIdentifier: Set<UUID>] = [:]
@@ -116,7 +114,6 @@ final class BackupEntityIndex {
 /// ID-set existence cache for restore PREVIEW: one `id`-only dictionary fetch
 /// per entity type the payload references, then pure set lookups. Preview
 /// never mutates the context, so set staleness isn't a concern here.
-@MainActor
 final class EntityIDIndexCache {
     private let context: NSManagedObjectContext
     private var idSets: [ObjectIdentifier: Set<UUID>] = [:]

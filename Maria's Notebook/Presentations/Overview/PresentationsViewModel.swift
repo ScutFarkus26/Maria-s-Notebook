@@ -7,7 +7,6 @@ import SwiftUI
 import CoreData
 
 @Observable
-@MainActor
 final class PresentationsViewModel {
     // MARK: - State
     var readyLessons: [CDLessonAssignment] = []

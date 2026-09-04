@@ -128,7 +128,7 @@ extension CloudKitSyncStatusService {
         cloudKitEventObserver = nil
     }
 
-    @MainActor func stopObserving() {
+    func stopObserving() {
         Task { @MainActor [weak self] in
             self?.removeAllObservers()
         }

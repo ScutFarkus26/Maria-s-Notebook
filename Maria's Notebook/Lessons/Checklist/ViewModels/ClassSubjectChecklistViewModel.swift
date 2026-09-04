@@ -19,7 +19,6 @@ import OSLog
 // - ChecklistBatchActionExecutor: Batch operations
 // - ChecklistDragSelectionManager: Drag selection (used in view)
 @Observable
-@MainActor
 class ClassAreaChecklistViewModel {
     static let logger = Logger.lessons
 

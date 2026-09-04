@@ -4,7 +4,7 @@
 import SwiftUI
 import CoreData
 
-@Observable @MainActor
+@Observable
 final class SmallSequencePlannerViewModel {
     private(set) var candidates: [LessonSequenceCandidate] = []
     private(set) var areas: [String] = []

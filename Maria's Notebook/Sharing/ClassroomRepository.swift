@@ -2,7 +2,6 @@ import Foundation
 import OSLog
 import CoreData
 
-@MainActor
 struct ClassroomRepository: SavingRepository {
     typealias Model = CDClassroomMembership
 

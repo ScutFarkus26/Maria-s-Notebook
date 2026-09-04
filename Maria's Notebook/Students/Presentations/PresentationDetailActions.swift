@@ -3,7 +3,6 @@ import SwiftUI
 import CoreData
 
 @Observable
-@MainActor
 final class PresentationDetailActions {
     // swiftlint:disable:next function_parameter_count
     func applyEditsToModel(

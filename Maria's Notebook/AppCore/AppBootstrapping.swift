@@ -10,7 +10,6 @@ import CoreData
 import OSLog
 
 /// Handles all app initialization, database setup, and lifecycle management.
-@MainActor
 final class AppBootstrapping {
 
     /// Hosted unit tests launch the app process, but they should not also start
@@ -24,19 +23,16 @@ final class AppBootstrapping {
     // MARK: - Shared Instance
 
     /// CDTrackEntity initialization errors to show in the UI
-    @MainActor
     static var initError: Error?
 
     /// Core Data stack with NSPersistentCloudKitContainer.
     /// Initialized on first access via the static factory method.
-    @MainActor
     static var _sharedCoreDataStack: CoreDataStack?
 
     // Legacy _sharedModelContainer removed — SwiftData migration complete.
 
     /// Runtime-only CloudKit disable flag used during XCTest runs.
     /// This prevents tests from touching CloudKit without persisting the disabled state.
-    @MainActor
     static var disableCloudKitForCurrentLaunch: Bool = false
     
     // MARK: - Logger

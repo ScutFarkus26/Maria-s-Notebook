@@ -15,7 +15,6 @@ import Foundation
 import CoreData
 import OSLog
 
-@MainActor
 enum BackupImporter {
     // nonisolated so the off-main decode path (reconstructPayload) can log.
     private nonisolated static let logger = Logger.backup

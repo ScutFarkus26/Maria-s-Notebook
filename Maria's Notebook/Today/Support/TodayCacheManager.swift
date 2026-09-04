@@ -5,7 +5,6 @@ import CoreData
 
 /// Manager for caching students, lessons, and work data in TodayViewModel.
 /// Provides efficient lookup dictionaries and lazy computation of derived values.
-@MainActor
 final class TodayCacheManager {
 
     // MARK: - Cached Data

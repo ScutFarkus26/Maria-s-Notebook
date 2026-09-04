@@ -6,7 +6,6 @@ import CoreData
 
 // MARK: - View Model
 @Observable
-@MainActor
 final class StudentNotesViewModel {
     private let student: CDStudent
     let viewContext: NSManagedObjectContext

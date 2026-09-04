@@ -12,7 +12,6 @@ import SwiftUI
 /// resumes termination when it finishes (or when the safety timeout fires).
 /// This replaces a semaphore + RunLoop polling loop that blocked the main
 /// thread and only let the backup task run during half its duty cycle.
-@MainActor
 final class AutoBackupAppDelegate: NSObject, NSApplicationDelegate {
     /// How long quit may be delayed for the backup before we let the app
     /// terminate anyway. Change-gated backups of an idle dataset return in
