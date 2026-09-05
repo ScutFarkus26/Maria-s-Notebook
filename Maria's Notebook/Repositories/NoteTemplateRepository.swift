@@ -49,54 +49,7 @@ struct NoteTemplateRepository: SavingRepository {
         fetchTemplates(predicate: NSPredicate(format: "isBuiltIn == NO"))
     }
 
-    // MARK: - Create
-
-    /// Create a new NoteTemplate
-    @discardableResult
-    func createTemplate(
-        title: String,
-        body: String,
-        tags: [String] = [],
-        sortOrder: Int? = nil
-    ) -> CDNoteTemplateEntity {
-        let order: Int
-        if let sortOrder {
-            order = sortOrder
-        } else {
-            let customTemplates = fetchCustomTemplates()
-            order = (customTemplates.map { Int($0.sortOrder) }.max() ?? 99) + 1
-        }
-
-        let template = CDNoteTemplateEntity(context: context)
-        template.title = title
-        template.body = body
-        template.tagsArray = tags
-        template.sortOrder = Int64(order)
-        template.isBuiltIn = false
-        return template
-    }
-
     // MARK: - Update
-
-    /// Update an existing NoteTemplate's properties
-    @discardableResult
-    func updateTemplate(
-        id: UUID,
-        title: String? = nil,
-        body: String? = nil,
-        tags: [String]? = nil,
-        sortOrder: Int? = nil
-    ) -> Bool {
-        guard let template = fetchTemplate(id: id) else { return false }
-        guard !template.isBuiltIn else { return false }
-
-        if let title { template.title = title }
-        if let body { template.body = body }
-        if let tags { template.tagsArray = tags }
-        if let sortOrder { template.sortOrder = Int64(sortOrder) }
-
-        return true
-    }
 
     /// Reorder custom templates by updating their sort orders
     @discardableResult

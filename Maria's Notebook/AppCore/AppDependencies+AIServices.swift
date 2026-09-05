@@ -41,18 +41,6 @@ extension AppDependencies {
         return service
     }
 
-    var lessonPlanningService: LessonPlanningService {
-        if let service = _lessonPlanningService {
-            return service
-        }
-        let service = LessonPlanningService(
-            context: viewContext,
-            mcpClient: mcpClient
-        )
-        _lessonPlanningService = service
-        return service
-    }
-
     var reportGeneratorService: ReportGeneratorService {
         if let service = _reportGeneratorService {
             return service

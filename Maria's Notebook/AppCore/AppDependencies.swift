@@ -87,58 +87,11 @@ final class AppDependencies {
         return monitor
     }
 
-    // MARK: - Repositories
-
-    /// Central repository container for type-safe data access
-    /// Provides repositories for all entities with consistent context injection
-    @ObservationIgnored private var _repositories: RepositoryContainer?
-    var repositories: RepositoryContainer {
-        if let container = _repositories {
-            return container
-        }
-        let container = RepositoryContainer(context: coreDataStack.viewContext, saveCoordinator: nil)
-        _repositories = container
-        return container
-    }
-
     // MARK: - Data Services
 
     // Work-related services
     // CDNote: WorkCompletionService is an enum with static methods,
     // access directly (e.g., WorkCompletionService.someMethod())
-
-    // MARK: - Protocol-Based Services
-
-    /// WorkCheckInService - Protocol-based architecture
-    var workCheckInService: any WorkCheckInServiceProtocol {
-        WorkCheckInService(context: viewContext)
-    }
-
-    /// WorkStepService - Protocol-based architecture
-    var workStepService: any WorkStepServiceProtocol {
-        WorkStepService(context: viewContext)
-    }
-
-    // CDTrackEntity services
-    @ObservationIgnored private var _groupTrackService: SequenceTrackService?
-    var groupTrackService: SequenceTrackService {
-        if let service = _groupTrackService {
-            return service
-        }
-        let service = SequenceTrackService()
-        _groupTrackService = service
-        return service
-    }
-
-    @ObservationIgnored private var _trackProgressResolver: TrackProgressResolver?
-    var trackProgressResolver: TrackProgressResolver {
-        if let resolver = _trackProgressResolver {
-            return resolver
-        }
-        let resolver = TrackProgressResolver()
-        _trackProgressResolver = resolver
-        return resolver
-    }
 
     // MARK: - Sync Services
 
@@ -178,30 +131,11 @@ final class AppDependencies {
     @ObservationIgnored var _autoBackupManager: AutoBackupManager?
     @ObservationIgnored var _backupCoordinator: BackupCoordinator?
 
-    // MARK: - Migration Services
-
-    var dataMigrations: DataMigrations.Type {
-        DataMigrations.self
-    }
-
-    // MARK: - Business Logic Services
-
-    @ObservationIgnored private var _followUpInboxEngine: FollowUpInboxEngine?
-    var followUpInboxEngine: FollowUpInboxEngine {
-        if let engine = _followUpInboxEngine {
-            return engine
-        }
-        let engine = FollowUpInboxEngine()
-        _followUpInboxEngine = engine
-        return engine
-    }
-
     // MARK: - AI Services (backing stores for AppDependencies+AIServices.swift)
 
     @ObservationIgnored var _aiRouter: AIClientRouter?
     @ObservationIgnored var _chatService: ChatService?
     @ObservationIgnored var _studentAnalysisService: StudentAnalysisService?
-    @ObservationIgnored var _lessonPlanningService: LessonPlanningService?
     @ObservationIgnored var _reportGeneratorService: ReportGeneratorService?
     @ObservationIgnored var _meetingInsightsService: MeetingInsightsService?
     @ObservationIgnored var _monthlyReportDraftService: MonthlyReportDraftService?
@@ -222,10 +156,6 @@ final class AppDependencies {
 
     // PhotoStorageService is an enum with static methods, no initialization needed
     // Access methods directly via PhotoStorageService.methodName()
-
-    // MARK: - Calendar Services
-
-    var schoolCalendarService: SchoolCalendarService { SchoolCalendarService.shared }
 
     /// The global "viewing year" lens shared by every screen.
     /// See Documentation/Implementation/SCHOOL_YEAR_SEPARATION.md.

@@ -86,11 +86,6 @@ final class Phase5PostTests {
         let current = repo.fetchCurrentMembership()
         #expect(current?.id == membership.id)
 
-        // Update
-        #expect(repo.updateRole(id: membership.id!, role: .assistant))
-        let updated = repo.fetchMembership(id: membership.id!)
-        #expect(updated?.role == .assistant)
-
         // Delete
         repo.deleteMembership(id: membership.id!)
         #expect(repo.save(reason: "test delete"))
@@ -116,17 +111,5 @@ final class Phase5PostTests {
         #expect(category.icon == "person.2.badge.gearshape.fill")
         #expect(category.searchKeywords.contains("sharing"))
         #expect(!category.detailedSettings.isEmpty)
-    }
-
-    // MARK: - RepositoryContainer
-
-    @Test("RepositoryContainer.classrooms returns valid repository")
-    func repositoryContainerClassrooms() throws {
-        let stack = try CoreDataTestHelpers.makeInMemoryStack()
-        let repos = RepositoryContainer(context: stack.viewContext, saveCoordinator: nil)
-        let classroomRepo = repos.classrooms
-        // Verify it can fetch without crashing
-        let memberships = classroomRepo.fetchMemberships()
-        #expect(memberships.isEmpty)
     }
 }

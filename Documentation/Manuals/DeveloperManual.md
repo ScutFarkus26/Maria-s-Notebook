@@ -27,13 +27,6 @@ RootView (main shell)
     +-- AppRouter (navigation coordinator)
     +-- AppDependencies (dependency injection)
     |       |
-    |       +-- RepositoryContainer
-    |       |       +-- StudentRepository
-    |       |       +-- LessonRepository
-    |       |       +-- PresentationRepository
-    |       |       +-- NoteRepository
-    |       |       +-- ... (10+ repositories)
-    |       |
     |       +-- Services
     |       |       +-- LifecycleService
     |       |       +-- FollowUpInboxEngine
@@ -368,7 +361,6 @@ The container is split across extension files for organization:
 ### Key Services Available
 
 ```swift
-dependencies.repositories          // RepositoryContainer
 dependencies.toastService          // Toast notifications
 dependencies.appRouter             // Navigation
 dependencies.reminderSync          // EventKit sync (macOS)
@@ -685,31 +677,9 @@ CDStudent ←── studentID ──── CDLessonAssignment ───── le
 
 # Part 6: Repository Pattern
 
-## RepositoryContainer
-
-**File:** `Repositories/RepositoryContainer.swift`
-
-A factory struct that creates type-safe repositories:
-
-```swift
-@MainActor struct RepositoryContainer {
-    let context: NSManagedObjectContext
-    let saveCoordinator: SaveCoordinator?
-
-    var students: StudentRepository { ... }
-    var lessons: LessonRepository { ... }
-    var presentations: PresentationRepository { ... }
-    var notes: NoteRepository { ... }
-    var noteTemplates: NoteTemplateRepository { ... }
-    var attendance: AttendanceRepository { ... }
-    var documents: DocumentRepository { ... }
-    var meetings: MeetingRepository { ... }
-    var reminders: ReminderRepository { ... }
-    var projects: ProjectRepository { ... }
-}
-```
-
-Each repository property creates a new instance with the shared context and save coordinator.
+Repositories are small structs a view or service constructs directly with the
+context it already holds (for example `StudentRepository(context:saveCoordinator:)`).
+There is no central container; a repository exists only where a feature calls it.
 
 ## Repository Protocol
 
@@ -1407,13 +1377,7 @@ public class CDMyNewEntity: NSManagedObject {
 }
 ```
 
-2. **Register in `RepositoryContainer`**:
-
-```swift
-var myNew: MyNewRepository {
-    MyNewRepository(context: context, saveCoordinator: saveCoordinator)
-}
-```
+2. **Construct it where it is used**, passing the caller's context and save coordinator.
 
 ## Adding a Service
 
@@ -1711,10 +1675,9 @@ Maria's Notebook/
 |   +-- (cross-feature infrastructure and system integrations)
 |
 +-- Repositories/
-|   +-- RepositoryContainer.swift        Factory
 |   +-- StudentRepository.swift
 |   +-- LessonRepository.swift
-|   +-- (10+ repositories)
+|   +-- (one struct per entity family)
 |
 +-- ViewModels/
 |   +-- CommandBarViewModel.swift        Command bar state

@@ -49,63 +49,7 @@ struct MeetingTemplateRepository: SavingRepository {
         fetchTemplates(predicate: NSPredicate(format: "isBuiltIn == NO"))
     }
 
-    // MARK: - Create
-
-    /// Create a new MeetingTemplate
-    @discardableResult
-    func createTemplate(
-        name: String,
-        reflectionPrompt: String,
-        focusPrompt: String,
-        requestsPrompt: String,
-        guideNotesPrompt: String,
-        sortOrder: Int? = nil
-    ) -> CDMeetingTemplateEntity {
-        let order: Int
-        if let sortOrder {
-            order = sortOrder
-        } else {
-            let customTemplates = fetchCustomTemplates()
-            order = (customTemplates.map { Int($0.sortOrder) }.max() ?? 99) + 1
-        }
-
-        let template = CDMeetingTemplateEntity(context: context)
-        template.name = name
-        template.reflectionPrompt = reflectionPrompt
-        template.focusPrompt = focusPrompt
-        template.requestsPrompt = requestsPrompt
-        template.guideNotesPrompt = guideNotesPrompt
-        template.sortOrder = Int64(order)
-        template.isActive = false
-        template.isBuiltIn = false
-        return template
-    }
-
     // MARK: - Update
-
-    /// Update an existing MeetingTemplate's properties
-    @discardableResult
-    func updateTemplate(
-        id: UUID,
-        name: String? = nil,
-        reflectionPrompt: String? = nil,
-        focusPrompt: String? = nil,
-        requestsPrompt: String? = nil,
-        guideNotesPrompt: String? = nil,
-        sortOrder: Int? = nil
-    ) -> Bool {
-        guard let template = fetchTemplate(id: id) else { return false }
-        guard !template.isBuiltIn else { return false }
-
-        if let name { template.name = name }
-        if let reflectionPrompt { template.reflectionPrompt = reflectionPrompt }
-        if let focusPrompt { template.focusPrompt = focusPrompt }
-        if let requestsPrompt { template.requestsPrompt = requestsPrompt }
-        if let guideNotesPrompt { template.guideNotesPrompt = guideNotesPrompt }
-        if let sortOrder { template.sortOrder = Int64(sortOrder) }
-
-        return true
-    }
 
     /// Set a template as active (deactivates all others)
     @discardableResult

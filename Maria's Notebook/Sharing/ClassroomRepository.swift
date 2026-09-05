@@ -19,18 +19,6 @@ struct ClassroomRepository: SavingRepository {
 
     func fetchMembership(id: UUID) -> CDClassroomMembership? { fetch(id: id) }
 
-    func fetchMemberships(
-        predicate: NSPredicate? = nil,
-        sortBy: [NSSortDescriptor] = [
-            NSSortDescriptor(key: "joinedAt", ascending: false)
-        ]
-    ) -> [CDClassroomMembership] {
-        let request = CDFetchRequest(CDClassroomMembership.self)
-        request.predicate = predicate
-        request.sortDescriptors = sortBy
-        return context.safeFetch(request)
-    }
-
     /// Returns the first classroom membership, representing the current classroom.
     func fetchCurrentMembership() -> CDClassroomMembership? {
         let request = CDFetchRequest(CDClassroomMembership.self)
@@ -68,19 +56,6 @@ struct ClassroomRepository: SavingRepository {
         membership.ownerIdentity = ownerIdentity
         Self.logger.info("Created ClassroomMembership: role=\(role.rawValue), zone=\(classroomZoneID)")
         return membership
-    }
-
-    // MARK: - Update
-
-    @discardableResult
-    func updateRole(id: UUID, role: CDClassroomMembership.ClassroomRole) -> Bool {
-        guard let membership = fetchMembership(id: id) else {
-            Self.logger.warning("Cannot update role: membership \(id) not found")
-            return false
-        }
-        membership.role = role
-        membership.modifiedAt = Date()
-        return save(reason: "Update classroom role")
     }
 
     // MARK: - Delete
