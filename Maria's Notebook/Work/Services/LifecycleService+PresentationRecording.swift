@@ -76,8 +76,7 @@ extension LifecycleService {
     // Record a CDLessonAssignment as presented and create per-student CDWorkModel items.
     // Idempotent by (presentationID, studentID) on CDWorkModel.
     //
-    // Only use this when work items should be explicitly created (e.g., GiveLessonViewModel with needsPractice,
-    // or the syncAllStudentProgress migration path).
+    // Only use this when work items should be explicitly created (e.g., GiveLessonViewModel with needsPractice).
     // swiftlint:disable:next function_body_length
     static func recordPresentationAndExplodeWork(
         from lessonAssignment: CDLessonAssignment,

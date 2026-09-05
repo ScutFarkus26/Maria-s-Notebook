@@ -1316,7 +1316,6 @@ array.partitioned(by: predicate) -> (matching: [T], rest: [T])
 | File | Purpose |
 |------|---------|
 | `Array+SafeAccess.swift` | Bounds-checked array access |
-| `Dictionary+InsertIfAbsent.swift` | Conditional dictionary insertion |
 | `NSManagedObjectContext+SafeSave.swift` | Safe save with error handling |
 | `PredicateHelpers.swift` | Common NSPredicate builders |
 | `ValidationHelpers.swift` | Input validation |
