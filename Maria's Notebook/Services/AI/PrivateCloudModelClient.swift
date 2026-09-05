@@ -154,21 +154,6 @@ final class PrivateCloudModelClient: MCPClientProtocol {
         }
     }
 
-    func analyzePatterns(text: String, context: String) async throws -> [String] {
-        let prompt = """
-        Analyze the following text and identify 3-5 key patterns.
-        Context: \(context)
-        Text: \(text)
-        Return ONLY a JSON array of strings.
-        """
-        let json = try await generateStructuredJSON(prompt: prompt, temperature: 0.3)
-        return try JSONDecoder().decode([String].self, from: Data(json.utf8))
-    }
-
-    func searchKnowledgeBase(query: String, domain: String) async throws -> [KnowledgeBaseResult] {
-        [] // PCC has no external knowledge base
-    }
-
     // sendConversation and streamConversation use the protocol default
     // implementations (message flattening).
 }

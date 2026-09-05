@@ -138,22 +138,6 @@ final class AIClientRouter: MCPClientProtocol {
         }
     }
 
-    // MARK: - MCPClientProtocol — analyzePatterns
-
-    func analyzePatterns(text: String, context: String) async throws -> [String] {
-        try await route { client in
-            try await client.analyzePatterns(text: text, context: context)
-        }
-    }
-
-    // MARK: - MCPClientProtocol — searchKnowledgeBase
-
-    func searchKnowledgeBase(query: String, domain: String) async throws -> [KnowledgeBaseResult] {
-        try await route { client in
-            try await client.searchKnowledgeBase(query: query, domain: domain)
-        }
-    }
-
     // MARK: - MCPClientProtocol — sendConversation
 
     // swiftlint:disable:next function_parameter_count

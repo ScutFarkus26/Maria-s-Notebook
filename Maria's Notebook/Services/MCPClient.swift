@@ -45,12 +45,6 @@ protocol MCPClientProtocol {
         model: String?, timeout: TimeInterval?
     ) async throws -> String
     
-    /// Analyzes text and extracts patterns
-    func analyzePatterns(text: String, context: String) async throws -> [String]
-
-    /// Searches external knowledge bases (e.g., educational standards, curriculum frameworks)
-    func searchKnowledgeBase(query: String, domain: String) async throws -> [KnowledgeBaseResult]
-
     // Sends a multi-turn conversation and returns the assistant's response text.
     // swiftlint:disable:next function_parameter_count
     func sendConversation(
@@ -165,69 +159,5 @@ extension MCPClientProtocol {
         )
         onDelta(result)
         return result
-    }
-}
-
-/// Represents a result from an external knowledge base query
-struct KnowledgeBaseResult: Codable {
-    let title: String
-    let summary: String
-    let relevanceScore: Double
-    let source: String
-}
-
-// MARK: - MCP Protocol Types
-
-struct MCPRequest: Encodable {
-    let method: String
-    let params: [String: Any]
-    
-    enum CodingKeys: String, CodingKey {
-        case method
-        case params
-    }
-    
-    func encode(to encoder: Encoder) throws {
-        var container = encoder.container(keyedBy: CodingKeys.self)
-        try container.encode(method, forKey: .method)
-        
-        // Convert params dictionary to JSON
-        let paramsData = try JSONSerialization.data(withJSONObject: params)
-        let paramsJSON = try JSONSerialization.jsonObject(with: paramsData)
-        try container.encode(paramsJSON as? [String: String] ?? [:], forKey: .params)
-    }
-}
-
-struct MCPResponse<T: Decodable>: Decodable {
-    let result: T
-    let metadata: MCPMetadata?
-}
-
-struct MCPMetadata: Decodable {
-    let processingTime: Double?
-    let model: String?
-    let tokensUsed: Int?
-}
-
-enum MCPError: Error, LocalizedError {
-    case invalidResponse
-    case serverError(statusCode: Int)
-    case decodingError(Error)
-    case networkError(Error)
-    case configurationError(String)
-    
-    var errorDescription: String? {
-        switch self {
-        case .invalidResponse:
-            return "Invalid response from MCP server"
-        case .serverError(let statusCode):
-            return "MCP server error: HTTP \(statusCode)"
-        case .decodingError(let error):
-            return "Failed to decode MCP response: \(error.localizedDescription)"
-        case .networkError(let error):
-            return "Network error: \(error.localizedDescription)"
-        case .configurationError(let message):
-            return "Configuration error: \(message)"
-        }
     }
 }

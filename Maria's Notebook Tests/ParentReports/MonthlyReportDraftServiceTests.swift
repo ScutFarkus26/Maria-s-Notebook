@@ -15,8 +15,6 @@ private struct UnavailableModelClient: MCPClientProtocol {
     struct Unavailable: Error {}
     func generateText(prompt: String, temperature: Double) async throws -> String { throw Unavailable() }
     func generateStructuredJSON(prompt: String, temperature: Double) async throws -> String { throw Unavailable() }
-    func analyzePatterns(text: String, context: String) async throws -> [String] { throw Unavailable() }
-    func searchKnowledgeBase(query: String, domain: String) async throws -> [KnowledgeBaseResult] { throw Unavailable() }
     // swiftlint:disable:next function_parameter_count
     func sendConversation(
         messages: [[String: String]], systemMessage: String?, temperature: Double,
@@ -35,8 +33,6 @@ private struct FixedNarrativeClient: MCPClientProtocol {
     let narrative: String
     func generateText(prompt: String, temperature: Double) async throws -> String { narrative }
     func generateStructuredJSON(prompt: String, temperature: Double) async throws -> String { "{}" }
-    func analyzePatterns(text: String, context: String) async throws -> [String] { [] }
-    func searchKnowledgeBase(query: String, domain: String) async throws -> [KnowledgeBaseResult] { [] }
     // swiftlint:disable:next function_parameter_count
     func sendConversation(
         messages: [[String: String]], systemMessage: String?, temperature: Double,

@@ -118,36 +118,6 @@ final class AnthropicAPIClient: MCPClientProtocol {
         return try cleanAndValidateJSON(response)
     }
 
-    func analyzePatterns(text: String, context: String) async throws -> [String] {
-        try validateAPIKey()
-
-        let prompt = """
-        Analyze the following text and identify 3-5 key patterns.
-
-        Context: \(context)
-
-        Text to analyze:
-        \(text)
-
-        Return ONLY a JSON array of strings, like: ["Pattern 1", "Pattern 2", "Pattern 3"]
-        """
-
-        let response = try await sendClaudeRequest(
-            prompt: prompt,
-            temperature: 0.3,
-            maxTokens: 1024
-        )
-
-        let cleanedResponse = stripMarkdownCodeBlock(response)
-        let data = Data(cleanedResponse.utf8)
-        return try JSONDecoder().decode([String].self, from: data)
-    }
-
-    func searchKnowledgeBase(query: String, domain: String) async throws -> [KnowledgeBaseResult] {
-        // Not implemented for direct API - return empty results
-        return []
-    }
-
     // MARK: - Private Helpers
 
     private func sendClaudeRequest(
