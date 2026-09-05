@@ -40,19 +40,27 @@ extension View {
 // When targeting iOS 26+, consider replacing CardBackgroundModifier backgrounds
 // with the new .glassEffect() modifier for the Liquid Glass design language.
 
-#Preview {
-    VStack(spacing: 16) {
-        Text("Default Card")
-            .padding()
-            .cardBackground()
+// The `#Preview` closure is expanded and type-checked in every compiler job
+// for the module; a private view is checked once, in this file's job.
+private struct CardBackgroundModifierPreview: View {
+    var body: some View {
+        VStack(spacing: 16) {
+            Text("Default Card")
+                .padding()
+                .cardBackground()
 
-        Text("Custom Color")
-            .padding()
-            .cardBackground(color: .blue, opacity: 0.2)
+            Text("Custom Color")
+                .padding()
+                .cardBackground(color: .blue, opacity: 0.2)
 
-        Text("Small Corner Radius")
-            .padding()
-            .cardBackground(cornerRadius: UIConstants.CornerRadius.small)
+            Text("Small Corner Radius")
+                .padding()
+                .cardBackground(cornerRadius: UIConstants.CornerRadius.small)
+        }
+        .padding()
     }
-    .padding()
+}
+
+#Preview {
+    CardBackgroundModifierPreview()
 }

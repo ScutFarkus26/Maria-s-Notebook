@@ -107,3 +107,33 @@ Build with `-warn-long-function-bodies=100 -warn-long-expression-type-checking=1
 - 102 ms — `Today/Views/AgendaItemRows.swift:71:25` — getter for property 'body'
 - 101 ms — `Work/Agenda/WorksAgendaView.swift:309:5` — expression
 - 100 ms — `Students/Progress/StudentSubjectProgressionViewModel.swift:25:10` — instance method 'configure(for:area:sequence:context:)'
+
+## Phase 4a — `#Preview` bodies hoisted into private views (2026-09-04)
+
+Same machine, same command, fresh DerivedData, with `-stats-output-dir` added so the compiler's own
+phase timers could be summed across the 47 batch jobs plus the emit-module job.
+
+Finding: `-debug-time-expression-type-checking` showed the same source locations being type-checked
+261 times each in a whole-module `-typecheck` run — every `#Preview` body. A freestanding macro is
+expanded in every frontend job for name lookup, so its closure body is re-checked per job. 550
+locations inside the 93 preview bodies accounted for 104 s of the 216 s of expression checking in
+that run (`RestorePreviewView` alone: 8.2 s), versus 54 s for all code that is checked once.
+
+Change: every `#Preview { … }` body moved into a `private struct <File>Preview: View` in the same
+file; the macro body is now the single call `<File>Preview()`. Mechanical, 92 previews in 86 files;
+no runtime code touched.
+
+| Compiler phase (sum over jobs, wall) | before | after | change |
+|---|---|---|---|
+| Frontend total (compile jobs) | 406.2 s | 344.3 s | **−15.2%** |
+| Type checking and semantic analysis | 219.7 s | 156.8 s | **−28.6%** |
+| typecheck-decl | 155.1 s | 90.8 s | −41.5% |
+| typecheck-expr | 109.9 s | 49.1 s | −55.3% |
+| SIL and LLVM | 169.5 s | 171.0 s | +0.9% |
+| Emit-module job | 37.5 s | 36.6 s | −2.4% |
+
+Build Timing Summary `SwiftCompile (47 tasks)`: 413.1 s → 350.4 s. Wall clock: **56.2 s → 47.9 s**
+(both runs on the same day, back to back; the 60.06 s figure at the top of this file was the very
+first run with a cold module cache).
+
+Slow-type-check warnings at the 100 ms thresholds: see the comparison below.

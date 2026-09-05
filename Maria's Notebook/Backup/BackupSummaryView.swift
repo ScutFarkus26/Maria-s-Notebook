@@ -132,14 +132,22 @@ struct BackupSummaryView: View {
     }
 }
 
+// The `#Preview` closure is expanded and type-checked in every compiler job
+// for the module; a private view is checked once, in this file's job.
+private struct BackupSummaryViewPreview: View {
+    var body: some View {
+        BackupSummaryView(summary: BackupOperationSummary(
+            kind: .export,
+            fileName: "sample.mtbbackup",
+            formatVersion: BackupFile.formatVersion,
+            encryptUsed: true,
+            createdAt: Date(),
+            entityCounts: ["students": 24, "lessons": 180],
+            warnings: ["Files/attachments are not included in backups by design."]
+        ))
+    }
+}
+
 #Preview {
-    BackupSummaryView(summary: BackupOperationSummary(
-        kind: .export,
-        fileName: "sample.mtbbackup",
-        formatVersion: BackupFile.formatVersion,
-        encryptUsed: true,
-        createdAt: Date(),
-        entityCounts: ["students": 24, "lessons": 180],
-        warnings: ["Files/attachments are not included in backups by design."]
-    ))
+    BackupSummaryViewPreview()
 }

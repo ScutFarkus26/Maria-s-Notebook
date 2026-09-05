@@ -181,16 +181,53 @@ extension PersonalLessonKind {
 
 // MARK: - Preview
 
-#Preview("Filter Bar - Default") {
-    struct PreviewWrapper: View {
-        @State private var source: LessonSource?
-        @State private var kind: PersonalLessonKind?
-        @State private var format: LessonFormat?
-        @State private var hasFile = false
-        @State private var needsAttention = false
+// The `#Preview` closure is expanded and type-checked in every compiler job
+// for the module; a private view is checked once, in this file's job.
+private struct LessonsFilterChipBarPreview: View {
+    var body: some View {
+        struct PreviewWrapper: View {
+            @State private var source: LessonSource?
+            @State private var kind: PersonalLessonKind?
+            @State private var format: LessonFormat?
+            @State private var hasFile = false
+            @State private var needsAttention = false
 
-        var body: some View {
-            VStack {
+            var body: some View {
+                VStack {
+                    LessonsFilterChipBar(
+                        sourceFilter: $source,
+                        personalKindFilter: $kind,
+                        formatFilter: $format,
+                        hasAttachmentFilter: $hasFile,
+                        needsAttentionFilter: $needsAttention
+                    )
+
+                    Text("Source: \(source?.rawValue ?? "nil")")
+                    Text("Kind: \(kind?.rawValue ?? "nil")")
+                    Text("Format: \(format?.rawValue ?? "nil")")
+                    Text("Has File: \(hasFile.description)")
+                    Text("Needs Attention: \(needsAttention.description)")
+                }
+            }
+        }
+        return PreviewWrapper()
+    }
+}
+
+#Preview("Filter Bar - Default") {
+    LessonsFilterChipBarPreview()
+}
+
+private struct LessonsFilterChipBarPreview2: View {
+    var body: some View {
+        struct PreviewWrapper: View {
+            @State private var source: LessonSource? = .personal
+            @State private var kind: PersonalLessonKind? = .observation
+            @State private var format: LessonFormat?
+            @State private var hasFile = false
+            @State private var needsAttention = true
+
+            var body: some View {
                 LessonsFilterChipBar(
                     sourceFilter: $source,
                     personalKindFilter: $kind,
@@ -198,35 +235,12 @@ extension PersonalLessonKind {
                     hasAttachmentFilter: $hasFile,
                     needsAttentionFilter: $needsAttention
                 )
-
-                Text("Source: \(source?.rawValue ?? "nil")")
-                Text("Kind: \(kind?.rawValue ?? "nil")")
-                Text("Format: \(format?.rawValue ?? "nil")")
-                Text("Has File: \(hasFile.description)")
-                Text("Needs Attention: \(needsAttention.description)")
             }
         }
+        return PreviewWrapper()
     }
-    return PreviewWrapper()
 }
 
 #Preview("Filter Bar - Personal Selected") {
-    struct PreviewWrapper: View {
-        @State private var source: LessonSource? = .personal
-        @State private var kind: PersonalLessonKind? = .observation
-        @State private var format: LessonFormat?
-        @State private var hasFile = false
-        @State private var needsAttention = true
-
-        var body: some View {
-            LessonsFilterChipBar(
-                sourceFilter: $source,
-                personalKindFilter: $kind,
-                formatFilter: $format,
-                hasAttachmentFilter: $hasFile,
-                needsAttentionFilter: $needsAttention
-            )
-        }
-    }
-    return PreviewWrapper()
+    LessonsFilterChipBarPreview2()
 }

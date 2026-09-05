@@ -130,14 +130,22 @@ struct NoteEditSheet: View {
     }
 }
 
-#Preview {
-    let stack = CoreDataStack.preview
-    let ctx = stack.viewContext
-    let note = CDNote(context: ctx)
-    note.body = "Sample note body"
-    note.scope = .all
-    note.includeInReport = false
+// The `#Preview` closure is expanded and type-checked in every compiler job
+// for the module; a private view is checked once, in this file's job.
+private struct NoteEditSheetPreview: View {
+    var body: some View {
+        let stack = CoreDataStack.preview
+        let ctx = stack.viewContext
+        let note = CDNote(context: ctx)
+        note.body = "Sample note body"
+        note.scope = .all
+        note.includeInReport = false
 
-    return NoteEditSheet(note: note)
-        .previewEnvironment(using: stack)
+        return NoteEditSheet(note: note)
+            .previewEnvironment(using: stack)
+    }
+}
+
+#Preview {
+    NoteEditSheetPreview()
 }

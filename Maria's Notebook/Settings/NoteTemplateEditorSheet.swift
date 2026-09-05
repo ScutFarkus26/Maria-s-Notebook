@@ -170,8 +170,16 @@ struct NoteTemplateEditorSheet: View {
 
 // MARK: - Preview
 
-#Preview {
-    NoteTemplateEditorSheet(template: nil) {
-        print("Saved!")
+// The `#Preview` closure is expanded and type-checked in every compiler job
+// for the module; a private view is checked once, in this file's job.
+private struct NoteTemplateEditorSheetPreview: View {
+    var body: some View {
+        NoteTemplateEditorSheet(template: nil) {
+            print("Saved!")
+        }
     }
+}
+
+#Preview {
+    NoteTemplateEditorSheetPreview()
 }

@@ -162,61 +162,69 @@ struct StudentNoteRowView: View {
 
 // MARK: - Preview
 #if DEBUG
-#Preview {
-    List {
-        StudentNoteRowView(item: UnifiedNoteItem(
-            id: UUID(),
-            date: Date(),
-            body: "Student showed great enthusiasm for the decimal system introduction today.",
-            source: .lesson,
-            contextText: "Decimal System",
-            color: .green,
-            associatedID: nil,
-            tags: [TagHelper.createTag(name: "Academic", color: .blue)],
-            includeInReport: false,
-            needsFollowUp: false,
-            imagePath: nil,
-            reportedBy: nil,
-            reporterName: nil,
-            isPinned: true
-        ))
+// The `#Preview` closure is expanded and type-checked in every compiler job
+// for the module; a private view is checked once, in this file's job.
+private struct StudentNoteRowViewPreview: View {
+    var body: some View {
+        List {
+            StudentNoteRowView(item: UnifiedNoteItem(
+                id: UUID(),
+                date: Date(),
+                body: "Student showed great enthusiasm for the decimal system introduction today.",
+                source: .lesson,
+                contextText: "Decimal System",
+                color: .green,
+                associatedID: nil,
+                tags: [TagHelper.createTag(name: "Academic", color: .blue)],
+                includeInReport: false,
+                needsFollowUp: false,
+                imagePath: nil,
+                reportedBy: nil,
+                reporterName: nil,
+                isPinned: true
+            ))
 
-        StudentNoteRowView(item: UnifiedNoteItem(
-            id: UUID(),
-            date: Date().addingTimeInterval(-86400),
-            body: "Needs to focus more on handwriting clarity during follow-up work.",
-            source: .work,
-            contextText: "Handwriting Practice",
-            color: .orange,
-            associatedID: nil,
-            tags: [
-                TagHelper.createTag(name: "Academic", color: .blue),
-                TagHelper.createTag(name: "Behavioral", color: .orange)
-            ],
-            includeInReport: true,
-            needsFollowUp: true,
-            imagePath: nil,
-            reportedBy: nil,
-            reporterName: nil,
-            isPinned: false
-        ))
+            StudentNoteRowView(item: UnifiedNoteItem(
+                id: UUID(),
+                date: Date().addingTimeInterval(-86400),
+                body: "Needs to focus more on handwriting clarity during follow-up work.",
+                source: .work,
+                contextText: "Handwriting Practice",
+                color: .orange,
+                associatedID: nil,
+                tags: [
+                    TagHelper.createTag(name: "Academic", color: .blue),
+                    TagHelper.createTag(name: "Behavioral", color: .orange)
+                ],
+                includeInReport: true,
+                needsFollowUp: true,
+                imagePath: nil,
+                reportedBy: nil,
+                reporterName: nil,
+                isPinned: false
+            ))
 
-        StudentNoteRowView(item: UnifiedNoteItem(
-            id: UUID(),
-            date: Date().addingTimeInterval(-172800),
-            body: "Parent mentioned that student was very excited about the math lesson.",
-            source: .general,
-            contextText: "General Note",
-            color: .blue,
-            associatedID: nil,
-            tags: [],
-            includeInReport: false,
-            needsFollowUp: false,
-            imagePath: nil,
-            reportedBy: "parent",
-            reporterName: "Mom",
-            isPinned: false
-        ))
+            StudentNoteRowView(item: UnifiedNoteItem(
+                id: UUID(),
+                date: Date().addingTimeInterval(-172800),
+                body: "Parent mentioned that student was very excited about the math lesson.",
+                source: .general,
+                contextText: "General Note",
+                color: .blue,
+                associatedID: nil,
+                tags: [],
+                includeInReport: false,
+                needsFollowUp: false,
+                imagePath: nil,
+                reportedBy: "parent",
+                reporterName: "Mom",
+                isPinned: false
+            ))
+        }
     }
+}
+
+#Preview {
+    StudentNoteRowViewPreview()
 }
 #endif

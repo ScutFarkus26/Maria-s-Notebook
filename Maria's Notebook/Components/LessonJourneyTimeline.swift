@@ -10,7 +10,7 @@ struct LessonJourneyTimeline: View {
     @State private var allWork: [CDWorkModel] = []
     @State private var allSessions: [CDPracticeSession] = []
     @State private var isLoaded = false
-    
+
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {
             if isLoaded {
@@ -271,21 +271,29 @@ struct LessonJourneyTimeline: View {
 
 // MARK: - Preview
 
-#Preview("Lesson Journey Timeline") {
-    let stack = CoreDataStack.preview
-    let context = stack.viewContext
-    let lesson = CDLesson(context: context)
-    _ = { lesson.name = "Long Division"; lesson.area = "Math"; lesson.sequence = "Operations" }()
+// The `#Preview` closure is expanded and type-checked in every compiler job
+// for the module; a private view is checked once, in this file's job.
+private struct LessonJourneyTimelinePreview: View {
+    var body: some View {
+        let stack = CoreDataStack.preview
+        let context = stack.viewContext
+        let lesson = CDLesson(context: context)
+        _ = { lesson.name = "Long Division"; lesson.area = "Math"; lesson.sequence = "Operations" }()
 
-    return ScrollView {
-        VStack(spacing: 20) {
-            Text("Lesson Journey")
-                .font(AppTheme.ScaledFont.titleLarge)
+        return ScrollView {
+            VStack(spacing: 20) {
+                Text("Lesson Journey")
+                    .font(AppTheme.ScaledFont.titleLarge)
 
-            LessonJourneyTimeline(lesson: lesson, viewContext: context)
-                .frame(height: 400)
+                LessonJourneyTimeline(lesson: lesson, viewContext: context)
+                    .frame(height: 400)
+            }
+            .padding()
         }
-        .padding()
+        .previewEnvironment(using: stack)
     }
-    .previewEnvironment(using: stack)
+}
+
+#Preview("Lesson Journey Timeline") {
+    LessonJourneyTimelinePreview()
 }

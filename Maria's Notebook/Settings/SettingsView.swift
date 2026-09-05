@@ -330,6 +330,14 @@ struct AppleIntelligenceStatusRow: View {
 }
 #endif
 
+// The `#Preview` closure is expanded and type-checked in every compiler job
+// for the module; a private view is checked once, in this file's job.
+private struct SettingsViewPreview: View {
+    var body: some View {
+        SettingsView()
+    }
+}
+
 #Preview {
-    SettingsView()
+    SettingsViewPreview()
 }

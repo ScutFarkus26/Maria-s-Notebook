@@ -59,31 +59,39 @@ struct WorkCardListContent: View {
     }
 }
 
-#Preview {
-    let stack = CoreDataStack.preview
-    let ctx = stack.viewContext
+// The `#Preview` closure is expanded and type-checked in every compiler job
+// for the module; a private view is checked once, in this file's job.
+private struct WorkCardListPreview: View {
+    var body: some View {
+        let stack = CoreDataStack.preview
+        let ctx = stack.viewContext
 
-    let w1 = CDWorkModel(context: ctx)
-    w1.status = .active; w1.studentID = UUID().uuidString; w1.lessonID = UUID().uuidString
-    let w2 = CDWorkModel(context: ctx)
-    w2.status = .complete; w2.studentID = UUID().uuidString; w2.lessonID = UUID().uuidString
+        let w1 = CDWorkModel(context: ctx)
+        w1.status = .active; w1.studentID = UUID().uuidString; w1.lessonID = UUID().uuidString
+        let w2 = CDWorkModel(context: ctx)
+        w2.status = .complete; w2.studentID = UUID().uuidString; w2.lessonID = UUID().uuidString
 
-    return List {
-        WorkCard.list(
-            work: w1,
-            title: "Long Division Practice",
-            subtitle: "Math • Jan 15, 2025",
-            badge: .openCount(3),
-            onOpen: { _ in }
-        )
+        return List {
+            WorkCard.list(
+                work: w1,
+                title: "Long Division Practice",
+                subtitle: "Math • Jan 15, 2025",
+                badge: .openCount(3),
+                onOpen: { _ in }
+            )
 
-        WorkCard.list(
-            work: w2,
-            title: "Research Project",
-            subtitle: "Science • Jan 10, 2025",
-            badge: .status("complete"),
-            onOpen: { _ in }
-        )
+            WorkCard.list(
+                work: w2,
+                title: "Research Project",
+                subtitle: "Science • Jan 10, 2025",
+                badge: .status("complete"),
+                onOpen: { _ in }
+            )
+        }
+        .previewEnvironment(using: stack)
     }
-    .previewEnvironment(using: stack)
+}
+
+#Preview {
+    WorkCardListPreview()
 }

@@ -170,24 +170,32 @@ struct WorkCardGridContent: View {
     }
 }
 
-#Preview {
-    let stack = CoreDataStack.preview
-    let ctx = stack.viewContext
-    let work = CDWorkModel(context: ctx)
-    work.status = .active; work.studentID = UUID().uuidString; work.lessonID = UUID().uuidString
+// The `#Preview` closure is expanded and type-checked in every compiler job
+// for the module; a private view is checked once, in this file's job.
+private struct WorkCardGridPreview: View {
+    var body: some View {
+        let stack = CoreDataStack.preview
+        let ctx = stack.viewContext
+        let work = CDWorkModel(context: ctx)
+        work.status = .active; work.studentID = UUID().uuidString; work.lessonID = UUID().uuidString
 
-    return WorkCard.grid(
-        work: work,
-        lessonTitle: "Long Division",
-        studentDisplay: "Ada Lovelace",
-        needsAttention: true,
-        ageSchoolDays: 7,
-        onOpen: { _ in },
-        onMarkCompleted: { _ in },
-        onSchedule: { _, _ in }
-    )
-    .padding()
-    .previewEnvironment(using: stack)
+        return WorkCard.grid(
+            work: work,
+            lessonTitle: "Long Division",
+            studentDisplay: "Ada Lovelace",
+            needsAttention: true,
+            ageSchoolDays: 7,
+            onOpen: { _ in },
+            onMarkCompleted: { _ in },
+            onSchedule: { _, _ in }
+        )
+        .padding()
+        .previewEnvironment(using: stack)
+    }
+}
+
+#Preview {
+    WorkCardGridPreview()
 }
 
 /// Makes a work card draggable onto the calendar, and only when it has an id.

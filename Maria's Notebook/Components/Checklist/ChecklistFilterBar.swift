@@ -96,28 +96,36 @@ struct ChecklistFilterBar: View {
     }
 }
 
-#Preview("Checklist Filters") {
-    struct Demo: View {
-        @State private var query: String = ""
-        @State private var studentFilterIDs: Set<UUID> = []
+// The `#Preview` closure is expanded and type-checked in every compiler job
+// for the module; a private view is checked once, in this file's job.
+private struct ChecklistFilterBarPreview: View {
+    var body: some View {
+        struct Demo: View {
+            @State private var query: String = ""
+            @State private var studentFilterIDs: Set<UUID> = []
 
-        var body: some View {
-            VStack(spacing: 0) {
-                ChecklistFilterBar(
-                    lessonQuery: $query,
-                    studentFilterIDs: $studentFilterIDs,
-                    rosterStudents: [],
-                    selectedStudents: [],
-                    displayName: { $0.firstName },
-                    summary: query.trimmed().isEmpty ? nil : "3 of 27 lessons",
-                    onQueryDebounced: { _ in },
-                    onClearAll: { query = "" }
-                )
-                Divider()
-                Spacer()
+            var body: some View {
+                VStack(spacing: 0) {
+                    ChecklistFilterBar(
+                        lessonQuery: $query,
+                        studentFilterIDs: $studentFilterIDs,
+                        rosterStudents: [],
+                        selectedStudents: [],
+                        displayName: { $0.firstName },
+                        summary: query.trimmed().isEmpty ? nil : "3 of 27 lessons",
+                        onQueryDebounced: { _ in },
+                        onClearAll: { query = "" }
+                    )
+                    Divider()
+                    Spacer()
+                }
+                .frame(width: 520, height: 200)
             }
-            .frame(width: 520, height: 200)
         }
+        return Demo()
     }
-    return Demo()
+}
+
+#Preview("Checklist Filters") {
+    ChecklistFilterBarPreview()
 }

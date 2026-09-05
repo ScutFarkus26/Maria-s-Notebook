@@ -114,8 +114,16 @@ struct UnplannedStudentsStrip: View {
     }
 }
 
+// The `#Preview` closure is expanded and type-checked in every compiler job
+// for the module; a private view is checked once, in this file's job.
+private struct UnplannedStudentsStripPreview: View {
+    var body: some View {
+        UnplannedStudentsStrip(date: Date(), unplanned: []) { _ in }
+            .padding()
+            .previewEnvironment()
+    }
+}
+
 #Preview {
-    UnplannedStudentsStrip(date: Date(), unplanned: []) { _ in }
-        .padding()
-        .previewEnvironment()
+    UnplannedStudentsStripPreview()
 }

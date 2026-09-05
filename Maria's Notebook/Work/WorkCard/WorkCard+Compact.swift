@@ -62,23 +62,31 @@ private struct ParticipantChipView: View {
     }
 }
 
-#Preview {
-    let stack = CoreDataStack.preview
-    let ctx = stack.viewContext
-    let work = CDWorkModel(context: ctx)
-    work.status = .active; work.studentID = UUID().uuidString; work.lessonID = UUID().uuidString
+// The `#Preview` closure is expanded and type-checked in every compiler job
+// for the module; a private view is checked once, in this file's job.
+private struct WorkCardCompactPreview: View {
+    var body: some View {
+        let stack = CoreDataStack.preview
+        let ctx = stack.viewContext
+        let work = CDWorkModel(context: ctx)
+        work.status = .active; work.studentID = UUID().uuidString; work.lessonID = UUID().uuidString
 
-    return WorkCard.compact(
-        work: work,
-        title: "Practice Division",
-        workType: .practice,
-        participants: [
-            WorkCardParticipant(id: UUID(), studentID: UUID(), name: "Ada L.", isCompleted: true),
-            WorkCardParticipant(id: UUID(), studentID: UUID(), name: "Grace H.", isCompleted: false),
-            WorkCardParticipant(id: UUID(), studentID: UUID(), name: "Marie C.", isCompleted: false)
-        ],
-        onToggle: { _, _ in }
-    )
-    .padding()
-    .previewEnvironment(using: stack)
+        return WorkCard.compact(
+            work: work,
+            title: "Practice Division",
+            workType: .practice,
+            participants: [
+                WorkCardParticipant(id: UUID(), studentID: UUID(), name: "Ada L.", isCompleted: true),
+                WorkCardParticipant(id: UUID(), studentID: UUID(), name: "Grace H.", isCompleted: false),
+                WorkCardParticipant(id: UUID(), studentID: UUID(), name: "Marie C.", isCompleted: false)
+            ],
+            onToggle: { _, _ in }
+        )
+        .padding()
+        .previewEnvironment(using: stack)
+    }
+}
+
+#Preview {
+    WorkCardCompactPreview()
 }

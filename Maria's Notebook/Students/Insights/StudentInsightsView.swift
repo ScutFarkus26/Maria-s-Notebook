@@ -116,35 +116,43 @@ struct StudentInsightsView: View {
 
 // MARK: - Preview
 
-#Preview {
-    let stack = CoreDataStack.preview
-    let ctx = stack.viewContext
+// The `#Preview` closure is expanded and type-checked in every compiler job
+// for the module; a private view is checked once, in this file's job.
+private struct StudentInsightsViewPreview: View {
+    var body: some View {
+        let stack = CoreDataStack.preview
+        let ctx = stack.viewContext
 
-    let student = CDStudent(context: ctx)
-    student.firstName = "Emma"
-    student.lastName = "Johnson"
-    student.birthday = AppCalendar.shared.date(byAdding: .year, value: -4, to: Date())!
-    student.level = .lower
+        let student = CDStudent(context: ctx)
+        student.firstName = "Emma"
+        student.lastName = "Johnson"
+        student.birthday = AppCalendar.shared.date(byAdding: .year, value: -4, to: Date())!
+        student.level = .lower
 
-    let snapshot = CDDevelopmentSnapshotEntity(context: ctx)
-    snapshot.studentID = student.id?.uuidString ?? ""
-    snapshot.generatedAt = Date()
-    snapshot.lookbackDays = 30
-    snapshot.overallProgress = "Emma shows steady progress across academic and social domains." +
-        " Notable growth in independence and peer collaboration."
-    snapshot.keyStrengths = ["Strong focus during practice", "Helps peers frequently", "Growing independence"]
-    snapshot.areasForGrowth = ["Building confidence with new materials", "Managing frustration"]
-    snapshot.developmentalMilestones = ["Consistent 3-period retention", "Age-appropriate fine motor control"]
-    snapshot.recommendedNextLessons = ["Complex math materials", "Extended practical life"]
-    snapshot.totalNotesAnalyzed = 12
-    snapshot.practiceSessionsAnalyzed = 8
-    snapshot.workCompletionsAnalyzed = 5
-    snapshot.averagePracticeQuality = 4.2
-    snapshot.independenceLevel = 3.8
+        let snapshot = CDDevelopmentSnapshotEntity(context: ctx)
+        snapshot.studentID = student.id?.uuidString ?? ""
+        snapshot.generatedAt = Date()
+        snapshot.lookbackDays = 30
+        snapshot.overallProgress = "Emma shows steady progress across academic and social domains." +
+            " Notable growth in independence and peer collaboration."
+        snapshot.keyStrengths = ["Strong focus during practice", "Helps peers frequently", "Growing independence"]
+        snapshot.areasForGrowth = ["Building confidence with new materials", "Managing frustration"]
+        snapshot.developmentalMilestones = ["Consistent 3-period retention", "Age-appropriate fine motor control"]
+        snapshot.recommendedNextLessons = ["Complex math materials", "Extended practical life"]
+        snapshot.totalNotesAnalyzed = 12
+        snapshot.practiceSessionsAnalyzed = 8
+        snapshot.workCompletionsAnalyzed = 5
+        snapshot.averagePracticeQuality = 4.2
+        snapshot.independenceLevel = 3.8
 
-    return NavigationStack {
-        StudentInsightsView(student: student)
-            .previewEnvironment(using: stack)
-            .environment(\.dependencies, AppDependencies(coreDataStack: stack))
+        return NavigationStack {
+            StudentInsightsView(student: student)
+                .previewEnvironment(using: stack)
+                .environment(\.dependencies, AppDependencies(coreDataStack: stack))
+        }
     }
+}
+
+#Preview {
+    StudentInsightsViewPreview()
 }

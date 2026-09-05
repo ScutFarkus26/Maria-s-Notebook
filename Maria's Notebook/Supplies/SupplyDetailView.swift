@@ -215,16 +215,24 @@ private extension SupplyDetailView {
     }
 }
 
-#Preview {
-    let stack = CoreDataStack.preview
-    let ctx = stack.viewContext
-    let supply = CDSupply(context: ctx)
-    supply.name = "Crayons (24-pack)"
-    supply.category = .art
-    supply.location = "Cabinet A"
-    supply.currentQuantity = 12
-    supply.notes = "Preferred brand: Crayola. Order from Amazon."
+// The `#Preview` closure is expanded and type-checked in every compiler job
+// for the module; a private view is checked once, in this file's job.
+private struct SupplyDetailViewPreview: View {
+    var body: some View {
+        let stack = CoreDataStack.preview
+        let ctx = stack.viewContext
+        let supply = CDSupply(context: ctx)
+        supply.name = "Crayons (24-pack)"
+        supply.category = .art
+        supply.location = "Cabinet A"
+        supply.currentQuantity = 12
+        supply.notes = "Preferred brand: Crayola. Order from Amazon."
 
-    return SupplyDetailView(supply: supply)
-        .previewEnvironment(using: stack)
+        return SupplyDetailView(supply: supply)
+            .previewEnvironment(using: stack)
+    }
+}
+
+#Preview {
+    SupplyDetailViewPreview()
 }

@@ -403,15 +403,23 @@ extension LessonDetailView {
     }
 }
 
-#Preview {
-    let ctx = CoreDataStack.preview.viewContext
-    let lesson = CDLesson(context: ctx)
-    lesson.name = "Decimal System"
-    lesson.area = "Math"
-    lesson.sequence = "Number Work"
-    lesson.section = "Intro to base-10"
-    lesson.writeUp = "Sample write up."
+// The `#Preview` closure is expanded and type-checked in every compiler job
+// for the module; a private view is checked once, in this file's job.
+private struct LessonDetailViewPreview: View {
+    var body: some View {
+        let ctx = CoreDataStack.preview.viewContext
+        let lesson = CDLesson(context: ctx)
+        lesson.name = "Decimal System"
+        lesson.area = "Math"
+        lesson.sequence = "Number Work"
+        lesson.section = "Intro to base-10"
+        lesson.writeUp = "Sample write up."
 
-    return LessonDetailView(lesson: lesson, onSave: { _ in })
-        .previewEnvironment()
+        return LessonDetailView(lesson: lesson, onSave: { _ in })
+            .previewEnvironment()
+    }
+}
+
+#Preview {
+    LessonDetailViewPreview()
 }

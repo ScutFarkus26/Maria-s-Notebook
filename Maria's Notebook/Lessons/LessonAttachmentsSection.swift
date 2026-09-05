@@ -69,7 +69,7 @@ struct LessonAttachmentsSection: View {
     private var areaAttachments: [CDLessonAttachment] {
         attachments.filter { $0.scope == .area }
     }
-    
+
     var body: some View {
         attachmentsContent
             .sheet(isPresented: $showingScopeSheet) {
@@ -390,15 +390,23 @@ struct LessonAttachmentsSection: View {
 }
 // swiftlint:enable type_body_length
 
-#Preview {
-    let ctx = CoreDataStack.preview.viewContext
-    let lesson = CDLesson(context: ctx)
-    lesson.name = "Introduction to Place Value"
-    lesson.area = "Math"
-    lesson.sequence = "Decimal System"
+// The `#Preview` closure is expanded and type-checked in every compiler job
+// for the module; a private view is checked once, in this file's job.
+private struct LessonAttachmentsSectionPreview: View {
+    var body: some View {
+        let ctx = CoreDataStack.preview.viewContext
+        let lesson = CDLesson(context: ctx)
+        lesson.name = "Introduction to Place Value"
+        lesson.area = "Math"
+        lesson.sequence = "Decimal System"
 
-    return LessonAttachmentsSection(lesson: lesson)
-        .previewEnvironment()
-        .frame(width: 500)
-        .padding()
+        return LessonAttachmentsSection(lesson: lesson)
+            .previewEnvironment()
+            .frame(width: 500)
+            .padding()
+    }
+}
+
+#Preview {
+    LessonAttachmentsSectionPreview()
 }

@@ -7,7 +7,15 @@ struct AttendanceTardyReport: View {
     }
 }
 
+// The `#Preview` closure is expanded and type-checked in every compiler job
+// for the module; a private view is checked once, in this file's job.
+private struct AttendanceTardyReportPreview: View {
+    var body: some View {
+        AttendanceTardyReport()
+            .previewEnvironment()
+    }
+}
+
 #Preview {
-    AttendanceTardyReport()
-        .previewEnvironment()
+    AttendanceTardyReportPreview()
 }

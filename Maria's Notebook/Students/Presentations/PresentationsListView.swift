@@ -318,6 +318,14 @@ struct PresentationsListView: View {
     }
 }
 
+// The `#Preview` closure is expanded and type-checked in every compiler job
+// for the module; a private view is checked once, in this file's job.
+private struct PresentationsListViewPreview: View {
+    var body: some View {
+        PresentationsListView()
+    }
+}
+
 #Preview {
-    PresentationsListView()
+    PresentationsListViewPreview()
 }

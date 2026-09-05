@@ -516,8 +516,16 @@ public struct AttendanceEmailSettingsView: View {
         #endif
     }
 }
+// The `#Preview` closure is expanded and type-checked in every compiler job
+// for the module; a private view is checked once, in this file's job.
+private struct AttendanceEmailPreview: View {
+    var body: some View {
+        AttendanceEmailSettingsView()
+    }
+}
+
 #Preview {
-    AttendanceEmailSettingsView()
+    AttendanceEmailPreview()
 }
 
 // MARK: - iOS Mail Composer Wrapper

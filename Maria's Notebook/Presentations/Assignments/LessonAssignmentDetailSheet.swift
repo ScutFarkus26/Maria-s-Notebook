@@ -389,27 +389,35 @@ struct LessonAssignmentDetailSheet: View, Identifiable {
     }
 }
 
+// The `#Preview` closure is expanded and type-checked in every compiler job
+// for the module; a private view is checked once, in this file's job.
+private struct LessonAssignmentDetailSheetPreview: View {
+    var body: some View {
+        let ctx = CoreDataStack.preview.viewContext
+
+        let lesson = CDLesson(context: ctx)
+        lesson.name = "Decimal System"
+        lesson.area = "Math"
+        lesson.sequence = "Number Work"
+
+        let student = CDStudent(context: ctx)
+        student.firstName = "Ada"
+        student.lastName = "Lovelace"
+        student.birthday = Date()
+        student.level = .upper
+
+        let la = CDLessonAssignment(context: ctx)
+        la.state = .presented
+        la.presentedAt = Date()
+        la.lessonTitleSnapshot = lesson.name
+        la.lessonIDUUID = lesson.id
+        la.studentIDs = [student.id?.uuidString ?? UUID().uuidString]
+
+        return LessonAssignmentDetailSheet(assignmentID: la.id ?? UUID())
+            .previewEnvironment()
+    }
+}
+
 #Preview {
-    let ctx = CoreDataStack.preview.viewContext
-
-    let lesson = CDLesson(context: ctx)
-    lesson.name = "Decimal System"
-    lesson.area = "Math"
-    lesson.sequence = "Number Work"
-
-    let student = CDStudent(context: ctx)
-    student.firstName = "Ada"
-    student.lastName = "Lovelace"
-    student.birthday = Date()
-    student.level = .upper
-
-    let la = CDLessonAssignment(context: ctx)
-    la.state = .presented
-    la.presentedAt = Date()
-    la.lessonTitleSnapshot = lesson.name
-    la.lessonIDUUID = lesson.id
-    la.studentIDs = [student.id?.uuidString ?? UUID().uuidString]
-
-    return LessonAssignmentDetailSheet(assignmentID: la.id ?? UUID())
-        .previewEnvironment()
+    LessonAssignmentDetailSheetPreview()
 }

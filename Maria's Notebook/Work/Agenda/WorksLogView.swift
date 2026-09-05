@@ -405,7 +405,15 @@ struct WorksLogView: View {
     }
 }
 
+// The `#Preview` closure is expanded and type-checked in every compiler job
+// for the module; a private view is checked once, in this file's job.
+private struct WorksLogViewPreview: View {
+    var body: some View {
+        WorksLogView()
+            .previewEnvironment()
+    }
+}
+
 #Preview {
-    WorksLogView()
-        .previewEnvironment()
+    WorksLogViewPreview()
 }

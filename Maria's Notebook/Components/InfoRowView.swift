@@ -29,10 +29,18 @@ struct InfoRowView: View {
     }
 }
 
-#Preview {
-    VStack(alignment: .leading, spacing: 14) {
-        InfoRowView(icon: "calendar", title: "Birthday", value: "Jan 1, 2018")
-        InfoRowView(icon: "gift", title: "Age", value: "6 years old")
+// The `#Preview` closure is expanded and type-checked in every compiler job
+// for the module; a private view is checked once, in this file's job.
+private struct InfoRowViewPreview: View {
+    var body: some View {
+        VStack(alignment: .leading, spacing: 14) {
+            InfoRowView(icon: "calendar", title: "Birthday", value: "Jan 1, 2018")
+            InfoRowView(icon: "gift", title: "Age", value: "6 years old")
+        }
+        .padding()
     }
-    .padding()
+}
+
+#Preview {
+    InfoRowViewPreview()
 }

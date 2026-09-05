@@ -11,7 +11,7 @@ struct StatusPill: View {
         self.color = color
         self.icon = icon
     }
-    
+
     var body: some View {
         HStack(spacing: AppTheme.Spacing.verySmall) {
             if let icon {
@@ -32,11 +32,19 @@ struct StatusPill: View {
     }
 }
 
-#Preview {
-    VStack(spacing: 16) {
-        StatusPill(text: "Active", color: .green)
-        StatusPill(text: "Pending", color: .orange, icon: "clock")
-        StatusPill(text: "Complete", color: .blue, icon: "checkmark")
+// The `#Preview` closure is expanded and type-checked in every compiler job
+// for the module; a private view is checked once, in this file's job.
+private struct StatusPillPreview: View {
+    var body: some View {
+        VStack(spacing: 16) {
+            StatusPill(text: "Active", color: .green)
+            StatusPill(text: "Pending", color: .orange, icon: "clock")
+            StatusPill(text: "Complete", color: .blue, icon: "checkmark")
+        }
+        .padding()
     }
-    .padding()
+}
+
+#Preview {
+    StatusPillPreview()
 }

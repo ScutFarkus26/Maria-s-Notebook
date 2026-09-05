@@ -1,6 +1,6 @@
 # Build and Launch Performance — Implementation Plan
 
-Status: **Phases 0–3 landed 2026-09-04** (0–2 on `main` through dbc60c7c; 3 on `perf/phase-3-search-index`) · Owner: Danny · Created 2026-09-04
+Status: **Phases 0–3 on `main` (595132d9); Phase 4a on `perf/phase-4-slow-type-check`** · Owner: Danny · Created 2026-09-04
 
 ## Implementation status (2026-09-04)
 
@@ -35,6 +35,14 @@ Status: **Phases 0–3 landed 2026-09-04** (0–2 on `main` through dbc60c7c; 3 
   receives one value assignment instead of the old per-result insert loop. The five per-entity
   fetch loops and their five synchronous twins collapsed onto one `entry(for:)`.
   Nine tests in `SearchIndexSnapshotTests` cover every path.
+- **Phase 4a** (branch `perf/phase-4-slow-type-check`) — a measured detour before the per-site
+  work: `-debug-time-expression-type-checking` over a whole-module `-typecheck` showed every
+  `#Preview` body being type-checked once per frontend job (a freestanding macro is expanded in
+  every job for name lookup). All 92 preview bodies were hoisted into `private struct
+  <File>Preview: View` (`Scripts/hoist_previews.py`, idempotent; the rule is now in CLAUDE.md). Clean
+  build 56.2 s → 47.9 s wall; type checking −28.6%, frontend total −15.2% (compiler
+  `-stats-output-dir` sums, 47 jobs). Details in `perf-baselines/2026-09-04-clean-build.md`.
+  46 sites remain over the 100 ms thresholds (was 51); those are Phase 4b.
 
 Source: the 25-item audit against WWDC26 guidance (sessions 258, 262, 269, 222; group labs
 8003, 8006, 8013). Every item is non-destructive: no data migration, no deleted features,
@@ -148,6 +156,13 @@ migration tail to near-zero on a warm launch.
 
 Do this only after Phase 0 has produced the actual warning list; do not split by line
 count alone.
+
+**4a (done first, biggest lever):** hoist every `#Preview` body into a private view struct —
+see the status block. **4b:** the per-site list below, now 46 sites. A useful loop for 4b:
+the whole-module typecheck script (`typecheck.sh`, generated from the build log's
+`builtin-SwiftDriver` line with `-c` swapped for `-typecheck`) runs in ~90 s and, with
+`-Xfrontend -debug-time-expression-type-checking`, prints per-expression times; the compiler's
+`-stats-output-dir` on a clean build gives the phase totals to confirm the effect.
 
 | Item | Change | Scope |
 |------|--------|-------|

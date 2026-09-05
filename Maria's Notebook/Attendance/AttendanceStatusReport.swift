@@ -302,12 +302,26 @@ private struct StatusRow: Identifiable {
     let count: Int
 }
 
+// The `#Preview` closure is expanded and type-checked in every compiler job
+// for the module; a private view is checked once, in this file's job.
+private struct AttendanceStatusReportPreview: View {
+    var body: some View {
+        AttendanceStatusReport(config: .absence)
+            .previewEnvironment()
+    }
+}
+
 #Preview("Absence") {
-    AttendanceStatusReport(config: .absence)
-        .previewEnvironment()
+    AttendanceStatusReportPreview()
+}
+
+private struct AttendanceStatusReportPreview2: View {
+    var body: some View {
+        AttendanceStatusReport(config: .tardy)
+            .previewEnvironment()
+    }
 }
 
 #Preview("Tardy") {
-    AttendanceStatusReport(config: .tardy)
-        .previewEnvironment()
+    AttendanceStatusReportPreview2()
 }

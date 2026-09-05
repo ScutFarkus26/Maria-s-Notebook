@@ -352,27 +352,35 @@ struct StudentTrackDetailView: View {
 
 }
 
+// The `#Preview` closure is expanded and type-checked in every compiler job
+// for the module; a private view is checked once, in this file's job.
+private struct StudentTrackDetailViewPreview: View {
+    var body: some View {
+        let stack = CoreDataStack.preview
+        let ctx = stack.viewContext
+
+        let track = CDTrackEntity(context: ctx)
+        track.title = "Math — Fundamentals"
+
+        let student = CDStudent(context: ctx)
+        student.firstName = "Alan"
+        student.lastName = "Turing"
+        student.birthday = Date()
+        student.level = .upper
+
+        let enrollment = CDStudentTrackEnrollmentEntity(context: ctx)
+        enrollment.studentID = student.id?.uuidString ?? ""
+        enrollment.trackID = track.id?.uuidString ?? ""
+        enrollment.student = student
+        enrollment.track = track
+        enrollment.startedAt = Date()
+        enrollment.isActive = false
+
+        return StudentTrackDetailView(enrollment: enrollment, track: track)
+            .previewEnvironment(using: stack)
+    }
+}
+
 #Preview {
-    let stack = CoreDataStack.preview
-    let ctx = stack.viewContext
-
-    let track = CDTrackEntity(context: ctx)
-    track.title = "Math — Fundamentals"
-
-    let student = CDStudent(context: ctx)
-    student.firstName = "Alan"
-    student.lastName = "Turing"
-    student.birthday = Date()
-    student.level = .upper
-
-    let enrollment = CDStudentTrackEnrollmentEntity(context: ctx)
-    enrollment.studentID = student.id?.uuidString ?? ""
-    enrollment.trackID = track.id?.uuidString ?? ""
-    enrollment.student = student
-    enrollment.track = track
-    enrollment.startedAt = Date()
-    enrollment.isActive = false
-
-    return StudentTrackDetailView(enrollment: enrollment, track: track)
-        .previewEnvironment(using: stack)
+    StudentTrackDetailViewPreview()
 }

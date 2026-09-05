@@ -365,21 +365,35 @@ struct IconPickerSheet: View {
     }
 }
 
+// The `#Preview` closure is expanded and type-checked in every compiler job
+// for the module; a private view is checked once, in this file's job.
+private struct ProcedureEditorSheetPreview: View {
+    var body: some View {
+        ProcedureEditorSheet(procedure: nil)
+            .previewEnvironment()
+    }
+}
+
 #Preview("New Procedure") {
-    ProcedureEditorSheet(procedure: nil)
-        .previewEnvironment()
+    ProcedureEditorSheetPreview()
+}
+
+private struct ProcedureEditorSheetPreview2: View {
+    var body: some View {
+        let stack = CoreDataStack.preview
+        let ctx = stack.viewContext
+        let procedure = CDProcedure(context: ctx)
+        procedure.title = "Morning Arrival"
+        procedure.summary = "Steps for welcoming students"
+        procedure.content = "## Overview\n\nThis procedure outlines..."
+        procedure.category = .dailyRoutines
+        procedure.icon = "sunrise"
+
+        return ProcedureEditorSheet(procedure: procedure)
+            .previewEnvironment(using: stack)
+    }
 }
 
 #Preview("Edit Procedure") {
-    let stack = CoreDataStack.preview
-    let ctx = stack.viewContext
-    let procedure = CDProcedure(context: ctx)
-    procedure.title = "Morning Arrival"
-    procedure.summary = "Steps for welcoming students"
-    procedure.content = "## Overview\n\nThis procedure outlines..."
-    procedure.category = .dailyRoutines
-    procedure.icon = "sunrise"
-
-    return ProcedureEditorSheet(procedure: procedure)
-        .previewEnvironment(using: stack)
+    ProcedureEditorSheetPreview2()
 }

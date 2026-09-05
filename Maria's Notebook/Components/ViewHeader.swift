@@ -34,25 +34,39 @@ struct ViewHeader<TrailingContent: View>: View {
     }
 }
 
+// The `#Preview` closure is expanded and type-checked in every compiler job
+// for the module; a private view is checked once, in this file's job.
+private struct ViewHeaderPreview: View {
+    var body: some View {
+        VStack(spacing: 0) {
+            ViewHeader(title: "Today")
+            Divider()
+            Spacer()
+        }
+    }
+}
+
 #Preview("Simple Header") {
-    VStack(spacing: 0) {
-        ViewHeader(title: "Today")
-        Divider()
-        Spacer()
+    ViewHeaderPreview()
+}
+
+private struct ViewHeaderPreview2: View {
+    var body: some View {
+        VStack(spacing: 0) {
+            ViewHeader(title: "Checklist") {
+                Picker("Area", selection: .constant("Biology")) {
+                    Text("Biology").tag("Biology")
+                    Text("Math").tag("Math")
+                }
+                .pickerStyle(.menu)
+                .frame(width: 150)
+            }
+            Divider()
+            Spacer()
+        }
     }
 }
 
 #Preview("Header with Controls") {
-    VStack(spacing: 0) {
-        ViewHeader(title: "Checklist") {
-            Picker("Area", selection: .constant("Biology")) {
-                Text("Biology").tag("Biology")
-                Text("Math").tag("Math")
-            }
-            .pickerStyle(.menu)
-            .frame(width: 150)
-        }
-        Divider()
-        Spacer()
-    }
+    ViewHeaderPreview2()
 }

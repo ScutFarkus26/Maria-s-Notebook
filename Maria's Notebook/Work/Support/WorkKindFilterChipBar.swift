@@ -47,17 +47,25 @@ struct WorkKindFilterChipBar: View {
     }
 }
 
-#Preview {
-    struct Wrapper: View {
-        @State var kinds: Set<WorkKind> = Set(WorkKind.allCases)
-        var body: some View {
-            VStack {
-                WorkKindFilterChipBar(visibleKinds: $kinds)
-                Text("Active: \(kinds.map(\.shortLabel).sorted().joined(separator: ", "))")
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
+// The `#Preview` closure is expanded and type-checked in every compiler job
+// for the module; a private view is checked once, in this file's job.
+private struct WorkKindFilterChipBarPreview: View {
+    var body: some View {
+        struct Wrapper: View {
+            @State var kinds: Set<WorkKind> = Set(WorkKind.allCases)
+            var body: some View {
+                VStack {
+                    WorkKindFilterChipBar(visibleKinds: $kinds)
+                    Text("Active: \(kinds.map(\.shortLabel).sorted().joined(separator: ", "))")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                }
             }
         }
+        return Wrapper()
     }
-    return Wrapper()
+}
+
+#Preview {
+    WorkKindFilterChipBarPreview()
 }

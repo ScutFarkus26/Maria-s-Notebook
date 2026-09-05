@@ -56,34 +56,42 @@ struct ProcedureRow: View {
     }
 }
 
-#Preview {
-    let stack = CoreDataStack.preview
-    let ctx = stack.viewContext
+// The `#Preview` closure is expanded and type-checked in every compiler job
+// for the module; a private view is checked once, in this file's job.
+private struct ProcedureRowPreview: View {
+    var body: some View {
+        let stack = CoreDataStack.preview
+        let ctx = stack.viewContext
 
-    let p1 = CDProcedure(context: ctx)
-    p1.title = "Morning Arrival"
-    p1.summary = "Steps for welcoming students and starting the day"
-    p1.content = "## Overview\nThis procedure outlines..."
-    p1.category = .dailyRoutines
-    p1.icon = "sunrise"
+        let p1 = CDProcedure(context: ctx)
+        p1.title = "Morning Arrival"
+        p1.summary = "Steps for welcoming students and starting the day"
+        p1.content = "## Overview\nThis procedure outlines..."
+        p1.category = .dailyRoutines
+        p1.icon = "sunrise"
 
-    let p2 = CDProcedure(context: ctx)
-    p2.title = "Fire Drill"
-    p2.summary = "Emergency evacuation procedure"
-    p2.content = "## Steps\n1. Alert students..."
-    p2.category = .safety
+        let p2 = CDProcedure(context: ctx)
+        p2.title = "Fire Drill"
+        p2.summary = "Emergency evacuation procedure"
+        p2.content = "## Steps\n1. Alert students..."
+        p2.category = .safety
 
-    let p3 = CDProcedure(context: ctx)
-    p3.title = "Friday Schedule"
-    p3.summary = "Modified schedule for end-of-week activities"
-    p3.content = "## Friday Routine\n..."
-    p3.category = .specialSchedules
+        let p3 = CDProcedure(context: ctx)
+        p3.title = "Friday Schedule"
+        p3.summary = "Modified schedule for end-of-week activities"
+        p3.content = "## Friday Routine\n..."
+        p3.category = .specialSchedules
 
-    return VStack(spacing: 12) {
-        ProcedureRow(procedure: p1)
-        ProcedureRow(procedure: p2)
-        ProcedureRow(procedure: p3)
+        return VStack(spacing: 12) {
+            ProcedureRow(procedure: p1)
+            ProcedureRow(procedure: p2)
+            ProcedureRow(procedure: p3)
+        }
+        .padding()
+        .previewEnvironment(using: stack)
     }
-    .padding()
-    .previewEnvironment(using: stack)
+}
+
+#Preview {
+    ProcedureRowPreview()
 }

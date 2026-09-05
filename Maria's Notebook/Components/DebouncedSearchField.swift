@@ -74,22 +74,30 @@ public struct DebouncedSearchField: View {
     }
 }
 
-#Preview {
-    struct Demo: View {
-        @State private var query: String = ""
-        @State private var lastDebounced: String = ""
-        var body: some View {
-            VStack(alignment: .leading, spacing: 12) {
-                DebouncedSearchField("Search lessons", text: $query) { debounced in
-                    lastDebounced = debounced
+// The `#Preview` closure is expanded and type-checked in every compiler job
+// for the module; a private view is checked once, in this file's job.
+private struct DebouncedSearchFieldPreview: View {
+    var body: some View {
+        struct Demo: View {
+            @State private var query: String = ""
+            @State private var lastDebounced: String = ""
+            var body: some View {
+                VStack(alignment: .leading, spacing: 12) {
+                    DebouncedSearchField("Search lessons", text: $query) { debounced in
+                        lastDebounced = debounced
+                    }
+                    Text("Typed: \(query)")
+                    Text("Debounced: \(lastDebounced)")
+                        .foregroundStyle(.secondary)
                 }
-                Text("Typed: \(query)")
-                Text("Debounced: \(lastDebounced)")
-                    .foregroundStyle(.secondary)
+                .padding()
+                .frame(width: 420)
             }
-            .padding()
-            .frame(width: 420)
         }
+        return Demo()
     }
-    return Demo()
+}
+
+#Preview {
+    DebouncedSearchFieldPreview()
 }

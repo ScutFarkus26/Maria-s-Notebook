@@ -69,10 +69,24 @@ struct WorkCheckDayPicker: View {
     }
 }
 
+// The `#Preview` closure is expanded and type-checked in every compiler job
+// for the module; a private view is checked once, in this file's job.
+private struct WorkCheckDayPickerPreview: View {
+    var body: some View {
+        WorkCheckDayPicker(count: 1) { _ in }
+    }
+}
+
 #Preview("One work item") {
-    WorkCheckDayPicker(count: 1) { _ in }
+    WorkCheckDayPickerPreview()
+}
+
+private struct WorkCheckDayPickerPreview2: View {
+    var body: some View {
+        WorkCheckDayPicker(count: 3) { _ in }
+    }
 }
 
 #Preview("A selection") {
-    WorkCheckDayPicker(count: 3) { _ in }
+    WorkCheckDayPickerPreview2()
 }

@@ -29,7 +29,7 @@ struct PracticeSessionCard: View {
             session.workItemIDsArray.contains(work.id?.uuidString ?? "")
         }
     }
-    
+
     var body: some View {
         switch displayMode {
         case .compact:
@@ -58,52 +58,60 @@ struct PracticeSessionCard: View {
 
 // MARK: - Preview
 
-#Preview("Practice Session Cards") {
-    let stack = CoreDataStack.preview
-    let ctx = stack.viewContext
+// The `#Preview` closure is expanded and type-checked in every compiler job
+// for the module; a private view is checked once, in this file's job.
+private struct PracticeSessionCardPreview: View {
+    var body: some View {
+        let stack = CoreDataStack.preview
+        let ctx = stack.viewContext
 
-    let mary = CDStudent(context: ctx)
-    mary.firstName = "Mary"; mary.lastName = "Smith"; mary.birthday = Date(); mary.level = .lower
-    let danny = CDStudent(context: ctx)
-    danny.firstName = "Danny"; danny.lastName = "Jones"; danny.birthday = Date(); danny.level = .lower
+        let mary = CDStudent(context: ctx)
+        mary.firstName = "Mary"; mary.lastName = "Smith"; mary.birthday = Date(); mary.level = .lower
+        let danny = CDStudent(context: ctx)
+        danny.firstName = "Danny"; danny.lastName = "Jones"; danny.birthday = Date(); danny.level = .lower
 
-    let lesson = CDLesson(context: ctx)
-    lesson.name = "Long Division"
+        let lesson = CDLesson(context: ctx)
+        lesson.name = "Long Division"
 
-    let work1 = CDWorkModel(context: ctx)
-    work1.title = "Practice Long Division"
-    work1.studentID = danny.id?.uuidString ?? ""
-    work1.lessonID = lesson.id?.uuidString ?? ""
-    let work2 = CDWorkModel(context: ctx)
-    work2.title = "Practice Long Division"
-    work2.studentID = mary.id?.uuidString ?? ""
-    work2.lessonID = lesson.id?.uuidString ?? ""
+        let work1 = CDWorkModel(context: ctx)
+        work1.title = "Practice Long Division"
+        work1.studentID = danny.id?.uuidString ?? ""
+        work1.lessonID = lesson.id?.uuidString ?? ""
+        let work2 = CDWorkModel(context: ctx)
+        work2.title = "Practice Long Division"
+        work2.studentID = mary.id?.uuidString ?? ""
+        work2.lessonID = lesson.id?.uuidString ?? ""
 
-    let groupSession = CDPracticeSession(context: ctx)
-    groupSession.date = Date(); groupSession.duration = 1800
-    groupSession.studentIDsArray = [danny.id?.uuidString ?? "", mary.id?.uuidString ?? ""]
-    groupSession.workItemIDsArray = [work1.id?.uuidString ?? "", work2.id?.uuidString ?? ""]
-    groupSession.sharedNotes = "Both students struggled with remainders but showed improvement by the end."
-    groupSession.location = "Small table"
+        let groupSession = CDPracticeSession(context: ctx)
+        groupSession.date = Date(); groupSession.duration = 1800
+        groupSession.studentIDsArray = [danny.id?.uuidString ?? "", mary.id?.uuidString ?? ""]
+        groupSession.workItemIDsArray = [work1.id?.uuidString ?? "", work2.id?.uuidString ?? ""]
+        groupSession.sharedNotes = "Both students struggled with remainders but showed improvement by the end."
+        groupSession.location = "Small table"
 
-    let soloSession = CDPracticeSession(context: ctx)
-    soloSession.date = Date().addingTimeInterval(-86400); soloSession.duration = 900
-    soloSession.studentIDsArray = [danny.id?.uuidString ?? ""]
-    soloSession.workItemIDsArray = [work1.id?.uuidString ?? ""]
-    soloSession.sharedNotes = "Quick review session. Danny is getting better!"
+        let soloSession = CDPracticeSession(context: ctx)
+        soloSession.date = Date().addingTimeInterval(-86400); soloSession.duration = 900
+        soloSession.studentIDsArray = [danny.id?.uuidString ?? ""]
+        soloSession.workItemIDsArray = [work1.id?.uuidString ?? ""]
+        soloSession.sharedNotes = "Quick review session. Danny is getting better!"
 
-    return ScrollView {
-        VStack(spacing: 20) {
-            Text("Compact").font(.headline)
-            PracticeSessionCard(session: groupSession, displayMode: .compact)
-            Text("Standard").font(.headline)
-            PracticeSessionCard(session: groupSession, displayMode: .standard)
-            Text("Expanded").font(.headline)
-            PracticeSessionCard(session: groupSession, displayMode: .expanded)
-            Text("Solo Session").font(.headline)
-            PracticeSessionCard(session: soloSession, displayMode: .standard)
+        return ScrollView {
+            VStack(spacing: 20) {
+                Text("Compact").font(.headline)
+                PracticeSessionCard(session: groupSession, displayMode: .compact)
+                Text("Standard").font(.headline)
+                PracticeSessionCard(session: groupSession, displayMode: .standard)
+                Text("Expanded").font(.headline)
+                PracticeSessionCard(session: groupSession, displayMode: .expanded)
+                Text("Solo Session").font(.headline)
+                PracticeSessionCard(session: soloSession, displayMode: .standard)
+            }
+            .padding()
         }
-        .padding()
+        .previewEnvironment(using: stack)
     }
-    .previewEnvironment(using: stack)
+}
+
+#Preview("Practice Session Cards") {
+    PracticeSessionCardPreview()
 }

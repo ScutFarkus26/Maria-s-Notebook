@@ -32,7 +32,7 @@ struct DocumentImportSheet: View {
         let filename = pdfURL.deletingPathExtension().lastPathComponent
         title = filename
     }
-    
+
     var body: some View {
         NavigationStack {
             Form {
@@ -94,24 +94,32 @@ struct DocumentImportSheet: View {
     }
 }
 
+// The `#Preview` closure is expanded and type-checked in every compiler job
+// for the module; a private view is checked once, in this file's job.
+private struct DocumentImportSheetPreview: View {
+    var body: some View {
+        let stack = CoreDataStack.preview
+        let ctx = stack.viewContext
+        let student = CDStudent(context: ctx)
+        student.firstName = "Alan"
+        student.lastName = "Turing"
+        student.birthday = Date(timeIntervalSince1970: 0)
+        student.level = .upper
+
+        // Create dummy data
+        let dummyData = Data("PDF content".utf8)
+        let dummyURL = URL(fileURLWithPath: "/tmp/test.pdf")
+
+        return DocumentImportSheet(
+            pdfURL: dummyURL,
+            pdfData: dummyData,
+            student: student,
+            onSave: {}
+        )
+        .previewEnvironment(using: stack)
+    }
+}
+
 #Preview {
-    let stack = CoreDataStack.preview
-    let ctx = stack.viewContext
-    let student = CDStudent(context: ctx)
-    student.firstName = "Alan"
-    student.lastName = "Turing"
-    student.birthday = Date(timeIntervalSince1970: 0)
-    student.level = .upper
-
-    // Create dummy data
-    let dummyData = Data("PDF content".utf8)
-    let dummyURL = URL(fileURLWithPath: "/tmp/test.pdf")
-
-    return DocumentImportSheet(
-        pdfURL: dummyURL,
-        pdfData: dummyData,
-        student: student,
-        onSave: {}
-    )
-    .previewEnvironment(using: stack)
+    DocumentImportSheetPreview()
 }

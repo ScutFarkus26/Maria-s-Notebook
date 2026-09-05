@@ -275,7 +275,15 @@ struct ProceduresListView: View {
     }
 }
 
+// The `#Preview` closure is expanded and type-checked in every compiler job
+// for the module; a private view is checked once, in this file's job.
+private struct ProceduresListViewPreview: View {
+    var body: some View {
+        ProceduresListView()
+            .previewEnvironment()
+    }
+}
+
 #Preview {
-    ProceduresListView()
-        .previewEnvironment()
+    ProceduresListViewPreview()
 }

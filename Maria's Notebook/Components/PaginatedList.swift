@@ -149,35 +149,43 @@ extension Array {
 
 // MARK: - Preview
 
-#Preview("Pagination Footer") {
-    struct PreviewWrapper: View {
-        @State private var state = PaginationState(pageSize: 10)
+// The `#Preview` closure is expanded and type-checked in every compiler job
+// for the module; a private view is checked once, in this file's job.
+private struct PaginatedListPreview: View {
+    var body: some View {
+        struct PreviewWrapper: View {
+            @State private var state = PaginationState(pageSize: 10)
 
-        var body: some View {
-            VStack {
-                Text("Total: \(state.totalCount)")
-                Text("Displayed: \(state.displayedCount)")
-                Text("Has More: \(state.hasMore ? "Yes" : "No")")
+            var body: some View {
+                VStack {
+                    Text("Total: \(state.totalCount)")
+                    Text("Displayed: \(state.displayedCount)")
+                    Text("Has More: \(state.hasMore ? "Yes" : "No")")
 
-                Divider()
+                    Divider()
 
-                PaginatedListFooter(state: state, itemName: "works")
+                    PaginatedListFooter(state: state, itemName: "works")
 
-                Divider()
+                    Divider()
 
-                Button("Set Total to 50") {
+                    Button("Set Total to 50") {
+                        state.updateTotal(50)
+                    }
+                    Button("Reset") {
+                        state.reset()
+                    }
+                }
+                .padding()
+                .onAppear {
                     state.updateTotal(50)
                 }
-                Button("Reset") {
-                    state.reset()
-                }
-            }
-            .padding()
-            .onAppear {
-                state.updateTotal(50)
             }
         }
-    }
 
-    return PreviewWrapper()
+        return PreviewWrapper()
+    }
+}
+
+#Preview("Pagination Footer") {
+    PaginatedListPreview()
 }

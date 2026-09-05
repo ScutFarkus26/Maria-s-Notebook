@@ -303,16 +303,24 @@ struct OpenWorkGrid: View {
 
 }
 
+// The `#Preview` closure is expanded and type-checked in every compiler job
+// for the module; a private view is checked once, in this file's job.
+private struct OpenWorkGridPreview: View {
+    var body: some View {
+        OpenWorkGrid(
+            works: [],
+            lessonsByID: [:],
+            studentsByID: [:],
+            attentionWorkIDs: [],
+            sortMode: .lesson,
+            onOpen: { _ in },
+            onMarkCompleted: { _ in },
+            onSchedule: { _, _ in }
+        )
+        .previewEnvironment()
+    }
+}
+
 #Preview {
-    OpenWorkGrid(
-        works: [],
-        lessonsByID: [:],
-        studentsByID: [:],
-        attentionWorkIDs: [],
-        sortMode: .lesson,
-        onOpen: { _ in },
-        onMarkCompleted: { _ in },
-        onSchedule: { _, _ in }
-    )
-    .previewEnvironment()
+    OpenWorkGridPreview()
 }

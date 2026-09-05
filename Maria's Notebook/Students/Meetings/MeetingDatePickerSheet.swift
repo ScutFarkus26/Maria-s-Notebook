@@ -53,8 +53,16 @@ struct MeetingDatePickerSheet: View {
     }
 }
 
-#Preview {
-    MeetingDatePickerSheet(studentName: "Alan T.") { date in
-        print("Scheduled for \(date)")
+// The `#Preview` closure is expanded and type-checked in every compiler job
+// for the module; a private view is checked once, in this file's job.
+private struct MeetingDatePickerSheetPreview: View {
+    var body: some View {
+        MeetingDatePickerSheet(studentName: "Alan T.") { date in
+            print("Scheduled for \(date)")
+        }
     }
+}
+
+#Preview {
+    MeetingDatePickerSheetPreview()
 }

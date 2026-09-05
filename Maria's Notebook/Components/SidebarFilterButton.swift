@@ -148,24 +148,32 @@ struct SidebarFilterButton: View {
     }
 }
 
-#Preview {
-    VStack(alignment: .leading, spacing: 8) {
-        SidebarFilterButton(
-            icon: "folder.fill",
-            title: "Example",
-            color: .blue,
-            isSelected: true,
-            trailingIcon: "chevron.right",
-            trailingIconRotationDegrees: 90,
-            action: {}
-        )
-        SidebarFilterButton(
-            icon: "doc.text",
-            title: "Example 2",
-            color: .pink,
-            isSelected: false,
-            action: {}
-        )
+// The `#Preview` closure is expanded and type-checked in every compiler job
+// for the module; a private view is checked once, in this file's job.
+private struct SidebarFilterButtonPreview: View {
+    var body: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            SidebarFilterButton(
+                icon: "folder.fill",
+                title: "Example",
+                color: .blue,
+                isSelected: true,
+                trailingIcon: "chevron.right",
+                trailingIconRotationDegrees: 90,
+                action: {}
+            )
+            SidebarFilterButton(
+                icon: "doc.text",
+                title: "Example 2",
+                color: .pink,
+                isSelected: false,
+                action: {}
+            )
+        }
+        .padding()
     }
-    .padding()
+}
+
+#Preview {
+    SidebarFilterButtonPreview()
 }

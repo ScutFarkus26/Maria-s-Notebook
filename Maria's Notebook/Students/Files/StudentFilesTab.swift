@@ -245,6 +245,14 @@ private enum StudentFilesTabPreviewFactory {
     }
 }
 
+// The `#Preview` closure is expanded and type-checked in every compiler job
+// for the module; a private view is checked once, in this file's job.
+private struct StudentFilesTabPreview: View {
+    var body: some View {
+        StudentFilesTabPreviewFactory.makeView()
+    }
+}
+
 #Preview {
-    StudentFilesTabPreviewFactory.makeView()
+    StudentFilesTabPreview()
 }

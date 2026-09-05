@@ -42,6 +42,7 @@ DEVELOPER_DIR="/Applications/Xcode-beta.app/Contents/Developer" \
 - There are no script build phases. If one is ever added (SwiftLint, codegen), it must declare input and output file lists, or Xcode re-runs it on every build and invalidates downstream products.
 - Debug builds warn on functions and expressions that take over 100 ms to type-check. Treat those warnings as bugs: split the body or add an explicit type annotation.
 - Iterate on UI/data with **Run Without Building** (⌃⌘R) when the source has not changed; keep one DerivedData folder per project path.
+- A `#Preview` closure is a module-level macro, so the compiler expands and type-checks its body in **every** frontend job for the module (47 batches in a clean build), not just the file's own. Every preview body therefore lives in a `private struct <File>Preview: View` in the same file and the macro body is the single call `<File>Preview()`. Hoisting all 92 previews cut clean-build type checking by 29% (2026-09-04). `@Previewable @State` becomes `@State private var` on that struct. `python3 Scripts/hoist_previews.py "Maria's Notebook"` lists any preview that has drifted back; `--apply` rewrites it.
 
 ## Project Structure
 

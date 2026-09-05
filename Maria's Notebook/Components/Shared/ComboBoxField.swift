@@ -39,16 +39,24 @@ struct ComboBoxField: View {
     }
 }
 
-#Preview {
-    @Previewable @State var text = "Math"
+// The `#Preview` closure is expanded and type-checked in every compiler job
+// for the module; a private view is checked once, in this file's job.
+private struct ComboBoxFieldPreview: View {
+    @State private var text = "Math"
 
-    VStack(spacing: 20) {
-        ComboBoxField(
-            title: "Area",
-            text: $text,
-            options: ["Math", "Language", "Science", "Practical Life"]
-        )
+    var body: some View {
+        VStack(spacing: 20) {
+            ComboBoxField(
+                title: "Area",
+                text: $text,
+                options: ["Math", "Language", "Science", "Practical Life"]
+            )
+        }
+        .padding()
+        .frame(width: 300)
     }
-    .padding()
-    .frame(width: 300)
+}
+
+#Preview {
+    ComboBoxFieldPreview()
 }

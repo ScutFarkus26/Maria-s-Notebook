@@ -94,7 +94,7 @@ struct PracticeSessionSheet: View {
     private var canSave: Bool {
         !selectedStudentIDs.isEmpty && !selectedWorkItemIDs.isEmpty
     }
-    
+
     var body: some View {
         NavigationStack {
             VStack(spacing: 0) {
@@ -319,30 +319,38 @@ struct PracticeSessionSheet: View {
 
 // MARK: - Preview
 
+// The `#Preview` closure is expanded and type-checked in every compiler job
+// for the module; a private view is checked once, in this file's job.
+private struct PracticeSessionSheetPreview: View {
+    var body: some View {
+        let stack = CoreDataStack.preview
+        let ctx = stack.viewContext
+
+        let mary = CDStudent(context: ctx)
+        mary.firstName = "Mary"; mary.lastName = "Smith"; mary.birthday = Date(); mary.level = .lower
+        let danny = CDStudent(context: ctx)
+        danny.firstName = "Danny"; danny.lastName = "Jones"; danny.birthday = Date(); danny.level = .lower
+        let jane = CDStudent(context: ctx)
+        jane.firstName = "Jane"; jane.lastName = "Doe"; jane.birthday = Date(); jane.level = .lower
+
+        let lesson = CDLesson(context: ctx)
+        lesson.name = "Long Division"; lesson.area = "Math"; lesson.sequence = "Operations"
+
+        let work1 = CDWorkModel(context: ctx)
+        work1.title = "Practice Long Division"; work1.kind = .practiceLesson
+        work1.studentID = danny.id?.uuidString ?? ""; work1.lessonID = lesson.id?.uuidString ?? ""
+        let work2 = CDWorkModel(context: ctx)
+        work2.title = "Practice Long Division"; work2.kind = .practiceLesson
+        work2.studentID = mary.id?.uuidString ?? ""; work2.lessonID = lesson.id?.uuidString ?? ""
+        let work3 = CDWorkModel(context: ctx)
+        work3.title = "Practice Long Division"; work3.kind = .practiceLesson
+        work3.studentID = jane.id?.uuidString ?? ""; work3.lessonID = lesson.id?.uuidString ?? ""
+
+        return PracticeSessionSheet(initialWorkItem: work1)
+            .previewEnvironment(using: stack)
+    }
+}
+
 #Preview("Group Practice Sheet") {
-    let stack = CoreDataStack.preview
-    let ctx = stack.viewContext
-
-    let mary = CDStudent(context: ctx)
-    mary.firstName = "Mary"; mary.lastName = "Smith"; mary.birthday = Date(); mary.level = .lower
-    let danny = CDStudent(context: ctx)
-    danny.firstName = "Danny"; danny.lastName = "Jones"; danny.birthday = Date(); danny.level = .lower
-    let jane = CDStudent(context: ctx)
-    jane.firstName = "Jane"; jane.lastName = "Doe"; jane.birthday = Date(); jane.level = .lower
-
-    let lesson = CDLesson(context: ctx)
-    lesson.name = "Long Division"; lesson.area = "Math"; lesson.sequence = "Operations"
-
-    let work1 = CDWorkModel(context: ctx)
-    work1.title = "Practice Long Division"; work1.kind = .practiceLesson
-    work1.studentID = danny.id?.uuidString ?? ""; work1.lessonID = lesson.id?.uuidString ?? ""
-    let work2 = CDWorkModel(context: ctx)
-    work2.title = "Practice Long Division"; work2.kind = .practiceLesson
-    work2.studentID = mary.id?.uuidString ?? ""; work2.lessonID = lesson.id?.uuidString ?? ""
-    let work3 = CDWorkModel(context: ctx)
-    work3.title = "Practice Long Division"; work3.kind = .practiceLesson
-    work3.studentID = jane.id?.uuidString ?? ""; work3.lessonID = lesson.id?.uuidString ?? ""
-
-    return PracticeSessionSheet(initialWorkItem: work1)
-        .previewEnvironment(using: stack)
+    PracticeSessionSheetPreview()
 }

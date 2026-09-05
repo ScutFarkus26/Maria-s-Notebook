@@ -62,6 +62,14 @@ struct DaysSinceLastLessonView: View {
     }
 }
 
+// The `#Preview` closure is expanded and type-checked in every compiler job
+// for the module; a private view is checked once, in this file's job.
+private struct DaysSinceLastLessonViewPreview: View {
+    var body: some View {
+        Text("DaysSinceLastLessonView Preview requires app data.")
+    }
+}
+
 #Preview {
-    Text("DaysSinceLastLessonView Preview requires app data.")
+    DaysSinceLastLessonViewPreview()
 }

@@ -151,6 +151,14 @@ struct OpenAIAPIKeySettingsView: View {
     }
 }
 
+// The `#Preview` closure is expanded and type-checked in every compiler job
+// for the module; a private view is checked once, in this file's job.
+private struct OpenAIAPIKeySettingsViewPreview: View {
+    var body: some View {
+        NavigationStack { OpenAIAPIKeySettingsView() }
+    }
+}
+
 #Preview {
-    NavigationStack { OpenAIAPIKeySettingsView() }
+    OpenAIAPIKeySettingsViewPreview()
 }

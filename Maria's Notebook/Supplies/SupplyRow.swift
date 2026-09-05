@@ -74,33 +74,41 @@ struct SupplyRow: View {
     }
 }
 
-#Preview {
-    let stack = CoreDataStack.preview
-    let ctx = stack.viewContext
+// The `#Preview` closure is expanded and type-checked in every compiler job
+// for the module; a private view is checked once, in this file's job.
+private struct SupplyRowPreview: View {
+    var body: some View {
+        let stack = CoreDataStack.preview
+        let ctx = stack.viewContext
 
-    let s1 = CDSupply(context: ctx)
-    s1.name = "Crayons (24-pack)"
-    s1.category = .art
-    s1.location = "Cabinet A"
-    s1.currentQuantity = 12
+        let s1 = CDSupply(context: ctx)
+        s1.name = "Crayons (24-pack)"
+        s1.category = .art
+        s1.location = "Cabinet A"
+        s1.currentQuantity = 12
 
-    let s2 = CDSupply(context: ctx)
-    s2.name = "Safety Scissors"
-    s2.category = .art
-    s2.location = "Drawer 2"
-    s2.currentQuantity = 4
+        let s2 = CDSupply(context: ctx)
+        s2.name = "Safety Scissors"
+        s2.category = .art
+        s2.location = "Drawer 2"
+        s2.currentQuantity = 4
 
-    let s3 = CDSupply(context: ctx)
-    s3.name = "Number Rods"
-    s3.category = .math
-    s3.location = "Shelf B3"
-    s3.currentQuantity = 0
+        let s3 = CDSupply(context: ctx)
+        s3.name = "Number Rods"
+        s3.category = .math
+        s3.location = "Shelf B3"
+        s3.currentQuantity = 0
 
-    return VStack(spacing: 12) {
-        SupplyRow(supply: s1)
-        SupplyRow(supply: s2)
-        SupplyRow(supply: s3)
+        return VStack(spacing: 12) {
+            SupplyRow(supply: s1)
+            SupplyRow(supply: s2)
+            SupplyRow(supply: s3)
+        }
+        .padding()
+        .previewEnvironment(using: stack)
     }
-    .padding()
-    .previewEnvironment(using: stack)
+}
+
+#Preview {
+    SupplyRowPreview()
 }

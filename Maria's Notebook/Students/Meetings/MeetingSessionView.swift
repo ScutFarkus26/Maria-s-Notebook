@@ -130,23 +130,31 @@ struct MeetingSessionView: View {
 
 // MARK: - Preview
 
-#Preview {
-    let stack = CoreDataStack.preview
-    let ctx = stack.viewContext
-    let student = CDStudent(context: ctx)
-    student.firstName = "Alan"
-    student.lastName = "Turing"
-    student.birthday = Date(timeIntervalSince1970: 0)
-    student.level = .upper
+// The `#Preview` closure is expanded and type-checked in every compiler job
+// for the module; a private view is checked once, in this file's job.
+private struct MeetingSessionViewPreview: View {
+    var body: some View {
+        let stack = CoreDataStack.preview
+        let ctx = stack.viewContext
+        let student = CDStudent(context: ctx)
+        student.firstName = "Alan"
+        student.lastName = "Turing"
+        student.birthday = Date(timeIntervalSince1970: 0)
+        student.level = .upper
 
-    return MeetingSessionView(
-        student: student,
-        allWorkModels: [],
-        allLessonAssignments: [],
-        lessons: [],
-        meetings: [],
-        meetingTemplates: [],
-        workOverdueDays: 14
-    )
-    .previewEnvironment(using: stack)
+        return MeetingSessionView(
+            student: student,
+            allWorkModels: [],
+            allLessonAssignments: [],
+            lessons: [],
+            meetings: [],
+            meetingTemplates: [],
+            workOverdueDays: 14
+        )
+        .previewEnvironment(using: stack)
+    }
+}
+
+#Preview {
+    MeetingSessionViewPreview()
 }

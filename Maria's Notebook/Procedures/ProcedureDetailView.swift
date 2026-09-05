@@ -257,39 +257,47 @@ struct ProcedureDetailView: View {
     }
 }
 
+// The `#Preview` closure is expanded and type-checked in every compiler job
+// for the module; a private view is checked once, in this file's job.
+private struct ProcedureDetailViewPreview: View {
+    var body: some View {
+        let stack = CoreDataStack.preview
+        let ctx = stack.viewContext
+        let procedure = CDProcedure(context: ctx)
+        procedure.title = "Morning Arrival"
+        procedure.summary = "Steps for welcoming students and starting the day"
+        procedure.content = """
+            ## Overview
+
+            This procedure outlines the steps for welcoming students each morning \
+            and establishing a calm start to the day.
+
+            ## Steps
+
+            1. **7:45 AM** - Unlock classroom and prepare materials
+            2. **8:00 AM** - Greet students at the door
+            3. **8:00-8:15** - Students unpack and choose morning work
+            4. **8:15 AM** - Morning circle begins
+
+            ## Materials Needed
+
+            - Attendance clipboard
+            - Morning work bins
+            - Circle time materials
+
+            ## Notes
+
+            - Allow 2-3 minutes grace period for late arrivals
+            - Substitute teachers: see backup folder in desk
+            """
+        procedure.category = .dailyRoutines
+        procedure.icon = "sunrise"
+
+        return ProcedureDetailView(procedure: procedure)
+            .previewEnvironment(using: stack)
+    }
+}
+
 #Preview {
-    let stack = CoreDataStack.preview
-    let ctx = stack.viewContext
-    let procedure = CDProcedure(context: ctx)
-    procedure.title = "Morning Arrival"
-    procedure.summary = "Steps for welcoming students and starting the day"
-    procedure.content = """
-        ## Overview
-
-        This procedure outlines the steps for welcoming students each morning \
-        and establishing a calm start to the day.
-
-        ## Steps
-
-        1. **7:45 AM** - Unlock classroom and prepare materials
-        2. **8:00 AM** - Greet students at the door
-        3. **8:00-8:15** - Students unpack and choose morning work
-        4. **8:15 AM** - Morning circle begins
-
-        ## Materials Needed
-
-        - Attendance clipboard
-        - Morning work bins
-        - Circle time materials
-
-        ## Notes
-
-        - Allow 2-3 minutes grace period for late arrivals
-        - Substitute teachers: see backup folder in desk
-        """
-    procedure.category = .dailyRoutines
-    procedure.icon = "sunrise"
-
-    return ProcedureDetailView(procedure: procedure)
-        .previewEnvironment(using: stack)
+    ProcedureDetailViewPreview()
 }

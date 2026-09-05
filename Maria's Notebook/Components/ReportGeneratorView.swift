@@ -415,10 +415,18 @@ struct PDFKitView: NSViewRepresentable {
 
 // MARK: - Preview
 
+// The `#Preview` closure is expanded and type-checked in every compiler job
+// for the module; a private view is checked once, in this file's job.
+private struct ReportGeneratorViewPreview: View {
+    var body: some View {
+        let stack = CoreDataStack.preview
+        let student = CDStudent(context: stack.viewContext)
+        _ = { student.firstName = "Test"; student.lastName = "Student" }()
+        return ReportGeneratorView(student: student)
+            .previewEnvironment(using: stack)
+    }
+}
+
 #Preview {
-    let stack = CoreDataStack.preview
-    let student = CDStudent(context: stack.viewContext)
-    _ = { student.firstName = "Test"; student.lastName = "Student" }()
-    return ReportGeneratorView(student: student)
-        .previewEnvironment(using: stack)
+    ReportGeneratorViewPreview()
 }

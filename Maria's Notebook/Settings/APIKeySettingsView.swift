@@ -26,7 +26,7 @@ struct APIKeySettingsView: View {
     @State private var showingKey = false
     @State private var saveMessage: String?
     @State private var showingInfoSheet = false
-    
+
     var body: some View {
         Form {
             Section {
@@ -167,7 +167,7 @@ struct APIKeySettingsView: View {
 
 struct APIKeyInformationSheet: View {
     @Environment(\.dismiss) private var dismiss
-    
+
     var body: some View {
         NavigationStack {
             ScrollView {
@@ -264,8 +264,16 @@ struct APIKeyInformationSheet: View {
 
 // MARK: - Preview
 
-#Preview {
-    NavigationStack {
-        APIKeySettingsView()
+// The `#Preview` closure is expanded and type-checked in every compiler job
+// for the module; a private view is checked once, in this file's job.
+private struct APIKeySettingsViewPreview: View {
+    var body: some View {
+        NavigationStack {
+            APIKeySettingsView()
+        }
     }
+}
+
+#Preview {
+    APIKeySettingsViewPreview()
 }

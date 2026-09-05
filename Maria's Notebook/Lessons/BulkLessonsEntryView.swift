@@ -398,7 +398,15 @@ public struct BulkLessonsEntryView: View {
     }
 }
 
+// The `#Preview` closure is expanded and type-checked in every compiler job
+// for the module; a private view is checked once, in this file's job.
+private struct BulkLessonsEntryViewPreview: View {
+    var body: some View {
+        BulkLessonsEntryView(defaultArea: "Math", defaultSequence: "Decimal System")
+            .previewEnvironment()
+    }
+}
+
 #Preview {
-    BulkLessonsEntryView(defaultArea: "Math", defaultSequence: "Decimal System")
-        .previewEnvironment()
+    BulkLessonsEntryViewPreview()
 }

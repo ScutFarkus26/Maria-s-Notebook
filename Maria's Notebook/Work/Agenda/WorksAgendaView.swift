@@ -295,18 +295,26 @@ struct WorksAgendaView: View {
     var showsWorkGrid: Bool { workspaceKind == .work }
 }
 
+// The `#Preview` closure is expanded and type-checked in every compiler job
+// for the module; a private view is checked once, in this file's job.
+private struct WorksAgendaViewPreview: View {
+    var body: some View {
+        let stack = CoreDataStack.preview
+        let ctx = stack.viewContext
+
+        let s = CDStudent(context: ctx)
+        s.firstName = "Ada"; s.lastName = "Lovelace"; s.birthday = Date(); s.level = .upper
+        let l = CDLesson(context: ctx)
+        l.name = "Long Division"; l.area = "Math"; l.sequence = "Ops"
+        let w = CDWorkModel(context: ctx)
+        w.status = .active; w.studentID = s.id?.uuidString ?? ""; w.lessonID = l.id?.uuidString ?? ""
+
+        return WorksAgendaView()
+            .previewEnvironment(using: stack)
+            .environment(SaveCoordinator.preview)
+    }
+}
+
 #Preview {
-    let stack = CoreDataStack.preview
-    let ctx = stack.viewContext
-
-    let s = CDStudent(context: ctx)
-    s.firstName = "Ada"; s.lastName = "Lovelace"; s.birthday = Date(); s.level = .upper
-    let l = CDLesson(context: ctx)
-    l.name = "Long Division"; l.area = "Math"; l.sequence = "Ops"
-    let w = CDWorkModel(context: ctx)
-    w.status = .active; w.studentID = s.id?.uuidString ?? ""; w.lessonID = l.id?.uuidString ?? ""
-
-    return WorksAgendaView()
-        .previewEnvironment(using: stack)
-        .environment(SaveCoordinator.preview)
+    WorksAgendaViewPreview()
 }

@@ -242,19 +242,27 @@ private struct StudentRowView: View {
         }
     }
 }
+// The `#Preview` closure is expanded and type-checked in every compiler job
+// for the module; a private view is checked once, in this file's job.
+private struct StudentImportPreviewViewPreview: View {
+    var body: some View {
+        let rows = [
+            StudentCSVImporter.Row(
+                firstName: "Alex", lastName: "Rivera",
+                birthday: Date(timeIntervalSince1970: 0),
+                dateStarted: Date(timeIntervalSince1970: 100000), level: .upper
+            ),
+            StudentCSVImporter.Row(firstName: "Blair", lastName: "Chen", birthday: nil, dateStarted: nil, level: .lower)
+        ]
+        let parsed = StudentCSVImporter.Parsed(
+            rows: rows, totalRows: rows.count,
+            potentialDuplicates: ["Alex Rivera"],
+            warnings: ["Row 4: Missing first or last name; row skipped."]
+        )
+        return StudentImportPreviewView(parsed: parsed, onCancel: {}, onConfirm: { _ in })
+    }
+}
+
 #Preview {
-    let rows = [
-        StudentCSVImporter.Row(
-            firstName: "Alex", lastName: "Rivera",
-            birthday: Date(timeIntervalSince1970: 0),
-            dateStarted: Date(timeIntervalSince1970: 100000), level: .upper
-        ),
-        StudentCSVImporter.Row(firstName: "Blair", lastName: "Chen", birthday: nil, dateStarted: nil, level: .lower)
-    ]
-    let parsed = StudentCSVImporter.Parsed(
-        rows: rows, totalRows: rows.count,
-        potentialDuplicates: ["Alex Rivera"],
-        warnings: ["Row 4: Missing first or last name; row skipped."]
-    )
-    return StudentImportPreviewView(parsed: parsed, onCancel: {}, onConfirm: { _ in })
+    StudentImportPreviewViewPreview()
 }

@@ -468,16 +468,24 @@ struct StudentMeetingsTab: View {
 
 }
 
-#Preview {
-    let stack = CoreDataStack.preview
-    let ctx = stack.viewContext
-    let student = CDStudent(context: ctx)
-    student.firstName = "Alan"
-    student.lastName = "Turing"
-    student.birthday = Date(timeIntervalSince1970: 0)
-    student.level = .upper
+// The `#Preview` closure is expanded and type-checked in every compiler job
+// for the module; a private view is checked once, in this file's job.
+private struct StudentMeetingsTabPreview: View {
+    var body: some View {
+        let stack = CoreDataStack.preview
+        let ctx = stack.viewContext
+        let student = CDStudent(context: ctx)
+        student.firstName = "Alan"
+        student.lastName = "Turing"
+        student.birthday = Date(timeIntervalSince1970: 0)
+        student.level = .upper
 
-    return StudentMeetingsTab(student: student)
-        .previewEnvironment(using: stack)
-        .padding()
+        return StudentMeetingsTab(student: student)
+            .previewEnvironment(using: stack)
+            .padding()
+    }
+}
+
+#Preview {
+    StudentMeetingsTabPreview()
 }

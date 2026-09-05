@@ -258,7 +258,15 @@ extension Color {
     }
 }
 
+// The `#Preview` closure is expanded and type-checked in every compiler job
+// for the module; a private view is checked once, in this file's job.
+private struct SchedulesViewPreview: View {
+    var body: some View {
+        SchedulesView()
+            .previewEnvironment()
+    }
+}
+
 #Preview {
-    SchedulesView()
-        .previewEnvironment()
+    SchedulesViewPreview()
 }

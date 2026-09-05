@@ -217,12 +217,20 @@ struct ScheduleDetailSheet: View {
     }
 }
 
-#Preview {
-    let stack = CoreDataStack.preview
-    let ctx = stack.viewContext
-    let schedule = CDSchedule(context: ctx)
-    schedule.name = "Reading Support"
+// The `#Preview` closure is expanded and type-checked in every compiler job
+// for the module; a private view is checked once, in this file's job.
+private struct ScheduleDetailSheetPreview: View {
+    var body: some View {
+        let stack = CoreDataStack.preview
+        let ctx = stack.viewContext
+        let schedule = CDSchedule(context: ctx)
+        schedule.name = "Reading Support"
 
-    return ScheduleDetailSheet(schedule: schedule) { _ in }
-        .previewEnvironment(using: stack)
+        return ScheduleDetailSheet(schedule: schedule) { _ in }
+            .previewEnvironment(using: stack)
+    }
+}
+
+#Preview {
+    ScheduleDetailSheetPreview()
 }

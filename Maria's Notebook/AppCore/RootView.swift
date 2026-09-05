@@ -656,13 +656,21 @@ struct RootView: View {
 
 }
 
+// The `#Preview` closure is expanded and type-checked in every compiler job
+// for the module; a private view is checked once, in this file's job.
+private struct RootViewPreview: View {
+    var body: some View {
+        let dependencies = AppDependencies(coreDataStack: CoreDataStack.preview)
+        let workspace = ClassroomWorkspaceStore(
+            primaryStack: CoreDataStack.preview,
+            primaryDependencies: dependencies
+        )
+        RootView(classroomWorkspace: workspace)
+            .environment(\.dependencies, dependencies)
+            .previewEnvironment(using: CoreDataStack.preview)
+    }
+}
+
 #Preview {
-    let dependencies = AppDependencies(coreDataStack: CoreDataStack.preview)
-    let workspace = ClassroomWorkspaceStore(
-        primaryStack: CoreDataStack.preview,
-        primaryDependencies: dependencies
-    )
-    RootView(classroomWorkspace: workspace)
-        .environment(\.dependencies, dependencies)
-        .previewEnvironment(using: CoreDataStack.preview)
+    RootViewPreview()
 }

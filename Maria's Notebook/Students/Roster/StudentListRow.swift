@@ -204,19 +204,27 @@ struct StudentListRow: View {
     }
 }
 
-#Preview {
-    let stack = CoreDataStack.preview
-    let ctx = stack.viewContext
-    let student = CDStudent(context: ctx)
-    student.firstName = "John"
-    student.lastName = "Doe"
-    student.birthday = Date()
-    student.level = .upper
+// The `#Preview` closure is expanded and type-checked in every compiler job
+// for the module; a private view is checked once, in this file's job.
+private struct StudentListRowPreview: View {
+    var body: some View {
+        let stack = CoreDataStack.preview
+        let ctx = stack.viewContext
+        let student = CDStudent(context: ctx)
+        student.firstName = "John"
+        student.lastName = "Doe"
+        student.birthday = Date()
+        student.level = .upper
 
-    return List {
-        StudentListRow(student: student, sortOrder: .alphabetical, daysSinceLastLesson: 12, isPresentToday: true)
-        StudentListRow(student: student, sortOrder: .birthday, daysSinceLastLesson: nil)
-        StudentListRow(student: student, sortOrder: .age, daysSinceLastLesson: nil)
+        return List {
+            StudentListRow(student: student, sortOrder: .alphabetical, daysSinceLastLesson: 12, isPresentToday: true)
+            StudentListRow(student: student, sortOrder: .birthday, daysSinceLastLesson: nil)
+            StudentListRow(student: student, sortOrder: .age, daysSinceLastLesson: nil)
+        }
+        .previewEnvironment(using: stack)
     }
-    .previewEnvironment(using: stack)
+}
+
+#Preview {
+    StudentListRowPreview()
 }

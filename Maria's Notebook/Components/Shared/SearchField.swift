@@ -9,7 +9,7 @@ struct SearchField: View {
         self.placeholder = placeholder
         self._text = text
     }
-    
+
     var body: some View {
         HStack(spacing: AppTheme.Spacing.small) {
             Image(systemName: "magnifyingglass")
@@ -34,12 +34,20 @@ struct SearchField: View {
     }
 }
 
-#Preview {
-    @Previewable @State var searchText = ""
-    
-    VStack(spacing: 16) {
-        SearchField(text: $searchText)
-        SearchField("Find students", text: $searchText)
+// The `#Preview` closure is expanded and type-checked in every compiler job
+// for the module; a private view is checked once, in this file's job.
+private struct SearchFieldPreview: View {
+    @State private var searchText = ""
+
+    var body: some View {
+        VStack(spacing: 16) {
+            SearchField(text: $searchText)
+            SearchField("Find students", text: $searchText)
+        }
+        .padding()
     }
-    .padding()
+}
+
+#Preview {
+    SearchFieldPreview()
 }

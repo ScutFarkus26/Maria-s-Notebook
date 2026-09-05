@@ -348,7 +348,15 @@ struct MeetingsWorkflowView: View {
 
 // MARK: - Preview
 
+// The `#Preview` closure is expanded and type-checked in every compiler job
+// for the module; a private view is checked once, in this file's job.
+private struct MeetingsWorkflowViewPreview: View {
+    var body: some View {
+        MeetingsWorkflowView()
+            .previewEnvironment()
+    }
+}
+
 #Preview {
-    MeetingsWorkflowView()
-        .previewEnvironment()
+    MeetingsWorkflowViewPreview()
 }

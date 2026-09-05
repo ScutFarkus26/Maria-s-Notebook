@@ -408,8 +408,16 @@ struct PresentationQuickActionsView: View {
     }
 }
 
+// The `#Preview` closure is expanded and type-checked in every compiler job
+// for the module; a private view is checked once, in this file's job.
+private struct PresentationQuickActionsViewPreview: View {
+    var body: some View {
+        Text("PresentationQuickActionsView preview requires real SwiftData context and cannot run here.")
+            .frame(minWidth: 360, minHeight: 240)
+            .padding()
+    }
+}
+
 #Preview {
-    Text("PresentationQuickActionsView preview requires real SwiftData context and cannot run here.")
-        .frame(minWidth: 360, minHeight: 240)
-        .padding()
+    PresentationQuickActionsViewPreview()
 }

@@ -25,15 +25,23 @@ public struct ParsingOverlay: View {
     }
 }
 
-#Preview {
-    struct PreviewWrapper: View {
-        @State private var isParsing = true
+// The `#Preview` closure is expanded and type-checked in every compiler job
+// for the module; a private view is checked once, in this file's job.
+private struct ParsingOverlayPreview: View {
+    var body: some View {
+        struct PreviewWrapper: View {
+            @State private var isParsing = true
 
-        var body: some View {
-            ParsingOverlay(isParsing: $isParsing, onCancel: {
-                isParsing = false
-            })
+            var body: some View {
+                ParsingOverlay(isParsing: $isParsing, onCancel: {
+                    isParsing = false
+                })
+            }
         }
+        return PreviewWrapper()
     }
-    return PreviewWrapper()
+}
+
+#Preview {
+    ParsingOverlayPreview()
 }

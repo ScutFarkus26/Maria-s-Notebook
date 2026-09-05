@@ -270,9 +270,17 @@ private struct NoteTemplatePreviewSheet: View {
 
 // MARK: - Preview
 
-#Preview {
-    NavigationStack {
-        NoteTemplateManagementView()
+// The `#Preview` closure is expanded and type-checked in every compiler job
+// for the module; a private view is checked once, in this file's job.
+private struct NoteTemplateManagementViewPreview: View {
+    var body: some View {
+        NavigationStack {
+            NoteTemplateManagementView()
+        }
+        .previewEnvironment()
     }
-    .previewEnvironment()
+}
+
+#Preview {
+    NoteTemplateManagementViewPreview()
 }

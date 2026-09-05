@@ -143,7 +143,15 @@ public struct ReminderSyncSettingsView: View {
     }
 }
 
+// The `#Preview` closure is expanded and type-checked in every compiler job
+// for the module; a private view is checked once, in this file's job.
+private struct ReminderSyncSettingsViewPreview: View {
+    var body: some View {
+        ReminderSyncSettingsView()
+            .previewEnvironment()
+    }
+}
+
 #Preview {
-    ReminderSyncSettingsView()
-        .previewEnvironment()
+    ReminderSyncSettingsViewPreview()
 }
